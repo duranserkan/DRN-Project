@@ -66,6 +66,42 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Common.Asp", "DRN.Commo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Common.Hosting", "DRN.Common.Hosting\DRN.Common.Hosting.csproj", "{B8F83858-DB21-44A8-A6F1-931ECDE46F77}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docker", "Docker", "{9D198C49-7A4A-4284-A344-12E162E3561C}"
+	ProjectSection(SolutionItems) = preProject
+		Docker\.dockerignore = Docker\.dockerignore
+		Docker\.env = Docker\.env
+		Docker\docker-compose.yml = Docker\docker-compose.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Graylog", "Graylog", "{6C33639B-9AB8-42D3-85A7-E307F50116DD}"
+	ProjectSection(SolutionItems) = preProject
+		Docker\Graylog\docker-compose.yml = Docker\Graylog\docker-compose.yml
+		Docker\Graylog\.env = Docker\Graylog\.env
+		Docker\Graylog\.dockerignore = Docker\Graylog\.dockerignore
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Postgre", "Postgre", "{D0477995-D8CB-4E0E-9E33-FE08AE4EAC95}"
+	ProjectSection(SolutionItems) = preProject
+		Docker\Postgre\docker-compose.yml = Docker\Postgre\docker-compose.yml
+		Docker\Postgre\.env = Docker\Postgre\.env
+		Docker\Postgre\.dockerignore = Docker\Postgre\.dockerignore
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Rabbitmq", "Rabbitmq", "{690B525D-D899-48F4-9FD0-23057E3E3D8C}"
+	ProjectSection(SolutionItems) = preProject
+		Docker\Rabbitmq\docker-compose.yml = Docker\Rabbitmq\docker-compose.yml
+		Docker\Rabbitmq\.env = Docker\Rabbitmq\.env
+		Docker\Rabbitmq\.dockerignore = Docker\Rabbitmq\.dockerignore
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "image", "image", "{CF67D1FA-CECE-4C91-9F27-E299A718298B}"
+	ProjectSection(SolutionItems) = preProject
+		Docker\Rabbitmq\image\definitions.json = Docker\Rabbitmq\image\definitions.json
+		Docker\Rabbitmq\image\Dockerfile = Docker\Rabbitmq\image\Dockerfile
+		Docker\Rabbitmq\image\rabbitmq.conf = Docker\Rabbitmq\image\rabbitmq.conf
+		Docker\Rabbitmq\image\rabbitmq_delayed_message_exchange-3.12.0.ez = Docker\Rabbitmq\image\rabbitmq_delayed_message_exchange-3.12.0.ez
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -188,5 +224,9 @@ Global
 		{07D2CAAA-93ED-423E-A474-A1AD25161C79} = {87133E66-EDE4-4D1A-A83B-59D26805DB51}
 		{0573F6B9-C631-4081-A3BA-8ACF113E609C} = {87133E66-EDE4-4D1A-A83B-59D26805DB51}
 		{B8F83858-DB21-44A8-A6F1-931ECDE46F77} = {87133E66-EDE4-4D1A-A83B-59D26805DB51}
+		{6C33639B-9AB8-42D3-85A7-E307F50116DD} = {9D198C49-7A4A-4284-A344-12E162E3561C}
+		{D0477995-D8CB-4E0E-9E33-FE08AE4EAC95} = {9D198C49-7A4A-4284-A344-12E162E3561C}
+		{690B525D-D899-48F4-9FD0-23057E3E3D8C} = {9D198C49-7A4A-4284-A344-12E162E3561C}
+		{CF67D1FA-CECE-4C91-9F27-E299A718298B} = {690B525D-D899-48F4-9FD0-23057E3E3D8C}
 	EndGlobalSection
 EndGlobal

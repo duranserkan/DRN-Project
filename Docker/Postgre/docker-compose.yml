@@ -1,0 +1,19 @@
+version: "3"
+
+services:
+  # https://hub.docker.com/_/postgres
+  postgre:
+    image: postgres:15.4-alpine3.18
+    container_name: postgre
+    restart: unless-stopped
+    volumes:
+      - postgre-data:/data/postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:? configure in the .env file}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:? configure in the .env file}
+      POSTGRES_DB: ${POSTGRES_DB:-drn}
+      PGDATA: ${PGDATA:-/data/postgres}
+volumes:
+  postgre-data:
