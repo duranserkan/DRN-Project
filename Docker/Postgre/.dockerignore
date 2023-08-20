@@ -30,6 +30,8 @@ README.md
 **/.idea
 **/.idea/workspace.xml
 **/.DS_Store
+**/.classpath
+
 # Alternative approach first ignore everything uncomment nextline
 #*
 # explictly add exceptions for required files/paths

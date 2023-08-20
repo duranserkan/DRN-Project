@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  sample:
+    image: ${DOCKER_REGISTRY-}sample:0.0.1
+    build:
+      context: .
+      dockerfile: Sample.Hosted/Dockerfile
+    ports:
+      - 81:8080

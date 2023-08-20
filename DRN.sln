@@ -102,6 +102,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "image", "image", "{CF67D1FA
 		Docker\Rabbitmq\image\rabbitmq_delayed_message_exchange-3.12.0.ez = Docker\Rabbitmq\image\rabbitmq_delayed_message_exchange-3.12.0.ez
 	EndProjectSection
 EndProject
+Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{4D309D5E-EF0D-48E8-A141-3077D94E5D7B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -192,6 +194,10 @@ Global
 		{B8F83858-DB21-44A8-A6F1-931ECDE46F77}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B8F83858-DB21-44A8-A6F1-931ECDE46F77}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B8F83858-DB21-44A8-A6F1-931ECDE46F77}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D309D5E-EF0D-48E8-A141-3077D94E5D7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D309D5E-EF0D-48E8-A141-3077D94E5D7B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D309D5E-EF0D-48E8-A141-3077D94E5D7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D309D5E-EF0D-48E8-A141-3077D94E5D7B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
