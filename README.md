@@ -9,7 +9,7 @@ This project is about managing software complexity, architecting good solutions 
 * Prioritize tasks - Use your insights or MoSCoW prioritization etc...
 * Warm up whenever possible - start with one easy task then focus on hard one.
 * Know your options 4D+E - Do it, drop it, delegate it, defer it or escalate.
-> 4D comes from David Allen's 4d model. +E is my personal addition to it. Escalation is your friend. Inform other and ask their opinions whenever you are not sure what to do.
+> 4D comes from David Allen's 4d model. +E is my personal addition to it. Escalation is your friend. Inform others and ask their opinions whenever you are not sure what to do.
 * Small things add up then become big thing. Do it while they are small and avoid stress.
 * Don't micro manage delegate whenever possible.
 * Don't over optimize. Good enough is better than excellent.
@@ -26,4 +26,23 @@ This project is about managing software complexity, architecting good solutions 
 * [Strategic Domain Driven Design](https://vaadin.com/blog/ddd-part-1-strategic-domain-driven-design)
 * [Tactical Domain Driven Design](https://vaadin.com/blog/ddd-part-2-tactical-domain-driven-design)
 * [DDD and Hexagonal Architecture](https://vaadin.com/blog/ddd-part-3-domain-driven-design-and-the-hexagonal-architecture)
+
+## Duran's Engineering Manifest
+Today, I hereby declare that as an engineer,
+* I am passionate about designing, developing, delivering high quality and cost-effective software.
+* I acquire new skills with continuous learning.
+* I am involved in every stage of the Software Development Life Cycle from planning to implementation.
+* I am a conceptual thinker.
+* I do not hesitate to take initiative.
+* I support all standardization activities that make my work easier and understandable.
+* I force myself to improve myself and those around me.
+* I won't be trapped in habits and comfort zone.
+* I pay attention to details and deal with problems with a holistic approach.
+* I care about quality in my work.
+* I do my best not to leave technical debt. If I have to leave technical debt, I will remove the technical debt as soon as possible.
+* I manage time and stress under pressure, and I am not afraid to compromise and ask for help.
+* I will always keep communication channels open.
+* I will always give constructive and positive feedback whenever possible and appropriate.
+* I will always be open to constructive and positive feedback.
+* I will always be conscientious, transparent and will live by values and goals.
 
