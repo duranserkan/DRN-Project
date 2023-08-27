@@ -1,11 +1,12 @@
 version: '3'
+name: drn-infra
 services:
   # https://hub.docker.com/_/rabbitmq
   rabbit:
     image: ${DOCKER_REGISTRY-}rabbit:3.12.2
     build:
       context: ./Rabbitmq/image/
-    container_name: rabbit
+    container_name: drn-infra-rabbit
     ports:
       - 5672:5672
       - 15672:15672
@@ -16,7 +17,7 @@ services:
   # https://hub.docker.com/_/postgres
   postgre:
     image: postgres:15.4-alpine3.18
-    container_name: postgre
+    container_name: drn-infra-postgre
     restart: unless-stopped
     volumes:
       - postgre-data:/data/postgres
@@ -30,7 +31,7 @@ services:
   # https://hub.docker.com/_/mongo/
   mongodb:
     image: "mongo:5.0.20"
-    container_name: mongo
+    container_name: drn-infra-mongo
     volumes:
       - "mongodb_data:/data/db"
     restart: "on-failure"
@@ -42,7 +43,7 @@ services:
   # https://hub.docker.com/r/opensearchproject/opensearch
   opensearch:
     image: "opensearchproject/opensearch:2.8.0"
-    container_name: opensearch
+    container_name: drn-infra-opensearch
     environment:
       - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
       - "bootstrap.memory_lock=true"
@@ -68,7 +69,7 @@ services:
   graylog:
     hostname: "server"
     image: "${GRAYLOG_IMAGE:-graylog/graylog:5.1.4}"
-    container_name: graylog
+    container_name: drn-infra-graylog
     depends_on:
       opensearch:
         condition: "service_started"

@@ -1,12 +1,12 @@
 version: '3'
-
+name: drn-rabbit
 services:
   # https://hub.docker.com/_/rabbitmq
   rabbit:
     image: ${DOCKER_REGISTRY-}rabbit:3.12.2
     build:
       context: ./image/
-    container_name: rabbit
+    container_name: drn-rabbit
     ports:
       - 5672:5672
       - 15672:15672

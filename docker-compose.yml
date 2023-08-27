@@ -1,7 +1,9 @@
 version: '3'
 
+name: drn-app
 services:
   sample:
+    container_name: drn-sample
     image: ${DOCKER_REGISTRY-}sample:0.0.1
     build:
       context: .
