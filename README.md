@@ -19,6 +19,7 @@ This project is about managing software complexity, architecting good solutions 
   * You can accomplish things that considered not possible if you understanding how things works.
   * Understand concepts and how they relate with each other.
 * Prefer quality over quantity
+* Always test before deliver
 
 ## About Architecture and Microservices
 * [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)
