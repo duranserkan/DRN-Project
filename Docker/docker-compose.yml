@@ -11,16 +11,16 @@ services:
       - 5672:5672
       - 15672:15672
     volumes:
-      - rabbit-log:/var/log/rabbitmq/
-      - rabbit-lib:/var/lib/rabbitmq/
-      - rabbit-etc:/etc/rabbitmq/
+      - drn-rabbit-log:/var/log/rabbitmq/
+      - drn-rabbit-lib:/var/lib/rabbitmq/
+      - drn-rabbit-etc:/etc/rabbitmq/
   # https://hub.docker.com/_/postgres
   postgre:
     image: postgres:15.4-alpine3.18
     container_name: drn-infra-postgre
     restart: unless-stopped
     volumes:
-      - postgre-data:/data/postgres
+      - drn-postgre-data:/data/postgres
     ports:
       - "5432:5432"
     environment:
@@ -33,7 +33,7 @@ services:
     image: "mongo:5.0.20"
     container_name: drn-infra-mongo
     volumes:
-      - "mongodb_data:/data/db"
+      - "drn-mongodb-data:/data/db"
     restart: "on-failure"
     deploy:
       resources:
@@ -62,7 +62,7 @@ services:
         soft: 65536
         hard: 65536
     volumes:
-      - "os_data:/usr/share/opensearch/data"
+      - "drn-os-data:/usr/share/opensearch/data"
     restart: "on-failure"
 
   # https://hub.docker.com/r/graylog/graylog/
@@ -98,15 +98,15 @@ services:
     - "13301:13301/tcp" # Forwarder data
     - "13302:13302/tcp" # Forwarder config
     volumes:
-      - "graylog_data:/usr/share/graylog/data/data"
-      - "graylog_journal:/usr/share/graylog/data/journal"
+      - "drn-graylog-data:/usr/share/graylog/data/data"
+      - "drn-graylog-journal:/usr/share/graylog/data/journal"
     restart: "on-failure"
 volumes:
-  mongodb_data:
-  os_data:
-  graylog_data:
-  graylog_journal:
-  postgre-data:
-  rabbit-log:
-  rabbit-lib:
-  rabbit-etc:
+  drn-mongodb-data:
+  drn-os-data:
+  drn-graylog-data:
+  drn-graylog-journal:
+  drn-postgre-data:
+  drn-rabbit-log:
+  drn-rabbit-lib:
+  drn-rabbit-etc:

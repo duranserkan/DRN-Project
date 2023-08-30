@@ -11,10 +11,10 @@ services:
       - 5672:5672
       - 15672:15672
     volumes:
-      - rabbit-log:/var/log/rabbitmq/
-      - rabbit-lib:/var/lib/rabbitmq/
-      - rabbit-etc:/etc/rabbitmq/
+      - drn-rabbit-log:/var/log/rabbitmq/
+      - drn-rabbit-lib:/var/lib/rabbitmq/
+      - drn-rabbit-etc:/etc/rabbitmq/
 volumes:
-  rabbit-log:
-  rabbit-lib:
-  rabbit-etc:
+  drn-rabbit-log:
+  drn-rabbit-lib:
+  drn-rabbit-etc:
