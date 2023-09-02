@@ -1,4 +1,4 @@
-LICENSE
+﻿LICENSE
 README.md
 **/node_modules
 **/npm-debug.log
@@ -31,8 +31,6 @@ README.md
 **/.idea/workspace.xml
 **/.DS_Store
 **/.classpath
-
-!docker-compose.dcproj
 
 # Alternative approach first ignore everything uncomment nextline
 #*

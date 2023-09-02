@@ -8,5 +8,12 @@ services:
     build:
       context: .
       dockerfile: Sample.Hosted/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:5999
     ports:
-      - 81:8080
+      - "5999:5999/udp"
+      - "5999:5999/tcp"
+    volumes:
+      - ~/.aspnet/https:/https
+      - ~/.microsoft/usersecrets:/home/app/.microsoft/usersecrets
