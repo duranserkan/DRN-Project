@@ -15,5 +15,6 @@ services:
       - "5999:5999/udp"
       - "5999:5999/tcp"
     volumes:
-      - ~/.aspnet/https:/https
-      - ~/.microsoft/usersecrets:/home/app/.microsoft/usersecrets
+      - ~/.aspnet/https:/https #map certificates
+      - ~/.microsoft/usersecrets:/home/app/.microsoft/usersecrets #map secrets for linux & macos
+      #- %APPDATA%\Microsoft\UserSecrets:/home/app/.microsoft/usersecrets  #map secrets for windows
