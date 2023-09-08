@@ -1,4 +1,4 @@
-﻿namespace DRN.App.Hosted;
+﻿namespace DRN.Nexus.Hosted;
 
 public class WeatherForecast
 {

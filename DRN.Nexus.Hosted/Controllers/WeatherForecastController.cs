@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
-namespace DRN.App.Hosted.Controllers;
+namespace DRN.Nexus.Hosted.Controllers;
 
 [ApiController]
 [Route("[controller]")]

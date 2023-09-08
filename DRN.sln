@@ -19,25 +19,25 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Src", "Src", "{6BD1164C-580
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Test", "Test", "{47ABF5D0-69DC-462D-B318-F8D6E5600603}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "App", "App", "{E1271972-C197-437A-A8A6-2F97B62F93B6}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nexus", "Nexus", "{E1271972-C197-437A-A8A6-2F97B62F93B6}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{87133E66-EDE4-4D1A-A83B-59D26805DB51}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Framework", "Framework", "{87133E66-EDE4-4D1A-A83B-59D26805DB51}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Sample", "Sample", "{CC05EB36-B2D9-40F6-B636-6AB42445FA95}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Test", "DRN.Test\DRN.Test.csproj", "{B1E0CC7B-1F06-4B61-B329-5CFE13B7FF83}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.App.Application", "DRN.App.Application\DRN.App.Application.csproj", "{9872F239-1D46-4118-9961-3EAA12B79752}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Nexus.Application", "DRN.Nexus.Application\DRN.Nexus.Application.csproj", "{9872F239-1D46-4118-9961-3EAA12B79752}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.App.Contract", "DRN.App.Contract\DRN.App.Contract.csproj", "{55A56D16-6380-4A8F-A163-9B196CB6E36D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Nexus.Contract", "DRN.Nexus.Contract\DRN.Nexus.Contract.csproj", "{55A56D16-6380-4A8F-A163-9B196CB6E36D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.App.Domain", "DRN.App.Domain\DRN.App.Domain.csproj", "{4C04A7D6-9EC8-4DA3-BBB6-D8E1421F0F71}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Nexus.Domain", "DRN.Nexus.Domain\DRN.Nexus.Domain.csproj", "{4C04A7D6-9EC8-4DA3-BBB6-D8E1421F0F71}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.App.Infra", "DRN.App.Infra\DRN.App.Infra.csproj", "{85A8738C-0370-46EF-9CE5-4419A25FED2F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Nexus.Infra", "DRN.Nexus.Infra\DRN.Nexus.Infra.csproj", "{85A8738C-0370-46EF-9CE5-4419A25FED2F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.App.Utils", "DRN.App.Utils\DRN.App.Utils.csproj", "{6E7756BD-AE55-4FF0-8A43-70C207E7F79B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Nexus.Utils", "DRN.Nexus.Utils\DRN.Nexus.Utils.csproj", "{6E7756BD-AE55-4FF0-8A43-70C207E7F79B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.App.Hosted", "DRN.App.Hosted\DRN.App.Hosted.csproj", "{0CA663FB-A8F2-4725-AD7E-BB59DB809E11}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Nexus.Hosted", "DRN.Nexus.Hosted\DRN.Nexus.Hosted.csproj", "{0CA663FB-A8F2-4725-AD7E-BB59DB809E11}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample.Hosted", "Sample.Hosted\Sample.Hosted.csproj", "{9FCB23EB-A24D-48AE-91B8-53C40A3122BE}"
 EndProject
@@ -51,21 +51,21 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample.Domain", "Sample.Dom
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample.Utils", "Sample.Utils\Sample.Utils.csproj", "{D1185297-7637-4751-999F-73409313B7C2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Common.Utils", "DRN.Common.Utils\DRN.Common.Utils.csproj", "{9561E0FD-F836-42AA-A31D-5F7FABF17FBD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Framework.Utils", "DRN.Framework.Utils\DRN.Framework.Utils.csproj", "{9561E0FD-F836-42AA-A31D-5F7FABF17FBD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Common.File", "DRN.Common.File\DRN.Common.File.csproj", "{036C2007-969F-4AAC-B229-B92D5D7064B1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Framework.File", "DRN.Framework.File\DRN.Framework.File.csproj", "{036C2007-969F-4AAC-B229-B92D5D7064B1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Common.MassTransit", "DRN.Common.MassTransit\DRN.Common.MassTransit.csproj", "{A05AE9D1-AF32-4269-B8AF-92706E13214B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Framework.MassTransit", "DRN.Framework.MassTransit\DRN.Framework.MassTransit.csproj", "{A05AE9D1-AF32-4269-B8AF-92706E13214B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Common.Jobs", "DRN.Common.Jobs\DRN.Common.Jobs.csproj", "{05432428-86DA-484B-B8A0-8539BA3384FE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Framework.Jobs", "DRN.Framework.Jobs\DRN.Framework.Jobs.csproj", "{05432428-86DA-484B-B8A0-8539BA3384FE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Common.EntityFramework", "DRN.Common.EntityFramework\DRN.Common.EntityFramework.csproj", "{0016810B-C212-411A-9C10-25D09A688544}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Framework.EntityFramework", "DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj", "{0016810B-C212-411A-9C10-25D09A688544}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Common.SharedKernel", "DRN.Common.SharedKernel\DRN.Common.SharedKernel.csproj", "{07D2CAAA-93ED-423E-A474-A1AD25161C79}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Framework.SharedKernel", "DRN.Framework.SharedKernel\DRN.Framework.SharedKernel.csproj", "{07D2CAAA-93ED-423E-A474-A1AD25161C79}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Common.Asp", "DRN.Common.Asp\DRN.Common.Asp.csproj", "{0573F6B9-C631-4081-A3BA-8ACF113E609C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Framework.Asp", "DRN.Framework.Asp\DRN.Framework.Asp.csproj", "{0573F6B9-C631-4081-A3BA-8ACF113E609C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Common.Hosting", "DRN.Common.Hosting\DRN.Common.Hosting.csproj", "{B8F83858-DB21-44A8-A6F1-931ECDE46F77}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Framework.Hosting", "DRN.Framework.Hosting\DRN.Framework.Hosting.csproj", "{B8F83858-DB21-44A8-A6F1-931ECDE46F77}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docker", "Docker", "{9D198C49-7A4A-4284-A344-12E162E3561C}"
 	ProjectSection(SolutionItems) = preProject
