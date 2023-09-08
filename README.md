@@ -5,9 +5,18 @@ The project benefits from the best practices, open source solutions and personal
 This project is about managing software complexity, architecting good solutions and a promise to deliver a good software.
 
 ## About Project
+DRN Project is not another framework `bites the dust.` It is more than a simple framework. It is a distilled knowledge that contains:
+- [X] A nexus app to manage microservices
+- [X] Management best practices
+- [X] Engineering manifest
+- [X] Reference documents
+- [X] A beautiful framework to work with.
+
+
 This project is result of a productive and curious mindset that respects good solutions and best practices of others while enjoys from creating its own.
-It is not about coding. It is about process of creating and enhancing good things. I expect it to be ready for general purpose usage with in 6 months. 
+It is not about coding. It is about process of creating and enhancing good things. I expect it to be ready for general purpose usage within 6 months. 
 Detailed documentation will be added in the mean time.
+
 
 ### Dotnet Solution Structure
 This solution consists of 6 parts that are being developed with Jetbrains Rider on macOS with arm-based M2 chip. However I expect it to work on any modern machine since it is a cross platform solution
@@ -15,15 +24,16 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 2. **Docs:** It contains project documents. I am planning to support this docs with articles and a youtube playlist.
 3. **Items:** It contains file that does not belong anywhere else such as .gitignore and .dockerignore
 4. **Src:** It contains 3 folders that define 3 different **DRN** domain.
-   1. **App(Nexus):** App is nexus that connects all services and apis developed with **DRN Framework**. 
-      * It is an unified web app that also contains nexus api and background services.
-      * It has following features as a start:
-        * **Configuration Management:** Nexus can provide configurations to microservices
-        * **Migration Management:** Nexus can manage microservice database migrations which includes schema management and sharding
-        * **Service Discovery:** Nexus discloses  microservice network
-        * **Observability, Documentation and Monitoring Hub:** Nexus provides and visualizes workflow graph and information regarding to them.
-   2. **Common(Nuget Packages):** Common folder contains source codes belongs to generalized solutions that can be used with in any project
-   3. **Sample(Microservice):** Sample folder contains an example app developed with **DRN Framework**. It is used for testing, presentation and documentation purposes.
+   * **Nexus:** Nexus app connects all services and apis developed with **DRN.Framework**.
+     `The one microservice to rule them all.`
+      * It is an unified web app that contains nexus api and background services.
+      * It will have following features as a start:
+        - [ ] **Configuration Management:** Nexus can provide configurations to connected microservices
+        - [ ] **Migration Management:** Nexus can manage microservice database migrations which includes schema management and sharding
+        - [ ] **Service Discovery:** Nexus discloses microservice network
+        - [ ] **Observability, Documentation and Monitoring Hub:** Nexus provides and visualizes workflow graph and information regarding to them.
+   * **Framework:** DRN.Framework source codes belongs to generalized solutions that can be used within any dotnet project as nuget packages. 
+   * **Sample:** Nexus connectable sample app demonstrates **DRN.Framework** usage. It is used for testing, presentation and documentation purposes.
 5. **Test:** It contains all the unit, integration and performance tests.
 6. **docker-compose:** Global docker-compose file that binds Nexus, Sample microservice and their dependencies.
 
