@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace DRN.Framework.Testing;
 
-public class AppSettingsProvider
+public static class SettingsProvider
 {
     /// <summary>
     /// Creates <see cref="IAppSettings"/> from settings.json file found in the settings folder of the test project
