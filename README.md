@@ -5,7 +5,7 @@ The project benefits from the best practices, open source solutions and personal
 This project is about managing software complexity, architecting good solutions and a promise to deliver a good software.
 
 ## About Project
-DRN Project is not another framework `bites the dust.` It is more than a simple framework. It is a distilled knowledge that contains:
+DRN Project is not another framework that will `bite the dust.` It is more than a simple framework. It is a distilled knowledge that contains:
 - [X] A nexus app to manage microservices
 - [X] Management best practices
 - [X] Engineering manifest

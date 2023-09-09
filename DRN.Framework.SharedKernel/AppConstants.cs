@@ -20,5 +20,6 @@ public static class AppConstants
     public static readonly IPAddress LocalIpAddress;
     public static readonly int ProcessId = Environment.ProcessId;
     public static readonly Guid ApplicationId = Guid.NewGuid();
-    public static readonly string ApplicationName = Assembly.GetEntryAssembly()?.GetName()?.Name ?? "Entry Assembly Not Found";
+    public static readonly string ApplicationName = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";
+    public static readonly string TempPath = Path.Combine(Path.GetTempPath(), ApplicationName);
 }

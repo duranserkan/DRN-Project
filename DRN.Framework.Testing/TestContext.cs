@@ -12,7 +12,7 @@ public class TestContext : IDisposable
     /// Creates a service provider from test context service collection
     /// Init this within test method to capture name of the test and
     /// </summary>
-    public IServiceProvider InitServiceProvider(string appSettingsName = "appsettings", [CallerMemberName] string nameOfTheTestMethod = "")
+    public IServiceProvider BuildServiceProvider(string appSettingsName = "appsettings", [CallerMemberName] string nameOfTheTestMethod = "")
     {
         //dispose previous initiated sp to create new
         Dispose();

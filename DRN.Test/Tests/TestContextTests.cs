@@ -6,7 +6,7 @@ public class TestContextTests
     [TestContextData(99)]
     public void TextContext_Should_Be_Created_From_TestContextData(TestContext context, int inlineData, IMockable mockable)
     {
-        var serviceProvider = context.InitServiceProvider();
+        var serviceProvider = context.BuildServiceProvider();
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
         appSettings.GetRequiredSection("AllowedHosts").Value.Should().Be("*");
         appSettings.TryGetSection("Bar", out _).Should().BeFalse();
@@ -26,7 +26,7 @@ public class TestContextTests
         serviceCollection.AddTransient<IMockable,ToBeRemovedService>();
         serviceCollection.ReplaceTransient<IMockable,ReplacingService>(new ReplacingService());
 
-        var serviceProvider = context.InitServiceProvider();
+        var serviceProvider = context.BuildServiceProvider();
 
         serviceProvider.GetService<ToBeRemovedService>().Should().BeNull();
         serviceProvider.GetRequiredService<IMockable>().Should().BeOfType<ReplacingService>();
