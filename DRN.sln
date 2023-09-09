@@ -107,6 +107,13 @@ Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-co
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Framework.Testing", "DRN.Framework.Testing\DRN.Framework.Testing.csproj", "{4DD30400-D67C-41B6-89D7-FDB706DDD5DF}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{43B4E0EE-4473-4F25-A087-7ABBCFC0EB19}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{3156647F-BAB1-4C7D-8D36-90F0771B757D}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -242,5 +249,7 @@ Global
 		{690B525D-D899-48F4-9FD0-23057E3E3D8C} = {9D198C49-7A4A-4284-A344-12E162E3561C}
 		{CF67D1FA-CECE-4C91-9F27-E299A718298B} = {690B525D-D899-48F4-9FD0-23057E3E3D8C}
 		{4DD30400-D67C-41B6-89D7-FDB706DDD5DF} = {87133E66-EDE4-4D1A-A83B-59D26805DB51}
+		{43B4E0EE-4473-4F25-A087-7ABBCFC0EB19} = {34327AFB-8358-4144-9250-A1E0F7DB1FA3}
+		{3156647F-BAB1-4C7D-8D36-90F0771B757D} = {43B4E0EE-4473-4F25-A087-7ABBCFC0EB19}
 	EndGlobalSection
 EndGlobal

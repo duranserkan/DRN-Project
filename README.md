@@ -1,4 +1,6 @@
 # DRN-Project
+[![master](https://github.com/duranserkan/DRN-Project/actions/workflows/dotnet.yml/badge.svg?branch=master)](https://github.com/duranserkan/DRN-Project/actions/workflows/dotnet.yml)
+[![develop](https://github.com/duranserkan/DRN-Project/actions/workflows/dotnet.yml/badge.svg?branch=develop)](https://github.com/duranserkan/DRN-Project/actions/workflows/dotnet.yml)
 Distributed Reliable .Net project aims to provide somewhat opinionated design and out of the box solutions to enterprise application development. 
 Expected result is spending less time on wiring while getting better maintainability and observability.
 The project benefits from the best practices, open source solutions and personal production experience.
