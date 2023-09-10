@@ -1,6 +1,11 @@
 # DRN-Project
 [![master](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml/badge.svg?branch=master)](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml)
 [![develop](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml/badge.svg?branch=develop)](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml)
+[![license](https://img.shields.io/github/license/duranserkan/DRN-Project?color=blue)](https://github.com/duranserkan/DRN-Project/blob/master/LICENSE)
+[![](https://img.shields.io/badge/Docs-GitHub%20wiki-brightgreen)](https://github.com/duranserkan/DRN-Project/wiki)
+[![Semantic Versioning](https://img.shields.io/badge/semver-2.0.0-3D9FE0.svg)](https://semver.org/)
+[![GitHub Stars](https://img.shields.io/github/stars/duranserkan/DRN-Project?label=github%20stars)](https://github.com/duranserkan/DRN-Project/stargazers/)
+[![All Contributors](https://img.shields.io/github/contributors/duranserkan/DRN-Project.svg)](https://GitHub.com/duranserkan/DRN-Project/graphs/contributors)
 
 Distributed Reliable .Net project aims to provide somewhat opinionated design and out of the box solutions to enterprise application development. 
 Expected result is spending less time on wiring while getting better maintainability and observability.
@@ -25,7 +30,7 @@ Detailed documentation will be added in the mean time.
 This solution consists of 6 parts that are being developed with Jetbrains Rider on macOS with arm-based M2 chip. However I expect it to work on any modern machine since it is a cross platform solution
 1. **Docker Folder:** It contains dockerfile and compose definitions for dependencies. They just works and can be used for other solutions.
 2. **Docs:** It contains project documents. I am planning to support this docs with articles and a youtube playlist.
-3. **Items:** It contains file that does not belong anywhere else such as .gitignore and .dockerignore
+3. **Items:** It contains file that does not belong anywhere else such as .gitignore, .dockerignore and .github workflows
 4. **Src:** It contains 3 folders that define 3 different **DRN** domain.
    * **Nexus:** Nexus app connects all services and apis developed with **DRN.Framework**.
      `The one microservice to rule them all.`
@@ -53,7 +58,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 * Don't over optimize. Good enough is better than excellent.
 ### Security Management
 * Security is always your most important requirement.
-* Always be defensive
+* Always be defensive and secure by default
 * Prefer whitelisting over blacklisting. Blacklists can be penetrated.
 ### Quality Management
 * Follow best practices and solutions. Don't reinvent the wheel
@@ -71,9 +76,11 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 * Make reasonable assumptions
 ### Personal Management
 * Focus on good thoughts
-* Be persistent
+* Be persistent and pay attention to details
 * Be good to yourself
 * Don't compromise your integrity
+* You can only expand yourself as the your environment allows. Don't hesitate to change it when necessary 
+* You are not a tree. You can always walk away
 
 ## About Architecture and Microservices
 * [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)
