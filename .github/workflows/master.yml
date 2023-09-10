@@ -61,5 +61,5 @@ jobs:
         run: |
           .\.sonar\scanner\dotnet-sonarscanner begin /k:"duranserkan_DRN-Project" /o:"duranserkan" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.opencover.reportsPaths=coverage.xml /d:sonar.host.url="https://sonarcloud.io"
           dotnet build DRN.sln --no-incremental
-          coverlet .\DRN.Test\bin\Debug\net7.0\DRN.Test.dll --target "dotnet" --targetargs "test --no-build" -f=opencover -o="coverage.xml"
+          coverlet .\DRN.Test\bin\Debug\net7.0\DRN.Test.dll --target "dotnet" --targetargs "test DRN.Test/DRN.Test.csproj --no-build" -f=opencover -o="coverage.xml"
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
