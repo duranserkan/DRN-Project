@@ -1,8 +1,8 @@
 # DRN-Project
 [![master](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml/badge.svg?branch=master)](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml)
 [![develop](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml/badge.svg?branch=develop)](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml)
+[![wiki](https://img.shields.io/badge/Docs-GitHub%20wiki-brightgreen)](https://github.com/duranserkan/DRN-Project/wiki)
 [![license](https://img.shields.io/github/license/duranserkan/DRN-Project?color=blue)](https://github.com/duranserkan/DRN-Project/blob/master/LICENSE)
-[![](https://img.shields.io/badge/Docs-GitHub%20wiki-brightgreen)](https://github.com/duranserkan/DRN-Project/wiki)
 [![Semantic Versioning](https://img.shields.io/badge/semver-2.0.0-3D9FE0.svg)](https://semver.org/)
 [![GitHub Stars](https://img.shields.io/github/stars/duranserkan/DRN-Project?label=github%20stars)](https://github.com/duranserkan/DRN-Project/stargazers/)
 [![All Contributors](https://img.shields.io/github/contributors/duranserkan/DRN-Project.svg)](https://GitHub.com/duranserkan/DRN-Project/graphs/contributors)
