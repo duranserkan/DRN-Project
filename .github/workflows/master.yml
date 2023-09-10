@@ -52,6 +52,8 @@ jobs:
         run: |
           New-Item -Path .\.sonar\scanner -ItemType Directory
           dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+      - name: Install Coverlet
+        run: |
           dotnet tool install --global coverlet.console
       - name: Build and analyze
         env:
