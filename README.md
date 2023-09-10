@@ -1,9 +1,9 @@
 # DRN-Project
 [![master](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml/badge.svg?branch=master)](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml)
 [![develop](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml/badge.svg?branch=develop)](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![wiki](https://img.shields.io/badge/Docs-GitHub%20wiki-brightgreen)](https://github.com/duranserkan/DRN-Project/wiki)
 [![license](https://img.shields.io/github/license/duranserkan/DRN-Project?color=blue)](https://github.com/duranserkan/DRN-Project/blob/master/LICENSE)
-[![Semantic Versioning](https://img.shields.io/badge/semver-2.0.0-3D9FE0.svg)](https://semver.org/)
 [![GitHub Stars](https://img.shields.io/github/stars/duranserkan/DRN-Project?label=github%20stars)](https://github.com/duranserkan/DRN-Project/stargazers/)
 [![All Contributors](https://img.shields.io/github/contributors/duranserkan/DRN-Project.svg)](https://GitHub.com/duranserkan/DRN-Project/graphs/contributors)
 
@@ -14,10 +14,6 @@
 [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=bugs)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=coverage)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
-[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
-
-[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=duranserkan_DRN-Project)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 
 Distributed Reliable .Net project aims to provide somewhat opinionated design and out of the box solutions to enterprise application development. 
 Expected result is spending less time on wiring while getting better maintainability and observability.
