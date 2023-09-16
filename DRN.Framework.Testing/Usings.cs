@@ -5,3 +5,5 @@ global using AutoFixture.Xunit2;
 global using System.Reflection;
 global using System.IO;
 global using System.Linq;
+global using System.Collections;
+global using Xunit.Sdk;

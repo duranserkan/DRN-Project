@@ -15,6 +15,8 @@
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=coverage)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 
+[![Semantic Versioning](https://img.shields.io/badge/semver-2.0.0-3D9FE0.svg)](https://semver.org/)
+
 Distributed Reliable .Net project aims to provide somewhat opinionated design and out of the box solutions to enterprise application development. 
 Expected result is spending less time on wiring while getting better maintainability and observability.
 The project benefits from the best practices, open source solutions and personal production experience.
@@ -63,6 +65,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 ### Time Management
 * Small things add up then become big thing. Do it while they are small and avoid stress.
 * Don't micro manage delegate whenever possible.
+  * Delegation requires shared understanding. It is not fire and forget process. Guide and track results when needed
 * Don't over optimize. Good enough is better than excellent.
 ### Security Management
 * Security is always your most important requirement.
@@ -87,7 +90,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 * Be persistent and pay attention to details
 * Be good to yourself
 * Don't compromise your integrity
-* You can only expand yourself as the your environment allows. Don't hesitate to change it when necessary 
+* You can only expand yourself as your environment allows. Don't hesitate to change it when necessary 
 * You are not a tree. You can always walk away
 
 ## About Architecture and Microservices
