@@ -14,10 +14,10 @@ public static class AppConstants
         using var dataGramSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
         dataGramSocket.Connect(GoogleDNSIP, 59999);
         var localEndPoint = dataGramSocket.LocalEndPoint as IPEndPoint;
-        LocalIpAddress = localEndPoint?.Address;
+        LocalIpAddress = localEndPoint?.Address.ToString() ?? string.Empty;
     }
 
-    public static readonly IPAddress? LocalIpAddress;
+    public static readonly string LocalIpAddress;
     public static readonly int ProcessId = Environment.ProcessId;
     public static readonly Guid ApplicationId = Guid.NewGuid();
     public static readonly string ApplicationName = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";

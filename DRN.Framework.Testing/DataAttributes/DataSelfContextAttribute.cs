@@ -20,7 +20,7 @@ public abstract class DataSelfContextAttribute : DataAttribute
     {
         if (!_data.Any())
             throw new ArgumentException(
-                $"{GetType().FullName} must contain test data to be used as ClassData for the test method named '{testMethod.Name}' on {testMethod.DeclaringType.FullName}");
+                $"{GetType().FullName} must contain test data to be used as ClassData for the test method named '{testMethod.Name}' on {testMethod.DeclaringType?.FullName??string.Empty}");
 
         return _data.SelectMany(values => new DataInlineContextAttribute(values).GetData(testMethod));
     }

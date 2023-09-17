@@ -1,4 +1,4 @@
-namespace DRN.Test.Tests.DataAttributeTests;
+namespace DRN.Test.Tests.Testing;
 
 public class DataSelfContextAttributeTests
 {

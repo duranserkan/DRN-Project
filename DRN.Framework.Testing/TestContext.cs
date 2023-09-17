@@ -30,7 +30,12 @@ public class TestContext : IDisposable
         return ServiceProvider;
     }
 
-    public void Dispose() => ServiceProvider?.Dispose();
-    public override string ToString() => "context";
+
     internal void SetMethodInfo(MethodInfo testMethod) => TestMethod = testMethod;
+    public override string ToString() => "context";
+    public void Dispose()
+    {
+        ServiceProvider?.Dispose();
+        GC.SuppressFinalize(this);
+    }
 }
