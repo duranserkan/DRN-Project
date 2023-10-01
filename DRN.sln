@@ -13,6 +13,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{8DDA41FF-B
 	ProjectSection(SolutionItems) = preProject
 		LICENSE = LICENSE
 		README.md = README.md
+		RELEASE-NOTES = RELEASE-NOTES
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Src", "Src", "{6BD1164C-580C-461E-B45C-29359BD197A0}"
@@ -113,6 +114,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\develop.yml = .github\workflows\develop.yml
 		.github\workflows\master.yml = .github\workflows\master.yml
+		.github\workflows\release.yml = .github\workflows\release.yml
+		.github\workflows\release-preview.yml = .github\workflows\release-preview.yml
 	EndProjectSection
 EndProject
 Global

@@ -4,6 +4,16 @@
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Authors>Duran Serkan KILIÇ</Authors>
+    <Product>DRN.Framework.SharedKernel</Product>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>DRN.Framework.SharedKernel</PackageId>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/duranserkan/DRN-Project</RepositoryUrl>
   </PropertyGroup>
 
 

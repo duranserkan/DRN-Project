@@ -5,7 +5,23 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <SonarQubeTestProject>false</SonarQubeTestProject>
+        <Authors>Duran Serkan KILIÇ</Authors>
+        <Product>DRN.Framework.Testing</Product>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
+
+    <PropertyGroup>
+        <PackageId>DRN.Framework.Testing</PackageId>
+        <RepositoryType>git</RepositoryType>
+        <RepositoryUrl>https://github.com/duranserkan/DRN-Project</RepositoryUrl>
+    </PropertyGroup>
+
+    <Target Name="PrepareReleaseNotes" BeforeTargets="GenerateNuspec">
+        <PropertyGroup>
+            <PackageDescription>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/../RELEASE-NOTES"))</PackageDescription>
+        </PropertyGroup>
+    </Target>
 
     <ItemGroup>
         <PackageReference Include="AutoFixture.AutoNSubstitute" Version="4.18.0"/>
@@ -22,7 +38,6 @@
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
     </ItemGroup>
-
 
     <ItemGroup>
       <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj" />

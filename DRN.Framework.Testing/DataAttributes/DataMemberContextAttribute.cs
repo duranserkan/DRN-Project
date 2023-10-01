@@ -20,11 +20,11 @@ public  class DataMemberContextAttribute : MemberDataAttributeBase
 
 
     /// <inheritdoc />
-    protected override object[]? ConvertDataItem(MethodInfo testMethod, object? dataItem)
+    protected override object[]? ConvertDataItem(MethodInfo testMethod, object? item)
     {
         //From MemberDataAttribute.ConvertDataItem
-        if (dataItem == null) return null;
-        if (dataItem is not object[] array)
+        if (item == null) return null;
+        if (item is not object[] array)
             throw new ArgumentException(
                 $"Property {MemberName} on {MemberType ?? testMethod.DeclaringType} yielded an item that is not an object[]");
         return array;

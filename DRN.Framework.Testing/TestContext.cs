@@ -6,7 +6,7 @@ namespace DRN.Framework.Testing;
 /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
 /// It disposes itself automatically at the end of the test.
 /// </summary>
-public class TestContext : IDisposable
+public sealed class TestContext : IDisposable
 {
     //Todo:Will be used later with new features to improve integration test dependency isolation.
     public MethodInfo TestMethod { get; private set; } = null!;
