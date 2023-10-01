@@ -1,7 +1,6 @@
 # https://github.com/acraven/blog-nuget-workflow-github-actions/blob/main/.github/workflows/release.yml
 on:
   push:
-    branches: [ "master" ]
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
 jobs:
