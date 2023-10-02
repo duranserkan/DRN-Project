@@ -7,7 +7,7 @@
         <Authors>Duran Serkan KILIÇ</Authors>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <PackageReadmeFile>README.md</PackageReadmeFile>
-        <PackageLicenseExpression>GPL-3.0</PackageLicenseExpression>
+        <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
         <PackageId>DRN.Framework.Utils</PackageId>
         <RepositoryType>git</RepositoryType>
         <RepositoryUrl>https://github.com/duranserkan/DRN-Project</RepositoryUrl>
