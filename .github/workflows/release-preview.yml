@@ -32,12 +32,12 @@ jobs:
       - name: Push SharedKernel
         run: |
           dotnet pack DRN.Framework.SharedKernel/DRN.Framework.SharedKernel.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
-          dotnet nuget push DRN.Framework.SharedKernel.${VERSION}.nupkg --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
+          dotnet nuget push DRN.Framework.SharedKernel.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
       - name: Push Utils
         run: |
           dotnet pack DRN.Framework.Utils/DRN.Framework.Utils.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
-          dotnet nuget push DRN.Framework.Utils.${VERSION}.nupkg --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
+          dotnet nuget push DRN.Framework.Utils.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
       - name: Push Testing
         run: |
           dotnet pack DRN.Framework.Testing/DRN.Framework.Testing.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
-          dotnet nuget push DRN.Framework.Testing.${VERSION}.nupkg --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
+          dotnet nuget push DRN.Framework.Testing.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
