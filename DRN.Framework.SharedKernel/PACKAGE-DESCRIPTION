@@ -1,0 +1,3 @@
+DRN.Framework.SharedKernel package is an lightweight package that contains common codes suitable for contract and domain layers. It can be referenced by any projects such as other DRN.Framework packages, projects developed with DRN.Framework.
+
+Commit hash and date:

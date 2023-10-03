@@ -18,11 +18,21 @@
             <Pack>True</Pack>
             <PackagePath>\</PackagePath>
         </None>
+        <None Update="RELEASE-NOTES.md">
+          <Pack>True</Pack>
+          <PackagePath>/</PackagePath>
+        </None>
     </ItemGroup>
 
-    <Target Name="PrepareReleaseNotes" BeforeTargets="GenerateNuspec">
+    <Target Name="PrepareDescription" BeforeTargets="GenerateNuspec">
         <PropertyGroup>
-            <PackageDescription>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/../RELEASE-NOTES"))</PackageDescription>
+            <PackageDescription>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/PackageDescription"))</PackageDescription>
+        </PropertyGroup>
+    </Target>
+
+    <Target Name="PreparePackageReleaseNotes" BeforeTargets="GenerateNuspec">
+        <PropertyGroup>
+            <PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/RELEASE-NOTES.md"))</PackageReleaseNotes>
         </PropertyGroup>
     </Target>
 

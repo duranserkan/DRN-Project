@@ -1,4 +1,4 @@
-# https://github.com/acraven/blog-nuget-workflow-github-actions/blob/main/.github/workflows/release.yml
+# this pipeline developed with the help of https://github.com/acraven/blog-nuget-workflow-github-actions/blob/main/.github/workflows/release.yml
 name: release
 on:
   push:
@@ -19,9 +19,6 @@ jobs:
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 7.0.x
-      - name: Extract release notes
-        run: |
-          git log --pretty=format:'%d %s' ${GITHUB_REF} | perl -pe 's| \(.*tag: v(\d+.\d+.\d+(-preview\d{3})?)(, .*?)*\)|\n## \1\n|g' > RELEASE-NOTES
       - name: Set VERSION variable from tag
         run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
       - name: Restore dependencies
@@ -30,10 +27,18 @@ jobs:
         run: dotnet build DRN.sln --configuration Release /p:Version=${VERSION} --no-restore
       - name: Test
         run: dotnet test DRN.Test/DRN.Test.csproj --configuration Release /p:Version=${VERSION} --no-build --verbosity normal
-      - name: Pack
-        run: dotnet pack DRN.sln --configuration Release /p:Version=${VERSION} --no-build --output .
-      - name: Push
+      - name: Push SharedKernel
         run: |
-          dotnet nuget push DRN.Framework.SharedKernel.${VERSION}.nupkg --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
-          dotnet nuget push DRN.Framework.Utils.${VERSION}.nupkg --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
-          dotnet nuget push DRN.Framework.Testing.${VERSION}.nupkg --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
+          git --no-pager log -1 --format="%n %C(auto)%H  %ai"  >>  DRN.Framework.SharedKernel/PackageDescription
+          dotnet pack DRN.Framework.SharedKernel/DRN.Framework.SharedKernel.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
+          dotnet nuget push DRN.Framework.SharedKernel.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
+      - name: Push Utils
+        run: |
+          git --no-pager log -1 --format="%n %C(auto)%H  %ai"  >>  DRN.Framework.Utils/PackageDescription
+          dotnet pack DRN.Framework.Utils/DRN.Framework.Utils.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
+          dotnet nuget push DRN.Framework.Utils.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
+      - name: Push Testing
+        run: |
+          git --no-pager log -1 --format="%n %C(auto)%H  %ai"  >>  DRN.Framework.Testing/PackageDescription
+          dotnet pack DRN.Framework.Testing/DRN.Framework.Testing.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
+          dotnet nuget push DRN.Framework.Testing.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
