@@ -28,7 +28,7 @@
 
     <Target Name="PrepareDescription" BeforeTargets="GenerateNuspec">
         <PropertyGroup>
-            <PackageDescription>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/PackageDescription"))</PackageDescription>
+            <PackageDescription>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/PACKAGE-DESCRIPTION"))</PackageDescription>
         </PropertyGroup>
     </Target>
 
