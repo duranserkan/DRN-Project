@@ -1,4 +1,4 @@
-# this pipeline developed with the help of https://github.com/acraven/blog-nuget-workflow-github-actions/blob/main/.github/workflows/release.yml
+# this pipeline developed with the help of https://github.com/acraven/blog-nuget-workflow-github-actions/
 name: release
 on:
   push:
@@ -7,6 +7,8 @@ on:
 jobs:
   Publish-Master:
     runs-on: ubuntu-latest
+    env:
+      SolutionName: DRN.sln
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -22,26 +24,31 @@ jobs:
       - name: Set VERSION variable from tag
         run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
       - name: Restore dependencies
-        run: dotnet restore DRN.sln
+        run: dotnet restore ${SolutionName}
       - name: Build
-        run: dotnet build DRN.sln --configuration Release /p:Version=${VERSION} --no-restore
+        run: dotnet build ${SolutionName} --configuration Release /p:Version=${VERSION} --no-restore
       - name: Test
-        run: dotnet test DRN.Test/DRN.Test.csproj --configuration Release /p:Version=${VERSION} --no-build --verbosity normal
+        run: dotnet test ${ProjectName}/${ProjectName}.csproj --configuration Release /p:Version=${VERSION} --no-build --verbosity normal
+        env:
+          ProjectName: DRN.Test
       - name: Push SharedKernel
         run: |
-          echo "ProjectName=SharedKernel" >> $GITHUB_ENV
-          git --no-pager log -1 --format="%n %C(auto)%H  %ai"  >>  DRN.Framework.${ProjectName}/PACKAGE-DESCRIPTION
-          dotnet pack DRN.Framework.${ProjectName}/DRN.Framework.${ProjectName}.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
-          dotnet nuget push DRN.Framework.${ProjectName}.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
+          git --no-pager log -1 --format="%n %C(auto)%H  %ai"  >>  ${ProjectName}/PACKAGE-DESCRIPTION
+          dotnet pack ${ProjectName}/${ProjectName}.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
+          dotnet nuget push ${ProjectName}.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
+        env:
+          ProjectName: DRN.Framework.SharedKernel
       - name: Push Utils
         run: |
-          echo "ProjectName=Utils" >> $GITHUB_ENV
-          git --no-pager log -1 --format="%n %C(auto)%H  %ai"  >>  DRN.Framework.${ProjectName}/PACKAGE-DESCRIPTION
-          dotnet pack DRN.Framework.${ProjectName}/DRN.Framework.${ProjectName}.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
-          dotnet nuget push DRN.Framework.${ProjectName}.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
+          git --no-pager log -1 --format="%n %C(auto)%H  %ai"  >>  ${ProjectName}/PACKAGE-DESCRIPTION
+          dotnet pack ${ProjectName}/${ProjectName}.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
+          dotnet nuget push ${ProjectName}.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
+        env:
+          ProjectName: DRN.Framework.Utils
       - name: Push Testing
         run: |
-          echo "ProjectName=Testing" >> $GITHUB_ENV
-          git --no-pager log -1 --format="%n %C(auto)%H  %ai"  >>  DRN.Framework.${ProjectName}/PACKAGE-DESCRIPTION
-          dotnet pack DRN.Framework.${ProjectName}/DRN.Framework.${ProjectName}.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
-          dotnet nuget push DRN.Framework.${ProjectName}.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
+          git --no-pager log -1 --format="%n %C(auto)%H  %ai"  >>  ${ProjectName}/PACKAGE-DESCRIPTION
+          dotnet pack ${ProjectName}/${ProjectName}.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
+          dotnet nuget push ${ProjectName}.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
+        env:
+          ProjectName: DRN.Framework.Testing
