@@ -33,21 +33,21 @@ jobs:
           ProjectName: DRN.Test
       - name: Push SharedKernel
         run: |
-          git --no-pager log -1 --format="%n %C(auto)%H  %ai"  >>  ${ProjectName}/PACKAGE-DESCRIPTION
+          git --no-pager log -1 --format="%n%an,  %ai, %C(auto)%H"  >>  ${ProjectName}/PACKAGE-DESCRIPTION
           dotnet pack ${ProjectName}/${ProjectName}.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
           dotnet nuget push ${ProjectName}.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
         env:
           ProjectName: DRN.Framework.SharedKernel
       - name: Push Utils
         run: |
-          git --no-pager log -1 --format="%n %C(auto)%H  %ai"  >>  ${ProjectName}/PACKAGE-DESCRIPTION
+          git --no-pager log -1 --format="%n%an,  %ai, %C(auto)%H"  >>  ${ProjectName}/PACKAGE-DESCRIPTION
           dotnet pack ${ProjectName}/${ProjectName}.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
           dotnet nuget push ${ProjectName}.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
         env:
           ProjectName: DRN.Framework.Utils
       - name: Push Testing
         run: |
-          git --no-pager log -1 --format="%n %C(auto)%H  %ai"  >>  ${ProjectName}/PACKAGE-DESCRIPTION
+          git --no-pager log -1 --format="%n%an,  %ai, %C(auto)%H"  >>  ${ProjectName}/PACKAGE-DESCRIPTION
           dotnet pack ${ProjectName}/${ProjectName}.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
           dotnet nuget push ${ProjectName}.${VERSION}.nupkg --skip-duplicate --api-key ${{ secrets.NUGET_TOKEN }} --source https://api.nuget.org/v3/index.json
         env:

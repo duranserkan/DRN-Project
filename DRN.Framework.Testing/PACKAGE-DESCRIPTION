@@ -2,4 +2,4 @@ DRN.Framework.Testing package encapsulates testing dependencies and provides pra
 
 This package enables a new encouraging testing technique called as DTT(Duran's Testing Technique). With DTT, any developer can write clean and hassle-free unit and integration tests without complexity.
 
-Commit hash and date:
+Author, date, commit hash:
