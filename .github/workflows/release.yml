@@ -23,8 +23,8 @@ jobs:
           dotnet-version: 7.0.x
       - name: Set COMMIT-INFO and VERSION variable from tag
         run: |
-          COMMIT-INFO=$(git --no-pager log -1 --format="%n%nAuthor, date, commit hash:%n%an,  %ai, %C(auto)%H")
-          echo "COMMIT-INFO=${COMMIT-INFO}" >> $GITHUB_ENV
+          COMMIT_INFO=$(git --no-pager log -1 --format="%n%nAuthor, date, commit hash:%n%an,  %ai, %C(auto)%H")
+          echo "COMMIT_INFO=${COMMIT_INFO}" >> $GITHUB_ENV
           echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
       - name: Restore dependencies
         run: dotnet restore ${SolutionName}
@@ -39,19 +39,19 @@ jobs:
         with:
           project-name: DRN.Framework.SharedKernel
           project-version: ${VERSION}
-          commit-info: ${COMMIT-INFO}
+          commit-info: ${COMMIT_INFO}
           token: ${{ secrets.NUGET_TOKEN }}
       - name: Publish Utils
         uses: ./.github/workflows/actions/nuget-publish
         with:
           project-name: DRN.Framework.Utils
           project-version: ${VERSION}
-          commit-info: ${COMMIT-INFO}
+          commit-info: ${COMMIT_INFO}
           token: ${{ secrets.NUGET_TOKEN }}
       - name: Publish Testing
         uses: ./.github/workflows/actions/nuget-publish
         with:
           project-name: DRN.Framework.Utils
           project-version: ${VERSION}
-          commit-info: ${COMMIT-INFO}
+          commit-info: ${COMMIT_INFO}
           token: ${{ secrets.NUGET_TOKEN }}
