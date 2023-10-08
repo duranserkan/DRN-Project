@@ -6,16 +6,14 @@ inputs:
     required: true
   token:
     required: true
-  commit-info:
-    required: true
 runs:
   using: "composite"
   steps:
     - name: Pack
       run: |
-        ${{ commit-info }}  >>  ${{ inputs.project-name }}/PACKAGE-DESCRIPTION
-        ${{ commit-info }}  >>  ${{ inputs.project-name }}/README.md
-        ${{ commit-info }}  >>  ${{ inputs.project-name }}/RELEASE-NOTES.md
+        git --no-pager log -1 --format="%n%nAuthor, date, commit hash:%n%an,  %ai, %C(auto)%H  >>  ${{ inputs.project-name }}/PACKAGE-DESCRIPTION
+        git --no-pager log -1 --format="%n%nAuthor, date, commit hash:%n%an,  %ai, %C(auto)%H  >>  ${{ inputs.project-name }}/README.md
+        git --no-pager log -1 --format="%n%nAuthor, date, commit hash:%n%an,  %ai, %C(auto)%H  >>  ${{ inputs.project-name }}/RELEASE-NOTES.md
         dotnet pack ${{ inputs.project-name }}/${{ inputs.project-name }}.csproj --configuration Release /p:Version=${{ inputs.project-version }} --no-build --output .
     - name: Push
       run: |
