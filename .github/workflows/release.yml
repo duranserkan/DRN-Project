@@ -47,6 +47,6 @@ jobs:
       - name: Publish Testing
         uses: ./.github/workflows/actions/nuget-publish
         with:
-          project-name: DRN.Framework.Utils
+          project-name: DRN.Framework.Testing
           project-version: ${VERSION}
           token: ${{ secrets.NUGET_TOKEN }}
