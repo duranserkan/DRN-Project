@@ -24,6 +24,7 @@
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Testing?logo=Nuget&label=DRN.Framework.Testing)](https://nuget.org/packages/DRN.Framework.Testing/)
 
 [![General badge](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white.svg)](https://www.linkedin.com/in/duranserkan/)
+[![General badge](https://img.shields.io/badge/Medium-12100E?style=for-the-badge&logo=medium&logoColor=white)](https://duranserkan.medium.com)
 
 
 Distributed Reliable .Net project aims to provide somewhat opinionated design and out of the box solutions to enterprise application development. 

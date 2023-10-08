@@ -1,0 +1,20 @@
+name: Nuget Publish
+inputs:
+  project-name:
+    required: true
+  project-version:
+    required: true
+  token:
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Pack
+      run: |
+        git --no-pager log -1 --format="%n%nAuthor, date, commit hash:%n%an,  %ai, %C(auto)%H"  >>  ${{ inputs.project-name }}/PACKAGE-DESCRIPTION
+        git --no-pager log -1 --format="%n%nAuthor, date, commit hash:%n%an,  %ai, %C(auto)%H"  >>  ${{ inputs.project-name }}/README.md
+        git --no-pager log -1 --format="%n%nAuthor, date, commit hash:%n%an,  %ai, %C(auto)%H"  >>  ${{ inputs.project-name }}/RELEASE-NOTES.md
+        dotnet pack ${{ inputs.project-name }}/${{ inputs.project-name }}.csproj --configuration Release /p:Version=${{ inputs.project-version }} --no-build --output .
+    - name: Push
+      run: |
+        dotnet nuget push ${{ inputs.project-name }}.${{ inputs.project-version }}.nupkg --skip-duplicate --api-key ${{ inputs.token }} --source https://api.nuget.org/v3/index.json
