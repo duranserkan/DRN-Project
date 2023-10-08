@@ -120,8 +120,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "actions", "actions", "{43057003-6BEC-4C46-822A-1D2934A594D6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget-publish", "nuget-publish", "{AE41224D-8B02-44F9-9C62-2FE278B499AA}"
 	ProjectSection(SolutionItems) = preProject
-		.github\workflows\actions\nuget-publish.yml = .github\workflows\actions\nuget-publish.yml
+		.github\workflows\actions\nuget-publish\action.yml = .github\workflows\actions\nuget-publish\action.yml
 	EndProjectSection
 EndProject
 Global
@@ -262,5 +264,6 @@ Global
 		{43B4E0EE-4473-4F25-A087-7ABBCFC0EB19} = {34327AFB-8358-4144-9250-A1E0F7DB1FA3}
 		{3156647F-BAB1-4C7D-8D36-90F0771B757D} = {43B4E0EE-4473-4F25-A087-7ABBCFC0EB19}
 		{43057003-6BEC-4C46-822A-1D2934A594D6} = {3156647F-BAB1-4C7D-8D36-90F0771B757D}
+		{AE41224D-8B02-44F9-9C62-2FE278B499AA} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 	EndGlobalSection
 EndGlobal
