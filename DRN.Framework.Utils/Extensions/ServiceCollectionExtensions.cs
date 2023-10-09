@@ -5,6 +5,14 @@ namespace DRN.Framework.Utils.Extensions;
 
 public static class ServiceCollectionExtensions
 {
+    public static void ReplaceInstance<TImplementation>(this IServiceCollection sc, Type serviceType, IReadOnlyList<TImplementation> implementations, ServiceLifetime lifetime)
+        where TImplementation : class
+    {
+        sc.RemoveAll(serviceType);
+        var descriptors = implementations.Select(i => new ServiceDescriptor(serviceType, sp => i, lifetime));
+        sc.Add(descriptors);
+    }
+
     public static void ReplaceTransient<TService, TImplementation>(this IServiceCollection sc, TImplementation implementation)
         where TService : class
         where TImplementation : class, TService
@@ -12,6 +20,7 @@ public static class ServiceCollectionExtensions
         sc.RemoveAll<TService>();
         sc.AddTransient<TService, TImplementation>(sp => implementation);
     }
+
 
     public static void ReplaceScoped<TService, TImplementation>(this IServiceCollection sc, TImplementation implementation)
         where TService : class

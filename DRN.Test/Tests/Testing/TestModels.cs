@@ -10,9 +10,16 @@ public class ToBeRemovedService : IMockable
     public int Max { get; set; }
 }
 
-public class ReplacingService : IMockable
+public class DependentService : IMockable
 {
-    public int Max => int.MaxValue;
+    private readonly IMockable _mockable;
+
+    public DependentService(IMockable mockable)
+    {
+        _mockable = mockable;
+    }
+
+    public int Max => _mockable.Max;
 }
 
 public class ComplexInline

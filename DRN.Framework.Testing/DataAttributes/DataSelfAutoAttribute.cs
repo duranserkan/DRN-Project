@@ -23,6 +23,6 @@ public abstract class DataSelfAutoAttribute : DataAttribute
             throw new ArgumentException(
                 $"{GetType().FullName} must contain test data to be used as ClassData for the test method named '{testMethod.Name}' on {testMethod.DeclaringType?.FullName??string.Empty}");
 
-        return _data.SelectMany(values => new DataInlineAutoAttribute(values).GetData(testMethod));
+        return _data.SelectMany(values => new DataInlineAutoAttribute(values).GetData(testMethod)).ToArray();
     }
 }

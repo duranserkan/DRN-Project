@@ -13,7 +13,11 @@ public sealed class DataInlineContextAttribute : DataInlineAutoAttribute
     {
         var dataRows = base.GetData(testMethod).ToArray();
         foreach (var row in dataRows)
-            ((TestContext)row[0]).SetMethodInfo(testMethod);
+        {
+            var context = ((TestContext)row[0]);
+            context.SetMethodInfo(testMethod);
+            context.SetTestData(row);
+        }
 
         return dataRows;
     }

@@ -8,9 +8,10 @@ runs:
     - name: Pack
       shell: bash
       run: |
-        git --no-pager log -1 --format="%n%nAuthor, date, commit hash:%n%an,  %ai, %C(auto)%H"  >>  ${{ inputs.project-name }}/PACKAGE-DESCRIPTION
-        git --no-pager log -1 --format="  %n  %n### Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${{ inputs.project-name }}/README.md
-        git --no-pager log -1 --format="  %n  %n### Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${{ inputs.project-name }}/RELEASE-NOTES.md
+        commitInfo=$(git --no-pager log -1 --format="  %n  %n### Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H")
+        echo $commitInfo  >>  ${{ inputs.project-name }}/PACKAGE-DESCRIPTION
+        echo $commitInfo  >>  ${{ inputs.project-name }}/README.md
+        echo $commitInfo  >>  ${{ inputs.project-name }}/RELEASE-NOTES.md
         dotnet pack ${{ inputs.project-name }}/${{ inputs.project-name }}.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
     - name: Push
       shell: bash
