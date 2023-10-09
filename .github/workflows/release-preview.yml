@@ -8,7 +8,8 @@ jobs:
   Publish-Develop:
     runs-on: ubuntu-latest
     env:
-      SolutionName: DRN.sln
+      SOLUTION_NAME: DRN.sln
+      NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -25,9 +26,9 @@ jobs:
         run: |
           echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
       - name: Restore dependencies
-        run: dotnet restore ${SolutionName}
+        run: dotnet restore ${SOLUTION_NAME}
       - name: Build
-        run: dotnet build ${SolutionName} --configuration Release /p:Version=${VERSION} --no-restore
+        run: dotnet build ${SOLUTION_NAME} --configuration Release /p:Version=${VERSION} --no-restore
       - name: Test
         run: dotnet test ${ProjectName}/${ProjectName}.csproj --configuration Release /p:Version=${VERSION} --no-build --verbosity normal
         env:
@@ -36,17 +37,11 @@ jobs:
         uses: ./.github/workflows/actions/nuget-publish
         with:
           project-name: DRN.Framework.SharedKernel
-          project-version: ${VERSION}
-          token: ${{ secrets.NUGET_TOKEN }}
       - name: Publish Utils
         uses: ./.github/workflows/actions/nuget-publish
         with:
           project-name: DRN.Framework.Utils
-          project-version: ${VERSION}
-          token: ${{ secrets.NUGET_TOKEN }}
       - name: Publish Testing
         uses: ./.github/workflows/actions/nuget-publish
         with:
           project-name: DRN.Framework.Testing
-          project-version: ${VERSION}
-          token: ${{ secrets.NUGET_TOKEN }}
