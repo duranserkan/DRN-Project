@@ -2,10 +2,21 @@ namespace DRN.Test.Tests.Testing;
 
 public class DataInlineContextAttributeTests
 {
-    /// <summary>
-    /// DRN.Framework.Testing package helps you to create practical and effective unit and integration tests.
-    /// It is probably one of the best solution around
-    /// </summary>
+    /// <param name="context"> Provided by DataInlineContext even if it is not a compile time constant</param>
+    /// <param name="autoInlinedDependency">DataInlineContext will provide implementation mocked by NSubstitute</param>
+    [Theory]
+    [DataInlineContext]
+    public void DataInlineContextDemonstration(TestContext context, IMockable autoInlinedDependency)
+    {
+        autoInlinedDependency.Max.Returns(int.MaxValue); //dependency mocked by NSubstitute
+
+        context.ServiceCollection.AddApplicationServices(); //you can add services, modules defined in hosted app, application, infrastructure layer etc..
+        var serviceProvider = context.BuildServiceProvider(); //appsettings.json added by convention. Context and service provider will be disposed by xunit
+        var dependentService = serviceProvider.GetRequiredService<DependentService>(); //context replaces actual dependencies with auto inlined dependencies
+
+        dependentService.Max.Should().Be(int.MaxValue);
+    }
+
     /// <param name="context"> Provided by DataInlineContext even if it is not a compile time constant</param>
     /// <param name="inlineData">Provided by DataInlineContext</param>
     /// <param name="autoInlinedData">DataInlineContext will provide missing data with the help of AutoFixture</param>
@@ -23,8 +34,14 @@ public class DataInlineContextAttributeTests
         serviceProvider.GetService<ToBeRemovedService>().Should().BeNull(); //Service provider behaviour demonstration
 
         var dependentService = serviceProvider.GetRequiredService<DependentService>();
-        dependentService.Should().BeOfType<DependentService>();
         dependentService.Max.Should().Be(int.MaxValue);
+    }
+
+    [Theory]
+    [DataInlineContext]
+    public void TextContext_Should_Provide_AppSettings(TestContext context)
+    {
+        var serviceProvider = context.BuildServiceProvider(); //appsettings.json added by convention. Context and service provider will be disposed by xunit
 
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
         appSettings.GetRequiredSection("AllowedHosts").Value.Should().Be("*");

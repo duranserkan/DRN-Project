@@ -31,6 +31,7 @@ public sealed class TestContext : IDisposable
 
         ServiceProvider = ServiceCollection
             .AddSingleton(x => SettingsProvider.GetAppSettings(appSettingsName))
+            .AddSingleton(x => SettingsProvider.GetConfiguration(appSettingsName))
             .AddLogging()
             .BuildServiceProvider(false);
 
@@ -47,7 +48,6 @@ public sealed class TestContext : IDisposable
             ServiceCollection.ReplaceInstance(type, implementations, ServiceLifetime.Scoped);
         }
     }
-
 
     internal void SetMethodInfo(MethodInfo testMethod) => TestMethod = testMethod;
     internal void SetTestData(object[] data)
