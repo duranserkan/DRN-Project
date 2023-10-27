@@ -105,6 +105,7 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
   * SettingsProvider reads json settings files that can be found in the settings folder of the test project
   * Make sure file is copied to output directory
   * If no settings file is specified while calling `BuildServiceProvider` `appsettings.json` file be searched by convention.
+* `ServiceProvider` provides utils provided with DRN.Framework.Utils' `UtilsModule`
 * `BuildServiceProvider` replaces dependencies that can be replaced with inlined interfaces.
 * `ServiceProvider` and `TestContext` will be disposed by xunit when test finishes
 

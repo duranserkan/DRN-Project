@@ -1,7 +1,16 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.  
 
-## Breaking Changes
+## Version 0.1.0
 
-## New Features
+### Breaking Changes
 
-## Bug Fixes
+### New Features
+
+* AppSettings added
+* ServiceCollectionExtensions added
+  * ReplaceInstance
+  * ReplaceTransient
+  * ReplaceScoped
+  * ReplaceSingleton
+
+### Bug Fixes

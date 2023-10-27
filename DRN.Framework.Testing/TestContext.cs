@@ -1,4 +1,5 @@
 using DRN.Framework.Testing.Extensions;
+using DRN.Framework.Utils;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -33,6 +34,7 @@ public sealed class TestContext : IDisposable
             .AddSingleton(x => SettingsProvider.GetAppSettings(appSettingsName))
             .AddSingleton(x => SettingsProvider.GetConfiguration(appSettingsName))
             .AddLogging()
+            .AddDrnUtils()
             .BuildServiceProvider(false);
 
         return ServiceProvider;
