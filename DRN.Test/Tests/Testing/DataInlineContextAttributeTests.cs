@@ -8,12 +8,11 @@ public class DataInlineContextAttributeTests
     [DataInlineContext]
     public void DataInlineContextDemonstration(TestContext context, IMockable autoInlinedDependency)
     {
-        autoInlinedDependency.Max.Returns(int.MaxValue); //dependency mocked by NSubstitute
+        context.ServiceCollection.AddApplicationServices();
+        //Context wraps service provider and automagically replaces actual dependencies with auto inlined dependencies
+        var dependentService = context.GetRequiredService<DependentService>();
 
-        context.ServiceCollection.AddApplicationServices(); //you can add services, modules defined in hosted app, application, infrastructure layer etc..
-        var serviceProvider = context.BuildServiceProvider(); //appsettings.json added by convention. Context and service provider will be disposed by xunit
-        var dependentService = serviceProvider.GetRequiredService<DependentService>(); //context replaces actual dependencies with auto inlined dependencies
-
+        autoInlinedDependency.Max.Returns(int.MaxValue); //dependency is mocked by NSubstitute
         dependentService.Max.Should().Be(int.MaxValue);
     }
 

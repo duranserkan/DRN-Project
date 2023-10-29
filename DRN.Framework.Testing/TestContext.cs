@@ -9,13 +9,13 @@ namespace DRN.Framework.Testing;
 /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
 /// It disposes itself automatically at the end of the test.
 /// </summary>
-public sealed class TestContext : IDisposable
+public sealed class TestContext : IDisposable, IServiceProvider
 {
     public IReadOnlyList<object> Data { get; private set; } = null!;
     public IReadOnlyList<SubstitutePair> SubstitutePairs { get; private set; } = null!;
     public MethodInfo TestMethod { get; private set; } = null!;
     public ServiceCollection ServiceCollection { get; } = new();
-    public ServiceProvider? ServiceProvider { get; private set; }
+    private ServiceProvider? ServiceProvider { get; set; }
 
     /// <summary>
     /// Creates a service provider from test context service collection
@@ -23,11 +23,10 @@ public sealed class TestContext : IDisposable
     /// It includes logging and IAppSettings by default.
     /// More default services will be added by default as the drn framework develops
     /// </summary>
-    public IServiceProvider BuildServiceProvider(string appSettingsName = "appsettings")
+    public ServiceProvider BuildServiceProvider(string appSettingsName = "appsettings")
     {
         //dispose previous initiated sp to create new
         Dispose();
-
         ReplaceSubstitutedInterfaces();
 
         ServiceProvider = ServiceCollection
@@ -36,7 +35,6 @@ public sealed class TestContext : IDisposable
             .AddLogging()
             .AddDrnUtils()
             .BuildServiceProvider(false);
-
         return ServiceProvider;
     }
 
@@ -52,6 +50,7 @@ public sealed class TestContext : IDisposable
     }
 
     internal void SetMethodInfo(MethodInfo testMethod) => TestMethod = testMethod;
+
     internal void SetTestData(object[] data)
     {
         Data = data;
@@ -60,9 +59,16 @@ public sealed class TestContext : IDisposable
 
     public override string ToString() => "context";
 
+    public object? GetService(Type serviceType)
+    {
+        ServiceProvider ??= BuildServiceProvider();
+        return ServiceProvider.GetService(serviceType);
+    }
+
     public void Dispose()
     {
         ServiceProvider?.Dispose();
+        ServiceProvider = null;
         GC.SuppressFinalize(this);
     }
 }

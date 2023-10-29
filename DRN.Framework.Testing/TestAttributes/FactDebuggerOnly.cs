@@ -7,9 +7,6 @@ public class FactDebuggerOnly : FactAttribute
 {
     public FactDebuggerOnly()
     {
-        if (!Debugger.IsAttached)
-        {
-            Skip = "Only running in interactive mode.";
-        }
+        if (!Debugger.IsAttached) Skip = "Only running in interactive mode.";
     }
 }

@@ -7,9 +7,6 @@ public class TheoryDebuggerOnly : TheoryAttribute
 {
     public TheoryDebuggerOnly()
     {
-        if (!Debugger.IsAttached)
-        {
-            Skip = "Only running in interactive mode.";
-        }
+        if (!Debugger.IsAttached) Skip = "Only running in interactive mode.";
     }
 }

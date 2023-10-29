@@ -26,21 +26,17 @@ Following packages are encapsulated with this package and no longer needed to be
 ## Quickstart
 Here's a basic test demonstration to get you started:
 ```csharp
-public class DataInlineContextAttributeTests
-{
     [Theory]
     [DataInlineContext]
     public void DataInlineContextDemonstration(TestContext context, IMockable autoInlinedDependency)
     {
+        context.ServiceCollection.AddApplicationServices();
+        //Context wraps service provider and automagically replaces actual dependencies with auto inlined dependencies
+        var dependentService = context.GetRequiredService<DependentService>();
+
         autoInlinedDependency.Max.Returns(int.MaxValue); //dependency is mocked by NSubstitute
-
-        context.ServiceCollection.AddApplicationServices(); //you can add services, modules defined in hosted app, application, infrastructure layer etc..
-        var serviceProvider = context.BuildServiceProvider(); //appsettings.json added by convention. Context and service provider will be disposed by xunit
-        var dependentService = serviceProvider.GetRequiredService<DependentService>(); //context replaces actual dependencies with auto inlined dependencies
-
         dependentService.Max.Should().Be(int.MaxValue);
     }
-} 
 ```
 Testing models used in demonstration:
 ```csharp
@@ -114,7 +110,7 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
 * `ServiceProvider` provides `IConfiguration` and `IAppSettings` with SettingsProvider.
   * SettingsProvider reads json settings files that can be found in the settings folder of the test project
   * Make sure file is copied to output directory
-  * If no settings file is specified while calling `BuildServiceProvider` `appsettings.json` file be searched by convention.
+  * If no settings file is specified while calling `BuildServiceProvider`. `appsettings.json` file be searched by convention.
 * `ServiceProvider` provides utils provided with DRN.Framework.Utils' `UtilsModule`
 * `BuildServiceProvider` replaces dependencies that can be replaced with inlined interfaces.
 * `ServiceProvider` and `TestContext` will be disposed by xunit when test finishes
@@ -262,6 +258,11 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
 }
 ```
 
+## DebugOnly Tests
+Following attributes can be used to run test only when the debugger is attached. These attributes does respect the attached debugger, not debug or release configuration.
+* FactDebuggerOnly
+* TheoryDebuggerOnly
+
 ## Global Usings
 following global usings can be used in a Usings file in test projects to reduce line of code in test files
 ```csharp
@@ -280,8 +281,3 @@ global using System.IO;
 global using System.Linq;
 global using DRN.Framework.Testing.DataAttributes;
 ```
-
-## DebugOnly Tests
-Following attributes can be used to run test only when the debugger is attached. These attributes does not respect debugger not debug configuration.
-* FactDebuggerOnly
-* TheoryDebuggerOnly
