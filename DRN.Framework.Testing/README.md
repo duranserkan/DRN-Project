@@ -1,4 +1,16 @@
-# DRN.Framework.Testing
+[![master](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml/badge.svg?branch=master)](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml)
+[![develop](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml/badge.svg?branch=develop)](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+
+
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=bugs)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=coverage)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+
 DRN.Framework.Testing package provides practical, effective helpers such as resourceful data attributes and test context.
 
 This package enables a new encouraging testing technique called as DTT(Duran's Testing Technique). With DTT, any developer can write clean and hassle-free unit and integration tests without complexity.
@@ -16,13 +28,11 @@ Here's a basic test demonstration to get you started:
 ```csharp
 public class DataInlineContextAttributeTests
 {
-    /// <param name="context"> Provided by DataInlineContext even if it is not a compile time constant</param>
-    /// <param name="autoInlinedDependency">DataInlineContext will provide implementation mocked by NSubstitute</param>
     [Theory]
     [DataInlineContext]
     public void DataInlineContextDemonstration(TestContext context, IMockable autoInlinedDependency)
     {
-        autoInlinedDependency.Max.Returns(int.MaxValue); //dependency mocked by NSubstitute
+        autoInlinedDependency.Max.Returns(int.MaxValue); //dependency is mocked by NSubstitute
 
         context.ServiceCollection.AddApplicationServices(); //you can add services, modules defined in hosted app, application, infrastructure layer etc..
         var serviceProvider = context.BuildServiceProvider(); //appsettings.json added by convention. Context and service provider will be disposed by xunit
@@ -270,3 +280,8 @@ global using System.IO;
 global using System.Linq;
 global using DRN.Framework.Testing.DataAttributes;
 ```
+
+## DebugOnly Tests
+Following attributes can be used to run test only when the debugger is attached. These attributes does not respect debugger not debug configuration.
+* FactDebuggerOnly
+* TheoryDebuggerOnly

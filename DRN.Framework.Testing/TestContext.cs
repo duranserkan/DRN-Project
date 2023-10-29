@@ -45,7 +45,7 @@ public sealed class TestContext : IDisposable
         foreach (var grouping in SubstitutePairs.GroupBy(p => p.InterfaceType))
         {
             var type = grouping.Key;
-            var implementations = grouping.ToArray().Select(p => p.Implementation).ToArray();
+            var implementations = grouping.Select(p => p.Implementation).ToArray();
 
             ServiceCollection.ReplaceInstance(type, implementations, ServiceLifetime.Scoped);
         }

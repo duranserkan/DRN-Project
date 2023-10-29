@@ -4,7 +4,7 @@ public abstract class DrnException : Exception
 {
     public string Category { get; }
 
-    public DrnException(string message, Exception exception = null!, string category = "default") : base(message, exception)
+    protected DrnException(string message, Exception exception = null!, string category = "default") : base(message, exception)
     {
         Category = category;
     }
