@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Configuration;
-
 namespace DRN.Test.Tests.Testing.Providers;
 
 public class SettingsProviderTests

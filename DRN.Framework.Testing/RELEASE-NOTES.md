@@ -7,7 +7,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### New Features
 
 * TestContext added
-* FactDebuggerOnly and TheoryDebuggerOnly attributes added
+* FactDebuggerOnly and TheoryDebuggerOnly test attributes added
 * Following data attributes added:
   * DataInlineAutoAttribute
   * DataInlineContextAttribute

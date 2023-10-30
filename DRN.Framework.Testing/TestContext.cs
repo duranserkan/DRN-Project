@@ -13,11 +13,18 @@ namespace DRN.Framework.Testing;
 
 public sealed class TestContext : IDisposable, IServiceProvider
 {
+    private ServiceProvider? ServiceProvider { get; set; }
+
+    //Todo: put them in the method context
     public IReadOnlyList<object> Data { get; private set; } = null!;
     public IReadOnlyList<SubstitutePair> SubstitutePairs { get; private set; } = null!;
     public MethodInfo TestMethod { get; private set; } = null!;
+
     public ServiceCollection ServiceCollection { get; } = new();
-    private ServiceProvider? ServiceProvider { get; set; }
+
+
+    //Todo: get data for test method
+    //Todo: snipped and live template
 
     /// <summary>
     /// Creates a service provider from test context service collection

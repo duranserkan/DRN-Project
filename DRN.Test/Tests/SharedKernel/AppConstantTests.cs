@@ -1,5 +1,3 @@
-using DRN.Framework.SharedKernel;
-
 namespace DRN.Test.Tests.SharedKernel;
 
 public class AppConstantTests

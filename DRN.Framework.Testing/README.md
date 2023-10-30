@@ -286,7 +286,7 @@ Following attributes can be used to run test only when the debugger is attached.
 
         appSettings.GetRequiredSection("AllowedHosts").Value.Should().Be("*");
         appSettings.TryGetSection("Bar", out _).Should().BeTrue();
-        appSettings.TryGetSection("Foo", out _).Should().BeFa~~~~~~~~lse();
+        appSettings.TryGetSection("Foo", out _).Should().BeFalse();
         appSettings.GetRequiredConnectionString("Foo").Should().Be("Bar");
         appSettings.TryGetConnectionString("Bar", out _).Should().BeFalse();
     }
@@ -312,19 +312,22 @@ Following attributes can be used to run test only when the debugger is attached.
     }
 ```
 ## Global Usings
-following global usings can be used in a Usings file in test projects to reduce line of code in test files
+Following global usings can be used in a `Usings.cs` file in test projects to reduce line of code in test files
 ```csharp
 global using Xunit;
 global using AutoFixture;
 global using AutoFixture.AutoNSubstitute;
 global using AutoFixture.Xunit2;
 global using DRN.Framework.Utils.Extensions;
+global using DRN.Framework.SharedKernel;
 global using DRN.Framework.Utils.Settings;
 global using DRN.Framework.Testing;
 global using DRN.Framework.Testing.DataAttributes;
 global using DRN.Framework.Testing.Providers;
+global using DRN.Framework.Testing.TestAttributes;
 global using FluentAssertions;
 global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Configuration;
 global using NSubstitute;
 global using System.Reflection;
 global using System.IO;
