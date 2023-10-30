@@ -1,4 +1,4 @@
-namespace DRN.Test.Tests;
+namespace DRN.Test.Tests.Testing.Providers;
 
 public class DataProviderTests
 {

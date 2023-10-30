@@ -5,12 +5,17 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Breaking Changes
 
 ### New Features
-Following data attributes added:
-* DataInlineAutoAttribute
-* DataInlineContextAttribute
-* DataMemberAutoAttribute
-* DataMemberContextAttribute
-* DataSelfAutoAttribute
-* DataSelfContextAttribute
+
+* TestContext added
+* FactDebuggerOnly and TheoryDebuggerOnly attributes added
+* Following data attributes added:
+  * DataInlineAutoAttribute
+  * DataInlineContextAttribute
+  * DataMemberAutoAttribute
+  * DataMemberContextAttribute
+  * DataSelfAutoAttribute
+  * DataSelfContextAttribute
+* SettingsProvider added
+* DataProvider added
 
 ### Bug Fixes

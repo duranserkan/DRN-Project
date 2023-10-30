@@ -1,4 +1,4 @@
-namespace DRN.Test.Tests.Testing;
+namespace DRN.Test.Tests.Testing.DataAttributes;
 
 public class DataInlineContextAttributeTests
 {
@@ -44,7 +44,7 @@ public class DataInlineContextAttributeTests
 
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
         appSettings.GetRequiredSection("AllowedHosts").Value.Should().Be("*");
-        appSettings.TryGetSection("Bar", out _).Should().BeFalse();
+        appSettings.TryGetSection("Foo", out _).Should().BeFalse();
         appSettings.GetRequiredConnectionString("Foo").Should().Be("Bar");
         appSettings.TryGetConnectionString("Bar", out _).Should().BeFalse();
     }

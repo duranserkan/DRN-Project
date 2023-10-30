@@ -11,11 +11,13 @@
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=coverage)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 
+## Introduction
 DRN.Framework.Testing package provides practical, effective helpers such as resourceful data attributes and test context.
 
 This package enables a new encouraging testing technique called as DTT(Duran's Testing Technique). With DTT, any developer can write clean and hassle-free unit and integration tests without complexity.
 
-Following packages are encapsulated with this package and no longer needed to be referenced in your test project:
+### Encapsulated Packages
+You no longer need to be reference followings in your test project:
 * AutoFixture.AutoNSubstitute
 * AutoFixture.Xunit2
 * DRN.Framework.Utils
@@ -23,8 +25,8 @@ Following packages are encapsulated with this package and no longer needed to be
 * NSubstitute
 * xunit
 
-## Quickstart
-Here's a basic test demonstration to get you started:
+### QuickStart: Basics
+Here's a basic test demonstration to take your attention and get you started:
 ```csharp
     [Theory]
     [DataInlineContext]
@@ -33,12 +35,22 @@ Here's a basic test demonstration to get you started:
         context.ServiceCollection.AddApplicationServices();
         //Context wraps service provider and automagically replaces actual dependencies with auto inlined dependencies
         var dependentService = context.GetRequiredService<DependentService>();
-
+        
         autoInlinedDependency.Max.Returns(int.MaxValue); //dependency is mocked by NSubstitute
-        dependentService.Max.Should().Be(int.MaxValue);
+        dependentService.Max.Should().Be(int.MaxValue); //That is all. It is clean and effective 
     }
 ```
-Testing models used in demonstration:
+
+### Table of Contents
+* Introduction
+* TestContext
+* DataAttributes
+* DebugOnly Tests
+* Settings and Data Providers
+* Global Usings
+* Example Test Project
+
+### Testing models used in the QuickStart
 ```csharp
 
 public static class ApplicationModule //Can be defined in Application Layer or in Hosted App
@@ -73,7 +85,7 @@ public class DependentService : IMockable
 }
 ```
 
-## Advanced Data Inline
+### QuickStart: Advanced Data Inline
 * `DataInlineContext` will provide `TestContext` as first parameter. 
 * Then it will provide inlined values.
 * Then it will provide auto inline missing values with AutoFixture.
@@ -131,7 +143,7 @@ Following design principle is used for these attributes
 * Self attributes needs to be inherited by another class and should call `AddRow` method in constructor to provide data
 * Context attributes provide `TestContext` as first parameter
 
-## Member Attributes
+### Member Attributes
 Example usages for member attributes
 ```csharp
 [Theory]
@@ -173,7 +185,7 @@ public static IEnumerable<object[]> TestContextInlineMemberData => new List<obje
 };
 ```
 
-## Self Attributes
+### Self Attributes
 Example usages for self attributes
 ```csharp
 public class DataSelfAutoAttributeTests
@@ -227,7 +239,7 @@ public class DataSelfContextTestData : DataSelfContextAttribute
 }
 ```
 
-## Inline Attributes
+### Inline Attributes
 Example usages for inline attributes
 ```csharp
 [Theory]
@@ -263,6 +275,42 @@ Following attributes can be used to run test only when the debugger is attached.
 * FactDebuggerOnly
 * TheoryDebuggerOnly
 
+## Providers
+### SettingsProvider
+`SettingsProvider` gets the settings from Settings folder. Settings file path is relative Settings folder. Settings folder must be created in the root of the test Project. Make sure the settings file is copied to output directory.
+```csharp
+    [Fact]
+    public void SettingsProvider_Should_Return_IAppSettings_Instance()
+    {
+        var appSettings = SettingsProvider.GetAppSettings();
+
+        appSettings.GetRequiredSection("AllowedHosts").Value.Should().Be("*");
+        appSettings.TryGetSection("Bar", out _).Should().BeTrue();
+        appSettings.TryGetSection("Foo", out _).Should().BeFa~~~~~~~~lse();
+        appSettings.GetRequiredConnectionString("Foo").Should().Be("Bar");
+        appSettings.TryGetConnectionString("Bar", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void SettingsProvider_Should_Return_IConfiguration_Instance()
+    {
+        var configuration = SettingsProvider.GetConfiguration("secondaryAppSettings");
+
+        configuration.GetRequiredSection("AllowedHosts").Value.Should().Be("*");
+        configuration.GetSection("Foo").Exists().Should().BeTrue();
+        configuration.GetSection("Bar").Exists().Should().BeFalse();
+        configuration.GetConnectionString("Bar").Should().Be("Foo");
+    }
+```
+### DataProvider
+`DataProvider` gets the content of specified data file in the Data folder. Data file path is relative Data folder including file extension. Data folder must be created in the root of the test Project. Make sure the data file is copied to output directory.
+```csharp
+    [Fact]
+    public void DataProvider_Should_Return_Data_From_Test_File()
+    {
+        DataProvider.Get("Test.txt").Should().Be("Foo");
+    }
+```
 ## Global Usings
 following global usings can be used in a Usings file in test projects to reduce line of code in test files
 ```csharp
@@ -270,14 +318,51 @@ global using Xunit;
 global using AutoFixture;
 global using AutoFixture.AutoNSubstitute;
 global using AutoFixture.Xunit2;
-global using DRN.Framework.Testing;
 global using DRN.Framework.Utils.Extensions;
 global using DRN.Framework.Utils.Settings;
+global using DRN.Framework.Testing;
+global using DRN.Framework.Testing.DataAttributes;
+global using DRN.Framework.Testing.Providers;
 global using FluentAssertions;
 global using Microsoft.Extensions.DependencyInjection;
 global using NSubstitute;
 global using System.Reflection;
 global using System.IO;
 global using System.Linq;
-global using DRN.Framework.Testing.DataAttributes;
+global using System.Collections;
+```
+## Example Test Project .csproj File
+Don't forget to replace DRN.Framework.Testing project reference with its nuget package reference
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.2"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="Settings\defaultAppSettings.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Data\Test.txt">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Settings\secondaryAppSettings.json">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+</Project>
 ```

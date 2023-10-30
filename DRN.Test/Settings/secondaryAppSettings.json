@@ -6,7 +6,8 @@
     }
   },
   "AllowedHosts": "*",
+  "Foo": "*",
   "ConnectionStrings": {
-    "Foo": "Bar"
+    "Bar": "Foo"
   }
 }

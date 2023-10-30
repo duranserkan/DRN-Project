@@ -1,6 +1,6 @@
 using DRN.Framework.Testing.TestAttributes;
 
-namespace DRN.Test.Tests;
+namespace DRN.Test.Tests.Testing.TestAttributes;
 
 public class DebuggerOnlyAttributeTests
 {

@@ -1,4 +1,4 @@
-namespace DRN.Test.Tests.Testing;
+namespace DRN.Test.Tests.Testing.DataAttributes;
 
 public class DataInlineAutoAttributeTests
 {

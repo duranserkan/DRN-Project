@@ -1,4 +1,5 @@
 using DRN.Framework.Testing.Extensions;
+using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,7 @@ namespace DRN.Framework.Testing;
 /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
 /// It disposes itself automatically at the end of the test.
 /// </summary>
+
 public sealed class TestContext : IDisposable, IServiceProvider
 {
     public IReadOnlyList<object> Data { get; private set; } = null!;
@@ -23,10 +25,10 @@ public sealed class TestContext : IDisposable, IServiceProvider
     /// It includes logging and IAppSettings by default.
     /// More default services will be added by default as the drn framework develops
     /// </summary>
-    public ServiceProvider BuildServiceProvider(string appSettingsName = "appsettings")
+    public ServiceProvider BuildServiceProvider(string appSettingsName = "defaultAppSettings")
     {
-        //dispose previous initiated sp to create new
-        Dispose();
+        //dispose previously initiated sp to create new
+        DisposeServiceProvider();
         ReplaceSubstitutedInterfaces();
 
         ServiceProvider = ServiceCollection
@@ -67,8 +69,14 @@ public sealed class TestContext : IDisposable, IServiceProvider
 
     public void Dispose()
     {
+        DisposeServiceProvider();
+        ServiceCollection.Clear();
+        GC.SuppressFinalize(this);
+    }
+
+    private void DisposeServiceProvider()
+    {
         ServiceProvider?.Dispose();
         ServiceProvider = null;
-        GC.SuppressFinalize(this);
     }
 }
