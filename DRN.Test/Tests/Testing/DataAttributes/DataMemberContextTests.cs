@@ -1,3 +1,5 @@
+using DRN.Framework.Testing.Contexts;
+
 namespace DRN.Test.Tests.Testing.DataAttributes;
 
 public class DataMemberContextTests
@@ -8,7 +10,7 @@ public class DataMemberContextTests
         int inline, ComplexInline complexInline, Guid autoGenerate, IMockable mock)
     {
         testContext.Should().NotBeNull();
-        testContext.TestMethod.Name.Should().Be(nameof(TestContextMember_Should_Inline_And_Auto_Generate_Missing_Test_Data));
+        testContext.MethodContext.TestMethod.Name.Should().Be(nameof(TestContextMember_Should_Inline_And_Auto_Generate_Missing_Test_Data));
         inline.Should().BeGreaterThan(10);
         complexInline.Count.Should().BeLessThan(10);
         autoGenerate.Should().NotBeEmpty();

@@ -1,3 +1,5 @@
+using DRN.Framework.Testing.Contexts;
+
 namespace DRN.Test.Tests.Testing.DataAttributes;
 
 public class DataInlineContextAttributeTests

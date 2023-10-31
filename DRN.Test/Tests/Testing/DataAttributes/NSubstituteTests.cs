@@ -1,3 +1,4 @@
+using DRN.Framework.Testing.Contexts;
 using DRN.Framework.Testing.Extensions;
 
 namespace DRN.Test.Tests.Testing.DataAttributes;
@@ -11,7 +12,7 @@ public class NSubstituteTests
         mockable.IsSubstitute().Should().BeTrue();
         mockable2.IsSubstitute().Should().BeTrue();
         disposable.IsSubstitute().Should().BeTrue();
-        context.SubstitutePairs.Count.Should().Be(3);
+        context.MethodContext.SubstitutePairs.Count.Should().Be(3);
 
         var serviceProvider = context.BuildServiceProvider();
 

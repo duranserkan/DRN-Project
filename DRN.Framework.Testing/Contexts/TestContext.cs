@@ -1,25 +1,17 @@
-using DRN.Framework.Testing.Extensions;
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
-using DRN.Framework.Utils.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DRN.Framework.Testing;
+namespace DRN.Framework.Testing.Contexts;
 
 /// <summary>
 /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
 /// It disposes itself automatically at the end of the test.
 /// </summary>
-
 public sealed class TestContext : IDisposable, IServiceProvider
 {
     private ServiceProvider? ServiceProvider { get; set; }
-
-    //Todo: put them in the method context
-    public IReadOnlyList<object> Data { get; private set; } = null!;
-    public IReadOnlyList<SubstitutePair> SubstitutePairs { get; private set; } = null!;
-    public MethodInfo TestMethod { get; private set; } = null!;
-
+    public MethodContext MethodContext { get; } = new();
     public ServiceCollection ServiceCollection { get; } = new();
 
 
@@ -36,7 +28,7 @@ public sealed class TestContext : IDisposable, IServiceProvider
     {
         //dispose previously initiated sp to create new
         DisposeServiceProvider();
-        ReplaceSubstitutedInterfaces();
+        MethodContext.ReplaceSubstitutedInterfaces(this);
 
         ServiceProvider = ServiceCollection
             .AddSingleton(x => SettingsProvider.GetAppSettings(appSettingsName))
@@ -47,24 +39,9 @@ public sealed class TestContext : IDisposable, IServiceProvider
         return ServiceProvider;
     }
 
-    private void ReplaceSubstitutedInterfaces()
-    {
-        foreach (var grouping in SubstitutePairs.GroupBy(p => p.InterfaceType))
-        {
-            var type = grouping.Key;
-            var implementations = grouping.Select(p => p.Implementation).ToArray();
+    internal void SetMethodInfo(MethodInfo testMethod) => MethodContext.SetMethodInfo(testMethod);
 
-            ServiceCollection.ReplaceInstance(type, implementations, ServiceLifetime.Scoped);
-        }
-    }
-
-    internal void SetMethodInfo(MethodInfo testMethod) => TestMethod = testMethod;
-
-    internal void SetTestData(object[] data)
-    {
-        Data = data;
-        SubstitutePairs = data.GetSubstitutePairs();
-    }
+    internal void SetTestData(object[] data) => MethodContext.SetTestData(data);
 
     public override string ToString() => "context";
 
