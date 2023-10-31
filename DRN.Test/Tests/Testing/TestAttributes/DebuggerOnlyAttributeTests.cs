@@ -5,13 +5,11 @@ public class DebuggerOnlyAttributeTests
     [FactDebuggerOnly]
     public void DebuggerOnlyFact()
     {
-
     }
 
     [TheoryDebuggerOnly]
-    [DataInlineAuto]
-    public void DebuggerOnlyTheory(int a)
+    [DataInlineContext]
+    public void DebuggerOnlyTheory(TestContext context)
     {
-
     }
 }

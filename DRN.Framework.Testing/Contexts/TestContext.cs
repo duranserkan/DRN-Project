@@ -1,5 +1,6 @@
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
+using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Testing.Contexts;
@@ -13,10 +14,9 @@ public sealed class TestContext : IDisposable, IServiceProvider
     private ServiceProvider? ServiceProvider { get; set; }
     public MethodContext MethodContext { get; } = new();
     public ServiceCollection ServiceCollection { get; } = new();
+    public string GetData(string pathRelativeToDataFolder) => DataProvider.Get(pathRelativeToDataFolder, MethodContext.GetTestFolderLocation());
 
-
-    //Todo: get data for test method
-    //Todo: snipped and live template
+    //Todo: dtt, snipped and live template, test containers, update test context documentation
 
     /// <summary>
     /// Creates a service provider from test context service collection
@@ -24,18 +24,20 @@ public sealed class TestContext : IDisposable, IServiceProvider
     /// It includes logging and IAppSettings by default.
     /// More default services will be added by default as the drn framework develops
     /// </summary>
-    public ServiceProvider BuildServiceProvider(string appSettingsName = "defaultAppSettings")
+    public ServiceProvider BuildServiceProvider(string appSettingsName = "settings")
     {
         //dispose previously initiated sp to create new
         DisposeServiceProvider();
         MethodContext.ReplaceSubstitutedInterfaces(this);
 
+        var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation());
         ServiceProvider = ServiceCollection
-            .AddSingleton(x => SettingsProvider.GetAppSettings(appSettingsName))
-            .AddSingleton(x => SettingsProvider.GetConfiguration(appSettingsName))
+            .AddSingleton(x => configuration)
+            .AddSingleton(x => new AppSettings(configuration))
             .AddLogging()
             .AddDrnUtils()
             .BuildServiceProvider(false);
+
         return ServiceProvider;
     }
 

@@ -10,6 +10,17 @@ public class MethodContext
     public IReadOnlyList<SubstitutePair> SubstitutePairs { get; private set; } = null!;
     public MethodInfo TestMethod { get; private set; } = null!;
 
+    public string GetTestFolderLocation()
+    {
+        var testClass = TestMethod.ReflectedType!;
+        var assemblyName = testClass.Assembly.GetName().Name ?? "";
+        var relativePathToTest = testClass.Namespace!.Remove(0, assemblyName.Length).TrimStart('.').Replace('.',Path.DirectorySeparatorChar);
+        var testFolder = Path.Combine(Path.GetDirectoryName(testClass.Assembly.Location) ?? "", relativePathToTest);
+
+        return testFolder;
+    }
+
+
     internal void ReplaceSubstitutedInterfaces(TestContext testContext)
     {
         foreach (var grouping in SubstitutePairs.GroupBy(p => p.InterfaceType))
@@ -20,6 +31,7 @@ public class MethodContext
             testContext.ServiceCollection.ReplaceInstance(type, implementations, ServiceLifetime.Scoped);
         }
     }
+
 
     internal void SetMethodInfo(MethodInfo testMethod) => TestMethod = testMethod;
 

@@ -17,13 +17,25 @@
     </ItemGroup>
     
     <ItemGroup>
-        <None Update="Settings\defaultAppSettings.json">
+        <None Update="Settings\settings.json">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
         <None Update="Data\Test.txt">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
-        <None Update="Settings\secondaryAppSettings.json">
+        <None Update="Settings\alternateSettings.json">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Testing\Providers\Settings\settings.json">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Testing\Providers\alternateSettings.json">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Testing\Providers\Data\data.txt">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Testing\Providers\alternateData.txt">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
     </ItemGroup>
