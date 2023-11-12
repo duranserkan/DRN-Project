@@ -1,3 +1,4 @@
+using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -7,7 +8,7 @@ public static class UtilsModule
 {
     public static IServiceCollection AddDrnUtils(this IServiceCollection collection)
     {
-        collection.AddServiceWithLifetimeAttributes();
+        collection.AddServicesWithLifetimeAttributes();
 
         return collection;
     }

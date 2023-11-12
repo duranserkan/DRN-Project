@@ -33,23 +33,23 @@ public class LifetimeAttribute<TService> : LifetimeAttribute
     }
 }
 
-public class LifetimeScopedAttribute<TService> : LifetimeAttribute<TService>
+public class ScopedAttribute<TService> : LifetimeAttribute<TService>
 {
-    public LifetimeScopedAttribute(bool tryAdd = true) : base(ServiceLifetime.Scoped, tryAdd)
+    public ScopedAttribute(bool tryAdd = true) : base(ServiceLifetime.Scoped, tryAdd)
     {
     }
 }
 
-public class LifetimeTransientAttribute<TService> : LifetimeAttribute<TService>
+public class TransientAttribute<TService> : LifetimeAttribute<TService>
 {
-    public LifetimeTransientAttribute(bool tryAdd = true) : base(ServiceLifetime.Transient, tryAdd)
+    public TransientAttribute(bool tryAdd = true) : base(ServiceLifetime.Transient, tryAdd)
     {
     }
 }
 
-public class LifetimeSingletonAttribute<TService> : LifetimeAttribute<TService>
+public class SingletonAttribute<TService> : LifetimeAttribute<TService>
 {
-    public LifetimeSingletonAttribute(bool tryAdd = true) : base(ServiceLifetime.Singleton, tryAdd)
+    public SingletonAttribute(bool tryAdd = true) : base(ServiceLifetime.Singleton, tryAdd)
     {
     }
 }

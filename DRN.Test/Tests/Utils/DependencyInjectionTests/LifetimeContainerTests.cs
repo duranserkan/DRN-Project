@@ -6,7 +6,7 @@ public class LifetimeContainerTests
 {
     [Theory]
     [DataInlineContext]
-    public void x(TestContext context)
+    public void Services_Marked_By_Lifetime_Attributes_Should_Be_Added_To_ServiceProvider(TestContext context)
     {
         var containers = context.GetServices<LifetimeContainer>().ToArray();
         var utilsAssemblyContainer = containers.Single(c => c.Assembly == typeof(IAppSettings).Assembly);

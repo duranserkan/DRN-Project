@@ -1,4 +1,5 @@
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Utils.DependencyInjection;
 
@@ -15,6 +16,5 @@ public class LifetimeContainer
 
     public void Validate(IServiceProvider serviceProvider)
     {
-
     }
 }

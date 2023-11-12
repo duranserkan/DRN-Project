@@ -12,7 +12,7 @@ public interface IAppSettings
     IConfigurationSection GetRequiredSection(string key);
 }
 
-[LifetimeSingleton<IAppSettings>]
+[Singleton<IAppSettings>]
 public class AppSettings : IAppSettings
 {
     public AppSettings(IConfiguration configuration)

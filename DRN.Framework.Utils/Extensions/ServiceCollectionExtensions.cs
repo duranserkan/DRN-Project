@@ -40,31 +40,4 @@ public static class ServiceCollectionExtensions
         sc.RemoveAll<TService>();
         sc.AddSingleton<TService, TImplementation>(sp => implementation);
     }
-
-    /// <summary>
-    /// This method scans implementations with LifetimeAttributes and adds them to the service collection
-    /// Method needs to be called from assembly to scan
-    /// </summary>
-    public static LifetimeContainer AddServiceWithLifetimeAttributes(this IServiceCollection sc)
-    {
-        var assembly = Assembly.GetCallingAssembly();
-        var lifetimeAttributes = assembly.GetTypes().Where(LifetimeAttribute.HasLifetime).Select(t =>
-            {
-                var lifetime = LifetimeAttribute.GetLifetime(t);
-                lifetime.ImplementationType = t;
-
-                var descriptor = new ServiceDescriptor(lifetime.ServiceType, t, lifetime.ServiceLifetime);
-                if (lifetime.TryAdd)
-                    sc.TryAdd(descriptor);
-                else
-                    sc.Add(descriptor);
-
-                return lifetime;
-            }).ToArray();
-
-        var container = new LifetimeContainer(assembly, lifetimeAttributes);
-        sc.AddSingleton(container);
-
-        return container;
-    }
 }
