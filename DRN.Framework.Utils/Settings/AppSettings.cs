@@ -1,3 +1,4 @@
+using DRN.Framework.Utils.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 
 namespace DRN.Framework.Utils.Settings;
@@ -11,6 +12,7 @@ public interface IAppSettings
     IConfigurationSection GetRequiredSection(string key);
 }
 
+[LifetimeSingleton<IAppSettings>]
 public class AppSettings : IAppSettings
 {
     public AppSettings(IConfiguration configuration)

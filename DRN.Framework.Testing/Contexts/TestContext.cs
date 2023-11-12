@@ -33,7 +33,6 @@ public sealed class TestContext : IDisposable, IServiceProvider
         var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation());
         ServiceProvider = ServiceCollection
             .AddSingleton(x => configuration)
-            .AddSingleton(x => new AppSettings(configuration))
             .AddLogging()
             .AddDrnUtils()
             .BuildServiceProvider(false);
