@@ -52,7 +52,7 @@ public sealed class TestContext : IDisposable, IServiceProvider
         return ServiceProvider.GetService(serviceType);
     }
 
-    public void Validate() => this.ValidateServicesAddedByAttributes();
+    public void ValidateServices() => this.ValidateServicesAddedByAttributes();
 
     public void Dispose()
     {
