@@ -7,17 +7,17 @@ namespace DRN.Framework.Utils.DependencyInjection;
 
 public static class ServiceCollectionExtensions
 {
-    private static readonly ConcurrentDictionary<Assembly, LifetimeContainer> ContainerDictionary = new();
+    private static readonly ConcurrentDictionary<string, LifetimeContainer> ContainerDictionary = new();
 
     /// <summary>
     /// This method scans implementations with LifetimeAttributes and adds them to the service collection
-    /// Method needs to be called from assembly to scan
+    /// Method needs to be called from assembly to scan or caller method should provide assembly to override default
     /// </summary>
     public static LifetimeContainer AddServicesWithLifetimeAttributes(this IServiceCollection sc, Assembly? assembly = null)
     {
         assembly ??= Assembly.GetCallingAssembly();
 
-        var container = ContainerDictionary.GetOrAdd(assembly, x =>
+        var container = ContainerDictionary.GetOrAdd(assembly.FullName!, x =>
         {
             var lifetimeAttributes = assembly.GetTypes().Where(LifetimeAttribute.HasLifetime).Select(type =>
             {

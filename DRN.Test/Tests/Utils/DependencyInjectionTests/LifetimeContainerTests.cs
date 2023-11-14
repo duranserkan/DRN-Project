@@ -13,6 +13,6 @@ public class LifetimeContainerTests
         var lifetime = utilsAssemblyContainer.LifetimeAttributes.Single(l => l.ServiceType == typeof(IAppSettings) &&
                                                                              l.ImplementationType == typeof(AppSettings) &&
                                                                              l.ServiceLifetime == ServiceLifetime.Singleton);
-        var appSettings = context.GetRequiredService<IAppSettings>();
+        context.Validate();
     }
 }

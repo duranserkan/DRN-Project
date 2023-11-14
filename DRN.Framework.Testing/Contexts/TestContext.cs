@@ -1,6 +1,6 @@
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
-using DRN.Framework.Utils.Settings;
+using DRN.Framework.Utils.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Testing.Contexts;
@@ -51,6 +51,8 @@ public sealed class TestContext : IDisposable, IServiceProvider
         ServiceProvider ??= BuildServiceProvider();
         return ServiceProvider.GetService(serviceType);
     }
+
+    public void Validate() => this.ValidateServicesAddedByAttributes();
 
     public void Dispose()
     {
