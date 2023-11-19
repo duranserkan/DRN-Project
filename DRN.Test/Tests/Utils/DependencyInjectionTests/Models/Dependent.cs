@@ -5,10 +5,11 @@ namespace DRN.Test.Tests.Utils.DependencyInjectionTests.Models;
 [Scoped<Dependent>]
 public class Dependent
 {
-    private readonly IIndependent _independent;
+    public IIndependent Independent { get; }
+
 
     public Dependent(IIndependent independent)
     {
-        _independent = independent;
+        Independent = independent;
     }
 }

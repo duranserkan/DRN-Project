@@ -38,4 +38,15 @@ public class LifetimeContainerTests
         var multipleInstances = context.GetServices<IMultiple>().ToArray();
         multipleInstances.Length.Should().Be(2);
     }
+
+    [Theory]
+    [DataInlineContext]
+    public void Service_Provider_Should_Throw_Exception_When_One_Of_Multiple_Services_Is_Not_Resolvable(TestContext context)
+    {
+        context.ServiceCollection.AddTestModule();
+        context.ServiceCollection.RemoveAll(typeof(IMultipleIndependent));
+
+        var action = () => context.ValidateServicesAddedByAttributes();
+        action.Should().Throw<InvalidOperationException>();
+    }
 }
