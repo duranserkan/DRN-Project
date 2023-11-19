@@ -16,6 +16,8 @@ public static class ServiceProviderExtensions
 
         foreach (var attribute in attributes)
         {
+            if (attribute.HasKey)
+                sp.GetRequiredKeyedService(attribute.ServiceType, attribute.Key);
             if (attribute.TryAdd)
                 sp.GetRequiredService(attribute.ServiceType);
             else if (!ServicesWithMultipleImplementations.Contains(attribute.ServiceType))
