@@ -6,7 +6,7 @@ ARG PROJECT=Sample.Hosted
 ARG SSLPORT=5999
 #https://www.mytechramblings.com/posts/testing-chiseled-ubuntu-containers-with-dotnet/
 #https://hub.docker.com/r/ubuntu/dotnet-aspnet use this dotnet deps with self contained apps are not supported with dockerfastmode
-FROM ubuntu/dotnet-aspnet:7.0_edge AS base
+FROM ubuntu/dotnet-aspnet:8.0_edge AS base
 #https://learn.microsoft.com/en-us/aspnet/core/security/docker-https
 #Bind ports from rider build configs or use docker compose
 #https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/endpoints
@@ -25,7 +25,7 @@ ENV ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
 WORKDIR /app
 
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
-FROM mcr.microsoft.com/dotnet/sdk:7.0-bullseye-slim AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0-bullseye-slim AS build
 ARG RUNTIME
 ARG PROJECT
 WORKDIR /app
