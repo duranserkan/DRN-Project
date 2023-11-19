@@ -15,7 +15,7 @@ public class LifetimeContainerTests
             l.ServiceType == typeof(IAppSettings) && l.ImplementationType == typeof(AppSettings) && l.ServiceLifetime == ServiceLifetime.Singleton);
         context.GetRequiredService<Dependent>();
 
-        context.ValidateServicesAddedByAttributes();
+        context.ValidateServices();
     }
 
     [Theory]
@@ -25,7 +25,7 @@ public class LifetimeContainerTests
         context.ServiceCollection.AddTestModule();
         context.ServiceCollection.RemoveAll(typeof(IIndependent));
 
-        var action = () => context.ValidateServicesAddedByAttributes();
+        var action = context.ValidateServices;
         action.Should().Throw<InvalidOperationException>();
     }
 
@@ -34,9 +34,7 @@ public class LifetimeContainerTests
     public void Lifetime_Attributes_Should_Add_Multiple(TestContext context)
     {
         context.ServiceCollection.AddTestModule();
-
-        var multipleInstances = context.GetServices<IMultiple>().ToArray();
-        multipleInstances.Length.Should().Be(2);
+        context.GetServices<IMultiple>().ToArray().Length.Should().Be(2);
     }
 
     [Theory]
@@ -46,7 +44,7 @@ public class LifetimeContainerTests
         context.ServiceCollection.AddTestModule();
         context.ServiceCollection.RemoveAll(typeof(IMultipleIndependent));
 
-        var action = () => context.ValidateServicesAddedByAttributes();
+        var action = context.ValidateServices;
         action.Should().Throw<InvalidOperationException>();
     }
 }
