@@ -33,7 +33,7 @@ public static class ServiceCollectionExtensions
         });
 
         var addedBefore = sc.Any(x =>
-            x.Lifetime == ServiceLifetime.Singleton && x.ServiceType == typeof(LifetimeContainer) & x.ImplementationInstance == container);
+            x.Lifetime == ServiceLifetime.Singleton && x.ServiceType == typeof(LifetimeContainer) && x.ImplementationInstance == container);
 
         if (addedBefore) return container;
         sc.AddSingleton(container);

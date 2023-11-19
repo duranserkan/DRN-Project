@@ -5,7 +5,7 @@ namespace DRN.Framework.Utils.DependencyInjection;
 
 public abstract class LifetimeAttribute : Attribute
 {
-    public LifetimeAttribute(ServiceLifetime serviceLifetime, Type serviceType, bool tryAdd)
+    protected LifetimeAttribute(ServiceLifetime serviceLifetime, Type serviceType, bool tryAdd)
     {
         ServiceLifetime = serviceLifetime;
         ServiceType = serviceType;
