@@ -34,11 +34,11 @@ This project is about managing software complexity, architecting good solutions 
 
 ## About Project
 DRN Project is not another framework that will `bite the dust.` It is more than a simple framework. It is a distilled knowledge that contains:
-- [X] A nexus app to manage microservices
+- [X] A beautiful framework to work with
 - [X] Management best practices
 - [X] Engineering manifest
-- [X] Reference documents
-- [X] A beautiful framework to work with.
+- [X] Reference documents for design, architecture and microservices
+- [ ] A nexus app to manage microservices
 
 
 This project is result of a productive and curious mindset that respects good solutions and best practices of others while enjoys from creating its own.
@@ -103,7 +103,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 * You can only expand yourself as your environment allows. Don't hesitate to change it when necessary 
 * You are not a tree. You can always walk away
 
-## About Architecture and Microservices
+## About Design, Architecture and Microservices
 * [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)
 * [DDD Oriented Microservice](https://docs.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/ddd-oriented-microservice)
 * [Strategic Domain Driven Design](https://vaadin.com/blog/ddd-part-1-strategic-domain-driven-design)
