@@ -11,10 +11,19 @@ public class DataProviderTests
     [Theory]
     [DataInlineContext("data.txt", "Atatürk")]
     [DataInlineContext("alternateData.txt", "Father of Turks")]
-    public void SettingsProvider_Should_Return_Test_Specific_IConfiguration_Instance(TestContext context, string dataPath, string data)
+    public void DataProvider_Should_Return_Test_Specific_Data(TestContext context, string dataPath, string data)
     {
         context.MethodContext.GetTestFolderLocation();
         DataProvider.Get(dataPath, context.MethodContext.GetTestFolderLocation()).Should().Be(data);
+        context.GetData(dataPath).Should().Be(data);
+    }
+
+    [Theory]
+    [DataInlineContext("data.txt", "Atatürk")]
+    [DataInlineContext("alternateData.txt", "Father of Turks")]
+    public void TestContext_Should_Return_Test_Specific_Data(TestContext context, string dataPath, string data)
+    {
+        //data file can be found in the same folder with test file, in the global Data folder or Data folder that stays in the same folder with test file
         context.GetData(dataPath).Should().Be(data);
     }
 }

@@ -49,6 +49,8 @@ Here's a basic test demonstration to take your attention and get you started:
 * Settings and Data Providers
 * Global Usings
 * Example Test Project
+* Test snippet
+* Testing guide and DTT approach
 
 ### Testing models used in the QuickStart
 ```csharp
@@ -116,16 +118,43 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
 `TestContext` has following properties:
 * captures values provided to running test method and its method info.
 * provides `ServiceCollection` so that to be tested services and dependencies can be added before building `ServiceProvider`.
-* provides lightweight `ServiceProvider` that contains default logging without any provider
+* provides and implements lightweight `ServiceProvider` that contains default logging without any provider
   * `ServiceProvider` can provide services that depends like `ILogger<DefaultService>`
   * logged data will not be leaked to anywhere since it has no logging provider.
-* `ServiceProvider` provides `IConfiguration` and `IAppSettings` with SettingsProvider.
-  * SettingsProvider reads json settings files that can be found in the settings folder of the test project
+* provides `IConfiguration` and `IAppSettings` with SettingsProvider by using convention.
+  * settings.json file can be found in the same folder with test
+  * settings.json file can be found in the global Settings folder or Settings folder that stays in the test folder
   * Make sure file is copied to output directory
   * If no settings file is specified while calling `BuildServiceProvider`. `appsettings.json` file be searched by convention.
+* provides data file contents by using convention.
+  * data file can be found in the same folder with test
+  * data file can be found in the global Data folder or Data folder that stays in the test folder
+  * Make sure file is copied to output directory
 * `ServiceProvider` provides utils provided with DRN.Framework.Utils' `UtilsModule`
 * `BuildServiceProvider` replaces dependencies that can be replaced with inlined interfaces.
 * `ServiceProvider` and `TestContext` will be disposed by xunit when test finishes
+
+`settings.json` can be put in the same folder that test file belongs. This way providing and isolating test settings is much more easier
+```csharp
+    [Theory]
+    [DataInlineContext( "localhost")]
+    public void TestContext_Should_Add_Settings_Json_To_Configuration(TestContext context, string value)
+    {
+        //settings.json file can be found in the same folder with test file, in the global Settings folder or Settings folder that stays in the same folder with test file
+        context.GetRequiredService<IAppSettings>().GetRequiredSection("AllowedHosts").Value.Should().Be(value);
+    }
+```
+`data.txt` can be put in the same folder that test file belongs. This way providing and isolating test data is much more easier
+```csharp
+    [Theory]
+    [DataInlineContext("data.txt", "Atatürk")]
+    [DataInlineContext("alternateData.txt", "Father of Turks")]
+    public void TestContext_Should_Return_Test_Specific_Data(TestContext context, string dataPath, string data)
+    {
+        //data file can be found in the same folder with test file, in the global Data folder or Data folder that stays in the same folder with test file
+        context.GetData(dataPath).Should().Be(data);
+    }
+```
 
 ## Data Attributes
 DRN.Framework.Testing provides following data attributes that can provide data to tests:
@@ -321,6 +350,7 @@ global using AutoFixture.Xunit2;
 global using DRN.Framework.Utils.Extensions;
 global using DRN.Framework.SharedKernel;
 global using DRN.Framework.Utils.Settings;
+global using DRN.Framework.Utils.DependencyInjection;
 global using DRN.Framework.Testing;
 global using DRN.Framework.Testing.DataAttributes;
 global using DRN.Framework.Testing.Providers;
@@ -328,6 +358,7 @@ global using DRN.Framework.Testing.TestAttributes;
 global using DRN.Framework.Testing.Contexts;
 global using FluentAssertions;
 global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.DependencyInjection.Extensions;
 global using Microsoft.Extensions.Configuration;
 global using NSubstitute;
 global using System.Reflection;
@@ -370,3 +401,33 @@ Don't forget to replace DRN.Framework.Testing project reference with its nuget p
 
 </Project>
 ```
+
+##  Test snippet
+
+**dtt** snippet for creating tests with a test context.
+```csharp
+[Theory]
+[DataInlineContext]
+public void $name$(TestContext context)
+{
+    $END$
+}
+```
+
+## Testing guide and DTT approach
+
+DTT(Duran's Testing Technique) is developed upon following 2 idea:
+* Writing a test, providing settings and data to it should be easy, effective and encouraging as much as possible
+* A test should test actual usage as much as possible.
+
+DTT with **TestContext** makes these ideas possible by
+* effortlessly providing test data and settings
+* effortlessly providing service collection
+* effortlessly providing service provider
+* effortlessly validating service provider
+* being aware of test data and location
+
+With the help of test context, integration tests can be written easily with following styles.
+1. A data context attribute can provide NSubstituted interfaces and test context automatically replaces actual implementations with mocked interfaces and provides test data.
+2. Test containers can be used as actual dependencies instead of mocking them.
+3. With FactDebuggerOnly and TheoryDebuggerOnly attributes, cautiously written tests can use real databases and dependencies to debug production usage.

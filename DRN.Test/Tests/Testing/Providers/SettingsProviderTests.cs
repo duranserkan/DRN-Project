@@ -48,4 +48,12 @@ public class SettingsProviderTests
         context.BuildServiceProvider(settingsName);
         context.GetRequiredService<IAppSettings>().GetRequiredSection("AllowedHosts").Value.Should().Be(value);
     }
+
+    [Theory]
+    [DataInlineContext( "localhost")]
+    public void TestContext_Should_Add_Settings_Json_To_Configuration(TestContext context, string value)
+    {
+        //settings.json file can be found in the same folder with test file, in the global Settings folder or Settings folder that stays in the same folder with test file
+        context.GetRequiredService<IAppSettings>().GetRequiredSection("AllowedHosts").Value.Should().Be(value);
+    }
 }
