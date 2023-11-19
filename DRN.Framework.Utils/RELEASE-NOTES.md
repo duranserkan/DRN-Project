@@ -12,5 +12,9 @@ Not every version includes changes, features or bug fixes. This project can incr
   * ReplaceTransient
   * ReplaceScoped
   * ReplaceSingleton
+* Attribute based dependency injection added
+  * ScopedAttribute, TransientAttribute, SingletonAttribute and LifetimeAttribute added
+  * ServiceCollection AddServicesWithAttributes extension added
+  * ServiceProvider ValidateServicesAddedByAttributes extension added
 
 ### Bug Fixes

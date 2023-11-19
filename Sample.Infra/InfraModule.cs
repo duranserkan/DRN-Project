@@ -4,7 +4,7 @@ namespace Sample.Infra;
 
 public static class InfraModule
 {
-    public static IServiceCollection AddInfraServices(this IServiceCollection sc)
+    public static IServiceCollection AddSampleInfraServices(this IServiceCollection sc)
     {
         sc.AddServicesWithAttributes();
 

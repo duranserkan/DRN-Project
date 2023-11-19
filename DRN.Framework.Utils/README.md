@@ -23,9 +23,79 @@ public static class UtilsModule
 {
     public static IServiceCollection AddDrnUtils(this IServiceCollection collection)
     {
-        collection.TryAddSingleton<IAppSettings, AppSettings>();
+        collection.AddServicesWithAttributes();
 
         return collection;
+    }
+}
+```
+## Dependency Injection with Attributes
+Attribute based dependency injection reduces wiring efforts and helps developer to focus on developing. This approach also improves service resolution validation during startup and integration testing.
+```csharp
+    [Theory]
+    [DataInlineContext]
+    public void Validate_Sample_Dependencies(TestContext context)
+    {
+        context.ServiceCollection.AddSampleApplicationServices();
+        context.ServiceCollection.AddSampleInfraServices();
+        context.ValidateServices();
+    }
+```
+Each module should be created in the assembly that will be scanned.
+```csharp
+public static class InfraModule
+{
+    public static IServiceCollection AddSampleInfraServices(this IServiceCollection sc)
+    {
+        sc.AddServicesWithAttributes();
+
+        return sc;
+    }
+}
+```
+
+Services resolution for attribute based services can be validated with single line
+```csharp
+serviceProvider.ValidateServicesAddedByAttributes();
+```
+
+Example attribute usage:
+```csharp
+[Transient<IIndependent>]
+public class Independent : IIndependent
+{
+}
+```
+
+Following attributes marks services with a lifetime and when service collection called with *AddServicesWithAttributes* method in the assembly marked belong they are automatically added.
+```csharp
+namespace DRN.Framework.Utils.DependencyInjection;
+
+public class LifetimeAttribute<TService> : LifetimeAttribute
+{
+    public LifetimeAttribute(ServiceLifetime serviceLifetime, bool tryAdd = true) : base(serviceLifetime, typeof(TService), tryAdd)
+    {
+    }
+}
+
+public class ScopedAttribute<TService> : LifetimeAttribute<TService>
+{
+    public ScopedAttribute(bool tryAdd = true) : base(ServiceLifetime.Scoped, tryAdd)
+    {
+    }
+}
+
+public class TransientAttribute<TService> : LifetimeAttribute<TService>
+{
+    public TransientAttribute(bool tryAdd = true) : base(ServiceLifetime.Transient, tryAdd)
+    {
+    }
+}
+
+public class SingletonAttribute<TService> : LifetimeAttribute<TService>
+{
+    public SingletonAttribute(bool tryAdd = true) : base(ServiceLifetime.Singleton, tryAdd)
+    {
     }
 }
 ```

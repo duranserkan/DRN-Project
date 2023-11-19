@@ -1,4 +1,9 @@
+using DRN.Nexus.Application;
+using DRN.Nexus.Infra;
+using DRN.Test.Tests.Testing.DataAttributes;
 using DRN.Test.Tests.Utils.DependencyInjectionTests.Models;
+using Sample.Application;
+using Sample.Infra;
 
 namespace DRN.Test.Tests.Utils.DependencyInjectionTests;
 
@@ -46,5 +51,23 @@ public class LifetimeContainerTests
 
         var action = context.ValidateServices;
         action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Theory]
+    [DataInlineContext]
+    public void Validate_Sample_Dependencies(TestContext context)
+    {
+        context.ServiceCollection.AddSampleApplicationServices();
+        context.ServiceCollection.AddSampleInfraServices();
+        context.ValidateServices();
+    }
+
+    [Theory]
+    [DataInlineContext]
+    public void Validate_Nexus_Dependencies(TestContext context)
+    {
+        context.ServiceCollection.AddNexusApplicationServices();
+        context.ServiceCollection.AddNexusInfraServices();
+        context.ValidateServices();
     }
 }

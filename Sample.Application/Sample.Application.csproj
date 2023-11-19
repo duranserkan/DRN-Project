@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj" />
+    <ProjectReference Include="..\Sample.Infra\Sample.Infra.csproj" />
   </ItemGroup>
 
 </Project>

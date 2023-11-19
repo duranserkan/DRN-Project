@@ -1,4 +1,3 @@
-using DRN.Framework.Utils.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Utils;

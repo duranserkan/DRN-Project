@@ -50,6 +50,6 @@ static void AddServices(IServiceCollection services, IConfiguration configuratio
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
     services.AddEndpointsApiExplorer();
     services.AddSwaggerGen();
-    services.AddInfraServices();
-    services.AddApplicationServices();
+    services.AddSampleInfraServices();
+    services.AddSampleApplicationServices();
 }
