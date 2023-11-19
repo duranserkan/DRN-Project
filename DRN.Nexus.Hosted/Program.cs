@@ -1,26 +1,51 @@
-﻿var builder = WebApplication.CreateBuilder(args);
+﻿using DRN.Framework.Utils.DependencyInjection;
+using DRN.Nexus.Application;
+using DRN.Nexus.Infra;
 
-// Add services to the container.
-
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+try
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    var app = CreateApp(args);
+    //log info
+    app.Run();
+}
+catch (Exception exception)
+{
+    //log error
+}
+finally
+{
+    //log shutdown
 }
 
-app.UseHttpsRedirection();
+static WebApplication CreateApp(string[] args)
+{
+    var builder = WebApplication.CreateBuilder(args);
+    var configuration = builder.Configuration;
+    var serviceCollection = builder.Services;
+    AddServices(serviceCollection, configuration);
 
-app.UseAuthorization();
+    var app = builder.Build();
+    app.Services.ValidateServicesAddedByAttributes();
 
-app.MapControllers();
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
 
-app.Run();
+    app.UseHttpsRedirection();
+    app.UseAuthorization();
+    app.MapControllers();
 
+    return app;
+}
+
+static void AddServices(IServiceCollection services, IConfiguration configuration)
+{
+    services.AddControllers();
+    // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+    services.AddEndpointsApiExplorer();
+    services.AddSwaggerGen();
+    services.AddInfraServices();
+    services.AddApplicationServices();
+}

@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DRN.Nexus.Utils\DRN.Nexus.Utils.csproj" />
+  </ItemGroup>
+
 </Project>

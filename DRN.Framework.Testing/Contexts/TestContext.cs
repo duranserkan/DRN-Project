@@ -2,6 +2,7 @@ using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace DRN.Framework.Testing.Contexts;
 
@@ -33,7 +34,7 @@ public sealed class TestContext : IDisposable, IServiceProvider
         var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation());
         ServiceProvider = ServiceCollection
             .AddSingleton(x => configuration)
-            .AddLogging()
+            .AddLogging(logging => { logging.ClearProviders(); })
             .AddDrnUtils()
             .BuildServiceProvider(false);
 

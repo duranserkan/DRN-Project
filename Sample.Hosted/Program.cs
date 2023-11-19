@@ -3,6 +3,9 @@
 //https://learn.microsoft.com/en-us/ef/core/cli/dbcontext-creation
 //https://learn.microsoft.com/en-us/aspnet/core/migration/50-to-60 new hosting model
 
+using Sample.Application;
+using Sample.Infra;
+
 try
 {
     var app = CreateApp(args);
@@ -26,8 +29,7 @@ static WebApplication CreateApp(string[] args)
     AddServices(serviceCollection, configuration);
 
     var app = builder.Build();
-    var serviceProvider = app.Services;
-    ValidateDependencies(serviceProvider, configuration);
+    app.Services.ValidateServicesAddedByAttributes();
 
     if (app.Environment.IsDevelopment())
     {
@@ -48,18 +50,6 @@ static void AddServices(IServiceCollection services, IConfiguration configuratio
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
     services.AddEndpointsApiExplorer();
     services.AddSwaggerGen();
-}
-
-static void ValidateDependencies(IServiceProvider services, IConfiguration configuration)
-{
-    //validate services, settings and dependencies
-}
-
-//Required by ef core migrations
-static IHostBuilder CreateHostBuilder(string[] args)
-{
-    var hostBuilder = WebApplication.CreateBuilder(args).Host;
-    hostBuilder.ConfigureServices((hostContext, services) => AddServices(services, hostContext.Configuration));
-
-    return hostBuilder;
+    services.AddInfraServices();
+    services.AddApplicationServices();
 }

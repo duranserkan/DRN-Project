@@ -13,7 +13,7 @@ public static class ServiceCollectionExtensions
     /// This method scans implementations with LifetimeAttributes and adds them to the service collection
     /// Method needs to be called from assembly to scan or caller method should provide assembly to override default
     /// </summary>
-    public static LifetimeContainer AddServicesWithLifetimeAttributes(this IServiceCollection sc, Assembly? assembly = null)
+    public static LifetimeContainer AddServicesWithAttributes(this IServiceCollection sc, Assembly? assembly = null)
     {
         assembly ??= Assembly.GetCallingAssembly();
 

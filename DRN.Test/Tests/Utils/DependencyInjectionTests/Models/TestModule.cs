@@ -4,7 +4,7 @@ public static class TestModule
 {
     public static IServiceCollection AddTestModule(this IServiceCollection serviceCollection)
     {
-        serviceCollection.AddServicesWithLifetimeAttributes();
+        serviceCollection.AddServicesWithAttributes();
 
         return serviceCollection;
     }

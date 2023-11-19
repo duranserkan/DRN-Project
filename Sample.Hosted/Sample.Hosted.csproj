@@ -12,5 +12,10 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.13" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\Sample.Application\Sample.Application.csproj" />
+    <ProjectReference Include="..\Sample.Infra\Sample.Infra.csproj" />
+  </ItemGroup>
 
 </Project>
