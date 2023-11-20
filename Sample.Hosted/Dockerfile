@@ -25,7 +25,7 @@ ENV ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
 WORKDIR /app
 
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
-FROM mcr.microsoft.com/dotnet/sdk:8.0-bullseye-slim AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0.100-1-jammy AS build
 ARG RUNTIME
 ARG PROJECT
 WORKDIR /app
