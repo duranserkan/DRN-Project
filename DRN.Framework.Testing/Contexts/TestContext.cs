@@ -10,7 +10,7 @@ namespace DRN.Framework.Testing.Contexts;
 /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
 /// It disposes itself automatically at the end of the test.
 /// </summary>
-public sealed class TestContext : IDisposable, IServiceProvider
+public sealed class TestContext : IDisposable, IKeyedServiceProvider
 {
     private ServiceProvider? ServiceProvider { get; set; }
     public MethodContext MethodContext { get; } = new();
@@ -51,6 +51,18 @@ public sealed class TestContext : IDisposable, IServiceProvider
     {
         ServiceProvider ??= BuildServiceProvider();
         return ServiceProvider.GetService(serviceType);
+    }
+
+    public object? GetKeyedService(Type serviceType, object? serviceKey)
+    {
+        ServiceProvider ??= BuildServiceProvider();
+        return ServiceProvider.GetKeyedService(serviceType, serviceKey);
+    }
+
+    public object GetRequiredKeyedService(Type serviceType, object? serviceKey)
+    {
+        ServiceProvider ??= BuildServiceProvider();
+        return ServiceProvider.GetRequiredKeyedService(serviceType, serviceKey);
     }
 
     public void ValidateServices() => this.ValidateServicesAddedByAttributes();

@@ -1,6 +1,5 @@
 using DRN.Nexus.Application;
 using DRN.Nexus.Infra;
-using DRN.Test.Tests.Testing.DataAttributes;
 using DRN.Test.Tests.Utils.DependencyInjectionTests.Models;
 using Sample.Application;
 using Sample.Infra;
@@ -18,7 +17,15 @@ public class LifetimeContainerTests
         var utilsAssemblyContainer = containers.Single(c => c.Assembly == typeof(IAppSettings).Assembly);
         utilsAssemblyContainer.LifetimeAttributes.Single(l =>
             l.ServiceType == typeof(IAppSettings) && l.ImplementationType == typeof(AppSettings) && l.ServiceLifetime == ServiceLifetime.Singleton);
+
         context.GetRequiredService<Dependent>();
+        context.GetRequiredKeyedService<IKeyed>(1);
+        context.GetRequiredKeyedService<IKeyed>(2);
+        context.GetRequiredKeyedService<IKeyed>("A");
+        context.GetRequiredKeyedService<IKeyed>("B");
+        context.GetKeyedServices<IKeyed>("Multiple").Count().Should().Be(2);
+        context.GetRequiredKeyedService<IKeyed>(Keyed.First);
+        context.GetRequiredKeyedService<IKeyed>(Keyed.Second);
 
         context.ValidateServices();
     }
@@ -29,6 +36,17 @@ public class LifetimeContainerTests
     {
         context.ServiceCollection.AddTestModule();
         context.ServiceCollection.RemoveAll(typeof(IIndependent));
+
+        var action = context.ValidateServices;
+        action.Should().Throw<InvalidOperationException>();
+    }
+
+    [Theory]
+    [DataInlineContext]
+    public void Service_Provider_Should_Throw_Exception_When_Keyed_Service_Is_Not_Resolvable(TestContext context)
+    {
+        context.ServiceCollection.AddTestModule();
+        context.ServiceCollection.RemoveAll(typeof(IKeyedDependency));
 
         var action = context.ValidateServices;
         action.Should().Throw<InvalidOperationException>();

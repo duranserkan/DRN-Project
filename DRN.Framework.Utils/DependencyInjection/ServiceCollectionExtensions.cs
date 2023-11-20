@@ -41,8 +41,8 @@ public static class ServiceCollectionExtensions
         foreach (var lifetime in container.LifetimeAttributes)
         {
             var descriptor = lifetime.HasKey
-                ? new ServiceDescriptor(lifetime.ServiceType, lifetime.ImplementationType, lifetime.ServiceLifetime)
-                : new ServiceDescriptor(lifetime.ServiceType, lifetime.Key, lifetime.ImplementationType, lifetime.ServiceLifetime);
+                ? new ServiceDescriptor(lifetime.ServiceType, lifetime.Key, lifetime.ImplementationType, lifetime.ServiceLifetime)
+                : new ServiceDescriptor(lifetime.ServiceType, lifetime.ImplementationType, lifetime.ServiceLifetime);
             if (lifetime.TryAdd)
                 sc.TryAdd(descriptor);
             else
