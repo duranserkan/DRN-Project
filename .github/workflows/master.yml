@@ -40,9 +40,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -Path .\.sonar\scanner -ItemType Directory
-          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
-          dotnet tool list
-          pwd
+          dotnet tool update dotnet-sonarscanner --tool-path $(pwd)\.sonar\scanner
       - name: Cache dotnet-coverage
         id: cache-dotnet-coverage
         uses: actions/cache@v3
@@ -55,15 +53,12 @@ jobs:
         shell: pwsh
         run: |
           New-Item -Path .\.sonar\coverage -ItemType Directory
-          dotnet tool update dotnet-coverage --tool-path .\.sonar\coverage
-          dotnet tool list
-          pwd
+          dotnet tool update dotnet-coverage --tool-path $(pwd)\.sonar\coverage
       - name: Build and analyze  # Sonar scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
         shell: pwsh
         run: |
-          pwd
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"duranserkan_DRN-Project" /o:"duranserkan" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.host.url="https://sonarcloud.io"
-          .\.sonar\coverage\dotnet-coverage collect "dotnet test DRN.Test/DRN.Test.csproj --no-build" -f xml -o "coverage.xml"
-          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          $(pwd)\.sonar\scanner\dotnet-sonarscanner begin /k:"duranserkan_DRN-Project" /o:"duranserkan" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.host.url="https://sonarcloud.io"
+          $(pwd)\.sonar\coverage\dotnet-coverage collect "dotnet test DRN.Test/DRN.Test.csproj --no-build" -f xml -o "coverage.xml"
+          $(pwd)\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
