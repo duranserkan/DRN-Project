@@ -9,6 +9,11 @@ on:
 jobs:
   build-and-scan:
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_PROJECT_KEY: duranserkan_DRN-Project
+      SONAR_HOST_URL: https://sonarcloud.io
+      SONAR_ORGANIZATION: duranserkan
     steps:
       - uses: actions/checkout@v4
         with:

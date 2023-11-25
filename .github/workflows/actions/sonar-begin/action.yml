@@ -40,7 +40,7 @@ runs:
       shell: pwsh
       run: |
         New-Item -Path ~/.sonar/cache -ItemType Directory
-    - name: Sonar Scan Begin # Sonar begin
+    - name: Sonar Scan Begin # Sonar Begin
       shell: pwsh
       run: |
-        ./.sonar/scanner/dotnet-sonarscanner begin /k:"duranserkan_DRN-Project" /o:"duranserkan" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.host.url="https://sonarcloud.io"
+        ./.sonar/scanner/dotnet-sonarscanner begin /k:"${SONAR_PROJECT_KEY}" /o:"${SONAR_ORGANIZATION}" /d:sonar.token="${SONAR_TOKEN}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.host.url="${SONAR_HOST_URL}"
