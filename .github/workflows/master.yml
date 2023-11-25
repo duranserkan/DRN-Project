@@ -13,65 +13,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: Setup .NET # SDK Installation
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: 8.0.x
-      - name: Set up JDK 21
-        uses: actions/setup-java@v3
-        with:
-          java-version: 21
-          distribution: 'temurin'
-      - name: Restore dependencies # Restore, build, test
+      - name: Setup SDK
+        uses: ./.github/workflows/actions/setup-sdk
+      - name: Sonar Scan Begin
+        uses: ./.github/workflows/actions/sonar-begin
+      - name: Restore dependencies
         run: dotnet restore DRN.sln
       - name: Build
         run: dotnet build DRN.sln --no-restore --no-incremental
       - name: Test
-        run: dotnet test DRN.Test/DRN.Test.csproj --no-build --verbosity normal
-      - name: Cache SonarCloud scanner # Sonar scan tools installation and cache
-        id: cache-sonar-scanner
-        uses: actions/cache@v3
-        with:
-          path: ./.sonar/scanner
-          key: ${{ runner.os }}-sonar-scanner
-          restore-keys: ${{ runner.os }}-sonar-scanner
-      - name: Install SonarCloud scanner
-        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          New-Item -Path ./.sonar/scanner -ItemType Directory
-          dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
-      - name: Cache dotnet-coverage
-        id: cache-dotnet-coverage
-        uses: actions/cache@v3
-        with:
-          path: ./.sonar/coverage
-          key: ${{ runner.os }}-sonar-dotnet-coverage
-          restore-keys: ${{ runner.os }}-sonar-dotnet-coverage
-      - name: Install dotnet-coverage
-        if: steps.cache-dotnet-coverage.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          New-Item -Path ./.sonar/coverage -ItemType Directory
-          dotnet tool update dotnet-coverage --tool-path ./.sonar/coverage
-      - name: Use sonar cache
-        id: cache-sonar
-        uses: actions/cache@v3
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-      - name: Create sonar cache directory
-        if: steps.cache-sonar.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          New-Item -Path ~/.sonar/cache -ItemType Directory
-      - name: Build and analyze  # Sonar scan
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-        shell: pwsh
-        run: |
-          ./.sonar/scanner/dotnet-sonarscanner begin /k:"duranserkan_DRN-Project" /o:"duranserkan" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.host.url="https://sonarcloud.io"
-          dotnet build DRN.sln --no-restore --no-incremental
-          ./.sonar/coverage/dotnet-coverage collect "dotnet test DRN.Test/DRN.Test.csproj --no-build" -f xml -o "coverage.xml"
-          ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        run: ./.sonar/coverage/dotnet-coverage collect "dotnet test DRN.Test/DRN.Test.csproj --no-build --verbosity normal" -f xml -o "coverage.xml"
+      - name: Sonar Scan End
+        uses: ./.github/workflows/actions/sonar-end

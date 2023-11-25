@@ -1,0 +1,13 @@
+name: Setup Sdk
+runs:
+  using: "composite"
+  steps:
+    - name: Setup .NET # SDK Installation
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 8.0.x
+    - name: Set up JDK 21
+      uses: actions/setup-java@v3
+      with:
+        java-version: 21
+        distribution: 'temurin'

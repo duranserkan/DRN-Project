@@ -124,6 +124,21 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget-publish", "nuget-publ
 		.github\workflows\actions\nuget-publish\action.yml = .github\workflows\actions\nuget-publish\action.yml
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "setup-sdk", "setup-sdk", "{E2E765AF-EEEA-4324-88E2-27B7C58498AF}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\setup-sdk\action.yml = .github\workflows\actions\setup-sdk\action.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sonar-begin", "sonar-begin", "{024898B7-EDAE-4AA9-8F53-E6EF05313100}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\sonar-begin\action.yml = .github\workflows\actions\sonar-begin\action.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sonar-end", "sonar-end", "{DEDDB222-0FA9-4D94-8C67-B0703FDDCFDE}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\sonar-end\action.yml = .github\workflows\actions\sonar-end\action.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -258,5 +273,8 @@ Global
 		{3156647F-BAB1-4C7D-8D36-90F0771B757D} = {43B4E0EE-4473-4F25-A087-7ABBCFC0EB19}
 		{43057003-6BEC-4C46-822A-1D2934A594D6} = {3156647F-BAB1-4C7D-8D36-90F0771B757D}
 		{AE41224D-8B02-44F9-9C62-2FE278B499AA} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{E2E765AF-EEEA-4324-88E2-27B7C58498AF} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{024898B7-EDAE-4AA9-8F53-E6EF05313100} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{DEDDB222-0FA9-4D94-8C67-B0703FDDCFDE} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 	EndGlobalSection
 EndGlobal
