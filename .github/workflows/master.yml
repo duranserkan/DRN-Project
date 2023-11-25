@@ -10,25 +10,24 @@ jobs:
   build-and-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: Setup .NET # Restore, build, test
+      - name: Setup .NET # SDK installation
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 8.0.x
-      - name: Restore dependencies
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+      - name: Restore dependencies # Restore, build, test
         run: dotnet restore DRN.sln
       - name: Build
         run: dotnet build DRN.sln --no-restore --no-incremental
       - name: Test
         run: dotnet test DRN.Test/DRN.Test.csproj --no-build --verbosity normal
-      - name: Set up JDK 17 # Sonar scan tools installation
-        uses: actions/setup-java@v3
-        with:
-          java-version: 17
-          distribution: 'zulu' # Alternative distribution options are available.
-      - name: Cache SonarCloud scanner
+      - name: Cache SonarCloud scanner # Sonar scan tools installation and cache
         id: cache-sonar-scanner
         uses: actions/cache@v3
         with:
@@ -54,6 +53,12 @@ jobs:
         run: |
           New-Item -Path ./.sonar/coverage -ItemType Directory
           dotnet tool update dotnet-coverage --tool-path ./.sonar/coverage
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v3
+        with:
+          path: ~\sonar\cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
       - name: Build and analyze  # Sonar scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
