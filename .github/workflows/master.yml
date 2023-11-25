@@ -40,7 +40,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -Path .\.sonar\scanner -ItemType Directory
-          dotnet tool update dotnet-sonarscanner --tool-path $(pwd)\.sonar\scanner
+          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
       - name: Cache dotnet-coverage
         id: cache-dotnet-coverage
         uses: actions/cache@v3
@@ -53,7 +53,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -Path .\.sonar\coverage -ItemType Directory
-          dotnet tool update dotnet-coverage --tool-path $(pwd)\.sonar\coverage
+          dotnet tool update dotnet-coverage --tool-path .\.sonar\coverage
       - name: Build and analyze  # Sonar scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
