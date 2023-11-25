@@ -7,38 +7,27 @@ on:
   pull_request:
     branches: [ "master" ]
 jobs:
-  build:
+  build-and-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Setup .NET
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Setup .NET # Restore, build, test
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 8.0.x
       - name: Restore dependencies
         run: dotnet restore DRN.sln
       - name: Build
-        run: dotnet build DRN.sln --no-restore
+        run: dotnet build DRN.sln --no-restore --no-incremental
       - name: Test
         run: dotnet test DRN.Test/DRN.Test.csproj --no-build --verbosity normal
-  sonar:
-    name: sonar analyze
-    runs-on: windows-latest
-    steps:
-      - name: Set up JDK 17
+      - name: Set up JDK 17 # Sonar scan tools installation
         uses: actions/setup-java@v3
         with:
           java-version: 17
           distribution: 'zulu' # Alternative distribution options are available.
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: Cache SonarCloud packages
-        uses: actions/cache@v3
-        with:
-          path: ~\sonar\cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
       - name: Cache SonarCloud scanner
         id: cache-sonar-scanner
         uses: actions/cache@v3
@@ -52,15 +41,24 @@ jobs:
         run: |
           New-Item -Path .\.sonar\scanner -ItemType Directory
           dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+      - name: Cache dotnet-coverage
+        id: cache-dotnet-coverage
+        uses: actions/cache@v3
+        with:
+          path: .\.sonar\coverage
+          key: ${{ runner.os }}-sonar-dotnet-coverage
+          restore-keys: ${{ runner.os }}-sonar-dotnet-coverage
       - name: Install dotnet-coverage
+        if: steps.cache-dotnet-coverage.outputs.cache-hit != 'true'
+        shell: powershell
         run: |
-          dotnet tool install --global dotnet-coverage
-      - name: Build and analyze
+          New-Item -Path .\.sonar\coverage -ItemType Directory
+          dotnet tool update dotnet-coverage --tool-path .\.sonar\coverage
+      - name: Build and analyze  # Sonar scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
         shell: powershell
         run: |
           .\.sonar\scanner\dotnet-sonarscanner begin /k:"duranserkan_DRN-Project" /o:"duranserkan" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.host.url="https://sonarcloud.io"
-          dotnet build DRN.sln --no-incremental
-          dotnet-coverage collect "dotnet test DRN.Test/DRN.Test.csproj --no-build" -f xml -o "coverage.xml"
+          .\.sonar\coverage\dotnet-coverage collect "dotnet test DRN.Test/DRN.Test.csproj --no-build" -f xml -o "coverage.xml"
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
