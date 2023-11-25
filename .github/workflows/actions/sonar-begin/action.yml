@@ -43,4 +43,4 @@ runs:
     - name: Sonar Scan Begin # Sonar Begin
       shell: pwsh
       run: |
-        ./.sonar/scanner/dotnet-sonarscanner begin /k:${SONAR_PROJECT_KEY} /o:${SONAR_ORGANIZATION} /d:sonar.token=${SONAR_TOKEN} /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.host.url=${SONAR_HOST_URL}
+        ./.sonar/scanner/dotnet-sonarscanner begin /k:"$env:SONAR_PROJECT_KEY}" /o:"$env:SONAR_ORGANIZATION" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.host.url="$env:SONAR_HOST_URL"
