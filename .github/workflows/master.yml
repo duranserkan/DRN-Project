@@ -32,34 +32,33 @@ jobs:
         id: cache-sonar-scanner
         uses: actions/cache@v3
         with:
-          path: .\.sonar\scanner
+          path: ./.sonar/scanner
           key: ${{ runner.os }}-sonar-scanner
           restore-keys: ${{ runner.os }}-sonar-scanner
       - name: Install SonarCloud scanner
         if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          New-Item -Path .\.sonar\scanner -ItemType Directory
-          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+          New-Item -Path ./.sonar/scanner -ItemType Directory
+          dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
       - name: Cache dotnet-coverage
         id: cache-dotnet-coverage
         uses: actions/cache@v3
         with:
-          path: .\.sonar\coverage
+          path: ./.sonar/coverage
           key: ${{ runner.os }}-sonar-dotnet-coverage
           restore-keys: ${{ runner.os }}-sonar-dotnet-coverage
       - name: Install dotnet-coverage
         if: steps.cache-dotnet-coverage.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          New-Item -Path .\.sonar\coverage -ItemType Directory
-          dotnet tool update dotnet-coverage --tool-path .\.sonar\coverage
+          New-Item -Path ./.sonar/coverage -ItemType Directory
+          dotnet tool update dotnet-coverage --tool-path ./.sonar/coverage
       - name: Build and analyze  # Sonar scan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
         shell: pwsh
         run: |
-          Import-Module $pwd
-          dotnet-sonarscanner begin /k:"duranserkan_DRN-Project" /o:"duranserkan" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.host.url="https://sonarcloud.io"
-          dotnet-coverage collect "dotnet test DRN.Test/DRN.Test.csproj --no-build" -f xml -o "coverage.xml"
-          dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          ./.sonar/scannerdotnet-sonarscanner begin /k:"duranserkan_DRN-Project" /o:"duranserkan" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.host.url="https://sonarcloud.io"
+          ./.sonar/scannerdotnet-coverage collect "dotnet test DRN.Test/DRN.Test.csproj --no-build" -f xml -o "coverage.xml"
+          ./.sonar/scannerdotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
