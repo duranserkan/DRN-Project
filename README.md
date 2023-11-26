@@ -22,6 +22,7 @@
 [![Activity](https://img.shields.io/github/commit-activity/m/duranserkan/DRN-Project)](https://github.com/duranserkan/DRN-Project/graphs/commit-activity)
 
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Testing?logo=Nuget&label=DRN.Framework.Testing)](https://nuget.org/packages/DRN.Framework.Testing/)
+[![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Utils?logo=Nuget&label=DRN.Framework.Utils)](https://nuget.org/packages/DRN.Framework.Utils/)
 
 [![General badge](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white.svg)](https://www.linkedin.com/in/duranserkan/)
 [![General badge](https://img.shields.io/badge/Medium-12100E?style=for-the-badge&logo=medium&logoColor=white)](https://duranserkan.medium.com)
@@ -32,13 +33,22 @@ Expected result is spending less time on wiring while getting better maintainabi
 The project benefits from the best practices, open source solutions and personal production experience.
 This project is about managing software complexity, architecting good solutions and a promise to deliver a good software.
 
+In DRN-Project context, reliability is defined with following characteristics:
+* Secure
+* Observable
+* Maintainable
+* Performance optimized
+* Efficient
+* Scalable
+* Self-documenting
+
 ## About Project
 DRN Project is not another framework that will `bite the dust.` It is more than a simple framework. It is a distilled knowledge that contains:
-- [X] A beautiful framework to work with
+- [X] A beautiful framework to work with (v0.1.0)
 - [X] Management best practices
 - [X] Engineering manifest
 - [X] Reference documents for design, architecture and microservices
-- [ ] A nexus app to manage microservices
+- [ ] A nexus app to manage microservices (will be released with v1.0.0)
 
 
 This project is result of a productive and curious mindset that respects good solutions and best practices of others while enjoys from creating its own.
@@ -49,7 +59,7 @@ Detailed documentation will be added in the mean time.
 ### Dotnet Solution Structure
 This solution consists of 6 parts that are being developed with Jetbrains Rider on macOS with arm-based M2 chip. However I expect it to work on any modern machine since it is a cross platform solution
 1. **Docker Folder:** It contains dockerfile and compose definitions for dependencies. They just works and can be used for other solutions.
-2. **Docs:** It contains project documents. I am planning to support this docs with articles and a youtube playlist.
+2. **Docs:** It contains project documents. This docs will be supported with articles and a youtube playlist.
 3. **Items:** It contains file that does not belong anywhere else such as .gitignore, .dockerignore and .github workflows
 4. **Src:** It contains 3 folders that define 3 different **DRN** domain.
    * **Nexus:** Nexus app connects all services and apis developed with **DRN.Framework**.
@@ -66,6 +76,10 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 6. **docker-compose:** Global docker-compose file that binds Nexus, Sample microservice and their dependencies.
 
 ## About Management
+### Security Management
+* Security is always your most important requirement.
+* Always be defensive and secure by default
+* Prefer whitelisting over blacklisting. Blacklists can be penetrated.
 ### Task Management
 * Always make a Todo List
 * Prioritize tasks - Use your insights or MoSCoW prioritization etc...
@@ -77,10 +91,6 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 * Don't micro manage delegate whenever possible.
   * Delegation requires shared understanding. It is not fire and forget process. Guide and track results when needed
 * Don't over optimize. Good enough is better than excellent.
-### Security Management
-* Security is always your most important requirement.
-* Always be defensive and secure by default
-* Prefer whitelisting over blacklisting. Blacklists can be penetrated.
 ### Quality Management
 * Follow best practices and solutions. Don't reinvent the wheel
 * Denormalize when needed. Understand how it works. Don't follow rules blindly. 
@@ -96,12 +106,13 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 * Improve your odds
 * Make reasonable assumptions
 ### Personal Management
-* Focus on good thoughts
+* Be kind and focus on good thoughts
 * Be persistent and pay attention to details
 * Be good to yourself
 * Don't compromise your integrity
 * You can only expand yourself as your environment allows. Don't hesitate to change it when necessary 
-* You are not a tree. You can always walk away
+* You are not a tree. You can always walk away. Don't stay in hostile or harmful environment.
+* "Never attribute to malice that which is adequately explained by stupidity." - Hanlon's razor
 
 ## About Design, Architecture and Microservices
 * [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)

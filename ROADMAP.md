@@ -18,7 +18,9 @@
 - [X] Settings Provider & TestContext conventions
 ### DRN.Framework.Utils
 - [X] DependencyInjection
-  - ScopedAttribute, TransientAttribute, SingletonAttribute
+  - ScopedAttribute, ScopedWithKeyAttribute
+  - TransientAttribute, TransientWithKeyAttribute
+  - SingletonAttribute, SingletonWithKeyAttribute
   - Service collection registrations & Service provider validations
 - [X] AppSettings
 - [ ] Scoped Logs
@@ -53,8 +55,8 @@
 ### DRN.Framework.Hosting
 - [ ] Service discovery
 - [ ] Remote settings
-- [ ] Unified Topology
+- [ ] Self documenting microservices with unified topology
 ## DRN.Nexus
 - [ ] Service discovery
 - [ ] Remote settings
-- [ ] Unified Topology
+- [ ] Self documenting microservices with unified topology

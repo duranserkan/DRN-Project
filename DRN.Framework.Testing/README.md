@@ -36,7 +36,7 @@ Here's a basic test demonstration to take your attention and get you started:
         //Context wraps service provider and automagically replaces actual dependencies with auto inlined dependencies
         var dependentService = context.GetRequiredService<DependentService>();
         
-        autoInlinedDependency.Max.Returns(int.MaxValue); //dependency is mocked by NSubstitute
+        autoInlinedDependency.Max.Returns(int.MaxValue); //dependency is already mocked by NSubstitute
         dependentService.Max.Should().Be(int.MaxValue); //That is all. It is clean and effective 
     }
 ```
@@ -116,7 +116,7 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
 
 ## TestContext
 `TestContext` has following properties:
-* captures values provided to running test method and its method info.
+* captures values provided to running test method, test method info and location.
 * provides `ServiceCollection` so that to be tested services and dependencies can be added before building `ServiceProvider`.
 * provides and implements lightweight `ServiceProvider` that contains default logging without any provider
   * `ServiceProvider` can provide services that depends like `ILogger<DefaultService>`
@@ -417,7 +417,7 @@ public void $name$(TestContext context)
 ## Testing guide and DTT approach
 
 DTT(Duran's Testing Technique) is developed upon following 2 idea:
-* Writing a test, providing settings and data to it should be easy, effective and encouraging as much as possible
+* Writing a unit or integration test, providing settings and data to it should be easy, effective and encouraging as much as possible
 * A test should test actual usage as much as possible.
 
 DTT with **TestContext** makes these ideas possible by
