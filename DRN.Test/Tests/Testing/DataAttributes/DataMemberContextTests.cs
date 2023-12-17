@@ -3,7 +3,7 @@ namespace DRN.Test.Tests.Testing.DataAttributes;
 public class DataMemberContextTests
 {
     [Theory]
-    [DataMemberContext(nameof(TestContextInlineMemberData))]
+    [DataMember(nameof(TestContextInlineMemberData))]
     public void TestContextMember_Should_Inline_And_Auto_Generate_Missing_Test_Data(TestContext testContext,
         int inline, ComplexInline complexInline, Guid autoGenerate, IMockable mock)
     {

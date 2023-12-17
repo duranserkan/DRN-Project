@@ -9,7 +9,7 @@ namespace DRN.Test.Tests.Utils.DependencyInjectionTests;
 public class LifetimeContainerTests
 {
     [Theory]
-    [DataInlineContext]
+    [DataInline]
     public void Services_Marked_By_Lifetime_Attributes_Should_Be_Added_To_ServiceProvider(TestContext context)
     {
         context.ServiceCollection.AddTestModule();
@@ -31,7 +31,7 @@ public class LifetimeContainerTests
     }
 
     [Theory]
-    [DataInlineContext]
+    [DataInline]
     public void Service_Provider_Should_Throw_Exception_When_Service_Is_Not_Resolvable(TestContext context)
     {
         context.ServiceCollection.AddTestModule();
@@ -42,7 +42,7 @@ public class LifetimeContainerTests
     }
 
     [Theory]
-    [DataInlineContext]
+    [DataInline]
     public void Service_Provider_Should_Throw_Exception_When_Keyed_Service_Is_Not_Resolvable(TestContext context)
     {
         context.ServiceCollection.AddTestModule();
@@ -53,7 +53,7 @@ public class LifetimeContainerTests
     }
 
     [Theory]
-    [DataInlineContext]
+    [DataInline]
     public void Lifetime_Attributes_Should_Add_Multiple(TestContext context)
     {
         context.ServiceCollection.AddTestModule();
@@ -61,7 +61,7 @@ public class LifetimeContainerTests
     }
 
     [Theory]
-    [DataInlineContext]
+    [DataInline]
     public void Service_Provider_Should_Throw_Exception_When_One_Of_Multiple_Services_Is_Not_Resolvable(TestContext context)
     {
         context.ServiceCollection.AddTestModule();
@@ -72,7 +72,7 @@ public class LifetimeContainerTests
     }
 
     [Theory]
-    [DataInlineContext]
+    [DataInline]
     public void Validate_Sample_Dependencies(TestContext context)
     {
         context.ServiceCollection.AddSampleApplicationServices();
@@ -81,7 +81,7 @@ public class LifetimeContainerTests
     }
 
     [Theory]
-    [DataInlineContext]
+    [DataInline]
     public void Validate_Nexus_Dependencies(TestContext context)
     {
         context.ServiceCollection.AddNexusApplicationServices();

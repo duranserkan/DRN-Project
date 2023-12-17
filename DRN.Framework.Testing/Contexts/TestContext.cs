@@ -1,9 +1,7 @@
-using System.Collections.ObjectModel;
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
-using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -16,9 +14,12 @@ namespace DRN.Framework.Testing.Contexts;
 /// </summary>
 public sealed class TestContext : IDisposable, IKeyedServiceProvider
 {
-    private List<IConfigurationSource> ConfigurationSources { get; set; } = new();
+    public TestContext(MethodInfo testMethod) => MethodContext = new MethodContext(testMethod);
+
+    private List<IConfigurationSource> ConfigurationSources { get; } = new();
     private ServiceProvider? ServiceProvider { get; set; }
-    public MethodContext MethodContext { get; } = new();
+
+    public MethodContext MethodContext { get; }
     public ServiceCollection ServiceCollection { get; } = new();
     public IConfigurationRoot ConfigurationRoot { get; private set; } = null!;
 
@@ -48,10 +49,6 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
 
         return ServiceProvider;
     }
-
-    internal void SetMethodInfo(MethodInfo testMethod) => MethodContext.SetMethodInfo(testMethod);
-
-    internal void SetTestData(object[] data) => MethodContext.SetTestData(data);
 
     public override string ToString() => "context";
 

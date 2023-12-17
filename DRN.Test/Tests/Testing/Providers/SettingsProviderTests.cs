@@ -26,8 +26,8 @@ public class SettingsProviderTests
     }
 
     [Theory]
-    [DataInlineContext("settings", "localhost")]
-    [DataInlineContext("alternateSettings", "127.0. 0.1")]
+    [DataInline("settings", "localhost")]
+    [DataInline("alternateSettings", "127.0. 0.1")]
     public void SettingsProvider_Should_Return_Test_Specific_IConfiguration_Instance(TestContext context, string settingsName, string value)
     {
         var configuration = SettingsProvider.GetConfiguration(settingsName, context.MethodContext.GetTestFolderLocation());
@@ -38,8 +38,8 @@ public class SettingsProviderTests
     }
 
     [Theory]
-    [DataInlineContext("settings", "localhost")]
-    [DataInlineContext("alternateSettings", "127.0. 0.1")]
+    [DataInline("settings", "localhost")]
+    [DataInline("alternateSettings", "127.0. 0.1")]
     public void SettingsProvider_Should_Return_Test_Specific_IAppSettings_Instance(TestContext context, string settingsName, string value)
     {
         var appSettings = SettingsProvider.GetAppSettings(settingsName, context.MethodContext.GetTestFolderLocation());
@@ -50,7 +50,7 @@ public class SettingsProviderTests
     }
 
     [Theory]
-    [DataInlineContext( "localhost")]
+    [DataInline( "localhost")]
     public void TestContext_Should_Add_Settings_Json_To_Configuration(TestContext context, string value)
     {
         //settings.json file can be found in the same folder with test file, in the global Settings folder or Settings folder that stays in the same folder with test file

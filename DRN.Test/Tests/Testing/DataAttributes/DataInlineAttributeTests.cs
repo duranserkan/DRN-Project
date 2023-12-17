@@ -1,11 +1,11 @@
 namespace DRN.Test.Tests.Testing.DataAttributes;
 
-public class DataInlineContextAttributeTests
+public class DataInlineAttributeTests
 {
     /// <param name="context"> Provided by DataInlineContext even if it is not a compile time constant</param>
     /// <param name="autoInlinedDependency">DataInlineContext will provide implementation mocked by NSubstitute</param>
     [Theory]
-    [DataInlineContext]
+    [DataInline]
     public void DataInlineContextDemonstration(TestContext context, IMockable autoInlinedDependency)
     {
         context.ServiceCollection.AddApplicationServices();
@@ -21,7 +21,7 @@ public class DataInlineContextAttributeTests
     /// <param name="autoInlinedData">DataInlineContext will provide missing data with the help of AutoFixture</param>
     /// <param name="autoInlinedMockable">DataInlineContext will provide implementation mocked by NSubstitute</param>
     [Theory]
-    [DataInlineContext(99)]
+    [DataInline(99)]
     public void TextContext_Should_Be_Created_From_TestContextData(TestContext context, int inlineData, Guid autoInlinedData, IMockable autoInlinedMockable)
     {
         inlineData.Should().Be(99);
@@ -37,7 +37,7 @@ public class DataInlineContextAttributeTests
     }
 
     [Theory]
-    [DataInlineContext]
+    [DataInline]
     public void TextContext_Should_Provide_AppSettings(TestContext context)
     {
         var serviceProvider = context.BuildServiceProvider(); //appsettings.json added by convention. Context and service provider will be disposed by xunit

@@ -1,5 +1,11 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.2.0
+
+### New Features
+
+* JsonSerializerOptions added to AppConstants which is same with default dotnet settings for now.
+
 ## Version 0.1.0
 
 ### Breaking Changes

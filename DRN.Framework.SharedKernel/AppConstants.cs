@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Text.Json;
 
 namespace DRN.Framework.SharedKernel;
 
@@ -12,6 +13,10 @@ public static class AppConstants
     public static readonly string ApplicationName = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";
     public static readonly string TempPath = GetTempPath();
     public static readonly string LocalIpAddress = GetLocalIpAddress();
+    public static JsonSerializerOptions JsonSerializerOptions = new()
+    {
+
+    };
 
     private static string GetTempPath()
     {

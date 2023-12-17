@@ -9,8 +9,8 @@ public class DataProviderTests
     }
 
     [Theory]
-    [DataInlineContext("data.txt", "Atatürk")]
-    [DataInlineContext("alternateData.txt", "Father of Turks")]
+    [DataInline("data.txt", "Atatürk")]
+    [DataInline("alternateData.txt", "Father of Turks")]
     public void DataProvider_Should_Return_Test_Specific_Data(TestContext context, string dataPath, string data)
     {
         context.MethodContext.GetTestFolderLocation();
@@ -19,8 +19,8 @@ public class DataProviderTests
     }
 
     [Theory]
-    [DataInlineContext("data.txt", "Atatürk")]
-    [DataInlineContext("alternateData.txt", "Father of Turks")]
+    [DataInline("data.txt", "Atatürk")]
+    [DataInline("alternateData.txt", "Father of Turks")]
     public void TestContext_Should_Return_Test_Specific_Data(TestContext context, string dataPath, string data)
     {
         //data file can be found in the same folder with test file, in the global Data folder or Data folder that stays in the same folder with test file

@@ -91,6 +91,12 @@ public class SingletonAttribute<TService>(bool tryAdd = true) : LifetimeAttribut
 public class SingletonWithKeyAttribute<TService>(object key, bool tryAdd = true) : LifetimeWithKeyAttribute<TService>(ServiceLifetime.Singleton, key, tryAdd);
 ```
 
+## Configurations
+
+Following configuration sources can be used to add configurations from different sources
+* JsonSerializerConfigurationSource converts poco objects to configuration
+* RemoteJsonConfigurationSource fetches remote configuration (experimental and incomplete)
+
 ## AppSettings
 Following IAppSettings interface is defined and can be used to obtain appsettings. It has utility methods that allow fail fast.
 ```csharp
@@ -112,3 +118,5 @@ public interface IAppSettings
   * ReplaceTransient
   * ReplaceScoped
   * ReplaceSingleton
+* StringExtensions
+  * ToStream

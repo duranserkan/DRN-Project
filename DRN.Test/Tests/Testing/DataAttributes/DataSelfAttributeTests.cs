@@ -1,9 +1,9 @@
 namespace DRN.Test.Tests.Testing.DataAttributes;
 
-public class DataSelfAutoAttributeTests
+public class DataSelfAttributeTests
 {
     [Theory]
-    [DataSelfAutoTestData]
+    [DataSelfTestData]
     public void AutoClass_Should_Inline_And_Auto_Generate_Missing_Test_Data(int inline, ComplexInline complexInline, Guid autoGenerate, IMockable mock)
     {
         inline.Should().BeGreaterThan(10);
@@ -14,9 +14,9 @@ public class DataSelfAutoAttributeTests
     }
 }
 
-public class DataSelfAutoTestData : DataSelfAutoAttribute
+public class DataSelfTestData : DataSelfAttribute
 {
-    public DataSelfAutoTestData()
+    public DataSelfTestData()
     {
         AddRow(200, new ComplexInline(9));
         AddRow(300, new ComplexInline(int.MinValue));

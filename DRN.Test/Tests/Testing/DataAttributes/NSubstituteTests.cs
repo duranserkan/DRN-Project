@@ -5,7 +5,7 @@ namespace DRN.Test.Tests.Testing.DataAttributes;
 public class NSubstituteTests
 {
     [Theory]
-    [DataInlineContext]
+    [DataInline]
     public void Mockable_Should_Be_Replaced_In_Context_ServiceProvider(TestContext context, IMockable mockable, IMockable mockable2, IDisposable disposable)
     {
         mockable.IsSubstitute().Should().BeTrue();

@@ -17,7 +17,7 @@ public class DataSelfContextAttributeTests
     }
 }
 
-public class DataSelfContextTestData1 : DataSelfContextAttribute
+public class DataSelfContextTestData1 : DataSelfAttribute
 {
     public DataSelfContextTestData1()
     {
@@ -42,7 +42,7 @@ public class TestContextClassDataTests2
     }
 }
 
-public class DataSelfContextTestData2 : DataSelfContextAttribute
+public class DataSelfContextTestData2 : DataSelfAttribute
 {
     public DataSelfContextTestData2()
     {
