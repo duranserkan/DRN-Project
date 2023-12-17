@@ -13,15 +13,17 @@ public static class SettingsProvider
     /// Alternate locations are the Settings subfolder of the test project or provided location by convention
     /// Make sure file is copied to output directory, extension is json and settings name referring to it should not end with .json
     /// </summary>
-    public static IAppSettings GetAppSettings(string settingsName = "settings", string? location = null) =>
-        new AppSettings(GetConfiguration(settingsName, location));
+    public static IAppSettings GetAppSettings(string settingsName = "settings", string? location = null,
+        List<IConfigurationSource>? configurationSources = null) =>
+        new AppSettings(GetConfiguration(settingsName, location, configurationSources));
 
     /// <summary>
     /// Creates <see cref="IConfiguration"/> from settings json file found in provided location.
     /// Alternate locations are the Settings subfolder of the test project or provided location by convention
     /// Make sure file is copied to output directory, extension is json and settings name referring to it should not end with .json
     /// </summary>
-    public static IConfiguration GetConfiguration(string settingsName = "settings", string? location = null)
+    public static IConfiguration GetConfiguration(string settingsName = "settings", string? location = null,
+        List<IConfigurationSource>? configurationSources = null)
     {
         var settingsJson = $"{settingsName}.json";
         var locationFound = CheckLocation(location, settingsJson);
@@ -34,7 +36,14 @@ public static class SettingsProvider
 
         var selectedLocation = locationFound ? location! : GlobalConventionLocation;
 
-        return new ConfigurationBuilder().SetBasePath(selectedLocation).AddJsonFile(settingsJson).Build();
+        var configurationBuilder = new ConfigurationBuilder().SetBasePath(selectedLocation).AddJsonFile(settingsJson);
+
+        if (configurationSources != null)
+            foreach (var source in configurationSources)
+                configurationBuilder.Add(source);
+
+
+        return configurationBuilder.Build();
     }
 
     private static bool CheckLocation(string? location, string settingsJson)

@@ -1,6 +1,10 @@
+using System.Collections.ObjectModel;
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
+using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
+using DRN.Framework.Utils.Settings;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -12,9 +16,12 @@ namespace DRN.Framework.Testing.Contexts;
 /// </summary>
 public sealed class TestContext : IDisposable, IKeyedServiceProvider
 {
+    private List<IConfigurationSource> ConfigurationSources { get; set; } = new();
     private ServiceProvider? ServiceProvider { get; set; }
     public MethodContext MethodContext { get; } = new();
     public ServiceCollection ServiceCollection { get; } = new();
+    public IConfigurationRoot ConfigurationRoot { get; private set; } = null!;
+
     public string GetData(string pathRelativeToDataFolder) => DataProvider.Get(pathRelativeToDataFolder, MethodContext.GetTestFolderLocation());
 
     //Todo: dtt, snipped and live template, test containers, update test context documentation
@@ -31,9 +38,10 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
         DisposeServiceProvider();
         MethodContext.ReplaceSubstitutedInterfaces(this);
 
-        var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation());
+        var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation(), ConfigurationSources);
+        ConfigurationRoot = (IConfigurationRoot)configuration;
         ServiceProvider = ServiceCollection
-            .AddSingleton(x => configuration)
+            .AddSingleton<IConfiguration>(x => configuration)
             .AddLogging(logging => { logging.ClearProviders(); })
             .AddDrnUtils()
             .BuildServiceProvider(false);
@@ -46,6 +54,17 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     internal void SetTestData(object[] data) => MethodContext.SetTestData(data);
 
     public override string ToString() => "context";
+
+    public void AddToConfiguration(object toBeSerialized)
+    {
+        ConfigurationSources.Add(new JsonSerializerConfigurationSource(toBeSerialized));
+    }
+
+    public string GetConfigurationDebugView()
+    {
+        ServiceProvider ??= BuildServiceProvider();
+        return ConfigurationRoot.GetDebugView();
+    }
 
     public object? GetService(Type serviceType)
     {
