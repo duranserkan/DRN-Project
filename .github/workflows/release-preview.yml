@@ -41,6 +41,10 @@ jobs:
         uses: ./.github/workflows/actions/nuget-publish
         with:
           project-name: DRN.Framework.Utils
+      - name: Publish EntityFramework
+        uses: ./.github/workflows/actions/nuget-publish
+        with:
+          project-name: DRN.Framework.EntityFramework
       - name: Publish Testing
         uses: ./.github/workflows/actions/nuget-publish
         with:

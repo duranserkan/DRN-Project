@@ -7,7 +7,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" />
     <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj" />
+    <ProjectReference Include="..\Sample.Domain\Sample.Domain.csproj" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Content Include="Repositories\.DS_Store" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Repositories\QA\Migrations\" />
   </ItemGroup>
 
 </Project>

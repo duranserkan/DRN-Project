@@ -2,21 +2,21 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace DRN.Framework.SharedKernel;
 
 public static class AppConstants
 {
-    private const string GoogleDnsIp = "8.8.4.4";
-    public static readonly int ProcessId = Environment.ProcessId;
-    public static readonly Guid ApplicationId = Guid.NewGuid();
-    public static readonly string ApplicationName = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";
-    public static readonly string TempPath = GetTempPath();
-    public static readonly string LocalIpAddress = GetLocalIpAddress();
-    public static JsonSerializerOptions JsonSerializerOptions = new()
-    {
+    private static string GoogleDnsIp { get; } = "8.8.4.4";
 
-    };
+    public static int ProcessId { get; } = Environment.ProcessId;
+    public static Guid Id { get; } = Guid.NewGuid();
+    public static string ApplicationName { get; } = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";
+    public static string TempPath { get; } = GetTempPath();
+    public static string LocalIpAddress { get; } = GetLocalIpAddress();
+
+    public static JsonSerializerOptions SerializerOptions { get; } = new();
 
     private static string GetTempPath()
     {

@@ -22,7 +22,6 @@ public static class ServiceCollectionExtensions
         sc.AddTransient<TService, TImplementation>(sp => implementation);
     }
 
-
     public static void ReplaceScoped<TService, TImplementation>(this IServiceCollection sc, TImplementation implementation)
         where TService : class
         where TImplementation : class, TService

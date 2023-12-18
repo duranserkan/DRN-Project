@@ -5,6 +5,7 @@ using DRN.Framework.Utils.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Testcontainers.PostgreSql;
 
 namespace DRN.Framework.Testing.Contexts;
 
@@ -12,20 +13,16 @@ namespace DRN.Framework.Testing.Contexts;
 /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
 /// It disposes itself automatically at the end of the test.
 /// </summary>
-public sealed class TestContext : IDisposable, IKeyedServiceProvider
+public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServiceProvider
 {
-    public TestContext(MethodInfo testMethod) => MethodContext = new MethodContext(testMethod);
-
-    private List<IConfigurationSource> ConfigurationSources { get; } = new();
+    private List<IConfigurationSource> ConfigurationSources { get; } = [];
     private ServiceProvider? ServiceProvider { get; set; }
+    private IConfigurationRoot ConfigurationRoot { get; set; } = null!;
 
-    public MethodContext MethodContext { get; }
-    public ServiceCollection ServiceCollection { get; } = new();
-    public IConfigurationRoot ConfigurationRoot { get; private set; } = null!;
+    public MethodContext MethodContext { get; } = new(testMethod);
+    public ServiceCollection ServiceCollection { get; } = [];
 
-    public string GetData(string pathRelativeToDataFolder) => DataProvider.Get(pathRelativeToDataFolder, MethodContext.GetTestFolderLocation());
-
-    //Todo: dtt, snipped and live template, test containers, update test context documentation
+    //Todo: live template, test containers
 
     /// <summary>
     /// Creates a service provider from test context service collection
@@ -39,8 +36,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
         DisposeServiceProvider();
         MethodContext.ReplaceSubstitutedInterfaces(this);
 
-        var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation(), ConfigurationSources);
-        ConfigurationRoot = (IConfigurationRoot)configuration;
+        var configuration = BuildConfigurationRoot(appSettingsName);
         ServiceProvider = ServiceCollection
             .AddSingleton<IConfiguration>(x => configuration)
             .AddLogging(logging => { logging.ClearProviders(); })
@@ -50,17 +46,40 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
         return ServiceProvider;
     }
 
-    public override string ToString() => "context";
+    public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = "settings")
+    {
+        var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation(), ConfigurationSources);
+        ConfigurationRoot = (IConfigurationRoot)configuration;
+
+        return ConfigurationRoot;
+    }
+
+    public void ValidateServices() => this.ValidateServicesAddedByAttributes();
+
+    public string GetData(string pathRelativeToDataFolder) => DataProvider.Get(pathRelativeToDataFolder, MethodContext.GetTestFolderLocation());
+
+    public string GetConfigurationDebugView()
+    {
+        ServiceProvider ??= BuildServiceProvider();
+        return ConfigurationRoot.GetDebugView();
+    }
 
     public void AddToConfiguration(object toBeSerialized)
     {
         ConfigurationSources.Add(new JsonSerializerConfigurationSource(toBeSerialized));
     }
 
-    public string GetConfigurationDebugView()
+    public PostgreSqlContainer AddPostgreSQLDb(string? database = null, string? username = null, string? password = null)
     {
-        ServiceProvider ??= BuildServiceProvider();
-        return ConfigurationRoot.GetDebugView();
+        var builder = new PostgreSqlBuilder().WithImage("postgres:16.1");
+        if (database != null) builder.WithDatabase(database);
+        if (username != null) builder.WithUsername(username);
+        if (password != null) builder.WithPassword(password);
+
+        var postgreSqlContainer = builder.Build();
+        postgreSqlContainer.StartAsync().Wait();
+
+        return postgreSqlContainer;
     }
 
     public object? GetService(Type serviceType)
@@ -81,7 +100,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
         return ServiceProvider.GetRequiredKeyedService(serviceType, serviceKey);
     }
 
-    public void ValidateServices() => this.ValidateServicesAddedByAttributes();
+    public override string ToString() => "context";
 
     public void Dispose()
     {
