@@ -14,7 +14,8 @@
 ## Introduction
 DRN.Framework.Testing package provides practical, effective helpers such as resourceful data attributes and test context.
 
-This package enables a new encouraging testing technique called as DTT(Duran's Testing Technique). With DTT, any developer can write clean and hassle-free unit and integration tests without complexity.
+This package enables a new encouraging testing technique called as DTT(Duran's Testing Technique). 
+With DTT, any developer can write clean and hassle-free unit and integration tests without complexity.
 
 ### Encapsulated Packages
 You no longer need to be reference followings in your test project:
@@ -29,8 +30,8 @@ You no longer need to be reference followings in your test project:
 Here's a basic test demonstration to take your attention and get you started:
 ```csharp
     [Theory]
-    [DataInlineContext]
-    public void DataInlineContextDemonstration(TestContext context, IMockable autoInlinedDependency)
+    [DataInline]
+    public void DataInlineDemonstration(TestContext context, IMockable autoInlinedDependency)
     {
         context.ServiceCollection.AddApplicationServices();
         //Context wraps service provider and automagically replaces actual dependencies with auto inlined dependencies
@@ -88,17 +89,17 @@ public class DependentService : IMockable
 ```
 
 ### QuickStart: Advanced Data Inline
-* `DataInlineContext` will provide `TestContext` as first parameter. 
+* `DataInline` will provide `TestContext` as first parameter. 
 * Then it will provide inlined values.
 * Then it will provide auto inline missing values with AutoFixture.
 * `AutoFixture` will mock any interface requested with `NSubstitute`.
 ```csharp
-/// <param name="context"> Provided by DataInlineContext even if it is not a compile time constant</param>
-/// <param name="inlineData">Provided by DataInlineContext</param>
-/// <param name="autoInlinedData">DataInlineContext will provide missing data with the help of AutoFixture</param>
-/// <param name="autoInlinedMockable">DataInlineContext will provide implementation mocked by NSubstitute</param>
+/// <param name="context"> Provided by DataInline even if it is not a compile time constant</param>
+/// <param name="inlineData">Provided by DataInline</param>
+/// <param name="autoInlinedData">DataInline will provide missing data with the help of AutoFixture</param>
+/// <param name="autoInlinedMockable">DataInline will provide implementation mocked by NSubstitute</param>
 [Theory]
-[DataInlineContext(99)]
+[DataInline(99)]
 public void TextContext_Should_Be_Created_From_TestContextData(TestContext context, int inlineData, Guid autoInlinedData, IMockable autoInlinedMockable)
 {
     inlineData.Should().Be(99);
@@ -137,7 +138,7 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
 `settings.json` can be put in the same folder that test file belongs. This way providing and isolating test settings is much more easier
 ```csharp
     [Theory]
-    [DataInlineContext( "localhost")]
+    [DataInline( "localhost")]
     public void TestContext_Should_Add_Settings_Json_To_Configuration(TestContext context, string value)
     {
         //settings.json file can be found in the same folder with test file, in the global Settings folder or Settings folder that stays in the same folder with test file
@@ -147,8 +148,8 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
 `data.txt` can be put in the same folder that test file belongs. This way providing and isolating test data is much more easier
 ```csharp
     [Theory]
-    [DataInlineContext("data.txt", "Atatürk")]
-    [DataInlineContext("alternateData.txt", "Father of Turks")]
+    [DataInline("data.txt", "Atatürk")]
+    [DataInline("alternateData.txt", "Father of Turks")]
     public void TestContext_Should_Return_Test_Specific_Data(TestContext context, string dataPath, string data)
     {
         //data file can be found in the same folder with test file, in the global Data folder or Data folder that stays in the same folder with test file
@@ -158,43 +159,23 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
 
 ## Data Attributes
 DRN.Framework.Testing provides following data attributes that can provide data to tests:
-* DataInlineAutoAttribute
-* DataInlineContextAttribute
-* DataMemberAutoAttribute
-* DataMemberContextAttribute
-* DataSelfAutoAttribute
-* DataSelfContextAttribute
+* DataInlineAttribute
+* DataMemberAttribute
+* DataSelfAttribute
 
 Following design principle is used for these attributes
 * All attributes has data prefix to benefit from autocomplete
-* Inline attributes works like xunit `InlineData` except they try to provide missing values with AutoFixture and NSubstitute
-* Member attributes works like xunit `MemberData` except they try to provide missing values with AutoFixture and NSubstitute
-* Self attributes needs to be inherited by another class and should call `AddRow` method in constructor to provide data
-* Context attributes provide `TestContext` as first parameter
+* All data attributes automatically provide `TestContext` as first parameter if tests requires
+* All data attributes try to provide missing values with AutoFixture and NSubstitute
+* All data attributes will automatically override TestContext's service collection with provided NSubstitute interfaces 
+* DataInline attribute works like xunit `InlineData` except they try to provide missing values with AutoFixture and NSubstitute
+* DataMember attribute works like xunit `MemberData` except they try to provide missing values with AutoFixture and NSubstitute
+* DateSelf attribute needs to be inherited by another class and should call `AddRow` method in constructor to provide data
 
-### Member Attributes
-Example usages for member attributes
+Example usages for DataMember attribute
 ```csharp
 [Theory]
-[DataMemberAuto(nameof(DataMemberAutoData))]
-public void AutoMember_Should_Inline_And_Auto_Generate_Missing_Test_Data(int inline, ComplexInline complexInline, Guid autoGenerate, IMockable mock)
-{
-    inline.Should().BeGreaterThan(10);
-    complexInline.Count.Should().BeLessThan(10);
-    autoGenerate.Should().NotBeEmpty();
-    mock.Max.Returns(75);
-    mock.Max.Should().Be(75);
-}
-
-public static IEnumerable<object[]> DataMemberAutoData => new List<object[]>
-{
-    new object[] { 11, new ComplexInline(8) },
-    new object[] { int.MaxValue, new ComplexInline(-1) }
-};
-```
-```csharp
-[Theory]
-[DataMemberContext(nameof(TestContextInlineMemberData))]
+[DataMember(nameof(TestContextInlineMemberData))]
 public void TestContextMember_Should_Inline_And_Auto_Generate_Missing_Test_Data(TestContext testContext,
     int inline, ComplexInline complexInline, Guid autoGenerate, IMockable mock)
 {
@@ -214,32 +195,7 @@ public static IEnumerable<object[]> TestContextInlineMemberData => new List<obje
 };
 ```
 
-### Self Attributes
-Example usages for self attributes
-```csharp
-public class DataSelfAutoAttributeTests
-{
-    [Theory]
-    [DataSelfAutoTestData]
-    public void AutoClass_Should_Inline_And_Auto_Generate_Missing_Test_Data(int inline, ComplexInline complexInline, Guid autoGenerate, IMockable mock)
-    {
-        inline.Should().BeGreaterThan(10);
-        complexInline.Count.Should().BeLessThan(10);
-        autoGenerate.Should().NotBeEmpty();
-        mock.Max.Returns(75);
-        mock.Max.Should().Be(75);
-    }
-}
-
-public class DataSelfAutoTestData : DataSelfAutoAttribute
-{
-    public DataSelfAutoTestData()
-    {
-        AddRow(200, new ComplexInline(9));
-        AddRow(300, new ComplexInline(int.MinValue));
-    }
-}
-```
+Example usage for DataSelf attribute
 ```csharp
 public class DataSelfContextAttributeTests
 {
@@ -268,22 +224,10 @@ public class DataSelfContextTestData : DataSelfContextAttribute
 }
 ```
 
-### Inline Attributes
-Example usages for inline attributes
+Example usage for DataInline attribute
 ```csharp
 [Theory]
-[DataInlineAuto(10)]
-public void AutoInline_Should_Inline_And_Auto_Generate_Missing_Test_Data(int inline, Guid autoGenerate, IMockable mock)
-{
-    inline.Should().Be(10);
-    autoGenerate.Should().NotBeEmpty();
-    mock.Max.Returns(65);
-    mock.Max.Should().Be(65);
-}
-```
-```csharp
-[Theory]
-[DataInlineContext(99)]
+[DataInline(99)]
 public void TextContext_Should_Be_Created_From_TestContextData(TestContext context, int inlineData, Guid autoInlinedData, IMockable autoInlinedMockable)
 {
     inlineData.Should().Be(99);
@@ -407,7 +351,7 @@ Don't forget to replace DRN.Framework.Testing project reference with its nuget p
 **dtt** snippet for creating tests with a test context.
 ```csharp
 [Theory]
-[DataInlineContext]
+[DataInline]
 public void $name$(TestContext context)
 {
     $END$
