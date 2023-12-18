@@ -21,10 +21,8 @@ public static class ServiceCollectionExtensions
         var contextTypes = assembly.GetTypesAssignableTo(typeof(DbContext));
 
         foreach (var contextType in contextTypes)
-        {
-            var method = typeof(ServiceCollectionExtensions).GetMethod(nameof(AddDbContextWithConventions))!;
-            var generic = method.MakeGenericMethod(contextType);
-            generic.Invoke(null, new object[] { sc, configuration });
-        }
+            typeof(ServiceCollectionExtensions)
+                .MakeGenericMethod(nameof(AddDbContextWithConventions), contextType)
+                .Invoke(null, new object[] { sc, configuration });
     }
 }

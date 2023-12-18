@@ -40,6 +40,22 @@
         <None Update="Tests\Testing\Providers\alternateData.txt">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
+        <None Update="Tests\Framework\Testing\Providers\Data\data.txt">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Framework\Testing\Providers\alternateData.txt">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Framework\Testing\Providers\Settings\settings.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Framework\Testing\Providers\alternateSettings.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+    
+    <ItemGroup>
+      <Folder Include="Tests\Framework\" />
     </ItemGroup>
 
 </Project>

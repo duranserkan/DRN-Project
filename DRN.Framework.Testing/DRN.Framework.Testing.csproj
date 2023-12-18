@@ -46,15 +46,11 @@
         <PackageReference Include="Testcontainers.PostgreSql" Version="3.6.0" />
         <PackageReference Include="Testcontainers.RabbitMq" Version="3.6.0" />
         <PackageReference Include="xunit" Version="2.6.3" />
-        <PackageReference Include="xunit.runner.visualstudio" Version="2.5.5">
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-            <PrivateAssets>all</PrivateAssets>
-        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj"/>
-        <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.EntityFramework.csproj"/>
+        <ProjectReference Include="..\DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj"/>
     </ItemGroup>
 
 </Project>

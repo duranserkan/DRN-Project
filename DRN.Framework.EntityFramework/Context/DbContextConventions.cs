@@ -9,7 +9,7 @@ public static class DbContextConventions
     {
         builder ??= new DbContextOptionsBuilder();
         var dbContextOptionsBuilder = builder.UseNpgsql(connectionString, options =>
-            options.MigrationsAssembly(typeof(TContext).Namespace).MigrationsHistoryTable($"__{contextName}MigrationsHistory"));
+            options.MigrationsAssembly(typeof(TContext).Assembly.FullName).MigrationsHistoryTable($"__{contextName}MigrationsHistory"));
         dbContextOptionsBuilder.UseSnakeCaseNamingConvention();
 
         return dbContextOptionsBuilder;

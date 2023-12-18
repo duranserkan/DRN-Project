@@ -8,12 +8,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" />
-    <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj" />
     <ProjectReference Include="..\Sample.Domain\Sample.Domain.csproj" />
   </ItemGroup>
-  
+
   <ItemGroup>
-    <Content Include="Repositories\.DS_Store" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
