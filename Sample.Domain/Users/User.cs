@@ -2,22 +2,29 @@ namespace Sample.Domain.Users;
 
 public class User
 {
-    public User(string name)
+    public User(string name, string surname, string userName)
     {
         Name = name;
+        Surname = surname;
+        UserName = userName;
     }
 
     public int Id { get; private set; }
     public string Name { get; set; }
     public string Surname { get; set; }
-    public string UserName {get; set; }
+    public string UserName { get; set; }
     public DateTimeOffset DateJoined { get; set; }
     public ContactDetail Contact { get; set; } = null!;
 }
 
 public class ContactDetail
 {
-    public Address Address { get; set; } = null!;
+    public ContactDetail(string email)
+    {
+        Email = email;
+    }
+
+    public Address? Address { get; set; }
     public string? Phone { get; set; }
     public string Email { get; set; }
 }

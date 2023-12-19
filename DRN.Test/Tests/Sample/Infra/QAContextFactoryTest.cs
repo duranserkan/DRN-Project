@@ -4,8 +4,7 @@ namespace DRN.Test.Tests.Sample.Infra;
 
 public class QAContextFactoryTest
 {
-    [Theory]
-    [DataInline]
+    [Fact]
     public void QAContext_Factory_Should_Create_QAContext()
     {
         var factory=new QAContextFactory();

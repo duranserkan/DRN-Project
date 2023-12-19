@@ -19,6 +19,6 @@ public class Question
     public int Category { get; set; }
     public DateTimeOffset DatePosted { get; set; }
     public List<Tag> Tags { get; } = new();
-    public List<Answer> Answers { get; set; }
-    public List<Comment> Comments { get; set; }
+    public List<Answer> Answers { get; set; } = new();
+    public List<Comment> Comments { get; set; } = new();
 }

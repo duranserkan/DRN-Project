@@ -22,13 +22,12 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
 {
     private readonly List<DockerContainer> _containers = [];
     private readonly List<IConfigurationSource> _configurationSources = [];
-    private ServiceProvider? _serviceProvider { get; set; }
-    private IConfigurationRoot _configurationRoot = null!;
+    private ServiceProvider? _serviceProvider;
 
     public MethodContext MethodContext { get; } = new(testMethod);
     public ServiceCollection ServiceCollection { get; } = [];
 
-    //Todo: live template, test containers
+    //Todo: live template
 
     /// <summary>
     /// Creates a service provider from test context service collection
@@ -55,9 +54,9 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
     public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = "settings")
     {
         var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation(), _configurationSources);
-        _configurationRoot = (IConfigurationRoot)configuration;
+        var configurationRoot = (IConfigurationRoot)configuration;
 
-        return _configurationRoot;
+        return configurationRoot;
     }
 
     public void ValidateServices() => this.ValidateServicesAddedByAttributes();
@@ -66,7 +65,7 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
 
     public string GetConfigurationDebugView()
     {
-       var configurationRoot= BuildConfigurationRoot();
+        var configurationRoot = BuildConfigurationRoot();
         return configurationRoot.GetDebugView();
     }
 
