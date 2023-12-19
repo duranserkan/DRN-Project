@@ -352,7 +352,7 @@ Don't forget to replace DRN.Framework.Testing project reference with its nuget p
 ```csharp
 [Theory]
 [DataInline]
-public void $name$(TestContext context)
+public async Task $name$(TestContext context)
 {
     $END$
 }

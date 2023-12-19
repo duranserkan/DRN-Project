@@ -6,6 +6,12 @@ namespace Sample.Domain.QA.Questions;
 
 public class Question
 {
+    public Question(string title, string body)
+    {
+        Title = title;
+        Body = body;
+    }
+
     public int Id { get; set; }
     public string Title { get; set; }
     public string Body { get; set; }

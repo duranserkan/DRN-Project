@@ -76,7 +76,7 @@ public class LifetimeContainerTests
     public void Validate_Sample_Dependencies(TestContext context)
     {
         context.ServiceCollection.AddSampleApplicationServices();
-        context.ServiceCollection.AddSampleInfraServices(context.BuildConfigurationRoot());
+        context.ServiceCollection.AddSampleInfraServices();
         context.ValidateServices();
     }
 

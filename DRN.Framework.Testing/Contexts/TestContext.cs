@@ -1,7 +1,12 @@
+using DotNet.Testcontainers.Containers;
+using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
+using DRN.Framework.Utils.Extensions;
+using DRN.Framework.Utils.Settings;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -15,9 +20,10 @@ namespace DRN.Framework.Testing.Contexts;
 /// </summary>
 public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServiceProvider
 {
-    private List<IConfigurationSource> ConfigurationSources { get; } = [];
-    private ServiceProvider? ServiceProvider { get; set; }
-    private IConfigurationRoot ConfigurationRoot { get; set; } = null!;
+    private readonly List<DockerContainer> _containers = [];
+    private readonly List<IConfigurationSource> _configurationSources = [];
+    private ServiceProvider? _serviceProvider { get; set; }
+    private IConfigurationRoot _configurationRoot = null!;
 
     public MethodContext MethodContext { get; } = new(testMethod);
     public ServiceCollection ServiceCollection { get; } = [];
@@ -37,21 +43,21 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
         MethodContext.ReplaceSubstitutedInterfaces(this);
 
         var configuration = BuildConfigurationRoot(appSettingsName);
-        ServiceProvider = ServiceCollection
+        _serviceProvider = ServiceCollection
             .AddSingleton<IConfiguration>(x => configuration)
             .AddLogging(logging => { logging.ClearProviders(); })
             .AddDrnUtils()
             .BuildServiceProvider(false);
 
-        return ServiceProvider;
+        return _serviceProvider;
     }
 
     public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = "settings")
     {
-        var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation(), ConfigurationSources);
-        ConfigurationRoot = (IConfigurationRoot)configuration;
+        var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation(), _configurationSources);
+        _configurationRoot = (IConfigurationRoot)configuration;
 
-        return ConfigurationRoot;
+        return _configurationRoot;
     }
 
     public void ValidateServices() => this.ValidateServicesAddedByAttributes();
@@ -60,44 +66,61 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
 
     public string GetConfigurationDebugView()
     {
-        ServiceProvider ??= BuildServiceProvider();
-        return ConfigurationRoot.GetDebugView();
+        _serviceProvider ??= BuildServiceProvider();
+        return _configurationRoot.GetDebugView();
     }
 
     public void AddToConfiguration(object toBeSerialized)
     {
-        ConfigurationSources.Add(new JsonSerializerConfigurationSource(toBeSerialized));
+        _configurationSources.Add(new JsonSerializerConfigurationSource(toBeSerialized));
     }
 
-    public PostgreSqlContainer AddPostgreSQLDb(string? database = null, string? username = null, string? password = null)
+    public PostgreSqlContainer StartPostgreSQL(string? database = null, string? username = null, string? password = null)
     {
         var builder = new PostgreSqlBuilder().WithImage("postgres:16.1");
         if (database != null) builder.WithDatabase(database);
         if (username != null) builder.WithUsername(username);
         if (password != null) builder.WithPassword(password);
 
-        var postgreSqlContainer = builder.Build();
-        postgreSqlContainer.StartAsync().Wait();
+        var container = builder.Build();
+        _containers.Add(container);
+        container.StartAsync().Wait();
 
-        return postgreSqlContainer;
+        var descriptors = ServiceCollection.GetAllAssignableTo<DrnContext>();
+        var stringsCollection = new ConnectionStringsCollection();
+        foreach (var descriptor in descriptors)
+        {
+            stringsCollection.Upsert(descriptor.ServiceType.Name, container.GetConnectionString());
+            AddToConfiguration(stringsCollection);
+        }
+
+        if (descriptors.Length == 0) return container;
+
+        var serviceProvider = BuildServiceProvider();
+        var migrationTasks = descriptors
+            .Select(d => (DrnContext)serviceProvider.GetRequiredService(d.ServiceType))
+            .Select(c => c.Database.MigrateAsync()).ToArray();
+        Task.WaitAll(migrationTasks);
+
+        return container;
     }
 
     public object? GetService(Type serviceType)
     {
-        ServiceProvider ??= BuildServiceProvider();
-        return ServiceProvider.GetService(serviceType);
+        _serviceProvider ??= BuildServiceProvider();
+        return _serviceProvider.GetService(serviceType);
     }
 
     public object? GetKeyedService(Type serviceType, object? serviceKey)
     {
-        ServiceProvider ??= BuildServiceProvider();
-        return ServiceProvider.GetKeyedService(serviceType, serviceKey);
+        _serviceProvider ??= BuildServiceProvider();
+        return _serviceProvider.GetKeyedService(serviceType, serviceKey);
     }
 
     public object GetRequiredKeyedService(Type serviceType, object? serviceKey)
     {
-        ServiceProvider ??= BuildServiceProvider();
-        return ServiceProvider.GetRequiredKeyedService(serviceType, serviceKey);
+        _serviceProvider ??= BuildServiceProvider();
+        return _serviceProvider.GetRequiredKeyedService(serviceType, serviceKey);
     }
 
     public override string ToString() => "context";
@@ -107,11 +130,12 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
         DisposeServiceProvider();
         ServiceCollection.Clear();
         GC.SuppressFinalize(this);
+        Task.WaitAll(_containers.Select(c => c.DisposeAsync().AsTask()).ToArray());
     }
 
     private void DisposeServiceProvider()
     {
-        ServiceProvider?.Dispose();
-        ServiceProvider = null;
+        _serviceProvider?.Dispose();
+        _serviceProvider = null;
     }
 }

@@ -4,7 +4,8 @@ namespace DRN.Framework.EntityFramework.Context;
 
 public static class DbContextConventions
 {
-    public static DbContextOptionsBuilder DbContextGetOptionsBuilder<TContext>(string connectionString, string contextName, DbContextOptionsBuilder? builder = null)
+    public static DbContextOptionsBuilder DbContextGetOptionsBuilder<TContext>(string connectionString, string contextName,
+        DbContextOptionsBuilder? builder = null)
         where TContext : DbContext
     {
         builder ??= new DbContextOptionsBuilder();

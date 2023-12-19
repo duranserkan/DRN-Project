@@ -5,6 +5,12 @@ namespace DRN.Framework.Utils.Extensions;
 
 public static class ServiceCollectionExtensions
 {
+    public static ServiceDescriptor[] GetAllAssignableTo<TService>(this IServiceCollection sc)
+    {
+        var target = typeof(TService);
+        return sc.Where(d => d.ServiceType.IsAssignableTo(target)).ToArray();
+    }
+
     public static void ReplaceInstance<TImplementation>(this IServiceCollection sc, Type serviceType, IReadOnlyList<TImplementation> implementations,
         ServiceLifetime lifetime)
         where TImplementation : class
