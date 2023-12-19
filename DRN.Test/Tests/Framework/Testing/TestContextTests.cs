@@ -12,7 +12,7 @@ public class TestContextTests
     public async Task TestContext_Should_Migrate_DbContexts(TestContext context)
     {
         context.ServiceCollection.AddSampleInfraServices();
-        context.StartPostgreSQL();
+        await context.StartPostgresAsync();
         var qaContext = context.GetRequiredService<QAContext>();
         var appliedMigrations = await qaContext.Database.GetAppliedMigrationsAsync();
 

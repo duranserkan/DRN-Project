@@ -11,7 +11,7 @@ public class QAContextTests
     public async Task QAContext_Should_Add_And_Remove_Question(TestContext context)
     {
         context.ServiceCollection.AddSampleInfraServices();
-        context.StartPostgreSQL();
+        await context.StartPostgresAsync();
         var qaContext = context.GetRequiredService<QAContext>();
 
         var title = "Is this magic?";

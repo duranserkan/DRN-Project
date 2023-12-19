@@ -66,8 +66,8 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
 
     public string GetConfigurationDebugView()
     {
-        _serviceProvider ??= BuildServiceProvider();
-        return _configurationRoot.GetDebugView();
+       var configurationRoot= BuildConfigurationRoot();
+        return configurationRoot.GetDebugView();
     }
 
     public void AddToConfiguration(object toBeSerialized)
@@ -75,7 +75,7 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
         _configurationSources.Add(new JsonSerializerConfigurationSource(toBeSerialized));
     }
 
-    public PostgreSqlContainer StartPostgreSQL(string? database = null, string? username = null, string? password = null)
+    public async Task<PostgreSqlContainer> StartPostgresAsync(string? database = null, string? username = null, string? password = null)
     {
         var builder = new PostgreSqlBuilder().WithImage("postgres:16.1");
         if (database != null) builder.WithDatabase(database);
@@ -84,7 +84,7 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
 
         var container = builder.Build();
         _containers.Add(container);
-        container.StartAsync().Wait();
+        await container.StartAsync();
 
         var descriptors = ServiceCollection.GetAllAssignableTo<DrnContext>();
         var stringsCollection = new ConnectionStringsCollection();
@@ -100,7 +100,7 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
         var migrationTasks = descriptors
             .Select(d => (DrnContext)serviceProvider.GetRequiredService(d.ServiceType))
             .Select(c => c.Database.MigrateAsync()).ToArray();
-        Task.WaitAll(migrationTasks);
+        await Task.WhenAll(migrationTasks);
 
         return container;
     }
