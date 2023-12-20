@@ -1,6 +1,5 @@
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.Utils;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Sample.Infra;
