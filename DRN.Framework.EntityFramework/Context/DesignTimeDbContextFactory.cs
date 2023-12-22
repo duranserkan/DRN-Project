@@ -19,7 +19,7 @@ public class DesignTimeDbContextFactory<TContext> : IDesignTimeDbContextFactory<
     {
         var contextName = typeof(TContext).Name;
         var connectionString = args.FirstOrDefault()!;
-        var optionsBuilder = DbContextConventions.DbContextGetOptionsBuilder<TContext>(connectionString, contextName);
+        var optionsBuilder = DbContextConventions.UpdateDbContextOptionsBuilder<TContext>(connectionString, contextName);
 
         return (TContext)Activator.CreateInstance(typeof(TContext), optionsBuilder.Options)!;
     }
