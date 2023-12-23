@@ -18,13 +18,13 @@ public static class ServiceCollectionExtensions
         if (Assembly.GetCallingAssembly() != typeof(AppSettings).Assembly) sc.AddDrnUtils();
         assembly ??= Assembly.GetCallingAssembly();
 
-        var container = LifetimeSpecifiedTypes(sc, assembly);
+        var container = AddLifetimeSpecifiedTypes(sc, assembly);
         AddAttributeSpecifiedModules(sc, assembly);
 
         return container;
     }
 
-    private static LifetimeContainer LifetimeSpecifiedTypes(IServiceCollection sc, Assembly assembly)
+    private static LifetimeContainer AddLifetimeSpecifiedTypes(IServiceCollection sc, Assembly assembly)
     {
         var container = ContainerDictionary.GetOrAdd(assembly.FullName!, x =>
         {
