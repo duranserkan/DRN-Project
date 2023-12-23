@@ -17,8 +17,13 @@ public abstract class LifetimeAttribute(ServiceLifetime serviceLifetime, Type se
         type is { IsAbstract: false, IsClass: true, IsVisible: true } &&
         type.GetCustomAttributes().Any(a => a.GetType().IsAssignableTo(typeof(LifetimeAttribute)));
 
-    public static LifetimeAttribute GetLifetime(Type type) =>
-        (LifetimeAttribute)type.GetCustomAttributes().Single(a => a.GetType().IsAssignableTo(typeof(LifetimeAttribute)));
+    public static LifetimeAttribute GetLifetime(Type type)
+    {
+        var attribute = (LifetimeAttribute)type.GetCustomAttributes().Single(a => a.GetType().IsAssignableTo(typeof(LifetimeAttribute)));
+        attribute.ImplementationType = type;
+
+        return attribute;
+    }
 }
 
 public class LifetimeAttribute<TService>(ServiceLifetime serviceLifetime, bool tryAdd = true, object? key = null)
