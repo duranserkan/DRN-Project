@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DRN.Framework.EntityFramework.Context;
 
-
 [HasDRNContextServiceCollectionModule]
 public class DrnContext<TContext> : DbContext where TContext : DbContext
 {
@@ -19,9 +18,9 @@ public class DrnContext<TContext> : DbContext where TContext : DbContext
     }
 }
 
-public class HasDRNContextServiceCollectionModule : HasServiceCollectionModuleAttribute
+public class HasDRNContextServiceCollectionModuleAttribute : HasServiceCollectionModuleAttribute
 {
-    static HasDRNContextServiceCollectionModule()
+    static HasDRNContextServiceCollectionModuleAttribute()
     {
         ModuleMethodInfo = typeof(ServiceCollectionExtensions).GetMethod(nameof(ServiceCollectionExtensions.AddDbContextsWithConventions))!;
     }

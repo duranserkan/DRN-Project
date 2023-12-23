@@ -23,15 +23,26 @@ public static class ServiceCollectionExtensions
 
         assembly ??= Assembly.GetCallingAssembly();
 
+        var container = LifetimeSpecifiedTypes(sc, assembly);
+
+        AddAttributeSpecifiedModules(sc, assembly);
+
+        return container;
+    }
+
+    private static LifetimeContainer LifetimeSpecifiedTypes(IServiceCollection sc, Assembly assembly)
+    {
         var container = ContainerDictionary.GetOrAdd(assembly.FullName!, x =>
         {
-            var lifetimeAttributes = assembly.GetTypes().Where(LifetimeAttribute.HasLifetime).Select(type =>
-            {
-                var lifetime = LifetimeAttribute.GetLifetime(type);
-                lifetime.ImplementationType = type;
+            var lifetimeAttributes = assembly.GetTypes()
+                .Where(type => LifetimeAttribute.HasLifetime(type) && !HasServiceCollectionModuleAttribute.HasServiceCollectionModule(type))
+                .Select(type =>
+                {
+                    var lifetime = LifetimeAttribute.GetLifetime(type);
+                    lifetime.ImplementationType = type;
 
-                return lifetime;
-            }).ToArray();
+                    return lifetime;
+                }).ToArray();
 
             var container = new LifetimeContainer(assembly, lifetimeAttributes);
 
@@ -55,6 +66,11 @@ public static class ServiceCollectionExtensions
                 sc.Add(descriptor);
         }
 
+        return container;
+    }
+
+    private static void AddAttributeSpecifiedModules(IServiceCollection sc, Assembly assembly)
+    {
         var moduleTypes = assembly.GetTypes().Where(HasServiceCollectionModuleAttribute.HasServiceCollectionModule).Distinct().ToArray();
         foreach (var moduleType in moduleTypes)
         {
@@ -62,9 +78,7 @@ public static class ServiceCollectionExtensions
             var methodInfoProperty = moduleAttribute.GetType().GetProperty(nameof(HasServiceCollectionModuleAttribute.ModuleMethodInfo),
                 BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)!;
             var methodInfo = (MethodInfo)methodInfoProperty.GetValue(null)!;
-            methodInfo.Invoke(null, [sc, moduleType.Assembly]);
+            methodInfo.Invoke(null, [sc, assembly]);
         }
-
-        return container;
     }
 }

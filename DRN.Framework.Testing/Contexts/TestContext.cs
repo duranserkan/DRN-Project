@@ -86,7 +86,7 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
         await container.StartAsync();
 
         var descriptors = ServiceCollection.GetAllAssignableTo<DbContext>()
-            .Where(descriptor => descriptor.ServiceType.GetCustomAttribute<HasDRNContextServiceCollectionModule>() != null).ToArray();
+            .Where(descriptor => descriptor.ServiceType.GetCustomAttribute<HasDRNContextServiceCollectionModuleAttribute>() != null).ToArray();
         var stringsCollection = new ConnectionStringsCollection();
         foreach (var descriptor in descriptors)
         {
