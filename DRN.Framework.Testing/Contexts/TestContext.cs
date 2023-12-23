@@ -85,7 +85,8 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
         _containers.Add(container);
         await container.StartAsync();
 
-        var descriptors = ServiceCollection.GetAllAssignableTo<DrnContext>();
+        var descriptors = ServiceCollection.GetAllAssignableTo<DbContext>()
+            .Where(descriptor => descriptor.ServiceType.GetCustomAttribute<HasDRNContextServiceCollectionModule>() != null).ToArray();
         var stringsCollection = new ConnectionStringsCollection();
         foreach (var descriptor in descriptors)
         {
@@ -97,7 +98,7 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
 
         var serviceProvider = BuildServiceProvider();
         var migrationTasks = descriptors
-            .Select(d => (DrnContext)serviceProvider.GetRequiredService(d.ServiceType))
+            .Select(d => (DbContext)serviceProvider.GetRequiredService(d.ServiceType))
             .Select(c => c.Database.MigrateAsync()).ToArray();
         await Task.WhenAll(migrationTasks);
 

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -15,6 +16,11 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static LifetimeContainer AddServicesWithAttributes(this IServiceCollection sc, Assembly? assembly = null)
     {
+        if (Assembly.GetCallingAssembly() != typeof(AppSettings).Assembly)
+        {
+            sc.AddDrnUtils();
+        }
+
         assembly ??= Assembly.GetCallingAssembly();
 
         var container = ContainerDictionary.GetOrAdd(assembly.FullName!, x =>
@@ -47,6 +53,16 @@ public static class ServiceCollectionExtensions
                 sc.TryAdd(descriptor);
             else
                 sc.Add(descriptor);
+        }
+
+        var moduleTypes = assembly.GetTypes().Where(HasServiceCollectionModuleAttribute.HasServiceCollectionModule).Distinct().ToArray();
+        foreach (var moduleType in moduleTypes)
+        {
+            var moduleAttribute = HasServiceCollectionModuleAttribute.GetModuleAttribute(moduleType);
+            var methodInfoProperty = moduleAttribute.GetType().GetProperty(nameof(HasServiceCollectionModuleAttribute.ModuleMethodInfo),
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)!;
+            var methodInfo = (MethodInfo)methodInfoProperty.GetValue(null)!;
+            methodInfo.Invoke(null, [sc, moduleType.Assembly]);
         }
 
         return container;

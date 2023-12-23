@@ -1,10 +1,13 @@
+using DRN.Framework.Utils.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 
 namespace DRN.Framework.EntityFramework.Context;
 
-public class DrnContext : DbContext
+
+[HasDRNContextServiceCollectionModule]
+public class DrnContext<TContext> : DbContext where TContext : DbContext
 {
-    protected DrnContext(DbContextOptions options) : base(options)
+    protected DrnContext(DbContextOptions<TContext> options) : base(options)
     {
     }
 
@@ -13,5 +16,13 @@ public class DrnContext : DbContext
         base.OnModelCreating(modelBuilder);
         var context = GetType();
         modelBuilder.ApplyConfigurationsFromAssembly(context.Assembly, configuration => configuration.Namespace!.Contains(context.Namespace!));
+    }
+}
+
+public class HasDRNContextServiceCollectionModule : HasServiceCollectionModuleAttribute
+{
+    static HasDRNContextServiceCollectionModule()
+    {
+        ModuleMethodInfo = typeof(ServiceCollectionExtensions).GetMethod(nameof(ServiceCollectionExtensions.AddDbContextsWithConventions))!;
     }
 }

@@ -1,6 +1,7 @@
 using Sample.Domain.QA.Questions;
 using Sample.Infra;
 using Sample.Infra.Repositories.QA;
+using Sample.Infra.Repositories.QB;
 
 namespace DRN.Test.Tests.Sample.Infra;
 
@@ -13,6 +14,7 @@ public class QAContextTests
         context.ServiceCollection.AddSampleInfraServices();
         await context.StartPostgresAsync();
         var qaContext = context.GetRequiredService<QAContext>();
+        _ = context.GetRequiredService<QBContext>(); //to make sure multiple contexts can run side by side
 
         var title = "Is this magic?";
         var body = "Yes, it is.";

@@ -8,7 +8,7 @@ public static class DbContextConventions
         DbContextOptionsBuilder? builder = null)
         where TContext : DbContext
     {
-        builder ??= new DbContextOptionsBuilder();
+        builder ??= new DbContextOptionsBuilder<TContext>();
         return builder
             .UseNpgsql(connectionString, options => options
                 .MigrationsAssembly(typeof(TContext).Assembly.FullName)

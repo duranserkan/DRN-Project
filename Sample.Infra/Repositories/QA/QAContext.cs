@@ -4,12 +4,8 @@ using Sample.Domain.QA.Questions;
 
 namespace Sample.Infra.Repositories.QA;
 
-public class QAContext : DrnContext
+public class QAContext(DbContextOptions<QAContext> options) : DrnContext<QAContext>(options)
 {
-    public QAContext(DbContextOptions options) : base(options)
-    {
-    }
-
     public DbSet<Question> Questions { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

@@ -13,8 +13,9 @@ public abstract class LifetimeAttribute(ServiceLifetime serviceLifetime, Type se
     public object? Key { get; } = key;
     public bool HasKey => Key != null;
 
-    public static bool HasLifetime(Type type) => type is { IsAbstract: false, IsClass: true, IsVisible: true } &&
-                                                 type.GetCustomAttributes().Any(a => a.GetType().IsAssignableTo(typeof(LifetimeAttribute)));
+    public static bool HasLifetime(Type type) =>
+        type is { IsAbstract: false, IsClass: true, IsVisible: true } &&
+        type.GetCustomAttributes().Any(a => a.GetType().IsAssignableTo(typeof(LifetimeAttribute)));
 
     public static LifetimeAttribute GetLifetime(Type type) =>
         (LifetimeAttribute)type.GetCustomAttributes().Single(a => a.GetType().IsAssignableTo(typeof(LifetimeAttribute)));
