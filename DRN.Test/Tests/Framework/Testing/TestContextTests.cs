@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sample.Domain.QA.Questions;
 using Sample.Infra;
-using Sample.Infra.Repositories.QA;
+using Sample.Infra.QA;
 
 namespace DRN.Test.Tests.Framework.Testing;
 

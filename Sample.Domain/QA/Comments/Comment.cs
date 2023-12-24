@@ -1,14 +1,17 @@
 namespace Sample.Domain.QA.Comments;
 
-public class Comment
+public class Comment : AggregateRoot
 {
-    public Comment(string body)
+    private Comment()
     {
-        Body = body;
     }
 
-    public int Id { get; set; }
+    public Comment(string body, long postedBy)
+    {
+        Body = body;
+        PostedBy = postedBy;
+    }
+
     public string Body { get; set; }
-    public int PostedBy { get; set; }
-    public int DatePosted { get; set; }
+    public long PostedBy { get; set; }
 }

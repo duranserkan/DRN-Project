@@ -15,7 +15,7 @@ public class LifetimeContainerTests
         context.ServiceCollection.AddTestModule();
         var containers = context.GetServices<LifetimeContainer>().ToArray();
         var utilsAssemblyContainer = containers.Single(c => c.Assembly == typeof(IAppSettings).Assembly);
-        utilsAssemblyContainer.LifetimeAttributes.Single(l =>
+        _ = utilsAssemblyContainer.LifetimeAttributes.Single(l =>
             l.ServiceType == typeof(IAppSettings) && l.ImplementationType == typeof(AppSettings) && l.ServiceLifetime == ServiceLifetime.Singleton);
 
         context.GetRequiredService<Dependent>();

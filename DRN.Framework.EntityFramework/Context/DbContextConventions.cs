@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace DRN.Framework.EntityFramework.Context;
 
@@ -13,6 +14,7 @@ public static class DbContextConventions
             .UseNpgsql(connectionString, options => options
                 .MigrationsAssembly(typeof(TContext).Assembly.FullName)
                 .MigrationsHistoryTable($"__{contextName}MigrationsHistory"))
-            .UseSnakeCaseNamingConvention();
+            .UseSnakeCaseNamingConvention()
+            .LogTo(Console.WriteLine, [DbLoggerCategory.Name], LogLevel.Warning);
     }
 }

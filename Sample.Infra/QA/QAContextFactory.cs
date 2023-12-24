@@ -1,6 +1,6 @@
 using DRN.Framework.EntityFramework.Context;
 
-namespace Sample.Infra.Repositories.QA;
+namespace Sample.Infra.QA;
 
 public class QAContextFactory : DesignTimeDbContextFactory<QAContext>
 {

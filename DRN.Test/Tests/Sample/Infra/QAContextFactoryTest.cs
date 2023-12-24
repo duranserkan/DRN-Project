@@ -1,4 +1,4 @@
-using Sample.Infra.Repositories.QA;
+using Sample.Infra.QA;
 
 namespace DRN.Test.Tests.Sample.Infra;
 

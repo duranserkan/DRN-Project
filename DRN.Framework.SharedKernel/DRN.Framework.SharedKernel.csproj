@@ -24,10 +24,6 @@
         </None>
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Models\" />
-    </ItemGroup>
-
     <Target Name="PrepareDescription" BeforeTargets="GenerateNuspec">
         <PropertyGroup>
             <PackageDescription>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/PACKAGE-DESCRIPTION"))</PackageDescription>

@@ -1,37 +1,52 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace Sample.Domain.Users;
 
-public class User
+public class User : AggregateRoot
 {
-    public User(string name, string surname, string userName)
+    private User()
+    {
+    }
+
+    public User(string name, string surname, string userName, ContactDetail contactDetail, Address address)
     {
         Name = name;
         Surname = surname;
         UserName = userName;
+        Contact = contactDetail;
+        Address = address;
     }
 
-    public int Id { get; private set; }
     public string Name { get; set; }
     public string Surname { get; set; }
     public string UserName { get; set; }
-    public DateTimeOffset DateJoined { get; set; }
-    public ContactDetail Contact { get; set; } = null!;
+    public ContactDetail Contact { get; set; }
+    public Address Address { get; set; }
 }
 
 public class ContactDetail
 {
-    public ContactDetail(string email)
+    private ContactDetail()
     {
-        Email = email;
     }
 
-    public Address? Address { get; set; }
-    public string? Phone { get; set; }
+    public ContactDetail(string email, string? phone = null)
+    {
+        Email = email;
+        Phone = phone;
+    }
+
     public string Email { get; set; }
+    public string? Phone { get; set; }
 }
 
 public class Address
 {
-    public Address(string street, string city, string postcode, string country)
+    private Address()
+    {
+    }
+
+    public Address(string street, string city, string country, string postcode)
     {
         Street = street;
         City = city;

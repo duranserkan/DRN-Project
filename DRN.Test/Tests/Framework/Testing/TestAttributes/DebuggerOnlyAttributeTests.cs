@@ -9,7 +9,7 @@ public class DebuggerOnlyAttributeTests
 
     [TheoryDebuggerOnly]
     [DataInline]
-    public void DebuggerOnlyTheory(TestContext context)
+    public void DebuggerOnlyTheory()
     {
     }
 }

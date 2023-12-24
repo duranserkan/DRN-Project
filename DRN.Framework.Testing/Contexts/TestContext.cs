@@ -27,8 +27,6 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
     public MethodContext MethodContext { get; } = new(testMethod);
     public ServiceCollection ServiceCollection { get; } = [];
 
-    //Todo: live template
-
     /// <summary>
     /// Creates a service provider from test context service collection
     /// Init this within test method to capture name of the test
@@ -86,7 +84,7 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
         await container.StartAsync();
 
         var descriptors = ServiceCollection.GetAllAssignableTo<DbContext>()
-            .Where(descriptor => descriptor.ServiceType.GetCustomAttribute<HasDRNContextServiceCollectionModuleAttribute>() != null).ToArray();
+            .Where(descriptor => descriptor.ServiceType.GetCustomAttribute<HasDrnContextServiceCollectionModuleAttribute>() != null).ToArray();
         var stringsCollection = new ConnectionStringsCollection();
         foreach (var descriptor in descriptors)
         {
@@ -97,9 +95,8 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
         if (descriptors.Length == 0) return container;
 
         var serviceProvider = BuildServiceProvider();
-        var migrationTasks = descriptors
-            .Select(d => (DbContext)serviceProvider.GetRequiredService(d.ServiceType))
-            .Select(c => c.Database.MigrateAsync()).ToArray();
+        var dbContexts = descriptors.Select(d => (DbContext)serviceProvider.GetRequiredService(d.ServiceType)).ToArray();
+        var migrationTasks = dbContexts.Select(c => c.Database.MigrateAsync()).ToArray();
         await Task.WhenAll(migrationTasks);
 
         return container;

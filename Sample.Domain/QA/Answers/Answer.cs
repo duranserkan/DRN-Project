@@ -1,16 +1,22 @@
+using Sample.Domain.QA.Questions;
+
 namespace Sample.Domain.QA.Answers;
 
-public class Answer
+public class Answer : AggregateRoot
 {
-    public Answer(string body)
+    private Answer()
     {
-        Body = body;
     }
 
-    public int Id { get; set; }
+    public Answer(string body, Question question, long postedBy)
+    {
+        Body = body;
+        QuestionId = question.Id;
+        PostedBy = postedBy;
+    }
+
     public string Body { get; set; }
-    public int PostedBy { get; set; }
-    public int QuestionId { get; set; }
-    public DateTimeOffset DatePosted { get; set; }
+    public long QuestionId { get; private set; }
+    public long PostedBy { get; private set; }
     public bool IsAccepted { get; set; }
 }
