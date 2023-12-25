@@ -10,4 +10,8 @@
     <ProjectReference Include="..\DRN.Framework.SharedKernel\DRN.Framework.SharedKernel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="QA\QuestionComments\" />
+  </ItemGroup>
+
 </Project>

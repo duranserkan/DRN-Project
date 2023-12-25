@@ -1,6 +1,5 @@
 using Sample.Domain.QA.Answers;
 using Sample.Domain.QA.Categories;
-using Sample.Domain.QA.Comments;
 using Sample.Domain.QA.Tags;
 using Sample.Domain.Users;
 
@@ -30,5 +29,5 @@ public class Question : AggregateRoot
 
     public List<Tag> Tags { get; } = new();
     public List<Answer> Answers { get; set; } = new();
-    public List<Comment> Comments { get; set; } = new();
+    public List<QuestionComment> Comments { get; set; } = new();
 }

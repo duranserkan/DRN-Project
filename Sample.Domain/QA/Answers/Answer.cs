@@ -1,4 +1,5 @@
 using Sample.Domain.QA.Questions;
+using Sample.Domain.Users;
 
 namespace Sample.Domain.QA.Answers;
 
@@ -8,15 +9,17 @@ public class Answer : AggregateRoot
     {
     }
 
-    public Answer(string body, Question question, long postedBy)
+    public Answer(string body, Question question, User user)
     {
         Body = body;
         QuestionId = question.Id;
-        PostedBy = postedBy;
+        UserId = user.Id;
     }
 
     public string Body { get; set; }
     public long QuestionId { get; private set; }
-    public long PostedBy { get; private set; }
+    public long UserId { get; private set; }
     public bool IsAccepted { get; set; }
+
+    public List<AnswerComment> Comments { get; private set; } = new();
 }

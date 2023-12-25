@@ -38,10 +38,7 @@ public class DrnMigrationsScaffolder(MigrationsScaffolderDependencies dependenci
     {
         if (string.IsNullOrEmpty(outputDir))
         {
-            var dbContext = Dependencies.CurrentContext.Context.GetType();
-            var assemblyName = dbContext.Assembly.GetName().Name!;
-
-            var relativeNamespace = dbContext.Namespace!.Remove(0, assemblyName.Length).TrimStart('.');
+            var relativeNamespace = GetRelativeNamespace(Dependencies.CurrentContext.Context);
             Console.WriteLine($"relative namespace: {relativeNamespace}");
             var relativePathOfDbContext = Path.Combine(relativeNamespace.Split('.'));
             Console.WriteLine($"relative path of DbContext: {relativePathOfDbContext}");
@@ -50,5 +47,19 @@ public class DrnMigrationsScaffolder(MigrationsScaffolderDependencies dependenci
         }
 
         return base.Save(projectDir, migration, outputDir);
+    }
+
+    public override ScaffoldedMigration ScaffoldMigration(string migrationName, string? rootNamespace, string? subNamespace = null, string? language = null)
+    {
+        var relativeNamespaceForMigration = $"{GetRelativeNamespace(Dependencies.CurrentContext.Context)}.Migrations";
+        return base.ScaffoldMigration(migrationName, rootNamespace, subNamespace ?? relativeNamespaceForMigration, language);
+    }
+
+    private static string GetRelativeNamespace(DbContext dbContext)
+    {
+        var dbContextType = dbContext.GetType();
+        var assemblyName = dbContextType.Assembly.GetName().Name!;
+
+        return dbContextType.Namespace!.Remove(0, assemblyName.Length).TrimStart('.');
     }
 }
