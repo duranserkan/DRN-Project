@@ -18,13 +18,23 @@ namespace DRN.Framework.Testing.Contexts;
 /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
 /// It disposes itself automatically at the end of the test.
 /// </summary>
-public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServiceProvider
+public sealed class TestContext : IDisposable, IKeyedServiceProvider
 {
-    private readonly List<DockerContainer> _containers = [];
     private readonly List<IConfigurationSource> _configurationSources = [];
     private ServiceProvider? _serviceProvider;
 
-    public MethodContext MethodContext { get; } = new(testMethod);
+    /// <summary>
+    /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
+    /// It disposes itself automatically at the end of the test.
+    /// </summary>
+    public TestContext(MethodInfo testMethod)
+    {
+        MethodContext = new(testMethod);
+        ContainerContext = new ContainerContext(this);
+    }
+
+    public MethodContext MethodContext { get; }
+    public ContainerContext ContainerContext { get; }
     public ServiceCollection ServiceCollection { get; } = [];
 
     /// <summary>
@@ -72,36 +82,6 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
         _configurationSources.Add(new JsonSerializerConfigurationSource(toBeSerialized));
     }
 
-    public async Task<PostgreSqlContainer> StartPostgresAsync(string? database = null, string? username = null, string? password = null)
-    {
-        var builder = new PostgreSqlBuilder().WithImage("postgres:16.1");
-        if (database != null) builder.WithDatabase(database);
-        if (username != null) builder.WithUsername(username);
-        if (password != null) builder.WithPassword(password);
-
-        var container = builder.Build();
-        _containers.Add(container);
-        await container.StartAsync();
-
-        var descriptors = ServiceCollection.GetAllAssignableTo<DbContext>()
-            .Where(descriptor => descriptor.ServiceType.GetCustomAttribute<HasDrnContextServiceCollectionModuleAttribute>() != null).ToArray();
-        var stringsCollection = new ConnectionStringsCollection();
-        foreach (var descriptor in descriptors)
-        {
-            stringsCollection.Upsert(descriptor.ServiceType.Name, container.GetConnectionString());
-            AddToConfiguration(stringsCollection);
-        }
-
-        if (descriptors.Length == 0) return container;
-
-        var serviceProvider = BuildServiceProvider();
-        var dbContexts = descriptors.Select(d => (DbContext)serviceProvider.GetRequiredService(d.ServiceType)).ToArray();
-        var migrationTasks = dbContexts.Select(c => c.Database.MigrateAsync()).ToArray();
-        await Task.WhenAll(migrationTasks);
-
-        return container;
-    }
-
     public object? GetService(Type serviceType)
     {
         _serviceProvider ??= BuildServiceProvider();
@@ -126,8 +106,8 @@ public sealed class TestContext(MethodInfo testMethod) : IDisposable, IKeyedServ
     {
         DisposeServiceProvider();
         ServiceCollection.Clear();
+        ContainerContext.Dispose();
         GC.SuppressFinalize(this);
-        Task.WaitAll(_containers.Select(c => c.DisposeAsync().AsTask()).ToArray());
     }
 
     private void DisposeServiceProvider()

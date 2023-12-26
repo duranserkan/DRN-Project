@@ -17,7 +17,7 @@ public class QAContextTests
         try
         {
             context.ServiceCollection.AddSampleInfraServices();
-            await context.StartPostgresAsync();
+            await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
             var qaContext = context.GetRequiredService<QAContext>();
             _ = context.GetRequiredService<QBContext>(); //to make sure multiple contexts can run side by side
 

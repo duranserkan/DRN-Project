@@ -2,11 +2,12 @@ namespace DRN.Framework.SharedKernel.Domain;
 
 public abstract class Entity
 {
-    protected List<DomainEvent> DomainEvents { get; } = new();
+    protected List<IDomainEvent> DomainEvents { get; } = new();
 
     public long Id { get; protected set; }
     public DateTimeOffset CreatedAt { get; protected set; }
     public DateTimeOffset ModifiedAt { get; protected set; }
+
 
     public virtual void MarkAsCreated()
     {
