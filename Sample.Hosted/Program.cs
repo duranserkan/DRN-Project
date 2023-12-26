@@ -53,3 +53,8 @@ static void AddServices(IServiceCollection services, IConfiguration configuratio
     services.AddSampleInfraServices();
     services.AddSampleApplicationServices();
 }
+
+
+public partial class Program
+{
+}

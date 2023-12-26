@@ -111,7 +111,6 @@ public sealed class ContainerContext(TestContext testContext) : IDisposable
 
     public void Dispose()
     {
-        GC.SuppressFinalize(this);
         Task.WaitAll(_containers.Select(c => c.DisposeAsync().AsTask()).ToArray());
     }
 }

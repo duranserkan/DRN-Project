@@ -1,16 +1,10 @@
-using DotNet.Testcontainers.Containers;
-using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
-using DRN.Framework.Utils.Extensions;
-using DRN.Framework.Utils.Settings;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Testcontainers.PostgreSql;
 
 namespace DRN.Framework.Testing.Contexts;
 
@@ -31,11 +25,13 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     {
         MethodContext = new(testMethod);
         ContainerContext = new ContainerContext(this);
+        WebApplicationContext = new WebApplicationContext(this);
     }
 
     public MethodContext MethodContext { get; }
     public ContainerContext ContainerContext { get; }
-    public ServiceCollection ServiceCollection { get; } = [];
+    public WebApplicationContext WebApplicationContext { get; }
+    public ServiceCollection ServiceCollection { get; internal set; } = [];
 
     /// <summary>
     /// Creates a service provider from test context service collection
@@ -47,7 +43,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     {
         //dispose previously initiated sp to create new
         DisposeServiceProvider();
-        MethodContext.ReplaceSubstitutedInterfaces(this);
+        MethodContext.ReplaceSubstitutedInterfaces(ServiceCollection);
 
         var configuration = BuildConfigurationRoot(appSettingsName);
         _serviceProvider = ServiceCollection
@@ -107,6 +103,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
         DisposeServiceProvider();
         ServiceCollection.Clear();
         ContainerContext.Dispose();
+        WebApplicationContext.Dispose();
         GC.SuppressFinalize(this);
     }
 

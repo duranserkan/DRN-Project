@@ -33,14 +33,14 @@ public class MethodContext
         SubstitutePairs = dataRow.GetSubstitutePairs();
     }
 
-    internal void ReplaceSubstitutedInterfaces(TestContext testContext)
+    internal void ReplaceSubstitutedInterfaces(IServiceCollection serviceCollection)
     {
         foreach (var grouping in SubstitutePairs.GroupBy(p => p.InterfaceType))
         {
             var type = grouping.Key;
             var implementations = grouping.Select(p => p.Implementation).ToArray();
 
-            testContext.ServiceCollection.ReplaceInstance(type, implementations, ServiceLifetime.Scoped);
+            serviceCollection.ReplaceInstance(type, implementations, ServiceLifetime.Scoped);
         }
     }
 }
