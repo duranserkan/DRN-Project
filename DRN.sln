@@ -7,6 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Items", "Items", "{34327AFB
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
 		.dockerignore = .dockerignore
+		vive la republique.png = vive la republique.png
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{8DDA41FF-B4B1-45F8-ACFC-BE077D9C6A63}"
