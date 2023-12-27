@@ -15,8 +15,8 @@ public class WebApplicationContextTests
 
         var client = webApplication.CreateClient();
         var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>("WeatherForecast");
-
         forecasts.Should().NotBeNull();
+
         var appSettings = webApplication.Services.GetRequiredService<IAppSettings>();
         var connectionString = appSettings.GetRequiredConnectionString(nameof(QAContext));
         connectionString.Should().NotBeNull();
