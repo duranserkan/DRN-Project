@@ -142,3 +142,5 @@ Today, I hereby declare that as an engineer,
 
 ## Celebrating Republic of Türkiye and Mustafa Kemal Atatürk's Enlightenment Ideals
 In honor of the Republic of Türkiye's centenary, my family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. While these ideals have illuminated Türkiye's path for a century, we recognize that the journey towards their full realization continues. This dedication is a reminder of the profound impact of Atatürk's vision and a call to continue striving for the ideals of enlightenment, progress, and unity that have guided Türkiye's remarkable journey.
+
+![alt text](https://github.com/duranserkan/DRN-Project/blob/master/vive%20la%20republique.png?raw=true)

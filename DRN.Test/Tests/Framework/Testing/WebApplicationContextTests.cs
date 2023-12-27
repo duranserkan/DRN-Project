@@ -6,7 +6,7 @@ namespace DRN.Test.Tests.Framework.Testing;
 
 public class WebApplicationContextTests
 {
-    [TheoryDebuggerOnly]
+    [Theory]
     [DataInline]
     public async Task WebApplicationContext_Should_Provide_Configuration_To_Program(TestContext context)
     {
