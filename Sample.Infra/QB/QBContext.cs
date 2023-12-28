@@ -4,4 +4,13 @@ using Microsoft.EntityFrameworkCore;
 namespace Sample.Infra.QB;
 
 //Added to test multiple context support
-public class QBContext(DbContextOptions<QBContext> options) : DrnContext<QBContext>(options);
+public class QBContext : DrnContext<QBContext>
+{
+    public QBContext(DbContextOptions<QBContext> options) : base(options)
+    {
+    }
+
+    public QBContext() : base(null)
+    {
+    }
+}

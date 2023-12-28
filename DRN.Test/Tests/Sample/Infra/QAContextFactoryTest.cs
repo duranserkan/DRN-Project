@@ -7,7 +7,7 @@ public class QAContextFactoryTest
     [Fact]
     public void QAContext_Factory_Should_Create_QAContext()
     {
-        var factory=new QAContextFactory();
+        var factory = new QAContext();
         var qaContext = factory.CreateDbContext(Array.Empty<string>());
         qaContext.Should().NotBeNull();
     }

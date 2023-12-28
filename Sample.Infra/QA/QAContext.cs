@@ -8,8 +8,16 @@ using Sample.Domain.Users;
 
 namespace Sample.Infra.QA;
 
-public class QAContext(DbContextOptions<QAContext> options) : DrnContext<QAContext>(options)
+public class QAContext : DrnContext<QAContext>
 {
+    public QAContext(DbContextOptions<QAContext> options) : base(options)
+    {
+    }
+
+    public QAContext() : base(null)
+    {
+    }
+
     public DbSet<User> Users { get; set; }
     public DbSet<Question> Questions { get; set; }
     public DbSet<Answer> Answers { get; set; }
