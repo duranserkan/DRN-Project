@@ -55,6 +55,12 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
         return _serviceProvider;
     }
 
+    internal void OverrideServiceProvider(IServiceProvider serviceProvider)
+    {
+        if (serviceProvider is ServiceProvider sp)
+            _serviceProvider = sp;
+    }
+
     public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = "settings")
     {
         var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation(), _configurationSources);

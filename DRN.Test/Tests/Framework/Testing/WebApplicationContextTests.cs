@@ -17,8 +17,11 @@ public class WebApplicationContextTests
         var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>("WeatherForecast");
         forecasts.Should().NotBeNull();
 
-        var appSettings = webApplication.Services.GetRequiredService<IAppSettings>();
-        var connectionString = appSettings.GetRequiredConnectionString(nameof(QAContext));
+        var appSettingsFromWebApplication = webApplication.Services.GetRequiredService<IAppSettings>();
+        var connectionString = appSettingsFromWebApplication.GetRequiredConnectionString(nameof(QAContext));
         connectionString.Should().NotBeNull();
+
+        var appSettingsFromTestContext = context.GetRequiredService<IAppSettings>();
+        appSettingsFromWebApplication.Should().BeSameAs(appSettingsFromTestContext);//resolved from same service provider
     }
 }
