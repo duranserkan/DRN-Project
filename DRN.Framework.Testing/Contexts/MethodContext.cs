@@ -11,7 +11,6 @@ public class MethodContext
         TestMethod = testMethod;
     }
 
-
     public MethodInfo TestMethod { get; }
     public IReadOnlyList<object> Data { get; private set; } = null!;
     public IReadOnlyList<SubstitutePair> SubstitutePairs { get; private set; } = null!;

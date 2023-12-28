@@ -1,5 +1,3 @@
-
-
 namespace DRN.Test.Tests.Framework.Utils.DependencyInjectionTests.Models;
 
 [Scoped<Dependent>]

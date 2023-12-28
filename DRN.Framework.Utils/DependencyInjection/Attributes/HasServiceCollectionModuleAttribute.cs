@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace DRN.Framework.Utils.DependencyInjection;
+namespace DRN.Framework.Utils.DependencyInjection.Attributes;
 
 [AttributeUsage(AttributeTargets.Class)]
 public abstract class HasServiceCollectionModuleAttribute : Attribute

@@ -6,14 +6,14 @@ using Sample.Infra;
 
 namespace DRN.Test.Tests.Framework.Utils.DependencyInjectionTests;
 
-public class LifetimeContainerTests
+public class DrnServiceContainerTests
 {
     [Theory]
     [DataInline]
     public void Services_Marked_By_Lifetime_Attributes_Should_Be_Added_To_ServiceProvider(TestContext context)
     {
         context.ServiceCollection.AddTestModule();
-        var containers = context.GetServices<LifetimeContainer>().ToArray();
+        var containers = context.GetServices<DrnServiceContainer>().ToArray();
         var utilsAssemblyContainer = containers.Single(c => c.Assembly == typeof(IAppSettings).Assembly);
         _ = utilsAssemblyContainer.LifetimeAttributes.Single(l =>
             l.ServiceType == typeof(IAppSettings) && l.ImplementationType == typeof(AppSettings) && l.ServiceLifetime == ServiceLifetime.Singleton);
@@ -73,10 +73,11 @@ public class LifetimeContainerTests
 
     [Theory]
     [DataInline]
-    public void Validate_Sample_Dependencies(TestContext context)
+    public async Task Validate_Sample_Dependencies(TestContext context)
     {
         context.ServiceCollection.AddSampleApplicationServices();
         context.ServiceCollection.AddSampleInfraServices();
+        await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
         context.ValidateServices();
     }
 

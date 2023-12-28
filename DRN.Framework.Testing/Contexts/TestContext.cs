@@ -31,7 +31,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     public MethodContext MethodContext { get; }
     public ContainerContext ContainerContext { get; }
     public WebApplicationContext WebApplicationContext { get; }
-    public ServiceCollection ServiceCollection { get; internal set; } = [];
+    public ServiceCollection ServiceCollection { get; private set; } = [];
 
     /// <summary>
     /// Creates a service provider from test context service collection
@@ -59,6 +59,12 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     {
         if (serviceProvider is ServiceProvider sp)
             _serviceProvider = sp;
+    }
+
+    internal void OverrideServiceCollection(IServiceCollection serviceCollection)
+    {
+        if (serviceCollection is ServiceCollection sc)
+            ServiceCollection = sc;
     }
 
     public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = "settings")
@@ -102,12 +108,10 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
         return _serviceProvider.GetRequiredKeyedService(serviceType, serviceKey);
     }
 
-    public override string ToString() => "context";
-
     public void Dispose()
     {
         DisposeServiceProvider();
-        ServiceCollection.Clear();
+        if (!ServiceCollection.IsReadOnly) ServiceCollection.Clear();
         ContainerContext.Dispose();
         WebApplicationContext.Dispose();
         GC.SuppressFinalize(this);

@@ -6,6 +6,7 @@ global using DRN.Framework.Utils.Extensions;
 global using DRN.Framework.SharedKernel;
 global using DRN.Framework.Utils.Settings;
 global using DRN.Framework.Utils.DependencyInjection;
+global using DRN.Framework.Utils.DependencyInjection.Attributes;
 global using DRN.Framework.Testing;
 global using DRN.Framework.Testing.DataAttributes;
 global using DRN.Framework.Testing.Providers;

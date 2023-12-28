@@ -1,7 +1,7 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DRN.Framework.Utils.DependencyInjection;
+namespace DRN.Framework.Utils.DependencyInjection.Attributes;
 
 public abstract class LifetimeAttribute(ServiceLifetime serviceLifetime, Type serviceType, bool tryAdd, object? key)
     : Attribute

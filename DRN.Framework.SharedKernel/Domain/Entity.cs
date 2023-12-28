@@ -4,10 +4,10 @@ public abstract class Entity
 {
     protected List<IDomainEvent> DomainEvents { get; } = new();
 
+    public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
     public long Id { get; protected set; }
     public DateTimeOffset CreatedAt { get; protected set; }
     public DateTimeOffset ModifiedAt { get; protected set; }
-
 
     public virtual void MarkAsCreated()
     {

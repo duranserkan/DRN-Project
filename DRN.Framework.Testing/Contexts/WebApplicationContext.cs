@@ -1,6 +1,6 @@
+using DRN.Framework.Utils.DependencyInjection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -13,15 +13,17 @@ public sealed class WebApplicationContext(TestContext testContext) : IDisposable
 {
     private IDisposable? _factory = null;
 
-
     public WebApplicationFactory<TEntryPoint> CreateWebApplication<TEntryPoint>(Action<IWebHostBuilder>? webHostConfigurator = null)
         where TEntryPoint : class
     {
         Dispose();
 
+        var initialTestContextServiceDescriptors = testContext.ServiceCollection.ToArray();
         //Add program services to testContext
         var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext).WithWebHostBuilder(webHostBuilder =>
         {
+            //only need service collection descriptors so ValidateServicesAddedByAttributes should not fail test at this stage
+            webHostBuilder.UseSetting(DrnServiceContainer.SkipValidationKey, DrnServiceContainer.SkipValidation);
             webHostBuilder.ConfigureServices(serviceCollection => testContext.ServiceCollection.Add(serviceCollection));
             webHostConfigurator?.Invoke(webHostBuilder);
         });
@@ -34,8 +36,9 @@ public sealed class WebApplicationContext(TestContext testContext) : IDisposable
         {
             webHostBuilder.ConfigureServices(serviceCollection =>
             {
+                serviceCollection.Add(initialTestContextServiceDescriptors);
+                testContext.OverrideServiceCollection(serviceCollection);
                 testContext.MethodContext.ReplaceSubstitutedInterfaces(serviceCollection);
-                testContext.MethodContext.ReplaceSubstitutedInterfaces(testContext.ServiceCollection);
             });
 
             var configuration = testContext.GetRequiredService<IConfiguration>()!;

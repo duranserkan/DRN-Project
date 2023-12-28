@@ -1,5 +1,5 @@
 using DRN.Framework.SharedKernel.Domain;
-using DRN.Framework.Utils.DependencyInjection;
+using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Migrations.Design;
@@ -36,8 +36,8 @@ namespace DRN.Framework.EntityFramework.Context;
 ///<example>
 ///<b>From Project Root</b>
 ///<code>
-/// dotnet ef migrations add --context QAContext [MigrationName]
-/// dotnet ef database update --context QAContext  -- "connectionString"
+/// dotnet ef migrations add --context [ContextName] [MigrationName]
+/// dotnet ef database update --context [ContextName]  -- "connectionString"
 ///</code>
 /// </example>
 [HasDrnContextServiceCollectionModule]
