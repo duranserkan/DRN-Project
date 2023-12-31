@@ -30,14 +30,6 @@ public static class UtilsModule
 }
 ```
 ## Dependency Injection with Attributes
-Example attribute usage:
-```csharp
-[Transient<IIndependent>]
-public class Independent : IIndependent
-{
-}
-```
-
 Each module should be created in the assembly that will be scanned.
 ```csharp
 public static class InfraModule
@@ -51,7 +43,7 @@ public static class InfraModule
 }
 ```
 
-Services resolution for attribute based services can be validated with single line
+Services resolution for attribute based services can be validated with a single line.
 ```csharp
 serviceProvider.ValidateServicesAddedByAttributes();
 ```
@@ -68,9 +60,18 @@ Attribute based dependency injection reduces wiring efforts and helps developer 
     }
 ```
 
-Following attributes marks services with a lifetime and when service collection called with *AddServicesWithAttributes* method in the assembly marked belong they are automatically added.
+### Lifetime Attributes
+Example attribute usage:
 ```csharp
-namespace DRN.Framework.Utils.DependencyInjection;
+[Transient<IIndependent>]
+public class Independent : IIndependent
+{
+}
+```
+
+Following attributes marks services with a lifetime and when service collection called with **AddServicesWithAttributes** method in the assembly marked belong they are automatically added.
+```csharp
+namespace DRN.Framework.Utils.DependencyInjection.Attributes;
 
 public class LifetimeAttribute<TService>(ServiceLifetime serviceLifetime, bool tryAdd = true, object? key = null)
     : LifetimeAttribute(serviceLifetime, typeof(TService), tryAdd, key);
@@ -89,6 +90,31 @@ public class TransientWithKeyAttribute<TService>(object key, bool tryAdd = true)
 public class SingletonAttribute<TService>(bool tryAdd = true) : LifetimeAttribute<TService>(ServiceLifetime.Singleton, tryAdd);
 
 public class SingletonWithKeyAttribute<TService>(object key, bool tryAdd = true) : LifetimeWithKeyAttribute<TService>(ServiceLifetime.Singleton, key, tryAdd);
+```
+### HasServiceCollectionModuleAttribute
+
+Attributes derived from `HasServiceCollectionModuleAttribute` can be used to mark custom service collection modules.
+In the following example `HasDrnContextServiceCollectionModuleAttribute` marks `DrnContext<TContext>` and its service collection module.
+This way dbContexts inherited from `DrnContext` doesn't need a lifetime attribute and they can be registered by `AddServicesWithAttributes` with their custom factory.
+
+This offers following flexibility:
+1. ServiceCollectionModule of DrnContexts are defined in `DRN.Framework.EntityFramework`
+2. Inherited dbContexts are defined in user defined projects and points a module in another project. 
+3. `AddServicesWithAttributes` extension method defined in `DRN.Framework.Utils` registers them without depending `DRN.Framework.EntityFramework` project
+
+```csharp
+public class HasDrnContextServiceCollectionModuleAttribute : HasServiceCollectionModuleAttribute
+{
+    static HasDrnContextServiceCollectionModuleAttribute()
+    {
+        ModuleMethodInfo = typeof(ServiceCollectionExtensions).GetMethod(nameof(ServiceCollectionExtensions.AddDbContextsWithConventions))!;
+    }
+}
+
+[HasDrnContextServiceCollectionModule]
+public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices where TContext : DbContext, new()
+{
+...
 ```
 
 ## Configurations
@@ -117,6 +143,11 @@ public interface IAppSettings
   * ReplaceInstance
   * ReplaceTransient
   * ReplaceScoped
-  * ReplaceSingleton
+  * ReplaceSingleton 
+  * GetAllAssignableTo<TService>
 * StringExtensions
   * ToStream
+* TypeExtensions
+  * MakeGenericMethod
+* AssemblyExtensions 
+  * GetTypesAssignableTo

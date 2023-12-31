@@ -2,6 +2,11 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.2.0
 
+### Breaking Changes
+
+* LifetimeContainer renamed as DrnServiceContainer
+* Lifetime attributes moved to DRN.Framework.Utils.DependencyInjection.Attributes namespace
+
 ### New Features
 
 * JsonSerializerConfigurationSource added to add dotnet objects to configuration
@@ -9,6 +14,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 * ConnectionStringsCollection added as poco model to serialize connection strings
 * StringExtensions added
   * ToStream method added to convert strings to in memory stream
+* HasServiceCollectionModuleAttribute added
 
 ## Version 0.1.0
 
