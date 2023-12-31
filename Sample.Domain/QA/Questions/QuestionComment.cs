@@ -16,4 +16,8 @@ public class QuestionComment : AggregateRoot
 
     public string Body { get; private set; } = null!;
     public long UserId { get; private set; }
+
+    protected override EntityCreated? GetCreatedEvent() => null;
+    protected override EntityModified? GetModifiedEvent() => null;
+    protected override EntityDeleted? GetDeletedEvent() => null;
 }

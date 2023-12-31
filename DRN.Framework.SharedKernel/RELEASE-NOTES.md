@@ -5,6 +5,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### New Features
 
 * JsonSerializerOptions added to AppConstants which is same with default dotnet settings for now.
+* AggregateRoot, Entity, DomainEvent definitions added
 
 ## Version 0.1.0
 

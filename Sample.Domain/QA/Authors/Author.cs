@@ -15,4 +15,8 @@ public class Author : AggregateRoot
 
     public string Name { get; private set; } = null!;
     public List<Question> Posts { get; private set; } = [];
+
+    protected override EntityCreated? GetCreatedEvent() => null;
+    protected override EntityModified? GetModifiedEvent() => null;
+    protected override EntityDeleted? GetDeletedEvent() => null;
 }

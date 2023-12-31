@@ -22,4 +22,8 @@ public class Answer : AggregateRoot
     public bool IsAccepted { get; set; }
 
     public List<AnswerComment> Comments { get; private set; } = [];
+
+    protected override EntityCreated? GetCreatedEvent() => null;
+    protected override EntityModified? GetModifiedEvent() => null;
+    protected override EntityDeleted? GetDeletedEvent() => null;
 }

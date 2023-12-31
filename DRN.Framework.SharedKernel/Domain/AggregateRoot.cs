@@ -1,5 +1,3 @@
 namespace DRN.Framework.SharedKernel.Domain;
 
-public class AggregateRoot : Entity
-{
-}
+public abstract class AggregateRoot : Entity;

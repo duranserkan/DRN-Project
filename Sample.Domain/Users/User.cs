@@ -22,6 +22,10 @@ public class User : AggregateRoot
     public string UserName { get; private set; } = null!;
     public ContactDetail Contact { get; private set; } = null!;
     public Address Address { get; private set; } = null!;
+
+    protected override EntityCreated? GetCreatedEvent() => null;
+    protected override EntityModified? GetModifiedEvent() => null;
+    protected override EntityDeleted? GetDeletedEvent() => null;
 }
 
 public class ContactDetail
