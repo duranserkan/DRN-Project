@@ -47,7 +47,7 @@ In DRN-Project context, reliability is defined with following characteristics:
 
 ## About Project
 DRN Project is not another framework that will `bite the dust.` It is more than a simple framework. It is a distilled knowledge that contains:
-- [X] A beautiful framework to work with (v0.1.0)
+- [X] A beautiful framework to work with (v0.2.0)
 - [X] Management best practices
 - [X] Engineering manifest
 - [X] Reference documents for design, architecture and microservices
@@ -115,7 +115,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 * Don't compromise your integrity
 * You can only expand yourself as your environment allows. Don't hesitate to change it when necessary 
 * You are not a tree. You can always walk away. Don't stay in hostile or harmful environment.
-* "Never attribute to malice that which is adequately explained by stupidity." - Hanlon's razor
+* "Never attribute to malice that which is adequately explained by stupidity." - Hanson's razor
 
 ## About Design, Architecture and Microservices
 * [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)
@@ -139,7 +139,7 @@ Today, I hereby declare that as an engineer,
 * I do my best not to leave technical debt. If I have to leave technical debt, I will remove the technical debt as soon as possible.
 * I manage time and stress under pressure, and I am not afraid to compromise and ask for help.
 * I will always keep communication channels open.
-* I will always give constructive and positive feedback whenever poss~~~~ible and appropriate.
+* I will always give constructive and positive feedback whenever possible and appropriate.
 * I will always be open to constructive and positive feedback.
 * I will always be conscientious, transparent and will live by values and goals.
 
