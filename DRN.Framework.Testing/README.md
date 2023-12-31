@@ -178,9 +178,27 @@ With `ContainerContext` and conventions you can easily write effective integrati
 * `TestContext` acts as a ServiceProvider and when a service is requested it can build it from service collection with all dependencies.
 
 ## WebApplicationContext
-
+`WebApplicationContext` syncs `TestContext` service collection and service provider with provided application by WebApplicationFactory.
+* You can provide or override configurations and services to your program until you force `WebApplicationFactory` to build a `Host` such as creating `HttpClient` or requesting `TestServer`.
 ```csharp
+    [Theory]
+    [DataInline]
+    public async Task WebApplicationContext_Should_Provide_Configuration_To_Program(TestContext context)
+    {
+        var webApplication = context.WebApplicationContext.CreateWebApplication<Program>();
+        await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
 
+        var client = webApplication.CreateClient();
+        var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>("WeatherForecast");
+        forecasts.Should().NotBeNull();
+
+        var appSettingsFromWebApplication = webApplication.Services.GetRequiredService<IAppSettings>();
+        var connectionString = appSettingsFromWebApplication.GetRequiredConnectionString(nameof(QAContext));
+        connectionString.Should().NotBeNull();
+
+        var appSettingsFromTestContext = context.GetRequiredService<IAppSettings>();
+        appSettingsFromWebApplication.Should().BeSameAs(appSettingsFromTestContext);//resolved from same service provider
+    }
 ```
 
 ## Data Attributes
