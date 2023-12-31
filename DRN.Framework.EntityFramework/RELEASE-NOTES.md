@@ -1,7 +1,14 @@
-Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.  
+Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
-## Breaking Changes
+## Version 0.2.0
 
-## New Features
+### Breaking Changes
 
-## Bug Fixes
+### New Features
+* DrnContext added
+    * Implemented IDesignTimeDbContextFactory to enable migrations from dbContext defining projects.
+    * Implemented IDesignTimeServices to support multi context projects with default output directory in the context specific folder
+    * Uses HasDrnContextServiceCollectionModule to automatic registration with AddServicesWithAttributes service collection extension method
+    * Uses context name (typeof(TContext).Name) as connection string key by convention
+
+### Bug Fixes

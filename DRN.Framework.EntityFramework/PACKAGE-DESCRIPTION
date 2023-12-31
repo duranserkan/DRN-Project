@@ -1,1 +1,1 @@
-DRN.Framework.EntityFramework
+DRN.Framework.EntityFramework provides DrnContext with conventions to develop rapid and effective domain models.
