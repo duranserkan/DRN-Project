@@ -13,6 +13,6 @@ public class Author : AggregateRoot
         Name = name;
     }
 
-    public string Name { get; set; }
-    public List<Question> Posts { get; } = new();
+    public string Name { get; private set; } = null!;
+    public List<Question> Posts { get; private set; } = [];
 }

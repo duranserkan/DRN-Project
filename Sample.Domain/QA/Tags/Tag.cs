@@ -13,6 +13,6 @@ public class Tag : Entity
         Name = name;
     }
 
-    public string Name { get; set; }
-    public List<Question> Questions { get; } = new();
+    public string Name { get; private set; } = null!;
+    public List<Question> Questions { get; private set; } = [];
 }

@@ -13,6 +13,6 @@ public class Category : AggregateRoot
         Name = name;
     }
 
-    public string Name { get; private set; }
-    public ICollection<Question> Questions { get; } = new List<Question>();
+    public string Name { get; private set; } = null!;
+    public List<Question> Questions { get; private set; } = [];
 }

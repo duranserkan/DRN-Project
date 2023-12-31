@@ -111,7 +111,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     public void Dispose()
     {
         DisposeServiceProvider();
-        if (!ServiceCollection.IsReadOnly) ServiceCollection.Clear();
+        if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
         ContainerContext.Dispose();
         WebApplicationContext.Dispose();
         GC.SuppressFinalize(this);

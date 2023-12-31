@@ -71,12 +71,12 @@ public class DrnServiceContainer
         ((List<AttributeSpecifiedServiceCollectionModule>)AttributeSpecifiedModules).Add(attributeSpecifiedModule);
 }
 
-public class AttributeSpecifiedServiceCollectionModule(MethodInfo methodInfo, IList<ServiceDescriptor> serviceDescriptors)
+public sealed class AttributeSpecifiedServiceCollectionModule(MethodInfo methodInfo, IList<ServiceDescriptor> serviceDescriptors)
 {
     public MethodInfo MethodInfo { get; } = methodInfo;
     public IReadOnlyList<ServiceDescriptor> ServiceDescriptors { get; } = serviceDescriptors.ToArray();
 
-    protected bool Equals(AttributeSpecifiedServiceCollectionModule other)
+    private bool Equals(AttributeSpecifiedServiceCollectionModule other)
     {
         return MethodInfo.Equals(other.MethodInfo);
     }

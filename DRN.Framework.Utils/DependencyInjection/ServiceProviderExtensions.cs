@@ -12,7 +12,7 @@ public static class ServiceProviderExtensions
     /// </summary>
     public static void ValidateServicesAddedByAttributes(this IServiceProvider rootServiceProvider)
     {
-        using var scope = rootServiceProvider.CreateScope(); // needed to validate scoped services;
+        using var scope = rootServiceProvider.CreateScope();
         var serviceProvider = scope.ServiceProvider;
 
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
@@ -39,9 +39,11 @@ public static class ServiceProviderExtensions
             }
         }
 
-        foreach (var customModule in attributeSpecifiedModules)
-        foreach (var descriptor in customModule.ServiceDescriptors)
-            if (descriptor.IsKeyedService) serviceProvider.GetRequiredKeyedService(descriptor.ServiceType, descriptor.ServiceKey);
-            else _ = serviceProvider.GetRequiredService(descriptor.ServiceType);
+        foreach (var module in attributeSpecifiedModules)
+        {
+            foreach (var descriptor in module.ServiceDescriptors)
+                if (descriptor.IsKeyedService) serviceProvider.GetRequiredKeyedService(descriptor.ServiceType, descriptor.ServiceKey);
+                else _ = serviceProvider.GetRequiredService(descriptor.ServiceType);
+        }
     }
 }

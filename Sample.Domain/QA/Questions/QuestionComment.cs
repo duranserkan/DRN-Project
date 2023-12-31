@@ -14,6 +14,6 @@ public class QuestionComment : AggregateRoot
         UserId = user.Id;
     }
 
-    public string Body { get; set; }
-    public long UserId { get; set; }
+    public string Body { get; private set; } = null!;
+    public long UserId { get; private set; }
 }

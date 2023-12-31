@@ -17,11 +17,11 @@ public class User : AggregateRoot
         Address = address;
     }
 
-    public string Name { get; set; }
-    public string Surname { get; set; }
-    public string UserName { get; set; }
-    public ContactDetail Contact { get; set; }
-    public Address Address { get; set; }
+    public string Name { get; private set; } = null!;
+    public string Surname { get; private set; } = null!;
+    public string UserName { get; private set; } = null!;
+    public ContactDetail Contact { get; private set; } = null!;
+    public Address Address { get; private set; } = null!;
 }
 
 public class ContactDetail
@@ -36,8 +36,8 @@ public class ContactDetail
         Phone = phone;
     }
 
-    public string Email { get; set; }
-    public string? Phone { get; set; }
+    public string Email { get; private set; } = null!;
+    public string? Phone { get; private set; }
 }
 
 public class Address
@@ -54,8 +54,8 @@ public class Address
         Country = country;
     }
 
-    public string Street { get; set; }
-    public string City { get; set; }
-    public string Postcode { get; set; }
-    public string Country { get; set; }
+    public string Street { get; private set; } = null!;
+    public string City { get; private set; } = null!;
+    public string Postcode { get; private set; } = null!;
+    public string Country { get; private set; } = null!;
 }

@@ -19,13 +19,13 @@ public static class ServiceCollectionExtensions
         if (Assembly.GetCallingAssembly() != typeof(AppSettings).Assembly) sc.AddDrnUtils();
         assembly ??= Assembly.GetCallingAssembly();
 
-        var container = CreateDrnServiceContainer(sc, assembly);
+        var container = CreateDrnServiceContainer(assembly);
         container.AddServices(sc);
 
         return container;
     }
 
-    private static DrnServiceContainer CreateDrnServiceContainer(IServiceCollection sc, Assembly assembly)
+    private static DrnServiceContainer CreateDrnServiceContainer(Assembly assembly)
     {
         var container = ContainerDictionary.GetOrAdd(assembly.FullName!, x =>
         {

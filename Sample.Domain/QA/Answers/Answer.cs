@@ -16,10 +16,10 @@ public class Answer : AggregateRoot
         UserId = user.Id;
     }
 
-    public string Body { get; set; }
+    public string Body { get; private set; } = null!;
     public long QuestionId { get; private set; }
     public long UserId { get; private set; }
     public bool IsAccepted { get; set; }
 
-    public List<AnswerComment> Comments { get; private set; } = new();
+    public List<AnswerComment> Comments { get; private set; } = [];
 }

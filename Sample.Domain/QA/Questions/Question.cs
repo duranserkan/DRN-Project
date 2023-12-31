@@ -19,15 +19,15 @@ public class Question : AggregateRoot
         CategoryId = category.Id;
     }
 
-    public string Title { get; set; }
-    public string Body { get; set; }
+    public string Title { get; private set; } = null!;
+    public string Body { get; private set; } = null!;
 
-    public long UserId { get; set; }
-    public User User { get; set; }
-    public long CategoryId { get; set; }
-    public Category Category { get; set; }
+    public long UserId { get; private set; }
+    public User User { get; private set; } = null!;
+    public long CategoryId { get; private set; }
+    public Category Category { get; private set; } = null!;
 
-    public List<Tag> Tags { get; } = new();
-    public List<Answer> Answers { get; set; } = new();
-    public List<QuestionComment> Comments { get; set; } = new();
+    public List<Tag> Tags { get; private set; } = [];
+    public List<Answer> Answers { get; private set; } = [];
+    public List<QuestionComment> Comments { get; private set; } = [];
 }
