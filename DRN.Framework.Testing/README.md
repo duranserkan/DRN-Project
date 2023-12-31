@@ -17,15 +17,6 @@ DRN.Framework.Testing package provides practical, effective helpers such as reso
 This package enables a new encouraging testing technique called as DTT(Duran's Testing Technique). 
 With DTT, any developer can write clean and hassle-free unit and integration tests without complexity.
 
-### Encapsulated Packages
-You no longer need to be reference followings in your test project:
-* AutoFixture.AutoNSubstitute
-* AutoFixture.Xunit2
-* DRN.Framework.Utils
-* FluentAssertions
-* NSubstitute
-* xunit
-
 ### QuickStart: Basics
 Here's a basic test demonstration to take your attention and get you started:
 ```csharp
@@ -45,6 +36,8 @@ Here's a basic test demonstration to take your attention and get you started:
 ### Table of Contents
 * Introduction
 * TestContext
+* ContainerContext
+* WebApplicationContext
 * DataAttributes
 * DebugOnly Tests
 * Settings and Data Providers
@@ -122,6 +115,10 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
 * provides and implements lightweight `ServiceProvider` that contains default logging without any provider
   * `ServiceProvider` can provide services that depends like `ILogger<DefaultService>`
   * logged data will not be leaked to anywhere since it has no logging provider.
+* provides `ContainerContext`
+  * can start a `postgres` container, apply migrations for dbContexts derived from DrnContext and updates connection string configuration with a single line of code
+* provides `WebApplicationContext`
+  * syncs `TestContext` service collection and service provider with provided application by WebApplicationFactory
 * provides `IConfiguration` and `IAppSettings` with SettingsProvider by using convention.
   * settings.json file can be found in the same folder with test
   * settings.json file can be found in the global Settings folder or Settings folder that stays in the test folder
@@ -155,6 +152,35 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
         //data file can be found in the same folder with test file, in the global Data folder or Data folder that stays in the same folder with test file
         context.GetData(dataPath).Should().Be(data);
     }
+```
+
+## ContainerContext
+With `ContainerContext` and conventions you can easily write effective integration tests against your database dependencies 
+```csharp
+    [Theory]
+    [DataInline]
+    public async Task QAContext_Should_Add_Category(TestContext context)
+    {
+        context.ServiceCollection.AddSampleInfraServices();
+        await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
+        var qaContext = context.GetRequiredService<QAContext>();
+
+        var category = new Category("dotnet8");
+        qaContext.Categories.Add(category);
+        await qaContext.SaveChangesAsync();
+        category.Id.Should().BePositive();
+    }
+```
+* Application modules can be registered without any modification to `TestContext`
+* `TestContext`'s `ContainerContext`
+  * creates a `postgresql container` then scans TestContext's service collection for inherited DrnContexts.
+  * Adds a connection strings to TestContext's configuration for each derived `DrnContext` according to convention.
+* `TestContext` acts as a ServiceProvider and when a service is requested it can build it from service collection with all dependencies.
+
+## WebApplicationContext
+
+```csharp
+
 ```
 
 ## Data Attributes

@@ -8,13 +8,15 @@ Not every version includes changes, features or bug fixes. This project can incr
   * DataInlineAttribute
   * DataMemberAttribute
   * DataSelfAttribute
-* Old data attributes removed
+* Old data attributes removed.
 
 ### New Features
 
-* TestContext exposes ConfigurationRoot and GetConfigurationDebugView
-* TestContext exposes AddToConfiguration to add poco objects to configuration root with System.Text.Json
-* FactDebuggerOnly and TheoryDebuggerOnly test attributes added
+* TestContext exposes AddToConfiguration to add poco objects to configuration root with System.Text.Json.
+* TestContext exposes BuildConfigurationRoot method.
+* TestContext exposes GetConfigurationDebugView method.
+* TestContext exposes ContainerContext and WebApplicationContext.
+* FactDebuggerOnly and TheoryDebuggerOnly test attributes
 * Following data attributes added:
   * DataInlineAttribute
   * DataMemberAttribute
@@ -36,7 +38,7 @@ Not every version includes changes, features or bug fixes. This project can incr
   * DataMemberContextAttribute
   * DataSelfAutoAttribute
   * DataSelfContextAttribute
-* SettingsProvider added
-* DataProvider added
+* SettingsProvider added.
+* DataProvider added.
 
 ### Bug Fixes

@@ -22,13 +22,13 @@ DrnContext has following unique features:
 * Uses `HasDrnContextServiceCollectionModule` attribute for automatic registration with AddServicesWithAttributes service collection extension method.
 * Uses context name (typeof(TContext).Name) as connection string key by convention.
 * Automatically applies `IEntityTypeConfiguration` implementations from the assembly whose namespace contains the derived context's namespace.
-* Automatically marks Entities derived from 'DRN.Framework.SharedKernel.Domain.Entity' as created, modified or deleted.
+* Automatically marks Entities derived from `DRN.Framework.SharedKernel.Domain.Entity` as created, modified or deleted.
 * Enables `DRN.Framework.Testing` to create easy and effective integration tests with conventions and automatic registrations.
   * Application modules can be registered without any modification to `TestContext` 
   * `TestContext`'s `ContainerContext` 
     * creates a `postgresql container` then scans TestContext's service collection for inherited DrnContexts.
     * Adds a connection strings to TestContext's configuration for each `DrnContext` according to convention.
-  * When `TestContext` acts as a ServiceProvider and when a service is requested it can build it from service collection with all dependencies.
+  * `TestContext` acts as a ServiceProvider and when a service is requested it can build it from service collection with all dependencies.
 
 ```csharp
 namespace DRN.Framework.EntityFramework.Context;
