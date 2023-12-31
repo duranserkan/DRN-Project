@@ -1,5 +1,3 @@
-using DRN.Framework.EntityFramework.Context;
-using Microsoft.EntityFrameworkCore;
 using Sample.Domain.QA.Answers;
 using Sample.Domain.QA.Categories;
 using Sample.Domain.QA.Questions;
