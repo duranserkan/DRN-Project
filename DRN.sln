@@ -104,8 +104,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "image", "image", "{CF67D1FA
 		Docker\Rabbitmq\image\rabbitmq_delayed_message_exchange-3.12.0.ez = Docker\Rabbitmq\image\rabbitmq_delayed_message_exchange-3.12.0.ez
 	EndProjectSection
 EndProject
-Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{4D309D5E-EF0D-48E8-A141-3077D94E5D7B}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Framework.Testing", "DRN.Framework.Testing\DRN.Framework.Testing.csproj", "{4DD30400-D67C-41B6-89D7-FDB706DDD5DF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{43B4E0EE-4473-4F25-A087-7ABBCFC0EB19}"
@@ -241,10 +239,6 @@ Global
 		{B8F83858-DB21-44A8-A6F1-931ECDE46F77}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B8F83858-DB21-44A8-A6F1-931ECDE46F77}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B8F83858-DB21-44A8-A6F1-931ECDE46F77}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4D309D5E-EF0D-48E8-A141-3077D94E5D7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4D309D5E-EF0D-48E8-A141-3077D94E5D7B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4D309D5E-EF0D-48E8-A141-3077D94E5D7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4D309D5E-EF0D-48E8-A141-3077D94E5D7B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4DD30400-D67C-41B6-89D7-FDB706DDD5DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4DD30400-D67C-41B6-89D7-FDB706DDD5DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4DD30400-D67C-41B6-89D7-FDB706DDD5DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
