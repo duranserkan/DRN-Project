@@ -16,16 +16,12 @@ jobs:
       SONAR_ORGANIZATION: duranserkan
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
       - name: Setup SDK
         uses: ./.github/workflows/actions/setup-sdk
       - name: Sonar Scan Begin
         uses: ./.github/workflows/actions/sonar-begin
-      - name: Restore dependencies
-        run: dotnet restore DRN.sln
       - name: Build
-        run: dotnet build DRN.sln --no-restore --no-incremental
+        uses: ./.github/workflows/actions/dotnet-build
       - name: Test
         run: ./.sonar/coverage/dotnet-coverage collect "dotnet test DRN.Test/DRN.Test.csproj --no-build --verbosity normal" -f xml -o "coverage.xml"
       - name: Sonar Scan End

@@ -1,0 +1,12 @@
+name: Scan Vulnerabilities
+runs:
+  using: "composite"
+  steps:
+    - name: Scan vulnerabilities
+    - shell: bash
+      run: |
+        packages=$(dotnet list package --include-transitive --vulnerable)
+        if [[ "$packages" == *"has the following vulnerable packages"* ]]; then
+          echo "$packages"
+          exit 1
+        fi

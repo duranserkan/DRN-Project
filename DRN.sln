@@ -140,6 +140,21 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sonar-end", "sonar-end", "{
 		.github\workflows\actions\sonar-end\action.yml = .github\workflows\actions\sonar-end\action.yml
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scan-vulnerabilities", "scan-vulnerabilities", "{5FD6E6D2-FA1B-40BC-AED5-C7401AE38C70}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\scan-vulnerabilities\action.yml = .github\workflows\actions\scan-vulnerabilities\action.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnet-build", "dotnet-build", "{446ECACA-0DBD-42FC-99D2-BAABB5E4F57C}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\dotnet-build\action.yml = .github\workflows\actions\dotnet-build\action.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget-publish-all", "nuget-publish-all", "{8EC54287-D283-47C1-AC27-871C28FC70E5}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\nuget-publish-all\action.yml = .github\workflows\actions\nuget-publish-all\action.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -277,5 +292,8 @@ Global
 		{E2E765AF-EEEA-4324-88E2-27B7C58498AF} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 		{024898B7-EDAE-4AA9-8F53-E6EF05313100} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 		{DEDDB222-0FA9-4D94-8C67-B0703FDDCFDE} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{5FD6E6D2-FA1B-40BC-AED5-C7401AE38C70} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{446ECACA-0DBD-42FC-99D2-BAABB5E4F57C} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{8EC54287-D283-47C1-AC27-871C28FC70E5} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 	EndGlobalSection
 EndGlobal

@@ -1,0 +1,10 @@
+name: Dotnet Build
+runs:
+  using: "composite"
+  steps:
+    - name: Restore dependencies
+      run: dotnet restore DRN.sln
+    - name: Scan vulnerabilities
+      uses: ./.github/workflows/actions/scan-vulnerabilities
+    - name: Build solution
+      run: dotnet build DRN.sln --no-restore --no-incremental --configuration Release /p:Version=${VERSION:=0.0.0}

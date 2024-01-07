@@ -8,7 +8,6 @@ jobs:
   Publish-Develop:
     runs-on: ubuntu-latest
     env:
-      SOLUTION_NAME: DRN.sln
       NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
     timeout-minutes: 15
     steps:
@@ -18,34 +17,13 @@ jobs:
           fetch-depth: 0
       - name: Verify commit exists in origin/develop
         run: git branch --remote --contains | grep origin/develop
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: 8.0.x
+      - name: Setup SDK
+        uses: ./.github/workflows/actions/setup-sdk
       - name: Set VERSION variable from tag
-        run: |
-          echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
-      - name: Restore dependencies
-        run: dotnet restore ${SOLUTION_NAME}
+        run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
       - name: Build
-        run: dotnet build ${SOLUTION_NAME} --configuration Release /p:Version=${VERSION} --no-restore
+        uses: ./.github/workflows/actions/dotnet-build
       - name: Test
-        run: dotnet test ${ProjectName}/${ProjectName}.csproj --configuration Release /p:Version=${VERSION} --no-build --verbosity normal
-        env:
-          ProjectName: DRN.Test
-      - name: Publish SharedKernel
-        uses: ./.github/workflows/actions/nuget-publish
-        with:
-          project-name: DRN.Framework.SharedKernel
-      - name: Publish Utils
-        uses: ./.github/workflows/actions/nuget-publish
-        with:
-          project-name: DRN.Framework.Utils
-      - name: Publish EntityFramework
-        uses: ./.github/workflows/actions/nuget-publish
-        with:
-          project-name: DRN.Framework.EntityFramework
-      - name: Publish Testing
-        uses: ./.github/workflows/actions/nuget-publish
-        with:
-          project-name: DRN.Framework.Testing
+        run: dotnet test DRN.Test/DRN.Test.csproj --no-build --verbosity normal
+      - name: Publish Packages
+        uses: ./.github/workflows/actions/nuget-publish-all

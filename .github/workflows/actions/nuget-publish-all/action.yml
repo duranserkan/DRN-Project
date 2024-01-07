@@ -1,0 +1,20 @@
+name: Nuget Publish
+runs:
+  using: "composite"
+  steps:
+    - name: Publish SharedKernel
+      uses: ./.github/workflows/actions/nuget-publish
+      with:
+        project-name: DRN.Framework.SharedKernel
+    - name: Publish Utils
+      uses: ./.github/workflows/actions/nuget-publish
+      with:
+        project-name: DRN.Framework.Utils
+    - name: Publish EntityFramework
+      uses: ./.github/workflows/actions/nuget-publish
+      with:
+        project-name: DRN.Framework.EntityFramework
+    - name: Publish Testing
+      uses: ./.github/workflows/actions/nuget-publish
+      with:
+        project-name: DRN.Framework.Testing
