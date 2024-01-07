@@ -22,8 +22,8 @@ jobs:
       - name: Set VERSION variable from tag
         run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
       - name: Build
-        uses: ./.github/workflows/actions/dotnet-build
+        uses: ./.github/workflows/actions/dotnet-build-release
       - name: Test
-        run: dotnet test DRN.Test/DRN.Test.csproj --no-build --verbosity normal
+        uses: ./.github/workflows/actions/dotnet-test-release
       - name: Publish Packages
         uses: ./.github/workflows/actions/nuget-publish-all

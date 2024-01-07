@@ -16,4 +16,4 @@ jobs:
       - name: Build
         uses: ./.github/workflows/actions/dotnet-build
       - name: Test
-        run: dotnet test DRN.Test/DRN.Test.csproj --no-build --verbosity normal
+        uses: ./.github/workflows/actions/dotnet-test

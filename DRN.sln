@@ -153,6 +153,21 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget-publish-all", "nuget-
 		.github\workflows\actions\nuget-publish-all\action.yml = .github\workflows\actions\nuget-publish-all\action.yml
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnet-build-release", "dotnet-build-release", "{D28E4565-4111-4DCF-87E6-E457DB51EB0A}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\dotnet-build-release\action.yml = .github\workflows\actions\dotnet-build-release\action.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnet-test", "dotnet-test", "{91FD6D3F-A07D-48EE-9A02-984F23363FAC}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\dotnet-test\action.yml = .github\workflows\actions\dotnet-test\action.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnet-test-release", "dotnet-test-release", "{213B3496-32EB-40D2-A2A9-96FA86018CA3}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\dotnet-test-release\action.yml = .github\workflows\actions\dotnet-test-release\action.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -289,5 +304,8 @@ Global
 		{5FD6E6D2-FA1B-40BC-AED5-C7401AE38C70} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 		{446ECACA-0DBD-42FC-99D2-BAABB5E4F57C} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 		{8EC54287-D283-47C1-AC27-871C28FC70E5} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{D28E4565-4111-4DCF-87E6-E457DB51EB0A} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{91FD6D3F-A07D-48EE-9A02-984F23363FAC} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{213B3496-32EB-40D2-A2A9-96FA86018CA3} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 	EndGlobalSection
 EndGlobal

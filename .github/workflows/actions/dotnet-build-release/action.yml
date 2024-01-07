@@ -9,4 +9,4 @@ runs:
       uses: ./.github/workflows/actions/scan-vulnerabilities
     - name: Build solution
       shell: bash
-      run: dotnet build DRN.sln --no-restore --no-incremental
+      run: dotnet build DRN.sln --no-restore --no-incremental --configuration Release /p:Version=${VERSION}

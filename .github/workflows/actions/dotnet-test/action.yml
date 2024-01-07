@@ -1,0 +1,7 @@
+name: Dotnet Test Debug
+runs:
+  using: "composite"
+  steps:
+    - name: Test
+      shell: bash
+      run: dotnet test DRN.Test/DRN.Test.csproj --no-build --verbosity normal
