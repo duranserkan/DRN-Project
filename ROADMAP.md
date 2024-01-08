@@ -19,6 +19,9 @@
   - TheoryDebuggerOnly
 - [X] DataProvider & TestContext conventions
 - [X] Settings Provider & TestContext conventions
+- [ ] AuthContext for OpenID Connect (OIDC)
+- [ ] EmailContext with MailHog
+- [ ] MessageBrokerContext with MassTransit
 ### DRN.Framework.Utils
 - [X] DependencyInjection
   - ScopedAttribute, ScopedWithKeyAttribute
