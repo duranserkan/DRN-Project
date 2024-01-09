@@ -7,6 +7,8 @@ on:
   pull_request:
     branches: [ "develop" ]
 jobs:
+  permissions:
+    security-events: write
   build:
     runs-on: ubuntu-latest
     steps:
@@ -17,21 +19,12 @@ jobs:
         uses: ./.github/workflows/actions/dotnet-build
       - name: Test
         uses: ./.github/workflows/actions/dotnet-test
-  security-scan:
-    permissions:
-      security-events: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run Trivy vulnerability scanner in fs mode
-        uses: aquasecurity/trivy-action@d43c1f16c00cfd3978dde6c07f4bbcf9eb6993ca
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          exit-code: '1'
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
-        if: always()
+          languages: 'csharp'
+          queries: security-extended
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
         with:
-          sarif_file: 'trivy-results.sarif'
+          category: "/language:csharp"
