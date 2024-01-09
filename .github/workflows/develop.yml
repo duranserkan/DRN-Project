@@ -18,10 +18,12 @@ jobs:
       - name: Test
         uses: ./.github/workflows/actions/dotnet-test
   security-scan:
+    permissions:
+      security-events: write
     runs-on: ubuntu-latest
     steps:
       - name: Run Trivy vulnerability scanner in fs mode
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@d43c1f1
         with:
           scan-type: 'fs'
           scan-ref: '.'
