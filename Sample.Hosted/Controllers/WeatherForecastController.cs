@@ -34,7 +34,7 @@ public class WeatherForecastController : ControllerBase
             .ToArray();
     }
 
-    [HttpGet(Name = "Injection")]
+    [HttpPost(Name = "Injection")]
     public async Task<IEnumerable<Question>> Get([FromQuery] string x)
     {
         var results = await _context.Questions

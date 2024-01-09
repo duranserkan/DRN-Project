@@ -44,18 +44,6 @@ static WebApplication CreateApp(string[] args)
     app.UseAuthorization();
     app.MapControllers();
 
-    app.MapGet("/Question/Search", async (QAContext dbContext, string title) =>
-    {
-        // Introduce a vulnerability for SQL Injection for codeql testing
-        // Ex: title = ';DROP TABLE dbo.ToDos;--
-
-        var results = await dbContext.Questions
-            .FromSqlRaw("SELECT * FROM qa.question WHERE Title = '" + title + "'")
-            .ToListAsync();
-
-        return Results.Ok(results);
-    });
-    
     return app;
 }
 
