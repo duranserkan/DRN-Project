@@ -1,4 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Sample.Domain.QA.Questions;
+using Sample.Infra.QA;
 
 namespace Sample.Hosted.Controllers;
 
@@ -6,6 +9,13 @@ namespace Sample.Hosted.Controllers;
 [Route("[controller]")]
 public class WeatherForecastController : ControllerBase
 {
+    private readonly QAContext _context;
+
+    public WeatherForecastController(QAContext context)
+    {
+        _context = context;
+    }
+
     private static readonly string[] Summaries = new[]
     {
         "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
@@ -22,5 +32,15 @@ public class WeatherForecastController : ControllerBase
                 Summary = Summaries[Random.Shared.Next(Summaries.Length)]
             })
             .ToArray();
+    }
+
+    [HttpGet(Name = "Injection")]
+    public async Task<IEnumerable<Question>> Get([FromQuery] string x)
+    {
+        var results = await _context.Questions
+            .FromSqlRaw("SELECT * FROM qa.question WHERE Title = '" + x + "'")
+            .ToListAsync();
+
+        return results;
     }
 }
