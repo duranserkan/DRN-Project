@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
     timeout-minutes: 15
     steps:
       - name: Checkout

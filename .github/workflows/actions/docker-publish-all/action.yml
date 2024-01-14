@@ -6,8 +6,8 @@ runs:
       if: github.event_name != 'pull_request'
       uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+        username: ${DOCKER_USERNAME}
+        password: ${DOCKER_PASSWORD}
     - name: Publish Nexus
       uses: ./.github/workflows/actions/docker-publish
       with:
