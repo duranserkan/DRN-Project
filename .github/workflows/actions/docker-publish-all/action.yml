@@ -1,4 +1,9 @@
 name: Docker Publish All
+inputs:
+  username:
+    required: true
+  password:
+    required: true
 runs:
   using: "composite"
   steps:
@@ -6,8 +11,8 @@ runs:
       if: github.event_name != 'pull_request'
       uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d
       with:
-        username: ${DOCKER_USERNAME}
-        password: ${DOCKER_PASSWORD}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
     - name: Publish Nexus
       uses: ./.github/workflows/actions/docker-publish
       with:
