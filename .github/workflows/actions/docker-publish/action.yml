@@ -11,7 +11,7 @@ runs:
       id: meta
       uses: docker/metadata-action@dbef88086f6cef02e264edb7dbf63250c17cef6c
       with:
-          images: duranserkan/${{ image-repository-name }}
+          images: duranserkan/${{ inputs.image-repository-name }}
     - name: Build and push Docker image
       id: container-build-push
       uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
