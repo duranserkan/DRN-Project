@@ -27,7 +27,6 @@ runs:
       uses: docker/scout-action@v1
       with:
         command: quickview,cves,recommendations
-        image: ${{ steps.meta.outputs.tags }}
         sarif-file: sarif.${{ inputs.project-name }}.output.json
         summary: true
     - name: Upload SARIF result
