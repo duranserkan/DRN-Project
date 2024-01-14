@@ -23,7 +23,7 @@ runs:
         labels: ${{ steps.meta.outputs.labels }}
     - name: Docker Scout
       id: docker-scout
-      if: ${{ github.event_name == 'pull_request' }}
+      if: ${{ github.event_name != 'pull_request' }}
       uses: docker/scout-action@v1
       with:
         command: quickview,cves,recommendations
@@ -32,7 +32,7 @@ runs:
         summary: true
     - name: Upload SARIF result
       id: upload-container-sarif
-      if: ${{ github.event_name != 'pull_request_target' }}
+      if: ${{ github.event_name != 'pull_request' }}
       uses: github/codeql-action/upload-sarif@v2
       with:
         sarif_file: sarif.${{ inputs.project-name }}.output.json
