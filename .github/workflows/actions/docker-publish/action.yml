@@ -35,3 +35,4 @@ runs:
       uses: github/codeql-action/upload-sarif@v2
       with:
         sarif_file: sarif.${{ inputs.project-name }}.output.json
+        category: docker-scout-${{ inputs.project-name }}
