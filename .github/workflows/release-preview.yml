@@ -26,7 +26,7 @@ jobs:
       - name: Setup SDK
         uses: ./.github/workflows/actions/setup-sdk-and-tools
       - name: Build
-        uses: ./.github/workflows/actions/dotnet-build
+        uses: ./.github/workflows/actions/dotnet-build-release
       - name: Test
         uses: ./.github/workflows/actions/dotnet-test-release
       - name: Publish Packages
