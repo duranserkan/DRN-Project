@@ -19,6 +19,8 @@ jobs:
         run: git branch --remote --contains | grep origin/develop
       - name: Set VERSION variable from tag
         run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+      - name: Scan File System Vulnerabilities
+        uses: ./.github/workflows/actions/scan-file-system-vulnerabilities
       - name: Setup SDK
         uses: ./.github/workflows/actions/setup-sdk-and-tools
       - name: Build
@@ -27,3 +29,5 @@ jobs:
         uses: ./.github/workflows/actions/dotnet-test-release
       - name: Publish Packages
         uses: ./.github/workflows/actions/nuget-publish-all
+      - name: Publish Images
+        uses: ./.github/workflows/actions/docker-publish-all

@@ -1,4 +1,4 @@
-name: Nuget Publish
+name: Nuget Publish All
 runs:
   using: "composite"
   steps:

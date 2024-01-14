@@ -178,6 +178,16 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scan-file-system-vulnerabil
 		.github\workflows\actions\scan-file-system-vulnerabilities\action.yml = .github\workflows\actions\scan-file-system-vulnerabilities\action.yml
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docker-publish", "docker-publish", "{554E4D24-B627-4868-B115-BC105AD25CEF}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\docker-publish\action.yml = .github\workflows\actions\docker-publish\action.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docker-publish-all", "docker-publish-all", "{CE91E176-86C6-4B1C-A709-74847D01A31C}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\docker-publish-all\action.yml = .github\workflows\actions\docker-publish-all\action.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -319,5 +329,7 @@ Global
 		{213B3496-32EB-40D2-A2A9-96FA86018CA3} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 		{1AEDA4B9-DF77-4CEF-8AD8-678029192FF2} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 		{7B8430B9-1144-4709-93BB-E54E2525C696} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{554E4D24-B627-4868-B115-BC105AD25CEF} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{CE91E176-86C6-4B1C-A709-74847D01A31C} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 	EndGlobalSection
 EndGlobal
