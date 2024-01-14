@@ -2,7 +2,9 @@ name: Setup Sdk
 runs:
   using: "composite"
   steps:
-    - name: Setup .NET # SDK Installation
+    - name: Scan File System Vulnerabilities
+      uses: ./.github/workflows/actions/scan-file-system-vulnerabilities
+    - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 8.0.x

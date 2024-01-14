@@ -1,0 +1,17 @@
+name: Scan Vulnerabilities
+runs:
+  using: "composite"
+  steps:
+    - name: Run Trivy vulnerability scanner in fs mode
+      uses: aquasecurity/trivy-action@d43c1f16c00cfd3978dde6c07f4bbcf9eb6993ca
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        exit-code: '1'
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'

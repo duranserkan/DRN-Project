@@ -17,10 +17,10 @@ jobs:
           fetch-depth: 0
       - name: Verify commit exists in origin/develop
         run: git branch --remote --contains | grep origin/develop
-      - name: Setup SDK
-        uses: ./.github/workflows/actions/setup-sdk
       - name: Set VERSION variable from tag
         run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+      - name: Setup SDK
+        uses: ./.github/workflows/actions/setup-sdk-and-tools
       - name: Build
         uses: ./.github/workflows/actions/dotnet-build
       - name: Test

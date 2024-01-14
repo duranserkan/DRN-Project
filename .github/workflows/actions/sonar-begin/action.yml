@@ -2,44 +2,8 @@ name: Setup SDK
 runs:
   using: "composite"
   steps:
-    - name: Cache SonarCloud scanner # Sonar scan tools installation and cache
-      id: cache-sonar-scanner
-      uses: actions/cache@v3
-      with:
-        path: ./.sonar/scanner
-        key: ${{ runner.os }}-sonar-scanner
-        restore-keys: ${{ runner.os }}-sonar-scanner
-    - name: Install SonarCloud scanner
-      if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-      shell: pwsh
-      run: |
-        New-Item -Path ./.sonar/scanner -ItemType Directory
-        dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
-    - name: Cache dotnet-coverage
-      id: cache-dotnet-coverage
-      uses: actions/cache@v3
-      with:
-        path: ./.sonar/coverage
-        key: ${{ runner.os }}-sonar-dotnet-coverage
-        restore-keys: ${{ runner.os }}-sonar-dotnet-coverage
-    - name: Install dotnet-coverage
-      if: steps.cache-dotnet-coverage.outputs.cache-hit != 'true'
-      shell: pwsh
-      run: |
-        New-Item -Path ./.sonar/coverage -ItemType Directory
-        dotnet tool update dotnet-coverage --tool-path ./.sonar/coverage
-    - name: Use sonar cache
-      id: cache-sonar
-      uses: actions/cache@v3
-      with:
-        path: ~/.sonar/cache
-        key: ${{ runner.os }}-sonar
-        restore-keys: ${{ runner.os }}-sonar
-    - name: Create sonar cache directory
-      if: steps.cache-sonar.outputs.cache-hit != 'true'
-      shell: pwsh
-      run: |
-        New-Item -Path ~/.sonar/cache -ItemType Directory
+    - name: Set up Sonar tools
+      uses: ./.github/workflows/actions/sonar-tools
     - name: Sonar Scan Begin # Sonar Begin
       shell: pwsh
       run: |

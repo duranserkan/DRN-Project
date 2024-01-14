@@ -14,17 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup SDK
-        uses: ./.github/workflows/actions/setup-sdk
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: 'csharp'
-          queries: security-extended
+        uses: ./.github/workflows/actions/setup-sdk-and-tools
       - name: Build
         uses: ./.github/workflows/actions/dotnet-build
       - name: Test
         uses: ./.github/workflows/actions/dotnet-test
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:csharp"

@@ -123,9 +123,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget-publish", "nuget-publ
 		.github\workflows\actions\nuget-publish\action.yml = .github\workflows\actions\nuget-publish\action.yml
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "setup-sdk", "setup-sdk", "{E2E765AF-EEEA-4324-88E2-27B7C58498AF}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "setup-sdk-and-tools", "setup-sdk-and-tools", "{E2E765AF-EEEA-4324-88E2-27B7C58498AF}"
 	ProjectSection(SolutionItems) = preProject
-		.github\workflows\actions\setup-sdk\action.yml = .github\workflows\actions\setup-sdk\action.yml
+		.github\workflows\actions\setup-sdk-and-tools\action.yml = .github\workflows\actions\setup-sdk-and-tools\action.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sonar-begin", "sonar-begin", "{024898B7-EDAE-4AA9-8F53-E6EF05313100}"
@@ -138,9 +138,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sonar-end", "sonar-end", "{
 		.github\workflows\actions\sonar-end\action.yml = .github\workflows\actions\sonar-end\action.yml
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scan-vulnerabilities", "scan-vulnerabilities", "{5FD6E6D2-FA1B-40BC-AED5-C7401AE38C70}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scan-nuget-vulnerabilities", "scan-nuget-vulnerabilities", "{5FD6E6D2-FA1B-40BC-AED5-C7401AE38C70}"
 	ProjectSection(SolutionItems) = preProject
-		.github\workflows\actions\scan-vulnerabilities\action.yml = .github\workflows\actions\scan-vulnerabilities\action.yml
+		.github\workflows\actions\scan-nuget-vulnerabilities\action.yml = .github\workflows\actions\scan-nuget-vulnerabilities\action.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnet-build", "dotnet-build", "{446ECACA-0DBD-42FC-99D2-BAABB5E4F57C}"
@@ -166,6 +166,16 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnet-test-release", "dotnet-test-release", "{213B3496-32EB-40D2-A2A9-96FA86018CA3}"
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\actions\dotnet-test-release\action.yml = .github\workflows\actions\dotnet-test-release\action.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sonar-tools", "sonar-tools", "{1AEDA4B9-DF77-4CEF-8AD8-678029192FF2}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\sonar-tools\action.yml = .github\workflows\actions\sonar-tools\action.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scan-file-system-vulnerabilities", "scan-file-system-vulnerabilities", "{7B8430B9-1144-4709-93BB-E54E2525C696}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\actions\scan-file-system-vulnerabilities\action.yml = .github\workflows\actions\scan-file-system-vulnerabilities\action.yml
 	EndProjectSection
 EndProject
 Global
@@ -307,5 +317,7 @@ Global
 		{D28E4565-4111-4DCF-87E6-E457DB51EB0A} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 		{91FD6D3F-A07D-48EE-9A02-984F23363FAC} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 		{213B3496-32EB-40D2-A2A9-96FA86018CA3} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{1AEDA4B9-DF77-4CEF-8AD8-678029192FF2} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{7B8430B9-1144-4709-93BB-E54E2525C696} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 	EndGlobalSection
 EndGlobal
