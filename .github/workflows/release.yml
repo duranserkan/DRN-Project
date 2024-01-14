@@ -6,6 +6,8 @@ on:
       - v[0-9]+.[0-9]+.[0-9]+
 jobs:
   Publish-Master:
+    permissions:
+      security-events: write
     runs-on: ubuntu-latest
     env:
       NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}

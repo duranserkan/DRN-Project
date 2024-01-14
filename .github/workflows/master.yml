@@ -8,6 +8,8 @@ on:
     branches: [ "master" ]
 jobs:
   build-and-scan:
+    permissions:
+      security-events: write
     runs-on: ubuntu-latest
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
