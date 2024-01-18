@@ -1,41 +1,31 @@
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
-  "iisSettings": {
-    "windowsAuthentication": false,
-    "anonymousAuthentication": true,
-    "iisExpress": {
-      "applicationUrl": "http://localhost:7332",
-      "sslPort": 44356
-    }
-  },
+  "doc": "https://github.com/dotnet/docs/issues/34726",
   "profiles": {
-    "http": {
+    "Kestrel": {
+      "doc": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/environments",
       "commandName": "Project",
       "launchBrowser": true,
       "launchUrl": "swagger",
-      "applicationUrl": "http://localhost:5072",
+      "applicationUrl": "http://localhost:6998;",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      },
-      "dotnetRunMessages": true
-    },
-    "https": {
-      "commandName": "Project",
-      "launchBrowser": true,
-      "launchUrl": "swagger",
-      "applicationUrl": "https://localhost:7135;http://localhost:5072",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      },
-      "dotnetRunMessages": true
-    },
-    "IIS Express": {
-      "commandName": "IISExpress",
-      "launchBrowser": true,
-      "launchUrl": "swagger",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_HTTP_PORTS": "6998;",
+        "ASPNETCORE_HTTPS_PORT": "6999"
       }
+    },
+    "Docker": {
+      "doc": "https://learn.microsoft.com/en-us/visualstudio/containers/container-launch-settings - not supported in rider yet",
+      "commandName": "Docker",
+      "launchBrowser": true,
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_HTTP_PORT": "6998",
+        "ASPNETCORE_HTTPS_PORT": "6999"
+      },
+      "useSSL": true,
+      "sslPort": 6999
     }
   }
 }
