@@ -42,7 +42,7 @@ ENV DRN_TARGET_PLATFORM=${TARGETPLATFORM};
 WORKDIR /app
 
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
-FROM --platform=$BUILDPLATFORM bitnami/dotnet-sdk:8 AS build
+FROM bitnami/dotnet-sdk:8 AS build
 ARG PROJECT
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -55,6 +55,7 @@ COPY . ./
 
 #https://learn.microsoft.com/en-us/dotnet/core/rid-catalog
 RUN if [ "$DRN_TARGET_PLATFORM" = "linux/arm64" ]; then echo "linux-arm64" > /drn_runtime; else echo "linux-x64" >/drn_runtime; fi
+RUN dotnet build-server shutdown
 RUN DRN_RUNTIME=$(cat /drn_runtime); dotnet restore "./${PROJECT}/${PROJECT}.csproj" -s "https://api.nuget.org/v3/index.json" --arch $DRN_RUNTIME
 RUN DRN_RUNTIME=$(cat /drn_runtime); dotnet build "./${PROJECT}/${PROJECT}.csproj" -c Release  --no-restore --arch $DRN_RUNTIME
 RUN DRN_RUNTIME=$(cat /drn_runtime); dotnet publish "./${PROJECT}/${PROJECT}.csproj" -c Release -o /app/publish --no-restore --no-build --arch $DRN_RUNTIME
