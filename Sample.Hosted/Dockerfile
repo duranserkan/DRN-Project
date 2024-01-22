@@ -42,7 +42,7 @@ ENV DRN_TARGET_PLATFORM=${TARGETPLATFORM};
 WORKDIR /app
 
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-jammy AS build
+FROM --platform=$BUILDPLATFORM bitnami/dotnet-sdk:8 AS build
 ARG PROJECT
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
