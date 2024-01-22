@@ -7,6 +7,8 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@5306bad0baa6b616b9934712d4eba8da2112606d
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@edfb0fe6204400c56fbfd3feba3fe9ad1adfa345
     - name: Log in to Docker Hub
