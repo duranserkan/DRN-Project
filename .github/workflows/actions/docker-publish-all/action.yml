@@ -7,10 +7,10 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@5306bad0baa6b616b9934712d4eba8da2112606d
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@edfb0fe6204400c56fbfd3feba3fe9ad1adfa345
+      with:
+        platforms: linux/amd64,linux/arm64
     - name: Log in to Docker Hub
       if: github.event_name != 'pull_request'
       uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d
