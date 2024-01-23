@@ -58,7 +58,6 @@ RUN dotnet publish "./${PROJECT}/${PROJECT}.csproj" -c Release -o /app/publish -
 # Build runtime image
 FROM base AS final
 
-WORKDIR /app
 COPY --from=build /app/publish .
 
 # Set Entrypoint - ARGs are not allowed here. we need retype project name as we did in ARG PROJECT
