@@ -1,5 +1,4 @@
-﻿using DRN.Framework.Utils.DependencyInjection;
-using DRN.Nexus.Application;
+﻿using DRN.Nexus.Application;
 using DRN.Nexus.Infra;
 
 try
@@ -10,7 +9,12 @@ try
 }
 catch (Exception exception)
 {
-    //log error
+    Console.WriteLine("Exception Type:");
+    Console.WriteLine(exception.GetType().FullName);
+    Console.WriteLine("Exception Message:");
+    Console.WriteLine(exception.Message);
+    Console.WriteLine("Exception StackTrace:");
+    Console.WriteLine(exception.StackTrace);
 }
 finally
 {
@@ -27,15 +31,7 @@ static WebApplication CreateApp(string[] args)
     var app = builder.Build();
     app.Services.ValidateServicesAddedByAttributes();
 
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-    }
-
-    app.UseHttpsRedirection();
-    app.UseAuthorization();
-    app.MapControllers();
+    ConfigureApp(app);
 
     return app;
 }
@@ -48,4 +44,21 @@ static void AddServices(IServiceCollection services, IConfiguration configuratio
     services.AddSwaggerGen();
     services.AddNexusInfraServices();
     services.AddNexusApplicationServices();
+}
+
+static void ConfigureApp(WebApplication webApplication)
+{
+    if (webApplication.Environment.IsDevelopment())
+    {
+        webApplication.UseSwagger();
+        webApplication.UseSwaggerUI();
+    }
+
+    //webApplication.UseHttpsRedirection();
+    webApplication.UseAuthorization();
+    webApplication.MapControllers();
+}
+
+public partial class Program
+{
 }

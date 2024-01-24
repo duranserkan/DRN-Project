@@ -27,6 +27,8 @@ runs:
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         platforms: linux/amd64,linux/arm64
+        sbom: true
+        provenance: true
     - name: Docker Scout
       id: docker-scout
       if: ${{ github.event_name != 'pull_request' }}
