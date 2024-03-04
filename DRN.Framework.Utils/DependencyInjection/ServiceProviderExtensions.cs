@@ -42,8 +42,12 @@ public static class ServiceProviderExtensions
         foreach (var module in attributeSpecifiedModules)
         {
             foreach (var descriptor in module.ServiceDescriptors)
-                if (descriptor.IsKeyedService) serviceProvider.GetRequiredKeyedService(descriptor.ServiceType, descriptor.ServiceKey);
-                else _ = serviceProvider.GetRequiredService(descriptor.ServiceType);
+            {
+                var service = descriptor.IsKeyedService
+                    ? serviceProvider.GetRequiredKeyedService(descriptor.ServiceType, descriptor.ServiceKey)
+                    : serviceProvider.GetRequiredService(descriptor.ServiceType);
+                module.ModuleAttribute.PostStartupValidation(service, serviceProvider);
+            }
         }
     }
 }

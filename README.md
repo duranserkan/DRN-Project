@@ -1,10 +1,11 @@
 # DRN-Project
 [![master](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml/badge.svg?branch=master)](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml)
 [![develop](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml/badge.svg?branch=develop)](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml)
-[![Argo CD](https://img.shields.io/badge/gitops-argocd?logo=argo&label=argo%20cd
-)](https://github.com/duranserkan/DRN-Project-Argo-CD-Gitops)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
-
+[![Argo CD](https://img.shields.io/badge/gitops-darkgreen?logo=argo&label=argo%20cd
+)](https://github.com/duranserkan/DRN-Project-Argo-CD-Gitops)
+[![Docker Hub](https://img.shields.io/badge/images-blue?logo=docker&label=dockerhub
+)](https://hub.docker.com/u/duranserkan)
 
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)

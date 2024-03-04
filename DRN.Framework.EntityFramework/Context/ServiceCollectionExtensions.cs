@@ -1,4 +1,5 @@
 using System.Reflection;
+using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,10 @@ public static class ServiceCollectionExtensions
         sc.AddDbContext<TContext>((serviceProvider, optionsBuilder) =>
         {
             var name = typeof(TContext).Name;
-            var connectionString = serviceProvider.GetRequiredService<IAppSettings>().GetRequiredConnectionString(name);
+            var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
+            var connectionString = appSettings.Environment == AppEnvironment.Development
+                ? DrnContextDevelopmentConnection.GetConnectionString(appSettings, name)
+                : appSettings.GetRequiredConnectionString(name);
             DbContextConventions.UpdateDbContextOptionsBuilder<TContext>(connectionString, name, optionsBuilder);
         });
     }

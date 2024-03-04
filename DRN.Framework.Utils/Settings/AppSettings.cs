@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.Extensions.Configuration;
 
@@ -5,6 +6,7 @@ namespace DRN.Framework.Utils.Settings;
 
 public interface IAppSettings
 {
+    AppEnvironment Environment { get; }
     IConfiguration Configuration { get; }
     bool TryGetConnectionString(string name, out string connectionString);
     string GetRequiredConnectionString(string name);
@@ -18,8 +20,12 @@ public class AppSettings : IAppSettings
     public AppSettings(IConfiguration configuration)
     {
         Configuration = configuration;
+        Environment = TryGetSection("environment", out _)
+            ? configuration.GetValue<AppEnvironment>("environment")
+            : AppEnvironment.NotDefined;
     }
 
+    public AppEnvironment Environment { get; }
     public IConfiguration Configuration { get; }
 
     public bool TryGetConnectionString(string name, out string connectionString)
@@ -41,7 +47,6 @@ public class AppSettings : IAppSettings
         section = Configuration.GetSection(key);
         return section.Exists();
     }
-
 
     public IConfigurationSection GetRequiredSection(string key)
     {

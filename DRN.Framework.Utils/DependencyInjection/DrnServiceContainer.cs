@@ -57,7 +57,7 @@ public class DrnServiceContainer
             var methodInfo = (MethodInfo)methodInfoProperty.GetValue(null)!;
             methodInfo.Invoke(null, [moduleServiceCollection, Assembly]);
 
-            var attributeModule = new AttributeSpecifiedServiceCollectionModule(methodInfo, moduleServiceCollection);
+            var attributeModule = new AttributeSpecifiedServiceCollectionModule(methodInfo, moduleServiceCollection,moduleAttribute);
             AddAttributeModule(attributeModule);
 
             sc.Add(moduleServiceCollection);
@@ -71,9 +71,13 @@ public class DrnServiceContainer
         ((List<AttributeSpecifiedServiceCollectionModule>)AttributeSpecifiedModules).Add(attributeSpecifiedModule);
 }
 
-public sealed class AttributeSpecifiedServiceCollectionModule(MethodInfo methodInfo, IList<ServiceDescriptor> serviceDescriptors)
+public sealed class AttributeSpecifiedServiceCollectionModule(
+    MethodInfo methodInfo,
+    IList<ServiceDescriptor> serviceDescriptors,
+    HasServiceCollectionModuleAttribute moduleAttribute)
 {
     public MethodInfo MethodInfo { get; } = methodInfo;
+    public HasServiceCollectionModuleAttribute ModuleAttribute { get; } = moduleAttribute;
     public IReadOnlyList<ServiceDescriptor> ServiceDescriptors { get; } = serviceDescriptors.ToArray();
 
     private bool Equals(AttributeSpecifiedServiceCollectionModule other)

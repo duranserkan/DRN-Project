@@ -1,8 +1,11 @@
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Migrations.Design;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.EntityFramework.Context;
@@ -118,8 +121,18 @@ public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFact
 /// </summary>
 public class HasDrnContextServiceCollectionModuleAttribute : HasServiceCollectionModuleAttribute
 {
+    private const string AutoMigrateDevEnvironmentKey = "drnContextAutoMigrateDevEnvironment";
+
     static HasDrnContextServiceCollectionModuleAttribute()
     {
         ModuleMethodInfo = typeof(ServiceCollectionExtensions).GetMethod(nameof(ServiceCollectionExtensions.AddDbContextsWithConventions))!;
+    }
+
+    public override void PostStartupValidation(object service, IServiceProvider serviceProvider)
+    {
+        var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
+        var migrate = appSettings.Configuration.GetValue(AutoMigrateDevEnvironmentKey, false);
+        if (appSettings.Environment == AppEnvironment.Development && migrate && service is DbContext context)
+            context.Database.Migrate();
     }
 }

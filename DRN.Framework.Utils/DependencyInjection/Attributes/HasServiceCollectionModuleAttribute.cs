@@ -13,4 +13,8 @@ public abstract class HasServiceCollectionModuleAttribute : Attribute
 
     public static HasServiceCollectionModuleAttribute GetModuleAttribute(Type type) =>
         (HasServiceCollectionModuleAttribute)type.GetCustomAttributes().Single(a => a.GetType().IsAssignableTo(typeof(HasServiceCollectionModuleAttribute)));
+
+    public virtual void PostStartupValidation(object service, IServiceProvider serviceProvider)
+    {
+    }
 }
