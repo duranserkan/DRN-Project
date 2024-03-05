@@ -23,7 +23,7 @@ public class DrnContextDevelopmentConnectionTests
         {
             { nameof(AppSettings.Environment), environment },
             { DrnContextDevelopmentConnection.PostgresDevelopmentPasswordKey, password },
-            { DrnContextDevelopmentConnection.PostgresDevelopmentHostKey, csBuilder.Host },
+            { DrnContextDevelopmentConnection.PostgresDevelopmentHostKey, csBuilder.Host! },
             { DrnContextDevelopmentConnection.PostgresDevelopmentPortKey, csBuilder.Port },
             { HasDrnContextServiceCollectionModuleAttribute.AutoMigrateDevEnvironmentKey, migrate }
         };

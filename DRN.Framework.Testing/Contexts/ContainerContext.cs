@@ -57,10 +57,10 @@ public sealed class ContainerContext(TestContext testContext) : IDisposable
         return container;
     }
 
-    public async Task<PostgreSqlContainer> StartPostgresAndApplyMigrationsAsync(
-        string? version = null, string? database = null, string? username = null, string? password = null)
+    public async Task<PostgreSqlContainer> StartPostgresAndApplyMigrationsAsync(string? database = null,
+        string? username = null, string? password = null, string? version = null)
     {
-        var container = await StartPostgresAsync(version, database, username, password);
+        var container = await StartPostgresAsync(database, username, password, version);
         var dbContexts = SetPostgresConnectionStrings(container);
         await MigrateDbContextsAsync(dbContexts);
 
@@ -70,10 +70,10 @@ public sealed class ContainerContext(TestContext testContext) : IDisposable
     /// <summary>
     /// Can be used for rapid prototyping for single dbContext since Database.EnsureCreatedAsync doesn't support multiple contexts on single database
     /// </summary>
-    public async Task<PostgreSqlContainer> StartPostgresAndEnsureDatabaseAsync<TContext>
-        (string? version = null, string? database = null, string? username = null, string? password = null) where TContext : DbContext
+    public async Task<PostgreSqlContainer> StartPostgresAndEnsureDatabaseAsync<TContext>(string? database = null,
+        string? username = null, string? password = null, string? version = null) where TContext : DbContext
     {
-        var container = await StartPostgresAsync(version, database, username, password);
+        var container = await StartPostgresAsync(database, username, password, version);
         var dbContexts = SetPostgresConnectionStrings(container);
         var dbContext = dbContexts.FirstOrDefault(d => d.GetType() == typeof(TContext));
         ArgumentNullException.ThrowIfNull(dbContext);
