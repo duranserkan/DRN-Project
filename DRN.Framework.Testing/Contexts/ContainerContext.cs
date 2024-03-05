@@ -41,13 +41,14 @@ public sealed class ContainerContext(TestContext testContext) : IDisposable
         return container;
     }
 
-    public async Task<PostgreSqlContainer> StartPostgresAsync(string? version = null, string? database = null, string? username = null, string? password = null)
+    public async Task<PostgreSqlContainer> StartPostgresAsync(string? database = null, string? username = null, string? password = null, string? version = null)
     {
-        version ??= "16.1-alpine3.19";
+        version ??= "16.2-alpine3.19";
         var builder = new PostgreSqlBuilder().WithImage($"postgres:{version}");
-        if (database != null) builder.WithDatabase(database);
-        if (username != null) builder.WithUsername(username);
-        if (password != null) builder.WithPassword(password);
+        if (database != null) builder = builder.WithDatabase(database);
+        if (username != null) builder = builder.WithUsername(username);
+        if (password != null) builder = builder.WithPassword(password);
+
         var container = builder.Build();
         _containers.Add(container);
 

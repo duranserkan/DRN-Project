@@ -12,6 +12,8 @@ public interface IAppSettings
     string GetRequiredConnectionString(string name);
     bool TryGetSection(string key, out IConfigurationSection section);
     IConfigurationSection GetRequiredSection(string key);
+    T? GetValue<T>(string key);
+    T? GetValue<T>(string key, T defaultValue);
 }
 
 [Singleton<IAppSettings>]
@@ -20,8 +22,8 @@ public class AppSettings : IAppSettings
     public AppSettings(IConfiguration configuration)
     {
         Configuration = configuration;
-        Environment = TryGetSection("environment", out _)
-            ? configuration.GetValue<AppEnvironment>("environment")
+        Environment = TryGetSection(nameof(Environment), out _)
+            ? configuration.GetValue<AppEnvironment>(nameof(Environment))
             : AppEnvironment.NotDefined;
     }
 
@@ -55,4 +57,7 @@ public class AppSettings : IAppSettings
             ? section
             : throw new ConfigurationException($"{key} configuration section not found");
     }
+
+    public T? GetValue<T>(string key) => Configuration.GetValue<T>(key);
+    public T? GetValue<T>(string key, T defaultValue) => Configuration.GetValue(key, defaultValue);
 }

@@ -121,7 +121,7 @@ public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFact
 /// </summary>
 public class HasDrnContextServiceCollectionModuleAttribute : HasServiceCollectionModuleAttribute
 {
-    private const string AutoMigrateDevEnvironmentKey = "drnContextAutoMigrateDevEnvironment";
+    public const string AutoMigrateDevEnvironmentKey = "drnContextAutoMigrateDevEnvironment";
 
     static HasDrnContextServiceCollectionModuleAttribute()
     {

@@ -3,11 +3,15 @@ using Microsoft.Extensions.Configuration;
 
 namespace DRN.Framework.EntityFramework.Context;
 
-public class DrnContextDevelopmentConnection
+public static class DrnContextDevelopmentConnection
 {
-    const string PasswordKey = "drnPassword";
-    const string Username = "postgres";
-    const string DatabaseName = "drnDb";
+    public const string PostgresDevelopmentPasswordKey = "PostgresDevelopmentPassword";
+    public const string PostgresDevelopmentHostKey = "PostgresDevelopmentHost";
+    public const string PostgresDevelopmentPortKey = "PostgresDevelopmentPort";
+    public const string PostgresDevelopmentUsernameKey = "PostgresDevelopmentUsername";
+    public const string PostgresDevelopmentDatabaseKey = "PostgresDevelopmentDatabase";
+    public const string DefaultUsername = "postgres";
+    public const string DefaultDatabase = "drnDb";
 
     public static string GetConnectionString(IAppSettings appSettings, string name)
     {
@@ -16,9 +20,13 @@ public class DrnContextDevelopmentConnection
             connectionString = devConnectionString;
         else
         {
-            var password = appSettings.Configuration.GetValue<string>(PasswordKey);
+            var host = appSettings.Configuration.GetValue(PostgresDevelopmentHostKey, "postgresql");
+            var port = appSettings.Configuration.GetValue(PostgresDevelopmentPortKey, 5432);
+            var username = appSettings.Configuration.GetValue<string>(PostgresDevelopmentUsernameKey, DefaultUsername);
+            var database = appSettings.Configuration.GetValue<string>(PostgresDevelopmentDatabaseKey, DefaultDatabase);
+            var password = appSettings.Configuration.GetValue<string>(PostgresDevelopmentPasswordKey);
             if (password != null)
-                connectionString = $"Host=postgresql;Port=5432;Database={DatabaseName};User ID={Username};password={password};";
+                connectionString = $"Host={host};Port={port};Database={database};User ID={username};password={password};";
         }
 
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
