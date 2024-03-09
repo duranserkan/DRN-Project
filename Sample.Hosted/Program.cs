@@ -1,11 +1,8 @@
 ﻿using Sample.Application;
 using Sample.Infra;
 
-//https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host
-//https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/top-level-statements
-//https://learn.microsoft.com/en-us/ef/core/cli/dbcontext-creation
-//https://learn.microsoft.com/en-us/aspnet/core/migration/50-to-60 new hosting model
 namespace Sample.Hosted;
+
 public class Program
 {
     public static void Main(string[] args)
@@ -31,7 +28,10 @@ public class Program
         }
     }
 
-
+    //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host
+    //https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/top-level-statements
+    //https://learn.microsoft.com/en-us/ef/core/cli/dbcontext-creation
+    //https://learn.microsoft.com/en-us/aspnet/core/migration/50-to-60 new hosting model
     static WebApplication CreateApp(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
