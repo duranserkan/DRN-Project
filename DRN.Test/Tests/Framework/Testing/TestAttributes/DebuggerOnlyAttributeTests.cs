@@ -1,5 +1,6 @@
 namespace DRN.Test.Tests.Framework.Testing.TestAttributes;
 
+#pragma warning disable xUnit1006
 public class DebuggerOnlyAttributeTests
 {
     [FactDebuggerOnly]
@@ -13,3 +14,4 @@ public class DebuggerOnlyAttributeTests
     {
     }
 }
+#pragma warning restore xUnit1006

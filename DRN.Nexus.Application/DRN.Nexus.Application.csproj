@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DRN.Nexus.Infra\DRN.Nexus.Infra.csproj" />
-    <ProjectReference Include="..\DRN.Nexus.Utils\DRN.Nexus.Utils.csproj" />
   </ItemGroup>
 
 </Project>

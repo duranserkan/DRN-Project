@@ -9,13 +9,14 @@
 
   <PropertyGroup Condition=" '$(RunConfiguration)' == 'https' " />
   <PropertyGroup Condition=" '$(RunConfiguration)' == 'http' " />
+
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\DRN.Nexus.Application\DRN.Nexus.Application.csproj" />
-    <ProjectReference Include="..\DRN.Nexus.Infra\DRN.Nexus.Infra.csproj" />
   </ItemGroup>
 
 </Project>
