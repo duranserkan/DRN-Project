@@ -40,7 +40,9 @@ TLDR; You can
   * to get unified microservices topology and their self-documentation
 * get opinionated ideas about soft skills for engineering and management
 
-[About Project](#about-project) | [Solution Structure](#solution-structure) | [About Design and Architecture](#about-design-architecture-and-microservices) | [About Management](#about-management) | [Engineering Manifest](#durans-engineering-manifest)
+[Solution Structure](#solution-structure) | [About Design and Architecture](#about-design-architecture-and-microservices) | [About Management](#about-management) | [Engineering Manifest](#durans-engineering-manifest)
+
+## About Project
 
 Distributed Reliable .Net project aims to provide somewhat opinionated design and out of the box solutions to enterprise application development. 
 Expected result is spending less time on wiring while getting better maintainability and observability.
@@ -56,7 +58,6 @@ In DRN-Project context, reliability is defined with following characteristics:
 * Scalable
 * Self-documenting
 
-## About Project
 DRN Project is not another framework that will `bite the dust.` It is more than a simple framework. It is a distilled knowledge that contains:
 - [X] A beautiful framework to work with (v0.2.0)
 - [X] Management best practices

@@ -100,8 +100,7 @@ Following configuration options added to minimize development environment creati
 
 For instance: 
  * When a Postgresql helm chart is used for dev environment and it creates a password secret automatically,
- * Then only defining a volume mount will be enough for database configuration.
-
+ * Then only defining a volume mount should be enough for database configuration.
 
 ### Global Usings
 
