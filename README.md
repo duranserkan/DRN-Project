@@ -23,14 +23,24 @@
 [![GitHub Stars](https://img.shields.io/github/stars/duranserkan/DRN-Project?label=github%20stars)](https://github.com/duranserkan/DRN-Project/stargazers/)
 [![Activity](https://img.shields.io/github/commit-activity/m/duranserkan/DRN-Project)](https://github.com/duranserkan/DRN-Project/graphs/commit-activity)
 
-[![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Testing?logo=Nuget&label=DRN.Framework.Testing)](https://nuget.org/packages/DRN.Framework.Testing/)
-[![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Utils?logo=Nuget&label=DRN.Framework.Utils)](https://nuget.org/packages/DRN.Framework.Utils/)
-[![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.SharedKernel?logo=Nuget&label=DRN.Framework.SharedKernel)](https://nuget.org/packages/DRN.Framework.SharedKernel/)
-[![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.EntityFramework?logo=Nuget&label=DRN.Framework.EntityFramework)](https://nuget.org/packages/DRN.Framework.EntityFramework/)
+[![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Testing?logo=Nuget&label=DRN.Framework.Testing)](https://nuget.org/packages/DRN.Framework.Testing/#readme-body-tab)
+[![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Utils?logo=Nuget&label=DRN.Framework.Utils)](https://nuget.org/packages/DRN.Framework.Utils/#readme-body-tab)
+[![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.SharedKernel?logo=Nuget&label=DRN.Framework.SharedKernel)](https://nuget.org/packages/DRN.Framework.SharedKernel/#readme-body-tab)
+[![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.EntityFramework?logo=Nuget&label=DRN.Framework.EntityFramework)](https://nuget.org/packages/DRN.Framework.EntityFramework/#readme-body-tab)
 
 [![General badge](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white.svg)](https://www.linkedin.com/in/duranserkan/)
 [![General badge](https://img.shields.io/badge/Medium-12100E?style=for-the-badge&logo=medium&logoColor=white)](https://duranserkan.medium.com)
 
+TLDR; You can 
+* use Nuget packages to easily develop and test distributed reliable dotnet applications. Nuget badges redirects to package documentation.
+* use Argo CD GitOps to easily deploy your apps to a kubernetes cluster with Linkerd service mesh such as Sample.Hosted app.
+* use Nexus App (not functional yet)
+  * for service discovery
+  * to get remote settings
+  * to get unified microservices topology and their self-documentation
+* get opinionated ideas about soft skills for engineering and management
+
+[About Project](#about-project) | [Solution Structure](#solution-structure) | [About Design and Architecture](#about-design-architecture-and-microservices) | [About Management](#about-management) | [Engineering Manifest](#durans-engineering-manifest)
 
 Distributed Reliable .Net project aims to provide somewhat opinionated design and out of the box solutions to enterprise application development. 
 Expected result is spending less time on wiring while getting better maintainability and observability.
@@ -54,13 +64,11 @@ DRN Project is not another framework that will `bite the dust.` It is more than 
 - [X] Reference documents for design, architecture and microservices
 - [ ] A nexus app to manage microservices (will be released with v1.0.0)
 
-
 This project is result of a productive and curious mindset that respects good solutions and best practices of others while enjoys from creating its own.
 It is not about coding. It is about process of creating and enhancing good things. I expect it to be ready for general purpose usage within 6 months. 
 Detailed documentation will be added in the mean time.
 
-
-### Dotnet Solution Structure
+### Solution Structure
 This solution consists of 6 parts that are being developed with Jetbrains Rider on macOS with arm-based M2 chip. However I expect it to work on any modern machine since it is a cross platform solution
 1. **Docker Folder:** It contains dockerfile and compose definitions for dependencies. They just works and can be used for other solutions.
 2. **Docs:** It contains project documents. This docs will be supported with articles and a youtube playlist.
@@ -78,6 +86,13 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
    * **Sample:** Nexus connectable sample app demonstrates **DRN.Framework** usage. It is used for testing, presentation and documentation purposes.
 5. **Test:** It contains all the unit, integration and performance tests.
 6. **docker-compose:** Global docker-compose file that binds Nexus, Sample microservice and their dependencies.
+
+## About Design and Architecture
+* [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)
+* [DDD Oriented Microservice](https://docs.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/ddd-oriented-microservice)
+* [Strategic Domain Driven Design](https://vaadin.com/blog/ddd-part-1-strategic-domain-driven-design)
+* [Tactical Domain Driven Design](https://vaadin.com/blog/ddd-part-2-tactical-domain-driven-design)
+* [DDD and Hexagonal Architecture](https://vaadin.com/blog/ddd-part-3-domain-driven-design-and-the-hexagonal-architecture)
 
 ## About Management
 ### Security Management
@@ -117,13 +132,6 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 * You can only expand yourself as your environment allows. Don't hesitate to change it when necessary 
 * You are not a tree. You can always walk away. Don't stay in hostile or harmful environment.
 * "Never attribute to malice that which is adequately explained by stupidity." - Hanson's razor
-
-## About Design, Architecture and Microservices
-* [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)
-* [DDD Oriented Microservice](https://docs.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/ddd-oriented-microservice)
-* [Strategic Domain Driven Design](https://vaadin.com/blog/ddd-part-1-strategic-domain-driven-design)
-* [Tactical Domain Driven Design](https://vaadin.com/blog/ddd-part-2-tactical-domain-driven-design)
-* [DDD and Hexagonal Architecture](https://vaadin.com/blog/ddd-part-3-domain-driven-design-and-the-hexagonal-architecture)
 
 ## Duran's Engineering Manifest
 Today, I hereby declare that as an engineer,

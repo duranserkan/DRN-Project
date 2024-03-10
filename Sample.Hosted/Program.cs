@@ -1,4 +1,5 @@
-﻿using Sample.Application;
+﻿using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Sample.Application;
 using Sample.Infra;
 
 namespace Sample.Hosted;

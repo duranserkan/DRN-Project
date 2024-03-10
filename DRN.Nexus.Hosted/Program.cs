@@ -1,5 +1,6 @@
 ﻿using DRN.Nexus.Application;
 using DRN.Nexus.Infra;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 namespace DRN.Nexus.Hosted;
 
@@ -38,6 +39,14 @@ public class Program
         var configuration = builder.Configuration;
         var serviceCollection = builder.Services;
         AddServices(serviceCollection, configuration);
+
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.ConfigureEndpointDefaults(listenOptions =>
+            {
+                listenOptions.Protocols = HttpProtocols.Http2;
+            });
+        });
 
         var app = builder.Build();
         app.Services.ValidateServicesAddedByAttributes();
