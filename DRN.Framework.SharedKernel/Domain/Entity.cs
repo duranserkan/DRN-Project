@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace DRN.Framework.SharedKernel.Domain;
 
 public abstract class Entity
@@ -5,8 +7,10 @@ public abstract class Entity
     private List<IDomainEvent> DomainEvents { get; } = new();
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
     public long Id { get; protected set; }
-    public DateTimeOffset CreatedAt { get; protected set; }
+
+    [ConcurrencyCheck]
     public DateTimeOffset ModifiedAt { get; protected set; }
+    public DateTimeOffset CreatedAt { get; protected set; }
 
     protected void AddDomainEvent(DomainEvent? e)
     {

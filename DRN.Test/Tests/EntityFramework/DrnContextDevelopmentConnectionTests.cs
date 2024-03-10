@@ -14,26 +14,26 @@ public class DrnContextDevelopmentConnectionTests
     [DataInline(AppEnvironment.Production, "ViveLaRépublique", true)]
     public async Task ConnectionString_Should_Be_Created(TestContext testContext, AppEnvironment environment, string password, bool migrate)
     {
-        var database = DrnContextDevelopmentConnection.DefaultDatabase;
-        var username = DrnContextDevelopmentConnection.DefaultUsername;
+        var database = DbContextConventions.DefaultDatabase;
+        var username = DbContextConventions.DefaultUsername;
         var container = await testContext.ContainerContext.StartPostgresAsync(database, username, password);
         var csBuilder = new NpgsqlConnectionStringBuilder(container.GetConnectionString());
 
         var developmentDbSettings = new Dictionary<string, object>
         {
             { nameof(AppSettings.Environment), environment },
-            { DrnContextDevelopmentConnection.PostgresDevelopmentPasswordKey, password },
-            { DrnContextDevelopmentConnection.PostgresDevelopmentHostKey, csBuilder.Host! },
-            { DrnContextDevelopmentConnection.PostgresDevelopmentPortKey, csBuilder.Port },
-            { HasDrnContextServiceCollectionModuleAttribute.AutoMigrateDevEnvironmentKey, migrate }
+            { DbContextConventions.DevPasswordKey, password },
+            { DbContextConventions.DevHostKey, csBuilder.Host! },
+            { DbContextConventions.DevPortKey, csBuilder.Port },
+            { DbContextConventions.AutoMigrateDevEnvironmentKey, migrate }
         };
 
         testContext.AddToConfiguration(developmentDbSettings);
         testContext.ServiceCollection.AddSampleInfraServices();
 
         var appSettings = testContext.GetRequiredService<IAppSettings>();
-        appSettings.GetValue<string>(DrnContextDevelopmentConnection.PostgresDevelopmentPasswordKey).Should().Be(password);
-        appSettings.GetValue<bool>(HasDrnContextServiceCollectionModuleAttribute.AutoMigrateDevEnvironmentKey).Should().BeTrue();
+        appSettings.GetValue<string>(DbContextConventions.DevPasswordKey).Should().Be(password);
+        appSettings.GetValue<bool>(DbContextConventions.AutoMigrateDevEnvironmentKey).Should().BeTrue();
 
         var connectionString = DrnContextDevelopmentConnection.GetConnectionString(appSettings, nameof(QAContext));
         connectionString.Should().NotBeNull();

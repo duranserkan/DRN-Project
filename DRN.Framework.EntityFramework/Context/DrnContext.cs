@@ -121,18 +121,16 @@ public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFact
 /// </summary>
 public class HasDrnContextServiceCollectionModuleAttribute : HasServiceCollectionModuleAttribute
 {
-    public const string AutoMigrateDevEnvironmentKey = "drnContextAutoMigrateDevEnvironment";
-
     static HasDrnContextServiceCollectionModuleAttribute()
     {
         ModuleMethodInfo = typeof(ServiceCollectionExtensions).GetMethod(nameof(ServiceCollectionExtensions.AddDbContextsWithConventions))!;
     }
 
-    public override void PostStartupValidation(object service, IServiceProvider serviceProvider)
+    public override async Task PostStartupValidationAsync(object service, IServiceProvider serviceProvider)
     {
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
-        var migrate = appSettings.Configuration.GetValue(AutoMigrateDevEnvironmentKey, false);
+        var migrate = appSettings.Configuration.GetValue(DbContextConventions.AutoMigrateDevEnvironmentKey, false);
         if (appSettings.Environment == AppEnvironment.Development && migrate && service is DbContext context)
-            context.Database.Migrate();
+            await context.Database.MigrateAsync();
     }
 }

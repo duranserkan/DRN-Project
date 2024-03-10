@@ -1,10 +1,33 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.2.2
+
+### Breaking Changes
+
+### New Features
+
+* DrnContext development connection string will be auto generated when
+    * Environment configuration key set as Development and,
+    * DrnContext_DevPassword configuration key set and,
+    * No other connection string is provided for the DbContexts.
+* Following keys can set optionally according to DbContextConventions;
+    * DrnContext_AutoMigrateDevEnvironment
+        * When set true applies migrations automatically
+    * DrnContext_DevHost
+    * DrnContext_DevPort
+    * DrnContext_DevUsername
+        * default is postgres
+    * DrnContext_DevDatabase
+        * default is drnDb
+
+### Bug Fixes
+
 ## Version 0.2.0
 
 ### Breaking Changes
 
 ### New Features
+
 * DrnContext added
     * Implemented IDesignTimeDbContextFactory to enable migrations from dbContext defining projects.
     * Implemented IDesignTimeServices to support multi context projects with default output directory in the context specific folder.

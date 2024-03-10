@@ -2,6 +2,15 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.2.0
 
+### New Features
+
+* HasServiceCollectionModuleAttribute has PostStartupValidationAsync when,
+  * ValidateServicesAddedByAttributes extension method called from service provider,
+  * PostStartupValidationAsync will be called if all services resolved successfully.
+  * For instance, DrnContext can apply migrations after service provider services resolved successfully.
+
+## Version 0.2.0
+
 ### Breaking Changes
 
 * LifetimeContainer renamed as DrnServiceContainer

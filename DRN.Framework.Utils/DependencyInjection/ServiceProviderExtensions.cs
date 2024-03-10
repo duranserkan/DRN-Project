@@ -46,7 +46,7 @@ public static class ServiceProviderExtensions
                 var service = descriptor.IsKeyedService
                     ? serviceProvider.GetRequiredKeyedService(descriptor.ServiceType, descriptor.ServiceKey)
                     : serviceProvider.GetRequiredService(descriptor.ServiceType);
-                module.ModuleAttribute.PostStartupValidation(service, serviceProvider);
+                module.ModuleAttribute.PostStartupValidationAsync(service, serviceProvider).GetAwaiter().GetResult();
             }
         }
     }
