@@ -32,15 +32,15 @@
 [![General badge](https://img.shields.io/badge/Medium-12100E?style=for-the-badge&logo=medium&logoColor=white)](https://duranserkan.medium.com)
 
 TLDR; You can 
-* use Nuget packages to easily develop and test distributed reliable dotnet applications. Nuget badges redirects to package documentation.
-* use Argo CD GitOps to easily deploy your apps to a kubernetes cluster with Linkerd service mesh such as Sample.Hosted app.
+* use Nuget packages to easily develop and test distributed reliable dotnet applications.
+* use Argo CD GitOps to easily deploy your apps to a kubernetes cluster with Linkerd service mesh.
 * use Nexus App (not functional yet)
   * for service discovery
   * to get remote settings
   * to get unified microservices topology and their self-documentation
 * get opinionated ideas about soft skills for engineering and management
 
-[Solution Structure](#solution-structure) | [About Design and Architecture](#about-design-architecture-and-microservices) | [About Management](#about-management) | [Engineering Manifest](#durans-engineering-manifest)
+[About Project](#about-project) | [Solution Structure](#solution-structure) | [About Design and Architecture](#about-design-architecture-and-microservices) | [About Management](#about-management) | [Engineering Manifest](#durans-engineering-manifest)
 
 ## About Project
 

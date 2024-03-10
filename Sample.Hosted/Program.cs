@@ -38,7 +38,9 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
         var configuration = builder.Configuration;
         var serviceCollection = builder.Services;
-        AddServices(serviceCollection, configuration);
+
+        configuration.AddKeyPerFile("/config", true);
+        AddServices(serviceCollection);
 
         var app = builder.Build();
         app.Services.ValidateServicesAddedByAttributes();
@@ -48,7 +50,7 @@ public class Program
         return app;
     }
 
-    static void AddServices(IServiceCollection services, IConfiguration configuration)
+    static void AddServices(IServiceCollection services)
     {
         services.AddControllers();
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

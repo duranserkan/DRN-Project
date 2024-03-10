@@ -38,14 +38,13 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
         var configuration = builder.Configuration;
         var serviceCollection = builder.Services;
-        AddServices(serviceCollection, configuration);
+
+        configuration.AddKeyPerFile("/config", true);
+        AddServices(serviceCollection);
 
         builder.WebHost.ConfigureKestrel(options =>
         {
-            options.ConfigureEndpointDefaults(listenOptions =>
-            {
-                listenOptions.Protocols = HttpProtocols.Http2;
-            });
+            options.ConfigureEndpointDefaults(listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; });
         });
 
         var app = builder.Build();
@@ -56,7 +55,7 @@ public class Program
         return app;
     }
 
-    static void AddServices(IServiceCollection services, IConfiguration configuration)
+    static void AddServices(IServiceCollection services)
     {
         services.AddControllers();
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
