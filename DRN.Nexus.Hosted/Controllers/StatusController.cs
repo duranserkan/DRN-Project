@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,7 +12,17 @@ public class StatusController(IAppSettings appSettings) : ControllerBase
     [ProducesResponseType(200)]
     public async Task<ActionResult<string>> Status([FromQuery] string name)
     {
-        var status = $"{DateTimeOffset.Now:s} {AppConstants.ApplicationName} {appSettings.Environment.ToString()} Hi {name}";
+        var status = new StatusModel(name, appSettings.Environment, appSettings.GetDebugView());
+
         return Ok(status);
     }
+}
+
+public class StatusModel(string requestMadeBy, AppEnvironment environment, string debugView)
+{
+    public string ApplicationName { get; set; } = AppConstants.ApplicationName;
+    public DateTimeOffset RequestTime { get; } = DateTimeOffset.Now;
+    public AppEnvironment Environment { get; } = environment;
+    public string RequestMadeBy { get; } = requestMadeBy;
+    public string DebugView { get; } = debugView;
 }

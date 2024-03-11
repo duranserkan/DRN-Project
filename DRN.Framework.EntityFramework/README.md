@@ -84,19 +84,21 @@ public class QAContext : DrnContext<QAContext>
 Following configuration options added to minimize development environment creation efforts:
 * DrnContext development connection string will be auto generated when
     * `Environment` configuration key set as Development and,
-    * `DrnContext_DevPassword` configuration key set and,
+    * `postgres-password` configuration key set and,
     * No other connection string is provided for the DbContexts.
 * Following keys can set optionally according to DbContextConventions;
     * `DrnContext_AutoMigrateDevEnvironment`
         * When set true applies migrations automatically
     * `DrnContext_DevHost`
+        * default is postgresql
     * `DrnContext_DevPort`
+        * default is 5432
     * `DrnContext_DevUsername`
         * default is postgres
     * `DrnContext_DevDatabase`
         * default is drnDb
 
-`DrnContext_DevPassword` and `DrnContext_AutoMigrateDevEnvironment` should be enough to start a hosted service that has DrnContext dependencies. 
+`postgres-password` and `DrnContext_AutoMigrateDevEnvironment` should be enough to start a hosted service that has DrnContext dependencies. 
 
 For instance: 
  * When a Postgresql helm chart is used for dev environment and it creates a password secret automatically,

@@ -14,6 +14,7 @@ public interface IAppSettings
     IConfigurationSection GetRequiredSection(string key);
     T? GetValue<T>(string key);
     T? GetValue<T>(string key, T defaultValue);
+    string GetDebugView();
 }
 
 [Singleton<IAppSettings>]
@@ -60,4 +61,5 @@ public class AppSettings : IAppSettings
 
     public T? GetValue<T>(string key) => Configuration.GetValue<T>(key);
     public T? GetValue<T>(string key, T defaultValue) => Configuration.GetValue(key, defaultValue);
+    public string GetDebugView() => Configuration is IConfigurationRoot cr ? cr.GetDebugView() : "Debug view not available";
 }

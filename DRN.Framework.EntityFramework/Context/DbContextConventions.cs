@@ -6,13 +6,15 @@ namespace DRN.Framework.EntityFramework.Context;
 public static class DbContextConventions
 {
     public const string AutoMigrateDevEnvironmentKey = "DrnContext_AutoMigrateDevEnvironment";
-    public const string DevPasswordKey = "DrnContext_DevPassword";
+    public const string DevPasswordKey = "postgres-password";
     public const string DevHostKey = "DrnContext_DevHost";
     public const string DevPortKey = "DrnContext_DevPort";
     public const string DevUsernameKey = "DrnContext_DevUsername";
     public const string DevDatabaseKey = "DrnContext_DevDatabase";
     public const string DefaultUsername = "postgres";
     public const string DefaultDatabase = "drnDb";
+    public const string DefaultHost = "postgresql";
+    public const string DefaultPort = "5432";
 
     public static DbContextOptionsBuilder UpdateDbContextOptionsBuilder<TContext>(string connectionString, string contextName,
         DbContextOptionsBuilder? builder = null)

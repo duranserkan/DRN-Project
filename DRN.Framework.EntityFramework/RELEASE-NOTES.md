@@ -8,7 +8,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 * DrnContext development connection string will be auto generated when
     * Environment configuration key set as Development and,
-    * DrnContext_DevPassword configuration key set and,
+    * postgres-password configuration key set and,
     * No other connection string is provided for the DbContexts.
 * Following keys can set optionally according to DbContextConventions;
     * DrnContext_AutoMigrateDevEnvironment
