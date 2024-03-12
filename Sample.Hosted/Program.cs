@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Server.Kestrel.Core;
+﻿using System.Text.Json.Serialization;
+using DRN.Framework.SharedKernel.Conventions;
 using Sample.Application;
 using Sample.Infra;
 
@@ -33,13 +34,13 @@ public class Program
     //https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/top-level-statements
     //https://learn.microsoft.com/en-us/ef/core/cli/dbcontext-creation
     //https://learn.microsoft.com/en-us/aspnet/core/migration/50-to-60 new hosting model
-    static WebApplication CreateApp(string[] args)
+    private static WebApplication CreateApp(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
         var configuration = builder.Configuration;
         var serviceCollection = builder.Services;
 
-        configuration.AddKeyPerFile("/config", true);
+        configuration.AddKeyPerFile(SettingsConventions.KeyPerFileSettingsMountDirectory, true);
         AddServices(serviceCollection);
 
         var app = builder.Build();
@@ -50,9 +51,10 @@ public class Program
         return app;
     }
 
-    static void AddServices(IServiceCollection services)
+    private static void AddServices(IServiceCollection services)
     {
-        services.AddControllers();
+        services.AddControllers()
+            .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
@@ -60,7 +62,7 @@ public class Program
         services.AddSampleApplicationServices();
     }
 
-    static void ConfigureApp(WebApplication webApplication)
+    private static void ConfigureApp(WebApplication webApplication)
     {
         if (webApplication.Environment.IsDevelopment())
         {

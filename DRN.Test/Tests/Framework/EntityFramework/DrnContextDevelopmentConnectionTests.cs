@@ -5,7 +5,7 @@ using Npgsql;
 using Sample.Infra;
 using Sample.Infra.QA;
 
-namespace DRN.Test.Tests.EntityFramework;
+namespace DRN.Test.Tests.Framework.EntityFramework;
 
 public class DrnContextDevelopmentConnectionTests
 {

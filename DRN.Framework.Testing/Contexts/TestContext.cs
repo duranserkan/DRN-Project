@@ -1,7 +1,9 @@
+using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
+using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -26,6 +28,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
         MethodContext = new(testMethod);
         ContainerContext = new ContainerContext(this);
         WebApplicationContext = new WebApplicationContext(this);
+        _ = JsonConventions.DefaultOptions; // to trigger static ctor that replaces .net defaults with better
     }
 
     public MethodContext MethodContext { get; }
@@ -79,15 +82,16 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
 
     public string GetData(string pathRelativeToDataFolder) => DataProvider.Get(pathRelativeToDataFolder, MethodContext.GetTestFolderLocation());
 
-    public string GetConfigurationDebugView()
+    public ConfigurationDebugViewSummary GetConfigurationDebugView()
     {
         var configurationRoot = BuildConfigurationRoot();
-        return configurationRoot.GetDebugView();
+        var debugView = new ConfigurationDebugView(new AppSettings(configurationRoot));
+        return new ConfigurationDebugViewSummary(debugView);
     }
 
     public void AddToConfiguration(object toBeSerialized)
     {
-        _configurationSources.Add(new JsonSerializerConfigurationSource(toBeSerialized));
+        _configurationSources.Add(new ObjectToJsonConfigurationSource(toBeSerialized));
     }
 
     public object? GetService(Type serviceType)

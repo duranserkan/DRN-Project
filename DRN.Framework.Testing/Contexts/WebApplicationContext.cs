@@ -20,11 +20,11 @@ public sealed class WebApplicationContext(TestContext testContext) : IDisposable
 
         var initialTestContextServiceDescriptors = testContext.ServiceCollection.ToArray();
         //Add program services to testContext
-        var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext).WithWebHostBuilder(webHostBuilder =>
+        var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true).WithWebHostBuilder(webHostBuilder =>
         {
             //only need service collection descriptors so ValidateServicesAddedByAttributes should not fail test at this stage
             webHostBuilder.UseSetting(DrnServiceContainer.SkipValidationKey, DrnServiceContainer.SkipValidation);
-            webHostBuilder.ConfigureServices(serviceCollection => testContext.ServiceCollection.Add(serviceCollection));
+            webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
             webHostConfigurator?.Invoke(webHostBuilder);
         });
         _ = tempApplicationFactory.Server; //To trigger webHostBuilder action
@@ -34,11 +34,11 @@ public sealed class WebApplicationContext(TestContext testContext) : IDisposable
         //This will be triggered when TestServer or HttpClient requested until then further configurations can be added to test context configuration
         var factory = new DrnWebApplicationFactory<TEntryPoint>(testContext).WithWebHostBuilder(webHostBuilder =>
         {
-            webHostBuilder.ConfigureServices(serviceCollection =>
+            webHostBuilder.ConfigureServices(services =>
             {
-                serviceCollection.Add(initialTestContextServiceDescriptors);
-                testContext.OverrideServiceCollection(serviceCollection);
-                testContext.MethodContext.ReplaceSubstitutedInterfaces(serviceCollection);
+                services.Add(initialTestContextServiceDescriptors);
+                testContext.OverrideServiceCollection(services);
+                testContext.MethodContext.ReplaceSubstitutedInterfaces(services);
             });
 
             var configuration = testContext.GetRequiredService<IConfiguration>()!;
@@ -58,13 +58,16 @@ public sealed class WebApplicationContext(TestContext testContext) : IDisposable
     }
 }
 
-public class DrnWebApplicationFactory<TEntryPoint>(TestContext context) : WebApplicationFactory<TEntryPoint>
+public class DrnWebApplicationFactory<TEntryPoint>(TestContext context, bool temporary = false) : WebApplicationFactory<TEntryPoint>
     where TEntryPoint : class
 {
+    public bool Temporary { get; } = temporary;
+
     protected override IHost CreateHost(IHostBuilder builder)
     {
         var host = base.CreateHost(builder);
-        context.OverrideServiceProvider(host.Services);
+        if (!Temporary)
+            context.OverrideServiceProvider(host.Services);
 
         return host;
     }

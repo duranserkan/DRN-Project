@@ -1,0 +1,17 @@
+{
+  "Environment": "Development",
+  "DrnContext_AutoMigrateDevEnvironment": true,
+  "AllowedHosts": "*",
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "Foo": "Bar"
+  },
+  "Foo": {
+    "Bar": 999
+  }
+}

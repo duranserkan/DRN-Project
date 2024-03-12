@@ -30,6 +30,6 @@ public static partial class ConfigurationExtensions
 {
     public static IConfigurationBuilder RemoteJsonConfiguration(this IConfigurationBuilder builder, string url)
     {
-        return builder.Add(new JsonSerializerConfigurationSource(url));
+        return builder.Add(new ObjectToJsonConfigurationSource(url));
     }
 }

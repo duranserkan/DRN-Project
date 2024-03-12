@@ -41,6 +41,9 @@ ENV ASPNETCORE_URLS=http://+:${HTTPPORT};
 #ENV ASPNETCORE_Kestrel__Certificates__Default__Password=drn
 #ENV ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
 
+#Kubernetes can volume mount configs and settings to these directories
+WORKDIR /appconfig/key-per-file-settings
+WORKDIR /appconfig/json-settings
 USER app
 WORKDIR /app
 
