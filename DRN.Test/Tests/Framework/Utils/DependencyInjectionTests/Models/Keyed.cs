@@ -14,11 +14,14 @@ public class KeyedA : IKeyed;
 [ScopedWithKey<IKeyed>("B")]
 public class KeyedB : IKeyed;
 
-[ScopedWithKey<IKeyed>("Multiple")]
+[ScopedWithKey<IKeyed>("Multiple", tryAdd: false)]
 public class KeyedMultiple1 : IKeyed;
 
-[ScopedWithKey<IKeyed>("Multiple")]
+[ScopedWithKey<IKeyed>("Multiple", tryAdd: false)]
 public class KeyedMultiple2 : IKeyed;
+
+[ScopedWithKey<IKeyed>("Multiple", tryAdd: true)]
+public class KeyedMultiple3 : IKeyed;
 
 [ScopedWithKey<IKeyed>(Keyed.First)]
 public class KeyedFirst : IKeyed;
