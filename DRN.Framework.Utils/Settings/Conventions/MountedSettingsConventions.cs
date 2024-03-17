@@ -1,4 +1,6 @@
-namespace DRN.Framework.SharedKernel.Conventions;
+using System.Text.Json.Serialization;
+
+namespace DRN.Framework.Utils.Settings.Conventions;
 
 public static class MountedSettingsConventions
 {
@@ -16,10 +18,10 @@ public static class MountedSettingsConventions
 
 public interface IMountedSettingsConventionsOverride
 {
-    string? MountDirectory { get; }
+    string? MountedSettingsDirectory { get; }
 }
 
 public class MountedSettingsOverride : IMountedSettingsConventionsOverride
 {
-    public string? MountDirectory { get; set; }
+    public string? MountedSettingsDirectory { get; set; }
 }

@@ -1,6 +1,6 @@
-using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Settings;
+using DRN.Framework.Utils.Settings.Conventions;
 using Microsoft.Extensions.Configuration;
 
 namespace DRN.Framework.Utils.Configurations;
@@ -10,7 +10,8 @@ public class ConfigurationDebugView
     public ConfigurationDebugView(IAppSettings appSettings)
     {
         Environment = appSettings.Environment;
-        MountedSettingsOverride = appSettings.Get<MountedSettingsOverride>(nameof(MountedSettingsOverride));
+        ConfigMountedDirectory = appSettings.GetValue<string>("MountedSettingsDirectory")
+                                 ?? MountedSettingsConventions.DefaultMountDirectory;;
 
         var root = appSettings.Configuration as IConfigurationRoot;
         var collectionByProvider = new Dictionary<IConfigurationProvider, DebugViewEntry[]>(10);
@@ -27,13 +28,13 @@ public class ConfigurationDebugView
     }
 
     public AppEnvironment Environment { get; }
-    public MountedSettingsOverride? MountedSettingsOverride { get; }
+    public string ConfigMountedDirectory { get; }
     public IReadOnlyList<DebugViewEntry> Entries { get; }
     public IReadOnlyDictionary<IConfigurationProvider, DebugViewEntry[]> DebugViewCollectionByProvider { get; }
 
     public ConfigurationDebugViewSummary ToSummary() => new(this);
 
-    private void RecurseChildren(IConfigurationRoot root, IList<DebugViewEntry> entries, IEnumerable<IConfigurationSection> children,
+    private static void RecurseChildren(IConfigurationRoot root, IList<DebugViewEntry> entries, IEnumerable<IConfigurationSection> children,
         DebugViewEntry? parentEntry = null)
     {
         foreach (var child in children)

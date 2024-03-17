@@ -1,5 +1,6 @@
 using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.Utils.Configurations;
+using DRN.Framework.Utils.Settings.Conventions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -10,7 +11,7 @@ public static class ConfigurationExtension
     public static IConfigurationBuilder AddMountDirectorySettings(this IConfigurationBuilder builder, IServiceCollection? sc = null)
     {
         var overrideService = sc?.BuildServiceProvider().GetService<IMountedSettingsConventionsOverride>();
-        var mountOverride = overrideService?.MountDirectory;
+        var mountOverride = overrideService?.MountedSettingsDirectory;
         if (overrideService != null)
             builder.AddObjectToJsonConfiguration(overrideService);
 

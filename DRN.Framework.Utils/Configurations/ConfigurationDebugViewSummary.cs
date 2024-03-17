@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
-using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.SharedKernel.Enums;
+using DRN.Framework.Utils.Settings.Conventions;
 
 namespace DRN.Framework.Utils.Configurations;
 
@@ -15,6 +15,8 @@ public class ConfigurationDebugViewSummary
     {
         AppEnvironment = configurationDebugView.Environment;
         AppName = AppConstants.ApplicationName;
+        ConfigMountedDirectory = configurationDebugView.ConfigMountedDirectory;
+
         var collectionByProvider = new Dictionary<string, string[]>(10);
         SettingsByProvider = collectionByProvider;
 
@@ -22,15 +24,16 @@ public class ConfigurationDebugViewSummary
         foreach (var grouping in items.GroupBy(e => e.Provider))
             collectionByProvider.Add(grouping.Key, grouping.OrderBy(item => item.Path).Select(item => item.ToString()).ToArray());
 
-        var mountDirectory = configurationDebugView.MountedSettingsOverride?.MountDirectory;
-        ConfigDirJsonFiles = GetDirectoryFileNames(MountedSettingsConventions.JsonSettingsMountDirectory(mountDirectory));
-        ConfigDirKeyPerFiles = GetDirectoryFileNames(MountedSettingsConventions.KeyPerFileSettingsMountDirectory(mountDirectory));
+        var mountDirectory = configurationDebugView.ConfigMountedDirectory;
+        ConfigMountedDirectoryJsonFiles = GetDirectoryFileNames(MountedSettingsConventions.JsonSettingsMountDirectory(mountDirectory));
+        ConfigMountedDirectoryKeyPerFiles = GetDirectoryFileNames(MountedSettingsConventions.KeyPerFileSettingsMountDirectory(mountDirectory));
     }
 
     public string AppName { get; init; } = default!;
     public AppEnvironment AppEnvironment { get; init; }
-    public string[] ConfigDirJsonFiles { get; init; } = default!;
-    public string[] ConfigDirKeyPerFiles { get; init; } = default!;
+    public string? ConfigMountedDirectory { get; init; } = default!;
+    public string[] ConfigMountedDirectoryJsonFiles { get; init; } = default!;
+    public string[] ConfigMountedDirectoryKeyPerFiles { get; init; } = default!;
     public IReadOnlyDictionary<string, string[]> SettingsByProvider { get; init; } = default!;
 
     private string[] GetDirectoryFileNames(string directory)
