@@ -56,9 +56,9 @@ WORKDIR /app
 COPY . ./
 
 #https://learn.microsoft.com/en-us/dotnet/core/rid-catalog
-RUN dotnet restore "./${PROJECT}/${PROJECT}.csproj"  -a $TARGETARCH
-RUN dotnet build "./${PROJECT}/${PROJECT}.csproj" -c Release  --no-restore -a $TARGETARCH
-RUN dotnet publish "./${PROJECT}/${PROJECT}.csproj" -c Release -o /app/publish --no-restore --no-build -a $TARGETARCH
+RUN dotnet restore "./${PROJECT}/${PROJECT}.csproj"  -a "$TARGETARCH"
+RUN dotnet build "./${PROJECT}/${PROJECT}.csproj" -c Release  --no-restore -a "$TARGETARCH"
+RUN dotnet publish "./${PROJECT}/${PROJECT}.csproj" -c Release -o /app/publish --no-restore --no-build -a "$TARGETARCH"
 
 # Build runtime image
 FROM base AS final
