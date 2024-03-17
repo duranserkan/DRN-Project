@@ -1,0 +1,4 @@
+{
+  "Environment": "staging",
+  "DrnContext_AutoMigrateDevEnvironment": true
+}

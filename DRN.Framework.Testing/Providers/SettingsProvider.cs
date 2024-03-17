@@ -1,5 +1,7 @@
+using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Testing.Providers;
 
@@ -23,7 +25,7 @@ public static class SettingsProvider
     /// Make sure file is copied to output directory, extension is json and settings name referring to it should not end with .json
     /// </summary>
     public static IConfiguration GetConfiguration(string settingsName = "settings", string? location = null,
-        List<IConfigurationSource>? configurationSources = null)
+        List<IConfigurationSource>? configurationSources = null, IServiceCollection? serviceCollection = null)
     {
         var settingsJson = $"{settingsName}.json";
         var locationFound = CheckLocation(location, settingsJson);
@@ -35,13 +37,13 @@ public static class SettingsProvider
         }
 
         var selectedLocation = locationFound ? location! : GlobalConventionLocation;
+        var configurationBuilder = new ConfigurationBuilder()
+            .SetBasePath(selectedLocation).AddJsonFile(settingsJson)
+            .AddMountDirectorySettings(serviceCollection);
+        if (configurationSources == null) return configurationBuilder.Build();
 
-        var configurationBuilder = new ConfigurationBuilder().SetBasePath(selectedLocation).AddJsonFile(settingsJson);
-
-        if (configurationSources != null)
-            foreach (var source in configurationSources)
-                configurationBuilder.Add(source);
-
+        foreach (var source in configurationSources)
+            configurationBuilder.Add(source);
 
         return configurationBuilder.Build();
     }

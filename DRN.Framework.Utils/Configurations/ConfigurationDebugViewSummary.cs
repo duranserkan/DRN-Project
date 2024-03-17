@@ -22,8 +22,9 @@ public class ConfigurationDebugViewSummary
         foreach (var grouping in items.GroupBy(e => e.Provider))
             collectionByProvider.Add(grouping.Key, grouping.OrderBy(item => item.Path).Select(item => item.ToString()).ToArray());
 
-        ConfigDirJsonFiles = GetDirectoryFileNames(SettingsConventions.JsonSettingMountDirectory);
-        ConfigDirKeyPerFiles = GetDirectoryFileNames(SettingsConventions.KeyPerFileSettingsMountDirectory);
+        var mountDirectory = configurationDebugView.MountedSettingsOverride?.MountDirectory;
+        ConfigDirJsonFiles = GetDirectoryFileNames(MountedSettingsConventions.JsonSettingsMountDirectory(mountDirectory));
+        ConfigDirKeyPerFiles = GetDirectoryFileNames(MountedSettingsConventions.KeyPerFileSettingsMountDirectory(mountDirectory));
     }
 
     public string AppName { get; init; } = default!;

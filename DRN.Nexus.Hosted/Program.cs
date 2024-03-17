@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel.Conventions;
 using DRN.Nexus.Application;
 using DRN.Nexus.Infra;
@@ -39,12 +40,11 @@ public class Program
     private static WebApplication CreateApp(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        var configuration = builder.Configuration;
         var serviceCollection = builder.Services;
+        var configuration = builder.Configuration;
+        configuration.AddMountDirectorySettings();
 
-        configuration.AddKeyPerFile(SettingsConventions.KeyPerFileSettingsMountDirectory, true);
         AddServices(serviceCollection);
-
         builder.WebHost.ConfigureKestrel(options =>
         {
             options.ConfigureEndpointDefaults(listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; });
@@ -61,7 +61,7 @@ public class Program
     private static void AddServices(IServiceCollection services)
     {
         services.AddControllers()
-            .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add( new JsonStringEnumConverter()));
+            .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         services.ConfigureHttpJsonOptions(options =>
         {
             var converter = new JsonStringEnumConverter();

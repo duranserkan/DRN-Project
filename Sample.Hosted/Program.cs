@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel.Conventions;
 using Sample.Application;
 using Sample.Infra;
@@ -11,6 +12,7 @@ public class Program
     {
         try
         {
+            _ = JsonConventions.DefaultOptions;
             var app = CreateApp(args);
             //log info
             app.Run();
@@ -37,12 +39,11 @@ public class Program
     private static WebApplication CreateApp(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        var configuration = builder.Configuration;
         var serviceCollection = builder.Services;
+        var configuration = builder.Configuration;
+        configuration.AddMountDirectorySettings();
 
-        configuration.AddKeyPerFile(SettingsConventions.KeyPerFileSettingsMountDirectory, true);
         AddServices(serviceCollection);
-
         var app = builder.Build();
         app.Services.ValidateServicesAddedByAttributes();
 

@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.Configuration;
@@ -9,6 +10,8 @@ public class ConfigurationDebugView
     public ConfigurationDebugView(IAppSettings appSettings)
     {
         Environment = appSettings.Environment;
+        MountedSettingsOverride = appSettings.Get<MountedSettingsOverride>(nameof(MountedSettingsOverride));
+
         var root = appSettings.Configuration as IConfigurationRoot;
         var collectionByProvider = new Dictionary<IConfigurationProvider, DebugViewEntry[]>(10);
         DebugViewCollectionByProvider = collectionByProvider;
@@ -24,6 +27,7 @@ public class ConfigurationDebugView
     }
 
     public AppEnvironment Environment { get; }
+    public MountedSettingsOverride? MountedSettingsOverride { get; }
     public IReadOnlyList<DebugViewEntry> Entries { get; }
     public IReadOnlyDictionary<IConfigurationProvider, DebugViewEntry[]> DebugViewCollectionByProvider { get; }
 

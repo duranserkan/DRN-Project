@@ -14,6 +14,7 @@
   </ItemGroup>
   
   <ItemGroup>
+    <ProjectReference Include="..\DRN.Framework.Hosting\DRN.Framework.Hosting.csproj" />
     <ProjectReference Include="..\Sample.Application\Sample.Application.csproj" />
   </ItemGroup>
 

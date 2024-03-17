@@ -15,6 +15,7 @@ public interface IAppSettings
     IConfigurationSection GetRequiredSection(string key);
     T? GetValue<T>(string key);
     T? GetValue<T>(string key, T defaultValue);
+    T? Get<T>(string key, Action<BinderOptions>? configureOptions = null);
     ConfigurationDebugView GetDebugView();
 }
 
@@ -62,5 +63,11 @@ public class AppSettings : IAppSettings
 
     public T? GetValue<T>(string key) => Configuration.GetValue<T>(key);
     public T? GetValue<T>(string key, T defaultValue) => Configuration.GetValue(key, defaultValue);
+
+    public T? Get<T>(string key, Action<BinderOptions>? configureOptions = null)
+    {
+        return Configuration.GetSection(key).Get<T>(configureOptions);
+    }
+
     public ConfigurationDebugView GetDebugView() => new(this);
 }

@@ -72,7 +72,8 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
 
     public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = "settings")
     {
-        var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation(), _configurationSources);
+        var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation(),
+            _configurationSources, ServiceCollection);
         var configurationRoot = (IConfigurationRoot)configuration;
 
         return configurationRoot;

@@ -55,6 +55,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj"/>
+        <ProjectReference Include="..\DRN.Framework.Hosting\DRN.Framework.Hosting.csproj" />
     </ItemGroup>
 
 </Project>
