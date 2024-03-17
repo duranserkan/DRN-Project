@@ -11,7 +11,7 @@ public class ConfigurationDebugView
     {
         Environment = appSettings.Environment;
         ConfigMountedDirectory = appSettings.GetValue<string>("MountedSettingsDirectory")
-                                 ?? MountedSettingsConventions.DefaultMountDirectory;;
+                                 ?? MountedSettingsConventions.DefaultMountDirectory;
 
         var root = appSettings.Configuration as IConfigurationRoot;
         var collectionByProvider = new Dictionary<IConfigurationProvider, DebugViewEntry[]>(10);

@@ -17,6 +17,6 @@ public class StatusControllerTests
 
         var client = webApplication.CreateClient();
         var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>("Status");
-        status.AppEnvironment.Should().Be(AppEnvironment.Development);
+        status?.AppEnvironment.Should().Be(AppEnvironment.Development);
     }
 }

@@ -36,7 +36,7 @@ public class ConfigurationDebugViewSummary
     public string[] ConfigMountedDirectoryKeyPerFiles { get; init; } = default!;
     public IReadOnlyDictionary<string, string[]> SettingsByProvider { get; init; } = default!;
 
-    private string[] GetDirectoryFileNames(string directory)
+    private static string[] GetDirectoryFileNames(string directory)
     {
         var directoryInfo = new DirectoryInfo(directory);
         var files = directoryInfo.Exists
