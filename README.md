@@ -27,11 +27,12 @@
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Utils?logo=Nuget&label=DRN.Framework.Utils)](https://nuget.org/packages/DRN.Framework.Utils/#readme-body-tab)
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.SharedKernel?logo=Nuget&label=DRN.Framework.SharedKernel)](https://nuget.org/packages/DRN.Framework.SharedKernel/#readme-body-tab)
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.EntityFramework?logo=Nuget&label=DRN.Framework.EntityFramework)](https://nuget.org/packages/DRN.Framework.EntityFramework/#readme-body-tab)
+[![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Hosting?logo=Nuget&label=DRN.Framework.Hosting)](https://nuget.org/packages/DRN.Framework.Hosting/#readme-body-tab)
 
 [![General badge](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white.svg)](https://www.linkedin.com/in/duranserkan/)
 [![General badge](https://img.shields.io/badge/Medium-12100E?style=for-the-badge&logo=medium&logoColor=white)](https://duranserkan.medium.com)
 
-TLDR; You can 
+TL;DR: You can 
 * use Nuget packages to easily develop and test distributed reliable dotnet applications.
 * use Argo CD GitOps to easily deploy your apps to a kubernetes cluster with Linkerd service mesh.
 * use Nexus App (not functional yet)

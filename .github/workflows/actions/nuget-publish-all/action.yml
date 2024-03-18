@@ -14,6 +14,10 @@ runs:
       uses: ./.github/workflows/actions/nuget-publish
       with:
         project-name: DRN.Framework.EntityFramework
+    - name: Publish Hosting
+      uses: ./.github/workflows/actions/nuget-publish
+      with:
+        project-name: DRN.Framework.Hosting
     - name: Publish Testing
       uses: ./.github/workflows/actions/nuget-publish
       with:
