@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel.Conventions;
 using Sample.Application;
@@ -42,6 +43,10 @@ public class Program
         var serviceCollection = builder.Services;
         var configuration = builder.Configuration;
         configuration.AddMountDirectorySettings();
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.ConfigureEndpointDefaults(listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; });
+        });
 
         AddServices(serviceCollection);
         var app = builder.Build();
@@ -56,6 +61,13 @@ public class Program
     {
         services.AddControllers()
             .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+        services.ConfigureHttpJsonOptions(options =>
+        {
+            var converter = new JsonStringEnumConverter();
+            options.SerializerOptions.Converters.Add(converter);
+            options.SerializerOptions.PropertyNameCaseInsensitive = true;
+        });
+
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();

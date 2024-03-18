@@ -12,7 +12,7 @@ public class NexusStatusController() : ControllerBase
     [ProducesResponseType(200)]
     public async Task<ActionResult<string>> Status([FromQuery] string name)
     {
-        var status = await "nexus/status"
+        var status = await "http://nexus/status"
             .AppendQueryParam("name", name)
             .WithSettings(x => x.HttpVersion = "2.0")
             .GetStringAsync();

@@ -1,9 +1,9 @@
 ﻿using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel.Conventions;
 using DRN.Nexus.Application;
 using DRN.Nexus.Infra;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 namespace DRN.Nexus.Hosted;
 
@@ -43,13 +43,12 @@ public class Program
         var serviceCollection = builder.Services;
         var configuration = builder.Configuration;
         configuration.AddMountDirectorySettings();
-
-        AddServices(serviceCollection);
         builder.WebHost.ConfigureKestrel(options =>
         {
             options.ConfigureEndpointDefaults(listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; });
         });
 
+        AddServices(serviceCollection);
         var app = builder.Build();
         app.Services.ValidateServicesAddedByAttributes();
 
