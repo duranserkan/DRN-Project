@@ -121,10 +121,9 @@ public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFact
 /// </summary>
 public class HasDrnContextServiceCollectionModuleAttribute : HasServiceCollectionModuleAttribute
 {
-    static HasDrnContextServiceCollectionModuleAttribute()
-    {
-        ModuleMethodInfo = typeof(ServiceCollectionExtensions).GetMethod(nameof(ServiceCollectionExtensions.AddDbContextsWithConventions))!;
-    }
+    static HasDrnContextServiceCollectionModuleAttribute() =>
+        ModuleMethodInfo = typeof(ServiceCollectionExtensions)
+            .GetMethod(nameof(ServiceCollectionExtensions.AddDbContextsWithConventions))!;
 
     public override async Task PostStartupValidationAsync(object service, IServiceProvider serviceProvider)
     {

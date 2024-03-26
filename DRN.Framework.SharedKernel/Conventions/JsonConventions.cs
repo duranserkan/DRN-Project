@@ -15,8 +15,8 @@ public static class JsonConventions
     static JsonConventions()
     {
         //https://stackoverflow.com/questions/58331479/how-to-globally-set-default-options-for-system-text-json-jsonserializer
-        UpdateDefaultOptions();
-        UpdateHttpClientJsonOptions();
+        UpdateDefaultJsonSerializerOptions();
+        UpdateHttpClientDefaultJsonSerializerOptions();
     }
 
     public static readonly JsonSerializerOptions DefaultOptions = new(JsonSerializerDefaults.Web)
@@ -25,13 +25,13 @@ public static class JsonConventions
         AllowTrailingCommas = true
     };
 
-    private static void UpdateDefaultOptions()
+    private static void UpdateDefaultJsonSerializerOptions()
     {
         var systemDefaults = typeof(JsonSerializerOptions).GetField(DefaultSerializerOptions, StaticPrivate)!;
         systemDefaults.SetValue(null, DefaultOptions);
     }
 
-    private static void UpdateHttpClientJsonOptions()
+    private static void UpdateHttpClientDefaultJsonSerializerOptions()
     {
         var helpers = typeof(JsonContent).Assembly.GetType(JsonHelpersFQN)!;
         var systemHttpJsonDefaultsField = helpers.GetField(JsonHelpersOptions, StaticPrivate)!;

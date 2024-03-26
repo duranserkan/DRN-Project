@@ -1,9 +1,15 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.  
 
-## Version 0.2.0
+## Version 0.2.2
 
 ### New Features
-
+* AppSettings now has GetDebugView() method that returns ConfigurationDebugView
+  * ConfigurationDebugView has ToSummary() method that returns human friendly configuration summary model.
+* AppSettings now has GetValue<> and Get<> methods to get values from configuration
+* MountedSettingsConventions added.
+  * /appconfig/json-settings json files will be added to configuration if any exist
+  * /appconfig/key-per-file-settings files will be added to configuration if any exist
+  * IMountedSettingsConventionsOverride overrides default /appconfig location if added to service collection before host built
 * HasServiceCollectionModuleAttribute has PostStartupValidationAsync when,
   * ValidateServicesAddedByAttributes extension method called from service provider,
   * PostStartupValidationAsync will be called if all services resolved successfully.

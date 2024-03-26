@@ -118,9 +118,16 @@ This offers following flexibility:
 ```csharp
 public class HasDrnContextServiceCollectionModuleAttribute : HasServiceCollectionModuleAttribute
 {
-    static HasDrnContextServiceCollectionModuleAttribute()
+    static HasDrnContextServiceCollectionModuleAttribute() =>
+        ModuleMethodInfo = typeof(ServiceCollectionExtensions)
+            .GetMethod(nameof(ServiceCollectionExtensions.AddDbContextsWithConventions))!;
+
+    public override async Task PostStartupValidationAsync(object service, IServiceProvider serviceProvider)
     {
-        ModuleMethodInfo = typeof(ServiceCollectionExtensions).GetMethod(nameof(ServiceCollectionExtensions.AddDbContextsWithConventions))!;
+        var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
+        var migrate = appSettings.Configuration.GetValue(DbContextConventions.AutoMigrateDevEnvironmentKey, false);
+        if (appSettings.Environment == AppEnvironment.Development && migrate && service is DbContext context)
+            await context.Database.MigrateAsync();
     }
 }
 
@@ -130,9 +137,8 @@ public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFact
 ...
 ```
 
-HasServiceCollectionModuleAttribute has PostStartupValidationAsync when,
-* ValidateServicesAddedByAttributes extension method called from service provider,
-* PostStartupValidationAsync will be called if all services resolved successfully.
+HasServiceCollectionModuleAttribute's PostStartupValidationAsync will be called when,
+* ValidateServicesAddedByAttributes extension method called from service provider if all services resolved successfully.
 * For instance, DrnContext can apply EF migrations after service provider services resolved successfully.
 
 ## Configurations
@@ -141,6 +147,33 @@ Following configuration sources can be used to add configurations from different
 
 * JsonSerializerConfigurationSource converts poco objects to configuration
 * RemoteJsonConfigurationSource fetches remote configuration (experimental and incomplete)
+
+Following MountedSettingsConventions will be added to configuration.
+* /appconfig/json-settings json files will be added to configuration if any exist
+* /appconfig/key-per-file-settings files will be added to configuration if any exist
+* IMountedSettingsConventionsOverride overrides default /appconfig location if added to service collection before host built
+
+```csharp
+namespace DRN.Framework.Utils.Settings.Conventions;
+
+public static class MountedSettingsConventions
+{
+    public const string DefaultMountDirectory = "/appconfig";
+    
+    public static string JsonSettingsMountDirectory(string? mountDirectory = null)
+        => Path.Combine(mountDirectory ?? DefaultMountDirectory, "json-settings");
+    public static string KeyPerFileSettingsMountDirectory(string? mountDirectory = null)
+        => Path.Combine(mountDirectory ?? DefaultMountDirectory, "key-per-file-settings");
+
+    public static DirectoryInfo JsonSettingDirectoryInfo(string? mountDirectory = null)
+        => new(JsonSettingsMountDirectory(mountDirectory));
+}
+
+public interface IMountedSettingsConventionsOverride
+{
+    string? MountedSettingsDirectory { get; }
+}
+```
 
 ## AppSettings
 
@@ -151,11 +184,16 @@ namespace DRN.Framework.Utils.Settings;
 
 public interface IAppSettings
 {
+    AppEnvironment Environment { get; }
     IConfiguration Configuration { get; }
     bool TryGetConnectionString(string name, out string connectionString);
     string GetRequiredConnectionString(string name);
     bool TryGetSection(string key, out IConfigurationSection section);
     IConfigurationSection GetRequiredSection(string key);
+    T? GetValue<T>(string key);
+    T? GetValue<T>(string key, T defaultValue);
+    T? Get<T>(string key, Action<BinderOptions>? configureOptions = null);
+    ConfigurationDebugView GetDebugView();
 }
 ```
 

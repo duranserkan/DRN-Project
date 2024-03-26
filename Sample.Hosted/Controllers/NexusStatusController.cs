@@ -10,7 +10,7 @@ public class NexusStatusController() : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(200)]
-    public async Task<ActionResult<string>> Status([FromQuery] string name)
+    public async Task<ActionResult<string>> Status([FromQuery] string? name)
     {
         var status = await "http://nexus/status"
             .AppendQueryParam("name", name)

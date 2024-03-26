@@ -1,5 +1,3 @@
-using System.Text.Json.Serialization;
-
 namespace DRN.Framework.Utils.Settings.Conventions;
 
 public static class MountedSettingsConventions
@@ -8,7 +6,6 @@ public static class MountedSettingsConventions
 
     public static string JsonSettingsMountDirectory(string? mountDirectory = null)
         => Path.Combine(mountDirectory ?? DefaultMountDirectory, "json-settings");
-
     public static string KeyPerFileSettingsMountDirectory(string? mountDirectory = null)
         => Path.Combine(mountDirectory ?? DefaultMountDirectory, "key-per-file-settings");
 
@@ -23,5 +20,5 @@ public interface IMountedSettingsConventionsOverride
 
 public class MountedSettingsOverride : IMountedSettingsConventionsOverride
 {
-    public string? MountedSettingsDirectory { get; set; }
+    public string? MountedSettingsDirectory { get; init; }
 }

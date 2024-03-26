@@ -34,8 +34,10 @@ public abstract class Entity
     private List<IDomainEvent> DomainEvents { get; } = new();
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
     public long Id { get; protected set; }
-    public DateTimeOffset CreatedAt { get; protected set; }
+
+    [ConcurrencyCheck]
     public DateTimeOffset ModifiedAt { get; protected set; }
+    public DateTimeOffset CreatedAt { get; protected set; }
 
     protected void AddDomainEvent(DomainEvent? e)
     {
@@ -101,33 +103,45 @@ namespace DRN.Framework.SharedKernel;
 
 public static class AppConstants
 {
-    private const string GoogleDnsIp = "8.8.4.4";
-    public static readonly int ProcessId = Environment.ProcessId;
-    public static readonly Guid ApplicationId = Guid.NewGuid();
-    public static readonly string ApplicationName = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";
-    public static readonly string TempPath = GetTempPath();
-    public static readonly string LocalIpAddress = GetLocalIpAddress();
+    public static int ProcessId { get; } = Environment.ProcessId;
+    public static Guid Id { get; } = Guid.NewGuid();
+    public static string ApplicationName { get; } = Assembly.GetEntryAssembly()?.GetName().Name
+                                                    ?? "Entry Assembly Not Found";
 
-    private static string GetTempPath()
-    {
-        var appSpecificTempPath = Path.Combine(Path.GetTempPath(), ApplicationName);
-        //Cleans directory in every startup
-        if (Directory.Exists(appSpecificTempPath)) Directory.Delete(appSpecificTempPath, true);
-        Directory.CreateDirectory(appSpecificTempPath);
-
-        return appSpecificTempPath;
-    }
-
-    private static string GetLocalIpAddress()
-    {
-        //how to get local IP address https://stackoverflow.com/posts/27376368/revisions
-        using var dataGramSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
-        dataGramSocket.Connect(GoogleDnsIp, 59999);
-        var localEndPoint = dataGramSocket.LocalEndPoint as IPEndPoint;
-        return localEndPoint?.Address.ToString() ?? string.Empty;
-    }
+    public static string TempPath { get; } = GetTempPath(); //Cleans directory at every startup
+    public static string LocalIpAddress { get; } = GetLocalIpAddress();
+...
 }
 ```
+
+## JsonConventions
+
+System.Text.Json defaults will be overridden by JsonConventions when
+  * TestContext is used in tests
+  * DrnHostBuilder is used to build host
+
+```csharp
+namespace DRN.Framework.SharedKernel.Conventions;
+
+public static class JsonConventions
+{
+...
+    static JsonConventions()
+    {
+        //https://stackoverflow.com/questions/58331479/how-to-globally-set-default-options-for-system-text-json-jsonserializer
+        UpdateDefaultJsonSerializerOptions();
+        UpdateHttpClientDefaultJsonSerializerOptions();
+    }
+    
+    public static readonly JsonSerializerOptions DefaultOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+        AllowTrailingCommas = true
+    };
+...
+}
+```
+
 
 ## Exceptions
 
