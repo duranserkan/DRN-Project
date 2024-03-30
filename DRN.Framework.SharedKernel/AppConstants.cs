@@ -8,6 +8,7 @@ public static class AppConstants
 {
     public static int ProcessId { get; } = Environment.ProcessId;
     public static Guid Id { get; } = Guid.NewGuid();
+
     public static string ApplicationName { get; } = Assembly.GetEntryAssembly()?.GetName().Name
                                                     ?? "Entry Assembly Not Found";
 
@@ -25,11 +26,19 @@ public static class AppConstants
 
     private static string GetLocalIpAddress()
     {
-        var googleDnsIp = "8.8.4.4";
         //how to get local IP address https://stackoverflow.com/posts/27376368/revisions
-        using var dataGramSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
-        dataGramSocket.Connect(googleDnsIp, 59999);
+        using var dataGramSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Unspecified);
+        try
+        {
+            dataGramSocket.Connect("192.168.0.0", 59999);
+        }
+        catch (SocketException e)
+        {
+            _ = e;
+            dataGramSocket.Connect("localhost", 59999);
+        }
         var localEndPoint = dataGramSocket.LocalEndPoint as IPEndPoint;
+
         return localEndPoint?.Address.ToString() ?? string.Empty;
     }
 }

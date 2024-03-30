@@ -1,4 +1,6 @@
+using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.DependencyInjection;
+using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -11,7 +13,7 @@ namespace DRN.Framework.Testing.Contexts;
 
 public sealed class WebApplicationContext(TestContext testContext) : IDisposable
 {
-    private IDisposable? _factory = null;
+    private IDisposable? _factory;
 
     public WebApplicationFactory<TEntryPoint> CreateWebApplication<TEntryPoint>(Action<IWebHostBuilder>? webHostConfigurator = null)
         where TEntryPoint : class

@@ -9,7 +9,7 @@ public class StatusController(IAppSettings appSettings) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(200)]
-    public ActionResult Status([FromQuery] string? name)
+    public ActionResult Status()
     {
         return Ok(appSettings.GetDebugView().ToSummary());
     }

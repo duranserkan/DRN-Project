@@ -1,4 +1,5 @@
 {
+  "Environment":"staging",
   "Logging": {
     "LogLevel": {
       "Default": "Information",

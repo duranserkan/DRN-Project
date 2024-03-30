@@ -35,14 +35,18 @@
             <PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/RELEASE-NOTES.md"))</PackageReleaseNotes>
         </PropertyGroup>
     </Target>
-
+    
     <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Configuration.KeyPerFile" Version="8.0.3" />
-        <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+        <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj"/>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.3" />
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     </ItemGroup>
 
 </Project>

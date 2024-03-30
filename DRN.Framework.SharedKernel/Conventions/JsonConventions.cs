@@ -19,11 +19,7 @@ public static class JsonConventions
         UpdateHttpClientDefaultJsonSerializerOptions();
     }
 
-    public static readonly JsonSerializerOptions DefaultOptions = new(JsonSerializerDefaults.Web)
-    {
-        Converters = { new JsonStringEnumConverter() },
-        AllowTrailingCommas = true
-    };
+    public static readonly JsonSerializerOptions DefaultOptions = SetJsonDefaults();
 
     private static void UpdateDefaultJsonSerializerOptions()
     {
@@ -38,7 +34,25 @@ public static class JsonConventions
         var systemHttpJsonDefaults = (JsonSerializerOptions)systemHttpJsonDefaultsField.GetValue(null)!;
 
         //update defaults one by one since  systemHttpJsonDefaultsField is static readonly
-        systemHttpJsonDefaults.Converters.Add(new JsonStringEnumConverter());
-        systemHttpJsonDefaults.AllowTrailingCommas = true;
+        SetJsonDefaults(systemHttpJsonDefaults);
+    }
+
+    /// <summary>
+    ///   <para>Option values appropriate to Web-based scenarios.</para>
+    ///   <para>This member implies that:</para>
+    ///   <para>- Property names are treated as case-insensitive.</para>
+    ///   <para>- "camelCase" name formatting should be employed.</para>
+    ///   <para>- Quoted numbers (JSON strings for number properties) are allowed.</para>
+    /// </summary>
+    public static JsonSerializerOptions SetJsonDefaults(JsonSerializerOptions? options = null)
+    {
+        options ??= new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new JsonStringEnumConverter());
+        options.AllowTrailingCommas = true;
+        options.PropertyNameCaseInsensitive = true;
+        options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.NumberHandling= JsonNumberHandling.AllowReadingFromString;
+
+        return options;
     }
 }
