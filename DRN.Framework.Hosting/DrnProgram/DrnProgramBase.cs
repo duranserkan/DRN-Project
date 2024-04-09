@@ -28,11 +28,11 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         }
         catch (Exception exception)
         {
-            Console.WriteLine("Exception Type:");
+            Console.WriteLine("UpsertException Type:");
             Console.WriteLine(exception.GetType().FullName);
-            Console.WriteLine("Exception Message:");
+            Console.WriteLine("UpsertException Message:");
             Console.WriteLine(exception.Message);
-            Console.WriteLine("Exception StackTrace:");
+            Console.WriteLine("UpsertException StackTrace:");
             Console.WriteLine(exception.StackTrace);
         }
         finally

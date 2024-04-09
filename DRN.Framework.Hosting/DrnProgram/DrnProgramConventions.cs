@@ -28,7 +28,6 @@ public static class DrnProgramConventions
     public static WebApplicationBuilder ConfigureDrnApplicationBuilder<TProgram>(WebApplicationBuilder builder)
         where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
     {
-
         builder.WebHost.ConfigureKestrel(options =>
         {
             options.ConfigureEndpointDefaults(listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; });
@@ -67,7 +66,6 @@ public static class DrnProgramConventions
             application.UseSwaggerUI();
         }
 
-        //webApplication.UseHttpsRedirection();
         application.UseAuthorization();
         application.MapControllers();
     }

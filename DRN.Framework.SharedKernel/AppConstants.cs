@@ -8,10 +8,7 @@ public static class AppConstants
 {
     public static int ProcessId { get; } = Environment.ProcessId;
     public static Guid Id { get; } = Guid.NewGuid();
-
-    public static string ApplicationName { get; } = Assembly.GetEntryAssembly()?.GetName().Name
-                                                    ?? "Entry Assembly Not Found";
-
+    public static string ApplicationName { get; } = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";
     public static string TempPath { get; } = GetTempPath(); //Cleans directory at every startup
     public static string LocalIpAddress { get; } = GetLocalIpAddress();
 
@@ -37,6 +34,7 @@ public static class AppConstants
             _ = e;
             dataGramSocket.Connect("localhost", 59999);
         }
+
         var localEndPoint = dataGramSocket.LocalEndPoint as IPEndPoint;
 
         return localEndPoint?.Address.ToString() ?? string.Empty;
