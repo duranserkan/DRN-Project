@@ -5,19 +5,25 @@ namespace DRN.Framework.Testing.Contexts.RabbitMQ;
 public class RabbitMQContext(TestContext testContext)
 {
     private static bool _started;
-    private static readonly object ContainerLock = new();
+    static readonly SemaphoreSlim ContainerLock = new(1, 1);
     private static readonly Lazy<RabbitMqContainer> Container = new(() => BuildContainer());
 
+    public TestContext TestContext { get; } = testContext;
     public IsolatedRabbitMQContext Isolated { get; } = new(testContext);
 
-    public RabbitMqContainer Start()
+    public async Task<RabbitMqContainer> StartAsync()
     {
-        lock (ContainerLock)
+        await ContainerLock.WaitAsync();
+        try
         {
             if (_started) return Container.Value;
-            Container.Value.StartAsync().GetAwaiter().GetResult();
+            await Container.Value.StartAsync();
             _started = true;
             return Container.Value;
+        }
+        finally
+        {
+            ContainerLock.Release();
         }
     }
 

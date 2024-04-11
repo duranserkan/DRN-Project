@@ -5,8 +5,7 @@ namespace DRN.Framework.Testing.Contexts.RabbitMQ;
 public class IsolatedRabbitMQContext(TestContext testContext)
 {
     public TestContext TestContext { get; } = testContext;
-    public ContainerContext ContainerContext { get; } = testContext.ContainerContext;
-
+    public ContainerContext ContainerContext => TestContext.ContainerContext;
 
     public async Task<RabbitMqContainer> StartRabbitMqAsync(string? version = null, string? username = null, string? password = null)
     {

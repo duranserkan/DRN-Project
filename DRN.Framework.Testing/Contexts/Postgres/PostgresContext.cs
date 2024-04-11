@@ -10,38 +10,54 @@ namespace DRN.Framework.Testing.Contexts.Postgres;
 public class PostgresContext(TestContext testContext)
 {
     private static bool _started;
-    private static readonly object ContainerLock = new();
+    static readonly SemaphoreSlim ContainerLock = new(1, 1);
     private static readonly Lazy<PostgreSqlContainer> Container = new(() => BuildContainer());
 
-    private static readonly object MigrationLock = new();
-    private static readonly List<Type> MigratedDbContexts = new();
+    static readonly SemaphoreSlim MigrationLock = new(1, 1);
+    private static readonly List<Type> MigratedDbContexts = new(10);
 
     public TestContext TestContext { get; } = testContext;
     public IsolatedPostgresContext Isolated { get; } = new(testContext);
 
-    public PostgreSqlContainer Start()
+    /// <summary>
+    ///  This is container instance is shared and Ryuk the Resource Reaper will remove it after all tests run
+    /// </summary>
+    public static async Task<PostgreSqlContainer> StartAsync()
     {
-        lock (ContainerLock)
+        await ContainerLock.WaitAsync();
+        try
         {
             if (_started) return Container.Value;
-            Container.Value.StartAsync().GetAwaiter().GetResult();
+            await Container.Value.StartAsync();
             _started = true;
             return Container.Value;
         }
+        finally
+        {
+            ContainerLock.Release();
+        }
     }
 
-    public PostgreSqlContainer StartAndApplyMigrations()
+    /// <summary>
+    ///  This is container instance is shared and Ryuk the Resource Reaper will remove it after all tests run
+    /// </summary>
+    public async Task<PostgreSqlContainer> ApplyMigrationsAsync()
     {
-        var container = Start();
+        var container = await StartAsync();
         var dbContexts = SetConnectionStrings(TestContext, container);
 
-        lock (MigrationLock)
+        await MigrationLock.WaitAsync();
+        try
         {
             var toBeMigratedDbContextTypes = dbContexts.Select(x => x.GetType()).Except(MigratedDbContexts).ToArray();
             var migrationTasks = dbContexts.Where(dbContext => toBeMigratedDbContextTypes.Contains(dbContext.GetType()))
                 .Select(dbContext => dbContext.Database.MigrateAsync()).ToArray();
-            Task.WhenAll(migrationTasks).GetAwaiter().GetResult();
+            await Task.WhenAll(migrationTasks);
             MigratedDbContexts.AddRange(toBeMigratedDbContextTypes);
+        }
+        finally
+        {
+            MigrationLock.Release();
         }
 
         return container;

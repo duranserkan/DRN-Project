@@ -18,7 +18,7 @@ public class IsolatedPostgresContext(TestContext testContext)
         return container;
     }
 
-    public async Task<PostgreSqlContainer> StartAndApplyMigrationsAsync(string? database = null,
+    public async Task<PostgreSqlContainer> ApplyMigrationsAsync(string? database = null,
         string? username = null, string? password = null, string? version = null)
     {
         var container = await StartAsync(database, username, password, version);
@@ -31,7 +31,7 @@ public class IsolatedPostgresContext(TestContext testContext)
     /// <summary>
     /// Can be used for rapid prototyping for single dbContext since Database.EnsureCreatedAsync doesn't support multiple contexts on single database
     /// </summary>
-    public async Task<PostgreSqlContainer> StartAndEnsureDatabaseAsync<TContext>(string? database = null,
+    public async Task<PostgreSqlContainer> EnsureDatabaseAsync<TContext>(string? database = null,
         string? username = null, string? password = null, string? version = null) where TContext : DbContext
     {
         var container = await StartAsync(database, username, password, version);

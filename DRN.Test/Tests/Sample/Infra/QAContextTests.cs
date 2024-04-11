@@ -15,7 +15,7 @@ public class QAContextTests
     public async Task QAContext_Should_Add_And_Remove_Question(TestContext context)
     {
         context.ServiceCollection.AddSampleInfraServices();
-        context.ContainerContext.Postgres.StartAndApplyMigrations();
+        await context.ContainerContext.Postgres.ApplyMigrationsAsync();
         var qaContext = context.GetRequiredService<QAContext>();
         _ = context.GetRequiredService<QBContext>(); //to make sure multiple contexts can run side by side
 

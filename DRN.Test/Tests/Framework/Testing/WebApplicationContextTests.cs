@@ -11,7 +11,7 @@ public class WebApplicationContextTests
     public async Task WebApplicationContext_Should_Provide_Configuration_To_Program(TestContext context)
     {
         var webApplication = context.WebApplicationContext.CreateWebApplication<Program>();
-        context.ContainerContext.Postgres.StartAndApplyMigrations();
+        await context.ContainerContext.Postgres.ApplyMigrationsAsync();
 
         var client = webApplication.CreateClient();
         var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>("WeatherForecast");
