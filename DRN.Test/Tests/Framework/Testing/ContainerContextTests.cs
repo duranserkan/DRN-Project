@@ -1,3 +1,4 @@
+using DRN.Framework.Testing.Contexts.RabbitMQ;
 using Microsoft.EntityFrameworkCore;
 using Sample.Infra;
 using Sample.Infra.QA;
@@ -25,7 +26,7 @@ public class ContainerContextRabbitMqTests
     [DataInline]
     public async Task ContainerContext_Should_Create_RabbitMq_Container(TestContext context)
     {
-        var container = await context.ContainerContext.RabbitMQ.StartAsync();
+        var container = await RabbitMQContext.StartAsync();
         var connectionString = container.GetConnectionString();
         connectionString.Should().NotBeNull();
     }

@@ -50,7 +50,8 @@ public class PostgresContext(TestContext testContext)
         try
         {
             var toBeMigratedDbContextTypes = dbContexts.Select(x => x.GetType()).Except(MigratedDbContexts).ToArray();
-            var migrationTasks = dbContexts.Where(dbContext => toBeMigratedDbContextTypes.Contains(dbContext.GetType()))
+            var migrationTasks = dbContexts
+                .Where(dbContext => toBeMigratedDbContextTypes.Contains(dbContext.GetType()))
                 .Select(dbContext => dbContext.Database.MigrateAsync()).ToArray();
             await Task.WhenAll(migrationTasks);
             MigratedDbContexts.AddRange(toBeMigratedDbContextTypes);

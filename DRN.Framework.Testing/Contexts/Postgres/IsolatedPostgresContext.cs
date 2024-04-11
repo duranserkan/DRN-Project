@@ -36,7 +36,7 @@ public class IsolatedPostgresContext(TestContext testContext)
     {
         var container = await StartAsync(database, username, password, version);
         var dbContexts = PostgresContext.SetConnectionStrings(TestContext, container);
-        var dbContext = dbContexts.FirstOrDefault(d => d.GetType() == typeof(TContext));
+        var dbContext = Array.Find(dbContexts, d => d.GetType() == typeof(TContext));
         ArgumentNullException.ThrowIfNull(dbContext);
 
         await dbContext.Database.EnsureCreatedAsync();
@@ -44,7 +44,7 @@ public class IsolatedPostgresContext(TestContext testContext)
         return container;
     }
 
-    public static async Task MigrateDbContextsAsync(DbContext[] dbContexts)
+    private static async Task MigrateDbContextsAsync(DbContext[] dbContexts)
     {
         if (dbContexts.Length == 0) return;
 

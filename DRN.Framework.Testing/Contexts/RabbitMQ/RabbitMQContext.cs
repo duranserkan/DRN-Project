@@ -11,7 +11,7 @@ public class RabbitMQContext(TestContext testContext)
     public TestContext TestContext { get; } = testContext;
     public IsolatedRabbitMQContext Isolated { get; } = new(testContext);
 
-    public async Task<RabbitMqContainer> StartAsync()
+    public static async Task<RabbitMqContainer> StartAsync()
     {
         await ContainerLock.WaitAsync();
         try
