@@ -1,3 +1,4 @@
+using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.Utils.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
@@ -59,6 +60,8 @@ public static class DrnProgramConventions
     public static void ConfigureDrnApplication(WebApplication application)
     {
         application.Services.ValidateServicesAddedByAttributes();
+        application.UseMiddleware<HttpScopeLogger>();
+        application.UseMiddleware<HttpRequestLogger>();
 
         if (application.Environment.IsDevelopment())
         {

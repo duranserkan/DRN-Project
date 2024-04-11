@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
@@ -20,10 +21,11 @@ public class ScopedLog : IScopedLog
 
     public ScopedLog()
     {
-        Upsert(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeOffset.UtcNow);
-        Upsert(nameof(ScopedLog), true);
-        Upsert(nameof(AppConstants.ApplicationName), AppConstants.ApplicationName);
-        Upsert(nameof(Environment.MachineName), Environment.MachineName);
+        Add(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeOffset.UtcNow);
+        Add(nameof(ScopedLog), true);
+        Add(nameof(AppConstants.ApplicationName), AppConstants.ApplicationName);
+        Add(nameof(AppConstants.ApplicationId), AppConstants.ApplicationId);
+        Add(nameof(Environment.MachineName), Environment.MachineName);
     }
 
     public TimeSpan ScopeDuration => DateTimeOffset.UtcNow - (DateTimeOffset)LogData[ScopedLogConventions.KeyOfScopeCreatedAt];
@@ -32,7 +34,7 @@ public class ScopedLog : IScopedLog
     {
         get
         {
-            Upsert(ScopedLogConventions.KeyOfScopeDuration, ScopeDuration);
+            Add(ScopedLogConventions.KeyOfScopeDuration, ScopeDuration);
 
             return new SortedDictionary<string, object>(LogData);
         }
@@ -41,21 +43,21 @@ public class ScopedLog : IScopedLog
     public bool HasException { get; private set; }
     public bool HasWarning { get; private set; }
 
-    public void UpsertException(Exception exception)
+    public void AddException(Exception exception)
     {
         HasException = true;
-        Upsert(ScopedLogConventions.KeyOfExceptionType, exception.GetType().FullName ?? string.Empty);
-        Upsert(ScopedLogConventions.KeyOfExceptionMessage, exception.Message);
-        Upsert(ScopedLogConventions.KeyOfExceptionStackTrace, exception.StackTrace ?? string.Empty);
+        Add(ScopedLogConventions.KeyOfExceptionType, exception.GetType().FullName ?? string.Empty);
+        Add(ScopedLogConventions.KeyOfExceptionMessage, exception.Message);
+        Add(ScopedLogConventions.KeyOfExceptionStackTrace, exception.StackTrace ?? string.Empty);
     }
 
-    public void UpsertWarning(string warningMessage)
+    public void AddWarning(string warningMessage)
     {
         HasWarning = true;
-        Upsert(ScopedLogConventions.KeyOfWarningMessage, warningMessage);
+        Add(ScopedLogConventions.KeyOfWarningMessage, warningMessage);
     }
 
-    public void Upsert(string key, object value)
+    public IScopedLog Add(string key, object value)
     {
         if (value.IgnoredLog())
             LogData[key] = ScopedLogConventions.IgnoredLogValue;
@@ -65,17 +67,28 @@ public class ScopedLog : IScopedLog
             LogData[ScopedLogConventions.TimeSpanKey(key)] = time.TotalSeconds;
         else
             LogData[key] = value;
+
+        return this;
     }
 
-    public void UpsertProperties<TValue>(string prefix, TValue classObject, params string[] ignoredPropertyNames) where TValue : class
+    public IScopedLog WithLoggerName(string? name)
+    {
+        Add(ScopedLogConventions.KeyOfLoggerName, name ?? "n/a");
+
+        return this;
+    }
+
+    public IScopedLog AddProperties<TValue>(string prefix, TValue classObject, params string[] ignoredPropertyNames) where TValue : class
     {
         foreach (var propertyInfo in typeof(TValue).GetProperties())
         {
             var ignored = propertyInfo.IgnoredLog() || ignoredPropertyNames.Contains(propertyInfo.Name);
             var logValue = ignored ? ScopedLogConventions.IgnoredLogValue : propertyInfo.GetValue(classObject);
             var logKey = ScopedLogConventions.PropertyLogKeyKey(prefix, propertyInfo);
-            Upsert(logKey, logValue ?? string.Empty);
+            Add(logKey, logValue ?? string.Empty);
         }
+
+        return this;
     }
 
     public void AddToActions(string action) => AddToList(ScopedLogConventions.KeyOfActions, action);
@@ -89,7 +102,7 @@ public class ScopedLog : IScopedLog
             if (LogData.TryGetValue(key, out var obj) && obj is List<object> list)
                 list.Add(value);
             else
-                Upsert(key, new List<object>(8) { value });
+                Add(key, new List<object>(8) { value });
         }
     }
 
@@ -102,7 +115,7 @@ public class ScopedLog : IScopedLog
                 : 0;
 
             counter += by;
-            Upsert(key, counter);
+            Add(key, counter);
 
             return counter;
         }
@@ -119,9 +132,14 @@ public class ScopedLog : IScopedLog
                 : 0;
 
             timeSpent += by.TotalSeconds;
-            Upsert(ScopedLogConventions.TimeSpentOnKey(key), timeSpent);
+            Add(ScopedLogConventions.TimeSpentOnKey(key), timeSpent);
 
             return TimeSpan.FromSeconds(timeSpent);
         }
+    }
+
+    public override string ToString()
+    {
+        return JsonSerializer.Serialize(Logs);
     }
 }

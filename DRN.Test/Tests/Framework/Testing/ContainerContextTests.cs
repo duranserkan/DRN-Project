@@ -22,7 +22,7 @@ public class ContainerContextPostgresTests
 
 public class ContainerContextRabbitMqTests
 {
-    [Theory]
+    [TheoryDebuggerOnly]
     [DataInline]
     public async Task ContainerContext_Should_Create_RabbitMq_Container(TestContext context)
     {

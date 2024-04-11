@@ -5,8 +5,9 @@ namespace DRN.Framework.Utils.Logging;
 public static class ScopedLogConventions
 {
     public const string IgnoredLogValue = "ignored";
-    public const short StringLimit = 1500;
+    public const short StringLimit = 1250;
 
+    public const string KeyOfLoggerName = "LoggerName";
     public const string KeyOfScopeCreatedAt = "ScopeCreatedAt";
     public const string KeyOfScopeDuration = "ScopeDuration";
     public const string KeyOfActions = "Actions";

@@ -1,6 +1,7 @@
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Conventions;
+using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,23 +22,27 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected static async Task RunAsync(string[]? args = null)
     {
+        var scopedLog = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
         try
         {
+            scopedLog.AddToActions("Creating Application");
             var application = CreateApplication(args);
+
+            scopedLog.AddToActions("Running Application");
+            Console.WriteLine(scopedLog.ToString());
+
             await application.RunAsync();
         }
         catch (Exception exception)
         {
-            Console.WriteLine("UpsertException Type:");
-            Console.WriteLine(exception.GetType().FullName);
-            Console.WriteLine("UpsertException Message:");
-            Console.WriteLine(exception.Message);
-            Console.WriteLine("UpsertException StackTrace:");
-            Console.WriteLine(exception.StackTrace);
+            scopedLog.AddException(exception);
+            Console.WriteLine(scopedLog.ToString());
         }
         finally
         {
+            scopedLog.AddToActions("Application Stopped");
             //log shutdown
+            Console.WriteLine(scopedLog.ToString());
         }
     }
 
