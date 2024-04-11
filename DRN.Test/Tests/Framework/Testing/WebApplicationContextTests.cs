@@ -11,7 +11,7 @@ public class WebApplicationContextTests
     public async Task WebApplicationContext_Should_Provide_Configuration_To_Program(TestContext context)
     {
         var webApplication = context.WebApplicationContext.CreateWebApplication<Program>();
-        await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
+        context.ContainerContext.Postgres.StartAndApplyMigrations();
 
         var client = webApplication.CreateClient();
         var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>("WeatherForecast");
@@ -22,6 +22,6 @@ public class WebApplicationContextTests
         connectionString.Should().NotBeNull();
 
         var appSettingsFromTestContext = context.GetRequiredService<IAppSettings>();
-        appSettingsFromWebApplication.Should().BeSameAs(appSettingsFromTestContext);//resolved from same service provider
+        appSettingsFromWebApplication.Should().BeSameAs(appSettingsFromTestContext); //resolved from same service provider
     }
 }

@@ -1,6 +1,4 @@
-using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.DependencyInjection;
-using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -51,13 +49,10 @@ public sealed class WebApplicationContext(TestContext testContext) : IDisposable
 
         _factory = factory;
 
-        return factory!;
+        return factory;
     }
 
-    public void Dispose()
-    {
-        _factory?.Dispose();
-    }
+    public void Dispose() => _factory?.Dispose();
 }
 
 public class DrnWebApplicationFactory<TEntryPoint>(TestContext context, bool temporary = false) : WebApplicationFactory<TEntryPoint>

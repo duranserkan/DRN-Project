@@ -12,7 +12,7 @@ public class StatusControllerTests
     public async Task StatusController_Should_Return_Status(TestContext context)
     {
         var webApplication = context.WebApplicationContext.CreateWebApplication<Program>();
-        //await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
+        //await context.ContainerContext.StartAndApplyMigrationsAsync();
 
         var client = webApplication.CreateClient();
         var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>("Status");

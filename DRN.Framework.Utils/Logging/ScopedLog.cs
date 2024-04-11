@@ -97,10 +97,8 @@ public class ScopedLog : IScopedLog
     {
         lock (_counter)
         {
-            var counter = LogData.TryGetValue(key, out var obj)
-                ? obj is long i
-                    ? i
-                    : 0
+            var counter = LogData.TryGetValue(key, out var obj) && obj is long i
+                ? i
                 : 0;
 
             counter += by;
@@ -116,10 +114,8 @@ public class ScopedLog : IScopedLog
         var updateKey = ScopedLogConventions.TimeSpentOnKey(key);
         lock (_timeUpdater)
         {
-            var timeSpent = LogData.TryGetValue(updateKey, out var obj)
-                ? obj is double durationSeconds
-                    ? durationSeconds
-                    : 0
+            var timeSpent = LogData.TryGetValue(updateKey, out var obj) && obj is double durationSeconds
+                ? durationSeconds
                 : 0;
 
             timeSpent += by.TotalSeconds;

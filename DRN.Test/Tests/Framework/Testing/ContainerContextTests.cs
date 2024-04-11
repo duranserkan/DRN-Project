@@ -11,7 +11,7 @@ public class ContainerContextPostgresTests
     public async Task ContainerContext_Should_Migrate_DbContexts(TestContext context)
     {
         context.ServiceCollection.AddSampleInfraServices();
-        await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
+        context.ContainerContext.Postgres.StartAndApplyMigrations();
         var qaContext = context.GetRequiredService<QAContext>();
         var appliedMigrations = await qaContext.Database.GetAppliedMigrationsAsync();
 
@@ -23,9 +23,9 @@ public class ContainerContextRabbitMqTests
 {
     [Theory]
     [DataInline]
-    public async Task ContainerContext_Should_Create_RabbitMq_Container(TestContext context)
+    public void ContainerContext_Should_Create_RabbitMq_Container(TestContext context)
     {
-        var container = await context.ContainerContext.StartRabbitMqAsync();
+        var container = context.ContainerContext.RabbitMQ.Start();
         var connectionString = container.GetConnectionString();
         connectionString.Should().NotBeNull();
     }

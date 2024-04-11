@@ -73,11 +73,11 @@ public class DrnServiceContainerTests
 
     [Theory]
     [DataInline]
-    public async Task Validate_Sample_Dependencies(TestContext context)
+    public void Validate_Sample_Dependencies(TestContext context)
     {
         context.ServiceCollection.AddSampleApplicationServices();
         context.ServiceCollection.AddSampleInfraServices();
-        await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
+        context.ContainerContext.Postgres.StartAndApplyMigrations();
         context.ValidateServices();
     }
 

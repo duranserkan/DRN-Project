@@ -16,7 +16,7 @@ public class DrnContextDevelopmentConnectionTests
     {
         var database = DbContextConventions.DefaultDatabase;
         var username = DbContextConventions.DefaultUsername;
-        var container = await testContext.ContainerContext.StartPostgresAsync(database, username, password);
+        var container = await testContext.ContainerContext.Postgres.Isolated.StartAsync(database, username, password);
         var csBuilder = new NpgsqlConnectionStringBuilder(container.GetConnectionString());
 
         var developmentDbSettings = new Dictionary<string, object>
