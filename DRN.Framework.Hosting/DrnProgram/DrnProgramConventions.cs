@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Serilog;
 
 namespace DRN.Framework.Hosting.DrnProgram;
 
@@ -16,9 +17,9 @@ public static class DrnProgramConventions
     {
         var builder = drnAppBuilderType switch
         {
-            DrnAppBuilderType.DrnDefaults => WebApplication.CreateEmptyBuilder(options),
             DrnAppBuilderType.Empty => WebApplication.CreateEmptyBuilder(options),
             DrnAppBuilderType.Slim => WebApplication.CreateSlimBuilder(options),
+            DrnAppBuilderType.DrnDefaults => WebApplication.CreateSlimBuilder(options),
             DrnAppBuilderType.Default => WebApplication.CreateBuilder(options),
             _ => throw new ArgumentOutOfRangeException()
         };
@@ -29,6 +30,7 @@ public static class DrnProgramConventions
     public static WebApplicationBuilder ConfigureDrnApplicationBuilder<TProgram>(WebApplicationBuilder builder)
         where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
     {
+        builder.Host.UseSerilog();
         builder.WebHost.ConfigureKestrel(options =>
         {
             options.ConfigureEndpointDefaults(listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; });

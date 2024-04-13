@@ -24,10 +24,10 @@ public static class SettingsProvider
     /// Alternate locations are the Settings subfolder of the test project or provided location by convention
     /// Make sure file is copied to output directory, extension is json and settings name referring to it should not end with .json
     /// </summary>
-    public static IConfiguration GetConfiguration(string settingsName = "settings", string? location = null,
+    public static IConfiguration GetConfiguration(string settingsJsonName = "settings", string? location = null,
         List<IConfigurationSource>? configurationSources = null, IServiceCollection? serviceCollection = null)
     {
-        var settingsJson = $"{settingsName}.json";
+        var settingsJson = $"{settingsJsonName}.json";
         var locationFound = CheckLocation(location, settingsJson);
         if (!locationFound && !string.IsNullOrWhiteSpace(location))
         {
@@ -37,12 +37,10 @@ public static class SettingsProvider
         }
 
         var selectedLocation = locationFound ? location! : GlobalConventionLocation;
-        var configurationBuilder = new ConfigurationBuilder()
-            .SetBasePath(selectedLocation).AddJsonFile(settingsJson)
-            .AddMountDirectorySettings(serviceCollection);
-        if (configurationSources == null) return configurationBuilder.Build();
+        var configurationBuilder = new ConfigurationBuilder().SetBasePath(selectedLocation)
+            .AddDrnSettings(settingJsonName: settingsJsonName, sc: serviceCollection);
 
-        foreach (var source in configurationSources)
+        foreach (var source in configurationSources ?? [])
             configurationBuilder.Add(source);
 
         return configurationBuilder.Build();

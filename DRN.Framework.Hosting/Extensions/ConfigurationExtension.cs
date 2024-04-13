@@ -1,5 +1,5 @@
-using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.Utils.Configurations;
+using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Settings.Conventions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +21,25 @@ public static class ConfigurationExtension
 
         foreach (var files in jsonDirectory.GetFiles())
             builder.AddJsonFile(files.FullName);
+
+        return builder;
+    }
+
+    public static IConfigurationBuilder AddDrnSettings(this IConfigurationBuilder builder, string[]? args = null, string settingJsonName = "appsettings",
+        IServiceCollection? sc = null)
+    {
+        if (string.IsNullOrWhiteSpace(settingJsonName))
+            settingJsonName = "appsettings";
+
+        builder.AddJsonFile($"{settingJsonName}.json", true);
+        builder.AddEnvironmentVariables();
+        if (args != null && args.Length > 0)
+            builder.AddCommandLine(args);
+
+        var tempSettings = new AppSettings(builder.Build());
+
+        builder.AddJsonFile($"{settingJsonName}.{tempSettings.Environment.ToString()}.json", true);
+        builder.AddMountDirectorySettings(sc);
 
         return builder;
     }

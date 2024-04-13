@@ -6,6 +6,7 @@ namespace DRN.Framework.Hosting.Middlewares;
 
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/write?view=aspnetcore-8.0
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-8.0
+//https://github.com/serilog/serilog/wiki/Structured-Data
 //https://github.com/NLog/NLog/wiki/How-to-use-structured-logging
 public class HttpScopeLogger(RequestDelegate next)
 {

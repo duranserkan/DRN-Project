@@ -1,5 +1,4 @@
 using System.Text.Json;
-using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Settings.Conventions;
 
