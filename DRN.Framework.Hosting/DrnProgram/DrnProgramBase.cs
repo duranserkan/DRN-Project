@@ -34,8 +34,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         {
             scopedLog.AddToActions("Creating Application");
             var application = CreateApplication(args);
-            var appSettings = application.Services.GetService<IAppSettings>();
-            AppSettings.Instance = appSettings;
 
             scopedLog.AddToActions("Running Application");
             Log.Information("{@Logs}", scopedLog.Logs);

@@ -16,6 +16,6 @@ public class StatusControllerTests
         var client = webApplication.CreateClient();
         var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>("Status");
         var programName = typeof(Program).GetAssemblyName();
-        status.ApplicationName.Should().Be(programName);
+        status?.ApplicationName.Should().Be(programName);
     }
 }

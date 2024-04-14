@@ -2,11 +2,11 @@ using Flurl;
 
 namespace DRN.Test.Tests;
 
-public class sketch
+public class Sketch
 {
     [Theory]
     [DataInline]
-    public async Task Doodle(TestContext context)
+    public void Doodle(TestContext _)
     {
         var u = "http://nexus/status/".AppendQueryParam("name", null)!;
         var x=u.ToString();

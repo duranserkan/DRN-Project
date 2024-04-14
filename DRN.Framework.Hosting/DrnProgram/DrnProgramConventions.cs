@@ -1,16 +1,17 @@
-using System.Reflection;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
-using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace DRN.Framework.Hosting.DrnProgram;
@@ -35,7 +36,9 @@ public static class DrnProgramConventions
     public static void ConfigureDrnApplication(WebApplication application)
     {
         application.Services.ValidateServicesAddedByAttributes();
+        application.UseForwardedHeaders();
         application.UseMiddleware<HttpScopeLogger>();
+        application.UseHostFiltering();
         application.UseMiddleware<HttpRequestLogger>();
 
         if (application.Environment.IsDevelopment())
@@ -43,6 +46,8 @@ public static class DrnProgramConventions
             application.UseSwagger();
             application.UseSwaggerUI();
         }
+
+        application.UseRouting();
 
         application.UseAuthorization();
         application.MapControllers();
@@ -59,10 +64,6 @@ public static class DrnProgramConventions
                 kestrelServerOptions.Configure(builder.Configuration.GetSection("Kestrel"), true);
                 kestrelServerOptions.ConfigureEndpointDefaults(listenOptions => listenOptions.Protocols = HttpProtocols.Http2);
             });
-
-        var ConfigureWebDefaultsWorker = typeof(WebHost)
-            .GetMethod("ConfigureWebDefaultsWorker", BindingFlags.Static | BindingFlags.NonPublic);
-        ConfigureWebDefaultsWorker?.Invoke(null, [builder.WebHost, null]);
 
         AddDefaultServices<TProgram>(builder.Services, builder.Configuration);
 
@@ -82,7 +83,6 @@ public static class DrnProgramConventions
                                                                            ActivityTrackingOptions.ParentId);
         });
 
-
         var mvcBuilder = services.AddControllers()
             .AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
 
@@ -95,5 +95,19 @@ public static class DrnProgramConventions
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
+
+        services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
+
+        services.PostConfigure<HostFilteringOptions>(options =>
+        {
+            if (options.AllowedHosts != null && options.AllowedHosts.Count != 0) return;
+            // "AllowedHosts": "localhost;127.0.0.1;[::1]"
+            var hosts = configuration["AllowedHosts"]?.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+            // Fall back to "*" to disable.
+            options.AllowedHosts = hosts?.Length > 0 ? hosts : ["*"];
+        });
+        // Change notification
+        services.AddSingleton<IOptionsChangeTokenSource<HostFilteringOptions>>(
+            new ConfigurationChangeTokenSource<HostFilteringOptions>(configuration));
     }
 }

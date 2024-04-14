@@ -16,6 +16,8 @@ public static class ServiceProviderExtensions
         var serviceProvider = scope.ServiceProvider;
 
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
+        AppSettings.Instance = appSettings;
+
         if (appSettings.TryGetSection(DrnServiceContainer.SkipValidationKey, out var configurationSection))
         {
             var dontValidate = configurationSection.Value == DrnServiceContainer.SkipValidation;

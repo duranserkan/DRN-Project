@@ -8,7 +8,7 @@ public class JsonConventionsTests
 {
     [Theory]
     [DataInline]
-    public void JsonSerializer_Should_Use_Updated_Conventions()
+    public void JsonSerializer_Should_Use_Updated_Conventions(TestContext _)
     {
         JsonSerializerOptions.Default.Should().Be(JsonConventions.DefaultOptions);
         var enumTest = JsonSerializer.Deserialize<EnumTest>(@"{""environment"":""Production""}")!;

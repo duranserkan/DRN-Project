@@ -24,7 +24,7 @@ public class ContainerContextRabbitMqTests
 {
     [TheoryDebuggerOnly]
     [DataInline]
-    public async Task ContainerContext_Should_Create_RabbitMq_Container(TestContext context)
+    public async Task ContainerContext_Should_Create_RabbitMq_Container(TestContext _)
     {
         var container = await RabbitMQContext.StartAsync();
         var connectionString = container.GetConnectionString();

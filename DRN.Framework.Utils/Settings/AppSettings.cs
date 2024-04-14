@@ -1,10 +1,7 @@
-using System.Runtime.CompilerServices;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.Extensions.Configuration;
-
-[assembly: InternalsVisibleTo("DRN.Framework.Hosting")]
 
 namespace DRN.Framework.Utils.Settings;
 
