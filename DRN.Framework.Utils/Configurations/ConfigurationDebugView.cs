@@ -10,6 +10,7 @@ public class ConfigurationDebugView
     public ConfigurationDebugView(IAppSettings appSettings)
     {
         Environment = appSettings.Environment;
+        ApplicationName = appSettings.ApplicationName;
         ConfigMountedDirectory = appSettings.GetValue<string>("MountedSettingsDirectory")
                                  ?? MountedSettingsConventions.DefaultMountDirectory;
 
@@ -28,6 +29,7 @@ public class ConfigurationDebugView
     }
 
     public AppEnvironment Environment { get; }
+    public string ApplicationName { get; }
     public string ConfigMountedDirectory { get; }
     public IReadOnlyList<DebugViewEntry> Entries { get; }
     public IReadOnlyDictionary<IConfigurationProvider, DebugViewEntry[]> DebugViewCollectionByProvider { get; }

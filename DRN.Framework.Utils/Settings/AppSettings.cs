@@ -1,13 +1,17 @@
+using System.Runtime.CompilerServices;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.Extensions.Configuration;
+
+[assembly: InternalsVisibleTo("DRN.Framework.Hosting")]
 
 namespace DRN.Framework.Utils.Settings;
 
 public interface IAppSettings
 {
     AppEnvironment Environment { get; }
+    string ApplicationName { get; }
     IConfiguration Configuration { get; }
     bool TryGetConnectionString(string name, out string connectionString);
     string GetRequiredConnectionString(string name);
@@ -22,15 +26,21 @@ public interface IAppSettings
 [Singleton<IAppSettings>]
 public class AppSettings : IAppSettings
 {
+    public static IAppSettings? Instance { get; protected internal set; }
+
     public AppSettings(IConfiguration configuration)
     {
         Configuration = configuration;
         Environment = TryGetSection(nameof(Environment), out _)
             ? configuration.GetValue<AppEnvironment>(nameof(Environment))
             : AppEnvironment.NotDefined;
+        ApplicationName = TryGetSection(nameof(ApplicationName), out _)
+            ? configuration.GetValue<string>(nameof(ApplicationName)) ?? AppConstants.EntryAssemblyName
+            : AppConstants.EntryAssemblyName;
     }
 
     public AppEnvironment Environment { get; }
+    public string ApplicationName { get; }
     public IConfiguration Configuration { get; }
 
     public bool TryGetConnectionString(string name, out string connectionString)

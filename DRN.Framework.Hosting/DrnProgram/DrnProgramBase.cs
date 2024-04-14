@@ -1,6 +1,6 @@
 using DRN.Framework.Hosting.Extensions;
-using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Conventions;
+using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
@@ -34,6 +34,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         {
             scopedLog.AddToActions("Creating Application");
             var application = CreateApplication(args);
+            var appSettings = application.Services.GetService<IAppSettings>();
+            AppSettings.Instance = appSettings;
 
             scopedLog.AddToActions("Running Application");
             Log.Information("{@Logs}", scopedLog.Logs);
@@ -41,15 +43,18 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             await application.RunAsync();
 
             scopedLog.AddToActions("Application Shutdown Gracefully");
-            Log.Information("{@Logs}", scopedLog.Logs);
         }
         catch (Exception exception)
         {
             scopedLog.AddException(exception);
-            Log.Fatal("{@Logs}", scopedLog.Logs);
         }
         finally
         {
+            if (scopedLog.HasException)
+                Log.Error("{@Logs}", scopedLog.Logs);
+            else
+                Log.Information("{@Logs}", scopedLog.Logs);
+
             await Log.CloseAndFlushAsync();
         }
     }
@@ -57,16 +62,15 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     public static WebApplication CreateApplication(string[]? args)
     {
         _ = JsonConventions.DefaultOptions;
+        var program = new TProgram();
         var options = new WebApplicationOptions
         {
             Args = args,
-            ApplicationName = AppConstants.ApplicationName
+            ApplicationName = GetApplicationName()
         };
 
-        var program = new TProgram();
         var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.AppBuilderType);
-
-        applicationBuilder.Configuration.AddDrnSettings();
+        applicationBuilder.Configuration.AddDrnSettings(options.ApplicationName, args);
         program.ConfigureApplicationBuilder(applicationBuilder);
         program.AddServices(applicationBuilder.Services);
 
@@ -75,6 +79,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         return application;
     }
+
 
     protected virtual void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder)
     {
@@ -91,8 +96,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     protected virtual LoggerConfiguration ConfigureLogger(string[]? args)
     {
         var loggerConfiguration = new LoggerConfiguration().WriteTo.Console();
-
-        var configuration = new ConfigurationBuilder().AddDrnSettings(args).Build();
+        var configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationName(), args).Build();
         var appSettings = new AppSettings(configuration);
         var graylogHost = appSettings.GetValue("GraylogHostnameOrAddress", string.Empty);
 
@@ -109,4 +113,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     }
 
     protected abstract void AddServices(IServiceCollection services);
+
+    private static string GetApplicationName() => typeof(TProgram).GetAssemblyName();
 }

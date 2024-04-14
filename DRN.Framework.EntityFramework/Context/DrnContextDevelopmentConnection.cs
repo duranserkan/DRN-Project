@@ -20,7 +20,7 @@ public static class DrnContextDevelopmentConnection
             var password = appSettings.Configuration.GetValue<string>(DbContextConventions.DevPasswordKey);
 
             if (password != null)
-                connectionString = $"Host={host};Port={port};Database={database};User ID={username};password={password};Multiplexing=true;Max Auto Prepare=200;Maximum Pool Size=20;Application Name={AppConstants.ApplicationName};";
+                connectionString = $"Host={host};Port={port};Database={database};User ID={username};password={password};Multiplexing=true;Max Auto Prepare=200;Maximum Pool Size=20;Application Name={AppConstants.EntryAssemblyName};";
         }
 
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);

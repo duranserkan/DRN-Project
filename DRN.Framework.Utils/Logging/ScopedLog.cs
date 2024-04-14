@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Settings;
 
 namespace DRN.Framework.Utils.Logging;
 
@@ -23,7 +24,7 @@ public class ScopedLog : IScopedLog
     {
         Add(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeOffset.UtcNow);
         Add(nameof(ScopedLog), true);
-        Add(nameof(AppConstants.ApplicationName), AppConstants.ApplicationName);
+        Add(nameof(AppSettings.ApplicationName), AppSettings.Instance?.ApplicationName ?? AppConstants.EntryAssemblyName);
         Add(nameof(AppConstants.ApplicationId), AppConstants.ApplicationId);
         Add(nameof(Environment.MachineName), Environment.MachineName);
     }

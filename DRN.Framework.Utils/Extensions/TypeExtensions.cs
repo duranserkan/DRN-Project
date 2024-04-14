@@ -16,4 +16,10 @@ public static class TypeExtensions
 
         return method;
     }
+
+    public static string GetAssemblyName(this Type type)
+    {
+        var assemblyName = type.Assembly.GetName();
+        return assemblyName.Name ?? assemblyName.FullName;
+    }
 }

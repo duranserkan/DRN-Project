@@ -24,13 +24,7 @@ public class HttpScopeLogger(RequestDelegate next)
         finally
         {
             PrepareScopeLog(httpContext, scopedLog);
-
-            if (scopedLog.HasException)
-                logger.LogError("{@Logs}", scopedLog.Logs);
-            else if (scopedLog.HasWarning)
-                logger.LogWarning("{@Logs}", scopedLog.Logs);
-            else
-                logger.LogInformation("{@Logs}", scopedLog.Logs);
+            logger.LogScoped(scopedLog);
         }
     }
 

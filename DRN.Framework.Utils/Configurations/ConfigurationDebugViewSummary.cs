@@ -14,7 +14,7 @@ public class ConfigurationDebugViewSummary
     public ConfigurationDebugViewSummary(ConfigurationDebugView configurationDebugView)
     {
         AppEnvironment = configurationDebugView.Environment;
-        AppName = AppConstants.ApplicationName;
+        ApplicationName = configurationDebugView.ApplicationName;
         ConfigMountedDirectory = configurationDebugView.ConfigMountedDirectory;
 
         var collectionByProvider = new Dictionary<string, string[]>(10);
@@ -29,9 +29,9 @@ public class ConfigurationDebugViewSummary
         ConfigMountedDirectoryKeyPerFiles = GetDirectoryFileNames(MountedSettingsConventions.KeyPerFileSettingsMountDirectory(mountDirectory));
     }
 
-    public string AppName { get; init; } = default!;
+    public string ApplicationName { get; init; } = default!;
     public AppEnvironment AppEnvironment { get; init; }
-    public string? ConfigMountedDirectory { get; init; } = default!;
+    public string? ConfigMountedDirectory { get; init; }
     public string[] ConfigMountedDirectoryJsonFiles { get; init; } = default!;
     public string[] ConfigMountedDirectoryKeyPerFiles { get; init; } = default!;
     public IReadOnlyDictionary<string, string[]> SettingsByProvider { get; init; } = default!;

@@ -1,4 +1,5 @@
 using DRN.Framework.Hosting.Extensions;
+using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,7 +39,7 @@ public static class SettingsProvider
 
         var selectedLocation = locationFound ? location! : GlobalConventionLocation;
         var configurationBuilder = new ConfigurationBuilder().SetBasePath(selectedLocation)
-            .AddDrnSettings(settingJsonName: settingsJsonName, sc: serviceCollection);
+            .AddDrnSettings(AppConstants.EntryAssemblyName, settingJsonName: settingsJsonName, sc: serviceCollection);
 
         foreach (var source in configurationSources ?? [])
             configurationBuilder.Add(source);

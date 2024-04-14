@@ -1,5 +1,4 @@
 using System.Net.Http.Json;
-using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Nexus.Hosted;
 
@@ -16,6 +15,7 @@ public class StatusControllerTests
 
         var client = webApplication.CreateClient();
         var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>("Status");
-        status?.AppEnvironment.Should().Be(AppEnvironment.Staging);
+        var programName = typeof(Program).GetAssemblyName();
+        status.ApplicationName.Should().Be(programName);
     }
 }

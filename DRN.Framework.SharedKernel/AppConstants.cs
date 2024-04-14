@@ -8,13 +8,13 @@ public static class AppConstants
 {
     public static int ProcessId { get; } = Environment.ProcessId;
     public static Guid ApplicationId { get; } = Guid.NewGuid();
-    public static string ApplicationName { get; } = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";
+    public static string EntryAssemblyName { get; } = Assembly.GetEntryAssembly()?.GetName().FullName ?? "Entry Assembly Not Found";
     public static string TempPath { get; } = GetTempPath(); //Cleans directory at every startup
     public static string LocalIpAddress { get; } = GetLocalIpAddress();
 
     private static string GetTempPath()
     {
-        var appSpecificTempPath = Path.Combine(Path.GetTempPath(), ApplicationName);
+        var appSpecificTempPath = Path.Combine(Path.GetTempPath(), EntryAssemblyName);
         if (Directory.Exists(appSpecificTempPath)) Directory.Delete(appSpecificTempPath, true);
         Directory.CreateDirectory(appSpecificTempPath);
 
