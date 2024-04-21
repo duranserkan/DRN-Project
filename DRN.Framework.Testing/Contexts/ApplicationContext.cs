@@ -50,13 +50,13 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
             webHostBuilder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();
-                logging.AddConfiguration(configuration.GetSection("Logging"));
                 if (_outputHelper != null)
-                    logging.Services.AddSerilog(loggerConfiguration
-                        =>
+                    logging.Services.AddSerilog(loggerConfiguration =>
                     {
+                        loggerConfiguration.MinimumLevel.Override("Microsoft", LogEventLevel.Warning);
+                        loggerConfiguration.MinimumLevel.Override("System", LogEventLevel.Warning);
                         loggerConfiguration.WriteTo.TestOutput(_outputHelper, LogEventLevel.Information,
-                            "[{Timestamp:HH:mm:ss} {Level:u3} {SourceContext}]  {Message:lj}{NewLine}{Exception}");
+                            "[BEGIN {Timestamp:HH:mm:ss.fffffff} {Level:u3} {SourceContext}]{NewLine}{Message:lj}{NewLine}[END {Timestamp:HH:mm:ss.fffffff} {Level:u3} {SourceContext}]");
                     });
             });
             webHostConfigurator?.Invoke(webHostBuilder);

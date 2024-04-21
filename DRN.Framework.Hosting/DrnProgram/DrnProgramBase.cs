@@ -27,7 +27,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     protected static async Task RunAsync(string[]? args = null)
     {
         Configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationName(), args).Build();
-        Log.Logger = new TProgram().ConfigureLogger().CreateBootstrapLogger();
+        Log.Logger = new TProgram().ConfigureLogger().CreateBootstrapLogger().ForContext<TProgram>();
 
         var scopedLog = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
         try

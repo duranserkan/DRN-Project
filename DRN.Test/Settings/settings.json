@@ -4,33 +4,5 @@
   "Bar": "*",
   "ConnectionStrings": {
     "Foo": "Bar"
-  },
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft": "Warning",
-      "Microsoft.AspNetCore": "Warning",
-      "System": "Warning"
-    }
-  },
-  "Serilog": {
-    "Using": [
-      "Serilog.Sinks.Console",
-      "Serilog.Sinks.Graylog"
-    ],
-    "MinimumLevel": "Information",
-    "WriteTo": [
-      {
-        "Name": "Console"
-      },
-      {
-        "Name": "Graylog",
-        "Args": {
-          "hostnameOrAddress": "localhost",
-          "port": "12201",
-          "transportType": "Udp"
-        }
-      }
-    ]
   }
 }

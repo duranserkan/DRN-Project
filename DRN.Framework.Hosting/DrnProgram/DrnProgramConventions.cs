@@ -74,13 +74,10 @@ public static class DrnProgramConventions
         where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
     {
         services.ConfigureHttpJsonOptions(options => JsonConventions.SetJsonDefaults(options.SerializerOptions));
-        services.AddLogging(logging =>
-        {
-            logging.AddConfiguration(configuration.GetSection("Logging"));
-            logging.Configure(options => options.ActivityTrackingOptions = ActivityTrackingOptions.SpanId |
-                                                                           ActivityTrackingOptions.TraceId |
-                                                                           ActivityTrackingOptions.ParentId);
-        });
+        services.AddLogging(logging => logging.Configure(options
+            => options.ActivityTrackingOptions = ActivityTrackingOptions.SpanId |
+                                                 ActivityTrackingOptions.TraceId |
+                                                 ActivityTrackingOptions.ParentId));
 
         var mvcBuilder = services.AddControllers()
             .AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
