@@ -4,13 +4,13 @@ using Sample.Infra.QA;
 
 namespace DRN.Test.Tests.Framework.Testing;
 
-public class WebApplicationContextTests
+public class ApplicationContextTests
 {
     [Theory]
     [DataInline]
-    public async Task WebApplicationContext_Should_Provide_Configuration_To_Program(TestContext context)
+    public async Task ApplicationContext_Should_Provide_Configuration_To_Program(TestContext context)
     {
-        var webApplication = context.WebApplicationContext.CreateWebApplication<Program>();
+        var webApplication = context.ApplicationContext.CreateApplication<Program>();
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
 
         var client = webApplication.CreateClient();

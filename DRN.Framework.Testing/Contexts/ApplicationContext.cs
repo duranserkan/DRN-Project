@@ -6,14 +6,18 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Events;
+using Xunit.Abstractions;
 
 namespace DRN.Framework.Testing.Contexts;
 
-public sealed class WebApplicationContext(TestContext testContext) : IDisposable
+public sealed class ApplicationContext(TestContext testContext) : IDisposable
 {
     private IDisposable? _factory;
+    private ITestOutputHelper? _outputHelper;
 
-    public WebApplicationFactory<TEntryPoint> CreateWebApplication<TEntryPoint>(Action<IWebHostBuilder>? webHostConfigurator = null)
+    public WebApplicationFactory<TEntryPoint> CreateApplication<TEntryPoint>(Action<IWebHostBuilder>? webHostConfigurator = null)
         where TEntryPoint : class
     {
         Dispose();
@@ -43,13 +47,34 @@ public sealed class WebApplicationContext(TestContext testContext) : IDisposable
 
             var configuration = testContext.GetRequiredService<IConfiguration>()!;
             webHostBuilder.UseConfiguration(configuration);
-            webHostBuilder.ConfigureLogging(x => x.ClearProviders());
+            webHostBuilder.ConfigureLogging(logging =>
+            {
+                logging.ClearProviders();
+                logging.AddConfiguration(configuration.GetSection("Logging"));
+                if (_outputHelper != null)
+                    logging.Services.AddSerilog(loggerConfiguration
+                        =>
+                    {
+                        loggerConfiguration.WriteTo.TestOutput(_outputHelper, LogEventLevel.Information,
+                            "[{Timestamp:HH:mm:ss} {Level:u3} {SourceContext}]  {Message:lj}{NewLine}{Exception}");
+                    });
+            });
             webHostConfigurator?.Invoke(webHostBuilder);
         });
 
         _factory = factory;
 
         return factory;
+    }
+
+
+    /// <summary>
+    /// By default, logs are not written to test output in order to not leak sensitive data.
+    /// Use logging to test output cautiously.
+    /// </summary>
+    public void LogToTestOutput(ITestOutputHelper outputHelper)
+    {
+        _outputHelper = outputHelper;
     }
 
     public void Dispose() => _factory?.Dispose();

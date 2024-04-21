@@ -2,14 +2,10 @@ using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
-using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
-using Serilog.Events;
-using Serilog.Sinks.Graylog;
-using Serilog.Sinks.Graylog.Core.Transport;
 
 namespace DRN.Framework.Hosting.DrnProgram;
 
@@ -24,11 +20,15 @@ namespace DRN.Framework.Hosting.DrnProgram;
 /// </summary>
 public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
+    protected static IConfiguration Configuration = new ConfigurationManager();
+
     protected virtual DrnAppBuilderType AppBuilderType => DrnAppBuilderType.DrnDefaults;
 
     protected static async Task RunAsync(string[]? args = null)
     {
-        Log.Logger = new TProgram().ConfigureLogger(args).CreateBootstrapLogger();
+        Configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationName(), args).Build();
+        Log.Logger = new TProgram().ConfigureLogger().CreateBootstrapLogger();
+
         var scopedLog = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
         try
         {
@@ -68,7 +68,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         };
 
         var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.AppBuilderType);
-        applicationBuilder.Configuration.AddDrnSettings(options.ApplicationName, args);
+        applicationBuilder.Configuration.AddDrnSettings(GetApplicationName(), args);
         program.ConfigureApplicationBuilder(applicationBuilder);
         program.AddServices(applicationBuilder.Services);
 
@@ -78,6 +78,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         return application;
     }
 
+    protected abstract void AddServices(IServiceCollection services);
 
     protected virtual void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder)
     {
@@ -91,26 +92,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             DrnProgramConventions.ConfigureDrnApplication(application);
     }
 
-    protected virtual LoggerConfiguration ConfigureLogger(string[]? args)
-    {
-        var loggerConfiguration = new LoggerConfiguration().WriteTo.Console();
-        var configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationName(), args).Build();
-        var appSettings = new AppSettings(configuration);
-        var graylogHost = appSettings.GetValue("GraylogHostnameOrAddress", string.Empty);
-
-        if (string.IsNullOrWhiteSpace(graylogHost)) return loggerConfiguration;
-
-        var graylogOptions = new GraylogSinkOptions
-        {
-            MinimumLogEventLevel = LogEventLevel.Information,
-            HostnameOrAddress = graylogHost,
-            TransportType = TransportType.Udp
-        };
-
-        return loggerConfiguration.WriteTo.Graylog(graylogOptions);
-    }
-
-    protected abstract void AddServices(IServiceCollection services);
+    protected virtual LoggerConfiguration ConfigureLogger()
+        => new LoggerConfiguration().ReadFrom.Configuration(Configuration);
 
     private static string GetApplicationName() => typeof(TProgram).GetAssemblyName();
 }

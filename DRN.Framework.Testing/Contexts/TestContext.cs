@@ -27,13 +27,13 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     {
         MethodContext = new(testMethod);
         ContainerContext = new ContainerContext(this);
-        WebApplicationContext = new WebApplicationContext(this);
+        ApplicationContext = new ApplicationContext(this);
         _ = JsonConventions.DefaultOptions; // to trigger static ctor that replaces .net defaults with better
     }
 
     public MethodContext MethodContext { get; }
     public ContainerContext ContainerContext { get; }
-    public WebApplicationContext WebApplicationContext { get; }
+    public ApplicationContext ApplicationContext { get; }
     public ServiceCollection ServiceCollection { get; private set; } = [];
 
     /// <summary>
@@ -118,7 +118,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
         DisposeServiceProvider();
         if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
         ContainerContext.Dispose();
-        WebApplicationContext.Dispose();
+        ApplicationContext.Dispose();
         GC.SuppressFinalize(this);
     }
 

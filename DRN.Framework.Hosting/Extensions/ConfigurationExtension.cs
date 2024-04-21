@@ -45,8 +45,9 @@ public static class ConfigurationExtension
                 var assembly = Assembly.Load(new AssemblyName(applicationName));
                 builder.AddUserSecrets(assembly, true);
             }
-            catch (FileNotFoundException)
+            catch (FileNotFoundException e)
             {
+                _ = e;
             }
         }
 

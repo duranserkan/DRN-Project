@@ -77,7 +77,6 @@ public static class DrnProgramConventions
         services.AddLogging(logging =>
         {
             logging.AddConfiguration(configuration.GetSection("Logging"));
-            logging.AddSimpleConsole();
             logging.Configure(options => options.ActivityTrackingOptions = ActivityTrackingOptions.SpanId |
                                                                            ActivityTrackingOptions.TraceId |
                                                                            ActivityTrackingOptions.ParentId);
@@ -101,8 +100,9 @@ public static class DrnProgramConventions
         services.PostConfigure<HostFilteringOptions>(options =>
         {
             if (options.AllowedHosts != null && options.AllowedHosts.Count != 0) return;
+            var separator = new[] { ';' };
             // "AllowedHosts": "localhost;127.0.0.1;[::1]"
-            var hosts = configuration["AllowedHosts"]?.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+            var hosts = configuration["AllowedHosts"]?.Split(separator, StringSplitOptions.RemoveEmptyEntries);
             // Fall back to "*" to disable.
             options.AllowedHosts = hosts?.Length > 0 ? hosts : ["*"];
         });
