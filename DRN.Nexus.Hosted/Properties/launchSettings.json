@@ -7,11 +7,11 @@
       "commandName": "Project",
       "launchBrowser": true,
       "launchUrl": "swagger",
-      "applicationUrl": "http://localhost:6998;",
+      "applicationUrl": "http://localhost:5988;",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_HTTP_PORTS": "6998;",
-        "ASPNETCORE_HTTPS_PORT": "6999"
+        "ASPNETCORE_HTTP_PORTS": "5988;",
+        "ASPNETCORE_HTTPS_PORT": "5989"
       }
     },
     "Docker": {
@@ -21,8 +21,8 @@
       "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_HTTP_PORT": "6998",
-        "ASPNETCORE_HTTPS_PORT": "6999"
+        "ASPNETCORE_HTTP_PORT": "5988",
+        "ASPNETCORE_HTTPS_PORT": "5989"
       },
       "useSSL": true,
       "sslPort": 6999

@@ -2,6 +2,7 @@ using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,15 +21,23 @@ namespace DRN.Framework.Hosting.DrnProgram;
 /// </summary>
 public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
-    protected static IConfiguration Configuration = new ConfigurationManager();
+    static DrnProgramBase()
+    {
+        Configuration = new ConfigurationManager();
+        AppSettings = new AppSettings(Configuration);
+    }
+
+    protected static IConfiguration Configuration;
+    protected static IAppSettings AppSettings;
 
     protected virtual DrnAppBuilderType AppBuilderType => DrnAppBuilderType.DrnDefaults;
 
     protected static async Task RunAsync(string[]? args = null)
     {
         Configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationName(), args).Build();
-        Log.Logger = new TProgram().ConfigureLogger().CreateBootstrapLogger().ForContext<TProgram>();
+        AppSettings = new AppSettings(Configuration);
 
+        Log.Logger = new TProgram().ConfigureLogger().CreateBootstrapLogger().ForContext<TProgram>();
         var scopedLog = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
         try
         {
@@ -64,7 +73,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var options = new WebApplicationOptions
         {
             Args = args,
-            ApplicationName = GetApplicationName()
+            ApplicationName = GetApplicationName(),
+            EnvironmentName = AppSettings.Environment.ToString()
         };
 
         var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.AppBuilderType);

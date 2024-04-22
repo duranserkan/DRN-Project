@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using DRN.Framework.Utils.DependencyInjection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -69,11 +70,13 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
 
 
     /// <summary>
-    /// By default, logs are not written to test output in order to not leak sensitive data.
-    /// Use logging to test output cautiously.
+    /// By default, logs are written to test output when debugger is attached in order to not leak sensitive data.
+    /// Use test output logger cautiously.
     /// </summary>
-    public void LogToTestOutput(ITestOutputHelper outputHelper)
+    public void LogToTestOutput(ITestOutputHelper outputHelper, bool debugOnly = true)
     {
+        if (debugOnly && !Debugger.IsAttached) return;
+
         _outputHelper = outputHelper;
     }
 

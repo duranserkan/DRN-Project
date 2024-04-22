@@ -8,7 +8,17 @@ public static class HeaderDictionaryExtensions
     public static string ConvertToString(this IHeaderDictionary headerDictionary)
     {
         var stringBuilder = new StringBuilder(1024);
-        foreach (var pair in headerDictionary) stringBuilder.Append($"{pair.Key}: {pair.Value}");
+
+        var newLine = "";
+        foreach (var pair in headerDictionary)
+        {
+            if (newLine == Environment.NewLine)
+                stringBuilder.Append(newLine);
+            else
+                newLine = Environment.NewLine;
+
+            stringBuilder.Append($"{pair.Key}: {pair.Value}");
+        }
 
         return stringBuilder.ToString();
     }

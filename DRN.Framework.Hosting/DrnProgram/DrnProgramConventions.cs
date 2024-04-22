@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -57,14 +56,8 @@ public static class DrnProgramConventions
         where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
     {
         builder.Host.UseSerilog();
-        builder.WebHost
-            .UseKestrelCore()
-            .ConfigureKestrel(kestrelServerOptions =>
-            {
-                kestrelServerOptions.Configure(builder.Configuration.GetSection("Kestrel"), true);
-                kestrelServerOptions.ConfigureEndpointDefaults(listenOptions => listenOptions.Protocols = HttpProtocols.Http2);
-            });
-
+        builder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
+            kestrelServerOptions.Configure(builder.Configuration.GetSection("Kestrel"), true));
         AddDefaultServices<TProgram>(builder.Services, builder.Configuration);
 
         return builder;
