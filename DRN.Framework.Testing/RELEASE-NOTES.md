@@ -5,6 +5,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April National Sovereignty and Children's Day.
 
 ### Breaking Changes
+
 * ContainerContext refactored and each Postgres and RabbitMQ usages refactored into PostgresContext and RabbitMQContext.
 * WebApplicationContext renamed as ApplicationContext
 

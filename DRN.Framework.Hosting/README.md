@@ -3,7 +3,7 @@
 ## Introduction
 DRN.Framework.Hosting package provides practical, effective distributed application hosting code with sensible defaults, configuration options.
 
-This package manages configuration, logging, http server (Kestrel) codes and configuration. Since each distributed app at least requires endpoints to support health checking, this packages assumes each distributed application is also a web application.   
+This package manages configuration, logging, http server (Kestrel) codes and configuration. Since each distributed app at least requires an endpoint to support health checking, this packages assumes each distributed application is also a web application.   
 
 ### QuickStart: Basics
 
@@ -78,8 +78,7 @@ DRN hosting package applies configuration in following order:
         return builder;
     }
     
-    //
-In the future, DRN.Nexus's remote configuration support will also be added to AddSettingsOverrides.
+    //In the future, DRN.Nexus's remote configuration support will also be added to AddSettingsOverrides.
     private static void AddSettingsOverrides(this IConfigurationBuilder builder, string[]? args, IServiceCollection? sc)
     {
         builder.AddEnvironmentVariables("ASPNETCORE_");
@@ -248,14 +247,13 @@ DrnProgramBase handles most of the application level wiring and standardizes Jso
 
 DrnProgramBase has a DrnProgramOptions property which defines behavior and defaults to WebApplication and WebApplicationBuilder. See following document for new hosting model introduced with .NET 6,
 
-* learn.microsoft.com/en-us/aspnet/core/migration/50-to-60#new-hosting-model
+* https://learn.microsoft.com/en-us/aspnet/core/migration/50-to-60#new-hosting-model
 
-```csharp
-    protected DrnProgramOptions DrnProgramOptions { get;  init; } = new();
-```
 DrnDefaults are added to empty WebApplicationBuilder and WebApplication and considered as sensible and configurable. Further Overriding and fine-tuning options for DrnDefaults can be added in versions after 0.3.0.
 ```csharp
-protected abstract void AddServices(IServiceCollection services);
+    protected DrnProgramOptions DrnProgramOptions { get;  init; } = new();
+
+    protected abstract void AddServices(IServiceCollection services);
 
     protected virtual LoggerConfiguration ConfigureLogger()
         => new LoggerConfiguration().ReadFrom.Configuration(Configuration);
