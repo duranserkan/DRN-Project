@@ -13,7 +13,7 @@ public class StatusControllerTests(ITestOutputHelper outputHelper)
     {
         context.ApplicationContext.LogToTestOutput(outputHelper);
         var application = context.ApplicationContext.CreateApplication<Program>();
-        //await context.ContainerContext.Postgres.ApplyMigrationsAsync();
+        await context.ContainerContext.Postgres.ApplyMigrationsAsync();
 
         var client = application.CreateClient();
         var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>("Status");

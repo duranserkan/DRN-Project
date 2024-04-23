@@ -211,3 +211,6 @@ public interface IAppSettings
     * MakeGenericMethod
 * AssemblyExtensions
     * GetTypesAssignableTo
+
+---
+**Semper Progredi: Always Progressive**

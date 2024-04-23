@@ -419,3 +419,6 @@ With the help of test context, integration tests can be written easily with foll
 1. A data context attribute can provide NSubstituted interfaces and test context automatically replaces actual implementations with mocked interfaces and provides test data.
 2. Test containers can be used as actual dependencies instead of mocking them.
 3. With FactDebuggerOnly and TheoryDebuggerOnly attributes, cautiously written tests can use real databases and dependencies to debug production usage.
+
+---
+**Semper Progredi: Always Progressive**

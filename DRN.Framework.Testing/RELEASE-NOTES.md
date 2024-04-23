@@ -1,5 +1,17 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.3.0
+
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April Turkish National Sovereignty and Children's Day.
+
+Semper Progredi: Always Progressive
+
+### Breaking Changes
+
+### New Features
+
+### Bug Fixes
+
 ## Version 0.2.0
 
 ### Breaking Changes
@@ -42,3 +54,6 @@ Not every version includes changes, features or bug fixes. This project can incr
 * DataProvider added.
 
 ### Bug Fixes
+
+---
+**Semper Progredi: Always Progressive**

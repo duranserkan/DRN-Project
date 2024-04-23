@@ -166,3 +166,6 @@ public class ExpiredException(string message, Exception exception = null!, strin
 
 public class ConfigurationException(string message, Exception exception = null!, string? category = null) : DrnException(message, exception, category);
 ```
+
+---
+**Semper Progredi: Always Progressive**

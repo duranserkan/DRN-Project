@@ -73,9 +73,9 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
     /// By default, logs are written to test output when debugger is attached in order to not leak sensitive data.
     /// Use test output logger cautiously.
     /// </summary>
-    public void LogToTestOutput(ITestOutputHelper outputHelper, bool debugOnly = true)
+    public void LogToTestOutput(ITestOutputHelper outputHelper, bool debuggerOnly = true)
     {
-        if (debugOnly && !Debugger.IsAttached) return;
+        if (debuggerOnly && !Debugger.IsAttached) return;
 
         _outputHelper = outputHelper;
     }

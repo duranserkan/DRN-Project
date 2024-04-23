@@ -22,7 +22,9 @@ public class HttpRequestLogger(RequestDelegate next)
             var requestBody = await ReadRequestBody(httpContext.Request);
             logger.LogInformation("""
                                   (Request)TraceIdentifier: {TraceIdentifier}
+                                  
                                   {RequestHeader}
+                                  
                                   {RequestBody}
                                   """, httpContext.TraceIdentifier, requestHeader, requestBody);
 
