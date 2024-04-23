@@ -40,6 +40,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected static async Task RunAsync(string[]? args = null)
     {
+        _ = JsonConventions.DefaultOptions;
         Configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationName(), args).Build();
         AppSettings = new AppSettings(Configuration);
 
@@ -74,7 +75,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     public static WebApplication CreateApplication(string[]? args)
     {
-        _ = JsonConventions.DefaultOptions;
         var program = new TProgram();
         var options = new WebApplicationOptions
         {

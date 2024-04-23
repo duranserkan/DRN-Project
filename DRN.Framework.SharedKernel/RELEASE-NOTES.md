@@ -4,8 +4,6 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April National Sovereignty and Children's Day.
 
-Semper Progredi: Always Progressive
-
 ### Breaking Changes
 
 * JsonSerializerOptions moved to JsonConventions. System.Text.Json defaults will be overridden by JsonConventions when
@@ -17,6 +15,8 @@ Semper Progredi: Always Progressive
 * Entity and AggregateRoot base classes' ModifiedAt property now has `ConcurrencyCheck` attribute and can be used for optimistic concurrency.
 
 ### Bug Fixes
+
+* `AppConstants` LocalIpAddress calculation exception handling
 
 ## Version 0.2.0
 

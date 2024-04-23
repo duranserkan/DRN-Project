@@ -184,26 +184,152 @@ DrnProgramBase applies Kestrel configurations. To configure logging you should a
 }
 ```
 
-## DrnProgramBase and DrnDefaults
+## DrnProgramBase RunAsync
+DrnProgramBase handles most of the application level wiring and standardizes JsonDefaults across all of the `System.Text.Json` usages.
+```csharp
+    protected static async Task RunAsync(string[]? args = null)
+    {
+        _ = JsonConventions.DefaultOptions;
+        Configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationName(), args).Build();
+        AppSettings = new AppSettings(Configuration);
 
-DrnProgramBase has overridable AppBuilderType property which defines WebApplicationBuilder defaults. To check WebApplication and WebApplicationBuilder details see following document,
+        Log.Logger = new TProgram().ConfigureLogger().CreateBootstrapLogger().ForContext<TProgram>();
+        var scopedLog = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
+        try
+        {
+            scopedLog.AddToActions("Creating Application");
+            var application = CreateApplication(args);
+
+            scopedLog.AddToActions("Running Application");
+            Log.Information("{@Logs}", scopedLog.Logs);
+
+            await application.RunAsync();
+
+            scopedLog.AddToActions("Application Shutdown Gracefully");
+        }
+        catch (Exception exception)
+        {
+            scopedLog.AddException(exception);
+        }
+        finally
+        {
+            if (scopedLog.HasException)
+                Log.Error("{@Logs}", scopedLog.Logs);
+            else
+                Log.Information("{@Logs}", scopedLog.Logs);
+
+            await Log.CloseAndFlushAsync();
+        }
+    }
+
+    public static WebApplication CreateApplication(string[]? args)
+    {
+        var program = new TProgram();
+        var options = new WebApplicationOptions
+        {
+            Args = args,
+            ApplicationName = GetApplicationName(),
+            EnvironmentName = AppSettings.Environment.ToString()
+        };
+
+        var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.DrnProgramOptions.AppBuilderType);
+        applicationBuilder.Configuration.AddDrnSettings(GetApplicationName(), args);
+        program.ConfigureApplicationBuilder(applicationBuilder);
+        program.AddServices(applicationBuilder.Services);
+
+        var application = applicationBuilder.Build();
+        program.ConfigureApplication(application);
+
+        return application;
+    }
+```
+
+## DrnDefaults
+
+DrnProgramBase has a DrnProgramOptions property which defines behavior and defaults to WebApplication and WebApplicationBuilder. See following document for new hosting model introduced with .NET 6,
 
 * learn.microsoft.com/en-us/aspnet/core/migration/50-to-60#new-hosting-model
 
 ```csharp
-    protected virtual DrnAppBuilderType AppBuilderType => DrnAppBuilderType.DrnDefaults;
+    protected DrnProgramOptions DrnProgramOptions { get;  init; } = new();
 ```
-DrnDefaults are added to empty WebApplicationBuilder and WebApplication and considered as sensible. Further Overriding and fine-tuning options for DrnDefaults can be added in versions after 0.3.0.
+DrnDefaults are added to empty WebApplicationBuilder and WebApplication and considered as sensible and configurable. Further Overriding and fine-tuning options for DrnDefaults can be added in versions after 0.3.0.
 ```csharp
-public enum DrnAppBuilderType
-{
-    Empty = 1,
-    Slim,
-    Default,
-    DrnDefaults
-}
-```
+protected abstract void AddServices(IServiceCollection services);
 
+    protected virtual LoggerConfiguration ConfigureLogger()
+        => new LoggerConfiguration().ReadFrom.Configuration(Configuration);
+
+    protected virtual void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder)
+    {
+        applicationBuilder.Host.UseSerilog();
+        applicationBuilder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
+            kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel")));
+        applicationBuilder.Services.ConfigureHttpJsonOptions(options => JsonConventions.SetJsonDefaults(options.SerializerOptions));
+        applicationBuilder.Services.AddLogging();
+        if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
+
+        var mvcBuilder = applicationBuilder.Services.AddMvc(ConfigureMvcOptions)
+            .AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
+        var programAssembly = typeof(TProgram).Assembly;
+        var partName = typeof(TProgram).GetAssemblyName();
+        var applicationParts = mvcBuilder.PartManager.ApplicationParts;
+        var controllersAdded = applicationParts.Any(p => p.Name == partName);
+        if (!controllersAdded) mvcBuilder.AddApplicationPart(programAssembly);
+
+        applicationBuilder.Services.AddSwaggerGen();
+        applicationBuilder.Services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
+        applicationBuilder.Services.PostConfigure<HostFilteringOptions>(options =>
+        {
+            if (options.AllowedHosts != null && options.AllowedHosts.Count != 0) return;
+            var separator = new[] { ';' };
+            // "AllowedHosts": "localhost;127.0.0.1;[::1]"
+            var hosts = applicationBuilder.Configuration["AllowedHosts"]?.Split(separator, StringSplitOptions.RemoveEmptyEntries);
+            // Fall back to "*" to disable.
+            options.AllowedHosts = hosts?.Length > 0 ? hosts : ["*"];
+        });
+    }
+
+    protected virtual void ConfigureApplication(WebApplication application)
+    {
+        application.Services.ValidateServicesAddedByAttributes();
+        if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
+
+        application.UseForwardedHeaders();
+        application.UseMiddleware<HttpScopeLogger>();
+        application.UseHostFiltering();
+
+        if (DrnProgramOptions.UseHttpRequestLogger)
+            application.UseMiddleware<HttpRequestLogger>();
+
+        if (application.Environment.IsDevelopment())
+        {
+            application.UseSwagger();
+            application.UseSwaggerUI();
+        }
+
+        application.UseRouting();
+        ConfigureApplicationPreAuth(application);
+        application.UseAuthentication();
+        application.UseAuthorization();
+        ConfigureApplicationPostAuth(application);
+        application.MapControllers();
+    }
+
+    protected virtual void ConfigureApplicationPreAuth(WebApplication application)
+    {
+
+    }
+
+    protected virtual void ConfigureApplicationPostAuth(WebApplication application)
+    {
+
+    }
+
+    protected virtual void ConfigureMvcOptions(MvcOptions options)
+    {
+    }
+```
 
 ---
 **Semper Progredi: Always Progressive**

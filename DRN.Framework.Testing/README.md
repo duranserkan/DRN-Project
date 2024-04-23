@@ -113,7 +113,7 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
 * captures values provided to running test method, test method info and location.
 * provides `ServiceCollection` so that to be tested services and dependencies can be added before building `ServiceProvider`.
 * provides and implements lightweight `ServiceProvider` that contains default logging without any provider
-  * `ServiceProvider` can provide services that depends like `ILogger<DefaultService>`
+  * `ServiceProvider` can provide services that depends on like `ILogger<DefaultService>`
   * logged data will not be leaked to anywhere since it has no logging provider.
 * provides `ContainerContext`
   * can start a `postgres` container, apply migrations for dbContexts derived from DrnContext and updates connection string configuration with a single line of code
@@ -132,7 +132,7 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
 * `BuildServiceProvider` replaces dependencies that can be replaced with inlined interfaces.
 * `ServiceProvider` and `TestContext` will be disposed by xunit when test finishes
 
-`settings.json` can be put in the same folder that test file belongs. This way providing and isolating test settings is much more easier
+`settings.json` can be put in the same folder that test file belongs. This way providing and isolating test settings is much easier
 ```csharp
     [Theory]
     [DataInline( "localhost")]
@@ -142,7 +142,7 @@ public void TextContext_Should_Be_Created_From_TestContextData(TestContext conte
         context.GetRequiredService<IAppSettings>().GetRequiredSection("AllowedHosts").Value.Should().Be(value);
     }
 ```
-`data.txt` can be put in the same folder that test file belongs. This way providing and isolating test data is much more easier
+`data.txt` can be put in the same folder that test file belongs. This way providing and isolating test data is much easier
 ```csharp
     [Theory]
     [DataInline("data.txt", "Atatürk")]
@@ -208,7 +208,7 @@ DRN.Framework.Testing provides following data attributes that can provide data t
 * DataSelfAttribute
 
 Following design principle is used for these attributes
-* All attributes has data prefix to benefit from autocomplete
+* All attributes have data prefix to benefit from autocomplete
 * All data attributes automatically provide `TestContext` as first parameter if tests requires
 * All data attributes try to provide missing values with AutoFixture and NSubstitute
 * All data attributes will automatically override TestContext's service collection with provided NSubstitute interfaces 
@@ -404,21 +404,25 @@ public async Task $name$(TestContext context)
 
 ## Testing guide and DTT approach
 
-DTT(Duran's Testing Technique) is developed upon following 2 idea:
+DTT(Duran's Testing Technique) is developed upon following 2 idea to make testing natural part of the software development:
 * Writing a unit or integration test, providing settings and data to it should be easy, effective and encouraging as much as possible
 * A test should test actual usage as much as possible.
 
 DTT with **TestContext** makes these ideas possible by
+* being aware of test data and location
 * effortlessly providing test data and settings
 * effortlessly providing service collection
 * effortlessly providing service provider
 * effortlessly validating service provider
-* being aware of test data and location
-
+* effortlessly wiring external dependencies with Container Context
+* effortlessly wiring application with Application Context
+s
 With the help of test context, integration tests can be written easily with following styles.
 1. A data context attribute can provide NSubstituted interfaces and test context automatically replaces actual implementations with mocked interfaces and provides test data.
 2. Test containers can be used as actual dependencies instead of mocking them.
 3. With FactDebuggerOnly and TheoryDebuggerOnly attributes, cautiously written tests can use real databases and dependencies to debug production usage.
+
+With DTT, software testing becomes natural part of the software development.
 
 ---
 **Semper Progredi: Always Progressive**

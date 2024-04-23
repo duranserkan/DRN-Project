@@ -4,11 +4,12 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April National Sovereignty and Children's Day.
 
-Semper Progredi: Always Progressive
-
 ### Breaking Changes
 
 ### New Features
+
+* DrnProgramBase and IDrnProgram added to minimize development efforts with sensible defaults
+* HttpScopeLogger and HttpRequestLogger middlewares added to support structured logging
 
 ### Bug Fixes
 

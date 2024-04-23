@@ -16,6 +16,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
   * ValidateServicesAddedByAttributes extension method called from service provider,
   * PostStartupValidationAsync will be called if all services resolved successfully.
   * For instance, DrnContext can apply migrations after service provider services resolved successfully.
+* ScopedLog and IScopedLog added to aggregate related log within a scope such as a http request.
 
 ## Version 0.2.0
 
