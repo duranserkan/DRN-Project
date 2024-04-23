@@ -2,9 +2,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.3.0
 
-My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April Turkish National Sovereignty and Children's Day.
-
-Semper Progredi: Always Progressive
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April National Sovereignty and Children's Day.
 
 ### Breaking Changes
 
@@ -40,3 +38,6 @@ Semper Progredi: Always Progressive
     * Enables DRN.Framework.Testing to create easy and effective integration tests with conventions and automatic registrations.
 
 ### Bug Fixes
+
+---
+**Semper Progredi: Always Progressive**

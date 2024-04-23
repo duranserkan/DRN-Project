@@ -10,6 +10,9 @@ namespace DRN.Framework.Hosting.Extensions;
 
 public static class ConfigurationExtension
 {
+    /// <summary>
+    /// Mounted settings like kubernetes secrets or configmaps
+    /// </summary>
     public static IConfigurationBuilder AddMountDirectorySettings(this IConfigurationBuilder builder, IServiceCollection? sc = null)
     {
         var overrideService = sc?.BuildServiceProvider().GetService<IMountedSettingsConventionsOverride>();

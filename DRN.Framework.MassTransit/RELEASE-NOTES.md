@@ -5,3 +5,6 @@ Not every version includes changes, features or bug fixes. This project can incr
 ## New Features
 
 ## Bug Fixes
+
+---
+**Semper Progredi: Always Progressive**

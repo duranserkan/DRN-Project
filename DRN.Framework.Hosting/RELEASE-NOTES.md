@@ -2,7 +2,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.3.0
 
-My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April Turkish National Sovereignty and Children's Day.
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April National Sovereignty and Children's Day.
 
 Semper Progredi: Always Progressive
 
@@ -11,3 +11,6 @@ Semper Progredi: Always Progressive
 ### New Features
 
 ### Bug Fixes
+
+---
+**Semper Progredi: Always Progressive**
