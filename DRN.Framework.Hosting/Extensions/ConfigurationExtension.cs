@@ -42,7 +42,6 @@ public static class ConfigurationExtension
         builder.AddJsonFile($"{settingJsonName}.{environment.ToString()}.json", true);
 
         if (applicationName.Length > 0)
-        {
             try
             {
                 var assembly = Assembly.Load(new AssemblyName(applicationName));
@@ -52,7 +51,6 @@ public static class ConfigurationExtension
             {
                 _ = e;
             }
-        }
 
         builder.AddSettingsOverrides(args, sc);
         builder.AddInMemoryCollection(new[]

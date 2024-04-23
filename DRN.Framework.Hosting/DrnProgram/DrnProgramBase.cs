@@ -1,11 +1,18 @@
 using DRN.Framework.Hosting.Extensions;
+using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.SharedKernel.Conventions;
+using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HostFiltering;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Serilog;
 
 namespace DRN.Framework.Hosting.DrnProgram;
@@ -29,8 +36,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected static IConfiguration Configuration;
     protected static IAppSettings AppSettings;
-
-    protected virtual DrnAppBuilderType AppBuilderType => DrnAppBuilderType.DrnDefaults;
+    protected DrnProgramOptions DrnProgramOptions { get;  init; } = new();
 
     protected static async Task RunAsync(string[]? args = null)
     {
@@ -77,7 +83,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             EnvironmentName = AppSettings.Environment.ToString()
         };
 
-        var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.AppBuilderType);
+        var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.DrnProgramOptions.AppBuilderType);
         applicationBuilder.Configuration.AddDrnSettings(GetApplicationName(), args);
         program.ConfigureApplicationBuilder(applicationBuilder);
         program.AddServices(applicationBuilder.Services);
@@ -90,20 +96,78 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected abstract void AddServices(IServiceCollection services);
 
+    protected virtual LoggerConfiguration ConfigureLogger()
+        => new LoggerConfiguration().ReadFrom.Configuration(Configuration);
+
     protected virtual void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder)
     {
-        if (AppBuilderType == DrnAppBuilderType.DrnDefaults)
-            DrnProgramConventions.ConfigureDrnApplicationBuilder<TProgram>(applicationBuilder);
+        applicationBuilder.Host.UseSerilog();
+        applicationBuilder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
+            kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel")));
+        applicationBuilder.Services.ConfigureHttpJsonOptions(options => JsonConventions.SetJsonDefaults(options.SerializerOptions));
+        applicationBuilder.Services.AddLogging();
+        if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
+
+        var mvcBuilder = applicationBuilder.Services.AddMvc(ConfigureMvcOptions)
+            .AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
+        var programAssembly = typeof(TProgram).Assembly;
+        var partName = typeof(TProgram).GetAssemblyName();
+        var applicationParts = mvcBuilder.PartManager.ApplicationParts;
+        var controllersAdded = applicationParts.Any(p => p.Name == partName);
+        if (!controllersAdded) mvcBuilder.AddApplicationPart(programAssembly);
+
+        applicationBuilder.Services.AddSwaggerGen();
+        applicationBuilder.Services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
+        applicationBuilder.Services.PostConfigure<HostFilteringOptions>(options =>
+        {
+            if (options.AllowedHosts != null && options.AllowedHosts.Count != 0) return;
+            var separator = new[] { ';' };
+            // "AllowedHosts": "localhost;127.0.0.1;[::1]"
+            var hosts = applicationBuilder.Configuration["AllowedHosts"]?.Split(separator, StringSplitOptions.RemoveEmptyEntries);
+            // Fall back to "*" to disable.
+            options.AllowedHosts = hosts?.Length > 0 ? hosts : ["*"];
+        });
     }
 
     protected virtual void ConfigureApplication(WebApplication application)
     {
-        if (AppBuilderType == DrnAppBuilderType.DrnDefaults)
-            DrnProgramConventions.ConfigureDrnApplication(application);
+        application.Services.ValidateServicesAddedByAttributes();
+        if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
+
+        application.UseForwardedHeaders();
+        application.UseMiddleware<HttpScopeLogger>();
+        application.UseHostFiltering();
+
+        if (DrnProgramOptions.UseHttpRequestLogger)
+            application.UseMiddleware<HttpRequestLogger>();
+
+        if (application.Environment.IsDevelopment())
+        {
+            application.UseSwagger();
+            application.UseSwaggerUI();
+        }
+
+        application.UseRouting();
+        ConfigureApplicationPreAuth(application);
+        application.UseAuthentication();
+        application.UseAuthorization();
+        ConfigureApplicationPostAuth(application);
+        application.MapControllers();
     }
 
-    protected virtual LoggerConfiguration ConfigureLogger()
-        => new LoggerConfiguration().ReadFrom.Configuration(Configuration);
+    protected virtual void ConfigureApplicationPreAuth(WebApplication application)
+    {
+
+    }
+
+    protected virtual void ConfigureApplicationPostAuth(WebApplication application)
+    {
+
+    }
+
+    protected virtual void ConfigureMvcOptions(MvcOptions options)
+    {
+    }
 
     private static string GetApplicationName() => typeof(TProgram).GetAssemblyName();
 }

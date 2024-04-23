@@ -59,7 +59,6 @@ DRN hosting package applies configuration in following order:
         builder.AddJsonFile($"{settingJsonName}.{environment.ToString()}.json", true);
 
         if (applicationName.Length > 0)
-        {
             try
             {
                 var assembly = Assembly.Load(new AssemblyName(applicationName));
@@ -69,7 +68,6 @@ DRN hosting package applies configuration in following order:
             {
                 _ = e;
             }
-        }
 
         builder.AddSettingsOverrides(args, sc);
         builder.AddInMemoryCollection(new[]
@@ -113,7 +111,7 @@ In the future, DRN.Nexus's remote configuration support will also be added to Ad
         return builder;
     }
 ```
-You can easily obtain effective configuration with appSettings. Api controller is for demonstration. **Do not expose your configuration**.
+You can easily obtain effective configuration with appSettings. Api controller is used for demonstration. **Do not expose your configuration**.
 ```csharp
 [ApiController]
 [Route("[controller]")]
@@ -185,6 +183,27 @@ DrnProgramBase applies Kestrel configurations. To configure logging you should a
   }
 }
 ```
+
+## DrnProgramBase and DrnDefaults
+
+DrnProgramBase has overridable AppBuilderType property which defines WebApplicationBuilder defaults. To check WebApplication and WebApplicationBuilder details see following document,
+
+* learn.microsoft.com/en-us/aspnet/core/migration/50-to-60#new-hosting-model
+
+```csharp
+    protected virtual DrnAppBuilderType AppBuilderType => DrnAppBuilderType.DrnDefaults;
+```
+DrnDefaults are added to empty WebApplicationBuilder and WebApplication and considered as sensible. Further Overriding and fine-tuning options for DrnDefaults can be added in versions after 0.3.0.
+```csharp
+public enum DrnAppBuilderType
+{
+    Empty = 1,
+    Slim,
+    Default,
+    DrnDefaults
+}
+```
+
 
 ---
 **Semper Progredi: Always Progressive**
