@@ -83,10 +83,12 @@ public class DrnServiceContainerTests
 
     [Theory]
     [DataInline]
-    public void Validate_Nexus_Dependencies(TestContext context)
+    public async Task Validate_Nexus_Dependencies(TestContext context)
     {
         context.ServiceCollection.AddNexusApplicationServices();
         context.ServiceCollection.AddNexusInfraServices();
+        await context.ContainerContext.Postgres.ApplyMigrationsAsync();
+
         context.ValidateServices();
     }
 }

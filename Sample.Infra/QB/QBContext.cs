@@ -1,6 +1,3 @@
-using DRN.Framework.EntityFramework.Context;
-using Microsoft.EntityFrameworkCore;
-
 namespace Sample.Infra.QB;
 
 //Added to test multiple context support

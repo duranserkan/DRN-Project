@@ -1,9 +1,12 @@
+using DRN.Framework.EntityFramework.Context;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Migrations.Design;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DRN.Framework.EntityFramework.Context;
+namespace DRN.Framework.EntityFramework.IdentityContext;
 
 /// <summary>
 ///     <list type="table">
@@ -20,7 +23,7 @@ namespace DRN.Framework.EntityFramework.Context;
 ///         </item>
 ///         <item>
 ///             <term>Derived class should have a parameterless constructor</term>
-///             <description>Context needs to be created in design time as a factory for migrations <see cref="IDesignTimeDbContextFactory"/></description>
+///             <description>Context needs to be created in design time as a factory for migrations <see cref="IDesignTimeDbContextFactory{TContext}"/></description>
 ///         </item>
 ///     </list>
 /// </summary>
@@ -39,10 +42,12 @@ namespace DRN.Framework.EntityFramework.Context;
 ///</code>
 /// </example>
 [HasDrnContextServiceCollectionModule]
-public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices where TContext : DrnContext<TContext>, new()
+public abstract class DrnContextIdentity<TContext, TUser> : IdentityDbContext<TUser>, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices
+    where TContext : DrnContextIdentity<TContext, TUser>, new()
+    where TUser : IdentityUser
 {
-    /// Initializes a new instance of the <see cref="DrnContext"/> class.
-    protected DrnContext(DbContextOptions<TContext>? options) : base(options ?? new DbContextOptions<TContext>())
+    /// Initializes a new instance of the <see cref="DrnContextIdentity"/> class.
+    protected DrnContextIdentity(DbContextOptions<TContext>? options) : base(options ?? new DbContextOptions<TContext>())
     {
     }
 
@@ -66,7 +71,7 @@ public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFact
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = new())
     {
-       this.MarkEntities();
+        this.MarkEntities();
 
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
