@@ -1,5 +1,5 @@
 # Roadmap
-- [X] DRN.Framework (0.2.0 released)
+- [X] DRN.Framework (0.3.0 released)
 - [X] Management best practices 
 - [X] Engineering manifest
 - [X] Reference documents for design, architecture and microservices
@@ -9,7 +9,9 @@
 - [X] TestContext
   - MethodContext
   - ContainerContext
-  - WebApplicationContext
+    - PostgresContext
+    - RabbitMQContext
+  - ApplicationContext
 - [X] DataAttributes
   - DataInlineAttribute
   - DataMemberAttribute
@@ -30,9 +32,10 @@
   - HasServiceCollectionModuleAttribute
   - Service collection registration & Service provider validation extensions
 - [X] AppSettings
+  - ConfigurationDebugView
 - [X] Configuration
   - JsonSerializerConfigurationSource
-- [ ] Scoped Logs
+- [X] Scoped Logs
 ### DRN.Framework.SharedKernel
 - [X] Domain Entities and definitions
 - [X] Generalized Convention Exceptions
@@ -59,11 +62,10 @@
 - [ ] Scheduled jobs
 - [ ] Active passive distributed jobs
 - [ ] Job Topology
-### DRN.Framework.Asp
-- [ ] Secure endpoints
-- [ ] Scoped log support
-- [ ] Endpoint topology
 ### DRN.Framework.Hosting
+- [X] Http request scoped log support
+- [ ] Secure endpoints
+- [ ] Endpoint topology
 - [ ] Service discovery
 - [ ] Remote settings
 - [ ] Self documenting microservices with unified topology
