@@ -12,7 +12,7 @@ public class DrnServiceContainer
 
     public Assembly Assembly { get; }
     public IReadOnlyList<LifetimeAttribute> LifetimeAttributes { get; }
-    public IReadOnlyList<AttributeSpecifiedServiceCollectionModule> AttributeSpecifiedModules { get; } = new List<AttributeSpecifiedServiceCollectionModule>();
+    public IReadOnlyList<AttributeSpecifiedServiceModule> AttributeSpecifiedModules { get; } = new List<AttributeSpecifiedServiceModule>();
     public bool FrameworkAssembly { get; }
 
     public DrnServiceContainer(Assembly assembly, LifetimeAttribute[] lifetimeAttributes)
@@ -47,17 +47,15 @@ public class DrnServiceContainer
     private void AddAttributeSpecifiedModules(IServiceCollection sc)
     {
         var moduleAttributes = Assembly.GetTypes()
-            .Where(HasServiceCollectionModuleAttribute.HasServiceCollectionModule)
-            .Select(HasServiceCollectionModuleAttribute.GetModuleAttribute).Distinct().ToArray();
+            .Where(ServiceRegistrationAttribute.HasServiceCollectionModule)
+            .Select(ServiceRegistrationAttribute.GetModuleAttribute).Distinct().ToArray();
+
         foreach (var moduleAttribute in moduleAttributes)
         {
             var moduleServiceCollection = new ServiceCollection();
-            var methodInfoProperty = moduleAttribute.GetType().GetProperty(nameof(HasServiceCollectionModuleAttribute.ModuleMethodInfo),
-                BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)!;
-            var methodInfo = (MethodInfo)methodInfoProperty.GetValue(null)!;
-            methodInfo.Invoke(null, [moduleServiceCollection, Assembly]);
+            moduleAttribute.ServiceRegistration(moduleServiceCollection, Assembly);
 
-            var attributeModule = new AttributeSpecifiedServiceCollectionModule(methodInfo, moduleServiceCollection,moduleAttribute);
+            var attributeModule = new AttributeSpecifiedServiceModule(moduleServiceCollection, moduleAttribute);
             AddAttributeModule(attributeModule);
 
             sc.Add(moduleServiceCollection);
@@ -67,43 +65,38 @@ public class DrnServiceContainer
     private bool AddedBefore(IServiceCollection sc) => sc.Any(x =>
         x.Lifetime == ServiceLifetime.Singleton && x.ServiceType == typeof(DrnServiceContainer) && x.ImplementationInstance == this);
 
-    private void AddAttributeModule(AttributeSpecifiedServiceCollectionModule attributeSpecifiedModule) =>
-        ((List<AttributeSpecifiedServiceCollectionModule>)AttributeSpecifiedModules).Add(attributeSpecifiedModule);
+    private void AddAttributeModule(AttributeSpecifiedServiceModule attributeSpecifiedModule) =>
+        ((List<AttributeSpecifiedServiceModule>)AttributeSpecifiedModules).Add(attributeSpecifiedModule);
 }
 
-public sealed class AttributeSpecifiedServiceCollectionModule(
-    MethodInfo methodInfo,
+public sealed class AttributeSpecifiedServiceModule(
     IList<ServiceDescriptor> serviceDescriptors,
-    HasServiceCollectionModuleAttribute moduleAttribute)
+    ServiceRegistrationAttribute moduleAttribute)
 {
-    public MethodInfo MethodInfo { get; } = methodInfo;
-    public HasServiceCollectionModuleAttribute ModuleAttribute { get; } = moduleAttribute;
+    public ServiceRegistrationAttribute ModuleAttribute { get; } = moduleAttribute;
     public IReadOnlyList<ServiceDescriptor> ServiceDescriptors { get; } = serviceDescriptors.ToArray();
 
-    private bool Equals(AttributeSpecifiedServiceCollectionModule other)
+    private bool Equals(AttributeSpecifiedServiceModule other)
     {
-        return MethodInfo.Equals(other.MethodInfo);
+        return ModuleAttribute.Equals(other.ModuleAttribute);
     }
 
     public override bool Equals(object? obj)
     {
-        if (ReferenceEquals(null, obj)) return false;
-        if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != this.GetType()) return false;
-        return Equals((AttributeSpecifiedServiceCollectionModule)obj);
+        return ReferenceEquals(this, obj) || obj is AttributeSpecifiedServiceModule other && Equals(other);
     }
 
     public override int GetHashCode()
     {
-        return MethodInfo.GetHashCode();
+        return ModuleAttribute.GetHashCode();
     }
 
-    public static bool operator ==(AttributeSpecifiedServiceCollectionModule? left, AttributeSpecifiedServiceCollectionModule? right)
+    public static bool operator ==(AttributeSpecifiedServiceModule? left, AttributeSpecifiedServiceModule? right)
     {
         return Equals(left, right);
     }
 
-    public static bool operator !=(AttributeSpecifiedServiceCollectionModule? left, AttributeSpecifiedServiceCollectionModule? right)
+    public static bool operator !=(AttributeSpecifiedServiceModule? left, AttributeSpecifiedServiceModule? right)
     {
         return !Equals(left, right);
     }

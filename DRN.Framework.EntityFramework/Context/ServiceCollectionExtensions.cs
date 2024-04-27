@@ -22,7 +22,7 @@ public static class ServiceCollectionExtensions
         });
     }
 
-    public static void AddDbContextsWithConventions(this IServiceCollection sc, Assembly? assembly = null)
+    public static void AddDbContextsWithConventions(this IServiceCollection sc, Assembly? assembly)
     {
         assembly ??= Assembly.GetCallingAssembly();
         var contextTypes = assembly.GetTypesAssignableTo(typeof(DbContext));

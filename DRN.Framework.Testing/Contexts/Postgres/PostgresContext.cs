@@ -80,7 +80,7 @@ public class PostgresContext(TestContext testContext)
     public static DbContext[] SetConnectionStrings(TestContext testContext, PostgreSqlContainer container)
     {
         var descriptors = testContext.ServiceCollection.GetAllAssignableTo<DbContext>()
-            .Where(descriptor => descriptor.ServiceType.GetCustomAttribute<HasDrnContextServiceCollectionModuleAttribute>() != null).ToArray();
+            .Where(descriptor => descriptor.ServiceType.GetCustomAttribute<DrnContextServiceRegistrationAttribute>() != null).ToArray();
         var stringsCollection = new ConnectionStringsCollection();
         foreach (var descriptor in descriptors)
         {

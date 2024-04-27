@@ -30,7 +30,7 @@ public static class ServiceCollectionExtensions
         var container = ContainerDictionary.GetOrAdd(assembly.FullName!, x =>
         {
             var lifetimeAttributes = assembly.GetTypes()
-                .Where(type => LifetimeAttribute.HasLifetime(type) && !HasServiceCollectionModuleAttribute.HasServiceCollectionModule(type))
+                .Where(type => LifetimeAttribute.HasLifetime(type) && !ServiceRegistrationAttribute.HasServiceCollectionModule(type))
                 .Select(LifetimeAttribute.GetLifetime).ToArray();
             var container = new DrnServiceContainer(assembly, lifetimeAttributes);
 

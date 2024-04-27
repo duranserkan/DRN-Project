@@ -38,7 +38,7 @@ namespace DRN.Framework.EntityFramework.Context;
 /// dotnet ef database update --context [ContextName]  -- "connectionString"
 ///</code>
 /// </example>
-[HasDrnContextServiceCollectionModule]
+[DrnContextServiceRegistration]
 public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices where TContext : DrnContext<TContext>, new()
 {
     /// Initializes a new instance of the <see cref="DrnContext"/> class.

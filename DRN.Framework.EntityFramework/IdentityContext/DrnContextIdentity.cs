@@ -41,7 +41,7 @@ namespace DRN.Framework.EntityFramework.IdentityContext;
 /// dotnet ef database update --context [ContextName]  -- "connectionString"
 ///</code>
 /// </example>
-[HasDrnContextServiceCollectionModule]
+[DrnContextServiceRegistration]
 public abstract class DrnContextIdentity<TContext, TUser> : IdentityDbContext<TUser>, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices
     where TContext : DrnContextIdentity<TContext, TUser>, new()
     where TUser : IdentityUser

@@ -12,7 +12,6 @@ public sealed class ContainerContext(TestContext testContext) : IDisposable
     /// Intentionally made public to allow extension methods to support more containers
     /// </summary>
     public TestContext TestContext { get; } = testContext;
-
     public PostgresContext Postgres { get; } = new(testContext);
     public RabbitMQContext RabbitMQ { get; } = new(testContext);
 
