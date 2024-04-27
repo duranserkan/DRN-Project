@@ -25,7 +25,7 @@ public class DrnContextDevelopmentConnectionTests
             { DbContextConventions.DevPasswordKey, password },
             { DbContextConventions.DevHostKey, csBuilder.Host! },
             { DbContextConventions.DevPortKey, csBuilder.Port },
-            { DbContextConventions.AutoMigrateDevEnvironmentKey, migrate }
+            { DrnAppFeatures.GetKey(nameof(DrnAppFeatures.AutoMigrateDevEnvironment)), migrate }
         };
 
         testContext.AddToConfiguration(developmentDbSettings);
@@ -33,7 +33,7 @@ public class DrnContextDevelopmentConnectionTests
 
         var appSettings = testContext.GetRequiredService<IAppSettings>();
         appSettings.GetValue<string>(DbContextConventions.DevPasswordKey).Should().Be(password);
-        appSettings.GetValue<bool>(DbContextConventions.AutoMigrateDevEnvironmentKey).Should().BeTrue();
+        appSettings.Features.AutoMigrateDevEnvironment.Should().BeTrue();
 
         var connectionString = DrnContextDevelopmentConnection.GetConnectionString(appSettings, nameof(QAContext));
         connectionString.Should().NotBeNull();

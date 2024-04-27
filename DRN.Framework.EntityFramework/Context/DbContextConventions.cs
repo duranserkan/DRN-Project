@@ -6,7 +6,6 @@ namespace DRN.Framework.EntityFramework.Context;
 
 public static class DbContextConventions
 {
-    public const string AutoMigrateDevEnvironmentKey = "DrnContext_AutoMigrateDevEnvironment";
     public const string DevPasswordKey = "postgres-password";
     public const string DevHostKey = "DrnContext_DevHost";
     public const string DevPortKey = "DrnContext_DevPort";

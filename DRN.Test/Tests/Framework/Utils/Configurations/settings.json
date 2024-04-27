@@ -1,12 +1,8 @@
 {
-  "Environment": "Development",
-  "DrnContext_AutoMigrateDevEnvironment": true,
   "AllowedHosts": "*",
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
+  "Environment": "Development",
+  "DrnAppFeatures": {
+    "DrnContext_AutoMigrateDevEnvironment": true
   },
   "ConnectionStrings": {
     "Foo": "Bar"

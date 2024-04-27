@@ -25,7 +25,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
     public override async Task PostStartupValidationAsync(object service, IServiceProvider serviceProvider)
     {
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
-        var migrate = appSettings.Configuration.GetValue(DbContextConventions.AutoMigrateDevEnvironmentKey, false);
+        var migrate = appSettings.Features.AutoMigrateDevEnvironment;
         if (appSettings.Environment == AppEnvironment.Development && migrate && service is DbContext context)
             await context.Database.MigrateAsync();
     }

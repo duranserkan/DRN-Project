@@ -8,7 +8,10 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
 {
     public static async Task Main(string[] args) => await RunAsync(args);
 
-    protected override void AddServices(IServiceCollection services) => services
-        .AddSampleInfraServices()
-        .AddSampleApplicationServices();
+    protected override async Task AddServicesAsync(WebApplicationBuilder builder)
+    {
+        builder.Services
+            .AddSampleInfraServices()
+            .AddSampleApplicationServices();
+    }
 }

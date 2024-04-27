@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using DRN.Framework.Utils.DependencyInjection;
+using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -28,7 +29,8 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
         var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true).WithWebHostBuilder(webHostBuilder =>
         {
             //only need service collection descriptors so ValidateServicesAddedByAttributes should not fail test at this stage
-            webHostBuilder.UseSetting(DrnServiceContainer.SkipValidationKey, DrnServiceContainer.SkipValidation);
+            webHostBuilder.UseSetting(DrnAppFeatures.GetKey(nameof(DrnAppFeatures.SkipValidation)), "true");
+            webHostBuilder.UseSetting(DrnAppFeatures.GetKey(nameof(DrnAppFeatures.TemporaryApplication)), "true");
             webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
             webHostConfigurator?.Invoke(webHostBuilder);
         });

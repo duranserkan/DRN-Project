@@ -1,4 +1,6 @@
 {
   "Environment": "staging",
-  "DrnContext_AutoMigrateDevEnvironment": true
+  "DrnAppFeatures": {
+    "AutoMigrateDevEnvironment": true
+  }
 }

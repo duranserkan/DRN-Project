@@ -7,7 +7,9 @@ namespace DRN.Framework.Utils.Settings;
 
 public interface IAppSettings
 {
+    DrnAppFeatures Features { get; }
     AppEnvironment Environment { get; }
+    bool IsDevEnvironment { get; }
     string ApplicationName { get; }
     IConfiguration Configuration { get; }
     bool TryGetConnectionString(string name, out string connectionString);
@@ -34,9 +36,13 @@ public class AppSettings : IAppSettings
         ApplicationName = TryGetSection(nameof(ApplicationName), out _)
             ? configuration.GetValue<string>(nameof(ApplicationName)) ?? AppConstants.EntryAssemblyName
             : AppConstants.EntryAssemblyName;
+        Features = new DrnAppFeatures(this);
     }
 
+    public DrnAppFeatures Features { get; }
     public AppEnvironment Environment { get; }
+
+    public bool IsDevEnvironment => Environment == AppEnvironment.Development;
     public string ApplicationName { get; }
     public IConfiguration Configuration { get; }
 

@@ -36,7 +36,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected static IConfiguration Configuration;
     protected static IAppSettings AppSettings;
-    protected DrnProgramOptions DrnProgramOptions { get;  init; } = new();
+    protected DrnProgramOptions DrnProgramOptions { get; init; } = new();
 
     protected static async Task RunAsync(string[]? args = null)
     {
@@ -86,7 +86,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.DrnProgramOptions.AppBuilderType);
         applicationBuilder.Configuration.AddDrnSettings(GetApplicationName(), args);
         program.ConfigureApplicationBuilder(applicationBuilder);
-        program.AddServices(applicationBuilder.Services);
+        program.AddServicesAsync(applicationBuilder).GetAwaiter().GetResult();
 
         var application = applicationBuilder.Build();
         program.ConfigureApplication(application);
@@ -94,7 +94,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         return application;
     }
 
-    protected abstract void AddServices(IServiceCollection services);
+    protected abstract Task AddServicesAsync(WebApplicationBuilder builder);
 
     protected virtual LoggerConfiguration ConfigureLogger()
         => new LoggerConfiguration().ReadFrom.Configuration(Configuration);
@@ -106,6 +106,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel")));
         applicationBuilder.Services.ConfigureHttpJsonOptions(options => JsonConventions.SetJsonDefaults(options.SerializerOptions));
         applicationBuilder.Services.AddLogging();
+
         if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
         var mvcBuilder = applicationBuilder.Services.AddMvc(ConfigureMvcOptions)
@@ -116,7 +117,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var controllersAdded = applicationParts.Any(p => p.Name == partName);
         if (!controllersAdded) mvcBuilder.AddApplicationPart(programAssembly);
 
-        applicationBuilder.Services.AddSwaggerGen();
         applicationBuilder.Services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
         applicationBuilder.Services.PostConfigure<HostFilteringOptions>(options =>
         {
@@ -134,35 +134,44 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         application.Services.ValidateServicesAddedByAttributes();
         if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
-        application.UseForwardedHeaders();
+        ConfigureApplicationPreScopeStart(application);
         application.UseMiddleware<HttpScopeLogger>();
-        application.UseHostFiltering();
+        ConfigureApplicationPostScopeStart(application);
 
         if (DrnProgramOptions.UseHttpRequestLogger)
             application.UseMiddleware<HttpRequestLogger>();
 
-        if (application.Environment.IsDevelopment())
-        {
-            application.UseSwagger();
-            application.UseSwaggerUI();
-        }
-
+        application.UseHostFiltering();
+        application.UseForwardedHeaders();
         application.UseRouting();
+
         ConfigureApplicationPreAuth(application);
         application.UseAuthentication();
         application.UseAuthorization();
         ConfigureApplicationPostAuth(application);
-        application.MapControllers();
+
+        MapApplicationEndpoints(application);
+    }
+
+    protected virtual void ConfigureApplicationPreScopeStart(WebApplication application)
+    {
+    }
+
+    protected virtual void ConfigureApplicationPostScopeStart(WebApplication application)
+    {
     }
 
     protected virtual void ConfigureApplicationPreAuth(WebApplication application)
     {
-
     }
 
     protected virtual void ConfigureApplicationPostAuth(WebApplication application)
     {
+    }
 
+    protected virtual void MapApplicationEndpoints(WebApplication application)
+    {
+        application.MapControllers();
     }
 
     protected virtual void ConfigureMvcOptions(MvcOptions options)

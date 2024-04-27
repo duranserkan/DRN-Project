@@ -9,7 +9,7 @@ public class RabbitMQContext(TestContext testContext)
     private static readonly Lazy<RabbitMqContainer> Container = new(() => BuildContainer());
 
     public TestContext TestContext { get; } = testContext;
-    public IsolatedRabbitMQContext Isolated { get; } = new(testContext);
+    public RabbitMQContextIsolated RabbitMqContextIsolated { get; } = new(testContext);
 
     public static async Task<RabbitMqContainer> StartAsync()
     {

@@ -5,6 +5,7 @@ using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +17,8 @@ namespace DRN.Framework.Testing.Contexts;
 /// </summary>
 public sealed class TestContext : IDisposable, IKeyedServiceProvider
 {
+    public static bool IsRunning { get; private set; }
+
     private readonly List<IConfigurationSource> _configurationSources = [];
     private ServiceProvider? _serviceProvider;
 
@@ -25,6 +28,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     /// </summary>
     public TestContext(MethodInfo testMethod)
     {
+        IsRunning = true;
         MethodContext = new(testMethod);
         ContainerContext = new ContainerContext(this);
         ApplicationContext = new ApplicationContext(this);
@@ -91,8 +95,22 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     }
 
     public void AddToConfiguration(object toBeSerialized)
+        => _configurationSources.Add(new ObjectToJsonConfigurationSource(toBeSerialized));
+
+    public void AddToConfiguration(IConfigurationSource source) => _configurationSources.Add(source);
+
+    public void AddToConfiguration(string sectionKey, string key, string value) => AddToConfiguration($"{sectionKey}:{key}", value);
+
+    public void AddToConfiguration(string key, string value)
     {
-        _configurationSources.Add(new ObjectToJsonConfigurationSource(toBeSerialized));
+        var configurationSource = new MemoryConfigurationSource
+        {
+            InitialData = new[]
+            {
+                new KeyValuePair<string, string?>(key, value)
+            }
+        };
+        AddToConfiguration(configurationSource);
     }
 
     public object? GetService(Type serviceType)

@@ -18,11 +18,7 @@ public static class ServiceProviderExtensions
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
         AppSettings.Instance = appSettings;
 
-        if (appSettings.TryGetSection(DrnServiceContainer.SkipValidationKey, out var configurationSection))
-        {
-            var dontValidate = configurationSection.Value == DrnServiceContainer.SkipValidation;
-            if (dontValidate) return;
-        }
+        if (appSettings.Features.SkipValidation) return;
 
         var containers = serviceProvider.GetServices<DrnServiceContainer>().ToArray();
         var lifetimeAttributes = containers.SelectMany(container => container.LifetimeAttributes).ToArray();

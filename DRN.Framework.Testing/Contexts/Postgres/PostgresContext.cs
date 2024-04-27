@@ -1,7 +1,10 @@
+using DRN.Framework.EntityFramework;
 using DRN.Framework.EntityFramework.Context;
+using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Extensions;
-using DRN.Framework.Utils.Settings;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 
@@ -17,7 +20,20 @@ public class PostgresContext(TestContext testContext)
     private static readonly List<Type> MigratedDbContexts = new(10);
 
     public TestContext TestContext { get; } = testContext;
-    public IsolatedPostgresContext Isolated { get; } = new(testContext);
+    public PostgresContextIsolated Isolated { get; } = new(testContext);
+
+    public static PostgreSqlContainer BuildContainer(string? database = null, string? username = null, string? password = null, string? version = null)
+    {
+        version ??= "16.2-alpine3.19";
+        var builder = new PostgreSqlBuilder().WithImage($"postgres:{version}");
+        if (database != null) builder = builder.WithDatabase(database);
+        if (username != null) builder = builder.WithUsername(username);
+        if (password != null) builder = builder.WithPassword(password);
+
+        var container = builder.Build();
+
+        return container;
+    }
 
     /// <summary>
     ///  This is container instance is shared and Ryuk the Resource Reaper will remove it after all tests run
@@ -64,34 +80,43 @@ public class PostgresContext(TestContext testContext)
         return container;
     }
 
-    public static PostgreSqlContainer BuildContainer(string? database = null, string? username = null, string? password = null, string? version = null)
-    {
-        version ??= "16.2-alpine3.19";
-        var builder = new PostgreSqlBuilder().WithImage($"postgres:{version}");
-        if (database != null) builder = builder.WithDatabase(database);
-        if (username != null) builder = builder.WithUsername(username);
-        if (password != null) builder = builder.WithPassword(password);
-
-        var container = builder.Build();
-
-        return container;
-    }
-
     public static DbContext[] SetConnectionStrings(TestContext testContext, PostgreSqlContainer container)
     {
-        var descriptors = testContext.ServiceCollection.GetAllAssignableTo<DbContext>()
-            .Where(descriptor => descriptor.ServiceType.GetCustomAttribute<DrnContextServiceRegistrationAttribute>() != null).ToArray();
-        var stringsCollection = new ConnectionStringsCollection();
-        foreach (var descriptor in descriptors)
-        {
-            stringsCollection.Upsert(descriptor.ServiceType.Name, container.GetConnectionString());
-            testContext.AddToConfiguration(stringsCollection);
-        }
+        var dbContextCollection = GetDbContextCollection(testContext.ServiceCollection, container);
+        testContext.AddToConfiguration(dbContextCollection.ConnectionStrings);
 
-        if (descriptors.Length == 0) return [];
+        var empty = !dbContextCollection.Any;
+        if (empty) return [];
+
         var serviceProvider = testContext.BuildServiceProvider();
-        var dbContexts = descriptors.Select(d => (DbContext)serviceProvider.GetRequiredService(d.ServiceType)).ToArray();
+        var dbContexts = dbContextCollection.GetDbContexts(serviceProvider);
 
         return dbContexts;
+    }
+
+    public static DbContextCollection GetDbContextCollection(IServiceCollection serviceCollection, PostgreSqlContainer container)
+    {
+        var dbContextCollection = new DbContextCollection();
+        var descriptors = serviceCollection.GetAllAssignableTo<DbContext>()
+            .Where(descriptor => descriptor.ServiceType.GetCustomAttribute<DrnContextServiceRegistrationAttribute>() != null)
+            .ToArray();
+
+        foreach (var descriptor in descriptors)
+        {
+            var contextName = descriptor.ServiceType.Name;
+            dbContextCollection.ConnectionStrings.Upsert(contextName, container.GetConnectionString());
+            dbContextCollection.ServiceDescriptors[contextName] = descriptor;
+        }
+
+        return dbContextCollection;
+    }
+
+    public static async Task<PostgresCollection> LaunchPostgresAsync(WebApplicationBuilder applicationBuilder)
+    {
+        var postgresContainer = await StartAsync();
+        var dbContextCollection = GetDbContextCollection(applicationBuilder.Services, postgresContainer);
+        applicationBuilder.Configuration.AddObjectToJsonConfiguration(dbContextCollection.ConnectionStrings);
+
+        return new PostgresCollection(dbContextCollection, postgresContainer);
     }
 }

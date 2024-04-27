@@ -3,7 +3,7 @@ using Testcontainers.PostgreSql;
 
 namespace DRN.Framework.Testing.Contexts.Postgres;
 
-public class IsolatedPostgresContext(TestContext testContext)
+public class PostgresContextIsolated(TestContext testContext)
 {
     private TestContext TestContext { get; } = testContext;
     private ContainerContext ContainerContext => TestContext.ContainerContext;

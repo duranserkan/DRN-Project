@@ -7,8 +7,6 @@ namespace DRN.Framework.Utils.DependencyInjection;
 
 public class DrnServiceContainer
 {
-    public const string SkipValidationKey = $"{nameof(DrnServiceContainer)}_{nameof(SkipValidationKey)}";
-    public const string SkipValidation = "true";
 
     public Assembly Assembly { get; }
     public IReadOnlyList<LifetimeAttribute> LifetimeAttributes { get; }
