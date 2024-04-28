@@ -12,7 +12,6 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Serilog;
 
 namespace DRN.Framework.Hosting.DrnProgram;
@@ -32,20 +31,25 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         Configuration = new ConfigurationManager();
         AppSettings = new AppSettings(Configuration);
+        Logger = Log.Logger;
+        ScopedLog = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
     }
 
     protected static IConfiguration Configuration;
     protected static IAppSettings AppSettings;
+    protected static ILogger Logger;
+    protected static IScopedLog ScopedLog;
     protected DrnProgramOptions DrnProgramOptions { get; init; } = new();
 
     protected static async Task RunAsync(string[]? args = null)
     {
         _ = JsonConventions.DefaultOptions;
         Configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationName(), args).Build();
-        AppSettings = new AppSettings(Configuration);
+        AppSettings = new AppSettings(Configuration, true);
+        Logger = new TProgram().ConfigureLogger().CreateBootstrapLogger().ForContext<TProgram>();
+        Log.Logger = Logger;
 
-        Log.Logger = new TProgram().ConfigureLogger().CreateBootstrapLogger().ForContext<TProgram>();
-        var scopedLog = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
+        var scopedLog = ScopedLog;
         try
         {
             scopedLog.AddToActions("Creating Application");

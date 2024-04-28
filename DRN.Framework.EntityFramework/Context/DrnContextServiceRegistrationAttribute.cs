@@ -26,7 +26,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
     {
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
         var migrate = appSettings.Features.AutoMigrateDevEnvironment;
-        if (appSettings.Environment == AppEnvironment.Development && migrate && service is DbContext context)
+        if (appSettings.IsDevEnvironment && migrate && service is DbContext context)
             await context.Database.MigrateAsync();
     }
 }

@@ -4,7 +4,6 @@ using DRN.Nexus.Application;
 using DRN.Nexus.Infra;
 using DRN.Nexus.Infra.Identity;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.OpenApi.Models;
 
 namespace DRN.Nexus.Hosted;
 
@@ -17,50 +16,28 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         builder.Services
             .AddNexusInfraServices()
             .AddNexusApplicationServices()
-            .AddAuthorization()
+            .AddEndpointsApiExplorer()
             .AddIdentityApiEndpoints<IdentityUser>()
             .AddEntityFrameworkStores<NexusIdentityContext>();
+        if (!AppSettings.IsDevEnvironment) return;
 
-        builder.Services.AddSwaggerGen(options =>
-        {
-            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-            {
-                In = ParameterLocation.Header,
-                Description = "Please enter token",
-                Name = "Authorization",
-                Type = SecuritySchemeType.Http,
-                BearerFormat = "JWT",
-                Scheme = "bearer"
-            });
-            options.AddSecurityRequirement(new OpenApiSecurityRequirement
-            {
-                {
-                    new OpenApiSecurityScheme
-                    {
-                        Reference = new OpenApiReference
-                        {
-                            Type = ReferenceType.SecurityScheme,
-                            Id = "Bearer"
-                        }
-                    },
-                    Array.Empty<string>()
-                }
-            });
-        });
+        builder.Services.AddSwaggerGen();
+        var launchResult = await builder.LaunchExternalDependenciesAsync();
+        ScopedLog.Add(nameof(launchResult.PostgresConnection), launchResult.PostgresConnection);
+    }
 
-        await LaunchContext.LaunchExternalDependenciesAsync(builder, AppSettings);
+    protected override void ConfigureApplicationPreAuth(WebApplication application)
+    {
+        base.ConfigureApplicationPreAuth(application);
+        if (!AppSettings.IsDevEnvironment) return;
+
+        application.MapSwagger();
+        application.UseSwaggerUI();
     }
 
     protected override void MapApplicationEndpoints(WebApplication application)
     {
-        if (AppSettings.IsDevEnvironment)
-        {
-            application.MapSwagger();
-            application.UseSwaggerUI();
-        }
-
-        application.MapGroup("/identity").MapIdentityApi<IdentityUser>();
-        
         base.MapApplicationEndpoints(application);
+        application.MapGroup("/account").MapIdentityApi<IdentityUser>();
     }
 }
