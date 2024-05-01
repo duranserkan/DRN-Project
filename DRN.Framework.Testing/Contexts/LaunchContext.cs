@@ -59,8 +59,8 @@ public class ExternalDependencyLaunchResult(IAppSettings appSettings)
     /// </item>
     /// </list>
     /// </summary>
-    public bool Launched { get; } = TestContext.IsRunning
-                                    || appSettings.IsDevEnvironment
-                                    || appSettings.Features.TemporaryApplication
-                                    || !appSettings.Features.LaunchExternalDependencies;
+    public bool Launched { get; } = !TestContext.IsRunning
+                                    && appSettings.IsDevEnvironment
+                                    && appSettings.Features.LaunchExternalDependencies
+                                    && appSettings.Features.TemporaryApplication;
 }
