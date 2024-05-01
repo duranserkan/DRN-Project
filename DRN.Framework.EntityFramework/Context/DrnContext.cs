@@ -20,9 +20,11 @@ namespace DRN.Framework.EntityFramework.Context;
 ///         </item>
 ///         <item>
 ///             <term>Derived class should have a parameterless constructor</term>
-///             <description>Context needs to be created in design time as a factory for migrations <see cref="IDesignTimeDbContextFactory"/></description>
+///             <description>Context needs to be created in design time as a factory for migrations <see cref="IDesignTimeDbContextFactory{TContext}"/></description>
 ///         </item>
 ///     </list>
+/// <br/>
+/// <a href="https://learn.microsoft.com/en-us/aspnet/core/security/authentication/customize-identity-model">Identity model customization docs</a>
 /// </summary>
 ///<example>
 /// <b>EF Tool Usage</b>
@@ -32,10 +34,23 @@ namespace DRN.Framework.EntityFramework.Context;
 ///</code>
 /// </example>
 ///<example>
-///<b>From Project Root</b>
+///<b>From Project Root to add new migration</b>
 ///<code>
 /// dotnet ef migrations add --context [ContextName] [MigrationName]
-/// dotnet ef database update --context [ContextName]  -- "connectionString"
+///</code>
+///<b>From Project Root to update database(can be used to revert applied migrations)</b>
+///<code>
+/// dotnet ef database update --context [ContextName] [MigrationName] -- "connectionString"
+///</code>
+///<b>From Project Root to list migration and changes</b>
+///<code>
+/// dotnet ef migrations list --context [ContextName]
+/// dotnet ef migrations has-pending-model-changes --context [ContextName]
+/// dotnet ef migrations script --context [ContextName]
+///</code>
+///<b>From Project Root to remove unapplied migrations</b>
+///<code>
+/// dotnet ef migrations remove --context [ContextName]  -- "connectionString"
 ///</code>
 /// </example>
 [DrnContextServiceRegistration]

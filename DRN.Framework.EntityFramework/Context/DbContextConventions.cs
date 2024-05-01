@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.Utils.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -23,10 +24,10 @@ public static class DbContextConventions
         //todo:inspect log to
         builder ??= new DbContextOptionsBuilder<TContext>();
         return builder
+            .UseSnakeCaseNamingConvention()
             .UseNpgsql(connectionString, options => options
                 .MigrationsAssembly(typeof(TContext).Assembly.FullName)
-                .MigrationsHistoryTable($"__{contextName}MigrationsHistory"))
-            .UseSnakeCaseNamingConvention()
+                .MigrationsHistoryTable($"{contextName.ToSnakeCase()}_history", "__entity_migrations"))
             .LogTo(Console.WriteLine, [DbLoggerCategory.Name], LogLevel.Warning);
     }
 
@@ -42,6 +43,7 @@ public static class DbContextConventions
     public static void ModelCreatingDefaults(this DbContext dbContext, ModelBuilder modelBuilder)
     {
         var context = dbContext.GetType();
+        modelBuilder.HasDefaultSchema(context.Name.ToSnakeCase());
         modelBuilder.ApplyConfigurationsFromAssembly(context.Assembly, configuration => configuration.Namespace!.Contains(context.Namespace!));
         modelBuilder.Ignore<DomainEvent>();
     }

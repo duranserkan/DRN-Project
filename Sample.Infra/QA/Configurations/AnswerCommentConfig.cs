@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Sample.Domain.QA.Answers;
 
@@ -8,6 +7,6 @@ public class AnswerCommentConfig : IEntityTypeConfiguration<AnswerComment>
 {
     public void Configure(EntityTypeBuilder<AnswerComment> builder)
     {
-        builder.ToTable(TableContants.AnswerComments, DbConstants.QASchema);
+
     }
 }

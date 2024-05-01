@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
+﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Sample.Domain.QA.Questions;
 
 namespace Sample.Infra.QA.Configurations;
@@ -8,7 +7,6 @@ public class QuestionConfig : IEntityTypeConfiguration<Question>
 {
     public void Configure(EntityTypeBuilder<Question> builder)
     {
-        builder.ToTable(TableContants.Questions, DbConstants.QASchema);
         builder.HasKey(question => question.Id);
 
         builder

@@ -22,8 +22,16 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         if (!AppSettings.IsDevEnvironment) return;
 
         builder.Services.AddSwaggerGen();
-        var launchResult = await builder.LaunchExternalDependenciesAsync();
+        var launchResult = await builder.LaunchExternalDependenciesAsync(new ExternalDependencyLaunchOptions());
         ScopedLog.Add(nameof(launchResult.PostgresConnection), launchResult.PostgresConnection);
+    }
+
+    protected override void ConfigureApplicationPreScopeStart(WebApplication application)
+    {
+        base.ConfigureApplicationPreScopeStart(application);
+        if (!AppSettings.IsDevEnvironment) return;
+
+        DrnProgramOptions.UseHttpRequestLogger = true;
     }
 
     protected override void ConfigureApplicationPreAuth(WebApplication application)

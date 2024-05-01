@@ -7,27 +7,24 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Sample.Infra.QA.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialMigration : Migration
+    public partial class InitialQAMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.EnsureSchema(
-                name: "qa");
-
-            migrationBuilder.EnsureSchema(
-                name: "user");
+                name: "qa_context");
 
             migrationBuilder.CreateTable(
                 name: "categories",
-                schema: "qa",
+                schema: "qa_context",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     name = table.Column<string>(type: "text", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -35,23 +32,24 @@ namespace Sample.Infra.QA.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "tag",
+                name: "tags",
+                schema: "qa_context",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     name = table.Column<string>(type: "text", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_tag", x => x.id);
+                    table.PrimaryKey("pk_tags", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
                 name: "users",
-                schema: "user",
+                schema: "qa_context",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", nullable: false)
@@ -65,8 +63,8 @@ namespace Sample.Infra.QA.Migrations
                     address_street = table.Column<string>(type: "text", nullable: false),
                     contact_email = table.Column<string>(type: "text", nullable: false),
                     contact_phone = table.Column<string>(type: "text", nullable: true),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -75,7 +73,7 @@ namespace Sample.Infra.QA.Migrations
 
             migrationBuilder.CreateTable(
                 name: "questions",
-                schema: "qa",
+                schema: "qa_context",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", nullable: false)
@@ -84,8 +82,8 @@ namespace Sample.Infra.QA.Migrations
                     body = table.Column<string>(type: "text", nullable: false),
                     user_id = table.Column<long>(type: "bigint", nullable: false),
                     category_id = table.Column<long>(type: "bigint", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -93,116 +91,167 @@ namespace Sample.Infra.QA.Migrations
                     table.ForeignKey(
                         name: "fk_questions_categories_category_id",
                         column: x => x.category_id,
-                        principalSchema: "qa",
+                        principalSchema: "qa_context",
                         principalTable: "categories",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "fk_questions_users_user_id",
                         column: x => x.user_id,
-                        principalSchema: "user",
+                        principalSchema: "qa_context",
                         principalTable: "users",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "answer",
+                name: "answers",
+                schema: "qa_context",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     body = table.Column<string>(type: "text", nullable: false),
                     question_id = table.Column<long>(type: "bigint", nullable: false),
-                    posted_by = table.Column<long>(type: "bigint", nullable: false),
+                    user_id = table.Column<long>(type: "bigint", nullable: false),
                     is_accepted = table.Column<bool>(type: "boolean", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_answer", x => x.id);
+                    table.PrimaryKey("pk_answers", x => x.id);
                     table.ForeignKey(
-                        name: "fk_answer_questions_question_id",
+                        name: "fk_answers_questions_question_id",
                         column: x => x.question_id,
-                        principalSchema: "qa",
+                        principalSchema: "qa_context",
                         principalTable: "questions",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "comment",
+                name: "comments",
+                schema: "qa_context",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     body = table.Column<string>(type: "text", nullable: false),
-                    posted_by = table.Column<long>(type: "bigint", nullable: false),
+                    user_id = table.Column<long>(type: "bigint", nullable: false),
                     question_id = table.Column<long>(type: "bigint", nullable: true),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_comment", x => x.id);
+                    table.PrimaryKey("pk_comments", x => x.id);
                     table.ForeignKey(
-                        name: "fk_comment_questions_question_id",
+                        name: "fk_comments_questions_question_id",
                         column: x => x.question_id,
-                        principalSchema: "qa",
+                        principalSchema: "qa_context",
                         principalTable: "questions",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "question_tag",
+                schema: "qa_context",
                 columns: table => new
                 {
-                    posts_id = table.Column<long>(type: "bigint", nullable: false),
+                    questions_id = table.Column<long>(type: "bigint", nullable: false),
                     tags_id = table.Column<long>(type: "bigint", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_question_tag", x => new { x.posts_id, x.tags_id });
+                    table.PrimaryKey("pk_question_tag", x => new { x.questions_id, x.tags_id });
                     table.ForeignKey(
-                        name: "fk_question_tag_questions_posts_id",
-                        column: x => x.posts_id,
-                        principalSchema: "qa",
+                        name: "fk_question_tag_questions_questions_id",
+                        column: x => x.questions_id,
+                        principalSchema: "qa_context",
                         principalTable: "questions",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "fk_question_tag_tag_tags_id",
+                        name: "fk_question_tag_tags_tags_id",
                         column: x => x.tags_id,
-                        principalTable: "tag",
+                        principalSchema: "qa_context",
+                        principalTable: "tags",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "answer_comment",
+                schema: "qa_context",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    body = table.Column<string>(type: "text", nullable: false),
+                    user_id = table.Column<long>(type: "bigint", nullable: false),
+                    answer_id = table.Column<long>(type: "bigint", nullable: false),
+                    answer_comment_id = table.Column<long>(type: "bigint", nullable: true),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_answer_comment", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_answer_comment_answer_comment_answer_comment_id",
+                        column: x => x.answer_comment_id,
+                        principalSchema: "qa_context",
+                        principalTable: "answer_comment",
+                        principalColumn: "id");
+                    table.ForeignKey(
+                        name: "fk_answer_comment_answers_answer_id",
+                        column: x => x.answer_id,
+                        principalSchema: "qa_context",
+                        principalTable: "answers",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
-                name: "ix_answer_question_id",
-                table: "answer",
+                name: "ix_answer_comment_answer_comment_id",
+                schema: "qa_context",
+                table: "answer_comment",
+                column: "answer_comment_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_answer_comment_answer_id",
+                schema: "qa_context",
+                table: "answer_comment",
+                column: "answer_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_answers_question_id",
+                schema: "qa_context",
+                table: "answers",
                 column: "question_id");
 
             migrationBuilder.CreateIndex(
-                name: "ix_comment_question_id",
-                table: "comment",
+                name: "ix_comments_question_id",
+                schema: "qa_context",
+                table: "comments",
                 column: "question_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_question_tag_tags_id",
+                schema: "qa_context",
                 table: "question_tag",
                 column: "tags_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_questions_category_id",
-                schema: "qa",
+                schema: "qa_context",
                 table: "questions",
                 column: "category_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_questions_user_id",
-                schema: "qa",
+                schema: "qa_context",
                 table: "questions",
                 column: "user_id");
         }
@@ -211,28 +260,36 @@ namespace Sample.Infra.QA.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "answer");
+                name: "answer_comment",
+                schema: "qa_context");
 
             migrationBuilder.DropTable(
-                name: "comment");
+                name: "comments",
+                schema: "qa_context");
 
             migrationBuilder.DropTable(
-                name: "question_tag");
+                name: "question_tag",
+                schema: "qa_context");
+
+            migrationBuilder.DropTable(
+                name: "answers",
+                schema: "qa_context");
+
+            migrationBuilder.DropTable(
+                name: "tags",
+                schema: "qa_context");
 
             migrationBuilder.DropTable(
                 name: "questions",
-                schema: "qa");
-
-            migrationBuilder.DropTable(
-                name: "tag");
+                schema: "qa_context");
 
             migrationBuilder.DropTable(
                 name: "categories",
-                schema: "qa");
+                schema: "qa_context");
 
             migrationBuilder.DropTable(
                 name: "users",
-                schema: "user");
+                schema: "qa_context");
         }
     }
 }

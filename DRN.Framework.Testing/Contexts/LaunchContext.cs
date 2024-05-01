@@ -9,19 +9,28 @@ namespace DRN.Framework.Testing.Contexts;
 public static class LaunchContext
 {
     /// <summary>
-    /// Launches external dependencies such as postgresql and wires settings such as connection strings for dev environment if LaunchExternalDependencies feature is enabled
+    /// Launches external dependencies in a container such as postgresql and wires settings such as connection strings for dev environment if LaunchExternalDependencies feature is enabled
     /// </summary>
-    public static async Task<ExternalDependencyLaunchResult> LaunchExternalDependenciesAsync(this WebApplicationBuilder appBuilder,
+    public static async Task<ExternalDependencyLaunchResult> LaunchExternalDependenciesAsync(
+        this WebApplicationBuilder builder,
+        ExternalDependencyLaunchOptions? options = null,
         IAppSettings? appSettings = null)
     {
+        options ??= new ExternalDependencyLaunchOptions();
         var result = new ExternalDependencyLaunchResult(appSettings ?? AppSettings.Instance!);
         if (!result.Launched) return result;
 
-        var postgresCollection = await PostgresContext.LaunchPostgresAsync(appBuilder);
+        var postgresCollection = await PostgresContext.LaunchPostgresAsync(builder, options);
         result.PostgresCollection = postgresCollection;
 
         return result;
     }
+}
+
+public class ExternalDependencyLaunchOptions
+{
+    public bool ContainerReuse { get; init; } = true;
+    public int PostgresHostPort { get; init; } = 5432;
 }
 
 public class ExternalDependencyLaunchResult(IAppSettings appSettings)

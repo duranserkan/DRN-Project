@@ -26,6 +26,8 @@ namespace DRN.Framework.EntityFramework.IdentityContext;
 ///             <description>Context needs to be created in design time as a factory for migrations <see cref="IDesignTimeDbContextFactory{TContext}"/></description>
 ///         </item>
 ///     </list>
+/// <br/>
+/// <a href="https://learn.microsoft.com/en-us/aspnet/core/security/authentication/customize-identity-model">Identity model customization docs</a>
 /// </summary>
 ///<example>
 /// <b>EF Tool Usage</b>
@@ -35,10 +37,23 @@ namespace DRN.Framework.EntityFramework.IdentityContext;
 ///</code>
 /// </example>
 ///<example>
-///<b>From Project Root</b>
+///<b>From Project Root to add new migration</b>
 ///<code>
 /// dotnet ef migrations add --context [ContextName] [MigrationName]
-/// dotnet ef database update --context [ContextName]  -- "connectionString"
+///</code>
+///<b>From Project Root to update database(can be used to revert applied migrations)</b>
+///<code>
+/// dotnet ef database update --context [ContextName] [MigrationName] -- "connectionString"
+///</code>
+///<b>From Project Root to list migration and changes</b>
+///<code>
+/// dotnet ef migrations list --context [ContextName]
+/// dotnet ef migrations has-pending-model-changes --context [ContextName]
+/// dotnet ef migrations script --context [ContextName]
+///</code>
+///<b>From Project Root to remove unapplied migrations</b>
+///<code>
+/// dotnet ef migrations remove --context [ContextName]  -- "connectionString"
 ///</code>
 /// </example>
 [DrnContextServiceRegistration]
@@ -55,6 +70,13 @@ public abstract class DrnContextIdentity<TContext, TUser> : IdentityDbContext<TU
     {
         base.OnModelCreating(modelBuilder);
         this.ModelCreatingDefaults(modelBuilder);
+        modelBuilder.Entity<TUser>().ToTable("users");
+        modelBuilder.Entity<IdentityUserToken<string>>().ToTable("user_tokens");
+        modelBuilder.Entity<IdentityUserLogin<string>>().ToTable("user_logins");
+        modelBuilder.Entity<IdentityUserClaim<string>>().ToTable("user_claims");
+        modelBuilder.Entity<IdentityRole>().ToTable("roles");
+        modelBuilder.Entity<IdentityUserRole<string>>().ToTable("user_roles");
+        modelBuilder.Entity<IdentityRoleClaim<string>>().ToTable("role_claims");
     }
 
     public TContext CreateDbContext(string[] args) => args.CreateDbContext<TContext>();

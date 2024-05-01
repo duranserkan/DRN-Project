@@ -21,13 +21,17 @@ public class PostgresContext(TestContext testContext)
     public TestContext TestContext { get; } = testContext;
     public PostgresContextIsolated Isolated { get; } = new(testContext);
 
-    public static PostgreSqlContainer BuildContainer(string? database = null, string? username = null, string? password = null, string? version = null)
+    public static PostgreSqlContainer BuildContainer(string? database = null, string? username = null, string? password = null,
+        string? version = null, int hostPort = 0, bool reuse = false)
     {
         version ??= "16.2-alpine3.19";
+        var containerPort = PostgreSqlBuilder.PostgreSqlPort;
         var builder = new PostgreSqlBuilder().WithImage($"postgres:{version}");
         if (database != null) builder = builder.WithDatabase(database);
         if (username != null) builder = builder.WithUsername(username);
         if (password != null) builder = builder.WithPassword(password);
+        if (hostPort is >= 0 and < 65535) builder = builder.WithPortBinding(hostPort, containerPort);
+        if (reuse) builder = builder.WithReuse(true);
 
         var container = builder.Build();
 
@@ -110,9 +114,10 @@ public class PostgresContext(TestContext testContext)
         return dbContextCollection;
     }
 
-    internal static async Task<PostgresCollection> LaunchPostgresAsync(WebApplicationBuilder applicationBuilder)
+    internal static async Task<PostgresCollection> LaunchPostgresAsync(
+        WebApplicationBuilder applicationBuilder, ExternalDependencyLaunchOptions options)
     {
-        var postgresContainer = BuildContainer();
+        var postgresContainer = BuildContainer(hostPort: options.PostgresHostPort, reuse: options.ContainerReuse);
         await postgresContainer.StartAsync();
 
         var dbContextCollection = GetDbContextCollection(applicationBuilder.Services, postgresContainer);

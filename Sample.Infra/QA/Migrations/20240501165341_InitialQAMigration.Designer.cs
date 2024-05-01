@@ -13,36 +13,37 @@ using Sample.Infra.QA;
 namespace Sample.Infra.QA.Migrations
 {
     [DbContext(typeof(QAContext))]
-    [Migration("20231225164322_InitialMigration")]
-    partial class InitialMigration
+    [Migration("20240501165341_InitialQAMigration")]
+    partial class InitialQAMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.0")
+                .HasDefaultSchema("qa_context")
+                .HasAnnotation("ProductVersion", "8.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("QuestionTag", b =>
                 {
-                    b.Property<long>("PostsId")
+                    b.Property<long>("QuestionsId")
                         .HasColumnType("bigint")
-                        .HasColumnName("posts_id");
+                        .HasColumnName("questions_id");
 
                     b.Property<long>("TagsId")
                         .HasColumnType("bigint")
                         .HasColumnName("tags_id");
 
-                    b.HasKey("PostsId", "TagsId")
+                    b.HasKey("QuestionsId", "TagsId")
                         .HasName("pk_question_tag");
 
                     b.HasIndex("TagsId")
                         .HasDatabaseName("ix_question_tag_tags_id");
 
-                    b.ToTable("question_tag", (string)null);
+                    b.ToTable("question_tag", "qa_context");
                 });
 
             modelBuilder.Entity("Sample.Domain.QA.Answers.Answer", b =>
@@ -68,24 +69,72 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnName("is_accepted");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
-
-                    b.Property<long>("PostedBy")
-                        .HasColumnType("bigint")
-                        .HasColumnName("posted_by");
 
                     b.Property<long>("QuestionId")
                         .HasColumnType("bigint")
                         .HasColumnName("question_id");
 
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
                     b.HasKey("Id")
-                        .HasName("pk_answer");
+                        .HasName("pk_answers");
 
                     b.HasIndex("QuestionId")
-                        .HasDatabaseName("ix_answer_question_id");
+                        .HasDatabaseName("ix_answers_question_id");
 
-                    b.ToTable("answer", (string)null);
+                    b.ToTable("answers", "qa_context");
+                });
+
+            modelBuilder.Entity("Sample.Domain.QA.Answers.AnswerComment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("AnswerCommentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("answer_comment_id");
+
+                    b.Property<long>("AnswerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("answer_id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_answer_comment");
+
+                    b.HasIndex("AnswerCommentId")
+                        .HasDatabaseName("ix_answer_comment_answer_comment_id");
+
+                    b.HasIndex("AnswerId")
+                        .HasDatabaseName("ix_answer_comment_answer_id");
+
+                    b.ToTable("answer_comment", "qa_context");
                 });
 
             modelBuilder.Entity("Sample.Domain.QA.Categories.Category", b =>
@@ -102,6 +151,7 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnName("created_at");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
 
@@ -113,46 +163,7 @@ namespace Sample.Infra.QA.Migrations
                     b.HasKey("Id")
                         .HasName("pk_categories");
 
-                    b.ToTable("categories", "qa");
-                });
-
-            modelBuilder.Entity("Sample.Domain.QA.Comments.Comment", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("body");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
-
-                    b.Property<long>("PostedBy")
-                        .HasColumnType("bigint")
-                        .HasColumnName("posted_by");
-
-                    b.Property<long?>("QuestionId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("question_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_comment");
-
-                    b.HasIndex("QuestionId")
-                        .HasDatabaseName("ix_comment_question_id");
-
-                    b.ToTable("comment", (string)null);
+                    b.ToTable("categories", "qa_context");
                 });
 
             modelBuilder.Entity("Sample.Domain.QA.Questions.Question", b =>
@@ -178,6 +189,7 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnName("created_at");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
 
@@ -199,7 +211,47 @@ namespace Sample.Infra.QA.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_questions_user_id");
 
-                    b.ToTable("questions", "qa");
+                    b.ToTable("questions", "qa_context");
+                });
+
+            modelBuilder.Entity("Sample.Domain.QA.Questions.QuestionComment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<long?>("QuestionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("question_id");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_comments");
+
+                    b.HasIndex("QuestionId")
+                        .HasDatabaseName("ix_comments_question_id");
+
+                    b.ToTable("comments", "qa_context");
                 });
 
             modelBuilder.Entity("Sample.Domain.QA.Tags.Tag", b =>
@@ -216,6 +268,7 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnName("created_at");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
 
@@ -225,9 +278,9 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnName("name");
 
                     b.HasKey("Id")
-                        .HasName("pk_tag");
+                        .HasName("pk_tags");
 
-                    b.ToTable("tag", (string)null);
+                    b.ToTable("tags", "qa_context");
                 });
 
             modelBuilder.Entity("Sample.Domain.Users.User", b =>
@@ -244,6 +297,7 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnName("created_at");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
 
@@ -304,24 +358,24 @@ namespace Sample.Infra.QA.Migrations
                     b.HasKey("Id")
                         .HasName("pk_users");
 
-                    b.ToTable("users", "user");
+                    b.ToTable("users", "qa_context");
                 });
 
             modelBuilder.Entity("QuestionTag", b =>
                 {
                     b.HasOne("Sample.Domain.QA.Questions.Question", null)
                         .WithMany()
-                        .HasForeignKey("PostsId")
+                        .HasForeignKey("QuestionsId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_question_tag_questions_posts_id");
+                        .HasConstraintName("fk_question_tag_questions_questions_id");
 
                     b.HasOne("Sample.Domain.QA.Tags.Tag", null)
                         .WithMany()
                         .HasForeignKey("TagsId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_question_tag_tag_tags_id");
+                        .HasConstraintName("fk_question_tag_tags_tags_id");
                 });
 
             modelBuilder.Entity("Sample.Domain.QA.Answers.Answer", b =>
@@ -331,15 +385,22 @@ namespace Sample.Infra.QA.Migrations
                         .HasForeignKey("QuestionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_answer_questions_question_id");
+                        .HasConstraintName("fk_answers_questions_question_id");
                 });
 
-            modelBuilder.Entity("Sample.Domain.QA.Comments.Comment", b =>
+            modelBuilder.Entity("Sample.Domain.QA.Answers.AnswerComment", b =>
                 {
-                    b.HasOne("Sample.Domain.QA.Questions.Question", null)
+                    b.HasOne("Sample.Domain.QA.Answers.AnswerComment", null)
                         .WithMany("Comments")
-                        .HasForeignKey("QuestionId")
-                        .HasConstraintName("fk_comment_questions_question_id");
+                        .HasForeignKey("AnswerCommentId")
+                        .HasConstraintName("fk_answer_comment_answer_comment_answer_comment_id");
+
+                    b.HasOne("Sample.Domain.QA.Answers.Answer", null)
+                        .WithMany("Comments")
+                        .HasForeignKey("AnswerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_answer_comment_answers_answer_id");
                 });
 
             modelBuilder.Entity("Sample.Domain.QA.Questions.Question", b =>
@@ -361,6 +422,24 @@ namespace Sample.Infra.QA.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Sample.Domain.QA.Questions.QuestionComment", b =>
+                {
+                    b.HasOne("Sample.Domain.QA.Questions.Question", null)
+                        .WithMany("Comments")
+                        .HasForeignKey("QuestionId")
+                        .HasConstraintName("fk_comments_questions_question_id");
+                });
+
+            modelBuilder.Entity("Sample.Domain.QA.Answers.Answer", b =>
+                {
+                    b.Navigation("Comments");
+                });
+
+            modelBuilder.Entity("Sample.Domain.QA.Answers.AnswerComment", b =>
+                {
+                    b.Navigation("Comments");
                 });
 
             modelBuilder.Entity("Sample.Domain.QA.Categories.Category", b =>

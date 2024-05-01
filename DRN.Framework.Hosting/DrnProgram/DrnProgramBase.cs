@@ -39,7 +39,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     protected static IAppSettings AppSettings;
     protected static ILogger Logger;
     protected static IScopedLog ScopedLog;
-    protected DrnProgramOptions DrnProgramOptions { get; init; } = new();
+    protected DrnProgramOptions DrnProgramOptions { get; } = new();
 
     protected static async Task RunAsync(string[]? args = null)
     {
