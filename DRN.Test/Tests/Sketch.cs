@@ -9,6 +9,7 @@ public class Sketch
     public void Doodle(TestContext _)
     {
         var u = "http://nexus/status/".AppendQueryParam("name", null)!;
-        var x=u.ToString();
+        var x = u.ToString();
+        x.Should().NotBeNull();
     }
 }

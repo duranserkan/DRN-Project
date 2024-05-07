@@ -27,18 +27,13 @@ namespace DRN.Framework.Hosting.DrnProgram;
 /// </summary>
 public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
-    static DrnProgramBase()
-    {
-        Configuration = new ConfigurationManager();
-        AppSettings = new AppSettings(Configuration);
-        Logger = Log.Logger;
-        ScopedLog = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
-    }
+    private static IConfiguration Configuration = new ConfigurationManager();
 
-    protected static IConfiguration Configuration;
-    protected static IAppSettings AppSettings;
-    protected static ILogger Logger;
-    protected static IScopedLog ScopedLog;
+    private static ILogger Logger = Log.Logger;
+
+    protected static IAppSettings AppSettings { get; private set; } = new AppSettings(new ConfigurationManager());
+    protected static IScopedLog ScopedLog { get; } = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
+
     protected DrnProgramOptions DrnProgramOptions { get; } = new();
 
     protected static async Task RunAsync(string[]? args = null)
@@ -49,29 +44,28 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         Logger = new TProgram().ConfigureLogger().CreateBootstrapLogger().ForContext<TProgram>();
         Log.Logger = Logger;
 
-        var scopedLog = ScopedLog;
         try
         {
-            scopedLog.AddToActions("Creating Application");
+            ScopedLog.AddToActions("Creating Application");
             var application = CreateApplication(args);
 
-            scopedLog.AddToActions("Running Application");
-            Log.Information("{@Logs}", scopedLog.Logs);
+            ScopedLog.AddToActions("Running Application");
+            Log.Information("{@Logs}", ScopedLog.Logs);
 
             await application.RunAsync();
 
-            scopedLog.AddToActions("Application Shutdown Gracefully");
+            ScopedLog.AddToActions("Application Shutdown Gracefully");
         }
         catch (Exception exception)
         {
-            scopedLog.AddException(exception);
+            ScopedLog.AddException(exception);
         }
         finally
         {
-            if (scopedLog.HasException)
-                Log.Error("{@Logs}", scopedLog.Logs);
+            if (ScopedLog.HasException)
+                Log.Error("{@Logs}", ScopedLog.Logs);
             else
-                Log.Information("{@Logs}", scopedLog.Logs);
+                Log.Information("{@Logs}", ScopedLog.Logs);
 
             await Log.CloseAndFlushAsync();
         }
@@ -110,6 +104,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel")));
         applicationBuilder.Services.ConfigureHttpJsonOptions(options => JsonConventions.SetJsonDefaults(options.SerializerOptions));
         applicationBuilder.Services.AddLogging();
+        applicationBuilder.Services.AddEndpointsApiExplorer();
 
         if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 

@@ -1,5 +1,6 @@
 using DRN.Framework.EntityFramework;
 using DRN.Framework.EntityFramework.Context;
+using DRN.Framework.Testing.Extensions;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.AspNetCore.Builder;

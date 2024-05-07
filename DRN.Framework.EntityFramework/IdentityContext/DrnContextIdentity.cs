@@ -66,17 +66,17 @@ public abstract class DrnContextIdentity<TContext, TUser> : IdentityDbContext<TU
     {
     }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
-        base.OnModelCreating(modelBuilder);
-        this.ModelCreatingDefaults(modelBuilder);
-        modelBuilder.Entity<TUser>().ToTable("users");
-        modelBuilder.Entity<IdentityUserToken<string>>().ToTable("user_tokens");
-        modelBuilder.Entity<IdentityUserLogin<string>>().ToTable("user_logins");
-        modelBuilder.Entity<IdentityUserClaim<string>>().ToTable("user_claims");
-        modelBuilder.Entity<IdentityRole>().ToTable("roles");
-        modelBuilder.Entity<IdentityUserRole<string>>().ToTable("user_roles");
-        modelBuilder.Entity<IdentityRoleClaim<string>>().ToTable("role_claims");
+        base.OnModelCreating(builder);
+        this.ModelCreatingDefaults(builder);
+        builder.Entity<TUser>().ToTable("users");
+        builder.Entity<IdentityUserToken<string>>().ToTable("user_tokens");
+        builder.Entity<IdentityUserLogin<string>>().ToTable("user_logins");
+        builder.Entity<IdentityUserClaim<string>>().ToTable("user_claims");
+        builder.Entity<IdentityRole>().ToTable("roles");
+        builder.Entity<IdentityUserRole<string>>().ToTable("user_roles");
+        builder.Entity<IdentityRoleClaim<string>>().ToTable("role_claims");
     }
 
     public TContext CreateDbContext(string[] args) => args.CreateDbContext<TContext>();

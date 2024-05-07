@@ -1,5 +1,6 @@
 ﻿using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Testing.Contexts;
+using DRN.Framework.Testing.Extensions;
 using DRN.Nexus.Application;
 using DRN.Nexus.Infra;
 using DRN.Nexus.Infra.Identity;
@@ -16,12 +17,11 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         builder.Services
             .AddNexusInfraServices()
             .AddNexusApplicationServices()
-            .AddEndpointsApiExplorer()
+            .AddNexusServices(AppSettings)
             .AddIdentityApiEndpoints<IdentityUser>()
             .AddEntityFrameworkStores<NexusIdentityContext>();
         if (!AppSettings.IsDevEnvironment) return;
 
-        builder.Services.AddSwaggerGen();
         var launchResult = await builder.LaunchExternalDependenciesAsync(new ExternalDependencyLaunchOptions());
         ScopedLog.Add(nameof(launchResult.PostgresConnection), launchResult.PostgresConnection);
     }

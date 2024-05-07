@@ -13,7 +13,7 @@ public static class DrnProgramConventions
             DrnAppBuilderType.Empty => WebApplication.CreateEmptyBuilder(options),
             DrnAppBuilderType.Slim => WebApplication.CreateSlimBuilder(options),
             DrnAppBuilderType.Default => WebApplication.CreateBuilder(options),
-            _ => throw new ArgumentOutOfRangeException()
+            _ => WebApplication.CreateEmptyBuilder(options)
         };
 
         return builder;

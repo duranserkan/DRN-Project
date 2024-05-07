@@ -25,7 +25,7 @@ public interface IAppSettings
 [Singleton<IAppSettings>]
 public class AppSettings : IAppSettings
 {
-    public static IAppSettings? Instance { get; protected internal set; }
+    public static IAppSettings Instance { get; protected internal set; } = null!;
 
     public AppSettings(IConfiguration configuration, bool setAsGlobalInstance) : this(configuration)
     {

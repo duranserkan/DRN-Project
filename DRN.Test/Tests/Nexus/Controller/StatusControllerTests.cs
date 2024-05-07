@@ -32,7 +32,8 @@ public class StatusControllerTests(ITestOutputHelper outputHelper)
         responseMessage.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var tokenResponse = await responseMessage.Content.ReadFromJsonAsync<AccessTokenResponse>();
-        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {tokenResponse.AccessToken}");
+        tokenResponse?.AccessToken.Should().NotBeNull();
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {tokenResponse!.AccessToken}");
 
         var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>("Status");
         var programName = typeof(Program).GetAssemblyName();
@@ -41,7 +42,7 @@ public class StatusControllerTests(ITestOutputHelper outputHelper)
 
     [Theory]
     [DataInline]
-    public async Task StatusController_Should_Not_Allow_Unauthorized(TestContext context, string password)
+    public async Task StatusController_Should_Not_Allow_Unauthorized(TestContext context)
     {
         context.ApplicationContext.LogToTestOutput(outputHelper);
         var application = context.ApplicationContext.CreateApplication<Program>();

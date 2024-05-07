@@ -1,12 +1,11 @@
-using System.Diagnostics;
+using DRN.Framework.Testing.Contexts;
 using DRN.Framework.Testing.Contexts.Postgres;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
-using Serilog;
 
-namespace DRN.Framework.Testing.Contexts;
+namespace DRN.Framework.Testing.Extensions;
 
-public static class LaunchContext
+public static class WebApplicationBuilderExtensions
 {
     /// <summary>
     /// Launches external dependencies in a container such as postgresql and wires settings such as connection strings for dev environment if LaunchExternalDependencies feature is enabled
@@ -62,5 +61,5 @@ public class ExternalDependencyLaunchResult(IAppSettings appSettings)
     public bool Launched { get; } = !TestContext.IsRunning
                                     && appSettings.IsDevEnvironment
                                     && appSettings.Features.LaunchExternalDependencies
-                                    && appSettings.Features.TemporaryApplication;
+                                    && !appSettings.Features.TemporaryApplication;
 }

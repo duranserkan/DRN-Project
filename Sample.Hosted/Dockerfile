@@ -2,15 +2,11 @@
 #https://blog.jetbrains.com/dotnet/2023/06/07/how-docker-fast-mode-works-in-rider/
 #https://www.jetbrains.com/help/rider/Docker_fast_mode.html
 ARG PROJECT=Sample.Hosted
-ARG SSLPORT=5999
-ARG HTTPPORT=5998
 
 #https://www.mytechramblings.com/posts/testing-chiseled-ubuntu-containers-with-dotnet/
 #https://hub.docker.com/r/ubuntu/dotnet-aspnet use this dotnet deps with self contained apps are not supported with dockerfastmode
 #https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/ enable buildkit to build multiplatform images
 FROM --platform=$TARGETPLATFORM ubuntu/dotnet-aspnet:8.0_edge AS base
-ARG SSLPORT
-ARG HTTPPORT
 ARG TARGETARCH
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -18,28 +14,6 @@ ARG BUILDPLATFORM
 ENV DRN_TARGET_ARCH=${TARGETARCH}
 ENV DRN_TARGET_PLATFORM=${TARGETPLATFORM}
 ENV DRN_BUILD_PLATFORM=${BUILDPLATFORM}
-
-#https://learn.microsoft.com/en-us/aspnet/core/security/docker-https
-#Bind ports from rider build configs or use docker compose
-#https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/endpoints
-
-EXPOSE $SSLPORT/tcp
-EXPOSE $HTTPPORT/tcp
-
-#Set the HTTPS redirect port. Used for enforcing HTTPS.
-ENV ASPNETCORE_HTTPS_PORTS=${SSLPORT};
-ENV ASPNETCORE_HTTP_PORTS=${HTTPPORT};
-#https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/endpoints?view=aspnetcore-8.0
-ENV ASPNETCORE_URLS=http://+:${HTTPPORT};
-#ENV ASPNETCORE_URLS=https://+:${SSLPORT};http://+:${HTTPPORT};
-
-#Create certificates then map volume in host
-#dotnet dev-certs https -ep ${HOME}/.aspnet/https/aspnetapp.pfx -p <CREDENTIAL_PLACEHOLDER>
-#change drn with actual CREDENTIAL_PLACEHOLDER in ENV ASPNETCORE_Kestrel__Certificates__Default__Password
-#dotnet dev-certs https --trust
-#~/.aspnet/https:/https
-#ENV ASPNETCORE_Kestrel__Certificates__Default__Password=drn
-#ENV ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
 
 USER app
 #Kubernetes can volume mount configs and settings to these directories
