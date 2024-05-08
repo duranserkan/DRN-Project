@@ -42,7 +42,7 @@ public class AppSettings : IAppSettings
         ApplicationName = TryGetSection(nameof(ApplicationName), out _)
             ? configuration.GetValue<string>(nameof(ApplicationName)) ?? AppConstants.EntryAssemblyName
             : AppConstants.EntryAssemblyName;
-        Features = new DrnAppFeatures(this);
+        Features = Get<DrnAppFeatures>(nameof(DrnAppFeatures)) ?? new DrnAppFeatures();
     }
 
     public DrnAppFeatures Features { get; }

@@ -29,8 +29,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 {
     private static IConfiguration Configuration = new ConfigurationManager();
 
-    private static ILogger Logger = Log.Logger;
-
+    protected static ILogger Logger { get; private set; } = Log.Logger;
     protected static IAppSettings AppSettings { get; private set; } = new AppSettings(new ConfigurationManager());
     protected static IScopedLog ScopedLog { get; } = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
 
