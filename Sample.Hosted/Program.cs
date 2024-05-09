@@ -14,4 +14,21 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
             .AddSampleInfraServices()
             .AddSampleApplicationServices();
     }
+
+    protected override void ConfigureApplicationPreScopeStart(WebApplication application)
+    {
+        base.ConfigureApplicationPreScopeStart(application);
+        if (!AppSettings.IsDevEnvironment) return;
+
+        DrnProgramOptions.UseHttpRequestLogger = true;
+    }
+
+    protected override void ConfigureApplicationPreAuth(WebApplication application)
+    {
+        base.ConfigureApplicationPreAuth(application);
+        if (!AppSettings.IsDevEnvironment) return;
+
+        application.MapSwagger();
+        application.UseSwaggerUI();
+    }
 }

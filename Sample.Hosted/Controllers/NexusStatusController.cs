@@ -14,7 +14,7 @@ public class NexusStatusController() : ControllerBase
     {
         var status = await "http://nexus/status"
             .AppendQueryParam("name", name)
-            .WithSettings(x => x.HttpVersion = "2.0")
+            //.WithSettings(x => x.HttpVersion = "2.0")
             .AllowAnyHttpStatus()
             .GetStringAsync();
 
