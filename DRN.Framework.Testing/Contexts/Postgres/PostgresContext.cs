@@ -12,7 +12,6 @@ namespace DRN.Framework.Testing.Contexts.Postgres;
 
 public class PostgresContext(TestContext testContext)
 {
-    private static bool _started;
     static readonly SemaphoreSlim ContainerLock = new(1, 1);
     private static readonly Lazy<PostgreSqlContainer> Container = new(() => BuildContainer());
 
@@ -25,7 +24,7 @@ public class PostgresContext(TestContext testContext)
     public static PostgreSqlContainer BuildContainer(string? database = null, string? username = null, string? password = null,
         string? version = null, int hostPort = 0, bool reuse = false)
     {
-        version ??= "16.2-alpine3.19";
+        version ??= "16.3-alpine3.19";
         var containerPort = PostgreSqlBuilder.PostgreSqlPort;
         var builder = new PostgreSqlBuilder().WithImage($"postgres:{version}");
         if (database != null) builder = builder.WithDatabase(database);
@@ -47,9 +46,8 @@ public class PostgresContext(TestContext testContext)
         await ContainerLock.WaitAsync();
         try
         {
-            if (_started) return Container.Value;
+            if (Container.Value.StartedTime != default) return Container.Value;
             await Container.Value.StartAsync();
-            _started = true;
             return Container.Value;
         }
         finally

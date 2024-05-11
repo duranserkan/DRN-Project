@@ -10,6 +10,7 @@
   
   <ItemGroup>
     <ProjectReference Include="..\DRN.Framework.Hosting\DRN.Framework.Hosting.csproj" />
+    <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
     <ProjectReference Include="..\Sample.Application\Sample.Application.csproj" />
   </ItemGroup>
 

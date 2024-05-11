@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -11,7 +12,8 @@ public interface IAppSettings
     AppEnvironment Environment { get; }
     bool IsDevEnvironment { get; }
     string ApplicationName { get; }
-    IConfiguration Configuration { get; }
+
+    [JsonIgnore] IConfiguration Configuration { get; }
     bool TryGetConnectionString(string name, out string connectionString);
     string GetRequiredConnectionString(string name);
     bool TryGetSection(string key, out IConfigurationSection section);
@@ -50,7 +52,7 @@ public class AppSettings : IAppSettings
 
     public bool IsDevEnvironment => Environment == AppEnvironment.Development;
     public string ApplicationName { get; }
-    public IConfiguration Configuration { get; }
+    [JsonIgnore] public IConfiguration Configuration { get; }
 
     public bool TryGetConnectionString(string name, out string connectionString)
     {

@@ -1,4 +1,5 @@
 ﻿using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Testing.Extensions;
 using Sample.Application;
 using Sample.Infra;
 
@@ -12,7 +13,11 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     {
         builder.Services
             .AddSampleInfraServices()
-            .AddSampleApplicationServices();
+            .AddSampleApplicationServices()
+            .AddSampleServices(AppSettings);
+
+        var launchResult = await builder.LaunchExternalDependenciesAsync(new ExternalDependencyLaunchOptions());
+        ScopedLog.Add(nameof(launchResult.PostgresConnection), launchResult.PostgresConnection);
     }
 
     protected override void ConfigureApplicationPreScopeStart(WebApplication application)
@@ -21,6 +26,7 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         if (!AppSettings.IsDevEnvironment) return;
 
         DrnProgramOptions.UseHttpRequestLogger = true;
+        application.UseDeveloperExceptionPage();
     }
 
     protected override void ConfigureApplicationPreAuth(WebApplication application)

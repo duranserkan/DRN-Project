@@ -29,7 +29,7 @@ public class RabbitMQContext(TestContext testContext)
 
     public static RabbitMqContainer BuildContainer(string? version = null, string? username = null, string? password = null)
     {
-        version ??= "3.13.1-alpine";
+        version ??= "3.13.2-alpine";
         var builder = new RabbitMqBuilder().WithImage($"rabbitmq:{version}");
         if (username != null) builder.WithUsername(username);
         if (password != null) builder.WithPassword(password);
