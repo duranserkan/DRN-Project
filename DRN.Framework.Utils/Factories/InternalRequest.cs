@@ -46,12 +46,14 @@ public class InternalRequest(IAppSettings appSettings) : IInternalRequest
     private const string Http = "http://";
     private const string Https = "https://";
     private static readonly DefaultJsonSerializer JsonSerializer = new(JsonConventions.DefaultOptions);
-    private readonly string HttpVersion = new Version(appSettings.Features.InternalRequestHttpVersion).ToString();
-    private readonly bool Secure = appSettings.Features.InternalRequestHttpVersion.ToLower().StartsWith("https");
 
-    public IFlurlRequest For(string service) => For(service, Secure, HttpVersion);
-    public IFlurlRequest For(string service, bool secure) => For(service, secure, HttpVersion);
-    public IFlurlRequest For(string service, Version httpVersion) => For(service, Secure, httpVersion.ToString());
+    private readonly string _httpVersionDefault = new Version(appSettings.Features.InternalRequestHttpVersion).ToString();
+    private readonly bool _securityDefault = appSettings.Features.InternalRequestProtocol
+        .StartsWith("https", StringComparison.OrdinalIgnoreCase);
+
+    public IFlurlRequest For(string service) => For(service, _securityDefault, _httpVersionDefault);
+    public IFlurlRequest For(string service, bool secure) => For(service, secure, _httpVersionDefault);
+    public IFlurlRequest For(string service, Version httpVersion) => For(service, _securityDefault, httpVersion.ToString());
 
     /// <param name="service">kubernetes service name</param>
     /// <param name="secure">https or not</param>
@@ -60,7 +62,7 @@ public class InternalRequest(IAppSettings appSettings) : IInternalRequest
 
     private static IFlurlRequest For(string service, bool secure, string httpVersion)
     {
-        var protocol = secure ? Http : Https;
+        var protocol = secure ? Https : Http;
 
         return $"{protocol}{service}".WithSettings(x =>
         {
