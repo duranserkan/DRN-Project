@@ -10,6 +10,7 @@ public static class SampleModule
         services.AddServicesWithAttributes();
         if (appSettings.Environment != AppEnvironment.Development) return services;
 
+        services.AddSwaggerGen();
 
         return services;
     }

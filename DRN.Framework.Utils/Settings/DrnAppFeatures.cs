@@ -26,4 +26,7 @@ public class DrnAppFeatures
     /// When true in dev environment, after registered services validated, database migrations will be applied automatically
     /// </summary>
     public bool AutoMigrateDevEnvironment { get; init; }
+
+    public string InternalRequestHttpVersion { get; init; } = "1.1";
+    public string InternalRequestProtocol { get; init; } = "http";
 }

@@ -56,6 +56,7 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
                 if (_outputHelper != null)
                     logging.Services.AddSerilog(loggerConfiguration =>
                     {
+                        loggerConfiguration.Destructure.AsDictionary<SortedDictionary<string, object>>();
                         loggerConfiguration.MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information);
                         loggerConfiguration.MinimumLevel.Override("Microsoft", LogEventLevel.Warning);
                         loggerConfiguration.MinimumLevel.Override("System", LogEventLevel.Warning);

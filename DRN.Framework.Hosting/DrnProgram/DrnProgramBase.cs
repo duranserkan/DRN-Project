@@ -40,7 +40,9 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         _ = JsonConventions.DefaultOptions;
         Configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationName(), args).Build();
         AppSettings = new AppSettings(Configuration, true);
-        Logger = new TProgram().ConfigureLogger().CreateBootstrapLogger().ForContext<TProgram>();
+        Logger = new TProgram().ConfigureLogger()
+            .Destructure.AsDictionary<SortedDictionary<string, object>>()
+            .CreateBootstrapLogger().ForContext<TProgram>();
         Log.Logger = Logger;
 
         try
@@ -49,7 +51,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             var application = CreateApplication(args);
 
             ScopedLog.AddToActions("Running Application");
-            Log.Information("{@Logs}", ScopedLog.Logs);
+            Log.Warning("{@Logs}", ScopedLog.Logs);
 
             await application.RunAsync();
 
@@ -64,7 +66,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             if (ScopedLog.HasException)
                 Log.Error("{@Logs}", ScopedLog.Logs);
             else
-                Log.Information("{@Logs}", ScopedLog.Logs);
+                Log.Warning("{@Logs}", ScopedLog.Logs);
 
             await Log.CloseAndFlushAsync();
         }

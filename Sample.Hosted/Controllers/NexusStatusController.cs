@@ -1,4 +1,4 @@
-using Flurl;
+using DRN.Framework.Utils.Factories;
 using Flurl.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -6,19 +6,15 @@ namespace Sample.Hosted.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class NexusStatusController() : ControllerBase
+public class NexusStatusController(IInternalRequest request) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(200)]
-    public async Task<ActionResult<string>> Status([FromQuery] string? name)
+    public async Task<ActionResult<string>> Status()
     {
-        var result = await "http://nexus/status"
-            .AppendQueryParam("name", name)
-            //.WithSettings(x => x.HttpVersion = "2.0")
-            .AllowAnyHttpStatus()
-            .GetAsync();
-        var status = await result.GetStringAsync();
+        var response = await request.For("nexus/status").AllowAnyHttpStatus().GetAsync();
+        var payload = await response.GetStringAsync();
 
-        return StatusCode(result.StatusCode, status);
+        return StatusCode(response.StatusCode, payload);
     }
 }

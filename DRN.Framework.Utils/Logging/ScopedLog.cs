@@ -24,7 +24,8 @@ public class ScopedLog : IScopedLog
     {
         Add(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeOffset.UtcNow);
         Add(nameof(ScopedLog), true);
-        Add(nameof(AppSettings.ApplicationName), AppSettings.Instance?.ApplicationName ?? AppConstants.EntryAssemblyName);
+
+        Add(nameof(AppSettings.ApplicationName), AppSettings.Instance.ApplicationName);
         Add(nameof(AppConstants.ApplicationId), AppConstants.ApplicationId);
         Add(nameof(Environment.MachineName), Environment.MachineName);
     }

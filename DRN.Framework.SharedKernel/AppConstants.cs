@@ -8,7 +8,7 @@ public static class AppConstants
 {
     public static int ProcessId { get; } = Environment.ProcessId;
     public static Guid ApplicationId { get; } = Guid.NewGuid();
-    public static string EntryAssemblyName { get; } = Assembly.GetEntryAssembly()?.GetName().FullName ?? "Entry Assembly Not Found";
+    public static string EntryAssemblyName { get; } = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";
     public static string TempPath { get; } = GetTempPath(); //Cleans directory at every startup
     public static string LocalIpAddress { get; } = GetLocalIpAddress();
 
