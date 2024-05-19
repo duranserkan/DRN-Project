@@ -145,4 +145,6 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
         _serviceProvider?.Dispose();
         _serviceProvider = null;
     }
+
+    public override string ToString() => "TestContext";
 }

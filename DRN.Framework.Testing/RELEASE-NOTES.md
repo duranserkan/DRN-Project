@@ -1,8 +1,16 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.4.0
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 19 May Commemoration of Atatürk, Youth and Sports Day.
+
+### New Features
+
+*  LaunchExternalDependenciesAsync extension method added on WebApplicationBuilder to launch application all of its dependencies
+  * DrnAppFeatures:LaunchExternalDependencies config should set true and Environment should be Development
+
 ## Version 0.3.0
 
-My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April National Sovereignty and Children's Day.
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April ~~National Sovereignty and Children's Day~~.
 
 ### Breaking Changes
 

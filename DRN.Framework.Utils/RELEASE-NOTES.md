@@ -1,6 +1,7 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.  
 
-## Version 0.3.1
+## Version 0.4.0
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 19 May Commemoration of Atatürk, Youth and Sports Day.
 
 ### Breaking Changes
 
@@ -9,8 +10,18 @@ Not every version includes changes, features or bug fixes. This project can incr
 * HasDrnContextServiceCollectionModuleAttribute renamed as DrnContextServiceRegistrationAttribute
 * ServiceRegistrationAttribute MethodInfo property replaced with ServiceRegistration method to make usage strongly typed and support inheritance
 
-## Version 0.3.0
+### New Features
+* DrnAppFeatures property added to IAppSettings
+  * InternalRequestHttpVersion can be set as "1.1" or "2.0"
+  * InternalRequestProtocol can be set as "http" or "https ""
+* IInternalRequest and InternalRequest added to generate internal Flurl requests with configurable **Linkerd compatible** sensible defaults
+* HttpResponse and following flurl response extensions added to fluently get strongly typed response and flurl response together:
+  * ToStringAsync
+  * ToBytesAsync
+  * ToStreamAsync
+  * ToJsonAsync<TResponse>
 
+## Version 0.3.0
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April National Sovereignty and Children's Day.
 
 ### New Features
