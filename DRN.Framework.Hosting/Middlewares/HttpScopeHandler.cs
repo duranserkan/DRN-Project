@@ -7,10 +7,9 @@ namespace DRN.Framework.Hosting.Middlewares;
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/write?view=aspnetcore-8.0
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-8.0
 //https://github.com/serilog/serilog/wiki/Structured-Data
-//https://github.com/NLog/NLog/wiki/How-to-use-structured-logging
-public class HttpScopeLogger(RequestDelegate next)
+public class HttpScopeHandler(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext httpContext, IScopedLog scopedLog, ILogger<HttpScopeLogger> logger)
+    public async Task InvokeAsync(HttpContext httpContext, IScopedLog scopedLog, ILogger<HttpScopeHandler> logger)
     {
         try
         {
@@ -29,10 +28,10 @@ public class HttpScopeLogger(RequestDelegate next)
     }
 
     private static void PrepareScopeLog(HttpContext httpContext, IScopedLog scopedLog) =>
-        scopedLog.WithLoggerName(nameof(HttpScopeLogger))
+        scopedLog.WithLoggerName(nameof(HttpScopeHandler))
             .Add(nameof(httpContext.TraceIdentifier), httpContext.TraceIdentifier)
-            .Add("RequestProtocol", httpContext.Request.Protocol)
-            .Add("RequestHttpMethod", httpContext.Request.Method)
+            .Add("HttpProtocol", httpContext.Request.Protocol)
+            .Add("HttpMethod", httpContext.Request.Method)
             .Add("RequestHost", httpContext.Request.Host.ToString())
             .Add("RequestPath", httpContext.Request.Path.ToString())
             .Add("RequestQueryString", httpContext.Request.QueryString.ToString())

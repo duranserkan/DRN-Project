@@ -137,7 +137,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
         ConfigureApplicationPreScopeStart(application);
-        application.UseMiddleware<HttpScopeLogger>();
+        application.UseMiddleware<HttpScopeHandler>();
         ConfigureApplicationPostScopeStart(application);
 
         if (DrnProgramOptions.UseHttpRequestLogger)

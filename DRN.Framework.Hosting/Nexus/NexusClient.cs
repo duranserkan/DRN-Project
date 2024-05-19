@@ -12,11 +12,6 @@ public interface INexusClient
 [Singleton<INexusClient>]
 public class NexusClient(INexusRequest request) : INexusClient
 {
-    public async Task<HttpResponse<string>> GetStatusAsync()
-    {
-        var flurlResponse = await request.For("status").GetAsync();
-        var response = await HttpResponse.ToStringAsync(flurlResponse);
-
-        return response;
-    }
+    public async Task<HttpResponse<string>> GetStatusAsync() =>
+        await request.For("status").GetAsync().ToStringAsync();
 }
