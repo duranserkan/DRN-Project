@@ -4,7 +4,7 @@ using DRN.Framework.Utils.Settings;
 using Flurl.Http;
 using Flurl.Http.Configuration;
 
-namespace DRN.Framework.Utils.Factories;
+namespace DRN.Framework.Utils.Http;
 
 /// <summary>
 /// Internal request is a simple factory for your kubernetes http request calls.

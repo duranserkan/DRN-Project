@@ -6,7 +6,7 @@ ARG PROJECT=DRN.Nexus.Hosted
 #https://www.mytechramblings.com/posts/testing-chiseled-ubuntu-containers-with-dotnet/
 #https://hub.docker.com/r/ubuntu/dotnet-aspnet use this dotnet deps with self contained apps are not supported with dockerfastmode
 #https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/ enable buildkit to build multiplatform images
-FROM --platform=$TARGETPLATFORM ubuntu/dotnet-aspnet:8.0_edge AS base
+FROM --platform=$TARGETPLATFORM ubuntu/dotnet-aspnet:8.0-24.04_stable_109 AS base
 ARG TARGETARCH
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -22,7 +22,7 @@ WORKDIR /appconfig/json-settings
 WORKDIR /app
 
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
-FROM --platform=$BUILDPLATFORM bitnami/dotnet-sdk:8 AS build
+FROM --platform=$BUILDPLATFORM bitnami/dotnet-sdk:8.0.300-debian-12-r0 AS build
 ARG PROJECT
 ARG TARGETARCH
 

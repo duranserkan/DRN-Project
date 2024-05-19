@@ -1,6 +1,7 @@
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.SharedKernel.Conventions;
+using DRN.Framework.Utils;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
@@ -106,6 +107,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         applicationBuilder.Services.ConfigureHttpJsonOptions(options => JsonConventions.SetJsonDefaults(options.SerializerOptions));
         applicationBuilder.Services.AddLogging();
         applicationBuilder.Services.AddEndpointsApiExplorer();
+        applicationBuilder.Services.AdDrnHosting();
 
         if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
