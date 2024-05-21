@@ -1,9 +1,8 @@
 using System.Diagnostics;
-using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Settings;
+using Flurl.Http;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -71,6 +70,24 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
         _factory = factory;
 
         return factory;
+    }
+
+    /// <summary>
+    /// Most used defaults and bindings for testing an api endpoint gathered together
+    /// </summary>
+    public async Task<FlurlClient> CreateClientFor<TEntryPoint>(ITestOutputHelper? outputHelper = null) where TEntryPoint : class
+    {
+        if (outputHelper != null)
+            LogToTestOutput(outputHelper);
+
+        var application = CreateApplication<TEntryPoint>();
+        await testContext.ContainerContext.BindExternalDependenciesAsync();
+
+        application.Server.PreserveExecutionContext = true;
+
+        var client = application.CreateClient();
+
+        return new FlurlClient(client);
     }
 
 

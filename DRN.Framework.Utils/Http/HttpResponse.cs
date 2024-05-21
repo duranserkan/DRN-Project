@@ -78,7 +78,7 @@ public class HttpResponse(IFlurlResponse response)
     public int HttpStatus { get; } = response.StatusCode;
 }
 
-public class HttpResponse<TResult>(IFlurlResponse response, TResult? result) : HttpResponse(response)
+public class HttpResponse<TResult>(IFlurlResponse response, TResult? payload) : HttpResponse(response)
 {
-    public TResult? Result { get; } = result;
+    public TResult? Payload { get; } = payload;
 }

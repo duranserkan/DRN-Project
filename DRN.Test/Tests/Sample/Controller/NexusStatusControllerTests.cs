@@ -1,5 +1,5 @@
+using DRN.Framework.Utils.Http;
 using Flurl.Http;
-using Flurl.Http.Testing;
 using Sample.Hosted;
 using Xunit.Abstractions;
 
@@ -9,20 +9,13 @@ public class NexusStatusControllerTests(ITestOutputHelper outputHelper)
 {
     [Theory]
     [DataInline]
-    public async Task StatusController_Should_Return_Status(TestContext context)
+    public async Task StatusController_Should_Return_Status(TestContext context, string mockPayload)
     {
-        using var httpTest = new HttpTest();
-        httpTest.RespondWith("all conditions met!");
+        context.FlurlHttpTest.RespondWith(mockPayload);
 
-        context.ApplicationContext.LogToTestOutput(outputHelper);
-        var application = context.ApplicationContext.CreateApplication<Program>();
-        await context.ContainerContext.Postgres.ApplyMigrationsAsync();
-        application.Server.PreserveExecutionContext = true;
+        var client = await context.ApplicationContext.CreateClientFor<Program>(outputHelper);
+        var response = await client.Request("NexusStatus").GetAsync().ToStringAsync();
 
-        var client = application.CreateClient();
-        var response = await client.GetAsync("NexusStatus");
-
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().NotBeNull();
+        response.Payload.Should().Be(mockPayload);
     }
 }

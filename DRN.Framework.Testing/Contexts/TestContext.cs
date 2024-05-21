@@ -4,6 +4,7 @@ using DRN.Framework.Utils;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Settings;
+using Flurl.Http.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,8 @@ namespace DRN.Framework.Testing.Contexts;
 /// </summary>
 public sealed class TestContext : IDisposable, IKeyedServiceProvider
 {
+    private readonly Lazy<HttpTest> _flurlHttpTest = new(() => new HttpTest());
+
     public static bool IsRunning { get; private set; }
 
     private readonly List<IConfigurationSource> _configurationSources = [];
@@ -39,6 +42,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     public ContainerContext ContainerContext { get; }
     public ApplicationContext ApplicationContext { get; }
     public ServiceCollection ServiceCollection { get; private set; } = [];
+    public HttpTest FlurlHttpTest => _flurlHttpTest.Value;
 
     /// <summary>
     /// Creates a service provider from test context service collection
@@ -137,7 +141,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
         if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
         ContainerContext.Dispose();
         ApplicationContext.Dispose();
-        GC.SuppressFinalize(this);
+        FlurlHttpTest.Dispose();
     }
 
     private void DisposeServiceProvider()

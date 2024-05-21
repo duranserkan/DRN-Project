@@ -12,6 +12,7 @@ public sealed class ContainerContext(TestContext testContext) : IDisposable
     /// Intentionally made public to allow extension methods to support more containers
     /// </summary>
     public TestContext TestContext { get; } = testContext;
+
     public PostgresContext Postgres { get; } = new(testContext);
     public RabbitMQContext RabbitMQ { get; } = new(testContext);
 
@@ -21,6 +22,11 @@ public sealed class ContainerContext(TestContext testContext) : IDisposable
     public void AddContainer(DockerContainer container)
     {
         _containers.Add(container);
+    }
+
+    public async Task BindExternalDependenciesAsync()
+    {
+        await TestContext.ContainerContext.Postgres.ApplyMigrationsAsync();
     }
 
     public void Dispose() => Task.WaitAll(_containers.Select(c => c.DisposeAsync().AsTask()).ToArray());

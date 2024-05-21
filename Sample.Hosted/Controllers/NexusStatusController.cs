@@ -13,6 +13,6 @@ public class NexusStatusController(INexusClient client) : ControllerBase
     {
         var response = await client.GetStatusAsync();
 
-        return StatusCode(response.HttpStatus, response.Result);
+        return StatusCode(response.HttpStatus, response.Payload);
     }
 }

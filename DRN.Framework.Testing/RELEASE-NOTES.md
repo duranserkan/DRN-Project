@@ -6,8 +6,9 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### New Features
 
-*  LaunchExternalDependenciesAsync extension method added on WebApplicationBuilder to launch application all of its dependencies
+* LaunchExternalDependenciesAsync extension method added on WebApplicationBuilder to launch application all of its dependencies
   * DrnAppFeatures:LaunchExternalDependencies config should set true and Environment should be Development
+* ApplicationContext.LogToTestOutput method added to configure TestOutput as serilog sink~~~~
 
 ## Version 0.3.0
 

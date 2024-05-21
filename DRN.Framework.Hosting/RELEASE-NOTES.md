@@ -12,6 +12,10 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 * EndpointsApiExplorer added to service collection by DrnProgramBase to support OpenAPI Specification
 * NexusClient added for initial service discovery and remote configuration management development
+* DrnProgramBase has new overridable configuration methods
+  * ConfigureApplicationPreScopeStart
+  * ConfigureApplicationPostScopeStart
+  * MapApplicationEndpoints
 
 ## Version 0.3.0
 
