@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using DRN.Framework.Utils.Models;
+using Microsoft.AspNetCore.Mvc;
 
 namespace DRN.Nexus.Hosted.Controllers;
 

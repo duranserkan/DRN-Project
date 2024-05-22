@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using DRN.Framework.Utils.Settings;
-using Flurl.Http;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -18,6 +17,17 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
 {
     private IDisposable? _factory;
     private ITestOutputHelper? _outputHelper;
+
+    /// <summary>
+    /// By default, logs are written to test output when debugger is attached in order to not leak sensitive data.
+    /// Use test output logger cautiously.
+    /// </summary>
+    public void LogToTestOutput(ITestOutputHelper outputHelper, bool debuggerOnly = true)
+    {
+        if (debuggerOnly && !Debugger.IsAttached) return;
+
+        _outputHelper = outputHelper;
+    }
 
     public WebApplicationFactory<TEntryPoint> CreateApplication<TEntryPoint>(Action<IWebHostBuilder>? webHostConfigurator = null)
         where TEntryPoint : class
@@ -75,32 +85,35 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
     /// <summary>
     /// Most used defaults and bindings for testing an api endpoint gathered together
     /// </summary>
-    public async Task<FlurlClient> CreateClientFor<TEntryPoint>(ITestOutputHelper? outputHelper = null) where TEntryPoint : class
+    public async Task<WebApplicationFactory<TEntryPoint>> CreateApplicationAndBindDependencies<TEntryPoint>(
+        ITestOutputHelper? outputHelper = null) where TEntryPoint : class
     {
-        if (outputHelper != null)
-            LogToTestOutput(outputHelper);
+        if (outputHelper != null) LogToTestOutput(outputHelper);
 
         var application = CreateApplication<TEntryPoint>();
         await testContext.ContainerContext.BindExternalDependenciesAsync();
-
         application.Server.PreserveExecutionContext = true;
 
-        var client = application.CreateClient();
-
-        return new FlurlClient(client);
+        return application;
     }
-
 
     /// <summary>
-    /// By default, logs are written to test output when debugger is attached in order to not leak sensitive data.
-    /// Use test output logger cautiously.
+    /// Most used defaults and bindings for testing an api endpoint gathered together
     /// </summary>
-    public void LogToTestOutput(ITestOutputHelper outputHelper, bool debuggerOnly = true)
+    /// <returns>HttpClient instead of FlurlClient to prevent flurl http test server collision</returns>
+    public async Task<HttpClient> CreateClientAsync<TEntryPoint>(ITestOutputHelper? outputHelper = null,
+        WebApplicationFactoryClientOptions? clientOptions = null) where TEntryPoint : class
     {
-        if (debuggerOnly && !Debugger.IsAttached) return;
+        var application = await CreateApplicationAndBindDependencies<TEntryPoint>(outputHelper);
+        var client = clientOptions == null
+            ? application.CreateClient()
+            : application.CreateClient(clientOptions);
 
-        _outputHelper = outputHelper;
+        return client;
     }
+
+    public WebApplicationFactory<TEntryPoint>? GetCreatedApplication<TEntryPoint>() where TEntryPoint : class
+        => (WebApplicationFactory<TEntryPoint>?)_factory;
 
     public void Dispose() => _factory?.Dispose();
 }

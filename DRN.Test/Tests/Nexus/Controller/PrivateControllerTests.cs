@@ -36,8 +36,8 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
         tokenResponse?.AccessToken.Should().NotBeNull();
         client.DefaultRequestHeaders.Add("Authorization", $"Bearer {tokenResponse!.AccessToken}");
 
-        var appSettings = await client.GetStringAsync("Private");
-        appSettings.Should().NotBeNullOrWhiteSpace();
+        var authorized = await client.GetStringAsync("Private");
+        authorized.Should().Be("authorized");
     }
 
     [Theory]

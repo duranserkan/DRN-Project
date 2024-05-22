@@ -11,8 +11,5 @@ public class PrivateController(IAppSettings appSettings) : ControllerBase
     [HttpGet]
     [ProducesResponseType(200)]
     [Authorize]
-    public ActionResult Status()
-    {
-        return Ok(appSettings);
-    }
+    public ActionResult Status() => Ok("authorized");
 }
