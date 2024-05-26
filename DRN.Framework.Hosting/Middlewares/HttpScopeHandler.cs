@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,16 @@ public class HttpScopeHandler(RequestDelegate next)
         catch (Exception e)
         {
             scopedLog.AddException(e);
-            throw;
+            httpContext.Response.StatusCode = e switch
+            {
+                DrnException dEx => dEx.Status,
+                _ => 500
+            };
+
+            if (httpContext.Response.StatusCode is > 99 and < 600)
+                await httpContext.Response.WriteAsync($"TraceId: {httpContext.TraceIdentifier}");
+            else
+                httpContext.Abort();
         }
         finally
         {
@@ -27,15 +37,15 @@ public class HttpScopeHandler(RequestDelegate next)
         }
     }
 
-    private static void PrepareScopeLog(HttpContext httpContext, IScopedLog scopedLog) =>
-        scopedLog.WithLoggerName(nameof(HttpScopeHandler))
-            .Add(nameof(httpContext.TraceIdentifier), httpContext.TraceIdentifier)
-            .Add("HttpProtocol", httpContext.Request.Protocol)
-            .Add("HttpMethod", httpContext.Request.Method)
-            .Add("RequestHost", httpContext.Request.Host.ToString())
-            .Add("RequestPath", httpContext.Request.Path.ToString())
-            .Add("RequestQueryString", httpContext.Request.QueryString.ToString())
-            .Add("RequestContentLength", httpContext.Request.ContentLength ?? 0)
-            .Add("RequestIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty)
-            .Add("ResponseStatusCode", httpContext.Response.StatusCode);
+    private static void PrepareScopeLog(HttpContext httpContext, IScopedLog scopedLog) => scopedLog
+        .WithLoggerName(nameof(HttpScopeHandler))
+        .WithTraceIdentifier(httpContext.TraceIdentifier)
+        .Add("HttpProtocol", httpContext.Request.Protocol)
+        .Add("HttpMethod", httpContext.Request.Method)
+        .Add("RequestHost", httpContext.Request.Host.ToString())
+        .Add("RequestPath", httpContext.Request.Path.ToString())
+        .Add("RequestQueryString", httpContext.Request.QueryString.ToString())
+        .Add("RequestContentLength", httpContext.Request.ContentLength ?? 0)
+        .Add("RequestIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty)
+        .Add("ResponseStatusCode", httpContext.Response.StatusCode);
 }

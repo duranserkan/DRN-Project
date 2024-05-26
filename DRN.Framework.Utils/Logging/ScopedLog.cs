@@ -73,12 +73,8 @@ public class ScopedLog : IScopedLog
         return this;
     }
 
-    public IScopedLog WithLoggerName(string? name)
-    {
-        Add(ScopedLogConventions.KeyOfLoggerName, name ?? "n/a");
-
-        return this;
-    }
+    public IScopedLog WithLoggerName(string? name) => Add(ScopedLogConventions.KeyOfLoggerName, name ?? "n/a");
+    public IScopedLog WithTraceIdentifier(string traceIdentifier) => Add(ScopedLogConventions.KeyOfTraceIdentifier, traceIdentifier);
 
     public IScopedLog AddProperties<TValue>(string prefix, TValue classObject, params string[] ignoredPropertyNames) where TValue : class
     {

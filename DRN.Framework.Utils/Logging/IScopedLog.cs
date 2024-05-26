@@ -6,6 +6,7 @@ public interface IScopedLog
     IReadOnlyDictionary<string, object> Logs { get; }
 
     IScopedLog WithLoggerName(string name);
+    IScopedLog WithTraceIdentifier(string traceIdentifier);
     IScopedLog Add(string key, object value);
     IScopedLog AddProperties<TValue>(string prefix, TValue classObject, params string[] ignoredPropertyNames)
         where TValue : class;

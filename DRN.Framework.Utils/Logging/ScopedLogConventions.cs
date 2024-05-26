@@ -8,6 +8,7 @@ public static class ScopedLogConventions
     public const short StringLimit = 1250;
 
     public const string KeyOfLoggerName = "LoggerName";
+    public const string KeyOfTraceIdentifier = "TraceIdentifier";
     public const string KeyOfScopeCreatedAt = "ScopeCreatedAt";
     public const string KeyOfScopeDuration = "ScopeDuration";
     public const string KeyOfActions = "Actions";

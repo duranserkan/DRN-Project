@@ -1,7 +1,5 @@
-using System.Dynamic;
 using System.Net;
 using System.Net.Http.Json;
-using DRN.Framework.Utils.Configurations;
 using DRN.Nexus.Hosted;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Identity.Data;
@@ -9,7 +7,7 @@ using Xunit.Abstractions;
 
 namespace DRN.Test.Tests.Nexus.Controller;
 
-public class PrivateControllerTests(ITestOutputHelper outputHelper)
+public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
 {
     [Theory]
     [DataInline]
@@ -36,7 +34,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
         tokenResponse?.AccessToken.Should().NotBeNull();
         client.DefaultRequestHeaders.Add("Authorization", $"Bearer {tokenResponse!.AccessToken}");
 
-        var authorized = await client.GetStringAsync("Private");
+        var authorized = await client.GetStringAsync("WeatherForecast/private");
         authorized.Should().Be("authorized");
     }
 
@@ -49,7 +47,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
 
         var client = application.CreateClient();
-        var status = await client.GetAsync("Private");
+        var status = await client.GetAsync("WeatherForecast/private");
         status.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 }
