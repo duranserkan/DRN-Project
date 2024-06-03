@@ -1,5 +1,7 @@
 using DRN.Framework.SharedKernel;
+using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
+using Flurl.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -22,9 +24,9 @@ public class HttpScopeHandler(RequestDelegate next)
             httpContext.Response.StatusCode = e switch
             {
                 DrnException dEx => dEx.Status,
+                FlurlHttpException fEx => fEx.GetGatewayStatusCode(),
                 _ => 500
             };
-
             if (httpContext.Response.StatusCode is > 99 and < 600)
                 await httpContext.Response.WriteAsync($"TraceId: {httpContext.TraceIdentifier}");
             else
@@ -40,7 +42,7 @@ public class HttpScopeHandler(RequestDelegate next)
     private static void PrepareScopeLog(HttpContext httpContext, IScopedLog scopedLog) => scopedLog
         .WithLoggerName(nameof(HttpScopeHandler))
         .WithTraceIdentifier(httpContext.TraceIdentifier)
-        .Add("HttpProtocol", httpContext.Request.Protocol)
+        .Add("HttpProtocol", httpContext.Request.Protocol.Split('/').Last())
         .Add("HttpMethod", httpContext.Request.Method)
         .Add("RequestHost", httpContext.Request.Host.ToString())
         .Add("RequestPath", httpContext.Request.Path.ToString())

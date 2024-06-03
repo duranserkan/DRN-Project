@@ -47,16 +47,10 @@ public class ExpiredException(string message, Exception? ex = null, string? cate
     : DrnException(message, ex, category, 410);
 
 /// <summary>
-/// Scope handler returns 418 when thrown
-/// </summary>
-public class TeapotException(string message, Exception? ex = null, string? category = null)
-    : DrnException(message, ex, category, 418);
-
-/// <summary>
-/// Scope handler returns 418 when thrown
+/// Scope handler returns 500 when thrown
 /// </summary>
 public class ConfigurationException(string message, Exception? ex = null, string? category = null)
-    : DrnException(message, ex, category, 418);
+    : DrnException(message, ex, category, 500);
 
 /// <summary>
 /// Scope handler returns 422 when thrown
