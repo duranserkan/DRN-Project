@@ -6,6 +6,7 @@ using Sample.Domain.Users;
 
 namespace Sample.Infra.QA;
 
+[QAContextNpgsqlDbContextOptions]
 public class QAContext : DrnContext<QAContext>
 {
     public QAContext(DbContextOptions<QAContext> options) : base(options)
