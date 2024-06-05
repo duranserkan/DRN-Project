@@ -18,6 +18,7 @@ public class PostgresContext(TestContext testContext)
     static readonly SemaphoreSlim MigrationLock = new(1, 1);
     private static readonly List<Type> MigratedDbContexts = new(10);
 
+    public static string Image { get; set; } = "postgres";
     public TestContext TestContext { get; } = testContext;
     public PostgresContextIsolated Isolated { get; } = new(testContext);
 
@@ -26,7 +27,7 @@ public class PostgresContext(TestContext testContext)
     {
         version ??= "16.3-alpine3.19";
         var containerPort = PostgreSqlBuilder.PostgreSqlPort;
-        var builder = new PostgreSqlBuilder().WithImage($"postgres:{version}");
+        var builder = new PostgreSqlBuilder().WithImage($"{Image}:{version}");
         if (database != null) builder = builder.WithDatabase(database);
         if (username != null) builder = builder.WithUsername(username);
         if (password != null) builder = builder.WithPassword(password);

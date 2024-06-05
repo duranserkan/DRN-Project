@@ -8,6 +8,7 @@ public class RabbitMQContext(TestContext testContext)
     static readonly SemaphoreSlim ContainerLock = new(1, 1);
     private static readonly Lazy<RabbitMqContainer> Container = new(() => BuildContainer());
 
+    public static string Image { get; set; } = "rabbitmq";
     public TestContext TestContext { get; } = testContext;
     public RabbitMQContextIsolated RabbitMqContextIsolated { get; } = new(testContext);
 
@@ -30,7 +31,7 @@ public class RabbitMQContext(TestContext testContext)
     public static RabbitMqContainer BuildContainer(string? version = null, string? username = null, string? password = null)
     {
         version ??= "3.13.2-alpine";
-        var builder = new RabbitMqBuilder().WithImage($"rabbitmq:{version}");
+        var builder = new RabbitMqBuilder().WithImage($"{Image}:{version}");
         if (username != null) builder.WithUsername(username);
         if (password != null) builder.WithPassword(password);
 
