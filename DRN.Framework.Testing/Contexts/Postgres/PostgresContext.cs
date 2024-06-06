@@ -19,13 +19,15 @@ public class PostgresContext(TestContext testContext)
     private static readonly List<Type> MigratedDbContexts = new(10);
 
     public static string Image { get; set; } = "postgres";
+    public static string Version { get; set; } = "16.3-alpine3.19";
     public TestContext TestContext { get; } = testContext;
     public PostgresContextIsolated Isolated { get; } = new(testContext);
 
+    //todo refactor parameters
     public static PostgreSqlContainer BuildContainer(string? database = null, string? username = null, string? password = null,
         string? version = null, int hostPort = 0, bool reuse = false)
     {
-        version ??= "16.3-alpine3.19";
+        version ??= Version;
         var containerPort = PostgreSqlBuilder.PostgreSqlPort;
         var builder = new PostgreSqlBuilder().WithImage($"{Image}:{version}");
         if (database != null) builder = builder.WithDatabase(database);

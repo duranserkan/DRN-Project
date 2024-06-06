@@ -9,8 +9,23 @@ public class RabbitMQContext(TestContext testContext)
     private static readonly Lazy<RabbitMqContainer> Container = new(() => BuildContainer());
 
     public static string Image { get; set; } = "rabbitmq";
+    public static string Version { get; set; } = "3.13.2-alpine";
+
     public TestContext TestContext { get; } = testContext;
     public RabbitMQContextIsolated RabbitMqContextIsolated { get; } = new(testContext);
+
+    //todo refactor parameters
+    public static RabbitMqContainer BuildContainer(string? version = null, string? username = null, string? password = null)
+    {
+        version ??= Version;
+        var builder = new RabbitMqBuilder().WithImage($"{Image}:{version}");
+        if (username != null) builder.WithUsername(username);
+        if (password != null) builder.WithPassword(password);
+
+        var container = builder.Build();
+
+        return container;
+    }
 
     public static async Task<RabbitMqContainer> StartAsync()
     {
@@ -26,17 +41,5 @@ public class RabbitMQContext(TestContext testContext)
         {
             ContainerLock.Release();
         }
-    }
-
-    public static RabbitMqContainer BuildContainer(string? version = null, string? username = null, string? password = null)
-    {
-        version ??= "3.13.2-alpine";
-        var builder = new RabbitMqBuilder().WithImage($"{Image}:{version}");
-        if (username != null) builder.WithUsername(username);
-        if (password != null) builder.WithPassword(password);
-
-        var container = builder.Build();
-
-        return container;
     }
 }
