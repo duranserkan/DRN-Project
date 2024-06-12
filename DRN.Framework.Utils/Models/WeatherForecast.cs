@@ -7,7 +7,7 @@ public readonly struct WeatherForecast
         "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
     ];
 
-    public static WeatherForecast[] Get => Enumerable.Range(1, 5)
+    public static WeatherForecast[] Get() => Enumerable.Range(1, 5)
         .Select(index => new WeatherForecast
         {
             Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),

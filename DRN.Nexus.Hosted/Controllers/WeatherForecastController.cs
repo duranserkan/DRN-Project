@@ -9,7 +9,7 @@ namespace DRN.Nexus.Hosted.Controllers;
 public class WeatherForecastController : ControllerBase
 {
     [HttpGet(Name = "GetWeatherForecast")]
-    public IEnumerable<WeatherForecast> Get() => WeatherForecast.Get;
+    public IEnumerable<WeatherForecast> Get() => WeatherForecast.Get();
 
     [HttpGet("private")]
     [Authorize]

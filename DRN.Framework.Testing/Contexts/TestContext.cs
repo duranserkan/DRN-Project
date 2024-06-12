@@ -41,7 +41,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     public MethodContext MethodContext { get; }
     public ContainerContext ContainerContext { get; }
     public ApplicationContext ApplicationContext { get; }
-    public ServiceCollection ServiceCollection { get; private set; } = [];
+    public ServiceCollection ServiceCollection { get; internal set; } = [];
     public HttpTest FlurlHttpTest => _flurlHttpTest.Value;
 
     /// <summary>

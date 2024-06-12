@@ -3,6 +3,7 @@ using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
 namespace DRN.Framework.EntityFramework.Context;
@@ -19,49 +20,93 @@ public static class DbContextConventions
     public const string DefaultHost = "postgresql";
     public const string DefaultPort = "5432";
 
-    private static readonly Dictionary<Type, NpgsqlDbContextOptionsAttribute[]> AttributeCache = new();
+    private static readonly Dictionary<string, NpgsqlDbContextOptionsAttribute[]> AttributeCache = new();
 
-    public static DbContextOptionsBuilder UpdateDbContextOptionsBuilder<TContext>
-        (string connectionString, string contextName, DbContextOptionsBuilder? builder = null) where TContext : DbContext
+    public static DbContextOptionsBuilder UpdateDbContextOptionsBuilder<TContext>(
+        DbContextOptionsBuilder? contextOptionsBuilder = null) where TContext : DbContext
     {
-        return (builder ?? new DbContextOptionsBuilder<TContext>())
+        contextOptionsBuilder ??= new DbContextOptionsBuilder<TContext>();
+        contextOptionsBuilder
             .UseSnakeCaseNamingConvention()
-            .LogTo(Console.WriteLine, [DbLoggerCategory.Name], LogLevel.Warning)
-            .UseNpgsql(connectionString, optionsBuilder =>
+            .LogTo(Console.WriteLine, [DbLoggerCategory.Name], LogLevel.Warning) //todo: check for improved logging
+            .ConfigureDbContextOptions<TContext>()
+            .UseNpgsql(npgsqlDbContextOptionsBuilder =>
             {
-                optionsBuilder
+                npgsqlDbContextOptionsBuilder
                     .MigrationsAssembly(typeof(TContext).Assembly.FullName)
-                    .MigrationsHistoryTable($"{contextName.ToSnakeCase()}_history", "__entity_migrations")
-                    .ApplyNpgsqlDbContextOptions<TContext>();
+                    .MigrationsHistoryTable($"{typeof(TContext).Name.ToSnakeCase()}_history", "__entity_migrations")
+                    .ConfigureNpgsqlDbContextOptions<TContext>();
             });
+
+        return contextOptionsBuilder;
     }
 
-    private static void ApplyNpgsqlDbContextOptions<TContext>(this NpgsqlDbContextOptionsBuilder optionsBuilder) where TContext : DbContext
+    public static DbContextOptionsBuilder UpdateDbContextOptionsBuilder<TContext>(NpgsqlDataSource dataSource,
+        DbContextOptionsBuilder? contextOptionsBuilder = null) where TContext : DbContext
     {
-        var attributes = typeof(TContext).GetAttributesFromCache();
+        contextOptionsBuilder ??= new DbContextOptionsBuilder<TContext>();
+        contextOptionsBuilder
+            .UseSnakeCaseNamingConvention()
+            .LogTo(Console.WriteLine, [DbLoggerCategory.Name], LogLevel.Warning) //todo: check for improved logging
+            .ConfigureDbContextOptions<TContext>()
+            .UseNpgsql(dataSource, npgsqlDbContextOptionsBuilder =>
+            {
+                npgsqlDbContextOptionsBuilder
+                    .MigrationsAssembly(typeof(TContext).Assembly.FullName)
+                    .MigrationsHistoryTable($"{typeof(TContext).Name.ToSnakeCase()}_history", "__entity_migrations")
+                    .ConfigureNpgsqlDbContextOptions<TContext>();
+            });
 
+        return contextOptionsBuilder;
+    }
+
+    private static DbContextOptionsBuilder ConfigureDbContextOptions<TContext>(
+        this DbContextOptionsBuilder optionsBuilder)
+        where TContext : DbContext
+    {
+        var attributes = GetAttributesFromCache<TContext>();
         foreach (var attribute in attributes)
-            attribute.ConfigureNpgSqlOptions(optionsBuilder);
+            attribute.ConfigureDbContextOptions(optionsBuilder);
+
+        return optionsBuilder;
     }
 
-    private static NpgsqlDbContextOptionsAttribute[] GetAttributesFromCache(this Type type)
+    private static void ConfigureNpgsqlDbContextOptions<TContext>(this NpgsqlDbContextOptionsBuilder optionsBuilder)
+        where TContext : DbContext
     {
-        if (AttributeCache.TryGetValue(type, out var attributes))
+        var attributes = GetAttributesFromCache<TContext>();
+        foreach (var attribute in attributes)
+            attribute.ConfigureNpgsqlOptions(optionsBuilder);
+    }
+
+    public static NpgsqlDbContextOptionsAttribute[] GetAttributesFromCache<TContext>()
+    {
+        var type = typeof(TContext);
+        if (AttributeCache.TryGetValue(type.Name, out var attributes))
             return attributes;
 
         //service validation will trigger this on startup no race condition is expected
         attributes = type.GetCustomAttributes<NpgsqlDbContextOptionsAttribute>()
             .OrderByDescending(attribute => attribute.FrameworkDefined).ToArray();
-        AttributeCache[type] = attributes;
+        AttributeCache[type.Name] = attributes;
 
         return attributes;
     }
 
     public static TContext CreateDbContext<TContext>(this string[] args) where TContext : DbContext
     {
-        var contextName = typeof(TContext).Name;
         var connectionString = args.FirstOrDefault()!;
-        var optionsBuilder = UpdateDbContextOptionsBuilder<TContext>(connectionString, contextName);
+        DbContextOptionsBuilder optionsBuilder;
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            optionsBuilder = UpdateDbContextOptionsBuilder<TContext>();
+        }
+        else
+        {
+            var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+            var dataSource = dataSourceBuilder.Build();
+            optionsBuilder = UpdateDbContextOptionsBuilder<TContext>(dataSource);
+        }
 
         return (TContext)Activator.CreateInstance(typeof(TContext), optionsBuilder.Options)!;
     }

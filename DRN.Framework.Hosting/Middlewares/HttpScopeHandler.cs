@@ -42,7 +42,7 @@ public class HttpScopeHandler(RequestDelegate next)
     private static void PrepareScopeLog(HttpContext httpContext, IScopedLog scopedLog) => scopedLog
         .WithLoggerName(nameof(HttpScopeHandler))
         .WithTraceIdentifier(httpContext.TraceIdentifier)
-        .Add("HttpProtocol", httpContext.Request.Protocol.Split('/').Last())
+        .Add("HttpProtocol", httpContext.Request.Protocol.Split('/')[^1])
         .Add("HttpMethod", httpContext.Request.Method)
         .Add("RequestHost", httpContext.Request.Host.ToString())
         .Add("RequestPath", httpContext.Request.Path.ToString())

@@ -10,11 +10,17 @@ public static class FlurlResponseExtensions
         return await response.ToStringAsync();
     }
 
+    public static async Task<HttpResponse<string>> ToStringAsync(this IFlurlResponse response)
+        => await HttpResponse.ToStringAsync(response);
+
     public static async Task<HttpResponse<byte[]>> ToBytesAsync(this Task<IFlurlResponse> responseTask)
     {
         var response = await responseTask;
         return await response.ToBytesAsync();
     }
+
+    public static async Task<HttpResponse<byte[]>> ToBytesAsync(this IFlurlResponse response)
+        => await HttpResponse.ToBytesAsync(response);
 
     public static async Task<HttpResponse<Stream>> ToStreamAsync(this Task<IFlurlResponse> responseTask)
     {
@@ -22,20 +28,14 @@ public static class FlurlResponseExtensions
         return await response.ToStreamAsync();
     }
 
+    public static async Task<HttpResponse<Stream>> ToStreamAsync(this IFlurlResponse response)
+        => await HttpResponse.ToStreamAsync(response);
+
     public static async Task<HttpResponse<TResponse>> ToJsonAsync<TResponse>(this Task<IFlurlResponse> responseTask)
     {
         var response = await responseTask;
         return await response.ToJsonAsync<TResponse>();
     }
-
-    public static async Task<HttpResponse<string>> ToStringAsync(this IFlurlResponse response)
-        => await HttpResponse.ToStringAsync(response);
-
-    public static async Task<HttpResponse<byte[]>> ToBytesAsync(this IFlurlResponse response)
-        => await HttpResponse.ToBytesAsync(response);
-
-    public static async Task<HttpResponse<Stream>> ToStreamAsync(this IFlurlResponse response)
-        => await HttpResponse.ToStreamAsync(response);
 
     public static async Task<HttpResponse<TResponse>> ToJsonAsync<TResponse>(this IFlurlResponse response)
         => await HttpResponse.ToJsonAsync<TResponse>(response);

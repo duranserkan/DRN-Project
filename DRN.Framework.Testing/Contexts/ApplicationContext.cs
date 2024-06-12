@@ -56,6 +56,7 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
                 services.Add(initialTestContextServiceDescriptors);
                 testContext.OverrideServiceCollection(services);
                 testContext.MethodContext.ReplaceSubstitutedInterfaces(services);
+                testContext.ServiceCollection = new ServiceCollection { services };
             });
 
             var configuration = testContext.GetRequiredService<IConfiguration>()!;

@@ -9,7 +9,7 @@ namespace Sample.Hosted.Controllers;
 public class WeatherForecastController(INexusClient nexusClient) : ControllerBase
 {
     [HttpGet]
-    public IEnumerable<WeatherForecast> Get() => WeatherForecast.Get;
+    public IEnumerable<WeatherForecast> Get() => WeatherForecast.Get();
 
     [HttpGet("nexus")]
     public async Task<WeatherForecast[]?> GetNexusWeatherForecasts()

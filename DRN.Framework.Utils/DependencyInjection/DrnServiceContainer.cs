@@ -7,7 +7,6 @@ namespace DRN.Framework.Utils.DependencyInjection;
 
 public class DrnServiceContainer
 {
-
     public Assembly Assembly { get; }
     public IReadOnlyList<LifetimeAttribute> LifetimeAttributes { get; }
     public IReadOnlyList<AttributeSpecifiedServiceModule> AttributeSpecifiedModules { get; } = new List<AttributeSpecifiedServiceModule>();
@@ -50,13 +49,12 @@ public class DrnServiceContainer
 
         foreach (var moduleAttribute in moduleAttributes)
         {
-            var moduleServiceCollection = new ServiceCollection();
-            moduleAttribute.ServiceRegistration(moduleServiceCollection, Assembly);
-
-            var attributeModule = new AttributeSpecifiedServiceModule(moduleServiceCollection, moduleAttribute);
+            var initialCollection = new ServiceCollection().Add(sc);
+            moduleAttribute.ServiceRegistration(sc, Assembly);
+            //todo performance
+            var moduleDescriptions = sc.Except(initialCollection).ToArray();
+            var attributeModule = new AttributeSpecifiedServiceModule(moduleDescriptions, moduleAttribute);
             AddAttributeModule(attributeModule);
-
-            sc.Add(moduleServiceCollection);
         }
     }
 
