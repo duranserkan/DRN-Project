@@ -1,7 +1,9 @@
 using System.Reflection;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Extensions;
+using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
@@ -26,6 +28,10 @@ public static class DbContextConventions
         DbContextOptionsBuilder? contextOptionsBuilder = null) where TContext : DbContext
     {
         contextOptionsBuilder ??= new DbContextOptionsBuilder<TContext>();
+        if (TestEnvironment.TestContextEnabled)
+            contextOptionsBuilder.ConfigureWarnings(builder =>
+                builder.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
+
         contextOptionsBuilder
             .UseSnakeCaseNamingConvention()
             .LogTo(Console.WriteLine, [DbLoggerCategory.Name], LogLevel.Warning) //todo: check for improved logging
@@ -45,6 +51,10 @@ public static class DbContextConventions
         DbContextOptionsBuilder? contextOptionsBuilder = null) where TContext : DbContext
     {
         contextOptionsBuilder ??= new DbContextOptionsBuilder<TContext>();
+        if (TestEnvironment.TestContextEnabled) // Each integration test will create its own internal service provider
+            contextOptionsBuilder.ConfigureWarnings(builder =>
+                builder.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
+
         contextOptionsBuilder
             .UseSnakeCaseNamingConvention()
             .LogTo(Console.WriteLine, [DbLoggerCategory.Name], LogLevel.Warning) //todo: check for improved logging

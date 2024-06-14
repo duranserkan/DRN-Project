@@ -3,6 +3,7 @@ using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
+using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
 using Flurl.Http.Testing;
 using Microsoft.Extensions.Configuration;
@@ -19,9 +20,6 @@ namespace DRN.Framework.Testing.Contexts;
 public sealed class TestContext : IDisposable, IKeyedServiceProvider
 {
     private readonly Lazy<HttpTest> _flurlHttpTest = new(() => new HttpTest());
-
-    public static bool IsRunning { get; private set; }
-
     private readonly List<IConfigurationSource> _configurationSources = [];
     private ServiceProvider? _serviceProvider;
 
@@ -31,8 +29,10 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     /// </summary>
     public TestContext(MethodInfo testMethod)
     {
-        IsRunning = true;
-        MethodContext = new(testMethod);
+        typeof(TestEnvironment)
+            .GetProperty(nameof(TestEnvironment.TestContextEnabled), BindingFlag.StaticPublic)!
+            .SetValue(null, true);
+        MethodContext = new MethodContext(testMethod);
         ContainerContext = new ContainerContext(this);
         ApplicationContext = new ApplicationContext(this);
         _ = JsonConventions.DefaultOptions; // to trigger static ctor that replaces .net defaults with better
@@ -58,7 +58,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
 
         var configuration = BuildConfigurationRoot(appSettingsName);
         _serviceProvider = ServiceCollection
-            .AddSingleton<IConfiguration>(x => configuration)
+            .AddSingleton<IConfiguration>(_ => configuration)
             .AddLogging(logging => { logging.ClearProviders(); })
             .AddDrnUtils()
             .BuildServiceProvider(false);
