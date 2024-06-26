@@ -1,4 +1,5 @@
 using System.Reflection;
+using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
-namespace DRN.Framework.EntityFramework.Context;
+namespace DRN.Framework.EntityFramework.Extensions;
 
 public static class ServiceCollectionExtensions
 {
@@ -30,7 +31,7 @@ public static class ServiceCollectionExtensions
 
             dataSourceBuilderBuilder.ConnectionStringBuilder.ConnectionString = connectionString;
             foreach (var attribute in attributes)
-                attribute.ConfigureNpgsqlDataSource(dataSourceBuilderBuilder);
+                attribute.ConfigureNpgsqlDataSource<TContext>(dataSourceBuilderBuilder);
         }, serviceKey: contextName);
 
         sc.AddDbContext<TContext>((serviceProvider, optionsBuilder) =>

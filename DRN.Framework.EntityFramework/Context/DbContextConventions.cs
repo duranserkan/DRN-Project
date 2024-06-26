@@ -1,10 +1,6 @@
 using System.Reflection;
-using DRN.Framework.SharedKernel.Domain;
-using DRN.Framework.Utils.Extensions;
-using DRN.Framework.Utils.Settings;
+using DRN.Framework.EntityFramework.Attributes;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.Logging;
 using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
@@ -25,58 +21,23 @@ public static class DbContextConventions
     private static readonly Dictionary<string, NpgsqlDbContextOptionsAttribute[]> AttributeCache = new();
 
     public static DbContextOptionsBuilder UpdateDbContextOptionsBuilder<TContext>(
-        DbContextOptionsBuilder? contextOptionsBuilder = null) where TContext : DbContext
-    {
-        contextOptionsBuilder ??= new DbContextOptionsBuilder<TContext>();
-        if (TestEnvironment.TestContextEnabled)
-            contextOptionsBuilder.ConfigureWarnings(builder =>
-                builder.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
-
-        contextOptionsBuilder
-            .UseSnakeCaseNamingConvention()
-            .LogTo(Console.WriteLine, [DbLoggerCategory.Name], LogLevel.Warning) //todo: check for improved logging
+        DbContextOptionsBuilder? contextOptions = null) where TContext : DbContext
+        => (contextOptions ?? new DbContextOptionsBuilder<TContext>())
             .ConfigureDbContextOptions<TContext>()
-            .UseNpgsql(npgsqlDbContextOptionsBuilder =>
-            {
-                npgsqlDbContextOptionsBuilder
-                    .MigrationsAssembly(typeof(TContext).Assembly.FullName)
-                    .MigrationsHistoryTable($"{typeof(TContext).Name.ToSnakeCase()}_history", "__entity_migrations")
-                    .ConfigureNpgsqlDbContextOptions<TContext>();
-            });
-
-        return contextOptionsBuilder;
-    }
+            .UseNpgsql(npgsqlOptions => npgsqlOptions.ConfigureNpgsqlDbContextOptions<TContext>());
 
     public static DbContextOptionsBuilder UpdateDbContextOptionsBuilder<TContext>(NpgsqlDataSource dataSource,
-        DbContextOptionsBuilder? contextOptionsBuilder = null) where TContext : DbContext
-    {
-        contextOptionsBuilder ??= new DbContextOptionsBuilder<TContext>();
-        if (TestEnvironment.TestContextEnabled) // Each integration test will create its own internal service provider
-            contextOptionsBuilder.ConfigureWarnings(builder =>
-                builder.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
-
-        contextOptionsBuilder
-            .UseSnakeCaseNamingConvention()
-            .LogTo(Console.WriteLine, [DbLoggerCategory.Name], LogLevel.Warning) //todo: check for improved logging
+        DbContextOptionsBuilder? contextOptions = null) where TContext : DbContext
+        => (contextOptions ?? new DbContextOptionsBuilder<TContext>())
             .ConfigureDbContextOptions<TContext>()
-            .UseNpgsql(dataSource, npgsqlDbContextOptionsBuilder =>
-            {
-                npgsqlDbContextOptionsBuilder
-                    .MigrationsAssembly(typeof(TContext).Assembly.FullName)
-                    .MigrationsHistoryTable($"{typeof(TContext).Name.ToSnakeCase()}_history", "__entity_migrations")
-                    .ConfigureNpgsqlDbContextOptions<TContext>();
-            });
-
-        return contextOptionsBuilder;
-    }
+            .UseNpgsql(dataSource, npgsqlOptions => npgsqlOptions.ConfigureNpgsqlDbContextOptions<TContext>());
 
     private static DbContextOptionsBuilder ConfigureDbContextOptions<TContext>(
         this DbContextOptionsBuilder optionsBuilder)
         where TContext : DbContext
     {
-        var attributes = GetAttributesFromCache<TContext>();
-        foreach (var attribute in attributes)
-            attribute.ConfigureDbContextOptions(optionsBuilder);
+        foreach (var attribute in GetAttributesFromCache<TContext>())
+            attribute.ConfigureDbContextOptions<TContext>(optionsBuilder);
 
         return optionsBuilder;
     }
@@ -84,9 +45,8 @@ public static class DbContextConventions
     private static void ConfigureNpgsqlDbContextOptions<TContext>(this NpgsqlDbContextOptionsBuilder optionsBuilder)
         where TContext : DbContext
     {
-        var attributes = GetAttributesFromCache<TContext>();
-        foreach (var attribute in attributes)
-            attribute.ConfigureNpgsqlOptions(optionsBuilder);
+        foreach (var attribute in GetAttributesFromCache<TContext>())
+            attribute.ConfigureNpgsqlOptions<TContext>(optionsBuilder);
     }
 
     public static NpgsqlDbContextOptionsAttribute[] GetAttributesFromCache<TContext>()
@@ -101,55 +61,5 @@ public static class DbContextConventions
         AttributeCache[type.Name] = attributes;
 
         return attributes;
-    }
-
-    public static TContext CreateDbContext<TContext>(this string[] args) where TContext : DbContext
-    {
-        var connectionString = args.FirstOrDefault()!;
-        DbContextOptionsBuilder optionsBuilder;
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            optionsBuilder = UpdateDbContextOptionsBuilder<TContext>();
-        }
-        else
-        {
-            var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-            var dataSource = dataSourceBuilder.Build();
-            optionsBuilder = UpdateDbContextOptionsBuilder<TContext>(dataSource);
-        }
-
-        return (TContext)Activator.CreateInstance(typeof(TContext), optionsBuilder.Options)!;
-    }
-
-    public static void ModelCreatingDefaults(this DbContext dbContext, ModelBuilder modelBuilder)
-    {
-        var context = dbContext.GetType();
-        modelBuilder.HasDefaultSchema(context.Name.ToSnakeCase());
-        modelBuilder.ApplyConfigurationsFromAssembly(context.Assembly, configuration => configuration.Namespace!.Contains(context.Namespace!));
-        modelBuilder.Ignore<DomainEvent>();
-    }
-
-    public static void MarkEntities(this DbContext dbContext)
-    {
-        var entries = dbContext.ChangeTracker
-            .Entries()
-            .Where(e => e.Entity is Entity && e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).ToArray();
-
-        foreach (var entityEntry in entries)
-        {
-            var entity = (Entity)entityEntry.Entity;
-            switch (entityEntry.State)
-            {
-                case EntityState.Added:
-                    entity.MarkAsCreated();
-                    break;
-                case EntityState.Modified:
-                    entity.MarkAsModified();
-                    break;
-                case EntityState.Deleted:
-                    entity.MarkAsDeleted();
-                    break;
-            }
-        }
     }
 }

@@ -1,3 +1,5 @@
+using DRN.Framework.EntityFramework.Attributes;
+using DRN.Framework.EntityFramework.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Migrations.Design;
@@ -53,7 +55,7 @@ namespace DRN.Framework.EntityFramework.Context;
 /// dotnet ef migrations remove --context [ContextName]  -- "connectionString"
 ///</code>
 /// </example>
-[DrnContextServiceRegistration, SplitQuery]
+[DrnContextServiceRegistration, DrnContextDefaults]
 public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices where TContext : DrnContext<TContext>, new()
 {
     /// Initializes a new instance of the <see cref="DrnContext"/> class.

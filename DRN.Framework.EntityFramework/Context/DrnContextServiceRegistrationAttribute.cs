@@ -1,4 +1,5 @@
 using System.Reflection;
+using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;

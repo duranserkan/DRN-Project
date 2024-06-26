@@ -1,4 +1,4 @@
-using DRN.Framework.EntityFramework.IdentityContext;
+using DRN.Framework.EntityFramework.Context.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 

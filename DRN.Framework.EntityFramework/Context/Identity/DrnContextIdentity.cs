@@ -1,4 +1,5 @@
-using DRN.Framework.EntityFramework.Context;
+using DRN.Framework.EntityFramework.Attributes;
+using DRN.Framework.EntityFramework.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Migrations.Design;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DRN.Framework.EntityFramework.IdentityContext;
+namespace DRN.Framework.EntityFramework.Context.Identity;
 
 /// <summary>
 ///     <list type="table">
@@ -56,7 +57,7 @@ namespace DRN.Framework.EntityFramework.IdentityContext;
 /// dotnet ef migrations remove --context [ContextName]  -- "connectionString"
 ///</code>
 /// </example>
-[DrnContextServiceRegistration]
+[DrnContextServiceRegistration, DrnContextDefaults]
 public abstract class DrnContextIdentity<TContext, TUser> : IdentityDbContext<TUser>, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices
     where TContext : DrnContextIdentity<TContext, TUser>, new()
     where TUser : IdentityUser

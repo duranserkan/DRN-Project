@@ -51,7 +51,6 @@ public class DrnServiceContainer
         {
             var initialCollection = new ServiceCollection().Add(sc);
             moduleAttribute.ServiceRegistration(sc, Assembly);
-            //todo performance
             var moduleDescriptions = sc.Except(initialCollection).ToArray();
             var attributeModule = new AttributeSpecifiedServiceModule(moduleDescriptions, moduleAttribute);
             AddAttributeModule(attributeModule);
