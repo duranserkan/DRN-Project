@@ -41,7 +41,7 @@ TL;DR: You can
   * to get unified microservices topology and their self-documentation
 * get opinionated ideas about soft skills for engineering and management
 
-[About Project](#about-project) | [Solution Structure](#solution-structure) | [About Design and Architecture](#about-design-architecture-and-microservices) | [About Management](#about-management) | [Engineering Manifest](#durans-engineering-manifest)
+[About Project](#about-project) | [Solution Structure](#solution-structure) | [About Design and Architecture](#about-design-and-architecture) | [About Management](#about-management) | [Engineering Manifest](#durans-engineering-manifest)
 
 ## About Project
 
@@ -60,7 +60,7 @@ In DRN-Project context, reliability is defined with following characteristics:
 * Self-documenting
 
 DRN Project is not another framework that will `bite the dust.` It is more than a simple framework. It is a distilled knowledge that contains:
-- [X] A beautiful framework to work with (v0.2.0)
+- [X] A beautiful framework to work with (v0.4.0)
 - [X] Management best practices
 - [X] Engineering manifest
 - [X] Reference documents for design, architecture and microservices
@@ -68,22 +68,22 @@ DRN Project is not another framework that will `bite the dust.` It is more than 
 
 This project is result of a productive and curious mindset that respects good solutions and best practices of others while enjoys from creating its own.
 It is not about coding. It is about process of creating and enhancing good things. I expect it to be ready for general purpose usage within 6 months. 
-Detailed documentation will be added in the mean time.
+Detailed documentation will be added in the meantime.
 
 ### Solution Structure
-This solution consists of 6 parts that are being developed with Jetbrains Rider on macOS with arm-based M2 chip. However I expect it to work on any modern machine since it is a cross platform solution
+This solution consists of 6 parts that are being developed with Jetbrains Rider on macOS with arm-based M2 chip. However, I expect it to work on any modern machine since it is a cross-platform solution
 1. **Docker Folder:** It contains dockerfile and compose definitions for dependencies. They just works and can be used for other solutions.
-2. **Docs:** It contains project documents. This docs will be supported with articles and a youtube playlist.
+2. **Docs:** It contains project documents. This docs will be supported with articles and a YouTube playlist.
 3. **Items:** It contains file that does not belong anywhere else such as .gitignore, .dockerignore and .github workflows
 4. **Src:** It contains 3 folders that define 3 different **DRN** domain.
    * **Nexus:** Nexus app connects all services and apis developed with **DRN.Framework**.
      `The one microservice to rule them all.`
-      * It is an unified web app that contains nexus api and background services.
-      * It will have following features as a start:
+      * It is a unified web app that contains nexus api and background services.
+      * It will have the following features as a start:
         - [ ] **Configuration Management:** Nexus can provide configurations to connected microservices
         - [ ] **Migration Management:** Nexus can manage microservice database migrations which includes schema management and sharding
         - [ ] **Service Discovery:** Nexus discloses microservice network
-        - [ ] **Observability, Documentation and Monitoring Hub:** Nexus provides and visualizes workflow graph and information regarding to them.
+        - [ ] **Observability, Documentation and Monitoring Hub:** Nexus provides and visualizes workflow graph and information regarding them.
    * **Framework:** DRN.Framework source codes belongs to generalized solutions that can be used within any dotnet project as nuget packages. 
    * **Sample:** Nexus connectable sample app demonstrates **DRN.Framework** usage. It is used for testing, presentation and documentation purposes.
 5. **Test:** It contains all the unit, integration and performance tests.
@@ -109,13 +109,13 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 > 4D comes from David Allen's 4d model. +E is my personal addition to it. Escalation is your friend. Inform others and ask their opinions whenever you are not sure what to do.
 ### Time Management
 * Small things add up then become big thing. Do it while they are small and avoid stress.
-* Don't micro manage delegate whenever possible.
+* Don't micromanage delegate whenever possible.
   * Delegation requires shared understanding. It is not fire and forget process. Guide and track results when needed
 * Don't over optimize. Good enough is better than excellent.
 ### Quality Management
 * Follow best practices and solutions. Don't reinvent the wheel
 * Denormalize when needed. Understand how it works. Don't follow rules blindly. 
-  * You can accomplish things that considered not possible if you understanding how things works.
+  * You can accomplish things that considered not possible if you understand how things works.
   * Understand concepts and how they relate with each other.
 * Prefer quality over quantity.
 * Always test before deliver.
