@@ -27,7 +27,7 @@ public static class ServiceCollectionExtensions
             var connectionString = appSettings.Environment == AppEnvironment.Development
                 ? DrnContextDevelopmentConnection.GetConnectionString(appSettings, contextName)
                 : appSettings.GetRequiredConnectionString(contextName);
-            var attributes = DbContextConventions.GetAttributesFromCache<TContext>();
+            var attributes = DbContextConventions.GetContextAttributes<TContext>();
 
             dataSourceBuilderBuilder.ConnectionStringBuilder.ConnectionString = connectionString;
             foreach (var attribute in attributes)
@@ -37,7 +37,7 @@ public static class ServiceCollectionExtensions
         sc.AddDbContext<TContext>((serviceProvider, optionsBuilder) =>
         {
             var dataSource = serviceProvider.GetRequiredKeyedService<NpgsqlDataSource>(contextName);
-            DbContextConventions.UpdateDbContextOptionsBuilder<TContext>(dataSource, optionsBuilder);
+            DbContextConventions.UpdateDbContextOptionsBuilder<TContext>(dataSource, optionsBuilder, serviceProvider);
         });
     }
 

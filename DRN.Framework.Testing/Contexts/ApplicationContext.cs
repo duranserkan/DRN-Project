@@ -68,9 +68,13 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
                     logging.Services.AddSerilog(loggerConfiguration =>
                     {
                         loggerConfiguration.Destructure.AsDictionary<SortedDictionary<string, object>>();
-                        loggerConfiguration.MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information);
-                        loggerConfiguration.MinimumLevel.Override("Microsoft", LogEventLevel.Warning);
-                        loggerConfiguration.MinimumLevel.Override("System", LogEventLevel.Warning);
+                        loggerConfiguration
+                            .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+                            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                            .MinimumLevel.Override("System", LogEventLevel.Warning)
+                            .MinimumLevel.Override("System", LogEventLevel.Warning)
+                            .MinimumLevel.Override("Npgsql", LogEventLevel.Warning);
+
                         loggerConfiguration.WriteTo.TestOutput(_outputHelper, LogEventLevel.Information,
                             "[BEGIN {Timestamp:HH:mm:ss.fffffff} {Level:u3} {SourceContext}]{NewLine}{Message:lj}{NewLine}[END {Timestamp:HH:mm:ss.fffffff} {Level:u3} {SourceContext}]");
                     });

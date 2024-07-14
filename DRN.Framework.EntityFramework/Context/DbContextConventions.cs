@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using DRN.Framework.EntityFramework.Attributes;
 using Microsoft.EntityFrameworkCore;
@@ -18,26 +19,26 @@ public static class DbContextConventions
     public const string DefaultHost = "postgresql";
     public const string DefaultPort = "5432";
 
-    private static readonly Dictionary<string, NpgsqlDbContextOptionsAttribute[]> AttributeCache = new();
+    private static readonly ConcurrentDictionary<string, NpgsqlDbContextOptionsAttribute[]> AttributeCache = new();
 
     public static DbContextOptionsBuilder UpdateDbContextOptionsBuilder<TContext>(
-        DbContextOptionsBuilder? contextOptions = null) where TContext : DbContext
+        DbContextOptionsBuilder? contextOptions = null, IServiceProvider? serviceProvider = null) where TContext : DbContext
         => (contextOptions ?? new DbContextOptionsBuilder<TContext>())
-            .ConfigureDbContextOptions<TContext>()
+            .ConfigureDbContextOptions<TContext>(serviceProvider)
             .UseNpgsql(npgsqlOptions => npgsqlOptions.ConfigureNpgsqlDbContextOptions<TContext>());
 
     public static DbContextOptionsBuilder UpdateDbContextOptionsBuilder<TContext>(NpgsqlDataSource dataSource,
-        DbContextOptionsBuilder? contextOptions = null) where TContext : DbContext
+        DbContextOptionsBuilder? contextOptions = null, IServiceProvider? serviceProvider = null) where TContext : DbContext
         => (contextOptions ?? new DbContextOptionsBuilder<TContext>())
-            .ConfigureDbContextOptions<TContext>()
+            .ConfigureDbContextOptions<TContext>(serviceProvider)
             .UseNpgsql(dataSource, npgsqlOptions => npgsqlOptions.ConfigureNpgsqlDbContextOptions<TContext>());
 
     private static DbContextOptionsBuilder ConfigureDbContextOptions<TContext>(
-        this DbContextOptionsBuilder optionsBuilder)
+        this DbContextOptionsBuilder optionsBuilder, IServiceProvider? serviceProvider)
         where TContext : DbContext
     {
-        foreach (var attribute in GetAttributesFromCache<TContext>())
-            attribute.ConfigureDbContextOptions<TContext>(optionsBuilder);
+        foreach (var attribute in GetContextAttributes<TContext>())
+            attribute.ConfigureDbContextOptions<TContext>(optionsBuilder, serviceProvider);
 
         return optionsBuilder;
     }
@@ -45,20 +46,19 @@ public static class DbContextConventions
     private static void ConfigureNpgsqlDbContextOptions<TContext>(this NpgsqlDbContextOptionsBuilder optionsBuilder)
         where TContext : DbContext
     {
-        foreach (var attribute in GetAttributesFromCache<TContext>())
+        foreach (var attribute in GetContextAttributes<TContext>())
             attribute.ConfigureNpgsqlOptions<TContext>(optionsBuilder);
     }
 
-    public static NpgsqlDbContextOptionsAttribute[] GetAttributesFromCache<TContext>()
+    public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes<TContext>()
     {
         var type = typeof(TContext);
         if (AttributeCache.TryGetValue(type.Name, out var attributes))
             return attributes;
 
-        //service validation will trigger this on startup no race condition is expected
         attributes = type.GetCustomAttributes<NpgsqlDbContextOptionsAttribute>()
             .OrderByDescending(attribute => attribute.FrameworkDefined).ToArray();
-        AttributeCache[type.Name] = attributes;
+        AttributeCache.TryAdd(type.Name, attributes);
 
         return attributes;
     }

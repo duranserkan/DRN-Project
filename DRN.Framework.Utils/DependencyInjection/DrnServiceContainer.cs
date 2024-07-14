@@ -41,18 +41,19 @@ public class DrnServiceContainer
         }
     }
 
-    private void AddAttributeSpecifiedModules(IServiceCollection sc)
+    private void AddAttributeSpecifiedModules(IServiceCollection serviceCollection)
     {
         var moduleAttributes = Assembly.GetTypes()
             .Where(ServiceRegistrationAttribute.HasServiceCollectionModule)
-            .Select(ServiceRegistrationAttribute.GetModuleAttribute).Distinct().ToArray();
+            .Select(ServiceRegistrationAttribute.GetModuleAttribute)
+            .Distinct().ToArray();
 
         foreach (var moduleAttribute in moduleAttributes)
         {
-            var initialCollection = new ServiceCollection().Add(sc);
-            moduleAttribute.ServiceRegistration(sc, Assembly);
-            var moduleDescriptions = sc.Except(initialCollection).ToArray();
-            var attributeModule = new AttributeSpecifiedServiceModule(moduleDescriptions, moduleAttribute);
+            var moduleCollection = new ServiceCollection();
+            moduleAttribute.ServiceRegistration(moduleCollection, Assembly);
+            moduleAttribute.ServiceRegistration(serviceCollection, Assembly);
+            var attributeModule = new AttributeSpecifiedServiceModule(moduleCollection, moduleAttribute);
             AddAttributeModule(attributeModule);
         }
     }
