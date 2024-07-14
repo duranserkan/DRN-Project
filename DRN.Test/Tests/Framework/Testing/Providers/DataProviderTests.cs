@@ -5,6 +5,9 @@ public class DataProviderTests
     [Fact]
     public void DataProvider_Should_Return_Data_From_Test_File()
     {
+        var dataPath = DataProvider.GetDataPath("Test.txt");
+        dataPath.Should().NotBeEmpty();
+
         DataProvider.Get("Test.txt").Should().Be("Foo");
     }
 

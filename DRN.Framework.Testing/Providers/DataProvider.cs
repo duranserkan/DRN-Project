@@ -15,6 +15,9 @@ public static class DataProvider
     /// </param>
     /// <param name="dataFolderLocation">If not provided global convention location will be applied</param>
     public static string Get(string pathRelativeToDataFolder, string? dataFolderLocation = null)
+        => File.ReadAllText(GetDataPath(pathRelativeToDataFolder, dataFolderLocation));
+
+    public static string GetDataPath(string pathRelativeToDataFolder, string? dataFolderLocation = null)
     {
         var locationFound = CheckLocation(dataFolderLocation, pathRelativeToDataFolder);
         if (!locationFound && !string.IsNullOrWhiteSpace(dataFolderLocation))
@@ -25,8 +28,9 @@ public static class DataProvider
         }
 
         var selectedLocation = locationFound ? dataFolderLocation! : GlobalConventionLocation;
+        var path = Path.Combine(selectedLocation, pathRelativeToDataFolder);
 
-        return File.ReadAllText(Path.Combine(selectedLocation, pathRelativeToDataFolder));
+        return path;
     }
 
     private static bool CheckLocation(string? dataFolderLocation, string pathRelativeToDataFolder)
