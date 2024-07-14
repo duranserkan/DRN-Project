@@ -89,7 +89,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
 
     public void ValidateServices() => this.ValidateServicesAddedByAttributes();
 
-    public string GetData(string pathRelativeToDataFolder) => DataProvider.Get(pathRelativeToDataFolder, MethodContext.GetTestFolderLocation());
+    public DataProviderResult GetData(string pathRelativeToDataFolder) => DataProvider.Get(pathRelativeToDataFolder, MethodContext.GetTestFolderLocation());
 
     public ConfigurationDebugViewSummary GetConfigurationDebugView()
     {

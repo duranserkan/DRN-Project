@@ -61,6 +61,9 @@
         <None Update="Tests\Framework\Hosting\MountDir\json-settings\settings-override.json">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
+        <None Update="Data\globalData.txt">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
 </Project>
