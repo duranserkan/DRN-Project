@@ -12,16 +12,21 @@ namespace DRN.Framework.Testing.Contexts.Postgres;
 
 public class PostgresContext(TestContext testContext)
 {
-    static readonly SemaphoreSlim ContainerLock = new(1, 1);
-    private static readonly Lazy<PostgreSqlContainer> Container = new(() => BuildContainer());
-
+    private static readonly SemaphoreSlim ContainerLock = new(1, 1);
     static readonly SemaphoreSlim MigrationLock = new(1, 1);
     private static readonly List<Type> MigratedDbContexts = new(10);
 
     public TestContext TestContext { get; } = testContext;
     public PostgresContextIsolated Isolated { get; } = new(testContext);
 
-    //todo refactor parameters
+    public static Lazy<PostgreSqlContainer> Container { get; } = new(() => BuildContainer(PostgresContainerSettings));
+
+    /// <summary>
+    /// Update before container creation. StartAsync and ApplyMigrationsAsync methods initialize the container.
+    /// Updated settings after the container initialized will not be reflected on container.
+    /// </summary>
+    public static PostgresContainerSettings PostgresContainerSettings { get; set; } = new();
+
     public static PostgreSqlContainer BuildContainer(PostgresContainerSettings? settings = null)
     {
         settings ??= new PostgresContainerSettings();
