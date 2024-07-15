@@ -7,9 +7,9 @@ public class RabbitMQContextIsolated(TestContext testContext)
     public TestContext TestContext { get; } = testContext;
     public ContainerContext ContainerContext => TestContext.ContainerContext;
 
-    public async Task<RabbitMqContainer> StartRabbitMqAsync(string? version = null, string? username = null, string? password = null)
+    public async Task<RabbitMqContainer> StartRabbitMqAsync(RabbitmqContainerSettings? settings=null)
     {
-        var container = RabbitMQContext.BuildContainer(version, username, password);
+        var container = RabbitMQContext.BuildContainer(settings);
         ContainerContext.AddContainer(container);
 
         await container.StartAsync();
