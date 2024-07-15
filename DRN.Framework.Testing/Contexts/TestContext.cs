@@ -50,7 +50,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     /// It includes logging and IAppSettings by default.
     /// More default services will be added by default as the drn framework develops
     /// </summary>
-    public ServiceProvider BuildServiceProvider(string appSettingsName = "settings")
+    public ServiceProvider BuildServiceProvider(string appSettingsName = SettingsProvider.ConventionSettingsName)
     {
         //dispose previously initiated sp to create new
         DisposeServiceProvider();
@@ -80,7 +80,7 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
 
     public void ValidateServices() => this.ValidateServicesAddedByAttributes();
 
-    public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = "settings")
+    public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = SettingsProvider.ConventionSettingsName)
     {
         var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation(),
             _configurationSources, ServiceCollection);
@@ -93,14 +93,14 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     /// It can be used to verify selected app settings file.
     /// Make sure the settings file is copied to output directory.
     /// </summary>
-    public DataProviderResultDataPath GetSettingsPath(string appSettingsName = "settings") =>
+    public DataProviderResultDataPath GetSettingsPath(string appSettingsName = SettingsProvider.ConventionSettingsName) =>
         SettingsProvider.GetSettingsPath(appSettingsName, MethodContext.GetTestFolderLocation());
 
     /// <summary>
     /// It can be used to verify selected app settings file.
     /// Make sure the settings file is copied to output directory.
     /// </summary>
-    public DataProviderResult GetSettingsData(string appSettingsName = "settings") =>
+    public DataProviderResult GetSettingsData(string appSettingsName = SettingsProvider.ConventionSettingsName) =>
         SettingsProvider.GetSettingsData(appSettingsName, MethodContext.GetTestFolderLocation());
 
     public DataProviderResult GetData(string pathRelativeToDataFolder, string? conventionDirectory = null) =>

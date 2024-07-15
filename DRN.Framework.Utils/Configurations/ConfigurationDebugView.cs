@@ -18,11 +18,11 @@ public class ConfigurationDebugView
         var collectionByProvider = new Dictionary<IConfigurationProvider, DebugViewEntry[]>(10);
         DebugViewCollectionByProvider = collectionByProvider;
         var entries = new List<DebugViewEntry>(1000);
-        Entries = entries;
+        Entries = new List<DebugViewEntry>(1000);
 
         if (root != null)
             RecurseChildren(root, entries, root.GetChildren());
-        if (!Entries.Any()) return;
+        if (entries.Count == 0) return;
 
         foreach (var grouping in Entries.GroupBy(e => e.Provider!))
             collectionByProvider.Add(grouping.Key, grouping.OrderBy(e => e.Path).ToArray());
@@ -53,7 +53,7 @@ public class ConfigurationDebugView
 
     private static (string? Value, IConfigurationProvider? Provider) GetValueAndProvider(IConfigurationRoot root, string key)
     {
-        foreach (IConfigurationProvider provider in root.Providers.Reverse())
+        foreach (var provider in root.Providers.Reverse())
             if (provider.TryGet(key, out string? value))
                 return (value, provider);
 

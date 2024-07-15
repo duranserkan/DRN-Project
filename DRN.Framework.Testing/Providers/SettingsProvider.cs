@@ -8,7 +8,8 @@ namespace DRN.Framework.Testing.Providers;
 
 public static class SettingsProvider
 {
-    public static readonly string ConventionDirectory = "Settings";
+    public const string ConventionSettingsName = "settings";
+    public const string ConventionDirectory = "Settings";
     public static readonly string GlobalConventionLocation = Path.Combine(Directory.GetCurrentDirectory(), ConventionDirectory);
 
     /// <summary>
@@ -16,7 +17,7 @@ public static class SettingsProvider
     /// Alternate locations are the Settings subfolder of the test project or provided location by convention
     /// Make sure file is copied to output directory, extension is json and settings name referring to it should not end with .json
     /// </summary>
-    public static IAppSettings GetAppSettings(string settingsName = "settings", string? settingsDirectoryPath = null,
+    public static IAppSettings GetAppSettings(string settingsName = ConventionSettingsName, string? settingsDirectoryPath = null,
         List<IConfigurationSource>? configurationSources = null) =>
         new AppSettings(GetConfiguration(settingsName, settingsDirectoryPath, configurationSources));
 
@@ -25,7 +26,7 @@ public static class SettingsProvider
     /// By convention, alternate locations are the Settings subdirectory of the test project or the provided location
     /// Make sure file is copied to output directory, extension is json and settings name referring to it should not end with .json
     /// </summary>
-    public static IConfiguration GetConfiguration(string settingsJsonName = "settings", string? settingsDirectoryPath = null,
+    public static IConfiguration GetConfiguration(string settingsJsonName = ConventionSettingsName, string? settingsDirectoryPath = null,
         List<IConfigurationSource>? configurationSources = null, IServiceCollection? serviceCollection = null)
     {
         var settingsPath = GetSettingsPath(settingsJsonName, settingsDirectoryPath);
@@ -38,7 +39,7 @@ public static class SettingsProvider
         return configurationBuilder.Build();
     }
 
-    public static DataProviderResultDataPath GetSettingsPath(string settingsName = "settings.json", string? settingsDirectoryPath = null)
+    public static DataProviderResultDataPath GetSettingsPath(string settingsName = ConventionSettingsName, string? settingsDirectoryPath = null)
     {
         var settingsRelativePath = Path.HasExtension(settingsName) ? settingsName : $"{settingsName}.json";
         var settingsPath = DataProvider.GetDataPath(settingsRelativePath, settingsDirectoryPath, ConventionDirectory);
@@ -55,7 +56,7 @@ public static class SettingsProvider
     /// Make sure the settings file is copied to output directory.
     /// </param>
     /// <param name="settingsDirectoryPath">If not provided global convention location will be applied</param>
-    public static DataProviderResult GetSettingsData(string settingsName = "settings.json", string? settingsDirectoryPath = null)
+    public static DataProviderResult GetSettingsData(string settingsName = ConventionSettingsName, string? settingsDirectoryPath = null)
     {
         var settingsRelativePath = Path.HasExtension(settingsName) ? settingsName : $"{settingsName}.json";
         var settingsData = DataProvider.Get(settingsRelativePath, settingsDirectoryPath, ConventionDirectory);

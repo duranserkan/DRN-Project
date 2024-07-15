@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
@@ -21,6 +22,8 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
 
     public override void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder)
     {
+        builder.EnableParameterLogging(false);
+        builder.ConfigureJsonOptions(JsonConventions.DefaultOptions);
     }
 
     public override void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder builder, IServiceProvider? serviceProvider)
