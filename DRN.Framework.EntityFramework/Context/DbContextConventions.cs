@@ -56,9 +56,9 @@ public static class DbContextConventions
         if (AttributeCache.TryGetValue(type.Name, out var attributes))
             return attributes;
 
-        attributes = type.GetCustomAttributes<NpgsqlDbContextOptionsAttribute>()
-            .OrderByDescending(attribute => attribute.FrameworkDefined).ToArray();
-        AttributeCache.TryAdd(type.Name, attributes);
+        attributes = AttributeCache.GetOrAdd(type.Name,
+            _ => type.GetCustomAttributes<NpgsqlDbContextOptionsAttribute>()
+                .OrderByDescending(attribute => attribute.FrameworkDefined).ToArray());
 
         return attributes;
     }
