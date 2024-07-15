@@ -5,7 +5,7 @@ namespace DRN.Framework.Testing.Contexts.RabbitMQ;
 public class RabbitMQContext(TestContext testContext)
 {
     private static bool _started;
-    static readonly SemaphoreSlim ContainerLock = new(1, 1);
+    private static readonly SemaphoreSlim ContainerLock = new(1, 1);
 
     public TestContext TestContext { get; } = testContext;
     public RabbitMQContextIsolated RabbitMqContextIsolated { get; } = new(testContext);

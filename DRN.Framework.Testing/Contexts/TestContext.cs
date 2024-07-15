@@ -1,9 +1,8 @@
-using DRN.Framework.SharedKernel.Conventions;
+using DRN.Framework.Testing.Contexts.Startup;
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
-using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
 using Flurl.Http.Testing;
 using Microsoft.Extensions.Configuration;
@@ -17,7 +16,7 @@ namespace DRN.Framework.Testing.Contexts;
 /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
 /// It disposes itself automatically at the end of the test.
 /// </summary>
-public sealed class TestContext : IDisposable, IKeyedServiceProvider
+public class TestContext : IDisposable, IKeyedServiceProvider
 {
     private readonly Lazy<HttpTest> _flurlHttpTest = new(() => new HttpTest());
     private readonly List<IConfigurationSource> _configurationSources = [];
@@ -29,13 +28,10 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
     /// </summary>
     public TestContext(MethodInfo testMethod)
     {
-        typeof(TestEnvironment)
-            .GetProperty(nameof(TestEnvironment.TestContextEnabled), BindingFlag.StaticPublic)!
-            .SetValue(null, true);
+        StartupJobRunner.TriggerStartupJobs(testMethod, GetType());
         MethodContext = new MethodContext(testMethod);
         ContainerContext = new ContainerContext(this);
         ApplicationContext = new ApplicationContext(this);
-        _ = JsonConventions.DefaultOptions; // to trigger static ctor that replaces .net defaults with better
     }
 
     public MethodContext MethodContext { get; }

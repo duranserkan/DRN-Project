@@ -13,7 +13,7 @@ namespace DRN.Framework.Testing.Contexts.Postgres;
 public class PostgresContext(TestContext testContext)
 {
     private static readonly SemaphoreSlim ContainerLock = new(1, 1);
-    static readonly SemaphoreSlim MigrationLock = new(1, 1);
+    private static readonly SemaphoreSlim MigrationLock = new(1, 1);
     private static readonly List<Type> MigratedDbContexts = new(10);
 
     public TestContext TestContext { get; } = testContext;
