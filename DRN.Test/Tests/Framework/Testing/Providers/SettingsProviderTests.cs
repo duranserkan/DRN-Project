@@ -28,8 +28,14 @@ public class SettingsProviderTests
     [Theory]
     [DataInline("settings", "localhost")]
     [DataInline("alternateSettings", "127.0. 0.1")]
+    [DataInline("globalDummySettings", "*")]
     public void SettingsProvider_Should_Return_Test_Specific_IConfiguration_Instance(TestContext context, string settingsName, string value)
     {
+        var settingsPath = context.GetSettingsPath(settingsName);
+        settingsPath.DataExists.Should().BeTrue();
+        var settingsData = context.GetSettingsData(settingsName);
+        settingsData.DataExists.Should().BeTrue();
+
         var configuration = SettingsProvider.GetConfiguration(settingsName, context.MethodContext.GetTestFolderLocation());
         configuration.GetRequiredSection("AllowedHosts").Value.Should().Be(value);
 
@@ -50,7 +56,7 @@ public class SettingsProviderTests
     }
 
     [Theory]
-    [DataInline( "localhost")]
+    [DataInline("localhost")]
     public void TestContext_Should_Add_Settings_Json_To_Configuration(TestContext context, string value)
     {
         //settings.json file can be found in the same folder with test file, in the global Settings folder or Settings folder that stays in the same folder with test file

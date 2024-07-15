@@ -16,29 +16,20 @@ public static class SettingsProvider
     /// Alternate locations are the Settings subfolder of the test project or provided location by convention
     /// Make sure file is copied to output directory, extension is json and settings name referring to it should not end with .json
     /// </summary>
-    public static IAppSettings GetAppSettings(string settingsName = "settings", string? location = null,
+    public static IAppSettings GetAppSettings(string settingsName = "settings", string? settingsDirectoryPath = null,
         List<IConfigurationSource>? configurationSources = null) =>
-        new AppSettings(GetConfiguration(settingsName, location, configurationSources));
+        new AppSettings(GetConfiguration(settingsName, settingsDirectoryPath, configurationSources));
 
     /// <summary>
     /// Creates <see cref="IConfiguration"/> from settings json file found in provided location.
-    /// Alternate locations are the Settings subfolder of the test project or provided location by convention
+    /// By convention, alternate locations are the Settings subdirectory of the test project or the provided location
     /// Make sure file is copied to output directory, extension is json and settings name referring to it should not end with .json
     /// </summary>
-    public static IConfiguration GetConfiguration(string settingsJsonName = "settings", string? location = null,
+    public static IConfiguration GetConfiguration(string settingsJsonName = "settings", string? settingsDirectoryPath = null,
         List<IConfigurationSource>? configurationSources = null, IServiceCollection? serviceCollection = null)
     {
-        var settingsJson = $"{settingsJsonName}.json";
-        var locationFound = CheckLocation(location, settingsJson);
-        if (!locationFound && !string.IsNullOrWhiteSpace(location))
-        {
-            //alternate location by convention
-            location = Path.Combine(location, ConventionDirectory);
-            locationFound = CheckLocation(location, settingsJson);
-        }
-
-        var selectedLocation = locationFound ? location! : GlobalConventionLocation;
-        var configurationBuilder = new ConfigurationBuilder().SetBasePath(selectedLocation)
+        var settingsPath = GetSettingsPath(settingsJsonName, settingsDirectoryPath);
+        var configurationBuilder = new ConfigurationBuilder().SetBasePath(settingsPath.SelectedDirectory)
             .AddDrnSettings(AppConstants.EntryAssemblyName, settingJsonName: settingsJsonName, sc: serviceCollection);
 
         foreach (var source in configurationSources ?? [])
@@ -47,6 +38,28 @@ public static class SettingsProvider
         return configurationBuilder.Build();
     }
 
-    private static bool CheckLocation(string? location, string settingsJson)
-        => !string.IsNullOrWhiteSpace(location) && File.Exists(Path.Combine(location, settingsJson));
+    public static DataProviderResultDataPath GetSettingsPath(string settingsName = "settings.json", string? settingsDirectoryPath = null)
+    {
+        var settingsRelativePath = Path.HasExtension(settingsName) ? settingsName : $"{settingsName}.json";
+        var settingsPath = DataProvider.GetDataPath(settingsRelativePath, settingsDirectoryPath, ConventionDirectory);
+
+        return settingsPath;
+    }
+
+    /// <summary>
+    /// Gets the content of specified data file in the Settings directory.
+    /// Settings directory must be created in the root of the test Project or provided location.
+    /// </summary>
+    /// <param name="settingsName">
+    /// Path is relative Settings directory. If no extension is provided default .json extension will be used.
+    /// Make sure the settings file is copied to output directory.
+    /// </param>
+    /// <param name="settingsDirectoryPath">If not provided global convention location will be applied</param>
+    public static DataProviderResult GetSettingsData(string settingsName = "settings.json", string? settingsDirectoryPath = null)
+    {
+        var settingsRelativePath = Path.HasExtension(settingsName) ? settingsName : $"{settingsName}.json";
+        var settingsData = DataProvider.Get(settingsRelativePath, settingsDirectoryPath, ConventionDirectory);
+
+        return settingsData;
+    }
 }

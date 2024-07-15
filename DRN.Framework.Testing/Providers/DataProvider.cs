@@ -3,41 +3,41 @@ namespace DRN.Framework.Testing.Providers;
 public static class DataProvider
 {
     /// <summary>
-    /// Gets the content of specified data file in the Data folder.
-    /// Data folder must be created in the root of the test Project or provided location.
+    /// Gets the content of specified data file in the Data directory.
+    /// Data directory must be created in the root of the test Project or provided location.
     /// </summary>
-    /// <param name="pathRelativeToDataFolder">
-    /// Path is relative Data folder including file extension.
+    /// <param name="pathRelativeToDataDirectory">
+    /// Path is relative Data directory including file extension.
     /// Make sure the data file is copied to output directory.
     /// </param>
-    /// <param name="dataFolderLocation">If not provided global convention location will be applied</param>
-    public static DataProviderResult Get(string pathRelativeToDataFolder, string? dataFolderLocation = null, string? conventionDirectory = null)
+    /// <param name="dataDirectoryPath">If not provided global convention location will be applied</param>
+    public static DataProviderResult Get(string pathRelativeToDataDirectory, string? dataDirectoryPath = null, string? conventionDirectory = null)
     {
-        var location = GetDataPath(pathRelativeToDataFolder, dataFolderLocation, conventionDirectory);
+        var location = GetDataPath(pathRelativeToDataDirectory, dataDirectoryPath, conventionDirectory);
         var data = location.DataExists ? File.ReadAllText(location.DataPath) : null;
 
         return new DataProviderResult(data, location);
     }
 
-    public static DataProviderResultDataPath GetDataPath(string pathRelativeToDataFolder, string? dataFolderLocation = null, string? conventionDirectory = null)
+    public static DataProviderResultDataPath GetDataPath(string pathRelativeToDataDirectory, string? dataDirectoryPath = null, string? conventionDirectory = null)
     {
-        var lookupDirectoryPaths = new DataProviderDataLookupDirectoryPaths(dataFolderLocation ?? string.Empty, conventionDirectory);
+        var lookupDirectoryPaths = new DataProviderDataLookupDirectoryPaths(dataDirectoryPath ?? string.Empty, conventionDirectory);
 
-        var locationFound = CheckLocation(lookupDirectoryPaths.TestDirectory, pathRelativeToDataFolder);
-        if (!locationFound && !string.IsNullOrWhiteSpace(dataFolderLocation))
+        var locationFound = CheckLocation(lookupDirectoryPaths.TestDirectory, pathRelativeToDataDirectory);
+        if (!locationFound && !string.IsNullOrWhiteSpace(dataDirectoryPath))
         {
-            dataFolderLocation = Path.Combine(dataFolderLocation, lookupDirectoryPaths.TestDataDirectory);
-            locationFound = CheckLocation(dataFolderLocation, pathRelativeToDataFolder);
+            dataDirectoryPath = Path.Combine(dataDirectoryPath, lookupDirectoryPaths.TestDataDirectory);
+            locationFound = CheckLocation(dataDirectoryPath, pathRelativeToDataDirectory);
         }
 
-        var selectedLocation = locationFound ? dataFolderLocation! : lookupDirectoryPaths.GlobalDataDirectory;
-        var path = Path.Combine(selectedLocation, pathRelativeToDataFolder);
+        var selectedDirectory = locationFound ? dataDirectoryPath! : lookupDirectoryPaths.GlobalDataDirectory;
+        var path = Path.Combine(selectedDirectory, pathRelativeToDataDirectory);
 
-        return new DataProviderResultDataPath(path, lookupDirectoryPaths);
+        return new DataProviderResultDataPath(path, selectedDirectory, lookupDirectoryPaths);
     }
 
-    private static bool CheckLocation(string dataFolderLocation, string pathRelativeToDataFolder)
-        => !string.IsNullOrWhiteSpace(dataFolderLocation) && File.Exists(Path.Combine(dataFolderLocation, pathRelativeToDataFolder));
+    private static bool CheckLocation(string dataDirectoryLocation, string pathRelativeToDataDirectory)
+        => !string.IsNullOrWhiteSpace(dataDirectoryLocation) && File.Exists(Path.Combine(dataDirectoryLocation, pathRelativeToDataDirectory));
 }
 
 public class DataProviderResult(string? data, DataProviderResultDataPath dataPath)
@@ -55,13 +55,15 @@ public class DataProviderResult(string? data, DataProviderResultDataPath dataPat
     /// <summary>
     /// Make sure the data file is copied to output directory.
     /// </summary>
-    public bool DataFound { get; } = dataPath.DataExists;
+    public bool DataExists { get; } = dataPath.DataExists;
 }
 
-public class DataProviderResultDataPath(string dataPath, DataProviderDataLookupDirectoryPaths directoryLookupPaths)
+public class DataProviderResultDataPath(string dataPath, string selectedDirectory, DataProviderDataLookupDirectoryPaths directoryLookupPaths)
 {
     public string DataPath { get; } = dataPath;
     public bool DataExists { get; } = File.Exists(dataPath);
+
+    public string SelectedDirectory { get; } = selectedDirectory;
     public DataProviderDataLookupDirectoryPaths DirectoryLookupPaths { get; } = directoryLookupPaths;
 }
 

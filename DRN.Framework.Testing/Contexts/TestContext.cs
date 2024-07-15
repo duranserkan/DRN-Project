@@ -78,6 +78,8 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
             ServiceCollection = sc;
     }
 
+    public void ValidateServices() => this.ValidateServicesAddedByAttributes();
+
     public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = "settings")
     {
         var configuration = SettingsProvider.GetConfiguration(appSettingsName, MethodContext.GetTestFolderLocation(),
@@ -87,7 +89,19 @@ public sealed class TestContext : IDisposable, IKeyedServiceProvider
         return configurationRoot;
     }
 
-    public void ValidateServices() => this.ValidateServicesAddedByAttributes();
+    /// <summary>
+    /// It can be used to verify selected app settings file.
+    /// Make sure the settings file is copied to output directory.
+    /// </summary>
+    public DataProviderResultDataPath GetSettingsPath(string appSettingsName = "settings") =>
+        SettingsProvider.GetSettingsPath(appSettingsName, MethodContext.GetTestFolderLocation());
+
+    /// <summary>
+    /// It can be used to verify selected app settings file.
+    /// Make sure the settings file is copied to output directory.
+    /// </summary>
+    public DataProviderResult GetSettingsData(string appSettingsName = "settings") =>
+        SettingsProvider.GetSettingsData(appSettingsName, MethodContext.GetTestFolderLocation());
 
     public DataProviderResult GetData(string pathRelativeToDataFolder, string? conventionDirectory = null) =>
         DataProvider.Get(pathRelativeToDataFolder, MethodContext.GetTestFolderLocation(), conventionDirectory);
