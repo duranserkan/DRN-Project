@@ -4,14 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Testing.Contexts;
 
-public class MethodContext
+public class MethodContext(MethodInfo testMethod)
 {
-    public MethodContext(MethodInfo testMethod)
-    {
-        TestMethod = testMethod;
-    }
-
-    public MethodInfo TestMethod { get; }
+    public MethodInfo TestMethod { get; } = testMethod;
     public IReadOnlyList<object> Data { get; private set; } = null!;
     public IReadOnlyList<SubstitutePair> SubstitutePairs { get; private set; } = null!;
 

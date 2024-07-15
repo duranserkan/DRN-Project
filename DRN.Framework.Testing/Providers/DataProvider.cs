@@ -1,5 +1,3 @@
-using DRN.Framework.SharedKernel;
-
 namespace DRN.Framework.Testing.Providers;
 
 public static class DataProvider
@@ -13,17 +11,17 @@ public static class DataProvider
     /// Make sure the data file is copied to output directory.
     /// </param>
     /// <param name="dataFolderLocation">If not provided global convention location will be applied</param>
-    public static DataProviderResult Get(string pathRelativeToDataFolder, string? dataFolderLocation = null)
+    public static DataProviderResult Get(string pathRelativeToDataFolder, string? dataFolderLocation = null, string? conventionDirectory = null)
     {
-        var location = GetDataPath(pathRelativeToDataFolder, dataFolderLocation);
+        var location = GetDataPath(pathRelativeToDataFolder, dataFolderLocation, conventionDirectory);
         var data = location.DataExists ? File.ReadAllText(location.DataPath) : null;
 
         return new DataProviderResult(data, location);
     }
 
-    public static DataProviderResultDataPath GetDataPath(string pathRelativeToDataFolder, string? dataFolderLocation = null)
+    public static DataProviderResultDataPath GetDataPath(string pathRelativeToDataFolder, string? dataFolderLocation = null, string? conventionDirectory = null)
     {
-        var lookupDirectoryPaths = new DataProviderDataLookupDirectoryPaths(dataFolderLocation ?? "");
+        var lookupDirectoryPaths = new DataProviderDataLookupDirectoryPaths(dataFolderLocation ?? string.Empty, conventionDirectory);
 
         var locationFound = CheckLocation(lookupDirectoryPaths.TestDirectory, pathRelativeToDataFolder);
         if (!locationFound && !string.IsNullOrWhiteSpace(dataFolderLocation))
@@ -49,6 +47,9 @@ public class DataProviderResult(string? data, DataProviderResultDataPath dataPat
     /// </summary>
     public string? Data { get; } = data;
 
+    /// <summary>
+    /// Make sure the data file is copied to output directory.
+    /// </summary>
     public DataProviderResultDataPath DataPath { get; } = dataPath;
 
     /// <summary>
@@ -67,13 +68,17 @@ public class DataProviderResultDataPath(string dataPath, DataProviderDataLookupD
 public class DataProviderDataLookupDirectoryPaths
 {
     public static readonly string ConventionDirectory = "Data";
-    public static readonly string GlobalConventionLocation = Path.Combine(Directory.GetCurrentDirectory(), ConventionDirectory);
+    public static readonly string GlobalConventionDirectoryPath = Path.Combine(Directory.GetCurrentDirectory(), ConventionDirectory);
 
-    public DataProviderDataLookupDirectoryPaths(string testDirectory)
+    public DataProviderDataLookupDirectoryPaths(string testDirectory, string? conventionDirectory)
     {
+        var selectedConvention = string.IsNullOrWhiteSpace(conventionDirectory)
+            ? ConventionDirectory
+            : conventionDirectory;
+
         TestDirectory = testDirectory;
-        TestDataDirectory = Path.Combine(TestDirectory, ConventionDirectory);
-        GlobalDataDirectory = GlobalConventionLocation;
+        TestDataDirectory = Path.Combine(TestDirectory, selectedConvention);
+        GlobalDataDirectory = Path.Combine(Directory.GetCurrentDirectory(), selectedConvention);
     }
 
     /// <summary>
