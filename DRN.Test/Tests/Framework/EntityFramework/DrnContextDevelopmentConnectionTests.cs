@@ -1,5 +1,6 @@
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel.Enums;
+using DRN.Framework.Testing.Contexts.Postgres;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Sample.Infra;
@@ -14,9 +15,12 @@ public class DrnContextDevelopmentConnectionTests
     [DataInline(AppEnvironment.Production, "ViveLaRépublique", true)]
     public async Task ConnectionString_Should_Be_Created(TestContext testContext, AppEnvironment environment, string password, bool migrate)
     {
-        var database = DbContextConventions.DefaultDatabase;
-        var username = DbContextConventions.DefaultUsername;
-        var container = await testContext.ContainerContext.Postgres.Isolated.StartAsync(database, username, password);
+        var containerSettings = new PostgresContainerSettings
+        {
+            Password = password
+        };
+
+        var container = await testContext.ContainerContext.Postgres.Isolated.StartAsync(containerSettings);
         var csBuilder = new NpgsqlConnectionStringBuilder(container.GetConnectionString());
 
         var developmentDbSettings = new Dictionary<string, object>

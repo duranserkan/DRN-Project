@@ -28,8 +28,11 @@ public static class WebApplicationBuilderExtensions
 
 public class ExternalDependencyLaunchOptions
 {
-    public bool ContainerReuse { get; init; } = true;
-    public int PostgresHostPort { get; init; } = 5432;
+    public PostgresContainerSettings PostgresContainerSettings { get; init; } = new()
+    {
+        Reuse = true,
+        HostPort = 5432
+    };
 }
 
 public class ExternalDependencyLaunchResult(IAppSettings appSettings)

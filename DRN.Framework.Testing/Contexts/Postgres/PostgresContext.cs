@@ -18,23 +18,21 @@ public class PostgresContext(TestContext testContext)
     static readonly SemaphoreSlim MigrationLock = new(1, 1);
     private static readonly List<Type> MigratedDbContexts = new(10);
 
-    public static string Image { get; set; } = "postgres";
-    public static string Version { get; set; } = "16.3-alpine3.19";
     public TestContext TestContext { get; } = testContext;
     public PostgresContextIsolated Isolated { get; } = new(testContext);
 
     //todo refactor parameters
-    public static PostgreSqlContainer BuildContainer(string? database = null, string? username = null, string? password = null,
-        string? version = null, int hostPort = 0, bool reuse = false)
+    public static PostgreSqlContainer BuildContainer(PostgresContainerSettings? settings = null)
     {
-        version ??= Version;
+        settings ??= new PostgresContainerSettings();
+
         var containerPort = PostgreSqlBuilder.PostgreSqlPort;
-        var builder = new PostgreSqlBuilder().WithImage($"{Image}:{version}");
-        if (database != null) builder = builder.WithDatabase(database);
-        if (username != null) builder = builder.WithUsername(username);
-        if (password != null) builder = builder.WithPassword(password);
-        if (hostPort is >= 0 and < 65535) builder = builder.WithPortBinding(hostPort, containerPort);
-        if (reuse) builder = builder.WithReuse(true);
+        var builder = new PostgreSqlBuilder().WithImage(settings.GetImageTag());
+        if (settings.HasDatabase) builder = builder.WithDatabase(settings.Database);
+        if (settings.HasUsername) builder = builder.WithUsername(settings.Username);
+        if (settings.HasPassword) builder = builder.WithPassword(settings.Password);
+        if (settings.HasValidHostPort) builder = builder.WithPortBinding(settings.HostPort, containerPort);
+        if (settings.Reuse) builder = builder.WithReuse(true);
 
         var container = builder.Build();
 
@@ -119,7 +117,7 @@ public class PostgresContext(TestContext testContext)
     internal static async Task<PostgresCollection> LaunchPostgresAsync(
         WebApplicationBuilder applicationBuilder, ExternalDependencyLaunchOptions options)
     {
-        var postgresContainer = BuildContainer(hostPort: options.PostgresHostPort, reuse: options.ContainerReuse);
+        var postgresContainer = BuildContainer(options.PostgresContainerSettings);
         await postgresContainer.StartAsync();
 
         var dbContextCollection = GetDbContextCollection(applicationBuilder.Services, postgresContainer);

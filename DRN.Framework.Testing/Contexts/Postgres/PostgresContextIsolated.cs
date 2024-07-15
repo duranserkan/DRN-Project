@@ -8,9 +8,9 @@ public class PostgresContextIsolated(TestContext testContext)
     private TestContext TestContext { get; } = testContext;
     private ContainerContext ContainerContext => TestContext.ContainerContext;
 
-    public async Task<PostgreSqlContainer> StartAsync(string? database = null, string? username = null, string? password = null, string? version = null)
+    public async Task<PostgreSqlContainer> StartAsync(PostgresContainerSettings? settings = null)
     {
-        var container = PostgresContext.BuildContainer(database, username, password, version);
+        var container = PostgresContext.BuildContainer(settings);
         ContainerContext.AddContainer(container);
 
         await container.StartAsync();
@@ -18,10 +18,9 @@ public class PostgresContextIsolated(TestContext testContext)
         return container;
     }
 
-    public async Task<PostgreSqlContainer> ApplyMigrationsAsync(string? database = null,
-        string? username = null, string? password = null, string? version = null)
+    public async Task<PostgreSqlContainer> ApplyMigrationsAsync(PostgresContainerSettings? settings = null)
     {
-        var container = await StartAsync(database, username, password, version);
+        var container = await StartAsync(settings);
         var dbContexts = PostgresContext.SetConnectionStrings(TestContext, container);
         await MigrateDbContextsAsync(dbContexts);
 
@@ -31,10 +30,10 @@ public class PostgresContextIsolated(TestContext testContext)
     /// <summary>
     /// Can be used for rapid prototyping for single dbContext since Database.EnsureCreatedAsync doesn't support multiple contexts on single database
     /// </summary>
-    public async Task<PostgreSqlContainer> EnsureDatabaseAsync<TContext>(string? database = null,
-        string? username = null, string? password = null, string? version = null) where TContext : DbContext
+    public async Task<PostgreSqlContainer> EnsureDatabaseAsync<TContext>(PostgresContainerSettings? settings = null)
+        where TContext : DbContext
     {
-        var container = await StartAsync(database, username, password, version);
+        var container = await StartAsync(settings);
         var dbContexts = PostgresContext.SetConnectionStrings(TestContext, container);
         var dbContext = Array.Find(dbContexts, d => d.GetType() == typeof(TContext));
         ArgumentNullException.ThrowIfNull(dbContext);
