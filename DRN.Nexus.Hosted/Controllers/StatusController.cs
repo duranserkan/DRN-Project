@@ -1,5 +1,4 @@
 using DRN.Framework.Utils.Settings;
-using Microsoft.AspNetCore.Mvc;
 
 namespace DRN.Nexus.Hosted.Controllers;
 

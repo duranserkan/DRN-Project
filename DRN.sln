@@ -186,6 +186,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docker-publish-all", "docke
 		.github\workflows\actions\docker-publish-all\action.yml = .github\workflows\actions\docker-publish-all\action.yml
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Test.Performance.K6", "DRN.Test.Performance.K6\DRN.Test.Performance.K6.csproj", "{36746EA0-1754-4105-9C43-B82B619B00F7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -272,6 +274,10 @@ Global
 		{4DD30400-D67C-41B6-89D7-FDB706DDD5DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4DD30400-D67C-41B6-89D7-FDB706DDD5DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4DD30400-D67C-41B6-89D7-FDB706DDD5DF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36746EA0-1754-4105-9C43-B82B619B00F7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36746EA0-1754-4105-9C43-B82B619B00F7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36746EA0-1754-4105-9C43-B82B619B00F7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36746EA0-1754-4105-9C43-B82B619B00F7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -324,5 +330,6 @@ Global
 		{7B8430B9-1144-4709-93BB-E54E2525C696} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 		{554E4D24-B627-4868-B115-BC105AD25CEF} = {43057003-6BEC-4C46-822A-1D2934A594D6}
 		{CE91E176-86C6-4B1C-A709-74847D01A31C} = {43057003-6BEC-4C46-822A-1D2934A594D6}
+		{36746EA0-1754-4105-9C43-B82B619B00F7} = {47ABF5D0-69DC-462D-B318-F8D6E5600603}
 	EndGlobalSection
 EndGlobal

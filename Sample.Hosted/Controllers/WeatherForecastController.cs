@@ -1,6 +1,5 @@
 ﻿using DRN.Framework.Hosting.Nexus;
 using DRN.Framework.Utils.Models;
-using Microsoft.AspNetCore.Mvc;
 
 namespace Sample.Hosted.Controllers;
 

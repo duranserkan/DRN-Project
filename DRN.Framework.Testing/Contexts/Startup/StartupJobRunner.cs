@@ -8,11 +8,10 @@ public static class StartupJobRunner
 {
     private static bool _triggered;
     private static readonly SemaphoreSlim StartupLock = new(1, 1);
-    public static StartupResult? StartupResult { get; private set; }
 
     public static void TriggerStartupJobs(MethodInfo testMethod, Type type)
     {
-        if (type == typeof(StartupContext)) return;
+        if (_triggered || type != typeof(TestContext)) return;
 
         StartupLock.Wait();
         try
@@ -43,7 +42,7 @@ public static class StartupJobRunner
         }
 
         var completedAt = DateTimeOffset.Now;
-        StartupResult = new StartupResult(startedAt, completedAt, testMethod, jobTypes);
+        _ = new TestStartupResult(startedAt, completedAt, testMethod, jobTypes);
     }
 
     private static Type[] GetTestStartupJobTypes(MethodInfo testMethod)
@@ -55,8 +54,24 @@ public static class StartupJobRunner
     }
 }
 
-public record StartupResult(
-    DateTimeOffset StartedAt,
-    DateTimeOffset CompletedAt,
-    MethodInfo TriggeredBy,
-    IReadOnlyList<Type> startupJobs);
+public class TestStartupResult
+{
+    public static TestStartupResult? Value { get; private set; }
+
+    public TestStartupResult(DateTimeOffset startedAt,
+        DateTimeOffset completedAt,
+        MethodInfo triggeredBy,
+        IReadOnlyList<Type> startupJobs)
+    {
+        Value ??= this;
+        StartedAt = startedAt;
+        CompletedAt = completedAt;
+        TriggeredBy = triggeredBy;
+        StartupJobs = startupJobs;
+    }
+
+    public DateTimeOffset StartedAt { get; }
+    public DateTimeOffset CompletedAt { get; }
+    public MethodInfo TriggeredBy { get; }
+    public IReadOnlyList<Type> StartupJobs { get; }
+}

@@ -1,6 +1,4 @@
 ﻿using DRN.Framework.Utils.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 
 namespace DRN.Nexus.Hosted.Controllers;
 

@@ -49,7 +49,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         try
         {
             ScopedLog.AddToActions("Creating Application");
-            var application = CreateApplication(args);
+            var application = await CreateApplicationAsync(args);
 
             ScopedLog.AddToActions("Running Application");
             Log.Warning("{@Logs}", ScopedLog.Logs);
@@ -73,7 +73,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         }
     }
 
-    public static WebApplication CreateApplication(string[]? args)
+    public static async Task<WebApplication> CreateApplicationAsync(string[]? args)
     {
         var program = new TProgram();
         var options = new WebApplicationOptions
@@ -86,7 +86,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.DrnProgramOptions.AppBuilderType);
         applicationBuilder.Configuration.AddDrnSettings(GetApplicationName(), args);
         program.ConfigureApplicationBuilder(applicationBuilder);
-        program.AddServicesAsync(applicationBuilder).GetAwaiter().GetResult();
+        await program.AddServicesAsync(applicationBuilder);
 
         var application = applicationBuilder.Build();
         program.ConfigureApplication(application);
