@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -27,7 +26,7 @@ public static class PostgreSqlContainerExtensions
     {
         var cs = container.GetConnectionString();
         var csBuilder = new NpgsqlConnectionStringBuilder(cs);
-        parameters ??= new NpgsqlConnectionStringParameters();
+        parameters ??= PostgresContext.NpgsqlConnectionStringParameters;
 
         csBuilder.Multiplexing = parameters.Multiplexing;
         csBuilder.MaxAutoPrepare = parameters.MaxAutoPrepare;

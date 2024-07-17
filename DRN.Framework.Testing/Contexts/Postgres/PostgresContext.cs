@@ -21,11 +21,18 @@ public class PostgresContext(TestContext testContext)
 
     public static Lazy<PostgreSqlContainer> Container { get; } = new(() => BuildContainer(PostgresContainerSettings));
 
+
     /// <summary>
     /// Update before container creation. StartAsync and ApplyMigrationsAsync methods initialize the container.
     /// Updated settings after the container initialized will not be reflected on container.
     /// </summary>
     public static PostgresContainerSettings PostgresContainerSettings { get; set; } = new();
+
+    /// <summary>
+    /// Update before container creation. StartAsync and ApplyMigrationsAsync methods initialize the container.
+    /// Updated settings after the container initialized will not be reflected on container.
+    /// </summary>
+    public static NpgsqlConnectionStringParameters NpgsqlConnectionStringParameters { get; set; } = new();
 
     public static PostgreSqlContainer BuildContainer(PostgresContainerSettings? settings = null)
     {

@@ -6,6 +6,7 @@ public class PostgresContainerSettings
 {
     public static string DefaultImage { get; set; } = "postgres";
     public static string DefaultVersion { get; set; } = "16.3-alpine3.19";
+    public static string DefaultPassword { get; set; } = "postgres";
 
     public string? Image { get; init; } = DefaultImage;
     public string? Version { get; init; } = DefaultVersion;
@@ -16,7 +17,7 @@ public class PostgresContainerSettings
     public string? Username { get; init; } = DbContextConventions.DefaultUsername;
     public bool HasUsername => !string.IsNullOrWhiteSpace(Username);
 
-    public string? Password { get; init; }
+    public string? Password { get; init; } = DefaultPassword;
     public bool HasPassword => !string.IsNullOrWhiteSpace(Password);
 
     public int HostPort { get; init; }

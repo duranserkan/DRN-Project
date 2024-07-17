@@ -7,10 +7,11 @@ public class TestStartupJob : ITestStartupJob
 {
     public void Run(StartupContext context)
     {
-        PostgresContext.PostgresContainerSettings = new PostgresContainerSettings
-        {
-            Password = "DrnStartUp"
-        };
+        NpgsqlConnectionStringParameters.DefaultMaxPoolSize = 10;
+        PostgresContext.NpgsqlConnectionStringParameters = new();
+
+        PostgresContainerSettings.DefaultPassword = "DrnStartUp";
+        PostgresContext.PostgresContainerSettings = new();
 
         var dataResult = context.GetData("StartUpData.txt");
         dataResult.Data.Should().Be("Peace at Home, Peace in the World");
