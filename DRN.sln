@@ -186,7 +186,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docker-publish-all", "docke
 		.github\workflows\actions\docker-publish-all\action.yml = .github\workflows\actions\docker-publish-all\action.yml
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Test.Performance.K6", "DRN.Test.Performance.K6\DRN.Test.Performance.K6.csproj", "{36746EA0-1754-4105-9C43-B82B619B00F7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRN.Test.Performance", "DRN.Test.Performance\DRN.Test.Performance.csproj", "{36746EA0-1754-4105-9C43-B82B619B00F7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

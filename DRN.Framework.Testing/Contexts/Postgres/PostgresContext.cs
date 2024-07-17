@@ -112,7 +112,7 @@ public class PostgresContext(TestContext testContext)
         foreach (var descriptor in descriptors)
         {
             var contextName = descriptor.ServiceType.Name;
-            dbContextCollection.ConnectionStrings.Upsert(contextName, container.GetConnectionString());
+            dbContextCollection.ConnectionStrings.Upsert(contextName, container.GetConnectionStringWithParameters(contextName));
             dbContextCollection.ServiceDescriptors[contextName] = descriptor;
         }
 
