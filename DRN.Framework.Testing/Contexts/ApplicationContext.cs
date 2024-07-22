@@ -59,7 +59,7 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
                 testContext.ServiceCollection = new ServiceCollection { services };
             });
 
-            var configuration = testContext.GetRequiredService<IConfiguration>()!;
+            var configuration = testContext.GetRequiredService<IConfiguration>();
             webHostBuilder.UseConfiguration(configuration);
             webHostBuilder.ConfigureLogging(logging =>
             {
