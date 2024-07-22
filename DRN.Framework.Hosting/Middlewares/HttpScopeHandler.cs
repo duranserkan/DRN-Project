@@ -27,6 +27,9 @@ public class HttpScopeHandler(RequestDelegate next)
                 FlurlHttpException fEx => fEx.GetGatewayStatusCode(),
                 _ => 500
             };
+
+            //todo: integrate developer exception page
+            //https://github.com/dotnet/aspnetcore/blob/main/src/Middleware/Diagnostics/src/DeveloperExceptionPage/DeveloperExceptionPageMiddleware.cs
             if (httpContext.Response.StatusCode is > 99 and < 600)
                 await httpContext.Response.WriteAsync($"TraceId: {httpContext.TraceIdentifier}");
             else

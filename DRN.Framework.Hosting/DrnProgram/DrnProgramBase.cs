@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Serilog;
 
 namespace DRN.Framework.Hosting.DrnProgram;
@@ -104,6 +105,10 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         applicationBuilder.Host.UseSerilog();
         applicationBuilder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
             kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel")));
+
+        //https://andrewlock.net/extending-the-shutdown-timeout-setting-to-ensure-graceful-ihostedservice-shutdown/
+        //https://learn.microsoft.com/en-us/dotnet/core/extensions/options
+        applicationBuilder.Services.Configure<HostOptions>(Configuration.GetSection("HostOptions"));
         applicationBuilder.Services.ConfigureHttpJsonOptions(options => JsonConventions.SetJsonDefaults(options.SerializerOptions));
         applicationBuilder.Services.AddLogging();
         applicationBuilder.Services.AddEndpointsApiExplorer();

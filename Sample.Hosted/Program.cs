@@ -1,5 +1,6 @@
 ﻿using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Testing.Extensions;
+using Microsoft.Extensions.Options;
 using Sample.Application;
 using Sample.Infra;
 
