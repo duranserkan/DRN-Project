@@ -1,3 +1,4 @@
+using System.Net;
 using DRN.Framework.Utils.Http;
 using Flurl.Http;
 
@@ -13,7 +14,7 @@ public class ExternalRequestTests
         context.FlurlHttpTest.ForCallsTo(endpoint).RespondWith(responseText, 201);
 
         var externalRequest = context.GetRequiredService<IExternalRequest>();
-        var request = externalRequest.For(endpoint, new Version("2.0"));
+        var request = externalRequest.For(endpoint, HttpVersion.Version20);
         var response = await request.GetAsync().ToStringAsync();
 
         response.HttpStatus.Should().Be(201);
