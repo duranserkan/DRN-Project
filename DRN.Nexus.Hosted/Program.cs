@@ -31,7 +31,6 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         if (!AppSettings.IsDevEnvironment) return;
 
         DrnProgramOptions.UseHttpRequestLogger = true;
-        application.UseDeveloperExceptionPage();
     }
 
     protected override void ConfigureApplicationPreAuth(WebApplication application)

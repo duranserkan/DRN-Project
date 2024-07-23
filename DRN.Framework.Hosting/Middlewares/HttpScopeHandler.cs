@@ -1,6 +1,7 @@
 using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Settings;
 using Flurl.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -12,15 +13,15 @@ namespace DRN.Framework.Hosting.Middlewares;
 //https://github.com/serilog/serilog/wiki/Structured-Data
 public class HttpScopeHandler(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext httpContext, IScopedLog scopedLog, ILogger<HttpScopeHandler> logger)
+    public async Task InvokeAsync(HttpContext httpContext, IScopedLog scopedLog, ILogger<HttpScopeHandler> logger, IAppSettings appSettings)
     {
         try
         {
             await next(httpContext);
+            PrepareScopeLog(httpContext, scopedLog);
         }
         catch (Exception e)
         {
-            scopedLog.AddException(e);
             httpContext.Response.StatusCode = e switch
             {
                 DrnException dEx => dEx.Status,
@@ -28,16 +29,20 @@ public class HttpScopeHandler(RequestDelegate next)
                 _ => 500
             };
 
+            scopedLog.AddException(e);
+            PrepareScopeLog(httpContext, scopedLog);
+
             //todo: integrate developer exception page
             //https://github.com/dotnet/aspnetcore/blob/main/src/Middleware/Diagnostics/src/DeveloperExceptionPage/DeveloperExceptionPageMiddleware.cs
-            if (httpContext.Response.StatusCode is > 99 and < 600)
-                await httpContext.Response.WriteAsync($"TraceId: {httpContext.TraceIdentifier}");
-            else
+            if (httpContext.Response.StatusCode is < 100 or > 599)
                 httpContext.Abort();
+            else if (appSettings.IsDevEnvironment)
+                await httpContext.Response.WriteAsJsonAsync(scopedLog.Logs);
+            else
+                await httpContext.Response.WriteAsync($"TraceId: {httpContext.TraceIdentifier}");
         }
         finally
         {
-            PrepareScopeLog(httpContext, scopedLog);
             logger.LogScoped(scopedLog);
         }
     }

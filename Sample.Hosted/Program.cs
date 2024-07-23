@@ -1,6 +1,5 @@
 ﻿using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Testing.Extensions;
-using Microsoft.Extensions.Options;
 using Sample.Application;
 using Sample.Infra;
 
@@ -27,7 +26,6 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         if (!AppSettings.IsDevEnvironment) return;
 
         DrnProgramOptions.UseHttpRequestLogger = true;
-        application.UseDeveloperExceptionPage();
     }
 
     protected override void ConfigureApplicationPreAuth(WebApplication application)
