@@ -18,9 +18,11 @@ namespace DRN.Framework.Testing.Contexts;
 /// </summary>
 public class TestContext : IDisposable, IKeyedServiceProvider
 {
+
     private readonly Lazy<HttpTest> _flurlHttpTest = new(() => new HttpTest());
     private readonly List<IConfigurationSource> _configurationSources = [];
     private ServiceProvider? _serviceProvider;
+    private bool _disposed;
 
     /// <summary>
     /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
@@ -146,13 +148,12 @@ public class TestContext : IDisposable, IKeyedServiceProvider
         return _serviceProvider.GetRequiredKeyedService(serviceType, serviceKey);
     }
 
+    public override string ToString() => "TestContext";
+
     public void Dispose()
     {
-        DisposeServiceProvider();
-        if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
-        ContainerContext.Dispose();
-        ApplicationContext.Dispose();
-        FlurlHttpTest.Dispose();
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
     private void DisposeServiceProvider()
@@ -161,5 +162,20 @@ public class TestContext : IDisposable, IKeyedServiceProvider
         _serviceProvider = null;
     }
 
-    public override string ToString() => "TestContext";
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                DisposeServiceProvider();
+                if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
+                ContainerContext.Dispose();
+                ApplicationContext.Dispose();
+                FlurlHttpTest.Dispose();
+            }
+
+            _disposed = true;
+        }
+    }
 }
