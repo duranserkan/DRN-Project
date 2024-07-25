@@ -25,13 +25,13 @@ public static class DbContextConventions
         DbContextOptionsBuilder? contextOptions = null, IServiceProvider? serviceProvider = null) where TContext : DbContext
         => (contextOptions ?? new DbContextOptionsBuilder<TContext>())
             .ConfigureDbContextOptions<TContext>(serviceProvider)
-            .UseNpgsql(npgsqlOptions => npgsqlOptions.ConfigureNpgsqlDbContextOptions<TContext>());
+            .UseNpgsql(npgsqlOptions => npgsqlOptions.ConfigureNpgsqlDbContextOptions<TContext>(serviceProvider));
 
     public static DbContextOptionsBuilder UpdateDbContextOptionsBuilder<TContext>(NpgsqlDataSource dataSource,
         DbContextOptionsBuilder? contextOptions = null, IServiceProvider? serviceProvider = null) where TContext : DbContext
         => (contextOptions ?? new DbContextOptionsBuilder<TContext>())
             .ConfigureDbContextOptions<TContext>(serviceProvider)
-            .UseNpgsql(dataSource, npgsqlOptions => npgsqlOptions.ConfigureNpgsqlDbContextOptions<TContext>());
+            .UseNpgsql(dataSource, npgsqlOptions => npgsqlOptions.ConfigureNpgsqlDbContextOptions<TContext>(serviceProvider));
 
     private static DbContextOptionsBuilder ConfigureDbContextOptions<TContext>(
         this DbContextOptionsBuilder optionsBuilder, IServiceProvider? serviceProvider)
@@ -43,11 +43,11 @@ public static class DbContextConventions
         return optionsBuilder;
     }
 
-    private static void ConfigureNpgsqlDbContextOptions<TContext>(this NpgsqlDbContextOptionsBuilder optionsBuilder)
+    private static void ConfigureNpgsqlDbContextOptions<TContext>(this NpgsqlDbContextOptionsBuilder optionsBuilder, IServiceProvider? serviceProvider)
         where TContext : DbContext
     {
         foreach (var attribute in GetContextAttributes<TContext>())
-            attribute.ConfigureNpgsqlOptions<TContext>(optionsBuilder);
+            attribute.ConfigureNpgsqlOptions<TContext>(optionsBuilder, serviceProvider);
     }
 
     public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes<TContext>()

@@ -31,7 +31,7 @@ public static class ServiceCollectionExtensions
 
             dataSourceBuilderBuilder.ConnectionStringBuilder.ConnectionString = connectionString;
             foreach (var attribute in attributes)
-                attribute.ConfigureNpgsqlDataSource<TContext>(dataSourceBuilderBuilder);
+                attribute.ConfigureNpgsqlDataSource<TContext>(dataSourceBuilderBuilder, serviceProvider);
         }, serviceKey: contextName);
 
         sc.AddDbContext<TContext>((serviceProvider, optionsBuilder) =>

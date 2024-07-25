@@ -15,12 +15,12 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
 {
     public DrnContextDefaultsAttribute() => FrameworkDefined = true;
 
-    public override void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder) => builder
+    public override void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder, IServiceProvider? serviceProvider) => builder
         .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
         .MigrationsAssembly(typeof(TContext).Assembly.FullName)
         .MigrationsHistoryTable($"{typeof(TContext).Name.ToSnakeCase()}_history", "__entity_migrations");
 
-    public override void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder)
+    public override void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider? serviceProvider)
     {
         builder.EnableParameterLogging(false);
         builder.ConfigureJsonOptions(JsonConventions.DefaultOptions);

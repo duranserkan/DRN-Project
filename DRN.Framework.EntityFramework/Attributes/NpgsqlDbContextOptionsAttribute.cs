@@ -8,11 +8,11 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
 {
     internal bool FrameworkDefined = false;
 
-    public virtual void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder) where TContext : DbContext
+    public virtual void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder, IServiceProvider? serviceProvider) where TContext : DbContext
     {
     }
 
-    public virtual void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder) where TContext : DbContext
+    public virtual void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider? serviceProvider) where TContext : DbContext
     {
     }
 

@@ -5,6 +5,6 @@ namespace Sample.Infra.QA;
 
 public class QAContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAttribute
 {
-    public override void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder)
+    public override void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder, IServiceProvider? serviceProvider)
         => builder.CommandTimeout(30);
 }
