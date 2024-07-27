@@ -5,32 +5,25 @@ namespace DRN.Framework.EntityFramework.Attributes;
 /// <summary>
 /// https://www.npgsql.org/doc/connection-string-parameters.html
 /// </summary>
-public abstract class NpgsqlPerformanceSettingsAttribute : NpgsqlDbContextOptionsAttribute
+public abstract class NpgsqlPerformanceSettingsAttribute(
+    bool? multiplexing = null,
+    int? maxAutoPrepare = null,
+    int? autoPrepareMinUsages = null,
+    int? minPoolSize = null,
+    int? maxPoolSize = null,
+    int? readBufferSize = null,
+    int? writeBufferSize = null,
+    int? commandTimeout = null)
+    : NpgsqlDbContextOptionsAttribute
 {
-    private bool? Multiplexing { get; }
-    private int? MaxAutoPrepare { get; }
-    private int? AutoPrepareMinUsages { get; }
-    private int? MinPoolSize { get; }
-    private int? MaxPoolSize { get; }
-    private int? ReadBufferSize { get; }
-    private int? WriteBufferSize { get; }
-    private int? CommandTimeout { get; }
-
-    public NpgsqlPerformanceSettingsAttribute(bool? multiplexing = null,
-        int? maxAutoPrepare = null, int? autoPrepareMinUsages = null,
-        int? minPoolSize = null, int? maxPoolSize = null,
-        int? readBufferSize = null, int? writeBufferSize = null,
-        int? commandTimeout = null)
-    {
-        Multiplexing = multiplexing;
-        MaxAutoPrepare = maxAutoPrepare;
-        AutoPrepareMinUsages = autoPrepareMinUsages;
-        MinPoolSize = minPoolSize;
-        MaxPoolSize = maxPoolSize;
-        ReadBufferSize = readBufferSize;
-        WriteBufferSize = writeBufferSize;
-        CommandTimeout = commandTimeout;
-    }
+    private bool? Multiplexing { get; } = multiplexing;
+    private int? MaxAutoPrepare { get; } = maxAutoPrepare;
+    private int? AutoPrepareMinUsages { get; } = autoPrepareMinUsages;
+    private int? MinPoolSize { get; } = minPoolSize;
+    private int? MaxPoolSize { get; } = maxPoolSize;
+    private int? ReadBufferSize { get; } = readBufferSize;
+    private int? WriteBufferSize { get; } = writeBufferSize;
+    private int? CommandTimeout { get; } = commandTimeout;
 
     public override void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider? serviceProvider)
     {
