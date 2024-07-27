@@ -28,12 +28,6 @@ public class PostgresContext(TestContext testContext)
     /// </summary>
     public static PostgresContainerSettings PostgresContainerSettings { get; set; } = new();
 
-    /// <summary>
-    /// Update before container creation. StartAsync and ApplyMigrationsAsync methods initialize the container.
-    /// Updated settings after the container initialized will not be reflected on container.
-    /// </summary>
-    public static NpgsqlConnectionStringParameters NpgsqlConnectionStringParameters { get; set; } = new();
-
     public static PostgreSqlContainer BuildContainer(PostgresContainerSettings? settings = null)
     {
         settings ??= new PostgresContainerSettings();
@@ -119,7 +113,7 @@ public class PostgresContext(TestContext testContext)
         foreach (var descriptor in descriptors)
         {
             var contextName = descriptor.ServiceType.Name;
-            dbContextCollection.ConnectionStrings.Upsert(contextName, container.GetConnectionStringWithParameters(contextName));
+            dbContextCollection.ConnectionStrings.Upsert(contextName, container.GetConnectionString());
             dbContextCollection.ServiceDescriptors[contextName] = descriptor;
         }
 

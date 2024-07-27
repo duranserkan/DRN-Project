@@ -16,7 +16,7 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
             .AddSampleApplicationServices()
             .AddSampleServices(AppSettings);
 
-        var launchResult = await builder.LaunchExternalDependenciesAsync(new ExternalDependencyLaunchOptions());
+        var launchResult = await builder.LaunchExternalDependenciesAsync();
         ScopedLog.Add(nameof(launchResult.PostgresConnection), launchResult.PostgresConnection);
     }
 

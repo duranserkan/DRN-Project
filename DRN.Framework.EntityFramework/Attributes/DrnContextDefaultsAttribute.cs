@@ -24,6 +24,11 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
     {
         builder.EnableParameterLogging(false);
         builder.ConfigureJsonOptions(JsonConventions.DefaultOptions);
+
+        var appSettings = serviceProvider?.GetRequiredService<IAppSettings>() ?? AppSettings.Instance;
+        var defaultApplicationName = $"{appSettings.ApplicationName}_{typeof(TContext).Name}";
+
+        builder.ConnectionStringBuilder.ApplicationName ??= defaultApplicationName;
     }
 
     public override void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder builder, IServiceProvider? serviceProvider)

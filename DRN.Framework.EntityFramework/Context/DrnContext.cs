@@ -55,7 +55,7 @@ namespace DRN.Framework.EntityFramework.Context;
 /// dotnet ef migrations remove --context [ContextName]  -- "connectionString"
 ///</code>
 /// </example>
-[DrnContextServiceRegistration, DrnContextDefaults]
+[DrnContextServiceRegistration, DrnContextDefaults, DrnContextPerformanceDefaults]
 public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices where TContext : DrnContext<TContext>, new()
 {
     /// Initializes a new instance of the <see cref="DrnContext"/> class.

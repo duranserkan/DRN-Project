@@ -7,9 +7,6 @@ public class TestStartupJob : ITestStartupJob
 {
     public void Run(StartupContext context)
     {
-        NpgsqlConnectionStringParameters.DefaultMaxPoolSize = 10;
-        PostgresContext.NpgsqlConnectionStringParameters = new();
-
         PostgresContainerSettings.DefaultPassword = "DrnStartUp";
         PostgresContext.PostgresContainerSettings = new();
 
