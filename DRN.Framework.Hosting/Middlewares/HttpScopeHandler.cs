@@ -50,6 +50,7 @@ public class HttpScopeHandler(RequestDelegate next)
     private static void PrepareScopeLog(HttpContext httpContext, IScopedLog scopedLog) => scopedLog
         .WithLoggerName(nameof(HttpScopeHandler))
         .WithTraceIdentifier(httpContext.TraceIdentifier)
+        .Add("l5d-client-id", httpContext.Request.Headers.TryGetValue("l5d-client-id", out var l5dId) ? l5dId.ToString() : string.Empty)
         .Add("HttpProtocol", httpContext.Request.Protocol.Split('/')[^1])
         .Add("HttpMethod", httpContext.Request.Method)
         .Add("RequestHost", httpContext.Request.Host.ToString())

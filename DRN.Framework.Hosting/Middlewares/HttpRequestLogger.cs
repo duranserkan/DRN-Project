@@ -21,12 +21,13 @@ public class HttpRequestLogger(RequestDelegate next)
             var requestHeader = httpContext.Request.Headers.ConvertToString();
             var requestBody = await ReadRequestBody(httpContext.Request);
             logger.LogInformation("""
-                                  (Request)TraceIdentifier: {TraceIdentifier}
+                                  HTTP:{http}
+                                  TraceIdentifier: {TraceIdentifier}
 
                                   {RequestHeader}
 
                                   {RequestBody}
-                                  """, httpContext.TraceIdentifier, requestHeader, requestBody);
+                                  """, "request", httpContext.TraceIdentifier, requestHeader, requestBody);
 
             await next(httpContext);
         }
@@ -36,12 +37,13 @@ public class HttpRequestLogger(RequestDelegate next)
             var responseBody = await ReadResponseBody(responseBodyStream, originalBodyStream);
             httpContext.Response.Body = originalBodyStream;
             logger.LogInformation("""
+                                  HTTP:{http}
                                   (Response)TraceIdentifier: {TraceIdentifier}
 
                                   {ResponseHeader}
 
                                   {ResponseBody}
-                                  """, httpContext.TraceIdentifier, responseHeader, responseBody);
+                                  """, "response", httpContext.TraceIdentifier, responseHeader, responseBody);
         }
     }
 
