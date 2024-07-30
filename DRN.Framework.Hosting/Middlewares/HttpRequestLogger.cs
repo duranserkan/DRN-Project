@@ -21,7 +21,7 @@ public class HttpRequestLogger(RequestDelegate next)
             var requestHeader = httpContext.Request.Headers.ConvertToString();
             var requestBody = await ReadRequestBody(httpContext.Request);
             logger.LogInformation("""
-                                  HTTP:{http}
+                                  HTTP: {Http}
                                   TraceIdentifier: {TraceIdentifier}
 
                                   {RequestHeader}
@@ -37,7 +37,7 @@ public class HttpRequestLogger(RequestDelegate next)
             var responseBody = await ReadResponseBody(responseBodyStream, originalBodyStream);
             httpContext.Response.Body = originalBodyStream;
             logger.LogInformation("""
-                                  HTTP:{http}
+                                  HTTP: {Http}
                                   (Response)TraceIdentifier: {TraceIdentifier}
 
                                   {ResponseHeader}
