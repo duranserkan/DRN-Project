@@ -1,7 +1,6 @@
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.SharedKernel.Conventions;
-using DRN.Framework.Utils;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
@@ -145,11 +144,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         application.UseMiddleware<HttpScopeHandler>();
         ConfigureApplicationPostScopeStart(application);
 
-        if (DrnProgramOptions.UseHttpRequestLogger)
-            application.UseMiddleware<HttpRequestLogger>();
-
-        application.UseHostFiltering();
-        application.UseForwardedHeaders();
         application.UseRouting();
 
         ConfigureApplicationPreAuth(application);
@@ -162,10 +156,14 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ConfigureApplicationPreScopeStart(WebApplication application)
     {
+        if (DrnProgramOptions.UseHttpRequestLogger)
+            application.UseMiddleware<HttpRequestLogger>();
     }
 
     protected virtual void ConfigureApplicationPostScopeStart(WebApplication application)
     {
+        application.UseHostFiltering();
+        application.UseForwardedHeaders();
     }
 
     protected virtual void ConfigureApplicationPreAuth(WebApplication application)
