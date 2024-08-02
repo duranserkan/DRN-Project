@@ -115,6 +115,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
+        //Linkerd service mesh internal communication requires plain http to enable mtls
+        AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
         var mvcBuilder = applicationBuilder.Services.AddMvc(ConfigureMvcOptions)
             .AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
         var programAssembly = typeof(TProgram).Assembly;

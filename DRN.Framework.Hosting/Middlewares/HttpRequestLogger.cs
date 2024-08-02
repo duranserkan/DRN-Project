@@ -38,12 +38,13 @@ public class HttpRequestLogger(RequestDelegate next)
             httpContext.Response.Body = originalBodyStream;
             logger.LogInformation("""
                                   HTTP: {Http}
-                                  (Response)TraceIdentifier: {TraceIdentifier}
+                                  Status: {Status}
+                                  TraceIdentifier: {TraceIdentifier}
 
                                   {ResponseHeader}
 
                                   {ResponseBody}
-                                  """, "response", httpContext.TraceIdentifier, responseHeader, responseBody);
+                                  """, "response", httpContext.Response.StatusCode, httpContext.TraceIdentifier, responseHeader, responseBody);
         }
     }
 
