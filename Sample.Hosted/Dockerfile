@@ -22,7 +22,7 @@ WORKDIR /appconfig/json-settings
 WORKDIR /app
 
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
-FROM --platform=$BUILDPLATFORM bitnami/8.0.303-debian-12-r4 AS build
+FROM --platform=$BUILDPLATFORM bitnami/dotnet-sdk:8.0.303-debian-12-r4 AS build
 ARG PROJECT
 ARG TARGETARCH
 
