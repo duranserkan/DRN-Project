@@ -29,4 +29,8 @@ public class DrnAppFeatures
 
     public string InternalRequestHttpVersion { get; init; } = "1.1";
     public string InternalRequestProtocol { get; init; } = "http";
+    public bool UseHttpRequestLogger { get; init; } = false;
+
+    public bool SocketsHttp2UnencryptedSupport { get; init; } =
+        AppContext.TryGetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", out var enabled) && enabled;
 }

@@ -34,7 +34,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     protected static IAppSettings AppSettings { get; private set; } = new AppSettings(new ConfigurationManager());
     protected static IScopedLog ScopedLog { get; } = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
 
-    protected DrnProgramOptions DrnProgramOptions { get; } = new();
+    protected DrnAppBuilderType AppBuilderType { get; set; } = DrnAppBuilderType.DrnDefaults;
 
     protected static async Task RunAsync(string[]? args = null)
     {
@@ -83,7 +83,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             EnvironmentName = AppSettings.Environment.ToString()
         };
 
-        var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.DrnProgramOptions.AppBuilderType);
+        var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.AppBuilderType);
         applicationBuilder.Configuration.AddDrnSettings(GetApplicationName(), args);
         program.ConfigureApplicationBuilder(applicationBuilder);
         await program.AddServicesAsync(applicationBuilder);
@@ -113,7 +113,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         applicationBuilder.Services.AddEndpointsApiExplorer();
         applicationBuilder.Services.AdDrnHosting();
 
-        if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
+        if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
         //Linkerd service mesh internal communication requires plain http to enable mtls
         AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
@@ -140,7 +140,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     protected virtual void ConfigureApplication(WebApplication application)
     {
         application.Services.ValidateServicesAddedByAttributes();
-        if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
+        if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
         ConfigureApplicationPreScopeStart(application);
         application.UseMiddleware<HttpScopeHandler>();
@@ -158,7 +158,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ConfigureApplicationPreScopeStart(WebApplication application)
     {
-        if (DrnProgramOptions.UseHttpRequestLogger)
+        if (AppSettings.Features.UseHttpRequestLogger)
             application.UseMiddleware<HttpRequestLogger>();
     }
 

@@ -25,14 +25,6 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         ScopedLog.Add(nameof(launchResult.PostgresConnection), launchResult.PostgresConnection);
     }
 
-    protected override void ConfigureApplicationPreScopeStart(WebApplication application)
-    {
-        base.ConfigureApplicationPreScopeStart(application);
-        if (!AppSettings.IsDevEnvironment) return;
-
-        DrnProgramOptions.UseHttpRequestLogger = true;
-    }
-
     protected override void ConfigureApplicationPreAuth(WebApplication application)
     {
         base.ConfigureApplicationPreAuth(application);

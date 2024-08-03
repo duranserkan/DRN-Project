@@ -1,4 +1,7 @@
+using System.Net;
 using System.Reflection;
+using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Settings;
 using Flurl.Http;
 using Flurl.Http.Testing;
 
@@ -14,6 +17,32 @@ public static class FlurlExtensions
             504 => 504,
             _ => 502
         };
+
+    public static async Task PrepareScopeLogForFlurlExceptionAsync(this FlurlHttpException ex, IScopedLog scopedLog, DrnAppFeatures appFeatures)
+    {
+        var call = ex.Call;
+        var request = call.HttpRequestMessage;
+        var requestVersion = request.Version;
+
+        scopedLog.Add("FlurlExceptionHttpMethod", request.Method);
+        scopedLog.Add("FlurlExceptionHttpVersionRequestUri", request.RequestUri?.ToString() ?? string.Empty);
+        scopedLog.Add("FlurlExceptionHttpVersion", requestVersion.ToString());
+        if (requestVersion == HttpVersion.Version20)
+            scopedLog.Add(nameof(appFeatures.SocketsHttp2UnencryptedSupport), appFeatures.SocketsHttp2UnencryptedSupport);
+
+        scopedLog.Add("FlurlExceptionCallCompleted", call.Completed);
+        scopedLog.Add("FlurlExceptionCallStartedUtc", call.StartedUtc);
+        if (call.EndedUtc != null)
+            scopedLog.Add("FlurlExceptionCallEndedUtc", call.EndedUtc);
+        if (call.Duration != null)
+            scopedLog.Add("FlurlExceptionCallDuration", call.Duration);
+
+        if (appFeatures.UseHttpRequestLogger && call.Response != null)
+        {
+            var response = await call.Response.GetStringAsync();
+            scopedLog.Add("FlurlExceptionHttpResponse", response);
+        }
+    }
 
     public static HttpTest ClearFilteredSetups(this HttpTest httpTest)
     {

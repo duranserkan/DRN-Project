@@ -22,12 +22,9 @@ public class HttpScopeHandler(RequestDelegate next)
         }
         catch (Exception e)
         {
-            httpContext.Response.StatusCode = e switch
-            {
-                DrnException dEx => dEx.Status,
-                FlurlHttpException fEx => fEx.GetGatewayStatusCode(),
-                _ => 500
-            };
+            httpContext.Response.StatusCode = GetHttpStatusCode(e);
+            if (e is FlurlHttpException f)
+                await f.PrepareScopeLogForFlurlExceptionAsync(scopedLog, appSettings.Features);
 
             scopedLog.AddException(e);
             PrepareScopeLog(httpContext, scopedLog);
@@ -47,12 +44,23 @@ public class HttpScopeHandler(RequestDelegate next)
         }
     }
 
+    private static int GetHttpStatusCode(Exception e)
+    {
+        return e switch
+        {
+            DrnException dEx => dEx.Status,
+            FlurlHttpException fEx => fEx.GetGatewayStatusCode(),
+            _ => 500
+        };
+    }
+
     private static void PrepareScopeLog(HttpContext httpContext, IScopedLog scopedLog) => scopedLog
         .WithLoggerName(nameof(HttpScopeHandler))
         .WithTraceIdentifier(httpContext.TraceIdentifier)
         .Add("l5d-client-id", httpContext.Request.Headers.TryGetValue("l5d-client-id", out var l5dId) ? l5dId.ToString() : string.Empty)
         .Add("HttpProtocol", httpContext.Request.Protocol.Split('/')[^1])
         .Add("HttpMethod", httpContext.Request.Method)
+        .Add("HttpScheme", httpContext.Request.Scheme)
         .Add("RequestHost", httpContext.Request.Host.ToString())
         .Add("RequestPath", httpContext.Request.Path.ToString())
         .Add("RequestQueryString", httpContext.Request.QueryString.ToString())
