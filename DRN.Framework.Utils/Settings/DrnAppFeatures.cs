@@ -8,12 +8,12 @@ public class DrnAppFeatures
     public static string GetKey(string shortKey) => $"{nameof(DrnAppFeatures)}:{shortKey}";
 
     /// <summary>
-    /// When true application dependencies are not validated
+    /// When true application dependencies are not validated. Mostly, used by Test Contexts.
     /// </summary>
     public bool SkipValidation { get; init; }
 
     /// <summary>
-    /// When application is created to obtain configuration and registered services, it should mark as temporary.
+    /// When application is created to obtain configuration and registered services, it should mark as temporary. Mostly, used by Test Contexts.
     /// </summary>
     public bool TemporaryApplication { get; init; }
 
@@ -23,7 +23,7 @@ public class DrnAppFeatures
     public bool LaunchExternalDependencies { get; init; }
 
     /// <summary>
-    /// When true in dev environment, after registered services validated, database migrations will be applied automatically
+    /// When true in dev environment, after registered services validated, database migrations will be applied automatically for rapid application development
     /// </summary>
     public bool AutoMigrateDevEnvironment { get; init; }
 
@@ -33,4 +33,6 @@ public class DrnAppFeatures
 
     public bool SocketsHttp2UnencryptedSupport { get; init; } =
         AppContext.TryGetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", out var enabled) && enabled;
+
+    public string NexusAddress { get; init; } = "nexus";
 }

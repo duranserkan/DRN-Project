@@ -1,5 +1,6 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Http;
+using DRN.Framework.Utils.Settings;
 using Flurl.Http;
 
 namespace DRN.Framework.Hosting.Nexus;
@@ -10,7 +11,8 @@ public interface INexusRequest
 }
 
 [Singleton<INexusRequest>]
-public class NexusRequest(IInternalRequest request) : INexusRequest
+public class NexusRequest(IInternalRequest request, IAppSettings settings) : INexusRequest
 {
-    public IFlurlRequest For(string path) => request.For("nexus").AppendPathSegment(path);
+    private readonly string _nexusAddress = settings.Features.NexusAddress;
+    public IFlurlRequest For(string path) => request.For(_nexusAddress).AppendPathSegment(path);
 }

@@ -24,8 +24,9 @@ public static class FlurlExtensions
         var request = call.HttpRequestMessage;
         var requestVersion = request.Version;
 
-        scopedLog.Add("FlurlExceptionHttpMethod", request.Method);
+        scopedLog.Add("FlurlExceptionHttpMethod", request.Method.ToString());
         scopedLog.Add("FlurlExceptionHttpVersionRequestUri", request.RequestUri?.ToString() ?? string.Empty);
+        scopedLog.Add("FlurlExceptionHttpVersionPolicy", request.VersionPolicy.ToString());
         scopedLog.Add("FlurlExceptionHttpVersion", requestVersion.ToString());
         if (requestVersion == HttpVersion.Version20)
             scopedLog.Add(nameof(appFeatures.SocketsHttp2UnencryptedSupport), appFeatures.SocketsHttp2UnencryptedSupport);

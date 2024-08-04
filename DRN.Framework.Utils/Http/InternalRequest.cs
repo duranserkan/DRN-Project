@@ -45,11 +45,10 @@ public class InternalRequest(IAppSettings appSettings) : IInternalRequest
 {
     private const string Http = "http://";
     private const string Https = "https://";
-    private static readonly DefaultJsonSerializer JsonSerializer = new(JsonConventions.DefaultOptions);
 
+    private static readonly DefaultJsonSerializer JsonSerializer = new(JsonConventions.DefaultOptions);
     private readonly string _httpVersionDefault = new Version(appSettings.Features.InternalRequestHttpVersion).ToString();
-    private readonly bool _securityDefault = appSettings.Features.InternalRequestProtocol
-        .StartsWith("https", StringComparison.OrdinalIgnoreCase);
+    private readonly bool _securityDefault = appSettings.Features.InternalRequestProtocol.StartsWith("https", StringComparison.OrdinalIgnoreCase);
 
     public IFlurlRequest For(string service) => For(service, _securityDefault, _httpVersionDefault);
     public IFlurlRequest For(string service, bool secure) => For(service, secure, _httpVersionDefault);
@@ -63,11 +62,12 @@ public class InternalRequest(IAppSettings appSettings) : IInternalRequest
     private static IFlurlRequest For(string service, bool secure, string httpVersion)
     {
         var protocol = secure ? Https : Http;
-
-        return $"{protocol}{service}".WithSettings(x =>
+        var flurlRequest = $"{protocol}{service}".WithSettings(x =>
         {
             x.HttpVersion = httpVersion;
             x.JsonSerializer = JsonSerializer;
         });
+
+        return flurlRequest;
     }
 }
