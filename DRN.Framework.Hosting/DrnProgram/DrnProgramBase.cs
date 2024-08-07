@@ -17,6 +17,11 @@ using Serilog;
 
 namespace DRN.Framework.Hosting.DrnProgram;
 
+public interface IDrnProgram
+{
+    static abstract Task Main(string[] args);
+}
+
 /// <summary>
 /// <li><a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host">Generic host model</a></li>
 /// <li><a href="https://learn.microsoft.com/en-us/aspnet/core/migration/50-to-60">WebApplication - new hosting model</a></li>
@@ -33,13 +38,14 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     protected static ILogger Logger { get; private set; } = Log.Logger;
     protected static IAppSettings AppSettings { get; private set; } = new AppSettings(new ConfigurationManager());
     protected static IScopedLog ScopedLog { get; } = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
-
+    protected static DrnProgramSwaggerOptions DrnProgramSwaggerOptions { get; private set; } = new();
     protected DrnAppBuilderType AppBuilderType { get; set; } = DrnAppBuilderType.DrnDefaults;
+
 
     protected static async Task RunAsync(string[]? args = null)
     {
         _ = JsonConventions.DefaultOptions;
-        Configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationName(), args).Build();
+        Configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationAssemblyName(), args).Build();
         AppSettings = new AppSettings(Configuration, true);
         Logger = new TProgram().ConfigureLogger()
             .Destructure.AsDictionary<SortedDictionary<string, object>>()
@@ -79,12 +85,13 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var options = new WebApplicationOptions
         {
             Args = args,
-            ApplicationName = GetApplicationName(),
+            ApplicationName = GetApplicationAssemblyName(),
             EnvironmentName = AppSettings.Environment.ToString()
         };
+        program.ConfigureSwaggerOptions(DrnProgramSwaggerOptions, AppSettings);
 
         var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.AppBuilderType);
-        applicationBuilder.Configuration.AddDrnSettings(GetApplicationName(), args);
+        applicationBuilder.Configuration.AddDrnSettings(GetApplicationAssemblyName(), args);
         program.ConfigureApplicationBuilder(applicationBuilder);
         await program.AddServicesAsync(applicationBuilder);
 
@@ -111,7 +118,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         applicationBuilder.Services.ConfigureHttpJsonOptions(options => JsonConventions.SetJsonDefaults(options.SerializerOptions));
         applicationBuilder.Services.AddLogging();
         applicationBuilder.Services.AddEndpointsApiExplorer();
-        applicationBuilder.Services.AdDrnHosting();
+        applicationBuilder.Services.AdDrnHosting(DrnProgramSwaggerOptions);
 
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
@@ -170,6 +177,10 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ConfigureApplicationPreAuth(WebApplication application)
     {
+        if (!DrnProgramSwaggerOptions.AddSwagger) return;
+
+        application.MapSwagger(DrnProgramSwaggerOptions.DefaultRouteTemplate, DrnProgramSwaggerOptions.ConfigureSwaggerEndpointOptions);
+        application.UseSwaggerUI(DrnProgramSwaggerOptions.ConfigureSwaggerUIOptionsAction);
     }
 
     protected virtual void ConfigureApplicationPostAuth(WebApplication application)
@@ -185,5 +196,12 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
     }
 
-    private static string GetApplicationName() => typeof(TProgram).GetAssemblyName();
+    protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
+    {
+        options.OpenApiInfo.Title = appSettings.ApplicationName;
+        options.AddSwagger = appSettings.IsDevEnvironment;
+    }
+
+
+    private static string GetApplicationAssemblyName() => typeof(TProgram).GetAssemblyName();
 }

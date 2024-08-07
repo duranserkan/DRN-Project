@@ -25,15 +25,6 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         ScopedLog.Add(nameof(launchResult.PostgresConnection), launchResult.PostgresConnection);
     }
 
-    protected override void ConfigureApplicationPreAuth(WebApplication application)
-    {
-        base.ConfigureApplicationPreAuth(application);
-        if (!AppSettings.IsDevEnvironment) return;
-
-        application.MapSwagger();
-        application.UseSwaggerUI();
-    }
-
     protected override void MapApplicationEndpoints(WebApplication application)
     {
         base.MapApplicationEndpoints(application);

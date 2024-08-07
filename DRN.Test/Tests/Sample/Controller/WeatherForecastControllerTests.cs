@@ -14,8 +14,9 @@ public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
     {
         var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
         var sampleForecasts = await client.GetFromJsonAsync<WeatherForecast[]>("WeatherForecast");
+        var appSettings = context.GetRequiredService<IAppSettings>();
 
-        context.FlurlHttpTest.ForCallsTo("*nexus/WeatherForecast").RespondWithJson(sampleForecasts);
+        context.FlurlHttpTest.ForCallsTo($"*{appSettings.Features.NexusAddress}/WeatherForecast").RespondWithJson(sampleForecasts);
 
         var nexusForecasts = await client.GetFromJsonAsync<WeatherForecast[]>("WeatherForecast/nexus");
         nexusForecasts.Should().BeEquivalentTo(sampleForecasts);
@@ -58,8 +59,9 @@ public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task WeatherForecastController_Should_Return_FlurlHttpExceptionStatusCodes(TestContext context)
     {
-        var urlPattern = "*nexus/WeatherForecast";
         var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
+        var appSettings = context.GetRequiredService<IAppSettings>();
+        var urlPattern = $"*{appSettings.Features.NexusAddress}/WeatherForecast";
 
         context.FlurlHttpTest.ForCallsTo(urlPattern).RespondWith("", 428);
         var response = await client.GetAsync("WeatherForecast/nexus");

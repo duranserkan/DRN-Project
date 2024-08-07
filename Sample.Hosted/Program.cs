@@ -1,5 +1,6 @@
 ﻿using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Testing.Extensions;
+using DRN.Framework.Utils.Settings;
 using Sample.Application;
 using Sample.Infra;
 
@@ -20,12 +21,9 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         ScopedLog.Add(nameof(launchResult.PostgresConnection), launchResult.PostgresConnection);
     }
 
-    protected override void ConfigureApplicationPreAuth(WebApplication application)
+    protected override void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
     {
-        base.ConfigureApplicationPreAuth(application);
-        if (!AppSettings.IsDevEnvironment) return;
-
-        application.MapSwagger();
-        application.UseSwaggerUI();
+        base.ConfigureSwaggerOptions(options, appSettings);
+        options.AddBearerTokenSecurityRequirement = false;
     }
 }
