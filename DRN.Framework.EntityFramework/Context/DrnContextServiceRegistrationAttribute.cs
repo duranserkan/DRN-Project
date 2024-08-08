@@ -31,6 +31,16 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         var autoMigrate = appSettings.Features.AutoMigrateDevEnvironment;
         var contextName = context.GetType().FullName!;
 
+        var migrations = context.Database.GetMigrations().ToArray();
+        var appliedMigrations = (await context.Database.GetAppliedMigrationsAsync()).ToArray();
+        var pendingMigrations = migrations.Except(appliedMigrations).ToArray();
+        var lastApplied = appliedMigrations.LastOrDefault() ?? "n/a";
+        var lastPending = pendingMigrations.LastOrDefault() ?? "n/a";
+
+        scopedLog?.AddToActions($"{contextName} has {migrations.Length} migrations");
+        scopedLog?.AddToActions($"{contextName} has {appliedMigrations.Length} applied migrations. Last applied: {lastApplied}");
+        scopedLog?.AddToActions($"{contextName} has {pendingMigrations.Length} pending migrations. Last pending: {lastPending}");
+
         var migrate = appSettings.IsDevEnvironment && appSettings.Features.AutoMigrateDevEnvironment;
         if (!migrate)
         {
@@ -38,8 +48,8 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             return;
         }
 
-        scopedLog?.AddToActions($"{contextName} migration started in {environment}, AutoMigrateDevEnvironment: {autoMigrate}");
+        scopedLog?.AddToActions($"{contextName} is migrating {environment}, AutoMigrateDevEnvironment: {autoMigrate}");
         await context.Database.MigrateAsync();
-        scopedLog?.AddToActions($"{contextName} migrated;");
+        scopedLog?.AddToActions($"{contextName} migrated {pendingMigrations.Length} pending migrations");
     }
 }

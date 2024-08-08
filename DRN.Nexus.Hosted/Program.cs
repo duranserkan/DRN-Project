@@ -19,9 +19,12 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
             .AddNexusServices(AppSettings)
             .AddIdentityApiEndpoints<IdentityUser>()
             .AddEntityFrameworkStores<NexusIdentityContext>();
+
         if (!AppSettings.IsDevEnvironment) return;
 
+        ScopedLog.AddToActions("Launching External dependencies...");
         var launchResult = await builder.LaunchExternalDependenciesAsync();
+        ScopedLog.AddToActions("External dependencies launched");
         ScopedLog.Add(nameof(launchResult.PostgresConnection), launchResult.PostgresConnection);
     }
 

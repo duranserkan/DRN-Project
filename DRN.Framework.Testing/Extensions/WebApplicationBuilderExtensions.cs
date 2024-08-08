@@ -1,4 +1,3 @@
-using DRN.Framework.Testing.Contexts;
 using DRN.Framework.Testing.Contexts.Postgres;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
@@ -16,7 +15,7 @@ public static class WebApplicationBuilderExtensions
         IAppSettings? appSettings = null)
     {
         options ??= new ExternalDependencyLaunchOptions();
-        var result = new ExternalDependencyLaunchResult(appSettings ?? AppSettings.Instance!);
+        var result = new ExternalDependencyLaunchResult(appSettings ?? AppSettings.Instance);
         if (!result.Launched) return result;
 
         var postgresCollection = await PostgresContext.LaunchPostgresAsync(builder, options);
