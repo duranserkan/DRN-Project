@@ -9,7 +9,8 @@ public static class HostingModule
     public static IServiceCollection AdDrnHosting(this IServiceCollection sc, DrnProgramSwaggerOptions options)
     {
         sc.AddServicesWithAttributes();
-        sc.AddSwaggerGen(options.ConfigureSwaggerGenOptions);
+        if (options.AddSwagger)
+            sc.AddSwaggerGen(options.ConfigureSwaggerGenOptions);
 
         return sc;
     }
