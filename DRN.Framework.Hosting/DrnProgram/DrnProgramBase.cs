@@ -146,7 +146,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ConfigureApplication(WebApplication application)
     {
-        application.Services.ValidateServicesAddedByAttributes();
+        application.Services.ValidateServicesAddedByAttributes(ScopedLog);
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
         ConfigureApplicationPreScopeStart(application);

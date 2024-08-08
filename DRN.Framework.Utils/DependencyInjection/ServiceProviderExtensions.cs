@@ -1,3 +1,4 @@
+using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -10,7 +11,7 @@ public static class ServiceProviderExtensions
     /// <summary>
     /// Resolves all services registered by attributes to make sure they are resolvable at startup time.
     /// </summary>
-    public static void ValidateServicesAddedByAttributes(this IServiceProvider rootServiceProvider)
+    public static void ValidateServicesAddedByAttributes(this IServiceProvider rootServiceProvider, IScopedLog? scopedLog = null)
     {
         using var scope = rootServiceProvider.CreateScope();
         var serviceProvider = scope.ServiceProvider;
@@ -44,7 +45,7 @@ public static class ServiceProviderExtensions
                 var service = descriptor.IsKeyedService
                     ? serviceProvider.GetRequiredKeyedService(descriptor.ServiceType, descriptor.ServiceKey)
                     : serviceProvider.GetRequiredService(descriptor.ServiceType);
-                module.ModuleAttribute.PostStartupValidationAsync(service, serviceProvider).GetAwaiter().GetResult();
+                module.ModuleAttribute.PostStartupValidationAsync(service, serviceProvider, scopedLog).GetAwaiter().GetResult();
             }
         }
     }

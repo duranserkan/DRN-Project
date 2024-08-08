@@ -1,4 +1,5 @@
 using System.Reflection;
+using DRN.Framework.Utils.Logging;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -17,6 +18,6 @@ public abstract class ServiceRegistrationAttribute : Attribute
 
     public abstract void ServiceRegistration(IServiceCollection sc, Assembly? assembly);
 
-    public virtual async Task PostStartupValidationAsync(object service, IServiceProvider serviceProvider)
+    public virtual async Task PostStartupValidationAsync(object service, IServiceProvider serviceProvider, IScopedLog? scopedLog = null)
         => await Task.CompletedTask;
 }
