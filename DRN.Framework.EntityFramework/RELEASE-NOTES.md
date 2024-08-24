@@ -2,15 +2,13 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.5.0
 
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to August 30 Victory Day, a day that marks the decisive victory achieved by the Turkish people against imperialism during the Turkish War of Independence, leading to the establishment of the Republic of Türkiye.
+
 ### New Features
 
 * DbContext attributes to make default configurations visible and easier to configure
   * NpgsqlPerformanceSettingsAttribute and its default implementation DrnContextPerformanceDefaultsAttribute added
   * NpgsqlDbContextOptionsAttribute and its default implementation DrnContextDefaultsAttribute added 
-
-### Breaking Changes
-
-### Bug Fixes
 
 ## Version 0.4.0
 
@@ -36,8 +34,6 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April National Sovereignty and Children's Day.
 
-### Breaking Changes
-
 ### New Features
 
 * DrnContext development connection string will be auto generated when
@@ -54,11 +50,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
     * DrnContext_DevDatabase
         * default is drnDb
 
-### Bug Fixes
-
 ## Version 0.2.0
-
-### Breaking Changes
 
 ### New Features
 
@@ -68,8 +60,6 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
     * Uses HasDrnContextServiceCollectionModule to automatic registration with AddServicesWithAttributes service collection extension method.
     * Uses context name (typeof(TContext).Name) as connection string key by convention.
     * Enables DRN.Framework.Testing to create easy and effective integration tests with conventions and automatic registrations.
-
-### Bug Fixes
 
 ---
 **Semper Progredi: Always Progressive**

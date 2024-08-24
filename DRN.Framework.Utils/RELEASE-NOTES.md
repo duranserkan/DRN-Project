@@ -2,14 +2,19 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.5.0
 
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to August 30 Victory Day, a day that marks the decisive victory achieved by the Turkish people against imperialism during the Turkish War of Independence, leading to the establishment of the Republic of Türkiye.
+
 ### New Features
+
 * IScopedLog
   * TraceIdentifier support added
+  * Inner exception support 
+  * Flurl exception support
 * IExternalRequest - Added with singleton lifetime as request factory for external requests
-
-### Breaking Changes
-
-### Bug Fixes
+* IAppSettings.DrnAppFeatures 
+  * UseHttpRequestLogger Flag
+  * LaunchExternalDependencies Flag
+  * NexusAddress Url property
 
 ## Version 0.4.0
 
@@ -70,8 +75,6 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ## Version 0.1.0
 
-### Breaking Changes
-
 ### New Features
 
 * AppSettings added
@@ -85,8 +88,6 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
   * ScopedWithKeyAttribute, TransientWithKeyAttribute, SingletonWithKeyAttribute and LifetimeWithKeyAttribute added
   * ServiceCollection AddServicesWithAttributes extension added
   * ServiceProvider ValidateServicesAddedByAttributes extension added
-
-### Bug Fixes
 
 ---
 **Semper Progredi: Always Progressive**

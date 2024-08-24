@@ -2,6 +2,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.5.0
 
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to August 30 Victory Day, a day that marks the decisive victory achieved by the Turkish people against imperialism during the Turkish War of Independence, leading to the establishment of the Republic of Türkiye.
+
 ### New Features
 * ITestStartupJob interface - added to run startup tasks before any TestContext is created.
   * PostgresContainerSettings or RabbitMQContainerSettings can be updated in a job that implements ITestStartupJob in the test project
@@ -35,8 +37,6 @@ Not every version includes changes, features or bug fixes. This project can incr
     * BuildContainer parameters are refactored into RabbitMQContainerSettings with Image Tag and Version settings
 * DataProvider
   * Get - returns DataProviderResult instead of string value
-  
-### Bug Fixes
 
 ## Version 0.4.0
 
@@ -91,8 +91,6 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ## Version 0.1.0
 
-### Breaking Changes
-
 ### New Features
 
 * TestContext added
@@ -106,8 +104,6 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
   * DataSelfContextAttribute
 * SettingsProvider added.
 * DataProvider added.
-
-### Bug Fixes
 
 ---
 **Semper Progredi: Always Progressive**

@@ -2,7 +2,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.5.0
 
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to August 30 Victory Day, a day that marks the decisive victory achieved by the Turkish people against imperialism during the Turkish War of Independence, leading to the establishment of the Republic of Türkiye.
+
 ### New Features
+
 * HttpScopeHandler
   * DrnException handling added as default application exception handling
   * DrnExceptions can be used to short circuit the processing pipeline
@@ -11,11 +14,15 @@ Not every version includes changes, features or bug fixes. This project can incr
   * l5d-client-id is added to scoped log by default
 * HttpRequestLogger
   * Request and response logs improved
-* DrnProgramBase - made HostOptions configurable with Configuration.GetSection("HostOptions")
+* DrnProgramBase 
+  * HostOptions become configurable with Configuration.GetSection("HostOptions")
+  * overrideable ConfigureSwaggerOptions
 
 ### Breaking Changes
 
-### Bug Fixes
+* DrnProgramBase
+  * DrnProgramOptions - Removed
+  * Added swagger support by default in development environment
 
 ## Version 0.4.0
 
@@ -38,14 +45,10 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April National Sovereignty and Children's Day.
 
-### Breaking Changes
-
 ### New Features
 
 * DrnProgramBase and IDrnProgram added to minimize development efforts with sensible defaults
 * HttpScopeLogger and HttpRequestLogger middlewares added to support structured logging
-
-### Bug Fixes
 
 ---
 **Semper Progredi: Always Progressive**
