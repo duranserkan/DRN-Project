@@ -1,5 +1,17 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.5.0
+
+### New Features
+
+* DbContext attributes to make default configurations visible and easier to configure
+  * NpgsqlPerformanceSettingsAttribute and its default implementation DrnContextPerformanceDefaultsAttribute added
+  * NpgsqlDbContextOptionsAttribute and its default implementation DrnContextDefaultsAttribute added 
+
+### Breaking Changes
+
+### Bug Fixes
+
 ## Version 0.4.0
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 19 May Commemoration of Atatürk, Youth and Sports Day.
@@ -13,7 +25,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### New Features
 
-* DrnContextIdentity added to support ASP.NET Core Identity  with DrnContext features
+* DrnContextIdentity to support ASP.NET Core Identity  with DrnContext features
   * DrnContextIdentity to inherits IdentityDbContext
 
 ### Bug Fixes
@@ -50,7 +62,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### New Features
 
-* DrnContext added
+*  DrnContext
     * Implemented IDesignTimeDbContextFactory to enable migrations from dbContext defining projects.
     * Implemented IDesignTimeServices to support multi context projects with default output directory in the context specific folder.
     * Uses HasDrnContextServiceCollectionModule to automatic registration with AddServicesWithAttributes service collection extension method.

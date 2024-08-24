@@ -1,5 +1,43 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.5.0
+
+### New Features
+* ITestStartupJob interface - added to run startup tasks before any TestContext is created.
+  * PostgresContainerSettings or RabbitMQContainerSettings can be updated in a job that implements ITestStartupJob in the test project
+* TestContext
+  * FlurlHttpTest property to mock http requests
+  * GetSettingsData
+  * GetSettingsPath
+* ContainerContext
+  * BindExternalDependenciesAsync
+  * PostgresContext
+    * static PostgresContainerSettings property - added to provide PostgresContext defaults 
+  * RabbitMQContext
+    * static RabbitMQContainerSettings property - added to provide RabbitMQContext defaults
+* ApplicationContext
+  * CreateApplicationAndBindDependencies - added with Most used defaults and bindings
+  * CreateClientAsync - added with most used defaults and bindings
+  * GetCreatedApplication - added to get already application
+  * LogToTestOutput - added to get application logs with ITestOutputHelper
+* DataProvider
+  * GetDataPath added
+* SettingsProvider
+  * GetSettingsPath 
+  * GetSettingsData
+
+### Breaking Changes
+
+* ContainerContext
+  * PostgresContext
+    * BuildContainer parameters are refactored into PostgresContainerSettings with Image Tag and Version settings
+  * RabbitMQContext
+    * BuildContainer parameters are refactored into RabbitMQContainerSettings with Image Tag and Version settings
+* DataProvider
+  * Get - returns DataProviderResult instead of string value
+  
+### Bug Fixes
+
 ## Version 0.4.0
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 19 May Commemoration of Atatürk, Youth and Sports Day.
@@ -8,7 +46,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 * LaunchExternalDependenciesAsync extension method added on WebApplicationBuilder to launch application all of its dependencies
   * DrnAppFeatures:LaunchExternalDependencies config should set true and Environment should be Development
-* ApplicationContext.LogToTestOutput method added to configure TestOutput as serilog sink~~~~
+* ApplicationContext.LogToTestOutput method added to configure TestOutput as serilog sink
 
 ## Version 0.3.0
 

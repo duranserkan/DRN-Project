@@ -10,17 +10,17 @@ public class RabbitMQContext(TestContext testContext)
     public TestContext TestContext { get; } = testContext;
     public RabbitMQContextIsolated RabbitMqContextIsolated { get; } = new(testContext);
 
-    public static readonly Lazy<RabbitMqContainer> Container = new(() => BuildContainer(RabbitmqContainerSettings));
+    public static readonly Lazy<RabbitMqContainer> Container = new(() => BuildContainer(RabbitMqContainerSettings));
 
     /// <summary>
     /// Update before container creation. StartAsync initializes the container.
     /// Updated settings after the container initialized will not be reflected on container.
     /// </summary>
-    public static RabbitmqContainerSettings RabbitmqContainerSettings { get; set; } = new();
+    public static RabbitMQContainerSettings RabbitMqContainerSettings { get; set; } = new();
 
-    public static RabbitMqContainer BuildContainer(RabbitmqContainerSettings? settings = null)
+    public static RabbitMqContainer BuildContainer(RabbitMQContainerSettings? settings = null)
     {
-        settings ??= new RabbitmqContainerSettings();
+        settings ??= new RabbitMQContainerSettings();
 
         var builder = new RabbitMqBuilder().WithImage(settings.GetImageTag());
         if (settings.HasUsername) builder = builder.WithUsername(settings.Username);

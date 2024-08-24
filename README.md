@@ -60,7 +60,7 @@ In DRN-Project context, reliability is defined with following characteristics:
 * Self-documenting
 
 DRN Project is not another framework that will `bite the dust.` It is more than a simple framework. It is a distilled knowledge that contains:
-- [X] A beautiful framework to work with (v0.4.0)
+- [X] A beautiful framework to work with (v0.5.0)
 - [X] Management best practices
 - [X] Engineering manifest
 - [X] Reference documents for design, architecture and microservices

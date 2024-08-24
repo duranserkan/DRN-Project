@@ -1,5 +1,5 @@
 # Roadmap
-- [X] DRN.Framework (0.3.0 released)
+- [X] DRN.Framework (0.5.0 released)
 - [X] Management best practices 
 - [X] Engineering manifest
 - [X] Reference documents for design, architecture and microservices

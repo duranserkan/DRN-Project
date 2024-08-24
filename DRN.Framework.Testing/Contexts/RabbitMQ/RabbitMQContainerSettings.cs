@@ -1,6 +1,6 @@
 namespace DRN.Framework.Testing.Contexts.RabbitMQ;
 
-public class RabbitmqContainerSettings
+public class RabbitMQContainerSettings
 {
     public static string DefaultImage { get; set; } = "rabbitmq";
     public static string DefaultVersion { get; set; } = "3.13.4-alpine";

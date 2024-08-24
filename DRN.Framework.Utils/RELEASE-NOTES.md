@@ -1,5 +1,16 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.  
 
+## Version 0.5.0
+
+### New Features
+* IScopedLog
+  * TraceIdentifier support added
+* IExternalRequest - Added with singleton lifetime as request factory for external requests
+
+### Breaking Changes
+
+### Bug Fixes
+
 ## Version 0.4.0
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 19 May Commemoration of Atatürk, Youth and Sports Day.
