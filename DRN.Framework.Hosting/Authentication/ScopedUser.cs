@@ -34,7 +34,7 @@ public class ScopedUser : IScopedUser
         Authenticated = Principal.Identities.All(i => i.IsAuthenticated);
         if (!Authenticated) return;
 
-        PrimaryIdentity = ClaimConventions.SelectClaimsIdentity(Principal);
+        PrimaryIdentity = Principal.Identity as ClaimsIdentity;
         var claimsDictionary = new Dictionary<string, HashSet<Claim>>();
         foreach (var claim in user.Claims)
             if (claimsDictionary.TryGetValue(claim.Type, out var claimsByType))
