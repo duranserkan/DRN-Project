@@ -7,13 +7,13 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 ### New Features
 
 * HttpScopeHandler
-  * DrnException handling added as default application exception handling
+  * DrnException handling as default application exception handling
   * DrnExceptions can be used to short circuit the processing pipeline
-  * FlurlHttpException handling added as default gateway exception handling
+  * FlurlHttpException handling as default gateway exception handling
   * In Development environment - HttpResponse returns ScopedLog as developer exception result
   * l5d-client-id is added to scoped log by default
 * HttpRequestLogger
-  * Request and response logs improved
+  * Request and response logs improvements
 * DrnProgramBase 
   * HostOptions become configurable with Configuration.GetSection("HostOptions")
   * overrideable ConfigureSwaggerOptions
@@ -34,8 +34,8 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### New Features
 
-* EndpointsApiExplorer added to service collection by DrnProgramBase to support OpenAPI Specification
-* NexusClient added for initial service discovery and remote configuration management development
+* EndpointsApiExplorer - added to service collection by DrnProgramBase to support OpenAPI Specification
+* NexusClient - added for initial service discovery and remote configuration management development
 * DrnProgramBase has new overridable configuration methods
   * ConfigureApplicationPreScopeStart
   * ConfigureApplicationPostScopeStart
@@ -47,8 +47,8 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### New Features
 
-* DrnProgramBase and IDrnProgram added to minimize development efforts with sensible defaults
-* HttpScopeLogger and HttpRequestLogger middlewares added to support structured logging
+* DrnProgramBase and IDrnProgram - added to minimize development efforts with sensible defaults
+* HttpScopeLogger and HttpRequestLogger middlewares - added to support structured logging
 
 ---
 **Semper Progredi: Always Progressive**

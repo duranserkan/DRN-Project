@@ -20,12 +20,7 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
             .AddIdentityApiEndpoints<IdentityUser>()
             .AddEntityFrameworkStores<NexusIdentityContext>();
 
-        if (!AppSettings.IsDevEnvironment) return;
-
-        ScopedLog.AddToActions("Launching External dependencies...");
-        var launchResult = await builder.LaunchExternalDependenciesAsync();
-        ScopedLog.AddToActions("External dependencies launched");
-        ScopedLog.Add(nameof(launchResult.PostgresConnection), launchResult.PostgresConnection);
+        await builder.LaunchExternalDependenciesAsync(ScopedLog, AppSettings);
     }
 
     protected override void MapApplicationEndpoints(WebApplication application)

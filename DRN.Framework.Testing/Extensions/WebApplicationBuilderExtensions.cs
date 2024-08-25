@@ -1,4 +1,5 @@
 using DRN.Framework.Testing.Contexts.Postgres;
+using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 
@@ -10,16 +11,20 @@ public static class WebApplicationBuilderExtensions
     /// Launches external dependencies in a container such as postgresql and wires settings such as connection strings for dev environment if LaunchExternalDependencies feature is enabled
     /// </summary>
     public static async Task<ExternalDependencyLaunchResult> LaunchExternalDependenciesAsync(
-        this WebApplicationBuilder builder,
-        ExternalDependencyLaunchOptions? options = null,
-        IAppSettings? appSettings = null)
+        this WebApplicationBuilder builder, IScopedLog? scopedLog, IAppSettings? appSettings,
+        ExternalDependencyLaunchOptions? options = null)
     {
+        scopedLog?.AddToActions("Launching External dependencies...");
+
         options ??= new ExternalDependencyLaunchOptions();
         var result = new ExternalDependencyLaunchResult(appSettings ?? AppSettings.Instance);
         if (!result.Launched) return result;
 
         var postgresCollection = await PostgresContext.LaunchPostgresAsync(builder, options);
         result.PostgresCollection = postgresCollection;
+
+        scopedLog?.AddToActions("External dependencies launched");
+        scopedLog?.Add(nameof(result.PostgresConnection), result.PostgresConnection);
 
         return result;
     }

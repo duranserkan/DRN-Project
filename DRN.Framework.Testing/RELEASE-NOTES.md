@@ -22,11 +22,8 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
   * CreateClientAsync - added with most used defaults and bindings
   * GetCreatedApplication - added to get already application
   * LogToTestOutput - added to get application logs with ITestOutputHelper
-* DataProvider
-  * GetDataPath added
-* SettingsProvider
-  * GetSettingsPath 
-  * GetSettingsData
+* DataProvider - added GetDataPath 
+* SettingsProvider - added GetSettingsPath and GetSettingsData
 
 ### Breaking Changes
 
@@ -37,6 +34,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
     * BuildContainer parameters are refactored into RabbitMQContainerSettings with Image Tag and Version settings
 * DataProvider
   * Get - returns DataProviderResult instead of string value
+* LaunchExternalDependenciesAsync - IScopedLog and IAppsettings parameters refactored
 
 ## Version 0.4.0
 
@@ -44,7 +42,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### New Features
 
-* LaunchExternalDependenciesAsync extension method added on WebApplicationBuilder to launch application all of its dependencies
+* LaunchExternalDependenciesAsync extension method is added on WebApplicationBuilder to launch application all of its dependencies
   * DrnAppFeatures:LaunchExternalDependencies config should set true and Environment should be Development
 * ApplicationContext.LogToTestOutput method added to configure TestOutput as serilog sink
 
@@ -54,8 +52,8 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### Breaking Changes
 
-* ContainerContext refactored and each Postgres and RabbitMQ usages refactored into PostgresContext and RabbitMQContext.
-* WebApplicationContext renamed as ApplicationContext
+* ContainerContext - refactored and each Postgres and RabbitMQ usages refactored into PostgresContext and RabbitMQContext.
+* WebApplicationContext - renamed as ApplicationContext
 
 ### New Features
 
@@ -93,8 +91,8 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### New Features
 
-* TestContext added
-* FactDebuggerOnly and TheoryDebuggerOnly test attributes added
+* TestContext 
+* FactDebuggerOnly and TheoryDebuggerOnly test attributes
 * Following data attributes added:
   * DataInlineAutoAttribute
   * DataInlineContextAttribute
@@ -102,8 +100,8 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
   * DataMemberContextAttribute
   * DataSelfAutoAttribute
   * DataSelfContextAttribute
-* SettingsProvider added.
-* DataProvider added.
+* SettingsProvider
+* DataProvider
 
 ---
 **Semper Progredi: Always Progressive**

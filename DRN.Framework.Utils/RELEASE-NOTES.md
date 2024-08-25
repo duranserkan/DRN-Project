@@ -7,7 +7,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 ### New Features
 
 * IScopedLog
-  * TraceIdentifier support added
+  * TraceIdentifier support
   * Inner exception support 
   * Flurl exception support
 * IExternalRequest - Added with singleton lifetime as request factory for external requests
@@ -22,18 +22,18 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### Breaking Changes
 
-* AttributeSpecifiedServiceCollectionModule renamed as AttributeSpecifiedServiceModule
-* HasServiceCollectionModuleAttribute renamed as ServiceRegistrationAttribute
-* HasDrnContextServiceCollectionModuleAttribute renamed as DrnContextServiceRegistrationAttribute
-* ServiceRegistrationAttribute MethodInfo property replaced with ServiceRegistration method to make usage strongly typed and support inheritance
+* AttributeSpecifiedServiceCollectionModule - renamed as AttributeSpecifiedServiceModule
+* HasServiceCollectionModuleAttribute - renamed as ServiceRegistrationAttribute
+* HasDrnContextServiceCollectionModuleAttribute - renamed as DrnContextServiceRegistrationAttribute
+* ServiceRegistrationAttribute MethodInfo property - replaced with ServiceRegistration method to make usage strongly typed and support inheritance
 
 ### New Features
 
-* DrnAppFeatures property added to IAppSettings
+* DrnAppFeatures property - added to IAppSettings
   * InternalRequestHttpVersion can be set as "1.1" or "2.0"
   * InternalRequestProtocol can be set as "http" or "https ""
-* IInternalRequest and InternalRequest added to generate internal Flurl requests with configurable **Linkerd compatible** sensible defaults
-* HttpResponse and following flurl response extensions added to fluently get strongly typed response and flurl response together:
+* IInternalRequest and InternalRequest -  added to generate internal Flurl requests with configurable **Linkerd compatible** sensible defaults
+* HttpResponse and following flurl response extensions -  added to fluently get strongly typed response and flurl response together:
   * ToStringAsync
   * ToBytesAsync
   * ToStreamAsync
@@ -66,28 +66,28 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### New Features
 
-* JsonSerializerConfigurationSource added to add dotnet objects to configuration
-* RemoteJsonConfigurationSource added to remote settings to configuration (experimental)
-* ConnectionStringsCollection added as poco model to serialize connection strings
-* StringExtensions added
+* JsonSerializerConfigurationSource - added to add dotnet objects to configuration
+* RemoteJsonConfigurationSource - added to remote settings to configuration (experimental)
+* ConnectionStringsCollection - added as poco model to serialize connection strings
+* StringExtensions
   * ToStream method added to convert strings to in memory stream
-* HasServiceCollectionModuleAttribute added
+* HasServiceCollectionModuleAttribute
 
 ## Version 0.1.0
 
 ### New Features
 
-* AppSettings added
-* ServiceCollectionExtensions added
+* AppSettings
+* ServiceCollectionExtensions
   * ReplaceInstance
   * ReplaceTransient
   * ReplaceScoped
   * ReplaceSingleton
-* Attribute based dependency injection added
-  * ScopedAttribute, TransientAttribute, SingletonAttribute and LifetimeAttribute added
-  * ScopedWithKeyAttribute, TransientWithKeyAttribute, SingletonWithKeyAttribute and LifetimeWithKeyAttribute added
-  * ServiceCollection AddServicesWithAttributes extension added
-  * ServiceProvider ValidateServicesAddedByAttributes extension added
+* Attribute based dependency injection
+  * ScopedAttribute, TransientAttribute, SingletonAttribute and LifetimeAttribute
+  * ScopedWithKeyAttribute, TransientWithKeyAttribute, SingletonWithKeyAttribute and LifetimeWithKeyAttribute
+  * ServiceCollection AddServicesWithAttributes extension
+  * ServiceProvider ValidateServicesAddedByAttributes extension
 
 ---
 **Semper Progredi: Always Progressive**

@@ -6,7 +6,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### Breaking Changes
 
-* DrnExceptions refactored
+* DrnException implementations - refactored
   * Http status code parameter added
   * ExceptionFor factory class added to create DrnExceptions as needed
 
@@ -20,7 +20,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### Breaking Changes
 
-* JsonSerializerOptions moved to JsonConventions. System.Text.Json defaults will be overridden by JsonConventions when
+* JsonSerializerOptions - moved to JsonConventions. System.Text.Json defaults will be overridden by JsonConventions when
   * TestContext is used in tests
   * DrnHostBuilder is used to build host
 
@@ -36,15 +36,15 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### New Features
 
-* JsonSerializerOptions added to AppConstants which is same with default dotnet settings for now.
-* AggregateRoot, Entity, DomainEvent definitions added
+* JsonSerializerOptions - added to AppConstants which is same with default dotnet settings for now.
+* AggregateRoot, Entity, DomainEvent
 
 ## Version 0.1.0
 
 ### New Features
 
-* AppConstants added
-* DRN Framework exceptions added
+* AppConstants 
+* DRN Framework exceptions
   * ValidationException
   * NotFoundException
   * NotSavedException
