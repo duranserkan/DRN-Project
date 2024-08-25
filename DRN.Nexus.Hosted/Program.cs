@@ -19,6 +19,7 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
             .AddNexusServices(AppSettings)
             .AddIdentityApiEndpoints<IdentityUser>()
             .AddEntityFrameworkStores<NexusIdentityContext>();
+        //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity
 
         await builder.LaunchExternalDependenciesAsync(ScopedLog, AppSettings);
     }

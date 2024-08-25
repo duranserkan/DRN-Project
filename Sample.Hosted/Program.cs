@@ -1,8 +1,10 @@
 ﻿using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Testing.Extensions;
 using DRN.Framework.Utils.Settings;
+using Microsoft.AspNetCore.Identity;
 using Sample.Application;
 using Sample.Infra;
+using Sample.Infra.Identity;
 
 namespace Sample.Hosted;
 
@@ -15,14 +17,17 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         builder.Services
             .AddSampleInfraServices()
             .AddSampleApplicationServices()
-            .AddSampleServices(AppSettings);
+            .AddSampleServices(AppSettings)
+            .AddIdentityApiEndpoints<IdentityUser>()
+            .AddEntityFrameworkStores<SampleIdentityContext>();
+        //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity
 
         await builder.LaunchExternalDependenciesAsync(ScopedLog, AppSettings);
     }
 
-    protected override void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
+    protected override void MapApplicationEndpoints(WebApplication application)
     {
-        base.ConfigureSwaggerOptions(options, appSettings);
-        options.AddBearerTokenSecurityRequirement = false;
+        base.MapApplicationEndpoints(application);
+        application.MapGroup("/identity").MapIdentityApi<IdentityUser>();
     }
 }

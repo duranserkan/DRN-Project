@@ -1,6 +1,7 @@
+using DRN.Framework.Hosting.Authentication;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
-using DRN.Framework.SharedKernel.Conventions;
+using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
@@ -157,6 +158,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         ConfigureApplicationPreAuth(application);
         application.UseAuthentication();
+        application.UseMiddleware<ScopedUserMiddleware>();
         application.UseAuthorization();
         ConfigureApplicationPostAuth(application);
 

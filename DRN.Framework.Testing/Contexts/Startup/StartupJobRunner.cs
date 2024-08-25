@@ -1,4 +1,4 @@
-using DRN.Framework.SharedKernel.Conventions;
+using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
 

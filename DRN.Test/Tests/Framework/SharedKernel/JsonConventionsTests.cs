@@ -1,6 +1,6 @@
 using System.Text.Json;
-using DRN.Framework.SharedKernel.Conventions;
 using DRN.Framework.SharedKernel.Enums;
+using DRN.Framework.SharedKernel.Json;
 
 namespace DRN.Test.Tests.Framework.SharedKernel;
 

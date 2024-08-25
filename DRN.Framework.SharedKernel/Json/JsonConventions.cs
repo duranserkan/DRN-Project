@@ -1,9 +1,9 @@
+using System.Net.Http.Json;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Reflection;
-using System.Net.Http.Json;
 
-namespace DRN.Framework.SharedKernel.Conventions;
+namespace DRN.Framework.SharedKernel.Json;
 
 public static class JsonConventions
 {
@@ -48,10 +48,11 @@ public static class JsonConventions
     {
         options ??= new JsonSerializerOptions(JsonSerializerDefaults.Web);
         options.Converters.Add(new JsonStringEnumConverter());
+        options.Converters.Add(new ClaimJsonConverter());
         options.AllowTrailingCommas = true;
         options.PropertyNameCaseInsensitive = true;
         options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-        options.NumberHandling= JsonNumberHandling.AllowReadingFromString;
+        options.NumberHandling = JsonNumberHandling.AllowReadingFromString;
 
         return options;
     }
