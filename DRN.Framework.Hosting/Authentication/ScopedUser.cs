@@ -8,35 +8,49 @@ namespace DRN.Framework.Hosting.Authentication;
 [Scoped<IScopedUser>]
 public class ScopedUser : IScopedUser
 {
-    private static readonly Claim[] DefaultClaims = [];
-
     private static readonly IReadOnlyDictionary<string, IReadOnlySet<Claim>> DefaultClaimsByType =
         new Dictionary<string, IReadOnlySet<Claim>>(0).ToFrozenDictionary();
 
     [JsonIgnore] public ClaimsPrincipal? Principal { get; private set; }
-    public IReadOnlyList<Claim> Claims { get; private set; } = DefaultClaims;
+
+    [JsonIgnore] public ClaimsIdentity? PrimaryIdentity { get; private set; }
+
     [JsonIgnore] public IReadOnlyDictionary<string, IReadOnlySet<Claim>> ClaimsByType { get; private set; } = DefaultClaimsByType;
 
-    public string? Id { get; private set; }
-    public string? Name { get; private set; }
-    public string? Email { get; private set; }
     public bool Authenticated { get; private set; }
+
+    public string? Id => IdClaim?.Value;
+    [JsonIgnore] public Claim? IdClaim { get; private set; }
+
+    public string? Name => NameClaim?.Value;
+    [JsonIgnore] public Claim? NameClaim { get; private set; }
+
+    public string? Email => EmailClaim?.Value;
+    [JsonIgnore] public Claim? EmailClaim { get; private set; }
 
     internal void SetUser(ClaimsPrincipal user)
     {
         Principal = user;
-        Claims = user.Claims.ToArray();
+        Authenticated = Principal.Identities.All(i => i.IsAuthenticated);
+        if (!Authenticated) return;
+
+        PrimaryIdentity = ClaimConventions.SelectClaimsIdentity(Principal);
         var claimsDictionary = new Dictionary<string, HashSet<Claim>>();
-        foreach (var claim in Claims)
+        foreach (var claim in user.Claims)
             if (claimsDictionary.TryGetValue(claim.Type, out var claimsByType))
                 claimsByType.Add(claim);
             else
                 claimsDictionary.Add(claim.Type, [claim]);
-        ClaimsByType = claimsDictionary.ToDictionary(pair => pair.Key, pair => (IReadOnlySet<Claim>)pair.Value.ToFrozenSet());
 
-        Name = user.FindFirstValue(ClaimTypes.Name);
-        Email = user.FindFirstValue(ClaimTypes.Email);
-        Id = user.FindFirstValue(ClaimTypes.NameIdentifier);
-        Authenticated = user.Identity?.IsAuthenticated ?? false;
+        ClaimsByType = claimsDictionary.ToFrozenDictionary(pair => pair.Key, pair => (IReadOnlySet<Claim>)pair.Value.ToFrozenSet());
+        IdClaim = ClaimsByType.TryGetValue(ClaimConventions.NameIdentifier, out var nameIds)
+            ? nameIds.FirstOrDefault(c => c.Subject == PrimaryIdentity) ?? nameIds.FirstOrDefault()
+            : null;
+        NameClaim = ClaimsByType.TryGetValue(ClaimConventions.Name, out var names)
+            ? names.FirstOrDefault(c => c.Subject == PrimaryIdentity) ?? names.FirstOrDefault()
+            : null;
+        EmailClaim = ClaimsByType.TryGetValue(ClaimConventions.Email, out var emails)
+            ? emails.FirstOrDefault(c => c.Subject == PrimaryIdentity) ?? emails.FirstOrDefault()
+            : null;
     }
 }

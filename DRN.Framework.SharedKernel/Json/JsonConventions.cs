@@ -48,7 +48,6 @@ public static class JsonConventions
     {
         options ??= new JsonSerializerOptions(JsonSerializerDefaults.Web);
         options.Converters.Add(new JsonStringEnumConverter());
-        options.Converters.Add(new ClaimJsonConverter());
         options.AllowTrailingCommas = true;
         options.PropertyNameCaseInsensitive = true;
         options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
