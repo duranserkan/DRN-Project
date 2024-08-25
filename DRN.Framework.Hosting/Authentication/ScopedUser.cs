@@ -15,7 +15,7 @@ public class ScopedUser : IScopedUser
 
     [JsonIgnore] public ClaimsPrincipal? Principal { get; private set; }
     public IReadOnlyList<Claim> Claims { get; private set; } = DefaultClaims;
-    public IReadOnlyDictionary<string, IReadOnlySet<Claim>> ClaimsByType { get; private set; } = DefaultClaimsByType;
+    [JsonIgnore] public IReadOnlyDictionary<string, IReadOnlySet<Claim>> ClaimsByType { get; private set; } = DefaultClaimsByType;
 
     public string? Id { get; private set; }
     public string? Name { get; private set; }
