@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-namespace DRN.Framework.Hosting.Authentication;
+namespace DRN.Framework.Utils.Auth;
 
 public static class ClaimConventions
 {

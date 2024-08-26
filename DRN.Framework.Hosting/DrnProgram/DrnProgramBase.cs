@@ -1,4 +1,3 @@
-using DRN.Framework.Hosting.Authentication;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.SharedKernel.Json;

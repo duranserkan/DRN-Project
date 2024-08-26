@@ -1,4 +1,7 @@
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
+
+[assembly: InternalsVisibleTo("DRN.Framework.Hosting")]
 
 namespace DRN.Framework.Utils;
 

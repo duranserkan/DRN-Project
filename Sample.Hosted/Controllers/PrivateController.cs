@@ -1,4 +1,4 @@
-using DRN.Framework.Hosting.Authentication;
+using DRN.Framework.Utils.Auth;
 
 namespace Sample.Hosted.Controllers;
 

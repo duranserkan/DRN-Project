@@ -1,6 +1,7 @@
+using DRN.Framework.Utils.Auth;
 using Microsoft.AspNetCore.Http;
 
-namespace DRN.Framework.Hosting.Authentication;
+namespace DRN.Framework.Hosting.Middlewares;
 
 public class ScopedUserMiddleware(RequestDelegate next)
 {
