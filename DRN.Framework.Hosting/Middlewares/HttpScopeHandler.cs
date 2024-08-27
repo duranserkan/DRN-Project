@@ -1,6 +1,8 @@
 using DRN.Framework.SharedKernel;
+using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Scope;
 using DRN.Framework.Utils.Settings;
 using Flurl.Http;
 using Microsoft.AspNetCore.Http;
@@ -13,12 +15,15 @@ namespace DRN.Framework.Hosting.Middlewares;
 //https://github.com/serilog/serilog/wiki/Structured-Data
 public class HttpScopeHandler(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext httpContext, IScopedLog scopedLog, ILogger<HttpScopeHandler> logger, IAppSettings appSettings)
+    public async Task InvokeAsync(HttpContext httpContext, IScopedLog scopedLog, IScopedUser scopedUser,
+        ILogger<HttpScopeHandler> logger, IAppSettings appSettings)
     {
         try
         {
-            await next(httpContext);
             PrepareScopeLog(httpContext, scopedLog);
+            ScopeContext.Initialize(httpContext.TraceIdentifier, scopedLog, scopedUser);
+            await next(httpContext);
+            scopedLog.Add("ResponseStatusCode", httpContext.Response.StatusCode);
         }
         catch (Exception e)
         {
@@ -27,7 +32,7 @@ public class HttpScopeHandler(RequestDelegate next)
                 await f.PrepareScopeLogForFlurlExceptionAsync(scopedLog, appSettings.Features);
 
             scopedLog.AddException(e);
-            PrepareScopeLog(httpContext, scopedLog);
+            scopedLog.Add("ResponseStatusCode", httpContext.Response.StatusCode);
 
             //todo: integrate developer exception page
             //https://github.com/dotnet/aspnetcore/blob/main/src/Middleware/Diagnostics/src/DeveloperExceptionPage/DeveloperExceptionPageMiddleware.cs
@@ -65,6 +70,5 @@ public class HttpScopeHandler(RequestDelegate next)
         .Add("RequestPath", httpContext.Request.Path.ToString())
         .Add("RequestQueryString", httpContext.Request.QueryString.ToString())
         .Add("RequestContentLength", httpContext.Request.ContentLength ?? 0)
-        .Add("RequestIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty)
-        .Add("ResponseStatusCode", httpContext.Response.StatusCode);
+        .Add("RequestIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
 }

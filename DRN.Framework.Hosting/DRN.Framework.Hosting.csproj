@@ -48,7 +48,7 @@
         <PackageReference Include="Serilog.AspNetCore" Version="8.0.2" />
         <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.2" />
         <PackageReference Include="Serilog.Sinks.Graylog" Version="3.1.1" />
-        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.2" />
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.3" />
     </ItemGroup>
 
 </Project>
