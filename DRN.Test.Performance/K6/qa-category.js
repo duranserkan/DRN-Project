@@ -1,10 +1,10 @@
-import { check, sleep } from 'k6';
 import http from 'k6/http';
+import { check, sleep } from 'k6';
 
 //k6 run --out cloud qa-category.js
 export const options = {
   // A number specifying the number of VUs to run concurrently.
-  vus: 100,
+  vus: 1,
   // A string specifying the total duration of the test run.
   duration: '5s',
 
@@ -58,5 +58,5 @@ export default function() {
     'is status 200': r => r.status === 200,
   })
 
-  sleep(1);
+  //sleep(1); // Optional: Sleep to simulate user wait time
 }
