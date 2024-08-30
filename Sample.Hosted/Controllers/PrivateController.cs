@@ -31,7 +31,7 @@ public class PrivateController(IScopedUser scopedUser, IScopedLog scopedLog) : C
                       && ScopeContext.Value.ScopedUser == scopedUser
                       && ScopeContext.Value.ScopedUser.Principal == User
                       && ScopeContext.Value.ScopedLog == scopedLog;
-        
+
         return isValid ? Ok() : throw ExceptionFor.Configuration("InvalidScope");
     }
 }

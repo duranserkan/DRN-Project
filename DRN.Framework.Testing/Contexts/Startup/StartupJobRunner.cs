@@ -30,9 +30,7 @@ public static class StartupJobRunner
     {
         var startedAt = DateTimeOffset.Now;
         _ = JsonConventions.DefaultOptions; // to trigger static ctor that replaces .net defaults with better one
-        typeof(TestEnvironment)
-            .GetProperty(nameof(TestEnvironment.TestContextEnabled), BindingFlag.StaticPublic)!
-            .SetValue(null, true);
+        TestEnvironment.TestContextEnabled = true;
 
         var jobTypes = GetTestStartupJobTypes(testMethod);
         foreach (var startupJobType in jobTypes)
