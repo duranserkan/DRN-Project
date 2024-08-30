@@ -11,6 +11,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
 namespace DRN.Framework.EntityFramework.Attributes;
 
+[AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
 public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
 {
     public DrnContextDefaultsAttribute() => FrameworkDefined = true;

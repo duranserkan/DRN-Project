@@ -5,6 +5,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
 namespace DRN.Framework.EntityFramework.Attributes;
 
+[AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
 public abstract class NpgsqlDbContextOptionsAttribute : Attribute
 {
     internal bool FrameworkDefined = false;

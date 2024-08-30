@@ -5,6 +5,7 @@ namespace DRN.Framework.EntityFramework.Attributes;
 /// <summary>
 /// https://www.npgsql.org/doc/connection-string-parameters.html
 /// </summary>
+[AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
 public abstract class NpgsqlPerformanceSettingsAttribute(
     bool? multiplexing = null,
     int? maxAutoPrepare = null,

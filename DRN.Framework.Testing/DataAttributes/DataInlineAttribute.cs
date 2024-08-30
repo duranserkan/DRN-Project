@@ -9,6 +9,7 @@ namespace DRN.Framework.Testing.DataAttributes;
 /// Have same constraints with <see cref="InlineDataAttribute"/>. Inlined data must be compile time constant expression
 /// <b>To provide complex types use DataMember or DataSelf attributes</b>
 /// </summary>
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
 public sealed class DataInlineAttribute : CompositeDataAttribute
 {
     public DataInlineAttribute(params object[] data) : base(new DataInlineContextAttribute(data), new DataNSubstituteAutoAttribute())

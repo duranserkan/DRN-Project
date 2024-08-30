@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Utils.DependencyInjection.Attributes;
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public abstract class LifetimeAttribute(ServiceLifetime serviceLifetime, Type serviceType, bool tryAdd, object? key)
     : Attribute
 {
@@ -26,20 +27,28 @@ public abstract class LifetimeAttribute(ServiceLifetime serviceLifetime, Type se
     }
 }
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class LifetimeAttribute<TService>(ServiceLifetime serviceLifetime, bool tryAdd = true, object? key = null)
     : LifetimeAttribute(serviceLifetime, typeof(TService), tryAdd, key);
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class LifetimeWithKeyAttribute<TService>(ServiceLifetime serviceLifetime, object key, bool tryAdd = true)
     : LifetimeAttribute(serviceLifetime, typeof(TService), tryAdd, key);
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class ScopedAttribute<TService>(bool tryAdd = true) : LifetimeAttribute<TService>(ServiceLifetime.Scoped, tryAdd);
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class ScopedWithKeyAttribute<TService>(object key, bool tryAdd = true) : LifetimeWithKeyAttribute<TService>(ServiceLifetime.Scoped, key, tryAdd);
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class TransientAttribute<TService>(bool tryAdd = true) : LifetimeAttribute<TService>(ServiceLifetime.Transient, tryAdd);
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class TransientWithKeyAttribute<TService>(object key, bool tryAdd = true) : LifetimeWithKeyAttribute<TService>(ServiceLifetime.Transient, key, tryAdd);
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class SingletonAttribute<TService>(bool tryAdd = true) : LifetimeAttribute<TService>(ServiceLifetime.Singleton, tryAdd);
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class SingletonWithKeyAttribute<TService>(object key, bool tryAdd = true) : LifetimeWithKeyAttribute<TService>(ServiceLifetime.Singleton, key, tryAdd);

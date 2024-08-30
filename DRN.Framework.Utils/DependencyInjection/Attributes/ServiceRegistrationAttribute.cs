@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Utils.DependencyInjection.Attributes;
 
-[AttributeUsage(AttributeTargets.Class)]
+[AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
 public abstract class ServiceRegistrationAttribute : Attribute
 {
     public static bool HasServiceCollectionModule(Type type) =>

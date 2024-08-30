@@ -44,7 +44,7 @@ public class DrnProgramSwaggerOptions
         ConfigureSwaggerGenOptionsAction?.Invoke(options);
     }
 
-    private void BearerTokenSecurityRequirement(SwaggerGenOptions options)
+    private static void BearerTokenSecurityRequirement(SwaggerGenOptions options)
     {
         var openApiSecurityScheme = new OpenApiSecurityScheme
         {

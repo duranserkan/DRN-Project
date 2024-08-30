@@ -17,6 +17,7 @@ namespace DRN.Framework.EntityFramework.Context;
 /// <see cref="DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes"/>
 /// <br/> is called from DbContext's assembly
 /// </summary>
+[AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
 public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribute
 {
     public override void ServiceRegistration(IServiceCollection sc, Assembly? assembly)
