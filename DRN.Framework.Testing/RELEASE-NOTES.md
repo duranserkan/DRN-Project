@@ -5,6 +5,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to August 30 Victory Day, a day that marks the decisive victory achieved by the Turkish people against imperialism during the Turkish War of Independence, leading to the establishment of the Republic of Türkiye.
 
 ### New Features
+
 * ITestStartupJob interface - added to run startup tasks before any TestContext is created.
   * PostgresContainerSettings or RabbitMQContainerSettings can be updated in a job that implements ITestStartupJob in the test project
 * TestContext
@@ -104,4 +105,5 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 * DataProvider
 
 ---
+
 **Semper Progredi: Always Progressive**
