@@ -20,7 +20,6 @@ public class ScopedUser : IScopedUser
     }
 
     [JsonIgnore] public ClaimsPrincipal? Principal { get; private set; }
-
     [JsonIgnore] public ClaimsIdentity? PrimaryIdentity { get; private set; }
 
     public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; private set; } = DefaultClaimsByType;
@@ -39,13 +38,9 @@ public class ScopedUser : IScopedUser
     public bool ClaimExists(string type) => ClaimsByType.ContainsKey(type);
     public ClaimGroup? FindClaimGroup(string type) => ClaimsByType.TryGetValue(type, out var claimGroup) ? claimGroup : null;
 
-    public Claim? FindClaim(string type, string value) => FindClaimGroup(type)?.FindClaim(value) ?? null;
+    public Claim? FindClaim(string type, string value) => FindClaimGroup(type)?.FindClaim(value);
 
-    public Claim? FindClaim(string type, string value, string issuer)
-    {
-        var claim = FindClaim(type, value);
-        return claim?.Issuer == issuer ? claim : null;
-    }
+    public Claim? FindClaim(string type, string value, string issuer) => FindClaimGroup(type)?.FindClaim(value, issuer);
 
     public bool ValueExists(string type, string value) => FindClaim(type, value) != null;
     public bool ValueExists(string type, string value, string issuer) => FindClaim(type, value, issuer) != null;

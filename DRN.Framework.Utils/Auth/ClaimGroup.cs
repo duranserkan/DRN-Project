@@ -11,20 +11,25 @@ public class ClaimGroup
         IsSingleClaim = claims.Count == 1;
         Claim = claims.FirstOrDefault(c => c.Subject == primary) ?? claims.First();
         IsPrimaryClaim = Claim.Subject == primary;
-        ClaimsByValue = claims.ToFrozenDictionary(p => p.Value, p => p);
+        Claims = claims.ToFrozenSet();
     }
 
     [JsonIgnore] public Claim Claim { get; }
-    [JsonIgnore] public IReadOnlyDictionary<string, Claim> ClaimsByValue { get; }
-
-    [JsonIgnore] public bool IsPrimaryClaim { get; }
+    [JsonIgnore] public IReadOnlySet<Claim> Claims { get; }
     [JsonIgnore] public bool IsSingleClaim { get; }
 
+    public bool IsPrimaryClaim { get; }
+    public string Type => Claim.Type;
     public string Value => Claim.Value;
+    public IEnumerable<ClaimValue> Values => Claims.Select(c => new ClaimValue(c.Value, c.Issuer, c.Subject?.Name));
 
-    public bool ValueExists(string value) => ClaimsByValue.ContainsKey(value);
-    public bool ValueExists(string value, string issuer) => ClaimsByValue.TryGetValue(value, out var claim) && claim.Issuer == issuer;
+    public bool ValueExists(string value) => FindClaim(value) != null;
+    public bool ValueExists(string value, string issuer) => FindClaim(value, issuer) != null;
 
-    public Claim? FindClaim(string value) => ClaimsByValue.TryGetValue(value, out var claim) ? claim : null;
-    public Claim? FindClaim(string value, string issuer) => ClaimsByValue.TryGetValue(value, out var claim) && claim.Issuer == issuer ? claim : null;
+    public Claim? FindClaim(string value) => Claims.FirstOrDefault(c => c.Value == value);
+    public Claim? FindClaim(string value, string issuer) => Claims.FirstOrDefault(c => c.Value == value && c.Issuer == issuer);
+}
+
+public record ClaimValue(string Value, string Issuer, string? Name)
+{
 }

@@ -11,13 +11,9 @@ public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
 {
     [Theory]
     [DataInline]
-    public async Task PrivateController_Should_Return_Status(TestContext context, string username, string password)
+    public async Task PrivateAction_Should_Return_Status(TestContext context, string username, string password)
     {
-        context.ApplicationContext.LogToTestOutput(outputHelper);
-        var application = context.ApplicationContext.CreateApplication<Program>();
-        await context.ContainerContext.Postgres.ApplyMigrationsAsync();
-
-        var client = application.CreateClient();
+        var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
         var registerRequest = new RegisterRequest
         {
             Email = $"{username}@example.com",
@@ -40,7 +36,7 @@ public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
 
     [Theory]
     [DataInline]
-    public async Task PrivateController_Should_Not_Allow_Unauthorized(TestContext context)
+    public async Task PrivateAction_Should_Not_Allow_Unauthorized(TestContext context)
     {
         context.ApplicationContext.LogToTestOutput(outputHelper);
         var application = context.ApplicationContext.CreateApplication<Program>();

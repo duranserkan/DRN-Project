@@ -7,7 +7,7 @@ public interface IScopedUser
 {
     [JsonIgnore] ClaimsPrincipal? Principal { get; }
     [JsonIgnore] public ClaimsIdentity? PrimaryIdentity { get; }
-    [JsonIgnore] public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; }
+    public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; }
 
     bool Authenticated { get; }
 
