@@ -1,10 +1,8 @@
 ﻿using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Testing.Extensions;
-using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Identity;
 using Sample.Application;
 using Sample.Infra;
-using Sample.Infra.Identity;
 
 namespace Sample.Hosted;
 
@@ -15,19 +13,24 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     protected override async Task AddServicesAsync(WebApplicationBuilder builder)
     {
         builder.Services
-            .AddSampleInfraServices()
-            .AddSampleApplicationServices()
             .AddSampleServices(AppSettings)
-            .AddIdentityApiEndpoints<IdentityUser>()
-            .AddEntityFrameworkStores<SampleIdentityContext>();
-        //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity
+            .AddSampleInfraServices()
+            .AddSampleApplicationServices();
+
 
         await builder.LaunchExternalDependenciesAsync(ScopedLog, AppSettings);
+    }
+
+    protected override void ConfigureApplicationPreScopeStart(WebApplication application)
+    {
+        base.ConfigureApplicationPreScopeStart(application);
+        application.UseStaticFiles();
     }
 
     protected override void MapApplicationEndpoints(WebApplication application)
     {
         base.MapApplicationEndpoints(application);
+        application.MapRazorPages();
         application.MapGroup("/identity").MapIdentityApi<IdentityUser>();
     }
 }

@@ -1,0 +1,16 @@
+@page
+
+@model Sample.Hosted.Pages.Account.LogoutModel
+@{
+    ViewData["Title"] = "Log out";
+    ViewData["CenterVertically"] = true;
+}
+
+
+<h2 class="text-center">Log out</h2>
+<p class="text-center">Are you sure you want to log out?</p>
+
+<form method="post" class="text-center">
+    <button type="submit" class="btn btn-primary">Log out</button>
+    <a asp-page="/Index" class="btn btn-secondary">Cancel</a>
+</form>

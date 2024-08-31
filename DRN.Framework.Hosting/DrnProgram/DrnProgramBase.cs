@@ -124,13 +124,9 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         //Linkerd service mesh internal communication requires plain http to enable mtls
         AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-        var mvcBuilder = applicationBuilder.Services.AddMvc(ConfigureMvcOptions)
-            .AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
-        var programAssembly = typeof(TProgram).Assembly;
-        var partName = typeof(TProgram).GetAssemblyName();
-        var applicationParts = mvcBuilder.PartManager.ApplicationParts;
-        var controllersAdded = applicationParts.Any(p => p.Name == partName);
-        if (!controllersAdded) mvcBuilder.AddApplicationPart(programAssembly);
+
+        var mvcBuilder = applicationBuilder.Services.AddMvc(ConfigureMvcOptions);
+        ConfigureMvcBuilder(mvcBuilder);
 
         applicationBuilder.Services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
         applicationBuilder.Services.PostConfigure<HostFilteringOptions>(options =>
@@ -197,12 +193,23 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
     }
 
+    protected virtual void ConfigureMvcBuilder(IMvcBuilder mvcBuilder)
+    {
+        var programAssembly = typeof(TProgram).Assembly;
+        var partName = typeof(TProgram).GetAssemblyName();
+        var applicationParts = mvcBuilder.PartManager.ApplicationParts;
+        var controllersAdded = applicationParts.Any(p => p.Name == partName);
+        if (!controllersAdded) mvcBuilder.AddApplicationPart(programAssembly);
+
+        mvcBuilder.AddRazorRuntimeCompilation();
+        mvcBuilder.AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
+    }
+
     protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
     {
         options.OpenApiInfo.Title = appSettings.ApplicationName;
         options.AddSwagger = appSettings.IsDevEnvironment;
     }
-
 
     private static string GetApplicationAssemblyName() => typeof(TProgram).GetAssemblyName();
 }

@@ -1,0 +1,30 @@
+@page
+@model Sample.Hosted.Pages.Account.EditDetailsModel
+@{
+    ViewData["Title"] = "Edit User Details";
+}
+
+@*https://getbootstrap.com/docs/5.3/forms/layout/*@
+
+<h2>Edit User Details</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" class="row">
+            <div class="form-group ">
+                <label asp-for="Input.PhoneNumber"></label>
+                <input asp-for="Input.PhoneNumber" class="form-control"/>
+                <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+            </div>
+
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary mt-3">Save Changes</button>
+                <a href="/Account/Details" class="btn btn-secondary mt-3">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial"/>
+}

@@ -22,8 +22,6 @@ public class ScopedUser : IScopedUser
     [JsonIgnore] public ClaimsPrincipal? Principal { get; private set; }
     [JsonIgnore] public ClaimsIdentity? PrimaryIdentity { get; private set; }
 
-    public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; private set; } = DefaultClaimsByType;
-
     public bool Authenticated { get; private set; }
 
     public string? Id => IdClaim?.Value;
@@ -34,6 +32,8 @@ public class ScopedUser : IScopedUser
 
     public string? Email => EmailClaim?.Value;
     [JsonIgnore] public ClaimGroup? EmailClaim { get; private set; }
+
+    public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; private set; } = DefaultClaimsByType;
 
     public bool ClaimExists(string type) => ClaimsByType.ContainsKey(type);
     public ClaimGroup? FindClaimGroup(string type) => ClaimsByType.TryGetValue(type, out var claimGroup) ? claimGroup : null;

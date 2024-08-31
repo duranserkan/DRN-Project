@@ -1,0 +1,37 @@
+@page
+@model Sample.Hosted.Pages.Account.DetailsModel
+@{
+    ViewData["Title"] = "User Details";
+}
+
+<h2>User Details</h2>
+
+@if (Model.User != null)
+{
+    <div class="card">
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">User ID</dt>
+                <dd class="col-sm-9">@Model.User.Id</dd>
+
+                <dt class="col-sm-3">User Name</dt>
+                <dd class="col-sm-9">@Model.User.UserName</dd>
+
+                <dt class="col-sm-3">Email</dt>
+                <dd class="col-sm-9">@Model.User.Email</dd>
+
+                <dt class="col-sm-3">Phone Number</dt>
+                <dd class="col-sm-9">@Model.User.PhoneNumber</dd>
+                <!-- Add more user details here if necessary -->
+            </dl>
+        </div>
+    </div>
+
+    <a href="/Account/EditDetails" class="btn btn-primary mt-3">Edit Profile</a>
+}
+else
+{
+    <div class="alert alert-warning">
+        No user information available.
+    </div>
+}

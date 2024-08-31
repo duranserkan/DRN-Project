@@ -7,7 +7,6 @@ public interface IScopedUser
 {
     [JsonIgnore] ClaimsPrincipal? Principal { get; }
     [JsonIgnore] public ClaimsIdentity? PrimaryIdentity { get; }
-    public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; }
 
     bool Authenticated { get; }
 
@@ -19,6 +18,8 @@ public interface IScopedUser
 
     public string? Email { get; }
     [JsonIgnore] public ClaimGroup? EmailClaim { get; }
+
+    public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; }
 
     bool ClaimExists(string type);
     ClaimGroup? FindClaimGroup(string type);

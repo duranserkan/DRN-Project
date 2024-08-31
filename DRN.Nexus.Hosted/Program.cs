@@ -14,11 +14,9 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     protected override async Task AddServicesAsync(WebApplicationBuilder builder)
     {
         builder.Services
-            .AddNexusInfraServices()
-            .AddNexusApplicationServices()
             .AddNexusServices(AppSettings)
-            .AddIdentityApiEndpoints<IdentityUser>()
-            .AddEntityFrameworkStores<NexusIdentityContext>();
+            .AddNexusInfraServices()
+            .AddNexusApplicationServices();
         //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity
 
         await builder.LaunchExternalDependenciesAsync(ScopedLog, AppSettings);
