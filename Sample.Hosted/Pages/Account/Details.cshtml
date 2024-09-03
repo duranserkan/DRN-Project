@@ -8,6 +8,14 @@
 
 @if (Model.User != null)
 {
+    @if (TempData["StatusMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible" role="alert">
+            @TempData["StatusMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
     <div class="card">
         <div class="card-body">
             <dl class="row">
