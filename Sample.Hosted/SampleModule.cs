@@ -1,6 +1,6 @@
 using DRN.Framework.Utils.Settings;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
-using Sample.Infra.Identity;
 
 namespace Sample.Hosted;
 
@@ -10,10 +10,14 @@ public static class SampleModule
     {
         services.AddServicesWithAttributes();
         services.AddIdentityApiEndpoints<IdentityUser>()
-            .AddRoles<IdentityRole>()
-            .AddDefaultTokenProviders()
-            .AddEntityFrameworkStores<SampleIdentityContext>();
+            .AddDefaultTokenProviders();
         //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity
+
+        services.Configure<FormOptions>(options =>
+        {
+            // Set the maximum file size to 100KB (102,400 bytes)
+            options.MultipartBodyLengthLimit = 1000 * 1024; // 1000 KB
+        });
 
         return services;
     }

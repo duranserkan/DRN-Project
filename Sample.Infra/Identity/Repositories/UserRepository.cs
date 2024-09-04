@@ -1,9 +1,9 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Memory;
-using Sample.Domain.Users;
+using Sample.Domain.Identity;
 
-namespace Sample.Infra.Identity;
+namespace Sample.Infra.Identity.Repositories;
 
 [Scoped<IUserRepository>]
 public class UserRepository(

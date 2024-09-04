@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Sample.Domain.Identity;
 using Sample.Domain.Users;
 
 namespace Sample.Hosted.Pages.Account;

@@ -1,0 +1,41 @@
+@page
+@model Sample.Hosted.Pages.Account.ProfilePictureModel
+
+<h2>Change Profile Picture</h2>
+
+<div class="card">
+    <div class="card-body">
+        @if (!string.IsNullOrEmpty(Model.ProfilePictureBase64))
+        {
+            <div class="mb-3">
+                <label>Current Profile Picture:</label>
+                <div>
+                    <img src="data:image/jpeg;base64,@Model.ProfilePictureBase64" alt="Profile Picture" class="img-thumbnail" width="150" height="150"/>
+                </div>
+            </div>
+        }
+
+        <form method="post" enctype="multipart/form-data">
+            <div asp-validation-summary="All" class="text-danger"></div>
+
+            <!-- Profile Picture Upload -->
+            <div class="row mb-3">
+                <div class="form-group col-auto">
+                    <label asp-for="Input.ProfilePicture" class="form-label">Profile Picture</label>
+                    <input asp-for="Input.ProfilePicture" type="file" class="form-control"/>
+                    <span asp-validation-for="Input.ProfilePicture" class="text-danger"></span>
+                </div>
+            </div>
+
+            <!-- Upload and Cancel Buttons -->
+            <div class="col-auto mt-3">
+                <button type="submit" class="btn btn-primary">Upload Picture</button>
+                <a asp-page="/Account/Profile" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial"/>
+}

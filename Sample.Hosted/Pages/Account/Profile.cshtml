@@ -1,10 +1,10 @@
 @page
-@model Sample.Hosted.Pages.Account.DetailsModel
+@model Sample.Hosted.Pages.Account.ProfileModel
 @{
     ViewData["Title"] = "User Details";
 }
 
-<h2>User Details</h2>
+<h2>User Profile</h2>
 
 @if (Model.User != null)
 {
@@ -35,7 +35,8 @@
         </div>
     </div>
 
-    <a href="/Account/EditDetails" class="btn btn-primary mt-3">Edit Profile</a>
+    <a asp-page="/Account/ProfileEdit" class="btn btn-primary mt-3">Edit Profile</a>
+    <a asp-page="/Account/ProfilePicture" class="btn btn-secondary mt-3">Change Profile Picture</a>
 }
 else
 {

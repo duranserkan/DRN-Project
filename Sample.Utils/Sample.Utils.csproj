@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj" />
+  </ItemGroup>
+
 </Project>

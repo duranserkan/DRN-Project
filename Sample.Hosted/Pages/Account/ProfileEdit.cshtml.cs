@@ -4,7 +4,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Sample.Hosted.Pages.Account;
 
-public class EditDetailsModel(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager)
+[Authorize]
+public class ProfileEditModel(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager)
     : PageModel
 {
     [BindProperty] public EditInput Input { get; set; }
@@ -17,7 +18,7 @@ public class EditDetailsModel(UserManager<IdentityUser> userManager, SignInManag
 
         Input = new EditInput
         {
-            PhoneNumber = user.PhoneNumber
+            PhoneNumber = user.PhoneNumber ?? string.Empty
         };
 
         return Page();
@@ -38,9 +39,7 @@ public class EditDetailsModel(UserManager<IdentityUser> userManager, SignInManag
         if (!result.Succeeded)
         {
             foreach (var error in result.Errors)
-            {
                 ModelState.AddModelError(string.Empty, error.Description);
-            }
 
             return Page();
         }
@@ -49,7 +48,7 @@ public class EditDetailsModel(UserManager<IdentityUser> userManager, SignInManag
         await signInManager.RefreshSignInAsync(user);
 
         TempData["StatusMessage"] = "Your profile has been updated";
-        return RedirectToPage("/Account/Details");
+        return RedirectToPage("/Account/Profile");
     }
 }
 
@@ -57,5 +56,6 @@ public class EditInput
 {
     [Phone]
     [Display(Name = "Phone Number")]
-    public string? PhoneNumber { get; set; }
+    [Required]
+    public string PhoneNumber { get; set; }
 }

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace Sample.Hosted.Pages.Account;
 
 [Authorize]
-public class DetailsModel(UserManager<IdentityUser> userManager) : PageModel
+public class ProfileModel(UserManager<IdentityUser> userManager) : PageModel
 {
     public IdentityUser? User { get; set; }
 

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 
-namespace Sample.Domain.Users;
+namespace Sample.Domain.Identity;
 
 public interface IUserRepository
 {
