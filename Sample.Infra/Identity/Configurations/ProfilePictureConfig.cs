@@ -16,6 +16,8 @@ public class ProfilePictureConfig : IEntityTypeConfiguration<ProfilePicture>
         builder.Property(p => p.ImageData)
             .IsRequired();
 
+        builder.Property(p => p.Version);
+
         builder.HasOne<IdentityUser>()
             .WithOne()
             .HasForeignKey<ProfilePicture>(p => p.UserId)

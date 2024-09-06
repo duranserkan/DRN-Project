@@ -3,23 +3,19 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Sample.Hosted.Pages.Account;
 
-[Authorize]
-public class LogoutModel : PageModel
+public class LogoutModel(SignInManager<IdentityUser> signInManager) : PageModel
 {
-    private readonly SignInManager<IdentityUser> _signInManager;
-
-    public LogoutModel(SignInManager<IdentityUser> signInManager)
+    public IActionResult OnGet()
     {
-        _signInManager = signInManager;
-    }
-
-    public void OnGet()
-    {
+        if (!(User.Identity?.IsAuthenticated ?? false))
+            return RedirectToPage(PageFor.Home);
+        return Page();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        await _signInManager.SignOutAsync();
-        return RedirectToPage("/Index");
+        if (User.Identity?.IsAuthenticated ?? false)
+            await signInManager.SignOutAsync();
+        return RedirectToPage(PageFor.Home);
     }
 }

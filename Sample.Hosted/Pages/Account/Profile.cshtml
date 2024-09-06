@@ -1,4 +1,7 @@
 @page
+@using DRN.Framework.Utils.Scope
+@using Microsoft.AspNetCore.Mvc.TagHelpers
+@using Sample.Domain.Identity
 @model Sample.Hosted.Pages.Account.ProfileModel
 @{
     ViewData["Title"] = "User Details";
@@ -6,37 +9,32 @@
 
 <h2>User Profile</h2>
 
-@if (Model.User != null)
+@if (Model.IdentityUser != null)
 {
-    @if (TempData["StatusMessage"] != null)
-    {
-        <div class="alert alert-success alert-dismissible" role="alert">
-            @TempData["StatusMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
-
     <div class="card">
         <div class="card-body">
             <dl class="row">
                 <dt class="col-sm-3">User ID</dt>
-                <dd class="col-sm-9">@Model.User.Id</dd>
+                <dd class="col-sm-9">@Model.IdentityUser.Id</dd>
 
                 <dt class="col-sm-3">User Name</dt>
-                <dd class="col-sm-9">@Model.User.UserName</dd>
+                <dd class="col-sm-9">@Model.IdentityUser.UserName</dd>
 
                 <dt class="col-sm-3">Email</dt>
-                <dd class="col-sm-9">@Model.User.Email</dd>
+                <dd class="col-sm-9">@Model.IdentityUser.Email</dd>
 
                 <dt class="col-sm-3">Phone Number</dt>
-                <dd class="col-sm-9">@Model.User.PhoneNumber</dd>
+                <dd class="col-sm-9">@Model.IdentityUser.PhoneNumber</dd>
+
+                <dt class="col-sm-3">Slim UI</dt>
+                <dd class="col-sm-9">@ScopeContext.Value.IsFlagEnabled(UserClaims.SlimUI)</dd>
                 <!-- Add more user details here if necessary -->
             </dl>
         </div>
     </div>
 
-    <a asp-page="/Account/ProfileEdit" class="btn btn-primary mt-3">Edit Profile</a>
-    <a asp-page="/Account/ProfilePicture" class="btn btn-secondary mt-3">Change Profile Picture</a>
+    <a asp-page="@PageFor.AccountProfileEdit" class="btn btn-primary mt-3">Edit Profile</a>
+    <a asp-page="@PageFor.AccountProfilePicture" class="btn btn-secondary mt-3">Change Profile Picture</a>
 }
 else
 {

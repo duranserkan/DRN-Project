@@ -2,22 +2,21 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Identity;
-using Sample.Domain.Users;
 
 namespace Sample.Hosted.Pages.Account;
 
 [AllowAnonymous]
 public class SetupModel(
     SignInManager<IdentityUser> signInManager,
-    IUserRepository userRepository) : PageModel
+    IUserAdminRepository userAdminRepository) : PageModel
 {
     [BindProperty] public SetupInput Input { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync()
     {
-        var adminUserExists = await userRepository.AnySystemAdminExistsAsync();
+        var adminUserExists = await userAdminRepository.AnySystemAdminExistsAsync();
         if (adminUserExists)
-            return RedirectToPage("/Index");
+            return RedirectToPage(PageFor.Home);
 
         return Page();
     }
@@ -26,12 +25,12 @@ public class SetupModel(
     {
         if (!ModelState.IsValid) return Page();
 
-        var adminUserExists = await userRepository.AnySystemAdminExistsAsync();
+        var adminUserExists = await userAdminRepository.AnySystemAdminExistsAsync();
         if (adminUserExists)
-            return RedirectToPage("/Index");
+            return RedirectToPage(PageFor.Home);
 
         var user = new IdentityUser { UserName = Input.Email, Email = Input.Email };
-        var result = await userRepository.CreateSystemAdminForInitialSetup(user, Input.Password);
+        var result = await userAdminRepository.CreateSystemAdminForInitialSetup(user, Input.Password);
         if (!result.Succeeded)
         {
             foreach (var error in result.Errors)
@@ -39,9 +38,10 @@ public class SetupModel(
             return Page();
         }
 
-        await signInManager.SignInAsync(user, isPersistent: false);
+        // Sign in the user to update the claims
+        await signInManager.RefreshSignInAsync(user);
 
-        return RedirectToPage("/Index");
+        return RedirectToPage(PageFor.Home);
     }
 }
 

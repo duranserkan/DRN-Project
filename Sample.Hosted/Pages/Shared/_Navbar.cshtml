@@ -1,14 +1,20 @@
+@using DRN.Framework.SharedKernel.Enums
 <nav class="navbar navbar-expand-lg container bg-primary" data-bs-theme="dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="/">@AppSettings.Instance.ApplicationName</a>
+        <a class="navbar-brand" href="@PageFor.Home">@AppSettings.Instance.ApplicationName</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link" aria-current="page" active-page="/Index" href="/">Home</a>
+                    <a class="nav-link" aria-current="page" active-page="@PageFor.Home" href="@PageFor.Home">Home</a>
                 </li>
+                <environment include="@AppEnvironment.Development.ToString()">
+                    <li class="nav-item">
+                        <a class="nav-link" aria-current="page" href="@PageFor.Swagger" target="_blank">Swagger</a>
+                    </li>
+                </environment>
                 <!-- Add more links here if needed -->
             </ul>
             <ul class="navbar-nav ms-auto">
@@ -20,13 +26,13 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end bg-primary dropdown-menu-dark border-0" aria-labelledby="navbarDropdown">
                             <li>
-                                <a class="dropdown-item" href="/Account/Profile">My Profile</a>
+                                <a class="dropdown-item" href="@PageFor.AccountProfile">My Profile</a>
                             </li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
                             <li>
-                                <a class="dropdown-item" href="/Account/Logout">Log out</a>
+                                <a class="dropdown-item" href="@PageFor.AccountLogout">Log out</a>
                             </li>
                         </ul>
                     </li>
@@ -34,10 +40,10 @@
                 else
                 {
                     <li class="nav-item">
-                        <a class="nav-link" href="/Account/Login">Login</a>
+                        <a class="nav-link" href="@PageFor.AccountLogin">Login</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/Account/Register">Register</a>
+                        <a class="nav-link" href="@PageFor.AccountRegister">Register</a>
                     </li>
                 }
             </ul>

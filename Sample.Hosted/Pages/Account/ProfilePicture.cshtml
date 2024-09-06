@@ -1,16 +1,19 @@
 @page
+@using DRN.Framework.Utils.Scope
+@using Microsoft.AspNetCore.Mvc.TagHelpers
+@using Sample.Hosted.TagHelpers
 @model Sample.Hosted.Pages.Account.ProfilePictureModel
 
 <h2>Change Profile Picture</h2>
 
 <div class="card">
     <div class="card-body">
-        @if (!string.IsNullOrEmpty(Model.ProfilePictureBase64))
+        @if (!string.IsNullOrEmpty(ScopeContext.Value.UserId))
         {
             <div class="mb-3">
                 <label>Current Profile Picture:</label>
                 <div>
-                    <img src="data:image/jpeg;base64,@Model.ProfilePictureBase64" alt="Profile Picture" class="img-thumbnail" width="150" height="150"/>
+                    <profile-picture class="img-thumbnail" style="max-width: 300px; max-height: 300px;"/>
                 </div>
             </div>
         }
@@ -30,7 +33,7 @@
             <!-- Upload and Cancel Buttons -->
             <div class="col-auto mt-3">
                 <button type="submit" class="btn btn-primary">Upload Picture</button>
-                <a asp-page="/Account/Profile" class="btn btn-secondary">Cancel</a>
+                <a asp-page="@PageFor.AccountProfile" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>

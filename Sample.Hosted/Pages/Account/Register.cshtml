@@ -13,25 +13,25 @@
             <div class="card-body">
                 <form method="post">
                     <div asp-validation-summary="All" class="text-danger"></div>
-                    <div class="form-group mb-3">
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.Email" class="form-control" type="email" placeholder="name@example.com"/>
                         <label asp-for="Input.Email"></label>
-                        <input asp-for="Input.Email" class="form-control"/>
                         <span asp-validation-for="Input.Email" class="text-danger"></span>
                     </div>
-                    <div class="form-group mb-3">
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.Password" type="password" class="form-control" placeholder="Password"/>
                         <label asp-for="Input.Password"></label>
-                        <input asp-for="Input.Password" type="password" class="form-control"/>
                         <span asp-validation-for="Input.Password" class="text-danger"></span>
                     </div>
-                    <div class="form-group mb-3">
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.ConfirmPassword" type="password" class="form-control" placeholder="Password"/>
                         <label asp-for="Input.ConfirmPassword"></label>
-                        <input asp-for="Input.ConfirmPassword" type="password" class="form-control"/>
                         <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Register</button>
                 </form>
                 <p class="mt-3">
-                    <a asp-page="./Login">Already have an account? Log in</a>
+                    <a asp-page="@PageFor.AccountLogin">Already have an account? Log in</a>
                 </p>
             </div>
         </div>
@@ -39,5 +39,5 @@
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    <partial name="_ValidationScriptsPartial"/>
 }

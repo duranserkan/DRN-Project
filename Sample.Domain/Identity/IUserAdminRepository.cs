@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Sample.Domain.Identity;
 
-public interface IUserRepository
+public interface IUserAdminRepository
 {
     Task<bool> AnySystemAdminExistsAsync();
 

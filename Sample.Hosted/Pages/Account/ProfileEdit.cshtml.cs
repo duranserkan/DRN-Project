@@ -1,61 +1,46 @@
-using System.ComponentModel.DataAnnotations;
+using DRN.Framework.Utils.Auth;
+using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Sample.Application.Services;
+using Sample.Domain.Identity;
 
 namespace Sample.Hosted.Pages.Account;
 
 [Authorize]
-public class ProfileEditModel(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager)
+public class ProfileEditModel(IUserProfileService service, SignInManager<IdentityUser> signInManager)
     : PageModel
 {
-    [BindProperty] public EditInput Input { get; set; }
+    [BindProperty] public UserProfileEditModel Input { get; set; }
 
     public async Task<IActionResult> OnGetAsync()
     {
-        var user = await userManager.GetUserAsync(User);
-        if (user == null)
-            return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
-
-        Input = new EditInput
-        {
-            PhoneNumber = user.PhoneNumber ?? string.Empty
-        };
+        Input = await service.GetUserProfileEditModelAsync(User);
+        Input.SlimUI = ScopeContext.Value.IsFlagEnabled(UserClaims.SlimUI);
 
         return Page();
     }
+
 
     public async Task<IActionResult> OnPostAsync()
     {
         if (!ModelState.IsValid)
             return Page();
 
-        var user = await userManager.GetUserAsync(User);
-        if (user == null)
-            return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
+        var result = await service.UpdateUserAsync(Input, User);
 
-        user.PhoneNumber = Input.PhoneNumber;
-
-        var result = await userManager.UpdateAsync(user);
-        if (!result.Succeeded)
+        if (!result.IdentityResult.Succeeded)
         {
-            foreach (var error in result.Errors)
+            foreach (var error in result.IdentityResult.Errors)
                 ModelState.AddModelError(string.Empty, error.Description);
 
             return Page();
         }
 
         // Sign in the user to update the claims
-        await signInManager.RefreshSignInAsync(user);
+        await signInManager.RefreshSignInAsync(result.IdentityUser);
 
         TempData["StatusMessage"] = "Your profile has been updated";
-        return RedirectToPage("/Account/Profile");
+        return RedirectToPage(PageFor.AccountProfile);
     }
-}
-
-public class EditInput
-{
-    [Phone]
-    [Display(Name = "Phone Number")]
-    [Required]
-    public string PhoneNumber { get; set; }
 }

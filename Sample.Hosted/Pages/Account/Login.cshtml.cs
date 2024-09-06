@@ -22,7 +22,7 @@ public class LoginModel : PageModel
     {
         if (User.Identity.IsAuthenticated)
         {
-            LocalRedirect("/");
+            RedirectToPage(PageFor.Home);
             return;
         }
 
@@ -31,19 +31,20 @@ public class LoginModel : PageModel
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
-        returnUrl ??= Url.Content("~/");
-
         if (!ModelState.IsValid) return Page();
 
         var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
 
         if (result.Succeeded)
-            return LocalRedirect(returnUrl);
+            return string.IsNullOrWhiteSpace(returnUrl)
+                ? RedirectToPage(PageFor.Home)
+                : LocalRedirect(returnUrl);
 
         if (result.IsLockedOut)
             return RedirectToPage("./Lockout");
 
         ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+
         return Page();
     }
 }

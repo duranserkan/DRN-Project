@@ -13,19 +13,19 @@
             <div class="card-body">
                 <form method="post">
                     <div asp-validation-summary="All" class="text-danger"></div>
-                    <div class="form-group mb-3">
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.Email" class="form-control" type="email" placeholder="name@example.com"/>
                         <label asp-for="Input.Email"></label>
-                        <input asp-for="Input.Email" class="form-control"/>
                         <span asp-validation-for="Input.Email" class="text-danger"></span>
                     </div>
-                    <div class="form-group mb-3">
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.Password" type="password" class="form-control" placeholder="Password"/>
                         <label asp-for="Input.Password"></label>
-                        <input asp-for="Input.Password" type="password" class="form-control"/>
                         <span asp-validation-for="Input.Password" class="text-danger"></span>
                     </div>
-                    <div class="form-group mb-3">
-                        <label asp-for="Input.ConfirmPassword">Confirm Password</label>
-                        <input asp-for="Input.ConfirmPassword" type="password" class="form-control"/>
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.ConfirmPassword" type="password" class="form-control" placeholder="Password"/>
+                        <label asp-for="Input.ConfirmPassword"></label>
                         <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
                     </div>
                     <button type="submit" class="btn btn-primary btn-block mt-3">Create Admin</button>

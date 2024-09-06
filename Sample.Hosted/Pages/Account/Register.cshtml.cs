@@ -16,8 +16,6 @@ public class RegisterModel(UserManager<IdentityUser> userManager, SignInManager<
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
-        returnUrl ??= Url.Content("~/");
-
         if (!ModelState.IsValid) return Page();
 
         var user = new IdentityUser { UserName = Input.Email, Email = Input.Email };
@@ -26,7 +24,9 @@ public class RegisterModel(UserManager<IdentityUser> userManager, SignInManager<
         if (result.Succeeded)
         {
             await signInManager.SignInAsync(user, isPersistent: false);
-            return LocalRedirect(returnUrl);
+            return string.IsNullOrWhiteSpace(returnUrl)
+                ? RedirectToPage(PageFor.Home)
+                : LocalRedirect(returnUrl);
         }
 
         foreach (var error in result.Errors)

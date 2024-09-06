@@ -6,11 +6,11 @@ namespace Sample.Hosted.Pages.Account;
 [Authorize]
 public class ProfileModel(UserManager<IdentityUser> userManager) : PageModel
 {
-    public IdentityUser? User { get; set; }
+    public IdentityUser? IdentityUser { get; set; }
 
     public async Task OnGetAsync()
     {
         // Retrieve the currently authenticated user
-        User = await userManager.GetUserAsync(HttpContext.User);
+        IdentityUser = await userManager.GetUserAsync(HttpContext.User);
     }
 }

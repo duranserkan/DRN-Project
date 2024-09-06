@@ -5,12 +5,12 @@ using Sample.Domain.Identity;
 
 namespace Sample.Infra.Identity.Repositories;
 
-[Scoped<IUserRepository>]
-public class UserRepository(
+[Scoped<IUserAdminRepository>]
+public class UserAdminRepository(
     UserManager<IdentityUser> userManager,
     RoleManager<IdentityRole> roleManager,
     SampleIdentityContext identityContext,
-    IMemoryCache cache) : IUserRepository
+    IMemoryCache cache) : IUserAdminRepository
 {
     private const string SystemAdminUserCacheKey = "SystemAdminUserExists";
     private const string SystemAdminRole = "SystemAdmin";
@@ -64,7 +64,7 @@ public class UserRepository(
                 return roleCreatedResult;
         }
 
-        var existingUser = await userManager.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+        var existingUser = await userManager.Users.SingleOrDefaultAsync(u => u.Email == user.Email);
         if (existingUser == null)
         {
             var userCreateResult = await userManager.CreateAsync(user, inputPassword);

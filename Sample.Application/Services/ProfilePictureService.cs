@@ -9,7 +9,7 @@ namespace Sample.Application.Services;
 public interface IProfilePictureService
 {
     Task CreateProfilePictureAsync(IdentityUser user, Stream pictureStream, long maxSize);
-    Task<string?> GetProfilePictureAsBase64Async(IdentityUser user);
+    Task<string?> GetProfilePictureAsBase64Async(string userId);
 }
 
 [Transient<IProfilePictureService>]
@@ -20,12 +20,12 @@ public class ProfilePictureService(IJpegUtils jpegUtils, IProfilePictureReposito
         var pictureBytes = pictureStream.ToByteArray(maxSize);
         var profilePicture = new ProfilePicture(user, pictureBytes);
 
-        await repository.UpdateProfilePictureAsync(profilePicture);
+        await repository.UpdateProfilePictureAsync(profilePicture, user);
     }
 
-    public async Task<string?> GetProfilePictureAsBase64Async(IdentityUser user)
+    public async Task<string?> GetProfilePictureAsBase64Async(string userId)
     {
-        var profilePicture = await repository.GetProfilePictureAsync(user);
+        var profilePicture = await repository.GetProfilePictureAsync(userId);
         if (profilePicture == null) return null;
 
         var base64String = Convert.ToBase64String(profilePicture.ImageData);

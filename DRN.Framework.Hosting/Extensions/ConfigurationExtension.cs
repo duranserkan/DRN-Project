@@ -53,10 +53,6 @@ public static class ConfigurationExtension
             }
 
         builder.AddSettingsOverrides(args, sc);
-        builder.AddInMemoryCollection(new[]
-        {
-            new KeyValuePair<string, string?>(nameof(IAppSettings.ApplicationName), applicationName)
-        });
 
         return builder;
     }

@@ -1,27 +1,38 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Identity;
+using Sample.Domain.Identity;
 using Sample.Domain.Identity.ProfilePictures;
 
 namespace Sample.Infra.Identity.Repositories;
 
 [Scoped<IProfilePictureRepository>]
-public class ProfilePictureRepository(SampleIdentityContext context) : IProfilePictureRepository
+public class ProfilePictureRepository(SampleIdentityContext context, IUserClaimRepository claimRepository) : IProfilePictureRepository
 {
-    public async Task UpdateProfilePictureAsync(ProfilePicture picture)
+    public async Task UpdateProfilePictureAsync(ProfilePicture picture, IdentityUser user)
     {
-        var existingProfilePicture = context.ProfilePictures.FirstOrDefault(p => p.UserId == picture.UserId);
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        try
+        {
+            var existingProfilePicture = context.ProfilePictures.FirstOrDefault(p => p.UserId == picture.UserId);
 
-        if (existingProfilePicture != null)
-            existingProfilePicture.UpdateImageData(picture.ImageData);
-        else
-            context.ProfilePictures.Add(picture);
+            if (existingProfilePicture != null)
+                existingProfilePicture.UpdateImageData(picture.ImageData);
+            else
+                context.ProfilePictures.Add(picture);
 
-        await context.SaveChangesAsync();
+            await claimRepository.UpdateProfilePictureVersionClaimAsync(user, existingProfilePicture?.Version ?? picture.Version);
+            await transaction.CommitAsync();
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
-    public async Task<ProfilePicture?> GetProfilePictureAsync(IdentityUser user)
+    public async Task<ProfilePicture?> GetProfilePictureAsync(string userId)
     {
-        var existingProfilePicture = await context.ProfilePictures.FirstOrDefaultAsync(p => p.UserId == user.Id);
+        var existingProfilePicture = await context.ProfilePictures.FirstOrDefaultAsync(p => p.UserId == userId);
 
         return existingProfilePicture;
     }

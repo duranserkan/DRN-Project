@@ -27,6 +27,15 @@
     <!-- Main content -->
     <div class="flex-grow-1 d-flex @(centerVertically ? "flex-column" : "") justify-content-center">
         <main role="main" class="p-3 @(centerVertically ? "" : "flex-grow-1")">
+
+            @if (TempData["StatusMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible" role="alert">
+                    @TempData["StatusMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
             @RenderBody()
         </main>
     </div>
