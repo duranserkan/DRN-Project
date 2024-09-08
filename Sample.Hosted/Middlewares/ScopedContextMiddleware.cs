@@ -9,6 +9,7 @@ public class ScopedContextMiddleware(RequestDelegate next)
     {
         var context = ScopeContext.Value;
         context.AddClaimValueToParametersAsInt(UserClaims.PPVersion);
+        context.AddClaimValueToFlags(UserClaims.SlimUI);
 
         await next(httpContext);
     }

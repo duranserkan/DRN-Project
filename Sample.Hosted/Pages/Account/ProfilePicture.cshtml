@@ -3,6 +3,11 @@
 @using Microsoft.AspNetCore.Mvc.TagHelpers
 @using Sample.Hosted.TagHelpers
 @model Sample.Hosted.Pages.Account.ProfilePictureModel
+@{
+ViewData["Title"] = "Profile Picture";
+}
+
+
 
 <h2>Change Profile Picture</h2>
 
@@ -13,7 +18,7 @@
             <div class="mb-3">
                 <label>Current Profile Picture:</label>
                 <div>
-                    <profile-picture class="img-thumbnail" style="max-width: 300px; max-height: 300px;"/>
+                    <profile-picture class="img-thumbnail" style="max-width: 400px; max-height: 400px;"/>
                 </div>
             </div>
         }
