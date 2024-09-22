@@ -23,10 +23,14 @@ public class ExternalRequest : IExternalRequest
 
     private static IFlurlRequest For(Url endpoint, string httpVersion)
     {
-        return endpoint.WithSettings(x =>
+        var flurlRequest = endpoint.WithSettings(x =>
         {
             x.HttpVersion = httpVersion;
             x.JsonSerializer = JsonSerializer;
         });
+
+        flurlRequest.BeforeCall(x => x.HttpRequestMessage.VersionPolicy = HttpVersionPolicy.RequestVersionExact);
+
+        return flurlRequest;
     }
 }

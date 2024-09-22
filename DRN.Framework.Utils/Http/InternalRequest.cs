@@ -68,6 +68,8 @@ public class InternalRequest(IAppSettings appSettings) : IInternalRequest
             x.JsonSerializer = JsonSerializer;
         });
 
+        flurlRequest.BeforeCall(x => x.HttpRequestMessage.VersionPolicy = HttpVersionPolicy.RequestVersionExact);
+
         return flurlRequest;
     }
 }
