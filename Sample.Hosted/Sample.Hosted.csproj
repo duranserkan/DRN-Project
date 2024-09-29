@@ -16,6 +16,7 @@
   </ItemGroup>
   
   <ItemGroup>
+    <Folder Include="Middlewares\" />
     <Folder Include="wwwroot\images\" />
     <Folder Include="wwwroot\js\" />
   </ItemGroup>

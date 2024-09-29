@@ -20,16 +20,54 @@ public class ClaimGroup
 
     public bool IsPrimaryClaim { get; }
     public string Type => Claim.Type;
-    public string Value => Claim.Value;
-    public IEnumerable<ClaimValue> Values => Claims.Select(c => new ClaimValue(c.Value, c.Issuer, c.Subject?.Name));
+    public string Issuer => Claim.Issuer;
 
-    public bool ValueExists(string value) => FindClaim(value) != null;
-    public bool ValueExists(string value, string issuer) => FindClaim(value, issuer) != null;
+    /// <summary>
+    /// Checks claim from primary identity if issuer is not provided
+    /// </summary>
+    public bool ClaimExists(string? issuer = null) => issuer == null
+        ? IsPrimaryClaim
+        : Claims.Any(c => c.Issuer == issuer);
 
-    public Claim? FindClaim(string value) => Claims.FirstOrDefault(c => c.Value == value);
-    public Claim? FindClaim(string value, string issuer) => Claims.FirstOrDefault(c => c.Value == value && c.Issuer == issuer);
+    /// <summary>
+    /// Gets claim from primary identity if issuer is not provided
+    /// </summary>
+    public bool ValueExists(string value, string? issuer = null) => FindClaim(value, issuer) != null;
+
+    /// <summary>
+    /// Gets claim from primary identity if issuer is not provided
+    /// </summary>
+    public string? GetValue(string? issuer = null)
+    {
+        if (issuer == null && IsPrimaryClaim)
+            return Claim.Value;
+
+        return Claims.FirstOrDefault(c => c.Issuer == issuer)?.Value;
+    }
+
+    /// <summary>
+    /// Gets claim from primary identity if issuer is not provided
+    /// </summary>
+    public IReadOnlyList<string> GetValues(string? issuer = null)
+    {
+        if (issuer == null && IsPrimaryClaim)
+            issuer = Claim.Issuer;
+
+        return Claims.Where(c => c.Issuer == issuer).Select(c => c.Value).ToArray();
+    }
+
+    public IEnumerable<ClaimValue> GetAllValues() => Claims.Select(c => new ClaimValue(c.Value, c.Issuer, c.Subject?.Name));
+
+    /// <summary>
+    /// Gets claim from primary identity if issuer is not provided
+    /// </summary>
+    public Claim? FindClaim(string value, string? issuer = null)
+    {
+        if (issuer == null && IsPrimaryClaim)
+            return Claim.Value == value ? Claim : null;
+
+        return Claims.FirstOrDefault(c => c.Value == value && c.Issuer == issuer);
+    }
 }
 
-public record ClaimValue(string Value, string Issuer, string? Name)
-{
-}
+public record ClaimValue(string Value, string Issuer, string? Name);

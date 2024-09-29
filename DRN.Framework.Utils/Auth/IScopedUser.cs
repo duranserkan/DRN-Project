@@ -21,12 +21,12 @@ public interface IScopedUser
 
     public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; }
 
-    bool ClaimExists(string type);
+
     ClaimGroup? FindClaimGroup(string type);
+    Claim? FindClaim(string type, string value, string? issuer = null);
 
-    Claim? FindClaim(string type, string value);
-    Claim? FindClaim(string type, string value, string issuer);
-
-    bool ValueExists(string type, string value);
-    bool ValueExists(string type, string value, string issuer);
+    bool ClaimExists(string type, string? issuer = null);
+    bool ValueExists(string type, string value, string? issuer = null);
+    string GetClaimValue(string claim, string? issuer = null, string defaultValue = "");
+    IReadOnlyList<string> GetClaimValues(string claim, string? issuer = null);
 }

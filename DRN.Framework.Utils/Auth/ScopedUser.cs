@@ -24,26 +24,26 @@ public class ScopedUser : IScopedUser
 
     public bool Authenticated { get; private set; }
 
-    public string? Id => IdClaim?.Value;
+    public string? Id => IdClaim?.GetValue();
     [JsonIgnore] public ClaimGroup? IdClaim { get; private set; }
 
-    public string? Name => NameClaim?.Value;
+    public string? Name => NameClaim?.GetValue();
     [JsonIgnore] public ClaimGroup? NameClaim { get; private set; }
 
-    public string? Email => EmailClaim?.Value;
+    public string? Email => EmailClaim?.GetValue();
     [JsonIgnore] public ClaimGroup? EmailClaim { get; private set; }
 
     public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; private set; } = DefaultClaimsByType;
 
-    public bool ClaimExists(string type) => ClaimsByType.ContainsKey(type);
-    public ClaimGroup? FindClaimGroup(string type) => ClaimsByType.TryGetValue(type, out var claimGroup) ? claimGroup : null;
+    public ClaimGroup? FindClaimGroup(string type) => ClaimsByType.GetValueOrDefault(type);
+    public Claim? FindClaim(string type, string value, string? issuer = null) => FindClaimGroup(type)?.FindClaim(value, issuer);
+    public bool ClaimExists(string type, string? issuer = null) => FindClaimGroup(type)?.ClaimExists(issuer) ?? false;
+    public bool ValueExists(string type, string value, string? issuer = null) => FindClaim(type, value, issuer) != null;
 
-    public Claim? FindClaim(string type, string value) => FindClaimGroup(type)?.FindClaim(value);
-
-    public Claim? FindClaim(string type, string value, string issuer) => FindClaimGroup(type)?.FindClaim(value, issuer);
-
-    public bool ValueExists(string type, string value) => FindClaim(type, value) != null;
-    public bool ValueExists(string type, string value, string issuer) => FindClaim(type, value, issuer) != null;
+    public string GetClaimValue(string claim, string? issuer = null, string defaultValue = "")
+        => FindClaimGroup(claim)?.GetValue(issuer) ?? defaultValue;
+    public IReadOnlyList<string> GetClaimValues(string claim, string? issuer = null)
+        => FindClaimGroup(claim)?.GetValues(issuer) ?? Array.Empty<string>();
 
     internal void SetUser(ClaimsPrincipal user)
     {

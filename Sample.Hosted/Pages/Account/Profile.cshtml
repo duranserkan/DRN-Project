@@ -27,7 +27,7 @@
                 <dd class="col-sm-9">@Model.IdentityUser.PhoneNumber</dd>
 
                 <dt class="col-sm-3">Slim UI</dt>
-                <dd class="col-sm-9">@ScopeContext.Value.IsFlagEnabled(UserClaims.SlimUI)</dd>
+                <dd class="col-sm-9">@ScopeContext.Value.IsClaimFlagEnabled(UserClaims.SlimUI)</dd>
                 <!-- Add more user details here if necessary -->
             </dl>
         </div>

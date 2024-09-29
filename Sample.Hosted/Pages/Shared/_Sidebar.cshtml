@@ -29,7 +29,7 @@ https://getbootstrap.com/docs/5.3/examples/
 https://getbootstrap.com/docs/5.3/examples/sidebars/
 *@
 
-@if (ScopeContext.Value.IsFlagEnabled(UserClaims.SlimUI))
+@if (ScopeContext.Value.IsClaimFlagEnabled(UserClaims.SlimUI))
 {
     @await Html.PartialAsync("_SidebarSlim");
 }

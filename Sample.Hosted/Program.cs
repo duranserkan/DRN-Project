@@ -2,7 +2,6 @@
 using DRN.Framework.Testing.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Sample.Application;
-using Sample.Hosted.Middlewares;
 using Sample.Infra;
 
 namespace Sample.Hosted;
@@ -26,12 +25,6 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     {
         base.ConfigureApplicationPreScopeStart(application);
         application.UseStaticFiles();
-    }
-
-    protected override void ConfigureApplicationPostAuth(WebApplication application)
-    {
-        base.ConfigureApplicationPostAuth(application);
-        application.UseMiddleware<ScopedContextMiddleware>();
     }
 
     protected override void MapApplicationEndpoints(WebApplication application)

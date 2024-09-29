@@ -1,4 +1,3 @@
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -16,7 +15,7 @@ public class ProfileEditModel(IUserProfileService service, SignInManager<Identit
     public async Task<IActionResult> OnGetAsync()
     {
         Input = await service.GetUserProfileEditModelAsync(User);
-        Input.SlimUI = ScopeContext.Value.IsFlagEnabled(UserClaims.SlimUI);
+        Input.SlimUI = ScopeContext.Value.IsClaimFlagEnabled(UserClaims.SlimUI);
 
         return Page();
     }

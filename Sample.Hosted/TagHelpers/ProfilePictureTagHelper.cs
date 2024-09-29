@@ -20,7 +20,7 @@ public class ProfilePictureTagHelper : TagHelper
         // Retrieve the necessary parameters from the ScopeContext
         var scopeContext = ScopeContext.Value;
         var ppId = scopeContext.UserId; // Assume UserId is the PPId
-        var ppVersion = scopeContext.GetParameterValue<int>(UserClaims.PPVersion);
+        var ppVersion = scopeContext.GetClaimParameter<int>(UserClaims.PPVersion);
 
         // Construct the src attribute using the ppId and ppVersion
         var srcValue = $"/ProfilePicture/{ppId}?v={ppVersion}";
