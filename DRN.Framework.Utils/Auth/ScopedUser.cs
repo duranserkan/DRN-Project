@@ -37,6 +37,9 @@ public class ScopedUser : IScopedUser
 
     public ClaimGroup? FindClaimGroup(string type) => ClaimsByType.GetValueOrDefault(type);
     public Claim? FindClaim(string type, string value, string? issuer = null) => FindClaimGroup(type)?.FindClaim(value, issuer);
+    public IReadOnlyList<Claim> FindClaims(string type, string? issuer = null) => FindClaimGroup(type)?.FindClaims(issuer) ?? Array.Empty<Claim>();
+
+
     public bool ClaimExists(string type, string? issuer = null) => FindClaimGroup(type)?.ClaimExists(issuer) ?? false;
     public bool ValueExists(string type, string value, string? issuer = null) => FindClaim(type, value, issuer) != null;
 

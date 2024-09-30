@@ -26,5 +26,6 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     {
         base.MapApplicationEndpoints(application);
         application.MapGroup("/account").MapIdentityApi<IdentityUser>();
+        //Todo: set issuer
     }
 }

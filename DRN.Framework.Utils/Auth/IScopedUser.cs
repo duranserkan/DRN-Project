@@ -24,6 +24,8 @@ public interface IScopedUser
 
     ClaimGroup? FindClaimGroup(string type);
     Claim? FindClaim(string type, string value, string? issuer = null);
+    IReadOnlyList<Claim> FindClaims(string type, string? issuer = null);
+
 
     bool ClaimExists(string type, string? issuer = null);
     bool ValueExists(string type, string value, string? issuer = null);

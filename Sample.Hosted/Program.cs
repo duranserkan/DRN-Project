@@ -32,5 +32,6 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         base.MapApplicationEndpoints(application);
         application.MapRazorPages();
         application.MapGroup("/identity").MapIdentityApi<IdentityUser>();
+        //Todo: set issuer
     }
 }

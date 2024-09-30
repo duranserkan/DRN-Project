@@ -68,6 +68,17 @@ public class ClaimGroup
 
         return Claims.FirstOrDefault(c => c.Value == value && c.Issuer == issuer);
     }
+
+    /// <summary>
+    /// Gets claim from primary identity if issuer is not provided
+    /// </summary>
+    public IReadOnlyList<Claim> FindClaims(string? issuer = null)
+    {
+        if (issuer == null && IsPrimaryClaim)
+            issuer = Claim.Issuer;
+
+        return Claims.Where(c => c.Issuer == issuer).ToArray();
+    }
 }
 
 public record ClaimValue(string Value, string Issuer, string? Name);
