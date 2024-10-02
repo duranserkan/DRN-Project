@@ -13,14 +13,17 @@ public class ScopeContext
     public static ScopeContext Value => Local.Value ??= new ScopeContext();
 
     public string TraceId { get; private set; } = null!;
-    public string? UserId => ScopedUser.Id;
-
-    public ScopeData Data { get; } = new();
+    public ScopeData ScopeData { get; } = new();
     public IScopedLog ScopedLog { get; private set; } = null!;
     public IScopedUser ScopedUser { get; private set; } = null!;
 
+    public static ScopeData Data => Value.ScopeData;
+    public static IScopedLog Log => Value.ScopedLog;
+    public static IScopedUser User => Value.ScopedUser;
+    public static string? UserId => User.Id;
 
-    public bool IsClaimFlagEnabled(string flag, string? issuer = null, bool defaultValue = false)
+
+    public static bool IsClaimFlagEnabled(string flag, string? issuer = null, bool defaultValue = false)
     {
         if (Data.Flags.TryGetValue(flag, out var value))
             return value;
@@ -30,13 +33,13 @@ public class ScopeContext
         return Data.IsFlagEnabled(flag);
     }
 
-    private void AddClaimValueToFlags(string claim, string? issuer = null, bool defaultValue = false)
+    private static void AddClaimValueToFlags(string claim, string? issuer = null, bool defaultValue = false)
     {
-        var value = ScopedUser.GetClaimValue(claim, issuer, defaultValue.ToString());
+        var value = User.GetClaimValue(claim, issuer, defaultValue.ToString());
         Data.SetParameterAsFlag(claim, value);
     }
 
-    public TValue GetClaimParameter<TValue>(string key, string? issuer = null, TValue defaultValue = default!) where TValue : IParsable<TValue>
+    public static TValue GetClaimParameter<TValue>(string key, string? issuer = null, TValue defaultValue = default!) where TValue : IParsable<TValue>
     {
         if (Data.Parameters.TryGetValue(key, out var value))
             return value is TValue tValue ? tValue : defaultValue;
@@ -46,9 +49,9 @@ public class ScopeContext
         return Data.GetParameter(key, defaultValue);
     }
 
-    private void AddClaimValueToParameters<TValue>(string claim, string? issuer = null, TValue defaultValue = default!) where TValue : IParsable<TValue>
+    private static void AddClaimValueToParameters<TValue>(string claim, string? issuer = null, TValue defaultValue = default!) where TValue : IParsable<TValue>
     {
-        var value = ScopedUser.GetClaimValue(claim, issuer, defaultValue.ToString() ?? string.Empty);
+        var value = User.GetClaimValue(claim, issuer, defaultValue.ToString() ?? string.Empty);
         Data.SetParameter<TValue>(claim, value);
     }
 

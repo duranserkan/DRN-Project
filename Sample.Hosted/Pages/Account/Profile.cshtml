@@ -1,5 +1,4 @@
 @page
-@using DRN.Framework.Utils.Scope
 @using Microsoft.AspNetCore.Mvc.TagHelpers
 @using Sample.Domain.Identity
 @model Sample.Hosted.Pages.Account.ProfileModel
@@ -27,7 +26,7 @@
                 <dd class="col-sm-9">@Model.IdentityUser.PhoneNumber</dd>
 
                 <dt class="col-sm-3">Slim UI</dt>
-                <dd class="col-sm-9">@ScopeContext.Value.IsClaimFlagEnabled(UserClaims.SlimUI)</dd>
+                <dd class="col-sm-9">@ScopeContext.IsClaimFlagEnabled(UserClaims.SlimUI)</dd>
                 <!-- Add more user details here if necessary -->
             </dl>
         </div>

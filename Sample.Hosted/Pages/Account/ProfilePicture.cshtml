@@ -7,13 +7,11 @@
 ViewData["Title"] = "Profile Picture";
 }
 
-
-
 <h2>Change Profile Picture</h2>
 
 <div class="card">
     <div class="card-body">
-        @if (!string.IsNullOrEmpty(ScopeContext.Value.UserId))
+        @if (!string.IsNullOrEmpty(ScopeContext.UserId))
         {
             <div class="mb-3">
                 <label>Current Profile Picture:</label>

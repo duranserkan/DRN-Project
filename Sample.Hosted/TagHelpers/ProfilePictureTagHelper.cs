@@ -17,13 +17,8 @@ public class ProfilePictureTagHelper : TagHelper
         output.TagName = "img";
         output.TagMode = TagMode.SelfClosing;
 
-        // Retrieve the necessary parameters from the ScopeContext
-        var scopeContext = ScopeContext.Value;
-        var ppId = scopeContext.UserId; // Assume UserId is the PPId
-        var ppVersion = scopeContext.GetClaimParameter<int>(UserClaims.PPVersion);
-
-        // Construct the src attribute using the ppId and ppVersion
-        var srcValue = $"/ProfilePicture/{ppId}?v={ppVersion}";
+        var ppVersion = ScopeContext.GetClaimParameter<int>(UserClaims.PPVersion);
+        var srcValue = $"/ProfilePicture/{ScopeContext.UserId}?v={ppVersion}";
 
         // Set the attributes on the <img> tag
         output.Attributes.SetAttribute("src", srcValue);

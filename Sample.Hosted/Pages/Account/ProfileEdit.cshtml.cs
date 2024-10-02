@@ -15,7 +15,7 @@ public class ProfileEditModel(IUserProfileService service, SignInManager<Identit
     public async Task<IActionResult> OnGetAsync()
     {
         Input = await service.GetUserProfileEditModelAsync(User);
-        Input.SlimUI = ScopeContext.Value.IsClaimFlagEnabled(UserClaims.SlimUI);
+        Input.SlimUI = ScopeContext.IsClaimFlagEnabled(UserClaims.SlimUI);
 
         return Page();
     }
