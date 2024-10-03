@@ -1,4 +1,3 @@
-@using Sample.Domain.Identity
 <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
     <symbol id="bootstrap" viewBox="0 0 118 94">
         <title>Bootstrap</title>
@@ -28,7 +27,7 @@ https://getbootstrap.com/docs/5.3/examples/
 https://getbootstrap.com/docs/5.3/examples/sidebars/
 *@
 
-@if (ScopeContext.IsClaimFlagEnabled(UserClaims.SlimUI))
+@if (ClaimContext.SlimUi)
 {
     @await Html.PartialAsync("_SidebarSlim");
 }
