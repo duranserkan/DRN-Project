@@ -10,9 +10,9 @@ public interface IUserProfileRepository
 
 public class UserProfileModel
 {
-    public string PhoneNumber { get; set; }
+    public string PhoneNumber { get; init; } = string.Empty;
 
-    public bool SlimUI { get; set; }
+    public bool SlimUI { get; init; }
 }
 
 public class UserProfileEditResult(IdentityResult identityResult, IdentityUser identityUser)

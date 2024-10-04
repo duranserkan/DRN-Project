@@ -45,7 +45,7 @@ public class UserAdminRepository(
 
             return adminCreatedResult;
         }
-        catch (Exception e)
+        catch (Exception)
         {
             await transaction.RollbackAsync();
             throw;

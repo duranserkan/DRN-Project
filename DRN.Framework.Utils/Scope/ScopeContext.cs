@@ -21,6 +21,7 @@ public class ScopeContext
     public static IScopedLog Log => Value.ScopedLog;
     public static IScopedUser User => Value.ScopedUser;
     public static string? UserId => User.Id;
+    public static bool Authenticated => User.Authenticated;
 
 
     public static bool IsClaimFlagEnabled(string flag, string? issuer = null, bool defaultValue = false)

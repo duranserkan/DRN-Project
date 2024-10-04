@@ -9,7 +9,7 @@ namespace Sample.Hosted.Pages.Account;
 public class ProfileEditModel(IUserProfileService service, SignInManager<IdentityUser> signInManager)
     : PageModel
 {
-    [BindProperty] public UserProfileEditModel Input { get; set; }
+    [BindProperty] public UserProfileEditModel Input { get; set; } = null!;
 
     public async Task<IActionResult> OnGetAsync()
     {

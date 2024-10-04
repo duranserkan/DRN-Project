@@ -15,8 +15,8 @@ public class ProfilePicture
         Version = 1;
     }
 
-    public long Id { get; private set; }
-    public string UserId { get; private set; }
+    public long Id { get; init; }
+    public string UserId { get; init; } = string.Empty;
     public byte[] ImageData { get; private set; } = null!;
     public byte Version { get; private set; }
 

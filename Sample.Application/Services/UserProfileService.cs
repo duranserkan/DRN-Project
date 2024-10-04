@@ -48,7 +48,7 @@ public class UserProfileEditModel
     [Phone]
     [Display(Name = "Phone Number")]
     [Required]
-    public string PhoneNumber { get; set; }
+    public string PhoneNumber { get; init; } = string.Empty;
 
     [Display(Name = "Slim UI")] public bool SlimUI { get; set; }
 

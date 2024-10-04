@@ -1,26 +1,20 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.ComponentModel.DataAnnotations;
+using DRN.Framework.Utils.Scope;
 
 namespace Sample.Hosted.Pages.Account;
 
 [AllowAnonymous]
-public class LoginModel : PageModel
+public class LoginModel(SignInManager<IdentityUser> signInManager) : PageModel
 {
-    private readonly SignInManager<IdentityUser> _signInManager;
+    [BindProperty] public LoginInput Input { get; set; } = null!;
 
-    public LoginModel(SignInManager<IdentityUser> signInManager)
-    {
-        _signInManager = signInManager;
-    }
-
-    [BindProperty] public LoginInput Input { get; set; }
-
-    public string ReturnUrl { get; set; }
+    public string? ReturnUrl { get; set; }
 
     public void OnGet(string? returnUrl = null)
     {
-        if (User.Identity.IsAuthenticated)
+        if (ScopeContext.Authenticated)
         {
             RedirectToPage(PageFor.Home);
             return;
@@ -33,7 +27,7 @@ public class LoginModel : PageModel
     {
         if (!ModelState.IsValid) return Page();
 
-        var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+        var result = await signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
 
         if (result.Succeeded)
             return string.IsNullOrWhiteSpace(returnUrl)
@@ -51,11 +45,9 @@ public class LoginModel : PageModel
 
 public class LoginInput
 {
-    [Required] [EmailAddress] public string Email { get; set; }
+    [Required] [EmailAddress] public string Email { get; init; } = null!;
 
-    [Required]
-    [DataType(DataType.Password)]
-    public string Password { get; set; }
+    [Required] [DataType(DataType.Password)] public string Password { get; init; } = null!;
 
-    [Display(Name = "Remember me?")] public bool RememberMe { get; set; }
+    [Display(Name = "Remember me?")] public bool RememberMe { get; init; }
 }

@@ -13,7 +13,7 @@ public class ProfilePictureRepository(SampleIdentityContext context, IUserClaimR
         await using var transaction = await context.Database.BeginTransactionAsync();
         try
         {
-            var existingProfilePicture = context.ProfilePictures.FirstOrDefault(p => p.UserId == picture.UserId);
+            var existingProfilePicture = await context.ProfilePictures.FirstOrDefaultAsync(p => p.UserId == picture.UserId);
 
             if (existingProfilePicture != null)
                 existingProfilePicture.UpdateImageData(picture.ImageData);

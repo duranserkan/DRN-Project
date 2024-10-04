@@ -9,9 +9,9 @@ public class ActivePageTagHelper() : TagHelper
 {
     [ViewContext]
     [HtmlAttributeNotBound]
-    public ViewContext ViewContext { get; set; }
+    public ViewContext ViewContext { get; set; } = null!;
 
-    public string ActivePage { get; set; }
+    public string ActivePage { get; set; } = string.Empty;
 
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
@@ -19,7 +19,7 @@ public class ActivePageTagHelper() : TagHelper
 
         if (!string.Equals(ActivePage, currentRoutePage, StringComparison.OrdinalIgnoreCase)) return;
 
-        var existingClass = output.Attributes["class"]?.Value?.ToString()??string.Empty;
+        var existingClass = output.Attributes["class"]?.Value?.ToString() ?? string.Empty;
         output.Attributes.SetAttribute("class", $"{existingClass} active".Trim());
     }
 }

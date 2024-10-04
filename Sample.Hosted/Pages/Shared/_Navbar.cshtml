@@ -18,11 +18,11 @@
                 <!-- Add more links here if needed -->
             </ul>
             <ul class="navbar-nav ms-auto">
-                @if (User.Identity.IsAuthenticated)
+                @if (ScopeContext.Authenticated)
                 {
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            @User.Identity.Name
+                            @ScopeContext.User.Name
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end bg-primary dropdown-menu-dark border-0" aria-labelledby="navbarDropdown">
                             <li>
