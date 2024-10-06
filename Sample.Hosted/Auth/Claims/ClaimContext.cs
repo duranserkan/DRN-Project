@@ -7,5 +7,5 @@ public static class ClaimContext
 {
     public static int PPVersion => ScopeContext.GetClaimParameter<int>(UserClaims.PPVersion);
     public static bool SlimUi => ScopeContext.IsClaimFlagEnabled(UserClaims.SlimUI);
-    public static bool MFAInProgress => ScopeContext.Data.IsFlagEnabled(UserClaims.MFAInProgress);
+    public static bool MFAInProgress => ScopeContext.IsClaimFlagEnabled(UserClaims.MFAInProgress);
 }

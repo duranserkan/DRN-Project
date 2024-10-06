@@ -26,7 +26,7 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         base.ConfigureApplicationPreScopeStart(application);
         application.UseStaticFiles();
     }
-
+//todo: swagger access issue
     protected override void MapApplicationEndpoints(WebApplication application)
     {
         base.MapApplicationEndpoints(application);

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.ComponentModel.DataAnnotations;
 using DRN.Framework.Utils.Scope;
 using Sample.Domain.Identity;
+using Sample.Hosted.Auth.Claims;
 
 namespace Sample.Hosted.Pages.Account;
 
@@ -37,12 +38,13 @@ public class LoginModel(SignInManager<IdentityUser> signInManager, UserManager<I
             return ReturnInvalidAttempt();
 
         var result = await signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+
         if (result.IsLockedOut)
             return RedirectToPage("./Lockout");
 
         if (result.RequiresTwoFactor)
         {
-            ScopeContext.Data.SetParameterAsFlag(UserClaims.MFAInProgress, true);
+            await signInManager.SignInAsync(user, false, authenticationMethod: UserClaims.MFAInProgress);
             return RedirectToPage(PageFor.AccountLoginWith2Fa, new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
         }
 
