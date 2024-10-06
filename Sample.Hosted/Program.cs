@@ -13,9 +13,9 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     protected override async Task AddServicesAsync(WebApplicationBuilder builder)
     {
         builder.Services
-            .AddSampleServices(AppSettings)
             .AddSampleInfraServices()
-            .AddSampleApplicationServices();
+            .AddSampleApplicationServices()
+            .AddSampleServices(AppSettings);
 
 
         await builder.LaunchExternalDependenciesAsync(ScopedLog, AppSettings);
@@ -32,6 +32,5 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         base.MapApplicationEndpoints(application);
         application.MapRazorPages();
         application.MapGroup("/identity").MapIdentityApi<IdentityUser>();
-        //Todo: set issuer
     }
 }

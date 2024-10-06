@@ -16,6 +16,12 @@ public class ScopeData
     public void SetParameterAsFlag(string flag, string stringValue, bool defaultValue = false)
         => _flags[flag] = bool.TryParse(stringValue, out var value) ? value : defaultValue;
 
+    public void SetParameterAsFlag(string flag, bool value)
+        => _flags[flag] = value;
+
     public void SetParameter<TValue>(string key, string stringValue, TValue defaultValue = default!) where TValue : IParsable<TValue>
         => _parameters[key] = stringValue.TryParse<TValue>(out var result) ? result! : defaultValue;
+
+    public void SetParameter<TValue>(string key, TValue value) where TValue : IParsable<TValue>
+        => _parameters[key] = value;
 }

@@ -33,6 +33,10 @@ public class ScopedUser : IScopedUser
     public string? Email => EmailClaim?.GetValue();
     [JsonIgnore] public ClaimGroup? EmailClaim { get; private set; }
 
+    public string? Amr => AmrClaim?.GetValue();
+    public ClaimGroup? AmrClaim { get; private set; }
+
+
     public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; private set; } = DefaultClaimsByType;
 
     public ClaimGroup? FindClaimGroup(string type) => ClaimsByType.GetValueOrDefault(type);
@@ -45,6 +49,7 @@ public class ScopedUser : IScopedUser
 
     public string GetClaimValue(string claim, string? issuer = null, string defaultValue = "")
         => FindClaimGroup(claim)?.GetValue(issuer) ?? defaultValue;
+
     public IReadOnlyList<string> GetClaimValues(string claim, string? issuer = null)
         => FindClaimGroup(claim)?.GetValues(issuer) ?? Array.Empty<string>();
 
@@ -67,5 +72,6 @@ public class ScopedUser : IScopedUser
         IdClaim = FindClaimGroup(ClaimConventions.NameIdentifier);
         NameClaim = FindClaimGroup(ClaimConventions.Name);
         EmailClaim = FindClaimGroup(ClaimConventions.Email);
+        AmrClaim = FindClaimGroup(ClaimConventions.AuthenticationMethodReference);
     }
 }

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Application.Services;
-using Sample.Hosted.Claims;
+using Sample.Hosted.Auth.Claims;
 
 namespace Sample.Hosted.Pages.Account;
 

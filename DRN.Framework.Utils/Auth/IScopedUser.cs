@@ -19,6 +19,9 @@ public interface IScopedUser
     public string? Email { get; }
     [JsonIgnore] public ClaimGroup? EmailClaim { get; }
 
+    public string? Amr{ get; }
+    [JsonIgnore] public ClaimGroup? AmrClaim { get; }
+
     public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; }
 
 

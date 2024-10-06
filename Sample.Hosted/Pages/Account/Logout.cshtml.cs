@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Sample.Hosted.Pages.Account;
 
+[AllowAnonymous]
 public class LogoutModel(SignInManager<IdentityUser> signInManager) : PageModel
 {
     public IActionResult OnGet()

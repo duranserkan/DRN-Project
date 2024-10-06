@@ -24,9 +24,8 @@ public class RegisterModel(UserManager<IdentityUser> userManager, SignInManager<
         if (result.Succeeded)
         {
             await signInManager.SignInAsync(user, isPersistent: false);
-            return string.IsNullOrWhiteSpace(returnUrl)
-                ? RedirectToPage(PageFor.Home)
-                : LocalRedirect(returnUrl);
+
+            return RedirectToPage(PageFor.AccountEnableAuthenticator);
         }
 
         foreach (var error in result.Errors)

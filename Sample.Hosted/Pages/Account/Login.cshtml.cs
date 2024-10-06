@@ -2,11 +2,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.ComponentModel.DataAnnotations;
 using DRN.Framework.Utils.Scope;
+using Sample.Domain.Identity;
 
 namespace Sample.Hosted.Pages.Account;
 
 [AllowAnonymous]
-public class LoginModel(SignInManager<IdentityUser> signInManager) : PageModel
+public class LoginModel(SignInManager<IdentityUser> signInManager, UserManager<IdentityUser> userManager) : PageModel
 {
     [BindProperty] public LoginInput Input { get; set; } = null!;
 
@@ -27,18 +28,33 @@ public class LoginModel(SignInManager<IdentityUser> signInManager) : PageModel
     {
         if (!ModelState.IsValid) return Page();
 
+        var user = await userManager.FindByEmailAsync(Input.Email);
+        if (user == null)
+            return ReturnInvalidAttempt();
+
+        var passwordValid = await userManager.CheckPasswordAsync(user, Input.Password);
+        if (!passwordValid)
+            return ReturnInvalidAttempt();
+
         var result = await signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
-
-        if (result.Succeeded)
-            return string.IsNullOrWhiteSpace(returnUrl)
-                ? RedirectToPage(PageFor.Home)
-                : LocalRedirect(returnUrl);
-
         if (result.IsLockedOut)
             return RedirectToPage("./Lockout");
 
-        ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+        if (result.RequiresTwoFactor)
+        {
+            ScopeContext.Data.SetParameterAsFlag(UserClaims.MFAInProgress, true);
+            return RedirectToPage(PageFor.AccountLoginWith2Fa, new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
+        }
 
+        if (result.Succeeded) //force MFA to stay always secure
+            return RedirectToPage(PageFor.AccountEnableAuthenticator);
+
+        return ReturnInvalidAttempt();
+    }
+
+    private IActionResult ReturnInvalidAttempt()
+    {
+        ModelState.AddModelError(string.Empty, "Invalid login attempt.");
         return Page();
     }
 }

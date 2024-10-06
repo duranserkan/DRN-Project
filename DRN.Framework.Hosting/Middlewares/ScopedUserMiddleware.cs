@@ -12,7 +12,8 @@ public class ScopedUserMiddleware(RequestDelegate next)
         ((ScopedUser)scopedUser).SetUser(user);
 
         log.Add("UserAuthenticated", scopedUser.Authenticated);
-        log.Add("UserId", scopedUser.Id ?? "");
+        log.Add("UserId", scopedUser.Id ?? string.Empty);
+        log.Add("amr", scopedUser.Amr ?? string.Empty);
 
         await next(httpContext);
     }

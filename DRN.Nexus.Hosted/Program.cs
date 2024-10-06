@@ -14,9 +14,9 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     protected override async Task AddServicesAsync(WebApplicationBuilder builder)
     {
         builder.Services
-            .AddNexusServices(AppSettings)
             .AddNexusInfraServices()
-            .AddNexusApplicationServices();
+            .AddNexusApplicationServices()
+            .AddNexusServices(AppSettings);
         //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity
 
         await builder.LaunchExternalDependenciesAsync(ScopedLog, AppSettings);
@@ -26,6 +26,5 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     {
         base.MapApplicationEndpoints(application);
         application.MapGroup("/account").MapIdentityApi<IdentityUser>();
-        //Todo: set issuer
     }
 }

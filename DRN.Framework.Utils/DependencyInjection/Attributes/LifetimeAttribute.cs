@@ -13,6 +13,7 @@ public abstract class LifetimeAttribute(ServiceLifetime serviceLifetime, Type se
     public bool TryAdd { get; } = tryAdd;
     public object? Key { get; } = key;
     public bool HasKey => Key != null;
+    //todo: add replace
 
     public static bool HasLifetime(Type type) =>
         type is { IsAbstract: false, IsClass: true, IsVisible: true } &&

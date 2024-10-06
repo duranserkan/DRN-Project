@@ -1,0 +1,37 @@
+@page
+@model Sample.Hosted.Pages.Account.Manage.EnableAuthenticator
+
+@{
+    ViewData["Title"] = "Enable Authenticator";
+    ViewData["CenterVertically"] = true;
+}
+
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h2 class="text-center">@ViewData["Title"]</h2>
+        <div class="card">
+            <div class="card-body">
+                <p>Scan the QR code with your authenticator app:</p>
+                <img src="data:image/png;base64,@Html.Raw(Model.GenerateQrCodeImageAsBase64())" style="max-width: 200px; max-height: 200px;"/>
+
+                <p>Or enter this code manually:</p>
+                <code>@Model.SharedKey</code>
+
+                <form method="post" asp-page-handler="Verify">
+                    <div class="form-floating mb-3">
+                        <input asp-for="QrCodeVerify.Code" class="form-control"/>
+                        <label asp-for="QrCodeVerify.Code"></label>
+                        <span asp-validation-for="QrCodeVerify.Code" class="text-danger"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Verify</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial"/>
+}
