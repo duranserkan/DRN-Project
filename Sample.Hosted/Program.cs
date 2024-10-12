@@ -2,6 +2,7 @@
 using DRN.Framework.Testing.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Sample.Application;
+using Sample.Hosted.Auth.EndpointRouteBuilderExtensions.Endpoints;
 using Sample.Infra;
 
 namespace Sample.Hosted;
@@ -26,11 +27,12 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         base.ConfigureApplicationPreScopeStart(application);
         application.UseStaticFiles();
     }
+
 //todo: swagger access issue
     protected override void MapApplicationEndpoints(WebApplication application)
     {
         base.MapApplicationEndpoints(application);
         application.MapRazorPages();
-        application.MapGroup("/identity").MapIdentityApi<IdentityUser>();
+        application.MapDrnIdentityApi<IdentityUser>("identity");
     }
 }

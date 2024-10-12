@@ -4,7 +4,6 @@ using DRN.Framework.Utils.Scope;
 
 namespace Sample.Hosted.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("[controller]")]
 public class PrivateController(IScopedUser scopedUser, IScopedLog scopedLog) : ControllerBase

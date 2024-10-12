@@ -19,7 +19,7 @@ public class RequireMFAHandler : AuthorizationHandler<MFARequirement>
         }
 
         // For other authentication schemes, enforce MFA
-        if (context.User.HasClaim(c => c.Type == "amr" && c.Value == "mfa"))
+        if (context.User.HasClaim(c => c is { Type: "amr", Value: "mfa" }))
             context.Succeed(requirement);
         else
             context.Fail();
