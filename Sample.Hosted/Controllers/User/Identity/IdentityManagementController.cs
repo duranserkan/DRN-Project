@@ -3,11 +3,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Sample.Hosted.Auth.EndpointRouteBuilderExtensions;
 
-namespace Sample.Hosted.Controllers.User;
+namespace Sample.Hosted.Controllers.User.Identity;
 
 [ApiController]
 [Authorize]
-[Route("Auth/[controller]")]
+[Route("User/[controller]")]
 public class IdentityManagementController(
     SignInManager<IdentityUser> signInManager,
     IdentityConfirmationService confirmationService) : ControllerBase

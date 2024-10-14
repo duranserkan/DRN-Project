@@ -2,10 +2,8 @@ using DRN.Framework.Utils.Http;
 
 namespace Sample.Hosted.Pages;
 
-public abstract class PageFor : IPageCollectionBase<PageFor>
+public abstract class PageFor : PageCollectionBase<PageFor>
 {
-    public static string[] GetAllPages() => IPageCollectionBase<PageFor>.GetAllPages();
-
     public static RootPageFor Root { get; } = new();
     public static UserPageFor User { get; } = new();
     public static UserManagementPageFor UserManagement { get; } = new();

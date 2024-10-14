@@ -1,10 +1,10 @@
 using Sample.Domain.Identity.ProfilePictures;
 using Sample.Hosted.Auth;
 
-namespace Sample.Hosted.Controllers.Account;
+namespace Sample.Hosted.Controllers.User;
 
 [ApiController]
-[Route("[controller]")]
+[Route("User/[controller]")]
 [Authorize(AuthPolicy.MFAExempt)]
 public class ProfilePictureController(IProfilePictureRepository ppRepository, IWebHostEnvironment hostingEnvironment) : ControllerBase
 {

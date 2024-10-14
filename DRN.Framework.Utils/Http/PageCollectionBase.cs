@@ -2,7 +2,7 @@ using System.Reflection;
 
 namespace DRN.Framework.Utils.Http;
 
-public interface IPageCollectionBase<TPageCollection> where TPageCollection : IPageCollectionBase<TPageCollection>
+public class PageCollectionBase<TPageCollection> where TPageCollection : PageCollectionBase<TPageCollection>
 {
     public static string[] GetAllPages()
     {

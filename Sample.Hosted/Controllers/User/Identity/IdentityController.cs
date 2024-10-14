@@ -5,11 +5,11 @@ using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.Extensions.Options;
 using Sample.Hosted.Auth.EndpointRouteBuilderExtensions;
 
-namespace Sample.Hosted.Controllers.User;
+namespace Sample.Hosted.Controllers.User.Identity;
 
 [ApiController]
 [AllowAnonymous]
-[Route("[controller]")]
+[Route("User/[controller]")]
 public class IdentityController(
     SignInManager<IdentityUser> signInManager,
     IUserStore<IdentityUser> userStore,
