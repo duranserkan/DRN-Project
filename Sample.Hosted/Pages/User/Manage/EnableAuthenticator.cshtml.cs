@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using QRCoder;
 using Sample.Hosted.Auth;
 
-namespace Sample.Hosted.Pages.Account.Manage;
+namespace Sample.Hosted.Pages.User.Manage;
 
 [Authorize(AuthPolicy.MFAExempt)]
 public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageModel
@@ -48,7 +48,7 @@ public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageMo
 
         // Generate recovery codes
         var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
-        TempData["RecoveryCodes"] = recoveryCodes.ToArray();
+        TempData["RecoveryCodes"] = recoveryCodes?.ToArray() ?? [];
 
         return RedirectToPage("./ShowRecoveryCodes");
     }

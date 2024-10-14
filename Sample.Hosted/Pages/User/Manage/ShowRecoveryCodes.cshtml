@@ -15,14 +15,14 @@
                 <p>Save these recovery codes in a safe place:</p>
 
                 <ul>
-                    @foreach (var recoveryCode in Model.RecoveryCodes)
+                    @foreach (var recoveryCode in Model?.RecoveryCodes??[])
                     {
                         <li>@recoveryCode</li>
                     }
                 </ul>
 
                 <div class="col-auto mt-3">
-                    <a href="@PageFor.AccountProfile" class="btn btn-secondary">Back to Profile</a>
+                    <a href="@PageFor.User.Profile" class="btn btn-secondary">Back to Profile</a>
                 </div>
             </div>
         </div>

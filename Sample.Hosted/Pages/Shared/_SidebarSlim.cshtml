@@ -1,11 +1,11 @@
 <div class="d-flex flex-column flex-shrink-0 bg-body-tertiary" style="width: 4.5rem;">
-  <a href="@PageFor.Home" class="d-block p-3 link-body-emphasis text-decoration-none" title="Icon-only" data-bs-toggle="tooltip" data-bs-placement="right">
+  <a href="@PageFor.Root.Home" class="d-block p-3 link-body-emphasis text-decoration-none" title="Icon-only" data-bs-toggle="tooltip" data-bs-placement="right">
     <svg class="bi pe-none" width="40" height="32"><use xlink:href="#bootstrap"/></svg>
     <span class="visually-hidden">Icon-only</span>
   </a>
   <ul class="nav nav-pills nav-flush flex-column mb-auto text-center">
     <li class="nav-item">
-      <a href="@PageFor.Home" class="nav-link active py-3 border-bottom rounded-0" aria-current="page" title="Home" data-bs-toggle="tooltip" data-bs-placement="right">
+      <a href="@PageFor.Root.Home" class="nav-link active py-3 border-bottom rounded-0" aria-current="page" title="Home" data-bs-toggle="tooltip" data-bs-placement="right">
         <svg class="bi pe-none" width="24" height="24" role="img" aria-label="Home"><use xlink:href="#home"/></svg>
       </a>
     </li>
@@ -37,9 +37,9 @@
     <ul class="dropdown-menu text-small shadow">
       <li><a class="dropdown-item" href="#">New project...</a></li>
       <li><a class="dropdown-item" href="#">Settings</a></li>
-      <li><a class="dropdown-item" href="@PageFor.AccountProfile">Profile</a></li>
+      <li><a class="dropdown-item" href="@PageFor.User.Profile">Profile</a></li>
       <li><hr class="dropdown-divider"></li>
-      <li><a class="dropdown-item" href="@PageFor.AccountLogout">Log out</a></li>
+      <li><a class="dropdown-item" href="@PageFor.User.Logout">Log out</a></li>
     </ul>
   </div>
 </div>

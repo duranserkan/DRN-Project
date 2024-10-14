@@ -1,7 +1,7 @@
 @page
 @using Microsoft.AspNetCore.Mvc.TagHelpers
 @using Sample.Hosted.Auth.Claims
-@model Sample.Hosted.Pages.Account.ProfileModel
+@model Sample.Hosted.Pages.User.ProfileModel
 @{
     ViewData["Title"] = "User Details";
 }
@@ -32,8 +32,8 @@
         </div>
     </div>
 
-    <a asp-page="@PageFor.AccountProfileEdit" class="btn btn-primary mt-3">Edit Profile</a>
-    <a asp-page="@PageFor.AccountProfilePicture" class="btn btn-secondary mt-3">Change Profile Picture</a>
+    <a asp-page="@PageFor.User.ProfileEdit" class="btn btn-primary mt-3">Edit Profile</a>
+    <a asp-page="@PageFor.User.ProfilePicture" class="btn btn-secondary mt-3">Change Profile Picture</a>
 }
 else
 {

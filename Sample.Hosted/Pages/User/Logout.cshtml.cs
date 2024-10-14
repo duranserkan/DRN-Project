@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Sample.Hosted.Pages.Account;
+namespace Sample.Hosted.Pages.User;
 
 [AllowAnonymous]
 public class LogoutModel(SignInManager<IdentityUser> signInManager) : PageModel
@@ -9,7 +9,7 @@ public class LogoutModel(SignInManager<IdentityUser> signInManager) : PageModel
     public IActionResult OnGet()
     {
         if (!(User.Identity?.IsAuthenticated ?? false))
-            return RedirectToPage(PageFor.Home);
+            return RedirectToPage(PageFor.Root.Home);
         return Page();
     }
 
@@ -17,6 +17,6 @@ public class LogoutModel(SignInManager<IdentityUser> signInManager) : PageModel
     {
         if (User.Identity?.IsAuthenticated ?? false)
             await signInManager.SignOutAsync();
-        return RedirectToPage(PageFor.Home);
+        return RedirectToPage(PageFor.Root.Home);
     }
 }

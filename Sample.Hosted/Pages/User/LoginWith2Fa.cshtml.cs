@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Hosted.Auth;
 
-namespace Sample.Hosted.Pages.Account;
+namespace Sample.Hosted.Pages.User;
 
 [Authorize(AuthPolicy.MFAExempt)]
 public class LoginWith2Fa(SignInManager<IdentityUser> signInManager) : PageModel
@@ -12,7 +12,7 @@ public class LoginWith2Fa(SignInManager<IdentityUser> signInManager) : PageModel
 
     public bool RememberMe { get; set; }
 
-    public void OnGet(bool rememberMe, string returnUrl = null)
+    public void OnGet(bool rememberMe, string? returnUrl = null)
     {
         RememberMe = rememberMe;
         ViewData["ReturnUrl"] = returnUrl;
@@ -26,7 +26,7 @@ public class LoginWith2Fa(SignInManager<IdentityUser> signInManager) : PageModel
         //Todo:remember client
         var result = await signInManager.TwoFactorAuthenticatorSignInAsync(Login2FaModel.TwoFactorCode, rememberMe, rememberClient: false);
         if (result.Succeeded)
-            return LocalRedirect(returnUrl ?? PageFor.Home);
+            return LocalRedirect(returnUrl ?? PageFor.Root.Home);
 
         if (result.IsLockedOut)
             return RedirectToPage("./Lockout");

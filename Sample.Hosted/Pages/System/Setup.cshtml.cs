@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Identity;
 
-namespace Sample.Hosted.Pages.Account;
+namespace Sample.Hosted.Pages.System;
 
 [AllowAnonymous]
 public class SetupModel(
@@ -16,7 +16,7 @@ public class SetupModel(
     {
         var adminUserExists = await userAdminRepository.AnySystemAdminExistsAsync();
         if (adminUserExists)
-            return RedirectToPage(PageFor.Home);
+            return RedirectToPage(PageFor.Root.Home);
 
         return Page();
     }
@@ -27,7 +27,7 @@ public class SetupModel(
 
         var adminUserExists = await userAdminRepository.AnySystemAdminExistsAsync();
         if (adminUserExists)
-            return RedirectToPage(PageFor.Home);
+            return RedirectToPage(PageFor.Root.Home);
 
         var user = new IdentityUser { UserName = Input.Email, Email = Input.Email };
         var result = await userAdminRepository.CreateSystemAdminForInitialSetup(user, Input.Password);
@@ -41,7 +41,7 @@ public class SetupModel(
         // Sign in the user to update the claims
         await signInManager.RefreshSignInAsync(user);
 
-        return RedirectToPage(PageFor.Home);
+        return RedirectToPage(PageFor.Root.Home);
     }
 }
 

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Application.Services;
 using Sample.Hosted.Auth.Claims;
 
-namespace Sample.Hosted.Pages.Account;
+namespace Sample.Hosted.Pages.User;
 
 [Authorize]
 public class ProfileEditModel(IUserProfileService service, SignInManager<IdentityUser> signInManager)
@@ -39,6 +39,6 @@ public class ProfileEditModel(IUserProfileService service, SignInManager<Identit
         await signInManager.RefreshSignInAsync(result.IdentityUser);
 
         TempData["StatusMessage"] = "Your profile has been updated";
-        return RedirectToPage(PageFor.AccountProfile);
+        return RedirectToPage(PageFor.User.Profile);
     }
 }

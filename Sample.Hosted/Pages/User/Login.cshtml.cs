@@ -1,11 +1,10 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.ComponentModel.DataAnnotations;
 using DRN.Framework.Utils.Scope;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Identity;
-using Sample.Hosted.Auth.Claims;
 
-namespace Sample.Hosted.Pages.Account;
+namespace Sample.Hosted.Pages.User;
 
 [AllowAnonymous]
 public class LoginModel(SignInManager<IdentityUser> signInManager, UserManager<IdentityUser> userManager) : PageModel
@@ -18,7 +17,7 @@ public class LoginModel(SignInManager<IdentityUser> signInManager, UserManager<I
     {
         if (ScopeContext.Authenticated)
         {
-            RedirectToPage(PageFor.Home);
+            RedirectToPage(PageFor.Root.Home);
             return;
         }
 
@@ -45,11 +44,11 @@ public class LoginModel(SignInManager<IdentityUser> signInManager, UserManager<I
         if (result.RequiresTwoFactor)
         {
             await signInManager.SignInAsync(user, false, authenticationMethod: UserClaims.MFAInProgress);
-            return RedirectToPage(PageFor.AccountLoginWith2Fa, new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
+            return RedirectToPage(PageFor.User.LoginWith2Fa, new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
         }
 
         if (result.Succeeded) //force MFA to stay always secure
-            return RedirectToPage(PageFor.AccountEnableAuthenticator);
+            return RedirectToPage(PageFor.UserManagement.EnableAuthenticator);
 
         return ReturnInvalidAttempt();
     }
@@ -65,7 +64,9 @@ public class LoginInput
 {
     [Required] [EmailAddress] public string Email { get; init; } = null!;
 
-    [Required] [DataType(DataType.Password)] public string Password { get; init; } = null!;
+    [Required]
+    [DataType(DataType.Password)]
+    public string Password { get; init; } = null!;
 
     [Display(Name = "Remember me?")] public bool RememberMe { get; init; }
 }

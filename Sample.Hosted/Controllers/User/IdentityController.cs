@@ -5,12 +5,12 @@ using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.Extensions.Options;
 using Sample.Hosted.Auth.EndpointRouteBuilderExtensions;
 
-namespace Sample.Hosted.Controllers.Auth;
+namespace Sample.Hosted.Controllers.User;
 
 [ApiController]
 [AllowAnonymous]
 [Route("[controller]")]
-public class AuthController(
+public class IdentityController(
     SignInManager<IdentityUser> signInManager,
     IUserStore<IdentityUser> userStore,
     IdentityConfirmationService confirmationService,
@@ -24,7 +24,7 @@ public class AuthController(
     {
         var userManager = signInManager.UserManager;
         if (!userManager.SupportsUserEmail)
-            throw new NotSupportedException($"{nameof(AuthController)}.{nameof(Register)} requires a user store with email support.");
+            throw new NotSupportedException($"{nameof(IdentityController)}.{nameof(Register)} requires a user store with email support.");
 
         var emailStore = (IUserEmailStore<IdentityUser>)userStore;
         var email = registration.Email;

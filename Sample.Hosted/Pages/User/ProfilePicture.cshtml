@@ -1,8 +1,7 @@
 @page
-@using DRN.Framework.Utils.Scope
 @using Microsoft.AspNetCore.Mvc.TagHelpers
 @using Sample.Hosted.TagHelpers
-@model Sample.Hosted.Pages.Account.ProfilePictureModel
+@model Sample.Hosted.Pages.User.ProfilePictureModel
 @{
 ViewData["Title"] = "Profile Picture";
 }
@@ -36,7 +35,7 @@ ViewData["Title"] = "Profile Picture";
             <!-- Upload and Cancel Buttons -->
             <div class="col-auto mt-3">
                 <button type="submit" class="btn btn-primary">Upload Picture</button>
-                <a asp-page="@PageFor.AccountProfile" class="btn btn-secondary">Cancel</a>
+                <a asp-page="@PageFor.User.Profile" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>

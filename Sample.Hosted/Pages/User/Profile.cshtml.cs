@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Sample.Hosted.Pages.Account;
+namespace Sample.Hosted.Pages.User;
 
 [Authorize]
 public class ProfileModel(UserManager<IdentityUser> userManager) : PageModel

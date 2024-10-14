@@ -1,6 +1,6 @@
 @page
 
-@model Sample.Hosted.Pages.Account.LogoutModel
+@model Sample.Hosted.Pages.User.LogoutModel
 @{
     ViewData["Title"] = "Log out";
     ViewData["CenterVertically"] = true;
@@ -13,5 +13,5 @@
 <form method="post" class="text-center">
     <div asp-validation-summary="All" class="text-danger"></div>
     <button type="submit" class="btn btn-primary">Log out</button>
-    <a asp-page="@PageFor.Home" class="btn btn-secondary">Cancel</a>
+    <a asp-page="@PageFor.Root.Home" class="btn btn-secondary">Cancel</a>
 </form>

@@ -5,12 +5,12 @@ using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.WebUtilities;
 using Sample.Hosted.Auth.EndpointRouteBuilderExtensions;
 
-namespace Sample.Hosted.Controllers.Auth;
+namespace Sample.Hosted.Controllers.User;
 
 [ApiController]
 [AllowAnonymous]
 [Route("Auth/[controller]")]
-public class PasswordController(
+public class IdentityPasswordController(
     UserManager<IdentityUser> userManager,
     IEmailSender<IdentityUser> emailSender) : ControllerBase
 {

@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace Sample.Hosted.Pages.Account;
+namespace Sample.Hosted.Pages.User;
 
 [AllowAnonymous]
 public class RegisterModel(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager)
@@ -25,7 +25,7 @@ public class RegisterModel(UserManager<IdentityUser> userManager, SignInManager<
         {
             await signInManager.SignInAsync(user, isPersistent: false);
 
-            return RedirectToPage(PageFor.AccountEnableAuthenticator);
+            return RedirectToPage(PageFor.UserManagement.EnableAuthenticator);
         }
 
         foreach (var error in result.Errors)
