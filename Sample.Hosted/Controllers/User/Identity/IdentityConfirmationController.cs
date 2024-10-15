@@ -8,7 +8,7 @@ namespace Sample.Hosted.Controllers.User.Identity;
 
 [ApiController]
 [AllowAnonymous]
-[Route("User/[controller]")]
+[Route("Api/User/[controller]")]
 public class IdentityConfirmationController(
     UserManager<IdentityUser> userManager,
     IdentityConfirmationService confirmationService) : ControllerBase

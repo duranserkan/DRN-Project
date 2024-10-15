@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using QRCoder;
 using Sample.Hosted.Auth;
 
-namespace Sample.Hosted.Pages.User.Manage;
+namespace Sample.Hosted.Pages.User.Management;
 
 [Authorize(AuthPolicy.MFAExempt)]
 public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageModel

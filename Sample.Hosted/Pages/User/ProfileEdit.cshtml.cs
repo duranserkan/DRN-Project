@@ -14,7 +14,7 @@ public class ProfileEditModel(IUserProfileService service, SignInManager<Identit
     public async Task<IActionResult> OnGetAsync()
     {
         Input = await service.GetUserProfileEditModelAsync(User);
-        Input.SlimUI = ClaimContext.SlimUi;
+        Input.SlimUI = ClaimFor.Profile.SlimUi;
 
         return Page();
     }

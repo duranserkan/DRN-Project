@@ -9,7 +9,7 @@ namespace Sample.Hosted.Controllers.User.Identity;
 
 [ApiController]
 [AllowAnonymous]
-[Route("User/[controller]")]
+[Route("Api/User/[controller]")]
 public class IdentityController(
     SignInManager<IdentityUser> signInManager,
     IUserStore<IdentityUser> userStore,

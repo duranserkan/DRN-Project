@@ -4,7 +4,7 @@ using Sample.Hosted.Auth;
 namespace Sample.Hosted.Controllers.User;
 
 [ApiController]
-[Route("User/[controller]")]
+[Route("Api/User/[controller]")]
 [Authorize(AuthPolicy.MFAExempt)]
 public class ProfilePictureController(IProfilePictureRepository ppRepository, IWebHostEnvironment hostingEnvironment) : ControllerBase
 {

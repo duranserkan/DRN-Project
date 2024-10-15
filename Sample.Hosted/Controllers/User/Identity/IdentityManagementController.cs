@@ -7,7 +7,7 @@ namespace Sample.Hosted.Controllers.User.Identity;
 
 [ApiController]
 [Authorize]
-[Route("User/[controller]")]
+[Route("Api/User/[controller]")]
 public class IdentityManagementController(
     SignInManager<IdentityUser> signInManager,
     IdentityConfirmationService confirmationService) : ControllerBase

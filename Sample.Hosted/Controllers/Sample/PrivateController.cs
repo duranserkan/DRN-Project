@@ -2,10 +2,10 @@ using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Scope;
 
-namespace Sample.Hosted.Controllers;
+namespace Sample.Hosted.Controllers.Sample;
 
 [ApiController]
-[Route("[controller]")]
+[Route("Api/Sample/[controller]")]
 public class PrivateController(IScopedUser scopedUser, IScopedLog scopedLog) : ControllerBase
 {
     [HttpGet]

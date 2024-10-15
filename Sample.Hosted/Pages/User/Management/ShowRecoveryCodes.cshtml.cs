@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Hosted.Auth;
 
-namespace Sample.Hosted.Pages.Account.Manage;
+namespace Sample.Hosted.Pages.User.Management;
 
 [Authorize(AuthPolicy.MFAExempt)]
 public class ShowRecoveryCodes : PageModel
