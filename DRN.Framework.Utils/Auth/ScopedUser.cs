@@ -72,6 +72,6 @@ public class ScopedUser : IScopedUser
         IdClaim = FindClaimGroup(ClaimConventions.NameIdentifier);
         NameClaim = FindClaimGroup(ClaimConventions.Name);
         EmailClaim = FindClaimGroup(ClaimConventions.Email);
-        AmrClaim = FindClaimGroup(ClaimConventions.AuthenticationMethodReference);
+        AmrClaim = FindClaimGroup(ClaimConventions.AuthenticationMethod);
     }
 }

@@ -1,3 +1,4 @@
+using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Scope;
 using Sample.Domain.Identity;
 
@@ -17,6 +18,6 @@ public class ProfileFor
 
 public class AuthFor
 {
-    public bool MFAInProgress => ScopeContext.IsClaimFlagEnabled(UserClaims.MFAInProgress);
-    public bool MFASetupRequired => ScopeContext.IsClaimFlagEnabled(UserClaims.MFASetupRequired);
+    public bool MFAInProgress => ScopeContext.HasClaimValue(ClaimConventions.AuthenticationMethod, UserClaims.MFAInProgress);
+    public bool MFASetupRequired => ScopeContext.HasClaimValue(ClaimConventions.AuthenticationMethod, UserClaims.MFASetupRequired);
 }

@@ -9,5 +9,5 @@ public static class ClaimConventions
     public static string Email { get; set; } = ClaimTypes.Email;
 
     //https://datatracker.ietf.org/doc/html/rfc8176#section-2
-    public static string AuthenticationMethodReference { get; set; } = "amr";
+    public static string AuthenticationMethod { get; set; } = "amr";
 }

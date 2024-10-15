@@ -40,6 +40,13 @@ public class ScopeContext
         Data.SetParameterAsFlag(claim, value);
     }
 
+    public static bool HasClaimValue<TValue>(string key, TValue expectedValue, string? issuer = null) where TValue : IParsable<TValue>
+    {
+        var value = GetClaimParameter<TValue>(key, issuer);
+
+        return expectedValue.Equals(value);
+    }
+
     public static TValue GetClaimParameter<TValue>(string key, string? issuer = null, TValue defaultValue = default!) where TValue : IParsable<TValue>
     {
         if (Data.Parameters.TryGetValue(key, out var value))
