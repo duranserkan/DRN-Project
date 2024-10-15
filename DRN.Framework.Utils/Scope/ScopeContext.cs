@@ -5,6 +5,8 @@ namespace DRN.Framework.Utils.Scope;
 
 public class ScopeContext
 {
+    private bool _initialized = false;
+
     private ScopeContext()
     {
     }
@@ -66,8 +68,12 @@ public class ScopeContext
     public static void Initialize(string traceId, IScopedLog scopedLog, IScopedUser scopedUser)
     {
         var context = Value;
+
+        if (context._initialized) return;
+
         context.TraceId = traceId;
         context.ScopedLog = scopedLog;
         context.ScopedUser = scopedUser;
+        context._initialized = true;
     }
 }

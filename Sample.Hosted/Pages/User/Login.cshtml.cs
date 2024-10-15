@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
+using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Sample.Domain.Identity;
 
 namespace Sample.Hosted.Pages.User;
 
@@ -43,7 +43,7 @@ public class LoginModel(SignInManager<IdentityUser> signInManager, UserManager<I
 
         if (result.RequiresTwoFactor)
         {
-            await signInManager.SignInAsync(user, false, authenticationMethod: UserClaims.MFAInProgress);
+            await signInManager.SignInAsync(user, false, authenticationMethod: MFAClaims.MFAInProgress);
             return RedirectToPage(PageFor.User.LoginWith2Fa, new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
         }
 

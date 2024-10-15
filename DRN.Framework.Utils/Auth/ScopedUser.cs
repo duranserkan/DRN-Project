@@ -8,8 +8,10 @@ namespace DRN.Framework.Utils.Auth;
 [Scoped<IScopedUser>]
 public class ScopedUser : IScopedUser
 {
+    private static readonly StringComparer ClaimTypeComparer = StringComparer.OrdinalIgnoreCase;
+
     private static readonly IReadOnlyDictionary<string, ClaimGroup> DefaultClaimsByType =
-        new Dictionary<string, ClaimGroup>(0).ToFrozenDictionary();
+        new Dictionary<string, ClaimGroup>(0).ToFrozenDictionary(ClaimTypeComparer);
 
     public static ScopedUser FromClaimsPrincipal(ClaimsPrincipal principal)
     {
@@ -36,13 +38,11 @@ public class ScopedUser : IScopedUser
     public string? Amr => AmrClaim?.GetValue();
     public ClaimGroup? AmrClaim { get; private set; }
 
-
     public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; private set; } = DefaultClaimsByType;
 
     public ClaimGroup? FindClaimGroup(string type) => ClaimsByType.GetValueOrDefault(type);
     public Claim? FindClaim(string type, string value, string? issuer = null) => FindClaimGroup(type)?.FindClaim(value, issuer);
     public IReadOnlyList<Claim> FindClaims(string type, string? issuer = null) => FindClaimGroup(type)?.FindClaims(issuer) ?? Array.Empty<Claim>();
-
 
     public bool ClaimExists(string type, string? issuer = null) => FindClaimGroup(type)?.ClaimExists(issuer) ?? false;
     public bool ValueExists(string type, string value, string? issuer = null) => FindClaim(type, value, issuer) != null;
@@ -61,13 +61,16 @@ public class ScopedUser : IScopedUser
 
         PrimaryIdentity = Principal.Identity as ClaimsIdentity;
 
-        var claimsDictionary = new Dictionary<string, HashSet<Claim>>();
+        var claimsDictionary = new Dictionary<string, HashSet<Claim>>(ClaimTypeComparer);
         foreach (var claim in user.Claims)
             if (claimsDictionary.TryGetValue(claim.Type, out var claimsByType))
                 claimsByType.Add(claim);
             else
                 claimsDictionary.Add(claim.Type, [claim]);
-        ClaimsByType = claimsDictionary.ToFrozenDictionary(pair => pair.Key, pair => new ClaimGroup(pair.Value, PrimaryIdentity!));
+        ClaimsByType = claimsDictionary.ToFrozenDictionary(
+            pair => pair.Key,
+            pair => new ClaimGroup(pair.Value, PrimaryIdentity!),
+            ClaimTypeComparer);
 
         IdClaim = FindClaimGroup(ClaimConventions.NameIdentifier);
         NameClaim = FindClaimGroup(ClaimConventions.Name);

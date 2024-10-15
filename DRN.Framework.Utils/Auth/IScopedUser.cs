@@ -19,12 +19,11 @@ public interface IScopedUser
     public string? Email { get; }
     [JsonIgnore] public ClaimGroup? EmailClaim { get; }
 
-    public string? Amr{ get; }
+    public string? Amr { get; }
     [JsonIgnore] public ClaimGroup? AmrClaim { get; }
 
     public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; }
-
-
+    
     ClaimGroup? FindClaimGroup(string type);
     Claim? FindClaim(string type, string value, string? issuer = null);
     IReadOnlyList<Claim> FindClaims(string type, string? issuer = null);

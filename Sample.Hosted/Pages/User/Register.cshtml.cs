@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
+using DRN.Framework.Utils.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Sample.Domain.Identity;
 
 namespace Sample.Hosted.Pages.User;
 
@@ -24,7 +24,7 @@ public class RegisterModel(UserManager<IdentityUser> userManager, SignInManager<
 
         if (result.Succeeded)
         {
-            await signInManager.SignInAsync(user, false, authenticationMethod: UserClaims.MFASetupRequired);
+            await signInManager.SignInAsync(user, false, authenticationMethod: MFAClaims.MFASetupRequired);
             return RedirectToPage(PageFor.UserManagement.EnableAuthenticator);
         }
 

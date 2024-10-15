@@ -1,3 +1,4 @@
+using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace Sample.Hosted.Auth.Policies;
@@ -19,7 +20,7 @@ public class RequireMFAHandler : AuthorizationHandler<MFARequirement>
         }
 
         // For other authentication schemes, enforce MFA
-        if (context.User.HasClaim(c => c is { Type: "amr", Value: "mfa" }))
+        if (context.User.HasClaim(c => c is { Type: ClaimConventions.AuthenticationMethod, Value: MFAClaims.Amr }))
             context.Succeed(requirement);
         else
             context.Fail();
