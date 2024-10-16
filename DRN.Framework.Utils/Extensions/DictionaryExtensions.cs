@@ -5,7 +5,7 @@ public static class DictionaryExtensions
     /// <summary>
     /// Tries to get the value associated with the specified key or returns a default value if the key does not exist.
     /// </summary>
-    public static TValue GetAndCastValueOrDefault<TKey, TValue>(this IDictionary<TKey, object> dictionary, TKey key, TValue defaultValue = default!)
+    public static TValue? GetAndCastValueOrDefault<TKey, TValue>(this IDictionary<TKey, object?> dictionary, TKey key, TValue? defaultValue = default)
     {
         if (dictionary.TryGetValue(key, out var value))
             return value is TValue tValue ? tValue : defaultValue;

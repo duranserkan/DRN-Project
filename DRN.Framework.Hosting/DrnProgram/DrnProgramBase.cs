@@ -15,7 +15,6 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Serilog;
 
 namespace DRN.Framework.Hosting.DrnProgram;
@@ -117,14 +116,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel")));
 
         var services = applicationBuilder.Services;
-
-        //https://andrewlock.net/extending-the-shutdown-timeout-setting-to-ensure-graceful-ihostedservice-shutdown/
-        //https://learn.microsoft.com/en-us/dotnet/core/extensions/options
-        services.Configure<HostOptions>(Configuration.GetSection("HostOptions"));
-        services.ConfigureHttpJsonOptions(options => JsonConventions.SetJsonDefaults(options.SerializerOptions));
-        services.AddLogging();
-        services.AddEndpointsApiExplorer();
-        services.AdDrnHosting(DrnProgramSwaggerOptions);
+        services.AdDrnHosting(DrnProgramSwaggerOptions, Configuration);
 
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
@@ -154,11 +146,12 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         application.UseRouting();
 
-        ConfigureApplicationPreAuth(application);
+        ConfigureApplicationPreAuthentication(application);
         application.UseAuthentication();
         application.UseMiddleware<ScopedUserMiddleware>();
+        ConfigureApplicationPostAuthentication(application);
         application.UseAuthorization();
-        ConfigureApplicationPostAuth(application);
+        ConfigureApplicationPostAuthorization(application);
 
         MapApplicationEndpoints(application);
     }
@@ -175,7 +168,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         application.UseForwardedHeaders();
     }
 
-    protected virtual void ConfigureApplicationPreAuth(WebApplication application)
+    protected virtual void ConfigureApplicationPreAuthentication(WebApplication application)
     {
         if (!DrnProgramSwaggerOptions.AddSwagger) return;
 
@@ -183,13 +176,44 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         application.UseSwaggerUI(DrnProgramSwaggerOptions.ConfigureSwaggerUIOptionsAction);
     }
 
-    protected virtual void ConfigureApplicationPostAuth(WebApplication application)
+    /// <summary>
+    /// Called when PreAuthorization
+    /// </summary>
+    protected virtual void ConfigureApplicationPostAuthentication(WebApplication application)
+    {
+        var config = ConfigureMFARedirection();
+        if (config == null) return;
+
+        var options = application.Services.GetRequiredService<MFARedirectionOptions>();
+        options.MFALoginUrl = config.MFALoginUrl;
+        options.MFASetupUrl = config.MFASetupUrl;
+        options.AppPages = config.AppPages;
+
+        application.UseMiddleware<MFARedirectionMiddleware>();
+    }
+
+    protected virtual void ConfigureApplicationPostAuthorization(WebApplication application)
     {
     }
 
     protected virtual void MapApplicationEndpoints(WebApplication application)
     {
         application.MapControllers();
+        application.MapRazorPages();
+    }
+
+    /// <summary>
+    /// Required to configure MFA Redirection.
+    /// </summary>
+    protected virtual MFARedirectionConfig? ConfigureMFARedirection() => null;
+
+    protected virtual void ConfigureAuthorizationOptions(AuthorizationOptions options)
+    {
+        options.AddPolicy(AuthPolicy.MFA, policy => policy.AddRequirements(new MFARequirement()));
+        options.AddPolicy(AuthPolicy.MFAExempt, policy => policy.AddRequirements(new MFAExemptRequirement()));
+
+        options.DefaultPolicy = options.GetPolicy(AuthPolicy.MFA)!;
+        options.FallbackPolicy = options.GetPolicy(AuthPolicy.MFA)!;
     }
 
     protected virtual void ConfigureMvcOptions(MvcOptions options)
@@ -206,15 +230,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         mvcBuilder.AddRazorRuntimeCompilation();
         mvcBuilder.AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
-    }
-
-    protected virtual void ConfigureAuthorizationOptions(AuthorizationOptions options)
-    {
-        options.AddPolicy(AuthPolicy.MFA, policy => policy.AddRequirements(new MFARequirement()));
-        options.AddPolicy(AuthPolicy.MFAExempt, policy => policy.AddRequirements(new MFAExemptRequirement()));
-
-        options.DefaultPolicy = options.GetPolicy(AuthPolicy.MFA)!;
-        options.FallbackPolicy = options.GetPolicy(AuthPolicy.MFA)!;
     }
 
     protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options)

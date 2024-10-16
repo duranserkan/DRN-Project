@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using DRN.Framework.Utils.Auth;
+using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 

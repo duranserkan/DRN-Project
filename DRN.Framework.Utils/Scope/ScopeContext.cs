@@ -49,7 +49,7 @@ public class ScopeContext
         return expectedValue.Equals(value);
     }
 
-    public static TValue GetClaimParameter<TValue>(string key, string? issuer = null, TValue defaultValue = default!) where TValue : IParsable<TValue>
+    public static TValue? GetClaimParameter<TValue>(string key, string? issuer = null, TValue? defaultValue = default) where TValue : IParsable<TValue>
     {
         if (Data.Parameters.TryGetValue(key, out var value))
             return value is TValue tValue ? tValue : defaultValue;
@@ -59,9 +59,9 @@ public class ScopeContext
         return Data.GetParameter(key, defaultValue);
     }
 
-    private static void AddClaimValueToParameters<TValue>(string claim, string? issuer = null, TValue defaultValue = default!) where TValue : IParsable<TValue>
+    private static void AddClaimValueToParameters<TValue>(string claim, string? issuer = null, TValue? defaultValue = default) where TValue : IParsable<TValue>
     {
-        var value = User.GetClaimValue(claim, issuer, defaultValue.ToString() ?? string.Empty);
+        var value = User.GetClaimValue(claim, issuer, defaultValue?.ToString() ?? string.Empty);
         Data.SetParameter<TValue>(claim, value);
     }
 

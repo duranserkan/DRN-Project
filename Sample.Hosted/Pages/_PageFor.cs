@@ -1,5 +1,3 @@
-using DRN.Framework.Utils.Http;
-using DRN.Framework.Utils.Models;
 using DRN.Framework.Utils.Models.Page;
 
 namespace Sample.Hosted.Pages;
@@ -16,6 +14,7 @@ public class RootPageFor : PageForBase
 {
     protected override string[] PathSegments { get; } = [];
 
+    public string Root { get; init; } = "/";
     public string Home { get; init; } = string.Empty;
     public string Swagger { get; init; } = string.Empty;
 }

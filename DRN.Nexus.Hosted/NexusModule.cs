@@ -7,36 +7,45 @@ public static class NexusModule
 {
     private const string AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
 
-    public static IServiceCollection AddNexusServices(this IServiceCollection services, IAppSettings settings)
+    public static IServiceCollection AddNexusHostedServices(this IServiceCollection services, IAppSettings settings)
     {
         services.AddServicesWithAttributes();
 
-        //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity
         var development = settings.IsDevEnvironment;
-        services.AddIdentityApiEndpoints<IdentityUser>(
-            options => //IdentityConstants.BearerAndApplicationScheme; //ClaimsIdentity.DefaultIssuer; //ClaimTypes.Name;
-            {
-                options.User.RequireUniqueEmail = true;
-                options.User.AllowedUserNameCharacters = AllowedUserNameCharacters;
-
-                options.Lockout.MaxFailedAccessAttempts = 3;
-                options.Lockout.AllowedForNewUsers = true;
-                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(1);
-
-                options.Password.RequireDigit = true;
-                options.Password.RequireUppercase = true;
-                options.Password.RequireLowercase = true;
-                options.Password.RequiredLength = 8;
-                options.Password.RequiredUniqueChars = 1;
-                options.Password.RequireNonAlphanumeric = true;
-
-                if (development) return;
-
-                options.SignIn.RequireConfirmedAccount = true;
-                options.SignIn.RequireConfirmedEmail = true;
-                options.SignIn.RequireConfirmedPhoneNumber = true;
-            });
+        services.AddIdentityApiEndpoints<IdentityUser>(ConfigureIdentity(development));
+        //.AddPersonalDataProtection<>()
 
         return services;
+    }
+
+    //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity
+    private static Action<IdentityOptions> ConfigureIdentity(bool development)
+    {
+        return options => //IdentityConstants.BearerAndApplicationScheme; //ClaimsIdentity.DefaultIssuer; //ClaimTypes.Name;
+        {
+            var user = options.User;
+            user.RequireUniqueEmail = true;
+            user.AllowedUserNameCharacters = AllowedUserNameCharacters;
+
+            var lockout = options.Lockout;
+            lockout.MaxFailedAccessAttempts = 3;
+            lockout.AllowedForNewUsers = true;
+            lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(1);
+
+            var password = options.Password;
+            password.RequireDigit = true;
+            password.RequireUppercase = true;
+            password.RequireLowercase = true;
+            password.RequiredLength = 8;
+            password.RequiredUniqueChars = 1;
+            password.RequireNonAlphanumeric = true;
+
+            if (development) return;
+
+            var signIn = options.SignIn;
+            signIn.RequireConfirmedAccount = true;
+            signIn.RequireConfirmedEmail = true;
+            signIn.RequireConfirmedPhoneNumber = true;
+        };
     }
 }

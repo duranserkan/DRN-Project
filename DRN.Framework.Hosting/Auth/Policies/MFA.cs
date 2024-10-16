@@ -1,4 +1,5 @@
 using DRN.Framework.Utils.Auth;
+using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Authorization;
 
@@ -21,7 +22,7 @@ public class RequireMFAHandler : AuthorizationHandler<MFARequirement>
         }
 
         // For other authentication schemes, enforce MFA
-        if (context.User.HasClaim(c => c is { Type: ClaimConventions.AuthenticationMethod, Value: MFAClaims.Amr }))
+        if (context.User.HasClaim(c => c.Type == ClaimConventions.AuthenticationMethod && c.Value == MFAClaims.AuthenticationMethodValue))
             context.Succeed(requirement);
         else
             context.Fail();

@@ -8,8 +8,7 @@ public class ScopedUserMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext httpContext, IScopedUser scopedUser, IScopedLog log)
     {
-        var user = httpContext.User;
-        ((ScopedUser)scopedUser).SetUser(user);
+        ((ScopedUser)scopedUser).SetUser(httpContext.User);
 
         log.Add("UserAuthenticated", scopedUser.Authenticated);
         log.Add("UserId", scopedUser.Id ?? string.Empty);

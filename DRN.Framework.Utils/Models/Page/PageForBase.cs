@@ -6,9 +6,15 @@ public abstract class PageForBase
 {
     protected PageForBase()
     {
-        var props = GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public);
+        var props = GetType()
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Where(p => p.PropertyType == typeof(string));
         foreach (var prop in props)
-            prop.SetValue(this, GetPath(prop.Name));
+        {
+            var existingValue = prop.GetValue(this) as string;
+            if (string.IsNullOrEmpty(existingValue))
+                prop.SetValue(this, GetPath(prop.Name));
+        }
     }
 
     protected abstract string[] PathSegments { get; }

@@ -1,5 +1,3 @@
-using DRN.Framework.Hosting.Auth;
-using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
@@ -10,47 +8,53 @@ public static class SampleModule
 {
     private const string AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
 
-    public static IServiceCollection AddSampleServices(this IServiceCollection services, IAppSettings settings)
+    public static IServiceCollection AddSampleHostedServices(this IServiceCollection services, IAppSettings settings)
     {
-        services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024);
-
-        //https://learn.microsoft.com/en-us/aspnet/core/security/?view=aspnetcore-8.0
-        //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/social/microsoft-logins?view=aspnetcore-8.0
-        //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/mfa?view=aspnetcore-8.0
-        //https://stackoverflow.com/questions/52492666/what-is-the-point-of-configuring-defaultscheme-and-defaultchallengescheme-on-asp
-        //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity
-        //https://learn.microsoft.com/en-us/aspnet/core/security/authorization/limitingidentitybyscheme?view=aspnetcore-8.0
-        //AuthenticationSchemeOptions, ConfigureApplicationCookie
         var development = settings.IsDevEnvironment;
-        services.AddIdentityApiEndpoints<IdentityUser>(
-            options => //IdentityConstants.BearerAndApplicationScheme; //ClaimsIdentity.DefaultIssuer; //ClaimTypes.Name;
-            {
-                options.User.RequireUniqueEmail = true;
-                options.User.AllowedUserNameCharacters = AllowedUserNameCharacters;
 
-                options.Lockout.MaxFailedAccessAttempts = 3;
-                options.Lockout.AllowedForNewUsers = true;
-                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(1);
-
-                options.Password.RequireDigit = true;
-                options.Password.RequireUppercase = true;
-                options.Password.RequireLowercase = true;
-                options.Password.RequiredLength = 8;
-                options.Password.RequiredUniqueChars = 1;
-                options.Password.RequireNonAlphanumeric = true;
-
-                if (development) return;
-
-                options.SignIn.RequireConfirmedAccount = true;
-                options.SignIn.RequireConfirmedEmail = true;
-                options.SignIn.RequireConfirmedPhoneNumber = true;
-            });
+        services.AddIdentityApiEndpoints<IdentityUser>(ConfigureIdentity(development));
         //.AddPersonalDataProtection<>()
 
         services.AddServicesWithAttributes();
+        services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024);
 
         return services;
     }
 
+    //https://learn.microsoft.com/en-us/aspnet/core/security/?view=aspnetcore-8.0
+    //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity
+    //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/mfa?view=aspnetcore-8.0
+    //https://learn.microsoft.com/en-us/aspnet/core/security/authorization/limitingidentitybyscheme?view=aspnetcore-8.0
+    //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/social/microsoft-logins?view=aspnetcore-8.0
+    //https://stackoverflow.com/questions/52492666/what-is-the-point-of-configuring-defaultscheme-and-defaultchallengescheme-on-asp
+    private static Action<IdentityOptions> ConfigureIdentity(bool development)
+    {
+        //IdentityConstants.BearerAndApplicationScheme; //ClaimsIdentity.DefaultIssuer; //ClaimTypes.Name;
+        return options => //IdentityConstants.BearerAndApplicationScheme; //ClaimsIdentity.DefaultIssuer; //ClaimTypes.Name;
+        {
+            var user = options.User;
+            user.RequireUniqueEmail = true;
+            user.AllowedUserNameCharacters = AllowedUserNameCharacters;
 
+            var lockout = options.Lockout;
+            lockout.MaxFailedAccessAttempts = 3;
+            lockout.AllowedForNewUsers = true;
+            lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(1);
+
+            var password = options.Password;
+            password.RequireDigit = true;
+            password.RequireUppercase = true;
+            password.RequireLowercase = true;
+            password.RequiredLength = 8;
+            password.RequiredUniqueChars = 1;
+            password.RequireNonAlphanumeric = true;
+
+            if (development) return;
+
+            var signIn = options.SignIn;
+            signIn.RequireConfirmedAccount = true;
+            signIn.RequireConfirmedEmail = true;
+            signIn.RequireConfirmedPhoneNumber = true;
+        };
+    }
 }

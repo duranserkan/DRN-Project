@@ -1,8 +1,8 @@
 ﻿using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Testing.Extensions;
-using Microsoft.AspNetCore.Identity;
 using Sample.Application;
-using Sample.Hosted.EndpointRouteBuilderExtensions.Endpoints;
+using Sample.Hosted.Pages;
 using Sample.Infra;
 
 namespace Sample.Hosted;
@@ -16,7 +16,7 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         builder.Services
             .AddSampleInfraServices()
             .AddSampleApplicationServices()
-            .AddSampleServices(AppSettings);
+            .AddSampleHostedServices(AppSettings);
 
         await builder.LaunchExternalDependenciesAsync(ScopedLog, AppSettings);
     }
@@ -26,12 +26,14 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         base.ConfigureApplicationPreScopeStart(application);
         application.UseStaticFiles();
     }
-//todo: redirection middleware for pending mfa
-//todo: swagger access issue
+
+    protected override MFARedirectionConfig ConfigureMFARedirection()
+        => new(PageFor.User.LoginWith2Fa, PageFor.UserManagement.EnableAuthenticator, PageFor.GetAllPages());
+
+    //todo: swagger access issue
     protected override void MapApplicationEndpoints(WebApplication application)
     {
         base.MapApplicationEndpoints(application);
-        application.MapRazorPages();
-        application.MapDrnIdentityApi<IdentityUser>("identity");
+        //application.MapDrnIdentityApi<IdentityUser>("identity");
     }
 }
