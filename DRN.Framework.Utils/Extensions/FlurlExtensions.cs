@@ -28,8 +28,6 @@ public static class FlurlExtensions
         scopedLog.Add("FlurlExceptionHttpVersionRequestUri", request.RequestUri?.ToString() ?? string.Empty);
         scopedLog.Add("FlurlExceptionHttpVersionPolicy", request.VersionPolicy.ToString());
         scopedLog.Add("FlurlExceptionHttpVersion", requestVersion.ToString());
-        if (requestVersion == HttpVersion.Version20)
-            scopedLog.Add(nameof(appFeatures.SocketsHttp2UnencryptedSupport), appFeatures.SocketsHttp2UnencryptedSupport);
 
         scopedLog.Add("FlurlExceptionCallCompleted", call.Completed);
         scopedLog.Add("FlurlExceptionCallStartedUtc", call.StartedUtc);

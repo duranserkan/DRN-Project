@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 
-namespace Sample.Hosted.Auth.EndpointRouteBuilderExtensions;
+namespace Sample.Hosted.EndpointRouteBuilderExtensions;
 
 public static class IdentityApiHelper
 {

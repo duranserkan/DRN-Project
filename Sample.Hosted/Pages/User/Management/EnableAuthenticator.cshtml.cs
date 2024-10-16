@@ -1,10 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Text;
+using DRN.Framework.Hosting.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using QRCoder;
-using Sample.Hosted.Auth;
 
 namespace Sample.Hosted.Pages.User.Management;
 

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
-using Sample.Hosted.Auth.EndpointRouteBuilderExtensions.Endpoints.ManageGroup;
+using Sample.Hosted.EndpointRouteBuilderExtensions.Endpoints.ManageGroup;
 
-namespace Sample.Hosted.Auth.EndpointRouteBuilderExtensions.Endpoints;
+namespace Sample.Hosted.EndpointRouteBuilderExtensions.Endpoints;
 
 /// <summary>
 /// https://github.com/dotnet/aspnetcore/blob/main/src/Identity/Core/src/IdentityApiEndpointRouteBuilderExtensions.cs

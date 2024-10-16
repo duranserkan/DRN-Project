@@ -1,3 +1,5 @@
+using DRN.Framework.Hosting.Auth;
+using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.SharedKernel.Json;
@@ -5,6 +7,7 @@ using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
@@ -40,7 +43,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     protected static IScopedLog ScopedLog { get; } = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
     protected static DrnProgramSwaggerOptions DrnProgramSwaggerOptions { get; private set; } = new();
     protected DrnAppBuilderType AppBuilderType { get; set; } = DrnAppBuilderType.DrnDefaults;
-
 
     protected static async Task RunAsync(string[]? args = null)
     {
@@ -88,12 +90,14 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             ApplicationName = GetApplicationAssemblyName(),
             EnvironmentName = AppSettings.Environment.ToString()
         };
-        program.ConfigureSwaggerOptions(DrnProgramSwaggerOptions, AppSettings);
+        program.ConfigureSwaggerOptions(DrnProgramSwaggerOptions);
 
         var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.AppBuilderType);
         applicationBuilder.Configuration.AddDrnSettings(GetApplicationAssemblyName(), args);
         program.ConfigureApplicationBuilder(applicationBuilder);
+
         await program.AddServicesAsync(applicationBuilder);
+        applicationBuilder.Services.AddAuthorization(program.ConfigureAuthorizationOptions);
 
         var application = applicationBuilder.Build();
         program.ConfigureApplication(application);
@@ -112,24 +116,23 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         applicationBuilder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
             kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel")));
 
+        var services = applicationBuilder.Services;
+
         //https://andrewlock.net/extending-the-shutdown-timeout-setting-to-ensure-graceful-ihostedservice-shutdown/
         //https://learn.microsoft.com/en-us/dotnet/core/extensions/options
-        applicationBuilder.Services.Configure<HostOptions>(Configuration.GetSection("HostOptions"));
-        applicationBuilder.Services.ConfigureHttpJsonOptions(options => JsonConventions.SetJsonDefaults(options.SerializerOptions));
-        applicationBuilder.Services.AddLogging();
-        applicationBuilder.Services.AddEndpointsApiExplorer();
-        applicationBuilder.Services.AdDrnHosting(DrnProgramSwaggerOptions);
+        services.Configure<HostOptions>(Configuration.GetSection("HostOptions"));
+        services.ConfigureHttpJsonOptions(options => JsonConventions.SetJsonDefaults(options.SerializerOptions));
+        services.AddLogging();
+        services.AddEndpointsApiExplorer();
+        services.AdDrnHosting(DrnProgramSwaggerOptions);
 
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
-        //Linkerd service mesh internal communication requires plain http to enable mtls
-        AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-
-        var mvcBuilder = applicationBuilder.Services.AddMvc(ConfigureMvcOptions);
+        var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
         ConfigureMvcBuilder(mvcBuilder);
 
-        applicationBuilder.Services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
-        applicationBuilder.Services.PostConfigure<HostFilteringOptions>(options =>
+        services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
+        services.PostConfigure<HostFilteringOptions>(options =>
         {
             if (options.AllowedHosts != null && options.AllowedHosts.Count != 0) return;
             var separator = new[] { ';' };
@@ -205,10 +208,19 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         mvcBuilder.AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
     }
 
-    protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
+    protected virtual void ConfigureAuthorizationOptions(AuthorizationOptions options)
     {
-        options.OpenApiInfo.Title = appSettings.ApplicationName;
-        options.AddSwagger = appSettings.IsDevEnvironment;
+        options.AddPolicy(AuthPolicy.MFA, policy => policy.AddRequirements(new MFARequirement()));
+        options.AddPolicy(AuthPolicy.MFAExempt, policy => policy.AddRequirements(new MFAExemptRequirement()));
+
+        options.DefaultPolicy = options.GetPolicy(AuthPolicy.MFA)!;
+        options.FallbackPolicy = options.GetPolicy(AuthPolicy.MFA)!;
+    }
+
+    protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options)
+    {
+        options.OpenApiInfo.Title = AppSettings.ApplicationName;
+        options.AddSwagger = AppSettings.IsDevEnvironment;
     }
 
     private static string GetApplicationAssemblyName() => typeof(TProgram).GetAssemblyName();

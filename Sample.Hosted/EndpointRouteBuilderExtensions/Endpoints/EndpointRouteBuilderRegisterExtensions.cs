@@ -1,11 +1,9 @@
 using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
-using Microsoft.Extensions.Options;
 
-namespace Sample.Hosted.Auth.EndpointRouteBuilderExtensions.Endpoints;
+namespace Sample.Hosted.EndpointRouteBuilderExtensions.Endpoints;
 
 public static class EndpointRouteBuilderRegisterExtensions
 {

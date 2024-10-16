@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 
-namespace Sample.Hosted.Auth.EndpointRouteBuilderExtensions.Endpoints;
+namespace Sample.Hosted.EndpointRouteBuilderExtensions.Endpoints;
 
 public static class EndpointRouteBuilderConfirmEmailExtensions
 {

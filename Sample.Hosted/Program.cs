@@ -2,7 +2,7 @@
 using DRN.Framework.Testing.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Sample.Application;
-using Sample.Hosted.Auth.EndpointRouteBuilderExtensions.Endpoints;
+using Sample.Hosted.EndpointRouteBuilderExtensions.Endpoints;
 using Sample.Infra;
 
 namespace Sample.Hosted;

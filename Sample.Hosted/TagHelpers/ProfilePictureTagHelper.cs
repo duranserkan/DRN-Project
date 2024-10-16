@@ -1,6 +1,6 @@
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Razor.TagHelpers;
-using Sample.Hosted.Auth.Claims;
+using Sample.Hosted.Utils;
 
 namespace Sample.Hosted.TagHelpers;
 

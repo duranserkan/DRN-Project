@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.Extensions.Options;
-using Sample.Hosted.Auth.EndpointRouteBuilderExtensions;
+using Sample.Hosted.EndpointRouteBuilderExtensions;
 
 namespace Sample.Hosted.Controllers.User.Identity;
 

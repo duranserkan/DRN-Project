@@ -1,6 +1,7 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using Microsoft.AspNetCore.Authorization;
 
-namespace Sample.Hosted.Auth.Policies;
+namespace DRN.Framework.Hosting.Auth.Policies;
 
 public class MFAExemptRequirement : IAuthorizationRequirement
 {

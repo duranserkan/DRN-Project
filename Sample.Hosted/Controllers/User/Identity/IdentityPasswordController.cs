@@ -3,7 +3,7 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.WebUtilities;
-using Sample.Hosted.Auth.EndpointRouteBuilderExtensions;
+using Sample.Hosted.EndpointRouteBuilderExtensions;
 
 namespace Sample.Hosted.Controllers.User.Identity;
 

@@ -1,10 +1,8 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-
-namespace Sample.Hosted.Auth;
-
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
-using System.Threading.Tasks;
+
+namespace DRN.Framework.Hosting.Auth;
 
 [Singleton<IAuthorizationPolicyProvider>(tryAdd: false)]
 public class MFAEnforcingAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options) : IAuthorizationPolicyProvider

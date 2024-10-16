@@ -1,8 +1,8 @@
+using DRN.Framework.Hosting.Auth;
+using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
-using Sample.Hosted.Auth;
-using Sample.Hosted.Auth.Policies;
 
 namespace Sample.Hosted;
 
@@ -49,15 +49,8 @@ public static class SampleModule
 
         services.AddServicesWithAttributes();
 
-        services.AddAuthorization(options =>
-        {
-            options.AddPolicy(AuthPolicy.MFA, policy => policy.AddRequirements(new MFARequirement()));
-            options.AddPolicy(AuthPolicy.MFAExempt, policy => policy.AddRequirements(new MFAExemptRequirement()));
-
-            options.DefaultPolicy = options.GetPolicy(AuthPolicy.MFA)!;
-            options.FallbackPolicy = options.GetPolicy(AuthPolicy.MFA)!;
-        });
-
         return services;
     }
+
+
 }

@@ -1,4 +1,4 @@
-namespace Sample.Hosted.Auth.EndpointRouteBuilderExtensions;
+namespace Sample.Hosted.EndpointRouteBuilderExtensions;
 
 public sealed class IdentityEndpointsConventionBuilder(RouteGroupBuilder inner) : IEndpointConventionBuilder
 {

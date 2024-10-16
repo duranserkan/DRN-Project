@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
-using Sample.Hosted.Auth.EndpointRouteBuilderExtensions;
+using Sample.Hosted.EndpointRouteBuilderExtensions;
 
 namespace Sample.Hosted.Controllers.User.Identity;
 

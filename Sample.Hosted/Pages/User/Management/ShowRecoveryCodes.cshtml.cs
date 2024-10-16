@@ -1,5 +1,5 @@
+using DRN.Framework.Hosting.Auth;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Sample.Hosted.Auth;
 
 namespace Sample.Hosted.Pages.User.Management;
 

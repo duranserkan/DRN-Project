@@ -1,7 +1,8 @@
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using Microsoft.AspNetCore.Authorization;
 
-namespace Sample.Hosted.Auth.Policies;
+namespace DRN.Framework.Hosting.Auth.Policies;
 
 public class MFARequirement : IAuthorizationRequirement;
 

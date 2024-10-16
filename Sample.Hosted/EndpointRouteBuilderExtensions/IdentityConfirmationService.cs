@@ -4,7 +4,7 @@ using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 
-namespace Sample.Hosted.Auth.EndpointRouteBuilderExtensions;
+namespace Sample.Hosted.EndpointRouteBuilderExtensions;
 
 [Scoped<IdentityConfirmationService>]
 public class IdentityConfirmationService(IServiceProvider serviceProvider)

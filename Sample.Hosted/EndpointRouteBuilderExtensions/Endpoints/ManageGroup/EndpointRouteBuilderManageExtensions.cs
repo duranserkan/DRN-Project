@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 
-namespace Sample.Hosted.Auth.EndpointRouteBuilderExtensions.Endpoints.ManageGroup;
+namespace Sample.Hosted.EndpointRouteBuilderExtensions.Endpoints.ManageGroup;
 
 public static class EndpointRouteBuilderManageExtensions
 {

@@ -1,4 +1,4 @@
-namespace Sample.Hosted.Auth;
+namespace DRN.Framework.Hosting.Auth;
 
 public static class AuthPolicy
 {

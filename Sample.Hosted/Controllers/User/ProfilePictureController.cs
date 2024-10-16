@@ -1,5 +1,5 @@
+using DRN.Framework.Hosting.Auth;
 using Sample.Domain.Identity.ProfilePictures;
-using Sample.Hosted.Auth;
 
 namespace Sample.Hosted.Controllers.User;
 
