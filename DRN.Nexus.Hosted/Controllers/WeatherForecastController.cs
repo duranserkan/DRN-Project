@@ -1,4 +1,5 @@
 ﻿using DRN.Framework.Utils.Models;
+using DRN.Framework.Utils.Models.Sample;
 
 namespace DRN.Nexus.Hosted.Controllers;
 

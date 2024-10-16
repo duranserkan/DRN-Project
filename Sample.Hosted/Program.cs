@@ -18,7 +18,6 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
             .AddSampleApplicationServices()
             .AddSampleServices(AppSettings);
 
-
         await builder.LaunchExternalDependenciesAsync(ScopedLog, AppSettings);
     }
 
@@ -27,7 +26,7 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
         base.ConfigureApplicationPreScopeStart(application);
         application.UseStaticFiles();
     }
-
+//todo: redirection middleware for pending mfa
 //todo: swagger access issue
     protected override void MapApplicationEndpoints(WebApplication application)
     {

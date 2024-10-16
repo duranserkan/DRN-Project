@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace DRN.Framework.Utils.Http;
+namespace DRN.Framework.Utils.Models.Page;
 
 public class PageCollectionBase<TPageCollection> where TPageCollection : PageCollectionBase<TPageCollection>
 {

@@ -1,5 +1,6 @@
 ﻿using DRN.Framework.Hosting.Nexus;
 using DRN.Framework.Utils.Models;
+using DRN.Framework.Utils.Models.Sample;
 
 namespace Sample.Hosted.Controllers.Sample;
 

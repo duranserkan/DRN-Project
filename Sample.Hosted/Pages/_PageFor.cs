@@ -1,4 +1,6 @@
 using DRN.Framework.Utils.Http;
+using DRN.Framework.Utils.Models;
+using DRN.Framework.Utils.Models.Page;
 
 namespace Sample.Hosted.Pages;
 

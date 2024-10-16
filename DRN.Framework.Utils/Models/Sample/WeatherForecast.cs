@@ -1,4 +1,4 @@
-﻿namespace DRN.Framework.Utils.Models;
+﻿namespace DRN.Framework.Utils.Models.Sample;
 
 public readonly struct WeatherForecast
 {

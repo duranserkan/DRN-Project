@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using DRN.Framework.Utils.Models;
+using DRN.Framework.Utils.Models.Sample;
 using Sample.Hosted;
 using Sample.Infra.QA;
 
