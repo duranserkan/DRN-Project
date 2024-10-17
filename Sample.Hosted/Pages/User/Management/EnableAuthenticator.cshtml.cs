@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Text;
 using DRN.Framework.Hosting.Auth;
+using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using QRCoder;
@@ -26,6 +27,9 @@ public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageMo
 
     public async Task<IActionResult> OnPostVerifyAsync()
     {
+        if (!MFAFor.MFASetupRequired)
+            return LocalRedirect(PageFor.User.Login);
+
         var user = await userManager.GetUserAsync(User);
 
         if (!ModelState.IsValid)

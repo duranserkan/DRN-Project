@@ -3,9 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace DRN.Framework.Hosting.Auth.Policies;
 
-public class MFAExemptRequirement : IAuthorizationRequirement
-{
-}
+public class MFAExemptRequirement : IAuthorizationRequirement;
 
 [Singleton<IAuthorizationHandler>(tryAdd: false)]
 public class MFAExemptHandler : AuthorizationHandler<MFAExemptRequirement>

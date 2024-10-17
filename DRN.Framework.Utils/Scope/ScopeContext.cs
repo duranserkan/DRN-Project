@@ -25,7 +25,6 @@ public class ScopeContext
     public static string? UserId => User.Id;
     public static bool Authenticated => User.Authenticated;
 
-
     public static bool IsClaimFlagEnabled(string flag, string? issuer = null, bool defaultValue = false)
     {
         if (Data.Flags.TryGetValue(flag, out var value))

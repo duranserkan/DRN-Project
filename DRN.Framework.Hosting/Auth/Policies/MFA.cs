@@ -1,4 +1,3 @@
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Authorization;
@@ -12,7 +11,6 @@ public class RequireMFAHandler : AuthorizationHandler<MFARequirement>
 {
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, MFARequirement requirement)
     {
-        // Check if the authentication scheme is Bearer
         var authScheme = context.User.Identity?.AuthenticationType;
         if (authScheme == "Bearer")
         {
@@ -22,7 +20,7 @@ public class RequireMFAHandler : AuthorizationHandler<MFARequirement>
         }
 
         // For other authentication schemes, enforce MFA
-        if (context.User.HasClaim(c => c.Type == ClaimConventions.AuthenticationMethod && c.Value == MFAClaims.AuthenticationMethodValue))
+        if (MFAFor.MFACompleted)
             context.Succeed(requirement);
         else
             context.Fail();

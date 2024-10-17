@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using DRN.Framework.Hosting.Auth;
+using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -20,6 +21,9 @@ public class LoginWith2Fa(SignInManager<IdentityUser> signInManager) : PageModel
 
     public async Task<IActionResult> OnPostAsync(bool rememberMe, string? returnUrl = null)
     {
+        if (!MFAFor.MFAInProgress)
+            return LocalRedirect(PageFor.User.Login);
+
         if (!ModelState.IsValid)
             return Page();
 

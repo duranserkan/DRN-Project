@@ -19,15 +19,19 @@ public interface IScopedUser
     public string? Email { get; }
     [JsonIgnore] public ClaimGroup? EmailClaim { get; }
 
+    //https://datatracker.ietf.org/doc/html/rfc8176#section-2
+    //https://github.com/dotnet/aspnetcore/blob/b2c348b222ffd4f5f5a49ff90f5cd237d51e5231/src/Identity/Core/src/SignInManager.cs#L501
     public string? Amr { get; }
     [JsonIgnore] public ClaimGroup? AmrClaim { get; }
+
+    public string? AuthenticationMethod { get; }
+    [JsonIgnore] public ClaimGroup? AuthenticationMethodClaim { get; }
 
     public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; }
     
     ClaimGroup? FindClaimGroup(string type);
     Claim? FindClaim(string type, string value, string? issuer = null);
     IReadOnlyList<Claim> FindClaims(string type, string? issuer = null);
-
 
     bool ClaimExists(string type, string? issuer = null);
     bool ValueExists(string type, string value, string? issuer = null);

@@ -2,10 +2,13 @@ using DRN.Framework.Utils.Extensions;
 
 namespace DRN.Framework.Utils.Scope;
 
+/// <summary>
+/// Compares keys and flags with StringComparer.OrdinalIgnoreCase
+/// </summary>
 public class ScopeData
 {
-    private readonly Dictionary<string, bool> _flags = new();
-    private readonly Dictionary<string, object?> _parameters = new();
+    private readonly Dictionary<string, bool> _flags = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, object?> _parameters = new(StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyDictionary<string, bool> Flags => _flags;
     public IReadOnlyDictionary<string, object?> Parameters => _parameters;

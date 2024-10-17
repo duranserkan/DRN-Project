@@ -44,7 +44,7 @@ public class LoginModel(SignInManager<IdentityUser> signInManager, UserManager<I
 
         if (result.RequiresTwoFactor)
         {
-            await signInManager.SignInAsync(user, false, authenticationMethod: MFAClaims.MFAInProgress);
+            await signInManager.SignInAsync(user, false, authenticationMethod: MFAClaimValues.MFAInProgress);
             return RedirectToPage(PageFor.User.LoginWith2Fa, new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
         }
 

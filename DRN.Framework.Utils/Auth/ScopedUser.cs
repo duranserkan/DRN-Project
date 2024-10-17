@@ -35,8 +35,13 @@ public class ScopedUser : IScopedUser
     public string? Email => EmailClaim?.GetValue();
     [JsonIgnore] public ClaimGroup? EmailClaim { get; private set; }
 
+    //https://datatracker.ietf.org/doc/html/rfc8176#section-2
+    //https://github.com/dotnet/aspnetcore/blob/b2c348b222ffd4f5f5a49ff90f5cd237d51e5231/src/Identity/Core/src/SignInManager.cs#L501
     public string? Amr => AmrClaim?.GetValue();
     public ClaimGroup? AmrClaim { get; private set; }
+
+    public string? AuthenticationMethod => AuthenticationMethodClaim?.GetValue();
+    public ClaimGroup? AuthenticationMethodClaim { get; private set; }
 
     public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; private set; } = DefaultClaimsByType;
 
@@ -75,6 +80,7 @@ public class ScopedUser : IScopedUser
         IdClaim = FindClaimGroup(ClaimConventions.NameIdentifier);
         NameClaim = FindClaimGroup(ClaimConventions.Name);
         EmailClaim = FindClaimGroup(ClaimConventions.Email);
-        AmrClaim = FindClaimGroup(ClaimConventions.AuthenticationMethod);
+        AmrClaim = FindClaimGroup(ClaimConventions.AuthenticationMethodReference);
+        AuthenticationMethodClaim = FindClaimGroup(ClaimConventions.AuthenticationMethod);
     }
 }

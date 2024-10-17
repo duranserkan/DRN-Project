@@ -187,6 +187,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var options = application.Services.GetRequiredService<MFARedirectionOptions>();
         options.MFALoginUrl = config.MFALoginUrl;
         options.MFASetupUrl = config.MFASetupUrl;
+        options.LoginUrl = config.LoginUrl;
+        options.LogoutUrl = config.LogoutUrl;
         options.AppPages = config.AppPages;
 
         application.UseMiddleware<MFARedirectionMiddleware>();
@@ -203,10 +205,28 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     }
 
     /// <summary>
-    /// Required to configure MFA Redirection.
+    /// Configures MFA (Multi-Factor Authentication) redirection logic when return value is not null:
+    /// <ul>
+    ///   <li>Redirects to <c>MFALoginUrl</c> if <c>MFAInProgress</c> is true for the user is logged in with a single factor</li>
+    ///   <li>Redirects to <c>MFASetupUrl</c> if <c>MFASetupRequired</c> is true for a new user without MFA configured.</li>
+    ///   <li>Prevents misuse or abuse of <c>MFALoginUrl</c> and <c>MFASetupUrl</c> routes.</li>
+    /// </ul>
     /// </summary>
     protected virtual MFARedirectionConfig? ConfigureMFARedirection() => null;
 
+    /// <summary>
+    /// Configures authorization policies and default behaviors for the application.
+    /// </summary>
+    /// <param name="options">The <see cref="AuthorizationOptions"/> to configure.</param>
+    /// <remarks>
+    /// With default behavior, this method enforces MFA and performs the following actions:
+    /// <ul>
+    ///   <li>Adds the <c>MFA</c> policy.</li>
+    ///   <li>Adds the <c>MFAExempt</c> policy.</li>
+    ///   <li>Sets the default policy to the <c>MFA</c> policy.</li>
+    ///   <li>Sets the fallback policy to the <c>MFA</c> policy to enforce MFA on unauthenticated or unhandled requests.</li>
+    /// </ul>
+    /// </remarks>
     protected virtual void ConfigureAuthorizationOptions(AuthorizationOptions options)
     {
         options.AddPolicy(AuthPolicy.MFA, policy => policy.AddRequirements(new MFARequirement()));
