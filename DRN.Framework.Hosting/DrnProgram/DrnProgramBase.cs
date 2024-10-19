@@ -95,8 +95,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         applicationBuilder.Configuration.AddDrnSettings(GetApplicationAssemblyName(), args);
         program.ConfigureApplicationBuilder(applicationBuilder);
 
-        await program.AddServicesAsync(applicationBuilder);
         applicationBuilder.Services.AddAuthorization(program.ConfigureAuthorizationOptions);
+        await program.AddServicesAsync(applicationBuilder);
 
         var application = applicationBuilder.Build();
         program.ConfigureApplication(application);

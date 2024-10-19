@@ -1,5 +1,6 @@
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Razor.TagHelpers;
+using Sample.Hosted.Controllers;
 using Sample.Hosted.Utils;
 
 namespace Sample.Hosted.TagHelpers;
@@ -18,7 +19,7 @@ public class ProfilePictureTagHelper : TagHelper
         output.TagMode = TagMode.SelfClosing;
 
         // Set the attributes on the <img> tag
-        output.Attributes.SetAttribute("src", $"/ProfilePicture/{ScopeContext.UserId}?v={ClaimFor.Profile.PPVersion}");
+        output.Attributes.SetAttribute("src", $"{ApiFor.User.PP.Get}/{ScopeContext.UserId}?v={ClaimFor.Profile.PPVersion}");
         output.Attributes.SetAttribute("alt", Alt ?? "Profile Picture");
 
         if (!string.IsNullOrWhiteSpace(Class))

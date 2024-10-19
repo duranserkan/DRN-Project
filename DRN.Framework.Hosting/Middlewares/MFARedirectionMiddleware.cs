@@ -38,7 +38,7 @@ public class MFARedirectionMiddleware(RequestDelegate next)
 
         if (MFAFor.MFARenewalRequired)
         {
-            httpContext.Response.Redirect(options.MFALoginUrl);
+            httpContext.Response.Redirect(options.LoginUrl);
             return;
         }
 
@@ -61,8 +61,9 @@ public class MFARedirectionOptions
     public string LoginUrl { get; internal set; } = string.Empty;
     public string LogoutUrl { get; internal set; } = string.Empty;
     public HashSet<string> AppPages { get; internal set; } = new(StringComparer.OrdinalIgnoreCase);
+    public bool RedirectionNeeded(string requestPath) => AppPages.Contains(requestPath);
 
-    public bool RedirectionNeeded(string requestPath) => AppPages.Contains(requestPath) && !requestPath.Equals(LogoutUrl);
+    public bool IsLoginUrl(string requestPath) => requestPath.Equals(LoginUrl, StringComparison.OrdinalIgnoreCase);
     public bool IsMFALoginUrl(string requestPath) => requestPath.Equals(MFALoginUrl, StringComparison.OrdinalIgnoreCase);
     public bool IsMFASetupUrl(string requestPath) => requestPath.Equals(MFASetupUrl, StringComparison.OrdinalIgnoreCase);
 }
@@ -71,9 +72,41 @@ public class MFARedirectionOptions
 /// Required to configure MFA Redirection. When provided by <see cref="DrnProgramBase{TProgram}.ConfigureMFARedirection"/>,
 /// MFARedirectionMiddleware will be added.
 /// </summary>
-/// <param name="MFASetupUrl"><see cref="MFAFor.MFASetupRequired"/> Redirect url</param>
-/// <param name="MFALoginUrl"><see cref="MFAFor.MFAInProgress"/> Redirect url</param>
-/// <param name="LoginUrl"><see cref="MFAFor.MFARenewalRequired"/> Redirect url</param>
-/// <param name="LogoutUrl">Redirection exception for logout requests</param>
-/// <param name="AppPages">Page whitelist that requires redirection. Non whitelisted paths and static assets like Favicon doesn't require redirection</param>
-public record MFARedirectionConfig(string MFASetupUrl, string MFALoginUrl, string LoginUrl, string LogoutUrl, HashSet<string> AppPages);
+public class MFARedirectionConfig
+{
+    /// <summary>
+    /// Required to configure MFA Redirection. When provided by <see cref="DrnProgramBase{TProgram}.ConfigureMFARedirection"/>,
+    /// MFARedirectionMiddleware will be added.
+    /// </summary>
+    /// <param name="mfaSetupUrl"><see cref="MFAFor.MFASetupRequired"/> Redirect url</param>
+    /// <param name="mfaLoginUrl"><see cref="MFAFor.MFAInProgress"/> Redirect url</param>
+    /// <param name="loginUrl"><see cref="MFAFor.MFARenewalRequired"/> Redirect url</param>
+    /// <param name="logoutUrl">Redirection exception for logout requests</param>
+    /// <param name="appPages">Page whitelist that requires redirection. Non whitelisted paths and static assets like Favicon doesn't require redirection</param>
+    public MFARedirectionConfig(string mfaSetupUrl, string mfaLoginUrl, string loginUrl, string logoutUrl, HashSet<string> appPages)
+    {
+        MFASetupUrl = mfaSetupUrl;
+        MFALoginUrl = mfaLoginUrl;
+        LoginUrl = loginUrl;
+        LogoutUrl = logoutUrl;
+
+        AppPages = appPages;
+        AppPages.Remove(loginUrl);
+        AppPages.Remove(logoutUrl);
+    }
+
+    /// <summary><see cref="MFAFor.MFASetupRequired"/> Redirect url</summary>
+    public string MFASetupUrl { get; }
+
+    /// <summary><see cref="MFAFor.MFAInProgress"/> Redirect url</summary>
+    public string MFALoginUrl { get; }
+
+    /// <summary><see cref="MFAFor.MFARenewalRequired"/> Redirect url</summary>
+    public string LoginUrl { get; }
+
+    /// <summary>Redirection exception for logout requests</summary>
+    public string LogoutUrl { get; }
+
+    /// <summary>Page whitelist that requires redirection. Non whitelisted paths and static assets like Favicon doesn't require redirection</summary>
+    public HashSet<string> AppPages { get; }
+}
