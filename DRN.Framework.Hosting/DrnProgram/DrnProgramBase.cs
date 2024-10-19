@@ -170,10 +170,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ConfigureApplicationPreAuthentication(WebApplication application)
     {
-        if (!DrnProgramSwaggerOptions.AddSwagger) return;
-
-        application.MapSwagger(DrnProgramSwaggerOptions.DefaultRouteTemplate, DrnProgramSwaggerOptions.ConfigureSwaggerEndpointOptions);
-        application.UseSwaggerUI(DrnProgramSwaggerOptions.ConfigureSwaggerUIOptionsAction);
     }
 
     /// <summary>
@@ -196,6 +192,10 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ConfigureApplicationPostAuthorization(WebApplication application)
     {
+        if (!DrnProgramSwaggerOptions.AddSwagger) return;
+
+        application.MapSwagger(DrnProgramSwaggerOptions.DefaultRouteTemplate, DrnProgramSwaggerOptions.ConfigureSwaggerEndpointOptions);
+        application.UseSwaggerUI(DrnProgramSwaggerOptions.ConfigureSwaggerUIOptionsAction);
     }
 
     protected virtual void MapApplicationEndpoints(WebApplication application)

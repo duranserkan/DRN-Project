@@ -63,11 +63,14 @@ public class LoginModel(SignInManager<IdentityUser> signInManager, UserManager<I
 
 public class LoginInput
 {
-    [Required] [EmailAddress] public string Email { get; init; } = null!;
+    [Required]
+    [EmailAddress]
+    public string Email { get; init; } = null!;
 
     [Required]
     [DataType(DataType.Password)]
     public string Password { get; init; } = null!;
 
-    [Display(Name = "Remember me?")] public bool RememberMe { get; init; }
+    [Display(Name = "Remember me?")]
+    public bool RememberMe { get; init; }
 }

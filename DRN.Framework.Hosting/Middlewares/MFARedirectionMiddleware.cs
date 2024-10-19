@@ -10,7 +10,7 @@ public class MFARedirectionMiddleware(RequestDelegate next)
     public async Task InvokeAsync(HttpContext httpContext, MFARedirectionOptions options)
     {
         var requestPath = httpContext.Request.Path;
-        if (!options.RedirectionNeeded(requestPath))
+        if (options.RedirectionNotNeeded(requestPath))
         {
             await next(httpContext);
             return;
@@ -36,16 +36,9 @@ public class MFARedirectionMiddleware(RequestDelegate next)
             return;
         }
 
-        if (MFAFor.MFARenewalRequired)
+        if (MFAFor.MFARenewalRequired || pathIsMFALoginUrl || pathIsMFASetupUrl)
         {
             httpContext.Response.Redirect(options.LoginUrl);
-            return;
-        }
-
-        if (pathIsMFALoginUrl || pathIsMFASetupUrl)
-        {
-            httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
-            await httpContext.Response.WriteAsync("Resource not available");
             return;
         }
 
@@ -61,9 +54,12 @@ public class MFARedirectionOptions
     public string LoginUrl { get; internal set; } = string.Empty;
     public string LogoutUrl { get; internal set; } = string.Empty;
     public HashSet<string> AppPages { get; internal set; } = new(StringComparer.OrdinalIgnoreCase);
-    public bool RedirectionNeeded(string requestPath) => AppPages.Contains(requestPath);
 
-    public bool IsLoginUrl(string requestPath) => requestPath.Equals(LoginUrl, StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    ///  If not in redirection list let it go
+    /// </summary>
+    public bool RedirectionNotNeeded(string requestPath) => !AppPages.Contains(requestPath);
+
     public bool IsMFALoginUrl(string requestPath) => requestPath.Equals(MFALoginUrl, StringComparison.OrdinalIgnoreCase);
     public bool IsMFASetupUrl(string requestPath) => requestPath.Equals(MFASetupUrl, StringComparison.OrdinalIgnoreCase);
 }
@@ -107,6 +103,6 @@ public class MFARedirectionConfig
     /// <summary>Redirection exception for logout requests</summary>
     public string LogoutUrl { get; }
 
-    /// <summary>Page whitelist that requires redirection. Non whitelisted paths and static assets like Favicon doesn't require redirection</summary>
+    /// <summary>Page whitelist that requires redirection. Non whitelisted paths such as api endpoints and static assets like Favicon doesn't require redirection</summary>
     public HashSet<string> AppPages { get; }
 }

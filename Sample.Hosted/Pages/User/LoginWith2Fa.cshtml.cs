@@ -11,17 +11,15 @@ public class LoginWith2Fa(SignInManager<IdentityUser> signInManager) : PageModel
 {
     private const string InvalidCodeAttempts = nameof(InvalidCodeAttempts);
 
-    [BindProperty] public Login2FaModel Login2FaModel { get; set; } = null!;
-
-    public bool RememberMe { get; set; }
+    [BindProperty] public Login2FaModel Login2FaModel { get; set; } = new();
 
     public void OnGet(bool rememberMe, string? returnUrl = null)
     {
-        RememberMe = rememberMe;
+        Login2FaModel.RememberMe = rememberMe;
         ViewData["ReturnUrl"] = returnUrl;
     }
 
-    public async Task<IActionResult> OnPostAsync(bool rememberMe, string? returnUrl = null)
+    public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
         if (!MFAFor.MFAInProgress)
             return LocalRedirect(PageFor.User.Login);
@@ -30,7 +28,7 @@ public class LoginWith2Fa(SignInManager<IdentityUser> signInManager) : PageModel
             return Page();
 
         //Todo:remember client
-        var result = await signInManager.TwoFactorAuthenticatorSignInAsync(Login2FaModel.TwoFactorCode, rememberMe, rememberClient: false);
+        var result = await signInManager.TwoFactorAuthenticatorSignInAsync(Login2FaModel.TwoFactorCode, Login2FaModel.RememberMe, rememberClient: false);
         if (result.Succeeded)
         {
             ResetInvalidCodeAttempts(HttpContext);
@@ -69,4 +67,7 @@ public class Login2FaModel
     [DataType(DataType.Text)]
     [Display(Name = "Authenticator code")]
     public string TwoFactorCode { get; init; } = string.Empty;
+
+    [Display(Name = "Remember me?")]
+    public bool RememberMe { get; set; }
 }
