@@ -15,6 +15,8 @@ public class IdentityPasswordController(
     IEmailSender<IdentityUser> emailSender) : ControllerBase
 {
     [HttpPost(nameof(Reset))]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IResult> Reset([FromBody] ResetPasswordRequest resetRequest)
     {
         var user = await userManager.FindByEmailAsync(resetRequest.Email);
@@ -44,6 +46,8 @@ public class IdentityPasswordController(
     }
 
     [HttpPost(nameof(Forgot))]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IResult> Forgot([FromBody] ForgotPasswordRequest resetRequest)
     {
         var user = await userManager.FindByEmailAsync(resetRequest.Email);

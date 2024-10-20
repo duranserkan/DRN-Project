@@ -9,8 +9,9 @@ namespace Sample.Hosted.Controllers.User;
 public class ProfilePictureController(IProfilePictureRepository ppRepository, IWebHostEnvironment hostingEnvironment) : ControllerBase
 {
     [HttpGet("{userId:required}")]
-    [ProducesResponseType(200)]
-    public async Task<ActionResult<string>> Get(string userId)
+    [Produces("image/jpeg")]  // Adjust MIME type if needed
+    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
+    public async Task<FileStreamResult> Get(string userId)
     {
         var ppData = await ppRepository.GetProfilePictureAsync(userId);
 

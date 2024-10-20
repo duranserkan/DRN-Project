@@ -15,6 +15,9 @@ public class IdentityManagementController(
     private static readonly EmailAddressAttribute EmailAddressAttribute = new();
 
     [HttpPost(nameof(TwoFactorAuth))]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(TwoFactorResponse),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IResult> TwoFactorAuth([FromBody] TwoFactorRequest tfaRequest)
     {
         var userManager = signInManager.UserManager;
@@ -74,6 +77,9 @@ public class IdentityManagementController(
     }
 
     [HttpGet(nameof(GetInfo))]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(InfoResponse),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IResult> GetInfo()
     {
         var userManager = signInManager.UserManager;
@@ -84,6 +90,9 @@ public class IdentityManagementController(
     }
 
     [HttpPost(nameof(PostInfo))]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(InfoResponse),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IResult> PostInfo([FromBody] InfoRequest infoRequest)
     {
         var userManager = signInManager.UserManager;

@@ -30,11 +30,4 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     protected override MFARedirectionConfig ConfigureMFARedirection()
         => new(PageFor.UserManagement.EnableAuthenticator, PageFor.User.LoginWith2Fa,
             PageFor.User.Login, PageFor.User.Logout, PageFor.GetAllPages());
-
-    //todo: swagger access issue
-    protected override void MapApplicationEndpoints(WebApplication application)
-    {
-        base.MapApplicationEndpoints(application);
-        //application.MapDrnIdentityApi<IdentityUser>("identity");
-    }
 }

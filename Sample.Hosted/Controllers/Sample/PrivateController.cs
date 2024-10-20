@@ -10,21 +10,21 @@ public class PrivateController(IScopedUser scopedUser, IScopedLog scopedLog) : C
 {
     [HttpGet]
     [ProducesResponseType(200)]
-    public ActionResult<string> Authorized() => Ok(scopedUser);
+    public ActionResult<IScopedUser> Authorized() => Ok(scopedUser);
 
     [AllowAnonymous]
     [HttpGet("anonymous")]
     [ProducesResponseType(200)]
-    public ActionResult<string> Anonymous() => Ok(scopedUser);
+    public ActionResult<IScopedUser> Anonymous() => Ok(scopedUser);
 
     [HttpGet("scope-context")]
     [ProducesResponseType(200)]
-    public ActionResult<string> Context() => Ok(ScopeContext.Value);
+    public ActionResult<ScopeContext> Context() => Ok(ScopeContext.Value);
 
     [AllowAnonymous]
     [HttpGet("validate-scope")]
     [ProducesResponseType(200)]
-    public ActionResult<string> ValidateScope()
+    public ActionResult<bool> ValidateScope()
     {
         var isValid = ScopeContext.Value.TraceId == HttpContext.TraceIdentifier
                       && ScopeContext.Value.ScopedUser == scopedUser

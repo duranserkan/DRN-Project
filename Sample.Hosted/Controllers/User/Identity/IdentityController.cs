@@ -20,6 +20,8 @@ public class IdentityController(
     private static readonly EmailAddressAttribute EmailAddressAttribute = new();
 
     [HttpPost(nameof(Register))]
+    [ProducesResponseType( StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails),StatusCodes.Status400BadRequest)]
     public async Task<IResult> Register([FromBody] RegisterRequest registration)
     {
         var userManager = signInManager.UserManager;
@@ -46,10 +48,12 @@ public class IdentityController(
     }
 
     [HttpPost(nameof(Login))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     public async Task<IResult> Login([FromBody] LoginRequest login, [FromQuery] bool? useCookies, [FromQuery] bool? useSessionCookies)
     {
-        var useCookieScheme = (useCookies == true) || (useSessionCookies == true);
-        var isPersistent = (useCookies == true) && (useSessionCookies != true);
+        var useCookieScheme = useCookies == true || useSessionCookies == true;
+        var isPersistent = useCookies == true && useSessionCookies != true;
         signInManager.AuthenticationScheme = useCookieScheme ? IdentityConstants.ApplicationScheme : IdentityConstants.BearerScheme;
 
         var result = await signInManager.PasswordSignInAsync(login.Email, login.Password, isPersistent, lockoutOnFailure: true);
@@ -69,6 +73,8 @@ public class IdentityController(
     }
 
     [HttpPost(nameof(Refresh))]
+    [ProducesResponseType( StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     public async Task<IResult> Refresh([FromBody] RefreshRequest refreshRequest)
     {
         var refreshTokenProtector = bearerTokenOptions.Get(IdentityConstants.BearerScheme).RefreshTokenProtector;
