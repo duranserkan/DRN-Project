@@ -23,6 +23,7 @@ public class ScopedUser : IScopedUser
 
     [JsonIgnore] public ClaimsPrincipal? Principal { get; private set; }
     [JsonIgnore] public ClaimsIdentity? PrimaryIdentity { get; private set; }
+    [JsonIgnore] public string ExemptionScheme { get; internal set; } = string.Empty;
 
     public bool Authenticated { get; private set; }
 
@@ -83,4 +84,7 @@ public class ScopedUser : IScopedUser
         AmrClaim = FindClaimGroup(ClaimConventions.AuthenticationMethodReference);
         AuthenticationMethodClaim = FindClaimGroup(ClaimConventions.AuthenticationMethod);
     }
+
+    internal void SetExemptionSchemes(string exemptionScheme) => ExemptionScheme = exemptionScheme;
+    internal bool HasExemptionSchemes => Authenticated && !string.IsNullOrWhiteSpace(ExemptionScheme);
 }

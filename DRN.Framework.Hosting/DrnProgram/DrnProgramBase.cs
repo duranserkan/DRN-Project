@@ -1,5 +1,6 @@
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
+using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.SharedKernel.Json;
@@ -61,6 +62,9 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             ScopedLog.AddToActions("Running Application");
             Log.Warning("{@Logs}", ScopedLog.Logs);
 
+            if (AppSettings.Features.TemporaryApplication)
+                return;
+
             await application.RunAsync();
 
             ScopedLog.AddToActions("Application Shutdown Gracefully");
@@ -68,6 +72,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         catch (Exception exception)
         {
             ScopedLog.AddException(exception);
+            throw;
         }
         finally
         {
@@ -93,13 +98,14 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.AppBuilderType);
         applicationBuilder.Configuration.AddDrnSettings(GetApplicationAssemblyName(), args);
-        program.ConfigureApplicationBuilder(applicationBuilder);
 
-        applicationBuilder.Services.AddAuthorization(program.ConfigureAuthorizationOptions);
+        program.ConfigureApplicationBuilder(applicationBuilder);
         await program.AddServicesAsync(applicationBuilder);
 
         var application = applicationBuilder.Build();
         program.ConfigureApplication(application);
+        program.ValidateEndpoints(application);
+        program.ValidateServices(application);
 
         return application;
     }
@@ -118,10 +124,11 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var services = applicationBuilder.Services;
         services.AdDrnHosting(DrnProgramSwaggerOptions, Configuration);
 
-        if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
-
         var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
         ConfigureMvcBuilder(mvcBuilder);
+
+        services.AddAuthorization(ConfigureAuthorizationOptions);
+        if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
         services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
         services.PostConfigure<HostFilteringOptions>(options =>
@@ -137,7 +144,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ConfigureApplication(WebApplication application)
     {
-        application.Services.ValidateServicesAddedByAttributes(ScopedLog);
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
         ConfigureApplicationPreScopeStart(application);
@@ -177,16 +183,17 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// </summary>
     protected virtual void ConfigureApplicationPostAuthentication(WebApplication application)
     {
-        var config = ConfigureMFARedirection();
-        if (config == null) return;
+        var exemptionOptions = application.Services.GetRequiredService<MFAExemptionOptions>();
+        var redirectionOptions = application.Services.GetRequiredService<MFARedirectionOptions>();
 
-        var options = application.Services.GetRequiredService<MFARedirectionOptions>();
-        options.MFALoginUrl = config.MFALoginUrl;
-        options.MFASetupUrl = config.MFASetupUrl;
-        options.LoginUrl = config.LoginUrl;
-        options.LogoutUrl = config.LogoutUrl;
-        options.AppPages = config.AppPages;
+        var exemptionConfig = ConfigureMFAExemption();
+        if (exemptionConfig != null)
+            exemptionOptions.MapFromConfig(exemptionConfig);
 
+        var redirectionConfig = ConfigureMFARedirection();
+        if (redirectionConfig == null) return;
+
+        redirectionOptions.MapFromConfig(redirectionConfig);
         application.UseMiddleware<MFARedirectionMiddleware>();
     }
 
@@ -213,6 +220,16 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// </ul>
     /// </summary>
     protected virtual MFARedirectionConfig? ConfigureMFARedirection() => null;
+
+    /// <summary>
+    /// Configures MFA (Multi-Factor Authentication) redirection logic when return value is not null:
+    /// <ul>
+    ///   <li>Redirects to <c>MFALoginUrl</c> if <c>MFAInProgress</c> is true for the user is logged in with a single factor</li>
+    ///   <li>Redirects to <c>MFASetupUrl</c> if <c>MFASetupRequired</c> is true for a new user without MFA configured.</li>
+    ///   <li>Prevents misuse or abuse of <c>MFALoginUrl</c> and <c>MFASetupUrl</c> routes.</li>
+    /// </ul>
+    /// </summary>
+    protected virtual MFAExemptionConfig? ConfigureMFAExemption() => null;
 
     /// <summary>
     /// Configures authorization policies and default behaviors for the application.
@@ -248,6 +265,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var controllersAdded = applicationParts.Any(p => p.Name == partName);
         if (!controllersAdded) mvcBuilder.AddApplicationPart(programAssembly);
 
+        mvcBuilder.AddControllersAsServices();
         mvcBuilder.AddRazorRuntimeCompilation();
         mvcBuilder.AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
     }
@@ -256,6 +274,25 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         options.OpenApiInfo.Title = AppSettings.ApplicationName;
         options.AddSwagger = AppSettings.IsDevEnvironment;
+    }
+
+    protected virtual void ValidateEndpoints(WebApplication application)
+    {
+        if (AppSettings.Features.TemporaryApplication)
+            return;
+        // We don't know if user code called UseEndpoints(), so we will call it just in case, UseEndpoints() will ignore duplicate DataSources
+        application.UseEndpoints(_ => { });
+
+        var helper = application.Services.GetRequiredService<IEndpointHelper>();
+        EndpointCollectionBase<TProgram>.SetEndpointDataSource(helper);
+        //Populate all api endpoints with RouteEndpoint data.
+        //If RouteEndpoint doesn't match with ApiEndpoint, enumeration will throw validation error.
+        _ = EndpointCollectionBase<TProgram>.GetAllEndpoints();
+    }
+
+    protected virtual void ValidateServices(WebApplication application)
+    {
+        application.Services.ValidateServicesAddedByAttributes(ScopedLog);
     }
 
     private static string GetApplicationAssemblyName() => typeof(TProgram).GetAssemblyName();

@@ -1,15 +1,15 @@
 using DRN.Framework.Hosting.Auth;
 using Sample.Domain.Identity.ProfilePictures;
 
-namespace Sample.Hosted.Controllers.User;
+namespace Sample.Hosted.Controllers.User.Profile;
 
 [ApiController]
-[Route("Api/User/[controller]")]
+[Route(UserApiFor.ControllerRouteTemplate)]
 [Authorize(AuthPolicy.MFAExempt)]
 public class ProfilePictureController(IProfilePictureRepository ppRepository, IWebHostEnvironment hostingEnvironment) : ControllerBase
 {
     [HttpGet("{userId:required}")]
-    [Produces("image/jpeg")]  // Adjust MIME type if needed
+    [Produces("image/jpeg")] // Adjust MIME type if needed
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
     public async Task<FileStreamResult> Get(string userId)
     {

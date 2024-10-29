@@ -4,20 +4,16 @@ using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 
-namespace Sample.Hosted.EndpointRouteBuilderExtensions;
+namespace Sample.Hosted.Controllers.User.Identity.Utils;
 
 [Scoped<IdentityConfirmationService>]
-public class IdentityConfirmationService(IServiceProvider serviceProvider)
+public class IdentityConfirmationService(IServiceProvider serviceProvider, LinkGenerator linkGenerator)
 {
     public async Task SendConfirmationEmailAsync<TUser>(TUser user, UserManager<TUser> userManager, HttpContext context, string email, bool isChange = false)
         where TUser : class, new()
     {
         var emailSender = serviceProvider.GetRequiredService<IEmailSender<TUser>>();
-        var linkGenerator = serviceProvider.GetRequiredService<LinkGenerator>();
-        var emailEndpoint = serviceProvider.GetRequiredService<IIdentityEmailConfirmationEndpoint>();
-
-        if (emailEndpoint.Name is null)
-            throw new NotSupportedException("No email confirmation endpoint was registered!");
+        var emailEndpoint =  ApiFor.User.Identity.Confirmation.ConfirmEmail;
 
         var code = isChange
             ? await userManager.GenerateChangeEmailTokenAsync(user, email)
@@ -31,14 +27,10 @@ public class IdentityConfirmationService(IServiceProvider serviceProvider)
             ["code"] = code,
         };
 
-        if (isChange)
-        {
-            // This is validated by the /confirmEmail endpoint on change.
+        if (isChange) // This is validated by the /confirmEmail endpoint on change.
             routeValues.Add("changedEmail", email);
-        }
 
-        var confirmEmailUrl = linkGenerator.GetUriByName(context, emailEndpoint.Name, routeValues)
-                              ?? throw new NotSupportedException($"Could not find endpoint named '{emailEndpoint.Name}'.");
+        var confirmEmailUrl = linkGenerator.GetUriByAction(context, emailEndpoint.ActionName, emailEndpoint.ControllerName, routeValues);
 
         await emailSender.SendConfirmationLinkAsync(user, email, HtmlEncoder.Default.Encode(confirmEmailUrl));
     }

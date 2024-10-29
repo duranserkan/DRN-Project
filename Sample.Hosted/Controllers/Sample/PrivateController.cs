@@ -5,7 +5,7 @@ using DRN.Framework.Utils.Scope;
 namespace Sample.Hosted.Controllers.Sample;
 
 [ApiController]
-[Route("Api/Sample/[controller]")]
+[Route(SampleApiFor.ControllerRouteTemplate)]
 public class PrivateController(IScopedUser scopedUser, IScopedLog scopedLog) : ControllerBase
 {
     [HttpGet]

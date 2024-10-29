@@ -1,4 +1,4 @@
-using DRN.Framework.Utils.Models.Page;
+using DRN.Framework.Hosting.Endpoints;
 
 namespace Sample.Hosted.Pages;
 

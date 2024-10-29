@@ -3,7 +3,7 @@ namespace Sample.Hosted.Controllers.Sample;
 [AllowAnonymous]
 [ApiController]
 [Route("Api/Sample/[controller]")]
-public class ExceptionController
+public class ExceptionController : ControllerBase
 {
     [HttpGet(nameof(ValidationException))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

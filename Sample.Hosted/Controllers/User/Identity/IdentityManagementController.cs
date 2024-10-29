@@ -1,14 +1,14 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
-using Sample.Hosted.EndpointRouteBuilderExtensions;
+using Sample.Hosted.Controllers.User.Identity.Utils;
 
 namespace Sample.Hosted.Controllers.User.Identity;
 
 [ApiController]
 [Authorize]
-[Route("Api/User/[controller]")]
-public class IdentityManagementController(
+[Route(UserApiFor.ControllerRouteTemplate)]
+public class IdentityManagementController(//From https://github.com/dotnet/aspnetcore/blob/main/src/Identity/Core/src/IdentityApiEndpointRouteBuilderExtensions.cs
     SignInManager<IdentityUser> signInManager,
     IdentityConfirmationService confirmationService) : ControllerBase
 {

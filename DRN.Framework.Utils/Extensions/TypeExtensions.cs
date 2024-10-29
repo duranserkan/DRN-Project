@@ -4,7 +4,17 @@ namespace DRN.Framework.Utils.Extensions;
 
 public static class TypeExtensions
 {
-    public static Type[] GetTypesAssignableTo(this Assembly? assembly, Type to) => assembly?.GetTypes().Where(t => t.IsAssignableTo(to)).ToArray() ?? [];
+    /// <summary>
+    /// Finds all types that are subclasses of the specified type in the specified assemblies.
+    /// </summary>
+    /// <param name="baseType">The base class or interface type.</param>
+    /// <param name="assemblies">Assemblies to search for subclasses.</param>
+    /// <returns>List of types that are subclasses or implementers of the baseType.</returns>
+    public static Type[] GetSubTypes(this Assembly? assembly, Type baseType)
+        => assembly?.GetTypes().Where(t => t != baseType && t.IsAssignableTo(baseType)).ToArray() ?? [];
+
+    public static Type[] GetTypesAssignableTo(this Assembly? assembly, Type to)
+        => assembly?.GetTypes().Where(t => t.IsAssignableTo(to)).ToArray() ?? [];
 
     public static MethodInfo MakeGenericMethod(this Type type, string methodName, params Type[] genericTypeArguments)
     {

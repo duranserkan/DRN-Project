@@ -1,44 +1,60 @@
+using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Middlewares;
 
 public class MFARedirectionMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext httpContext, MFARedirectionOptions options)
+    public async Task InvokeAsync(HttpContext httpContext, IScopedUser scopedUser, MFARedirectionOptions redirectionOptions,
+        MFAExemptionOptions exemptionOptions)
     {
+        if (!MFAFor.MFACompleted && exemptionOptions.ExemptAuthSchemes.Any())
+        {
+            foreach (var exemptAuthScheme in exemptionOptions.ExemptAuthSchemes)
+            {
+                var result = await httpContext.AuthenticateAsync(exemptAuthScheme);
+                if (result is not { Succeeded: true, Principal: not null }) continue;
+
+                ((ScopedUser)scopedUser).SetExemptionSchemes(exemptAuthScheme);
+                break;
+            }
+        }
+
         var requestPath = httpContext.Request.Path;
-        if (options.RedirectionNotNeeded(requestPath))
+        if (redirectionOptions.RedirectionNotNeeded(requestPath))
         {
             await next(httpContext);
             return;
         }
 
-        var pathIsMFALoginUrl = options.IsMFALoginUrl(requestPath);
+        var pathIsMFALoginUrl = redirectionOptions.IsMFALoginUrl(requestPath);
         if (MFAFor.MFAInProgress)
         {
             if (pathIsMFALoginUrl)
                 await next(httpContext);
             else
-                httpContext.Response.Redirect(options.MFALoginUrl);
+                httpContext.Response.Redirect(redirectionOptions.MFALoginUrl);
             return;
         }
 
-        var pathIsMFASetupUrl = options.IsMFASetupUrl(requestPath);
+        var pathIsMFASetupUrl = redirectionOptions.IsMFASetupUrl(requestPath);
         if (MFAFor.MFASetupRequired)
         {
             if (pathIsMFASetupUrl)
                 await next(httpContext);
             else
-                httpContext.Response.Redirect(options.MFASetupUrl);
+                httpContext.Response.Redirect(redirectionOptions.MFASetupUrl);
             return;
         }
 
         if (MFAFor.MFARenewalRequired || pathIsMFALoginUrl || pathIsMFASetupUrl)
         {
-            httpContext.Response.Redirect(options.LoginUrl);
+            httpContext.Response.Redirect(redirectionOptions.LoginUrl);
             return;
         }
 
@@ -54,6 +70,15 @@ public class MFARedirectionOptions
     public string LoginUrl { get; internal set; } = string.Empty;
     public string LogoutUrl { get; internal set; } = string.Empty;
     public HashSet<string> AppPages { get; internal set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    internal void MapFromConfig(MFARedirectionConfig config)
+    {
+        MFALoginUrl = config.MFALoginUrl;
+        MFASetupUrl = config.MFASetupUrl;
+        LoginUrl = config.LoginUrl;
+        LogoutUrl = config.LogoutUrl;
+        AppPages = config.AppPages;
+    }
 
     /// <summary>
     ///  If not in redirection list let it go

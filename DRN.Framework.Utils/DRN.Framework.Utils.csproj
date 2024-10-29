@@ -37,6 +37,11 @@
     </Target>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="DRN.Framework.Hosting" />
+        <InternalsVisibleTo Include="DRN.Framework.Testing" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="Flurl.Http" Version="4.0.2" />
         <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.0.0-preview.9.24507.7" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />

@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace DRN.Framework.Utils.Models.Page;
+namespace DRN.Framework.Hosting.Endpoints;
 
 public abstract class PageForBase
 {

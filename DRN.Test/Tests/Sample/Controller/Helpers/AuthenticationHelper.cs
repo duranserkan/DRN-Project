@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Identity.Data;
+using Sample.Hosted.Controllers;
 
 namespace DRN.Test.Tests.Sample.Controller.Helpers;
 
@@ -39,7 +40,7 @@ public static class AuthenticationHelper
     {
         await RegisterUserAsync(client, registerRequest);
 
-        var responseMessage = await client.PostAsJsonAsync("identity/login", registerRequest);
+        var responseMessage = await client.PostAsJsonAsync(ApiFor.User.Identity.Login.RoutePattern, registerRequest);
         responseMessage.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var tokenResponse = await responseMessage.Content.ReadFromJsonAsync<AccessTokenResponse>();
@@ -50,7 +51,7 @@ public static class AuthenticationHelper
 
     public static async Task RegisterUserAsync(HttpClient client, RegisterRequest registerRequest)
     {
-        var responseMessage = await client.PostAsJsonAsync("identity/register", registerRequest);
+        var responseMessage = await client.PostAsJsonAsync(ApiFor.User.Identity.Register.RoutePattern, registerRequest);
         responseMessage.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

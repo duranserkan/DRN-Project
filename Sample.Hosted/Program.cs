@@ -1,6 +1,8 @@
-﻿using DRN.Framework.Hosting.DrnProgram;
+﻿using DRN.Framework.Hosting.Auth.Policies;
+using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Testing.Extensions;
+using Microsoft.AspNetCore.Identity;
 using Sample.Application;
 using Sample.Hosted.Pages;
 using Sample.Infra;
@@ -30,4 +32,7 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     protected override MFARedirectionConfig ConfigureMFARedirection()
         => new(PageFor.UserManagement.EnableAuthenticator, PageFor.User.LoginWith2Fa,
             PageFor.User.Login, PageFor.User.Logout, PageFor.GetAllPages());
+
+    protected override MFAExemptionConfig ConfigureMFAExemption()
+        => new() { ExemptAuthSchemes = [IdentityConstants.BearerScheme] };
 }

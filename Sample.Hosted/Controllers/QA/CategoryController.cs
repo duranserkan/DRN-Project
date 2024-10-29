@@ -17,7 +17,7 @@ public class CategoryController(QAContext context) : ControllerBase
         return categories;
     }
 
-    [HttpGet("{id}")]
+    [HttpGet("{id:long}")]
     public async Task<Category> GetAsync([FromRoute] long id)
     {
         var category = await context.Categories.FindAsync(id);

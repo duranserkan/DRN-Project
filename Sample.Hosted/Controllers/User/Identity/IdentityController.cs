@@ -3,14 +3,17 @@ using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.Extensions.Options;
-using Sample.Hosted.EndpointRouteBuilderExtensions;
+using Sample.Hosted.Controllers.User.Identity.Utils;
 
 namespace Sample.Hosted.Controllers.User.Identity;
 
+
+
+
 [ApiController]
 [AllowAnonymous]
-[Route("Api/User/[controller]")]
-public class IdentityController(
+[Route(UserApiFor.ControllerRouteTemplate)]
+public class IdentityController(//From https://github.com/dotnet/aspnetcore/blob/main/src/Identity/Core/src/IdentityApiEndpointRouteBuilderExtensions.cs
     SignInManager<IdentityUser> signInManager,
     IUserStore<IdentityUser> userStore,
     IdentityConfirmationService confirmationService,

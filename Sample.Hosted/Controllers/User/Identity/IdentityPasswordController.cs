@@ -3,14 +3,14 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.WebUtilities;
-using Sample.Hosted.EndpointRouteBuilderExtensions;
+using Sample.Hosted.Controllers.User.Identity.Utils;
 
 namespace Sample.Hosted.Controllers.User.Identity;
 
 [ApiController]
 [AllowAnonymous]
-[Route("Api/User/[controller]")]
-public class IdentityPasswordController(
+[Route(UserApiFor.ControllerRouteTemplate)]
+public class IdentityPasswordController(//From https://github.com/dotnet/aspnetcore/blob/main/src/Identity/Core/src/IdentityApiEndpointRouteBuilderExtensions.cs
     UserManager<IdentityUser> userManager,
     IEmailSender<IdentityUser> emailSender) : ControllerBase
 {

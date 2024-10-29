@@ -2,7 +2,6 @@
 using DRN.Framework.Testing.Extensions;
 using DRN.Nexus.Application;
 using DRN.Nexus.Infra;
-using Microsoft.AspNetCore.Identity;
 
 namespace DRN.Nexus.Hosted;
 
