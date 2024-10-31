@@ -8,7 +8,7 @@ public class PagerForTests
     public void PageFor_Should_Return_All_Pages()
     {
         var pages = PageFor.GetAllPages();
-
+//todo fix race condition
         pages.Should().Contain(PageFor.Root.GetPages());
         pages.Should().Contain(PageFor.User.GetPages());
         pages.Should().Contain(PageFor.UserManagement.GetPages());

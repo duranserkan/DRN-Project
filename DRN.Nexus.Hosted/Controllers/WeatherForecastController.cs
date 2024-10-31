@@ -1,10 +1,9 @@
-﻿using DRN.Framework.Utils.Models;
-using DRN.Framework.Utils.Models.Sample;
+﻿using DRN.Framework.Utils.Models.Sample;
 
 namespace DRN.Nexus.Hosted.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route(EndpointFor.ControllerRouteTemplate)]
 public class WeatherForecastController : ControllerBase
 {
     [HttpGet(Name = "GetWeatherForecast")]

@@ -9,7 +9,7 @@ public class EndpointForTests
     [DataInline]
     public async Task EndPointFor_Should_Return_Endpoint_Address(TestContext context)
     {
-        await context.ApplicationContext.CreateApplicationAndBindDependencies<Program>();
+        await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<Program>();
 
         var confirmEmailEndpoint = EndpointFor.User.Identity.Confirmation.ConfirmEmail;
         confirmEmailEndpoint.RoutePattern.Should().NotBeNull();

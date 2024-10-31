@@ -90,7 +90,7 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
     /// <summary>
     /// Most used defaults and bindings for testing an api endpoint gathered together
     /// </summary>
-    public async Task<WebApplicationFactory<TEntryPoint>> CreateApplicationAndBindDependencies<TEntryPoint>(
+    public async Task<WebApplicationFactory<TEntryPoint>> CreateApplicationAndBindDependenciesAsync<TEntryPoint>(
         ITestOutputHelper? outputHelper = null) where TEntryPoint : class
     {
         if (outputHelper != null) LogToTestOutput(outputHelper);
@@ -109,7 +109,7 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
     public async Task<HttpClient> CreateClientAsync<TEntryPoint>(ITestOutputHelper? outputHelper = null,
         WebApplicationFactoryClientOptions? clientOptions = null) where TEntryPoint : class
     {
-        var application = await CreateApplicationAndBindDependencies<TEntryPoint>(outputHelper);
+        var application = await CreateApplicationAndBindDependenciesAsync<TEntryPoint>(outputHelper);
         var client = clientOptions == null
             ? application.CreateClient()
             : application.CreateClient(clientOptions);

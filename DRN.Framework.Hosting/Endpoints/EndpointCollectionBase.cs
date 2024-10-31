@@ -37,6 +37,12 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
         var endpointBase = typeof(IEndpointForBase);
         foreach (var apiGroup in apiGroups)
         {
+            if (endpointBase.IsInstanceOfType(apiGroup.Value))
+            {
+                var apiForBase = (IEndpointForBase)apiGroup.Value;
+                SetEndpoint(apiForBase, endpointList);
+            }
+
             var endPointContainers = apiGroup.Value.GetGroupedPropertiesOfSubtype(endpointBase);
             foreach (var container in endPointContainers)
             {
@@ -44,13 +50,7 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
                 foreach (var propertyInfo in container.Value)
                 {
                     var apiForBase = (IEndpointForBase?)propertyInfo.GetValue(containerObject);
-                    if (apiForBase == null) continue;
-
-                    foreach (var page in apiForBase.Endpoints)
-                    {
-                        page.SetEndPoint(EndpointHelper);
-                        endpointList.Add(page);
-                    }
+                    SetEndpoint(apiForBase, endpointList);
                 }
             }
         }
@@ -58,5 +58,16 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
         return endpointList
             .OrderBy(x => x.ControllerClassName)
             .ThenBy(x => x.ActionName).ToArray();
+    }
+
+    private static void SetEndpoint(IEndpointForBase? apiForBase, HashSet<ApiEndpoint> endpointList)
+    {
+        if (apiForBase == null) return;
+
+        foreach (var page in apiForBase.Endpoints)
+        {
+            page.SetEndPoint(EndpointHelper);
+            endpointList.Add(page);
+        }
     }
 }
