@@ -13,7 +13,7 @@ public class IdentityConfirmationService(IServiceProvider serviceProvider, LinkG
         where TUser : class, new()
     {
         var emailSender = serviceProvider.GetRequiredService<IEmailSender<TUser>>();
-        var emailEndpoint =  ApiFor.User.Identity.Confirmation.ConfirmEmail;
+        var emailEndpoint =  EndpointFor.User.Identity.Confirmation.ConfirmEmail;
 
         var code = isChange
             ? await userManager.GenerateChangeEmailTokenAsync(user, email)

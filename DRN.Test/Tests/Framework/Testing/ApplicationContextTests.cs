@@ -17,7 +17,7 @@ public class ApplicationContextTests
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
 
         var client = webApplication.CreateClient();
-        var endpoint = ApiFor.Sample.WeatherForecast.Get.RoutePattern;
+        var endpoint = EndpointFor.Sample.WeatherForecast.Get.RoutePattern;
         var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>(endpoint);
         forecasts.Should().NotBeNull();
 

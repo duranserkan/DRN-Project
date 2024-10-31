@@ -25,16 +25,14 @@ public class MFAEnforcingAuthorizationPolicyProvider(IOptions<AuthorizationOptio
 
         var defaultPolicy = await GetDefaultPolicyAsync();
         var enforceMFA = defaultPolicy.Requirements.Count(r => r.GetType() == typeof(MFARequirement)) == 1;
-        if (enforceMFA)
-        {
-            var combinedPolicy = new AuthorizationPolicyBuilder()
-                .AddRequirements(defaultPolicy.Requirements.ToArray())
-                .AddRequirements(policy.Requirements.ToArray())
-                .Build();
+        if (!enforceMFA) return policy;
 
-            return combinedPolicy;
-        }
+        var combinedPolicy = new AuthorizationPolicyBuilder()
+            .AddRequirements(defaultPolicy.Requirements.ToArray())
+            .AddRequirements(policy.Requirements.ToArray())
+            .Build();
 
-        return policy;
+        return combinedPolicy;
+
     }
 }

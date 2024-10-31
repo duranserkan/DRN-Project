@@ -11,7 +11,7 @@ public class ExceptionControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task ExceptionController_Should_Return_DrnException_Status_Codes(TestContext context)
     {
-        var exceptionEndpoints = ApiFor.Sample.Exception;
+        var exceptionEndpoints = EndpointFor.Sample.Exception;
         var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
         var response = await client.GetAsync(exceptionEndpoints.ValidationException.RoutePattern);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);

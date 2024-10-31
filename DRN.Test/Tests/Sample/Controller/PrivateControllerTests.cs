@@ -17,7 +17,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
         var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
         var testUser = await AuthenticationHelper.AuthenticateClientAsync(client);
 
-        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(ApiFor.Sample.Private.Authorized.RoutePattern);
+        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(EndpointFor.Sample.Private.Authorized.RoutePattern);
         userSummary.Should().NotBeNull();
         userSummary?.Authenticated.Should().BeTrue();
     }
@@ -28,7 +28,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
     {
         var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
 
-        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(ApiFor.Sample.Private.Anonymous.RoutePattern);
+        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(EndpointFor.Sample.Private.Anonymous.RoutePattern);
         userSummary.Should().NotBeNull();
         userSummary?.Authenticated.Should().BeFalse();
     }
@@ -40,7 +40,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
         var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
         await AuthenticationHelper.AuthenticateClientAsync(client, username, password);
 
-        var scopeContext = await client.GetAsync(ApiFor.Sample.Private.Context.RoutePattern);
+        var scopeContext = await client.GetAsync(EndpointFor.Sample.Private.Context.RoutePattern);
         scopeContext.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -51,7 +51,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
         var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
         await AuthenticationHelper.AuthenticateClientAsync(client, username, password);
 
-        var validation = await client.GetAsync(ApiFor.Sample.Private.ValidateScope.RoutePattern);
+        var validation = await client.GetAsync(EndpointFor.Sample.Private.ValidateScope.RoutePattern);
         validation.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

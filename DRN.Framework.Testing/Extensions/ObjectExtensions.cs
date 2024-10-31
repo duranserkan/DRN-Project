@@ -18,11 +18,14 @@ public static class ObjectExtensions
             var proxyIdInterceptor = interceptors.SingleOrDefault(i => i is ProxyIdInterceptor) as ProxyIdInterceptor;
             if (proxyIdInterceptor == null) return null;
 
-            var interceptedRuntimeType = proxyIdInterceptor.GetType().GetField("_primaryProxyType", BindingFlags.Instance | BindingFlags.NonPublic)
-                ?.GetValue(proxyIdInterceptor) as Type;
-            if (interceptedRuntimeType == null) return null;
+            var proxyIdInterceptorFields = proxyIdInterceptor.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic);
+            var interceptedRuntimeType = proxyIdInterceptorFields.FirstOrDefault(fieldInfo =>
+                fieldInfo.Name.Contains("primaryProxyType", StringComparison.OrdinalIgnoreCase))?.GetValue(proxyIdInterceptor) as Type;
 
-            var interceptedType=interceptedRuntimeType.Assembly.GetType(interceptedRuntimeType.FullName!)!;
+            if (interceptedRuntimeType == null)
+                return null;
+
+            var interceptedType = interceptedRuntimeType.Assembly.GetType(interceptedRuntimeType.FullName!)!;
 
             return new SubstitutePair(interceptedType, o);
         }).Where(p => p != null).ToArray();

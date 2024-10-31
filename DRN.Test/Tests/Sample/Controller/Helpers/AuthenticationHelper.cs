@@ -40,7 +40,7 @@ public static class AuthenticationHelper
     {
         await RegisterUserAsync(client, registerRequest);
 
-        var responseMessage = await client.PostAsJsonAsync(ApiFor.User.Identity.Login.RoutePattern, registerRequest);
+        var responseMessage = await client.PostAsJsonAsync(EndpointFor.User.Identity.Login.RoutePattern, registerRequest);
         responseMessage.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var tokenResponse = await responseMessage.Content.ReadFromJsonAsync<AccessTokenResponse>();
@@ -51,7 +51,7 @@ public static class AuthenticationHelper
 
     public static async Task RegisterUserAsync(HttpClient client, RegisterRequest registerRequest)
     {
-        var responseMessage = await client.PostAsJsonAsync(ApiFor.User.Identity.Register.RoutePattern, registerRequest);
+        var responseMessage = await client.PostAsJsonAsync(EndpointFor.User.Identity.Register.RoutePattern, registerRequest);
         responseMessage.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

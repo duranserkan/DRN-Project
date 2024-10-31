@@ -3,7 +3,7 @@ using Sample.Hosted.Controllers;
 
 namespace DRN.Test.Tests.Sample.Controller;
 
-public class ApiForTests
+public class EndpointForTests
 {
     [Theory]
     [DataInline]
@@ -11,10 +11,10 @@ public class ApiForTests
     {
         await context.ApplicationContext.CreateApplicationAndBindDependencies<Program>();
 
-        var confirmEmailEndpoint = ApiFor.User.Identity.Confirmation.ConfirmEmail;
+        var confirmEmailEndpoint = EndpointFor.User.Identity.Confirmation.ConfirmEmail;
         confirmEmailEndpoint.RoutePattern.Should().NotBeNull();
 
-        var confirmationEndpoints = ApiFor.User.Identity.Confirmation.Endpoints;
+        var confirmationEndpoints = EndpointFor.User.Identity.Confirmation.Endpoints;
         confirmationEndpoints.Should().HaveCountGreaterThan(0);
 
         //todo: generate links compare named endpoints against controller action name

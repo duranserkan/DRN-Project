@@ -1,6 +1,6 @@
 using Sample.Hosted.Pages;
 
-namespace DRN.Test.Tests.Framework.Utils.Http;
+namespace DRN.Test.Tests.Framework.Hosting.Endpoints;
 
 public class PagerForTests
 {
