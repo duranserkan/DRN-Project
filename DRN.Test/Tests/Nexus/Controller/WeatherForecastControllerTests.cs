@@ -33,7 +33,7 @@ public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
 
     [Theory]
     [DataInline]
-    public async Task PrivateAction_Should_Return_Status(TestContext context, string username, string password)
+    public async Task PrivateAction_Should_Return_Status(TestContext context)
     {
         var client = await context.ApplicationContext.CreateClientAsync<NexusProgram>(outputHelper);
         var user = await AuthenticationHelper<NexusProgram>.AuthenticateClientAsync(client);

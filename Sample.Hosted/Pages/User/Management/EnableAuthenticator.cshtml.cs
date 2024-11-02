@@ -20,7 +20,7 @@ public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageMo
     public async Task<IActionResult> OnGetAsync()
     {
         var user = await userManager.GetUserAsync(User);
-        await LoadSharedKeyAndQrCodeUriAsync(user);
+        await LoadSharedKeyAndQrCodeUriAsync(user!);
 
         return Page();
     }
@@ -30,7 +30,7 @@ public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageMo
         if (!MFAFor.MFASetupRequired)
             return LocalRedirect(PageFor.User.Login);
 
-        var user = await userManager.GetUserAsync(User);
+        var user = (await userManager.GetUserAsync(User))!;
 
         if (!ModelState.IsValid)
         {
@@ -56,7 +56,6 @@ public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageMo
         return RedirectToPage(PageFor.UserManagement.ShowRecoveryCodes);
     }
 
-
     public string GenerateQrCodeImageAsBase64()
     {
         using var qrGenerator = new QRCodeGenerator();
@@ -66,7 +65,6 @@ public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageMo
 
         return qrCode.GetGraphic(20);
     }
-
 
     private async Task LoadSharedKeyAndQrCodeUriAsync(IdentityUser user)
     {
