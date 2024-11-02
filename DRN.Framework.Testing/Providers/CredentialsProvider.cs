@@ -8,7 +8,6 @@ namespace DRN.Framework.Testing.Providers;
 public class CredentialsProvider
 {
     public const char Unique1 = 'Z';
-
     public const char Unique2 = 'y';
 
     //'Z' is ignored because it will seed as unique character

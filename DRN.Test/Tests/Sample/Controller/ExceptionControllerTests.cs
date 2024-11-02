@@ -11,8 +11,9 @@ public class ExceptionControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task ExceptionController_Should_Return_DrnException_Status_Codes(TestContext context)
     {
-        var exceptionEndpoints = EndpointFor.Sample.Exception;
-        var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
+        var exceptionEndpoints = SampleEndpointFor.Sample.Exception;
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+
         var response = await client.GetAsync(exceptionEndpoints.ValidationException.RoutePattern);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
@@ -37,7 +38,7 @@ public class ExceptionControllerTests(ITestOutputHelper outputHelper)
         response = await client.GetAsync(exceptionEndpoints.UnprocessableEntityException.RoutePattern);
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-        Func<Task> malicious = async () => await client.GetAsync(exceptionEndpoints.MaliciousRequestException.RoutePattern);
+        var malicious = async () => await client.GetAsync(exceptionEndpoints.MaliciousRequestException.RoutePattern);
         await malicious.Should().ThrowAsync<OperationCanceledException>("The application aborted the request.");
     }
 }

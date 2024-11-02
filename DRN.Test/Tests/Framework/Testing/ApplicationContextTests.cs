@@ -13,11 +13,11 @@ public class ApplicationContextTests
     [DataInline]
     public async Task ApplicationContext_Should_Provide_Configuration_To_Program(TestContext context)
     {
-        var webApplication = context.ApplicationContext.CreateApplication<Program>();
+        var webApplication = context.ApplicationContext.CreateApplication<SampleProgram>();
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
 
         var client = webApplication.CreateClient();
-        var endpoint = EndpointFor.Sample.WeatherForecast.Get.RoutePattern;
+        var endpoint = SampleEndpointFor.Sample.WeatherForecast.Get.RoutePattern;
         var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>(endpoint);
         forecasts.Should().NotBeNull();
 

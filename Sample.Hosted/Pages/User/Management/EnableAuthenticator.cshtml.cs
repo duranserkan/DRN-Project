@@ -50,11 +50,10 @@ public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageMo
 
         await userManager.SetTwoFactorEnabledAsync(user, true);
 
-        // Generate recovery codes
         var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
-        TempData["RecoveryCodes"] = recoveryCodes?.ToArray() ?? [];
+        TempData[nameof(ShowRecoveryCodes.RecoveryCodes)] = recoveryCodes?.ToArray() ?? [];
 
-        return RedirectToPage("./ShowRecoveryCodes");
+        return RedirectToPage(PageFor.UserManagement.ShowRecoveryCodes);
     }
 
 

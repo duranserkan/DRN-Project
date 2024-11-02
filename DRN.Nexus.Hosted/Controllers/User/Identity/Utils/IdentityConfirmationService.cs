@@ -4,7 +4,7 @@ using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 
-namespace Sample.Hosted.Controllers.User.Identity.Utils;
+namespace DRN.Nexus.Hosted.Controllers.User.Identity.Utils;
 
 [Scoped<IdentityConfirmationService>]
 public class IdentityConfirmationService(IServiceProvider serviceProvider, LinkGenerator linkGenerator)
@@ -13,7 +13,7 @@ public class IdentityConfirmationService(IServiceProvider serviceProvider, LinkG
         where TUser : class, new()
     {
         var emailSender = serviceProvider.GetRequiredService<IEmailSender<TUser>>();
-        var emailEndpoint =  SampleEndpointFor.User.Identity.Confirmation.ConfirmEmail;
+        var emailEndpoint =  NexusEndpointFor.User.Identity.Confirmation.ConfirmEmail;
 
         var code = isChange
             ? await userManager.GenerateChangeEmailTokenAsync(user, email)

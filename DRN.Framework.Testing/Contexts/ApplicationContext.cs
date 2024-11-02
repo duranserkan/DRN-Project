@@ -93,7 +93,8 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
     public async Task<WebApplicationFactory<TEntryPoint>> CreateApplicationAndBindDependenciesAsync<TEntryPoint>(
         ITestOutputHelper? outputHelper = null) where TEntryPoint : class
     {
-        if (outputHelper != null) LogToTestOutput(outputHelper);
+        if (outputHelper != null)
+            LogToTestOutput(outputHelper);
 
         var application = CreateApplication<TEntryPoint>();
         await testContext.ContainerContext.BindExternalDependenciesAsync();
@@ -110,9 +111,7 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
         WebApplicationFactoryClientOptions? clientOptions = null) where TEntryPoint : class
     {
         var application = await CreateApplicationAndBindDependenciesAsync<TEntryPoint>(outputHelper);
-        var client = clientOptions == null
-            ? application.CreateClient()
-            : application.CreateClient(clientOptions);
+        var client = application.CreateClient(clientOptions ?? new WebApplicationFactoryClientOptions());
 
         return client;
     }

@@ -5,5 +5,5 @@ namespace DRN.Framework.Testing.Contexts.Startup;
 /// </summary>
 public interface ITestStartupJob
 {
-    public void Run(StartupContext context);
+    public Task RunAsync(StartupContext context);
 }

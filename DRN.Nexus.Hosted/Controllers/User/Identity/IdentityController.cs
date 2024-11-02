@@ -1,0 +1,97 @@
+using System.ComponentModel.DataAnnotations;
+using DRN.Nexus.Hosted.Controllers.User.Identity.Utils;
+using Microsoft.AspNetCore.Authentication.BearerToken;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.Data;
+using Microsoft.Extensions.Options;
+
+namespace DRN.Nexus.Hosted.Controllers.User.Identity;
+
+
+
+
+[ApiController]
+[AllowAnonymous]
+[Route(UserApiFor.ControllerRouteTemplate)]
+public class IdentityController(//From https://github.com/dotnet/aspnetcore/blob/main/src/Identity/Core/src/IdentityApiEndpointRouteBuilderExtensions.cs
+    SignInManager<IdentityUser> signInManager,
+    IUserStore<IdentityUser> userStore,
+    IdentityConfirmationService confirmationService,
+    TimeProvider timeProvider,
+    IOptionsMonitor<BearerTokenOptions> bearerTokenOptions) : ControllerBase
+{
+    private static readonly EmailAddressAttribute EmailAddressAttribute = new();
+
+    [HttpPost(nameof(Register))]
+    [ProducesResponseType( StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails),StatusCodes.Status400BadRequest)]
+    public async Task<IResult> Register([FromBody] RegisterRequest registration)
+    {
+        var userManager = signInManager.UserManager;
+        if (!userManager.SupportsUserEmail)
+            throw new NotSupportedException($"{nameof(IdentityController)}.{nameof(Register)} requires a user store with email support.");
+
+        var emailStore = (IUserEmailStore<IdentityUser>)userStore;
+        var email = registration.Email;
+
+        if (string.IsNullOrEmpty(email) || !EmailAddressAttribute.IsValid(email))
+            return IdentityApiHelper.CreateValidationProblem(IdentityResult.Failed(userManager.ErrorDescriber.InvalidEmail(email)));
+
+        var user = new IdentityUser();
+        await userStore.SetUserNameAsync(user, email, CancellationToken.None);
+        await emailStore.SetEmailAsync(user, email, CancellationToken.None);
+        var result = await userManager.CreateAsync(user, registration.Password);
+
+        if (!result.Succeeded)
+            return IdentityApiHelper.CreateValidationProblem(result);
+
+        await confirmationService.SendConfirmationEmailAsync(user, userManager, HttpContext, email);
+
+        return TypedResults.Ok();
+    }
+
+    [HttpPost(nameof(Login))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
+    public async Task<IResult> Login([FromBody] LoginRequest login, [FromQuery] bool? useCookies, [FromQuery] bool? useSessionCookies)
+    {
+        var useCookieScheme = useCookies == true || useSessionCookies == true;
+        var isPersistent = useCookies == true && useSessionCookies != true;
+        signInManager.AuthenticationScheme = useCookieScheme ? IdentityConstants.ApplicationScheme : IdentityConstants.BearerScheme;
+
+        var result = await signInManager.PasswordSignInAsync(login.Email, login.Password, isPersistent, lockoutOnFailure: true);
+        if (result.RequiresTwoFactor)
+        {
+            if (!string.IsNullOrEmpty(login.TwoFactorCode))
+                result = await signInManager.TwoFactorAuthenticatorSignInAsync(login.TwoFactorCode, isPersistent, rememberClient: isPersistent);
+            else if (!string.IsNullOrEmpty(login.TwoFactorRecoveryCode))
+                result = await signInManager.TwoFactorRecoveryCodeSignInAsync(login.TwoFactorRecoveryCode);
+        }
+
+        if (!result.Succeeded)
+            return TypedResults.Problem(result.ToString(), statusCode: StatusCodes.Status401Unauthorized);
+
+        // The signInManager already produced the needed response in the form of a cookie or bearer token.
+        return TypedResults.Empty;
+    }
+
+    [HttpPost(nameof(Refresh))]
+    [ProducesResponseType( StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
+    public async Task<IResult> Refresh([FromBody] RefreshRequest refreshRequest)
+    {
+        var refreshTokenProtector = bearerTokenOptions.Get(IdentityConstants.BearerScheme).RefreshTokenProtector;
+        var refreshTicket = refreshTokenProtector.Unprotect(refreshRequest.RefreshToken);
+
+        // Reject the /refresh attempt with a 401 if the token expired or the security stamp validation fails
+        if (refreshTicket?.Properties?.ExpiresUtc is not { } expiresUtc ||
+            timeProvider.GetUtcNow() >= expiresUtc ||
+            await signInManager.ValidateSecurityStampAsync(refreshTicket.Principal) is not IdentityUser user)
+        {
+            return TypedResults.Challenge();
+        }
+
+        var newPrincipal = await signInManager.CreateUserPrincipalAsync(user);
+        return TypedResults.SignIn(newPrincipal, authenticationScheme: IdentityConstants.BearerScheme);
+    }
+}

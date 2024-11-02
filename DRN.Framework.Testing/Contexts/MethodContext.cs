@@ -7,9 +7,8 @@ namespace DRN.Framework.Testing.Contexts;
 public class MethodContext(MethodInfo testMethod)
 {
     public MethodInfo TestMethod { get; } = testMethod;
-    public IReadOnlyList<object> Data { get; private set; } = null!;
-    public IReadOnlyList<SubstitutePair> SubstitutePairs { get; private set; } = null!;
-
+    public IReadOnlyList<object> Data { get; private set; } = [];
+    public IReadOnlyList<SubstitutePair> SubstitutePairs { get; private set; } = [];
 
     public string GetTestFolderLocation()
     {

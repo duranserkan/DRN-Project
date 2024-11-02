@@ -9,7 +9,7 @@ using Sample.Infra;
 
 namespace Sample.Hosted;
 
-public class Program : DrnProgramBase<Program>, IDrnProgram
+public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 {
     public static async Task Main(string[] args) => await RunAsync(args);
 

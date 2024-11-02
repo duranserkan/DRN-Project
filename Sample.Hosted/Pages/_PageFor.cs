@@ -34,7 +34,7 @@ public class UserPageFor : PageForBase
 
 public class UserManagementPageFor : PageForBase
 {
-    protected override string[] PathSegments { get; } = ["User", "Manage"];
+    protected override string[] PathSegments { get; } = ["User", "Management"];
 
     public string EnableAuthenticator { get; init; } = string.Empty;
     public string ShowRecoveryCodes { get; init; } = string.Empty;

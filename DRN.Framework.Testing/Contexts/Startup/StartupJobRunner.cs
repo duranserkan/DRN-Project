@@ -9,6 +9,8 @@ public static class StartupJobRunner
     private static bool _triggered;
     private static readonly SemaphoreSlim StartupLock = new(1, 1);
 
+    public static TestStartupResult Result = null!;
+
     public static void TriggerStartupJobs(MethodInfo testMethod, Type type)
     {
         if (_triggered || type != typeof(TestContext)) return;
@@ -36,11 +38,11 @@ public static class StartupJobRunner
         foreach (var startupJobType in jobTypes)
         {
             var startupJob = (ITestStartupJob)Activator.CreateInstance(startupJobType)!;
-            startupJob.Run(new StartupContext(startupJob));
+            using var startupContext = new StartupContext(startupJob);
+            startupJob.RunAsync(startupContext).GetAwaiter().GetResult();
         }
 
-        var completedAt = DateTimeOffset.Now;
-        _ = new TestStartupResult(startedAt, completedAt, testMethod, jobTypes);
+        Result = new TestStartupResult(startedAt, DateTimeOffset.Now, testMethod, jobTypes);
     }
 
     private static Type[] GetTestStartupJobTypes(MethodInfo testMethod)

@@ -1,46 +1,71 @@
 using System.Net;
 using System.Net.Http.Json;
+using DRN.Framework.Hosting.DrnProgram;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Identity.Data;
-using Sample.Hosted.Controllers;
 
 namespace DRN.Test.Tests.Sample.Controller.Helpers;
 
-public static class AuthenticationHelper
+public abstract class AuthenticationHelper<TProgram> : AuthenticationHelper where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
+    private static AuthenticatedUserModel? TestUser;
+    public static AuthenticationEndpoints AuthEndpoints { get; set; } = null!;
+
     public static async Task<AuthenticatedUserModel> AuthenticateClientAsync(HttpClient client)
     {
+        if (AuthEndpoints == null)
+            throw ExceptionFor.Validation($"{nameof(AuthEndpoints)} can not be null");
+
+        if (TestUser != null)
+        {
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {TestUser.Token}");
+            return TestUser;
+        }
+
         var credentials = CredentialsProvider.TestUserCredentials;
-        var user = await AuthenticateClientAsync(client, credentials.Username, credentials.Password);
+        TestUser = await AuthenticateClientAsync(client, credentials, AuthEndpoints);
+
+        return TestUser;
+    }
+}
+
+public abstract class AuthenticationHelper
+{
+    public static async Task<AuthenticatedUserModel> AuthenticateClientAsync(HttpClient client, AuthenticationEndpoints endpoints)
+    {
+        var credentials = CredentialsProvider.TestUserCredentials;
+        var user = await AuthenticateClientAsync(client, credentials, endpoints);
 
         return user;
     }
 
-    public static async Task<AuthenticatedUserModel> AuthenticateClientAsync(HttpClient client, string username, string password)
+    public static async Task<AuthenticatedUserModel> AuthenticateClientAsync(HttpClient client,
+        TestUserCredentials credentials,
+        AuthenticationEndpoints endpoints)
     {
         var registerRequest = new RegisterRequest
         {
-            Email = $"{username}@example.com",
-            Password = $"{password}1.Ab"
+            Email = $"{credentials.Username}@example.com",
+            Password = credentials.Password
         };
 
-        var token = await GetAccessTokenAsync(client, registerRequest);
+        var token = await GetAccessTokenAsync(client, registerRequest, endpoints);
         client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
 
         return new AuthenticatedUserModel
         {
             Email = registerRequest.Email,
-            Username = username,
-            Password = $"{password}1.Ab",
+            Username = credentials.Username,
+            Password = credentials.Password,
             Token = token
         };
     }
 
-    public static async Task<string> GetAccessTokenAsync(HttpClient client, RegisterRequest registerRequest)
+    public static async Task<string> GetAccessTokenAsync(HttpClient client, RegisterRequest registerRequest, AuthenticationEndpoints endpoints)
     {
-        await RegisterUserAsync(client, registerRequest);
+        await RegisterUserAsync(client, registerRequest, endpoints);
 
-        var responseMessage = await client.PostAsJsonAsync(EndpointFor.User.Identity.Login.RoutePattern, registerRequest);
+        var responseMessage = await client.PostAsJsonAsync(endpoints.LoginUrl, registerRequest);
         responseMessage.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var tokenResponse = await responseMessage.Content.ReadFromJsonAsync<AccessTokenResponse>();
@@ -49,9 +74,11 @@ public static class AuthenticationHelper
         return tokenResponse?.AccessToken!;
     }
 
-    public static async Task RegisterUserAsync(HttpClient client, RegisterRequest registerRequest)
+    public static async Task RegisterUserAsync(HttpClient client, RegisterRequest registerRequest, AuthenticationEndpoints endpoints)
     {
-        var responseMessage = await client.PostAsJsonAsync(EndpointFor.User.Identity.Register.RoutePattern, registerRequest);
+        var responseMessage = await client.PostAsJsonAsync(endpoints.RegisterUrl, registerRequest);
         responseMessage.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }
+
+public record AuthenticationEndpoints(string LoginUrl, string RegisterUrl);

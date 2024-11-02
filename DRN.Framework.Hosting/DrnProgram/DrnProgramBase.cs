@@ -66,7 +66,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
                 return;
 
             await application.RunAsync();
-
             ScopedLog.AddToActions("Application Shutdown Gracefully");
         }
         catch (Exception exception)
@@ -80,7 +79,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
                 Log.Error("{@Logs}", ScopedLog.Logs);
             else
                 Log.Warning("{@Logs}", ScopedLog.Logs);
-
             await Log.CloseAndFlushAsync();
         }
     }
@@ -184,17 +182,20 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     protected virtual void ConfigureApplicationPostAuthentication(WebApplication application)
     {
         var exemptionOptions = application.Services.GetRequiredService<MFAExemptionOptions>();
-        var redirectionOptions = application.Services.GetRequiredService<MFARedirectionOptions>();
-
         var exemptionConfig = ConfigureMFAExemption();
         if (exemptionConfig != null)
+        {
             exemptionOptions.MapFromConfig(exemptionConfig);
+            application.UseMiddleware<MFAExemptionMiddleware>();
+        }
 
+        var redirectionOptions = application.Services.GetRequiredService<MFARedirectionOptions>();
         var redirectionConfig = ConfigureMFARedirection();
-        if (redirectionConfig == null) return;
-
-        redirectionOptions.MapFromConfig(redirectionConfig);
-        application.UseMiddleware<MFARedirectionMiddleware>();
+        if (redirectionConfig != null)
+        {
+            redirectionOptions.MapFromConfig(redirectionConfig);
+            application.UseMiddleware<MFARedirectionMiddleware>();
+        }
     }
 
     protected virtual void ConfigureApplicationPostAuthorization(WebApplication application)
@@ -290,10 +291,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         _ = EndpointCollectionBase<TProgram>.GetAllEndpoints();
     }
 
-    protected virtual void ValidateServices(WebApplication application)
-    {
-        application.Services.ValidateServicesAddedByAttributes(ScopedLog);
-    }
+    protected virtual void ValidateServices(WebApplication application) => application.Services.ValidateServicesAddedByAttributes(ScopedLog);
 
     private static string GetApplicationAssemblyName() => typeof(TProgram).GetAssemblyName();
 }

@@ -14,14 +14,14 @@ public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task WeatherForecastController_Should_Return_Forecasts(TestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
-        var weatherEndpoint = EndpointFor.Sample.WeatherForecast.Get.RoutePattern;
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var weatherEndpoint = SampleEndpointFor.Sample.WeatherForecast.Get.RoutePattern;
         var sampleForecasts = await client.GetFromJsonAsync<WeatherForecast[]>(weatherEndpoint);
         var appSettings = context.GetRequiredService<IAppSettings>();
 
         context.FlurlHttpTest.ForCallsTo($"*{appSettings.Features.NexusAddress}/WeatherForecast").RespondWithJson(sampleForecasts);
 
-        var nexusWeatherEndpoint = EndpointFor.Sample.WeatherForecast.GetNexusWeatherForecasts.RoutePattern;
+        var nexusWeatherEndpoint = SampleEndpointFor.Sample.WeatherForecast.GetNexusWeatherForecasts.RoutePattern;
         var nexusForecasts = await client.GetFromJsonAsync<WeatherForecast[]>(nexusWeatherEndpoint);
         nexusForecasts.Should().BeEquivalentTo(sampleForecasts);
     }
@@ -30,10 +30,10 @@ public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task WeatherForecastController_Should_Return_FlurlHttpExceptionStatusCodes(TestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
         var appSettings = context.GetRequiredService<IAppSettings>();
         var urlPattern = $"*{appSettings.Features.NexusAddress}/WeatherForecast";
-        var nexusWeatherEndpoint = EndpointFor.Sample.WeatherForecast.GetNexusWeatherForecasts.RoutePattern;
+        var nexusWeatherEndpoint = SampleEndpointFor.Sample.WeatherForecast.GetNexusWeatherForecasts.RoutePattern;
 
         context.FlurlHttpTest.ForCallsTo(urlPattern).RespondWith("", 428);
         var response = await client.GetAsync(nexusWeatherEndpoint);

@@ -1,30 +1,14 @@
-using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.DrnProgram;
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Middlewares;
 
 public class MFARedirectionMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext httpContext, IScopedUser scopedUser, MFARedirectionOptions redirectionOptions,
-        MFAExemptionOptions exemptionOptions)
+    public async Task InvokeAsync(HttpContext httpContext, MFARedirectionOptions redirectionOptions)
     {
-        if (!MFAFor.MFACompleted && exemptionOptions.ExemptAuthSchemes.Any())
-        {
-            foreach (var exemptAuthScheme in exemptionOptions.ExemptAuthSchemes)
-            {
-                var result = await httpContext.AuthenticateAsync(exemptAuthScheme);
-                if (result is not { Succeeded: true, Principal: not null }) continue;
-
-                ((ScopedUser)scopedUser).SetExemptionSchemes(exemptAuthScheme);
-                break;
-            }
-        }
-
         var requestPath = httpContext.Request.Path;
         if (redirectionOptions.RedirectionNotNeeded(requestPath))
         {
@@ -83,7 +67,7 @@ public class MFARedirectionOptions
     /// <summary>
     ///  If not in redirection list let it go
     /// </summary>
-    public bool RedirectionNotNeeded(string requestPath) => !AppPages.Contains(requestPath);
+    public bool RedirectionNotNeeded(string requestPath) => MFAFor.MFACompleted || !AppPages.Contains(requestPath);
 
     public bool IsMFALoginUrl(string requestPath) => requestPath.Equals(MFALoginUrl, StringComparison.OrdinalIgnoreCase);
     public bool IsMFASetupUrl(string requestPath) => requestPath.Equals(MFASetupUrl, StringComparison.OrdinalIgnoreCase);
@@ -106,12 +90,13 @@ public class MFARedirectionConfig
     /// <param name="appPages">Page whitelist that requires redirection. Non whitelisted paths and static assets like Favicon doesn't require redirection</param>
     public MFARedirectionConfig(string mfaSetupUrl, string mfaLoginUrl, string loginUrl, string logoutUrl, HashSet<string> appPages)
     {
+        //todo: make urls array to support multiple pages
         MFASetupUrl = mfaSetupUrl;
         MFALoginUrl = mfaLoginUrl;
         LoginUrl = loginUrl;
         LogoutUrl = logoutUrl;
 
-        AppPages = appPages;
+        AppPages = appPages.ToHashSet(); //change new set;
         AppPages.Remove(loginUrl);
         AppPages.Remove(logoutUrl);
     }

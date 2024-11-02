@@ -14,10 +14,10 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task Authorized_Action_Should_Return_AuthenticatedUser(TestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
-        var testUser = await AuthenticationHelper.AuthenticateClientAsync(client);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var user = await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
 
-        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(EndpointFor.Sample.Private.Authorized.RoutePattern);
+        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(SampleEndpointFor.Sample.Private.Authorized.RoutePattern);
         userSummary.Should().NotBeNull();
         userSummary?.Authenticated.Should().BeTrue();
     }
@@ -26,9 +26,9 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task Anonymous_Action_Should_Return_AnonymousUser(TestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
 
-        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(EndpointFor.Sample.Private.Anonymous.RoutePattern);
+        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(SampleEndpointFor.Sample.Private.Anonymous.RoutePattern);
         userSummary.Should().NotBeNull();
         userSummary?.Authenticated.Should().BeFalse();
     }
@@ -37,10 +37,10 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task Validate_Scope_Action_Should_Request_ScopeContext(TestContext context, string username, string password)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
-        await AuthenticationHelper.AuthenticateClientAsync(client, username, password);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
 
-        var scopeContext = await client.GetAsync(EndpointFor.Sample.Private.Context.RoutePattern);
+        var scopeContext = await client.GetAsync(SampleEndpointFor.Sample.Private.Context.RoutePattern);
         scopeContext.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -48,10 +48,10 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task Validate_Scope_Action_Should_Validate_Scope(TestContext context, string username, string password)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
-        await AuthenticationHelper.AuthenticateClientAsync(client, username, password);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
 
-        var validation = await client.GetAsync(EndpointFor.Sample.Private.ValidateScope.RoutePattern);
+        var validation = await client.GetAsync(SampleEndpointFor.Sample.Private.ValidateScope.RoutePattern);
         validation.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

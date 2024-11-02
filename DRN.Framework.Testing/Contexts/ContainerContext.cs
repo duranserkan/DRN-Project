@@ -19,10 +19,7 @@ public sealed class ContainerContext(TestContext testContext) : IDisposable
     /// <summary>
     /// Intentionally made public to allow extension methods to support more containers
     /// </summary>
-    public void AddContainer(DockerContainer container)
-    {
-        _containers.Add(container);
-    }
+    public void AddContainer(DockerContainer container) => _containers.Add(container);
 
     public async Task BindExternalDependenciesAsync()
     {

@@ -15,7 +15,7 @@
                 <p>Save these recovery codes in a safe place:</p>
 
                 <ul>
-                    @foreach (var recoveryCode in Model?.RecoveryCodes??[])
+                    @foreach (var recoveryCode in Model.RecoveryCodes)
                     {
                         <li>@recoveryCode</li>
                     }

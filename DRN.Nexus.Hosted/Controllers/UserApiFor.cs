@@ -1,16 +1,13 @@
 using DRN.Framework.Hosting.Endpoints;
-using Sample.Hosted.Controllers.User.Identity;
-using Sample.Hosted.Controllers.User.Profile;
+using DRN.Nexus.Hosted.Controllers.User.Identity;
 
-namespace Sample.Hosted.Controllers;
-
+namespace DRN.Nexus.Hosted.Controllers;
 
 public class UserApiFor
 {
     public const string Prefix = "/Api/User";
     public const string ControllerRouteTemplate = $"{Prefix}/[controller]";
 
-    public ProfilePictureFor PP { get; } = new();
     public UserIdentityFor Identity { get; } = new();
 }
 
@@ -28,11 +25,4 @@ public class UserIdentityConfirmationFor()
 {
     //By convention Endpoint name should match Action name and property should have setter;
     public ApiEndpoint ConfirmEmail { get; private set; } = null!;
-}
-
-public class ProfilePictureFor()
-    : ControllerForBase<ProfilePictureController>(UserApiFor.ControllerRouteTemplate)
-{
-    //By convention Endpoint name should match Action name and property should have setter;
-    public ApiEndpoint Get { get; private set; } = null!;
 }

@@ -35,6 +35,19 @@ public class TestContext : IDisposable, IKeyedServiceProvider
         ApplicationContext = new ApplicationContext(this);
     }
 
+    /// <summary>
+    /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
+    /// It disposes itself automatically at the end of the test.
+    /// </summary>
+    internal TestContext(MethodInfo testMethod, bool triggerStartUp)
+    {
+        if (triggerStartUp)
+            StartupJobRunner.TriggerStartupJobs(testMethod, GetType());
+        MethodContext = new MethodContext(testMethod);
+        ContainerContext = new ContainerContext(this);
+        ApplicationContext = new ApplicationContext(this);
+    }
+
     public MethodContext MethodContext { get; }
     public ContainerContext ContainerContext { get; }
     public ApplicationContext ApplicationContext { get; }
