@@ -18,6 +18,11 @@ public class DrnAppFeatures
     public bool TemporaryApplication { get; init; }
 
     /// <summary>
+    /// Shows which test started the application when application is created with TestContext for integration tests.
+    /// </summary>
+    public string? ApplicationStartedBy { get; init; }
+
+    /// <summary>
     /// In dev environment, Launch context launches external dependencies with required configuration for rapid application development
     /// </summary>
     public bool LaunchExternalDependencies { get; init; }

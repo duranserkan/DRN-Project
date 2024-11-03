@@ -41,15 +41,16 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         scopedLog?.AddToActions($"{contextName} has {migrations.Length} migrations");
         scopedLog?.AddToActions($"{contextName} has {appliedMigrations.Length} applied migrations. Last applied: {lastApplied}");
         scopedLog?.AddToActions($"{contextName} has {pendingMigrations.Length} pending migrations. Last pending: {lastPending}");
-
+        scopedLog?.AddToActions($"{nameof(DrnAppFeatures.AutoMigrateDevEnvironment)}: {autoMigrate}");
+        
         var migrate = appSettings.IsDevEnvironment && appSettings.Features.AutoMigrateDevEnvironment;
         if (!migrate)
         {
-            scopedLog?.AddToActions($"{contextName} auto migration disabled in {environment}, AutoMigrateDevEnvironment: {autoMigrate}");
+            scopedLog?.AddToActions($"{contextName} auto migration disabled in {environment}");
             return;
         }
 
-        scopedLog?.AddToActions($"{contextName} is migrating {environment}, AutoMigrateDevEnvironment: {autoMigrate}");
+        scopedLog?.AddToActions($"{contextName} is migrating {environment}");
         await context.Database.MigrateAsync();
         scopedLog?.AddToActions($"{contextName} migrated {pendingMigrations.Length} pending migrations");
     }
