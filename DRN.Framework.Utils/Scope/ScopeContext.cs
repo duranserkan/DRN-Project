@@ -1,11 +1,12 @@
 using DRN.Framework.Utils.Auth;
+using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.Logging;
 
 namespace DRN.Framework.Utils.Scope;
 
 public class ScopeContext
 {
-    private bool _initialized = false;
+    private bool _initialized;
 
     private ScopeContext()
     {
@@ -18,12 +19,14 @@ public class ScopeContext
     public ScopeData ScopeData { get; } = new();
     public IScopedLog ScopedLog { get; private set; } = null!;
     public IScopedUser ScopedUser { get; private set; } = null!;
+    public IServiceProvider ServiceProvider { get; private set; } = null!;
 
     public static ScopeData Data => Value.ScopeData;
     public static IScopedLog Log => Value.ScopedLog;
     public static IScopedUser User => Value.ScopedUser;
     public static string? UserId => User.Id;
     public static bool Authenticated => User.Authenticated;
+    public static bool MFACompleted => MFAFor.MFACompleted;
 
     public static bool IsClaimFlagEnabled(string flag, string? issuer = null, bool defaultValue = false)
     {
@@ -64,15 +67,16 @@ public class ScopeContext
         Data.SetParameter<TValue>(claim, value);
     }
 
-    public static void Initialize(string traceId, IScopedLog scopedLog, IScopedUser scopedUser)
+    public static void Initialize(string traceId, IScopedLog scopedLog, IScopedUser scopedUser, IServiceProvider serviceProvider)
     {
         var context = Value;
-
-        if (context._initialized) return;
+        if (context._initialized)
+            return;
 
         context.TraceId = traceId;
         context.ScopedLog = scopedLog;
         context.ScopedUser = scopedUser;
+        context.ServiceProvider = serviceProvider;
         context._initialized = true;
     }
 }

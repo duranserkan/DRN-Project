@@ -15,13 +15,13 @@ namespace DRN.Framework.Hosting.Middlewares;
 //https://github.com/serilog/serilog/wiki/Structured-Data
 public class HttpScopeHandler(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext httpContext, IScopedLog scopedLog, IScopedUser scopedUser,
+    public async Task InvokeAsync(HttpContext httpContext, IScopedLog scopedLog, IScopedUser scopedUser, IServiceProvider serviceProvider,
         ILogger<HttpScopeHandler> logger, IAppSettings appSettings)
     {
         try
         {
             PrepareScopeLog(httpContext, scopedLog);
-            ScopeContext.Initialize(httpContext.TraceIdentifier, scopedLog, scopedUser);
+            ScopeContext.Initialize(httpContext.TraceIdentifier, scopedLog, scopedUser, serviceProvider);
             await next(httpContext);
             scopedLog.Add("ResponseStatusCode", httpContext.Response.StatusCode);
         }

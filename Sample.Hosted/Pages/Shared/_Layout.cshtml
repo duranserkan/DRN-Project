@@ -18,7 +18,7 @@
 @await Html.PartialAsync("_Navbar")
 
 <div class="container flex-grow-1 d-flex p-0 bg-light-subtle">
-    @if (ScopeContext.Authenticated)
+    @if (ScopeContext.MFACompleted)
     {
         @await Html.PartialAsync("_Sidebar")
     }

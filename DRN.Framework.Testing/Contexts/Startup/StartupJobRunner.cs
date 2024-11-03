@@ -9,7 +9,7 @@ public static class StartupJobRunner
     private static bool _triggered;
     private static readonly SemaphoreSlim StartupLock = new(1, 1);
 
-    public static TestStartupResult Result = null!;
+    public static TestStartupResult Result { get; private set; } = null!;
 
     public static void TriggerStartupJobs(MethodInfo testMethod, Type type)
     {

@@ -18,10 +18,15 @@ public static class ServiceProviderExtensions
 
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
         AppSettings.Instance = appSettings;
-        scopedLog?.AddToActions($"{appSettings.Features.ApplicationStartedBy ?? "unknown"}");
 
-        if (appSettings.Features.SkipValidation) return;
-        scopedLog?.AddToActions($"Service validation skipped");
+        if (appSettings.Features.ApplicationStartedBy != null)
+            scopedLog?.Add(nameof(appSettings.Features.ApplicationStartedBy), appSettings.Features.ApplicationStartedBy);
+
+        if (appSettings.Features.SkipValidation)
+        {
+            scopedLog?.AddToActions($"Service validation skipped");
+            return;
+        }
 
         var containers = serviceProvider.GetServices<DrnServiceContainer>().ToArray();
         var lifetimeAttributes = containers.SelectMany(container => container.LifetimeAttributes).ToArray();
