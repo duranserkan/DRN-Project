@@ -39,8 +39,11 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
         var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true).WithWebHostBuilder(webHostBuilder =>
         {
             //only need service collection descriptors so ValidateServicesAddedByAttributes should not fail test at this stage
+            var configuration = testContext.GetRequiredService<IConfiguration>();
+            webHostBuilder.UseConfiguration(configuration);
             webHostBuilder.UseSetting(DrnAppFeatures.GetKey(nameof(DrnAppFeatures.SkipValidation)), "true");
             webHostBuilder.UseSetting(DrnAppFeatures.GetKey(nameof(DrnAppFeatures.TemporaryApplication)), "true");
+
             webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
             webHostConfigurator?.Invoke(webHostBuilder);
         });

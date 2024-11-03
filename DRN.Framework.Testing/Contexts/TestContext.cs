@@ -47,6 +47,7 @@ public class TestContext : IDisposable, IKeyedServiceProvider
         MethodContext = new MethodContext(testMethod);
         ContainerContext = new ContainerContext(this);
         ApplicationContext = new ApplicationContext(this);
+        AddToConfiguration(nameof(DrnAppFeatures), nameof(DrnAppFeatures.ApplicationStartedBy), MethodContext.TestMethod.Name);
     }
 
     public MethodContext MethodContext { get; }
