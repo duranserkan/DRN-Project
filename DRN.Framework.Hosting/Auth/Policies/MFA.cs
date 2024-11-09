@@ -6,15 +6,15 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace DRN.Framework.Hosting.Auth.Policies;
 
-public class MFARequirement : IAuthorizationRequirement;
+public class MfaRequirement : IAuthorizationRequirement;
 
 [Singleton<IAuthorizationHandler>(tryAdd: false)]
-public class RequireMFAHandler : AuthorizationHandler<MFARequirement>
+public class RequireMfaHandler : AuthorizationHandler<MfaRequirement>
 {
-    protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, MFARequirement requirement)
+    protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, MfaRequirement requirement)
     {
         // Enforce MFA if not exemption configured such as bearer token auth
-        if (MFAFor.MFACompleted)
+        if (MfaFor.MfaCompleted)
             context.Succeed(requirement);
         else if (((ScopedUser)ScopeContext.User).HasExemptionSchemes)
             context.Succeed(requirement);
@@ -28,17 +28,17 @@ public class RequireMFAHandler : AuthorizationHandler<MFARequirement>
 /// <summary>
 /// Required to configure MFA Exemption. When provided by <see cref="DrnProgramBase{TProgram}.ConfigureMFAExemption"/>,
 /// </summary>
-public class MFAExemptionConfig
+public class MfaExemptionConfig
 {
     public IReadOnlyList<string> ExemptAuthSchemes { get; init; } = [];
 }
 
-[Singleton<MFAExemptionOptions>]
-public class MFAExemptionOptions
+[Singleton<MfaExemptionOptions>]
+public class MfaExemptionOptions
 {
     public IReadOnlyList<string> ExemptAuthSchemes { get; internal set; } = [];
 
-    internal void MapFromConfig(MFAExemptionConfig config)
+    internal void MapFromConfig(MfaExemptionConfig config)
     {
         ExemptAuthSchemes = config.ExemptAuthSchemes;
     }

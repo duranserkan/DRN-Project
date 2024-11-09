@@ -25,7 +25,7 @@ public class RegisterModel(UserManager<IdentityUser> userManager, SignInManager<
 
         if (result.Succeeded)
         {
-            await signInManager.SignInAsync(user, false, authenticationMethod: MFAClaimValues.MFASetupRequired);
+            await signInManager.SignInAsync(user, false, authenticationMethod: MfaClaimValues.MfaSetupRequired);
             return RedirectToPage(PageFor.UserManagement.EnableAuthenticator);
         }
 

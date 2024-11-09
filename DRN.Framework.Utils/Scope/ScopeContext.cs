@@ -26,7 +26,7 @@ public class ScopeContext
     public static IScopedUser User => Value.ScopedUser;
     public static string? UserId => User.Id;
     public static bool Authenticated => User.Authenticated;
-    public static bool MFACompleted => MFAFor.MFACompleted;
+    public static bool MFACompleted => MfaFor.MfaCompleted;
 
     public static bool IsClaimFlagEnabled(string flag, string? issuer = null, bool defaultValue = false)
     {

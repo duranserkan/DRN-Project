@@ -14,7 +14,7 @@ public class AuthorizedOnlyTagHelper : TagHelper
 
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
-        if (!MFAFor.MFACompleted)
+        if (!MfaFor.MfaCompleted)
             output.SuppressOutput();
     }
 }

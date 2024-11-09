@@ -29,10 +29,10 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
         application.UseStaticFiles();
     }
 
-    protected override MFARedirectionConfig ConfigureMFARedirection()
+    protected override MfaRedirectionConfig ConfigureMFARedirection()
         => new(PageFor.UserManagement.EnableAuthenticator, PageFor.User.LoginWith2Fa,
             PageFor.User.Login, PageFor.User.Logout, PageFor.GetAllPages());
 
-    protected override MFAExemptionConfig ConfigureMFAExemption()
+    protected override MfaExemptionConfig ConfigureMFAExemption()
         => new() { ExemptAuthSchemes = [IdentityConstants.BearerScheme] };
 }

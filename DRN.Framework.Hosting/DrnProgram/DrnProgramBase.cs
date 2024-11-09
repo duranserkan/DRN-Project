@@ -181,20 +181,20 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// </summary>
     protected virtual void ConfigureApplicationPostAuthentication(WebApplication application)
     {
-        var exemptionOptions = application.Services.GetRequiredService<MFAExemptionOptions>();
+        var exemptionOptions = application.Services.GetRequiredService<MfaExemptionOptions>();
         var exemptionConfig = ConfigureMFAExemption();
         if (exemptionConfig != null)
         {
             exemptionOptions.MapFromConfig(exemptionConfig);
-            application.UseMiddleware<MFAExemptionMiddleware>();
+            application.UseMiddleware<MfaExemptionMiddleware>();
         }
 
-        var redirectionOptions = application.Services.GetRequiredService<MFARedirectionOptions>();
+        var redirectionOptions = application.Services.GetRequiredService<MfaRedirectionOptions>();
         var redirectionConfig = ConfigureMFARedirection();
         if (redirectionConfig != null)
         {
             redirectionOptions.MapFromConfig(redirectionConfig);
-            application.UseMiddleware<MFARedirectionMiddleware>();
+            application.UseMiddleware<MfaRedirectionMiddleware>();
         }
     }
 
@@ -220,7 +220,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     ///   <li>Prevents misuse or abuse of <c>MFALoginUrl</c> and <c>MFASetupUrl</c> routes.</li>
     /// </ul>
     /// </summary>
-    protected virtual MFARedirectionConfig? ConfigureMFARedirection() => null;
+    protected virtual MfaRedirectionConfig? ConfigureMFARedirection() => null;
 
     /// <summary>
     /// Configures MFA (Multi-Factor Authentication) redirection logic when return value is not null:
@@ -230,7 +230,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     ///   <li>Prevents misuse or abuse of <c>MFALoginUrl</c> and <c>MFASetupUrl</c> routes.</li>
     /// </ul>
     /// </summary>
-    protected virtual MFAExemptionConfig? ConfigureMFAExemption() => null;
+    protected virtual MfaExemptionConfig? ConfigureMFAExemption() => null;
 
     /// <summary>
     /// Configures authorization policies and default behaviors for the application.
@@ -247,8 +247,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// </remarks>
     protected virtual void ConfigureAuthorizationOptions(AuthorizationOptions options)
     {
-        options.AddPolicy(AuthPolicy.MFA, policy => policy.AddRequirements(new MFARequirement()));
-        options.AddPolicy(AuthPolicy.MFAExempt, policy => policy.AddRequirements(new MFAExemptRequirement()));
+        options.AddPolicy(AuthPolicy.MFA, policy => policy.AddRequirements(new MfaRequirement()));
+        options.AddPolicy(AuthPolicy.MFAExempt, policy => policy.AddRequirements(new MfaExemptRequirement()));
 
         options.DefaultPolicy = options.GetPolicy(AuthPolicy.MFA)!;
         options.FallbackPolicy = options.GetPolicy(AuthPolicy.MFA)!;

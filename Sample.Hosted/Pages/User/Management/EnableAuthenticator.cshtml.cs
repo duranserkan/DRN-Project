@@ -27,7 +27,7 @@ public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageMo
 
     public async Task<IActionResult> OnPostVerifyAsync()
     {
-        if (!MFAFor.MFASetupRequired)
+        if (!MfaFor.MfaSetupRequired)
             return LocalRedirect(PageFor.User.Login);
 
         var user = (await userManager.GetUserAsync(User))!;

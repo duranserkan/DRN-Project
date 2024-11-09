@@ -3,12 +3,12 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace DRN.Framework.Hosting.Auth.Policies;
 
-public class MFAExemptRequirement : IAuthorizationRequirement;
+public class MfaExemptRequirement : IAuthorizationRequirement;
 
 [Singleton<IAuthorizationHandler>(tryAdd: false)]
-public class MFAExemptHandler : AuthorizationHandler<MFAExemptRequirement>
+public class MfaExemptHandler : AuthorizationHandler<MfaExemptRequirement>
 {
-    protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, MFAExemptRequirement requirement)
+    protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, MfaExemptRequirement requirement)
     {
         var authenticated = context.User.Identities.Any(i => i.IsAuthenticated);
         if (authenticated)

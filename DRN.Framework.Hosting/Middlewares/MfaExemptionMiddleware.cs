@@ -6,11 +6,11 @@ using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Middlewares;
 
-public class MFAExemptionMiddleware(RequestDelegate next)
+public class MfaExemptionMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext httpContext, IScopedUser scopedUser, MFAExemptionOptions exemptionOptions)
+    public async Task InvokeAsync(HttpContext httpContext, IScopedUser scopedUser, MfaExemptionOptions exemptionOptions)
     {
-        if (!MFAFor.MFACompleted && exemptionOptions.ExemptAuthSchemes.Any())
+        if (!MfaFor.MfaCompleted && exemptionOptions.ExemptAuthSchemes.Any())
         {
             foreach (var exemptAuthScheme in exemptionOptions.ExemptAuthSchemes)
             {

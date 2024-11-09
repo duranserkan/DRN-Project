@@ -21,6 +21,6 @@ public class NexusProgram : DrnProgramBase<NexusProgram>, IDrnProgram
         await builder.LaunchExternalDependenciesAsync(ScopedLog, AppSettings);
     }
 
-    protected override MFAExemptionConfig ConfigureMFAExemption()
+    protected override MfaExemptionConfig ConfigureMFAExemption()
         => new() { ExemptAuthSchemes = [IdentityConstants.BearerScheme] };
 }

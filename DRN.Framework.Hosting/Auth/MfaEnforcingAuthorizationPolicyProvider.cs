@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace DRN.Framework.Hosting.Auth;
 
 [Singleton<IAuthorizationPolicyProvider>(tryAdd: false)]
-public class MFAEnforcingAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options) : IAuthorizationPolicyProvider
+public class MfaEnforcingAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options) : IAuthorizationPolicyProvider
 {
     private readonly DefaultAuthorizationPolicyProvider _policyProvider = new(options);
     private readonly AuthorizationOptions _options = options.Value;
@@ -24,7 +24,7 @@ public class MFAEnforcingAuthorizationPolicyProvider(IOptions<AuthorizationOptio
         if (policy == null) return null;
 
         var defaultPolicy = await GetDefaultPolicyAsync();
-        var enforceMFA = defaultPolicy.Requirements.Count(r => r.GetType() == typeof(MFARequirement)) == 1;
+        var enforceMFA = defaultPolicy.Requirements.Count(r => r.GetType() == typeof(MfaRequirement)) == 1;
         if (!enforceMFA) return policy;
 
         var combinedPolicy = new AuthorizationPolicyBuilder()

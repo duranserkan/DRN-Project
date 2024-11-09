@@ -21,7 +21,7 @@ public class LoginWith2Fa(SignInManager<IdentityUser> signInManager) : PageModel
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
-        if (!MFAFor.MFAInProgress)
+        if (!MfaFor.MfaInProgress)
             return LocalRedirect(PageFor.User.Login);
 
         if (!ModelState.IsValid)
