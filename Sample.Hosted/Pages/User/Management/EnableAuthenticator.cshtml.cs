@@ -79,7 +79,7 @@ public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageMo
         AuthenticatorUri = GenerateQrCodeUri(user.Email!, unformattedKey!);
     }
 
-    private string GenerateQrCodeUri(string email, string unformattedKey)
+    private static string GenerateQrCodeUri(string email, string unformattedKey)
     {
         const string issuer = "YourAppName";
         return string.Format(
@@ -90,7 +90,7 @@ public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageMo
             unformattedKey);
     }
 
-    private string FormatKey(string unformattedKey)
+    private static string FormatKey(string unformattedKey)
     {
         var result = new StringBuilder();
         var currentPosition = 0;

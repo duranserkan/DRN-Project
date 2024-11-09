@@ -54,7 +54,7 @@ public class LoginModel(SignInManager<IdentityUser> signInManager, UserManager<I
         return ReturnInvalidAttempt();
     }
 
-    private IActionResult ReturnInvalidAttempt()
+    private PageResult ReturnInvalidAttempt()
     {
         ModelState.AddModelError(string.Empty, "Invalid login attempt.");
         return Page();
@@ -63,14 +63,9 @@ public class LoginModel(SignInManager<IdentityUser> signInManager, UserManager<I
 
 public class LoginInput
 {
-    [Required]
-    [EmailAddress]
-    public string Email { get; init; } = null!;
+    [Required] [EmailAddress] public string Email { get; init; } = null!;
 
-    [Required]
-    [DataType(DataType.Password)]
-    public string Password { get; init; } = null!;
+    [Required] [DataType(DataType.Password)] public string Password { get; init; } = null!;
 
-    [Display(Name = "Remember me?")]
-    public bool RememberMe { get; init; }
+    [Display(Name = "Remember me?")] public bool RememberMe { get; init; }
 }

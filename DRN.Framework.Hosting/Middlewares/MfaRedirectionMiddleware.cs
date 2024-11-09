@@ -96,7 +96,8 @@ public class MfaRedirectionConfig
         LoginUrl = loginUrl;
         LogoutUrl = logoutUrl;
 
-        AppPages = appPages.ToHashSet(); //change new set;
+        //create new set to keep original set unchanged
+        AppPages = appPages.ToHashSet();
         AppPages.Remove(loginUrl);
         AppPages.Remove(logoutUrl);
     }

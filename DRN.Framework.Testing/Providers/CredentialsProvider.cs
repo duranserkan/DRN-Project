@@ -5,7 +5,7 @@ namespace DRN.Framework.Testing.Providers;
 /// <summary>
 /// A helper class for generating and caching test usernames and passwords.
 /// </summary>
-public class CredentialsProvider
+public static class CredentialsProvider
 {
     public const char Unique1 = 'Z';
     public const char Unique2 = 'y';
@@ -86,7 +86,7 @@ public class CredentialsProvider
                 do
                 {
                     rng.GetBytes(box);
-                } while (!(box[0] < n * (byte.MaxValue / n)));
+                } while (box[0] >= n * (byte.MaxValue / n));
 
                 var k = box[0] % n;
                 n--;

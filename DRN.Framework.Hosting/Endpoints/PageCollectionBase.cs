@@ -2,10 +2,10 @@ using System.Reflection;
 
 namespace DRN.Framework.Hosting.Endpoints;
 
-public class PageCollectionBase<TPageCollection> where TPageCollection : PageCollectionBase<TPageCollection>
+public abstract class PageCollectionBase<TPageCollection> where TPageCollection : PageCollectionBase<TPageCollection>
 {
-    private static readonly Lazy<HashSet<string>> _allPages = new(InitializePages);
-    public static HashSet<string> GetAllPages() => _allPages.Value;
+    private static readonly Lazy<HashSet<string>> AllPages = new(InitializePages);
+    public static HashSet<string> GetAllPages() => AllPages.Value;
 
     private static HashSet<string> InitializePages()
     {

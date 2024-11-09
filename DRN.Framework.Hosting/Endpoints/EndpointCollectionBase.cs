@@ -7,8 +7,8 @@ namespace DRN.Framework.Hosting.Endpoints;
 
 public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
-    private static readonly Lazy<ApiEndpoint[]> _allEndpoints = new(InitializeEndpoints);
-    public static ApiEndpoint[] GetAllEndpoints() => _allEndpoints.Value;
+    private static readonly Lazy<ApiEndpoint[]> AllEndpoints = new(InitializeEndpoints);
+    public static ApiEndpoint[] GetAllEndpoints() => AllEndpoints.Value;
 
     public static IEndpointHelper EndpointHelper { get; private set; } = null!;
     public static EndpointDataSource DataSource { get; private set; } = null!;
@@ -35,15 +35,15 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
 
         HashSet<ApiEndpoint> endpointList = [];
         var endpointBase = typeof(IEndpointForBase);
-        foreach (var apiGroup in apiGroups)
+        foreach (var apiGroup in apiGroups.Values)
         {
-            if (endpointBase.IsInstanceOfType(apiGroup.Value))
+            if (endpointBase.IsInstanceOfType(apiGroup))
             {
-                var apiForBase = (IEndpointForBase)apiGroup.Value;
+                var apiForBase = (IEndpointForBase)apiGroup;
                 SetEndpoint(apiForBase, endpointList);
             }
 
-            var endPointContainers = apiGroup.Value.GetGroupedPropertiesOfSubtype(endpointBase);
+            var endPointContainers = apiGroup.GetGroupedPropertiesOfSubtype(endpointBase);
             foreach (var container in endPointContainers)
             {
                 var containerObject = container.Key;
