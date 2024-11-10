@@ -20,17 +20,17 @@ public static class CredentialsProvider
     public const string AllChars = Uppercase + Lowercase + Digits + Special;
 
     // Lazy initialization ensures thread-safe, lazy-loaded credentials.
-    private static readonly Lazy<TestUserCredentials> Credentials = new(GenerateCredentials, isThreadSafe: true);
+    private static readonly Lazy<TestUserCredentials> TestUserCredentials = new(GenerateCredentials, isThreadSafe: true);
 
     /// <summary>
     /// Gets the cached test user credentials.
     /// </summary>
-    public static TestUserCredentials TestUserCredentials => Credentials.Value;
+    public static TestUserCredentials Credentials => TestUserCredentials.Value;
 
     /// <summary>
     /// Generates a unique username and a secure password.
     /// </summary>
-    private static TestUserCredentials GenerateCredentials()
+    public static TestUserCredentials GenerateCredentials()
     {
         var username = GenerateUniqueUsername();
         var password = GenerateSecurePassword(12);

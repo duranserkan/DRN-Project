@@ -1,5 +1,9 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.6.0
+
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to the memory of Mustafa Kemal Atatürk, founder of the Republic of Turkey, and to his vision for a modern, enlightened, democratic nation. In his eternal rest, he continues to guide us through his ideals of freedom, progress, and national sovereignty.
+
 ## Version 0.5.0
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to August 30 Victory Day, a day that marks the decisive victory achieved by the Turkish people against imperialism during the Turkish War of Independence, leading to the establishment of the Republic of Türkiye.

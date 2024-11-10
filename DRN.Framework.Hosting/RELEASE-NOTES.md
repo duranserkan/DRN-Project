@@ -1,5 +1,30 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.  
 
+## Version 0.6.0
+
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to the memory of Mustafa Kemal Atatürk, founder of the Republic of Turkey, and to his vision for a modern, enlightened, democratic nation. In his eternal rest, he continues to guide us through his ideals of freedom, progress, and national sovereignty.
+
+### New Features
+
+* DrnProgramBase
+  * MvcBuilder configuration separated into virtual method
+  * RazorRuntimeCompilation support added
+  * Exception is no longer swallowed by DrnProgramBase to fail integration tests gracefully
+* Multifactor Authentication
+  * Mfa detail added to scopedlog with ScopedUserMiddleware
+  * Mfa and Mfa exempt policies added with AuthPolicy helper class
+  * DrnProgramBase.ConfigureAuthorizationOptions enforces Mfa by default
+    * MfaExempt policy can be used with Authorize attribute to bypass mfa
+    * ConfigureMFARedirection and ConfigureMFAExemption virtual methods added to DrnProgramBase
+* PageCollectionBase and EndpointCollectionBase classes added to manage page and endpoint references
+
+### Breaking Changes
+
+* DrnProgramBase refactored
+  * Static properties removed to improve application stability during integration tests
+  * New overridable virtual methods added to improve configurability
+  * Overridable virtual method parameters changed to accept instance parameters since static properties does not exist anymore.
+
 ## Version 0.5.0
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to August 30 Victory Day, a day that marks the decisive victory achieved by the Turkish people against imperialism during the Turkish War of Independence, leading to the establishment of the Republic of Türkiye.

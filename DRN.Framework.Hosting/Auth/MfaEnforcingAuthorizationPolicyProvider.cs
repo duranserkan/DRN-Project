@@ -17,7 +17,7 @@ public class MfaEnforcingAuthorizationPolicyProvider(IOptions<AuthorizationOptio
     public async Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
     {
         // If the requested policy is the exemption policy, return it without combining
-        if (policyName == AuthPolicy.MFAExempt)
+        if (policyName == AuthPolicy.MfaExempt)
             return await _policyProvider.GetPolicyAsync(policyName);
 
         var policy = await _policyProvider.GetPolicyAsync(policyName);

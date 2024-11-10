@@ -9,7 +9,7 @@ using QRCoder;
 
 namespace Sample.Hosted.Pages.User.Management;
 
-[Authorize(AuthPolicy.MFAExempt)]
+[Authorize(AuthPolicy.MfaExempt)]
 public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageModel
 {
     [BindProperty] public QrCodeVerifyModel QrCodeVerify { get; set; } = null!;

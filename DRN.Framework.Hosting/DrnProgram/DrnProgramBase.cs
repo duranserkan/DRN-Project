@@ -248,11 +248,11 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// </remarks>
     protected virtual void ConfigureAuthorizationOptions(AuthorizationOptions options)
     {
-        options.AddPolicy(AuthPolicy.MFA, policy => policy.AddRequirements(new MfaRequirement()));
-        options.AddPolicy(AuthPolicy.MFAExempt, policy => policy.AddRequirements(new MfaExemptRequirement()));
+        options.AddPolicy(AuthPolicy.Mfa, policy => policy.AddRequirements(new MfaRequirement()));
+        options.AddPolicy(AuthPolicy.MfaExempt, policy => policy.AddRequirements(new MfaExemptRequirement()));
 
-        options.DefaultPolicy = options.GetPolicy(AuthPolicy.MFA)!;
-        options.FallbackPolicy = options.GetPolicy(AuthPolicy.MFA)!;
+        options.DefaultPolicy = options.GetPolicy(AuthPolicy.Mfa)!;
+        options.FallbackPolicy = options.GetPolicy(AuthPolicy.Mfa)!;
     }
 
     protected virtual void ConfigureMvcOptions(MvcOptions options)

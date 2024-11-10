@@ -5,7 +5,7 @@ namespace Sample.Hosted.Controllers.User.Profile;
 
 [ApiController]
 [Route(UserApiFor.ControllerRouteTemplate)]
-[Authorize(AuthPolicy.MFAExempt)]
+[Authorize(AuthPolicy.MfaExempt)]
 public class ProfilePictureController(IProfilePictureRepository ppRepository, IWebHostEnvironment hostingEnvironment) : ControllerBase
 {
     [HttpGet("{userId:required}")]

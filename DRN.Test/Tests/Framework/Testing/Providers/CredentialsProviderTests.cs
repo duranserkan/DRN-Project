@@ -5,7 +5,7 @@ public class CredentialsProviderTests
     [Fact]
     public void CredentialsProvider_Should_Return_UniqueCredentials()
     {
-        var credentials = CredentialsProvider.TestUserCredentials;
+        var credentials = CredentialsProvider.Credentials;
 
         credentials.Should().NotBeNull();
 

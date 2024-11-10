@@ -120,11 +120,6 @@ public class TestContext : IDisposable, IKeyedServiceProvider
     public DataProviderResult GetData(string pathRelativeToDataFolder, string? conventionDirectory = null) =>
         DataProvider.Get(pathRelativeToDataFolder, MethodContext.GetTestFolderLocation(), conventionDirectory);
 
-    /// <summary>
-    /// Gets the cached test user credentials.
-    /// </summary>
-    public TestUserCredentials GetTestUser() => CredentialsProvider.TestUserCredentials;
-
     public ConfigurationDebugViewSummary GetConfigurationDebugView()
     {
         var configurationRoot = BuildConfigurationRoot();

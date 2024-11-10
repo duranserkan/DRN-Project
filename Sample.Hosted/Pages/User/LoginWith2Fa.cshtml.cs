@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Sample.Hosted.Pages.User;
 
-[Authorize(AuthPolicy.MFAExempt)]
+[Authorize(AuthPolicy.MfaExempt)]
 public class LoginWith2Fa(SignInManager<IdentityUser> signInManager) : PageModel
 {
     private const string InvalidCodeAttempts = nameof(InvalidCodeAttempts);

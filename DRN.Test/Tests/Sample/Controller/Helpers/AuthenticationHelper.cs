@@ -22,7 +22,7 @@ public abstract class AuthenticationHelper<TProgram> : AuthenticationHelper wher
             return TestUser;
         }
 
-        var credentials = CredentialsProvider.TestUserCredentials;
+        var credentials = CredentialsProvider.Credentials;
         TestUser = await AuthenticateClientAsync(client, credentials, AuthEndpoints);
 
         return TestUser;
@@ -33,7 +33,7 @@ public abstract class AuthenticationHelper
 {
     public static async Task<AuthenticatedUserModel> AuthenticateClientAsync(HttpClient client, AuthenticationEndpoints endpoints)
     {
-        var credentials = CredentialsProvider.TestUserCredentials;
+        var credentials = CredentialsProvider.Credentials;
         var user = await AuthenticateClientAsync(client, credentials, endpoints);
 
         return user;
