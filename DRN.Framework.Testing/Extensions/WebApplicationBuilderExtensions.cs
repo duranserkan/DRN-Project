@@ -14,12 +14,12 @@ public static class WebApplicationBuilderExtensions
         this WebApplicationBuilder builder, IScopedLog? scopedLog, IAppSettings appSettings,
         ExternalDependencyLaunchOptions? options = null)
     {
-        scopedLog?.AddToActions("Launching External dependencies...");
-
         options ??= new ExternalDependencyLaunchOptions();
         var result = new ExternalDependencyLaunchResult(appSettings);
-        if (!result.Launched) return result;
+        if (!result.Launch)
+            return result;
 
+        scopedLog?.AddToActions("Launching External dependencies...");
         var postgresCollection = await PostgresContext.LaunchPostgresAsync(builder, options);
         result.PostgresCollection = postgresCollection;
 
@@ -65,8 +65,8 @@ public class ExternalDependencyLaunchResult(IAppSettings appSettings)
     /// </item>
     /// </list>
     /// </summary>
-    public bool Launched { get; } = !TestEnvironment.TestContextEnabled
-                                    && appSettings.IsDevEnvironment
-                                    && appSettings.Features.LaunchExternalDependencies
-                                    && !appSettings.Features.TemporaryApplication;
+    public bool Launch { get; } = !TestEnvironment.TestContextEnabled
+                                  && appSettings.IsDevEnvironment
+                                  && appSettings.Features.LaunchExternalDependencies
+                                  && !appSettings.Features.TemporaryApplication;
 }

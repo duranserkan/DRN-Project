@@ -54,6 +54,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         {
             scopeLog.AddToActions("Creating Application");
             var application = await CreateApplicationAsync(args, appSettings, scopeLog);
+            scopeLog.Add(nameof(DrnAppFeatures.TemporaryApplication), appSettings.Features.TemporaryApplication);
+            scopeLog.Add(nameof(DrnAppFeatures.SkipValidation), appSettings.Features.SkipValidation);
 
             scopeLog.AddToActions("Running Application");
             Log.Warning("{@Logs}", scopeLog.Logs);

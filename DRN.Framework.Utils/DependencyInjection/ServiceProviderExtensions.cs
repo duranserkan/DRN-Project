@@ -21,10 +21,7 @@ public static class ServiceProviderExtensions
             scopedLog?.Add(nameof(appSettings.Features.ApplicationStartedBy), appSettings.Features.ApplicationStartedBy);
 
         if (appSettings.Features.SkipValidation)
-        {
-            scopedLog?.AddToActions($"Service validation skipped");
             return;
-        }
 
         var containers = serviceProvider.GetServices<DrnServiceContainer>().ToArray();
         var lifetimeAttributes = containers.SelectMany(container => container.LifetimeAttributes).ToArray();
