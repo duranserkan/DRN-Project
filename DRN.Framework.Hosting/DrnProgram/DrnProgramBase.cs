@@ -286,9 +286,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         var helper = application.Services.GetRequiredService<IEndpointHelper>();
         EndpointCollectionBase<TProgram>.SetEndpointDataSource(helper);
-        //Populate all api endpoints with RouteEndpoint data.
-        //If RouteEndpoint doesn't match with ApiEndpoint, enumeration will throw validation error.
-        _ = EndpointCollectionBase<TProgram>.GetAllEndpoints();
     }
 
     protected virtual void ValidateServices(WebApplication application) => application.Services.ValidateServicesAddedByAttributes(ScopedLog);

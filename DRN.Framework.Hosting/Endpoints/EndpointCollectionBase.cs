@@ -1,25 +1,33 @@
 using System.Reflection;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Extensions;
-using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Endpoints;
 
 public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
-    private static readonly Lazy<ApiEndpoint[]> AllEndpoints = new(InitializeEndpoints);
-    public static ApiEndpoint[] GetAllEndpoints() => AllEndpoints.Value;
-
-    public static IEndpointHelper EndpointHelper { get; private set; } = null!;
-    public static EndpointDataSource DataSource { get; private set; } = null!;
+    private static bool _triggered;
+    private static readonly SemaphoreSlim StartupLock = new(1, 1);
+    private static IReadOnlyList<Endpoint> Endpoints { get; set; } = [];
+    public static IReadOnlyList<ApiEndpoint> ApiEndpoints { get; private set; } = [];
 
     internal static void SetEndpointDataSource(IEndpointHelper endpointHelper)
     {
-        //todo: trigger initialize endpoints and cache endpoint data once it is triggered
-        //todo: clear endpoint helper reference since it may contain disposable instances
-        //todo: can keep list of all endpoints
-        EndpointHelper = endpointHelper;
-        DataSource = endpointHelper.EndpointDataSource;
+        if (_triggered) return;
+
+        StartupLock.Wait();
+        try
+        {
+            if (_triggered) return;
+            Endpoints = endpointHelper.EndpointDataSource.Endpoints;
+            ApiEndpoints = InitializeEndpoints();
+            _triggered = true;
+        }
+        finally
+        {
+            StartupLock.Release();
+        }
     }
 
     private static ApiEndpoint[] InitializeEndpoints()
@@ -34,12 +42,12 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
             .ToDictionary(property => property, property => property.GetValue(null)!);
 
         HashSet<ApiEndpoint> endpointList = [];
-        var endpointBase = typeof(IEndpointForBase);
+        var endpointBase = typeof(IApiEndpointForBase);
         foreach (var apiGroup in apiGroups.Values)
         {
             if (endpointBase.IsInstanceOfType(apiGroup))
             {
-                var apiForBase = (IEndpointForBase)apiGroup;
+                var apiForBase = (IApiEndpointForBase)apiGroup;
                 SetEndpoint(apiForBase, endpointList);
             }
 
@@ -49,7 +57,7 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
                 var containerObject = container.Key;
                 foreach (var propertyInfo in container.Value)
                 {
-                    var apiForBase = (IEndpointForBase?)propertyInfo.GetValue(containerObject);
+                    var apiForBase = (IApiEndpointForBase?)propertyInfo.GetValue(containerObject);
                     SetEndpoint(apiForBase, endpointList);
                 }
             }
@@ -60,14 +68,14 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
             .ThenBy(x => x.ActionName).ToArray();
     }
 
-    private static void SetEndpoint(IEndpointForBase? apiForBase, HashSet<ApiEndpoint> endpointList)
+    private static void SetEndpoint(IApiEndpointForBase? apiForBase, HashSet<ApiEndpoint> endpointList)
     {
         if (apiForBase == null) return;
 
-        foreach (var page in apiForBase.Endpoints)
+        foreach (var apiEndpoint in apiForBase.Endpoints)
         {
-            page.SetEndPoint(EndpointHelper);
-            endpointList.Add(page);
+            apiEndpoint.SetEndPoint(Endpoints);
+            endpointList.Add(apiEndpoint);
         }
     }
 }
