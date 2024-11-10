@@ -6,6 +6,8 @@
 )](https://github.com/duranserkan/DRN-Project-Argo-CD-Gitops)
 [![Docker Hub](https://img.shields.io/badge/images-blue?logo=docker&label=dockerhub
 )](https://hub.docker.com/u/duranserkan)
+[![Nuget](https://img.shields.io/badge/packages-004880?logo=nuget&label=nuget
+)](https://www.nuget.org/profiles/duranserkan)
 
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
@@ -41,6 +43,8 @@ TL;DR: You can
   * to get unified microservices topology and their self-documentation
 * get opinionated ideas about soft skills for engineering and management
 
+**Please contact me via LinkedIn for information on obtaining a more flexible commercial license**
+
 [About Project](#about-project) | [Solution Structure](#solution-structure) | [About Design and Architecture](#about-design-and-architecture) | [About Management](#about-management) | [Engineering Manifest](#durans-engineering-manifest)
 
 ## About Project
@@ -60,15 +64,14 @@ In DRN-Project context, reliability is defined with following characteristics:
 * Self-documenting
 
 DRN Project is not another framework that will `bite the dust.` It is more than a simple framework. It is a distilled knowledge that contains:
-- [X] A beautiful framework to work with (v0.5.0)
+- [X] A beautiful framework to work with (v0.6.0)
 - [X] Management best practices
 - [X] Engineering manifest
 - [X] Reference documents for design, architecture and microservices
 - [ ] A nexus app to manage microservices (will be released with v1.0.0)
 
 This project is result of a productive and curious mindset that respects good solutions and best practices of others while enjoys from creating its own.
-It is not about coding. It is about process of creating and enhancing good things. I expect it to be ready for general purpose usage within 6 months. 
-Detailed documentation will be added in the meantime.
+It is not about coding. It is about process of creating and enhancing good things.
 
 ### Solution Structure
 This solution consists of 6 parts that are being developed with Jetbrains Rider on macOS with arm-based M2 chip. However, I expect it to work on any modern machine since it is a cross-platform solution

@@ -2,7 +2,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.6.0
 
-My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to the memory of Mustafa Kemal Atatürk, founder of the Republic of Turkey, and to his vision for a modern, enlightened, democratic nation. In his eternal rest, he continues to guide us through his ideals of freedom, progress, and national sovereignty.
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to the memory of Mustafa Kemal Atatürk, founder of the Republic of Türkiye, and to his vision for a modern, enlightened, democratic nation. In his eternal rest, he continues to guide us through his ideals of freedom, progress, and national sovereignty.
 
 ## Version 0.5.0
 
@@ -14,7 +14,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
   * Http status code parameter added
   * ExceptionFor factory class added to create DrnExceptions as needed
 
-## Version 0.4.0
+## Version 0.4.0~~~~
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 19 May Commemoration of Atatürk, Youth and Sports Day.
 
