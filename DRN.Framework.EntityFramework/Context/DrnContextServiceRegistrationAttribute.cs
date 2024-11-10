@@ -29,7 +29,6 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
 
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
         var environment = appSettings.Environment.ToString();
-        var autoMigrate = appSettings.Features.AutoMigrateDevEnvironment;
         var contextName = context.GetType().FullName!;
 
         var migrations = context.Database.GetMigrations().ToArray();
@@ -41,7 +40,6 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         scopedLog?.AddToActions($"{contextName} has {migrations.Length} migrations");
         scopedLog?.AddToActions($"{contextName} has {appliedMigrations.Length} applied migrations. Last applied: {lastApplied}");
         scopedLog?.AddToActions($"{contextName} has {pendingMigrations.Length} pending migrations. Last pending: {lastPending}");
-        scopedLog?.AddToActions($"{nameof(DrnAppFeatures.AutoMigrateDevEnvironment)}: {autoMigrate}");
         
         var migrate = appSettings.IsDevEnvironment && appSettings.Features.AutoMigrateDevEnvironment;
         if (!migrate)

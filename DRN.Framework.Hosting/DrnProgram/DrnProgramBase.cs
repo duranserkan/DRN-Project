@@ -44,7 +44,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         _ = JsonConventions.DefaultOptions;
         var configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationAssemblyName(), args).Build();
         var appSettings = new AppSettings(configuration);
-        var scopeLog = new ScopedLog(appSettings).WithLoggerName(typeof(TProgram).FullName);
+        var scopedLog = new ScopedLog(appSettings).WithLoggerName(typeof(TProgram).FullName);
         var bootstrapLogger = new TProgram().ConfigureLogger(configuration)
             .Destructure.AsDictionary<SortedDictionary<string, object>>()
             .CreateBootstrapLogger();
@@ -52,31 +52,33 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         try
         {
-            scopeLog.AddToActions("Creating Application");
-            var application = await CreateApplicationAsync(args, appSettings, scopeLog);
-            scopeLog.Add(nameof(DrnAppFeatures.TemporaryApplication), appSettings.Features.TemporaryApplication);
-            scopeLog.Add(nameof(DrnAppFeatures.SkipValidation), appSettings.Features.SkipValidation);
+            scopedLog.AddToActions("Creating Application");
+            var application = await CreateApplicationAsync(args, appSettings, scopedLog);
+            scopedLog.Add(nameof(DrnAppFeatures.TemporaryApplication), appSettings.Features.TemporaryApplication);
+            scopedLog.Add(nameof(DrnAppFeatures.SkipValidation), appSettings.Features.SkipValidation);
+            scopedLog.Add(nameof(DrnAppFeatures.AutoMigrateDevEnvironment), appSettings.Features.AutoMigrateDevEnvironment);
+            scopedLog.Add(nameof(AppSettings.Environment), appSettings.Environment);
 
-            scopeLog.AddToActions("Running Application");
-            Log.Warning("{@Logs}", scopeLog.Logs);
+            scopedLog.AddToActions("Running Application");
+            Log.Warning("{@Logs}", scopedLog.Logs);
 
             if (appSettings.Features.TemporaryApplication)
                 return;
 
             await application.RunAsync();
-            scopeLog.AddToActions("Application Shutdown Gracefully");
+            scopedLog.AddToActions("Application Shutdown Gracefully");
         }
         catch (Exception exception)
         {
-            scopeLog.AddException(exception);
+            scopedLog.AddException(exception);
             throw;
         }
         finally
         {
-            if (scopeLog.HasException)
-                logger.Error("{@Logs}", scopeLog.Logs);
+            if (scopedLog.HasException)
+                logger.Error("{@Logs}", scopedLog.Logs);
             else
-                logger.Warning("{@Logs}", scopeLog.Logs);
+                logger.Warning("{@Logs}", scopedLog.Logs);
 
             bootstrapLogger.Dispose();
         }
