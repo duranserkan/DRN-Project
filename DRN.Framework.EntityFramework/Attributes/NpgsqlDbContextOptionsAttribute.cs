@@ -26,7 +26,7 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
     /// <param name="builder">the NpgsqlDataSourceBuilder</param>
     /// <param name="serviceProvider">IServiceProvider won't be available when called by design time factory make sure your method override works without it</param>
     /// <typeparam name="TContext">The context registered with DrnContextServiceRegistrationAttribute</typeparam>
-    public virtual void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider? serviceProvider) where TContext : DbContext
+    public virtual void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider serviceProvider) where TContext : DbContext
     {
     }
 

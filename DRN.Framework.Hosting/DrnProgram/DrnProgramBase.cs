@@ -36,91 +36,88 @@ public interface IDrnProgram
 /// </summary>
 public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
-    private static IConfiguration Configuration = new ConfigurationManager();
-
-    protected static ILogger Logger { get; private set; } = Log.Logger;
-    protected static IAppSettings AppSettings { get; private set; } = new AppSettings(new ConfigurationManager());
-    protected static IScopedLog ScopedLog { get; } = new ScopedLog().WithLoggerName(typeof(TProgram).FullName);
-    protected static DrnProgramSwaggerOptions DrnProgramSwaggerOptions { get; private set; } = new();
+    protected DrnProgramSwaggerOptions DrnProgramSwaggerOptions { get; private set; } = new();
     protected DrnAppBuilderType AppBuilderType { get; set; } = DrnAppBuilderType.DrnDefaults;
 
     protected static async Task RunAsync(string[]? args = null)
     {
         _ = JsonConventions.DefaultOptions;
-        Configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationAssemblyName(), args).Build();
-        AppSettings = new AppSettings(Configuration, true);
-        Logger = new TProgram().ConfigureLogger()
+        var configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationAssemblyName(), args).Build();
+        var appSettings = new AppSettings(configuration);
+        var scopeLog = new ScopedLog(appSettings).WithLoggerName(typeof(TProgram).FullName);
+        var bootstrapLogger = new TProgram().ConfigureLogger(configuration)
             .Destructure.AsDictionary<SortedDictionary<string, object>>()
-            .CreateBootstrapLogger().ForContext<TProgram>();
-        Log.Logger = Logger;
+            .CreateBootstrapLogger();
+        var logger = bootstrapLogger.ForContext<TProgram>();
 
         try
         {
-            ScopedLog.AddToActions("Creating Application");
-            var application = await CreateApplicationAsync(args);
+            scopeLog.AddToActions("Creating Application");
+            var application = await CreateApplicationAsync(args, appSettings, scopeLog);
 
-            ScopedLog.AddToActions("Running Application");
-            Log.Warning("{@Logs}", ScopedLog.Logs);
+            scopeLog.AddToActions("Running Application");
+            Log.Warning("{@Logs}", scopeLog.Logs);
 
-            if (AppSettings.Features.TemporaryApplication)
+            if (appSettings.Features.TemporaryApplication)
                 return;
 
             await application.RunAsync();
-            ScopedLog.AddToActions("Application Shutdown Gracefully");
+            scopeLog.AddToActions("Application Shutdown Gracefully");
         }
         catch (Exception exception)
         {
-            ScopedLog.AddException(exception);
+            scopeLog.AddException(exception);
             throw;
         }
         finally
         {
-            if (ScopedLog.HasException)
-                Log.Error("{@Logs}", ScopedLog.Logs);
+            if (scopeLog.HasException)
+                logger.Error("{@Logs}", scopeLog.Logs);
             else
-                Log.Warning("{@Logs}", ScopedLog.Logs);
-            await Log.CloseAndFlushAsync();
+                logger.Warning("{@Logs}", scopeLog.Logs);
+
+            bootstrapLogger.Dispose();
         }
     }
 
-    public static async Task<WebApplication> CreateApplicationAsync(string[]? args)
+    public static async Task<WebApplication> CreateApplicationAsync(string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
     {
         var program = new TProgram();
         var options = new WebApplicationOptions
         {
             Args = args,
             ApplicationName = GetApplicationAssemblyName(),
-            EnvironmentName = AppSettings.Environment.ToString()
+            EnvironmentName = appSettings.Environment.ToString()
         };
-        program.ConfigureSwaggerOptions(DrnProgramSwaggerOptions);
+        program.ConfigureSwaggerOptions(program.DrnProgramSwaggerOptions, appSettings);
 
         var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.AppBuilderType);
         applicationBuilder.Configuration.AddDrnSettings(GetApplicationAssemblyName(), args);
 
-        program.ConfigureApplicationBuilder(applicationBuilder);
-        await program.AddServicesAsync(applicationBuilder);
+        program.ConfigureApplicationBuilder(applicationBuilder, appSettings);
+        await program.AddServicesAsync(applicationBuilder, appSettings, scopeLog);
 
         var application = applicationBuilder.Build();
-        program.ConfigureApplication(application);
-        program.ValidateEndpoints(application);
-        program.ValidateServices(application);
+        program.ConfigureApplication(application, appSettings);
+        program.ValidateEndpoints(application, appSettings);
+        program.ValidateServices(application, scopeLog);
 
         return application;
     }
 
-    protected abstract Task AddServicesAsync(WebApplicationBuilder builder);
+    protected abstract Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog);
 
-    protected virtual LoggerConfiguration ConfigureLogger()
-        => new LoggerConfiguration().ReadFrom.Configuration(Configuration);
+    protected virtual LoggerConfiguration ConfigureLogger(IConfiguration configuration)
+        => new LoggerConfiguration().ReadFrom.Configuration(configuration);
 
-    protected virtual void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder)
+    protected virtual void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder, IAppSettings appSettings)
     {
         applicationBuilder.Host.UseSerilog();
         applicationBuilder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
             kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel")));
 
         var services = applicationBuilder.Services;
-        services.AdDrnHosting(DrnProgramSwaggerOptions, Configuration);
+        services.AdDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
 
         var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
         ConfigureMvcBuilder(mvcBuilder);
@@ -131,55 +128,55 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
         services.PostConfigure<HostFilteringOptions>(options =>
         {
-            if (options.AllowedHosts != null && options.AllowedHosts.Count != 0) return;
-            var separator = new[] { ';' };
+            if (options.AllowedHosts.Count != 0) return;
+
             // "AllowedHosts": "localhost;127.0.0.1;[::1]"
-            var hosts = applicationBuilder.Configuration["AllowedHosts"]?.Split(separator, StringSplitOptions.RemoveEmptyEntries);
+            var hosts = applicationBuilder.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries);
             // Fall back to "*" to disable.
             options.AllowedHosts = hosts?.Length > 0 ? hosts : ["*"];
         });
     }
 
-    protected virtual void ConfigureApplication(WebApplication application)
+    protected virtual void ConfigureApplication(WebApplication application, IAppSettings appSettings)
     {
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
-        ConfigureApplicationPreScopeStart(application);
+        ConfigureApplicationPreScopeStart(application, appSettings);
         application.UseMiddleware<HttpScopeHandler>();
-        ConfigureApplicationPostScopeStart(application);
+        ConfigureApplicationPostScopeStart(application, appSettings);
 
         application.UseRouting();
 
-        ConfigureApplicationPreAuthentication(application);
+        ConfigureApplicationPreAuthentication(application, appSettings);
         application.UseAuthentication();
         application.UseMiddleware<ScopedUserMiddleware>();
-        ConfigureApplicationPostAuthentication(application);
+        ConfigureApplicationPostAuthentication(application, appSettings);
         application.UseAuthorization();
-        ConfigureApplicationPostAuthorization(application);
+        ConfigureApplicationPostAuthorization(application, appSettings);
 
-        MapApplicationEndpoints(application);
+        MapApplicationEndpoints(application, appSettings);
     }
 
-    protected virtual void ConfigureApplicationPreScopeStart(WebApplication application)
+    protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
     {
-        if (AppSettings.Features.UseHttpRequestLogger)
+        if (appSettings.Features.UseHttpRequestLogger)
             application.UseMiddleware<HttpRequestLogger>();
     }
 
-    protected virtual void ConfigureApplicationPostScopeStart(WebApplication application)
+    protected virtual void ConfigureApplicationPostScopeStart(WebApplication application, IAppSettings appSettings)
     {
         application.UseHostFiltering();
         application.UseForwardedHeaders();
     }
 
-    protected virtual void ConfigureApplicationPreAuthentication(WebApplication application)
+    protected virtual void ConfigureApplicationPreAuthentication(WebApplication application, IAppSettings appSettings)
     {
     }
 
     /// <summary>
     /// Called when PreAuthorization
     /// </summary>
-    protected virtual void ConfigureApplicationPostAuthentication(WebApplication application)
+    protected virtual void ConfigureApplicationPostAuthentication(WebApplication application, IAppSettings appSettings)
     {
         var exemptionOptions = application.Services.GetRequiredService<MfaExemptionOptions>();
         var exemptionConfig = ConfigureMFAExemption();
@@ -198,7 +195,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         }
     }
 
-    protected virtual void ConfigureApplicationPostAuthorization(WebApplication application)
+    protected virtual void ConfigureApplicationPostAuthorization(WebApplication application, IAppSettings appSettings)
     {
         if (!DrnProgramSwaggerOptions.AddSwagger) return;
 
@@ -206,7 +203,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         application.UseSwaggerUI(DrnProgramSwaggerOptions.ConfigureSwaggerUIOptionsAction);
     }
 
-    protected virtual void MapApplicationEndpoints(WebApplication application)
+    protected virtual void MapApplicationEndpoints(WebApplication application, IAppSettings appSettings)
     {
         application.MapControllers();
         application.MapRazorPages();
@@ -271,15 +268,15 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         mvcBuilder.AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
     }
 
-    protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options)
+    protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
     {
-        options.OpenApiInfo.Title = AppSettings.ApplicationName;
-        options.AddSwagger = AppSettings.IsDevEnvironment;
+        options.OpenApiInfo.Title = appSettings.ApplicationName;
+        options.AddSwagger = appSettings.IsDevEnvironment;
     }
 
-    protected virtual void ValidateEndpoints(WebApplication application)
+    protected virtual void ValidateEndpoints(WebApplication application, IAppSettings appSettings)
     {
-        if (AppSettings.Features.TemporaryApplication)
+        if (appSettings.Features.TemporaryApplication)
             return;
         // We don't know if user code called UseEndpoints(), so we will call it just in case, UseEndpoints() will ignore duplicate DataSources
         application.UseEndpoints(_ => { });
@@ -288,7 +285,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         EndpointCollectionBase<TProgram>.SetEndpointDataSource(helper);
     }
 
-    protected virtual void ValidateServices(WebApplication application) => application.Services.ValidateServicesAddedByAttributes(ScopedLog);
+    protected virtual void ValidateServices(WebApplication application, IScopedLog scopeLog) =>
+        application.Services.ValidateServicesAddedByAttributes(scopeLog);
 
     private static string GetApplicationAssemblyName() => typeof(TProgram).GetAssemblyName();
 }

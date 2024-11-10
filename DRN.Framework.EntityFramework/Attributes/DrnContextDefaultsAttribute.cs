@@ -4,6 +4,7 @@ using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -21,12 +22,12 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
         .MigrationsAssembly(typeof(TContext).Assembly.FullName)
         .MigrationsHistoryTable($"{typeof(TContext).Name.ToSnakeCase()}_history", "__entity_migrations");
 
-    public override void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider? serviceProvider)
+    public override void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider serviceProvider)
     {
         builder.EnableParameterLogging(false);
         builder.ConfigureJsonOptions(JsonConventions.DefaultOptions);
 
-        var appSettings = serviceProvider?.GetRequiredService<IAppSettings>() ?? AppSettings.Instance;
+        var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
         var defaultApplicationName = $"{appSettings.ApplicationName}_{typeof(TContext).Name}";
 
         builder.ConnectionStringBuilder.ApplicationName ??= defaultApplicationName;

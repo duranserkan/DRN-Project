@@ -12,6 +12,10 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
     private static IReadOnlyList<Endpoint> Endpoints { get; set; } = [];
     public static IReadOnlyList<ApiEndpoint> ApiEndpoints { get; private set; } = [];
 
+    /// <summary>
+    /// Assuming that all instances of the program will have same endpoints so that we can initialize this once.
+    /// There may be exceptions, but we consider it a bad practice and don't support it.
+    /// </summary>
     internal static void SetEndpointDataSource(IEndpointHelper endpointHelper)
     {
         if (_triggered) return;

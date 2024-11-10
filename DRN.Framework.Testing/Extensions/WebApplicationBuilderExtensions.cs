@@ -11,13 +11,13 @@ public static class WebApplicationBuilderExtensions
     /// Launches external dependencies in a container such as postgresql and wires settings such as connection strings for dev environment if LaunchExternalDependencies feature is enabled
     /// </summary>
     public static async Task<ExternalDependencyLaunchResult> LaunchExternalDependenciesAsync(
-        this WebApplicationBuilder builder, IScopedLog? scopedLog, IAppSettings? appSettings,
+        this WebApplicationBuilder builder, IScopedLog? scopedLog, IAppSettings appSettings,
         ExternalDependencyLaunchOptions? options = null)
     {
         scopedLog?.AddToActions("Launching External dependencies...");
 
         options ??= new ExternalDependencyLaunchOptions();
-        var result = new ExternalDependencyLaunchResult(appSettings ?? AppSettings.Instance);
+        var result = new ExternalDependencyLaunchResult(appSettings);
         if (!result.Launched) return result;
 
         var postgresCollection = await PostgresContext.LaunchPostgresAsync(builder, options);

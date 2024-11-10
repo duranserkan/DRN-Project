@@ -20,14 +20,13 @@ public class ScopedLog : IScopedLog
 
     private ConcurrentDictionary<string, object> LogData { get; } = new(1, 32);
 
-    public ScopedLog()
+    public ScopedLog(IAppSettings appSettings)
     {
-        Add(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeOffset.UtcNow);
         Add(nameof(ScopedLog), true);
-
-        Add(nameof(AppSettings.ApplicationName), AppSettings.Instance.ApplicationName);
+        Add(nameof(AppSettings.ApplicationName), appSettings.ApplicationName);
         Add(nameof(AppConstants.ApplicationId), AppConstants.ApplicationId);
         Add(nameof(Environment.MachineName), Environment.MachineName);
+        Add(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeOffset.UtcNow);
     }
 
     public TimeSpan ScopeDuration => DateTimeOffset.UtcNow - (DateTimeOffset)LogData[ScopedLogConventions.KeyOfScopeCreatedAt];

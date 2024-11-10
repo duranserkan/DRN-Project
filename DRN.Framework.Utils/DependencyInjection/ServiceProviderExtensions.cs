@@ -15,9 +15,7 @@ public static class ServiceProviderExtensions
     {
         using var scope = rootServiceProvider.CreateScope();
         var serviceProvider = scope.ServiceProvider;
-
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
-        AppSettings.Instance = appSettings;
 
         if (appSettings.Features.ApplicationStartedBy != null)
             scopedLog?.Add(nameof(appSettings.Features.ApplicationStartedBy), appSettings.Features.ApplicationStartedBy);

@@ -21,7 +21,7 @@ public class HttpScopeHandler(RequestDelegate next)
         try
         {
             PrepareScopeLog(httpContext, scopedLog);
-            ScopeContext.Initialize(httpContext.TraceIdentifier, scopedLog, scopedUser, serviceProvider);
+            ScopeContext.Initialize(httpContext.TraceIdentifier, scopedLog, scopedUser, appSettings, serviceProvider);
             await next(httpContext);
             scopedLog.Add("ResponseStatusCode", httpContext.Response.StatusCode);
         }
