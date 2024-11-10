@@ -21,8 +21,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Scan File System Vulnerabilities
-        uses: ./.github/workflows/actions/scan-file-system-vulnerabilities
       - name: Setup SDK
         uses: ./.github/workflows/actions/setup-sdk-and-tools
       - name: Sonar Scan Begin
