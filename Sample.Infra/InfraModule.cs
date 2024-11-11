@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Sample.Domain.Users;
 using Sample.Infra.Identity;
 
 namespace Sample.Infra;
@@ -10,7 +11,7 @@ public static class InfraModule
     {
         sc.AddServicesWithAttributes();
 
-        sc.AddIdentityCore<IdentityUser>()
+        sc.AddIdentityCore<SampleUser>()
             .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<SampleIdentityContext>();
 

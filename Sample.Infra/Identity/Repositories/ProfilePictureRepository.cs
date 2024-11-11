@@ -1,14 +1,14 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using Microsoft.AspNetCore.Identity;
 using Sample.Domain.Identity;
 using Sample.Domain.Identity.ProfilePictures;
+using Sample.Domain.Users;
 
 namespace Sample.Infra.Identity.Repositories;
 
 [Scoped<IProfilePictureRepository>]
 public class ProfilePictureRepository(SampleIdentityContext context, IUserClaimRepository claimRepository) : IProfilePictureRepository
 {
-    public async Task UpdateProfilePictureAsync(ProfilePicture picture, IdentityUser user)
+    public async Task UpdateProfilePictureAsync(ProfilePicture picture, SampleUser user)
     {
         await using var transaction = await context.Database.BeginTransactionAsync();
         try

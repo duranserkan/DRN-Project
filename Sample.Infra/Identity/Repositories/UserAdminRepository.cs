@@ -2,12 +2,13 @@ using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Memory;
 using Sample.Domain.Identity;
+using Sample.Domain.Users;
 
 namespace Sample.Infra.Identity.Repositories;
 
 [Scoped<IUserAdminRepository>]
 public class UserAdminRepository(
-    UserManager<IdentityUser> userManager,
+    UserManager<SampleUser> userManager,
     RoleManager<IdentityRole> roleManager,
     SampleIdentityContext identityContext,
     IMemoryCache cache) : IUserAdminRepository
@@ -29,7 +30,7 @@ public class UserAdminRepository(
         return adminUserExists;
     }
 
-    public async Task<IdentityResult> CreateSystemAdminForInitialSetup(IdentityUser user, string inputPassword)
+    public async Task<IdentityResult> CreateSystemAdminForInitialSetup(SampleUser user, string inputPassword)
     {
         await using var transaction = await identityContext.Database.BeginTransactionAsync();
         try
@@ -52,7 +53,7 @@ public class UserAdminRepository(
         }
     }
 
-    private async Task<IdentityResult> AddSystemAdminAsync(IdentityUser user, string inputPassword)
+    private async Task<IdentityResult> AddSystemAdminAsync(SampleUser user, string inputPassword)
     {
         var adminRoleExists = await roleManager.RoleExistsAsync(SystemAdminRole);
         if (!adminRoleExists)

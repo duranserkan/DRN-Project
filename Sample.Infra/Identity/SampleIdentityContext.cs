@@ -1,10 +1,10 @@
 using DRN.Framework.EntityFramework.Context.Identity;
-using Microsoft.AspNetCore.Identity;
 using Sample.Domain.Identity.ProfilePictures;
+using Sample.Domain.Users;
 
 namespace Sample.Infra.Identity;
 
-public class SampleIdentityContext : DrnContextIdentity<SampleIdentityContext, IdentityUser>
+public class SampleIdentityContext : DrnContextIdentity<SampleIdentityContext, SampleUser>
 {
     public SampleIdentityContext(DbContextOptions<SampleIdentityContext> options) : base(options)
     {

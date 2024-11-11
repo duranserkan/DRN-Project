@@ -1,3 +1,4 @@
+using DRN.Nexus.Domain.User;
 using DRN.Nexus.Infra.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +11,7 @@ public static class InfraModule
     {
         sc.AddServicesWithAttributes();
 
-        sc.AddIdentityCore<IdentityUser>()
+        sc.AddIdentityCore<NexusUser>()
             .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<NexusIdentityContext>();
 

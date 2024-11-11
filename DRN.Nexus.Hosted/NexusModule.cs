@@ -1,4 +1,5 @@
 using DRN.Framework.Utils.Settings;
+using DRN.Nexus.Domain.User;
 using Microsoft.AspNetCore.Identity;
 
 namespace DRN.Nexus.Hosted;
@@ -12,7 +13,7 @@ public static class NexusModule
         services.AddServicesWithAttributes();
 
         var development = settings.IsDevEnvironment;
-        services.AddIdentityApiEndpoints<IdentityUser>(ConfigureIdentity(development));
+        services.AddIdentityApiEndpoints<NexusUser>(ConfigureIdentity(development));
         //.AddPersonalDataProtection<>()
 
         return services;

@@ -1,9 +1,9 @@
-using Microsoft.AspNetCore.Identity;
+using Sample.Domain.Users;
 
 namespace Sample.Domain.Identity;
 
 public interface IUserClaimRepository
 {
-    Task UpdateProfilePictureVersionClaimAsync(IdentityUser user, byte version);
-    Task UpdateSlimUiClaimAsync(IdentityUser user, bool slimUi);
+    Task UpdateProfilePictureVersionClaimAsync(SampleUser user, byte version);
+    Task UpdateSlimUiClaimAsync(SampleUser user, bool slimUi);
 }

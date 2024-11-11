@@ -2,12 +2,13 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Identity;
+using Sample.Domain.Users;
 
 namespace Sample.Hosted.Pages.System;
 
 [AllowAnonymous]
 public class SetupModel(
-    SignInManager<IdentityUser> signInManager,
+    SignInManager<SampleUser> signInManager,
     IUserAdminRepository userAdminRepository) : PageModel
 {
     [BindProperty] public SetupInput Input { get; set; } = new();
@@ -29,7 +30,7 @@ public class SetupModel(
         if (adminUserExists)
             return RedirectToPage(PageFor.Root.Home);
 
-        var user = new IdentityUser { UserName = Input.Email, Email = Input.Email };
+        var user = new SampleUser { UserName = Input.Email, Email = Input.Email };
         var result = await userAdminRepository.CreateSystemAdminForInitialSetup(user, Input.Password);
         if (!result.Succeeded)
         {

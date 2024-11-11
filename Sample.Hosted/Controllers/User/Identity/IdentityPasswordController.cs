@@ -1,9 +1,9 @@
 using System.Text;
 using System.Text.Encodings.Web;
+using DRN.Framework.Hosting.Identity.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.WebUtilities;
-using Sample.Hosted.Controllers.User.Identity.Utils;
 
 namespace Sample.Hosted.Controllers.User.Identity;
 

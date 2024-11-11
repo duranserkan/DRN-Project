@@ -8,7 +8,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" />
+    <ProjectReference Include="..\DRN.Nexus.Domain\DRN.Nexus.Domain.csproj" />
     <ProjectReference Include="..\DRN.Nexus.Utils\DRN.Nexus.Utils.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Identity\Migrations\" />
   </ItemGroup>
 
 </Project>

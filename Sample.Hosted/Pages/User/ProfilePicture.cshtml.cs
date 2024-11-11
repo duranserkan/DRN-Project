@@ -2,12 +2,13 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Application.Services;
+using Sample.Domain.Users;
 
 namespace Sample.Hosted.Pages.User;
 
 [Authorize]
 [RequestSizeLimit(RequestSizeLimit)]
-public class ProfilePictureModel(UserManager<IdentityUser> userManager, IProfilePictureService service, SignInManager<IdentityUser> signInManager) : PageModel
+public class ProfilePictureModel(UserManager<SampleUser> userManager, IProfilePictureService service, SignInManager<IdentityUser> signInManager) : PageModel
 {
     private const long MaxFileSize = 100 * 1024; // 100KB size limit
     private const long RequestSizeLimit = MaxFileSize + 10 * 1024;

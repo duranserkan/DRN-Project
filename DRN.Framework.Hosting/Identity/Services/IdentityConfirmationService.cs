@@ -1,19 +1,30 @@
 using System.Text;
 using System.Text.Encodings.Web;
+using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Sample.Hosted.Controllers.User.Identity.Utils;
+namespace DRN.Framework.Hosting.Identity.Services;
 
-[Scoped<IdentityConfirmationService>]
-public class IdentityConfirmationService(IServiceProvider serviceProvider, LinkGenerator linkGenerator)
+public interface IIdentityConfirmationService
 {
-    public async Task SendConfirmationEmailAsync<TUser>(TUser user, UserManager<TUser> userManager, HttpContext context, string email, bool isChange = false)
+    Task SendConfirmationEmailAsync<TUser>(TUser user, UserManager<TUser> userManager,
+        HttpContext context, ApiEndpoint emailEndpoint, string email, bool isChange = false)
+        where TUser : class, new();
+}
+
+[Scoped<IIdentityConfirmationService>]
+public class IdentityConfirmationService(IServiceProvider serviceProvider, LinkGenerator linkGenerator) : IIdentityConfirmationService
+{
+    public async Task SendConfirmationEmailAsync<TUser>(TUser user, UserManager<TUser> userManager, HttpContext context, ApiEndpoint emailEndpoint,
+        string email, bool isChange = false)
         where TUser : class, new()
     {
         var emailSender = serviceProvider.GetRequiredService<IEmailSender<TUser>>();
-        var emailEndpoint =  SampleEndpointFor.User.Identity.Confirmation.ConfirmEmail;
 
         var code = isChange
             ? await userManager.GenerateChangeEmailTokenAsync(user, email)
@@ -32,6 +43,7 @@ public class IdentityConfirmationService(IServiceProvider serviceProvider, LinkG
 
         var confirmEmailUrl = linkGenerator.GetUriByAction(context, emailEndpoint.ActionName, emailEndpoint.ControllerName, routeValues)!;
 
+        //Todo: check user type. Can it be IdentityUser?
         await emailSender.SendConfirmationLinkAsync(user, email, HtmlEncoder.Default.Encode(confirmEmailUrl));
     }
 }

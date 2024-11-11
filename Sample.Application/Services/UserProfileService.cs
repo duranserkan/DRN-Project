@@ -3,6 +3,7 @@ using System.Security.Claims;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Sample.Domain.Identity;
+using Sample.Domain.Users;
 using Sample.Infra.Identity.Repositories;
 
 namespace Sample.Application.Services;
@@ -14,7 +15,7 @@ public interface IUserProfileService
 }
 
 [Scoped<IUserProfileService>]
-public class UserProfileService(UserManager<IdentityUser> userManager, IUserProfileRepository repository) : IUserProfileService
+public class UserProfileService(UserManager<SampleUser> userManager, IUserProfileRepository repository) : IUserProfileService
 {
     public async Task<UserProfileEditModel> GetUserProfileEditModelAsync(ClaimsPrincipal principal)
     {

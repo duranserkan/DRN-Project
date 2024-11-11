@@ -1,14 +1,11 @@
 using System.ComponentModel.DataAnnotations;
+using DRN.Framework.Hosting.Identity.Services;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.Extensions.Options;
-using Sample.Hosted.Controllers.User.Identity.Utils;
 
 namespace Sample.Hosted.Controllers.User.Identity;
-
-
-
 
 [ApiController]
 [AllowAnonymous]

@@ -2,14 +2,15 @@ using System.Security.Claims;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Sample.Domain.Identity;
+using Sample.Domain.Users;
 
 namespace Sample.Infra.Identity.Repositories;
 
 [Scoped<IUserProfileRepository>]
-public class UserProfileRepository(UserManager<IdentityUser> userManager, IUserClaimRepository userClaimRepository, SampleIdentityContext context)
+public class UserProfileRepository(UserManager<SampleUser> userManager, IUserClaimRepository userClaimRepository, SampleIdentityContext context)
     : IUserProfileRepository
 {
-    public async Task<UserProfileEditResult> UpdateUserProfileAsync(UserProfileModel model, IdentityUser user, ClaimsPrincipal principal)
+    public async Task<UserProfileEditResult> UpdateUserProfileAsync(UserProfileModel model, SampleUser user, ClaimsPrincipal principal)
     {
         await using var transaction = await context.Database.BeginTransactionAsync();
         try

@@ -6,11 +6,12 @@ using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using QRCoder;
+using Sample.Domain.Users;
 
 namespace Sample.Hosted.Pages.User.Management;
 
 [Authorize(AuthPolicy.MfaExempt)]
-public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageModel
+public class EnableAuthenticator(UserManager<SampleUser> userManager) : PageModel
 {
     [BindProperty] public QrCodeVerifyModel QrCodeVerify { get; set; } = null!;
 
@@ -66,7 +67,7 @@ public class EnableAuthenticator(UserManager<IdentityUser> userManager) : PageMo
         return qrCode.GetGraphic(20);
     }
 
-    private async Task LoadSharedKeyAndQrCodeUriAsync(IdentityUser user)
+    private async Task LoadSharedKeyAndQrCodeUriAsync(SampleUser user)
     {
         var unformattedKey = await userManager.GetAuthenticatorKeyAsync(user);
         if (string.IsNullOrEmpty(unformattedKey))

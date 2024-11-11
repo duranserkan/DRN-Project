@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace Sample.Domain.Users;
 
 public class User : AggregateRoot

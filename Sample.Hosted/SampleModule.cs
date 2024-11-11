@@ -1,6 +1,7 @@
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
+using Sample.Domain.Users;
 
 namespace Sample.Hosted;
 
@@ -12,7 +13,7 @@ public static class SampleModule
     {
         var development = settings.IsDevEnvironment;
 
-        services.AddIdentityApiEndpoints<IdentityUser>(ConfigureIdentity(development));
+        services.AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(development));
         //.AddPersonalDataProtection<>()
 
         services.AddServicesWithAttributes();

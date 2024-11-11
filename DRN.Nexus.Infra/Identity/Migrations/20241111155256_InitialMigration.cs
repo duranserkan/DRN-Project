@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Sample.Infra.Identity.Migrations
+namespace DRN.Nexus.Infra.Identity.Migrations
 {
     /// <inheritdoc />
     public partial class InitialMigration : Migration
@@ -13,11 +13,11 @@ namespace Sample.Infra.Identity.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.EnsureSchema(
-                name: "sample_identity_context");
+                name: "nexus_identity_context");
 
             migrationBuilder.CreateTable(
                 name: "roles",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 columns: table => new
                 {
                     id = table.Column<string>(type: "text", nullable: false),
@@ -32,7 +32,7 @@ namespace Sample.Infra.Identity.Migrations
 
             migrationBuilder.CreateTable(
                 name: "users",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 columns: table => new
                 {
                     id = table.Column<string>(type: "text", nullable: false),
@@ -58,7 +58,7 @@ namespace Sample.Infra.Identity.Migrations
 
             migrationBuilder.CreateTable(
                 name: "role_claims",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
@@ -73,7 +73,7 @@ namespace Sample.Infra.Identity.Migrations
                     table.ForeignKey(
                         name: "fk_role_claims_roles_role_id",
                         column: x => x.role_id,
-                        principalSchema: "sample_identity_context",
+                        principalSchema: "nexus_identity_context",
                         principalTable: "roles",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
@@ -81,7 +81,7 @@ namespace Sample.Infra.Identity.Migrations
 
             migrationBuilder.CreateTable(
                 name: "user_claims",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
@@ -96,7 +96,7 @@ namespace Sample.Infra.Identity.Migrations
                     table.ForeignKey(
                         name: "fk_user_claims_users_user_id",
                         column: x => x.user_id,
-                        principalSchema: "sample_identity_context",
+                        principalSchema: "nexus_identity_context",
                         principalTable: "users",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
@@ -104,7 +104,7 @@ namespace Sample.Infra.Identity.Migrations
 
             migrationBuilder.CreateTable(
                 name: "user_logins",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 columns: table => new
                 {
                     login_provider = table.Column<string>(type: "text", nullable: false),
@@ -118,7 +118,7 @@ namespace Sample.Infra.Identity.Migrations
                     table.ForeignKey(
                         name: "fk_user_logins_users_user_id",
                         column: x => x.user_id,
-                        principalSchema: "sample_identity_context",
+                        principalSchema: "nexus_identity_context",
                         principalTable: "users",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
@@ -126,7 +126,7 @@ namespace Sample.Infra.Identity.Migrations
 
             migrationBuilder.CreateTable(
                 name: "user_roles",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 columns: table => new
                 {
                     user_id = table.Column<string>(type: "text", nullable: false),
@@ -138,14 +138,14 @@ namespace Sample.Infra.Identity.Migrations
                     table.ForeignKey(
                         name: "fk_user_roles_roles_role_id",
                         column: x => x.role_id,
-                        principalSchema: "sample_identity_context",
+                        principalSchema: "nexus_identity_context",
                         principalTable: "roles",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "fk_user_roles_users_user_id",
                         column: x => x.user_id,
-                        principalSchema: "sample_identity_context",
+                        principalSchema: "nexus_identity_context",
                         principalTable: "users",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
@@ -153,7 +153,7 @@ namespace Sample.Infra.Identity.Migrations
 
             migrationBuilder.CreateTable(
                 name: "user_tokens",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 columns: table => new
                 {
                     user_id = table.Column<string>(type: "text", nullable: false),
@@ -167,7 +167,7 @@ namespace Sample.Infra.Identity.Migrations
                     table.ForeignKey(
                         name: "fk_user_tokens_users_user_id",
                         column: x => x.user_id,
-                        principalSchema: "sample_identity_context",
+                        principalSchema: "nexus_identity_context",
                         principalTable: "users",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
@@ -175,44 +175,44 @@ namespace Sample.Infra.Identity.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "ix_role_claims_role_id",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 table: "role_claims",
                 column: "role_id");
 
             migrationBuilder.CreateIndex(
                 name: "RoleNameIndex",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 table: "roles",
                 column: "normalized_name",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_user_claims_user_id",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 table: "user_claims",
                 column: "user_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_user_logins_user_id",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 table: "user_logins",
                 column: "user_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_user_roles_role_id",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 table: "user_roles",
                 column: "role_id");
 
             migrationBuilder.CreateIndex(
                 name: "EmailIndex",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 table: "users",
                 column: "normalized_email");
 
             migrationBuilder.CreateIndex(
                 name: "UserNameIndex",
-                schema: "sample_identity_context",
+                schema: "nexus_identity_context",
                 table: "users",
                 column: "normalized_user_name",
                 unique: true);
@@ -223,31 +223,31 @@ namespace Sample.Infra.Identity.Migrations
         {
             migrationBuilder.DropTable(
                 name: "role_claims",
-                schema: "sample_identity_context");
+                schema: "nexus_identity_context");
 
             migrationBuilder.DropTable(
                 name: "user_claims",
-                schema: "sample_identity_context");
+                schema: "nexus_identity_context");
 
             migrationBuilder.DropTable(
                 name: "user_logins",
-                schema: "sample_identity_context");
+                schema: "nexus_identity_context");
 
             migrationBuilder.DropTable(
                 name: "user_roles",
-                schema: "sample_identity_context");
+                schema: "nexus_identity_context");
 
             migrationBuilder.DropTable(
                 name: "user_tokens",
-                schema: "sample_identity_context");
+                schema: "nexus_identity_context");
 
             migrationBuilder.DropTable(
                 name: "roles",
-                schema: "sample_identity_context");
+                schema: "nexus_identity_context");
 
             migrationBuilder.DropTable(
                 name: "users",
-                schema: "sample_identity_context");
+                schema: "nexus_identity_context");
         }
     }
 }

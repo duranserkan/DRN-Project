@@ -1,26 +1,36 @@
-using System.ComponentModel.DataAnnotations;
+using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Identity.Services;
+using DRN.Framework.Utils.Scope;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Sample.Hosted.Controllers.User.Identity;
+namespace DRN.Framework.Hosting.Identity.Controllers;
 
-[ApiController]
-[Authorize]
-[Route(UserApiFor.ControllerRouteTemplate)]
-public class IdentityManagementController(//From https://github.com/dotnet/aspnetcore/blob/main/src/Identity/Core/src/IdentityApiEndpointRouteBuilderExtensions.cs
-    SignInManager<IdentityUser> signInManager,
-    IdentityConfirmationService confirmationService) : ControllerBase
+public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
+    where TUser : IdentityUser, new()
 {
-    private static readonly EmailAddressAttribute EmailAddressAttribute = new();
+    private readonly SignInManager<TUser> _signInManager;
+    private readonly IIdentityConfirmationService _confirmationService;
+
+    protected IdentityManagementControllerBase()
+    {
+        var sp = ScopeContext.Services;
+        _signInManager = sp.GetRequiredService<SignInManager<TUser>>();
+        _confirmationService = sp.GetRequiredService<IIdentityConfirmationService>();
+    }
+
+    public abstract ApiEndpoint EmailEndpoint { get; }
 
     [HttpPost(nameof(TwoFactorAuth))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(TwoFactorResponse),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(TwoFactorResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    public async Task<IResult> TwoFactorAuth([FromBody] TwoFactorRequest tfaRequest)
+    public virtual async Task<IResult> TwoFactorAuth([FromBody] TwoFactorRequest tfaRequest)
     {
-        var userManager = signInManager.UserManager;
+        var userManager = _signInManager.UserManager;
         if (await userManager.GetUserAsync(User) is not { } user)
             return TypedResults.NotFound();
 
@@ -54,7 +64,7 @@ public class IdentityManagementController(//From https://github.com/dotnet/aspne
         }
 
         if (tfaRequest.ForgetMachine)
-            await signInManager.ForgetTwoFactorClientAsync();
+            await _signInManager.ForgetTwoFactorClientAsync();
 
         var key = await userManager.GetAuthenticatorKeyAsync(user);
         if (string.IsNullOrEmpty(key))
@@ -72,17 +82,17 @@ public class IdentityManagementController(//From https://github.com/dotnet/aspne
             RecoveryCodes = recoveryCodes,
             RecoveryCodesLeft = recoveryCodes?.Length ?? await userManager.CountRecoveryCodesAsync(user),
             IsTwoFactorEnabled = await userManager.GetTwoFactorEnabledAsync(user),
-            IsMachineRemembered = await signInManager.IsTwoFactorClientRememberedAsync(user)
+            IsMachineRemembered = await _signInManager.IsTwoFactorClientRememberedAsync(user)
         });
     }
 
     [HttpGet(nameof(GetInfo))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(InfoResponse),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(InfoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    public async Task<IResult> GetInfo()
+    public virtual async Task<IResult> GetInfo()
     {
-        var userManager = signInManager.UserManager;
+        var userManager = _signInManager.UserManager;
         if (await userManager.GetUserAsync(User) is not { } user)
             return TypedResults.NotFound();
 
@@ -91,17 +101,17 @@ public class IdentityManagementController(//From https://github.com/dotnet/aspne
 
     [HttpPost(nameof(PostInfo))]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(InfoResponse),StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(InfoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    public async Task<IResult> PostInfo([FromBody] InfoRequest infoRequest)
+    public virtual async Task<IResult> PostInfo([FromBody] InfoRequest infoRequest)
     {
-        var userManager = signInManager.UserManager;
+        var userManager = _signInManager.UserManager;
         if (await userManager.GetUserAsync(User) is not { } user)
         {
             return TypedResults.NotFound();
         }
 
-        if (!string.IsNullOrEmpty(infoRequest.NewEmail) && !EmailAddressAttribute.IsValid(infoRequest.NewEmail))
+        if (!string.IsNullOrEmpty(infoRequest.NewEmail) && !IdentityApiHelper.EmailAddressAttribute.IsValid(infoRequest.NewEmail))
         {
             return IdentityApiHelper.CreateValidationProblem(IdentityResult.Failed(userManager.ErrorDescriber.InvalidEmail(infoRequest.NewEmail)));
         }
@@ -126,7 +136,7 @@ public class IdentityManagementController(//From https://github.com/dotnet/aspne
             var email = await userManager.GetEmailAsync(user);
 
             if (email != infoRequest.NewEmail)
-                await confirmationService.SendConfirmationEmailAsync(user, userManager, HttpContext, infoRequest.NewEmail, isChange: true);
+                await _confirmationService.SendConfirmationEmailAsync(user, userManager, HttpContext, EmailEndpoint, infoRequest.NewEmail, isChange: true);
         }
 
         return TypedResults.Ok(await IdentityApiHelper.CreateInfoResponseAsync(user, userManager));

@@ -1,12 +1,16 @@
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 
-namespace Sample.Hosted.Controllers.User.Identity.Utils;
+namespace DRN.Framework.Hosting.Identity.Services;
 
 public static class IdentityApiHelper
 {
+    public static readonly EmailAddressAttribute EmailAddressAttribute = new();
+
     public static ValidationProblem CreateValidationProblem(string errorCode, string errorDescription) =>
         TypedResults.ValidationProblem(new Dictionary<string, string[]> {
             { errorCode, [errorDescription] }
@@ -43,7 +47,7 @@ public static class IdentityApiHelper
     public static async Task<InfoResponse> CreateInfoResponseAsync<TUser>(TUser user, UserManager<TUser> userManager)
         where TUser : class
     {
-        return new()
+        return new InfoResponse
         {
             Email = await userManager.GetEmailAsync(user) ?? throw new NotSupportedException("Users must have an email."),
             IsEmailConfirmed = await userManager.IsEmailConfirmedAsync(user),
