@@ -4,11 +4,12 @@ using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Sample.Domain.Users;
 
 namespace Sample.Hosted.Pages.User;
 
 [AllowAnonymous]
-public class LoginModel(SignInManager<IdentityUser> signInManager, UserManager<IdentityUser> userManager) : PageModel
+public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<SampleUser> userManager) : PageModel
 {
     [BindProperty] public LoginInput Input { get; set; } = null!;
 

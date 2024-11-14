@@ -40,7 +40,7 @@ public abstract class IdentityRegisterControllerBase<TUser> : ControllerBase
         if (!userManager.SupportsUserEmail)
             throw new NotSupportedException($"{GetType().FullName}.{nameof(Register)} requires a user store with email support.");
 
-        var emailStore = (IUserEmailStore<IdentityUser>)_userStore;
+        var emailStore = (IUserEmailStore<TUser>)_userStore;
         var email = registration.Email;
 
         if (string.IsNullOrEmpty(email) || !IdentityApiHelper.EmailAddressAttribute.IsValid(email))

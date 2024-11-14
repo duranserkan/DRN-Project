@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Sample.Domain.Users;
 
 namespace Sample.Hosted.Pages.User;
 
 [AllowAnonymous]
-public class LogoutModel(SignInManager<IdentityUser> signInManager) : PageModel
+public class LogoutModel(SignInManager<SampleUser> signInManager) : PageModel
 {
     public IActionResult OnGet()
     {

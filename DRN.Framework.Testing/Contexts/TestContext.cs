@@ -180,18 +180,16 @@ public class TestContext : IDisposable, IKeyedServiceProvider
 
     protected virtual void Dispose(bool disposing)
     {
-        if (!_disposed)
+        if (_disposed) return;
+        if (disposing)
         {
-            if (disposing)
-            {
-                DisposeServiceProvider();
-                if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
-                ContainerContext.Dispose();
-                ApplicationContext.Dispose();
-                FlurlHttpTest.Dispose();
-            }
-
-            _disposed = true;
+            DisposeServiceProvider();
+            if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
+            ContainerContext.Dispose();
+            ApplicationContext.Dispose();
+            FlurlHttpTest.Dispose();
         }
+
+        _disposed = true;
     }
 }

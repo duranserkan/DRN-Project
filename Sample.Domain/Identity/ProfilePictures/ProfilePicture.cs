@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity;
+using Sample.Domain.Users;
 
 namespace Sample.Domain.Identity.ProfilePictures;
 
@@ -8,7 +8,7 @@ public class ProfilePicture
     {
     }
 
-    public ProfilePicture(IdentityUser user, byte[] imageData)
+    public ProfilePicture(SampleUser user, byte[] imageData)
     {
         UserId = user.Id;
         ImageData = imageData;

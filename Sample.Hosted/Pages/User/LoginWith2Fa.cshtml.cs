@@ -3,11 +3,12 @@ using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Sample.Domain.Users;
 
 namespace Sample.Hosted.Pages.User;
 
 [Authorize(AuthPolicy.MfaExempt)]
-public class LoginWith2Fa(SignInManager<IdentityUser> signInManager) : PageModel
+public class LoginWith2Fa(SignInManager<SampleUser> signInManager) : PageModel
 {
     private const string InvalidCodeAttempts = nameof(InvalidCodeAttempts);
 

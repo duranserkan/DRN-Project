@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Application.Services;
+using Sample.Domain.Users;
 using Sample.Hosted.Utils;
 
 namespace Sample.Hosted.Pages.User;
 
 [Authorize]
-public class ProfileEditModel(IUserProfileService service, SignInManager<IdentityUser> signInManager)
+public class ProfileEditModel(IUserProfileService service, SignInManager<SampleUser> signInManager)
     : PageModel
 {
     [BindProperty] public UserProfileEditModel Input { get; set; } = null!;

@@ -8,7 +8,8 @@ namespace Sample.Hosted.Pages.User;
 
 [Authorize]
 [RequestSizeLimit(RequestSizeLimit)]
-public class ProfilePictureModel(UserManager<SampleUser> userManager, IProfilePictureService service, SignInManager<IdentityUser> signInManager) : PageModel
+public class ProfilePictureModel(IProfilePictureService service,
+    UserManager<SampleUser> userManager, SignInManager<SampleUser> signInManager) : PageModel
 {
     private const long MaxFileSize = 100 * 1024; // 100KB size limit
     private const long RequestSizeLimit = MaxFileSize + 10 * 1024;

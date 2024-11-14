@@ -3,11 +3,12 @@ using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Sample.Domain.Users;
 
 namespace Sample.Hosted.Pages.User;
 
 [AllowAnonymous]
-public class RegisterModel(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager)
+public class RegisterModel(UserManager<SampleUser> userManager, SignInManager<SampleUser> signInManager)
     : PageModel
 {
     [BindProperty] public RegisterInput Input { get; set; } = null!;
@@ -20,7 +21,7 @@ public class RegisterModel(UserManager<IdentityUser> userManager, SignInManager<
     {
         if (!ModelState.IsValid) return Page();
 
-        var user = new IdentityUser { UserName = Input.Email, Email = Input.Email };
+        var user = new SampleUser() { UserName = Input.Email, Email = Input.Email };
         var result = await userManager.CreateAsync(user, Input.Password);
 
         if (result.Succeeded)

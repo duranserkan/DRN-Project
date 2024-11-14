@@ -44,7 +44,7 @@ public class TestStartupJob : ITestStartupJob
         var nexusClient = await testContext.ApplicationContext.CreateClientAsync<NexusProgram>();
 
         var identity = NexusEndpointFor.User.Identity;
-        var endpoints = new AuthenticationEndpoints(identity.Login.RoutePattern!, identity.Register.RoutePattern!);
+        var endpoints = new AuthenticationEndpoints(identity.LoginController.Login.RoutePattern!, identity.RegisterController.Register.RoutePattern!);
         AuthenticationHelper<NexusProgram>.AuthEndpoints = endpoints;
 
         await AuthenticationHelper<NexusProgram>.AuthenticateClientAsync(nexusClient);
