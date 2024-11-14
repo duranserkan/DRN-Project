@@ -2,7 +2,7 @@ using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Identity.Controllers;
 using Sample.Domain.Users;
 
-namespace Sample.Hosted.Controllers.User.Identity;
+namespace Sample.Hosted.Controllers.User;
 
 [Route(UserApiFor.ControllerRouteTemplate)]
 public class SampleIdentityLoginController : IdentityLoginControllerBase<SampleUser>;
@@ -13,11 +13,11 @@ public class SampleIdentityPasswordController : IdentityPasswordControllerBase<S
 [Route(UserApiFor.ControllerRouteTemplate)]
 public class SampleIdentityManagementController : IdentityManagementControllerBase<SampleUser>
 {
-    public override ApiEndpoint EmailEndpoint => SampleEndpointFor.User.Identity.Confirmation.ConfirmEmail;
+    public override ApiEndpoint EmailEndpoint => SampleEndpointFor.User.Identity.RegisterController.ConfirmEmail;
 }
 
 [Route(UserApiFor.ControllerRouteTemplate)]
 public class SampleIdentityRegister : IdentityRegisterControllerBase<SampleUser>
 {
-    public override ApiEndpoint EmailEndpoint => SampleEndpointFor.User.Identity.Confirmation.ConfirmEmail;
+    public override ApiEndpoint EmailEndpoint => SampleEndpointFor.User.Identity.RegisterController.ConfirmEmail;
 }

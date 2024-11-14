@@ -31,7 +31,7 @@ public class TestStartupJob : ITestStartupJob
         var sampleClient = await testContext.ApplicationContext.CreateClientAsync<SampleProgram>();
 
         var identity = SampleEndpointFor.User.Identity;
-        var endpoints = new AuthenticationEndpoints(identity.Login.RoutePattern!, identity.Register.RoutePattern!);
+        var endpoints = new AuthenticationEndpoints(identity.LoginController.Login.RoutePattern!, identity.RegisterController.Register.RoutePattern!);
         AuthenticationHelper<SampleProgram>.AuthEndpoints = endpoints;
 
         await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(sampleClient);

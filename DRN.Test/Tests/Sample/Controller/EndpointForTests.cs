@@ -11,10 +11,10 @@ public class SampleEndpointForTests
     {
         await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<SampleProgram>();
 
-        var confirmEmailEndpoint = SampleEndpointFor.User.Identity.Confirmation.ConfirmEmail;
+        var confirmEmailEndpoint = SampleEndpointFor.User.Identity.RegisterController.ConfirmEmail;
         confirmEmailEndpoint.RoutePattern.Should().NotBeNull();
 
-        var confirmationEndpoints = SampleEndpointFor.User.Identity.Confirmation.Endpoints;
+        var confirmationEndpoints = SampleEndpointFor.User.Identity.RegisterController.Endpoints;
         confirmationEndpoints.Should().HaveCountGreaterThan(0);
 
         //todo: generate links compare named endpoints against controller action name
