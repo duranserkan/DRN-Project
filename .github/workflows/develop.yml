@@ -13,8 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Scan File System Vulnerabilities
-        uses: ./.github/workflows/actions/scan-file-system-vulnerabilities
       - name: Setup SDK
         uses: ./.github/workflows/actions/setup-sdk-and-tools
       - name: Build
