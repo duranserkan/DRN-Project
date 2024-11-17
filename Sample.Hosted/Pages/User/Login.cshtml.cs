@@ -1,10 +1,10 @@
 using System.ComponentModel.DataAnnotations;
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Users;
+using Sample.Hosted.Extensions;
 
 namespace Sample.Hosted.Pages.User;
 
@@ -34,30 +34,38 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
         if (user == null)
             return ReturnInvalidAttempt();
 
-        var passwordValid = await userManager.CheckPasswordAsync(user, Input.Password);
-        if (!passwordValid)
+        var userLoginValidation = await ValidateUserLoginAsync(user);
+        if (userLoginValidation.LockedOut)
+            return RedirectToPage("./Lockout");
+        if (!userLoginValidation.PasswordValid)
             return ReturnInvalidAttempt();
+        if (!userLoginValidation.TwoFactorEnabled) //enforce Mfa
+            return await this.RedirectToEnableAuthenticator(signInManager, user);
 
         var result = await signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+        if (!result.RequiresTwoFactor)
+            return ReturnInvalidAttempt();
 
-        if (result.IsLockedOut)
-            return RedirectToPage("./Lockout");
+        await signInManager.SignInAsync(user, false, authenticationMethod: MfaClaimValues.MfaInProgress);
+        return RedirectToPage(PageFor.User.LoginWith2Fa, new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
+    }
 
-        if (result.RequiresTwoFactor)
-        {
-            await signInManager.SignInAsync(user, false, authenticationMethod: MfaClaimValues.MfaInProgress);
-            return RedirectToPage(PageFor.User.LoginWith2Fa, new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
-        }
+    public record UserLoginValidation(bool LockedOut, bool PasswordValid, bool TwoFactorEnabled);
 
-        if (result.Succeeded) //force MFA to stay always secure
-            return RedirectToPage(PageFor.UserManagement.EnableAuthenticator);
+    private async Task<UserLoginValidation> ValidateUserLoginAsync(SampleUser user)
+    {
+        var lockOutValidationTask = userManager.IsLockedOutAsync(user);
+        var passwordCheckTask = userManager.CheckPasswordAsync(user, Input.Password);
+        var twoFactorEnabledTask = userManager.GetTwoFactorEnabledAsync(user);
+        await Task.WhenAll(lockOutValidationTask, passwordCheckTask, twoFactorEnabledTask);
 
-        return ReturnInvalidAttempt();
+        return new UserLoginValidation(lockOutValidationTask.Result, passwordCheckTask.Result, twoFactorEnabledTask.Result);
     }
 
     private PageResult ReturnInvalidAttempt()
     {
         ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+
         return Page();
     }
 }

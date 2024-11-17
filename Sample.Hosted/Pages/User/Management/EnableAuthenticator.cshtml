@@ -11,21 +11,39 @@
         <h2 class="text-center">@ViewData["Title"]</h2>
         <div class="card">
             <div class="card-body">
-                <p>Scan the QR code with your authenticator app:</p>
-                <img src="data:image/png;base64,@Html.Raw(Model.GenerateQrCodeImageAsBase64())" style="max-width: 200px; max-height: 200px;"/>
+                @if (Model.HasRecoveryCodes)
+                {
+                    <p>Save these recovery codes in a safe place:</p>
 
-                <p>Or enter this code manually:</p>
-                <code>@Model.SharedKey</code>
+                    <ul>
+                        @foreach (var recoveryCode in Model.RecoveryCodes)
+                        {
+                            <li>@recoveryCode</li>
+                        }
+                    </ul>
 
-                <form method="post" asp-page-handler="Verify">
-                    <div class="form-floating mb-3">
-                        <input asp-for="QrCodeVerify.Code" class="form-control"/>
-                        <label asp-for="QrCodeVerify.Code"></label>
-                        <span asp-validation-for="QrCodeVerify.Code" class="text-danger"></span>
+                    <div class="col-auto mt-3">
+                        <a href="@PageFor.User.Login" class="btn btn-secondary">Login</a>
                     </div>
+                }
+                else
+                {
+                    <p>Scan the QR code with your authenticator app:</p>
+                    <img src="data:image/png;base64,@Html.Raw(Model.GenerateQrCodeImageAsBase64())" style="max-width: 200px; max-height: 200px;" alt="QR Code"/>
 
-                    <button type="submit" class="btn btn-primary w-100">Verify</button>
-                </form>
+                    <p>Or enter this code manually:</p>
+                    <code>@Model.SharedKey</code>
+
+                    <form method="post" asp-page-handler="Verify">
+                        <div class="form-floating mb-3">
+                            <input asp-for="QrCodeVerify.Code" class="form-control"/>
+                            <label asp-for="QrCodeVerify.Code"></label>
+                            <span asp-validation-for="QrCodeVerify.Code" class="text-danger"></span>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">Verify</button>
+                    </form>
+                }
             </div>
         </div>
     </div>

@@ -1,29 +1,34 @@
 using System.ComponentModel.DataAnnotations;
-using System.Globalization;
 using System.Text;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Utils.Auth.MFA;
+using DRN.Framework.Utils.Scope;
+using Flurl;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using QRCoder;
 using Sample.Domain.Users;
+using Sample.Hosted.Extensions;
 
 namespace Sample.Hosted.Pages.User.Management;
 
 [Authorize(AuthPolicy.MfaExempt)]
-public class EnableAuthenticator(UserManager<SampleUser> userManager) : PageModel
+public class EnableAuthenticator(SignInManager<SampleUser> signInManager, UserManager<SampleUser> userManager) : PageModel
 {
     [BindProperty] public QrCodeVerifyModel QrCodeVerify { get; set; } = null!;
 
     public string SharedKey { get; set; } = string.Empty;
     public string AuthenticatorUri { get; set; } = string.Empty;
+    public string[] RecoveryCodes { get; set; } = [];
+    public bool HasRecoveryCodes => RecoveryCodes.Length > 0;
 
     public async Task<IActionResult> OnGetAsync()
     {
         var user = await userManager.GetUserAsync(User);
-        await LoadSharedKeyAndQrCodeUriAsync(user!);
+        if (user == null)
+            return this.ReturnLogoutPage();
 
-        return Page();
+        return await LoadSharedKeyAndQrCodeUriAsync(user);
     }
 
     public async Task<IActionResult> OnPostVerifyAsync()
@@ -31,13 +36,12 @@ public class EnableAuthenticator(UserManager<SampleUser> userManager) : PageMode
         if (!MfaFor.MfaSetupRequired)
             return LocalRedirect(PageFor.User.Login);
 
-        var user = (await userManager.GetUserAsync(User))!;
+        var user = await userManager.GetUserAsync(User);
+        if (user == null)
+            return this.ReturnLogoutPage();
 
         if (!ModelState.IsValid)
-        {
-            await LoadSharedKeyAndQrCodeUriAsync(user);
-            return Page();
-        }
+            return await LoadSharedKeyAndQrCodeUriAsync(user);
 
         var verificationCode = QrCodeVerify.Code.Replace(" ", string.Empty).Replace("-", string.Empty);
         var is2FaTokenValid = await userManager.VerifyTwoFactorTokenAsync(user, userManager.Options.Tokens.AuthenticatorTokenProvider, verificationCode);
@@ -45,16 +49,17 @@ public class EnableAuthenticator(UserManager<SampleUser> userManager) : PageMode
         if (!is2FaTokenValid)
         {
             ModelState.AddModelError("Input.Code", "Verification code is invalid.");
-            await LoadSharedKeyAndQrCodeUriAsync(user);
-            return Page();
+            return await LoadSharedKeyAndQrCodeUriAsync(user);
         }
 
         await userManager.SetTwoFactorEnabledAsync(user, true);
 
         var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
-        TempData[nameof(ShowRecoveryCodes.RecoveryCodes)] = recoveryCodes?.ToArray() ?? [];
+        RecoveryCodes = recoveryCodes?.ToArray() ?? [];
 
-        return RedirectToPage(PageFor.UserManagement.ShowRecoveryCodes);
+        await signInManager.SignOutAsync();
+
+        return Page();
     }
 
     public string GenerateQrCodeImageAsBase64()
@@ -67,7 +72,7 @@ public class EnableAuthenticator(UserManager<SampleUser> userManager) : PageMode
         return qrCode.GetGraphic(20);
     }
 
-    private async Task LoadSharedKeyAndQrCodeUriAsync(SampleUser user)
+    private async Task<IActionResult> LoadSharedKeyAndQrCodeUriAsync(SampleUser user)
     {
         var unformattedKey = await userManager.GetAuthenticatorKeyAsync(user);
         if (string.IsNullOrEmpty(unformattedKey))
@@ -76,19 +81,23 @@ public class EnableAuthenticator(UserManager<SampleUser> userManager) : PageMode
             unformattedKey = await userManager.GetAuthenticatorKeyAsync(user);
         }
 
-        SharedKey = FormatKey(unformattedKey!);
-        AuthenticatorUri = GenerateQrCodeUri(user.Email!, unformattedKey!);
+        var secret = unformattedKey!.ToLowerInvariant();
+        SharedKey = FormatKey(secret);
+        AuthenticatorUri = GenerateQrCodeUri(user.Email!, secret);
+
+        return Page();
     }
 
-    private static string GenerateQrCodeUri(string email, string unformattedKey)
+    private static string GenerateQrCodeUri(string email, string secret)
     {
-        const string issuer = "YourAppName";
-        return string.Format(
-            CultureInfo.InvariantCulture,
-            "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6",
-            issuer,
-            email,
-            unformattedKey);
+        var issuer = ScopeContext.Settings.ApplicationName;
+        var otpAuthUri = $"otpauth://totp"
+            .AppendPathSegment($"{issuer}:{email}")
+            .SetQueryParam("secret", secret)
+            .SetQueryParam("issuer", issuer)
+            .SetQueryParam("digits", 6);
+
+        return otpAuthUri;
     }
 
     private static string FormatKey(string unformattedKey)
@@ -104,7 +113,7 @@ public class EnableAuthenticator(UserManager<SampleUser> userManager) : PageMode
         if (currentPosition < unformattedKey.Length)
             result.Append(unformattedKey.AsSpan(currentPosition));
 
-        return result.ToString().ToLowerInvariant();
+        return result.ToString();
     }
 }
 

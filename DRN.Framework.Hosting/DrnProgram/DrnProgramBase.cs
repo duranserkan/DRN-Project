@@ -280,8 +280,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ValidateEndpoints(WebApplication application, IAppSettings appSettings)
     {
-        if (appSettings.Features.TemporaryApplication)
-            return;
+        if (appSettings.Features.TemporaryApplication) return;
         // We don't know if user code called UseEndpoints(), so we will call it just in case, UseEndpoints() will ignore duplicate DataSources
         application.UseEndpoints(_ => { });
 

@@ -1,8 +1,9 @@
-using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Identity;
 using Sample.Domain.Users;
+using Sample.Hosted.Extensions;
+using Sample.Hosted.Pages.User;
 
 namespace Sample.Hosted.Pages.System;
 
@@ -11,7 +12,7 @@ public class SetupModel(
     SignInManager<SampleUser> signInManager,
     IUserAdminRepository userAdminRepository) : PageModel
 {
-    [BindProperty] public SetupInput Input { get; set; } = new();
+    [BindProperty] public RegisterInput Input { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -32,29 +33,9 @@ public class SetupModel(
 
         var user = new SampleUser { UserName = Input.Email, Email = Input.Email };
         var result = await userAdminRepository.CreateSystemAdminForInitialSetup(user, Input.Password);
-        if (!result.Succeeded)
-        {
-            foreach (var error in result.Errors)
-                ModelState.AddModelError(error.Code, error.Description);
-            return Page();
-        }
+        if (result.Succeeded)
+            return await this.RedirectToEnableAuthenticator(signInManager, user);
 
-        // Sign in the user to update the claims
-        await signInManager.RefreshSignInAsync(user);
-
-        return RedirectToPage(PageFor.Root.Home);
+        return this.ReturnPageWithUserRegisterErrors(result);
     }
-}
-
-public class SetupInput
-{
-    [Required] [EmailAddress] public string Email { get; init; } = null!;
-
-    [Required]
-    [DataType(DataType.Password)]
-    public string Password { get; init; } = null!;
-
-    [DataType(DataType.Password)]
-    [Compare(nameof(Password), ErrorMessage = "The password and confirmation password do not match.")]
-    public string ConfirmPassword { get; init; } = null!;
 }
