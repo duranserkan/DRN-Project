@@ -16,7 +16,7 @@ public class RequireMfaHandler : AuthorizationHandler<MfaRequirement>
         // Enforce MFA if not exemption configured such as bearer token auth
         if (MfaFor.MfaCompleted)
             context.Succeed(requirement);
-        else if (((ScopedUser)ScopeContext.User).HasExemptionSchemes)
+        else if (((ScopedUser)ScopeContext.User).HasExemptionScheme)
             context.Succeed(requirement);
         else
             context.Fail();

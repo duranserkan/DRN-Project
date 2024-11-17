@@ -85,6 +85,6 @@ public class ScopedUser : IScopedUser
         AuthenticationMethodClaim = FindClaimGroup(ClaimConventions.AuthenticationMethod);
     }
 
-    internal void SetExemptionSchemes(string exemptionScheme) => ExemptionScheme = exemptionScheme;
-    internal bool HasExemptionSchemes => Authenticated && !string.IsNullOrWhiteSpace(ExemptionScheme);
+    internal void SetExemptionScheme(string exemptionScheme) => ExemptionScheme = exemptionScheme;
+    internal bool HasExemptionScheme => Authenticated && !string.IsNullOrWhiteSpace(ExemptionScheme);
 }

@@ -17,7 +17,7 @@ public class MfaExemptionMiddleware(RequestDelegate next)
                 var result = await httpContext.AuthenticateAsync(exemptAuthScheme);
                 if (result is not { Succeeded: true, Principal: not null }) continue;
 
-                ((ScopedUser)scopedUser).SetExemptionSchemes(exemptAuthScheme);
+                ((ScopedUser)scopedUser).SetExemptionScheme(exemptAuthScheme);
                 break;
             }
         }
