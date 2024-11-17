@@ -21,16 +21,16 @@ jobs:
         run: git branch --remote --contains | grep origin/develop
       - name: Set VERSION variable from tag
         run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+      - name: Setup SDK
+        uses: ./.github/workflows/actions/setup-sdk-and-tools
       - name: Initialize CodeQL #CodeQL Init
         uses: github/codeql-action/init@v3
         with:
           languages: csharp,javascript
-      - name: Setup SDK
-        uses: ./.github/workflows/actions/setup-sdk-and-tools
       - name: Build
         uses: ./.github/workflows/actions/dotnet-build-release
-      - name: Perform CodeQL Analysis #CodeQL Analyze
-        uses: github/codeql-action/analyze@v3
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3 #CodeQL Analyze
       - name: Test
         uses: ./.github/workflows/actions/dotnet-test-release
       - name: Publish Packages

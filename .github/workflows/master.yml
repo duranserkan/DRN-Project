@@ -25,8 +25,14 @@ jobs:
         uses: ./.github/workflows/actions/setup-sdk-and-tools
       - name: Sonar Scan Begin
         uses: ./.github/workflows/actions/sonar-begin
+      - name: Initialize CodeQL #CodeQL Init
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp,javascript
       - name: Build
-        uses: ./.github/workflows/actions/dotnet-build
+        uses: ./.github/workflows/actions/dotnet-build-release
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3 #CodeQL Analyze
       - name: Test
         run: ./.sonar/coverage/dotnet-coverage collect "dotnet test DRN.Test/DRN.Test.csproj --no-build --verbosity normal" -f xml -o "coverage.xml"
       - name: Sonar Scan End
