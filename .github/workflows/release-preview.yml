@@ -33,11 +33,6 @@ jobs:
         uses: github/codeql-action/analyze@v3
       - name: Test
         uses: ./.github/workflows/actions/dotnet-test-release
-      - name: Upload CodeQL results #CodeQL Upload
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          category: codeql-scan
       - name: Publish Packages
         uses: ./.github/workflows/actions/nuget-publish-all
       - name: Publish Images
