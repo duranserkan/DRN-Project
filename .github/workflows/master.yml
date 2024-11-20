@@ -23,12 +23,12 @@ jobs:
           fetch-depth: 0
       - name: Setup SDK
         uses: ./.github/workflows/actions/setup-sdk-and-tools
-      - name: Sonar Scan Begin
-        uses: ./.github/workflows/actions/sonar-begin
       - name: Initialize CodeQL #CodeQL Init
         uses: github/codeql-action/init@v3
         with:
           languages: csharp,javascript
+      - name: Sonar Scan Begin
+        uses: ./.github/workflows/actions/sonar-begin
       - name: Build
         uses: ./.github/workflows/actions/dotnet-build-release
       - name: Perform CodeQL Analysis
