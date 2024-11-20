@@ -36,11 +36,11 @@ jobs:
       - name: Build
         uses: ./.github/workflows/actions/dotnet-build-release
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-
       - name: Test
         uses: ./.github/workflows/actions/dotnet-test-release
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
 
       - name: Publish Packages
         uses: ./.github/workflows/actions/nuget-publish-all
