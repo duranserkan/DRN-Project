@@ -1,3 +1,6 @@
+# This workflow will build a .NET project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+
 name: master
 
 on:
@@ -27,7 +30,7 @@ jobs:
         uses: ./.github/workflows/actions/sonar-begin
 
       - name: Build for Sonar Scan
-        uses: ./.github/workflows/actions/dotnet-build-release
+        uses: ./.github/workflows/actions/dotnet-build
 
       - name: Test
         run: ./.sonar/coverage/dotnet-coverage collect "dotnet test DRN.Test/DRN.Test.csproj --no-build --verbosity normal" -f xml -o "coverage.xml"
@@ -54,7 +57,7 @@ jobs:
           languages: csharp,javascript
 
       - name: Build for CodeQL
-        uses: ./.github/workflows/actions/dotnet-build-release
+        uses: ./.github/workflows/actions/dotnet-build
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
