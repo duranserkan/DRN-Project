@@ -36,7 +36,7 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
 
         var userLoginValidation = await ValidateUserLoginAsync(user);
         if (userLoginValidation.LockedOut)
-            return RedirectToPage("./Lockout");
+            return RedirectToPage(PageFor.User.Lockout);
         if (!userLoginValidation.PasswordValid)
             return ReturnInvalidAttempt();
         if (!userLoginValidation.TwoFactorEnabled) //enforce Mfa

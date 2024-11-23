@@ -37,7 +37,7 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager) : PageModel
         }
 
         if (result.IsLockedOut)
-            return RedirectToPage("./Lockout");
+            return RedirectToPage(PageFor.User.Logout);
 
         ModelState.AddModelError(string.Empty, "Invalid authenticator code.");
 
@@ -69,6 +69,5 @@ public class Login2FaModel
     [Display(Name = "Authenticator code")]
     public string TwoFactorCode { get; init; } = string.Empty;
 
-    [Display(Name = "Remember me?")]
-    public bool RememberMe { get; set; }
+    [Display(Name = "Remember me?")] public bool RememberMe { get; set; }
 }

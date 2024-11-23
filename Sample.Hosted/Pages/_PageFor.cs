@@ -26,6 +26,7 @@ public class UserPageFor : PageForBase
     public string Login { get; init; } = string.Empty;
     public string LoginWith2Fa { get; init; } = string.Empty;
     public string Logout { get; init; } = string.Empty;
+    public string Lockout { get; init; } = string.Empty;
     public string Profile { get; init; } = string.Empty;
     public string ProfileEdit { get; init; } = string.Empty;
     public string ProfilePicture { get; init; } = string.Empty;

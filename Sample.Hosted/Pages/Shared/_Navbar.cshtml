@@ -1,7 +1,9 @@
 @using DRN.Framework.SharedKernel.Enums
 <nav class="navbar navbar-expand-lg container bg-primary" data-bs-theme="dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="@PageFor.Root.Home">@ScopeContext.Settings.ApplicationName</a>
+        <a class="navbar-brand d-flex align-items-center link-body-emphasis text-decoration-none" href="@PageFor.Root.Home">
+            <svg class="bi pe-none me-2" width="30" height="30"><use xlink:href="#bootstrap"/></svg>@ScopeContext.Settings.ApplicationName
+        </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -35,6 +37,9 @@
                                 <a class="dropdown-item" href="@PageFor.User.Logout">Log out</a>
                             </li>
                         </ul>
+                    </li>
+                    <li class="nav-item">
+                        <profile-picture class="rounded-circle" width="40" height="40"/>
                     </li>
                 }
                 else

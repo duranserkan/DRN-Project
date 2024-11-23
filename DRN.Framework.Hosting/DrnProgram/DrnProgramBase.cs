@@ -10,13 +10,14 @@ using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using NetEscapades.AspNetCore.SecurityHeaders.Headers;
+using NetEscapades.AspNetCore.SecurityHeaders.Infrastructure;
 using Serilog;
 
 namespace DRN.Framework.Hosting.DrnProgram;
@@ -133,6 +134,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         services.AddAuthorization(ConfigureAuthorizationOptions);
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
+        services.Configure<CookiePolicyOptions>(ConfigureCookieUseAndPrivacyPolicy);
         services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
         services.PostConfigure<HostFilteringOptions>(options =>
         {
@@ -142,6 +144,14 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             var hosts = applicationBuilder.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries);
             // Fall back to "*" to disable.
             options.AllowedHosts = hosts?.Length > 0 ? hosts : ["*"];
+        });
+
+        services.AddSecurityHeaderPolicies((builder, provider) =>
+        {
+            var policyCollection = new HeaderPolicyCollection();
+            ConfigureDefaultSecurityHeaders(policyCollection, provider, appSettings);
+            builder.SetDefaultPolicy(policyCollection);
+            ConfigureSecurityHeaderPolicyBuilder(builder, provider, appSettings);
         });
     }
 
@@ -168,16 +178,19 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// <summary>
     /// Configures security headers that are added by <see cref="ConfigureApplicationPreScopeStart"/>.<br/>
     /// * For details check: https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders.<br/>
-    /// * For header security test check: https://securityheaders.com/
+    /// * For header security test check: https://securityheaders.com/ <br/>
+    /// * For additional security checklist: https://mvsp.dev/
     /// </summary>
     /// <param name="policies">Defines the policies to use for customising security headers for a request added by NetEscapades.AspNetCore.SecurityHeaders</param>
-    /// <param name="application">The web application used to configure the HTTP pipeline, and routes.</param>
-    /// <param name="appSettings">The appSettings</param>
-    protected virtual void ConfigureSecurityHeaders(HeaderPolicyCollection policies, WebApplication application, IAppSettings appSettings)
+    /// <param name="serviceProvider"></param>
+    /// <param name="appSettings"></param>
+    protected virtual void ConfigureDefaultSecurityHeaders(HeaderPolicyCollection policies, IServiceProvider serviceProvider, IAppSettings appSettings)
     {
         //Todo add nonce tag helper to script for strict csp
         //Todo review default hsts policy, it may affect internal requests
-        //https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders/1.0.0-preview.2#readme-body-tab
+        //https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders
+        //https://andrewlock.net/major-updates-to-netescapades-aspnetcore-security-headers/
+        //https://andrewlock.net/series/understanding-cross-origin-security-headers
         policies.RemoveServerHeader()
             .AddFrameOptionsDeny()
             .AddContentTypeOptionsNoSniff()
@@ -199,11 +212,21 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             });
     }
 
+    protected virtual void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings)
+    {
+    }
+
+    protected virtual void ConfigureCookieUseAndPrivacyPolicy(CookiePolicyOptions options)
+    {
+        //https://learn.microsoft.com/en-us/aspnet/core/security/gdpr
+        options.CheckConsentNeeded = context => true; //user consent for non-essential cookies is needed for a given request.
+        options.HttpOnly = HttpOnlyPolicy.None; //Ensures cookies are  accessible via JavaScript
+        options.ConsentCookieValue = "true";
+    }
+
     protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
     {
-        var policyCollection = new HeaderPolicyCollection();
-        ConfigureSecurityHeaders(policyCollection, application, appSettings);
-        application.UseSecurityHeaders(policyCollection);
+        application.UseSecurityHeaders();
 
         if (appSettings.Features.UseHttpRequestLogger)
             application.UseMiddleware<HttpRequestLogger>();
@@ -213,6 +236,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         application.UseHostFiltering();
         application.UseForwardedHeaders();
+        application.UseCookiePolicy();
     }
 
     protected virtual void ConfigureApplicationPreAuthentication(WebApplication application, IAppSettings appSettings)

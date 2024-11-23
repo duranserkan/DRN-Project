@@ -1,16 +1,13 @@
-﻿using DRN.Framework.Hosting.Nexus;
+﻿using DRN.Framework.Hosting.HealthCheck;
+using DRN.Framework.Hosting.Nexus;
 using DRN.Framework.Utils.Models.Sample;
 
 namespace Sample.Hosted.Controllers.Sample;
 
-[ApiController]
-[Route(SampleApiFor.ControllerRouteTemplate)]
 [AllowAnonymous]
-public class WeatherForecastController(INexusClient nexusClient) : ControllerBase
+[Route(SampleApiFor.ControllerRouteTemplate)]
+public class WeatherForecastController(INexusClient nexusClient) : WeatherForecastControllerBase
 {
-    [HttpGet]
-    public IEnumerable<WeatherForecast> Get() => WeatherForecast.Get();
-
     [HttpGet("Nexus")]
     public async Task<WeatherForecast[]?> GetNexusWeatherForecasts()
     {

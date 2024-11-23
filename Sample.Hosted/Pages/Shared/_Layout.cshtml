@@ -6,18 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>@ViewData["Title"] - @ScopeContext.Settings.ApplicationName</title>
 
+    @*https://icons.getbootstrap.com/#usage*@
+    <link rel="icon" type="image/x-icon" href="/images/100.jpeg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" integrity="sha256-9kPW/n5nn53j4WMRYAxe9c1rCY96Oogo/MKSVdKzPmI=" crossorigin="anonymous" referrerpolicy="no-referrer">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="~/css/site.css?v=@DateTime.Now.Ticks"/>
     <link rel="stylesheet" href="~/css/sidebars.css?v=@DateTime.Now.Ticks"/>
-    <link rel="icon" type="image/x-icon" href="/images/100.jpeg">
 </head>
 <body class="d-flex flex-column min-vh-100 bg-secondary-subtle">
 
 @await Html.PartialAsync("_Navbar")
 
-<div class="container flex-grow-1 d-flex p-0 bg-light-subtle">
+<div class="container d-flex flex-grow-1 p-0 bg-light-subtle">
     @if (ScopeContext.MFACompleted)
     {
         @await Html.PartialAsync("_Sidebar")
@@ -25,20 +26,26 @@
     @{
         var centerVertically = ViewData.TryGetValue("CenterVertically", out var flexColumnValue) && flexColumnValue is true;
     }
-    <!-- Main content -->
-    <div class="flex-grow-1 d-flex @(centerVertically ? "flex-column" : "") justify-content-center">
-        <main role="main" class="p-3 @(centerVertically ? "" : "flex-grow-1")">
-
-            @if (TempData["StatusMessage"] != null)
-            {
-                <div class="alert alert-success alert-dismissible" role="alert">
-                    @TempData["StatusMessage"]
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            }
-
-            @RenderBody()
-        </main>
+    <div class="d-flex flex-column flex-grow-1">
+        <div>
+            @await RenderSectionAsync("MainTop", required: false)
+        </div>
+        <!-- Main content -->
+        <div class=" d-flex  @(centerVertically ? "flex-column" : "") justify-content-center flex-grow-1">
+            <main role="main" class="p-3 @(centerVertically ? "" : "flex-grow-1")">
+                @if (TempData["StatusMessage"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible" role="alert">
+                        @TempData["StatusMessage"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+                @RenderBody()
+            </main>
+        </div>
+        <div>
+            @await RenderSectionAsync("MainBottom", required: false)
+        </div>
     </div>
 </div>
 
@@ -47,10 +54,10 @@
         &copy @DateTime.Now.Year - @ScopeContext.Settings.ApplicationName
     </div>
 </footer>
+<partial name="_CookieConsentPartial"/>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="~/js/site.js?v=@DateTime.Now.Ticks"></script>
-<!-- Render any scripts that the page may define in the Scripts section -->
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

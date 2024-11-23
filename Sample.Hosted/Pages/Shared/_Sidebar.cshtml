@@ -28,13 +28,16 @@ https://getbootstrap.com/docs/5.3/examples/
 https://getbootstrap.com/docs/5.3/examples/sidebars/
 *@
 
-@if (ClaimFor.Profile.SlimUi)
-{
-    @await Html.PartialAsync("_SidebarSlim");
-}
-else
-{
-    @await Html.PartialAsync("_SidebarFull");
-}
+<div class="d-flex p-3 bg-body-tertiary">
+    @if (ClaimFor.Profile.SlimUi)
+    {
+        @await Html.PartialAsync("_SidebarSlim")
+    }
+    else
+    {
+        @await Html.PartialAsync("_SidebarFull")
+    }
+</div>
+
 @*@await Html.PartialAsync("_SidebarCollapsible")*@
 @*@await Html.PartialAsync("_SidebarListGroup")*@
