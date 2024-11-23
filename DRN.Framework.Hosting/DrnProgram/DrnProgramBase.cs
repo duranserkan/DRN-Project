@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using NetEscapades.AspNetCore.SecurityHeaders.Headers;
 using Serilog;
 
 namespace DRN.Framework.Hosting.DrnProgram;
@@ -118,7 +119,10 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         applicationBuilder.Host.UseSerilog();
         applicationBuilder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
-            kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel")));
+        {
+            kestrelServerOptions.AddServerHeader = false;
+            kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel"));
+        });
 
         var services = applicationBuilder.Services;
         services.AdDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
@@ -161,8 +165,38 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         MapApplicationEndpoints(application, appSettings);
     }
 
+    /// <summary>
+    /// Configures security headers that are added by <see cref="ConfigureApplicationPreScopeStart"/>. For details check https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders
+    /// </summary>
+    /// <param name="policies">Defines the policies to use for customising security headers for a request added by NetEscapades.AspNetCore.SecurityHeaders</param>
+    /// <param name="application">The web application used to configure the HTTP pipeline, and routes.</param>
+    /// <param name="appSettings">The appSettings</param>
+    protected virtual void ConfigureSecurityHeaders(HeaderPolicyCollection policies, WebApplication application, IAppSettings appSettings)
+    {
+        //Todo add nonce tag helper to script for strict csp
+        //Todo review default hsts policy, it may affect internal requests
+        //https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders/1.0.0-preview.2#readme-body-tab
+        policies.AddFrameOptionsDeny();
+        policies.AddContentTypeOptionsNoSniff();
+        policies.AddReferrerPolicyStrictOriginWhenCrossOrigin();
+        policies.RemoveServerHeader();
+        policies.AddContentSecurityPolicy(builder =>
+        {
+            builder.AddObjectSrc().None();
+            builder.AddFormAction().Self();
+            builder.AddFrameAncestors().None();
+        });
+        policies.AddCrossOriginOpenerPolicy(x => x.SameOrigin());
+        policies.AddCrossOriginEmbedderPolicy(builder => builder.Credentialless());
+        policies.AddCrossOriginResourcePolicy(builder => builder.SameSite());
+    }
+
     protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
     {
+        var policyCollection = new HeaderPolicyCollection();
+        ConfigureSecurityHeaders(new HeaderPolicyCollection(), application, appSettings);
+        application.UseSecurityHeaders(policyCollection);
+
         if (appSettings.Features.UseHttpRequestLogger)
             application.UseMiddleware<HttpRequestLogger>();
     }

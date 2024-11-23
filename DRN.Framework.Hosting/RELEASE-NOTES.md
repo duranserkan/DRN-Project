@@ -7,6 +7,9 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 ### New Features
 
 * IdentityControllerBase classes added which are controller version of Identity Api endpoints.
+* DrnProgramBase
+  * ConfigureSecurityHeaders virtual method added.
+  * ConfigureApplicationPreScopeStart will add security headers configured by ConfigureSecurityHeaders
 
 ## Version 0.6.0
 
