@@ -166,7 +166,9 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     }
 
     /// <summary>
-    /// Configures security headers that are added by <see cref="ConfigureApplicationPreScopeStart"/>. For details check https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders
+    /// Configures security headers that are added by <see cref="ConfigureApplicationPreScopeStart"/>.<br/>
+    /// * For details check: https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders.<br/>
+    /// * For header security test check: https://securityheaders.com/
     /// </summary>
     /// <param name="policies">Defines the policies to use for customising security headers for a request added by NetEscapades.AspNetCore.SecurityHeaders</param>
     /// <param name="application">The web application used to configure the HTTP pipeline, and routes.</param>
@@ -176,25 +178,31 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         //Todo add nonce tag helper to script for strict csp
         //Todo review default hsts policy, it may affect internal requests
         //https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders/1.0.0-preview.2#readme-body-tab
-        policies.AddFrameOptionsDeny();
-        policies.AddContentTypeOptionsNoSniff();
-        policies.AddReferrerPolicyStrictOriginWhenCrossOrigin();
-        policies.RemoveServerHeader();
-        policies.AddContentSecurityPolicy(builder =>
-        {
-            builder.AddObjectSrc().None();
-            builder.AddFormAction().Self();
-            builder.AddFrameAncestors().None();
-        });
-        policies.AddCrossOriginOpenerPolicy(x => x.SameOrigin());
-        policies.AddCrossOriginEmbedderPolicy(builder => builder.Credentialless());
-        policies.AddCrossOriginResourcePolicy(builder => builder.SameSite());
+        policies.RemoveServerHeader()
+            .AddFrameOptionsDeny()
+            .AddContentTypeOptionsNoSniff()
+            .AddReferrerPolicyStrictOriginWhenCrossOrigin()
+            .AddStrictTransportSecurity(63072000, true, true) //https://hstspreload.org/
+            .AddContentSecurityPolicy(builder =>
+            {
+                builder.AddObjectSrc().None();
+                builder.AddFormAction().Self();
+                builder.AddFrameAncestors().None();
+            })
+            .AddCrossOriginOpenerPolicy(x => x.SameOrigin())
+            .AddCrossOriginEmbedderPolicy(builder => builder.Credentialless())
+            .AddCrossOriginResourcePolicy(builder => builder.SameSite())
+            .AddPermissionsPolicy(builder =>
+            {
+                builder.AddDefaultSecureDirectives();
+                builder.AddFullscreen().Self();
+            });
     }
 
     protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
     {
         var policyCollection = new HeaderPolicyCollection();
-        ConfigureSecurityHeaders(new HeaderPolicyCollection(), application, appSettings);
+        ConfigureSecurityHeaders(policyCollection, application, appSettings);
         application.UseSecurityHeaders(policyCollection);
 
         if (appSettings.Features.UseHttpRequestLogger)
