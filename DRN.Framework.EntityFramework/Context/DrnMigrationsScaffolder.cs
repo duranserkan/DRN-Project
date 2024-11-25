@@ -9,7 +9,7 @@ namespace DRN.Framework.EntityFramework.Context;
 /// <param name="dependencies"></param>
 public class DrnMigrationsScaffolder(MigrationsScaffolderDependencies dependencies) : MigrationsScaffolder(dependencies)
 {
-    public override MigrationFiles Save(string projectDir, ScaffoldedMigration migration, string? outputDir)
+    public override MigrationFiles Save(string projectDir, ScaffoldedMigration migration, string? outputDir, bool dryRun)
     {
         if (string.IsNullOrEmpty(outputDir))
         {
@@ -21,13 +21,13 @@ public class DrnMigrationsScaffolder(MigrationsScaffolderDependencies dependenci
             Console.WriteLine($"relative output dir: {outputDir}");
         }
 
-        return base.Save(projectDir, migration, outputDir);
+        return base.Save(projectDir, migration, outputDir, dryRun);
     }
 
-    public override ScaffoldedMigration ScaffoldMigration(string migrationName, string? rootNamespace, string? subNamespace = null, string? language = null)
+    public override ScaffoldedMigration ScaffoldMigration(string migrationName, string? rootNamespace, string? subNamespace = null, string? language = null, bool dryRun = false)
     {
         var relativeNamespaceForMigration = $"{GetRelativeNamespace(Dependencies.CurrentContext.Context)}.Migrations";
-        return base.ScaffoldMigration(migrationName, rootNamespace, subNamespace ?? relativeNamespaceForMigration, language);
+        return base.ScaffoldMigration(migrationName, rootNamespace, subNamespace ?? relativeNamespaceForMigration, language, dryRun);
     }
 
     private static string GetRelativeNamespace(DbContext dbContext)

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -9,10 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="..\DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" />
     <ProjectReference Include="..\Sample.Domain\Sample.Domain.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Identity\Migrations\" />
   </ItemGroup>
   
 </Project>

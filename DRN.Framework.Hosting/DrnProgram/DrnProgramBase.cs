@@ -220,7 +220,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         //https://learn.microsoft.com/en-us/aspnet/core/security/gdpr
         options.CheckConsentNeeded = context => true; //user consent for non-essential cookies is needed for a given request.
-        options.HttpOnly = HttpOnlyPolicy.None; //Ensures cookies are  accessible via JavaScript
+        options.HttpOnly = HttpOnlyPolicy.None; //Ensures cookies are accessible via JavaScript, use with strict csp
         options.ConsentCookieValue = "true";
     }
 
