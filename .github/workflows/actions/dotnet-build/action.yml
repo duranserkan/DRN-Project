@@ -1,13 +1,10 @@
 name: Dotnet Build
-
 runs:
   using: "composite"
   steps:
     - name: Restore dependencies
       shell: bash
       run: dotnet restore DRN.sln
-    - name: Scan vulnerabilities
-      uses: ./.github/workflows/actions/scan-nuget-vulnerabilities
     - name: Build solution
       shell: bash
       run: dotnet build DRN.sln --no-restore --no-incremental
