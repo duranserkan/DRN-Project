@@ -22,7 +22,8 @@ WORKDIR /appconfig/json-settings
 WORKDIR /app
 
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
-FROM --platform=$BUILDPLATFORM bitnami/dotnet-sdk:9.0.100 AS build
+#https://mcr.microsoft.com/en-us/artifact/mar/dotnet/sdk/tags alternative registry for bitnami/dotnet-sdk
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0-alpine3.20    AS build
 ARG PROJECT
 ARG TARGETARCH
 
