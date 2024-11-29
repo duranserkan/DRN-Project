@@ -25,6 +25,5 @@ public class ScopeData
     public void SetParameter<TValue>(string key, string stringValue, TValue? defaultValue = default) where TValue : IParsable<TValue>
         => _parameters[key] = stringValue.TryParse<TValue>(out var result) ? result! : defaultValue;
 
-    public void SetParameter<TValue>(string key, TValue value) where TValue : IParsable<TValue>
-        => _parameters[key] = value;
+    public void SetParameter<TValue>(string key, TValue value) => _parameters[key] = value;
 }

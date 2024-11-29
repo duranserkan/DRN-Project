@@ -1,13 +1,16 @@
+using DRN.Framework.Hosting.Consent;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Scope;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Options;
 
 namespace DRN.Framework.Hosting.Middlewares;
 
 public class ScopedUserMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext httpContext, IScopedUser scopedUser, IScopedLog log)
+    public async Task InvokeAsync(HttpContext httpContext, IScopedUser scopedUser, IScopedLog log, IOptions<CookiePolicyOptions> options)
     {
         ((ScopedUser)scopedUser).SetUser(httpContext.User);
 
@@ -15,14 +18,15 @@ public class ScopedUserMiddleware(RequestDelegate next)
         log.Add("UserId", scopedUser.Id ?? string.Empty);
         log.Add("amr", scopedUser.Amr ?? string.Empty);
 
-        var consentFeature = httpContext.Features.Get<ITrackingConsentFeature>();
-        if (consentFeature != null)
-        {
-            log.Add(nameof(ITrackingConsentFeature.IsConsentNeeded), consentFeature.IsConsentNeeded);
-            log.Add(nameof(ITrackingConsentFeature.HasConsent), consentFeature.HasConsent);
-            log.Add(nameof(ITrackingConsentFeature.CanTrack), consentFeature.CanTrack);
-        }
+        var consentCookie = httpContext.ToConsentCookieModel(options.Value);
+        ScopeContext.Data.SetParameter(nameof(ConsentCookie), consentCookie);
 
+        var userConsentNeeded = options.Value.CheckConsentNeeded?.Invoke(httpContext) ?? false;
+        if (!string.IsNullOrWhiteSpace(consentCookie.ConsentString) && userConsentNeeded)
+        {
+            log.Add(nameof(ConsentCookieValues.AnalyticsConsent), consentCookie.Values.AnalyticsConsent ?? false);
+            log.Add(nameof(ConsentCookieValues.MarketingConsent), consentCookie.Values.MarketingConsent ?? false);
+        }
 
         await next(httpContext);
     }

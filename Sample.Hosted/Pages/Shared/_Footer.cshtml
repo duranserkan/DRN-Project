@@ -1,0 +1,115 @@
+@using DRN.Framework.Hosting.Consent
+
+@{
+    var showBanner = !ConsentContext.ConsentCookie.Values.UserResponded;
+}
+
+<footer class="border-top footer text-muted mt-auto ">
+    <div class="container bg-light d-flex justify-content-between align-items-center py-1">
+        <div id="FooterLeft">
+            &copy @DateTime.Now.Year - @ScopeContext.Settings.ApplicationName
+        </div>
+        <div id="FooterMiddle">
+            <div id="preferenceCookieAlert" class="d-none align-items-center" role="alert">
+                <span class="me-3">We use cookies to enhance your experience. <a href="/Privacy" class="alert-link">Learn more</a>.</span>
+                <button type="button" class="btn btn-primary btn-sm accept-policy me-2" aria-label="Accept" id="acceptPreferencesCookieBtn">
+                    Accept
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm reject-policy" aria-label="Reject" id="rejectPreferencesCookieBtn">
+                    Reject
+                </button>
+            </div>
+        </div>
+        <div id="FooterRight">
+            <div id="preferenceManagementContainer" class="d-flex align-items-center">
+                <div class="dropup">
+                    <!-- Main button for opening the cookie manager dropdown -->
+                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="PreferenceManager" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Preference Manager">
+                        Preferences <i class="bi bi-sliders"></i>
+                    </button>
+
+                    <!-- Dropdown menu for cookie preferences -->
+                    <ul class="dropdown-menu dropdown-menu-end p-3" aria-labelledby="PreferenceManager">
+                        <!-- Analytics Cookies -->
+                        <li class="dropdown-item" data-bs-toggle="tooltip" data-bs-placement="left" title="Allow us to analyze your activity for better service.">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="analyticsCookiesCheckBox">
+                                <label class="form-check-label" for="analyticsCookiesCheckBox">
+                                    Analytics Cookies
+                                </label>
+                            </div>
+                        </li>
+                        <!-- Marketing Cookies -->
+                        <li class="dropdown-item" data-bs-toggle="tooltip" data-bs-placement="left" title="Enable personalized marketing content.">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="marketingCookiesCheckBox">
+                                <label class="form-check-label" for="marketingCookiesCheckBox">
+                                    Marketing Cookies
+                                </label>
+                            </div>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li>
+                            <button class="btn btn-sm btn-primary w-100" id="savePreferencesBtn" aria-label="Save your cookie preferences">
+                                Save Preferences
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    const preferencesCookieName = @Json.Serialize(ConsentContext.CookieName);
+    const getPreferenceCookie = () => {
+        const parts = `; ${document.cookie}`.split(`; ${preferencesCookieName}=`);
+        if (parts.length === 2)
+            return parts.pop().split(';').shift();
+
+        return urlSafeBase64Encode(JSON.stringify({}));
+    };
+    const getPreferenceCookieWithDecode = () => JSON.parse(urlSafeBase64Decode(getPreferenceCookie()));
+    let globalPreferences = getPreferenceCookieWithDecode();
+
+    const preferenceCookieAlert = "preferenceCookieAlert";
+    const analyticsCookiesCheckBoxId = "analyticsCookiesCheckBox";
+    const marketingCookiesCheckBoxId = "marketingCookiesCheckBox";
+    const acceptPreferenceCookieBtn = "acceptPreferencesCookieBtn";
+    const rejectPreferenceCookieBtn = "rejectPreferencesCookieBtn";
+    const savePreferencesBtnId = "savePreferencesBtn";
+
+    const savePreferences = (preferences) => {
+        globalPreferences = preferences;
+        const preferencesAsJson = JSON.stringify(preferences);
+        const preferencesJsonAsEncoded = urlSafeBase64Encode(preferencesAsJson);
+        const oneYearInSeconds = 365 * 24 * 60 * 60; // Set the cookie to expire in 1 year using Max-Age
+        document.cookie = `${preferencesCookieName}=${preferencesJsonAsEncoded}; path=/; Max-Age=${oneYearInSeconds}; SameSite=Strict;`;
+        document.getElementById(preferenceCookieAlert).classList.replace("d-flex", "d-none");// Hide the alert banner
+        loadPreferences();
+    }
+    const loadPreferences = () => {
+        document.getElementById(analyticsCookiesCheckBoxId).checked = globalPreferences.AnalyticsConsent || false;
+        document.getElementById(marketingCookiesCheckBoxId).checked = globalPreferences.MarketingConsent || false;
+    }
+    const createPreferences = (analyticsConsent, marketingConsent) => ({
+        @nameof(ConsentCookieValues.AnalyticsConsent): analyticsConsent,
+        @nameof(ConsentCookieValues.MarketingConsent): marketingConsent
+    });
+
+    loadPreferences();
+    document.getElementById(acceptPreferenceCookieBtn).addEventListener("click", () => savePreferences(createPreferences(true, true)));
+    document.getElementById(rejectPreferenceCookieBtn).addEventListener("click", () => savePreferences(createPreferences(false, false)));
+    document.getElementById(savePreferencesBtnId)?.addEventListener("click", function () {
+        const analytics = document.getElementById(analyticsCookiesCheckBoxId).checked;
+        const marketing = document.getElementById(marketingCookiesCheckBoxId).checked;
+        savePreferences(createPreferences(analytics, marketing));
+    });
+
+    const showCookieAlertBanner =  @Json.Serialize(showBanner);
+    if (showCookieAlertBanner)
+        document.getElementById(preferenceCookieAlert).classList.replace("d-none", "d-flex");
+</script>

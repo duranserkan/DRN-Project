@@ -1,9 +1,11 @@
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
+using DRN.Framework.Hosting.Consent;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.SharedKernel.Json;
+using DRN.Framework.Utils.Common;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
@@ -134,7 +136,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         services.AddAuthorization(ConfigureAuthorizationOptions);
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
-        services.Configure<CookiePolicyOptions>(ConfigureCookieUseAndPrivacyPolicy);
+        services.Configure<CookiePolicyOptions>(GetConfigureCookiePolicy(appSettings));
         services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
         services.PostConfigure<HostFilteringOptions>(options =>
         {
@@ -216,16 +218,25 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
     }
 
-    protected virtual void ConfigureCookieUseAndPrivacyPolicy(CookiePolicyOptions options)
+    private Action<CookiePolicyOptions> GetConfigureCookiePolicy(IAppSettings appSettings)
+    {
+        return options => ConfigureCookiePolicy(options, appSettings);
+    }
+
+    protected virtual void ConfigureCookiePolicy(CookiePolicyOptions options, IAppSettings appSettings)
     {
         //https://learn.microsoft.com/en-us/aspnet/core/security/gdpr
-        options.CheckConsentNeeded = context => true; //user consent for non-essential cookies is needed for a given request.
+
         options.HttpOnly = HttpOnlyPolicy.None; //Ensures cookies are accessible via JavaScript, use with strict csp
-        options.ConsentCookieValue = "true";
+        options.ConsentCookieValue = Base64Utils.UrlSafeBase64Encode(ConsentCookie.DefaultValue);
+        ////default cookie name(.AspNet.Consent) exposes server
+        options.ConsentCookie.Name = $".{appSettings.ApplicationName.Replace(' ', '.')}.CookieConsent";
+        options.CheckConsentNeeded = context => true; //user consent for non-essential cookies is needed for a given request.
     }
 
     protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
     {
+        application.UseCookiePolicy();
         application.UseSecurityHeaders();
 
         if (appSettings.Features.UseHttpRequestLogger)
@@ -236,7 +247,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         application.UseHostFiltering();
         application.UseForwardedHeaders();
-        application.UseCookiePolicy();
     }
 
     protected virtual void ConfigureApplicationPreAuthentication(WebApplication application, IAppSettings appSettings)
