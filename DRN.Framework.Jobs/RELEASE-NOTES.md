@@ -7,4 +7,4 @@ Not every version includes changes, features or bug fixes. This project can incr
 ## Bug Fixes
 
 ---
-**Semper Progredi: Always Progressive**
+**Semper Progressivus: Always Progressive**

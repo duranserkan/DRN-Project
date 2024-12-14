@@ -268,4 +268,4 @@ public abstract class EntityDeleted(Entity entity) : DomainEvent(entity);
 ```
 
 ---
-**Semper Progredi: Always Progressive**
+**Semper Progressivus: Always Progressive**

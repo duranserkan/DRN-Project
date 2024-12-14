@@ -113,4 +113,4 @@ global using DRN.Framework.Utils.DependencyInjection;
 ```
 
 ---
-**Semper Progredi: Always Progressive**
+**Semper Progressivus: Always Progressive**

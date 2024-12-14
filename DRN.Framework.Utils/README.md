@@ -213,4 +213,4 @@ public interface IAppSettings
     * GetTypesAssignableTo
 
 ---
-**Semper Progredi: Always Progressive**
+**Semper Progressivus: Always Progressive**

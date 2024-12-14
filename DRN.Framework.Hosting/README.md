@@ -330,4 +330,4 @@ DrnDefaults are added to empty WebApplicationBuilder and WebApplication and cons
 ```
 
 ---
-**Semper Progredi: Always Progressive**
+**Semper Progressivus: Always Progressive**

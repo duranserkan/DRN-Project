@@ -1,4 +1,4 @@
 # DRN.Framework.MassTransit
 
 ---
-**Semper Progredi: Always Progressive**
+**Semper Progressivus: Always Progressive**

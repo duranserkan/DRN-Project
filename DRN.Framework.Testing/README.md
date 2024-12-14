@@ -425,4 +425,4 @@ With the help of test context, integration tests can be written easily with foll
 With DTT, software testing becomes natural part of the software development.
 
 ---
-**Semper Progredi: Always Progressive**
+**Semper Progressivus: Always Progressive**

@@ -67,4 +67,4 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ---
 
-**Semper Progredi: Always Progressive**
+**Semper Progressivus: Always Progressive**
