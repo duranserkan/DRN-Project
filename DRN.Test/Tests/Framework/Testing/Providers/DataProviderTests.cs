@@ -10,6 +10,7 @@ public class DataProviderTests
 
         var dataResult = DataProvider.Get("Test.txt");
         dataResult.Data.Should().Be("Foo");
+        File.ReadAllText(dataPath.DataPath).Should().Be( dataResult.Data);
     }
 
     [Theory]

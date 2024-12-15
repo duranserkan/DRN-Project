@@ -1,19 +1,11 @@
 using System.Buffers.Text;
 using System.Text;
+using System.Text.Json;
 
 namespace DRN.Framework.Utils.Common;
 
-//todo: write tests
-public class Base64Utils
+public static class Base64Utils
 {
-    public static string UrlSafeBase64Decode(string input)
-    {
-        var array = Base64Url.DecodeFromChars(input.ToCharArray());
-        var decodedString = Encoding.UTF8.GetString(array);
-
-        return decodedString;
-    }
-
     public static string UrlSafeBase64Encode(string input)
     {
         var inputBytes = Encoding.UTF8.GetBytes(input);
@@ -22,5 +14,27 @@ public class Base64Utils
         return encodedString;
     }
 
-    public static string UrlSafeBase64Encode(byte[] input) => Base64Url.EncodeToString(input);
+    public static string UrlSafeBase64Encode<TModel>(TModel model)
+    {
+        var json = JsonSerializer.Serialize(model);
+        var encodedJson= UrlSafeBase64Encode(json);
+        
+        return encodedJson;
+    }
+
+    public static string UrlSafeBase64Decode(string input)
+    {
+        var array = Base64Url.DecodeFromChars(input.ToCharArray());
+        var decodedString = Encoding.UTF8.GetString(array);
+
+        return decodedString;
+    }
+    
+    public static TModel? UrlSafeBase64Decode<TModel>(string input)
+    {
+        var decodedJson = UrlSafeBase64Decode(input);
+        var model = JsonSerializer.Deserialize<TModel>(decodedJson);
+
+        return model;
+    }
 }
