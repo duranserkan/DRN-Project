@@ -113,7 +113,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         return application;
     }
 
-    protected abstract Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog);
+    protected abstract Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings,
+        IScopedLog scopedLog);
 
     protected virtual LoggerConfiguration ConfigureLogger(IConfiguration configuration)
         => new LoggerConfiguration().ReadFrom.Configuration(configuration);
@@ -180,7 +181,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// <summary>
     /// Configures security headers that are added by <see cref="ConfigureApplicationPreScopeStart"/>.<br/>
     /// * For details check: https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders.<br/>
-    /// * For header security test check: https://securityheaders.com/ <br/>
+    /// * For header security test check: https://securityheaders.com/ or https://csp-evaluator.withgoogle.com <br/>
     /// * For additional security checklist: https://mvsp.dev/
     /// </summary>
     /// <param name="policies">Defines the policies to use for customising security headers for a request added by NetEscapades.AspNetCore.SecurityHeaders</param>
@@ -200,9 +201,26 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             .AddStrictTransportSecurity(63072000, true, true) //https://hstspreload.org/
             .AddContentSecurityPolicy(builder =>
             {
-                builder.AddObjectSrc().None();
+                //https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP#strict_csp
+                //https://dl.acm.org/doi/pdf/10.1145/2976749.2978363
+                //https://www.netlify.com/blog/general-availability-content-security-policy-csp-nonce-integration/
+                //https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce
+                //https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/default-src
+                //builder.AddDefaultSrc().Self();
+
+                //https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce
+                builder.AddScriptSrc().UnsafeInline().WithNonce();
+                //todo: inspect stype resource usage with nonce
+
+                //https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+                //https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/base-uri
+                builder.AddBaseUri().Self();
                 builder.AddFormAction().Self();
+
+                builder.AddObjectSrc().None();
                 builder.AddFrameAncestors().None();
+                builder.AddScriptSrcAttr().None();
+                builder.AddUpgradeInsecureRequests();
             })
             .AddCrossOriginOpenerPolicy(x => x.SameOrigin())
             .AddCrossOriginEmbedderPolicy(builder => builder.Credentialless())
