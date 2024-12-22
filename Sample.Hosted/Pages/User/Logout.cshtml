@@ -6,12 +6,27 @@
     ViewData["CenterVertically"] = true;
 }
 
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <h2 class="text-center">@ViewData["Title"]</h2>
 
-<h2 class="text-center">Log out</h2>
-<p class="text-center">Are you sure you want to log out?</p>
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    <div asp-validation-summary="All" class="text-danger"></div>
+                    <p class="text-center">Are you sure you want to log out?</p>
 
-<form method="post" class="text-center">
-    <div asp-validation-summary="All" class="text-danger"></div>
-    <button type="submit" class="btn btn-primary">Log out</button>
-    <a asp-page="@PageFor.Root.Home" class="btn btn-secondary">Cancel</a>
-</form>
+                    <div class="d-grid gap-2 d-md-flex">
+                        <button type="submit" class="btn btn-primary w-50">Log out</button>
+                        <a asp-page="@PageFor.Root.Home" class="btn btn-secondary w-50">Cancel</a>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial"/>
+}
