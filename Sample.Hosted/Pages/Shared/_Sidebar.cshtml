@@ -1,19 +1,56 @@
+@using Sample.Hosted.Pages.Shared.Models
+@using Sample.Hosted.TagHelpers
 @using Sample.Hosted.Utils
+
+@{
+    var isSlim = ClaimFor.Profile.SlimUi;
+    var sideBarWidth = isSlim ? "width: 4.5rem;" : "max-width: 200px;";
+    var iconStyle = isSlim ? string.Empty : "me-2";
+    var settingsText = isSlim ? string.Empty : " Settings";
+}
+
+<div class="d-flex p-1 bg-body-tertiary">
+    <div class="d-flex flex-column align-items-center" style="@sideBarWidth">
+        <ul class="nav nav-pills nav-flush flex-column mb-auto">
+            @foreach (var navItem in DefaultSidebarNavigationCollection.DefaultItems)
+            {
+                var titleAsText = isSlim ? string.Empty : navItem.Title;
+                var titleAsTooltip = isSlim ? navItem.Title : string.Empty;
+                <li class="nav-item">
+                    <a href="@navItem.Href" active-page="@navItem.Href" aria-current="page"
+                       class="nav-link d-flex align-items-center py-2 border-bottom border-top rounded-0"
+                       title="@titleAsTooltip" data-bs-toggle="tooltip" data-bs-placement="right">
+                        <i class="bi @navItem.Icon @iconStyle" style="font-size: 1.25rem;"
+                           role="img" aria-label="@navItem.Title">
+                        </i> @titleAsText
+                    </a>
+                </li>
+            }
+        </ul>
+
+        <div class="dropdown dropup">
+            <a href="#"
+               class="d-flex align-items-center link-body-emphasis text-decoration-none dropdown-toggle"
+               data-bs-toggle="dropdown" aria-expanded="false">
+                <h4 class="bi bi-gear-fill">@settingsText</h4>
+            </a>
+            <ul class="dropdown-menu text-small shadow">
+                <li><a class="dropdown-item" href="#">New project...</a></li>
+                <li><a class="dropdown-item" href="#">Advanced</a></li>
+                <li><a class="dropdown-item" href="@PageFor.User.Profile">My Profile</a></li>
+                <li>
+                    <hr class="dropdown-divider">
+                </li>
+                <li><a class="dropdown-item" href="@PageFor.User.Logout">Log out</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
 
 @*
 https://getbootstrap.com/docs/5.3/examples/
 https://getbootstrap.com/docs/5.3/examples/sidebars/
 *@
-<div class="d-flex p-3 bg-body-tertiary">
-    @if (ClaimFor.Profile.SlimUi)
-    {
-        @await Html.PartialAsync("_SidebarSlim")
-    }
-    else
-    {
-        @await Html.PartialAsync("_SidebarFull")
-    }
-</div>
 
 @*@await Html.PartialAsync("_SidebarCollapsible")*@
 @*@await Html.PartialAsync("_SidebarListGroup")*@

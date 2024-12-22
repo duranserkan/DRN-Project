@@ -1,11 +1,10 @@
-/* global bootstrap: false */
-(() => {
-  'use strict'
-  const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+document.addEventListener('DOMContentLoaded', () => {
+  'use strict';
+  const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
   tooltipTriggerList.forEach(tooltipTriggerEl => {
-    new bootstrap.Tooltip(tooltipTriggerEl)
+    new bootstrap.Tooltip(tooltipTriggerEl);
   });
-})()
+});
 
 function urlSafeBase64Encode(str) {
   // Base64 encode the string
