@@ -1,8 +1,9 @@
 @page
 @using Sample.Hosted.Utils
-@model Sample.Hosted.Pages.User.ProfileModel
+@model Sample.Hosted.Pages.User.Profile.ProfileDetailsModel
 @{
     ViewData[ViewDataFor.Title] = "User Details";
+    ViewData[ViewDataFor.SubNavigation] = null;
 }
 
 <h2>User Profile</h2>
@@ -31,8 +32,8 @@
         </div>
     </div>
 
-    <a asp-page="@PageFor.User.ProfileEdit" class="btn btn-primary mt-3">Edit Profile</a>
-    <a asp-page="@PageFor.User.ProfilePicture" class="btn btn-secondary mt-3">Change Profile Picture</a>
+    <a asp-page="@PageFor.UserProfile.Edit" class="btn btn-primary mt-3">Edit Profile</a>
+    <a asp-page="@PageFor.UserProfile.Picture" class="btn btn-secondary mt-3">Change Profile Picture</a>
 }
 else
 {

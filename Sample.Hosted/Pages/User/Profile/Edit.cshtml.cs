@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Application.Services;
 using Sample.Domain.Users;
-using Sample.Hosted.Utils;
 
-namespace Sample.Hosted.Pages.User;
+namespace Sample.Hosted.Pages.User.Profile;
 
 [Authorize]
 public class ProfileEditModel(IUserProfileService service, SignInManager<SampleUser> signInManager)
@@ -40,6 +39,6 @@ public class ProfileEditModel(IUserProfileService service, SignInManager<SampleU
         await signInManager.RefreshSignInAsync(result.IdentityUser);
 
         TempData["StatusMessage"] = "Your profile has been updated";
-        return RedirectToPage(PageFor.User.Profile);
+        return RedirectToPage(PageFor.UserProfile.Details);
     }
 }

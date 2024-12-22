@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Application.Services;
 using Sample.Domain.Users;
 
-namespace Sample.Hosted.Pages.User;
+namespace Sample.Hosted.Pages.User.Profile;
 
 [Authorize]
 [RequestSizeLimit(RequestSizeLimit)]
@@ -40,7 +40,7 @@ public class ProfilePictureModel(IProfilePictureService service,
 
         TempData["StatusMessage"] = "Your profile picture has been updated";
 
-        return RedirectToPage(PageFor.User.ProfilePicture);
+        return RedirectToPage(PageFor.UserProfile.Details);
     }
 }
 
