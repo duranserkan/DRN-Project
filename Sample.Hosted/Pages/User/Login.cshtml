@@ -2,13 +2,13 @@
 @model Sample.Hosted.Pages.User.LoginModel
 
 @{
-    ViewData["Title"] = "Log in";
-    ViewData["CenterVertically"] = true;
+    ViewData[ViewDataFor.Title] = "Log in";
+    ViewData[ViewDataFor.CenterVertically] = true;
 }
 
 <div class="row justify-content-center">
     <div class="col-md-6">
-        <h2 class="text-center">@ViewData["Title"]</h2>
+        <h2 class="text-center">@ViewData[ViewDataFor.Title]</h2>
         <div class="card">
             <div class="card-body">
                 <form method="post">

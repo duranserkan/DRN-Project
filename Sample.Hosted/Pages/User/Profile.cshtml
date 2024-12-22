@@ -1,10 +1,8 @@
 @page
-@using Microsoft.AspNetCore.Mvc.TagHelpers
-@using Sample.Hosted
 @using Sample.Hosted.Utils
 @model Sample.Hosted.Pages.User.ProfileModel
 @{
-    ViewData["Title"] = "User Details";
+    ViewData[ViewDataFor.Title] = "User Details";
 }
 
 <h2>User Profile</h2>

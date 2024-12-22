@@ -2,8 +2,8 @@
 @model Sample.Hosted.Pages.System.SetupModel
 
 @{
-    ViewData["Title"] = "Initial Setup";
-    ViewData["CenterVertically"] = true;
+    ViewData[ViewDataFor.Title] = "Initial Setup";
+    ViewData[ViewDataFor.CenterVertically] = true;
 }
 
 <div class="row justify-content-center">
@@ -24,7 +24,8 @@
                         <span asp-validation-for="Input.Password" class="text-danger"></span>
                     </div>
                     <div class="form-floating mb-3">
-                        <input asp-for="Input.ConfirmPassword" type="password" class="form-control" placeholder="Password"/>
+                        <input asp-for="Input.ConfirmPassword" type="password" class="form-control"
+                               placeholder="Password"/>
                         <label asp-for="Input.ConfirmPassword"></label>
                         <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
                     </div>
@@ -36,5 +37,5 @@
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    <partial name="_ValidationScriptsPartial"/>
 }

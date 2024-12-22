@@ -4,6 +4,7 @@ using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Users;
+using Sample.Hosted.Pages.Shared.Models;
 
 namespace Sample.Hosted.Pages.User;
 
@@ -17,7 +18,7 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager) : PageModel
     public void OnGet(bool rememberMe, string? returnUrl = null)
     {
         Login2FaModel.RememberMe = rememberMe;
-        ViewData["ReturnUrl"] = returnUrl;
+        ViewData[ViewDataFor.ReturnUrl] = returnUrl;
     }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)

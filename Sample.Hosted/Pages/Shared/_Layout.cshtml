@@ -1,3 +1,4 @@
+@using DRN.Framework.Hosting.TagHelpers
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
 @*
@@ -8,7 +9,7 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>@ViewData["Title"] - @ScopeContext.Settings.ApplicationName</title>
+    <title>@ViewData[ViewDataFor.Title] - @ScopeContext.Settings.ApplicationName</title>
 
     @*https://icons.getbootstrap.com/#usage*@
     <link rel="icon" type="image/x-icon" href="/images/100.jpeg"/>
@@ -32,13 +33,17 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
     {
         <partial name="_Sidebar"/>
     }
-    @{
-        var centerVertically = ViewData.TryGetValue("CenterVertically", out var flexColumnValue) && flexColumnValue is true;
-    }
     <div class="d-flex flex-column flex-grow-1">
+        @if (ScopeContext.MFACompleted)
+        {
+            <partial name="_SubNavigation"/>
+        }
         <div>
             @await RenderSectionAsync("MainTop", required: false)
         </div>
+        @{
+            var centerVertically = ViewData.TryGetValue(ViewDataFor.CenterVertically, out var flexColumnValue) && flexColumnValue is true;
+        }
         <!-- Main content -->
         <div class=" d-flex  @(centerVertically ? "flex-column" : "") justify-content-center flex-grow-1">
             <main role="main" class="p-3 @(centerVertically ? "" : "flex-grow-1")">

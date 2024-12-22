@@ -2,13 +2,13 @@
 
 @model Sample.Hosted.Pages.User.LogoutModel
 @{
-    ViewData["Title"] = "Log out";
-    ViewData["CenterVertically"] = true;
+    ViewData[ViewDataFor.Title] = "Log out";
+    ViewData[ViewDataFor.CenterVertically] = true;
 }
 
 <div class="row justify-content-center">
     <div class="col-md-6">
-        <h2 class="text-center">@ViewData["Title"]</h2>
+        <h2 class="text-center">@ViewData[ViewDataFor.Title]</h2>
 
         <div class="card">
             <div class="card-body">
@@ -20,7 +20,6 @@
                         <button type="submit" class="btn btn-primary w-50">Log out</button>
                         <a asp-page="@PageFor.Root.Home" class="btn btn-secondary w-50">Cancel</a>
                     </div>
-
                 </form>
             </div>
         </div>

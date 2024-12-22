@@ -1,15 +1,14 @@
 @page
-@using Sample.Hosted.Settings
 @model Sample.Hosted.Pages.User.LockoutModel
 @{
-    ViewData["Title"] = "Account Locked Out";
-    ViewData["CenterVertically"] = true;
-    var lockOutMinutes = @IdentitySettings.LockoutOptions.DefaultLockoutTimeSpan.Minutes;
+    ViewData[ViewDataFor.Title] = "Account Locked Out";
+    ViewData[ViewDataFor.CenterVertically] = true;
+    var lockOutMinutes = IdentitySettings.LockoutOptions.DefaultLockoutTimeSpan.Minutes;
 }
 
 <div class="row justify-content-center">
     <div class="col-md-6">
-        <h2 class="text-center">@ViewData["Title"]</h2>
+        <h2 class="text-center">@ViewData[ViewDataFor.Title]</h2>
         <div class="card">
             <div class="card-body">
                 <p>Your account has been temporarily locked due to multiple invalid attempts.</p>

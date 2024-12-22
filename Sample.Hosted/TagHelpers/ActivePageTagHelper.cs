@@ -20,6 +20,6 @@ public class ActivePageTagHelper() : TagHelper
         if (!string.Equals(ActivePage, currentRoutePage, StringComparison.OrdinalIgnoreCase)) return;
 
         var existingClass = output.Attributes["class"]?.Value?.ToString() ?? string.Empty;
-        output.Attributes.SetAttribute("class", $"{existingClass} active".Trim());
+        output.Attributes.SetAttribute("class", $"{existingClass} active fw-bold".Trim());
     }
 }

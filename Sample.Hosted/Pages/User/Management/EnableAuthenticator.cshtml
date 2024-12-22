@@ -2,13 +2,13 @@
 @model Sample.Hosted.Pages.User.Management.EnableAuthenticator
 
 @{
-    ViewData["Title"] = "Enable Authenticator";
-    ViewData["CenterVertically"] = true;
+    ViewData[ViewDataFor.Title] = "Enable Authenticator";
+    ViewData[ViewDataFor.CenterVertically] = true;
 }
 
 <div class="row justify-content-center">
     <div class="col-md-6">
-        <h2 class="text-center">@ViewData["Title"]</h2>
+        <h2 class="text-center">@ViewData[ViewDataFor.Title]</h2>
         <div class="card">
             <div class="card-body">
                 @if (Model.HasRecoveryCodes)

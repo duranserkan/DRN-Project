@@ -1,4 +1,3 @@
-@using Sample.Hosted.Pages.Shared.Models
 @using Sample.Hosted.TagHelpers
 @using Sample.Hosted.Utils
 
@@ -7,24 +6,32 @@
     var sideBarWidth = isSlim ? "width: 4.5rem;" : "max-width: 200px;";
     var iconStyle = isSlim ? string.Empty : "me-2";
     var settingsText = isSlim ? string.Empty : " Settings";
+    var index = 0;
+    var navigationCount = DefaultSidebarNavigationCollection.DefaultItems.Count;
 }
 
 <div class="d-flex p-1 bg-body-tertiary">
     <div class="d-flex flex-column align-items-center" style="@sideBarWidth">
         <ul class="nav nav-pills nav-flush flex-column mb-auto">
+
             @foreach (var navItem in DefaultSidebarNavigationCollection.DefaultItems)
             {
                 var titleAsText = isSlim ? string.Empty : navItem.Title;
                 var titleAsTooltip = isSlim ? navItem.Title : string.Empty;
+
+                var borderBottom = index + 1 == navigationCount ? "border-bottom" : "";
                 <li class="nav-item">
                     <a href="@navItem.Href" active-page="@navItem.Href" aria-current="page"
-                       class="nav-link d-flex align-items-center py-2 border-bottom border-top rounded-0"
+                       class="nav-link  d-flex align-items-center py-2 @borderBottom border-top rounded-0"
                        title="@titleAsTooltip" data-bs-toggle="tooltip" data-bs-placement="right">
                         <i class="bi @navItem.Icon @iconStyle" style="font-size: 1.25rem;"
                            role="img" aria-label="@navItem.Title">
                         </i> @titleAsText
                     </a>
                 </li>
+                {
+                    index++;
+                }
             }
         </ul>
 
