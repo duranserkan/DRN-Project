@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Application.Services;
 using Sample.Domain.Users;
+using Sample.Hosted.Pages.Shared.Models;
 
 namespace Sample.Hosted.Pages.User.Profile;
 
@@ -38,7 +39,7 @@ public class ProfileEditModel(IUserProfileService service, SignInManager<SampleU
         // Sign in the user to update the claims
         await signInManager.RefreshSignInAsync(result.IdentityUser);
 
-        TempData["StatusMessage"] = "Your profile has been updated";
+        TempData[TempDataFor.StatusMessage] = "Your profile has been updated";
         return RedirectToPage(PageFor.UserProfile.Details);
     }
 }

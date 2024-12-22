@@ -1,6 +1,6 @@
 namespace Sample.Hosted.Pages.Shared.Models;
 
-public sealed class ViewDataFor
+public static class ViewDataFor
 {
     public const string Title = nameof(Title);
     public const string CenterVertically = nameof(CenterVertically);

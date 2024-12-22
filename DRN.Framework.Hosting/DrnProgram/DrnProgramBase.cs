@@ -138,6 +138,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
         services.Configure<CookiePolicyOptions>(GetConfigureCookiePolicy(appSettings));
+        services.Configure<CookieTempDataProviderOptions>(GetConfigureCookieTempDataProvider(appSettings)); 
         services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
         services.PostConfigure<HostFilteringOptions>(options =>
         {
@@ -240,16 +241,26 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         return options => ConfigureCookiePolicy(options, appSettings);
     }
+    private Action<CookieTempDataProviderOptions> GetConfigureCookieTempDataProvider(IAppSettings appSettings)
+    {
+        return options => ConfigureCookieTempDataProvider(options, appSettings);
+    }
 
     protected virtual void ConfigureCookiePolicy(CookiePolicyOptions options, IAppSettings appSettings)
     {
         //https://learn.microsoft.com/en-us/aspnet/core/security/gdpr
-
         options.HttpOnly = HttpOnlyPolicy.None; //Ensures cookies are accessible via JavaScript, use with strict csp
         options.ConsentCookieValue = Base64Utils.UrlSafeBase64Encode(ConsentCookie.DefaultValue);
         ////default cookie name(.AspNet.Consent) exposes server
         options.ConsentCookie.Name = $".{appSettings.ApplicationName.Replace(' ', '.')}.CookieConsent";
         options.CheckConsentNeeded = context => true; //user consent for non-essential cookies is needed for a given request.
+    }
+    
+    protected virtual void ConfigureCookieTempDataProvider(CookieTempDataProviderOptions options, IAppSettings appSettings)
+    {
+        //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/app-state
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
     }
 
     protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)

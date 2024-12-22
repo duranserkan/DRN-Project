@@ -3,6 +3,7 @@
 @model Sample.Hosted.Pages.User.Profile.ProfilePictureModel
 @{
     ViewData[ViewDataFor.Title] = "Profile Picture";
+    ViewData[ViewDataFor.SubNavigation] = SubNavigationFor.ProfileSubNavigationCollection;
 }
 
 <h2>Change Profile Picture</h2>
@@ -26,7 +27,7 @@
             <div class="row mb-3">
                 <div class="form-group col-auto">
                     <label asp-for="Input.ProfilePicture" class="form-label">Profile Picture</label>
-                    <input asp-for="Input.ProfilePicture" type="file" class="form-control"/>
+                    <input asp-for="Input.ProfilePicture" type="file" accept="image/jpeg" class="form-control"/>
                     <span asp-validation-for="Input.ProfilePicture" class="text-danger"></span>
                 </div>
             </div>

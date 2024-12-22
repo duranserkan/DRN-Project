@@ -33,27 +33,32 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
     {
         <partial name="_Sidebar"/>
     }
+    
     <div class="d-flex flex-column flex-grow-1">
         @if (ScopeContext.MFACompleted)
         {
             <partial name="_SubNavigation"/>
         }
+        
         <div>
             @await RenderSectionAsync("MainTop", required: false)
         </div>
+        
         @{
             var centerVertically = ViewData.TryGetValue(ViewDataFor.CenterVertically, out var flexColumnValue) && flexColumnValue is true;
+            var statusMessage = TempData[TempDataFor.StatusMessage] as string;
         }
+        @if (!string.IsNullOrWhiteSpace(statusMessage))
+        {
+            <div class="alert alert-success alert-dismissible mb-0" role="alert">
+                @TempData[TempDataFor.StatusMessage]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        
         <!-- Main content -->
         <div class=" d-flex  @(centerVertically ? "flex-column" : "") justify-content-center flex-grow-1">
             <main role="main" class="p-3 @(centerVertically ? "" : "flex-grow-1")">
-                @if (TempData["StatusMessage"] != null)
-                {
-                    <div class="alert alert-success alert-dismissible" role="alert">
-                        @TempData["StatusMessage"]
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                }
                 @RenderBody()
             </main>
         </div>

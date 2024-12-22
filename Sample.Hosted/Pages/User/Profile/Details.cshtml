@@ -3,12 +3,18 @@
 @model Sample.Hosted.Pages.User.Profile.ProfileDetailsModel
 @{
     ViewData[ViewDataFor.Title] = "User Details";
-    ViewData[ViewDataFor.SubNavigation] = null;
+    ViewData[ViewDataFor.SubNavigation] = SubNavigationFor.ProfileSubNavigationCollection;
 }
 
 <h2>User Profile</h2>
 
-@if (Model.IdentityUser != null)
+@if (Model.IdentityUser == null)
+{
+    <div class="alert alert-warning">
+        No user information available.
+    </div>
+}
+else
 {
     <div class="card">
         <div class="card-body">
@@ -30,14 +36,5 @@
                 <!-- Add more user details here if necessary -->
             </dl>
         </div>
-    </div>
-
-    <a asp-page="@PageFor.UserProfile.Edit" class="btn btn-primary mt-3">Edit Profile</a>
-    <a asp-page="@PageFor.UserProfile.Picture" class="btn btn-secondary mt-3">Change Profile Picture</a>
-}
-else
-{
-    <div class="alert alert-warning">
-        No user information available.
     </div>
 }

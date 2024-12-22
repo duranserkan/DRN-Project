@@ -1,24 +1,23 @@
 @{
     var subNavigation = ViewData[ViewDataFor.SubNavigation] as SubNavigationCollection;
+    var justifyContentCenter = subNavigation?.JustifyContentCenter ?? false ? "justify-content-center" : string.Empty;
 }
 
 @if (subNavigation?.Items.Count > 0)
 {
-    <div>
-        <ul class="nav nav-tabs justify-content-center">
-            @foreach (var navItem in DefaultSubNavigationCollection.DefaultItems)
+        <ul class="nav nav-tabs @justifyContentCenter">
+            @foreach (var navItem in subNavigation.Items)
             {
                 <li class="nav-item">
                     <a href="@navItem.Href" active-page="@navItem.Href" aria-current="page"
-                       class="nav-link link-dark d-flex align-items-center pb-2 mt-1 border-bottom  rounded-0">
-                        <i class="bi @navItem.Icon me-2" style="font-size: 1.25rem;"
+                       class="nav-link link-dark d-flex align-items-center pb-2 mt-1 rounded-0">
+                        <i class="bi @(navItem.Icon??"bi-file-earmark") me-2" style="font-size: 1.25rem;"
                            role="img" aria-label="@navItem.Title">
                         </i> @navItem.Title
                     </a>
                 </li>
             }
         </ul>
-    </div>
 }
 
 

@@ -16,7 +16,6 @@
   </ItemGroup>
   
   <ItemGroup>
-    <Folder Include="Pages\User\Profile\Models\" />
     <Folder Include="wwwroot\images\" />
     <Folder Include="wwwroot\js\" />
   </ItemGroup>
