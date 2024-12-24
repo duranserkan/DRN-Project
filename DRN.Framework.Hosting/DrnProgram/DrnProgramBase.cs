@@ -181,8 +181,10 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     /// <summary>
     /// Configures security headers that are added by <see cref="ConfigureApplicationPreScopeStart"/>.<br/>
-    /// * For details check: https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders.<br/>
     /// * For header security test check: https://securityheaders.com/ or https://csp-evaluator.withgoogle.com <br/>
+    /// * For details check: https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders.<br/>
+    /// * https://andrewlock.net/major-updates-to-netescapades-aspnetcore-security-headers/ <br/>
+    /// * https://andrewlock.net/series/understanding-cross-origin-security-headers <br/>
     /// * For additional security checklist: https://mvsp.dev/
     /// </summary>
     /// <param name="policies">Defines the policies to use for customising security headers for a request added by NetEscapades.AspNetCore.SecurityHeaders</param>
@@ -190,39 +192,13 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// <param name="appSettings"></param>
     protected virtual void ConfigureDefaultSecurityHeaders(HeaderPolicyCollection policies, IServiceProvider serviceProvider, IAppSettings appSettings)
     {
-        //Todo add nonce tag helper to script for strict csp
         //Todo review default hsts policy, it may affect internal requests
-        //https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders
-        //https://andrewlock.net/major-updates-to-netescapades-aspnetcore-security-headers/
-        //https://andrewlock.net/series/understanding-cross-origin-security-headers
         policies.RemoveServerHeader()
             .AddFrameOptionsDeny()
             .AddContentTypeOptionsNoSniff()
             .AddReferrerPolicyStrictOriginWhenCrossOrigin()
             .AddStrictTransportSecurity(63072000, true, true) //https://hstspreload.org/
-            .AddContentSecurityPolicy(builder =>
-            {
-                //https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP#strict_csp
-                //https://dl.acm.org/doi/pdf/10.1145/2976749.2978363
-                //https://www.netlify.com/blog/general-availability-content-security-policy-csp-nonce-integration/
-                //https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce
-                //https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/default-src
-                //builder.AddDefaultSrc().Self();
-
-                //https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce
-                builder.AddScriptSrc().WithNonce();
-                //todo: inspect stype resource usage with nonce
-
-                //https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-                //https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/base-uri
-                builder.AddBaseUri().Self();
-                builder.AddFormAction().Self();
-
-                builder.AddObjectSrc().None();
-                builder.AddFrameAncestors().None();
-                builder.AddScriptSrcAttr().None();
-                builder.AddUpgradeInsecureRequests();
-            })
+            .AddContentSecurityPolicy(ConfigureDefaultContentSecurityPolicy)
             .AddCrossOriginOpenerPolicy(x => x.SameOrigin())
             .AddCrossOriginEmbedderPolicy(builder => builder.Credentialless())
             .AddCrossOriginResourcePolicy(builder => builder.SameSite())
@@ -233,18 +209,45 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             });
     }
 
+    /// <summary>
+    /// <ul>
+    /// <li>https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP#strict_csp</li>
+    /// <li>https://dl.acm.org/doi/pdf/10.1145/2976749.2978363</li>
+    /// <li>https://www.netlify.com/blog/general-availability-content-security-policy-csp-nonce-integration/</li>
+    /// <li>https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce</li>
+    /// <li>https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/default-src</li>
+    /// <li>For header security test check: https://securityheaders.com/ or https://csp-evaluator.withgoogle.com</li>
+    /// </ul>
+    /// </summary>
+    protected virtual void ConfigureDefaultContentSecurityPolicy(CspBuilder builder)
+    {
+        builder.AddScriptSrc().WithNonce();
+        builder.AddBaseUri().Self();
+        builder.AddFormAction().Self();
+
+        builder.AddObjectSrc().None();
+        builder.AddFrameAncestors().None();
+        builder.AddScriptSrcAttr().None();
+        builder.AddUpgradeInsecureRequests();
+    }
+
     protected virtual void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings)
     {
-        var policyCollection = new HeaderPolicyCollection();
-        ConfigureDefaultSecurityHeaders(policyCollection, serviceProvider, appSettings);
-        policyCollection.Remove("Content-Security-Policy");
+        var swaggerPolicy = new HeaderPolicyCollection();
+        ConfigureDefaultSecurityHeaders(swaggerPolicy, serviceProvider, appSettings);
+        swaggerPolicy.Remove("Content-Security-Policy");
+        swaggerPolicy.AddContentSecurityPolicy(x =>
+        {
+            ConfigureDefaultContentSecurityPolicy(x);
+            x.AddScriptSrc().Self();
+        });
 
-        builder.AddPolicy("IgnoreCSP", policyCollection);
+        builder.AddPolicy("SwaggerCSP", swaggerPolicy);
         builder.SetPolicySelector(x =>
         {
             var isSwaggerPath = x.HttpContext.Request.Path.Value?.Contains("swagger", StringComparison.OrdinalIgnoreCase) ?? false;
-            
-            return isSwaggerPath ? x.ConfiguredPolicies["IgnoreCSP"] : x.DefaultPolicy;
+
+            return isSwaggerPath ? x.ConfiguredPolicies["SwaggerCSP"] : x.DefaultPolicy;
         });
     }
 
