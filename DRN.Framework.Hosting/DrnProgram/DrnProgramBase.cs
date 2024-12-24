@@ -138,7 +138,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
         services.Configure<CookiePolicyOptions>(GetConfigureCookiePolicy(appSettings));
-        services.Configure<CookieTempDataProviderOptions>(GetConfigureCookieTempDataProvider(appSettings)); 
+        services.Configure<CookieTempDataProviderOptions>(GetConfigureCookieTempDataProvider(appSettings));
         services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
         services.PostConfigure<HostFilteringOptions>(options =>
         {
@@ -210,7 +210,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
                 //builder.AddDefaultSrc().Self();
 
                 //https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce
-                builder.AddScriptSrc().UnsafeInline().WithNonce();
+                builder.AddScriptSrc().WithNonce();
                 //todo: inspect stype resource usage with nonce
 
                 //https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
@@ -235,12 +235,24 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings)
     {
+        var policyCollection = new HeaderPolicyCollection();
+        ConfigureDefaultSecurityHeaders(policyCollection, serviceProvider, appSettings);
+        policyCollection.Remove("Content-Security-Policy");
+
+        builder.AddPolicy("IgnoreCSP", policyCollection);
+        builder.SetPolicySelector(x =>
+        {
+            var isSwaggerPath = x.HttpContext.Request.Path.Value?.Contains("swagger", StringComparison.OrdinalIgnoreCase) ?? false;
+            
+            return isSwaggerPath ? x.ConfiguredPolicies["IgnoreCSP"] : x.DefaultPolicy;
+        });
     }
 
     private Action<CookiePolicyOptions> GetConfigureCookiePolicy(IAppSettings appSettings)
     {
         return options => ConfigureCookiePolicy(options, appSettings);
     }
+
     private Action<CookieTempDataProviderOptions> GetConfigureCookieTempDataProvider(IAppSettings appSettings)
     {
         return options => ConfigureCookieTempDataProvider(options, appSettings);
@@ -255,7 +267,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         options.ConsentCookie.Name = $".{appSettings.ApplicationName.Replace(' ', '.')}.CookieConsent";
         options.CheckConsentNeeded = context => true; //user consent for non-essential cookies is needed for a given request.
     }
-    
+
     protected virtual void ConfigureCookieTempDataProvider(CookieTempDataProviderOptions options, IAppSettings appSettings)
     {
         //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/app-state
