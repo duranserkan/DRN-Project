@@ -2,7 +2,7 @@ namespace Sample.Hosted.Pages.Shared.Models;
 
 public class DefaultSidebarNavigationCollection() : SidebarNavigationCollection(DefaultItems)
 {
-    public static IReadOnlyList<SidebarNavigationItem> DefaultItems =>
+    public static IReadOnlyList<SidebarNavigationItem> DefaultItems { get; } =
     [
         new(PageFor.Root.Home, nameof(PageFor.Root.Home), "bi-house-door"),
         new("#", "Dashboard", "bi-speedometer2"),

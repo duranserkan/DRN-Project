@@ -19,7 +19,7 @@
                 var titleAsText = isSlim ? string.Empty : navItem.Title;
                 var titleAsTooltip = isSlim ? navItem.Title : string.Empty;
 
-                var borderBottom = index + 1 == navigationCount ? "border-bottom" : "";
+                var borderBottom = ++index == navigationCount ? "border-bottom" : "";
                 <li class="nav-item">
                     <a href="@navItem.Href" active-page="@navItem.Href" aria-current="page"
                        class="nav-link  d-flex align-items-center py-2 @borderBottom border-top rounded-0"
@@ -29,9 +29,6 @@
                         </i> @titleAsText
                     </a>
                 </li>
-                {
-                    index++;
-                }
             }
         </ul>
 

@@ -25,4 +25,14 @@ public class NexusProgram : DrnProgramBase<NexusProgram>, IDrnProgram
 
     protected override MfaExemptionConfig ConfigureMFAExemption()
         => new() { ExemptAuthSchemes = [IdentityConstants.BearerScheme] };
+    
+    // protected override MfaRedirectionConfig ConfigureMFARedirection()
+    //     => new(PageFor.UserManagement.EnableAuthenticator, PageFor.User.LoginWith2Fa,
+    //         PageFor.User.Login, PageFor.User.Logout, PageFor.GetAllPages());
+    
+    protected override void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
+    {
+        base.ConfigureApplicationPreScopeStart(application, appSettings);
+        application.UseStaticFiles();
+    }
 }

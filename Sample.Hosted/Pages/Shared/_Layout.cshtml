@@ -66,6 +66,10 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
             @await RenderSectionAsync("MainBottom", required: false)
         </div>
     </div>
+    @if (ScopeContext.MFACompleted)
+    {
+        <partial name="_SidebarActionMenu"/>
+    }
 </div>
 
 <partial name="_Footer"/>

@@ -20,15 +20,15 @@ public static class SampleModule
     }
 
     private static Action<IdentityOptions> ConfigureIdentity(bool development) => options =>
-        {
-            options.User = IdentitySettings.UserOptions;
-            options.Password = IdentitySettings.PasswordOptions;
-            options.Lockout = IdentitySettings.LockoutOptions;
-            options.Tokens = IdentitySettings.TokenOptions;
-            options.Stores = IdentitySettings.StoreOptions;
-            options.ClaimsIdentity = IdentitySettings.ClaimsIdentityOptions;
-            if (development) return;
+    {
+        options.User = IdentitySettings.UserOptions;
+        options.Password = IdentitySettings.PasswordOptions;
+        options.Lockout = IdentitySettings.LockoutOptions;
+        options.Tokens = IdentitySettings.TokenOptions;
+        options.Stores = IdentitySettings.StoreOptions;
+        options.ClaimsIdentity = IdentitySettings.ClaimsIdentityOptions;
+        if (development) return;
 
-            options.SignIn = IdentitySettings.SignInOptions;
-        };
+        options.SignIn = IdentitySettings.SignInOptions;
+    };
 }

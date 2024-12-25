@@ -1,0 +1,33 @@
+@{
+    var index = 0;
+    var actionCount = SidebarActionCollection.DefaultItems.Count;
+}
+
+<div class="d-flex p-1 bg-body-tertiary">
+    <div class="d-flex flex-column align-items-center" style="width: 4.5rem;">
+        <ul class="nav nav-pills nav-flush flex-column mb-auto">
+            @foreach (var navItem in SidebarActionCollection.DefaultItems)
+            {
+                var borderBottom = ++index == actionCount ? "border-bottom" : "";
+                <li class="nav-item">
+                    <button class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0"
+                            title="@navItem.Title" data-bs-toggle="tooltip" data-bs-placement="left" data-sitebar-action-target="@navItem.Target">
+                        <div class="position-relative">
+                            <i class="bi @navItem.Icon" style="font-size: 1.25rem;" role="img" aria-label="@navItem.Title"></i>
+                            @if (!string.IsNullOrWhiteSpace(navItem.BadgeContent))
+                            {
+                                <span
+                                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">@navItem.BadgeContent
+                                    @if (!string.IsNullOrWhiteSpace(navItem.BadgeVisuallyHiddenContent))
+                                    {
+                                        <span class="visually-hidden">@navItem.BadgeVisuallyHiddenContent</span>
+                                    }
+                                </span>
+                            }
+                        </div>
+                    </button>
+                </li>
+            }
+        </ul>
+    </div>
+</div>

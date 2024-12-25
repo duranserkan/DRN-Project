@@ -5,13 +5,6 @@ public class DefaultSubNavigationCollection() : SubNavigationCollection(DefaultI
     public static IReadOnlyList<SubNavigationItem> DefaultItems { get; } =
     [
         new(PageFor.Root.Home, nameof(PageFor.Root.Home), "bi-house-door"),
-        new("#", "Dashboard", "bi-speedometer2"),
-        new("#", "Orders", "bi-table"),
-        new("#", "Products", "bi-grid"),
-        new("#", "Customers", "bi-people-fill"),
-        new("#", "Carts", "bi-cart3"),
-        new("#", "Reports", "bi-graph-up"),
-        new("#", "Integrations", "bi-puzzle"),
     ];
 }
 
