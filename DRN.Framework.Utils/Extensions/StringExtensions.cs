@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace DRN.Framework.Utils.Extensions;
 
@@ -16,10 +17,8 @@ public static class StringExtensions
 
     public static string ToSnakeCase(this string text)
     {
-        if (string.IsNullOrEmpty(text))
-        {
+        if (string.IsNullOrWhiteSpace(text))
             return text;
-        }
 
         var builder = new StringBuilder(text.Length + Math.Min(2, text.Length / 5));
         var previousCategory = default(UnicodeCategory?);
@@ -76,5 +75,69 @@ public static class StringExtensions
         }
 
         return builder.ToString();
+    }
+
+    public static string ToCamelCase(this string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        var words = GetWords(text);
+        var camelCaseStringBuilder = new StringBuilder(text.Length);
+        var isFirstWord = true;
+
+        foreach (string word in words)
+        {
+            if (isFirstWord)
+            {
+                camelCaseStringBuilder.Append(word.ToLower());
+                isFirstWord = false;
+                continue;
+            }
+
+            camelCaseStringBuilder.Append(char.ToUpper(word[0]));
+            camelCaseStringBuilder.Append(word.Substring(1).ToLower());
+        }
+
+        return camelCaseStringBuilder.ToString();
+    }
+
+    public static string ToPascalCase(this string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        var words = GetWords(text);
+        var pascalCaseBuilder = new StringBuilder(text.Length);
+        foreach (string word in words)
+        {
+            pascalCaseBuilder.Append(char.ToUpper(word[0]));
+            pascalCaseBuilder.Append(word.Substring(1).ToLower());
+        }
+
+        return pascalCaseBuilder.ToString();
+    }
+
+    private static string[] GetWords(string text)
+    {
+        var cleanedInput = RemoveNonAlphanumeric(text);
+        var words = cleanedInput.Split([' '], StringSplitOptions.RemoveEmptyEntries);
+        return words;
+    }
+
+    private static string RemoveNonAlphanumeric(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return input;
+
+        var result = new StringBuilder(input.Length);
+
+        foreach (char c in input)
+            if (char.IsLetterOrDigit(c))
+                result.Append(c);
+            else
+                result.Append(' ');
+
+        return result.ToString();
     }
 }

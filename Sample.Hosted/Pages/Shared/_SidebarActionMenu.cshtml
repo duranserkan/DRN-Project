@@ -9,25 +9,44 @@
             @foreach (var navItem in SidebarActionCollection.DefaultItems)
             {
                 var borderBottom = ++index == actionCount ? "border-bottom" : "";
+                var canvasId = $"#offCanvasSidebarAction{navItem.Id}";
                 <li class="nav-item">
-                    <button class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0"
-                            title="@navItem.Title" data-bs-toggle="tooltip" data-bs-placement="left" data-sitebar-action-target="@navItem.Target">
-                        <div class="position-relative">
-                            <i class="bi @navItem.Icon" style="font-size: 1.25rem;" role="img" aria-label="@navItem.Title"></i>
-                            @if (!string.IsNullOrWhiteSpace(navItem.BadgeContent))
-                            {
-                                <span
-                                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">@navItem.BadgeContent
-                                    @if (!string.IsNullOrWhiteSpace(navItem.BadgeVisuallyHiddenContent))
-                                    {
-                                        <span class="visually-hidden">@navItem.BadgeVisuallyHiddenContent</span>
-                                    }
-                                </span>
-                            }
-                        </div>
-                    </button>
+                    <div title="@navItem.Title" data-bs-toggle="tooltip" data-bs-placement="left">
+                        <button class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0" type="button"
+                                data-bs-toggle="offcanvas" data-bs-target="@canvasId">
+                            <div class="position-relative">
+                                <i class="bi @navItem.Icon" style="font-size: 1.25em;" role="img" aria-label="@navItem.Title"></i>
+                                @if (!string.IsNullOrWhiteSpace(navItem.BadgeContent))
+                                {
+                                    <span style="font-size: 0.7rem;"
+                                        class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">@navItem.BadgeContent
+                                        @if (!string.IsNullOrWhiteSpace(navItem.BadgeVisuallyHiddenContent))
+                                        {
+                                            <span class="visually-hidden">@navItem.BadgeVisuallyHiddenContent</span>
+                                        }
+                                    </span>
+                                }
+                            </div>
+                        </button>
+                    </div>
                 </li>
             }
         </ul>
     </div>
 </div>
+
+@foreach (var navItem in SidebarActionCollection.DefaultItems)
+{
+    var canvasId = $"offCanvasSidebarAction{navItem.Id}";
+    var canvasLabelId = $"offCanvasSidebarActionLabel{navItem.Id}";
+    var partialName = $"_SidebarActionMenuItem{navItem.Id}";
+    <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="@canvasId" aria-labelledby="@canvasLabelId">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="@canvasLabelId">@navItem.Title</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <partial name="@partialName" model="navItem"/>
+        </div>
+    </div>
+}
