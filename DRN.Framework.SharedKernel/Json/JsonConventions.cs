@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -7,8 +6,6 @@ namespace DRN.Framework.SharedKernel.Json;
 
 public static class JsonConventions
 {
-    private const string JsonHelpersFQN = "System.Net.Http.Json.JsonHelpers";
-    private const string JsonHelpersOptions = "s_defaultSerializerOptions";
     private const string DefaultSerializerOptions = "s_defaultOptions";
     private const string DefaultWebSerializerOptions = "s_webOptions";
     private const BindingFlags StaticPrivate = BindingFlags.Static | BindingFlags.NonPublic;

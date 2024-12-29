@@ -35,7 +35,7 @@ public class DrnServiceContainerTests
     public void Service_Provider_Should_Throw_Exception_When_Service_Is_Not_Resolvable(TestContext context)
     {
         context.ServiceCollection.AddTestModule();
-        context.ServiceCollection.RemoveAll(typeof(IIndependent));
+        context.ServiceCollection.RemoveAll<IIndependent>();
 
         var action = context.ValidateServices;
         action.Should().Throw<InvalidOperationException>();
@@ -46,7 +46,7 @@ public class DrnServiceContainerTests
     public void Service_Provider_Should_Throw_Exception_When_Keyed_Service_Is_Not_Resolvable(TestContext context)
     {
         context.ServiceCollection.AddTestModule();
-        context.ServiceCollection.RemoveAll(typeof(IKeyedDependency));
+        context.ServiceCollection.RemoveAll<IKeyedDependency>();
 
         var action = context.ValidateServices;
         action.Should().Throw<InvalidOperationException>();
@@ -65,7 +65,7 @@ public class DrnServiceContainerTests
     public void Service_Provider_Should_Throw_Exception_When_One_Of_Multiple_Services_Is_Not_Resolvable(TestContext context)
     {
         context.ServiceCollection.AddTestModule();
-        context.ServiceCollection.RemoveAll(typeof(IMultipleIndependent));
+        context.ServiceCollection.RemoveAll<IMultipleIndependent>();
 
         var action = context.ValidateServices;
         action.Should().Throw<InvalidOperationException>();

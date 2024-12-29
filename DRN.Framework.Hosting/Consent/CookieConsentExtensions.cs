@@ -11,7 +11,7 @@ public static class CookieConsentExtensions
 
         var cookieName = options.ConsentCookie.Name;
         if (cookieName == null)
-            return new ConsentCookie(cookieName ?? string.Empty, null);
+            return new ConsentCookie(string.Empty, null);
 
         _ = httpContext.Request.Cookies.TryGetValue(cookieName, out var consentCookie);
         var consentModel = new ConsentCookie(cookieName, consentCookie);
