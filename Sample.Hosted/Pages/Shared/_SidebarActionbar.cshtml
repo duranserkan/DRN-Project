@@ -5,7 +5,7 @@
 
 <div class="d-flex p-1 bg-body-tertiary">
     <div class="d-flex flex-column align-items-center" style="width: 4.5rem;">
-        <ul class="nav nav-pills nav-flush flex-column mb-auto">
+        <ul id="ActionbarActionList" class="nav nav-pills nav-flush flex-column mb-auto">
             @foreach (var navItem in SidebarActionCollection.DefaultItems)
             {
                 var borderBottom = ++index == actionCount ? "border-bottom" : "";
@@ -19,7 +19,7 @@
                                 @if (!string.IsNullOrWhiteSpace(navItem.BadgeContent))
                                 {
                                     <span style="font-size: 0.7rem;"
-                                        class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">@navItem.BadgeContent
+                                          class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">@navItem.BadgeContent
                                         @if (!string.IsNullOrWhiteSpace(navItem.BadgeVisuallyHiddenContent))
                                         {
                                             <span class="visually-hidden">@navItem.BadgeVisuallyHiddenContent</span>
@@ -39,7 +39,7 @@
 {
     var canvasId = $"offCanvasSidebarAction{navItem.Id}";
     var canvasLabelId = $"offCanvasSidebarActionLabel{navItem.Id}";
-    var partialName = $"_SidebarActionMenuItem{navItem.Id}";
+    var partialName = $"_SidebarActionbarItem{navItem.Id}";
     <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="@canvasId" aria-labelledby="@canvasLabelId">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="@canvasLabelId">@navItem.Title</h5>

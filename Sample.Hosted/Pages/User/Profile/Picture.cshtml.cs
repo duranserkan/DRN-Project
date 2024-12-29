@@ -41,7 +41,7 @@ public class ProfilePictureModel(IProfilePictureService service,
 
         TempData[TempDataFor.StatusMessage] = "Your profile picture has been updated";
 
-        return RedirectToPage(PageFor.UserProfile.Details);
+        return RedirectToPage(PageFor.UserProfile.Picture);
     }
 }
 
