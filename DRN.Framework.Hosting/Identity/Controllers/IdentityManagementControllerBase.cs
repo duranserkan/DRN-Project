@@ -30,6 +30,9 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public virtual async Task<IResult> TwoFactorAuth([FromBody] TwoFactorRequest tfaRequest)
     {
+        if (!ModelState.IsValid)
+            return TypedResults.BadRequest();
+        
         var userManager = _signInManager.UserManager;
         if (await userManager.GetUserAsync(User) is not { } user)
             return TypedResults.NotFound();
@@ -105,6 +108,9 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public virtual async Task<IResult> PostInfo([FromBody] InfoRequest infoRequest)
     {
+        if (!ModelState.IsValid)
+            return TypedResults.BadRequest();
+        
         var userManager = _signInManager.UserManager;
         if (await userManager.GetUserAsync(User) is not { } user)
         {

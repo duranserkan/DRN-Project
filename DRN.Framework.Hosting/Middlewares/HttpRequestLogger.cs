@@ -1,4 +1,5 @@
 using DRN.Framework.Hosting.Extensions;
+using DRN.Framework.Utils.Common;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -20,6 +21,9 @@ public class HttpRequestLogger(RequestDelegate next)
         {
             var requestHeader = httpContext.Request.Headers.ConvertToString();
             var requestBody = await ReadRequestBody(httpContext.Request);
+
+            var sanitizedHeader = Base64Utils.UrlSafeBase64Encode(requestHeader); //To prevent log forging
+            var sanitizedRequest = Base64Utils.UrlSafeBase64Encode(requestBody);
             logger.LogInformation("""
                                   HTTP: {Http}
                                   TraceIdentifier: {TraceIdentifier}
@@ -27,7 +31,7 @@ public class HttpRequestLogger(RequestDelegate next)
                                   {RequestHeader}
 
                                   {RequestBody}
-                                  """, "request", httpContext.TraceIdentifier, requestHeader, requestBody);
+                                  """, "request", httpContext.TraceIdentifier, sanitizedHeader, sanitizedRequest);
 
             await next(httpContext);
         }
@@ -35,6 +39,8 @@ public class HttpRequestLogger(RequestDelegate next)
         {
             var responseHeader = httpContext.Response.Headers.ConvertToString();
             var responseBody = await ReadResponseBody(responseBodyStream, originalBodyStream);
+            var sanitizedHeader = Base64Utils.UrlSafeBase64Encode(responseHeader); //To prevent log forging
+            var sanitizedResponse = Base64Utils.UrlSafeBase64Encode(responseBody);
             httpContext.Response.Body = originalBodyStream;
             logger.LogInformation("""
                                   HTTP: {Http}
@@ -44,7 +50,7 @@ public class HttpRequestLogger(RequestDelegate next)
                                   {ResponseHeader}
 
                                   {ResponseBody}
-                                  """, "response", httpContext.Response.StatusCode, httpContext.TraceIdentifier, responseHeader, responseBody);
+                                  """, "response", httpContext.Response.StatusCode, httpContext.TraceIdentifier, sanitizedHeader, sanitizedResponse);
         }
     }
 

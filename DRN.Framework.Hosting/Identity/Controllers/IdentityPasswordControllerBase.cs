@@ -29,6 +29,9 @@ public abstract class IdentityPasswordControllerBase<TUser> : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public virtual async Task<IResult> Reset([FromBody] ResetPasswordRequest resetRequest)
     {
+        if (!ModelState.IsValid)
+            return TypedResults.BadRequest();
+        
         var user = await _userManager.FindByEmailAsync(resetRequest.Email);
 
         if (user is null || !(await _userManager.IsEmailConfirmedAsync(user)))
@@ -60,6 +63,9 @@ public abstract class IdentityPasswordControllerBase<TUser> : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public virtual async Task<IResult> Forgot([FromBody] ForgotPasswordRequest resetRequest)
     {
+        if (!ModelState.IsValid)
+            return TypedResults.BadRequest();
+        
         var user = await _userManager.FindByEmailAsync(resetRequest.Email);
 
         if (user is not null && await _userManager.IsEmailConfirmedAsync(user))
