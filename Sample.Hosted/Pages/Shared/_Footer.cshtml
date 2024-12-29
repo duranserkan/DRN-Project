@@ -10,7 +10,7 @@
             &copy @DateTime.Now.Year - @ScopeContext.Settings.ApplicationName
         </div>
         <div id="FooterMiddle">
-            <div id="footerNavBar" class="d-none align-items-center">
+            <div id="footerNavbar" class="d-none align-items-center">
                 <ul class="nav">
                     <li class="nav-item">
                         <a class="nav-link py-0" href="#">Privacy</a>
@@ -95,7 +95,7 @@
     const getPreferenceCookieWithDecode = () => JSON.parse(urlSafeBase64Decode(getPreferenceCookie()));
     let globalPreferences = getPreferenceCookieWithDecode();
 
-    const footerNavBar = "footerNavBar";
+    const footerNavbar = "footerNavbar";
     const preferenceCookieAlert = "preferenceCookieAlert";
     const analyticsCookiesCheckBoxId = "analyticsCookiesCheckBox";
     const marketingCookiesCheckBoxId = "marketingCookiesCheckBox";
@@ -119,10 +119,10 @@
     }
     const adjustFooterVisibility = (showCookieAlertBanner) => {
         if (showCookieAlertBanner) {
-            document.getElementById(footerNavBar).classList.replace("d-flex", "d-none");
+            document.getElementById(footerNavbar).classList.replace("d-flex", "d-none");
             document.getElementById(preferenceCookieAlert).classList.replace("d-none", "d-flex");
         } else {
-            document.getElementById(footerNavBar).classList.replace("d-none", "d-flex");
+            document.getElementById(footerNavbar).classList.replace("d-none", "d-flex");
             document.getElementById(preferenceCookieAlert).classList.replace("d-flex", "d-none");
         }
     }
