@@ -1,4 +1,6 @@
-﻿namespace DRN.Framework.Utils.Models.Sample;
+﻿// This file is licensed to you under the MIT license.
+
+namespace DRN.Framework.Utils.Models.Sample;
 
 public readonly struct WeatherForecast
 {

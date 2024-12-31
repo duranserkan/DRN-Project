@@ -17,7 +17,7 @@ public class ConfigurationDebugViewSummary
         ApplicationName = configurationDebugView.ApplicationName;
         ConfigMountedDirectory = configurationDebugView.ConfigMountedDirectory;
 
-        var collectionByProvider = new Dictionary<string, string[]>(10);
+        var collectionByProvider = new SortedDictionary<string, string[]>();
         SettingsByProvider = collectionByProvider;
 
         var items = configurationDebugView.Entries.Select(entry => new DebugViewSummaryItem(entry));

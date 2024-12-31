@@ -44,4 +44,6 @@ public class ExceptionControllerFor()
     public ApiEndpoint ConfigurationException { get; private set; } = null!;
     public ApiEndpoint UnprocessableEntityException { get; private set; } = null!;
     public ApiEndpoint MaliciousRequestException { get; private set; } = null!;
+    
+    public ApiEndpoint GetErrorPageModel { get; private set; } = null!;
 }

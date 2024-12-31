@@ -1,3 +1,5 @@
+// This file is licensed to you under the MIT license.
+
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Identity.Services;
 using DRN.Framework.Utils.Scope;

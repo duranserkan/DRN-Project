@@ -47,12 +47,12 @@ public class ScopedLog : IScopedLog
     public void AddException(Exception exception)
     {
         HasException = true;
-        Add(ScopedLogConventions.KeyOfExceptionType, exception.GetType().FullName ?? string.Empty);
+        Add(ScopedLogConventions.KeyOfExceptionType, exception.GetType().FullName ?? exception.GetType().Name);
         Add(ScopedLogConventions.KeyOfExceptionMessage, exception.Message);
         Add(ScopedLogConventions.KeyOfExceptionStackTrace, exception.StackTrace ?? string.Empty);
         if (exception.InnerException == null) return;
 
-        Add(ScopedLogConventions.KeyOfInnerExceptionType, exception.InnerException.GetType().FullName ?? string.Empty);
+        Add(ScopedLogConventions.KeyOfInnerExceptionType, exception.InnerException.GetType().FullName ?? exception.InnerException.GetType().Name);
         Add(ScopedLogConventions.KeyOfInnerExceptionMessage, exception.InnerException.Message);
         Add(ScopedLogConventions.KeyOfInnerExceptionStackTrace, exception.InnerException.StackTrace ?? string.Empty);
     }

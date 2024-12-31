@@ -1,3 +1,6 @@
+// This file is licensed to you under the MIT license.
+// Derived from https://github.com/andrewlock/NetEscapades.AspNetCore.SecurityHeaders/blob/main/src/NetEscapades.AspNetCore.SecurityHeaders.TagHelpers/NonceTagHelper.cs
+
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Razor.TagHelpers;

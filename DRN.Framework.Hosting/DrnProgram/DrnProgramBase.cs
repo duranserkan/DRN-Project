@@ -61,8 +61,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             scopedLog.Add(nameof(DrnAppFeatures.TemporaryApplication), appSettings.Features.TemporaryApplication);
             scopedLog.Add(nameof(DrnAppFeatures.SkipValidation), appSettings.Features.SkipValidation);
             scopedLog.Add(nameof(DrnAppFeatures.AutoMigrateDevEnvironment), appSettings.Features.AutoMigrateDevEnvironment);
+            scopedLog.Add(nameof(DrnAppFeatures.PrototypingMode), appSettings.Features.PrototypingMode);
             scopedLog.Add(nameof(AppSettings.Environment), appSettings.Environment);
-
             scopedLog.AddToActions("Running Application");
             Log.Warning("{@Logs}", scopedLog.Logs);
 
@@ -127,12 +127,22 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             kestrelServerOptions.AddServerHeader = false;
             kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel"));
         });
+        
+        applicationBuilder.WebHost.UseStaticWebAssets();
 
         var services = applicationBuilder.Services;
         services.AdDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
+        services.AddSingleton<IEndpointAccessor>(sp =>
+        {
+            var endpointHelper = sp.GetRequiredService<IEndpointHelper>();
+            var endpoints = EndpointCollectionBase<TProgram>.Endpoints;
+            var pageEndpoints = EndpointCollectionBase<TProgram>.PageEndpoints;
+            var apiEndpoints = EndpointCollectionBase<TProgram>.ApiEndpoints;
+            return new EndpointAccessor(endpointHelper, endpoints, apiEndpoints, pageEndpoints, typeof(TProgram));
+        });
 
         var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
-        ConfigureMvcBuilder(mvcBuilder);
+        ConfigureMvcBuilder(mvcBuilder, appSettings);
 
         services.AddAuthorization(ConfigureAuthorizationOptions);
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
@@ -164,7 +174,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
         ConfigureApplicationPreScopeStart(application, appSettings);
-        application.UseMiddleware<HttpScopeHandler>();
+        application.UseMiddleware<HttpScopeMiddleware>();
         ConfigureApplicationPostScopeStart(application, appSettings);
 
         application.UseRouting();
@@ -233,21 +243,44 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings)
     {
-        var swaggerPolicy = new HeaderPolicyCollection();
-        ConfigureDefaultSecurityHeaders(swaggerPolicy, serviceProvider, appSettings);
-        swaggerPolicy.Remove("Content-Security-Policy");
-        swaggerPolicy.AddContentSecurityPolicy(x =>
+        //todo: csp policy dictionary
+        var selfCsp = new HeaderPolicyCollection();
+        ConfigureDefaultSecurityHeaders(selfCsp, serviceProvider, appSettings);
+        selfCsp.Remove("Content-Security-Policy");
+        selfCsp.AddContentSecurityPolicy(x =>
         {
             ConfigureDefaultContentSecurityPolicy(x);
             x.AddScriptSrc().Self();
         });
+        builder.AddPolicy(CspFor.CspPolicySelf, selfCsp);
 
-        builder.AddPolicy("SwaggerCSP", swaggerPolicy);
+        var inlineCspPolicy = new HeaderPolicyCollection();
+        ConfigureDefaultSecurityHeaders(inlineCspPolicy, serviceProvider, appSettings);
+        inlineCspPolicy.Remove("Content-Security-Policy");
+        inlineCspPolicy.AddContentSecurityPolicy(x =>
+        {
+            ConfigureDefaultContentSecurityPolicy(x);
+            x.AddScriptSrc().UnsafeInline();
+        });
+        builder.AddPolicy(CspFor.CspPolicyInline, inlineCspPolicy);
+
         builder.SetPolicySelector(x =>
         {
-            var isSwaggerPath = x.HttpContext.Request.Path.Value?.Contains("swagger", StringComparison.OrdinalIgnoreCase) ?? false;
+            var context = x.HttpContext;
+            var isSwaggerPath = context.Request.Path.Value?.Contains("swagger", StringComparison.OrdinalIgnoreCase) ?? false;
+            if (isSwaggerPath)
+                return x.ConfiguredPolicies[CspFor.CspPolicySelf];
 
-            return isSwaggerPath ? x.ConfiguredPolicies["SwaggerCSP"] : x.DefaultPolicy;
+            var policyApplied = context.Items.TryGetValue(CspFor.CspPolicyName, out var policy);
+            if (!policyApplied)
+                return x.DefaultPolicy;
+
+            return (policy as string) switch
+            {
+                CspFor.CspPolicySelf => x.ConfiguredPolicies[CspFor.CspPolicySelf],
+                CspFor.CspPolicyInline => x.ConfiguredPolicies[CspFor.CspPolicyInline],
+                _ => x.DefaultPolicy
+            };
         });
     }
 
@@ -379,7 +412,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
     }
 
-    protected virtual void ConfigureMvcBuilder(IMvcBuilder mvcBuilder)
+    protected virtual void ConfigureMvcBuilder(IMvcBuilder mvcBuilder, IAppSettings appSettings)
     {
         var programAssembly = typeof(TProgram).Assembly;
         var partName = typeof(TProgram).GetAssemblyName();
@@ -387,8 +420,10 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var controllersAdded = applicationParts.Any(p => p.Name == partName);
         if (!controllersAdded) mvcBuilder.AddApplicationPart(programAssembly);
 
+        // if (appSettings.IsDevEnvironment)
+        //     mvcBuilder.AddRazorRuntimeCompilation();
+
         mvcBuilder.AddControllersAsServices();
-        mvcBuilder.AddRazorRuntimeCompilation();
         mvcBuilder.AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
     }
 

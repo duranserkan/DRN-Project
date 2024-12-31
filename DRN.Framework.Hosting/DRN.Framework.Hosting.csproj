@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
 
     <PropertyGroup>
         <TargetFramework>net9.0</TargetFramework>
@@ -6,6 +6,7 @@
         <Nullable>enable</Nullable>
         <Authors>Duran Serkan KILIÇ</Authors>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
         <PackageId>DRN.Framework.Hosting</PackageId>
@@ -19,9 +20,10 @@
             <PackagePath>\</PackagePath>
         </None>
         <None Update="RELEASE-NOTES.md">
-          <Pack>True</Pack>
-          <PackagePath>/</PackagePath>
+            <Pack>True</Pack>
+            <PackagePath>/</PackagePath>
         </None>
+        <None Include="wwwroot\jsoneditor\Notes" />
     </ItemGroup>
 
     <Target Name="PrepareDescription" BeforeTargets="GenerateNuspec">
@@ -35,22 +37,27 @@
             <PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/RELEASE-NOTES.md"))</PackageReleaseNotes>
         </PropertyGroup>
     </Target>
-    
+
     <ItemGroup>
         <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+        <FrameworkReference Include="Microsoft.AspNetCore.App"/>
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="9.0.0" />
-        <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" Version="1.0.0-preview.2" />
-        <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
-        <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
-        <PackageReference Include="Serilog.Sinks.Graylog" Version="3.1.1" />
-        <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="9.0.1" />
+        <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" Version="1.0.0-preview.2"/>
+        <PackageReference Include="Serilog.AspNetCore" Version="9.0.0"/>
+        <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0"/>
+        <PackageReference Include="Serilog.Sinks.Graylog" Version="3.1.1"/>
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <None Remove="DeveloperExceptionPage\Views\CompilationErrorPage.cshtml"/>
+    </ItemGroup>
+    
+    
 </Project>

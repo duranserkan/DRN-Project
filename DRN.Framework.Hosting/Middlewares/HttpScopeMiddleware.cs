@@ -1,3 +1,5 @@
+using DRN.Framework.Hosting.Endpoints;
+using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Extensions;
@@ -13,35 +15,44 @@ namespace DRN.Framework.Hosting.Middlewares;
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/write?view=aspnetcore-8.0
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-8.0
 //https://github.com/serilog/serilog/wiki/Structured-Data
-public class HttpScopeHandler(RequestDelegate next)
+public class HttpScopeMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext httpContext, IScopedLog scopedLog, IScopedUser scopedUser, IServiceProvider serviceProvider,
-        ILogger<HttpScopeHandler> logger, IAppSettings appSettings)
+    public async Task InvokeAsync(HttpContext context, IScopedLog scopedLog, IScopedUser scopedUser, IServiceProvider serviceProvider,
+        ILogger<HttpScopeMiddleware> logger, IAppSettings appSettings, IDrnExceptionHandler exceptionHandler)
     {
         try
         {
-            PrepareScopeLog(httpContext, scopedLog);
-            ScopeContext.Initialize(httpContext.TraceIdentifier, scopedLog, scopedUser, appSettings, serviceProvider);
-            await next(httpContext);
-            scopedLog.Add("ResponseStatusCode", httpContext.Response.StatusCode);
+            if (ExceptionPageAccessor.IsExceptionPage(context.Request.Path.Value))
+            {
+                context.Abort(); //Requesting exception pages are malicious. Exception pages are rendered when exception occurs.
+                return;
+            }
+
+            context.Request.EnableBuffering();
+            PrepareScopeLog(context, scopedLog);
+            ScopeContext.Initialize(context.TraceIdentifier, scopedLog, scopedUser, appSettings, serviceProvider);
+            await next(context);
+            scopedLog.Add("ResponseStatusCode", context.Response.StatusCode);
         }
         catch (Exception e)
         {
-            httpContext.Response.StatusCode = GetHttpStatusCode(e);
+            context.Response.StatusCode = GetHttpStatusCode(e);
             if (e is FlurlHttpException f)
                 await f.PrepareScopeLogForFlurlExceptionAsync(scopedLog, appSettings.Features);
 
             scopedLog.AddException(e);
-            scopedLog.Add("ResponseStatusCode", httpContext.Response.StatusCode);
+            scopedLog.Add("ResponseStatusCode", context.Response.StatusCode);
 
-            //todo: integrate developer exception page
-            //https://github.com/dotnet/aspnetcore/blob/main/src/Middleware/Diagnostics/src/DeveloperExceptionPage/DeveloperExceptionPageMiddleware.cs
-            if (httpContext.Response.StatusCode is < 100 or > 599)
-                httpContext.Abort();
-            else if (appSettings.IsDevEnvironment)
-                await httpContext.Response.WriteAsJsonAsync(scopedLog.Logs);
-            else
-                await httpContext.Response.WriteAsync($"TraceId: {httpContext.TraceIdentifier}");
+            if (context.Response.StatusCode is < 100 or > 599) //MaliciousRequestException
+            {
+                context.Abort();
+                return;
+            }
+
+            if (context.Response.HasStarted)
+                scopedLog.Add("ResponseStarted", true);
+
+            await exceptionHandler.HandleExceptionAsync(context, e);
         }
         finally
         {
@@ -55,12 +66,13 @@ public class HttpScopeHandler(RequestDelegate next)
         {
             DrnException dEx => dEx.Status,
             FlurlHttpException fEx => fEx.GetGatewayStatusCode(),
+            BadHttpRequestException bEx => bEx.StatusCode,
             _ => 500
         };
     }
 
     private static void PrepareScopeLog(HttpContext httpContext, IScopedLog scopedLog) => scopedLog
-        .WithLoggerName(nameof(HttpScopeHandler))
+        .WithLoggerName(nameof(HttpScopeMiddleware))
         .WithTraceIdentifier(httpContext.TraceIdentifier)
         .Add("l5d-client-id", httpContext.Request.Headers.TryGetValue("l5d-client-id", out var l5dId) ? l5dId.ToString() : string.Empty)
         .Add("HttpProtocol", httpContext.Request.Protocol.Split('/')[^1])

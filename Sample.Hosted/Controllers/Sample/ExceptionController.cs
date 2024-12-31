@@ -1,9 +1,12 @@
+using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
+using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
+
 namespace Sample.Hosted.Controllers.Sample;
 
 [AllowAnonymous]
 [ApiController]
 [Route("Api/Sample/[controller]")]
-public class ExceptionController : ControllerBase
+public class ExceptionController(IExceptionUtils exceptionUtils) : ControllerBase
 {
     [HttpGet(nameof(ValidationException))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -49,4 +52,22 @@ public class ExceptionController : ControllerBase
     [ProducesResponseType(StatusCodes.Status406NotAcceptable)]
     public DrnException MaliciousRequestException()
         => throw new MaliciousRequestException("DrnTest");
+
+
+    [HttpGet(nameof(GetErrorPageModel))]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<DrnExceptionModel> GetErrorPageModel()
+    {
+        try
+        {
+            throw new ConfigurationException("DrnTest");
+        }
+        catch (Exception e)
+        {
+            var model = await exceptionUtils.CreateErrorPageModelAsync(HttpContext, e);
+
+            return model;
+        }
+    }
 }

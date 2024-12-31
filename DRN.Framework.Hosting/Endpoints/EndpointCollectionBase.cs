@@ -2,6 +2,8 @@ using System.Reflection;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Routing;
 
 namespace DRN.Framework.Hosting.Endpoints;
 
@@ -9,7 +11,8 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
 {
     private static bool _triggered;
     private static readonly SemaphoreSlim StartupLock = new(1, 1);
-    private static IReadOnlyList<Endpoint> Endpoints { get; set; } = [];
+    public static IReadOnlyList<Endpoint> Endpoints { get; private set; } = [];
+    public static IReadOnlyList<PageEndpoint> PageEndpoints { get; private set; } = [];
     public static IReadOnlyList<ApiEndpoint> ApiEndpoints { get; private set; } = [];
 
     /// <summary>
@@ -25,7 +28,8 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
         {
             if (_triggered) return;
             Endpoints = endpointHelper.EndpointDataSource.Endpoints;
-            ApiEndpoints = InitializeEndpoints();
+            PageEndpoints = InitializePageEndpoints();
+            ApiEndpoints = InitializeApiEndpoints();
             _triggered = true;
         }
         finally
@@ -34,7 +38,16 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
         }
     }
 
-    private static ApiEndpoint[] InitializeEndpoints()
+    private static PageEndpoint[] InitializePageEndpoints()
+    {
+        var pageEndpoints = Endpoints
+            .Where(e => e is RouteEndpoint && e.Metadata.GetMetadata<PageActionDescriptor>() != null)
+            .Select(e => new PageEndpoint((RouteEndpoint)e));
+
+        return pageEndpoints.ToArray();
+    }
+
+    private static ApiEndpoint[] InitializeApiEndpoints()
     {
         var collectionBaseType = typeof(EndpointCollectionBase<TProgram>);
         var collectionType = typeof(TProgram).Assembly.GetSubTypes(collectionBaseType).FirstOrDefault();

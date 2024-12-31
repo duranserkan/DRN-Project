@@ -1,4 +1,6 @@
-﻿using DRN.Framework.Utils.Models.Sample;
+﻿// This file is licensed to you under the MIT license.
+
+using DRN.Framework.Utils.Models.Sample;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

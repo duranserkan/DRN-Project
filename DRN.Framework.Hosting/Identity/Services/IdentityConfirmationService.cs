@@ -1,3 +1,5 @@
+// This file is licensed to you under the MIT license.
+
 using System.Text;
 using System.Text.Encodings.Web;
 using DRN.Framework.Hosting.Endpoints;

@@ -18,7 +18,7 @@ public class ConfigurationDebugView
         var collectionByProvider = new Dictionary<IConfigurationProvider, DebugViewEntry[]>(10);
         DebugViewCollectionByProvider = collectionByProvider;
         var entries = new List<DebugViewEntry>(1000);
-        Entries = new List<DebugViewEntry>(1000);
+        Entries = entries;
 
         if (root != null)
             RecurseChildren(root, entries, root.GetChildren());

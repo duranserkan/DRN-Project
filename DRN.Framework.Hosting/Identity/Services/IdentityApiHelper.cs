@@ -1,3 +1,5 @@
+// This file is licensed to you under the MIT license.
+
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using Microsoft.AspNetCore.Http;

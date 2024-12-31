@@ -1,0 +1,105 @@
+@*
+This file is licensed to you under the MIT license.
+Source codes under this file is derived from https://github.com/dotnet/aspnetcore/blob/v9.0.0/src/Middleware/Diagnostics/src/DeveloperExceptionPage/
+*@
+
+@page
+
+@addTagHelper *, DRN.Framework.Hosting
+@model DRN.Framework.Hosting.Areas.Developer.Pages.CompilationExceptionPage
+
+@{
+    var errorModel = Model.ErrorModel;
+}
+
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>@errorModel.Title</title>
+    <link rel="stylesheet" href="/_content/DRN.Framework.Hosting/css/error-page.css"/>
+</head>
+<body>
+<h1>Compilation Exception</h1>
+@for (var i = 0; i < errorModel.ErrorDetails.Count; i++)
+{
+    var errorDetail = errorModel.ErrorDetails[i];
+    var exceptionDetailId = "exceptionDetail" + i;
+
+    <div id="stackpage" class="page">
+        @{
+            var stackFrameCount = 0;
+            var frameId = "";
+            var fileName = errorDetail.StackFrames.FirstOrDefault()?.File;
+            if (!string.IsNullOrEmpty(fileName))
+            {
+                <div class="titleerror">@fileName</div>
+            }
+        }
+        @if (!string.IsNullOrEmpty(errorDetail.ExceptionMessage))
+        {
+            <div class="details">@errorDetail.ExceptionMessage</div>
+        }
+        <br/>
+        <ul>
+            @foreach (var frame in errorDetail.StackFrames)
+            {
+                stackFrameCount++;
+                frameId = "frame" + stackFrameCount;
+
+                <li class="frame" id="@frameId">
+                    @if (!string.IsNullOrEmpty(frame.ErrorDetails))
+                    {
+                        <h3>@frame.ErrorDetails</h3>
+                    }
+
+                    @if (frame.Line != 0 && frame.ContextCode.Any())
+                    {
+                        <button class="expandCollapseButton" data-frameId="@frameId">+</button>
+                        <div class="source">
+                            @if (frame.PreContextCode.Any())
+                            {
+                                <ol start="@frame.PreContextLine" class="collapsible">
+                                    @foreach (var line in frame.PreContextCode)
+                                    {
+                                        <li><span>@line</span></li>
+                                    }
+                                </ol>
+                            }
+                            <ol start="@frame.Line" class="highlight">
+                                @foreach (var line in frame.ContextCode)
+                                {
+                                    <li><span>@line</span></li>
+                                }
+                            </ol>
+                            @if (frame.PostContextCode.Any())
+                            {
+                                <ol start='@(frame.Line + 1)' class="collapsible">
+                                    @foreach (var line in frame.PostContextCode)
+                                    {
+                                        <li><span>@line</span></li>
+                                    }
+                                </ol>
+                            }
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+        <br/>
+    </div>
+    @if (!string.IsNullOrEmpty(errorModel.CompiledContent[i]))
+    {
+        <div class="rawExceptionBlock">
+            <button class="showRawException" data-exceptionDetailId="@exceptionDetailId">Show compilation source</button>
+            <div id="@exceptionDetailId" class="rawExceptionDetails">
+                <pre class="rawExceptionStackTrace">@errorModel.CompiledContent[i]</pre>
+            </div>
+        </div>
+    }
+}
+
+<script src="/_content/DRN.Framework.Hosting/js/error-page.js"></script>
+</body>
+</html>

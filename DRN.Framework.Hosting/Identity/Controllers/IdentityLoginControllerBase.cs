@@ -1,3 +1,5 @@
+// This file is licensed to you under the MIT license.
+
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authorization;

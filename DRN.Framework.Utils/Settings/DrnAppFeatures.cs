@@ -32,6 +32,11 @@ public class DrnAppFeatures
     /// </summary>
     public bool AutoMigrateDevEnvironment { get; init; }
 
+    /// <summary>
+    /// When true in dev environment, migrations are not used for database creation with LaunchExternalDependencies in order to increase prototyping speed.
+    /// </summary>
+    public bool PrototypingMode { get; init; }
+
     public string InternalRequestHttpVersion { get; init; } = "1.1";
     public string InternalRequestProtocol { get; init; } = "http";
     public bool UseHttpRequestLogger { get; init; } = false;

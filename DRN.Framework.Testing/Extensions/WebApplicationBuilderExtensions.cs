@@ -19,6 +19,7 @@ public static class WebApplicationBuilderExtensions
         if (!result.Launch)
             return result;
 
+        //todo: implement prototyping mode
         scopedLog?.AddToActions("Launching External dependencies...");
         var postgresCollection = await PostgresContext.LaunchPostgresAsync(builder, options);
         result.PostgresCollection = postgresCollection;

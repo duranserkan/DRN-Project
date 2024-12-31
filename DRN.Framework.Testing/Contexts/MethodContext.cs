@@ -1,4 +1,5 @@
 using DRN.Framework.Testing.Extensions;
+using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,12 +29,24 @@ public class MethodContext(MethodInfo testMethod)
 
     internal void ReplaceSubstitutedInterfaces(IServiceCollection serviceCollection)
     {
+        var containerCollection = serviceCollection.BuildServiceProvider().GetService<DrnServiceContainerCollection>();
         foreach (var grouping in SubstitutePairs.GroupBy(p => p.InterfaceType))
         {
             var type = grouping.Key;
             var implementations = grouping.Select(p => p.Implementation).ToArray();
 
-            serviceCollection.ReplaceInstance(type, implementations, ServiceLifetime.Scoped);
+            if (containerCollection == null || !containerCollection.ServiceTypeAndLifetimeMappings.TryGetValue(type, out var lifetime))
+            {
+                foreach (var implementation in implementations)
+                    serviceCollection.AddScoped(type, _ => implementation);
+                continue;
+            }
+
+            if (lifetime.TryAdd) //If not try-add that means service can have multiple implementations
+                serviceCollection.ReplaceInstance(type, implementations, lifetime.ServiceLifetime);
+            else // It is ok to not replace existing implementations
+                foreach (var implementation in implementations)
+                    serviceCollection.Add(new ServiceDescriptor(type, sp => implementation, lifetime.ServiceLifetime));
         }
     }
 }
