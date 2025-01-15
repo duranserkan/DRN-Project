@@ -1,7 +1,5 @@
 // This file is licensed to you under the MIT license.
 
-#nullable enable
-
 using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -12,30 +10,23 @@ using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
 
-internal sealed class StackTraceHelper
+static class StackTraceHelper
 {
-    [UnconditionalSuppressMessage("Trimmer", "IL2026", Justification = "MethodInfo for a stack frame might be incomplete or removed. GetFrames does the best it can to provide frame details.")]
-    public static IList<StackFrameInfo> GetFrames(Exception exception, out AggregateException? error)
+    [UnconditionalSuppressMessage("Trimmer", "IL2026",
+        Justification = "MethodInfo for a stack frame might be incomplete or removed. GetFrames does the best it can to provide frame details.")]
+    public static IList<StackFrameInfo> GetFrames(Exception? exception, out AggregateException? error)
     {
         if (exception == null)
         {
-            error = default;
+            error = null;
             return Array.Empty<StackFrameInfo>();
         }
 
         var needFileInfo = true;
-        var stackTrace = new System.Diagnostics.StackTrace(exception, needFileInfo);
+        var stackTrace = new StackTrace(exception, needFileInfo);
         var stackFrames = stackTrace.GetFrames();
 
-        if (stackFrames == null)
-        {
-            error = default;
-            return Array.Empty<StackFrameInfo>();
-        }
-
         var frames = new List<StackFrameInfo>(stackFrames.Length);
-
-        List<Exception>? exceptions = null;
 
         for (var i = 0; i < stackFrames.Length; i++)
         {
@@ -43,33 +34,23 @@ internal sealed class StackTraceHelper
             var method = frame.GetMethod();
 
             // MethodInfo should always be available for methods in the stack, but double check for null here.
-            // Apps with trimming enabled may remove some metdata. Better to be safe than sorry.
+            // Apps with trimming enabled may remove some metadata. Better to be safe than sorry.
             if (method == null)
-            {
                 continue;
-            }
 
             // Always show last stackFrame
             if (!ShowInStackTrace(method) && i < stackFrames.Length - 1)
-            {
                 continue;
-            }
 
             var stackFrame = new StackFrameInfo(frame.GetFileLineNumber(), frame.GetFileName(), frame, GetMethodDisplayString(method));
             frames.Add(stackFrame);
         }
 
-        if (exceptions != null)
-        {
-            error = new AggregateException(exceptions);
-            return frames;
-        }
-
-        error = default;
+        error = null;
         return frames;
     }
 
-    internal static MethodDisplayInfo? GetMethodDisplayString(MethodBase? method)
+    private static MethodDisplayInfo? GetMethodDisplayString(MethodBase? method)
     {
         // Special case: no method available
         if (method == null)
@@ -117,21 +98,17 @@ internal sealed class StackTraceHelper
             {
                 prefix = "out";
             }
-            else if (parameterType != null && parameterType.IsByRef)
+            else if (parameterType.IsByRef)
             {
                 prefix = "ref";
             }
 
-            var parameterTypeString = "?";
-            if (parameterType != null)
+            if (parameterType.IsByRef)
             {
-                if (parameterType.IsByRef)
-                {
-                    parameterType = parameterType.GetElementType();
-                }
-
-                parameterTypeString = TypeNameHelper.GetTypeDisplayName(parameterType!, fullName: false, includeGenericParameterNames: true);
+                parameterType = parameterType.GetElementType();
             }
+
+            var parameterTypeString = TypeNameHelper.GetTypeDisplayName(parameterType!, fullName: false, includeGenericParameterNames: true);
 
             return new ParameterDisplayInfo
             {
@@ -172,9 +149,9 @@ internal sealed class StackTraceHelper
             return false;
         }
         else if (type == typeof(TaskAwaiter) ||
-            type == typeof(TaskAwaiter<>) ||
-            type == typeof(ConfiguredTaskAwaitable.ConfiguredTaskAwaiter) ||
-            type == typeof(ConfiguredTaskAwaitable<>.ConfiguredTaskAwaiter))
+                 type == typeof(TaskAwaiter<>) ||
+                 type == typeof(ConfiguredTaskAwaitable.ConfiguredTaskAwaiter) ||
+                 type == typeof(ConfiguredTaskAwaitable<>.ConfiguredTaskAwaiter))
         {
             switch (method.Name)
             {
@@ -204,18 +181,10 @@ internal sealed class StackTraceHelper
         }
 
         var methods = parentType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-        if (methods == null)
-        {
-            return false;
-        }
 
         foreach (var candidateMethod in methods)
         {
             var attributes = candidateMethod.GetCustomAttributes<StateMachineAttribute>();
-            if (attributes == null)
-            {
-                continue;
-            }
 
             foreach (var asma in attributes)
             {
@@ -224,7 +193,7 @@ internal sealed class StackTraceHelper
                     method = candidateMethod;
                     declaringType = candidateMethod.DeclaringType;
                     // Mark the iterator as changed; so it gets the + annotation of the original method
-                    // async statemachines resolve directly to their builder methods so aren't marked as changed
+                    // async state machines resolve directly to their builder methods so aren't marked as changed
                     return asma is IteratorStateMachineAttribute;
                 }
             }
@@ -247,14 +216,6 @@ internal sealed class StackTraceHelper
             return false;
         }
 
-        for (var i = 0; i < attributes.Count; i++)
-        {
-            if (attributes[i].AttributeType.Name == "StackTraceHiddenAttribute")
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return attributes.Any(t => t.AttributeType.Name == "StackTraceHiddenAttribute");
     }
 }
