@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 
-public record ExceptionContentResult(int StatusCode, string ContentType, string Content);
+public record ExceptionContentResult(string ContentType, string Content);
 
 public interface IExceptionPageContentProvider
 {
@@ -42,8 +42,8 @@ public class ExceptionPageContentProvider(
         var exceptionPage = new RuntimeExceptionPage { ErrorModel = model };
         var pageResult = await pageUtils.RenderPageAsync(ExceptionPageAccessor.RuntimeExceptionPagePath, exceptionPage, context);
 
-        var statusCode = context.Response.StatusCode < 1 ? 500 : context.Response.StatusCode;
-        var result = new ExceptionContentResult(statusCode, "text/html; charset=utf-8", pageResult);
+
+        var result = new ExceptionContentResult("text/html; charset=utf-8", pageResult);
 
         return result;
     }
@@ -53,8 +53,7 @@ public class ExceptionPageContentProvider(
         var exceptionPage = new CompilationExceptionPage { ErrorModel = exceptionUtils.CreateCompilationErrorModel(context, exception, compilationException) };
         var pageResult = await pageUtils.RenderPageAsync(ExceptionPageAccessor.CompilationExceptionPagePath, exceptionPage);
 
-        var statusCode = context.Response.StatusCode < 1 ? 500 : context.Response.StatusCode;
-        var result = new ExceptionContentResult(statusCode, "text/html; charset=utf-8", pageResult);
+        var result = new ExceptionContentResult("text/html; charset=utf-8", pageResult);
 
         return result;
     }

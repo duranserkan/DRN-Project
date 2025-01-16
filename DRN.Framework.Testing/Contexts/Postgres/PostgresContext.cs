@@ -3,6 +3,7 @@ using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.Testing.Extensions;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Extensions;
+using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -120,8 +121,7 @@ public class PostgresContext(TestContext testContext)
         return dbContextCollection;
     }
 
-    internal static async Task<PostgresCollection> LaunchPostgresAsync(
-        WebApplicationBuilder applicationBuilder, ExternalDependencyLaunchOptions options)
+    internal static async Task<PostgresCollection> LaunchPostgresAsync(WebApplicationBuilder applicationBuilder,  ExternalDependencyLaunchOptions options)
     {
         var postgresContainer = BuildContainer(options.PostgresContainerSettings);
         await postgresContainer.StartAsync();

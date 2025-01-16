@@ -67,13 +67,15 @@ public class DrnExceptionHandler(
 
     private async Task RenderErrorPageAsync(HttpContext context, Exception exception)
     {
+        context.Response.StatusCode = context.Response.StatusCode < 1 ? 500 : context.Response.StatusCode;
+        
         var skipPostCreationFilter = false;
         foreach (var filter in filters)
         {
             var preFilterResult = await filter.HandlePreExceptionModelCreationAsync(context, exception);
-            if (preFilterResult.SkipExceptionHandling) 
+            if (preFilterResult.SkipExceptionHandling)
                 return;
-            if (preFilterResult.SkipPostCreationFilter) 
+            if (preFilterResult.SkipPostCreationFilter)
                 skipPostCreationFilter = true;
         }
 
@@ -87,23 +89,20 @@ public class DrnExceptionHandler(
                 if (postFilterResult.SkipExceptionHandling) return;
             }
         }
-        
+
         if (appSettings.IsDevEnvironment)
         {
-            //todo: Database error page
             //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-9.0#database-error-page
             var result = await contentProvider.CreatErrorContentResult(context, exception, model);
-
-            context.Response.StatusCode = result.StatusCode;
+            
             context.Response.ContentType = result.ContentType;
-
             await context.Response.WriteAsync(result.Content);
             return;
         }
 
         //todo: prod exception page
         //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-9.0#exception-handler-page
-
+        
         var statusCode = ((HttpStatusCode)context.Response.StatusCode).ToString();
         await context.Response.WriteAsync($"{statusCode} {context.Response.StatusCode} TraceId: {context.TraceIdentifier}");
     }

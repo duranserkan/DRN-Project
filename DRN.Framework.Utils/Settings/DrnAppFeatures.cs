@@ -33,9 +33,13 @@ public class DrnAppFeatures
     public bool AutoMigrateDevEnvironment { get; init; }
 
     /// <summary>
-    /// When true in dev environment, migrations are not used for database creation with LaunchExternalDependencies in order to increase prototyping speed.
+    /// When true in dev environment, migrations are not used for database creation in order to increase prototyping speed.
+    /// For each DbContext, a new database will be created except when database exists and there are no pending changes.
+    /// If multiple DbContexts needs to share same database do not use prototyping mode.
     /// </summary>
     public bool PrototypingMode { get; init; }
+
+    public bool SeedData { get; init; }
 
     public string InternalRequestHttpVersion { get; init; } = "1.1";
     public string InternalRequestProtocol { get; init; } = "http";

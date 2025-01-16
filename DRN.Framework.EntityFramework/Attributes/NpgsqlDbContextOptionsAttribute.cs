@@ -39,4 +39,6 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
     public virtual void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder builder, IServiceProvider? serviceProvider) where TContext : DbContext
     {
     }
+    
+    //todo: add SeedData method
 }

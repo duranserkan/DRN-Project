@@ -37,8 +37,10 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
     {
         // Each integration test will create its own internal service provider
         if (TestEnvironment.TestContextEnabled)
-            builder.ConfigureWarnings(warningsConfigurationBuilder =>
-                warningsConfigurationBuilder.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning));
+            builder.ConfigureWarnings(warnings =>
+            {
+
+            });
 
         var scopedLog = serviceProvider?.GetRequiredService<IScopedLog>();
         builder
