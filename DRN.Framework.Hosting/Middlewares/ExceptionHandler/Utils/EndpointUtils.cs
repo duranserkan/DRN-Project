@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Routing;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
 
-public class EndpointUtils
+public static class EndpointUtils
 {
     public static EndpointModel? GetEndpointModel(Endpoint? endpoint)
     {

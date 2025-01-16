@@ -420,9 +420,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var controllersAdded = applicationParts.Any(p => p.Name == partName);
         if (!controllersAdded) mvcBuilder.AddApplicationPart(programAssembly);
 
-        // if (appSettings.IsDevEnvironment)
-        //     mvcBuilder.AddRazorRuntimeCompilation();
-
         mvcBuilder.AddControllersAsServices();
         mvcBuilder.AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
     }

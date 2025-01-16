@@ -19,9 +19,9 @@ public class ExceptionDetailsProvider(IOptions<DeveloperExceptionPageOptions> op
 
     public IEnumerable<ExceptionDetails> GetDetails(Exception exception)
     {
-        var exceptions = FlattenAndReverseExceptionTree(exception).Where(e=>e!=null);
+        var exceptions = FlattenAndReverseExceptionTree(exception);
 
-        return exceptions.Select(ex => new ExceptionDetails(ex!, GetStackFrames(ex!)));
+        return exceptions.Select(ex => new ExceptionDetails(ex, GetStackFrames(ex)));
     }
 
     private IEnumerable<StackFrameSourceCodeInfo> GetStackFrames(Exception original)
@@ -36,15 +36,16 @@ public class ExceptionDetailsProvider(IOptions<DeveloperExceptionPageOptions> op
         return stackFrames;
     }
 
-    private static IEnumerable<Exception?> FlattenAndReverseExceptionTree(Exception? ex)
+    private static List<Exception> FlattenAndReverseExceptionTree(Exception? ex)
     {
         // ReflectionTypeLoadException is special because the details are in
         // the LoaderExceptions property
         if (ex is ReflectionTypeLoadException typeLoadException)
         {
-            var typeLoadExceptions = new List<Exception?>();
+            var typeLoadExceptions = new List<Exception>();
             foreach (var loadException in typeLoadException.LoaderExceptions)
-                typeLoadExceptions.AddRange(FlattenAndReverseExceptionTree(loadException));
+                if (loadException is not null)
+                    typeLoadExceptions.AddRange(FlattenAndReverseExceptionTree(loadException));
 
             typeLoadExceptions.Add(typeLoadException);
             return typeLoadExceptions;
