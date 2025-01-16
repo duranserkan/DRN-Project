@@ -62,4 +62,17 @@ public static class DbContextConventions
 
         return attributes;
     }
+
+    public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes<TContext>(TContext context) where TContext : DbContext
+    {
+        var type = context.GetType();
+        if (AttributeCache.TryGetValue(type.Name, out var attributes))
+            return attributes;
+
+        attributes = AttributeCache.GetOrAdd(type.Name,
+            _ => type.GetCustomAttributes<NpgsqlDbContextOptionsAttribute>()
+                .OrderByDescending(attribute => attribute.FrameworkDefined).ToArray());
+
+        return attributes;
+    }
 }

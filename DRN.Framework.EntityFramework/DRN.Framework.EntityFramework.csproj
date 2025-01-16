@@ -32,7 +32,7 @@
         <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.1" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.1" PrivateAssets="none" />
         <PackageReference Include="Npgsql.DependencyInjection" Version="9.0.2" />
-        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.2" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.3" />
         <PackageReference Include="EFCore.NamingConventions" Version="9.0.0" />
     </ItemGroup>
 

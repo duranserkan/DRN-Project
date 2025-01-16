@@ -51,11 +51,10 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             scopedLog?.AddToActions($"{contextName} auto migration disabled in {environment}");
             if (hasPendingModelChanges)
                 scopedLog?.AddWarning($"{contextName} has pending model changes.");
-            
+
             return;
         }
 
-        //todo: SeedData if provided
         if (appSettings.Features.PrototypingMode)
         {
             scopedLog?.AddToActions($"checking {contextName} database in prototyping mode.");
@@ -71,6 +70,9 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
                 return;
             }
 
+            if (created)
+                await SeedData(serviceProvider, context, appSettings);
+
             scopedLog?.AddToActions(created
                 ? $"{contextName} db created for prototyping mode"
                 : $"existing {contextName} db is for prototyping mode since there is no pending changes");
@@ -82,10 +84,20 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         {
             scopedLog?.AddToActions($"{contextName} is migrating {environment}");
             await context.Database.MigrateAsync();
+
+            if (appliedMigrations.Length == 0)
+                await SeedData(serviceProvider, context, appSettings);
             scopedLog?.AddToActions($"{contextName} migrated {pendingMigrations.Length} pending migrations");
         }
 
         if (hasPendingModelChanges)
             throw new ConfigurationException($"{contextName} has pending model changes. Create migration or enable PrototypingMode in DrnAppFeatures.");
+    }
+
+    private static async Task SeedData(IServiceProvider serviceProvider, DbContext context, IAppSettings appSettings)
+    {
+        var optionsAttributes = DbContextConventions.GetContextAttributes(context);
+        foreach (var optionsAttribute in optionsAttributes)
+            await optionsAttribute.SeedAsync(serviceProvider, appSettings);
     }
 }

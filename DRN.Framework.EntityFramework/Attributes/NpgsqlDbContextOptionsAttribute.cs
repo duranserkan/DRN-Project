@@ -1,4 +1,5 @@
 using DRN.Framework.EntityFramework.Context;
+using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
@@ -39,6 +40,9 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
     public virtual void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder builder, IServiceProvider? serviceProvider) where TContext : DbContext
     {
     }
-    
-    //todo: add SeedData method
+
+    public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings)
+    {
+        return Task.CompletedTask;
+    }
 }
