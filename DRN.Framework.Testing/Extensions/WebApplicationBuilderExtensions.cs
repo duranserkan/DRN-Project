@@ -19,13 +19,13 @@ public static class WebApplicationBuilderExtensions
         if (!result.Launch)
             return result;
 
-        //todo: implement prototyping mode
         scopedLog?.AddToActions("Launching External dependencies...");
-        var postgresCollection = await PostgresContext.LaunchPostgresAsync(builder, options);
+        var postgresCollection = await PostgresContext.LaunchPostgresAsync(builder, appSettings, options);
         result.PostgresCollection = postgresCollection;
 
         scopedLog?.AddToActions("External dependencies launched");
         scopedLog?.Add(nameof(result.PostgresConnection), result.PostgresConnection);
+        scopedLog?.Add(nameof(result.PostgresPrototypeConnection), result.PostgresPrototypeConnection);
 
         return result;
     }
@@ -43,7 +43,8 @@ public class ExternalDependencyLaunchOptions
 public class ExternalDependencyLaunchResult(IAppSettings appSettings)
 {
     public PostgresCollection? PostgresCollection { get; internal set; }
-    public string PostgresConnection => PostgresCollection?.PostgresContainer.GetConnectionString() ?? "";
+    public string PostgresConnection => PostgresCollection?.PostgresContainer?.GetConnectionString() ?? "";
+    public string PostgresPrototypeConnection => PostgresCollection?.PostgresPrototypeContainer?.GetConnectionString() ?? "";
 
     /// <summary>
     /// External dependencies will be launched as test containers for development purposes when following conditions satisfied:

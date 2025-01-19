@@ -19,7 +19,7 @@ public static class DbContextConventions
     public const string DefaultHost = "postgresql";
     public const string DefaultPort = "5432";
 
-    private static readonly ConcurrentDictionary<string, NpgsqlDbContextOptionsAttribute[]> AttributeCache = new();
+    private static readonly ConcurrentDictionary<Type, NpgsqlDbContextOptionsAttribute[]> AttributeCache = new();
 
     public static DbContextOptionsBuilder UpdateDbContextOptionsBuilder<TContext>(
         DbContextOptionsBuilder? contextOptions = null, IServiceProvider? serviceProvider = null) where TContext : DbContext
@@ -50,29 +50,27 @@ public static class DbContextConventions
             attribute.ConfigureNpgsqlOptions<TContext>(optionsBuilder, serviceProvider);
     }
 
-    public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes<TContext>()
+    public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes<TContext>() => GetContextAttributes(typeof(TContext));
+
+    public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes<TContext>(TContext context) where TContext : DbContext
+        => GetContextAttributes(context.GetType());
+
+    public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes(Type contextType)
     {
-        var type = typeof(TContext);
-        if (AttributeCache.TryGetValue(type.Name, out var attributes))
+        if (AttributeCache.TryGetValue(contextType, out var attributes))
             return attributes;
 
-        attributes = AttributeCache.GetOrAdd(type.Name,
-            _ => type.GetCustomAttributes<NpgsqlDbContextOptionsAttribute>()
-                .OrderByDescending(attribute => attribute.FrameworkDefined).ToArray());
+        attributes = AttributeCache.GetOrAdd(contextType, type => type
+            .GetCustomAttributes<NpgsqlDbContextOptionsAttribute>()
+            .OrderByDescending(attribute => attribute.FrameworkDefined).ToArray());
 
         return attributes;
     }
 
-    public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes<TContext>(TContext context) where TContext : DbContext
+    public static IReadOnlyDictionary<Type, NpgsqlDbContextOptionsAttribute[]> InitializeAll(Type[] types)
     {
-        var type = context.GetType();
-        if (AttributeCache.TryGetValue(type.Name, out var attributes))
-            return attributes;
+        _ = types.Select(GetContextAttributes).ToArray();
 
-        attributes = AttributeCache.GetOrAdd(type.Name,
-            _ => type.GetCustomAttributes<NpgsqlDbContextOptionsAttribute>()
-                .OrderByDescending(attribute => attribute.FrameworkDefined).ToArray());
-
-        return attributes;
+        return AttributeCache.ToDictionary(pair => pair.Key, pair => pair.Value);
     }
 }

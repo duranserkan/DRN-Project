@@ -3,8 +3,9 @@ using Testcontainers.PostgreSql;
 
 namespace DRN.Framework.Testing.Contexts.Postgres;
 
-public class PostgresCollection(DbContextCollection DbContextCollection, PostgreSqlContainer PostgresContainer)
+public class PostgresCollection(DbContextCollection dbContextCollection, PostgreSqlContainer? postgresContainer, PostgreSqlContainer? postgresPrototypeContainer)
 {
-    public DbContextCollection DbContextCollection { get; } = DbContextCollection;
-    public PostgreSqlContainer PostgresContainer { get; } = PostgresContainer;
+    public DbContextCollection DbContextCollection { get; } = dbContextCollection;
+    public PostgreSqlContainer? PostgresContainer { get; } = postgresContainer;
+    public PostgreSqlContainer? PostgresPrototypeContainer { get; } = postgresPrototypeContainer;
 }

@@ -18,12 +18,12 @@ namespace DRN.Framework.EntityFramework.Context;
 /// <see cref="DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes"/>
 /// <br/> is called from DbContext's assembly
 /// </summary>
-[AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribute
 {
     public override void ServiceRegistration(IServiceCollection sc, Assembly? assembly)
         => sc.AddDbContextsWithConventions(assembly);
-
+    
     public override async Task PostStartupValidationAsync(object service, IServiceProvider serviceProvider, IScopedLog? scopedLog = null)
     {
         if (service is not DbContext context) return;
@@ -38,40 +38,45 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         var lastApplied = appliedMigrations.LastOrDefault() ?? "n/a";
         var lastPending = pendingMigrations.LastOrDefault() ?? "n/a";
         var hasPendingModelChanges = context.Database.HasPendingModelChanges();
+        var hasPendingMigrations = pendingMigrations.Any();
 
         scopedLog?.AddToActions($"{contextName} has {migrations.Length} migrations");
         scopedLog?.AddToActions($"{contextName} has {appliedMigrations.Length} applied migrations. Last applied: {lastApplied}");
         scopedLog?.AddToActions($"{contextName} has {pendingMigrations.Length} pending migrations. Last pending: {lastPending}");
-        scopedLog?.AddToActions($"{contextName} has {migrations.Length} migrations");
+        scopedLog?.AddToActions($"{contextName} has {migrations.Length} total migrations");
         scopedLog?.AddToActions($"{contextName} has has pending model changes");
 
         var migrate = appSettings is { IsDevEnvironment: true, Features.AutoMigrateDevEnvironment: true };
         if (!migrate)
         {
             scopedLog?.AddToActions($"{contextName} auto migration disabled in {environment}");
-            if (hasPendingModelChanges)
-                scopedLog?.AddWarning($"{contextName} has pending model changes.");
 
             return;
         }
 
-        if (appSettings.Features.PrototypingMode)
+        if (!hasPendingModelChanges && !hasPendingMigrations)
+            return;
+
+        var optionsAttributes = DbContextConventions.GetContextAttributes(context);
+        var usePrototypeModeWhenMigrationExists = optionsAttributes.Any(a => a.UsePrototypeModeWhenMigrationExists);
+        if (appSettings.Features.PrototypingMode && (migrations.Length == 0 || usePrototypeModeWhenMigrationExists))
         {
             scopedLog?.AddToActions($"checking {contextName} database in prototyping mode.");
 
             var created = await context.Database.EnsureCreatedAsync();
-            if (!created && hasPendingModelChanges)
+            if (!created && (hasPendingModelChanges || hasPendingMigrations))
             {
                 scopedLog?.AddToActions($"{contextName} db will be recreated for pending model changes.");
                 await context.Database.EnsureDeletedAsync();
                 await context.Database.EnsureCreatedAsync();
+                await SeedData(context, serviceProvider, appSettings);
                 scopedLog?.AddToActions($"{contextName} db recreated for pending model changes.");
 
                 return;
             }
 
             if (created)
-                await SeedData(serviceProvider, context, appSettings);
+                await SeedData(context, serviceProvider, appSettings);
 
             scopedLog?.AddToActions(created
                 ? $"{contextName} db created for prototyping mode"
@@ -86,7 +91,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             await context.Database.MigrateAsync();
 
             if (appliedMigrations.Length == 0)
-                await SeedData(serviceProvider, context, appSettings);
+                await SeedData(context, serviceProvider, appSettings);
             scopedLog?.AddToActions($"{contextName} migrated {pendingMigrations.Length} pending migrations");
         }
 
@@ -94,7 +99,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             throw new ConfigurationException($"{contextName} has pending model changes. Create migration or enable PrototypingMode in DrnAppFeatures.");
     }
 
-    private static async Task SeedData(IServiceProvider serviceProvider, DbContext context, IAppSettings appSettings)
+    private static async Task SeedData(DbContext context, IServiceProvider serviceProvider, IAppSettings appSettings)
     {
         var optionsAttributes = DbContextConventions.GetContextAttributes(context);
         foreach (var optionsAttribute in optionsAttributes)

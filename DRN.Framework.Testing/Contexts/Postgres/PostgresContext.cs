@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
+using ConfigurationException = DRN.Framework.SharedKernel.ConfigurationException;
 
 namespace DRN.Framework.Testing.Contexts.Postgres;
 
@@ -40,6 +41,7 @@ public class PostgresContext(TestContext testContext)
         if (settings.HasPassword) builder = builder.WithPassword(settings.Password);
         if (settings.HasValidHostPort) builder = builder.WithPortBinding(settings.HostPort, containerPort);
         if (settings.Reuse) builder = builder.WithReuse(true);
+        if (settings.HasContainerName) builder = builder.WithName(settings.ContainerName);
 
         var container = builder.Build();
 
@@ -92,7 +94,10 @@ public class PostgresContext(TestContext testContext)
 
     public static DbContext[] SetConnectionStrings(TestContext testContext, PostgreSqlContainer container)
     {
-        var dbContextCollection = GetDbContextCollection(testContext.ServiceCollection, container);
+        var dbContextCollection = GetDbContextCollection(testContext.ServiceCollection);
+        foreach (var descriptor in dbContextCollection.ServiceDescriptors)
+            dbContextCollection.ConnectionStrings.Upsert(descriptor.Key, container.GetConnectionString());
+
         testContext.AddToConfiguration(dbContextCollection.ConnectionStrings);
 
         var empty = !dbContextCollection.Any;
@@ -104,7 +109,8 @@ public class PostgresContext(TestContext testContext)
         return dbContexts;
     }
 
-    public static DbContextCollection GetDbContextCollection(IServiceCollection serviceCollection, PostgreSqlContainer container)
+
+    public static DbContextCollection GetDbContextCollection(IServiceCollection serviceCollection)
     {
         var dbContextCollection = new DbContextCollection();
         var descriptors = serviceCollection.GetAllAssignableTo<DbContext>()
@@ -112,23 +118,60 @@ public class PostgresContext(TestContext testContext)
             .ToArray();
 
         foreach (var descriptor in descriptors)
-        {
-            var contextName = descriptor.ServiceType.Name;
-            dbContextCollection.ConnectionStrings.Upsert(contextName, container.GetConnectionString());
-            dbContextCollection.ServiceDescriptors[contextName] = descriptor;
-        }
+            dbContextCollection.ServiceDescriptors[descriptor.ServiceType.Name] = descriptor;
 
         return dbContextCollection;
     }
 
-    internal static async Task<PostgresCollection> LaunchPostgresAsync(WebApplicationBuilder applicationBuilder,  ExternalDependencyLaunchOptions options)
+    internal static async Task<PostgresCollection> LaunchPostgresAsync(WebApplicationBuilder applicationBuilder, IAppSettings appSettings, ExternalDependencyLaunchOptions options)
     {
-        var postgresContainer = BuildContainer(options.PostgresContainerSettings);
-        await postgresContainer.StartAsync();
+        var dbContextCollection = GetDbContextCollection(applicationBuilder.Services);
+        var dbContextTypes = dbContextCollection.ServiceDescriptors.Select(d => d.Value.ServiceType).ToArray();
+        ValidatePrototypeModeUsage(dbContextTypes);
 
-        var dbContextCollection = GetDbContextCollection(applicationBuilder.Services, postgresContainer);
+        PostgreSqlContainer? container = null;
+        PostgreSqlContainer? prototypeContainer = null;
+        options.PostgresContainerSettings.ContainerName = $"{appSettings.ApplicationName} DevelopDB".ToSnakeCase();
+        foreach (var descriptor in dbContextCollection.ServiceDescriptors)
+        {
+            var optionsAttributes = DbContextConventions.GetContextAttributes(descriptor.Value.ServiceType);
+            if (optionsAttributes.Any(x => x.UsePrototypeMode)) //prototype dbcontext uses separete throw away database
+            {
+                var prototypeContainerSettings = options.PostgresContainerSettings.Clone(options.PostgresContainerSettings.HostPort + 1);
+                prototypeContainerSettings.ContainerName = $"{prototypeContainerSettings.ContainerName} Prototype".ToSnakeCase();
+
+                prototypeContainer = BuildContainer(prototypeContainerSettings);
+                await prototypeContainer.StartAsync();
+
+                dbContextCollection.ConnectionStrings.Upsert(descriptor.Key, prototypeContainer.GetConnectionString());
+                continue;
+            }
+
+            if (container == null)
+            {
+                container = BuildContainer(options.PostgresContainerSettings); //develop dbcontexts use shared database
+                await container.StartAsync();
+            }
+
+            dbContextCollection.ConnectionStrings.Upsert(descriptor.Key, container.GetConnectionString());
+        }
+
         applicationBuilder.Configuration.AddObjectToJsonConfiguration(dbContextCollection.ConnectionStrings);
 
-        return new PostgresCollection(dbContextCollection, postgresContainer);
+        return new PostgresCollection(dbContextCollection, container, prototypeContainer);
+    }
+
+    private static void ValidatePrototypeModeUsage(Type[] dbContextTypes)
+    {
+        var typeAttributeDictionary = DbContextConventions.InitializeAll(dbContextTypes);
+        var prototypeDbContextTypes = typeAttributeDictionary
+            .Where(pair => pair.Value.Any(attribute => attribute.UsePrototypeMode))
+            .Select(pair => pair.Key).ToArray();
+
+        if (prototypeDbContextTypes.Length > 1)
+        {
+            var prototypeContextNames = string.Join(' ', prototypeDbContextTypes.Select(t => t.Name));
+            throw new ConfigurationException($"PrototypeModeUse count cannot be more than 1. Following DbContexts' use PrototypeMode: {prototypeContextNames}");
+        }
     }
 }

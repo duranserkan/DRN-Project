@@ -5,7 +5,7 @@ namespace DRN.Framework.Testing.Contexts.Postgres;
 public class PostgresContainerSettings
 {
     public static string DefaultImage { get; set; } = "postgres";
-    public static string DefaultVersion { get; set; } = "17.2-alpine3.20";
+    public static string DefaultVersion { get; set; } = "17.2-alpine3.21";
     public static string DefaultPassword { get; set; } = "postgres";
 
     public string? Image { get; init; } = DefaultImage;
@@ -25,6 +25,10 @@ public class PostgresContainerSettings
 
     public bool Reuse { get; init; }
 
+    public string ContainerName { get; set; } = string.Empty;
+
+    public bool HasContainerName => !string.IsNullOrWhiteSpace(ContainerName);
+
     public string GetImageTag()
     {
         var image = Image ?? DefaultImage;
@@ -32,4 +36,17 @@ public class PostgresContainerSettings
 
         return $"{image}:{version}";
     }
+
+    public PostgresContainerSettings Clone(int? hostPort = null) =>
+        new()
+        {
+            Image = Image,
+            Version = Version,
+            Database = Database,
+            Username = Username,
+            Password = Password,
+            HostPort = hostPort ?? HostPort,
+            Reuse = Reuse,
+            ContainerName = ContainerName
+        };
 }
