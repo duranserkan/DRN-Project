@@ -23,7 +23,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
 {
     public override void ServiceRegistration(IServiceCollection sc, Assembly? assembly)
         => sc.AddDbContextsWithConventions(assembly);
-    
+
     public override async Task PostStartupValidationAsync(object service, IServiceProvider serviceProvider, IScopedLog? scopedLog = null)
     {
         if (service is not DbContext context) return;
@@ -38,7 +38,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         var lastApplied = appliedMigrations.LastOrDefault() ?? "n/a";
         var lastPending = pendingMigrations.LastOrDefault() ?? "n/a";
         var hasPendingModelChanges = context.Database.HasPendingModelChanges();
-        var hasPendingMigrations = pendingMigrations.Any();
+        var hasPendingMigrations = pendingMigrations.Length > 0;
 
         scopedLog?.AddToActions($"{contextName} has {migrations.Length} migrations");
         scopedLog?.AddToActions($"{contextName} has {appliedMigrations.Length} applied migrations. Last applied: {lastApplied}");
@@ -50,7 +50,6 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         if (!migrate)
         {
             scopedLog?.AddToActions($"{contextName} auto migration disabled in {environment}");
-
             return;
         }
 
@@ -64,7 +63,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             scopedLog?.AddToActions($"checking {contextName} database in prototyping mode.");
 
             var created = await context.Database.EnsureCreatedAsync();
-            if (!created && (hasPendingModelChanges || hasPendingMigrations))
+            if (!created)
             {
                 scopedLog?.AddToActions($"{contextName} db will be recreated for pending model changes.");
                 await context.Database.EnsureDeletedAsync();
@@ -74,9 +73,8 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
 
                 return;
             }
-
-            if (created)
-                await SeedData(context, serviceProvider, appSettings);
+            
+            await SeedData(context, serviceProvider, appSettings);
 
             scopedLog?.AddToActions(created
                 ? $"{contextName} db created for prototyping mode"
