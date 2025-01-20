@@ -149,7 +149,7 @@ public class PostgresContext(TestContext testContext)
 
             if (container == null)
             {
-                container = BuildContainer(options.PostgresContainerSettings); //develop dbcontexts use shared database
+                container = BuildContainer(options.PostgresContainerSettings); //development environment dbcontexts use shared database
                 await container.StartAsync();
             }
 

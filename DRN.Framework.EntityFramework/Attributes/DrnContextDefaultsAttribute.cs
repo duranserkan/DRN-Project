@@ -3,8 +3,6 @@ using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -35,12 +33,10 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
 
     public override void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder builder, IServiceProvider? serviceProvider)
     {
+        base.ConfigureDbContextOptions<TContext>(builder, serviceProvider);
         // Each integration test will create its own internal service provider
         if (TestEnvironment.TestContextEnabled)
-            builder.ConfigureWarnings(warnings =>
-            {
-
-            });
+            builder.ConfigureWarnings(warnings => { });
 
         var scopedLog = serviceProvider?.GetRequiredService<IScopedLog>();
         builder

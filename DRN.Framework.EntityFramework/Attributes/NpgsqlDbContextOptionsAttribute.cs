@@ -1,12 +1,13 @@
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
 namespace DRN.Framework.EntityFramework.Attributes;
 
-[AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public abstract class NpgsqlDbContextOptionsAttribute : Attribute
 {
     internal bool FrameworkDefined = false;
@@ -39,6 +40,8 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
     /// <typeparam name="TContext">The context registered with DrnContextServiceRegistrationAttribute</typeparam>
     public virtual void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder builder, IServiceProvider? serviceProvider) where TContext : DbContext
     {
+        if (UsePrototypeMode)
+            builder.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
     }
 
     public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings) => Task.CompletedTask;

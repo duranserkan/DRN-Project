@@ -5,7 +5,7 @@ namespace DRN.Framework.Testing.DataAttributes;
 /// Also, if test context is added as first parameter it automatically creates an instance and provides
 ///<b>This attribute can provide Complex Types that can not be provided by DataInline attributes</b>
 /// </summary>
-[AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 public class DataMemberAttribute(string methodName, params object[] methodParams) : MemberDataAttributeBase(methodName, methodParams)
 {
     /// <inheritdoc />
