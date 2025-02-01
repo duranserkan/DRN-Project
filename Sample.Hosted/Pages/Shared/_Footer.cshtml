@@ -6,11 +6,11 @@
 
 <footer class="border-top footer text-muted mt-auto ">
     <div class="container bg-light d-flex justify-content-between align-items-center py-1">
-        <div id="FooterLeft">
+        <section id="FooterLeft">
             &copy @DateTime.Now.Year - @ScopeContext.Settings.ApplicationName
-        </div>
-        <div id="FooterMiddle">
-            <div id="footerNavbar" class="d-none align-items-center">
+        </section>
+        <section id="FooterMiddle">
+            <nav id="footerNavbar" class="d-none align-items-center">
                 <ul class="nav">
                     <li class="nav-item">
                         <a class="nav-link py-0" href="#">Privacy</a>
@@ -28,7 +28,7 @@
                         <a class="nav-link py-0" href="#">FAQ</a>
                     </li>
                 </ul>
-            </div>
+            </nav>
             <div id="preferenceCookieAlert" class="d-none align-items-center" role="alert">
                 <span class="me-3">We use cookies to enhance your experience. <a href="/Privacy" class="alert-link">Learn more</a>.</span>
                 <button type="button" class="btn btn-primary btn-sm accept-policy me-2" aria-label="Accept" id="acceptPreferencesCookieBtn">
@@ -38,8 +38,8 @@
                     Reject
                 </button>
             </div>
-        </div>
-        <div id="FooterRight">
+        </section>
+        <section id="FooterRight">
             <div id="preferenceManagementContainer" class="d-flex align-items-center">
                 <div class="dropup">
                     <!-- Main button for opening the cookie manager dropdown -->
@@ -79,7 +79,7 @@
                     </ul>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 </footer>
 

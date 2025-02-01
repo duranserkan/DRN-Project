@@ -3,8 +3,8 @@
     var actionCount = SidebarActionCollection.DefaultItems.Count;
 }
 
-<div class="d-flex p-1 bg-body-tertiary">
-    <div class="d-flex flex-column align-items-center" style="width: 4.5rem;">
+<aside class="d-flex p-1 bg-body-tertiary">
+    <nav class="d-flex flex-column align-items-center" style="width: 4.5rem;">
         <ul id="ActionbarActionList" class="nav nav-pills nav-flush flex-column mb-auto">
             @foreach (var navItem in SidebarActionCollection.DefaultItems)
             {
@@ -32,15 +32,15 @@
                 </li>
             }
         </ul>
-    </div>
-</div>
+    </nav>
+</aside>
 
 @foreach (var navItem in SidebarActionCollection.DefaultItems)
 {
     var canvasId = $"offCanvasSidebarAction{navItem.Id}";
     var canvasLabelId = $"offCanvasSidebarActionLabel{navItem.Id}";
     var partialName = $"_SidebarActionbarItem{navItem.Id}";
-    <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="@canvasId" aria-labelledby="@canvasLabelId">
+    <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="@canvasId" aria-modal="true" aria-labelledby="@canvasLabelId">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="@canvasLabelId">@navItem.Title</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>

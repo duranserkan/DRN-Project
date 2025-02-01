@@ -5,6 +5,7 @@
 
 @if (subNavigation?.Items.Count > 0)
 {
+    <nav>
         <ul class="nav nav-tabs @justifyContentCenter">
             @foreach (var navItem in subNavigation.Items)
             {
@@ -17,7 +18,8 @@
                     </a>
                 </li>
             }
-        </ul>
+        </ul> 
+    </nav>
 }
 
 

@@ -11,8 +11,8 @@
     var navigationCount = DefaultSidebarNavigationCollection.DefaultItems.Count;
 }
 
-<div class="d-flex p-1 bg-body-tertiary">
-    <div class="d-flex flex-column align-items-center" style="@sideBarWidth">
+<aside class="d-flex p-1 bg-body-tertiary">
+    <nav class="d-flex flex-column align-items-center" style="@sideBarWidth">
         <ul class="nav nav-pills nav-flush flex-column mb-auto">
             @foreach (var navItem in DefaultSidebarNavigationCollection.DefaultItems)
             {
@@ -34,11 +34,11 @@
         <ul id="SidebarSettings" class="nav nav-pills nav-flush flex-column">
             <li id="SidebarSettingsItem" class="nav-item">
                 <div class="dropup" title="@settingsTitle" data-bs-toggle="tooltip" data-bs-placement="right">
-                    <a class="btn nav-link d-flex align-items-center link-body-emphasis text-decoration-none dropdown-toggle p-2 border-top rounded-0"
+                    <a id="SidebarSettingsToggle" class="btn nav-link d-flex align-items-center link-body-emphasis text-decoration-none dropdown-toggle p-2 border-top rounded-0"
                        data-bs-toggle="dropdown" aria-expanded="false">
                         <span class="bi bi-gear-fill" style="font-size: 1.25rem;">@settingsText</span>
                     </a>
-                    <ul class="dropdown-menu text-small shadow">
+                    <ul class="dropdown-menu text-small shadow" aria-labelledby="SidebarSettingsToggle">
                         <li><a class="dropdown-item" href="#">New project...</a></li>
                         <li><a class="dropdown-item" href="#">Advanced</a></li>
                         <li><a class="dropdown-item" href="@PageFor.UserProfile.Details">My Profile</a></li>
@@ -50,8 +50,8 @@
                 </div>
             </li>
         </ul>
-    </div>
-</div>
+    </nav>
+</aside>
 
 @*
 https://getbootstrap.com/docs/5.3/examples/
