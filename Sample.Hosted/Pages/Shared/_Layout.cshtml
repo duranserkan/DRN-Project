@@ -24,7 +24,7 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
     <link rel="stylesheet" href="~/css/sidebars.css?v=@DateTime.Now.Ticks">
     <script src="~/js/site.js?v=@DateTime.Now.Ticks"></script>
 </head>
-<body class="d-flex flex-column min-vh-100 bg-secondary-subtle">
+<body class="d-flex flex-column min-vh-100 bg-secondary-subtle" hx-boost="true">
 
 @await Html.PartialAsync("_Navbar")
 
@@ -87,8 +87,9 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
 <script crossorigin="anonymous" referrerpolicy="no-referrer"
         src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/4.0.0/jquery.validate.unobtrusive.min.js"
         integrity="sha512-xq+Vm8jC94ynOikewaQXMEkJIOBp7iArs3IhFWSWdRT3Pq8wFz46p+ZDFAR7kHnSFf+zUv52B3prRYnbDRdgog=="></script>
-
-
+<script crossorigin="anonymous" referrerpolicy="no-referrer"
+        src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js" 
+        integrity="sha256-4gndpcgjVHnzFm3vx3UOHbzVpcGAi3eS/C5nM3aPtEc=" ></script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
