@@ -6,10 +6,10 @@
 
 <footer class="border-top footer text-muted mt-auto ">
     <div class="container bg-light d-flex justify-content-between align-items-center py-1">
-        <section id="FooterLeft">
-            &copy @DateTime.Now.Year - @ScopeContext.Settings.ApplicationName
-        </section>
-        <section id="FooterMiddle">
+        <div id="FooterLeft">
+            &copy; @DateTime.Now.Year - @ScopeContext.Settings.ApplicationName
+        </div>
+        <div id="FooterMiddle">
             <nav id="footerNavbar" class="d-none align-items-center">
                 <ul class="nav">
                     <li class="nav-item">
@@ -38,8 +38,8 @@
                     Reject
                 </button>
             </div>
-        </section>
-        <section id="FooterRight">
+        </div>
+        <div id="FooterRight">
             <div id="preferenceManagementContainer" class="d-flex align-items-center">
                 <div class="dropup">
                     <!-- Main button for opening the cookie manager dropdown -->
@@ -79,7 +79,7 @@
                     </ul>
                 </div>
             </div>
-        </section>
+        </div>
     </div>
 </footer>
 

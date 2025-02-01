@@ -14,7 +14,7 @@
                     <div title="@navItem.Title" data-bs-toggle="tooltip" data-bs-placement="left">
                         <button class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0" type="button"
                                 data-bs-toggle="offcanvas" data-bs-target="@canvasId">
-                            <div class="position-relative">
+                            <span class="position-relative">
                                 <i class="bi @navItem.Icon" style="font-size: 1.25em;" role="img" aria-label="@navItem.Title"></i>
                                 @if (!string.IsNullOrWhiteSpace(navItem.BadgeContent))
                                 {
@@ -26,7 +26,7 @@
                                         }
                                     </span>
                                 }
-                            </div>
+                            </span>
                         </button>
                     </div>
                 </li>
@@ -40,7 +40,7 @@
     var canvasId = $"offCanvasSidebarAction{navItem.Id}";
     var canvasLabelId = $"offCanvasSidebarActionLabel{navItem.Id}";
     var partialName = $"_SidebarActionbarItem{navItem.Id}";
-    <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="@canvasId" aria-modal="true" aria-labelledby="@canvasLabelId">
+    <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="@canvasId" role="dialog" aria-modal="true" aria-labelledby="@canvasLabelId">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="@canvasLabelId">@navItem.Title</h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
