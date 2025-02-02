@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Consent;
@@ -5,6 +6,7 @@ using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.SharedKernel.Json;
+using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Common;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
@@ -17,6 +19,7 @@ using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -128,7 +131,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             kestrelServerOptions.AddServerHeader = false;
             kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel"));
         });
-        
+
         applicationBuilder.WebHost.UseStaticWebAssets();
 
         var services = applicationBuilder.Services;
@@ -149,6 +152,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         services.AddAuthorization(ConfigureAuthorizationOptions);
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
+        services.Configure<SecurityStampValidatorOptions>(ConfigureSecurityStampValidatorOptions(appSettings));
         services.Configure<CookiePolicyOptions>(GetConfigureCookiePolicy(appSettings));
         services.Configure<CookieTempDataProviderOptions>(GetConfigureCookieTempDataProvider(appSettings));
         services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
@@ -302,7 +306,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         options.HttpOnly = HttpOnlyPolicy.None; //Ensures cookies are accessible via JavaScript, use with strict csp
         options.MinimumSameSitePolicy = SameSiteMode.Strict;
         options.Secure = CookieSecurePolicy.SameAsRequest;
-        
+
         options.ConsentCookieValue = Base64Utils.UrlSafeBase64Encode(ConsentCookie.DefaultValue);
         //default cookie name(.AspNet.Consent) exposes server
         options.ConsentCookie.Name = $".{appSettings.ApplicationName.Replace(' ', '.')}.CookieConsent";
@@ -315,6 +319,32 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         options.Cookie.HttpOnly = true;
         options.Cookie.IsEssential = true;
     }
+
+    /// <summary>
+    ///  https://github.com/dotnet/aspnetcore/issues/44666
+    /// </summary>
+    protected virtual Action<SecurityStampValidatorOptions> ConfigureSecurityStampValidatorOptions(IAppSettings appSettings) =>
+        options =>
+        {
+            options.OnRefreshingPrincipal = context =>
+            {
+                var currentIdentity = (ClaimsIdentity?)context.CurrentPrincipal?.Identity;
+                var newIdentity = (ClaimsIdentity?)context.NewPrincipal?.Identity;
+
+                if (currentIdentity == null || newIdentity == null)
+                    return Task.CompletedTask;
+
+                var amrClaim = currentIdentity.FindFirst(ClaimConventions.AuthenticationMethodReference);
+                if (amrClaim == null) return Task.CompletedTask;
+
+                var existingAmrClaim = newIdentity.FindFirst(ClaimConventions.AuthenticationMethodReference);
+                if (existingAmrClaim != null && amrClaim.Value == existingAmrClaim.Value)
+                    return Task.CompletedTask;
+
+                newIdentity.AddClaim(new Claim(amrClaim.Type, amrClaim.Value));
+                return Task.CompletedTask;
+            };
+        };
 
     protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
     {

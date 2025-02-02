@@ -25,7 +25,7 @@ public class PageAnchorTagHelper : TagHelper
             return;
 
         output.Attributes.SetAttribute("aria-current", "page");
-        if (MarkWhenActive)
+        if (MarkWhenActive) //todo make active style customizable
         {
             var existingClass = output.Attributes["class"]?.Value?.ToString() ?? string.Empty;
             output.Attributes.SetAttribute("class", $"{existingClass} active fw-bold".Trim());

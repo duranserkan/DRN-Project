@@ -26,7 +26,7 @@ public class ProfilePictureTagHelper : TagHelper
             output.Attributes.SetAttribute("class", Class);
 
         if (string.IsNullOrWhiteSpace(Style))
-            Style = "border: 2px solid #ddd; border-radius: 2px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);";
+            Style = "border: 0.2rem solid #ddd; border-radius: 2px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);";
 
         output.Attributes.SetAttribute("style", Style);
     }

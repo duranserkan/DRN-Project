@@ -20,8 +20,8 @@
                 var titleAsTooltip = isSlim ? navItem.Title : string.Empty;
                 var borderBottom = ++index == navigationCount ? "border-bottom" : "";
                 <li class="nav-item">
-                    <a href="@navItem.Href" active-page="@navItem.Href"
-                       class="nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0"
+                    <a href="@navItem.Href"
+                       class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0"
                        title="@titleAsTooltip" data-bs-toggle="tooltip" data-bs-placement="right">
                         <i class="bi @navItem.Icon @iconStyle" style="font-size: 1.25rem;"
                            role="img" aria-label="@navItem.Title">
