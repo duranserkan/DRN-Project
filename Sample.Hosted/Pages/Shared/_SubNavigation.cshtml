@@ -10,7 +10,7 @@
             @foreach (var navItem in subNavigation.Items)
             {
                 <li class="nav-item">
-                    <a href="@navItem.Href" active-page="@navItem.Href" aria-current="page"
+                    <a href="@navItem.Href"
                        class="nav-link link-dark d-flex align-items-center pb-2 mt-1 rounded-0">
                         <i class="bi @(navItem.Icon??"bi-file-earmark") me-2" style="font-size: 1.25rem;"
                            role="img" aria-label="@navItem.Title">

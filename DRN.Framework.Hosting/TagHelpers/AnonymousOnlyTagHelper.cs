@@ -1,7 +1,7 @@
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 
-namespace Sample.Hosted.TagHelpers;
+namespace DRN.Framework.Hosting.TagHelpers;
 
 [HtmlTargetElement("*", Attributes = "anonymous-only")]
 public class AnonymousOnlyTagHelper : TagHelper

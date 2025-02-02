@@ -2,7 +2,7 @@
 
 <header class="navbar navbar-expand-lg container bg-primary" data-bs-theme="dark">
     <div class="container-fluid">
-        <a class="navbar-brand d-flex align-items-center link-body-emphasis text-decoration-none" href="@PageFor.Root.Home">
+        <a class="navbar-brand d-flex align-items-center link-body-emphasis text-decoration-none" href="@PageFor.Root.Home" mark-when-active="false">
             <i class="bi bi-bootstrap-reboot me-2" style="font-size: 1.5rem; "></i>@ScopeContext.Settings.ApplicationName
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -11,11 +11,11 @@
         <nav class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link" aria-current="page" active-page="@PageFor.Root.Home" href="@PageFor.Root.Home">Home</a>
+                    <a class="nav-link" href="@PageFor.Root.Home">Home</a>
                 </li>
                 <environment include="@AppEnvironment.Development.ToString()">
                     <li class="nav-item">
-                        <a class="nav-link" authorized-only aria-current="page" href="@PageFor.Root.Swagger" target="_blank">Swagger</a>
+                        <a class="nav-link" authorized-only href="@PageFor.Root.Swagger" target="_blank">Swagger</a>
                     </li>
                 </environment>
                 <!-- Add more links here if needed -->

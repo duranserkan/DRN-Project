@@ -1,7 +1,7 @@
 using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 
-namespace Sample.Hosted.TagHelpers;
+namespace DRN.Framework.Hosting.TagHelpers;
 
 [HtmlTargetElement("*", Attributes = "authorized-only")]
 public class AuthorizedOnlyTagHelper : TagHelper

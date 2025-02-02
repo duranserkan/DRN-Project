@@ -9,6 +9,8 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="DRN App">
+    <meta name="author" content="Duran Serkan KILIÇ">
     <title>@ViewData[ViewDataFor.Title] - @ScopeContext.Settings.ApplicationName</title>
 
     @*https://icons.getbootstrap.com/#usage*@
@@ -24,7 +26,7 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
     <link rel="stylesheet" href="~/css/sidebars.css?v=@DateTime.Now.Ticks">
     <script src="~/js/site.js?v=@DateTime.Now.Ticks"></script>
 </head>
-<body class="d-flex flex-column min-vh-100 bg-secondary-subtle" hx-boost="true">
+<body class="d-flex flex-column min-vh-100 bg-secondary-subtle" hx-boost="false">
 
 @await Html.PartialAsync("_Navbar")
 
