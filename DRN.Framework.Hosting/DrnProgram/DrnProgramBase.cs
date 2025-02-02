@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -298,8 +299,11 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         //https://learn.microsoft.com/en-us/aspnet/core/security/gdpr
         options.HttpOnly = HttpOnlyPolicy.None; //Ensures cookies are accessible via JavaScript, use with strict csp
+        options.MinimumSameSitePolicy = SameSiteMode.Strict;
+        options.Secure = CookieSecurePolicy.SameAsRequest;
+        
         options.ConsentCookieValue = Base64Utils.UrlSafeBase64Encode(ConsentCookie.DefaultValue);
-        ////default cookie name(.AspNet.Consent) exposes server
+        //default cookie name(.AspNet.Consent) exposes server
         options.ConsentCookie.Name = $".{appSettings.ApplicationName.Replace(' ', '.')}.CookieConsent";
         options.CheckConsentNeeded = context => true; //user consent for non-essential cookies is needed for a given request.
     }
