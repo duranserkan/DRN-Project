@@ -26,4 +26,6 @@ public class ScopeData
         => _parameters[key] = stringValue.TryParse<TValue>(out var result) ? result! : defaultValue;
 
     public void SetParameter<TValue>(string key, TValue value) => _parameters[key] = value;
+    
+    //todo: GetOrSet values from Headers, QueryString, Form, Cookie, Path, Items, tempdata etc... (Manage or Unify)
 }
