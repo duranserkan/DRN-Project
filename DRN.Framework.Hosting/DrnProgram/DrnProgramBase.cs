@@ -142,6 +142,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             return new EndpointAccessor(endpointHelper, endpoints, apiEndpoints, pageEndpoints, typeof(TProgram));
         });
 
+        services.AddResponseCaching();
         var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
         ConfigureMvcBuilder(mvcBuilder, appSettings);
 
@@ -319,7 +320,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         application.UseCookiePolicy();
         application.UseSecurityHeaders();
-
         if (appSettings.Features.UseHttpRequestLogger)
             application.UseMiddleware<HttpRequestLogger>();
     }
@@ -328,6 +328,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         application.UseHostFiltering();
         application.UseForwardedHeaders();
+        application.UseResponseCaching();
     }
 
     protected virtual void ConfigureApplicationPreAuthentication(WebApplication application, IAppSettings appSettings)

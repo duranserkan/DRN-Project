@@ -57,6 +57,12 @@ public class HttpScopeMiddleware(RequestDelegate next)
         finally
         {
             logger.LogScoped(scopedLog);
+            if (!context.Response.Headers.ContainsKey("Cache-Control")) // Add headers to prevent caching
+            {
+                context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+                context.Response.Headers.Pragma = "no-cache";
+                context.Response.Headers.Expires = "0";
+            }
         }
     }
 
