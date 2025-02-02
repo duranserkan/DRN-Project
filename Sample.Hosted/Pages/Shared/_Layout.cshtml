@@ -12,7 +12,7 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
     <meta name="description" content="DRN App">
     <meta name="author" content="Duran Serkan KILIÇ">
     <title>@ViewData[ViewDataFor.Title] - @ScopeContext.Settings.ApplicationName</title>
-
+    
     @*https://icons.getbootstrap.com/#usage*@
     <link rel="icon" type="image/x-icon" href="/images/100.jpeg">
     <link rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer"
@@ -25,6 +25,11 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
     <link rel="stylesheet" href="~/css/site.css?v=@DateTime.Now.Ticks">
     <link rel="stylesheet" href="~/css/sidebars.css?v=@DateTime.Now.Ticks">
     <script src="~/js/site.js?v=@DateTime.Now.Ticks"></script>
+
+    @{
+        var canonicalUrl = Context.Request.Scheme + "://" + Context.Request.Host + Context.Request.Path;
+    }
+    <link rel="canonical" href="@canonicalUrl" />
 </head>
 <body class="d-flex flex-column min-vh-100 bg-secondary-subtle" hx-boost="false">
 
