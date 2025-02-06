@@ -1,11 +1,3 @@
-document.addEventListener('DOMContentLoaded', () => {
-  'use strict';
-  const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-  tooltipTriggerList.forEach(tooltipTriggerEl => {
-    new bootstrap.Tooltip(tooltipTriggerEl);
-  });
-});
-
 function urlSafeBase64Encode(str) {
   // Base64 encode the string
   const base64 = btoa(str);
@@ -29,4 +21,6 @@ function urlSafeBase64Decode(str) {
   return atob(base64);
 }
 
-const checkCookieExists = (cookieName) => document.cookie.split('; ').some(cookie => cookie.startsWith(`${cookieName}=`));
+function checkCookieExists (cookieName) {
+  document.cookie.split('; ').some(cookie => cookie.startsWith(`${cookieName}=`));
+} 

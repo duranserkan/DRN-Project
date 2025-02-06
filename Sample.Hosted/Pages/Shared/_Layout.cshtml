@@ -1,76 +1,69 @@
-@using DRN.Framework.Hosting.TagHelpers
-<!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
-@*
-https://getbootstrap.com/docs/5.3/customize/color-modes/
-https://getbootstrap.com/docs/5.3/examples/
-https://getbootstrap.com/docs/5.3/examples/sidebars/
-*@
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="DRN App">
-    <meta name="author" content="Duran Serkan KILIÇ">
-    <title>@ViewData[ViewDataFor.Title] - @ScopeContext.Settings.ApplicationName</title>
-    
-    @*https://icons.getbootstrap.com/#usage*@
-    @*todo: bootstrap customizations https://getbootstrap.com/docs/5.3/customize/overview/*@
-    <link rel="icon" type="image/x-icon" href="/images/100.jpeg">
-    <link rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer"
-          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH">
-    <link rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer"
-          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-          integrity="sha256-9kPW/n5nn53j4WMRYAxe9c1rCY96Oogo/MKSVdKzPmI=">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="~/css/site.css?v=@DateTime.Now.Ticks">
-    <link rel="stylesheet" href="~/css/sidebars.css?v=@DateTime.Now.Ticks">
-    <script src="~/js/site.js?v=@DateTime.Now.Ticks"></script>
+@{
+    var headers = Context.Request.Headers;
+    var isHtmxRequest = headers.ContainsKey("HX-Request") && headers["HX-Request"] == "true";
 
-    @{
-        var canonicalUrl = Context.Request.Scheme + "://" + Context.Request.Host + Context.Request.Path;
-    }
-    <link rel="canonical" href="@canonicalUrl" />
-</head>
-<body class="d-flex flex-column min-vh-100 bg-secondary-subtle" hx-boost="false">
+    Layout = "_LayoutBase";
+    if (isHtmxRequest) 
+        Layout = "_LayoutBaseHtmx";
 
-@await Html.PartialAsync("_Navbar")
+    var centerVertically = ViewData.TryGetValue(ViewDataFor.CenterVertically, out var flexColumnValue) && flexColumnValue is true;
+    var statusMessage = TempData[TempDataFor.StatusMessage] as string;
+}
 
-<div class="container d-flex flex-grow-1 p-0 bg-body bg-gradient">
+<partial name="_Navbar"/>
+
+<div class="container d-flex flex-grow-1 p-0 bg-body bg-gradient" style="overflow: hidden; box-sizing: border-box; ">
     @if (ScopeContext.MFACompleted)
     {
         <partial name="_Sidebar"/>
     }
-    
-    <div class="d-flex flex-column flex-grow-1">
+
+    <div class="d-flex flex-column flex-grow-1" style="overflow-y: hidden;">
         @if (ScopeContext.MFACompleted)
         {
             <partial name="_SubNavigation"/>
         }
-        
         <aside>
             @await RenderSectionAsync("MainTop", required: false)
         </aside>
-        
-        @{
-            var centerVertically = ViewData.TryGetValue(ViewDataFor.CenterVertically, out var flexColumnValue) && flexColumnValue is true;
-            var statusMessage = TempData[TempDataFor.StatusMessage] as string;
-        }
+
         @if (!string.IsNullOrWhiteSpace(statusMessage))
         {
-            <aside class="alert alert-success alert-dismissible mb-0" role="alert">
-                @TempData[TempDataFor.StatusMessage]
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <aside class="alert alert-success alert-dismissible mb-0 mt-1 mx-3">
+                <div role="alert">
+                    @TempData[TempDataFor.StatusMessage]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
             </aside>
         }
-        
+
         <!-- Main content -->
-        <div class=" d-flex  @(centerVertically ? "flex-column" : "") justify-content-center flex-grow-1">
-            <main class="p-3 @(centerVertically ? "" : "flex-grow-1")">
-                @RenderBody()
+        <div class=" d-flex  @(centerVertically ? "flex-column" : "") justify-content-center flex-grow-1" style="overflow-y: auto;">
+            <main class="p-3 @(centerVertically ? "" : "flex-grow-1")" style="max-width: 100%;">
+                @if (ViewData[ViewDataFor.MainContentAsCard] is true || ViewData[ViewDataFor.MainContentAsCardBody] is true)
+                {
+                    <div class="card m-0">
+                        @if (ViewData[ViewDataFor.MainContentCardTitle] is string cardTitle)
+                        {
+                            <div class="card-header"><h2 class="mb-0">@cardTitle</h2></div>
+                        }
+                        @if (ViewData[ViewDataFor.MainContentAsCardBody] is true)
+                        {
+                            <div class="card-body">@RenderBody()</div>
+                        }
+                        else
+                        {
+                            @RenderBody()
+                        }
+                    </div>
+                }
+                else
+                {
+                    @RenderBody()
+                }
             </main>
         </div>
-        
+
         <aside>
             @await RenderSectionAsync("MainBottom", required: false)
         </aside>
@@ -83,21 +76,6 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
 
 <partial name="_Footer"/>
 
-<script crossorigin="anonymous" referrerpolicy="no-referrer"
-        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"></script>
-<script crossorigin="anonymous" referrerpolicy="no-referrer"
-        src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
-        integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="></script>
-<script crossorigin="anonymous" referrerpolicy="no-referrer"
-        src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.21.0/jquery.validate.min.js"
-        integrity="sha512-KFHXdr2oObHKI9w4Hv1XPKc898mE4kgYx58oqsc/JqqdLMDI4YjOLzom+EMlW8HFUd0QfjfAvxSL6sEq/a42fQ=="></script>
-<script crossorigin="anonymous" referrerpolicy="no-referrer"
-        src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/4.0.0/jquery.validate.unobtrusive.min.js"
-        integrity="sha512-xq+Vm8jC94ynOikewaQXMEkJIOBp7iArs3IhFWSWdRT3Pq8wFz46p+ZDFAR7kHnSFf+zUv52B3prRYnbDRdgog=="></script>
-<script crossorigin="anonymous" referrerpolicy="no-referrer"
-        src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js" 
-        integrity="sha256-4gndpcgjVHnzFm3vx3UOHbzVpcGAi3eS/C5nM3aPtEc=" ></script>
-@await RenderSectionAsync("Scripts", required: false)
-</body>
-</html>
+@section LayoutBaseScripts {
+    @await RenderSectionAsync("Scripts", required: false)
+}

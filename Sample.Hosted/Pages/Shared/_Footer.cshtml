@@ -84,61 +84,64 @@
 </footer>
 
 <script>
-    const preferencesCookieName = @Json.Serialize(ConsentContext.CookieName);
-    const getPreferenceCookie = () => {
-        const parts = `; ${document.cookie}`.split(`; ${preferencesCookieName}=`);
-        if (parts.length === 2)
-            return parts.pop().split(';').shift();
+    document.addEventListener('DOMContentLoaded', () => {
+        'use strict';
+        const preferencesCookieName = @Json.Serialize(ConsentContext.CookieName);
+        const getPreferenceCookie = () => {
+            const parts = `; ${document.cookie}`.split(`; ${preferencesCookieName}=`);
+            if (parts.length === 2)
+                return parts.pop().split(';').shift();
 
-        return urlSafeBase64Encode(JSON.stringify({}));
-    };
-    const getPreferenceCookieWithDecode = () => JSON.parse(urlSafeBase64Decode(getPreferenceCookie()));
-    let globalPreferences = getPreferenceCookieWithDecode();
+            return urlSafeBase64Encode(JSON.stringify({}));
+        };
+        const getPreferenceCookieWithDecode = () => JSON.parse(urlSafeBase64Decode(getPreferenceCookie()));
+        let globalPreferences = getPreferenceCookieWithDecode();
 
-    const footerNavbar = "footerNavbar";
-    const preferenceCookieAlert = "preferenceCookieAlert";
-    const analyticsCookiesCheckBoxId = "analyticsCookiesCheckBox";
-    const marketingCookiesCheckBoxId = "marketingCookiesCheckBox";
-    const acceptPreferenceCookieBtn = "acceptPreferencesCookieBtn";
-    const rejectPreferenceCookieBtn = "rejectPreferencesCookieBtn";
-    const savePreferencesBtnId = "savePreferencesBtn";
-    
-    const savePreferences = (preferences) => {
-        globalPreferences = preferences;
-        const preferencesAsJson = JSON.stringify(preferences);
-        const preferencesJsonAsEncoded = urlSafeBase64Encode(preferencesAsJson);
-        const oneYearInSeconds = 365 * 24 * 60 * 60; // Set the cookie to expire in 1 year using Max-Age
-        document.cookie = `${preferencesCookieName}=${preferencesJsonAsEncoded}; path=/; Max-Age=${oneYearInSeconds}; SameSite=Strict;`;
-        document.getElementById(preferenceCookieAlert).classList.replace("d-flex", "d-none");
-        adjustFooterVisibility(false);
-        loadPreferences();
-    }
-    const loadPreferences = () => {
-        document.getElementById(analyticsCookiesCheckBoxId).checked = globalPreferences.AnalyticsConsent || false;
-        document.getElementById(marketingCookiesCheckBoxId).checked = globalPreferences.MarketingConsent || false;
-    }
-    const adjustFooterVisibility = (showCookieAlertBanner) => {
-        if (showCookieAlertBanner) {
-            document.getElementById(footerNavbar).classList.replace("d-flex", "d-none");
-            document.getElementById(preferenceCookieAlert).classList.replace("d-none", "d-flex");
-        } else {
-            document.getElementById(footerNavbar).classList.replace("d-none", "d-flex");
+        const footerNavbar = "footerNavbar";
+        const preferenceCookieAlert = "preferenceCookieAlert";
+        const analyticsCookiesCheckBoxId = "analyticsCookiesCheckBox";
+        const marketingCookiesCheckBoxId = "marketingCookiesCheckBox";
+        const acceptPreferenceCookieBtn = "acceptPreferencesCookieBtn";
+        const rejectPreferenceCookieBtn = "rejectPreferencesCookieBtn";
+        const savePreferencesBtnId = "savePreferencesBtn";
+
+        const savePreferences = (preferences) => {
+            globalPreferences = preferences;
+            const preferencesAsJson = JSON.stringify(preferences);
+            const preferencesJsonAsEncoded = urlSafeBase64Encode(preferencesAsJson);
+            const oneYearInSeconds = 365 * 24 * 60 * 60; // Set the cookie to expire in 1 year using Max-Age
+            document.cookie = `${preferencesCookieName}=${preferencesJsonAsEncoded}; path=/; Max-Age=${oneYearInSeconds}; SameSite=Strict;`;
             document.getElementById(preferenceCookieAlert).classList.replace("d-flex", "d-none");
+            adjustFooterVisibility(false);
+            loadPreferences();
         }
-    }
-    const createPreferences = (analyticsConsent, marketingConsent) => ({
-        @nameof(ConsentCookieValues.AnalyticsConsent): analyticsConsent,
-        @nameof(ConsentCookieValues.MarketingConsent): marketingConsent
+        const loadPreferences = () => {
+            document.getElementById(analyticsCookiesCheckBoxId).checked = globalPreferences.AnalyticsConsent || false;
+            document.getElementById(marketingCookiesCheckBoxId).checked = globalPreferences.MarketingConsent || false;
+        }
+        const adjustFooterVisibility = (showCookieAlertBanner) => {
+            if (showCookieAlertBanner) {
+                document.getElementById(footerNavbar).classList.replace("d-flex", "d-none");
+                document.getElementById(preferenceCookieAlert).classList.replace("d-none", "d-flex");
+            } else {
+                document.getElementById(footerNavbar).classList.replace("d-none", "d-flex");
+                document.getElementById(preferenceCookieAlert).classList.replace("d-flex", "d-none");
+            }
+        }
+        const createPreferences = (analyticsConsent, marketingConsent) => ({
+            @nameof(ConsentCookieValues.AnalyticsConsent): analyticsConsent,
+            @nameof(ConsentCookieValues.MarketingConsent): marketingConsent
+        });
+
+        loadPreferences();
+        document.getElementById(acceptPreferenceCookieBtn).addEventListener("click", () => savePreferences(createPreferences(true, true)));
+        document.getElementById(rejectPreferenceCookieBtn).addEventListener("click", () => savePreferences(createPreferences(false, false)));
+        document.getElementById(savePreferencesBtnId)?.addEventListener("click", function () {
+            const analytics = document.getElementById(analyticsCookiesCheckBoxId).checked;
+            const marketing = document.getElementById(marketingCookiesCheckBoxId).checked;
+            savePreferences(createPreferences(analytics, marketing));
+        });
+
+        adjustFooterVisibility(@Json.Serialize(showCookieAlertBanner));
     });
-    
-    loadPreferences();
-    document.getElementById(acceptPreferenceCookieBtn).addEventListener("click", () => savePreferences(createPreferences(true, true)));
-    document.getElementById(rejectPreferenceCookieBtn).addEventListener("click", () => savePreferences(createPreferences(false, false)));
-    document.getElementById(savePreferencesBtnId)?.addEventListener("click", function () {
-        const analytics = document.getElementById(analyticsCookiesCheckBoxId).checked;
-        const marketing = document.getElementById(marketingCookiesCheckBoxId).checked;
-        savePreferences(createPreferences(analytics, marketing));
-    });
-    
-    adjustFooterVisibility(@Json.Serialize(showCookieAlertBanner));
 </script>

@@ -15,15 +15,13 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
 
     public string? ReturnUrl { get; set; }
 
-    public void OnGet(string? returnUrl = null)
+    public IActionResult OnGet(string? returnUrl = null)
     {
         if (ScopeContext.Authenticated)
-        {
-            RedirectToPage(PageFor.Root.Home);
-            return;
-        }
+            return RedirectToPage(PageFor.Root.Home);
 
         ReturnUrl = returnUrl;
+        return Page();
     }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)

@@ -2,11 +2,11 @@
 @using Sample.Hosted.Utils
 @model Sample.Hosted.Pages.User.Profile.ProfileDetailsModel
 @{
-    ViewData[ViewDataFor.Title] = "User Details";
+    ViewData[ViewDataFor.Title] = "User Profile Details";
     ViewData[ViewDataFor.SubNavigation] = SubNavigationFor.ProfileSubNavigationCollection;
+    ViewData[ViewDataFor.MainContentAsCardBody] = true;
+    ViewData[ViewDataFor.MainContentCardTitle] = ViewData[ViewDataFor.Title];
 }
-
-<h2>User Profile</h2>
 
 @if (Model.IdentityUser == null)
 {
@@ -16,25 +16,21 @@
 }
 else
 {
-    <div class="card">
-        <div class="card-body">
-            <dl class="row">
-                <dt class="col-sm-3">User ID</dt>
-                <dd class="col-sm-9">@Model.IdentityUser.Id</dd>
+    <dl class="row mb-0">
+        <dt class="col-sm-3">User ID</dt>
+        <dd class="col-sm-9">@Model.IdentityUser.Id</dd>
 
-                <dt class="col-sm-3">User Name</dt>
-                <dd class="col-sm-9">@Model.IdentityUser.UserName</dd>
+        <dt class="col-sm-3">User Name</dt>
+        <dd class="col-sm-9">@Model.IdentityUser.UserName</dd>
 
-                <dt class="col-sm-3">Email</dt>
-                <dd class="col-sm-9">@Model.IdentityUser.Email</dd>
+        <dt class="col-sm-3">Email</dt>
+        <dd class="col-sm-9">@Model.IdentityUser.Email</dd>
 
-                <dt class="col-sm-3">Phone Number</dt>
-                <dd class="col-sm-9">@Model.IdentityUser.PhoneNumber</dd>
+        <dt class="col-sm-3">Phone Number</dt>
+        <dd class="col-sm-9">@Model.IdentityUser.PhoneNumber</dd>
 
-                <dt class="col-sm-3">Slim UI</dt>
-                <dd class="col-sm-9">@ClaimFor.Profile.SlimUi</dd>
-                <!-- Add more user details here if necessary -->
-            </dl>
-        </div>
-    </div>
+        <dt class="col-sm-3">Slim UI</dt>
+        <dd class="col-sm-9">@ClaimFor.Profile.SlimUi</dd>
+        <!-- Add more user details here if necessary -->
+    </dl>
 }

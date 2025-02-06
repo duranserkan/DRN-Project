@@ -4,39 +4,34 @@
 @{
     ViewData[ViewDataFor.Title] = "Profile Picture";
     ViewData[ViewDataFor.SubNavigation] = SubNavigationFor.ProfileSubNavigationCollection;
+    ViewData[ViewDataFor.MainContentAsCard] = true;
+    ViewData[ViewDataFor.MainContentCardTitle] = ViewData[ViewDataFor.Title];
 }
 
-<h2>Change Profile Picture</h2>
+<div class="card-body">
+    @if (!string.IsNullOrEmpty(ScopeContext.UserId))
+    {
+        <label>Current Profile Picture:</label>
+        <div>
+            <profile-picture class="img-thumbnail" style="max-height: 300px"/>
+        </div>
+    }
+</div>
+<div class="card-footer">
+    <form method="post" enctype="multipart/form-data">
+        <div asp-validation-summary="All" class="text-danger"></div>
 
-<div class="card">
-    <div class="card-body">
-        @if (!string.IsNullOrEmpty(ScopeContext.UserId))
-        {
-            <div class="mb-3">
-                <label>Current Profile Picture:</label>
-                <div>
-                    <profile-picture class="img-thumbnail" style="max-width: 400px; max-height: 400px;"/>
-                </div>
-            </div>
-        }
+        <!-- Profile Picture Upload -->
+        <div class="form-group col-auto mb-3">
+            <label asp-for="Input.ProfilePicture" class="form-label">New Profile Picture:</label>
+            <input asp-for="Input.ProfilePicture" type="file" accept="image/jpeg" class="form-control"/>
+            <span asp-validation-for="Input.ProfilePicture" class="text-danger"></span>
+        </div>
 
-        <form method="post" enctype="multipart/form-data">
-            <div asp-validation-summary="All" class="text-danger"></div>
-
-            <!-- Profile Picture Upload -->
-            <div class="row mb-3">
-                <div class="form-group col-auto">
-                    <label asp-for="Input.ProfilePicture" class="form-label">Profile Picture</label>
-                    <input asp-for="Input.ProfilePicture" type="file" accept="image/jpeg" class="form-control"/>
-                    <span asp-validation-for="Input.ProfilePicture" class="text-danger"></span>
-                </div>
-            </div>
-
-            <!-- Upload and Cancel Buttons -->
-            <div class="col-auto mt-3">
-                <button type="submit" class="btn btn-primary">Upload Picture</button>
-                <a asp-page="@PageFor.UserProfile.Details" class="btn btn-secondary">Cancel</a>
-            </div>
-        </form>
-    </div>
+        <!-- Upload and Cancel Buttons -->
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Upload Picture</button>
+            <a asp-page="@PageFor.UserProfile.Details" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
 </div>

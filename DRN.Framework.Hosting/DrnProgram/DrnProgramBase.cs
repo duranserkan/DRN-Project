@@ -213,8 +213,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             .AddFrameOptionsDeny()
             .AddContentTypeOptionsNoSniff()
             .AddReferrerPolicyStrictOriginWhenCrossOrigin()
-            .AddStrictTransportSecurity(63072000, true, true) //https://hstspreload.org/
-            .AddContentSecurityPolicy(ConfigureDefaultContentSecurityPolicy)
+            //.AddStrictTransportSecurity(63072000, true, true) //https://hstspreload.org/
+            .AddContentSecurityPolicy(ConfigureDefaultCsp)
             .AddCrossOriginOpenerPolicy(x => x.SameOrigin())
             .AddCrossOriginEmbedderPolicy(builder => builder.Credentialless())
             .AddCrossOriginResourcePolicy(builder => builder.SameSite())
@@ -235,16 +235,21 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// <li>For header security test check: https://securityheaders.com/ or https://csp-evaluator.withgoogle.com</li>
     /// </ul>
     /// </summary>
-    protected virtual void ConfigureDefaultContentSecurityPolicy(CspBuilder builder)
+    protected virtual void ConfigureDefaultCsp(CspBuilder builder)
     {
-        builder.AddScriptSrc().WithNonce();
+        ConfigureDefaultCspBase(builder);
+        builder.AddScriptSrc().WithNonce().StrictDynamic();
+    }
+    
+    protected virtual void ConfigureDefaultCspBase(CspBuilder builder)
+    {
         builder.AddBaseUri().Self();
         builder.AddFormAction().Self();
 
         builder.AddObjectSrc().None();
         builder.AddFrameAncestors().None();
         builder.AddScriptSrcAttr().None();
-        builder.AddUpgradeInsecureRequests();
+        //builder.AddUpgradeInsecureRequests();
     }
 
     protected virtual void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings)
@@ -255,7 +260,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         selfCsp.Remove("Content-Security-Policy");
         selfCsp.AddContentSecurityPolicy(x =>
         {
-            ConfigureDefaultContentSecurityPolicy(x);
+            ConfigureDefaultCspBase(x);
             x.AddScriptSrc().Self();
         });
         builder.AddPolicy(CspFor.CspPolicySelf, selfCsp);
@@ -265,8 +270,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         inlineCspPolicy.Remove("Content-Security-Policy");
         inlineCspPolicy.AddContentSecurityPolicy(x =>
         {
-            ConfigureDefaultContentSecurityPolicy(x);
-            x.AddScriptSrc().UnsafeInline();
+            ConfigureDefaultCspBase(x);
+            x.AddScriptSrc().Self().UnsafeInline();
         });
         builder.AddPolicy(CspFor.CspPolicyInline, inlineCspPolicy);
 

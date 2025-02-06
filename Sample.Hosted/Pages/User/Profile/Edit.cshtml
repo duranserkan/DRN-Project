@@ -3,40 +3,41 @@
 @{
     ViewData[ViewDataFor.Title] = "Edit User Details";
     ViewData[ViewDataFor.SubNavigation] = SubNavigationFor.ProfileSubNavigationCollection;
+    ViewData[ViewDataFor.MainContentAsCard] = true;
+    ViewData[ViewDataFor.MainContentCardTitle] = ViewData[ViewDataFor.Title];
 }
 
 @*https://getbootstrap.com/docs/5.3/forms/layout/*@
 @*https://getbootstrap.com/docs/5.3/layout/columns/*@
 
-<h2>Edit User Profile</h2>
-
-<div class="card">
+<form method="post">
     <div class="card-body">
-        <form method="post" class="row">
-            <div asp-validation-summary="All" class="text-danger"></div>
-            <div class="row mb-3">
-                <div class="col-3">
-                    <div class="form-floating col-auto">
-                        <input asp-for="Input.PhoneNumber" class="form-control" type="tel" placeholder="05556667788"/>
-                        <label asp-for="Input.PhoneNumber"></label>
-                        <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
-                    </div>
+        <div asp-validation-summary="All" class="text-danger"></div>
+        
+        <div class="row mb-3">
+            <div class="col-3">
+                <div class="form-floating col-auto">
+                    <input asp-for="Input.PhoneNumber" class="form-control" type="tel" placeholder="05556667788"/>
+                    <label asp-for="Input.PhoneNumber"></label>
+                    <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
                 </div>
             </div>
-
-            <div class="row mb-3">
-                <div class="col-3">
-                    <div class="form-group form-check">
-                        <input asp-for="Input.SlimUI" class="form-check-input"/>
-                        <label asp-for="Input.SlimUI" class="form-check-label"></label>
-                    </div>
+        </div>
+        
+        <div class="row mb-0">
+            <div class="col-3">
+                <div class="form-group form-check">
+                    <input asp-for="Input.SlimUI" class="form-check-input"/>
+                    <label asp-for="Input.SlimUI" class="form-check-label"></label>
                 </div>
             </div>
-
-            <div class="col-auto mt-3">
-                <button type="submit" class="btn btn-primary">Save Changes</button>
-                <a href="@PageFor.UserProfile.Details" class="btn btn-secondary">Cancel</a>
-            </div>
-        </form>
+        </div>
     </div>
-</div>
+    
+    <div class="card-footer">
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="@PageFor.UserProfile.Details" class="btn btn-secondary">Cancel</a>
+        </div>
+    </div>
+</form>

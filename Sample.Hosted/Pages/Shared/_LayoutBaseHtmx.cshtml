@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>@ViewData[ViewDataFor.Title] - @ScopeContext.Settings.ApplicationName</title>
+</head>
+<body class="d-flex flex-column bg-secondary-subtle vh-100"  hx-boost="true">
+@RenderBody()
+
+@await RenderSectionAsync("LayoutBaseScripts", required: false)
+</body>
+</html>

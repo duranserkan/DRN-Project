@@ -7,19 +7,14 @@
     <DockerComposeProjectPath>../docker-compose.dcproj</DockerComposeProjectPath>
     <UserSecretsId>f84cc3f4-2a9b-44a2-ad30-68bb3facb9b8</UserSecretsId>
   </PropertyGroup>
-  
+
   <ItemGroup>
     <ProjectReference Include="..\DRN.Framework.Hosting\DRN.Framework.Hosting.csproj" />
     <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
     <ProjectReference Include="..\Sample.Application\Sample.Application.csproj" />
     <ProjectReference Include="..\Sample.Contract\Sample.Contract.csproj" />
   </ItemGroup>
-  
-  <ItemGroup>
-    <Folder Include="wwwroot\images\" />
-    <Folder Include="wwwroot\js\" />
-  </ItemGroup>
-  
+
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="9.0.1" />
     <PackageReference Include="QRCoder" Version="1.6.0" />

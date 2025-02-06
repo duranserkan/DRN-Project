@@ -40,6 +40,7 @@ public class ProfileEditModel(IUserProfileService service, SignInManager<SampleU
         await signInManager.RefreshSignInAsync(result.IdentityUser);
 
         TempData[TempDataFor.StatusMessage] = "Your profile has been updated";
+        
         return RedirectToPage(PageFor.UserProfile.Details);
     }
 }

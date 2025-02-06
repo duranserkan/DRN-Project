@@ -8,8 +8,10 @@ using NetEscapades.AspNetCore.SecurityHeaders;
 
 namespace DRN.Framework.Hosting.TagHelpers;
 
-[HtmlTargetElement("script")]
 [HtmlTargetElement("iframe")]
+[HtmlTargetElement("script")]
+[HtmlTargetElement("style")]
+[HtmlTargetElement("link")]
 public class NonceTagHelper : TagHelper
 {
     [ViewContext] public ViewContext? ViewContext { get; set; }

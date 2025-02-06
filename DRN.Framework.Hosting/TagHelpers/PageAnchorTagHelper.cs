@@ -20,6 +20,14 @@ public class PageAnchorTagHelper : TagHelper
         if (string.IsNullOrEmpty(hrefValue))
             return;
 
+        // output.Attributes.SetAttribute("hx-get", hrefValue);
+        //
+        // if (!output.Attributes.TryGetAttribute("hx-target", out _)) //todo: make hx-target default customizable
+        //     output.Attributes.SetAttribute("hx-target", "#bodyContent");
+        //
+        // if (!output.Attributes.TryGetAttribute("hx-push-url", out _)) //todo: make hx-target default customizable
+        //     output.Attributes.SetAttribute("hx-push-url", "true");
+
         var currentRoutePage = ViewContext.ActionDescriptor.RouteValues["page"];
         if (!string.Equals(hrefValue, currentRoutePage, StringComparison.OrdinalIgnoreCase))
             return;

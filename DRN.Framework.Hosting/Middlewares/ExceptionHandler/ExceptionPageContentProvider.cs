@@ -29,8 +29,7 @@ public class ExceptionPageContentProvider(
     {
         // We need to inform the debugger that this exception should be considered user-unhandled since it wasn't fully handled by an exception filter.
         Debugger.BreakForUserUnhandledException(exception);
-
-
+        
         if (exception is ICompilationException compilationException)
             return await CreateCompilationErrorContentResult(httpContext, exception, compilationException);
 

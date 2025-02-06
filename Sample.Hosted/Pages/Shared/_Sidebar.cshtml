@@ -2,17 +2,17 @@
 @using Sample.Hosted.Utils
 
 @{
+    var index = 0;
     var isSlim = ClaimFor.Profile.SlimUi;
-    var sideBarWidth = isSlim ? "width: 4.5rem;" : "max-width: 200px;";
     var iconStyle = isSlim ? string.Empty : "me-2";
     var settingsText = isSlim ? string.Empty : " Settings";
     var settingsTitle = isSlim ? "Settings" : string.Empty;
-    var index = 0;
     var navigationCount = DefaultSidebarNavigationCollection.DefaultItems.Count;
 }
 
-<aside class="d-flex p-1 bg-body-tertiary">
-    <nav class="d-flex flex-column align-items-center" style="@sideBarWidth">
+<aside class="d-flex p-1 bg-body-tertiary flex-column align-items-center">
+    <!-- Scrollable Navigation Section -->
+    <nav class="flex-grow-1" style="overflow-y:auto; overflow-x: hidden">
         <ul class="nav nav-pills nav-flush flex-column mb-auto">
             @foreach (var navItem in DefaultSidebarNavigationCollection.DefaultItems)
             {
@@ -24,27 +24,28 @@
                        class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0"
                        title="@titleAsTooltip" data-bs-toggle="tooltip" data-bs-placement="right">
                         <i class="bi @navItem.Icon @iconStyle" style="font-size: 1.25rem;"
-                           role="img" aria-label="@navItem.Title">
-                        </i> @titleAsText
+                           role="img" aria-label="@navItem.Title"></i>
+                        @titleAsText
                     </a>
                 </li>
             }
         </ul>
-        
+    </nav>
+    <!-- Fixed Sidebar Settings Section -->
+    <nav>
         <ul id="SidebarSettings" class="nav nav-pills nav-flush flex-column">
             <li id="SidebarSettingsItem" class="nav-item">
-                <div class="dropup" title="@settingsTitle" data-bs-toggle="tooltip" data-bs-placement="right">
-                    <button id="SidebarSettingsToggle" class="btn nav-link d-flex align-items-center link-body-emphasis text-decoration-none dropdown-toggle p-2 border-top rounded-0"
-                       data-bs-toggle="dropdown" aria-expanded="false">
+                <div class="dropup d-flex" title="@settingsTitle" data-bs-toggle="tooltip" data-bs-placement="right">
+                    <button id="SidebarSettingsToggle"
+                            class="btn nav-link d-flex align-items-center link-body-emphasis text-decoration-none dropdown-toggle p-2  rounded-0"
+                            data-bs-toggle="dropdown" aria-expanded="false">
                         <span class="bi bi-gear-fill" style="font-size: 1.25rem;">@settingsText</span>
                     </button>
                     <ul class="dropdown-menu text-small shadow" aria-labelledby="SidebarSettingsToggle">
                         <li><a class="dropdown-item" href="#">New project...</a></li>
                         <li><a class="dropdown-item" href="#">Advanced</a></li>
                         <li><a class="dropdown-item" href="@PageFor.UserProfile.Details">My Profile</a></li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
+                        <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="@PageFor.User.Logout">Log out</a></li>
                     </ul>
                 </div>
