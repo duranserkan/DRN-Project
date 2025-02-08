@@ -7,9 +7,7 @@
         Layout = "_LayoutBaseHtmx";
 
     var statusMessage = TempData[TempDataFor.StatusMessage] as string;
-    var layoutOptions = ViewData.TryGetValue(ViewDataFor.MainContentLayoutOptions, out var o) && o != null
-        ? o as MainContentLayoutOptions ?? new MainContentLayoutOptions()
-        : new MainContentLayoutOptions();
+    var layoutOptions = ViewData[ViewDataFor.MainContentLayoutOptions] as MainContentLayoutOptions ?? new MainContentLayoutOptions();
 }
 
 <partial name="_Navbar"/>

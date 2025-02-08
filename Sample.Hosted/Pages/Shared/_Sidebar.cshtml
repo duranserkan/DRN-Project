@@ -7,18 +7,20 @@
     var iconStyle = isSlim ? string.Empty : "me-2";
     var settingsText = isSlim ? string.Empty : " Settings";
     var settingsTitle = isSlim ? "Settings" : string.Empty;
-    var navigationCount = DefaultSidebarNavigationCollection.DefaultItems.Count;
+
+    var sidebarNavigationCollection = ViewData[ViewDataFor.SidebarNavigationCollection] as SidebarNavigationCollection ?? new SidebarNavigationCollection();
+    var sidebarSettingsCollection = ViewData[ViewDataFor.SidebarSettingsCollection] as SidebarSettingsCollection ?? new SidebarSettingsCollection();
 }
 
 <aside class="d-flex p-1 bg-body-tertiary flex-column align-items-center">
     <!-- Scrollable Navigation Section -->
     <nav class="flex-grow-1" style="overflow-y:auto; overflow-x: hidden">
         <ul class="nav nav-pills nav-flush flex-column mb-auto">
-            @foreach (var navItem in DefaultSidebarNavigationCollection.DefaultItems)
+            @foreach (var navItem in sidebarNavigationCollection.Items)
             {
                 var titleAsText = isSlim ? string.Empty : navItem.Title;
                 var titleAsTooltip = isSlim ? navItem.Title : string.Empty;
-                var borderBottom = ++index == navigationCount ? "border-bottom" : "";
+                var borderBottom = ++index == sidebarNavigationCollection.Items.Count ? "border-bottom" : "";
                 <li class="nav-item">
                     <a href="@navItem.Href"
                        class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0"
@@ -42,11 +44,19 @@
                         <span class="bi bi-gear-fill" style="font-size: 1.25rem;">@settingsText</span>
                     </button>
                     <ul class="dropdown-menu text-small shadow" aria-labelledby="SidebarSettingsToggle">
-                        <li><a class="dropdown-item" href="#">New project...</a></li>
-                        <li><a class="dropdown-item" href="#">Advanced</a></li>
-                        <li><a class="dropdown-item" href="@PageFor.UserProfile.Details">My Profile</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="@PageFor.User.Logout">Log out</a></li>
+                        @foreach (var settingsItem in sidebarSettingsCollection.Items)
+                        {
+                            <li>
+                                @if (settingsItem.Divider)
+                                {
+                                    <hr class="dropdown-divider">
+                                }
+                                else
+                                {
+                                    <a class="dropdown-item" href="@settingsItem.Href">@settingsItem.Title</a>
+                                }
+                            </li>
+                        }
                     </ul>
                 </div>
             </li>
