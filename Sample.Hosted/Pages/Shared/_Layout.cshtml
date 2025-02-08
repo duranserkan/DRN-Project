@@ -3,16 +3,18 @@
     var isHtmxRequest = headers.ContainsKey("HX-Request") && headers["HX-Request"] == "true";
 
     Layout = "_LayoutBase";
-    if (isHtmxRequest) 
+    if (isHtmxRequest)
         Layout = "_LayoutBaseHtmx";
 
-    var centerVertically = ViewData.TryGetValue(ViewDataFor.CenterVertically, out var flexColumnValue) && flexColumnValue is true;
     var statusMessage = TempData[TempDataFor.StatusMessage] as string;
+    var layoutOptions = ViewData.TryGetValue(ViewDataFor.MainContentLayoutOptions, out var o) && o != null
+        ? o as MainContentLayoutOptions ?? new MainContentLayoutOptions()
+        : new MainContentLayoutOptions();
 }
 
 <partial name="_Navbar"/>
 
-<div class="container d-flex flex-grow-1 p-0 bg-body bg-gradient" style="overflow: hidden; box-sizing: border-box; ">
+<div class="container-xxl d-flex flex-grow-1 p-0 bg-body bg-gradient" style="overflow: hidden; box-sizing: border-box; ">
     @if (ScopeContext.MFACompleted)
     {
         <partial name="_Sidebar"/>
@@ -38,29 +40,33 @@
         }
 
         <!-- Main content -->
-        <div class=" d-flex  @(centerVertically ? "flex-column" : "") justify-content-center flex-grow-1" style="overflow-y: auto;">
-            <main class="p-3 @(centerVertically ? "" : "flex-grow-1")" style="max-width: 100%;">
-                @if (ViewData[ViewDataFor.MainContentAsCard] is true || ViewData[ViewDataFor.MainContentAsCardBody] is true)
-                {
-                    <div class="card m-0">
-                        @if (ViewData[ViewDataFor.MainContentCardTitle] is string cardTitle)
+        <div class=" d-flex  @(layoutOptions.CenterVertically ? "flex-column" : "") justify-content-center flex-grow-1" style="overflow-y: auto;">
+            <main class="p-3 @(layoutOptions.CenterVertically ? "" : "flex-grow-1")" style="max-width: 100%;">
+                <div class="row @(layoutOptions.CenterHorizontally ? "justify-content-center" : "")">
+                    <div class="@layoutOptions.CssColumnSize() @layoutOptions.CssTextAlignment()">
+                        @if (layoutOptions.Type == MainContentType.Card || layoutOptions.Type == MainContentType.CardBody)
                         {
-                            <div class="card-header"><h2 class="mb-0">@cardTitle</h2></div>
-                        }
-                        @if (ViewData[ViewDataFor.MainContentAsCardBody] is true)
-                        {
-                            <div class="card-body">@RenderBody()</div>
+                            <div class="card m-0">
+                                @if (!string.IsNullOrWhiteSpace(layoutOptions.Title))
+                                {
+                                    <h3 class="card-header">@layoutOptions.Title</h3>
+                                }
+                                @if (layoutOptions.Type == MainContentType.CardBody)
+                                {
+                                    <div class="card-body">@RenderBody()</div>
+                                }
+                                else
+                                {
+                                    @RenderBody()
+                                }
+                            </div>
                         }
                         else
                         {
                             @RenderBody()
                         }
                     </div>
-                }
-                else
-                {
-                    @RenderBody()
-                }
+                </div>
             </main>
         </div>
 
@@ -76,6 +82,6 @@
 
 <partial name="_Footer"/>
 
-@section LayoutBaseScripts {
+@section Scripts {
     @await RenderSectionAsync("Scripts", required: false)
 }

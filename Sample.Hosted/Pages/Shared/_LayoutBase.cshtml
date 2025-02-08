@@ -14,7 +14,7 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
         <meta name="author" content="Duran Serkan KILIÇ">
         <meta name="htmx-config" content='{
                 "selfRequestsOnly":true,"allowEval":false,
-                "refreshOnHistoryMiss":true,
+                "refreshOnHistoryMiss":true, "historyCacheSize":0,
                 "inlineScriptNonce":"@Context.GetNonce()"}'>
 
         <title>@ViewData[ViewDataFor.Title] - @ScopeContext.Settings.ApplicationName</title>
@@ -36,7 +36,7 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
         }
         <link rel="canonical" href="@canonicalUrl"/>
 </head>
-<body class="d-flex flex-column bg-secondary-subtle vh-100" style="overflow: hidden;" hx-boost="true" hx-ext="safe-nonce">
+<body class="d-flex flex-column bg-secondary-subtle vh-100" style="overflow: hidden;" hx-boost="true" hx-ext="safe-nonce" hx-history="false">
 @RenderBody()
 
 <script defer crossorigin="anonymous" referrerpolicy="no-referrer"
@@ -63,6 +63,6 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
 <script src="~/js/onmount-site.js"></script>
 <script src="~/js/site.js?v=@DateTime.Now.Ticks"></script>
 
-@await RenderSectionAsync("LayoutBaseScripts", required: false)
+@await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

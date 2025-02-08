@@ -2,10 +2,12 @@
 @using Sample.Hosted.Utils
 @model Sample.Hosted.Pages.User.Profile.ProfileDetailsModel
 @{
-    ViewData[ViewDataFor.Title] = "User Profile Details";
-    ViewData[ViewDataFor.SubNavigation] = SubNavigationFor.ProfileSubNavigationCollection;
-    ViewData[ViewDataFor.MainContentAsCardBody] = true;
-    ViewData[ViewDataFor.MainContentCardTitle] = ViewData[ViewDataFor.Title];
+    var title = "User Profile Details";;
+    var options = LayoutOptionsFor.Full(title);
+    options.SubNavigation=SubNavigationFor.ProfileSubNavigationCollection;
+
+    ViewData[ViewDataFor.Title] = title;
+    ViewData[ViewDataFor.MainContentLayoutOptions] = options;
 }
 
 @if (Model.IdentityUser == null)

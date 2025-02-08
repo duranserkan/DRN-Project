@@ -19,8 +19,7 @@ public class ProfileEditModel(IUserProfileService service, SignInManager<SampleU
 
         return Page();
     }
-
-
+    
     public async Task<IActionResult> OnPostAsync()
     {
         if (!ModelState.IsValid)

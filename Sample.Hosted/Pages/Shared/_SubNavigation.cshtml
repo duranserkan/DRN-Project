@@ -1,5 +1,6 @@
 @{
-    var subNavigation = ViewData[ViewDataFor.SubNavigation] as SubNavigationCollection;
+    var layoutOptions = ViewData.TryGetValue(ViewDataFor.MainContentLayoutOptions, out var o) ? o as MainContentLayoutOptions : null;
+    var subNavigation = layoutOptions?.SubNavigation;
     var justifyContentCenter = subNavigation?.JustifyContentCenter ?? false ? "justify-content-center" : string.Empty;
 }
 
@@ -12,14 +13,12 @@
                 <li class="nav-item">
                     <a href="@navItem.Href"
                        class="nav-link link-dark d-flex align-items-center pb-2 mt-1 rounded-0">
-                        <i class="bi @(navItem.Icon??"bi-file-earmark") me-2" style="font-size: 1.25rem;"
+                        <i class="bi @(navItem.Icon ?? "bi-file-earmark") me-2" style="font-size: 1.25rem;"
                            role="img" aria-label="@navItem.Title">
                         </i> @navItem.Title
                     </a>
                 </li>
             }
-        </ul> 
+        </ul>
     </nav>
 }
-
-

@@ -1,10 +1,14 @@
 @page
 @model Sample.Hosted.Pages.User.Profile.ProfileEditModel
 @{
-    ViewData[ViewDataFor.Title] = "Edit User Details";
-    ViewData[ViewDataFor.SubNavigation] = SubNavigationFor.ProfileSubNavigationCollection;
-    ViewData[ViewDataFor.MainContentAsCard] = true;
-    ViewData[ViewDataFor.MainContentCardTitle] = ViewData[ViewDataFor.Title];
+    var title = "Edit User Profile";
+    var options = LayoutOptionsFor.Full(title);
+    options.SubNavigation=SubNavigationFor.ProfileSubNavigationCollection;
+    options.Type = MainContentType.Card;
+
+    
+    ViewData[ViewDataFor.Title] = title;
+    ViewData[ViewDataFor.MainContentLayoutOptions] = options;
 }
 
 @*https://getbootstrap.com/docs/5.3/forms/layout/*@

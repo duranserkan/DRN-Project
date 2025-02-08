@@ -238,7 +238,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     protected virtual void ConfigureDefaultCsp(CspBuilder builder)
     {
         ConfigureDefaultCspBase(builder);
-        builder.AddScriptSrc().WithNonce().StrictDynamic();
+        builder.AddScriptSrc().WithNonce();
     }
     
     protected virtual void ConfigureDefaultCspBase(CspBuilder builder)
@@ -249,7 +249,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         builder.AddObjectSrc().None();
         builder.AddFrameAncestors().None();
         builder.AddScriptSrcAttr().None();
-        //builder.AddUpgradeInsecureRequests();
     }
 
     protected virtual void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings)
