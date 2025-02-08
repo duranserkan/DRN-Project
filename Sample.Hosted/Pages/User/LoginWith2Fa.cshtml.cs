@@ -14,12 +14,18 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager) : PageModel
     private const string InvalidCodeAttempts = nameof(InvalidCodeAttempts);
 
     [BindProperty] public Login2FaModel Login2FaModel { get; set; } = new();
-
-    public void OnGet(bool rememberMe, string? returnUrl = null)
+    
+    public IActionResult OnGet(bool rememberMe, string? returnUrl = null)
     {
+        if (!MfaFor.MfaInProgress)
+            return LocalRedirect(PageFor.User.Login);
+        
         Login2FaModel.RememberMe = rememberMe;
         ViewData[ViewDataFor.ReturnUrl] = returnUrl;
+
+        return Page();
     }
+
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
