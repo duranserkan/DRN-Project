@@ -1,0 +1,173 @@
+@page
+@model Sample.Hosted.Pages.Test.Csrf
+
+@{
+    var title = "CSRF Token Test Page";
+    var options = LayoutOptionsFor.Full(string.Empty);
+    options.Type = MainContentType.None;
+    options.ColumnSize = BootstrapColumnSize.None;
+
+    ViewData[ViewDataFor.Title] = title;
+    ViewData[ViewDataFor.MainContentLayoutOptions] = options;
+    //todo: visualize csrf validation failures
+}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">HTMX CSRF Token Test Cases</h1>
+            <!-- CSRF Enabled Section -->
+            <div class="mb-5">
+                <div class="row g-4">
+                    <!-- Auto CSRF POST -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Auto CSRF (POST)</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">Automatic CSRF token generation for POST request</p>
+                                <button class="btn btn-primary w-100"
+                                        hx-post="/test/csrf?handler=AutoPost"
+                                        hx-vals='{"message": "Test message"}'
+                                        hx-target="#auto-post-result">
+                                    Test POST with auto CSRF token
+                                </button>
+                                <div id="auto-post-result" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Disabled CSRF POST -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Disabled CSRF (POST)</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">CSRF token explicitly disabled for POST request</p>
+                                <button class="btn btn-warning w-100"
+                                        hx-post="/test/csrf?handler=AutoPost"
+                                        hx-vals='{"message": "Test message"}'
+                                        hx-target="#disabled-post-result"
+                                        disable-csrf-token>
+                                    Test POST with disabled CSRF token
+                                </button>
+                                <div id="disabled-post-result" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CSRF Disabled Section -->
+            <div class="mb-5">
+                <div class="row g-4">
+                    <!-- Explicit CSRF GET -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Explicit CSRF (GET)</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">Explicit CSRF token for GET request</p>
+                                <button class="btn btn-primary w-100"
+                                        hx-get="/test/csrf?handler=ExplicitValidation"
+                                        hx-vals='{"query": "Test query"}'
+                                        hx-target="#explicit-get-result"
+                                        add-csrf-token>
+                                    Test GET with explicit CSRF token
+                                </button>
+                                <div id="explicit-get-result" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- No CSRF GET -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">No CSRF (GET)</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">GET request without CSRF token</p>
+                                <button class="btn btn-primary w-100"
+                                        hx-get="/test/csrf?handler=NoCsrfGet"
+                                        hx-target="#no-csrf-get-result">
+                                    Test GET without CSRF token
+                                </button>
+                                <div id="no-csrf-get-result" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Examples Section -->
+            <div class="mb-5">
+                <div class="row g-4">
+                    <!-- Traditional POST Form with CSRF -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Form with CSRF (POST)</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">Auto CSRF token for traditional POST form</p>
+                                <form hx-post="/test/csrf?handler=AutoPost"
+                                      hx-target="#post-form-result">
+                                    <div class="mb-3">
+                                        <label for="postMessage" class="form-label">Message</label>
+                                        <input type="text" class="form-control" id="postMessage" name="message" value="Test message" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">Submit POST Form</button>
+                                </form>
+                                <div id="post-form-result" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Traditional POST Form without CSRF -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Form without CSRF (POST)</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">POST form with disabled CSRF protection</p>
+                                <form hx-post="/test/csrf?handler=AutoPost"
+                                      hx-target="#disabled-form-result"
+                                      disable-csrf-token>
+                                    <div class="mb-3">
+                                        <label for="disabledMessage" class="form-label">Message</label>
+                                        <input type="text" class="form-control" id="disabledMessage" name="message" value="Test message" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-warning w-100">Submit Form (No CSRF)</button>
+                                    <input type="hidden" disable-csrf/>
+                                </form>
+                                <div id="disabled-form-result" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // HTMX Request Logging
+        htmx.on("htmx:beforeRequest", function (evt) {
+            console.group("HTMX Request");
+            console.log("URL:", evt.detail.path);
+            console.log("Method:", evt.detail.verb);
+            console.log("Headers:", evt.detail.requestConfig.headers);
+            console.groupEnd();
+        });
+
+        htmx.on("htmx:afterRequest", function (evt) {
+            console.group("HTMX Response");
+            console.log("Status:", evt.detail.xhr.status);
+            console.log("Response:", evt.detail.xhr.responseText);
+            console.groupEnd();
+        });
+    </script>
+} 

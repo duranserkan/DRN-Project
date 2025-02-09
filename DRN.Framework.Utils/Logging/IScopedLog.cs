@@ -8,11 +8,12 @@ public interface IScopedLog
     IScopedLog WithLoggerName(string name);
     IScopedLog WithTraceIdentifier(string traceIdentifier);
     IScopedLog Add(string key, object value);
+
     IScopedLog AddProperties<TValue>(string prefix, TValue classObject, params string[] ignoredPropertyNames)
         where TValue : class;
 
-    void AddException(Exception exception);
-    void AddWarning(string warningMessage);
+    void AddException(Exception exception, string? message = null);
+    void AddWarning(string warningMessage, Exception? exception = null);
     bool HasException { get; }
     bool HasWarning { get; }
     void AddToActions(string action);

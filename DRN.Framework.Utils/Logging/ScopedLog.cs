@@ -44,12 +44,17 @@ public class ScopedLog : IScopedLog
     public bool HasException { get; private set; }
     public bool HasWarning { get; private set; }
 
-    public void AddException(Exception exception)
+    public void AddException(Exception exception, string? message = null)
     {
         HasException = true;
+
+        if (!string.IsNullOrWhiteSpace(message))
+            Add(ScopedLogConventions.KeyOfExceptionLogMessage, message);
+
         Add(ScopedLogConventions.KeyOfExceptionType, exception.GetType().FullName ?? exception.GetType().Name);
         Add(ScopedLogConventions.KeyOfExceptionMessage, exception.Message);
         Add(ScopedLogConventions.KeyOfExceptionStackTrace, exception.StackTrace ?? string.Empty);
+
         if (exception.InnerException == null) return;
 
         Add(ScopedLogConventions.KeyOfInnerExceptionType, exception.InnerException.GetType().FullName ?? exception.InnerException.GetType().Name);
@@ -57,10 +62,22 @@ public class ScopedLog : IScopedLog
         Add(ScopedLogConventions.KeyOfInnerExceptionStackTrace, exception.InnerException.StackTrace ?? string.Empty);
     }
 
-    public void AddWarning(string warningMessage)
+    public void AddWarning(string warningMessage, Exception? exception = null)
     {
         HasWarning = true;
         Add(ScopedLogConventions.KeyOfWarningMessage, warningMessage);
+
+        if (exception == null) return;
+        Add(ScopedLogConventions.KeyOfWarningHasException, true);
+        Add(ScopedLogConventions.KeyOfExceptionType, exception.GetType().FullName ?? exception.GetType().Name);
+        Add(ScopedLogConventions.KeyOfExceptionMessage, exception.Message);
+        Add(ScopedLogConventions.KeyOfExceptionStackTrace, exception.StackTrace ?? string.Empty);
+
+        if (exception.InnerException == null) return;
+
+        Add(ScopedLogConventions.KeyOfInnerExceptionType, exception.InnerException.GetType().FullName ?? exception.InnerException.GetType().Name);
+        Add(ScopedLogConventions.KeyOfInnerExceptionMessage, exception.InnerException.Message);
+        Add(ScopedLogConventions.KeyOfInnerExceptionStackTrace, exception.InnerException.StackTrace ?? string.Empty);
     }
 
     public IScopedLog Add(string key, object value)

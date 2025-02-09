@@ -5,6 +5,7 @@ namespace Sample.Hosted.Pages;
 public abstract class PageFor : PageCollectionBase<PageFor>
 {
     public static RootPageFor Root { get; } = new();
+    public static TestPageFor Test { get; } = new();
     public static UserPageFor User { get; } = new();
     
     public static UseProfilePageFor UserProfile { get; } = new();
@@ -20,6 +21,14 @@ public class RootPageFor : PageForBase
     public string Home { get; init; } = string.Empty;
     public string Swagger { get; init; } = string.Empty;
 }
+
+public class TestPageFor : PageForBase
+{
+    protected override string[] PathSegments { get; } = ["Test"];
+
+    public string Csrf { get; init; } = string.Empty;
+}
+
 
 public class UserPageFor : PageForBase
 {
