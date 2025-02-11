@@ -13,9 +13,9 @@ namespace DRN.Framework.Hosting.TagHelpers;
 /// Use 'disable-csrf' attribute to opt out of automatic CSRF token generation.
 /// </summary>
 [HtmlTargetElement(Attributes = "hx-post")]
-[HtmlTargetElement(Attributes = "hx-put")]
-[HtmlTargetElement(Attributes = "hx-delete,hx-patch")]
+[HtmlTargetElement(Attributes = "hx-delete")]
 [HtmlTargetElement(Attributes = "hx-patch")]
+[HtmlTargetElement(Attributes = "hx-put")]
 [HtmlTargetElement(Attributes = "add-csrf-token")]
 public class CsrfTokenTagHelper(IAntiforgery antiForgery, IHttpContextAccessor httpContextAccessor, IScopedLog scopedLog) : TagHelper
 {
@@ -47,7 +47,7 @@ public class CsrfTokenTagHelper(IAntiforgery antiForgery, IHttpContextAccessor h
             output.Attributes.RemoveAll(DisableCsrfAttribute);
             return;
         }
-        
+
         // Return if no CSRF requiring method and no explicit attribute
         if (!hasCsrfRequiringMethod && !hasExplicitCsrfAttribute)
             return;
@@ -86,12 +86,9 @@ public class CsrfTokenTagHelper(IAntiforgery antiForgery, IHttpContextAccessor h
         // Add informative attribute about CSRF protection
         var protectionSource = hasExplicitCsrfAttribute ? "explicit" : "auto";
         output.Attributes.SetAttribute(AutoCsrfAttribute, protectionSource);
-        
-        if (hasExplicitCsrfAttribute)
-        {
-            // Remove the add-csrf-token attribute
-            output.Attributes.RemoveAll(AddCsrfTokenAttribute);
-        }
+
+        if (hasExplicitCsrfAttribute) 
+            output.Attributes.RemoveAll(AddCsrfTokenAttribute); // Remove the add-csrf-token attribute
     }
 
     private void ProcessHxHeaders(TagHelperOutput output, string requestToken)

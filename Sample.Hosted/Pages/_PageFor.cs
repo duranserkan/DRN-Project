@@ -26,7 +26,7 @@ public class TestPageFor : PageForBase
 {
     protected override string[] PathSegments { get; } = ["Test"];
 
-    public string Csrf { get; init; } = string.Empty;
+    public string Htmx { get; init; } = string.Empty;
 }
 
 

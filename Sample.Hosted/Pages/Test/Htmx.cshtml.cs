@@ -2,15 +2,15 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Sample.Hosted.Pages.Test;
-//todo: test put, patch and delete methods 
-public class Csrf(IAntiforgery antiforgery) : PageModel
+
+public class Csrf(IAntiforgery antiForgery) : PageModel
 {
     public void OnGet()
     {
     }
 
     // POST methods in Razor Pages automatically validate CSRF tokens
-    public IActionResult OnPostAutoPost(string message)
+    public IActionResult OnPostAuto(string message)
     {
         var model = new
         {
@@ -38,7 +38,7 @@ public class Csrf(IAntiforgery antiforgery) : PageModel
     {
         try
         {
-           await antiforgery.ValidateRequestAsync(HttpContext);
+           await antiForgery.ValidateRequestAsync(HttpContext);
         }
         catch (AntiforgeryValidationException e)
         {
@@ -50,6 +50,42 @@ public class Csrf(IAntiforgery antiforgery) : PageModel
         {
             Message = query,
             TokenValidation = "Success (Explicit Validation)",
+            Timestamp = DateTime.Now.ToString("HH:mm:ss")
+        };
+        return Partial("_ResultMessage", model);
+    }
+
+    // PUT method with automatic CSRF validation
+    public IActionResult OnPut(string message)
+    {
+        var model = new
+        {
+            Message = message,
+            TokenValidation = "Success (PUT with Automatic Validation)",
+            Timestamp = DateTime.Now.ToString("HH:mm:ss")
+        };
+        return Partial("_ResultMessage", model);
+    }
+
+    // PATCH method with automatic CSRF validation
+    public IActionResult OnPatch(string message)
+    {
+        var model = new
+        {
+            Message = message,
+            TokenValidation = "Success (PATCH with Automatic Validation)",
+            Timestamp = DateTime.Now.ToString("HH:mm:ss")
+        };
+        return Partial("_ResultMessage", model);
+    }
+
+    // DELETE method with automatic CSRF validation
+    public IActionResult OnDelete(string message)
+    {
+        var model = new
+        {
+            Message = message,
+            TokenValidation = "Success (DELETE with Automatic Validation)",
             Timestamp = DateTime.Now.ToString("HH:mm:ss")
         };
         return Partial("_ResultMessage", model);
