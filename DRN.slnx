@@ -1,0 +1,120 @@
+﻿<Solution>
+  <Folder Name="/Docker/">
+    <File Path="Docker\.dockerignore" />
+    <File Path="Docker\.env" />
+    <File Path="Docker\docker-compose.yml" />
+  </Folder>
+  <Folder Name="/Docker/Graylog/">
+    <File Path="Docker\Graylog\docker-compose.yml" />
+    <File Path="Docker\Graylog\.env" />
+    <File Path="Docker\Graylog\.dockerignore" />
+  </Folder>
+  <Folder Name="/Docker/Postgre/">
+    <File Path="Docker\Postgre\docker-compose.yml" />
+    <File Path="Docker\Postgre\.env" />
+    <File Path="Docker\Postgre\.dockerignore" />
+  </Folder>
+  <Folder Name="/Docker/Rabbitmq/">
+    <File Path="Docker\Rabbitmq\docker-compose.yml" />
+    <File Path="Docker\Rabbitmq\.env" />
+    <File Path="Docker\Rabbitmq\.dockerignore" />
+  </Folder>
+  <Folder Name="/Docker/Rabbitmq/image/">
+    <File Path="Docker\Rabbitmq\image\definitions.json" />
+    <File Path="Docker\Rabbitmq\image\Dockerfile" />
+    <File Path="Docker\Rabbitmq\image\rabbitmq.conf" />
+    <File Path="Docker\Rabbitmq\image\rabbitmq_delayed_message_exchange-3.12.0.ez" />
+  </Folder>
+  <Folder Name="/Docs/">
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+    <File Path="ROADMAP.md" />
+    <File Path="SECURITY.md" />
+    <File Path="NOTICE.md" />
+  </Folder>
+  <Folder Name="/Items/">
+    <File Path=".gitignore" />
+    <File Path=".dockerignore" />
+    <File Path="vive la republique.png" />
+  </Folder>
+  <Folder Name="/Items/.github/" />
+  <Folder Name="/Items/.github/workflows/">
+    <File Path=".github\workflows\develop.yml" />
+    <File Path=".github\workflows\master.yml" />
+    <File Path=".github\workflows\release.yml" />
+    <File Path=".github\workflows\release-preview.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/" />
+  <Folder Name="/Items/.github/workflows/actions/docker-publish-all/">
+    <File Path=".github\workflows\actions\docker-publish-all\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/docker-publish/">
+    <File Path=".github\workflows\actions\docker-publish\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/dotnet-build-release/">
+    <File Path=".github\workflows\actions\dotnet-build-release\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/dotnet-build/">
+    <File Path=".github\workflows\actions\dotnet-build\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/dotnet-test-release/">
+    <File Path=".github\workflows\actions\dotnet-test-release\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/dotnet-test/">
+    <File Path=".github\workflows\actions\dotnet-test\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/nuget-publish-all/">
+    <File Path=".github\workflows\actions\nuget-publish-all\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/nuget-publish/">
+    <File Path=".github\workflows\actions\nuget-publish\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/scan-file-system-vulnerabilities/">
+    <File Path=".github\workflows\actions\scan-file-system-vulnerabilities\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/scan-nuget-vulnerabilities/">
+    <File Path=".github\workflows\actions\scan-nuget-vulnerabilities\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/setup-sdk-and-tools/">
+    <File Path=".github\workflows\actions\setup-sdk-and-tools\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/sonar-begin/">
+    <File Path=".github\workflows\actions\sonar-begin\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/sonar-end/">
+    <File Path=".github\workflows\actions\sonar-end\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/workflows/actions/sonar-tools/">
+    <File Path=".github\workflows\actions\sonar-tools\action.yml" />
+  </Folder>
+  <Folder Name="/Src/" />
+  <Folder Name="/Src/Framework/">
+    <Project Path="DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" Type="Classic C#" />
+    <Project Path="DRN.Framework.Hosting\DRN.Framework.Hosting.csproj" Type="Classic C#" />
+    <Project Path="DRN.Framework.Jobs\DRN.Framework.Jobs.csproj" Type="Classic C#" />
+    <Project Path="DRN.Framework.MassTransit\DRN.Framework.MassTransit.csproj" Type="Classic C#" />
+    <Project Path="DRN.Framework.SharedKernel\DRN.Framework.SharedKernel.csproj" Type="Classic C#" />
+    <Project Path="DRN.Framework.Testing\DRN.Framework.Testing.csproj" Type="Classic C#" />
+    <Project Path="DRN.Framework.Utils\DRN.Framework.Utils.csproj" Type="Classic C#" />
+  </Folder>
+  <Folder Name="/Src/Nexus/">
+    <Project Path="DRN.Nexus.Application\DRN.Nexus.Application.csproj" Type="Classic C#" />
+    <Project Path="DRN.Nexus.Contract\DRN.Nexus.Contract.csproj" Type="Classic C#" />
+    <Project Path="DRN.Nexus.Domain\DRN.Nexus.Domain.csproj" Type="Classic C#" />
+    <Project Path="DRN.Nexus.Hosted\DRN.Nexus.Hosted.csproj" Type="Classic C#" />
+    <Project Path="DRN.Nexus.Infra\DRN.Nexus.Infra.csproj" Type="Classic C#" />
+    <Project Path="DRN.Nexus.Utils\DRN.Nexus.Utils.csproj" Type="Classic C#" />
+  </Folder>
+  <Folder Name="/Src/Sample/">
+    <Project Path="Sample.Application\Sample.Application.csproj" Type="Classic C#" />
+    <Project Path="Sample.Contract\Sample.Contract.csproj" Type="Classic C#" />
+    <Project Path="Sample.Domain\Sample.Domain.csproj" Type="Classic C#" />
+    <Project Path="Sample.Hosted\Sample.Hosted.csproj" Type="Classic C#" />
+    <Project Path="Sample.Infra\Sample.Infra.csproj" Type="Classic C#" />
+    <Project Path="Sample.Utils\Sample.Utils.csproj" Type="Classic C#" />
+  </Folder>
+  <Folder Name="/Test/">
+    <Project Path="DRN.Test.Performance\DRN.Test.Performance.csproj" Type="Classic C#" />
+    <Project Path="DRN.Test\DRN.Test.csproj" Type="Classic C#" />
+  </Folder>
+</Solution>
