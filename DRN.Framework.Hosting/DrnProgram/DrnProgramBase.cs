@@ -240,7 +240,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         ConfigureDefaultCspBase(builder);
         builder.AddScriptSrc().WithNonce();
     }
-    
+
     protected virtual void ConfigureDefaultCspBase(CspBuilder builder)
     {
         builder.AddBaseUri().Self();
@@ -461,6 +461,9 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         mvcBuilder.AddControllersAsServices();
         mvcBuilder.AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
+        
+        if (appSettings.IsDevEnvironment)
+            mvcBuilder.AddRazorRuntimeCompilation();
     }
 
     protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)

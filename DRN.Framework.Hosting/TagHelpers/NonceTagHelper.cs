@@ -19,6 +19,15 @@ public class NonceTagHelper : TagHelper
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
         ArgumentNullException.ThrowIfNull(ViewContext);
-        output.Attributes.Add("nonce", ViewContext.HttpContext.GetNonce());
+        var disableNonce = output.Attributes.ContainsName("disable-nonce");
+
+        if (disableNonce)
+        {
+            output.Attributes.Add("nonce-generation", "disabled");
+            output.Attributes.RemoveAll("disable-nonce");
+        }
+
+        else
+            output.Attributes.Add("Nonce", ViewContext.HttpContext.GetNonce());
     }
 }

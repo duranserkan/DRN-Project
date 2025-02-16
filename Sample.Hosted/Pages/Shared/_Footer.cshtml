@@ -92,9 +92,9 @@
             if (parts.length === 2)
                 return parts.pop().split(';').shift();
 
-            return urlSafeBase64Encode(JSON.stringify({}));
+            return drnApp.utils.urlSafeBase64Encode(JSON.stringify({}));
         };
-        const getPreferenceCookieWithDecode = () => JSON.parse(urlSafeBase64Decode(getPreferenceCookie()));
+        const getPreferenceCookieWithDecode = () => JSON.parse(drnApp.utils.urlSafeBase64Decode(getPreferenceCookie()));
         let globalPreferences = getPreferenceCookieWithDecode();
 
         const footerNavbar = "footerNavbar";
@@ -108,7 +108,7 @@
         const savePreferences = (preferences) => {
             globalPreferences = preferences;
             const preferencesAsJson = JSON.stringify(preferences);
-            const preferencesJsonAsEncoded = urlSafeBase64Encode(preferencesAsJson);
+            const preferencesJsonAsEncoded = drnApp.utils.urlSafeBase64Encode(preferencesAsJson);
             const oneYearInSeconds = 365 * 24 * 60 * 60; // Set the cookie to expire in 1 year using Max-Age
             document.cookie = `${preferencesCookieName}=${preferencesJsonAsEncoded}; path=/; Max-Age=${oneYearInSeconds}; SameSite=Strict;`;
             document.getElementById(preferenceCookieAlert).classList.replace("d-flex", "d-none");

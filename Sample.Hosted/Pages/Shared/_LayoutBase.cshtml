@@ -35,6 +35,20 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
                 var canonicalUrl = Context.Request.Scheme + "://" + Context.Request.Host + Context.Request.Path;
         }
         <link rel="canonical" href="@canonicalUrl"/>
+
+        <script>
+                //https://ricostacruz.com/rsjs/index.html#keep-the-global-namespace-clean
+                window.drnApp = {
+                        environment: @Json.Serialize(ScopeContext.Settings.Environment.ToString()),
+                        isDev: @Json.Serialize(ScopeContext.Settings.IsDevEnvironment),
+                        utils: {}, // Initialize utils as an empty object for site.js
+                        onmount: {} // Initialize utils as an empty object for site.js
+                };
+                console.log('Environment:', drnApp.environment);
+                console.log('IsDev:', drnApp.isDev);
+        
+        </script>
+        <script src="~/js/site.js?v=@DateTime.Now.Ticks"></script> @*defines drnApp*@
 </head>
 <body class="d-flex flex-column bg-secondary-subtle vh-100" style="overflow: hidden;" hx-boost="true" hx-ext="safe-nonce" hx-history="false">
 @RenderBody()
@@ -54,14 +68,10 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
 <script defer crossorigin="anonymous" referrerpolicy="no-referrer"
         src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"
         integrity="sha256-4gndpcgjVHnzFm3vx3UOHbzVpcGAi3eS/C5nM3aPtEc="></script>
-<script defer crossorigin="anonymous" referrerpolicy="no-referrer"
-        src="https://cdn.jsdelivr.net/npm/hyperscript.org@0.9.14/dist/_hyperscript.min.js"
-        integrity="sha256-PoNKP/wDNP7lTs/043pq6VHNg+baqWZRynz9j3Ua1NI="></script>
-<script defer src="~/js/safe-nonce.js"></script>
 
-<script src="~/js/onmount.js"></script>
-<script src="~/js/onmount-site.js"></script>
-<script src="~/js/site.js?v=@DateTime.Now.Ticks"></script>
+<script defer src="~/js/safe-nonce.js"></script>
+<script defer src="~/js/onmount.js"></script>
+<script defer src="~/js/onmount-site.js?v=@DateTime.Now.Ticks"></script>
 
 @await RenderSectionAsync("Scripts", required: false)
 </body>

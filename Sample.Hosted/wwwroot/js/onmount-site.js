@@ -1,24 +1,23 @@
-// Initialize onmount.js globally
-window.addEventListener('popstate', () => {
-    // History changed (back/forward navigation)
-    window.location.href = window.location.href; // Forces a fresh request
-    console.log("popstate");
-});
-document.addEventListener('DOMContentLoaded', () => {
+if (typeof $ !== 'undefined' && typeof $.onmount === 'function') {
+    window.onmount = $.onmount;
     onmount();
-    console.log("DOMContentLoaded");
+    console.log('Assigned $.onmount to global onmount');
+} else {
+    console.warn('$.onmount is not available.');
+}
+
+// Initialize onmount.js globally
+document.addEventListener('DOMContentLoaded', function () {
+    onmount();
+    console.log("htmx:afterSwap'");
 });
 
 // Reinitialize onmount after HTMX partial updates
 document.body.addEventListener('htmx:afterSwap', () => {
     onmount();
+    console.log("htmx:afterSwap'");
 });
-onmount('[data-bs-toggle="tooltip"]', function (options) {
-    // Initialize Bootstrap Tooltip for the current element
-    options.Tooltip = new bootstrap.Tooltip(this);
-}, function (options) {
-    // Dispose Bootstrap Tooltip for the current element
-    if (!options.Tooltip) return;
-    options.Tooltip.dispose();
-},); 
 
+drnApp.onmount.register('[data-bs-toggle="tooltip"]',function (options) {
+    options.disposable = new bootstrap.Tooltip(this); // Initialize Bootstrap Tooltip for the current element
+})
