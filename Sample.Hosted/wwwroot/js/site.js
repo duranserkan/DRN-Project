@@ -92,9 +92,6 @@ drnApp.onmount.register = function (selector, registerCallback) {
  * @param {Function} [unregisterCallback] - Optional callback to execute if registration fails.
  */
 drnApp.onmount.registerFull = (selector, registerCallback, unregisterCallback) => {
-    const POLLING_INTERVAL = 100; // in milliseconds
-    const MAX_POLL_ATTEMPTS = 50; // 5 seconds total
-
     if (typeof selector !== 'string' || selector.trim() === '') {
         console.error('Invalid selector provided');
         return;
@@ -105,32 +102,10 @@ drnApp.onmount.registerFull = (selector, registerCallback, unregisterCallback) =
     }
 
     const executeRegistration = () => onmount(selector, registerCallback, unregisterCallback);
-    const handleDocumentReady = () => {
-        if (typeof onmount !== 'function')
-            startPolling();
-        else
-            executeRegistration();
-    };
 
-    const startPolling = () => {
-        let attempts = 0;
-        const poll = setInterval(() => {
-            if (typeof onmount === 'function') {
-                clearInterval(poll);
-                executeRegistration();
-            } else if (++attempts >= MAX_POLL_ATTEMPTS) {
-                clearInterval(poll);
-                console.error(`Failed to load onmount.js after ${MAX_POLL_ATTEMPTS * POLLING_INTERVAL}ms`);
-            }
-        }, POLLING_INTERVAL);
-    };
-
-    const checkDocumentState = () => {
-        if (document.readyState === 'complete' || document.readyState === 'interactive')
-            handleDocumentReady();
-        else
-            document.addEventListener('DOMContentLoaded', handleDocumentReady, {once: true});
-    };
-
-    checkDocumentState();
+    let readyState=document.readyState;
+    if (readyState === 'interactive' || readyState === 'complete')
+        executeRegistration();
+    else
+        document.addEventListener('DOMContentLoaded', executeRegistration, {once: true});
 };

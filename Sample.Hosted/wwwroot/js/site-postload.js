@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function () {
     onmount();
 });
 
-document.addEventListener('load', function () {
+window.addEventListener('load', function () {
     onmount();
 });
 
