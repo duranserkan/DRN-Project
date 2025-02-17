@@ -36,19 +36,11 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
         }
         <link rel="canonical" href="@canonicalUrl"/>
 
-        <script>
-                //https://ricostacruz.com/rsjs/index.html#keep-the-global-namespace-clean
-                window.drnApp = {
-                        environment: @Json.Serialize(ScopeContext.Settings.Environment.ToString()),
-                        isDev: @Json.Serialize(ScopeContext.Settings.IsDevEnvironment),
-                        utils: {}, // Initialize utils as an empty object for site.js
-                        onmount: {} // Initialize utils as an empty object for site.js
-                };
-                console.log('Environment:', drnApp.environment);
-                console.log('IsDev:', drnApp.isDev);
-        
-        </script>
         <script src="~/js/site.js?v=@DateTime.Now.Ticks"></script> @*defines drnApp*@
+        <script>
+                drnApp.Environment =  @Json.Serialize(ScopeContext.Settings.Environment.ToString());
+                drnApp.isDev = @Json.Serialize(ScopeContext.Settings.IsDevEnvironment);
+        </script>
 </head>
 <body class="d-flex flex-column bg-secondary-subtle vh-100" style="overflow: hidden;" hx-boost="true" hx-ext="safe-nonce" hx-history="false">
 @RenderBody()
@@ -71,7 +63,7 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
 
 <script defer src="~/js/safe-nonce.js"></script>
 <script defer src="~/js/onmount.js"></script>
-<script defer src="~/js/onmount-site.js?v=@DateTime.Now.Ticks"></script>
+<script defer src="~/js/site-postload.js?v=@DateTime.Now.Ticks"></script>
 
 @await RenderSectionAsync("Scripts", required: false)
 </body>

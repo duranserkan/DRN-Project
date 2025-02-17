@@ -1,9 +1,23 @@
-//Jquery && Onmount.js is not available yet check _LayoutBase execution order
+//Jquery && Onmount.js is not available yet. Check _LayoutBase for the execution order
+//https://ricostacruz.com/rsjs/index.html#keep-the-global-namespace-clean
+
+//Manages the app and provides utility methods
+window.drnApp = {
+    environment: 'Neitherland',
+    isDev: false,
+    // provides utility methods
+    utils: {},
+    // manages behavior of elements.
+    onmount: {}
+};
 document.addEventListener('popstate', () => { // History changed (back/forward navigation)
     window.location.href = window.location.href; // Forces a fresh request
 });
 
 //https://ricostacruz.com/rsjs/index.html#keep-the-global-namespace-clean
+/**
+ * @param {string} str
+ */
 drnApp.utils.urlSafeBase64Encode = str => {
     // Base64 encode the string
     const base64 = btoa(str);
@@ -16,6 +30,9 @@ drnApp.utils.urlSafeBase64Encode = str => {
         .replace(/=+$/, '');
 }
 
+/**
+ * @param {string} str
+ */
 drnApp.utils.urlSafeBase64Decode = str => {
     // Replace URL-safe characters back to standard Base64 characters
     const base64 = str
@@ -27,8 +44,14 @@ drnApp.utils.urlSafeBase64Decode = str => {
     return atob(base64);
 }
 
+/**
+ * @param {string} cookieName
+ */
 drnApp.utils.checkCookieExists = cookieName => document.cookie.split('; ').some(cookie => cookie.startsWith(`${cookieName}=`))
 
+/**
+ * @param {Element} requestElement
+ */
 drnApp.utils.getRequestElementSelector = requestElement => {
     if (!requestElement) return 'Unknown Element';
 
@@ -49,84 +72,65 @@ drnApp.onmount.unregister = function (options) {
     }
 }
 
-drnApp.onmount.registerFull = function (selector, registerCallBack, unregisterCallBack) {
-    function register() {
-        if (typeof onmount === 'function') {
-            onmount(selector, registerCallBack, unregisterCallBack);
-        } else {
-            console.warn('onmount.js is not available yet. Waiting for document to load...');
-            document.addEventListener('DOMContentLoaded', function () {
-                if (typeof onmount === 'function') {
-                    onmount(selector, registerCallBack, unregisterCallBack);
-                    console.log(`Registered ${selector} after document load.`);
-                } else {
-                    console.error('onmount.js is still not available after document load.');
-                }
-            });
-        }
+/**
+ * Registers the given selector with onmount and ensures that registration
+ * occurs once the DOM is ready or onmount.js is loaded.
+ *
+ * @param {string} selector - CSS selector for elements to be mounted.
+ * @param {Function} registerCallback - Callback to execute upon registration.
+ */
+drnApp.onmount.register = function (selector, registerCallback) {
+    drnApp.onmount.registerFull(selector, registerCallback, drnApp.onmount.unregister);
+}
+
+/**
+ * Registers the given selector with onmount and ensures that registration
+ * occurs once the DOM is ready or onmount.js is loaded.
+ *
+ * @param {string} selector - CSS selector for elements to be mounted.
+ * @param {Function} registerCallback - Callback to execute upon registration.
+ * @param {Function} [unregisterCallback] - Optional callback to execute if registration fails.
+ */
+drnApp.onmount.registerFull = (selector, registerCallback, unregisterCallback) => {
+    const POLLING_INTERVAL = 100; // in milliseconds
+    const MAX_POLL_ATTEMPTS = 50; // 5 seconds total
+
+    if (typeof selector !== 'string' || selector.trim() === '') {
+        console.error('Invalid selector provided');
+        return;
+    }
+    if (typeof registerCallback !== 'function') {
+        console.error('Registration callback must be a function');
+        return;
     }
 
-    // If document is already loaded, register immediately
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        register();
-    } else {    // Wait for document to load before registering
-        document.addEventListener('DOMContentLoaded', register);
-    }
-}
+    const executeRegistration = () => onmount(selector, registerCallback, unregisterCallback);
+    const handleDocumentReady = () => {
+        if (typeof onmount !== 'function')
+            startPolling();
+        else
+            executeRegistration();
+    };
 
-drnApp.onmount.register = function (selector, registerCallBack) {
-    drnApp.onmount.registerFull(selector, registerCallBack, drnApp.onmount.unregister);
-}
+    const startPolling = () => {
+        let attempts = 0;
+        const poll = setInterval(() => {
+            if (typeof onmount === 'function') {
+                clearInterval(poll);
+                executeRegistration();
+            } else if (++attempts >= MAX_POLL_ATTEMPTS) {
+                clearInterval(poll);
+                console.error(`Failed to load onmount.js after ${MAX_POLL_ATTEMPTS * POLLING_INTERVAL}ms`);
+            }
+        }, POLLING_INTERVAL);
+    };
 
-if (drnApp.isDev) {
-    document.addEventListener('htmx:responseError', function (evt) {
-        if (!evt.detail) {
-            console.error("htmx:responseError fired without detail");
-            return;
-        }
+    const checkDocumentState = () => {
+        if (document.readyState === 'complete' || document.readyState === 'interactive')
+            handleDocumentReady();
+        else
+            document.addEventListener('DOMContentLoaded', handleDocumentReady, {once: true});
+    };
 
-        const response = evt.detail.xhr;
-        const request = evt.detail.requestConfig;
-        
-        if (!response || !request) {
-            console.error("Missing xhr or requestConfig in htmx:responseError detail");
-            return;
-        }
-
-        // Extract relevant details with fallback defaults
-        const endpoint = request.path || "unknown endpoint";
-        const method = request.method || 'GET';
-        const requestData = request.body || 'No data sent';
-        const status = response.status;
-        const statusText = response.statusText;
-
-        // Extract request headers
-        const requestHeaders = request.headers || {};
-        const headersString = Object.entries(requestHeaders)
-            .map(([key, value]) => `${key}: ${value}`)
-            .join('\n') || 'No headers sent';
-        
-        const requestElementSelector = drnApp.utils.getRequestElementSelector(evt.target);
-        const targetSelector = drnApp.utils.getRequestElementSelector(request.target) || 'Unknown Target';
-
-        // Construct a detailed error message
-        const errorMessage = `
-Request failed:
-- Endpoint: ${endpoint}
-- Method: ${method}
-- Status: ${status} (${statusText})
-- Request Element: ${requestElementSelector}
-- Target Selector: ${targetSelector}
-- Request Headers:
-------- 
-${headersString}
--------
-- Data Sent:
-------- 
-${requestData}
--------
-`;
-
-        alert(errorMessage.trim());
-    });
-}
+    checkDocumentState();
+};
