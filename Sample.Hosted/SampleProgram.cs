@@ -1,6 +1,7 @@
 ﻿using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Middlewares;
+using DRN.Framework.Testing.Contexts.Postgres;
 using DRN.Framework.Testing.Extensions;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
@@ -22,7 +23,14 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
             .AddSampleApplicationServices()
             .AddSampleHostedServices(appSettings);
 
-        await builder.LaunchExternalDependenciesAsync(scopedLog, appSettings);
+        var launchOptions = new ExternalDependencyLaunchOptions
+        {
+            PostgresContainerSettings = new PostgresContainerSettings
+            {
+                HostPort = 6432 //to keep default port free for other usages
+            }
+        };
+        await builder.LaunchExternalDependenciesAsync(scopedLog, appSettings, launchOptions);
     }
 
     protected override void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
