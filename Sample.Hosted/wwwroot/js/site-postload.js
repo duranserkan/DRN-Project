@@ -9,7 +9,7 @@ if (typeof $ !== 'undefined' && typeof $.onmount === 'function') {
 // Initialize onmount.js globally
 document.addEventListener('DOMContentLoaded', function () {
     onmount();
-});
+},{once: true});
 
 window.addEventListener('load', function () {
     onmount();
