@@ -9,6 +9,9 @@
 
     ViewData[ViewDataFor.Title] = title;
     ViewData[ViewDataFor.MainContentLayoutOptions] = options;
+
+    var headers = HttpContext.Request.Headers;
+    var isHtmxRequest = headers.ContainsKey("HX-Request") && headers["HX-Request"] == "true";
     //Todo: add a test to disable nonce htmx request only
     //todo: review onmount registration
     //todo: request hub in development environment to monitor requests and errors
@@ -224,11 +227,13 @@
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-header">
-                                <button id="btnJqueryTest">jQuery</button>
+                                <button id="btnJqueryTest">Test</button>
+                                <button id="btnJqueryTestClean">Clean</button>
                                 @*<button id="btnHyperScript" _="on click then add .active to me">Hyperscript</button>*@
                             </div>
                             <div class="card-body">
-                                <div id="divJsTestOutput"></div>
+                                <div id="divJsTestOutput1"></div>
+                                <div id="divJsTestOutput2"></div>
                             </div>
                         </div>
                     </div>
@@ -240,23 +245,34 @@
 
 @section Scripts {
     <script>
-        drnApp.onmount.register('#divJsTestOutput', function () {
-            $("#divJsTestOutput").text('ready to test');
+        drnApp.onmount.register('#divJsTestOutput1', function () {
+            $("#divJsTestOutput1").text('ready to test');
+        });
+        drnApp.onmount.register('#divJsTestOutput2', function () {
+            $("#divJsTestOutput2").text('ready to test');
         });
 
-        drnApp.onmount.register('#btnJqueryTest',function (options) {
-            console.log("#btnJqueryTest on click registered with " + options.id)
+        drnApp.onmount.register('#btnJqueryTest', function (options) {
             $(this).click(function () {
-                $("#divJsTestOutput").text("jQuery works with safe-nonce!");
+                console.log("#btnJqueryTest on click handler 1 registered with " + options.id)
+                $("#divJsTestOutput1").text("#btnJqueryTest works: Handler 1 " + options.id);
+            });
+        },"handler1")
+
+        drnApp.onmount.register('#btnJqueryTestClean', function (options) {
+            $(this).click(function () {
+                $("#divJsTestOutput1").text("");
+                $("#divJsTestOutput2").text("");
             });
         })
     </script>
 
-    <script disable-nonce>
-        onmount('#btnJqueryTest', function (options) {
+    <script disable-nonce="@isHtmxRequest">
+        drnApp.onmount.register('#btnJqueryTest', function (options) {
             $(this).click(function () {
-                $("#jsTestOutput").text("jQuery works with disable-nonce!");
+                console.log("#btnJqueryTest on click handler 2 registered with " + options.id)
+                $("#divJsTestOutput2").text("#btnJqueryTest works: Handler 2 with " + options.id);
             });
-        });
+        },"handler2");
     </script>
 } 

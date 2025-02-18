@@ -16,18 +16,24 @@ public class NonceTagHelper : TagHelper
 {
     [ViewContext] public ViewContext? ViewContext { get; set; }
 
+    /// <summary>
+    /// disables nonce generation if true
+    /// </summary>
+    [HtmlAttributeName("disable-nonce")]
+    public bool DisableNonce { get; set; } = false;
+
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
         ArgumentNullException.ThrowIfNull(ViewContext);
-        var disableNonce = output.Attributes.ContainsName("disable-nonce");
 
-        if (disableNonce)
+        if (DisableNonce)
         {
             output.Attributes.Add("nonce-generation", "disabled");
             output.Attributes.RemoveAll("disable-nonce");
+            
+            return;
         }
 
-        else
-            output.Attributes.Add("Nonce", ViewContext.HttpContext.GetNonce());
+        output.Attributes.Add("Nonce", ViewContext.HttpContext.GetNonce());
     }
 }
