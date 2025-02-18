@@ -59,6 +59,12 @@ drnApp.utils.getRequestElementSelector = requestElement => {
     if (requestElement.id) selectorSuffix += `#${requestElement.id}`;
     if (requestElement.classList.length > 0) selectorSuffix += `.${[...requestElement.classList].join('.')}`;
 
+    Array.from(requestElement.attributes)
+        .filter(attr => attr.name.startsWith('data-'))
+        .forEach(dataAttr => {
+            selectorSuffix += `[${dataAttr.name}="${dataAttr.value}"]`;
+        });
+
     return requestElement.tagName + selectorSuffix;
 };
 

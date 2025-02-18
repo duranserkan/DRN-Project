@@ -138,7 +138,8 @@
                                 <p class="text-muted">POST form with disabled CSRF protection</p>
                                 <form hx-post="@PageFor.Test.Htmx?handler=Auto"
                                       hx-target="#disabled-form-result"
-                                      disable-csrf-token>
+                                      disable-csrf-token
+                                      data-something="who-knows-what">
                                     <div class="mb-3">
                                         <label for="disabledMessage" class="form-label">Message</label>
                                         <input type="text" class="form-control" id="disabledMessage" name="message" value="Test message" required>
