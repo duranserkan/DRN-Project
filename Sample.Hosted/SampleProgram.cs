@@ -27,6 +27,7 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
         {
             PostgresContainerSettings = new PostgresContainerSettings
             {
+                Reuse = true,
                 HostPort = 6432 //to keep default port free for other usages
             }
         };

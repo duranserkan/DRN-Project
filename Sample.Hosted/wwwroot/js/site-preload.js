@@ -85,9 +85,10 @@ drnApp.onmount.unregister = function (options) {
  *
  * @param {string} selector - CSS selector for elements to be mounted.
  * @param {Function} registerCallback - Callback to execute upon registration.
+ * @param {string} [idempotencyKey] - Optional key that prevents duplicate registrations of the selector. Selector and key together determine uniquness.
  */
-drnApp.onmount.register = function (selector, registerCallback) {
-    drnApp.onmount.registerFull(selector, registerCallback, drnApp.onmount.unregister);
+drnApp.onmount.register = function (selector, registerCallback, idempotencyKey = '') {
+    drnApp.onmount.registerFull(selector, registerCallback, drnApp.onmount.unregister, idempotencyKey);
 }
 
 /**
@@ -97,8 +98,9 @@ drnApp.onmount.register = function (selector, registerCallback) {
  * @param {string} selector - CSS selector for elements to be mounted.
  * @param {Function} registerCallback - Callback to execute upon registration.
  * @param {Function} [unregisterCallback] - Optional callback to execute if registration fails.
+ * @param {string} [idempotencyKey] - Optional key that prevents duplicate registrations of the selector. Selector and key together determine uniquness.
  */
-drnApp.onmount.registerFull = (selector, registerCallback, unregisterCallback) => {
+drnApp.onmount.registerFull = (selector, registerCallback, unregisterCallback = undefined, idempotencyKey = '') => {
     if (typeof selector !== 'string' || selector.trim() === '') {
         console.error('Invalid selector provided');
         return;
@@ -107,10 +109,27 @@ drnApp.onmount.registerFull = (selector, registerCallback, unregisterCallback) =
         console.error('Registration callback must be a function');
         return;
     }
+    if (typeof registerCallback !== 'function') {
+        console.error('Registration callback must be a function');
+        return;
+    }
+    if (typeof idempotencyKey !== 'string') {
+        console.error('Registration key must be a string');
+        return;
+    }
+    const selectorKey = selector + '_' + idempotencyKey;
+
+    if (!drnApp.onmount._registry)
+        drnApp.onmount._registry = new Set();
+
+    if (drnApp.onmount._registry.has(selectorKey))
+        return;
+
+    drnApp.onmount._registry.add(selectorKey);
 
     const executeRegistration = () => onmount(selector, registerCallback, unregisterCallback);
 
-    let readyState=document.readyState;
+    let readyState = document.readyState;
     if (readyState === 'interactive' || readyState === 'complete')
         executeRegistration();
     else
