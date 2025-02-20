@@ -21,14 +21,14 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
 
         @*https://icons.getbootstrap.com/#usage*@
         @*todo: bootstrap customizations https://getbootstrap.com/docs/5.3/customize/overview/*@
-        <link defer href="/images/100.jpeg" rel="icon" type="image/x-icon"/>
-        <link defer href="~/lib/bootstrap/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer"
-              integrity="sha512-p8oaNSyWDjK8vlPgMaVcGioPXExZQpNgYw72DVN8jKzqz4SkBfwLSQhKPIcMi4zbxBnYJXmSwRYovsUJBup6NA=="/>
-        <link defer href="~/lib/bootstrap/bootstrap-icons.min.css" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer"
-              integrity="sha512-dPXYcDub/aeb08c63jRq/k6GaKccl256JQy/AnOq7CAnEZ9FzSL9wSbcZkMp4R26vBsMLFYH4kQ67/bbV8XaCQ=="/>
+        <link rel="preload" href="~/lib/bootstrap/fonts/bootstrap-icons.woff2?dd67030699838ea613ee6dbda90effa6" as="font" type="font/woff2" crossorigin="anonymous">
+        
+        <link href="/images/100.jpeg" rel="icon" type="image/x-icon"/>
+        <link href="~/lib/bootstrap/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous" integrity="sha256-0Tv1es0KeOQQ8CeN/TXxE4tcarz5oxYvC1Ah5SvU7lo="/>
+        <link href="~/lib/bootstrap/bootstrap-icons.min.css" rel="stylesheet" crossorigin="anonymous" integrity="sha256-9kPW/n5nn53j4WMRYAxe9c1rCY96Oogo/MKSVdKzPmI="/>
         <!-- Custom CSS -->
-        <link defer href="~/css/site.css?v=@DateTime.Now.Ticks" rel="stylesheet" />
-        <link defer href="~/css/sidebars.css?v=@DateTime.Now.Ticks" rel="stylesheet"/>
+        <link href="~/css/site.css?v=@DateTime.Now.Ticks" rel="stylesheet" />
+        <link href="~/css/sidebars.css?v=@DateTime.Now.Ticks" rel="stylesheet"/>
         @{
                 var canonicalUrl = Context.Request.Scheme + "://" + Context.Request.Host + Context.Request.Path;
         }
@@ -41,30 +41,22 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
                 drnApp.isDev = @Json.Serialize(ScopeContext.Settings.IsDevEnvironment);
         </script>
         <!-- Preload -->
-
-        <script src="~/lib/htmx/htmx.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"
-                integrity="sha256-4gndpcgjVHnzFm3vx3UOHbzVpcGAi3eS/C5nM3aPtEc="></script>
-        <script src="~/lib/htmx/safe-nonce.js" crossorigin="anonymous" referrerpolicy="no-referrer"
-                integrity="sha256-rscDWfKxSAHJUDm6aADpKS6kAo3KShDaAN0B/aW1VqM="></script>
-
-        <script src="~/lib/jquery/jquery.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"
-                integrity="sha512-xQM0H6OnF2/RC9jNelcXyPr5cfh/oMFY8tlPzUhK4+1QMfSUFNroM/uAa3NltWmcIdLmVTdvaa2wUrIvb2mCpw=="></script>
-        <script src="~/lib/onmount/onmount.js" crossorigin="anonymous" referrerpolicy="no-referrer"
-                integrity="sha512-pOg2kXlBM7AqnCMJ1qXvnsDOcrT/k6o2j9B+L8VRqv+oDdWE2IMk/H5R9PEPDXt/SnvdSlNoauzYfNemwMYuUQ=="></script>
+        
+        <script src="~/lib/htmx/htmx.min.js" crossorigin="anonymous" integrity="sha256-4gndpcgjVHnzFm3vx3UOHbzVpcGAi3eS/C5nM3aPtEc="></script>
+        <script src="~/lib/htmx/safe-nonce.js" crossorigin="anonymous" integrity="sha256-rscDWfKxSAHJUDm6aADpKS6kAo3KShDaAN0B/aW1VqM="></script>
+        <script src="~/lib/jquery/jquery.min.js" crossorigin="anonymous" integrity="sha256-PnUB0Vw2MOeRyLIDkuud7jGp9lzj793nbO9ccQFBqyQ="></script>
+        <script src="~/lib/onmount/onmount.js" crossorigin="anonymous" integrity="sha256-6NJBgkLT++H3f9RQoo4omp9ym7Ed0VqevUOxIIPPAos="></script>
 
         <!-- Postload -->
-        <script src="~/js/site-postload.js?v=@DateTime.Now.Ticks" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="~/js/site-postload.js?v=@DateTime.Now.Ticks" crossorigin="anonymous"></script>
         <!-- Postload -->
 </head>
 <body class="d-flex flex-column bg-secondary-subtle vh-100" style="overflow: hidden;" hx-ext="safe-nonce" hx-boost="true" hx-history="false">
 @RenderBody()
 
-<script defer src="~/lib/bootstrap/bootstrap.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"
-        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"></script>
-<script defer src="~/lib/jquery/jquery.validate.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"
-        integrity="sha512-KFHXdr2oObHKI9w4Hv1XPKc898mE4kgYx58oqsc/JqqdLMDI4YjOLzom+EMlW8HFUd0QfjfAvxSL6sEq/a42fQ==" ></script>
-<script defer src="~/lib/jquery/jquery.validate.unobtrusive.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"
-        integrity="sha512-Xo4EnjELZKzQYrwlqUOKRmWMl5RWC9jlgKLhx7oO/zVZqHifuuAr+fsXxbiSw++6Z/21cnj4hlcV5crAQKaRFg=="></script>
+<script defer src="~/lib/bootstrap/bootstrap.bundle.min.js" crossorigin="anonymous" integrity="sha256-CDOy6cOibCWEdsRiZuaHf8dSGGJRYuBGC+mjoJimHGw="></script>
+<script defer src="~/lib/jquery/jquery.validate.min.js" crossorigin="anonymous" integrity="sha256-umbTaFxP31Fv6O1itpLS/3+v5fOAWDLOUzlmvOGaKV4=" ></script>
+<script defer src="~/lib/jquery/jquery.validate.unobtrusive.min.js" crossorigin="anonymous" integrity="sha256-YJa7W8EiQdQpkk93iGEjjnLSUWRpRJbSfzfURh1kxz4="></script>
 
 @await RenderSectionAsync("Scripts", required: false)
 </body>
