@@ -122,8 +122,11 @@ drnApp.onmount.registerFull = (selector, registerCallback, unregisterCallback = 
     if (!drnApp.onmount._registry)
         drnApp.onmount._registry = new Set();
 
-    if (drnApp.onmount._registry.has(selectorKey))
+    if (drnApp.onmount._registry.has(selectorKey)){
+        onmount();
         return;
+    }
+
 
     drnApp.onmount._registry.add(selectorKey);
 
@@ -134,4 +137,6 @@ drnApp.onmount.registerFull = (selector, registerCallback, unregisterCallback = 
         executeRegistration();
     else
         document.addEventListener('DOMContentLoaded', executeRegistration, {once: true});
+
+    onmount();
 };

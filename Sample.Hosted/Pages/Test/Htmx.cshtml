@@ -11,9 +11,6 @@
     ViewData[ViewDataFor.MainContentLayoutOptions] = options;
 
     var headers = HttpContext.Request.Headers;
-    var isHtmxRequest = headers.ContainsKey("HX-Request") && headers["HX-Request"] == "true";
-    //Todo: add a test to disable nonce htmx request only
-    //todo: review onmount registration
     //todo: request hub in development environment to monitor requests and errors
 }
 <div class="container mt-4">
@@ -245,6 +242,8 @@
 
 @section Scripts {
     <script>
+        console.log("Htmx scripts loaded pre");
+
         drnApp.onmount.register('#divJsTestOutput1', function () {
             $("#divJsTestOutput1").text('ready to test');
         });
@@ -253,26 +252,32 @@
         });
 
         drnApp.onmount.register('#btnJqueryTest', function (options) {
+            console.log("#btnJqueryTest on click handler 1 registered with " + options.id)
+
             $(this).click(function () {
-                console.log("#btnJqueryTest on click handler 1 registered with " + options.id)
                 $("#divJsTestOutput1").text("#btnJqueryTest works: Handler 1 " + options.id);
             });
         },"handler1")
 
         drnApp.onmount.register('#btnJqueryTestClean', function (options) {
+            console.log("#btnJqueryTestClean on click handler registered with " + options.id)
+
             $(this).click(function () {
                 $("#divJsTestOutput1").text("");
                 $("#divJsTestOutput2").text("");
             });
         })
+
+        console.log("Htmx scripts loaded post");
     </script>
 
-    <script disable-nonce="@isHtmxRequest">
+    <script disable-nonce>
         drnApp.onmount.register('#btnJqueryTest', function (options) {
+            console.log("#btnJqueryTest on click handler 2 registered with " + options.id)
+
             $(this).click(function () {
-                console.log("#btnJqueryTest on click handler 2 registered with " + options.id)
                 $("#divJsTestOutput2").text("#btnJqueryTest works: Handler 2 with " + options.id);
             });
         },"handler2");
     </script>
-} 
+}

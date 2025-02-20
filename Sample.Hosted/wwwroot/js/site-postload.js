@@ -7,20 +7,13 @@ if (typeof $ !== 'undefined' && typeof $.onmount === 'function') {
 }
 
 // Initialize onmount.js globally
-document.addEventListener('DOMContentLoaded', function () {
-    onmount();
-},{once: true});
-
-window.addEventListener('load', function () {
-    onmount();
-});
+document.addEventListener('DOMContentLoaded', onmount, {once: true});
 
 // Reinitialize onmount after HTMX partial updates
-document.body.addEventListener('htmx:afterSwap', () => {
-    onmount();
-});
+document.addEventListener('htmx:load', onmount);
 
-drnApp.onmount.register('[data-bs-toggle="tooltip"]',function (options) {
+
+drnApp.onmount.register('[data-bs-toggle="tooltip"]', function (options) {
     options.disposable = new bootstrap.Tooltip(this); // Initialize Bootstrap Tooltip for the current element
 })
 
