@@ -87,7 +87,7 @@ public class CsrfTokenTagHelper(IAntiforgery antiForgery, IHttpContextAccessor h
         var protectionSource = hasExplicitCsrfAttribute ? "explicit" : "auto";
         output.Attributes.SetAttribute(AutoCsrfAttribute, protectionSource);
 
-        if (hasExplicitCsrfAttribute) 
+        if (hasExplicitCsrfAttribute)
             output.Attributes.RemoveAll(AddCsrfTokenAttribute); // Remove the add-csrf-token attribute
     }
 
@@ -119,32 +119,25 @@ public class CsrfTokenTagHelper(IAntiforgery antiForgery, IHttpContextAccessor h
         }
     }
 
-    private void UpdateExistingHeaders(TagHelperOutput output, Dictionary<string, string> headersDict, string requestToken)
+    private static void UpdateExistingHeaders(TagHelperOutput output, Dictionary<string, string> headersDict, string requestToken)
     {
         headersDict[CsrfTokenHeader] = requestToken;
         var newJson = JsonSerializer.Serialize(headersDict);
         output.Attributes.SetAttribute(HxHeadersAttribute, newJson);
     }
 
-    private void CreateNewHeaders(TagHelperOutput output, string existingHeadersJson, string requestToken)
+    private static void CreateNewHeaders(TagHelperOutput output, string existingHeadersJson, string requestToken)
     {
-        Dictionary<string, string> headers;
-
-        if (!string.IsNullOrEmpty(existingHeadersJson))
-        {
-            headers = new Dictionary<string, string>
+        var headers = !string.IsNullOrEmpty(existingHeadersJson)
+            ? new Dictionary<string, string>
             {
                 ["existing"] = existingHeadersJson,
                 [CsrfTokenHeader] = requestToken
-            };
-        }
-        else
-        {
-            headers = new Dictionary<string, string>
+            }
+            : new Dictionary<string, string>
             {
                 [CsrfTokenHeader] = requestToken
             };
-        }
 
         var newJson = JsonSerializer.Serialize(headers);
         output.Attributes.SetAttribute(HxHeadersAttribute, newJson);
