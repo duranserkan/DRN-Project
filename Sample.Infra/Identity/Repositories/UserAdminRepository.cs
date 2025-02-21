@@ -14,14 +14,13 @@ public class UserAdminRepository(
     IMemoryCache cache) : IUserAdminRepository
 {
     private const string SystemAdminUserCacheKey = "SystemAdminUserExists";
-    private const string SystemAdminRole = "SystemAdmin";
 
     public async Task<bool> AnySystemAdminExistsAsync()
     {
         if (cache.TryGetValue(SystemAdminUserCacheKey, out bool adminUserExists))
             return adminUserExists;
 
-        var usersInRole = await userManager.GetUsersInRoleAsync(SystemAdminRole);
+        var usersInRole = await userManager.GetUsersInRoleAsync(RoleFor.SystemAdmin);
         adminUserExists = usersInRole.Count > 0;
 
         if (adminUserExists)
@@ -55,10 +54,10 @@ public class UserAdminRepository(
 
     private async Task<IdentityResult> AddSystemAdminAsync(SampleUser user, string inputPassword)
     {
-        var adminRoleExists = await roleManager.RoleExistsAsync(SystemAdminRole);
+        var adminRoleExists = await roleManager.RoleExistsAsync(RoleFor.SystemAdmin);
         if (!adminRoleExists)
         {
-            var role = new IdentityRole(SystemAdminRole);
+            var role = new IdentityRole(RoleFor.SystemAdmin);
             var roleCreatedResult = await roleManager.CreateAsync(role);
 
             if (!roleCreatedResult.Succeeded)
@@ -74,7 +73,7 @@ public class UserAdminRepository(
         }
 
         var adminUser = existingUser ?? user;
-        var adminCreatedResult = await userManager.AddToRoleAsync(adminUser, SystemAdminRole);
+        var adminCreatedResult = await userManager.AddToRoleAsync(adminUser, RoleFor.SystemAdmin);
 
         return adminCreatedResult;
     }

@@ -1,4 +1,6 @@
 @using DRN.Framework.SharedKernel.Enums
+@using DRN.Framework.Utils.Auth
+@using Sample.Hosted.TagHelpers
 
 <header class="navbar navbar-expand-lg container-xxl bg-primary" data-bs-theme="dark">
     <div class="container-fluid">
@@ -20,9 +22,12 @@
                     </li>
                 </environment>
                 <environment include="@AppEnvironment.Development.ToString()">
-                    <li class="nav-item">
-                        <a class="nav-link" authorized-only href="@PageFor.Test.Htmx">Htmx</a>
-                    </li>
+                    @if (ScopeContext.User.IsInRole(RoleFor.SystemAdmin))
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" authorized-only href="@PageFor.Test.Htmx">Htmx</a>
+                        </li>
+                    }
                 </environment>
                 <!-- Add more links here if needed -->
             </ul>

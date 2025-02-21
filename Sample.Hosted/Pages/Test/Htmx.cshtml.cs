@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Sample.Domain.Identity;
 
 namespace Sample.Hosted.Pages.Test;
 
+[Authorize(Roles = RoleFor.SystemAdmin)]
 public class Csrf(IAntiforgery antiForgery) : PageModel
 {
     public void OnGet()
@@ -20,7 +22,7 @@ public class Csrf(IAntiforgery antiForgery) : PageModel
         };
         return Partial("_ResultMessage", model);
     }
-    
+
     // GET requests don't validate CSRF by default
     public IActionResult OnGetNoCsrfGet()
     {
@@ -32,13 +34,13 @@ public class Csrf(IAntiforgery antiForgery) : PageModel
         };
         return Partial("_ResultMessage", model);
     }
-    
+
     // Manually validate the token
     public async Task<IActionResult> OnGetExplicitValidationAsync(string query)
     {
         try
         {
-           await antiForgery.ValidateRequestAsync(HttpContext);
+            await antiForgery.ValidateRequestAsync(HttpContext);
         }
         catch (AntiforgeryValidationException e)
         {

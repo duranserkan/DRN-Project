@@ -43,6 +43,9 @@ public class ScopedUser : IScopedUser
 
     public string? AuthenticationMethod => AuthenticationMethodClaim?.GetValue();
     public ClaimGroup? AuthenticationMethodClaim { get; private set; }
+    public ClaimGroup? RoleClaim { get; private set; }
+
+    public bool IsInRole(string role) => RoleClaim?.ValueExists(role, multipleValue: true) ?? false;
 
     public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; private set; } = DefaultClaimsByType;
 
@@ -83,6 +86,7 @@ public class ScopedUser : IScopedUser
         EmailClaim = FindClaimGroup(ClaimConventions.Email);
         AmrClaim = FindClaimGroup(ClaimConventions.AuthenticationMethodReference);
         AuthenticationMethodClaim = FindClaimGroup(ClaimConventions.AuthenticationMethod);
+        RoleClaim = FindClaimGroup(ClaimTypes.Role);
     }
 
     internal void SetExemptionScheme(string exemptionScheme) => ExemptionScheme = exemptionScheme;

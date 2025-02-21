@@ -32,7 +32,9 @@ public class ClaimGroup
     /// <summary>
     /// Gets claim from primary identity if issuer is not provided
     /// </summary>
-    public bool ValueExists(string value, string? issuer = null) => FindClaim(value, issuer) != null;
+    public bool ValueExists(string value, string? issuer = null, bool multipleValue = false) => multipleValue
+        ? FindClaims(issuer).Any(c => c.Value == value)
+        : FindClaim(value, issuer) != null;
 
     /// <summary>
     /// Gets claim from primary identity if issuer is not provided
