@@ -1,7 +1,6 @@
 if (typeof $ !== 'undefined' && typeof $.onmount === 'function') {
     window.onmount = $.onmount;
     onmount();
-    console.log('Assigned $.onmount to global onmount');
 } else {
     console.warn('$.onmount is not available.');
 }
@@ -12,9 +11,8 @@ document.addEventListener('DOMContentLoaded', onmount, {once: true});
 // Reinitialize onmount after HTMX partial updates
 document.addEventListener('htmx:load', onmount);
 
-
 drnApp.onmount.register('[data-bs-toggle="tooltip"]', function (options) {
-    options.disposable = new bootstrap.Tooltip(this); // Initialize Bootstrap Tooltip for the current element
+    options.disposable = new bootstrap.Tooltip(this, {animation: false}); // Initialize Bootstrap Tooltip for the current element
 })
 
 if (drnApp.isDev) {

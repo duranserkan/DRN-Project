@@ -8,7 +8,7 @@
     ViewData[ViewDataFor.MainContentLayoutOptions] = options;
 }
 
-<form method="post">
+<form method="post" class="text-start">
     <div asp-validation-summary="All" class="text-danger"></div>
     <div class="form-floating mb-3">
         <input asp-for="Login2FaModel.TwoFactorCode" class="form-control" placeholder="TwoFactorCode" autocomplete="one-time-code"/>

@@ -8,7 +8,9 @@ window.drnApp = {
     // provides utility methods
     utils: {},
     // manages behavior of elements.
-    onmount: {}
+    onmount: {},
+    // to manages state of elements.
+    state: {}
 };
 document.addEventListener('popstate', () => { // History changed (back/forward navigation)
     window.location.href = window.location.href; // Forces a fresh request
@@ -73,10 +75,11 @@ drnApp.utils.getRequestElementSelector = requestElement => {
 drnApp.onmount.unregister = function (options) {
     if (!this) return;
 
-    $(this).off();
-    if (options.disposable) {
+    if (options.disposable && typeof options.disposable.dispose === 'function') {
         options.disposable.dispose();
     }
+
+    $(this).off();
 }
 
 /**
@@ -109,9 +112,8 @@ drnApp.onmount.registerFull = (selector, registerCallback, unregisterCallback = 
         console.error('Registration callback must be a function');
         return;
     }
-    if (typeof registerCallback !== 'function') {
-        console.error('Registration callback must be a function');
-        return;
+    if (typeof unregisterCallback !== 'function') {
+        unregisterCallback = drnApp.onmount.unregister;
     }
     if (typeof idempotencyKey !== 'string') {
         console.error('Registration key must be a string');
@@ -122,7 +124,7 @@ drnApp.onmount.registerFull = (selector, registerCallback, unregisterCallback = 
     if (!drnApp.onmount._registry)
         drnApp.onmount._registry = new Set();
 
-    if (drnApp.onmount._registry.has(selectorKey)){
+    if (drnApp.onmount._registry.has(selectorKey)) {
         onmount();
         return;
     }

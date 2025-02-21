@@ -1,5 +1,3 @@
-@using DRN.Framework.Hosting.TagHelpers
-@using NetEscapades.AspNetCore.SecurityHeaders
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
 @*
@@ -18,37 +16,37 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
                 "inlineScriptNonce":"@Context.GetNonce()"}'>
 
         <title>@ViewData[ViewDataFor.Title] - @ScopeContext.Settings.ApplicationName</title>
-
-        @*https://icons.getbootstrap.com/#usage*@
-        @*todo: bootstrap customizations https://getbootstrap.com/docs/5.3/customize/overview/*@
-        <link rel="preload" href="~/lib/bootstrap/fonts/bootstrap-icons.woff2?dd67030699838ea613ee6dbda90effa6" as="font" type="font/woff2" crossorigin="anonymous">
-        
-        <link href="/images/100.jpeg" rel="icon" type="image/x-icon"/>
-        <link href="~/lib/bootstrap/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous" integrity="sha256-0Tv1es0KeOQQ8CeN/TXxE4tcarz5oxYvC1Ah5SvU7lo="/>
-        <link href="~/lib/bootstrap/bootstrap-icons.min.css" rel="stylesheet" crossorigin="anonymous" integrity="sha256-9kPW/n5nn53j4WMRYAxe9c1rCY96Oogo/MKSVdKzPmI="/>
-        <!-- Custom CSS -->
-        <link href="~/css/site.css?v=@DateTime.Now.Ticks" rel="stylesheet" />
-        <link href="~/css/sidebars.css?v=@DateTime.Now.Ticks" rel="stylesheet"/>
         @{
                 var canonicalUrl = Context.Request.Scheme + "://" + Context.Request.Host + Context.Request.Path;
         }
         <link rel="canonical" href="@canonicalUrl"/>
+        <link href="/images/100.jpeg" rel="icon" type="image/x-icon"/>
+
+        @*https://icons.getbootstrap.com/#usage*@
+        @*todo: bootstrap customizations https://getbootstrap.com/docs/5.3/customize/overview/*@
+        <link rel="preload" href="~/lib/bootstrap/fonts/bootstrap-icons.woff2?dd67030699838ea613ee6dbda90effa6" as="font" crossorigin="anonymous">
+        <link href="~/lib/bootstrap/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous" integrity="sha256-0Tv1es0KeOQQ8CeN/TXxE4tcarz5oxYvC1Ah5SvU7lo="/>
+        <link href="~/lib/bootstrap/bootstrap-icons.min.css" rel="stylesheet" crossorigin="anonymous" integrity="sha256-9kPW/n5nn53j4WMRYAxe9c1rCY96Oogo/MKSVdKzPmI="/>
+        
+        <!-- Custom CSS -->
+        <link href="~/css/site.css?v=1" rel="stylesheet" />
+        <link href="~/css/sidebars.css?v=1" rel="stylesheet"/>
 
         <!-- Preload -->
-        <script src="~/js/site-preload.js?v=@DateTime.Now.Ticks"></script> @*defines drnApp*@
+        <script src="~/js/site-preload.js?v=1"></script> @*defines drnApp*@
         <script>
                 drnApp.environment =  @Json.Serialize(ScopeContext.Settings.Environment.ToString());
                 drnApp.isDev = @Json.Serialize(ScopeContext.Settings.IsDevEnvironment);
         </script>
         <!-- Preload -->
-        
+
         <script src="~/lib/htmx/htmx.min.js" crossorigin="anonymous" integrity="sha256-4gndpcgjVHnzFm3vx3UOHbzVpcGAi3eS/C5nM3aPtEc="></script>
         <script src="~/lib/htmx/safe-nonce.js" crossorigin="anonymous" integrity="sha256-rscDWfKxSAHJUDm6aADpKS6kAo3KShDaAN0B/aW1VqM="></script>
         <script src="~/lib/jquery/jquery.min.js" crossorigin="anonymous" integrity="sha256-PnUB0Vw2MOeRyLIDkuud7jGp9lzj793nbO9ccQFBqyQ="></script>
         <script src="~/lib/onmount/onmount.js" crossorigin="anonymous" integrity="sha256-6NJBgkLT++H3f9RQoo4omp9ym7Ed0VqevUOxIIPPAos="></script>
 
         <!-- Postload -->
-        <script src="~/js/site-postload.js?v=@DateTime.Now.Ticks" crossorigin="anonymous"></script>
+        <script src="~/js/site-postload.js?v=1" crossorigin="anonymous"></script>
         <!-- Postload -->
 </head>
 <body class="d-flex flex-column bg-secondary-subtle vh-100" style="overflow: hidden;" hx-ext="safe-nonce" hx-boost="true" hx-history="false">

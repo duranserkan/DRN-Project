@@ -8,10 +8,10 @@
     ViewData[ViewDataFor.MainContentLayoutOptions] = options;
 }
 
-<form method="post">
+<form method="post" class="text-start">
     <div asp-validation-summary="All" class="text-danger"></div>
     <div class="form-floating mb-3">
-        <input asp-for="Input.Email" class="form-control" type="email" placeholder="name@example.com"/>
+        <input asp-for="Input.Email" class="form-control" type="email" placeholder="name@example.com" autocomplete="email"/>
         <label asp-for="Input.Email"></label>
         <span asp-validation-for="Input.Email" class="text-danger"></span>
     </div>
