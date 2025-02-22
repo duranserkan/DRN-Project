@@ -152,8 +152,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         services.AddAuthorization(ConfigureAuthorizationOptions);
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
-        services.Configure<SecurityStampValidatorOptions>(ConfigureSecurityStampValidatorOptions(appSettings));
         services.Configure<CookiePolicyOptions>(GetConfigureCookiePolicy(appSettings));
+        services.Configure<SecurityStampValidatorOptions>(ConfigureSecurityStampValidatorOptions(appSettings));
         services.Configure<CookieTempDataProviderOptions>(GetConfigureCookieTempDataProvider(appSettings));
         services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
         services.PostConfigure<HostFilteringOptions>(options =>
