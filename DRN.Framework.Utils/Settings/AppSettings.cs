@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Extensions;
 using Microsoft.Extensions.Configuration;
 
 namespace DRN.Framework.Utils.Settings;
@@ -12,6 +13,10 @@ public interface IAppSettings
     AppEnvironment Environment { get; }
     bool IsDevEnvironment { get; }
     string ApplicationName { get; }
+    string AppKey { get; }
+    string AppHashKey { get; }
+    long AppSeedLong { get; }
+    int AppSeedInt { get; }
 
     [JsonIgnore] IConfiguration Configuration { get; }
     bool TryGetConnectionString(string name, out string connectionString);
@@ -37,6 +42,16 @@ public class AppSettings : IAppSettings
             ? configuration.GetValue<string>(nameof(ApplicationName)) ?? AppConstants.EntryAssemblyName
             : AppConstants.EntryAssemblyName;
         Features = Get<DrnAppFeatures>(nameof(DrnAppFeatures)) ?? new DrnAppFeatures();
+
+        AppKey = ApplicationName.ToPascalCase();
+        AppHashKey = ("MKA " + ApplicationName + " " + Features.SeedKey + " DRN")
+            .GetSha512Hash().Substring(18, 81)
+            .GetSha512Hash().Substring(19, 23)
+            .GetSha512Hash().Substring(20, 23)
+            .GetSha512Hash().Substring(100, 8);
+        AppKey = $"{AppKey}.{AppHashKey}";
+        AppSeedLong = Features.SeedKey.GenerateLongSeedFromHash();
+        AppSeedInt = Features.SeedKey.GenerateIntSeedFromHash();
     }
 
     public DrnAppFeatures Features { get; }
@@ -44,6 +59,10 @@ public class AppSettings : IAppSettings
 
     public bool IsDevEnvironment => Environment == AppEnvironment.Development;
     public string ApplicationName { get; }
+    public string AppKey { get; }
+    public string AppHashKey { get; }
+    public long AppSeedLong { get; }
+    public int AppSeedInt { get; }
     [JsonIgnore] public IConfiguration Configuration { get; }
 
     public bool TryGetConnectionString(string name, out string connectionString)
@@ -78,9 +97,7 @@ public class AppSettings : IAppSettings
     public T? GetValue<T>(string key, T defaultValue) => Configuration.GetValue(key, defaultValue);
 
     public T? Get<T>(string key, Action<BinderOptions>? configureOptions = null)
-    {
-        return Configuration.GetSection(key).Get<T>(configureOptions);
-    }
+        => Configuration.GetSection(key).Get<T>(configureOptions);
 
     public ConfigurationDebugView GetDebugView() => new(this);
 }

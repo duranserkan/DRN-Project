@@ -148,6 +148,14 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         services.AddResponseCaching();
         var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
         ConfigureMvcBuilder(mvcBuilder, appSettings);
+        
+        services.AddAntiforgery(options =>
+        {
+            options.Cookie.Name = $".{appSettings.AppKey}.Antiforgery";
+            options.Cookie.IsEssential=true;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.HttpOnly = true;
+        });
 
         services.AddAuthorization(ConfigureAuthorizationOptions);
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;

@@ -40,7 +40,7 @@ public class DrnAppFeatures
     public bool PrototypingMode { get; init; }
 
     public bool SeedData { get; init; }
-
+    public string SeedKey { get; init; } = "Peace at home, peace in the world";
     public string InternalRequestHttpVersion { get; init; } = "1.1";
     public string InternalRequestProtocol { get; init; } = "http";
     public bool UseHttpRequestLogger { get; init; } = false;

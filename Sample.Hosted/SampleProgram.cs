@@ -14,7 +14,6 @@ using Sample.Infra;
 namespace Sample.Hosted;
 
 //todo: use TimeProvider
-//todo: rename antiforgery token
 public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 {
     public static async Task Main(string[] args) => await RunAsync(args);

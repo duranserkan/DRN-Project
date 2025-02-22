@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -14,6 +15,36 @@ public static class StringExtensions
 
     public static Stream ToStream(this string value, Encoding? encoding = null)
         => new MemoryStream((encoding ?? Encoding.UTF8).GetBytes(value));
+
+    public static string GetSha512Hash(this string value)
+    {
+        using var sha256Hash = SHA512.Create();
+        var bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(value));
+
+        var builder = new StringBuilder();
+        foreach (var t in bytes)
+            builder.Append(t.ToString("x2"));
+
+        return builder.ToString();
+    }
+
+    public static long GenerateLongSeedFromHash(this string input)
+    {
+        using var sha512 = SHA512.Create();
+        var hashBytes = sha512.ComputeHash(Encoding.UTF8.GetBytes(input));
+
+        var seed = BitConverter.ToInt64(hashBytes, 19);
+        return seed;
+    }
+
+    public static int GenerateIntSeedFromHash(this string input)
+    {
+        using var sha256 = SHA256.Create();
+        var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
+
+        var seed = BitConverter.ToInt32(hashBytes, 19);
+        return seed;
+    }
 
     public static string ToSnakeCase(this string text)
     {
