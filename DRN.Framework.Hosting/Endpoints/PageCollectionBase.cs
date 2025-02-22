@@ -1,6 +1,7 @@
 namespace DRN.Framework.Hosting.Endpoints;
 
-public abstract class PageCollectionBase<TPageCollection> where TPageCollection : PageCollectionBase<TPageCollection>, new()
+public abstract class PageCollectionBase<TPageCollection>
+    where TPageCollection : PageCollectionBase<TPageCollection>, new()
 {
     private static readonly Lazy<HashSet<string>> AllPages = new(InitializePages);
     private static HashSet<string> GetAllPages() => AllPages.Value;

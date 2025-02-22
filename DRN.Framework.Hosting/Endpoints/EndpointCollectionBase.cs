@@ -1,5 +1,6 @@
 using System.Reflection;
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -7,10 +8,14 @@ using Microsoft.AspNetCore.Routing;
 
 namespace DRN.Framework.Hosting.Endpoints;
 
-public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
+public abstract class EndpointCollectionBase<TProgram>
+    where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
+
 {
     private static bool _triggered;
     private static readonly SemaphoreSlim StartupLock = new(1, 1);
+
+    public static EndpointCollectionBase<TProgram>? EndpointCollection { get; } = GetCollectionInstance();
     public static IReadOnlyList<Endpoint> Endpoints { get; private set; } = [];
     public static IReadOnlyList<PageEndpoint> PageEndpoints { get; private set; } = [];
     public static IReadOnlyList<ApiEndpoint> ApiEndpoints { get; private set; } = [];
@@ -49,14 +54,14 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
 
     private static ApiEndpoint[] InitializeApiEndpoints()
     {
-        var collectionBaseType = typeof(EndpointCollectionBase<TProgram>);
-        var collectionType = typeof(TProgram).Assembly.GetSubTypes(collectionBaseType).FirstOrDefault();
+        var collectionType = GetCollectionType();
         if (collectionType == null) return [];
+        if (EndpointCollection == null) return [];
 
         var apiGroups = collectionType
-            .GetProperties(BindingFlags.Static | BindingFlags.Public)
-            .Where(p => p.GetValue(null) != null)
-            .ToDictionary(property => property, property => property.GetValue(null)!);
+            .GetProperties(BindingFlags.Public)
+            .Where(p => p.GetValue(EndpointCollection) != null)
+            .ToDictionary(property => property, property => property.GetValue(EndpointCollection)!);
 
         HashSet<ApiEndpoint> endpointList = [];
         var endpointBase = typeof(IApiEndpointForBase);
@@ -83,6 +88,29 @@ public abstract class EndpointCollectionBase<TProgram> where TProgram : DrnProgr
         return endpointList
             .OrderBy(x => x.ControllerClassName)
             .ThenBy(x => x.ActionName).ToArray();
+    }
+
+    private static Type? GetCollectionType()
+    {
+        var collectionBaseType = typeof(EndpointCollectionBase<TProgram>);
+        return typeof(TProgram).Assembly.GetSubTypes(collectionBaseType).FirstOrDefault();
+    }
+
+    private static EndpointCollectionBase<TProgram>? GetCollectionInstance()
+    {
+        var collectionType = GetCollectionType();
+
+        if (collectionType == null)
+            return null;
+
+        try
+        {
+            return Activator.CreateInstance(collectionType) as EndpointCollectionBase<TProgram>;
+        }
+        catch (Exception e)
+        {
+            throw new ConfigurationException($"{collectionType.FullName} must have a parameterless constructor.", e);
+        }
     }
 
     private static void SetEndpoint(IApiEndpointForBase? apiForBase, HashSet<ApiEndpoint> endpointList)
