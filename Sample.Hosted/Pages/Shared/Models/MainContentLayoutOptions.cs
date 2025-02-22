@@ -1,14 +1,14 @@
 namespace Sample.Hosted.Pages.Shared.Models;
 
-public static class LayoutOptionsFor
+public class LayoutOptionsFor
 {
-    public static MainContentLayoutOptions Full(string title) =>
+    public MainContentLayoutOptions Full(string title) =>
         new()
         {
             Title = title
         };
 
-    public static MainContentLayoutOptions Centered(string title) =>
+    public MainContentLayoutOptions Centered(string title) =>
         new()
         {
             Title = title,

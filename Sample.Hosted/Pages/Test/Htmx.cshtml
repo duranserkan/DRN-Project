@@ -1,10 +1,9 @@
 @page
-@using Sample.Hosted.Helpers
 @model Sample.Hosted.Pages.Test.Csrf
 
 @{
     var title = "CSRF Token Test Page";
-    var options = LayoutOptionsFor.Full(string.Empty);
+    var options = Get.LayoutOptions.Full(string.Empty);
     options.Type = MainContentType.None;
     options.ColumnSize = BootstrapColumnSize.None;
 

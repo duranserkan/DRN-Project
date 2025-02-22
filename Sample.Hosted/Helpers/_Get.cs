@@ -8,8 +8,14 @@ public static class Get
 {
     public static TempDataKeys TempDataKeys { get; } = new();
     public static ViewDataKeys ViewDataKeys { get; } = new();
+    
     public static RoleFor Role { get; } = new();
     public static ClaimFor Claim { get; } = new();
+    
     public static CspFor Csp { get; } = new();
+    
     public static PageFor Page { get; } = PageCollectionBase<PageFor>.PageCollection;
+
+    public static SubNavigationFor SubNavigation { get; } = new();
+    public static LayoutOptionsFor LayoutOptions { get; } = new();
 }

@@ -3,8 +3,8 @@
 @model Sample.Hosted.Pages.User.Profile.ProfilePictureModel
 @{
     var title = "Profile Picture";
-    var options = LayoutOptionsFor.Full(title);
-    options.SubNavigation=SubNavigationFor.ProfileSubNavigationCollection;
+    var options = Get.LayoutOptions.Full(title);
+    options.SubNavigation = Get.SubNavigation.ProfileSubNavigationCollection;
     options.Type = MainContentType.Card;
 
     ViewData[Get.ViewDataKeys.Title] = title;

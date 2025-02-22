@@ -2,7 +2,7 @@
 @model Sample.Hosted.Pages.User.LockoutModel
 @{
     var title = "Account Locked Out";
-    var options = LayoutOptionsFor.Centered(title);
+    var options = Get.LayoutOptions.Centered(title);
     ViewData[Get.ViewDataKeys.Title] = title;
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
     

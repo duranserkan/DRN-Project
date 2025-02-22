@@ -1,10 +1,9 @@
 @page
-@using Sample.Hosted.Helpers
 @model Sample.Hosted.Pages.User.Profile.ProfileDetailsModel
 @{
-    var title = "User Profile Details";;
-    var options = LayoutOptionsFor.Full(title);
-    options.SubNavigation=SubNavigationFor.ProfileSubNavigationCollection;
+    var title = "User Profile Details";
+    var options = Get.LayoutOptions.Full(title);
+    options.SubNavigation = Get.SubNavigation.ProfileSubNavigationCollection;
 
     ViewData[Get.ViewDataKeys.Title] = title;
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
