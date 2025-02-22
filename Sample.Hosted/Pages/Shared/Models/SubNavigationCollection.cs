@@ -4,7 +4,7 @@ public class DefaultSubNavigationCollection() : SubNavigationCollection(DefaultI
 {
     public static IReadOnlyList<SubNavigationItem> DefaultItems { get; } =
     [
-        new(PageFor.Root.Home, nameof(PageFor.Root.Home), "bi-house-door"),
+        new(Get.Page.Root.Home, nameof(Get.Page.Root.Home), "bi-house-door"),
     ];
 }
 

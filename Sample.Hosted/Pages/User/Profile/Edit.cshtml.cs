@@ -15,11 +15,11 @@ public class ProfileEditModel(IUserProfileService service, SignInManager<SampleU
     public async Task<IActionResult> OnGetAsync()
     {
         Input = await service.GetUserProfileEditModelAsync(User);
-        Input.SlimUI = ClaimFor.ProfileClaim.SlimUi;
+        Input.SlimUI = Get.Claim.Profile.SlimUi;
 
         return Page();
     }
-    
+
     public async Task<IActionResult> OnPostAsync()
     {
         if (!ModelState.IsValid)
@@ -39,7 +39,7 @@ public class ProfileEditModel(IUserProfileService service, SignInManager<SampleU
         await signInManager.RefreshSignInAsync(result.IdentityUser);
 
         TempData[TempDataFor.StatusMessage] = "Your profile has been updated";
-        
-        return RedirectToPage(PageFor.UserProfile.Details);
+
+        return RedirectToPage(Get.Page.UserProfile.Details);
     }
 }

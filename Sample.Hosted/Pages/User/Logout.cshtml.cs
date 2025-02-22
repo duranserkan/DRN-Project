@@ -10,7 +10,7 @@ public class LogoutModel(SignInManager<SampleUser> signInManager) : PageModel
     public IActionResult OnGet()
     {
         if (!(User.Identity?.IsAuthenticated ?? false))
-            return RedirectToPage(PageFor.Root.Home);
+            return RedirectToPage(Get.Page.Root.Home);
         return Page();
     }
 
@@ -18,6 +18,6 @@ public class LogoutModel(SignInManager<SampleUser> signInManager) : PageModel
     {
         if (User.Identity?.IsAuthenticated ?? false)
             await signInManager.SignOutAsync();
-        return RedirectToPage(PageFor.Root.Home);
+        return RedirectToPage(Get.Page.Root.Home);
     }
 }

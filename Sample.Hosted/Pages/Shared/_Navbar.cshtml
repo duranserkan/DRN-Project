@@ -3,7 +3,7 @@
 
 <header class="navbar navbar-expand-lg container-xxl bg-primary" data-bs-theme="dark">
     <div class="container-fluid">
-        <a class="navbar-brand d-flex align-items-center link-body-emphasis text-decoration-none" href="@PageFor.Root.Home" mark-when-active="false">
+        <a class="navbar-brand d-flex align-items-center link-body-emphasis text-decoration-none" href="@Get.Page.Root.Home" mark-when-active="false">
             <i class="bi bi-bootstrap-reboot me-2" style="font-size: 1.5rem; "></i>@ScopeContext.Settings.ApplicationName
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false"
@@ -13,18 +13,18 @@
         <nav class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link" href="@PageFor.Root.Home">Home</a>
+                    <a class="nav-link" href="@Get.Page.Root.Home">Home</a>
                 </li>
                 <environment include="@AppEnvironment.Development.ToString()">
                     <li class="nav-item">
-                        <a class="nav-link" authorized-only href="@PageFor.Root.Swagger" target="_blank">Swagger</a>
+                        <a class="nav-link" authorized-only href="@Get.Page.Root.Swagger" target="_blank">Swagger</a>
                     </li>
                 </environment>
                 <environment include="@AppEnvironment.Development.ToString()">
-                    @if (RoleFor.System.Admin)
+                    @if (Get.Role.System.Admin)
                     {
                         <li class="nav-item">
-                            <a class="nav-link" authorized-only href="@PageFor.Test.Htmx">Htmx</a>
+                            <a class="nav-link" authorized-only href="@Get.Page.Test.Htmx">Htmx</a>
                         </li>
                     }
                 </environment>
@@ -39,13 +39,13 @@
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end bg-primary dropdown-menu-dark border-0" aria-labelledby="navbarDropdown">
                             <li>
-                                <a class="dropdown-item" href="@PageFor.UserProfile.Details">My Profile</a>
+                                <a class="dropdown-item" href="@Get.Page.UserProfile.Details">My Profile</a>
                             </li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
                             <li>
-                                <a class="dropdown-item" href="@PageFor.User.Logout">Log out</a>
+                                <a class="dropdown-item" href="@Get.Page.User.Logout">Log out</a>
                             </li>
                         </ul>
                     </li>
@@ -56,10 +56,10 @@
                 else
                 {
                     <li class="nav-item">
-                        <a class="nav-link" href="@PageFor.User.Login">Login</a>
+                        <a class="nav-link" href="@Get.Page.User.Login">Login</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="@PageFor.User.Register">Register</a>
+                        <a class="nav-link" href="@Get.Page.User.Register">Register</a>
                     </li>
                 }
             </ul>

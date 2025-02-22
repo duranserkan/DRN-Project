@@ -1,4 +1,5 @@
 using Sample.Hosted.Pages;
+using Sample.Hosted.Utils;
 
 namespace DRN.Test.Tests.Framework.Hosting.Endpoints;
 
@@ -7,14 +8,14 @@ public class PagerForTests
     [Fact]
     public void PageFor_Should_Return_All_Pages()
     {
-        var pages = PageFor.GetAllPages();
+        var pages = Get.Page.All;
 
-        pages.Should().Contain(PageFor.Root.GetPages());
-        pages.Should().Contain(PageFor.User.GetPages());
-        pages.Should().Contain(PageFor.UserManagement.GetPages());
-        pages.Should().Contain(PageFor.SystemManagement.GetPages());
+        pages.Should().Contain(Get.Page.Root.GetPages());
+        pages.Should().Contain(Get.Page.User.GetPages());
+        pages.Should().Contain(Get.Page.UserManagement.GetPages());
+        pages.Should().Contain(Get.Page.SystemManagement.GetPages());
 
-        PageFor.UserManagement.ShowRecoveryCodes.Should().Be("/User/Management/ShowRecoveryCodes");
-        PageFor.SystemManagement.Setup.Should().Be("/System/Setup");
+        Get.Page.UserManagement.ShowRecoveryCodes.Should().Be("/User/Management/ShowRecoveryCodes");
+        Get.Page.SystemManagement.Setup.Should().Be("/System/Setup");
     }
 }

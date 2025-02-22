@@ -18,7 +18,7 @@ public class SetupModel(
     {
         var adminUserExists = await userAdminRepository.AnySystemAdminExistsAsync();
         if (adminUserExists)
-            return RedirectToPage(PageFor.Root.Home);
+            return RedirectToPage(Get.Page.Root.Home);
 
         return Page();
     }
@@ -29,7 +29,7 @@ public class SetupModel(
 
         var adminUserExists = await userAdminRepository.AnySystemAdminExistsAsync();
         if (adminUserExists)
-            return RedirectToPage(PageFor.Root.Home);
+            return RedirectToPage(Get.Page.Root.Home);
 
         var user = new SampleUser { UserName = Input.Email, Email = Input.Email };
         var result = await userAdminRepository.CreateSystemAdminForInitialSetup(user, Input.Password);

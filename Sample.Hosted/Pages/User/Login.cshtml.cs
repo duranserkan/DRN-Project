@@ -18,7 +18,7 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
     public IActionResult OnGet(string? returnUrl = null)
     {
         if (ScopeContext.Authenticated)
-            return RedirectToPage(PageFor.Root.Home);
+            return RedirectToPage(Get.Page.Root.Home);
 
         ReturnUrl = returnUrl;
         return Page();
@@ -34,7 +34,7 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
 
         var userLoginValidation = await ValidateUserLoginAsync(user);
         if (userLoginValidation.LockedOut)
-            return RedirectToPage(PageFor.User.Lockout);
+            return RedirectToPage(Get.Page.User.Lockout);
         if (!userLoginValidation.PasswordValid)
             return ReturnInvalidAttempt();
         if (!userLoginValidation.TwoFactorEnabled) //enforce Mfa
@@ -45,7 +45,7 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
             return ReturnInvalidAttempt();
 
         await signInManager.SignInAsync(user, false, authenticationMethod: MfaClaimValues.MfaInProgress);
-        return RedirectToPage(PageFor.User.LoginWith2Fa, new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
+        return RedirectToPage(Get.Page.User.LoginWith2Fa, new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
     }
 
     public record UserLoginValidation(bool LockedOut, bool PasswordValid, bool TwoFactorEnabled);

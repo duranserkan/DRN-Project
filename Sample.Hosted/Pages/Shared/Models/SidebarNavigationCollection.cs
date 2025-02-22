@@ -5,7 +5,7 @@ public class SidebarNavigationCollection(IReadOnlyList<SidebarNavigationItem> it
     public static IReadOnlyList<SidebarNavigationItem> DefaultItems { get; } =
         new List<SidebarNavigationItem>
         {
-            new(PageFor.Root.Home, nameof(PageFor.Root.Home), "bi-house-door"),
+            new(Get.Page.Root.Home, nameof(Get.Page.Root.Home), "bi-house-door"),
             new("#", "Dashboard", "bi-speedometer2"),
             new("#", "Orders", "bi-table"),
             new("#", "Products", "bi-grid"),

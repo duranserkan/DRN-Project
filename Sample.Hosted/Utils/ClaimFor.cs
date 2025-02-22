@@ -2,10 +2,10 @@ using DRN.Framework.Utils.Scope;
 using Sample.Domain.Identity;
 
 namespace Sample.Hosted.Utils;
-//Todo: unify all for values under single parent For object
-public abstract class ClaimFor
+
+public class ClaimFor
 {
-    public static ProfileClaimFor ProfileClaim { get; } = new();
+    public ProfileClaimFor Profile { get; } = new();
 }
 
 public class ProfileClaimFor

@@ -19,7 +19,7 @@ public class ProfilePictureTagHelper : TagHelper
         output.TagMode = TagMode.SelfClosing;
 
         // Set the attributes on the <img> tag
-        output.Attributes.SetAttribute("src", $"{SampleEndpointFor.User.PP.ControllerRoute}/{ScopeContext.UserId}?v={ClaimFor.ProfileClaim.PPVersion}");
+        output.Attributes.SetAttribute("src", $"{SampleEndpointFor.User.PP.ControllerRoute}/{ScopeContext.UserId}?v={Get.Claim.Profile.PPVersion}");
         output.Attributes.SetAttribute("alt", Alt ?? "Profile Picture");
 
         if (!string.IsNullOrWhiteSpace(Class))

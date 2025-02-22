@@ -12,7 +12,7 @@ public static class PageModelExtensions
     {
         await signInManager.SignInAsync(user, false, authenticationMethod: MfaClaimValues.MfaSetupRequired);
 
-        return pageModel.RedirectToPage(PageFor.UserManagement.EnableAuthenticator);
+        return pageModel.RedirectToPage(Get.Page.UserManagement.EnableAuthenticator);
     }
 
     public static IActionResult ReturnPageWithUserRegisterErrors(this PageModel model, IdentityResult result)
@@ -23,5 +23,5 @@ public static class PageModelExtensions
         return model.Page();
     }
 
-    public static IActionResult ReturnLogoutPage(this PageModel pageModel) => pageModel.RedirectToPage(PageFor.User.Logout);
+    public static IActionResult ReturnLogoutPage(this PageModel pageModel) => pageModel.RedirectToPage(Get.Page.User.Logout);
 }

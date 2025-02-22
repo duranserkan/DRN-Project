@@ -18,7 +18,7 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager) : PageModel
     public IActionResult OnGet(bool rememberMe, string? returnUrl = null)
     {
         if (!MfaFor.MfaInProgress)
-            return LocalRedirect(PageFor.User.Login);
+            return LocalRedirect(Get.Page.User.Login);
         
         Login2FaModel.RememberMe = rememberMe;
         ViewData[ViewDataFor.ReturnUrl] = returnUrl;
@@ -30,7 +30,7 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager) : PageModel
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
         if (!MfaFor.MfaInProgress)
-            return LocalRedirect(PageFor.User.Login);
+            return LocalRedirect(Get.Page.User.Login);
 
         if (!ModelState.IsValid)
             return Page();
@@ -40,11 +40,11 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager) : PageModel
         if (result.Succeeded)
         {
             ResetInvalidCodeAttempts(HttpContext);
-            return LocalRedirect(returnUrl ?? PageFor.Root.Home);
+            return LocalRedirect(returnUrl ?? Get.Page.Root.Home);
         }
 
         if (result.IsLockedOut)
-            return RedirectToPage(PageFor.User.Logout);
+            return RedirectToPage(Get.Page.User.Logout);
 
         ModelState.AddModelError(string.Empty, "Invalid authenticator code.");
 

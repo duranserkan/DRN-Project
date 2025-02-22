@@ -30,7 +30,7 @@
                             <div class="card-body">
                                 <p class="text-muted">Automatic CSRF token generation for POST request</p>
                                 <button class="btn btn-primary w-100"
-                                        hx-post="@PageFor.Test.Htmx?handler=Auto"
+                                        hx-post="@Get.Page.Test.Htmx?handler=Auto"
                                         hx-vals='{"message": "Test message for Post method with Auto CSRF token"}'
                                         hx-target="#auto-post-result">
                                     Test POST with auto CSRF token
@@ -48,7 +48,7 @@
                             <div class="card-body">
                                 <p class="text-muted">CSRF token explicitly disabled for POST request</p>
                                 <button class="btn btn-warning w-100"
-                                        hx-post="@PageFor.Test.Htmx?handler=Auto"
+                                        hx-post="@Get.Page.Test.Htmx?handler=Auto"
                                         hx-vals='{"message": "Test message for Post method with no CSRF token"}'
                                         hx-target="#disabled-post-result"
                                         disable-csrf-token>
@@ -73,7 +73,7 @@
                             <div class="card-body">
                                 <p class="text-muted">Explicit CSRF token for GET request</p>
                                 <button class="btn btn-primary w-100"
-                                        hx-get="@PageFor.Test.Htmx?handler=ExplicitValidation"
+                                        hx-get="@Get.Page.Test.Htmx?handler=ExplicitValidation"
                                         hx-vals='{"message": "Test message for Get method with explicit CSRF token"}'
                                         hx-target="#explicit-get-result"
                                         add-csrf-token>
@@ -92,7 +92,7 @@
                             <div class="card-body">
                                 <p class="text-muted">GET request without CSRF token</p>
                                 <button class="btn btn-primary w-100"
-                                        hx-get="@PageFor.Test.Htmx?handler=NoCsrfGet"
+                                        hx-get="@Get.Page.Test.Htmx?handler=NoCsrfGet"
                                         hx-vals='{"message": "Test message for Get method with no CSRF token"}'
                                         hx-target="#no-csrf-get-result">
                                     Test GET without CSRF token
@@ -115,7 +115,7 @@
                             </div>
                             <div class="card-body">
                                 <p class="text-muted">Auto CSRF token for traditional POST form</p>
-                                <form hx-post="@PageFor.Test.Htmx?handler=Auto"
+                                <form hx-post="@Get.Page.Test.Htmx?handler=Auto"
                                       hx-target="#post-form-result">
                                     <div class="mb-3">
                                         <label for="postMessage" class="form-label">Message</label>
@@ -136,7 +136,7 @@
                             </div>
                             <div class="card-body">
                                 <p class="text-muted">POST form with disabled CSRF protection</p>
-                                <form hx-post="@PageFor.Test.Htmx?handler=Auto"
+                                <form hx-post="@Get.Page.Test.Htmx?handler=Auto"
                                       hx-target="#disabled-form-result"
                                       disable-csrf-token
                                       data-something="who-knows-what">
@@ -167,7 +167,7 @@
                             <div class="card-body">
                                 <p class="text-muted">PUT request with automatic CSRF token</p>
                                 <button class="btn btn-info w-100"
-                                        hx-put="@PageFor.Test.Htmx"
+                                        hx-put="@Get.Page.Test.Htmx"
                                         hx-vals='{"message": "Test message for Put method with Auto CSRF token"}'
                                         hx-target="#put-result">
                                     Send PUT Request
@@ -186,7 +186,7 @@
                             <div class="card-body">
                                 <p class="text-muted">PATCH request with automatic CSRF token</p>
                                 <button class="btn btn-secondary w-100"
-                                        hx-patch="@PageFor.Test.Htmx"
+                                        hx-patch="@Get.Page.Test.Htmx"
                                         hx-vals='{"message": "Test message for Patch method with Auto CSRF token"}'
                                         hx-target="#patch-result">
                                     Send PATCH Request
@@ -205,7 +205,7 @@
                             <div class="card-body">
                                 <p class="text-muted">DELETE request with automatic CSRF token</p>
                                 <button class="btn btn-danger w-100"
-                                        hx-delete="@PageFor.Test.Htmx"
+                                        hx-delete="@Get.Page.Test.Htmx"
                                         hx-vals='{"message": "Test message for Delete method with Auto CSRF token"}'
                                         hx-target="#delete-result">
                                     Send DELETE Request

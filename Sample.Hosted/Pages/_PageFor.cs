@@ -2,16 +2,15 @@ using DRN.Framework.Hosting.Endpoints;
 
 namespace Sample.Hosted.Pages;
 
-//Todo: unify all for values under single parent For object
-public abstract class PageFor : PageCollectionBase<PageFor>
+public class PageFor : PageCollectionBase<PageFor>
 {
-    public static RootPageFor Root { get; } = new();
-    public static TestPageFor Test { get; } = new();
-    public static UserPageFor User { get; } = new();
-    
-    public static UseProfilePageFor UserProfile { get; } = new();
-    public static UserManagementPageFor UserManagement { get; } = new();
-    public static SystemManagementPageFor SystemManagement { get; } = new();
+    public RootPageFor Root { get; } = new();
+    public TestPageFor Test { get; } = new();
+    public UserPageFor User { get; } = new();
+
+    public UseProfilePageFor UserProfile { get; } = new();
+    public UserManagementPageFor UserManagement { get; } = new();
+    public SystemManagementPageFor SystemManagement { get; } = new();
 }
 
 public class RootPageFor : PageForBase
@@ -30,7 +29,6 @@ public class TestPageFor : PageForBase
     public string Htmx { get; init; } = string.Empty;
 }
 
-
 public class UserPageFor : PageForBase
 {
     protected override string[] PathSegments { get; } = ["User"];
@@ -45,7 +43,7 @@ public class UserPageFor : PageForBase
 public class UseProfilePageFor : PageForBase
 {
     protected override string[] PathSegments { get; } = ["User", "Profile"];
-    
+
     public string Details { get; init; } = string.Empty;
     public string Edit { get; init; } = string.Empty;
     public string Picture { get; init; } = string.Empty;

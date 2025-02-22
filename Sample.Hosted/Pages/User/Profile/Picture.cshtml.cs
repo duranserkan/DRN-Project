@@ -9,13 +9,16 @@ namespace Sample.Hosted.Pages.User.Profile;
 
 [Authorize]
 [RequestSizeLimit(RequestSizeLimit)]
-public class ProfilePictureModel(IProfilePictureService service,
-    UserManager<SampleUser> userManager, SignInManager<SampleUser> signInManager) : PageModel
+public class ProfilePictureModel(
+    IProfilePictureService service,
+    UserManager<SampleUser> userManager,
+    SignInManager<SampleUser> signInManager) : PageModel
 {
     private const long MaxFileSize = 100 * 1024; // 100KB size limit
     private const long RequestSizeLimit = MaxFileSize + 10 * 1024;
 
     [BindProperty] public ProfilePictureInput Input { get; set; } = null!;
+
     public void OnGet()
     {
     }
@@ -41,7 +44,7 @@ public class ProfilePictureModel(IProfilePictureService service,
 
         TempData[TempDataFor.StatusMessage] = "Your profile picture has been updated";
 
-        return RedirectToPage(PageFor.UserProfile.Picture);
+        return RedirectToPage(Get.Page.UserProfile.Picture);
     }
 }
 

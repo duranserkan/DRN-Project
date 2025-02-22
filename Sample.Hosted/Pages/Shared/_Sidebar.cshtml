@@ -1,9 +1,8 @@
-@using DRN.Framework.Hosting.TagHelpers
 @using Sample.Hosted.Utils
 
 @{
     var index = 0;
-    var isSlim = ClaimFor.ProfileClaim.SlimUi;
+    var isSlim = Get.Claim.Profile.SlimUi;
     var iconStyle = isSlim ? string.Empty : "me-2";
     var settingsText = isSlim ? string.Empty : " Settings";
     var settingsTitle = isSlim ? "Settings" : string.Empty;

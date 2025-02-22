@@ -41,8 +41,8 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
     }
 
     protected override MfaRedirectionConfig ConfigureMFARedirection()
-        => new(PageFor.UserManagement.EnableAuthenticator, PageFor.User.LoginWith2Fa,
-            PageFor.User.Login, PageFor.User.Logout, PageFor.GetAllPages());
+        => new(Get.Page.UserManagement.EnableAuthenticator, Get.Page.User.LoginWith2Fa,
+            Get.Page.User.Login, Get.Page.User.Logout, Get.Page.All);
 
     protected override MfaExemptionConfig ConfigureMFAExemption()
         => new() { ExemptAuthSchemes = [IdentityConstants.BearerScheme] };
