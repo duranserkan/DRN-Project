@@ -20,7 +20,7 @@ public class UserAdminRepository(
         if (cache.TryGetValue(SystemAdminUserCacheKey, out bool adminUserExists))
             return adminUserExists;
 
-        var usersInRole = await userManager.GetUsersInRoleAsync(RoleFor.SystemAdmin);
+        var usersInRole = await userManager.GetUsersInRoleAsync(UserRoles.SystemAdmin);
         adminUserExists = usersInRole.Count > 0;
 
         if (adminUserExists)
@@ -54,10 +54,10 @@ public class UserAdminRepository(
 
     private async Task<IdentityResult> AddSystemAdminAsync(SampleUser user, string inputPassword)
     {
-        var adminRoleExists = await roleManager.RoleExistsAsync(RoleFor.SystemAdmin);
+        var adminRoleExists = await roleManager.RoleExistsAsync(UserRoles.SystemAdmin);
         if (!adminRoleExists)
         {
-            var role = new IdentityRole(RoleFor.SystemAdmin);
+            var role = new IdentityRole(UserRoles.SystemAdmin);
             var roleCreatedResult = await roleManager.CreateAsync(role);
 
             if (!roleCreatedResult.Succeeded)
@@ -73,7 +73,7 @@ public class UserAdminRepository(
         }
 
         var adminUser = existingUser ?? user;
-        var adminCreatedResult = await userManager.AddToRoleAsync(adminUser, RoleFor.SystemAdmin);
+        var adminCreatedResult = await userManager.AddToRoleAsync(adminUser, UserRoles.SystemAdmin);
 
         return adminCreatedResult;
     }

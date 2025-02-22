@@ -4,7 +4,7 @@ using Sample.Domain.Identity;
 
 namespace Sample.Hosted.Pages.Test;
 
-[Authorize(Roles = RoleFor.SystemAdmin)]
+[Authorize(Roles = UserRoles.SystemAdmin)]
 public class Csrf(IAntiforgery antiForgery) : PageModel
 {
     public void OnGet()

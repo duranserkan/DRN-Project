@@ -17,19 +17,19 @@ public class PrivateController(IScopedUser scopedUser, IScopedLog scopedLog) : C
     [ProducesResponseType(200)]
     public ActionResult<IScopedUser> Anonymous() => Ok(scopedUser);
 
-    [HttpGet("scope-context")]
+    [HttpGet("scope-summary")]
     [ProducesResponseType(200)]
-    public ActionResult<ScopeContext> Context() => Ok(ScopeContext.Value);
+    public ActionResult<ScopeSummary> Context() => Ok(ScopeContext.Value.GetScopeSummary());
 
     [AllowAnonymous]
     [HttpGet("validate-scope")]
     [ProducesResponseType(200)]
     public ActionResult<bool> ValidateScope()
     {
-        var isValid = ScopeContext.Value.TraceId == HttpContext.TraceIdentifier
-                      && ScopeContext.Value.ScopedUser == scopedUser
-                      && ScopeContext.Value.ScopedUser.Principal == User
-                      && ScopeContext.Value.ScopedLog == scopedLog;
+        var isValid = ScopeContext.TraceId == HttpContext.TraceIdentifier
+                      && ScopeContext.User == scopedUser
+                      && ScopeContext.User.Principal == User
+                      && ScopeContext.Log == scopedLog;
 
         return isValid ? Ok() : throw ExceptionFor.Configuration("InvalidScope");
     }

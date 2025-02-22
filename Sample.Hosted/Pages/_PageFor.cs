@@ -2,6 +2,7 @@ using DRN.Framework.Hosting.Endpoints;
 
 namespace Sample.Hosted.Pages;
 
+//Todo: unify all for values under single parent For object
 public abstract class PageFor : PageCollectionBase<PageFor>
 {
     public static RootPageFor Root { get; } = new();

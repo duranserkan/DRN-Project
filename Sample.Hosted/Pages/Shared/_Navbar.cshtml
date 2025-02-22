@@ -22,7 +22,7 @@
                     </li>
                 </environment>
                 <environment include="@AppEnvironment.Development.ToString()">
-                    @if (ScopeContext.User.IsInRole(RoleFor.SystemAdmin))
+                    @if (RoleFor.System.Admin)
                     {
                         <li class="nav-item">
                             <a class="nav-link" authorized-only href="@PageFor.Test.Htmx">Htmx</a>

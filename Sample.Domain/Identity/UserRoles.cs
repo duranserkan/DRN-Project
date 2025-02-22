@@ -1,7 +1,6 @@
 namespace Sample.Domain.Identity;
 
-public abstract class RoleFor
+public abstract class UserRoles
 {
     public const string SystemAdmin = "SystemAdmin";
 }
-

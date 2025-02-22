@@ -45,7 +45,7 @@ public class ScopedUser : IScopedUser
     public ClaimGroup? AuthenticationMethodClaim { get; private set; }
     public ClaimGroup? RoleClaim { get; private set; }
 
-    public bool IsInRole(string role) => RoleClaim?.ValueExists(role, multipleValue: true) ?? false;
+    public bool IsInRole(string role) => RoleClaim?.ValueExists(role) ?? false;
 
     public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; private set; } = DefaultClaimsByType;
 

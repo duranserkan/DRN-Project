@@ -16,13 +16,16 @@ public class ScopeContext
     private static readonly AsyncLocal<ScopeContext> Local = new();
     public static ScopeContext Value => Local.Value ??= new ScopeContext();
 
-    public string TraceId { get; private set; } = null!;
-    public ScopeData ScopeData { get; } = new();
-    public IScopedLog ScopedLog { get; private set; } = null!;
-    public IScopedUser ScopedUser { get; private set; } = null!;
-    public IServiceProvider ServiceProvider { get; private set; } = null!;
-    public IAppSettings AppSettings { get; private set; } = null!;
+    private string Trace { get; set; } = null!;
+    private IScopedLog ScopedLog { get; set; } = null!;
+    private IScopedUser ScopedUser { get; set; } = null!;
+    private ScopeData ScopeData { get; } = new();
+    private IServiceProvider ServiceProvider { get; set; } = null!;
+    private IAppSettings AppSettings { get; set; } = null!;
 
+    public ScopeSummary GetScopeSummary() => new(ScopedLog, ScopedUser, ScopeData);
+
+    public static string TraceId => Value.Trace;
     public static ScopeData Data => Value.ScopeData;
     public static IScopedLog Log => Value.ScopedLog;
     public static IScopedUser User => Value.ScopedUser;
@@ -32,6 +35,22 @@ public class ScopeContext
 
     public static IServiceProvider Services => Value.ServiceProvider;
     public static IAppSettings Settings => Value.AppSettings;
+
+    public static bool IsUserInRole(string role)
+    {
+        if (Data.Roles.TryGetValue(role, out var value))
+            return value;
+
+        AddRoleExistanceToRoles(role);
+
+        return Data.IsRoleExists(role);
+    }
+
+    private static void AddRoleExistanceToRoles(string role)
+    {
+        var value = User.IsInRole(role);
+        Data.SetParameterAsRole(role, value);
+    }
 
     public static bool IsClaimFlagEnabled(string flag, string? issuer = null, bool defaultValue = false)
     {
@@ -72,13 +91,13 @@ public class ScopeContext
         Data.SetParameter<TValue>(claim, value);
     }
 
-    public static void Initialize(string traceId, IScopedLog scopedLog, IScopedUser scopedUser, IAppSettings settings, IServiceProvider serviceProvider)
+    internal static void Initialize(string traceId, IScopedLog scopedLog, IScopedUser scopedUser, IAppSettings settings, IServiceProvider serviceProvider)
     {
         var context = Value;
         if (context._initialized)
             return;
 
-        context.TraceId = traceId;
+        context.Trace = traceId;
         context.ScopedLog = scopedLog;
         context.ScopedUser = scopedUser;
         context.ServiceProvider = serviceProvider;
@@ -86,3 +105,5 @@ public class ScopeContext
         context._initialized = true;
     }
 }
+
+public record ScopeSummary(IScopedLog Log, IScopedUser User, ScopeData ScopeData);
