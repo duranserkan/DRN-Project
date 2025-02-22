@@ -1,7 +1,7 @@
 @{
     var index = 0;
     var actionCount = SidebarActionCollection.DefaultItems.Count;
-    var sidebarActionCollection = ViewData[ViewDataFor.SidebarActionCollection] as SidebarActionCollection ?? new SidebarActionCollection();
+    var sidebarActionCollection = ViewData[Get.ViewDataKeys.SidebarActionCollection] as SidebarActionCollection ?? new SidebarActionCollection();
 }
 
 <aside class="d-flex p-1 bg-body-tertiary flex-column align-items-center">

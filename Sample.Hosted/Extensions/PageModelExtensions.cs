@@ -2,6 +2,7 @@ using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Users;
+using Sample.Hosted.Helpers;
 using Sample.Hosted.Pages;
 
 namespace Sample.Hosted.Extensions;

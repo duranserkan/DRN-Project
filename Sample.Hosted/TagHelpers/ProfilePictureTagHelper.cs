@@ -1,7 +1,7 @@
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 using Sample.Hosted.Controllers;
-using Sample.Hosted.Utils;
+using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.TagHelpers;
 

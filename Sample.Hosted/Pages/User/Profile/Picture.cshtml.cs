@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Application.Services;
 using Sample.Domain.Users;
-using Sample.Hosted.Pages.Shared.Models;
+using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.Pages.User.Profile;
 
@@ -42,7 +42,7 @@ public class ProfilePictureModel(
         // Sign in the user to update the claims
         await signInManager.RefreshSignInAsync(user);
 
-        TempData[TempDataFor.StatusMessage] = "Your profile picture has been updated";
+        TempData[Get.TempDataKeys.StatusMessage] = "Your profile picture has been updated";
 
         return RedirectToPage(Get.Page.UserProfile.Picture);
     }

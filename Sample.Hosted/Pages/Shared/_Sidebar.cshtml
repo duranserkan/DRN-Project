@@ -1,5 +1,3 @@
-@using Sample.Hosted.Utils
-
 @{
     var index = 0;
     var isSlim = Get.Claim.Profile.SlimUi;
@@ -7,8 +5,8 @@
     var settingsText = isSlim ? string.Empty : " Settings";
     var settingsTitle = isSlim ? "Settings" : string.Empty;
 
-    var sidebarNavigationCollection = ViewData[ViewDataFor.SidebarNavigationCollection] as SidebarNavigationCollection ?? new SidebarNavigationCollection();
-    var sidebarSettingsCollection = ViewData[ViewDataFor.SidebarSettingsCollection] as SidebarSettingsCollection ?? new SidebarSettingsCollection();
+    var sidebarNavigationCollection = ViewData[Get.ViewDataKeys.SidebarNavigationCollection] as SidebarNavigationCollection ?? new SidebarNavigationCollection();
+    var sidebarSettingsCollection = ViewData[Get.ViewDataKeys.SidebarSettingsCollection] as SidebarSettingsCollection ?? new SidebarSettingsCollection();
 }
 
 <aside class="d-flex p-1 bg-body-tertiary flex-column align-items-center">

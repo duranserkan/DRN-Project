@@ -1,3 +1,5 @@
+using Sample.Hosted.Helpers;
+
 namespace Sample.Hosted.Pages.Shared.Models;
 
 public class SidebarNavigationCollection(IReadOnlyList<SidebarNavigationItem> items, bool ordered = true)

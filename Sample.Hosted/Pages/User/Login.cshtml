@@ -4,8 +4,8 @@
 @{
     var title = "Log in";
     var options = LayoutOptionsFor.Centered(title);
-    ViewData[ViewDataFor.Title] = title;
-    ViewData[ViewDataFor.MainContentLayoutOptions] = options;
+    ViewData[Get.ViewDataKeys.Title] = title;
+    ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 }
 
 <form method="post" class="text-start">

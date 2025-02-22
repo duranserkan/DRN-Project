@@ -1,4 +1,5 @@
 @page
+@using Sample.Hosted.Helpers
 @model Sample.Hosted.Pages.User.Profile.ProfileEditModel
 @{
     var title = "Edit User Profile";
@@ -7,8 +8,8 @@
     options.Type = MainContentType.Card;
 
     
-    ViewData[ViewDataFor.Title] = title;
-    ViewData[ViewDataFor.MainContentLayoutOptions] = options;
+    ViewData[Get.ViewDataKeys.Title] = title;
+    ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 }
 
 @*https://getbootstrap.com/docs/5.3/forms/layout/*@

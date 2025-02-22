@@ -5,7 +5,7 @@ using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using Microsoft.AspNetCore.Http;
 using Sample.Hosted;
 using Sample.Hosted.Controllers;
-using Sample.Hosted.Utils;
+using Sample.Hosted.Filters;
 
 namespace DRN.Test.Tests.Framework.Hosting.ExceptionHandler;
 

@@ -1,13 +1,13 @@
 @page
-@using Sample.Hosted.Utils
+@using Sample.Hosted.Helpers
 @model Sample.Hosted.Pages.User.Profile.ProfileDetailsModel
 @{
     var title = "User Profile Details";;
     var options = LayoutOptionsFor.Full(title);
     options.SubNavigation=SubNavigationFor.ProfileSubNavigationCollection;
 
-    ViewData[ViewDataFor.Title] = title;
-    ViewData[ViewDataFor.MainContentLayoutOptions] = options;
+    ViewData[Get.ViewDataKeys.Title] = title;
+    ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 }
 
 @if (Model.IdentityUser == null)

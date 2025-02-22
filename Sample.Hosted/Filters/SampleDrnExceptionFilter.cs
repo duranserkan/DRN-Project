@@ -2,7 +2,7 @@ using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
-namespace Sample.Hosted.Utils;
+namespace Sample.Hosted.Filters;
 
 public interface ISampleDrnExceptionFilterDependency
 {

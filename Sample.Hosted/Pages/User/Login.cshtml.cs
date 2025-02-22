@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Users;
 using Sample.Hosted.Extensions;
+using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.Pages.User;
 

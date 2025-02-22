@@ -15,7 +15,7 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
                 "refreshOnHistoryMiss":true, "historyCacheSize":0,
                 "inlineScriptNonce":"@Context.GetNonce()"}'>
 
-        <title>@ViewData[ViewDataFor.Title] - @ScopeContext.Settings.ApplicationName</title>
+        <title>@ViewData[Get.ViewDataKeys.Title] - @ScopeContext.Settings.ApplicationName</title>
         @{
                 var canonicalUrl = Context.Request.Scheme + "://" + Context.Request.Host + Context.Request.Path;
         }

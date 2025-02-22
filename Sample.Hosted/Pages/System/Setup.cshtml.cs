@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Identity;
 using Sample.Domain.Users;
 using Sample.Hosted.Extensions;
+using Sample.Hosted.Helpers;
 using Sample.Hosted.Pages.User;
 
 namespace Sample.Hosted.Pages.System;

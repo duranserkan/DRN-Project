@@ -7,6 +7,7 @@ using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Identity;
 using Sample.Application;
+using Sample.Hosted.Helpers;
 using Sample.Hosted.Pages;
 using Sample.Infra;
 

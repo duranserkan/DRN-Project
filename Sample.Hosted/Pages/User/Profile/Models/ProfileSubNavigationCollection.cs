@@ -1,3 +1,4 @@
+using Sample.Hosted.Helpers;
 using Sample.Hosted.Pages.Shared.Models;
 
 namespace Sample.Hosted.Pages.User.Profile.Models;

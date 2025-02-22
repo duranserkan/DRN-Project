@@ -1,5 +1,5 @@
 @{
-    var layoutOptions = ViewData[ViewDataFor.MainContentLayoutOptions] as MainContentLayoutOptions ?? new MainContentLayoutOptions();
+    var layoutOptions = ViewData[Get.ViewDataKeys.MainContentLayoutOptions] as MainContentLayoutOptions ?? new MainContentLayoutOptions();
     var subNavigation = layoutOptions?.SubNavigation;
     var justifyContentCenter = subNavigation?.JustifyContentCenter ?? false ? "justify-content-center" : string.Empty;
 }

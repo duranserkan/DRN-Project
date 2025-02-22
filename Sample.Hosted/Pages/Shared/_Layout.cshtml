@@ -6,8 +6,8 @@
     if (isHtmxRequest)
         Layout = "_LayoutBaseHtmx";
 
-    var statusMessage = TempData[TempDataFor.StatusMessage] as string;
-    var layoutOptions = ViewData[ViewDataFor.MainContentLayoutOptions] as MainContentLayoutOptions ?? new MainContentLayoutOptions();
+    var statusMessage = TempData[Get.TempDataKeys.StatusMessage] as string;
+    var layoutOptions = ViewData[Get.ViewDataKeys.MainContentLayoutOptions] as MainContentLayoutOptions ?? new MainContentLayoutOptions();
     //todo: add toolbar
     //todo: add debug store as an item to action bar
 }
@@ -33,7 +33,7 @@
         {
             <aside class="alert alert-success alert-dismissible mb-0 mt-1 mx-3">
                 <div role="alert">
-                    @TempData[TempDataFor.StatusMessage]
+                    @TempData[Get.TempDataKeys.StatusMessage]
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             </aside>

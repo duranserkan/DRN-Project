@@ -3,8 +3,8 @@
 @{
     var title = "Account Locked Out";
     var options = LayoutOptionsFor.Centered(title);
-    ViewData[ViewDataFor.Title] = title;
-    ViewData[ViewDataFor.MainContentLayoutOptions] = options;
+    ViewData[Get.ViewDataKeys.Title] = title;
+    ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
     
     var lockOutMinutes = IdentitySettings.LockoutOptions.DefaultLockoutTimeSpan.Minutes;
 }

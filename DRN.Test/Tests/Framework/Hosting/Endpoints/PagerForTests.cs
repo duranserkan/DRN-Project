@@ -1,5 +1,5 @@
+using Sample.Hosted.Helpers;
 using Sample.Hosted.Pages;
-using Sample.Hosted.Utils;
 
 namespace DRN.Test.Tests.Framework.Hosting.Endpoints;
 
