@@ -1,4 +1,3 @@
-using System.Reflection;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Extensions;
@@ -58,8 +57,7 @@ public abstract class EndpointCollectionBase<TProgram>
         if (collectionType == null) return [];
         if (EndpointCollection == null) return [];
 
-        var apiGroups = collectionType
-            .GetProperties(BindingFlags.Public)
+        var apiGroups = collectionType.GetProperties()
             .Where(p => p.GetValue(EndpointCollection) != null)
             .ToDictionary(property => property, property => property.GetValue(EndpointCollection)!);
 

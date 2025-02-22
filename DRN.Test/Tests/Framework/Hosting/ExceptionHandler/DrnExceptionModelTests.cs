@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Sample.Hosted;
 using Sample.Hosted.Controllers;
 using Sample.Hosted.Filters;
+using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Tests.Framework.Hosting.ExceptionHandler;
 
@@ -16,10 +17,10 @@ public class DrnExceptionModelTests
     public async Task ErrorPageModel_Should_Be_Serialized_As_Expected(TestContext context)
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
-        var errorModel = (await client.GetFromJsonAsync<DrnExceptionModel>(SampleEndpointFor.Sample.Exception.GetErrorPageModel.RoutePattern))!;
+        var errorModel = (await client.GetFromJsonAsync<DrnExceptionModel>(Get.Endpoint.Sample.Exception.GetErrorPageModel.RoutePattern))!;
 
         errorModel.Should().NotBeNull();
-        errorModel.RequestPath.Trim('/').Should().Be(SampleEndpointFor.Sample.Exception.GetErrorPageModel.RoutePattern);
+        errorModel.RequestPath.Trim('/').Should().Be(Get.Endpoint.Sample.Exception.GetErrorPageModel.RoutePattern);
     }
     
     [DataInline]
@@ -33,7 +34,7 @@ public class DrnExceptionModelTests
         filter.HandleExceptionAsync(Arg.Any<HttpContext>(), Arg.Any<Exception>(), Arg.Any<DrnExceptionModel>())
             .Returns(Task.FromResult(new DrnExceptionFilterResult()));
         
-        var response = await client.GetAsync(SampleEndpointFor.Sample.Exception.ConflictException.RoutePattern);
+        var response = await client.GetAsync(Get.Endpoint.Sample.Exception.ConflictException.RoutePattern);
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
         await filter.Received(1).HandlePreExceptionModelCreationAsync(Arg.Any<HttpContext>(), Arg.Any<Exception>());

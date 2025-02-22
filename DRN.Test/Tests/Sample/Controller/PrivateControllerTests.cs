@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using DRN.Framework.Utils.Auth;
 using DRN.Test.Tests.Sample.Controller.Helpers;
 using Sample.Hosted;
-using Sample.Hosted.Controllers;
+using Sample.Hosted.Helpers;
 using Xunit.Abstractions;
 
 namespace DRN.Test.Tests.Sample.Controller;
@@ -17,7 +17,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
         var user = await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
 
-        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(SampleEndpointFor.Sample.Private.Authorized.RoutePattern);
+        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(Get.Endpoint.Sample.Private.Authorized.RoutePattern);
         userSummary.Should().NotBeNull();
         userSummary?.Authenticated.Should().BeTrue();
     }
@@ -28,7 +28,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
 
-        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(SampleEndpointFor.Sample.Private.Anonymous.RoutePattern);
+        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(Get.Endpoint.Sample.Private.Anonymous.RoutePattern);
         userSummary.Should().NotBeNull();
         userSummary?.Authenticated.Should().BeFalse();
     }
@@ -40,7 +40,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
         await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
 
-        var scopeContext = await client.GetAsync(SampleEndpointFor.Sample.Private.Context.RoutePattern);
+        var scopeContext = await client.GetAsync(Get.Endpoint.Sample.Private.Context.RoutePattern);
         scopeContext.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -51,7 +51,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
         await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
 
-        var validation = await client.GetAsync(SampleEndpointFor.Sample.Private.ValidateScope.RoutePattern);
+        var validation = await client.GetAsync(Get.Endpoint.Sample.Private.ValidateScope.RoutePattern);
         validation.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

@@ -1,6 +1,6 @@
 using System.Net;
 using Sample.Hosted;
-using Sample.Hosted.Controllers;
+using Sample.Hosted.Helpers;
 using Xunit.Abstractions;
 
 namespace DRN.Test.Tests.Sample.Controller;
@@ -11,7 +11,7 @@ public class ExceptionControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task ExceptionController_Should_Return_DrnException_Status_Codes(TestContext context)
     {
-        var exceptionEndpoints = SampleEndpointFor.Sample.Exception;
+        var exceptionEndpoints = Get.Endpoint.Sample.Exception;
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
 
         var response = await client.GetAsync(exceptionEndpoints.ValidationException.RoutePattern);

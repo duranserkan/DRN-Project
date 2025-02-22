@@ -1,8 +1,7 @@
 using System.Net.Http.Json;
-using DRN.Framework.Utils.Models;
 using DRN.Framework.Utils.Models.Sample;
 using Sample.Hosted;
-using Sample.Hosted.Controllers;
+using Sample.Hosted.Helpers;
 using Sample.Infra.QA;
 
 namespace DRN.Test.Tests.Framework.Testing;
@@ -17,7 +16,7 @@ public class ApplicationContextTests
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
 
         var client = webApplication.CreateClient();
-        var endpoint = SampleEndpointFor.Sample.WeatherForecast.Get.RoutePattern;
+        var endpoint = Get.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
         var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>(endpoint);
         forecasts.Should().NotBeNull();
 

@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using DRN.Framework.Utils.Configurations;
 using DRN.Nexus.Hosted;
-using DRN.Nexus.Hosted.Controllers;
+using DRN.Nexus.Hosted.Helpers;
 using DRN.Test.Tests.Sample.Controller.Helpers;
 using Xunit.Abstractions;
 
@@ -15,7 +15,7 @@ public class StatusControllerTests(ITestOutputHelper outputHelper)
     {
         var client = await context.ApplicationContext.CreateClientAsync<NexusProgram>(outputHelper);
         var user = await AuthenticationHelper<NexusProgram>.AuthenticateClientAsync(client);
-        var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>(NexusEndpointFor.Status.Status.RoutePattern);
+        var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>(Get.Endpoint.Status.Status.RoutePattern);
         var programName = typeof(NexusProgram).GetAssemblyName();
 
         status?.ApplicationName.Should().Be(programName);

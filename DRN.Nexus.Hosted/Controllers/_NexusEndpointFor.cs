@@ -3,14 +3,14 @@ using DRN.Nexus.Hosted.Controllers.Sample;
 
 namespace DRN.Nexus.Hosted.Controllers;
 
-public abstract class NexusEndpointFor : EndpointCollectionBase<NexusProgram>
+public class NexusEndpointFor : EndpointCollectionBase<NexusProgram>
 {
     public const string Prefix = "/Api";
     public const string ControllerRouteTemplate = $"{Prefix}/[controller]";
 
-    public static UserApiFor User { get; } = new();
-    public static StatusFor Status { get; } = new();
-    public static WeatherForecastFor WeatherForecast { get; } = new();
+    public UserApiFor User { get; } = new();
+    public StatusFor Status { get; } = new();
+    public WeatherForecastFor WeatherForecast { get; } = new();
 }
 
 public class StatusFor()
