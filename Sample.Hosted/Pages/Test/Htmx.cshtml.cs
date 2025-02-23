@@ -5,7 +5,7 @@ using Sample.Domain.Identity;
 namespace Sample.Hosted.Pages.Test;
 
 [Authorize(Roles = UserRoles.SystemAdmin)]
-public class Csrf(IAntiforgery antiForgery) : PageModel
+public class Htmx(IAntiforgery antiForgery) : PageModel
 {
     public void OnGet()
     {
