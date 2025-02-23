@@ -1,49 +1,46 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace DRN.Framework.Utils.Extensions;
 
 public static class StringExtensions
 {
+    private const string HexChars = "0123456789abcdef";
     public static T Parse<T>(this string s, IFormatProvider? provider = null) where T : IParsable<T>
         => T.Parse(s, provider);
 
     public static bool TryParse<T>(this string s, out T? result, IFormatProvider? provider = null) where T : IParsable<T>
         => T.TryParse(s, provider, out result);
 
-    public static Stream ToStream(this string value, Encoding? encoding = null)
-        => new MemoryStream((encoding ?? Encoding.UTF8).GetBytes(value));
+    public static Stream ToStream(this string value, Encoding? encoding = null) => new MemoryStream(value.ToByteArray(encoding));
+    public static byte[] ToByteArray(this string value, Encoding? encoding = null) => (encoding ?? Encoding.UTF8).GetBytes(value);
 
     public static string GetSha512Hash(this string value)
     {
-        using var sha256Hash = SHA512.Create();
-        var bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(value));
+        var hashBytes = SHA512.HashData(value.ToByteArray());
 
-        var builder = new StringBuilder();
-        foreach (var t in bytes)
-            builder.Append(t.ToString("x2"));
-
-        return builder.ToString();
+        return string.Create(hashBytes.Length * 2, hashBytes, (chars, bytes) => 
+        {
+            for (var i = 0; i < bytes.Length; i++)
+            {
+                var b = bytes[i];
+                chars[i * 2] = HexChars[b >> 4];    // the high-order 4 bits(nibbles) (first hex digit)
+                chars[i * 2 + 1] = HexChars[b & 0x0F]; // the low-order 4 bits(nibbles) (second hex digit):
+            }
+        });
     }
 
     public static long GenerateLongSeedFromHash(this string input)
     {
-        using var sha512 = SHA512.Create();
-        var hashBytes = sha512.ComputeHash(Encoding.UTF8.GetBytes(input));
-
-        var seed = BitConverter.ToInt64(hashBytes, 19);
-        return seed;
+        var hashBytes = SHA512.HashData(input.ToByteArray());
+        return BitConverter.ToInt64(hashBytes, 19);
     }
 
     public static int GenerateIntSeedFromHash(this string input)
     {
-        using var sha256 = SHA256.Create();
-        var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
-
-        var seed = BitConverter.ToInt32(hashBytes, 19);
-        return seed;
+        var hashBytes = SHA256.HashData(input.ToByteArray());
+        return BitConverter.ToInt32(hashBytes, 19);
     }
 
     public static string ToSnakeCase(this string text)
