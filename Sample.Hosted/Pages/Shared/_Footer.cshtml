@@ -4,7 +4,7 @@
     var showCookieAlertBanner = !ConsentContext.ConsentCookie.Values.UserResponded;
 }
 
-<footer class="border-top footer text-muted mt-auto ">
+<footer class="border-top footer text-muted mt-auto">
     <div class="container-xxl bg-light d-flex justify-content-between align-items-center py-1">
         <div id="FooterLeft">
             &copy; @DateTime.Now.Year - @ScopeContext.Settings.ApplicationName
@@ -84,7 +84,7 @@
 </footer>
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    drnApp.onmount.register("#footerNavbar", function () {
         'use strict';
         const preferencesCookieName = @Json.Serialize(ConsentContext.CookieName);
         const getPreferenceCookie = () => {
@@ -143,5 +143,5 @@
         });
 
         adjustFooterVisibility(@Json.Serialize(showCookieAlertBanner));
-    }, {once: true});
+    });
 </script>
