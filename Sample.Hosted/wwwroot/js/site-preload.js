@@ -78,6 +78,9 @@ drnApp.onmount.unregister = function (options) {
     if (options.disposable && typeof options.disposable.dispose === 'function') {
         options.disposable.dispose();
     }
+    if (options.disposable && typeof options.disposable.destroy === 'function') {
+        options.disposable.destroy();
+    }
 
     $(this).off();
 }
