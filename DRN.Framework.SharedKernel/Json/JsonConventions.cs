@@ -1,6 +1,8 @@
 using System.Reflection;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace DRN.Framework.SharedKernel.Json;
 
@@ -41,6 +43,18 @@ public static class JsonConventions
         options.PropertyNameCaseInsensitive = true;
         options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.NumberHandling = JsonNumberHandling.AllowReadingFromString;
+        options.MaxDepth = 32;
+        options.TypeInfoResolver = JsonSerializer.IsReflectionEnabledByDefault
+            ? new DefaultJsonTypeInfoResolver()
+            : JsonTypeInfoResolver.Combine();
+
+        return options;
+    }
+
+    public static JsonSerializerOptions SetHtmlSafeWebJsonDefaults(JsonSerializerOptions? options = null)
+    {
+        options = SetJsonDefaults(options);
+        options.Encoder = JavaScriptEncoder.Default;
 
         return options;
     }

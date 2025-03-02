@@ -148,11 +148,11 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         services.AddResponseCaching();
         var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
         ConfigureMvcBuilder(mvcBuilder, appSettings);
-        
+
         services.AddAntiforgery(options =>
         {
             options.Cookie.Name = $".{appSettings.AppKey}.Antiforgery";
-            options.Cookie.IsEssential=true;
+            options.Cookie.IsEssential = true;
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             options.Cookie.HttpOnly = true;
         });
@@ -468,8 +468,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         if (!controllersAdded) mvcBuilder.AddApplicationPart(programAssembly);
 
         mvcBuilder.AddControllersAsServices();
-        mvcBuilder.AddJsonOptions(options => JsonConventions.SetJsonDefaults(options.JsonSerializerOptions));
-        
+        mvcBuilder.AddJsonOptions(options => JsonConventions.SetHtmlSafeWebJsonDefaults(options.JsonSerializerOptions));
+
         if (appSettings.IsDevEnvironment)
             mvcBuilder.AddRazorRuntimeCompilation();
     }
