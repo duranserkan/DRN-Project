@@ -7,7 +7,7 @@ public static class UtilsModule
     public static IServiceCollection AddDrnUtils(this IServiceCollection collection)
     {
         collection.AddServicesWithAttributes();
-        collection.AddMemoryCache();
+        collection.AddHybridCache(); //todo: evaluate fusion cache
 
         return collection;
     }
