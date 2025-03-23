@@ -11,8 +11,8 @@ runs:
         git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${{ inputs.project-name }}/PACKAGE-DESCRIPTION
         git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${{ inputs.project-name }}/README.md
         git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${{ inputs.project-name }}/RELEASE-NOTES.md
-        dotnet pack ${{ inputs.project-name }}/${{ inputs.project-name }}.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
+        dotnet pack ${{ inputs.project-name }}/${{ inputs.project-name }}.csproj --configuration Release /p:Version=${VERSION} --no-build --output artifacts/packages
     - name: Push
       shell: bash
       run: |
-        dotnet nuget push ${{ inputs.project-name }}.${VERSION}.nupkg --skip-duplicate --api-key ${NUGET_TOKEN} --source https://api.nuget.org/v3/index.json
+        dotnet nuget push artifacts/packages/${{ inputs.project-name }}.${VERSION}.nupkg --skip-duplicate --api-key ${NUGET_TOKEN} --source https://api.nuget.org/v3/index.json
