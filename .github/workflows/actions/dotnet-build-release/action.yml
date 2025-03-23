@@ -4,7 +4,7 @@ runs:
   steps:
     - name: Restore dependencies
       shell: bash
-      run: dotnet restore DRN.sln
+      run: dotnet restore DRN.slnx
     - name: Build solution
       shell: bash
       run: dotnet build DRN.slnx --no-restore --no-incremental --configuration Release /p:Version=${VERSION}
