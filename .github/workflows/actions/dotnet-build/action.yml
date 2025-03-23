@@ -7,4 +7,4 @@ runs:
       run: dotnet restore DRN.sln
     - name: Build solution
       shell: bash
-      run: dotnet build DRN.sln --no-restore --no-incremental
+      run: dotnet build DRN.slnx --no-restore --no-incremental

@@ -7,4 +7,4 @@ runs:
       run: dotnet restore DRN.sln
     - name: Build solution
       shell: bash
-      run: dotnet build DRN.sln --no-restore --no-incremental --configuration Release /p:Version=${VERSION}
+      run: dotnet build DRN.slnx --no-restore --no-incremental --configuration Release /p:Version=${VERSION}
