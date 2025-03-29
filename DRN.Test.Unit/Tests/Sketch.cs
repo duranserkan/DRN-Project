@@ -1,12 +1,13 @@
+using FluentAssertions;
 using Flurl;
+using Xunit;
 
-namespace DRN.Test.Tests;
+namespace DRN.Test.Unit.Tests;
 
 public class Sketch
 {
-    [Theory]
-    [DataInline]
-    public void Doodle(TestContext _)
+    [Fact]
+    public void Doodle()
     {
         var u = "http://nexus/status/".AppendQueryParam("name", null)!;
         var x = u.ToString();

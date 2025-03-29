@@ -1,7 +1,9 @@
 using DRN.Framework.Utils.Common;
 using DRN.Framework.Utils.Models.Sample;
+using FluentAssertions;
+using Xunit;
 
-namespace DRN.Test.Tests.Framework.Utils.Common;
+namespace DRN.Test.Unit.Tests.Framework.Utils.Common;
 
 public class Base64UtilsTests
 {

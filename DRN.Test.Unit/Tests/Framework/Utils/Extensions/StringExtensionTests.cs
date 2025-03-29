@@ -1,4 +1,8 @@
-namespace DRN.Test.Tests.Framework.Utils.Extensions;
+using DRN.Framework.Utils.Extensions;
+using FluentAssertions;
+using Xunit;
+
+namespace DRN.Test.Unit.Tests.Framework.Utils.Extensions;
 
 public class StringExtensionTests
 {

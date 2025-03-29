@@ -115,6 +115,7 @@
   </Folder>
   <Folder Name="/Test/">
     <Project Path="DRN.Test.Performance\DRN.Test.Performance.csproj" Type="Classic C#" />
+    <Project Path="DRN.Test.Unit\DRN.Test.Unit.csproj" Type="Classic C#" />
     <Project Path="DRN.Test\DRN.Test.csproj" Type="Classic C#" />
   </Folder>
 </Solution>

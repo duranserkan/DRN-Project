@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-
 namespace DRN.Framework.SharedKernel.Domain;
 
 public abstract class Entity
@@ -7,6 +6,8 @@ public abstract class Entity
     private List<IDomainEvent> DomainEvents { get; } = new();
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
     public long Id { get; protected set; }
+
+    public string ExtendedProperties { get; protected set; } = null!;
 
     [ConcurrencyCheck]
     public DateTimeOffset ModifiedAt { get; protected set; }

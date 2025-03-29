@@ -1,4 +1,8 @@
-namespace DRN.Test.Tests.Framework.SharedKernel;
+using DRN.Framework.SharedKernel;
+using FluentAssertions;
+using Xunit;
+
+namespace DRN.Test.Unit.Tests.Framework.SharedKernel;
 
 public class AppConstantTests
 {
