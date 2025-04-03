@@ -4,7 +4,7 @@ runs:
   steps:
     - name: Test Unit
       shell: bash
-      run: dotnet test DRN.Test/DRN.Test.Unit.csproj --no-build --verbosity normal
+      run: dotnet test DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity normal
     - name: Test Integration
       shell: bash
       run: dotnet test DRN.Test/DRN.Test.csproj --no-build --verbosity normal
