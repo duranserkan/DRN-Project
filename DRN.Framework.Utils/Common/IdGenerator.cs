@@ -5,6 +5,7 @@ namespace DRN.Framework.Utils.Common;
 //todo:timestamp, appname,appinstance, entityname, entityinstance parts
 public static class IdGenerator
 {
+    //todo: validate system time on startup
     public static readonly DateTimeOffset Epoch2025 = new(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
     public static long GenerateId(byte appId, byte appInstanceId, DateTimeOffset? epoch = null)

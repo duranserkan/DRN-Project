@@ -8,6 +8,7 @@ public static class UtilsModule
     {
         collection.AddServicesWithAttributes();
         collection.AddHybridCache(); //todo: evaluate fusion cache
+        collection.AddSingleton<TimeProvider>(_ => TimeProvider.System);
 
         return collection;
     }
