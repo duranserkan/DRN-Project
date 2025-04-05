@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DRN.Test.Performance.Benchmark.Other.Hash.HashBenchmark-20250412-165249</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, macOS Sequoia 15.4 (24E248) [Darwin 24.4.0]
+Apple M2, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 9.0.203
+  [Host]     : .NET 9.0.4 (9.0.425.16305), Arm64 RyuJIT AdvSIMD
+  DefaultJob : .NET 9.0.4 (9.0.425.16305), Arm64 RyuJIT AdvSIMD
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method                   </th><th>Size</th><th>Mean     </th><th>Error </th><th>StdDev</th>
+</tr>
+</thead><tbody><tr><td>Blake3_256_Update</td><td>4</td><td>85.55 ns</td><td>0.082 ns</td><td>0.077 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>4</td><td>86.58 ns</td><td>0.080 ns</td><td>0.071 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>4</td><td>98.85 ns</td><td>0.112 ns</td><td>0.099 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>4</td><td>105.65 ns</td><td>0.049 ns</td><td>0.043 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>4</td><td>320.02 ns</td><td>0.883 ns</td><td>0.826 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>4</td><td>745.76 ns</td><td>0.863 ns</td><td>0.807 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>8</td><td>84.94 ns</td><td>0.046 ns</td><td>0.043 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>8</td><td>85.84 ns</td><td>0.039 ns</td><td>0.030 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>8</td><td>103.53 ns</td><td>0.193 ns</td><td>0.151 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>8</td><td>103.95 ns</td><td>0.037 ns</td><td>0.035 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>8</td><td>319.75 ns</td><td>1.432 ns</td><td>1.340 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>8</td><td>738.01 ns</td><td>0.678 ns</td><td>0.634 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>12</td><td>85.59 ns</td><td>0.050 ns</td><td>0.046 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>12</td><td>87.08 ns</td><td>0.252 ns</td><td>0.236 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>12</td><td>105.60 ns</td><td>0.389 ns</td><td>0.364 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>12</td><td>105.59 ns</td><td>0.112 ns</td><td>0.094 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>12</td><td>312.15 ns</td><td>1.409 ns</td><td>1.318 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>12</td><td>733.12 ns</td><td>1.926 ns</td><td>1.608 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>16</td><td>85.20 ns</td><td>0.185 ns</td><td>0.144 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>16</td><td>86.22 ns</td><td>0.133 ns</td><td>0.111 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>16</td><td>101.70 ns</td><td>0.060 ns</td><td>0.056 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>16</td><td>101.66 ns</td><td>0.034 ns</td><td>0.030 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>16</td><td>309.20 ns</td><td>0.574 ns</td><td>0.537 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>16</td><td>722.80 ns</td><td>1.050 ns</td><td>0.930 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>32</td><td>85.34 ns</td><td>0.071 ns</td><td>0.063 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>32</td><td>86.26 ns</td><td>0.069 ns</td><td>0.064 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>32</td><td>99.11 ns</td><td>0.175 ns</td><td>0.164 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>32</td><td>109.40 ns</td><td>0.163 ns</td><td>0.137 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>32</td><td>279.99 ns</td><td>0.868 ns</td><td>0.812 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>32</td><td>684.50 ns</td><td>0.716 ns</td><td>0.635 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>64</td><td>86.31 ns</td><td>0.037 ns</td><td>0.035 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>64</td><td>87.29 ns</td><td>0.040 ns</td><td>0.035 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>64</td><td>105.58 ns</td><td>0.038 ns</td><td>0.034 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>64</td><td>105.26 ns</td><td>0.046 ns</td><td>0.040 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>64</td><td>343.49 ns</td><td>0.844 ns</td><td>0.790 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>64</td><td>635.69 ns</td><td>1.213 ns</td><td>1.134 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>128</td><td>152.43 ns</td><td>0.097 ns</td><td>0.091 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>128</td><td>151.59 ns</td><td>0.066 ns</td><td>0.061 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>128</td><td>164.07 ns</td><td>0.135 ns</td><td>0.126 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>128</td><td>169.70 ns</td><td>0.148 ns</td><td>0.139 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>128</td><td>361.17 ns</td><td>0.713 ns</td><td>0.667 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>128</td><td>837.49 ns</td><td>0.606 ns</td><td>0.537 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>256</td><td>288.93 ns</td><td>0.107 ns</td><td>0.089 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>256</td><td>290.69 ns</td><td>0.104 ns</td><td>0.086 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>256</td><td>303.93 ns</td><td>0.126 ns</td><td>0.118 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>256</td><td>303.07 ns</td><td>0.136 ns</td><td>0.127 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>256</td><td>408.58 ns</td><td>0.868 ns</td><td>0.812 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>256</td><td>914.00 ns</td><td>0.638 ns</td><td>0.596 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>512</td><td>566.73 ns</td><td>0.573 ns</td><td>0.536 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>512</td><td>567.16 ns</td><td>0.338 ns</td><td>0.316 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>512</td><td>584.97 ns</td><td>0.181 ns</td><td>0.169 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>512</td><td>584.74 ns</td><td>0.271 ns</td><td>0.212 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>512</td><td>507.90 ns</td><td>1.843 ns</td><td>1.724 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>512</td><td>1,082.49 ns</td><td>0.927 ns</td><td>0.867 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>1024</td><td>1,129.58 ns</td><td>0.460 ns</td><td>0.408 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>1024</td><td>1,130.98 ns</td><td>0.550 ns</td><td>0.514 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>1024</td><td>1,146.44 ns</td><td>0.664 ns</td><td>0.621 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>1024</td><td>1,147.77 ns</td><td>0.528 ns</td><td>0.468 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>1024</td><td>705.43 ns</td><td>1.203 ns</td><td>1.125 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>1024</td><td>1,420.91 ns</td><td>0.999 ns</td><td>0.934 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>2048</td><td>2,347.28 ns</td><td>1.029 ns</td><td>0.963 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>2048</td><td>2,346.94 ns</td><td>1.394 ns</td><td>1.304 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>2048</td><td>2,359.17 ns</td><td>1.107 ns</td><td>1.036 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>2048</td><td>2,360.51 ns</td><td>1.149 ns</td><td>1.019 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>2048</td><td>1,097.38 ns</td><td>2.657 ns</td><td>2.485 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>2048</td><td>2,104.60 ns</td><td>0.723 ns</td><td>0.641 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>4096</td><td>2,218.71 ns</td><td>1.332 ns</td><td>1.181 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>4096</td><td>2,220.30 ns</td><td>1.650 ns</td><td>1.544 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>4096</td><td>2,232.81 ns</td><td>1.108 ns</td><td>1.037 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>4096</td><td>2,254.61 ns</td><td>11.654 ns</td><td>10.901 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>4096</td><td>1,878.23 ns</td><td>3.806 ns</td><td>3.560 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>4096</td><td>3,435.59 ns</td><td>3.746 ns</td><td>3.504 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>8192</td><td>4,318.27 ns</td><td>2.634 ns</td><td>2.464 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>8192</td><td>18,596.71 ns</td><td>41.864 ns</td><td>39.159 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>8192</td><td>4,335.18 ns</td><td>3.053 ns</td><td>2.856 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>8192</td><td>18,748.20 ns</td><td>57.947 ns</td><td>54.204 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>8192</td><td>3,472.67 ns</td><td>2.219 ns</td><td>2.075 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>8192</td><td>6,151.18 ns</td><td>3.077 ns</td><td>2.727 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>16384</td><td>8,525.30 ns</td><td>3.360 ns</td><td>2.978 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>16384</td><td>24,723.81 ns</td><td>116.123 ns</td><td>108.622 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>16384</td><td>8,539.37 ns</td><td>3.693 ns</td><td>3.455 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>16384</td><td>24,865.85 ns</td><td>100.161 ns</td><td>93.690 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>16384</td><td>6,634.71 ns</td><td>2.512 ns</td><td>2.350 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>16384</td><td>11,544.57 ns</td><td>5.477 ns</td><td>5.123 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>32768</td><td>16,938.92 ns</td><td>8.625 ns</td><td>8.068 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>32768</td><td>29,555.59 ns</td><td>112.450 ns</td><td>105.186 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>32768</td><td>16,948.50 ns</td><td>5.246 ns</td><td>4.907 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>32768</td><td>29,128.79 ns</td><td>567.772 ns</td><td>979.379 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>32768</td><td>12,959.14 ns</td><td>6.036 ns</td><td>5.646 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>32768</td><td>22,349.77 ns</td><td>9.988 ns</td><td>8.854 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>1048576</td><td>539,138.81 ns</td><td>336.929 ns</td><td>298.679 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>1048576</td><td>141,324.98 ns</td><td>346.081 ns</td><td>306.791 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>1048576</td><td>539,150.05 ns</td><td>197.510 ns</td><td>164.930 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>1048576</td><td>141,406.38 ns</td><td>397.480 ns</td><td>371.803 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>1048576</td><td>405,105.78 ns</td><td>174.432 ns</td><td>154.630 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>1048576</td><td>691,922.89 ns</td><td>250.282 ns</td><td>234.114 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>10485760</td><td>5,403,815.01 ns</td><td>3,619.853 ns</td><td>3,386.012 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>10485760</td><td>1,029,085.22 ns</td><td>4,718.055 ns</td><td>4,413.271 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>10485760</td><td>5,402,868.75 ns</td><td>2,980.380 ns</td><td>2,642.029 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>10485760</td><td>1,029,836.55 ns</td><td>5,591.770 ns</td><td>5,230.545 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>10485760</td><td>4,057,646.74 ns</td><td>2,826.536 ns</td><td>2,505.650 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>10485760</td><td>6,930,045.14 ns</td><td>3,453.602 ns</td><td>3,230.501 ns</td>
+</tr></tbody></table>
+</body>
+</html>

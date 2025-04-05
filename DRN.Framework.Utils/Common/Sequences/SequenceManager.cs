@@ -18,8 +18,8 @@ namespace DRN.Framework.Utils.Common.Sequences;
 /// </remarks>
 public static class SequenceManager<TEntity> where TEntity : class
 {
-    private static DateTimeOffset _epoch = IdGenerator.DefaultEpoch;
-    private static SequenceTimeScope _timeScope = new(TimeStampManager.CurrentTimestamp(IdGenerator.DefaultEpoch));
+    private static DateTimeOffset _epoch = SourceKnownIdGenerator.DefaultEpoch;
+    private static SequenceTimeScope _timeScope = new(TimeStampManager.CurrentTimestamp(SourceKnownIdGenerator.DefaultEpoch));
 
     /// <summary>
     /// Generates a new time-scoped identifier for the entity type.
@@ -96,19 +96,22 @@ public static class SequenceManager<TEntity> where TEntity : class
     }
 }
 
-public readonly record struct SequenceTimeScopedId(long TimeStamp, ushort SequenceId);
+public readonly record struct SequenceTimeScopedId(long TimeStamp, uint SequenceId);
 
 public class SequenceTimeScope(long scopeTimeStamp)
 {
+    public const uint MaxValue = 2097151;
+    public const uint MinValue = 0;
+    
     private int _lastId = -1;
     public long ScopeTimestamp { get; } = scopeTimeStamp;
 
-    public bool TryGetNextId(out ushort id)
+    public bool TryGetNextId(out uint id)
     {
         var nextId = Interlocked.Increment(ref _lastId);
-        if (nextId <= ushort.MaxValue)
+        if (nextId <= MaxValue)
         {
-            id = (ushort)nextId;
+            id = (uint)nextId;
             return true;
         }
 

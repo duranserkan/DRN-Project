@@ -6,6 +6,7 @@ public enum NumberBuildDirection
     /// MSB-first: Start from top down
     /// </summary>
     MostSignificantFirst,
+
     /// <summary>
     /// LSB-first: Start from 0 to up
     /// </summary>
@@ -14,29 +15,26 @@ public enum NumberBuildDirection
 
 public enum ResidueType
 {
-    Nibble = 1,
-    Byte,
-    UShort,
-    UInt
+    Bit = 1,
+    Crumb = 2,
+    Nibble = 4,
+    Byte = 8,
+    UShort = 16,
+    UInt = 32
 }
 
 public static class NumberExtensions
 {
-    public static int GetResidueBitLength(this ResidueType type) => type switch
+    public static byte GetResidueBitLength(this ResidueType type) => type switch
     {
-        ResidueType.Nibble => 3,
-        ResidueType.Byte => 7,
-        ResidueType.UShort => 15,
         ResidueType.UInt => 31,
+        ResidueType.UShort => 15,
+        ResidueType.Byte => 7,
+        ResidueType.Nibble => 3,
+        ResidueType.Crumb => 1,
+        ResidueType.Bit => 0,
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
     };
-    
-    public static int GetResidueNibbleCount(this ResidueType type) => type switch
-    {
-        ResidueType.Nibble => 1,
-        ResidueType.Byte => 2,
-        ResidueType.UShort => 4,
-        ResidueType.UInt => 8,
-        _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
-    };
+
+    public static long GetBitMask(this byte bitLength) => (1L << bitLength) - 1; // 1L << 4 => ...10000 --- (1L << 4 -1) => 01111
 }

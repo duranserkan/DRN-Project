@@ -136,6 +136,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         var services = applicationBuilder.Services;
         services.AdDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
+        services.AddHostedService<DrnBackgroundService>();
         services.AddSingleton<IEndpointAccessor>(sp =>
         {
             var endpointHelper = sp.GetRequiredService<IEndpointHelper>();

@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Flurl;
-using Xunit;
 
 namespace DRN.Test.Unit.Tests;
 

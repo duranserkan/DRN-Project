@@ -4,7 +4,7 @@ public static class TimeStampManager
 {
     private static DateTimeOffset _cachedUtcNow;
     private static long _cachedUtcNowTicks;
-    internal static readonly int UpdatePeriod = 50;
+    internal static readonly int UpdatePeriod = 100;
     private static readonly RecurringAction RecurringAction;
 
     static TimeStampManager()
@@ -15,7 +15,7 @@ public static class TimeStampManager
 
     private static Task Update()
     {
-        var now = MonotonicSystemHybridDateTime.UtcNow.Ticks;
+        var now = MonotonicSystemDateTime.UtcNow.Ticks;
         var secondResidue = now % TimeSpan.TicksPerSecond;
         _cachedUtcNow = new DateTimeOffset(now - secondResidue, TimeSpan.Zero);
         _cachedUtcNowTicks = _cachedUtcNow.Ticks;

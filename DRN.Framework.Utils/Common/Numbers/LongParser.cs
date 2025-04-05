@@ -27,56 +27,24 @@ public class LongParser
             throw new InvalidOperationException($"Attempt to read {bitSize} bits exceeds available {currentAvailableBits} bits.");
     }
 
-    private int CalculateShift(int bitSize)
-    {
-        return _direction == NumberBuildDirection.MostSignificantFirst
-            ? _availableBits - _currentBitOffset - bitSize
-            : _currentBitOffset;
-    }
+    private int CalculateShift(int bitSize) => _direction == NumberBuildDirection.MostSignificantFirst
+        ? _availableBits - _currentBitOffset - bitSize
+        : _currentBitOffset;
 
-    public byte ReadNibble()
+    public byte ReadBit() => (byte)Read(1);
+    public byte ReadCrumb() => (byte)Read(2);
+    public byte ReadNibble() => (byte)Read(4);
+    public byte ReadByte() => (byte)Read(8);
+    public ushort ReadUShort() => (ushort)Read(16);
+    public uint ReadUInt() => Read(32);
+
+    public uint Read(byte bitSize)
     {
-        const int bitSize = 4;
         ValidateReadOperation(bitSize);
 
         var shift = CalculateShift(bitSize);
-        var value = (byte)((_value >> shift) & 0x0F);
-        _currentBitOffset += bitSize;
+        var value = (uint)((_value >> shift) & bitSize.GetBitMask());
 
-        return value;
-    }
-
-    public byte ReadByte()
-    {
-        const int bitSize = 8;
-        ValidateReadOperation(bitSize);
-
-        var shift = CalculateShift(bitSize);
-        var value = (byte)((_value >> shift) & 0xFF);
-        _currentBitOffset += bitSize;
-
-        return value;
-    }
-
-    public ushort ReadUShort()
-    {
-        const int bitSize = 16;
-        ValidateReadOperation(bitSize);
-
-        var shift = CalculateShift(bitSize);
-        var value = (ushort)((_value >> shift) & 0xFFFF);
-        _currentBitOffset += bitSize;
-
-        return value;
-    }
-
-    public uint ReadUInt()
-    {
-        const int bitSize = 32;
-        ValidateReadOperation(bitSize);
-
-        var shift = CalculateShift(bitSize);
-        var value = (uint)((_value >> shift) & 0xFFFFFFFF);
         _currentBitOffset += bitSize;
 
         return value;

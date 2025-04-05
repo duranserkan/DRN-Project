@@ -1,6 +1,7 @@
 using DRN.Framework.Testing.Contexts;
 using DRN.Framework.Testing.DataAttributes;
 using DRN.Framework.Utils.Common;
+using DRN.Framework.Utils.Common.Sequences;
 using DRN.Framework.Utils.Settings;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,7 +29,7 @@ public class SourceKnownIdTests
         context.AddToConfiguration(customSettings);
         var generator = context.GetRequiredService<ISourceKnownIdGenerator>();
 
-        var epoch = IdGenerator.Epoch2025;
+        var epoch = SourceKnownIdGenerator.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
         await Task.Delay(1000);
@@ -66,22 +67,22 @@ public class SourceKnownIdTests
         context.AddToConfiguration(customSettings);
         var generator = context.GetRequiredService<ISourceKnownIdGenerator>();
         var bucketCount = 3;
-        var idCount = ushort.MaxValue * bucketCount;
-        var idArray = new long[idCount];
+        var idCount = (int)(SequenceTimeScope.MaxValue * bucketCount);
+        var ids = new long[idCount];
 
-        var epoch = IdGenerator.Epoch2025;
+        var epoch = SourceKnownIdGenerator.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
         await Task.Delay(1000);
-        for (var i = 0; i < idCount; i++)
-            idArray[i] = generator.NextId<ISourceKnownIdGenerator>();
+        for (var i = 0; i < idCount; i++) 
+            ids[i] = generator.NextId<ISourceKnownIdGenerator>();
         await Task.Delay(1000);
 
         var afterIdGenerated = DateTimeOffset.UtcNow;
 
         epoch.Should().BeBefore(beforeIdGenerated);
 
-        var idInfos = idArray.Select(id => generator.Parse(id)).ToArray();
+        var idInfos = ids.Select(id => generator.Parse(id)).ToArray();
 
         idInfos.Length.Should().Be(idCount);
         idInfos.Should().AllSatisfy(idInfo =>
@@ -97,12 +98,11 @@ public class SourceKnownIdTests
         var idInfoGroups = idInfos.GroupBy(x => x.CreatedAt).ToArray();
         var buckets = idInfoGroups.Select(x => x.Key).ToArray();
 
-        buckets.Length.Should().BeGreaterThanOrEqualTo(bucketCount);
-        buckets.Length.Should().BeLessThan(bucketCount + 1);
+        buckets.Length.Should().BeGreaterThanOrEqualTo(bucketCount); //during generation initial and last buckets may be halflings
+        buckets.Length.Should().BeLessThanOrEqualTo(bucketCount + 1);
 
-        var duration = afterIdGenerated - beforeIdGenerated;
-        duration.TotalSeconds.Should().BeGreaterThanOrEqualTo(bucketCount);
-        duration.TotalSeconds.Should().BeLessThan(bucketCount + 1);
+        var duration = afterIdGenerated - beforeIdGenerated; // it is expected to be complete in bucket count + 1 seconds.
+        duration.TotalSeconds.Should().BeInRange(bucketCount, bucketCount + 1.5); //we should also consider testing overhead by adding 0.5 seconds
 
         foreach (var group in idInfoGroups)
         {
@@ -111,8 +111,7 @@ public class SourceKnownIdTests
             if (groupCount > 1)
                 group.Skip(1).First().InstanceId.Should().Be(1);
 
-            group.Last().InstanceId.Should().Be((ushort)(groupCount - 1));
+            group.Last().InstanceId.Should().Be((uint)(groupCount - 1));
         }
-        //todo measure performance, how fast they are generated?
     }
 }

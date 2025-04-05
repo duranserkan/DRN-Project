@@ -4,14 +4,14 @@ namespace DRN.Framework.Utils.Common.Numbers;
 public class LongBuilder
 {
     public static LongBuilder Default => new(NumberBuildDirection.MostSignificantFirst, ResidueType.UInt);
-    
+
     private long _residue;
     private bool _signBit = true;
     private long _value = long.MinValue;
 
     private int _currentBitOffset;
     private readonly int _availableBits; //offset from most significant bit, also mean total available bits
-    private readonly int _residueBitLength;
+    private readonly byte _residueBitLength;
     private readonly NumberBuildDirection _direction;
 
     public LongBuilder(NumberBuildDirection direction, ResidueType residueType)
@@ -22,39 +22,50 @@ public class LongBuilder
         _currentBitOffset = 0;
     }
 
+    public bool TryAddBit(byte bit)
+    {
+        const byte bitLength = 1;
+        return TryAdd(bit, bitLength);
+    }
+
+    public bool TryAddCrumb(byte crumb)
+    {
+        const byte bitLength = 2;
+        return TryAdd(crumb, bitLength);
+    }
+
     public bool TryAddNibble(byte nibble)
     {
-        const int bitSize = 4;
-        return TryAdd(nibble, bitSize, 0x0F);
+        const byte bitLength = 4;
+        return TryAdd(nibble, bitLength);
     }
 
     public bool TryAddByte(byte byt)
     {
-        const int bitSize = 8;
-        return TryAdd(byt, bitSize, byte.MaxValue);
+        const byte bitLength = 8;
+        return TryAdd(byt, bitLength);
     }
 
     public bool TryAddUnsignedShort(ushort unsignedShort)
     {
-        const int bitSize = 16;
-        return TryAdd(unsignedShort, bitSize, ushort.MaxValue);
+        const byte bitLength = 16;
+        return TryAdd(unsignedShort, bitLength);
     }
 
     public bool TryAddUnsignedInt(uint unsignedInt)
     {
-        const int bitSize = 32;
-        return TryAdd(unsignedInt, bitSize, uint.MaxValue);
+        const byte bitLength = 32;
+        return TryAdd(unsignedInt, bitLength);
     }
 
-    private bool TryAdd(uint nibble, int bitSize, uint mask)
+    public bool TryAdd(uint value, byte bitLength)
     {
-        if (!ValidateWriteOperation(bitSize))
+        if (!ValidateWriteOperation(bitLength))
             return false;
 
-        var shift = CalculateShift(bitSize);
-        long maskedNibble = nibble & mask;
-        _value |= maskedNibble << shift;
-        _currentBitOffset += bitSize;
+        var maskedValue = value & bitLength.GetBitMask();
+        _value |= maskedValue << CalculateShift(bitLength);
+        _currentBitOffset += bitLength;
 
         return true;
     }
@@ -73,8 +84,7 @@ public class LongBuilder
 
     public void SetResidueValue(uint value)
     {
-        var mask = (1L << _residueBitLength) - 1; //1L << 4 => ...10000 --- (1L << 4 -1) => 01111
-        _residue = value & mask;
+        _residue = value & _residueBitLength.GetBitMask();
         _value |= _residue << _availableBits;
     }
 
