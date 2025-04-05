@@ -1,98 +1,54 @@
-using System.Diagnostics;
+using DRN.Framework.Utils.Common.Time;
 
 namespace DRN.Framework.Utils.Common.Sequences;
 
 /// <summary>
-/// Monotonic/System hybrid clock that Immune to drastic system clock changes and monotonic clock drifts
+/// Manages entity-specific sequences to generate unique, time-scoped identifiers in a thread-safe manner.
 /// </summary>
-public static class MonotonicSystemHybridDateTime
-{
-    private static DateTimeOffset _initialTime;
-
-    private static readonly Timer Timer;
-    private static readonly Stopwatch Stopwatch;
-    private static readonly int UpdatePeriod = 10000; // 10 seconds
-
-    /// <summary>
-    /// Application should poll this flag to verify consistency
-    /// </summary>
-    public static bool IsShutdownRequested { get; private set; }
-
-    static MonotonicSystemHybridDateTime()
-    {
-        _initialTime = DateTimeOffset.UtcNow;
-        Stopwatch = Stopwatch.StartNew();
-        Timer = new Timer(_ => CheckClockDrift(), null, 0, UpdatePeriod); //todo Use a single-fire timer that reschedules itself to prevent overlapping callbacks.
-    }
-
-    /// <summary>
-    /// Gets the current UTC time using a monotonic clock (Stopwatch).
-    /// Immune to system clock changes (e.g., NTP adjustments).
-    /// </summary>
-    public static DateTimeOffset UtcNow => _initialTime + Stopwatch.Elapsed;
-
-    /// <summary>
-    /// Checks for clock drift between the monotonic time and system time.
-    /// - If the system clock has changed by more than 1 minute, sets IsShutdownRequested to true.
-    /// - If the change is less than 1 minute, adjusts the monotonic time to sync with the system clock.
-    /// </summary>
-    private static void CheckClockDrift()
-    {
-        var drift = DateTimeOffset.UtcNow - UtcNow;
-        if (drift > TimeSpan.FromMinutes(1) || TimeSpan.FromMinutes(-1) > drift)
-        {
-            IsShutdownRequested = true;
-            return;
-        }
-
-        if (drift > TimeSpan.Zero) // do nothing when drift < TimeSpan.Zero is true since the MonotonicTime only moves forward
-        {
-            var now = DateTimeOffset.UtcNow;
-            Stopwatch.Restart();
-            _initialTime = now; //todo: add sync lock to prevent inconsistent UtcNow between correction
-        }
-    }
-}
-
-public static class TimeStampManager
-{
-    private static DateTimeOffset _cachedUtcNow;
-    private static long _cachedUtcNowTicks;
-    internal static readonly int UpdatePeriod = 50;
-    private static readonly Timer Timer;
-
-    static TimeStampManager()
-    {
-        Timer = new Timer(_ => //todo Use a single-fire timer that reschedules itself to prevent overlapping callbacks.
-        {
-            var now = MonotonicSystemHybridDateTime.UtcNow.Ticks;
-            var secondResidue = now % TimeSpan.TicksPerSecond;
-            _cachedUtcNow = new DateTimeOffset(now - secondResidue, TimeSpan.Zero);
-            _cachedUtcNowTicks = _cachedUtcNow.Ticks;
-        }, null, 0, UpdatePeriod);
-    }
-
-    /// <summary>
-    /// Cached UTC timestamp with precision up to the second.
-    /// This value is updated periodically and does not include milliseconds or finer precision.
-    /// </summary>
-    public static DateTimeOffset UtcNow => _cachedUtcNow;
-
-    public static long UtcNowTicks => _cachedUtcNowTicks;
-
-    /// <summary>
-    /// Computes the current timestamp as an integer, representing the number of seconds elapsed since the specified epoch.
-    /// </summary>
-    /// <param name="epoch">The reference time (epoch) from which the elapsed seconds are calculated.</param>
-    /// <returns>The number of seconds elapsed since the given epoch.</returns>
-    public static long CurrentTimestamp(DateTimeOffset epoch) => (UtcNowTicks - epoch.Ticks) / TimeSpan.TicksPerSecond;
-}
-
+/// <typeparam name="TEntity">The entity type for which sequences are managed. Must be a reference type.</typeparam>
+/// <remarks>
+/// <para>
+/// This class uses a combination of timestamp intervals (based on a fixed epoch) and atomic operations to generate
+/// collision-resistant IDs across multiple threads or processes. The time scope is automatically advanced when the
+/// system clock progresses beyond the current interval, ensuring monotonically increasing IDs within each interval.
+/// </para>
+/// <para>
+/// The epoch is fixed at 2025-01-01 to maximize timestamp longevity.
+/// </para>
+/// </remarks>
 public static class SequenceManager<TEntity> where TEntity : class
 {
     private static DateTimeOffset _epoch = IdGenerator.Epoch2025;
     private static SequenceTimeScope _timeScope = new(TimeStampManager.CurrentTimestamp(IdGenerator.Epoch2025));
 
+    /// <summary>
+    /// Generates a new time-scoped identifier for the entity type.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="SequenceTimeScopedId"/> containing both the timestamp of the current interval and the
+    /// unique sequence number within that interval.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This method guarantees thread-safe ID generation by using atomic operations to manage time scope transitions.
+    /// When the current time interval expires, the method automatically advances to the new interval and resets
+    /// the sequence counter.
+    /// </para>
+    /// <para>
+    /// In high-contention scenarios where the sequence counter exhausts an interval's capacity, the method employs
+    /// a lightweight synchronization pattern with exponential backoff (via <see cref="Thread.Sleep"/>) to wait for
+    /// the next available interval while minimizing CPU contention.
+    /// </para>
+    /// <para>
+    /// The generated IDs are strictly ordered within their time interval but not globally monotonic across intervals.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var id = SequenceManager&lt;Order&gt;.GetTimeScopedId();
+    /// Console.WriteLine($"Order ID: {id.Timestamp}-{id.Sequence}");
+    /// </code>
+    /// </example>
     public static SequenceTimeScopedId GetTimeScopedId()
     {
         var timeStamp = TimeStampManager.CurrentTimestamp(_epoch);
@@ -108,7 +64,7 @@ public static class SequenceManager<TEntity> where TEntity : class
             var newTimestamp = TimeStampManager.CurrentTimestamp(_epoch);
             if (timeStamp == newTimestamp)
             {
-                Thread.Sleep(TimeStampManager.UpdatePeriod); // Prevent busy-waiting
+                Thread.Sleep(TimeStampManager.UpdatePeriod); //to prevent busy-waiting
                 continue;
             }
 
