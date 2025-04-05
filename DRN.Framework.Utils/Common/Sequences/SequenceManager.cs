@@ -18,8 +18,8 @@ namespace DRN.Framework.Utils.Common.Sequences;
 /// </remarks>
 public static class SequenceManager<TEntity> where TEntity : class
 {
-    private static DateTimeOffset _epoch = IdGenerator.Epoch2025;
-    private static SequenceTimeScope _timeScope = new(TimeStampManager.CurrentTimestamp(IdGenerator.Epoch2025));
+    private static DateTimeOffset _epoch = IdGenerator.DefaultEpoch;
+    private static SequenceTimeScope _timeScope = new(TimeStampManager.CurrentTimestamp(IdGenerator.DefaultEpoch));
 
     /// <summary>
     /// Generates a new time-scoped identifier for the entity type.
@@ -36,7 +36,7 @@ public static class SequenceManager<TEntity> where TEntity : class
     /// </para>
     /// <para>
     /// In high-contention scenarios where the sequence counter exhausts an interval's capacity, the method employs
-    /// a lightweight synchronization pattern with exponential backoff (via <see cref="Thread.Sleep"/>) to wait for
+    /// a lightweight synchronization pattern with exponential backoff (via <see cref="Thread.Sleep(int)"/>) to wait for
     /// the next available interval while minimizing CPU contention.
     /// </para>
     /// <para>

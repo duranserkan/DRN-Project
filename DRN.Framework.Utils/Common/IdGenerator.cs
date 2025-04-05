@@ -1,22 +1,46 @@
 using DRN.Framework.Utils.Common.Numbers;
+using DRN.Framework.Utils.Common.Sequences;
+using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Settings;
 
 namespace DRN.Framework.Utils.Common;
 
-//todo:timestamp, appname,appinstance, entityname, entityinstance parts
-public static class IdGenerator
+//todo: add guid version with entityTypeId and mac parts
+public interface ISourceKnownIdGenerator
 {
+    /// <summary>
+    /// Generates Ids for the app, app instance and entity.
+    /// Gets appId and appInstanceId from appsettings.
+    /// Uses <see cref="IdGenerator.Epoch2025"/>"
+    /// </summary>
+    /// <typeparam name="TEntity">The entity type for which Ids are generated. Must be a reference type.</typeparam>
+    long NextId<TEntity>() where TEntity : class;
+
+    long NextId<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class;
+
+    IdInfo Parse(long id, DateTimeOffset? epoch = null);
+}
+
+[Scoped<ISourceKnownIdGenerator>]
+public class IdGenerator(IAppSettings appSettings) : ISourceKnownIdGenerator
+{
+    //todo: make _epoch configurable at startup
     //todo: validate system time on startup
     public static readonly DateTimeOffset Epoch2025 = new(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    internal static DateTimeOffset DefaultEpoch = Epoch2025;
 
-    public static long GenerateId(byte appId, byte appInstanceId, DateTimeOffset? epoch = null)
+    public static long GenerateId<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class
     {
         var builder = LongBuilder.Default;
 
-        var timestamp = (uint)CurrentTimestamp(epoch);
-        builder.SetResidueValue(timestamp);
+        var timeScopedId = SequenceManager<TEntity>.GetTimeScopedId();
+        if (timeScopedId.TimeStamp is < 0 or > int.MaxValue)
+            throw new InvalidOperationException($"Timestamp: {timeScopedId.TimeStamp} must be between 0 and {int.MaxValue}");
+
+        builder.SetResidueValue((uint)timeScopedId.TimeStamp);
         builder.TryAddByte(appId);
         builder.TryAddByte(appInstanceId);
-        builder.TryAddUnsignedShort(GetInstanceId());
+        builder.TryAddUnsignedShort(timeScopedId.SequenceId);
 
         return builder.GetValue();
     }
@@ -29,15 +53,19 @@ public static class IdGenerator
         var appId = parser.ReadByte();
         var appInstanceId = parser.ReadByte();
         var instanceId = parser.ReadUShort();
-        var dateTime = (epoch ?? Epoch2025) + TimeSpan.FromSeconds(timeStamp);
+        var dateTime = (epoch ?? DefaultEpoch) + TimeSpan.FromSeconds(timeStamp);
 
         return new IdInfo(appId, appInstanceId, instanceId, dateTime, id);
     }
 
-    //todo: get instance ids from internal sequence
-    private static ushort GetInstanceId() => ushort.MaxValue;
 
-    private static int CurrentTimestamp(DateTimeOffset? epoch = null) => (int)((DateTimeOffset.UtcNow - (epoch ?? Epoch2025)).Ticks / TimeSpan.TicksPerSecond);
+    public long NextId<TEntity>() where TEntity : class
+        => GenerateId<TEntity>(appSettings.Nexus.NexusAppId, appSettings.Nexus.NexusAppInstanceId);
+
+    public long NextId<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class
+        => GenerateId<TEntity>(appId, appInstanceId, epoch);
+
+    public IdInfo Parse(long id, DateTimeOffset? epoch = null) => ParseId(id, epoch);
 }
 
-public record struct IdInfo(byte AppId, byte AppInstanceId, ushort instanceId, DateTimeOffset CreatedAt, long Id);
+public record struct IdInfo(byte AppId, byte AppInstanceId, ushort InstanceId, DateTimeOffset CreatedAt, long Id);

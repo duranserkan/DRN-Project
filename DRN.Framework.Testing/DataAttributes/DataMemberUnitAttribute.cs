@@ -4,16 +4,16 @@ namespace DRN.Framework.Testing.DataAttributes;
 
 /// <summary>
 /// Provides a data source same approach with <see cref="MemberDataAttribute"/> and generates missing data using AutoFixture and NSubstitute.
-/// Also, if <see cref="TestContext"/> is added as first parameter it automatically creates an instance and provides
+/// Also, if <see cref="UnitTestContext"/> is added as first parameter it automatically creates an instance and provides
 ///<b>This attribute can provide Complex Types that can not be provided by DataInline attributes</b>
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-public class DataMemberAttribute(string methodName, params object[] methodParams) : MemberDataAttributeBase(methodName, methodParams)
+public class DataMemberUnitAttribute(string methodName, params object[] methodParams) : MemberDataAttributeBase(methodName, methodParams)
 {
     /// <inheritdoc />
     public override IEnumerable<object[]> GetData(MethodInfo testMethod)
     {
-        var data = base.GetData(testMethod).SelectMany(values => new DataInlineAttribute(values).GetData(testMethod)).ToArray();
+        var data = base.GetData(testMethod).SelectMany(values => new DataInlineUnitAttribute(values).GetData(testMethod)).ToArray();
 
         return data;
     }

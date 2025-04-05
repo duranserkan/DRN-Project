@@ -19,4 +19,10 @@
         <ProjectReference Include="..\Sample.Hosted\Sample.Hosted.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="Settings\settings.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

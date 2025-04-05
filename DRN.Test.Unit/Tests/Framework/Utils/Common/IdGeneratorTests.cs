@@ -16,13 +16,12 @@ public class IdGeneratorTests
         var beforeIdGenerated = DateTimeOffset.UtcNow;
         
         await Task.Delay(1000);
-        var id = IdGenerator.GenerateId(appId, appInstanceId);
+        var id = IdGenerator.GenerateId<object>(appId, appInstanceId);
         await Task.Delay(1000);
         
         var afterIdGenerated = DateTimeOffset.UtcNow;
-
-
         var idInfo = IdGenerator.ParseId(id);
+        
         idInfo.Id.Should().Be(id);
         idInfo.AppId.Should().Be(appId);
         idInfo.AppInstanceId.Should().Be(appInstanceId);

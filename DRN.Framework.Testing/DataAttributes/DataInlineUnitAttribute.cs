@@ -9,20 +9,20 @@ namespace DRN.Framework.Testing.DataAttributes;
 /// <b>To provide complex types use DataMember or DataSelf attributes</b>
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-public sealed class DataInlineAttribute(params object[] data) : DataAttribute
+public sealed class DataInlineUnitAttribute(params object[] data) : DataAttribute
 {
     public override IEnumerable<object[]> GetData(MethodInfo testMethod)
     {
-        var hasTestContext = testMethod.GetParameters().FirstOrDefault()?.ParameterType == typeof(TestContext);
+        var hasTestContext = testMethod.GetParameters().FirstOrDefault()?.ParameterType == typeof(UnitTestContext);
         if (hasTestContext)
         {
-            var testContext = new TestContext(testMethod);
+            var testContext = new UnitTestContext(testMethod);
             var dataWithTestContext = new object[] { testContext }.Concat(data).ToArray();
             var testContextDataAttribute = new DataInlineNSubstituteAutoAttribute(dataWithTestContext);
             
             return testContextDataAttribute.GetData(testMethod).Select(row =>
             {
-                ((TestContext)row[0]).MethodContext.SetTestData(row);
+                ((UnitTestContext)row[0]).MethodContext.SetTestData(row);
                 return row;
             }).ToArray();
         }

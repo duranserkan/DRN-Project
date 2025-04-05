@@ -10,6 +10,7 @@ namespace DRN.Framework.Utils.Settings;
 public interface IAppSettings
 {
     DrnAppFeatures Features { get; }
+    NexusAppSettings Nexus { get; }
     AppEnvironment Environment { get; }
     bool IsDevEnvironment { get; }
     string ApplicationName { get; }
@@ -41,6 +42,8 @@ public class AppSettings : IAppSettings
         ApplicationName = TryGetSection(nameof(ApplicationName), out _)
             ? configuration.GetValue<string>(nameof(ApplicationName)) ?? AppConstants.EntryAssemblyName
             : AppConstants.EntryAssemblyName;
+        
+        Nexus = Get<NexusAppSettings>(nameof(NexusAppSettings)) ?? new NexusAppSettings();
         Features = Get<DrnAppFeatures>(nameof(DrnAppFeatures)) ?? new DrnAppFeatures();
 
         AppKey = ApplicationName.ToPascalCase();
@@ -55,6 +58,7 @@ public class AppSettings : IAppSettings
     }
 
     public DrnAppFeatures Features { get; }
+    public NexusAppSettings Nexus { get; }
     public AppEnvironment Environment { get; }
 
     public bool IsDevEnvironment => Environment == AppEnvironment.Development;
