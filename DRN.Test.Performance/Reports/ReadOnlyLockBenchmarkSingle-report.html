@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DRN.Test.Performance.Benchmark.Other.Synchronization.ReadOnlyLockBenchmarkSingle-20250413-220930</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, macOS Sequoia 15.4 (24E248) [Darwin 24.4.0]
+Apple M2, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 9.0.203
+  [Host]     : .NET 9.0.4 (9.0.425.16305), Arm64 RyuJIT AdvSIMD
+  DefaultJob : .NET 9.0.4 (9.0.425.16305), Arm64 RyuJIT AdvSIMD
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method            </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Ratio</th>
+</tr>
+</thead><tbody><tr><td>Lockless</td><td>18.53 ns</td><td>0.010 ns</td><td>0.009 ns</td><td>1.00</td>
+</tr><tr><td>SimpleLock</td><td>30.58 ns</td><td>0.022 ns</td><td>0.020 ns</td><td>1.65</td>
+</tr><tr><td>SimpleLockNew</td><td>32.70 ns</td><td>0.019 ns</td><td>0.017 ns</td><td>1.76</td>
+</tr><tr><td>ReaderWriterLockSlimTest</td><td>34.87 ns</td><td>0.020 ns</td><td>0.019 ns</td><td>1.88</td>
+</tr></tbody></table>
+</body>
+</html>

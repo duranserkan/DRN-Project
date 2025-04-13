@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DRN.Test.Performance.Benchmark.Other.Synchronization.ReadOnlyLockBenchmark-20250413-205110</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, macOS Sequoia 15.4 (24E248) [Darwin 24.4.0]
+Apple M2, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 9.0.203
+  [Host]     : .NET 9.0.4 (9.0.425.16305), Arm64 RyuJIT AdvSIMD
+  DefaultJob : .NET 9.0.4 (9.0.425.16305), Arm64 RyuJIT AdvSIMD
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method            </th><th>ThreadCount</th><th>Mean</th><th>Error</th><th>StdDev</th><th>Median</th><th>Ratio</th><th>RatioSD</th>
+</tr>
+</thead><tbody><tr><td>Lockless</td><td>1</td><td>8.349 &mu;s</td><td>0.1617 &mu;s</td><td>0.1512 &mu;s</td><td>8.378 &mu;s</td><td>1.00</td><td>0.02</td>
+</tr><tr><td>SimpleLock</td><td>1</td><td>7.862 &mu;s</td><td>0.1001 &mu;s</td><td>0.0887 &mu;s</td><td>7.888 &mu;s</td><td>0.94</td><td>0.02</td>
+</tr><tr><td>SimpleLockNew</td><td>1</td><td>8.382 &mu;s</td><td>0.0859 &mu;s</td><td>0.0803 &mu;s</td><td>8.379 &mu;s</td><td>1.00</td><td>0.02</td>
+</tr><tr><td>ReaderWriterLockSlimTest</td><td>1</td><td>8.081 &mu;s</td><td>0.1531 &mu;s</td><td>0.1432 &mu;s</td><td>8.078 &mu;s</td><td>0.97</td><td>0.02</td>
+</tr><tr><td>Lockless</td><td>2</td><td>6.690 &mu;s</td><td>0.0390 &mu;s</td><td>0.0364 &mu;s</td><td>6.695 &mu;s</td><td>1.00</td><td>0.01</td>
+</tr><tr><td>SimpleLock</td><td>2</td><td>8.474 &mu;s</td><td>0.1251 &mu;s</td><td>0.1170 &mu;s</td><td>8.494 &mu;s</td><td>1.27</td><td>0.02</td>
+</tr><tr><td>SimpleLockNew</td><td>2</td><td>8.190 &mu;s</td><td>0.0794 &mu;s</td><td>0.0743 &mu;s</td><td>8.175 &mu;s</td><td>1.22</td><td>0.01</td>
+</tr><tr><td>ReaderWriterLockSlimTest</td><td>2</td><td>8.188 &mu;s</td><td>0.1267 &mu;s</td><td>0.1185 &mu;s</td><td>8.183 &mu;s</td><td>1.22</td><td>0.02</td>
+</tr><tr><td>Lockless</td><td>4</td><td>9.511 &mu;s</td><td>0.1400 &mu;s</td><td>0.1309 &mu;s</td><td>9.550 &mu;s</td><td>1.00</td><td>0.02</td>
+</tr><tr><td>SimpleLock</td><td>4</td><td>8.746 &mu;s</td><td>0.1125 &mu;s</td><td>0.1052 &mu;s</td><td>8.721 &mu;s</td><td>0.92</td><td>0.02</td>
+</tr><tr><td>SimpleLockNew</td><td>4</td><td>8.628 &mu;s</td><td>0.0929 &mu;s</td><td>0.0869 &mu;s</td><td>8.619 &mu;s</td><td>0.91</td><td>0.02</td>
+</tr><tr><td>ReaderWriterLockSlimTest</td><td>4</td><td>7.361 &mu;s</td><td>0.0614 &mu;s</td><td>0.0574 &mu;s</td><td>7.345 &mu;s</td><td>0.77</td><td>0.01</td>
+</tr><tr><td>Lockless</td><td>8</td><td>8.441 &mu;s</td><td>0.1562 &mu;s</td><td>0.1461 &mu;s</td><td>8.470 &mu;s</td><td>1.00</td><td>0.02</td>
+</tr><tr><td>SimpleLock</td><td>8</td><td>10.173 &mu;s</td><td>0.1650 &mu;s</td><td>0.1544 &mu;s</td><td>10.186 &mu;s</td><td>1.21</td><td>0.03</td>
+</tr><tr><td>SimpleLockNew</td><td>8</td><td>8.816 &mu;s</td><td>0.1733 &mu;s</td><td>0.3421 &mu;s</td><td>8.751 &mu;s</td><td>1.04</td><td>0.04</td>
+</tr><tr><td>ReaderWriterLockSlimTest</td><td>8</td><td>8.922 &mu;s</td><td>0.1762 &mu;s</td><td>0.3039 &mu;s</td><td>8.947 &mu;s</td><td>1.06</td><td>0.04</td>
+</tr><tr><td>Lockless</td><td>16</td><td>8.698 &mu;s</td><td>0.1339 &mu;s</td><td>0.2381 &mu;s</td><td>8.666 &mu;s</td><td>1.00</td><td>0.04</td>
+</tr><tr><td>SimpleLock</td><td>16</td><td>8.809 &mu;s</td><td>0.1259 &mu;s</td><td>0.1178 &mu;s</td><td>8.774 &mu;s</td><td>1.01</td><td>0.03</td>
+</tr><tr><td>SimpleLockNew</td><td>16</td><td>8.549 &mu;s</td><td>0.1620 &mu;s</td><td>0.1515 &mu;s</td><td>8.561 &mu;s</td><td>0.98</td><td>0.03</td>
+</tr><tr><td>ReaderWriterLockSlimTest</td><td>16</td><td>10.488 &mu;s</td><td>0.2080 &mu;s</td><td>0.2915 &mu;s</td><td>10.612 &mu;s</td><td>1.21</td><td>0.05</td>
+</tr><tr><td>Lockless</td><td>32</td><td>8.582 &mu;s</td><td>0.1684 &mu;s</td><td>0.2671 &mu;s</td><td>8.593 &mu;s</td><td>1.00</td><td>0.04</td>
+</tr><tr><td>SimpleLock</td><td>32</td><td>12.450 &mu;s</td><td>0.2477 &mu;s</td><td>0.3391 &mu;s</td><td>12.257 &mu;s</td><td>1.45</td><td>0.06</td>
+</tr><tr><td>SimpleLockNew</td><td>32</td><td>14.250 &mu;s</td><td>0.1180 &mu;s</td><td>0.1103 &mu;s</td><td>14.284 &mu;s</td><td>1.66</td><td>0.05</td>
+</tr><tr><td>ReaderWriterLockSlimTest</td><td>32</td><td>12.106 &mu;s</td><td>0.0537 &mu;s</td><td>0.0503 &mu;s</td><td>12.097 &mu;s</td><td>1.41</td><td>0.04</td>
+</tr><tr><td>Lockless</td><td>64</td><td>12.114 &mu;s</td><td>0.2343 &mu;s</td><td>0.2789 &mu;s</td><td>12.035 &mu;s</td><td>1.00</td><td>0.03</td>
+</tr><tr><td>SimpleLock</td><td>64</td><td>16.948 &mu;s</td><td>0.4022 &mu;s</td><td>1.1475 &mu;s</td><td>16.313 &mu;s</td><td>1.40</td><td>0.10</td>
+</tr><tr><td>SimpleLockNew</td><td>64</td><td>18.697 &mu;s</td><td>0.0600 &mu;s</td><td>0.0801 &mu;s</td><td>18.680 &mu;s</td><td>1.54</td><td>0.03</td>
+</tr><tr><td>ReaderWriterLockSlimTest</td><td>64</td><td>16.427 &mu;s</td><td>0.0474 &mu;s</td><td>0.0444 &mu;s</td><td>16.426 &mu;s</td><td>1.36</td><td>0.03</td>
+</tr><tr><td>Lockless</td><td>128</td><td>14.644 &mu;s</td><td>0.2520 &mu;s</td><td>0.2357 &mu;s</td><td>14.612 &mu;s</td><td>1.00</td><td>0.02</td>
+</tr><tr><td>SimpleLock</td><td>128</td><td>29.586 &mu;s</td><td>0.0463 &mu;s</td><td>0.0433 &mu;s</td><td>29.591 &mu;s</td><td>2.02</td><td>0.03</td>
+</tr><tr><td>SimpleLockNew</td><td>128</td><td>25.623 &mu;s</td><td>0.0553 &mu;s</td><td>0.0517 &mu;s</td><td>25.628 &mu;s</td><td>1.75</td><td>0.03</td>
+</tr><tr><td>ReaderWriterLockSlimTest</td><td>128</td><td>23.697 &mu;s</td><td>0.0313 &mu;s</td><td>0.0278 &mu;s</td><td>23.692 &mu;s</td><td>1.62</td><td>0.03</td>
+</tr><tr><td>Lockless</td><td>256</td><td>13.962 &mu;s</td><td>0.0885 &mu;s</td><td>0.0828 &mu;s</td><td>13.981 &mu;s</td><td>1.00</td><td>0.01</td>
+</tr><tr><td>SimpleLock</td><td>256</td><td>60.274 &mu;s</td><td>0.2359 &mu;s</td><td>0.2207 &mu;s</td><td>60.290 &mu;s</td><td>4.32</td><td>0.03</td>
+</tr><tr><td>SimpleLockNew</td><td>256</td><td>40.732 &mu;s</td><td>0.0595 &mu;s</td><td>0.0527 &mu;s</td><td>40.729 &mu;s</td><td>2.92</td><td>0.02</td>
+</tr><tr><td>ReaderWriterLockSlimTest</td><td>256</td><td>38.290 &mu;s</td><td>0.2852 &mu;s</td><td>0.2528 &mu;s</td><td>38.369 &mu;s</td><td>2.74</td><td>0.02</td>
+</tr><tr><td>Lockless</td><td>512</td><td>17.521 &mu;s</td><td>0.3462 &mu;s</td><td>0.4853 &mu;s</td><td>17.824 &mu;s</td><td>1.00</td><td>0.04</td>
+</tr><tr><td>SimpleLock</td><td>512</td><td>101.123 &mu;s</td><td>1.6312 &mu;s</td><td>1.5259 &mu;s</td><td>100.784 &mu;s</td><td>5.78</td><td>0.18</td>
+</tr><tr><td>SimpleLockNew</td><td>512</td><td>73.929 &mu;s</td><td>1.2448 &mu;s</td><td>1.1644 &mu;s</td><td>74.441 &mu;s</td><td>4.22</td><td>0.13</td>
+</tr><tr><td>ReaderWriterLockSlimTest</td><td>512</td><td>66.243 &mu;s</td><td>0.1414 &mu;s</td><td>0.1323 &mu;s</td><td>66.248 &mu;s</td><td>3.78</td><td>0.10</td>
+</tr><tr><td>Lockless</td><td>1024</td><td>21.614 &mu;s</td><td>0.2895 &mu;s</td><td>0.2708 &mu;s</td><td>21.514 &mu;s</td><td>1.00</td><td>0.02</td>
+</tr><tr><td>SimpleLock</td><td>1024</td><td>138.619 &mu;s</td><td>0.5406 &mu;s</td><td>0.5057 &mu;s</td><td>138.728 &mu;s</td><td>6.41</td><td>0.08</td>
+</tr><tr><td>SimpleLockNew</td><td>1024</td><td>113.523 &mu;s</td><td>2.2484 &mu;s</td><td>4.5928 &mu;s</td><td>114.337 &mu;s</td><td>5.25</td><td>0.22</td>
+</tr><tr><td>ReaderWriterLockSlimTest</td><td>1024</td><td>119.553 &mu;s</td><td>0.4791 &mu;s</td><td>0.4482 &mu;s</td><td>119.656 &mu;s</td><td>5.53</td><td>0.07</td>
+</tr></tbody></table>
+</body>
+</html>

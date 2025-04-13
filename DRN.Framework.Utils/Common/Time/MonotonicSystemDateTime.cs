@@ -10,7 +10,7 @@ public static class MonotonicSystemDateTime
     private static DateTimeOffset _initialTime;
     private static volatile bool _isShutdownRequested;
 
-    private static readonly Lock SyncLock = new(); // Synchronization primitive
+    private static readonly ReaderWriterLockSlim SyncLock = new(); // Synchronization for high-frequency reads and low frequency writes
     private static readonly Stopwatch Stopwatch;
     private static readonly int UpdatePeriod = 10000; // 10 seconds
 
@@ -38,8 +38,11 @@ public static class MonotonicSystemDateTime
     {
         get
         {
-            lock (SyncLock) // Atomic read of both values
-                return _initialTime + Stopwatch.Elapsed;
+            SyncLock.EnterReadLock();
+            var date = _initialTime + Stopwatch.Elapsed; // Atomic read of both values
+            SyncLock.ExitReadLock();
+
+            return date;
         }
     }
 
@@ -50,33 +53,36 @@ public static class MonotonicSystemDateTime
     /// </summary>
     private static async Task CheckClockDriftAsync()
     {
-        //when positive it means monotonic clock is lagged behind the actual value
-        //when negative it means system clock is lagged behind the actual value
+        //When positive it means monotonic clock is lagged behind the actual value
+        //When negative it means system clock is lagged behind the actual value
         var drift = DateTimeOffset.UtcNow - UtcNow;
+
+        //long waits are handled by significant drift protection by shutdown request
         if (drift > TimeSpan.FromMinutes(1) || TimeSpan.FromMinutes(-1) > drift)
         {
             _isShutdownRequested = true;
             return;
         }
 
-        // when drift < TimeSpan.Zero is true wait to catch monotonic clock
-        // the MonotonicTime only moves forward even if it is not strict in this implementation
+        // The MonotonicTime only moves forward even if it is not strict in this implementation
+        // When drift is negative and less than 1 minute, monotonic clock waits to catch system clock
+        // When drift is positive, monotonic clock is behind the system clock and can catch system clock directly, 
         if (drift <= TimeSpan.Zero)
-        {
-            while (true)
-            {
-                await Task.Delay(drift * -1); //long waits are handled by significant drift protection by shutdown request
-                drift = DateTimeOffset.UtcNow - UtcNow;
-                if (drift <= TimeSpan.Zero) continue;
+            await Task.Delay(drift * -1 + TimeSpan.FromMicroseconds(2));
 
-                break;
-            }
-        }
 
-        lock (SyncLock) // Atomic write of both values
-        {
-            Stopwatch.Restart();
-            _initialTime = DateTimeOffset.UtcNow;
-        }
+        SyncLock.EnterWriteLock(); // Atomic write of both values
+        Stopwatch.Restart();
+        _initialTime = DateTimeOffset.UtcNow;
+        SyncLock.ExitWriteLock();
+    }
+    
+    /// <summary>
+    /// Disposes the resources used by the MonotonicSystemDateTime.
+    /// </summary>
+    internal static void Dispose()
+    {
+        RecurringAction.Dispose();
+        SyncLock.Dispose();
     }
 }

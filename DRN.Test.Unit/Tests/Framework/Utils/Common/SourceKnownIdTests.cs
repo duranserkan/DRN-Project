@@ -73,10 +73,17 @@ public class SourceKnownIdTests
         var epoch = SourceKnownIdGenerator.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
-        await Task.Delay(1000);
-        for (var i = 0; i < idCount; i++) 
-            ids[i] = generator.NextId<ISourceKnownIdGenerator>();
-        await Task.Delay(1000);
+        await Task.Delay(1001);
+        _ = ids
+            .AsParallel()
+            .WithDegreeOfParallelism(8)
+            .WithExecutionMode(ParallelExecutionMode.ForceParallelism)
+            .Select((id,index) =>
+        {
+            ids[index] = generator.NextId<ISourceKnownIdGenerator>();
+            return index;
+        }).ToArray();
+        await Task.Delay(1001);
 
         var afterIdGenerated = DateTimeOffset.UtcNow;
 
@@ -104,14 +111,19 @@ public class SourceKnownIdTests
         var duration = afterIdGenerated - beforeIdGenerated; // it is expected to be complete in bucket count + 1 seconds.
         duration.TotalSeconds.Should().BeInRange(bucketCount, bucketCount + 1.5); //we should also consider testing overhead by adding 0.5 seconds
 
+        var actualCount = 0;
         foreach (var group in idInfoGroups)
         {
+            var orderedIds = group.OrderBy(x => x.Id).ToArray();
             var groupCount = group.Count();
-            group.First().InstanceId.Should().Be(0);
+            orderedIds.First().InstanceId.Should().Be(0);
             if (groupCount > 1)
-                group.Skip(1).First().InstanceId.Should().Be(1);
+                orderedIds.Skip(1).First().InstanceId.Should().Be(1);
 
-            group.Last().InstanceId.Should().Be((uint)(groupCount - 1));
+            orderedIds.Last().InstanceId.Should().Be((uint)(groupCount - 1));
+            actualCount += groupCount;
         }
+
+        actualCount.Should().Be(idCount);
     }
 }

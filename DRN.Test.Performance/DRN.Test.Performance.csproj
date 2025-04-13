@@ -30,8 +30,4 @@
       </None>
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Benchmark\Other\" />
-    </ItemGroup>
-
 </Project>

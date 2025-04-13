@@ -39,7 +39,7 @@ public class DrnBackgroundService(IHostApplicationLifetime lifetime, ILogger<Drn
     
     public override void Dispose()
     {
-        MonotonicSystemDateTime.RecurringAction.Dispose();
+        MonotonicSystemDateTime.Dispose();
         base.Dispose();
     }
 }
