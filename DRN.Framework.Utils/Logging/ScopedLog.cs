@@ -14,17 +14,20 @@ public class ScopedLog : IScopedLog
         ? ScopedLogConventions.StringLimit
         : text.Length)];
 
-    private readonly object _timeUpdater = new();
-    private readonly object _counter = new();
-    private readonly object _list = new();
+    private readonly Lock _timeUpdater = new();
+    private readonly Lock _counter = new();
+    private readonly Lock _list = new();
 
     private ConcurrentDictionary<string, object> LogData { get; } = new(1, 32);
 
     public ScopedLog(IAppSettings appSettings)
     {
         Add(nameof(ScopedLog), true);
+        Add(nameof(AppSettings.Environment), appSettings.Environment.ToString());
         Add(nameof(AppSettings.ApplicationName), appSettings.ApplicationName);
-        Add(nameof(AppConstants.ApplicationId), AppConstants.ApplicationId);
+        Add(nameof(AppConstants.AppInstanceId), AppConstants.AppInstanceId);
+        Add(nameof(AppSettings.Nexus.NexusAppId), appSettings.Nexus.NexusAppId);
+        Add(nameof(AppSettings.Nexus.NexusAppInstanceId), appSettings.Nexus.NexusAppInstanceId);
         Add(nameof(Environment.MachineName), Environment.MachineName);
         Add(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeOffset.UtcNow);
     }

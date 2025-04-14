@@ -78,7 +78,7 @@ public class SourceKnownIdTests
             .AsParallel()
             .WithDegreeOfParallelism(8)
             .WithExecutionMode(ParallelExecutionMode.ForceParallelism)
-            .Select((id,index) =>
+            .Select((_,index) =>
         {
             ids[index] = generator.NextId<ISourceKnownIdGenerator>();
             return index;
@@ -102,7 +102,11 @@ public class SourceKnownIdTests
             idInfo.CreatedAt.Should().BeAfter(beforeIdGenerated);
         });
 
-        var idInfoGroups = idInfos.GroupBy(x => x.CreatedAt).ToArray();
+        var idInfoGroups = idInfos
+            .DistinctBy(id=>id.Id)
+            .GroupBy(x => x.CreatedAt)
+            .ToArray();
+        
         var buckets = idInfoGroups.Select(x => x.Key).ToArray();
 
         buckets.Length.Should().BeGreaterThanOrEqualTo(bucketCount); //during generation initial and last buckets may be halflings

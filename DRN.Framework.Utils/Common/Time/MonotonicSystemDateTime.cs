@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace DRN.Framework.Utils.Common.Time;
 
 /// <summary>
-/// Monotonic/System hybrid clock that Immune to drastic system clock changes and monotonic clock drifts
+/// Monotonic/System hybrid clock that is immune to drastic system clock changes and monotonic clock drifts
 /// </summary>
 public static class MonotonicSystemDateTime
 {
@@ -19,7 +19,9 @@ public static class MonotonicSystemDateTime
     /// </summary>
     public static bool IsShutdownRequested => _isShutdownRequested;
 
+    internal static event Action<DriftInfo>? OnDriftCorrected;
     public static RecurringAction RecurringAction { get; private set; }
+
     //todo: test gracefully shutdown
 
     static MonotonicSystemDateTime()
@@ -55,7 +57,13 @@ public static class MonotonicSystemDateTime
     {
         //When positive it means monotonic clock is lagged behind the actual value
         //When negative it means system clock is lagged behind the actual value
-        var drift = DateTimeOffset.UtcNow - UtcNow;
+        var systemTime = DateTimeOffset.UtcNow;
+        var monotonicSystemTime = UtcNow;
+        var drift = systemTime - monotonicSystemTime;
+
+        //5 milliseconds grace interval
+        if (drift > TimeSpan.FromMilliseconds(-5) && drift < TimeSpan.FromMilliseconds(5))
+            return;
 
         //long waits are handled by significant drift protection by shutdown request
         if (drift > TimeSpan.FromMinutes(1) || TimeSpan.FromMinutes(-1) > drift)
@@ -70,13 +78,14 @@ public static class MonotonicSystemDateTime
         if (drift <= TimeSpan.Zero)
             await Task.Delay(drift * -1 + TimeSpan.FromMicroseconds(2));
 
-
         SyncLock.EnterWriteLock(); // Atomic write of both values
         Stopwatch.Restart();
         _initialTime = DateTimeOffset.UtcNow;
         SyncLock.ExitWriteLock();
+
+        OnDriftCorrected?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
     }
-    
+
     /// <summary>
     /// Disposes the resources used by the MonotonicSystemDateTime.
     /// </summary>
@@ -86,3 +95,5 @@ public static class MonotonicSystemDateTime
         SyncLock.Dispose();
     }
 }
+
+public record DriftInfo(DateTimeOffset SystemDateTime, DateTimeOffset MonotonicSystemDateTime, TimeSpan Drift);

@@ -19,6 +19,15 @@ public class DrnBackgroundService(IHostApplicationLifetime lifetime, ILogger<Drn
             lifetime.StopApplication();
         };
 
+        MonotonicSystemDateTime.OnDriftCorrected += info =>
+        {
+            log.Add("SystemDateTime", info.SystemDateTime);
+            log.Add("MonotonicSystemDateTime", info.MonotonicSystemDateTime);
+            log.Add("DriftTotalMilliseconds", info.Drift.TotalMilliseconds);
+            log.Add("MonotonicDriftDetected", info.Drift.TotalMilliseconds);
+            logger.LogScoped(log);
+        };
+
         while (!stoppingToken.IsCancellationRequested)
         {
             if (MonotonicSystemDateTime.IsShutdownRequested)
@@ -33,7 +42,7 @@ public class DrnBackgroundService(IHostApplicationLifetime lifetime, ILogger<Drn
                 return;
             }
 
-            await Task.Delay(1000, stoppingToken);//1 seconds
+            await Task.Delay(1000, stoppingToken); //1 seconds
         }
     }
     
