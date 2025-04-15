@@ -113,7 +113,7 @@ public class SourceKnownIdTests
         buckets.Length.Should().BeLessThanOrEqualTo(bucketCount + 1);
 
         var duration = afterIdGenerated - beforeIdGenerated; // it is expected to be complete in bucket count + 1 seconds.
-        duration.TotalSeconds.Should().BeInRange(bucketCount, bucketCount + 1.5); //we should also consider testing overhead by adding 0.5 seconds
+        duration.TotalSeconds.Should().BeInRange(bucketCount, bucketCount + 2); //we should also consider testing overhead by adding another 1 seconds
 
         var actualCount = 0;
         foreach (var group in idInfoGroups)

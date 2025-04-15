@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Common.Time;
 
@@ -7,44 +8,93 @@ namespace DRN.Framework.Utils.Common.Time;
 /// </summary>
 public static class MonotonicSystemDateTime
 {
-    private static DateTimeOffset _initialTime;
-    private static volatile bool _isShutdownRequested;
+    private const int UpdatePeriod = 10000; // 10 seconds
 
-    private static readonly ReaderWriterLockSlim SyncLock = new(); // Synchronization for high-frequency reads and low frequency writes
-    private static readonly Stopwatch Stopwatch;
-    private static readonly int UpdatePeriod = 10000; // 10 seconds
+    internal static readonly MonotonicSystemDateTimeInstance Instance = new(new DateTimeProvider(), UpdatePeriod);
+
+    internal static event Action<DriftInfo> OnDriftCorrected
+    {
+        add => Instance.OnDriftCorrected += value;
+        remove => Instance.OnDriftCorrected -= value;
+    }
 
     /// <summary>
     /// Application should poll this flag to verify consistency
     /// </summary>
-    public static bool IsShutdownRequested => _isShutdownRequested;
+    public static bool IsShutdownRequested => Instance.IsShutdownRequested;
 
-    internal static event Action<DriftInfo>? OnDriftCorrected;
-    public static RecurringAction RecurringAction { get; private set; }
+    public static RecurringAction RecurringAction => Instance.RecurringAction;
 
-    //todo: test gracefully shutdown
+    /// <summary>
+    /// Gets the current UTC time using a monotonic clock (Stopwatch).
+    /// Immune to system clock changes (e.g., NTP adjustments).
+    /// </summary>
+    public static DateTimeOffset UtcNow => Instance.UtcNow;
 
-    static MonotonicSystemDateTime()
+    /// <summary>
+    /// Disposes the resources used by the MonotonicSystemDateTime.
+    /// </summary>
+    internal static void Dispose() => Instance.Dispose(); //disposing is not expected to harm unit and integration tests
+}
+
+public interface ISystemDateTime
+{
+    DateTimeOffset UtcNow { get; }
+}
+
+//MonotonicSystemDateTimeInstance is registered as service to ioc container with utils module without attribute
+public interface IMonotonicSystemDateTime : ISystemDateTime;
+
+[Singleton<ISystemDateTime>]
+public class DateTimeProvider : ISystemDateTime
+{
+    public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// Monotonic/System hybrid clock that is immune to drastic system clock changes and monotonic clock drifts
+/// </summary>
+public class MonotonicSystemDateTimeInstance : IMonotonicSystemDateTime
+{
+    private readonly TimeSpan _gracePeriodUpper = TimeSpan.FromMilliseconds(50);
+    private readonly TimeSpan _gracePeriodLower = TimeSpan.FromMilliseconds(-50);
+
+    private DateTimeOffset _initialTime;
+    private volatile bool _isShutdownRequested;
+
+    private readonly Lock _syncLock = new(); // Synchronization for high-frequency reads and low frequency writes
+    private readonly Stopwatch _stopwatch;
+    private readonly ISystemDateTime _timeProvider;
+
+
+    /// <summary>
+    /// Application should poll this flag to verify consistency
+    /// </summary>
+    public bool IsShutdownRequested => _isShutdownRequested;
+
+    internal event Action<DriftInfo>? OnDriftCorrected;
+    internal event Action<DriftInfo>? OnDriftChecked;
+    public RecurringAction RecurringAction { get; private set; }
+
+    public MonotonicSystemDateTimeInstance(ISystemDateTime timeProvider, int updatePeriod)
     {
-        _initialTime = DateTimeOffset.UtcNow;
-        Stopwatch = Stopwatch.StartNew();
+        _timeProvider = timeProvider;
+        _initialTime = _timeProvider.UtcNow;
+        _stopwatch = Stopwatch.StartNew();
 
-        RecurringAction = new RecurringAction(CheckClockDriftAsync, UpdatePeriod);
+        RecurringAction = new RecurringAction(CheckClockDriftAsync, updatePeriod);
     }
 
     /// <summary>
     /// Gets the current UTC time using a monotonic clock (Stopwatch).
     /// Immune to system clock changes (e.g., NTP adjustments).
     /// </summary>
-    public static DateTimeOffset UtcNow
+    public DateTimeOffset UtcNow
     {
         get
         {
-            SyncLock.EnterReadLock();
-            var date = _initialTime + Stopwatch.Elapsed; // Atomic read of both values
-            SyncLock.ExitReadLock();
-
-            return date;
+            lock (_syncLock)
+                return _initialTime + _stopwatch.Elapsed; // Atomic read of both values
         }
     }
 
@@ -53,22 +103,27 @@ public static class MonotonicSystemDateTime
     /// - If the system clock has changed by more than 1 minute, sets IsShutdownRequested to true.
     /// - If the change is less than 1 minute, adjusts the monotonic time to sync with the system clock.
     /// </summary>
-    private static async Task CheckClockDriftAsync()
+    private async Task CheckClockDriftAsync()
     {
         //When positive it means monotonic clock is lagged behind the actual value
         //When negative it means system clock is lagged behind the actual value
-        var systemTime = DateTimeOffset.UtcNow;
+        var systemTime = _timeProvider.UtcNow;
         var monotonicSystemTime = UtcNow;
         var drift = systemTime - monotonicSystemTime;
 
-        //5 milliseconds grace interval
-        if (drift > TimeSpan.FromMilliseconds(-5) && drift < TimeSpan.FromMilliseconds(5))
+        //grace interval
+        if (drift > _gracePeriodLower && drift < _gracePeriodUpper)
+        {
+            OnDriftChecked?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
             return;
+        }
+
 
         //long waits are handled by significant drift protection by shutdown request
         if (drift > TimeSpan.FromMinutes(1) || TimeSpan.FromMinutes(-1) > drift)
         {
             _isShutdownRequested = true;
+            OnDriftChecked?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
             return;
         }
 
@@ -78,22 +133,20 @@ public static class MonotonicSystemDateTime
         if (drift <= TimeSpan.Zero)
             await Task.Delay(drift * -1 + TimeSpan.FromMicroseconds(2));
 
-        SyncLock.EnterWriteLock(); // Atomic write of both values
-        Stopwatch.Restart();
-        _initialTime = DateTimeOffset.UtcNow;
-        SyncLock.ExitWriteLock();
-
+        lock (_syncLock) // Atomic write of both values
+        {
+            _stopwatch.Restart();
+            _initialTime = _timeProvider.UtcNow;
+        }
+        
         OnDriftCorrected?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
+        OnDriftChecked?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
     }
 
     /// <summary>
     /// Disposes the resources used by the MonotonicSystemDateTime.
     /// </summary>
-    internal static void Dispose()
-    {
-        RecurringAction.Dispose();
-        SyncLock.Dispose();
-    }
+    internal void Dispose() => RecurringAction.Dispose();
 }
 
 public record DriftInfo(DateTimeOffset SystemDateTime, DateTimeOffset MonotonicSystemDateTime, TimeSpan Drift);
