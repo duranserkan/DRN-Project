@@ -1,4 +1,4 @@
-using DRN.Framework.Utils.Common;
+using DRN.Framework.Utils.Encodings;
 using DRN.Framework.Utils.Models.Sample;
 using FluentAssertions;
 using Xunit;

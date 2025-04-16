@@ -3,7 +3,7 @@ using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
-using DRN.Framework.Utils.Common;
+using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.Configuration;
 using Xunit.Abstractions;

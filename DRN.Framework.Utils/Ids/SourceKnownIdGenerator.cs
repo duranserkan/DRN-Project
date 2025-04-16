@@ -1,11 +1,10 @@
-using DRN.Framework.Utils.Common.Numbers;
-using DRN.Framework.Utils.Common.Sequences;
+using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Numbers;
 using DRN.Framework.Utils.Settings;
 
-namespace DRN.Framework.Utils.Common;
+namespace DRN.Framework.Utils.Ids;
 
-//todo: add guid version with entityTypeId and mac parts
 public interface ISourceKnownIdGenerator
 {
     /// <summary>
@@ -19,15 +18,20 @@ public interface ISourceKnownIdGenerator
     long NextId<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class;
 
     SourceKnownIdInfo Parse(long id, DateTimeOffset? epoch = null);
+
+    EntityIdInfo Parse(Guid id, DateTimeOffset? epoch = null);
+    EntityIdInfo GetDomainId<TEntity>(long id) where TEntity : Entity;
+    EntityIdInfo GetDomainId(Entity entity);
 }
 
-[Scoped<ISourceKnownIdGenerator>]
+[Singleton<ISourceKnownIdGenerator>]
 public class SourceKnownIdGenerator(IAppSettings appSettings) : ISourceKnownIdGenerator
 {
     //todo: make _epoch configurable at startup
     //todo: validate system time on startup
     public static readonly DateTimeOffset Epoch2025 = new(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
     internal static DateTimeOffset DefaultEpoch = Epoch2025;
+    private static readonly Type EntityType = typeof(Entity);
 
     public static long GenerateId<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class
     {
@@ -85,6 +89,20 @@ public class SourceKnownIdGenerator(IAppSettings appSettings) : ISourceKnownIdGe
         => GenerateId<TEntity>(appId, appInstanceId, epoch);
 
     public SourceKnownIdInfo Parse(long id, DateTimeOffset? epoch = null) => ParseId(id, epoch);
-}
+    
+    public EntityIdInfo GetDomainId<TEntity>(long id) where TEntity : Entity
+        => GetDomainId(id, Entity.GetEntityTypeId<TEntity>());
 
-public record struct SourceKnownIdInfo(byte AppId, byte AppInstanceId, uint InstanceId, DateTimeOffset CreatedAt, long Id);
+    public EntityIdInfo GetDomainId(Entity entity)
+        => GetDomainId(entity.Id, Entity.GetEntityTypeId(entity));
+
+    private EntityIdInfo GetDomainId(long id, ushort entityTypeId)
+    {
+        throw new NotImplementedException();
+    }
+    
+    public EntityIdInfo Parse(Guid id, DateTimeOffset? epoch = null)
+    {
+        throw new NotImplementedException();
+    }
+}

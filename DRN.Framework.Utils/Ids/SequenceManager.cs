@@ -1,6 +1,6 @@
-using DRN.Framework.Utils.Common.Time;
+using DRN.Framework.Utils.Time;
 
-namespace DRN.Framework.Utils.Common.Sequences;
+namespace DRN.Framework.Utils.Ids;
 
 /// <summary>
 /// Manages entity-specific sequences to generate unique, time-scoped identifiers in a thread-safe manner.

@@ -1,10 +1,10 @@
-namespace DRN.Framework.Utils.Common.Time;
+namespace DRN.Framework.Utils.Time;
 
 public static class TimeStampManager
 {
     private static DateTimeOffset _cachedUtcNow;
     private static long _cachedUtcNowTicks;
-    internal static readonly int UpdatePeriod = 100;
+    internal static readonly int UpdatePeriod = 50;
     private static readonly RecurringAction RecurringAction;
 
     static TimeStampManager()

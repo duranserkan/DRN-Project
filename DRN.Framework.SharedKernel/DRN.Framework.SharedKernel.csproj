@@ -36,4 +36,11 @@
         </PropertyGroup>
     </Target>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="DRN.Test" />
+        <InternalsVisibleTo Include="DRN.Test.Unit" />
+        <InternalsVisibleTo Include="DRN.Framework.Utils" />
+        <InternalsVisibleTo Include="DRN.Framework.EntityFramework" />
+    </ItemGroup>
+
 </Project>

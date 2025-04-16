@@ -1,3 +1,4 @@
+using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
@@ -38,10 +39,16 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
         if (TestEnvironment.TestContextEnabled)
             builder.ConfigureWarnings(warnings => { });
 
+        var materializationInterceptor = serviceProvider?.GetRequiredService<IDrnMaterializationInterceptor>();
+        if (materializationInterceptor != null)
+            builder.AddInterceptors(materializationInterceptor);
+
+        var saveChangesInterceptor = serviceProvider?.GetRequiredService<DrnSaveChangesInterceptor>();
+        if (saveChangesInterceptor != null)
+            builder.AddInterceptors(saveChangesInterceptor);
+
         var scopedLog = serviceProvider?.GetRequiredService<IScopedLog>();
-        builder
-            .UseSnakeCaseNamingConvention()
-            .LogTo(LogWarning, [DbLoggerCategory.Name], LogLevel.Warning);
+        builder.UseSnakeCaseNamingConvention().LogTo(LogWarning, [DbLoggerCategory.Name], LogLevel.Warning);
         return;
 
         void LogWarning(string message)

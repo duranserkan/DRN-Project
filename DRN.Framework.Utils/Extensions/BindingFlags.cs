@@ -4,7 +4,10 @@ namespace DRN.Framework.Utils.Extensions;
 
 public static class BindingFlag
 {
-    public static readonly BindingFlags StaticPublic = BindingFlags.Static | BindingFlags.Public;
-    public static readonly BindingFlags StaticNonPublic = BindingFlags.Static | BindingFlags.NonPublic;
-    public static readonly BindingFlags InstanceNonPublic = BindingFlags.Instance | BindingFlags.NonPublic;
+    public const BindingFlags Static = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+    public const BindingFlags StaticPublic = BindingFlags.Static | BindingFlags.Public;
+    public const BindingFlags StaticNonPublic = BindingFlags.Static | BindingFlags.NonPublic;
+    public const BindingFlags Instance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+    public const BindingFlags InstancePublic = BindingFlags.Instance | BindingFlags.Public;
+    public const BindingFlags InstanceNonPublic = BindingFlags.Instance | BindingFlags.NonPublic;
 }

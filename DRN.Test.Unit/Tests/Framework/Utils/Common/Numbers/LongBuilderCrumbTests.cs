@@ -1,5 +1,5 @@
-using DRN.Framework.Utils.Common.Numbers;
 using DRN.Framework.Utils.Extensions;
+using DRN.Framework.Utils.Numbers;
 using FluentAssertions;
 using Xunit;
 

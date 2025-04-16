@@ -1,7 +1,6 @@
 using DRN.Framework.Testing.Contexts;
 using DRN.Framework.Testing.DataAttributes;
-using DRN.Framework.Utils.Common;
-using DRN.Framework.Utils.Common.Sequences;
+using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Settings;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,9 +31,9 @@ public class SourceKnownIdTests
         var epoch = SourceKnownIdGenerator.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
-        await Task.Delay(1000);
+        await Task.Delay(1100); // 100ms buffer added to compensate caching effect
         var id = generator.NextId<SourceKnownIdTests>();
-        await Task.Delay(1000);
+        await Task.Delay(1100);
 
         var afterIdGenerated = DateTimeOffset.UtcNow;
 

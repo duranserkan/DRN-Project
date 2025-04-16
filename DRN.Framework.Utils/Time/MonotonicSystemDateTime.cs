@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
-namespace DRN.Framework.Utils.Common.Time;
+namespace DRN.Framework.Utils.Time;
 
 /// <summary>
 /// Monotonic/System hybrid clock that is immune to drastic system clock changes and monotonic clock drifts

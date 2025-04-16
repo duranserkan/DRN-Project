@@ -1,4 +1,4 @@
-namespace DRN.Framework.Utils.Common.Time;
+namespace DRN.Framework.Utils.Time;
 
 public class RecurringAction : IDisposable
 {

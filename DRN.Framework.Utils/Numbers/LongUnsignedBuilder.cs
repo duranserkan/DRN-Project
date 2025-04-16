@@ -1,4 +1,4 @@
-namespace DRN.Framework.Utils.Common.Numbers;
+namespace DRN.Framework.Utils.Numbers;
 
 public class LongUnsignedBuilder(NumberBuildDirection direction)
 {

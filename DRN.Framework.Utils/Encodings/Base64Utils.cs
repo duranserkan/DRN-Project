@@ -1,14 +1,13 @@
 using System.Buffers.Text;
-using System.Text;
 using System.Text.Json;
 
-namespace DRN.Framework.Utils.Common;
+namespace DRN.Framework.Utils.Encodings;
 
 public static class Base64Utils
 {
     public static string UrlSafeBase64Encode(string input)
     {
-        var inputBytes = Encoding.UTF8.GetBytes(input);
+        var inputBytes = System.Text.Encoding.UTF8.GetBytes(input);
         var encodedString = Base64Url.EncodeToString(inputBytes);
 
         return encodedString;
@@ -25,7 +24,7 @@ public static class Base64Utils
     public static string UrlSafeBase64Decode(string input)
     {
         var array = Base64Url.DecodeFromChars(input.ToCharArray());
-        var decodedString = Encoding.UTF8.GetString(array);
+        var decodedString = System.Text.Encoding.UTF8.GetString(array);
 
         return decodedString;
     }

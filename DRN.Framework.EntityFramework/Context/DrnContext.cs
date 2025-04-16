@@ -73,18 +73,4 @@ public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFact
 
     public void ConfigureDesignTimeServices(IServiceCollection serviceCollection) =>
         serviceCollection.AddSingleton<IMigrationsScaffolder, DrnMigrationsScaffolder>();
-
-    public override int SaveChanges(bool acceptAllChangesOnSuccess)
-    {
-        this.MarkEntities();
-
-        return base.SaveChanges(acceptAllChangesOnSuccess);
-    }
-
-    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = new())
-    {
-        this.MarkEntities();
-
-        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-    }
 }

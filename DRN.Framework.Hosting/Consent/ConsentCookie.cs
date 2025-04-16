@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using DRN.Framework.Utils.Common;
+using DRN.Framework.Utils.Encodings;
 
 namespace DRN.Framework.Hosting.Consent;
 

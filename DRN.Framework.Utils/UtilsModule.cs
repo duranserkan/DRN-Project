@@ -1,4 +1,4 @@
-using DRN.Framework.Utils.Common.Time;
+using DRN.Framework.Utils.Time;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Utils;

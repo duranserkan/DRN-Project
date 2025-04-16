@@ -2,6 +2,7 @@ using System.Reflection;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Extensions;
+using DRN.Framework.Utils.Generic;
 using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +48,6 @@ public static class ServiceCollectionExtensions
         var contextTypes = assembly.GetTypesAssignableTo(typeof(DbContext));
 
         foreach (var contextType in contextTypes)
-            typeof(ServiceCollectionExtensions).MakeGenericMethod(nameof(AddDbContextWithConventions), contextType).Invoke(null, [sc]);
+            typeof(ServiceCollectionExtensions).InvokeStaticGenericMethod(nameof(AddDbContextWithConventions), [contextType], sc);
     }
 }

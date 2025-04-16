@@ -1,5 +1,5 @@
 using DRN.Framework.Hosting.Extensions;
-using DRN.Framework.Utils.Common;
+using DRN.Framework.Utils.Encodings;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 

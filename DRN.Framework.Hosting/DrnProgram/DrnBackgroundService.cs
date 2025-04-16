@@ -1,6 +1,6 @@
 using DRN.Framework.SharedKernel;
-using DRN.Framework.Utils.Common.Time;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Time;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
