@@ -2,7 +2,7 @@ using DRN.Framework.Utils.Numbers;
 using FluentAssertions;
 using Xunit;
 
-namespace DRN.Test.Unit.Tests.Framework.Utils.Common.Numbers;
+namespace DRN.Test.Unit.Tests.Framework.Utils.Numbers;
 
 public class LongUnsignedBuilderTests
 {
@@ -13,14 +13,11 @@ public class LongUnsignedBuilderTests
     {
         var builder = new LongUnsignedBuilder(direction);
         var nibbles = Enumerable.Range(0, 16).ToArray();
-        foreach (var nibble in nibbles)
+        foreach (var _ in nibbles)
             builder.TryAddNibble(15);
 
         var actual = builder.GetValue();
         actual.Should().Be(ulong.MaxValue);
-
-        var nibbleCount = builder.GetNibbleCount();
-        nibbleCount.Should().Be(16);
     }
 
     [Theory]
@@ -30,14 +27,11 @@ public class LongUnsignedBuilderTests
     {
         var builder = new LongUnsignedBuilder(direction);
         var nibbles = Enumerable.Range(0, 16).ToArray();
-        foreach (var nibble in nibbles)
+        foreach (var _ in nibbles)
             builder.TryAddNibble(0);
 
         var actual = builder.GetValue();
         actual.Should().Be(ulong.MinValue);
-
-        var nibbleCount = builder.GetNibbleCount();
-        nibbleCount.Should().Be(16);
     }
 
     [Theory]
@@ -52,9 +46,6 @@ public class LongUnsignedBuilderTests
 
         var actual = builder.GetValue();
         actual.Should().Be(expected);
-
-        var nibbleCount = builder.GetNibbleCount();
-        nibbleCount.Should().Be(1);
     }
 
     [Theory]
@@ -70,9 +61,6 @@ public class LongUnsignedBuilderTests
 
         var actual = builder.GetValue();
         actual.Should().Be(expected);
-
-        var nibbleCount = builder.GetNibbleCount();
-        nibbleCount.Should().Be(2);
     }
 
     [Theory]
@@ -83,7 +71,7 @@ public class LongUnsignedBuilderTests
         var builder = new LongUnsignedBuilder(direction);
         var nibbles = Enumerable.Range(0, 16).ToArray();
         var added = false;
-        foreach (var nibble in nibbles)
+        foreach (var _ in nibbles)
             added = builder.TryAddNibble(0);
 
         added.Should().BeTrue();

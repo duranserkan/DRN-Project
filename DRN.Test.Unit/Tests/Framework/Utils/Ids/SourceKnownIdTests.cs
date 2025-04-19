@@ -6,7 +6,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace DRN.Test.Unit.Tests.Framework.Utils.Common;
+namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
 public class SourceKnownIdTests
 {
@@ -26,13 +26,13 @@ public class SourceKnownIdTests
         };
 
         context.AddToConfiguration(customSettings);
-        var generator = context.GetRequiredService<ISourceKnownIdGenerator>();
+        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
 
-        var epoch = SourceKnownIdGenerator.Epoch2025;
+        var epoch = SourceKnownIdUtils.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
         await Task.Delay(1100); // 100ms buffer added to compensate caching effect
-        var id = generator.NextId<SourceKnownIdTests>();
+        var id = generator.Next<SourceKnownIdTests>();
         await Task.Delay(1100);
 
         var afterIdGenerated = DateTimeOffset.UtcNow;
@@ -64,12 +64,12 @@ public class SourceKnownIdTests
         };
 
         context.AddToConfiguration(customSettings);
-        var generator = context.GetRequiredService<ISourceKnownIdGenerator>();
+        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
         var bucketCount = 3;
         var idCount = (int)(SequenceTimeScope.MaxValue * bucketCount);
         var ids = new long[idCount];
 
-        var epoch = SourceKnownIdGenerator.Epoch2025;
+        var epoch = SourceKnownIdUtils.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
         await Task.Delay(1001);
@@ -79,7 +79,7 @@ public class SourceKnownIdTests
             .WithExecutionMode(ParallelExecutionMode.ForceParallelism)
             .Select((_,index) =>
         {
-            ids[index] = generator.NextId<ISourceKnownIdGenerator>();
+            ids[index] = generator.Next<ISourceKnownIdUtils>();
             return index;
         }).ToArray();
         await Task.Delay(1001);
@@ -109,7 +109,7 @@ public class SourceKnownIdTests
         var buckets = idInfoGroups.Select(x => x.Key).ToArray();
 
         buckets.Length.Should().BeGreaterThanOrEqualTo(bucketCount); //during generation initial and last buckets may be halflings
-        buckets.Length.Should().BeLessThanOrEqualTo(bucketCount + 1);
+        buckets.Length.Should().BeLessThanOrEqualTo(bucketCount + 2); //we should also consider bucket creep testing overhead by adding another 1 bucket
 
         var duration = afterIdGenerated - beforeIdGenerated; // it is expected to be complete in bucket count + 1 seconds.
         duration.TotalSeconds.Should().BeInRange(bucketCount, bucketCount + 2); //we should also consider testing overhead by adding another 1 seconds

@@ -2,7 +2,7 @@ using DRN.Framework.Utils.Numbers;
 using FluentAssertions;
 using Xunit;
 
-namespace DRN.Test.Unit.Tests.Framework.Utils.Common.Numbers;
+namespace DRN.Test.Unit.Tests.Framework.Utils.Numbers;
 
 public class LongBuilderByteTests
 {
@@ -14,7 +14,7 @@ public class LongBuilderByteTests
     public void LongBuilder_Should_Build_Max_With_Bytes_Without_Residue(NumberBuildDirection direction, bool setResidue)
     {
         var maxAvailable = 0x00FF_FFFF_FFFF_FFFF;
-        var builder = new LongBuilder(direction, ResidueType.Byte);
+        var builder = new LongBuilder(direction, 7);
         foreach (var _ in Enumerable.Range(0, 7))
             builder.TryAddByte(byte.MaxValue);
 
@@ -36,7 +36,7 @@ public class LongBuilderByteTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Zero_With_Bytes(NumberBuildDirection direction, bool setResidue)
     {
-        var builder = new LongBuilder(direction, ResidueType.Byte);
+        var builder = new LongBuilder(direction, 7);
         foreach (var _ in Enumerable.Range(0, 7))
             builder.TryAddByte(0);
 
@@ -58,7 +58,7 @@ public class LongBuilderByteTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, ResidueType.Byte);
+        var builder = new LongBuilder(direction, 7);
         builder.TryAddByte(Byte.MaxValue);
 
         builder.IsPositive().Should().BeFalse();
@@ -74,7 +74,7 @@ public class LongBuilderByteTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, ResidueType.Byte);
+        var builder = new LongBuilder(direction, 7);
         builder.TryAddByte(Byte.MaxValue);
         builder.TryAddByte(Byte.MaxValue);
 
@@ -89,7 +89,7 @@ public class LongBuilderByteTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_TryAddByte_Should_Return_False_When_All_Available_Slots_Filled_With_Bytes(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, ResidueType.Byte);
+        var builder = new LongBuilder(direction, 7);
         var added = false;
         foreach (var _ in Enumerable.Range(0, 7))
             added = builder.TryAddByte(0);
@@ -108,7 +108,7 @@ public class LongBuilderByteTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Max_With_Bytes(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, ResidueType.Byte);
+        var builder = new LongBuilder(direction, 7);
         foreach (var _ in Enumerable.Range(0, 7))
             builder.TryAddByte(byte.MaxValue);
 
@@ -120,7 +120,7 @@ public class LongBuilderByteTests
         var actual = builder.GetValue();
         actual.Should().Be(long.MaxValue);
 
-        var parser = new LongParser(actual, direction, ResidueType.Byte);
+        var parser = new LongParser(actual, direction, 7);
         var residueValue = parser.ReadResidueValue();
         residueValue.Should().Be(127);
 
@@ -133,7 +133,7 @@ public class LongBuilderByteTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min_With_Bytes(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, ResidueType.Byte);
+        var builder = new LongBuilder(direction, 7);
         foreach (var _ in Enumerable.Range(0, 7))
             builder.TryAddByte(0);
 
@@ -148,7 +148,7 @@ public class LongBuilderByteTests
     [Fact]
     public void LongBuilder_Should_Build_Negative_With_Max_Residue()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, ResidueType.Byte);
+        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 7);
         foreach (var _ in Enumerable.Range(0, 7))
             builder.TryAddByte(0);
 
@@ -165,7 +165,7 @@ public class LongBuilderByteTests
     [Fact]
     public void LongBuilder_Should_Build_Minus_One()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, ResidueType.Byte);
+        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 7);
         foreach (var _ in Enumerable.Range(0, 7))
             builder.TryAddByte(byte.MaxValue);
 

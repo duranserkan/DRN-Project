@@ -8,12 +8,12 @@ namespace DRN.Framework.EntityFramework.Context.Interceptors;
 public interface IDrnMaterializationInterceptor : IMaterializationInterceptor;
 
 [Singleton<IDrnMaterializationInterceptor>]
-public class DrnMaterializationInterceptor(ISourceKnownIdGenerator idGenerator) : IDrnMaterializationInterceptor
+public class DrnMaterializationInterceptor(ISourceKnownEntityIdUtils idUtils) : IDrnMaterializationInterceptor
 {
     public object InitializedInstance(MaterializationInterceptionData materializationData, object entity)
     {
         if (entity is Entity e)
-            e.EntityIdInfo = idGenerator.GetDomainId(e);
+            e.EntityIdSource = idUtils.Generate(e);
 
         return entity;
     }

@@ -3,7 +3,7 @@ using DRN.Framework.Utils.Json;
 using FluentAssertions;
 using Xunit;
 
-namespace DRN.Test.Unit.Tests.Framework.Utils.Common;
+namespace DRN.Test.Unit.Tests.Framework.Utils.Json;
 
 public class JsonMergePatchTests
 {

@@ -2,9 +2,9 @@ using DRN.Framework.Utils.Ids;
 using FluentAssertions;
 using Xunit;
 
-namespace DRN.Test.Unit.Tests.Framework.Utils.Common;
+namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
-public class SourceKnownIdGeneratorTests
+public class SourceKnownIdUtilsTests
 {
     [Fact]
     public async Task Generator_Should_Generate_Valid_Id()
@@ -12,15 +12,15 @@ public class SourceKnownIdGeneratorTests
         byte appId = 1;
         byte appInstanceId = 1;
         
-        var epoch = SourceKnownIdGenerator.Epoch2025;
+        var epoch = SourceKnownIdUtils.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
         
         await Task.Delay(1000);
-        var id = SourceKnownIdGenerator.GenerateId<object>(appId, appInstanceId);
+        var id = SourceKnownIdUtils.Generate<object>(appId, appInstanceId);
         await Task.Delay(1000);
         
         var afterIdGenerated = DateTimeOffset.UtcNow;
-        var idInfo = SourceKnownIdGenerator.ParseId(id);
+        var idInfo = SourceKnownIdUtils.ParseId(id);
         
         idInfo.Id.Should().Be(id);
         idInfo.AppId.Should().Be(appId);

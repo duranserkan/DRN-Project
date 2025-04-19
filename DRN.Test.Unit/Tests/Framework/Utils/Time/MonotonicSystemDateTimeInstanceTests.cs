@@ -4,7 +4,7 @@ using FluentAssertions;
 using NSubstitute.Extensions;
 using Xunit;
 
-namespace DRN.Test.Unit.Tests.Framework.Utils.Common.Time;
+namespace DRN.Test.Unit.Tests.Framework.Utils.Time;
 
 public class MonotonicSystemDateTimeInstanceTests
 {

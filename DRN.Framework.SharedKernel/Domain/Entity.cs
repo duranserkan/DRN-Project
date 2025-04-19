@@ -9,9 +9,9 @@ namespace DRN.Framework.SharedKernel.Domain;
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class EntityTypeIdAttribute(ushort id) : Attribute
-{
+{ //todo add roselyn analyzer to check for conflicts and missing attributes
     /// <summary>
-    /// Application wide Unique Entity Type Id
+    /// Application wide Unique Entity Type ID
     /// </summary>
     public ushort Id { get; } = id;
 }
@@ -19,7 +19,9 @@ public sealed class EntityTypeIdAttribute(ushort id) : Attribute
 public abstract class Entity
 {
     private static readonly ConcurrentDictionary<Type, ushort> TypeToIdMap = new();
+
     private static readonly ConcurrentDictionary<ushort, Type> IdToTypeMap = new();
+
     //Todo: Scan assemblies at startup to detect conflicts proactively.
     public static ushort GetEntityTypeId<TEntity>() where TEntity : Entity => GetEntityTypeId(typeof(TEntity));
     public static ushort GetEntityTypeId<TEntity>(TEntity entity) where TEntity : Entity => GetEntityTypeId(entity.GetType());
@@ -46,14 +48,18 @@ public abstract class Entity
 
                 return existingType; // No change needed
             });
-    
+
     private List<IDomainEvent> DomainEvents { get; } = new(2);
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
     public long Id { get; internal set; }
-    public Guid EntityId => EntityIdInfo.EntityId;
-    public EntityIdInfo EntityIdInfo { get; internal set; }
+    public Guid EntityId => EntityIdSource.EntityId;
+    public SourceKnownEntityId EntityIdSource { get; internal set; }
+
     public string ExtendedProperties { get; protected set; } = null!;
-    [ConcurrencyCheck] public DateTimeOffset ModifiedAt { get; protected set; }
+
+    [ConcurrencyCheck]
+    public DateTimeOffset ModifiedAt { get; protected set; }
+    public DateTimeOffset CreatedAt => EntityIdSource.Source.CreatedAt;
 
     protected void AddDomainEvent(DomainEvent? e)
     {
@@ -80,9 +86,9 @@ public abstract class Entity
     protected virtual EntityModified? GetModifiedEvent() => null;
     protected virtual EntityDeleted? GetDeletedEvent() => null;
 
-    private bool Equals(Entity other) => EntityIdInfo == other.EntityIdInfo;
+    private bool Equals(Entity other) => EntityIdSource == other.EntityIdSource;
     public override bool Equals(object? obj) => ReferenceEquals(this, obj) || obj is Entity other && Equals(other);
-    public override int GetHashCode() => EntityIdInfo.GetHashCode();
+    public override int GetHashCode() => EntityIdSource.GetHashCode();
     public static bool operator ==(Entity? left, Entity? right) => Equals(left, right);
     public static bool operator !=(Entity? left, Entity? right) => !Equals(left, right);
 }

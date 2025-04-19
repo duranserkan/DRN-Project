@@ -1,6 +1,5 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
 using DRN.Framework.Utils.Ids;
@@ -41,7 +40,7 @@ public class SourceKnownIdGeneratorPerformanceTests(ITestOutputHelper output)
 
 public class SourceKnownIdGeneratorBenchmark
 {
-    private static SourceKnownIdGenerator Generator { get; } = new(new AppSettings(new ConfigurationManager()));
+    private static SourceKnownIdUtils Utils { get; } = new(new AppSettings(new ConfigurationManager()));
 
     [GlobalSetup]
     public void Setup()
@@ -49,5 +48,5 @@ public class SourceKnownIdGeneratorBenchmark
     }
 
     [Benchmark]
-    public long SourceKnownId() => Generator.NextId<SourceKnownIdGeneratorBenchmark>();
+    public long SourceKnownId() => Utils.Next<SourceKnownIdGeneratorBenchmark>();
 }

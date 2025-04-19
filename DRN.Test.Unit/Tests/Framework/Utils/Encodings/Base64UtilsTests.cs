@@ -3,7 +3,7 @@ using DRN.Framework.Utils.Models.Sample;
 using FluentAssertions;
 using Xunit;
 
-namespace DRN.Test.Unit.Tests.Framework.Utils.Common;
+namespace DRN.Test.Unit.Tests.Framework.Utils.Encodings;
 
 public class Base64UtilsTests
 {

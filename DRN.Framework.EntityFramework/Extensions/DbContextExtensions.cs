@@ -43,7 +43,7 @@ internal static class DbContextExtensions
 
 
                 entity.Ignore(nameof(Entity.EntityId)); //runtime generated values by using source known id and entity type id
-                entity.Ignore(nameof(Entity.EntityIdInfo));
+                entity.Ignore(nameof(Entity.EntityIdSource));
             }
 
             // if (entityType.ClrType.GetProperty("IsDeleted") != null)

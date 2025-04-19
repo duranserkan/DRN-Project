@@ -2,7 +2,7 @@ using DRN.Framework.Utils.Numbers;
 using FluentAssertions;
 using Xunit;
 
-namespace DRN.Test.Unit.Tests.Framework.Utils.Common.Numbers;
+namespace DRN.Test.Unit.Tests.Framework.Utils.Numbers;
 
 public class LongBuilderMixedTests
 {
@@ -93,7 +93,7 @@ public class LongBuilderMixedTests
         longBuilder.SetResidueValue(expectedResidue);
         longBuilder.TryAddByte(expectedByte1);
         longBuilder.TryAddByte(expectedByte2);
-        longBuilder.TryAddUnsignedShort(expectedUShort);
+        longBuilder.TryAddUShort(expectedUShort);
         var longValue = longBuilder.GetValue();
 
         var longParser = LongParser.Default(longValue);

@@ -2,7 +2,7 @@ using DRN.Framework.Utils.Numbers;
 using FluentAssertions;
 using Xunit;
 
-namespace DRN.Test.Unit.Tests.Framework.Utils.Common.Numbers;
+namespace DRN.Test.Unit.Tests.Framework.Utils.Numbers;
 
 public class LongBuilderUnsignedShortTests
 {
@@ -14,9 +14,9 @@ public class LongBuilderUnsignedShortTests
     public void LongBuilder_Should_Build_Max_With_Shorts_Without_Residue(NumberBuildDirection direction, bool setResidue)
     {
         var maxAvailable = 0x0000_FFFF_FFFF_FFFF;
-        var builder = new LongBuilder(direction, ResidueType.UShort);
+        var builder = new LongBuilder(direction, 15);
         foreach (var _ in Enumerable.Range(0, 3))
-            builder.TryAddUnsignedShort(ushort.MaxValue);
+            builder.TryAddUShort(ushort.MaxValue);
 
         if (setResidue)
             builder.SetResidueValue(0);
@@ -35,9 +35,9 @@ public class LongBuilderUnsignedShortTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Zero_With_Shorts(NumberBuildDirection direction, bool setResidue)
     {
-        var builder = new LongBuilder(direction, ResidueType.UShort);
+        var builder = new LongBuilder(direction, 15);
         foreach (var _ in Enumerable.Range(0, 3))
-            builder.TryAddUnsignedShort(0);
+            builder.TryAddUShort(0);
 
         if (setResidue)
             builder.SetResidueValue(0);
@@ -56,8 +56,8 @@ public class LongBuilderUnsignedShortTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, ResidueType.UShort);
-        builder.TryAddUnsignedShort(ushort.MaxValue);
+        var builder = new LongBuilder(direction, 15);
+        builder.TryAddUShort(ushort.MaxValue);
 
         builder.IsPositive().Should().BeFalse();
 
@@ -72,9 +72,9 @@ public class LongBuilderUnsignedShortTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, ResidueType.UShort);
-        builder.TryAddUnsignedShort(ushort.MaxValue);
-        builder.TryAddUnsignedShort(ushort.MaxValue);
+        var builder = new LongBuilder(direction, 15);
+        builder.TryAddUShort(ushort.MaxValue);
+        builder.TryAddUShort(ushort.MaxValue);
 
         builder.IsPositive().Should().BeFalse();
 
@@ -87,17 +87,17 @@ public class LongBuilderUnsignedShortTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_TryAddByte_Should_Return_False_When_All_Available_Slots_Filled_With_Shorts(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, ResidueType.UShort);
+        var builder = new LongBuilder(direction, 15);
         var added = false;
         foreach (var _ in Enumerable.Range(0, 3))
-            added = builder.TryAddUnsignedShort(0);
+            added = builder.TryAddUShort(0);
 
         added.Should().BeTrue();
 
-        builder.TryAddUnsignedShort(0).Should().BeFalse();
+        builder.TryAddUShort(0).Should().BeFalse();
 
         builder.Reset();
-        builder.TryAddUnsignedShort(15).Should().BeTrue();
+        builder.TryAddUShort(15).Should().BeTrue();
         builder.GetValue().Should().BeGreaterThan(long.MinValue);
     }
 
@@ -106,9 +106,9 @@ public class LongBuilderUnsignedShortTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Max_With_Shorts(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, ResidueType.UShort);
+        var builder = new LongBuilder(direction, 15);
         foreach (var _ in Enumerable.Range(0, 3))
-            builder.TryAddUnsignedShort(ushort.MaxValue);
+            builder.TryAddUShort(ushort.MaxValue);
 
         builder.SetResidueValue((ushort)short.MaxValue);
 
@@ -118,7 +118,7 @@ public class LongBuilderUnsignedShortTests
         var actual = builder.GetValue();
         actual.Should().Be(long.MaxValue);
 
-        var parser = new LongParser(actual, direction, ResidueType.UShort);
+        var parser = new LongParser(actual, direction, 15);
         var residueValue = parser.ReadResidueValue();
         residueValue.Should().Be((uint)short.MaxValue);
 
@@ -131,9 +131,9 @@ public class LongBuilderUnsignedShortTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min_With_Shorts(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, ResidueType.UShort);
+        var builder = new LongBuilder(direction, 15);
         foreach (var _ in Enumerable.Range(0, 3))
-            builder.TryAddUnsignedShort(0);
+            builder.TryAddUShort(0);
 
         builder.SetResidueValue(0);
 
@@ -146,9 +146,9 @@ public class LongBuilderUnsignedShortTests
     [Fact]
     public void LongBuilder_Should_Build_Negative_With_Max_Residue()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, ResidueType.UShort);
+        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst,15);
         foreach (var _ in Enumerable.Range(0, 3))
-            builder.TryAddUnsignedShort(0);
+            builder.TryAddUShort(0);
 
         builder.SetResidueValue((ushort)short.MaxValue);
 
@@ -163,9 +163,9 @@ public class LongBuilderUnsignedShortTests
     [Fact]
     public void LongBuilder_Should_Build_Minus_One()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, ResidueType.UShort);
+        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst,15);
         foreach (var _ in Enumerable.Range(0, 3))
-            builder.TryAddUnsignedShort(ushort.MaxValue);
+            builder.TryAddUShort(ushort.MaxValue);
 
         builder.SetResidueValue((ushort)short.MaxValue);
 
