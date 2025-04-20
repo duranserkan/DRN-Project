@@ -1,15 +1,14 @@
+using System.Reflection;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
-using DRN.Framework.Utils.Ids;
-using DRN.Framework.Utils.Settings;
-using Microsoft.Extensions.Configuration;
+using DRN.Framework.Utils.Extensions;
 using Xunit.Abstractions;
 
 namespace DRN.Test.Performance.Benchmark.Framework.Utils;
 
-public class SourceKnownIdGeneratorPerformanceTests(ITestOutputHelper output)
+public class MethodUtilsPerformanceTests(ITestOutputHelper output)
 {
 #if !DEBUG
     [Fact] //should run on release build
@@ -20,7 +19,7 @@ public class SourceKnownIdGeneratorPerformanceTests(ITestOutputHelper output)
         var config = ManualConfig.Create(DefaultConfig.Instance)
             .AddLogger(logger)
             .WithOptions(ConfigOptions.DisableOptimizationsValidator);
-        var summary = BenchmarkRunner.Run<SourceKnownIdGeneratorBenchmark>(config);
+        var summary = BenchmarkRunner.Run<MethodUtilsBenchmark>(config);
 
         output.WriteLine("===================================");
         output.WriteLine("Benchmark Results Path");
@@ -37,16 +36,28 @@ public class SourceKnownIdGeneratorPerformanceTests(ITestOutputHelper output)
     }
 }
 
-
-public class SourceKnownIdGeneratorBenchmark
+public class MethodUtilsBenchmark
 {
-    private static SourceKnownIdUtils Utils { get; } = new(new AppSettings(new ConfigurationManager()));
-
-    [GlobalSetup]
-    public void Setup()
-    {
-    }
+    private static readonly Type Type = typeof(MethodUtilsBenchmark);
 
     [Benchmark]
-    public long SourceKnownId() => Utils.Next<SourceKnownIdGeneratorBenchmark>();
+    public MethodInfo NonGenericCached() => Type.FindNonGenericMethod("Get", 0, BindingFlag.StaticPublic);
+
+    [Benchmark]
+    public MethodInfo NonGenericUnCached() => Type.FindNonGenericMethodUncached("Get", 0, BindingFlag.StaticPublic);
+
+    [Benchmark]
+    public MethodInfo GenericCached() => Type.FindGenericMethod("Get", [Type], 0, BindingFlag.StaticPublic);
+
+    [Benchmark]
+    public MethodInfo GenericUnCached() => Type.FindGenericMethodUncached("Get", [Type], 0, BindingFlag.StaticPublic);
+
+    [Benchmark]
+    public object? InvokeNonGenericCached() => Type.InvokeStaticMethod("Get");
+
+    [Benchmark]
+    public object? InvokeGenericCached() => Type.InvokeStaticGenericMethod("Get", Type);
+
+    public static object? Get<T>() => null;
+    public static object? Get() => null;
 }

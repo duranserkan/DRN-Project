@@ -7,6 +7,5 @@ public class AnswerCommentConfig : IEntityTypeConfiguration<AnswerComment>
 {
     public void Configure(EntityTypeBuilder<AnswerComment> builder)
     {
-
     }
 }

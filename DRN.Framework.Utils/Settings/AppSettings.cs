@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Blake3;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -19,7 +20,9 @@ public interface IAppSettings
     long AppSeedLong { get; }
     int AppSeedInt { get; }
 
-    [JsonIgnore] IConfiguration Configuration { get; }
+    [JsonIgnore]
+    IConfiguration Configuration { get; }
+
     bool TryGetConnectionString(string name, out string connectionString);
     string GetRequiredConnectionString(string name);
     bool TryGetSection(string key, out IConfigurationSection section);
@@ -42,19 +45,27 @@ public class AppSettings : IAppSettings
         ApplicationName = TryGetSection(nameof(ApplicationName), out _)
             ? configuration.GetValue<string>(nameof(ApplicationName)) ?? AppConstants.EntryAssemblyName
             : AppConstants.EntryAssemblyName;
-        
-        Nexus = Get<NexusAppSettings>(nameof(NexusAppSettings)) ?? new NexusAppSettings();
+
+
         Features = Get<DrnAppFeatures>(nameof(DrnAppFeatures)) ?? new DrnAppFeatures();
+        Nexus = Get<NexusAppSettings>(nameof(NexusAppSettings)) ?? new NexusAppSettings();
 
         AppKey = ApplicationName.ToPascalCase();
-        AppHashKey = ("MKA " + ApplicationName + " " + Features.SeedKey + " DRN")
-            .GetSha512Hash().Substring(18, 81)
-            .GetSha512Hash().Substring(19, 23)
-            .GetSha512Hash().Substring(20, 23)
-            .GetSha512Hash().Substring(100, 8);
+        AppHashKeyLong = ("MKA " + ApplicationName + " " + Features.SeedKey + " DRN")
+            .GetSha512Hash().Substring(18, 81).GetSha512Hash();
+
+        AppHashKey = AppHashKeyLong.Substring(100, 8);
         AppKey = $"{AppKey}.{AppHashKey}";
         AppSeedLong = Features.SeedKey.GenerateLongSeedFromHash();
         AppSeedInt = Features.SeedKey.GenerateIntSeedFromHash();
+
+        var hasDefaultMacKey = Nexus.MacKeys.Any(k => k.Default);
+        if (hasDefaultMacKey) return;
+        if (Environment != AppEnvironment.Development) throw new ConfigurationException("Default Mac Key not found.");
+
+        //Even if the application is not connected to nexus, we still need to add a default Mac key to make development easier.
+        var key = Hasher.Hash(AppKey.ToByteArray()).AsSpan().ToArray();
+        ((List<NexusMacKey>)Nexus.MacKeys).Add(new NexusMacKey { Key = key, Default = true });
     }
 
     public DrnAppFeatures Features { get; }
@@ -65,9 +76,12 @@ public class AppSettings : IAppSettings
     public string ApplicationName { get; }
     public string AppKey { get; }
     public string AppHashKey { get; }
+    public string AppHashKeyLong { get; }
     public long AppSeedLong { get; }
     public int AppSeedInt { get; }
-    [JsonIgnore] public IConfiguration Configuration { get; }
+
+    [JsonIgnore]
+    public IConfiguration Configuration { get; }
 
     public bool TryGetConnectionString(string name, out string connectionString)
     {

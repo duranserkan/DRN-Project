@@ -19,7 +19,7 @@ namespace Sample.Infra.QA.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("qa_context")
-                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("ProductVersion", "9.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -46,20 +46,20 @@ namespace Sample.Infra.QA.Migrations
             modelBuilder.Entity("Sample.Domain.QA.Answers.Answer", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("Body")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("body");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                    b.Property<string>("ExtendedProperties")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("extended_properties")
+                        .HasDefaultValueSql("{}");
 
                     b.Property<bool>("IsAccepted")
                         .HasColumnType("boolean")
@@ -90,11 +90,8 @@ namespace Sample.Infra.QA.Migrations
             modelBuilder.Entity("Sample.Domain.QA.Answers.AnswerComment", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<long?>("AnswerCommentId")
                         .HasColumnType("bigint")
@@ -109,9 +106,12 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnType("text")
                         .HasColumnName("body");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                    b.Property<string>("ExtendedProperties")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("extended_properties")
+                        .HasDefaultValueSql("{}");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
@@ -137,15 +137,15 @@ namespace Sample.Infra.QA.Migrations
             modelBuilder.Entity("Sample.Domain.QA.Categories.Category", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                    b.Property<string>("ExtendedProperties")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("extended_properties")
+                        .HasDefaultValueSql("{}");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
@@ -166,11 +166,8 @@ namespace Sample.Infra.QA.Migrations
             modelBuilder.Entity("Sample.Domain.QA.Questions.Question", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("Body")
                         .IsRequired()
@@ -181,9 +178,12 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("category_id");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                    b.Property<string>("ExtendedProperties")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("extended_properties")
+                        .HasDefaultValueSql("{}");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
@@ -214,20 +214,20 @@ namespace Sample.Infra.QA.Migrations
             modelBuilder.Entity("Sample.Domain.QA.Questions.QuestionComment", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("Body")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("body");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                    b.Property<string>("ExtendedProperties")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("extended_properties")
+                        .HasDefaultValueSql("{}");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
@@ -254,15 +254,15 @@ namespace Sample.Infra.QA.Migrations
             modelBuilder.Entity("Sample.Domain.QA.Tags.Tag", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                    b.Property<string>("ExtendedProperties")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("extended_properties")
+                        .HasDefaultValueSql("{}");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
@@ -283,15 +283,15 @@ namespace Sample.Infra.QA.Migrations
             modelBuilder.Entity("Sample.Domain.Users.User", b =>
                 {
                     b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                    b.Property<string>("ExtendedProperties")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("extended_properties")
+                        .HasDefaultValueSql("{}");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()

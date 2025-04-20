@@ -2,7 +2,6 @@ using System.Reflection;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Extensions;
-using DRN.Framework.Utils.Generic;
 using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

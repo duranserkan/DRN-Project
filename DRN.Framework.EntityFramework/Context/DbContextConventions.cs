@@ -14,9 +14,9 @@ public static class DbContextConventions
     public const string DevPortKey = "DrnContext_DevPort";
     public const string DevUsernameKey = "DrnContext_DevUsername";
     public const string DevDatabaseKey = "DrnContext_DevDatabase";
-    public const string DefaultUsername = "postgres";
-    public const string DefaultDatabase = "drnDb";
-    public const string DefaultHost = "postgresql";
+    public const string DefaultUsername = "drn";
+    public const string DefaultDatabase = "drn";
+    public const string DefaultHost = "drn";
     public const string DefaultPort = "5432";
 
     private static readonly ConcurrentDictionary<Type, NpgsqlDbContextOptionsAttribute[]> AttributeCache = new();

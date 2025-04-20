@@ -14,7 +14,7 @@ public class TestStartupJob : ITestStartupJob
 
     public async Task RunAsync(StartupContext context)
     {
-        PostgresContainerSettings.DefaultPassword = "DrnStartUp";
+        PostgresContainerSettings.DefaultPassword = "drn";
         PostgresContext.PostgresContainerSettings = new();
 
         var dataResult = context.GetData("StartUpData.txt");

@@ -48,7 +48,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     private SourceKnownEntityId Generate(long id, ushort entityTypeId)
     {
         Span<byte> guidBytes = stackalloc byte[16]; // Allocate 16 bytes on the stack for the GUID
-
+        
         //0-3 is reserved for Mac hash
         BinaryPrimitives.WriteUInt16LittleEndian(guidBytes.Slice(EntityTypeIdOffset, EntityTypeLength), entityTypeId); // 4-5
         guidBytes[6] = SourceKnownMarkerVersionByte; //6

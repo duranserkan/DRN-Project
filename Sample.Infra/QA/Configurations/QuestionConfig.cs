@@ -7,7 +7,6 @@ public class QuestionConfig : IEntityTypeConfiguration<Question>
 {
     public void Configure(EntityTypeBuilder<Question> builder)
     {
-
         builder
             .HasOne(question => question.User)
             .WithMany()

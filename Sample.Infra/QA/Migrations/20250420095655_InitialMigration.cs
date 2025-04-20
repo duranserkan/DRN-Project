@@ -1,6 +1,5 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -20,11 +19,10 @@ namespace Sample.Infra.QA.Migrations
                 schema: "qa_context",
                 columns: table => new
                 {
-                    id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id = table.Column<long>(type: "bigint", nullable: false),
                     name = table.Column<string>(type: "text", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "{}"),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -36,11 +34,10 @@ namespace Sample.Infra.QA.Migrations
                 schema: "qa_context",
                 columns: table => new
                 {
-                    id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id = table.Column<long>(type: "bigint", nullable: false),
                     name = table.Column<string>(type: "text", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "{}"),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -52,8 +49,7 @@ namespace Sample.Infra.QA.Migrations
                 schema: "qa_context",
                 columns: table => new
                 {
-                    id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id = table.Column<long>(type: "bigint", nullable: false),
                     name = table.Column<string>(type: "text", nullable: false),
                     surname = table.Column<string>(type: "text", nullable: false),
                     user_name = table.Column<string>(type: "text", nullable: false),
@@ -63,8 +59,8 @@ namespace Sample.Infra.QA.Migrations
                     address_street = table.Column<string>(type: "text", nullable: false),
                     contact_email = table.Column<string>(type: "text", nullable: false),
                     contact_phone = table.Column<string>(type: "text", nullable: true),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "{}"),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -76,14 +72,13 @@ namespace Sample.Infra.QA.Migrations
                 schema: "qa_context",
                 columns: table => new
                 {
-                    id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id = table.Column<long>(type: "bigint", nullable: false),
                     title = table.Column<string>(type: "text", nullable: false),
                     body = table.Column<string>(type: "text", nullable: false),
                     user_id = table.Column<long>(type: "bigint", nullable: false),
                     category_id = table.Column<long>(type: "bigint", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "{}"),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -109,14 +104,13 @@ namespace Sample.Infra.QA.Migrations
                 schema: "qa_context",
                 columns: table => new
                 {
-                    id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id = table.Column<long>(type: "bigint", nullable: false),
                     body = table.Column<string>(type: "text", nullable: false),
                     question_id = table.Column<long>(type: "bigint", nullable: false),
                     user_id = table.Column<long>(type: "bigint", nullable: false),
                     is_accepted = table.Column<bool>(type: "boolean", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "{}"),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -135,13 +129,12 @@ namespace Sample.Infra.QA.Migrations
                 schema: "qa_context",
                 columns: table => new
                 {
-                    id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id = table.Column<long>(type: "bigint", nullable: false),
                     body = table.Column<string>(type: "text", nullable: false),
                     user_id = table.Column<long>(type: "bigint", nullable: false),
                     question_id = table.Column<long>(type: "bigint", nullable: true),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "{}"),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -186,14 +179,13 @@ namespace Sample.Infra.QA.Migrations
                 schema: "qa_context",
                 columns: table => new
                 {
-                    id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id = table.Column<long>(type: "bigint", nullable: false),
                     body = table.Column<string>(type: "text", nullable: false),
                     user_id = table.Column<long>(type: "bigint", nullable: false),
                     answer_id = table.Column<long>(type: "bigint", nullable: false),
                     answer_comment_id = table.Column<long>(type: "bigint", nullable: true),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "{}"),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
