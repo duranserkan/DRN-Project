@@ -29,7 +29,7 @@ internal static class DbContextExtensions
             {
                 entity.Property(nameof(Entity.ExtendedProperties))
                     .HasColumnType("jsonb")
-                    .HasDefaultValueSql("{}")
+                    .HasDefaultValueSql("'{}'::jsonb")
                     .ValueGeneratedOnAdd()
                     .IsRequired();
 

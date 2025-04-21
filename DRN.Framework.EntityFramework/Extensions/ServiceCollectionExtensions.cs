@@ -1,5 +1,6 @@
 using System.Reflection;
 using DRN.Framework.EntityFramework.Context;
+using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
@@ -34,8 +35,13 @@ public static class ServiceCollectionExtensions
                 attribute.ConfigureNpgsqlDataSource<TContext>(dataSourceBuilderBuilder, serviceProvider);
         }, serviceKey: contextName);
 
+
         sc.AddDbContext<TContext>((serviceProvider, optionsBuilder) =>
         {
+            var materializationInterceptor = serviceProvider.GetRequiredService<IDrnMaterializationInterceptor>();
+            var saveChangesInterceptor = serviceProvider.GetRequiredService<IDrnSaveChangesInterceptor>();
+            optionsBuilder.AddInterceptors(materializationInterceptor, saveChangesInterceptor);
+
             var dataSource = serviceProvider.GetRequiredKeyedService<NpgsqlDataSource>(contextName);
             DbContextConventions.UpdateDbContextOptionsBuilder<TContext>(dataSource, optionsBuilder, serviceProvider);
         });

@@ -1,4 +1,5 @@
 using System.Reflection;
+using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -6,6 +7,7 @@ using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DRN.Framework.EntityFramework.Context;
 
@@ -22,11 +24,25 @@ namespace DRN.Framework.EntityFramework.Context;
 public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribute
 {
     public override void ServiceRegistration(IServiceCollection sc, Assembly? assembly)
-        => sc.AddDbContextsWithConventions(assembly);
+    {
+        sc.AddDbContextsWithConventions(assembly);
+        sc.TryAddSingleton<IDrnMaterializationInterceptor, DrnMaterializationInterceptor>();
+        sc.TryAddSingleton<IDrnSaveChangesInterceptor, DrnSaveChangesInterceptor>();
+    }
 
     public override async Task PostStartupValidationAsync(object service, IServiceProvider serviceProvider, IScopedLog? scopedLog = null)
     {
         if (service is not DbContext context) return;
+
+        for (var i = 0; i < 50; i++)
+        {
+            //Test CoreEventId.ManyServiceProvidersCreatedWarning which is ignored at DrnContextDefaultsAttribute.ConfigureDbContextOptions
+            //If there is invalid configuration that causes many internal service provider creations, calling this more than 20 times should cause an exceptionto fail fast.
+            using var scopedProvider = serviceProvider.CreateScope();
+            scopedProvider.ServiceProvider.GetRequiredService(service.GetType());
+        }
+
+        serviceProvider.GetRequiredService(service.GetType());
 
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
         var environment = appSettings.Environment.ToString();
@@ -43,7 +59,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         scopedLog?.AddToActions($"{contextName} has {appliedMigrations.Length} applied migrations. Last applied: {changeModel.LastAppliedMigration}");
         scopedLog?.AddToActions($"{contextName} has {changeModel.PendingMigrations.Length} pending migrations. Last pending: {changeModel.LastPendingMigration}");
         scopedLog?.AddToActions($"{contextName} has {migrations.Length} total migrations");
-        scopedLog?.AddToActions($"{contextName} has has pending model changes");
+        scopedLog?.AddToActions($"{contextName} has pending model changes");
 
         var migrate = appSettings is { IsDevEnvironment: true, Features.AutoMigrateDevEnvironment: true };
         if (!migrate)
@@ -58,7 +74,6 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
                 scopedLog?.AddToActions($"existing {contextName} db is used for prototyping mode since there is no pending changes");
             return;
         }
-
 
         if (appSettings.Features.PrototypingMode && changeModel.HasPendingModelChangesForPrototypingMode)
         {
@@ -116,7 +131,7 @@ public class DbContextChangeModel
         LastPendingMigration = PendingMigrations.LastOrDefault() ?? "n/a";
         HasPendingMigrations = PendingMigrations.Length > 0;
         HasPendingModelChanges = hasPendingModelChanges;
-        
+
         HasPendingChanges = HasPendingMigrations || HasPendingModelChanges;
         UsePrototypeModeWhenMigrationExists = usePrototypeModeWhenMigrationExists;
         HasPendingModelChangesForPrototypingMode = (migrations.Length == 0 && hasPendingModelChanges) ||

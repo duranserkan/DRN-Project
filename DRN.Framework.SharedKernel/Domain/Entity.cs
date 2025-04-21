@@ -9,7 +9,8 @@ namespace DRN.Framework.SharedKernel.Domain;
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class EntityTypeIdAttribute(ushort id) : Attribute
-{ //todo add roselyn analyzer to check for conflicts and missing attributes
+{
+    //todo add roselyn analyzer to check for conflicts and missing attributes
     /// <summary>
     /// Application wide Unique Entity Type ID
     /// </summary>
@@ -59,6 +60,7 @@ public abstract class Entity
 
     [ConcurrencyCheck]
     public DateTimeOffset ModifiedAt { get; protected set; }
+
     public DateTimeOffset CreatedAt => EntityIdSource.Source.CreatedAt;
 
     protected void AddDomainEvent(DomainEvent? e)
@@ -67,9 +69,8 @@ public abstract class Entity
             DomainEvents.Add(e);
     }
 
-    internal void MarkAsCreated(long id)
+    internal void MarkAsCreated()
     {
-        Id = id;
         ModifiedAt = DateTimeOffset.UtcNow;
         AddDomainEvent(GetCreatedEvent());
     }

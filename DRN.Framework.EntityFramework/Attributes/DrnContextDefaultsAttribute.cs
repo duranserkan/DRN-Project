@@ -1,9 +1,9 @@
-using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -35,17 +35,12 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
     public override void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder builder, IServiceProvider? serviceProvider)
     {
         base.ConfigureDbContextOptions<TContext>(builder, serviceProvider);
+        
         // Each integration test will create its own internal service provider
-        if (TestEnvironment.TestContextEnabled)
-            builder.ConfigureWarnings(warnings => { });
-
-        var materializationInterceptor = serviceProvider?.GetRequiredService<IDrnMaterializationInterceptor>();
-        if (materializationInterceptor != null)
-            builder.AddInterceptors(materializationInterceptor);
-
-        var saveChangesInterceptor = serviceProvider?.GetRequiredService<DrnSaveChangesInterceptor>();
-        if (saveChangesInterceptor != null)
-            builder.AddInterceptors(saveChangesInterceptor);
+        //ManyServiceProvidersCreatedWarning is expected in integration tests
+        //DrnContextServiceRegistrationAttribute.PostStartupValidationAsync will test this case on normal startup
+        if (TestEnvironment.TestContextEnabled) 
+            builder.ConfigureWarnings(warnings => { warnings.Log(CoreEventId.ManyServiceProvidersCreatedWarning); }); 
 
         var scopedLog = serviceProvider?.GetRequiredService<IScopedLog>();
         builder.UseSnakeCaseNamingConvention().LogTo(LogWarning, [DbLoggerCategory.Name], LogLevel.Warning);
