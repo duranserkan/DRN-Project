@@ -19,14 +19,14 @@ public sealed class DataInlineAttribute(params object[] data) : DataAttribute
             var testContext = new TestContext(testMethod);
             var dataWithTestContext = new object[] { testContext }.Concat(data).ToArray();
             var testContextDataAttribute = new DataInlineNSubstituteAutoAttribute(dataWithTestContext);
-            
+
             return testContextDataAttribute.GetData(testMethod).Select(row =>
             {
                 ((TestContext)row[0]).MethodContext.SetTestData(row);
                 return row;
             }).ToArray();
         }
-        
+
         var dataAttribute = new DataInlineNSubstituteAutoAttribute(data);
         return dataAttribute.GetData(testMethod).ToArray();
     }

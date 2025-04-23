@@ -1,5 +1,6 @@
 namespace DRN.Framework.Utils.Numbers;
 
+//todo evaluate struct implementation/object pooling for high performance scenarios
 public abstract class NumberParserSignedBase(NumberBuildDirection direction, byte bitLength, byte residueBitLength, long value)
     : NumberParserBase(direction, bitLength, true, signedValue: value)
 {

@@ -1,5 +1,6 @@
 namespace Sample.Domain.Users;
 
+[EntityTypeId((int)SampleEntityTypeIds.User)]
 public class User : AggregateRoot
 {
     private User()

@@ -87,7 +87,6 @@
   <Folder Name="/Items/.github/workflows/actions/sonar-tools/">
     <File Path=".github\workflows\actions\sonar-tools\action.yml" />
   </Folder>
-  <Folder Name="/Src/" />
   <Folder Name="/Src/Framework/">
     <Project Path="DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" Type="Classic C#" />
     <Project Path="DRN.Framework.Hosting\DRN.Framework.Hosting.csproj" Type="Classic C#" />

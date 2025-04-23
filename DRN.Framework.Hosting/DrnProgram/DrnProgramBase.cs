@@ -5,6 +5,8 @@ using DRN.Framework.Hosting.Consent;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
+using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
+using DRN.Framework.Hosting.Utils;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.DependencyInjection;
@@ -21,8 +23,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using NetEscapades.AspNetCore.SecurityHeaders.Infrastructure;
 using Serilog;
 
@@ -58,10 +62,11 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             .CreateBootstrapLogger();
         var logger = bootstrapLogger.ForContext<TProgram>();
 
+        WebApplication? application = null;
         try
         {
             scopedLog.AddToActions("Creating Application");
-            var application = await CreateApplicationAsync(args, appSettings, scopedLog);
+            application = await CreateApplicationAsync(args, appSettings, scopedLog);
             scopedLog.Add(nameof(DrnAppFeatures.TemporaryApplication), appSettings.Features.TemporaryApplication);
             scopedLog.Add(nameof(DrnAppFeatures.SkipValidation), appSettings.Features.SkipValidation);
             scopedLog.Add(nameof(DrnAppFeatures.AutoMigrateDevEnvironment), appSettings.Features.AutoMigrateDevEnvironment);
@@ -79,6 +84,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         catch (Exception exception)
         {
             scopedLog.AddException(exception);
+            await TryCreateStartupExceptionReport(args, appSettings, scopedLog, exception, logger);
+
             throw;
         }
         finally
@@ -92,7 +99,54 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         }
     }
 
+    private static async Task TryCreateStartupExceptionReport(string[]? args, AppSettings appSettings, IScopedLog scopedLog, Exception exception, ILogger logger)
+    {
+        try
+        {
+            var (_, applicationBuilder) = await CreateApplicatiomBuilder(args, appSettings, scopedLog);
+            var services = applicationBuilder.Services.BuildServiceProvider();
+            var isDevelopment = services.GetService<IAppSettings>()?.IsDevEnvironment ?? false;
+            var handler = services.GetService<IDrnExceptionHandler>();
+            if (handler != null && isDevelopment)
+            {
+                var exceptionContentResult = await handler.GetExceptionContentAsync(services, exception, scopedLog);
+                if (exceptionContentResult != null)
+                {
+                    var directory = Path.GetDirectoryName(typeof(TProgram).Assembly.Location)!;
+                    var reportDirectory = Path.Combine(directory, "StartupReports");
+                    var wwwRootDirectory = Path.Combine(reportDirectory, "wwwroot");
+                    ResourceExtractor.CopyWwwrootResourcesToDirectory(wwwRootDirectory);
+                        
+                    //since the application is down, we should serve exception page scripts from somewhere else;
+                    var exceptionReportContent = exceptionContentResult.Content.Replace("/_content/DRN.Framework.Hosting", wwwRootDirectory);
+                        
+                    var reportPath = Path.Combine(directory, "StartupExceptionReport.html");
+                    var reportUrl = $"file://{reportPath}";
+                    await File.WriteAllTextAsync(reportPath, exceptionReportContent);
+                    scopedLog.Add("StartupExceptionReportPath", reportUrl);
+                    logger.Error(reportUrl);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            _ = e; // ignored
+        }
+    }
+
     public static async Task<WebApplication> CreateApplicationAsync(string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
+    {
+        var (program, applicationBuilder) = await CreateApplicatiomBuilder(args, appSettings, scopeLog);
+
+        var application = applicationBuilder.Build();
+        program.ConfigureApplication(application, appSettings);
+        program.ValidateEndpoints(application, appSettings);
+        program.ValidateServices(application, scopeLog);
+
+        return application;
+    }
+
+    private static async Task<(TProgram program, WebApplicationBuilder applicationBuilder)> CreateApplicatiomBuilder(string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
     {
         var program = new TProgram();
         var options = new WebApplicationOptions
@@ -108,13 +162,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         program.ConfigureApplicationBuilder(applicationBuilder, appSettings);
         await program.AddServicesAsync(applicationBuilder, appSettings, scopeLog);
-
-        var application = applicationBuilder.Build();
-        program.ConfigureApplication(application, appSettings);
-        program.ValidateEndpoints(application, appSettings);
-        program.ValidateServices(application, scopeLog);
-
-        return application;
+        return (program, applicationBuilder);
     }
 
     protected abstract Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings,

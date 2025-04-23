@@ -2,6 +2,7 @@ using Sample.Domain.QA.Questions;
 
 namespace Sample.Domain.QA.Tags;
 
+[EntityTypeId((int)SampleEntityTypeIds.Tag)]
 public class Tag : Entity
 {
     private Tag()

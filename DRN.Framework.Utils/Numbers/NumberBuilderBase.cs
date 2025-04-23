@@ -1,5 +1,6 @@
 namespace DRN.Framework.Utils.Numbers;
 
+//todo evaluate struct implementation/object pooling for high performance scenarios
 public abstract class NumberBuilderUnsignedBase(NumberBuildDirection direction, byte bitLength) : NumberBuilderBase(direction, bitLength, false)
 {
     protected override byte AvailableBitLength { get; } = bitLength;

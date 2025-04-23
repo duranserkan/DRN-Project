@@ -55,7 +55,8 @@ public static class SequenceManager<TEntity> where TEntity : class
 
         if (_timeScope.ScopeTimestamp != timeStamp)
             UpdateTimeScope();
-
+        
+        //todo: optionally generate instance Ids randomly to avoid predictability
         if (_timeScope.TryGetNextId(out var sequenceId))
             return new SequenceTimeScopedId(_timeScope.ScopeTimestamp, sequenceId);
 

@@ -18,7 +18,7 @@ public class ScopedLog : IScopedLog
     private readonly Lock _counter = new();
     private readonly Lock _list = new();
 
-    private ConcurrentDictionary<string, object> LogData { get; } = new(1, 32);
+    internal ConcurrentDictionary<string, object> LogData { get; set; } = new(1, 32);
 
     public ScopedLog(IAppSettings appSettings)
     {

@@ -2,6 +2,7 @@ using Sample.Domain.QA.Questions;
 
 namespace Sample.Domain.QA.Categories;
 
+[EntityTypeId((int)SampleEntityTypeIds.Category)]
 public class Category : AggregateRoot
 {
     private Category()

@@ -18,6 +18,7 @@ public abstract class DataSelfAttribute : DataAttribute
     protected void AddRow(params object[] data) => _data.Add(data);
 
     public override IEnumerable<object[]> GetData(MethodInfo testMethod) => _data.Count == 0
-            ? throw new ArgumentException($"{GetType().FullName} must contain test data to be used as ClassData for the test method named '{testMethod.Name}' on {testMethod.DeclaringType?.FullName ?? string.Empty}")
-            : _data.SelectMany(values => new DataInlineAttribute(values).GetData(testMethod)).ToArray();
+        ? throw new ArgumentException(
+            $"{GetType().FullName} must contain test data to be used as ClassData for the test method named '{testMethod.Name}' on {testMethod.DeclaringType?.FullName ?? string.Empty}")
+        : _data.SelectMany(values => new DataInlineAttribute(values).GetData(testMethod)).ToArray();
 }

@@ -19,7 +19,7 @@ public static class ObjectExtensions
             if (proxyIdInterceptor == null) return null;
 
             var proxyIdInterceptorFields = proxyIdInterceptor.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic);
-            var interceptedRuntimeType = Array.Find(proxyIdInterceptorFields,fieldInfo =>
+            var interceptedRuntimeType = Array.Find(proxyIdInterceptorFields, fieldInfo =>
                 fieldInfo.Name.Contains("primaryProxyType", StringComparison.OrdinalIgnoreCase))?.GetValue(proxyIdInterceptor) as Type;
 
             if (interceptedRuntimeType == null)

@@ -20,6 +20,9 @@ public interface ISourceKnownEntityIdUtils
 /// <summary>
 /// Embeds a keyed hash, a 16‑bit entity‑type, 16‑bit GUID markers, and a 64‑bit ID into a
 /// 128‑bit GUID, providing a reversible mapping with integrity checking.
+/// Add rate limit to endpoints that accepts SourceKnownEntityId from untrusted sources to prevent brute force attacks.
+/// Optionally, add randomness to instance id generation to improve brute force durability.
+/// If still not enough, don't enough source known ids, consider using a different id generation strategy such as true guid v4
 /// </summary>
 [Singleton<ISourceKnownEntityIdUtils>]
 public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUtils sourceKnownIdUtils) : ISourceKnownEntityIdUtils
@@ -29,16 +32,16 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     private const byte PayloadLength = 12; //4-15
 
     private const byte EntityTypeIdOffset = 4;
-    private const byte EntityTypeLength = 2; //4-5
+    private const byte EntityTypeLength = 2; //4-5 //todo: max 2048 entity should be enough, consider save bits for additional hash bits 
     private const ushort InvalidEntityTypeId = ushort.MaxValue;
-    
+
     //4D8D mark, Ensures that the source-known entityId is easily identifiable by humans and UUID V4 compatible
-    private const byte SourceKnownMarkerVersionByte = 0x4D; //6 | V4
+    private const byte SourceKnownMarkerVersionByte = 0x4D; //6 | V4 => V4 is used as a cover to prevent detection and ensure compatibility
     private const byte SourceKnownMarkerVariantByte = 0x8D; //7 | Variant RFC 4122
-    
+
     private const byte EntityIdOffset = 8;
     private const byte EntityIdLength = 8; // 8-15
-    
+
     private readonly IReadOnlyList<NexusMacKey> _macKeys = appSettings.Nexus.MacKeys;
     private readonly byte[] _defaultMacKey = appSettings.Nexus.GetDefaultMacKey().Key; // todo add keyring rotation 
 
@@ -48,7 +51,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     private SourceKnownEntityId Generate(long id, ushort entityTypeId)
     {
         Span<byte> guidBytes = stackalloc byte[16]; // Allocate 16 bytes on the stack for the GUID
-        
+
         //0-3 is reserved for Mac hash
         BinaryPrimitives.WriteUInt16LittleEndian(guidBytes.Slice(EntityTypeIdOffset, EntityTypeLength), entityTypeId); // 4-5
         guidBytes[6] = SourceKnownMarkerVersionByte; //6
@@ -78,11 +81,11 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
 
         Span<byte> expectedHashBytes = stackalloc byte[4];
         var actualHashBytes = guidBytes.Slice(HashOffset, HashLength);
-        
+
         using var hasher = Hasher.NewKeyed(_defaultMacKey); //consider object pooling for performance
         hasher.Update(guidBytes.Slice(EntityTypeIdOffset, PayloadLength)); //4-15
         hasher.Finalize(expectedHashBytes); //0-3
-        
+
         return expectedHashBytes.SequenceEqual(actualHashBytes)
             ? new SourceKnownEntityId(sourceKnownIdUtils.Parse(id), entityId, entityTypeId, true)
             : CreateInvalid(entityId);

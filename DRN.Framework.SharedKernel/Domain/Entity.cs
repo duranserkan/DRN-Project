@@ -5,7 +5,7 @@ using System.Reflection;
 namespace DRN.Framework.SharedKernel.Domain;
 
 /// <summary>
-/// Application wide Unique Entity Id
+/// Application wide Unique Entity Type Id
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class EntityTypeIdAttribute(ushort id) : Attribute
@@ -23,20 +23,18 @@ public abstract class Entity
 
     private static readonly ConcurrentDictionary<ushort, Type> IdToTypeMap = new();
 
-    //Todo: Scan assemblies at startup to detect conflicts proactively.
     public static ushort GetEntityTypeId<TEntity>() where TEntity : Entity => GetEntityTypeId(typeof(TEntity));
     public static ushort GetEntityTypeId<TEntity>(TEntity entity) where TEntity : Entity => GetEntityTypeId(entity.GetType());
 
-    private static ushort GetEntityTypeId(Type entityType) =>
-        TypeToIdMap.GetOrAdd(entityType, type =>
-        {
-            var attribute = type.GetCustomAttribute<EntityTypeIdAttribute>();
-            if (attribute == null)
-                throw new InvalidOperationException($"{type.Name} must use {nameof(EntityTypeIdAttribute)}");
+    public static ushort GetEntityTypeId(Type entityType) => TypeToIdMap.GetOrAdd(entityType, type =>
+    {
+        var attribute = type.GetCustomAttribute<EntityTypeIdAttribute>();
+        if (attribute == null)
+            throw new InvalidOperationException($"{type.Name} must use {nameof(EntityTypeIdAttribute)}");
 
-            EnsureUniqueId(type, attribute.Id);
-            return attribute.Id;
-        });
+        EnsureUniqueId(type, attribute.Id);
+        return attribute.Id;
+    });
 
     private static void EnsureUniqueId(Type newType, ushort newId) =>
         IdToTypeMap.AddOrUpdate( // Thread-safe check-or-add with value factory
@@ -49,7 +47,7 @@ public abstract class Entity
 
                 return existingType; // No change needed
             });
-
+    
     private List<IDomainEvent> DomainEvents { get; } = new(2);
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
     public long Id { get; internal set; }

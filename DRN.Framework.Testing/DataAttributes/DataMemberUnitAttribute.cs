@@ -17,7 +17,7 @@ public class DataMemberUnitAttribute(string methodName, params object[] methodPa
 
         return data;
     }
-    
+
     /// <inheritdoc />
     protected override object[]? ConvertDataItem(MethodInfo testMethod, object? item)
     {

@@ -9,12 +9,14 @@ using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 
 public interface IDrnExceptionHandler
 {
     Task HandleExceptionAsync(HttpContext context, Exception ex);
+    Task<ExceptionContentResult?> GetExceptionContentAsync(IServiceProvider serviceProvider, Exception exception, IScopedLog scopedLog);
 }
 
 [Scoped<IDrnExceptionHandler>]
@@ -49,6 +51,23 @@ public class DrnExceptionHandler(
             WriteDiagnosticEvent(diagnosticSource, eventName, new { httpContext = context, exception = ex });
     }
 
+    public async Task<ExceptionContentResult?> GetExceptionContentAsync(IServiceProvider serviceProvider, Exception exception, IScopedLog scopedLog)
+    {
+        using var requestServices = serviceProvider.CreateScope();
+        var context = new DefaultHttpContext
+        {
+            RequestServices = requestServices.ServiceProvider
+        };
+
+        var activeScopedLog = requestServices.ServiceProvider.GetService<IScopedLog>();
+        if (activeScopedLog != null)
+            ((ScopedLog)activeScopedLog).LogData = ((ScopedLog)scopedLog).LogData;
+
+        var model = await ExecuteExceptionPageModel(context, exception);
+        var result = await GetExceptionContentResult(context, exception, model);
+
+        return result;
+    }
 
     private static bool IsRequestCancelled(HttpContext context, Exception ex)
     {
@@ -68,33 +87,12 @@ public class DrnExceptionHandler(
     private async Task RenderErrorPageAsync(HttpContext context, Exception exception)
     {
         context.Response.StatusCode = context.Response.StatusCode < 1 ? 500 : context.Response.StatusCode;
-        
-        var skipPostCreationFilter = false;
-        foreach (var filter in filters)
-        {
-            var preFilterResult = await filter.HandlePreExceptionModelCreationAsync(context, exception);
-            if (preFilterResult.SkipExceptionHandling)
-                return;
-            if (preFilterResult.SkipPostCreationFilter)
-                skipPostCreationFilter = true;
-        }
 
-        DrnExceptionModel model = null!;
-        if (!skipPostCreationFilter)
-        {
-            model = await exceptionUtils.CreateErrorPageModelAsync(context, exception);
-            foreach (var filter in filters)
-            {
-                var postFilterResult = await filter.HandleExceptionAsync(context, exception, model);
-                if (postFilterResult.SkipExceptionHandling) return;
-            }
-        }
+        var model = await ExecuteExceptionPageModel(context, exception);
+        var result = await GetExceptionContentResult(context, exception, model);
 
-        if (appSettings.IsDevEnvironment)
+        if (appSettings.IsDevEnvironment && result != null)
         {
-            //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-9.0#database-error-page
-            var result = await contentProvider.CreatErrorContentResult(context, exception, model);
-            
             context.Response.ContentType = result.ContentType;
             await context.Response.WriteAsync(result.Content);
             return;
@@ -102,13 +100,58 @@ public class DrnExceptionHandler(
 
         //todo: prod exception page
         //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-9.0#exception-handler-page
-        
+
         var statusCode = ((HttpStatusCode)context.Response.StatusCode).ToString();
         await context.Response.WriteAsync($"{statusCode} {context.Response.StatusCode} TraceId: {context.TraceIdentifier}");
+    }
+
+    private async Task<ExceptionContentResult?> GetExceptionContentResult(HttpContext context, Exception exception, DrnExceptionModel? model)
+    {
+        if (!appSettings.IsDevEnvironment || model == null) return null;
+
+        //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-9.0#database-error-page
+        var result = await contentProvider.CreatErrorContentResult(context, exception, model);
+        return result;
+    }
+
+    private async Task<DrnExceptionModel?> ExecuteExceptionPageModel(HttpContext context, Exception exception)
+    {
+        var skipPostCreationFilter = false;
+        foreach (var filter in filters)
+        {
+            var preFilterResult = await filter.HandlePreExceptionModelCreationAsync(context, exception);
+            if (preFilterResult.SkipExceptionHandling)
+                return null;
+            if (preFilterResult.SkipPostCreationFilter)
+                skipPostCreationFilter = true;
+        }
+
+        var model = await exceptionUtils.CreateErrorPageModelAsync(context, exception);
+
+        if (!skipPostCreationFilter)
+        {
+            foreach (var filter in filters)
+            {
+                var postFilterResult = await filter.HandleExceptionAsync(context, exception, model);
+                if (postFilterResult.SkipExceptionHandling) return model;
+            }
+        }
+
+        return model;
     }
 
     [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
         Justification = "The values being passed into Write have the commonly used properties being preserved with DynamicDependency.")]
     private static void WriteDiagnosticEvent<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] TValue>(DiagnosticSource diagnosticSource,
-        string name, TValue value) => diagnosticSource.Write(name, value);
+        string name, TValue value)
+    {
+        try
+        {
+            diagnosticSource.Write(name, value);
+        }
+        catch
+        {
+            // ignored
+        }
+    }
 }

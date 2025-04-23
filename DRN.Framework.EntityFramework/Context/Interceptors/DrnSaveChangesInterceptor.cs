@@ -4,6 +4,7 @@ using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Ids;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using SourceKnownIdUtils = DRN.Framework.Utils.Ids.SourceKnownIdUtils;
 
 namespace DRN.Framework.EntityFramework.Context.Interceptors;
 
