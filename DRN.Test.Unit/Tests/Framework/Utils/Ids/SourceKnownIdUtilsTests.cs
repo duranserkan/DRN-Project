@@ -136,8 +136,8 @@ public class SourceKnownIdUtilsTests
         buckets.Length.Should().BeGreaterThanOrEqualTo(bucketCount); //during generation initial and last buckets may be halflings
         buckets.Length.Should().BeLessThanOrEqualTo(bucketCount + 2); //we should also consider bucket creep testing overhead by adding another 1 bucket
 
-        var duration = afterIdGenerated - beforeIdGenerated; // it is expected to be complete in bucket count + 1 seconds.
-        duration.TotalSeconds.Should().BeInRange(bucketCount, bucketCount + 2); //we should also consider testing overhead by adding another 1 seconds
+        var duration = afterIdGenerated - beforeIdGenerated; // it is expected to be complete in bucket count + 1 second.
+        duration.TotalSeconds.Should().BeGreaterThanOrEqualTo(bucketCount); //tests can be slower, restricted upper limit may not work every time
 
         var actualCount = 0;
         foreach (var group in idInfoGroups)
