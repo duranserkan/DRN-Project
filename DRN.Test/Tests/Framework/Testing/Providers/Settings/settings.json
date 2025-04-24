@@ -1,3 +1,4 @@
 {
+  "Environment": "Development",
   "AllowedHosts": "localhost"
 }

@@ -19,9 +19,9 @@ public class SourceKnownIdUtilsTests
         var epoch = SourceKnownIdUtils.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
         
-        await Task.Delay(1000);
+        await Task.Delay(1200);
         var id = SourceKnownIdUtils.Generate<object>(appId, appInstanceId);
-        await Task.Delay(1000);
+        await Task.Delay(1200);
         
         var afterIdGenerated = DateTimeOffset.UtcNow;
         var idInfo = SourceKnownIdUtils.ParseId(id);

@@ -1,3 +1,4 @@
 {
+  "Environment": "Development",
   "AllowedHosts": "127.0. 0.1"
 }
