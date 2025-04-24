@@ -5,6 +5,7 @@ using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Settings.Conventions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 
 namespace DRN.Framework.Hosting.Extensions;
 
@@ -36,8 +37,11 @@ public static class ConfigurationExtension
     {
         if (string.IsNullOrWhiteSpace(settingJsonName))
             settingJsonName = "appsettings";
+        var fileProvider = builder.Properties
+            .Where(pair => pair.Value.GetType() == typeof(PhysicalFileProvider))
+            .Select(pair => (PhysicalFileProvider)pair.Value).FirstOrDefault();
 
-        var environment = GetEnvironment(settingJsonName, args, sc);
+        var environment = GetEnvironment(settingJsonName, args, sc, fileProvider?.Root);
         builder.AddJsonFile($"{settingJsonName}.json", true);
         builder.AddJsonFile($"{settingJsonName}.{environment.ToString()}.json", true);
 
@@ -68,9 +72,12 @@ public static class ConfigurationExtension
             builder.AddCommandLine(args);
     }
 
-    private static AppEnvironment GetEnvironment(string settingJsonName, string[]? args, IServiceCollection? sc)
+    private static AppEnvironment GetEnvironment(string settingJsonName, string[]? args, IServiceCollection? sc, string? root)
     {
         var builder = new ConfigurationBuilder();
+        if (!string.IsNullOrEmpty(root))
+            builder.SetBasePath(root);
+
         builder.AddJsonFile($"{settingJsonName}.json", true);
         AddSettingsOverrides(builder, args, sc);
         var tempSettings = new AppSettings(builder.Build());
