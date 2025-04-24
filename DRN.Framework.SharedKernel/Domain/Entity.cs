@@ -8,25 +8,25 @@ namespace DRN.Framework.SharedKernel.Domain;
 /// Application wide Unique Entity Type Id
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class EntityTypeIdAttribute(ushort id) : Attribute
+public sealed class EntityTypeIdAttribute(byte id) : Attribute
 {
     //todo add roselyn analyzer to check for conflicts and missing attributes
     /// <summary>
     /// Application wide Unique Entity Type ID
     /// </summary>
-    public ushort Id { get; } = id;
+    public byte Id { get; } = id;
 }
 
-public abstract class Entity
+public abstract class Entity(long id = 0)
 {
-    private static readonly ConcurrentDictionary<Type, ushort> TypeToIdMap = new();
+    private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
 
-    private static readonly ConcurrentDictionary<ushort, Type> IdToTypeMap = new();
+    private static readonly ConcurrentDictionary<byte, Type> IdToTypeMap = new();
 
-    public static ushort GetEntityTypeId<TEntity>() where TEntity : Entity => GetEntityTypeId(typeof(TEntity));
-    public static ushort GetEntityTypeId<TEntity>(TEntity entity) where TEntity : Entity => GetEntityTypeId(entity.GetType());
+    public static byte GetEntityTypeId<TEntity>() where TEntity : Entity => GetEntityTypeId(typeof(TEntity));
+    public static byte GetEntityTypeId<TEntity>(TEntity entity) where TEntity : Entity => GetEntityTypeId(entity.GetType());
 
-    public static ushort GetEntityTypeId(Type entityType) => TypeToIdMap.GetOrAdd(entityType, type =>
+    public static byte GetEntityTypeId(Type entityType) => TypeToIdMap.GetOrAdd(entityType, type =>
     {
         var attribute = type.GetCustomAttribute<EntityTypeIdAttribute>();
         if (attribute == null)
@@ -36,7 +36,7 @@ public abstract class Entity
         return attribute.Id;
     });
 
-    private static void EnsureUniqueId(Type newType, ushort newId) =>
+    private static void EnsureUniqueId(Type newType, byte newId) =>
         IdToTypeMap.AddOrUpdate( // Thread-safe check-or-add with value factory
             newId,
             addValueFactory: id => newType,
@@ -47,10 +47,10 @@ public abstract class Entity
 
                 return existingType; // No change needed
             });
-    
+
     private List<IDomainEvent> DomainEvents { get; } = new(2);
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
-    public long Id { get; internal set; }
+    public long Id { get; internal set; } = id;
     public Guid EntityId => EntityIdSource.EntityId;
     public SourceKnownEntityId EntityIdSource { get; internal set; }
 

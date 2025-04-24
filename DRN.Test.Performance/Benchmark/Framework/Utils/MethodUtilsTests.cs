@@ -40,11 +40,19 @@ public class MethodUtilsBenchmark
 {
     private static readonly Type Type = typeof(MethodUtilsBenchmark);
 
+    //Todo benchmark instance methods
+
+    [Benchmark]
+    public object? NonGenericDirect() => Get();
+    
     [Benchmark]
     public MethodInfo NonGenericCached() => Type.FindNonGenericMethod("Get", 0, BindingFlag.StaticPublic);
 
     [Benchmark]
     public MethodInfo NonGenericUnCached() => Type.FindNonGenericMethodUncached("Get", 0, BindingFlag.StaticPublic);
+
+    [Benchmark]
+    public object? GenericDirect() => Get<MethodUtilsBenchmark>();
 
     [Benchmark]
     public MethodInfo GenericCached() => Type.FindGenericMethod("Get", [Type], 0, BindingFlag.StaticPublic);

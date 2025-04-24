@@ -7,7 +7,7 @@ public readonly record struct SourceKnownId(long Id, byte AppId, byte AppInstanc
     public override int GetHashCode() => Id.GetHashCode();
 }
 
-public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid EntityId, ushort EntityTypeId, bool Valid)
+public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid EntityId, byte EntityTypeId, bool Valid)
 {
     public bool Equals(SourceKnownEntityId other) => EntityId == other.EntityId;
 

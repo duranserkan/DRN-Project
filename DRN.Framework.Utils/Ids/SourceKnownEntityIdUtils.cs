@@ -2,6 +2,8 @@ using System.Buffers.Binary;
 using Blake3;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Extensions;
+using DRN.Framework.Utils.Numbers;
 using DRN.Framework.Utils.Settings;
 
 namespace DRN.Framework.Utils.Ids;
@@ -27,40 +29,58 @@ public interface ISourceKnownEntityIdUtils
 [Singleton<ISourceKnownEntityIdUtils>]
 public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUtils sourceKnownIdUtils) : ISourceKnownEntityIdUtils
 {
-    private const byte HashOffset = 0;
-    private const byte HashLength = 4; //0-3
-    private const byte PayloadLength = 12; //4-15
+    private const byte EntityIdFirstHalfOffset = 0;
+    private const byte EntityIdFirstHalfLength = 4; // 0-3
 
-    private const byte EntityTypeIdOffset = 4;
-    private const byte EntityTypeLength = 2; //4-5 //todo: max 2048 entity should be enough, consider save bits for additional hash bits 
-    private const ushort InvalidEntityTypeId = ushort.MaxValue;
+    private const byte EntityTypeIdIndex = 4; //4
+    private const byte InvalidEntityTypeId = byte.MaxValue;
+
+    //5 and 6 are reserved for hash
 
     //4D8D mark, Ensures that the source-known entityId is easily identifiable by humans and UUID V4 compatible
-    private const byte SourceKnownMarkerVersionByte = 0x4D; //6 | V4 => V4 is used as a cover to prevent detection and ensure compatibility
-    private const byte SourceKnownMarkerVariantByte = 0x8D; //7 | Variant RFC 4122
+    private const byte SourceKnownMarkerVersionIndex = 7;
+    private const byte SourceKnownMarkerVariantIndex = 8;
+    private const byte SourceKnownMarkerVersionByte = 0x4D; //7 | V4 => V4 is used as a cover to prevent detection and ensure compatibility 
+    private const byte SourceKnownMarkerVariantByte = 0x8D; //8 | Variant RFC 4122
 
-    private const byte EntityIdOffset = 8;
-    private const byte EntityIdLength = 8; // 8-15
+    //9, 10 and 11 are reserved for hash
+
+    private const byte EntityIdSecondHalfOffset = 12;
+    private const byte EntityIdSecondHalfLength = 4; // 12-15
 
     private readonly IReadOnlyList<NexusMacKey> _macKeys = appSettings.Nexus.MacKeys;
-    private readonly byte[] _defaultMacKey = appSettings.Nexus.GetDefaultMacKey().Key; // todo add keyring rotation 
+    private readonly byte[] _defaultMacKey = appSettings.Nexus.GetDefaultMacKey().KeyAsByteArray;  // todo add keyring rotation 
 
     public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : Entity => Generate(id, Entity.GetEntityTypeId<TEntity>());
     public SourceKnownEntityId Generate(Entity entity) => Generate(entity.Id, Entity.GetEntityTypeId(entity));
 
-    private SourceKnownEntityId Generate(long id, ushort entityTypeId)
+    private SourceKnownEntityId Generate(long id, byte entityTypeId)
     {
+        Span<byte> hashBytes = stackalloc byte[5];
         Span<byte> guidBytes = stackalloc byte[16]; // Allocate 16 bytes on the stack for the GUID
+        guidBytes.Clear();
 
-        //0-3 is reserved for Mac hash
-        BinaryPrimitives.WriteUInt16LittleEndian(guidBytes.Slice(EntityTypeIdOffset, EntityTypeLength), entityTypeId); // 4-5
-        guidBytes[6] = SourceKnownMarkerVersionByte; //6
-        guidBytes[7] = SourceKnownMarkerVariantByte; //7
-        BinaryPrimitives.WriteInt64LittleEndian(guidBytes.Slice(EntityIdOffset, EntityIdLength), id); //8-15
+        var idParser = LongUnsignedParser.Default((ulong)id);
+        var firstHalf = idParser.ReadUInt();
+        var secondHalf = idParser.ReadUInt();
+
+        BinaryPrimitives.WriteUInt32LittleEndian(guidBytes.Slice(EntityIdFirstHalfOffset, EntityIdFirstHalfLength), firstHalf); //0-3
+        guidBytes[EntityTypeIdIndex] = entityTypeId; //4
+        //5 and 6 are reserved for hash
+        guidBytes[SourceKnownMarkerVersionIndex] = SourceKnownMarkerVersionByte; //7
+        guidBytes[SourceKnownMarkerVariantIndex] = SourceKnownMarkerVariantByte; //8
+        //9, 10 and 11 are reserved for hash
+        BinaryPrimitives.WriteUInt32LittleEndian(guidBytes.Slice(EntityIdSecondHalfOffset, EntityIdSecondHalfLength), secondHalf); //12-15
 
         using var hasher = Hasher.NewKeyed(_defaultMacKey);
-        hasher.Update(guidBytes.Slice(EntityTypeIdOffset, PayloadLength)); //4-15
-        hasher.Finalize(guidBytes.Slice(HashOffset, HashLength)); //0-3
+        hasher.Update(guidBytes);
+        hasher.Finalize(hashBytes);
+
+        guidBytes[5] = hashBytes[3];
+        guidBytes[6] = hashBytes[4];
+        guidBytes[9] = hashBytes[0];
+        guidBytes[10] = hashBytes[1];
+        guidBytes[11] = hashBytes[2];
 
         var entityId = new Guid(guidBytes);
         var sourceKnownId = sourceKnownIdUtils.Parse(id);
@@ -71,20 +91,38 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     public SourceKnownEntityId Parse(Guid entityId)
     {
         Span<byte> guidBytes = stackalloc byte[16];
+        Span<byte> actualHashBytes = stackalloc byte[5];
+        Span<byte> expectedHashBytes = stackalloc byte[5];
+
         entityId.TryWriteBytes(guidBytes);
 
-        if (guidBytes[6] != SourceKnownMarkerVersionByte || guidBytes[7] != SourceKnownMarkerVariantByte)
+        actualHashBytes[3] = guidBytes[5];
+        actualHashBytes[4] = guidBytes[6];
+        actualHashBytes[0] = guidBytes[9];
+        actualHashBytes[1] = guidBytes[10];
+        actualHashBytes[2] = guidBytes[11];
+
+        if (guidBytes[SourceKnownMarkerVersionIndex] != SourceKnownMarkerVersionByte || guidBytes[SourceKnownMarkerVariantIndex] != SourceKnownMarkerVariantByte)
             return CreateInvalid(entityId);
 
-        var id = BinaryPrimitives.ReadInt64LittleEndian(guidBytes.Slice(EntityIdOffset, EntityIdLength));
-        var entityTypeId = BinaryPrimitives.ReadUInt16LittleEndian(guidBytes.Slice(EntityTypeIdOffset, EntityTypeLength));
+        var idFirstHalf = BinaryPrimitives.ReadUInt32LittleEndian(guidBytes.Slice(EntityIdFirstHalfOffset, EntityIdFirstHalfLength));
+        var idSecondHalf = BinaryPrimitives.ReadUInt32LittleEndian(guidBytes.Slice(EntityIdSecondHalfOffset, EntityIdSecondHalfLength));
+        var entityTypeId = guidBytes[EntityTypeIdIndex];
 
-        Span<byte> expectedHashBytes = stackalloc byte[4];
-        var actualHashBytes = guidBytes.Slice(HashOffset, HashLength);
+        var idBuilder = LongUnsignedBuilder.Default;
+        idBuilder.TryAddUInt(idFirstHalf);
+        idBuilder.TryAddUInt(idSecondHalf);
+        var id = (long)idBuilder.GetValue();
+
+        guidBytes[5] = 0;
+        guidBytes[6] = 0;
+        guidBytes[9] = 0;
+        guidBytes[10] = 0;
+        guidBytes[11] = 0;
 
         using var hasher = Hasher.NewKeyed(_defaultMacKey); //consider object pooling for performance
-        hasher.Update(guidBytes.Slice(EntityTypeIdOffset, PayloadLength)); //4-15
-        hasher.Finalize(expectedHashBytes); //0-3
+        hasher.Update(guidBytes);
+        hasher.Finalize(expectedHashBytes);
 
         return expectedHashBytes.SequenceEqual(actualHashBytes)
             ? new SourceKnownEntityId(sourceKnownIdUtils.Parse(id), entityId, entityTypeId, true)

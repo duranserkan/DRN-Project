@@ -2,5 +2,13 @@
   "Environment": "staging",
   "DrnAppFeatures": {
     "AutoMigrateDevEnvironment": true
+  },
+  "NexusAppSettings": {
+    "MacKeys": [
+      {
+        "Key": "wN2dC5sO7vtkXpQnYqRtJbZaUxLmKoMhH8GfP4yEI0k=",
+        "Default": true
+      }
+    ]
   }
 }

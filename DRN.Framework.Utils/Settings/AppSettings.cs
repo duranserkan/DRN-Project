@@ -3,6 +3,7 @@ using Blake3;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Encodings;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.Extensions.Configuration;
 
@@ -65,7 +66,7 @@ public class AppSettings : IAppSettings
 
         //Even if the application is not connected to nexus, we still need to add a default Mac key to make development easier.
         var key = Hasher.Hash(AppKey.ToByteArray()).AsSpan().ToArray();
-        ((List<NexusMacKey>)Nexus.MacKeys).Add(new NexusMacKey { Key = key, Default = true });
+        Nexus.AddNexusMacKey(new NexusMacKey(key) { Default = true });
     }
 
     public DrnAppFeatures Features { get; }

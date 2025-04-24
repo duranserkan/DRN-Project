@@ -35,7 +35,7 @@ public class QAContextTests
 
         qaContext.Questions.Add(question);
         await qaContext.SaveChangesAsync();
-        question.Id.Should().BePositive();
+        question.Id.Should().BeNegative();
 
         qaContext.Questions.Remove(question);
         await qaContext.SaveChangesAsync();
