@@ -62,7 +62,8 @@ public class AppSettings : IAppSettings
 
         var hasDefaultMacKey = Nexus.MacKeys.Any(k => k.Default);
         if (hasDefaultMacKey) return;
-        if (Environment != AppEnvironment.Development) throw new ConfigurationException("Default Mac Key not found.");
+        if (Environment != AppEnvironment.Development) 
+            throw new ConfigurationException($"Default Mac Key not found for the environment: {Environment.ToString()}");
 
         //Even if the application is not connected to nexus, we still need to add a default Mac key to make development easier.
         var key = Hasher.Hash(AppKey.ToByteArray()).AsSpan().ToArray();

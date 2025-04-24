@@ -2,7 +2,7 @@ using FluentAssertions;
 using Flurl;
 using Xunit;
 
-namespace DRN.Test.Unit.Tests;
+namespace DRN.Test.Unit;
 
 public class Sketch
 {
