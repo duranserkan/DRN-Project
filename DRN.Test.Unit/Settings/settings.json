@@ -6,5 +6,13 @@
   "PhilosophicalRazor": "Never attribute to malice that which can be adequately explained by incompetence or stupidity",
   "ConnectionStrings": {
     "Foo": "Bar"
+  },
+  "NexusAppSettings": {
+    "MacKeys": [
+      {
+        "Key": "wN2dC5sO7vVkXpQnYqRtJbZaUxLmKoMhH8GfP4yEI0k=",
+        "Default": true
+      }
+    ]
   }
 }
