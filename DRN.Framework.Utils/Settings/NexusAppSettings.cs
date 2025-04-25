@@ -14,7 +14,6 @@ public class NexusAppSettings
     //Nexus App will generate ids randomly in production
     public byte NexusAppId { get; init; }
     public byte NexusAppInstanceId { get; init; }
-
     
     public IReadOnlyList<NexusMacKey> MacKeys
     {

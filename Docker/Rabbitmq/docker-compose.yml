@@ -1,15 +1,14 @@
-version: '3'
 name: drn-rabbit
 services:
   # https://hub.docker.com/_/rabbitmq
   rabbit:
-    image: ${DOCKER_REGISTRY-}rabbit:3.12.2
+    image: ${DOCKER_REGISTRY-}rabbit:4.1.0
     build:
       context: ./image/
     container_name: drn-rabbit
     ports:
-      - 5672:5672
-      - 15672:15672
+      - "5672:5672"
+      - "15672:15672"
     volumes:
       - drn-rabbit-log:/var/log/rabbitmq/
       - drn-rabbit-lib:/var/lib/rabbitmq/

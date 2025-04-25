@@ -41,8 +41,8 @@ public class JsonMergePatchTests
     [Fact]
     public void Json_Should_Be_Merged_With_Array_Patch_Without_New_Copy()
     {
-        var original = JsonNode.Parse("""{"x": [1, 2, 3]}""");
-        var patch = JsonNode.Parse("""{"x": [4, 5]}""");
+        var original = JsonNode.Parse("""{"x": [1, 2, 3]}""")!;
+        var patch = JsonNode.Parse("""{"x": [4, 5]}""")!;
 
         var result = JsonMergePatch.SafeApplyMergePatch(original, patch, true);
         result.Changed.Should().BeTrue();
@@ -55,8 +55,8 @@ public class JsonMergePatchTests
     [Fact]
     public void Json_Should_Be_Merged_With_Array_Patch_With_New_Copy()
     {
-        var original = JsonNode.Parse("""{"x": [1, 2, 3]}""");
-        var patch = JsonNode.Parse("""{"x": [4, 5]}""");
+        var original = JsonNode.Parse("""{"x": [1, 2, 3]}""")!;
+        var patch = JsonNode.Parse("""{"x": [4, 5]}""")!;
 
         var result = JsonMergePatch.SafeApplyMergePatch(original, patch, false);
         result.Changed.Should().BeTrue();

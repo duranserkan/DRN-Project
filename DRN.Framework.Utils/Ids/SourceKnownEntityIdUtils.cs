@@ -2,7 +2,6 @@ using System.Buffers.Binary;
 using Blake3;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Numbers;
 using DRN.Framework.Utils.Settings;
 
@@ -22,7 +21,7 @@ public interface ISourceKnownEntityIdUtils
 /// <summary>
 /// Embeds a keyed hash, a 16‑bit entity‑type, 16‑bit GUID markers, and a 64‑bit ID into a
 /// 128‑bit GUID, providing a reversible mapping with integrity checking.
-/// Add rate limit to endpoints that accepts SourceKnownEntityId from untrusted sources to prevent brute force attacks.
+/// Add rate limit to endpoints that accept SourceKnownEntityId from untrusted sources to prevent brute force attacks.
 /// Optionally, add randomness to instance id generation to improve brute force durability.
 /// If still not enough, don't enough source known ids, consider using a different id generation strategy such as true guid v4
 /// </summary>
@@ -48,8 +47,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     private const byte EntityIdSecondHalfOffset = 12;
     private const byte EntityIdSecondHalfLength = 4; // 12-15
 
-    private readonly IReadOnlyList<NexusMacKey> _macKeys = appSettings.Nexus.MacKeys;
-    private readonly byte[] _defaultMacKey = appSettings.Nexus.GetDefaultMacKey().KeyAsByteArray;  // todo add keyring rotation 
+    private readonly byte[] _defaultMacKey = appSettings.Nexus.GetDefaultMacKey().KeyAsByteArray; // todo add keyring rotation 
 
     public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : Entity => Generate(id, Entity.GetEntityTypeId<TEntity>());
     public SourceKnownEntityId Generate(Entity entity) => Generate(entity.Id, Entity.GetEntityTypeId(entity));
@@ -129,5 +127,5 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
             : CreateInvalid(entityId);
     }
 
-    private SourceKnownEntityId CreateInvalid(Guid entityId) => new(default, entityId, InvalidEntityTypeId, false);
+    private static SourceKnownEntityId CreateInvalid(Guid entityId) => new(default, entityId, InvalidEntityTypeId, false);
 }

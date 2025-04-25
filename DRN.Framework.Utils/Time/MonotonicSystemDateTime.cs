@@ -34,7 +34,7 @@ public static class MonotonicSystemDateTime
     /// <summary>
     /// Disposes the resources used by the MonotonicSystemDateTime.
     /// </summary>
-    internal static void Dispose() => Instance.Dispose(); //disposing is not expected to harm unit and integration tests
+    internal static void Dispose() => Instance.Dispose();
 }
 
 public interface ISystemDateTime
@@ -42,8 +42,8 @@ public interface ISystemDateTime
     DateTimeOffset UtcNow { get; }
 }
 
-//MonotonicSystemDateTimeInstance is registered as service to ioc container with utils module without attribute
-public interface IMonotonicSystemDateTime : ISystemDateTime;
+//MonotonicSystemDateTimeInstance is registered as a service to ioc container with utils module without an attribute
+internal interface IMonotonicSystemDateTime : ISystemDateTime;
 
 [Singleton<ISystemDateTime>]
 public class DateTimeProvider : ISystemDateTime
@@ -105,8 +105,8 @@ public class MonotonicSystemDateTimeInstance : IMonotonicSystemDateTime
     /// </summary>
     private async Task CheckClockDriftAsync()
     {
-        //When positive it means monotonic clock is lagged behind the actual value
-        //When negative it means system clock is lagged behind the actual value
+        //When positive it means the monotonic clock is lagged behind the actual value
+        //When negative it means the system clock is lagged behind the actual value
         var systemTime = _timeProvider.UtcNow;
         var monotonicSystemTime = UtcNow;
         var drift = systemTime - monotonicSystemTime;
@@ -128,8 +128,8 @@ public class MonotonicSystemDateTimeInstance : IMonotonicSystemDateTime
         }
 
         // The MonotonicTime only moves forward even if it is not strict in this implementation
-        // When drift is negative and less than 1 minute, monotonic clock waits to catch system clock
-        // When drift is positive, monotonic clock is behind the system clock and can catch system clock directly, 
+        // When drift is negative and less than 1 minute, the monotonic clock waits to catch system clock
+        // When drift is positive, the monotonic clock is behind the system clock and can catch system clock directly, 
         if (drift <= TimeSpan.Zero)
             await Task.Delay(drift * -1 + TimeSpan.FromMicroseconds(2));
 
@@ -138,7 +138,7 @@ public class MonotonicSystemDateTimeInstance : IMonotonicSystemDateTime
             _stopwatch.Restart();
             _initialTime = _timeProvider.UtcNow;
         }
-        
+
         OnDriftCorrected?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
         OnDriftChecked?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
     }
@@ -146,7 +146,7 @@ public class MonotonicSystemDateTimeInstance : IMonotonicSystemDateTime
     /// <summary>
     /// Disposes the resources used by the MonotonicSystemDateTime.
     /// </summary>
-    internal void Dispose() => RecurringAction.Dispose();
+    public void Dispose() => RecurringAction.Dispose(); //disposing is will only stop drifting check, not stop the clock itself
 }
 
 public record DriftInfo(DateTimeOffset SystemDateTime, DateTimeOffset MonotonicSystemDateTime, TimeSpan Drift);

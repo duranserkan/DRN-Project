@@ -1,6 +1,6 @@
 namespace DRN.Framework.Utils.Time;
 
-public class RecurringAction : IDisposable
+public sealed class RecurringAction : IDisposable
 {
     private readonly Timer _timer;
     private readonly Func<Task> _actionAsync;
@@ -14,7 +14,7 @@ public class RecurringAction : IDisposable
     /// <param name="actionAsync">The action to be executed repeatedly.</param>
     /// <param name="period">The time, in milliseconds, between the end of one execution and the start of the next.</param>
     /// <param name="start">If set to <c>true</c>, the recurring action starts immediately.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="action"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="actionAsync"/> is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="period"/> is negative.</exception>
     public RecurringAction(Func<Task> actionAsync, int period, bool start = true)
     {
@@ -31,10 +31,10 @@ public class RecurringAction : IDisposable
             }
             catch (Exception)
             {
-                //ignore to prevent process crash
+                //ignore to prevent the process crash
             }
         }, null, Timeout.Infinite, Timeout.Infinite);
-        
+
         if (start) Start();
     }
 
@@ -43,12 +43,10 @@ public class RecurringAction : IDisposable
     /// <summary>
     /// Starts the recurring action.
     /// </summary>
-    /// <exception cref="ObjectDisposedException">Thrown when the instance has already been disposed.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the instance has already been disposed of.</exception>
     public void Start()
     {
-        if (_disposed == 1)
-            throw new ObjectDisposedException(nameof(RecurringAction));
-
+        ObjectDisposedException.ThrowIf(_disposed == 1, this);
 
         _timer.Change(0, Timeout.Infinite);
     }
@@ -57,7 +55,7 @@ public class RecurringAction : IDisposable
     {
         if (_disposed == 1)
             return;
-        
+
         try
         {
             _timer.Change(Timeout.Infinite, Timeout.Infinite);
@@ -67,11 +65,11 @@ public class RecurringAction : IDisposable
             // Ignore if already disposed
         }
     }
-    
-    
+
+
     private async Task TimerCallbackAsync()
     {
-        //Lock free atomic implementation,if _isRunning is 1 return, if not mark it as running
+        //Lock free atomic implementation, if _isRunning is 1 return, if not, mark it as running
         if (Interlocked.CompareExchange(ref _isRunning, 1, 0) == 1)
             return;
 
@@ -84,11 +82,10 @@ public class RecurringAction : IDisposable
             try
             {
                 OnActionFailed?.Invoke(ex);
-
             }
             catch (Exception)
             {
-                //ignore to prevent process crash
+                //ignore to prevent the process crash
             }
         }
         finally
@@ -110,7 +107,7 @@ public class RecurringAction : IDisposable
 
     public void Dispose()
     {
-        //Lock free atomic implementation,if _disposed is 1 return, if not mark it as disposed 
+        //Lock free atomic implementation, if _disposed is 1 return, if not, mark it as disposed 
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) == 1)
             return;
 

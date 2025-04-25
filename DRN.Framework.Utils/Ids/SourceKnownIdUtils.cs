@@ -26,8 +26,7 @@ public class SourceKnownIdUtils(IAppSettings appSettings) : ISourceKnownIdUtils
     //todo: make _epoch configurable at startup
     //todo: validate system time on startup
     public static readonly DateTimeOffset Epoch2025 = new(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
-    internal static DateTimeOffset DefaultEpoch = Epoch2025;
-    private static readonly Type EntityType = typeof(Entity);
+    internal static readonly DateTimeOffset DefaultEpoch = Epoch2025;
 
     public static long Generate<TEntity>(byte appId, byte appInstanceId) where TEntity : class
     {
@@ -76,7 +75,7 @@ public class SourceKnownIdUtils(IAppSettings appSettings) : ISourceKnownIdUtils
     public static SourceKnownId ParseId(long id, DateTimeOffset? epoch = null)
     {
         var parser = LongParser.Default(id);
-        
+
         var appId = (byte)parser.Read(6);
         var appInstanceId = (byte)parser.Read(5);
         var instanceId = parser.Read(21);

@@ -1,13 +1,12 @@
-version: "3"
-name: drn-postgre
+name: drn-postgres
 services:
   # https://hub.docker.com/_/postgres
-  postgre:
-    image: postgres:15.4-alpine3.18
-    container_name: drn-postgre
+  postgres:
+    image: postgres:17.4-alpine3.21
+    container_name: drn-postgres
     restart: unless-stopped
     volumes:
-      - drn-postgre-data:/data/postgres
+      - drn-postgres-data:/data/postgres
     ports:
       - "5432:5432"
     environment:
@@ -16,4 +15,4 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-drn}
       PGDATA: ${PGDATA:-/data/postgres}
 volumes:
-  drn-postgre-data:
+  drn-postgres-data:

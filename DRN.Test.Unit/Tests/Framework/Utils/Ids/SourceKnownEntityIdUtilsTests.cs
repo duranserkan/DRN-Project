@@ -42,7 +42,7 @@ public class SourceKnownEntityIdUtilsTests
         await Task.Delay(1000);
 
         var afterIdGenerated = DateTimeOffset.UtcNow;
-        
+
         entityId.Source.Id.Should().Be(longId);
         entityId.Valid.Should().BeTrue();
         entityId.Source.AppId.Should().Be(nexusSettings.NexusAppId);
@@ -75,7 +75,7 @@ public class SourceKnownEntityIdUtilsTests
     [EntityTypeId(200)]
     class XEntity(long id) : Entity(id);
 
-    private bool IsVersion4Rfc4122(Guid guid)
+    private static bool IsVersion4Rfc4122(Guid guid)
     {
         var bytes = guid.ToByteArray();
         // Check the version: high nibble of byte 7 should be 4

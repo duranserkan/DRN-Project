@@ -1,4 +1,3 @@
-version: '3'
 name: drn-graylog
 services:
   # https://github.com/Graylog2/docker-compose/blob/main/open-core/docker-compose.yml

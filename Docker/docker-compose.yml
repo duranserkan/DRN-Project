@@ -1,26 +1,25 @@
-version: '3'
 name: drn-infra
 services:
   # https://hub.docker.com/_/rabbitmq
   rabbit:
-    image: ${DOCKER_REGISTRY-}rabbit:3.12.2
+    image: ${DOCKER_REGISTRY-}rabbit:4.1.0
     build:
       context: ./Rabbitmq/image/
     container_name: drn-infra-rabbit
     ports:
-      - 5672:5672
-      - 15672:15672
+      - "5672:5672"
+      - "15672:15672"
     volumes:
       - drn-rabbit-log:/var/log/rabbitmq/
       - drn-rabbit-lib:/var/lib/rabbitmq/
       - drn-rabbit-etc:/etc/rabbitmq/
   # https://hub.docker.com/_/postgres
-  postgre:
-    image: postgres:15.4-alpine3.18
-    container_name: drn-infra-postgre
+  postgres:
+    image: postgres:17.4-alpine3.21
+    container_name: drn-infra-postgres
     restart: unless-stopped
     volumes:
-      - drn-postgre-data:/data/postgres
+      - drn-postgres-data:/data/postgres
     ports:
       - "5432:5432"
     environment:
@@ -106,7 +105,7 @@ volumes:
   drn-os-data:
   drn-graylog-data:
   drn-graylog-journal:
-  drn-postgre-data:
+  drn-postgres-data:
   drn-rabbit-log:
   drn-rabbit-lib:
   drn-rabbit-etc:

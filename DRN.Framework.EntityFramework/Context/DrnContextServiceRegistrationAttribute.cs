@@ -131,8 +131,8 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         var missingAttributes = entityTypeIdPairs.Where(pair => pair.Value == null).Select(pair => pair.Key.FullName!).ToArray();
         var duplicateAttributePairs = entityTypeIdPairs.Where(pair => pair.Value != null)
             .GroupBy(pair => pair.Value?.Id)
-            .OrderBy(group => group.Key)
             .Where(group => group.Count() > 1)
+            .OrderBy(group => group.Key)
             .SelectMany(group => group.Select(pair => new DuplicateEntityTypeIdValue(pair.Key.FullName!, pair.Value!.Id))).ToArray();
 
         var idValidation = new EntityTypeIdValidationResult(missingAttributes, duplicateAttributePairs);
