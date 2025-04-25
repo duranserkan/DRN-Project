@@ -37,6 +37,18 @@ public interface IAppSettings
 [Singleton<IAppSettings>]
 public class AppSettings : IAppSettings
 {
+    public static IAppSettings Development(params object[] settings)
+    {
+        var configurationBuilder = new ConfigurationManager()
+            .AddObjectToJsonConfiguration(new { Environment = "Development" });
+
+        foreach (var setting in settings)
+            configurationBuilder.AddObjectToJsonConfiguration(setting);
+
+        return new AppSettings(configurationBuilder.Build());
+    }
+
+
     public AppSettings(IConfiguration configuration)
     {
         Configuration = configuration;
@@ -62,7 +74,7 @@ public class AppSettings : IAppSettings
 
         var hasDefaultMacKey = Nexus.MacKeys.Any(k => k.Default);
         if (hasDefaultMacKey) return;
-        if (Environment != AppEnvironment.Development) 
+        if (Environment != AppEnvironment.Development)
             throw new ConfigurationException($"Default Mac Key not found for the environment: {Environment.ToString()}");
 
         //Even if the application is not connected to nexus, we still need to add a default Mac key to make development easier.

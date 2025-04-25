@@ -55,7 +55,7 @@ public static class SequenceManager<TEntity> where TEntity : class
 
         if (_timeScope.ScopeTimestamp != timeStamp)
             UpdateTimeScope();
-        
+
         //todo: optionally generate instance Ids randomly to avoid predictability
         if (_timeScope.TryGetNextId(out var sequenceId))
             return new SequenceTimeScopedId(_timeScope.ScopeTimestamp, sequenceId);
@@ -65,6 +65,8 @@ public static class SequenceManager<TEntity> where TEntity : class
             var newTimestamp = TimeStampManager.CurrentTimestamp(_epoch);
             if (timeStamp == newTimestamp)
             {
+                //todo tweak TimeStampManager.UpdatePeriod
+                //todo benchmark with update period 100ms, 10ms, 1ms, 0.1ms
                 Thread.Sleep(TimeStampManager.UpdatePeriod); //to prevent busy-waiting
                 continue;
             }
@@ -84,6 +86,7 @@ public static class SequenceManager<TEntity> where TEntity : class
         var newScope = new SequenceTimeScope(newTimestamp);
         while (true)
         {
+            //todo benchmark lock vs compare exchange
             Interlocked.CompareExchange(ref _timeScope, newScope, currentScope);
             if (_timeScope == newScope)
                 break;
@@ -99,11 +102,12 @@ public static class SequenceManager<TEntity> where TEntity : class
 
 public readonly record struct SequenceTimeScopedId(long TimeStamp, uint SequenceId);
 
+//todo include to SourceKnownIdUtilsPerformanceTests
 public class SequenceTimeScope(long scopeTimeStamp)
 {
     public const uint MaxValue = 2097151;
     public const uint MinValue = 0;
-    
+
     private int _lastId = -1;
     public long ScopeTimestamp { get; } = scopeTimeStamp;
 

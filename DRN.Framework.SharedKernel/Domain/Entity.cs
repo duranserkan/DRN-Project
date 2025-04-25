@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
+using System.Text.Json;
 
 namespace DRN.Framework.SharedKernel.Domain;
 
@@ -19,6 +20,7 @@ public sealed class EntityTypeIdAttribute(byte id) : Attribute
 
 public abstract class Entity(long id = 0)
 {
+    private const string EmptyJson = "{}";
     private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
 
     private static readonly ConcurrentDictionary<byte, Type> IdToTypeMap = new();
@@ -54,7 +56,9 @@ public abstract class Entity(long id = 0)
     public Guid EntityId => EntityIdSource.EntityId;
     public SourceKnownEntityId EntityIdSource { get; internal set; }
 
-    public string ExtendedProperties { get; protected set; } = null!;
+    public string ExtendedProperties { get; protected set; } = EmptyJson;
+    public TModel GetExtendedProperties<TModel>() => JsonSerializer.Deserialize<TModel>(ExtendedProperties)!;
+    public void SetExtendedProperties<TModel>(TModel extendedProperty) => JsonSerializer.Serialize(extendedProperty);
 
     [ConcurrencyCheck]
     public DateTimeOffset ModifiedAt { get; protected set; }

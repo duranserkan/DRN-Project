@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdGeneratorBenchmark-20250425-233202</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, macOS Sequoia 15.4.1 (24E263) [Darwin 24.4.0]
+Apple M2, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 9.0.203
+  [Host]     : .NET 9.0.4 (9.0.425.16305), Arm64 RyuJIT AdvSIMD
+  Job-QSTBML : .NET 9.0.4 (9.0.425.16305), Arm64 RyuJIT AdvSIMD
+</code></pre>
+<pre><code>OutlierMode=RemoveUpper  
+</code></pre>
+
+<table>
+<thead><tr><th>Method                            </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Median</th>
+</tr>
+</thead><tbody><tr><td>RandomLong</td><td>83.359 ns</td><td>0.1257 ns</td><td>0.1050 ns</td><td>83.378 ns</td>
+</tr><tr><td>RandomGuidV4</td><td>243.283 ns</td><td>3.2954 ns</td><td>3.0825 ns</td><td>242.817 ns</td>
+</tr><tr><td>RandomGuidV7</td><td>265.692 ns</td><td>0.6402 ns</td><td>0.4998 ns</td><td>265.587 ns</td>
+</tr><tr><td>MonotonicSystemDateTime_UtcNow</td><td>33.413 ns</td><td>0.0405 ns</td><td>0.0316 ns</td><td>33.400 ns</td>
+</tr><tr><td>TimeStampManager_TimeStamp</td><td>2.550 ns</td><td>0.0204 ns</td><td>0.0170 ns</td><td>2.543 ns</td>
+</tr><tr><td>SequenceManager_TimeScopedId</td><td>468.799 ns</td><td>9.3508 ns</td><td>10.7683 ns</td><td>472.412 ns</td>
+</tr><tr><td>SourceKnownId</td><td>472.068 ns</td><td>147.3063 ns</td><td>434.3359 ns</td><td>438.301 ns</td>
+</tr><tr><td>SourceKnownEntityId</td><td>473.237 ns</td><td>9.4908 ns</td><td>15.0535 ns</td><td>481.528 ns</td>
+</tr><tr><td>SourceKnownEntityIdWithProvidedLongValue</td><td>137.194 ns</td><td>0.7940 ns</td><td>0.7427 ns</td><td>137.264 ns</td>
+</tr></tbody></table>
+</body>
+</html>

@@ -64,10 +64,13 @@ public class SourceKnownIdUtils(IAppSettings appSettings) : ISourceKnownIdUtils
         return builder.GetValue();
     }
 
-    public long Next<TEntity>() where TEntity : class
-        => Next<TEntity>(appSettings.Nexus.NexusAppId, appSettings.Nexus.NexusAppInstanceId);
+    private readonly byte _nexusAppId = appSettings.Nexus.NexusAppId;
+    private readonly byte _nexusAppInstanceId = appSettings.Nexus.NexusAppId;
 
-    public long Next<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class
+    public long Next<TEntity>() where TEntity : class
+        => Next<TEntity>(_nexusAppId, _nexusAppInstanceId);
+
+    public long Next<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class 
         => Generate<TEntity>(appId, appInstanceId);
 
     public SourceKnownId Parse(long id, DateTimeOffset? epoch = null) => ParseId(id, epoch);
