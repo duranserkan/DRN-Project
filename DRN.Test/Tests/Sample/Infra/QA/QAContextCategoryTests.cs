@@ -16,11 +16,31 @@ public class QAContextCategoryTests
         
         var category1 = new Category("first category");
         var category2 = new Category("second category");
+
+        category1.Id.Should().Be(0);
+        category1.IsPendingInsert.Should().BeTrue();
+        
+        category2.Id.Should().Be(0);
+        category2.IsPendingInsert.Should().BeTrue();
         
         qaContext.Categories.Add(category1);
         qaContext.Categories.Add(category2);
         
+        category1.Id.Should().BeNegative();
+        category1.IsPendingInsert.Should().BeTrue();
+        
+        category2.Id.Should().BeNegative();
+        category2.IsPendingInsert.Should().BeTrue();
+        
+        var id1= category1.Id;
+        var id2 = category2.Id;
+        
         await qaContext.SaveChangesAsync();
+        
+        category1.Id.Should().Be(id1);
+        category1.IsPendingInsert.Should().BeFalse();
+        
+        category2.Id.Should().Be(id2);
+        category2.IsPendingInsert.Should().BeFalse();
     }
-
 }
