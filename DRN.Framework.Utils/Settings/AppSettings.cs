@@ -5,6 +5,7 @@ using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Encodings;
 using DRN.Framework.Utils.Extensions;
+using DRN.Framework.Utils.Ids;
 using Microsoft.Extensions.Configuration;
 
 namespace DRN.Framework.Utils.Settings;
@@ -12,7 +13,7 @@ namespace DRN.Framework.Utils.Settings;
 public interface IAppSettings
 {
     DrnAppFeatures Features { get; }
-    NexusAppSettings Nexus { get; }
+    NexusAppSettings NexusAppSettings { get; }
     AppEnvironment Environment { get; }
     bool IsDevEnvironment { get; }
     string ApplicationName { get; }
@@ -61,8 +62,13 @@ public class AppSettings : IAppSettings
 
 
         Features = Get<DrnAppFeatures>(nameof(DrnAppFeatures)) ?? new DrnAppFeatures();
-        Nexus = Get<NexusAppSettings>(nameof(NexusAppSettings)) ?? new NexusAppSettings();
+        NexusAppSettings = Get<NexusAppSettings>(nameof(Settings.NexusAppSettings)) ?? new NexusAppSettings();
 
+        if (NexusAppSettings.AppId > SourceKnownIdUtils.MaxAppId)
+            throw new ConfigurationException($"Nexus AppId must be less than 64: NexusAppId: {NexusAppSettings.AppId}");
+        if (NexusAppSettings.AppInstanceId > SourceKnownIdUtils.MaxAppInstanceId)
+            throw new ConfigurationException($"Nexus App Instance Id must be less than 32: NexusAppId: {NexusAppSettings.AppInstanceId}");
+        
         AppKey = ApplicationName.ToPascalCase();
         AppHashKeyLong = ("MKA " + ApplicationName + " " + Features.SeedKey + " DRN")
             .GetSha512Hash().Substring(18, 81).GetSha512Hash();
@@ -72,18 +78,18 @@ public class AppSettings : IAppSettings
         AppSeedLong = Features.SeedKey.GenerateLongSeedFromHash();
         AppSeedInt = Features.SeedKey.GenerateIntSeedFromHash();
 
-        var hasDefaultMacKey = Nexus.MacKeys.Any(k => k.Default);
+        var hasDefaultMacKey = NexusAppSettings.MacKeys.Any(k => k.Default);
         if (hasDefaultMacKey) return;
         if (Environment != AppEnvironment.Development)
             throw new ConfigurationException($"Default Mac Key not found for the environment: {Environment.ToString()}");
 
         //Even if the application is not connected to nexus, we still need to add a default Mac key to make development easier.
         var key = Hasher.Hash(AppKey.ToByteArray()).AsSpan().ToArray();
-        Nexus.AddNexusMacKey(new NexusMacKey(key) { Default = true });
+        NexusAppSettings.AddNexusMacKey(new NexusMacKey(key) { Default = true });
     }
 
     public DrnAppFeatures Features { get; }
-    public NexusAppSettings Nexus { get; }
+    public NexusAppSettings NexusAppSettings { get; }
     public AppEnvironment Environment { get; }
 
     public bool IsDevEnvironment => Environment == AppEnvironment.Development;

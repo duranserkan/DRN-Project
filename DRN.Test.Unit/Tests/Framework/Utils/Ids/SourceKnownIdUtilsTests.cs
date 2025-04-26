@@ -41,8 +41,8 @@ public class SourceKnownIdUtilsTests
     {
         var nexusSettings = new NexusAppSettings
         {
-            NexusAppId = 5,
-            NexusAppInstanceId = 12
+            AppId = 5,
+            AppInstanceId = 12
         };
 
         var customSettings = new
@@ -66,8 +66,8 @@ public class SourceKnownIdUtilsTests
         epoch.Should().BeBefore(beforeIdGenerated);
 
         var idInfo = generator.Parse(id);
-        idInfo.AppId.Should().Be(nexusSettings.NexusAppId);
-        idInfo.AppInstanceId.Should().Be(nexusSettings.NexusAppInstanceId);
+        idInfo.AppId.Should().Be(nexusSettings.AppId);
+        idInfo.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
 
         idInfo.CreatedAt.Should().BeBefore(afterIdGenerated);
         idInfo.CreatedAt.Should().BeAfter(beforeIdGenerated);
@@ -79,8 +79,8 @@ public class SourceKnownIdUtilsTests
     {
         var nexusSettings = new NexusAppSettings
         {
-            NexusAppId = 7,
-            NexusAppInstanceId = 24
+            AppId = 7,
+            AppInstanceId = 24
         };
 
         var customSettings = new
@@ -119,8 +119,8 @@ public class SourceKnownIdUtilsTests
         idInfos.Should().AllSatisfy(idInfo =>
         {
             idInfo.Id.Should().BeNegative();
-            idInfo.AppId.Should().Be(nexusSettings.NexusAppId);
-            idInfo.AppInstanceId.Should().Be(nexusSettings.NexusAppInstanceId);
+            idInfo.AppId.Should().Be(nexusSettings.AppId);
+            idInfo.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
 
             idInfo.CreatedAt.Should().BeBefore(afterIdGenerated);
             idInfo.CreatedAt.Should().BeAfter(beforeIdGenerated);

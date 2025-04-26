@@ -53,9 +53,6 @@
         <None Update="Tests\Framework\Testing\Providers\alternateSettings.json">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
-        <None Update="Tests\Framework\Utils\Configurations\settings.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
         <None Update="Tests\Framework\Hosting\MountDir\key-per-file-settings\postgres-password">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>

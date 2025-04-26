@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DRN.Test.Tests.Framework.Utils.Settings;
+namespace DRN.Test.Unit.Tests.Framework.Utils.Settings;
 
 public class ConnectionStringsCollectionTests
 {

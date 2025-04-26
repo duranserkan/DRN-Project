@@ -18,8 +18,8 @@ public class SourceKnownEntityIdUtilsTests
     {
         var nexusSettings = new NexusAppSettings
         {
-            NexusAppId = 5,
-            NexusAppInstanceId = 12
+            AppId = 5,
+            AppInstanceId = 12
         };
 
         var customSettings = new
@@ -45,14 +45,14 @@ public class SourceKnownEntityIdUtilsTests
 
         entityId.Source.Id.Should().Be(longId);
         entityId.Valid.Should().BeTrue();
-        entityId.Source.AppId.Should().Be(nexusSettings.NexusAppId);
-        entityId.Source.AppInstanceId.Should().Be(nexusSettings.NexusAppInstanceId);
+        entityId.Source.AppId.Should().Be(nexusSettings.AppId);
+        entityId.Source.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
         entityId.EntityTypeId.Should().Be(Entity.GetEntityTypeId<XEntity>());
         IsVersion4Rfc4122(entityId.EntityId).Should().BeTrue();
 
         var idInfo = idUtils.Parse(entityId.Source.Id);
-        idInfo.AppId.Should().Be(nexusSettings.NexusAppId);
-        idInfo.AppInstanceId.Should().Be(nexusSettings.NexusAppInstanceId);
+        idInfo.AppId.Should().Be(nexusSettings.AppId);
+        idInfo.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
         idInfo.CreatedAt.Should().BeBefore(afterIdGenerated);
         idInfo.CreatedAt.Should().BeAfter(beforeIdGenerated);
         epoch.Should().BeBefore(beforeIdGenerated);
@@ -63,8 +63,8 @@ public class SourceKnownEntityIdUtilsTests
 
         parsedSourceKnownEntityId.Source.Id.Should().Be(longId);
         parsedSourceKnownEntityId.Source.Id.Should().Be(entityId.Source.Id);
-        parsedSourceKnownEntityId.Source.AppId.Should().Be(nexusSettings.NexusAppId);
-        parsedSourceKnownEntityId.Source.AppInstanceId.Should().Be(nexusSettings.NexusAppInstanceId);
+        parsedSourceKnownEntityId.Source.AppId.Should().Be(nexusSettings.AppId);
+        parsedSourceKnownEntityId.Source.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
         parsedSourceKnownEntityId.Source.InstanceId.Should().Be(entityId.Source.InstanceId);
         parsedSourceKnownEntityId.Source.CreatedAt.Should().Be(entityId.Source.CreatedAt);
         parsedSourceKnownEntityId.Source.Should().Be(entityId.Source);

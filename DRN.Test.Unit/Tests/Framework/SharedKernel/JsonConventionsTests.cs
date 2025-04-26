@@ -1,10 +1,8 @@
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.SharedKernel.Json;
-using FluentAssertions;
-using Xunit;
 
-namespace DRN.Test.Tests.Framework.SharedKernel;
+namespace DRN.Test.Unit.Tests.Framework.SharedKernel;
 
 public class JsonConventionsTests
 {

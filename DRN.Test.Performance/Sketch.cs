@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Flurl;
 
-namespace DRN.Test.Unit.Tests;
+namespace DRN.Test.Performance;
 
 public class Sketch
 {

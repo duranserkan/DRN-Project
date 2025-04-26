@@ -27,6 +27,8 @@ public class SourceKnownIdUtils(IAppSettings appSettings) : ISourceKnownIdUtils
     //todo: validate system time on startup
     public static readonly DateTimeOffset Epoch2025 = new(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
     internal static readonly DateTimeOffset DefaultEpoch = Epoch2025;
+    public static byte MaxAppId => 63;
+    public static byte MaxAppInstanceId => 31;
 
     public static long Generate<TEntity>(byte appId, byte appInstanceId) where TEntity : class
     {
@@ -64,8 +66,8 @@ public class SourceKnownIdUtils(IAppSettings appSettings) : ISourceKnownIdUtils
         return builder.GetValue();
     }
 
-    private readonly byte _nexusAppId = appSettings.Nexus.NexusAppId;
-    private readonly byte _nexusAppInstanceId = appSettings.Nexus.NexusAppInstanceId;
+    private readonly byte _nexusAppId = appSettings.NexusAppSettings.AppId;
+    private readonly byte _nexusAppInstanceId = appSettings.NexusAppSettings.AppInstanceId;
 
     public long Next<TEntity>() where TEntity : class
         => Next<TEntity>(_nexusAppId, _nexusAppInstanceId);

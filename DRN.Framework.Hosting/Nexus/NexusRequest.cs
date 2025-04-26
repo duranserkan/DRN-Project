@@ -13,6 +13,6 @@ public interface INexusRequest
 [Singleton<INexusRequest>]
 public class NexusRequest(IInternalRequest request, IAppSettings settings) : INexusRequest
 {
-    private readonly string _nexusAddress = settings.Features.NexusAddress;
+    private readonly string _nexusAddress = settings.NexusAppSettings.NexusAddress;
     public IFlurlRequest For(string path) => request.For(_nexusAddress).AppendPathSegment(path);
 }

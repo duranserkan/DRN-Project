@@ -26,8 +26,8 @@ public class ScopedLog : IScopedLog
         Add(nameof(AppSettings.Environment), appSettings.Environment.ToString());
         Add(nameof(AppSettings.ApplicationName), appSettings.ApplicationName);
         Add(nameof(AppConstants.AppInstanceId), AppConstants.AppInstanceId);
-        Add(nameof(AppSettings.Nexus.NexusAppId), appSettings.Nexus.NexusAppId);
-        Add(nameof(AppSettings.Nexus.NexusAppInstanceId), appSettings.Nexus.NexusAppInstanceId);
+        Add(nameof(AppSettings.NexusAppSettings.AppId), appSettings.NexusAppSettings.AppId);
+        Add(nameof(AppSettings.NexusAppSettings.AppInstanceId), appSettings.NexusAppSettings.AppInstanceId);
         Add(nameof(Environment.MachineName), Environment.MachineName);
         Add(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeOffset.UtcNow);
     }

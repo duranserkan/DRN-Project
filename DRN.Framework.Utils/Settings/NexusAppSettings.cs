@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using DRN.Framework.Utils.Encodings;
 
 namespace DRN.Framework.Utils.Settings;
@@ -11,9 +10,11 @@ public class NexusAppSettings
     private IReadOnlyList<NexusMacKey> _macKeys = [];
     public static string GetKey(string shortKey) => $"{nameof(NexusAppSettings)}:{shortKey}";
 
+    public string NexusAddress { get; init; } = "nexus";
+
     //Nexus App will generate ids randomly in production
-    public byte NexusAppId { get; init; }
-    public byte NexusAppInstanceId { get; init; }
+    public byte AppId { get; init; }
+    public byte AppInstanceId { get; init; }
     
     public IReadOnlyList<NexusMacKey> MacKeys
     {
@@ -45,7 +46,7 @@ public class NexusMacKey
         KeyAsByteArray = keyAsByteArray;
     }
 
-    public string Key { get;  }
+    public string Key { get; }
     public byte[] KeyAsByteArray { get; }
     public bool Default { get; init; }
     public bool IsValid => Key.Length >= 32;

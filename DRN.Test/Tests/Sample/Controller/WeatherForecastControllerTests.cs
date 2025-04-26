@@ -18,7 +18,7 @@ public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
         var sampleForecasts = await client.GetFromJsonAsync<WeatherForecast[]>(weatherEndpoint);
         var appSettings = context.GetRequiredService<IAppSettings>();
 
-        context.FlurlHttpTest.ForCallsTo($"*{appSettings.Features.NexusAddress}/WeatherForecast").RespondWithJson(sampleForecasts);
+        context.FlurlHttpTest.ForCallsTo($"*{appSettings.NexusAppSettings.NexusAddress}/WeatherForecast").RespondWithJson(sampleForecasts);
 
         var nexusWeatherEndpoint = Get.Endpoint.Sample.WeatherForecast.GetNexusWeatherForecasts.RoutePattern;
         var nexusForecasts = await client.GetFromJsonAsync<WeatherForecast[]>(nexusWeatherEndpoint);
@@ -31,7 +31,7 @@ public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
         var appSettings = context.GetRequiredService<IAppSettings>();
-        var urlPattern = $"*{appSettings.Features.NexusAddress}/WeatherForecast";
+        var urlPattern = $"*{appSettings.NexusAppSettings.NexusAddress}/WeatherForecast";
         var nexusWeatherEndpoint = Get.Endpoint.Sample.WeatherForecast.GetNexusWeatherForecasts.RoutePattern;
 
         context.FlurlHttpTest.ForCallsTo(urlPattern).RespondWith("", 428);

@@ -1,4 +1,4 @@
-namespace DRN.Test.Tests.Framework.Utils.Configurations;
+namespace DRN.Test.Unit.Tests.Framework.Utils.Configurations;
 
 public class JsonSerializerConfigurationTests
 {

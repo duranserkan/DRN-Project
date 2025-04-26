@@ -44,5 +44,4 @@ public class DrnAppFeatures
     public string InternalRequestHttpVersion { get; init; } = "1.1";
     public string InternalRequestProtocol { get; init; } = "http";
     public bool UseHttpRequestLogger { get; init; } = false;
-    public string NexusAddress { get; init; } = "nexus";
 }
