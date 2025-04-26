@@ -10,5 +10,9 @@
     <ProjectReference Include="..\DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" />
     <ProjectReference Include="..\Sample.Domain\Sample.Domain.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="QA\Migrations\" />
+  </ItemGroup>
   
 </Project>

@@ -1,6 +1,6 @@
 using Sample.Infra.QA;
 
-namespace DRN.Test.Tests.Sample.Infra;
+namespace DRN.Test.Tests.Sample.Infra.QA;
 
 public class QAContextFactoryTest
 {

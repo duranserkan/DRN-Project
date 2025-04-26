@@ -3,7 +3,7 @@ using Sample.Domain.QA.Questions;
 namespace Sample.Domain.QA.Tags;
 
 [EntityTypeId((int)SampleEntityTypeIds.Tag)]
-public class Tag : Entity
+public class Tag : Entity<TagValueModel>
 {
     private Tag()
     {
@@ -16,8 +16,10 @@ public class Tag : Entity
 
     public string Name { get; private set; } = null!;
     public List<Question> Questions { get; private set; } = [];
+}
 
-    protected override EntityCreated? GetCreatedEvent() => null;
-    protected override EntityModified? GetModifiedEvent() => null;
-    protected override EntityDeleted? GetDeletedEvent() => null;
+public class TagValueModel
+{
+    public bool BoolValue { get; set; }
+    public string StringValue { get; set; } = string.Empty;
 }

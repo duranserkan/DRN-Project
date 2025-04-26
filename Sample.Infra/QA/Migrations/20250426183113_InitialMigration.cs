@@ -37,7 +37,8 @@ namespace Sample.Infra.QA.Migrations
                     id = table.Column<long>(type: "bigint", nullable: false),
                     name = table.Column<string>(type: "text", nullable: false),
                     extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "'{}'::jsonb"),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    model = table.Column<string>(type: "jsonb", nullable: false)
                 },
                 constraints: table =>
                 {

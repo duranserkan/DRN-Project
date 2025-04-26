@@ -22,8 +22,4 @@ public class AnswerComment : AggregateRoot
 
     public List<AnswerComment> Comments { get; private set; } = [];
 
-    protected override EntityCreated? GetCreatedEvent() => null;
-    protected override EntityModified? GetModifiedEvent() => null;
-    protected override EntityDeleted? GetDeletedEvent() => null;
-
 }

@@ -429,6 +429,35 @@ namespace Sample.Infra.QA.Migrations
                         .HasConstraintName("fk_comments_questions_question_id");
                 });
 
+            modelBuilder.Entity("Sample.Domain.QA.Tags.Tag", b =>
+                {
+                    b.OwnsOne("Sample.Domain.QA.Tags.TagValueModel", "Model", b1 =>
+                        {
+                            b1.Property<long>("TagId")
+                                .HasColumnType("bigint");
+
+                            b1.Property<bool>("BoolValue")
+                                .HasColumnType("boolean");
+
+                            b1.Property<string>("StringValue")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.HasKey("TagId");
+
+                            b1.ToTable("tags", "qa_context");
+
+                            b1.ToJson("model");
+
+                            b1.WithOwner()
+                                .HasForeignKey("TagId")
+                                .HasConstraintName("fk_tags_tags_id");
+                        });
+
+                    b.Navigation("Model")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Sample.Domain.QA.Answers.Answer", b =>
                 {
                     b.Navigation("Comments");

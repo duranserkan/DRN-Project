@@ -7,7 +7,7 @@ using Sample.Infra;
 using Sample.Infra.QA;
 using Sample.Infra.QB;
 
-namespace DRN.Test.Tests.Sample.Infra;
+namespace DRN.Test.Tests.Sample.Infra.QA;
 
 public class QAContextTests
 {
@@ -94,8 +94,22 @@ public class QAContextTests
 
         await task.Should().ThrowAsync<DbUpdateException>();
 
+        //test primary key conflicts
+
+        var category2 = new Category("duplicate");
+        typeof(Category).GetProperty(nameof(Category.Id), BindingFlag.Instance)
+            !.SetValue(category2, category.Id);
+
+        var duplicateCategoryAction = () =>
+        {
+            qaContext.Categories.Add(category2);
+            return qaContext.SaveChangesAsync();
+        };
+        await duplicateCategoryAction.Should().ThrowExactlyAsync<InvalidOperationException>();
+
+
         //test concurrency conflict on ModifiedAt
-        
+
         // 1) Load the same category in two separate context instances:
         using var scope1 = context.CreateScope();
         var sp1 = scope1.ServiceProvider;
@@ -111,11 +125,11 @@ public class QAContextTests
         // 2) Make a change & save in ctx1; this updates ModifiedAt in the database:
         cat1!.SetExtendedProperties(new NewProperties("FirstUpdate"));
         await ctx1.SaveChangesAsync();
-        
+
         // 3) Now make a (different) change on the stale cat2 and attempt to save:
         cat2!.SetExtendedProperties(new NewProperties("SecondUpdate"));
         Func<Task> saveStale = () => ctx2.SaveChangesAsync();
-        
+
         // 4) Assert that saving the stale copy throws a concurrency exception:
         await saveStale.Should().ThrowAsync<DbUpdateConcurrencyException>();
     }

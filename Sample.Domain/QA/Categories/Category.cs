@@ -16,8 +16,4 @@ public class Category : AggregateRoot
 
     public string Name { get; private set; } = null!;
     public List<Question> Questions { get; private set; } = [];
-
-    protected override EntityCreated? GetCreatedEvent() => null;
-    protected override EntityModified? GetModifiedEvent() => null;
-    protected override EntityDeleted? GetDeletedEvent() => null;
 }

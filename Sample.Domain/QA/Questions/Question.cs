@@ -31,8 +31,4 @@ public class Question : AggregateRoot
     public List<Tag> Tags { get; private set; } = [];
     public List<Answer> Answers { get; private set; } = [];
     public List<QuestionComment> Comments { get; private set; } = [];
-
-    protected override EntityCreated? GetCreatedEvent() => null;
-    protected override EntityModified? GetModifiedEvent() => null;
-    protected override EntityDeleted? GetDeletedEvent() => null;
 }
