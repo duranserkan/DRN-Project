@@ -23,7 +23,7 @@ internal static class DbContextExtensions
         var entities = modelBuilder.Model.GetEntityTypes()
             .Where(type => baseEntityType.IsAssignableFrom(type.ClrType) && type.ClrType != baseEntityType) // Exclude base class itself
             .Select(e => new EntityTypeBuilderPair(e.ClrType, modelBuilder.Entity(e.ClrType)));
-
+        //todo: add table per hierarchy and table per concrete type tests
         foreach (var (entityType, entityTypeBuilder) in entities)
         {
             // Autoconfigure common properties 
@@ -56,11 +56,11 @@ internal static class DbContextExtensions
             var ownedTypeName = nameof(Entity<object>.Model);
 
             entityTypeBuilder.OwnsOne(ownedType, ownedTypeName, builder => builder.ToJson());
-            
+
             //todo evaluate soft delete
         }
     }
-    
+
     public static TContext CreateDbContext<TContext>(this string[] args) where TContext : DbContext
     {
         var connectionString = args.FirstOrDefault()!;

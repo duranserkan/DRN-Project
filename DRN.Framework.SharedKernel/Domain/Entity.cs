@@ -18,6 +18,16 @@ public sealed class EntityTypeIdAttribute(byte id) : Attribute
     public byte Id { get; } = id;
 }
 
+public interface IEntityWithModel<TModel> where TModel : class
+{
+    TModel Model { get; set; }
+}
+
+public abstract class Entity<TModel>(long id = 0) : Entity(id), IEntityWithModel<TModel> where TModel : class
+{
+    public TModel Model { get; set; } = null!;
+}
+
 /// <summary>
 /// Represents the base class for entities, encompassing identity, lifecycle events,
 /// and extended property capabilities within the domain model.

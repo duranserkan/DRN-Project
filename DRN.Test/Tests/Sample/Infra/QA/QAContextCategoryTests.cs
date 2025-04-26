@@ -18,8 +18,8 @@ public class QAContextCategoryTests
         var category2 = new Category("second category");
         
         qaContext.Categories.Add(category1);
-        
         qaContext.Categories.Add(category2);
+        
         await qaContext.SaveChangesAsync();
     }
 
