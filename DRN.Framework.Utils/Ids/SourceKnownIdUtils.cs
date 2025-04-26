@@ -65,7 +65,7 @@ public class SourceKnownIdUtils(IAppSettings appSettings) : ISourceKnownIdUtils
     }
 
     private readonly byte _nexusAppId = appSettings.Nexus.NexusAppId;
-    private readonly byte _nexusAppInstanceId = appSettings.Nexus.NexusAppId;
+    private readonly byte _nexusAppInstanceId = appSettings.Nexus.NexusAppInstanceId;
 
     public long Next<TEntity>() where TEntity : class
         => Next<TEntity>(_nexusAppId, _nexusAppInstanceId);
