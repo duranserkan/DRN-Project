@@ -18,6 +18,17 @@ public sealed class EntityTypeIdAttribute(byte id) : Attribute
     public byte Id { get; } = id;
 }
 
+/// <summary>
+/// Represents the base class for entities, encompassing identity, lifecycle events,
+/// and extended property capabilities within the domain model.
+/// </summary>
+/// <param name="id">Should be source known id. If not set DrnContext will provide one on saving changes by default</param>
+/// <remarks>
+/// The <c>Entity</c> class provides foundational functionality for domain entities,
+/// including managing identifiers, domain events, and metadata. It supports equality
+/// comparison by reference or identifier and includes mechanisms for state tracking
+/// through domain events.
+/// </remarks>
 public abstract class Entity(long id = 0)
 {
     private const string EmptyJson = "{}";
@@ -41,7 +52,7 @@ public abstract class Entity(long id = 0)
     private static void EnsureUniqueId(Type newType, byte newId) =>
         IdToTypeMap.AddOrUpdate( // Thread-safe check-or-add with value factory
             newId,
-            addValueFactory: id => newType,
+            addValueFactory: _ => newType,
             updateValueFactory: (id, existingType) =>
             {
                 if (existingType != newType)
@@ -56,7 +67,7 @@ public abstract class Entity(long id = 0)
     public Guid EntityId => EntityIdSource.EntityId;
     public SourceKnownEntityId EntityIdSource { get; internal set; }
 
-    public string ExtendedProperties { get; protected set; } = EmptyJson;
+    public string ExtendedProperties { get; set; } = EmptyJson;
     public TModel GetExtendedProperties<TModel>() => JsonSerializer.Deserialize<TModel>(ExtendedProperties)!;
     public void SetExtendedProperties<TModel>(TModel extendedProperty) => ExtendedProperties = JsonSerializer.Serialize(extendedProperty);
 
@@ -73,7 +84,7 @@ public abstract class Entity(long id = 0)
 
     internal void MarkAsCreated()
     {
-        ModifiedAt = DateTimeOffset.UtcNow;
+        ModifiedAt = CreatedAt;
         AddDomainEvent(GetCreatedEvent());
     }
 
