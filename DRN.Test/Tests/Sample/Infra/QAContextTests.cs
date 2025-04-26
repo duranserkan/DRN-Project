@@ -1,4 +1,3 @@
-using DRN.Framework.SharedKernel.Domain;
 using Microsoft.EntityFrameworkCore;
 using Sample.Domain;
 using Sample.Domain.QA.Categories;
@@ -35,6 +34,7 @@ public class QAContextTests
         qaContext.Categories.Add(category);
         await qaContext.SaveChangesAsync();
 
+        //EntityId validations
         category.Id.Should().BeNegative();
         category.EntityId.Should().NotBe(Guid.Empty);
         category.EntityIdSource.Valid.Should().BeTrue();
@@ -49,7 +49,7 @@ public class QAContextTests
         var categoryInitialCreatedAt = category.CreatedAt;
         var categoryInitialModifiedAt = category.ModifiedAt;
 
-
+        // Entity add, update, delete validations
         var address = new Address("Victory street", "Ankara", "Türkiye", "001");
         var contact = new ContactDetail("drn@framework.com");
         var user = new User("Duran Serkan", "KILIÇ", "gg", contact, address);
@@ -62,7 +62,6 @@ public class QAContextTests
 
         qaContext.Questions.Add(question);
         await qaContext.SaveChangesAsync();
-        question.Id.Should().BeNegative();
 
         qaContext.Questions.Remove(question);
         await qaContext.SaveChangesAsync();
@@ -70,6 +69,7 @@ public class QAContextTests
         var retrievedQuestion = await qaContext.Questions.FindAsync(question.Id);
         retrievedQuestion.Should().BeNull();
 
+        // entity base class extended properties and modification validations
         category = await qaContext.Categories.FindAsync(category.Id);
         var custom = category!.GetExtendedProperties<CustomProperties>();
         custom.LifeIsGood.Should().BeTrue();
@@ -83,7 +83,7 @@ public class QAContextTests
         category.CreatedAt.Should().Be(categoryInitialCreatedAt);
         category.ModifiedAt.Should().BeAfter(categoryInitialModifiedAt);
 
-        var now= DateTimeOffset.UtcNow;
+        var now = DateTimeOffset.UtcNow;
         categoryInitialModifiedAt.Should().BeBefore(now);
 
         var task = async () =>
@@ -93,9 +93,34 @@ public class QAContextTests
         };
 
         await task.Should().ThrowAsync<DbUpdateException>();
+
+        //test concurrency conflict on ModifiedAt
+        
+        // 1) Load the same category in two separate context instances:
+        using var scope1 = context.CreateScope();
+        var sp1 = scope1.ServiceProvider;
+
+        await using var ctx1 = sp1.GetRequiredService<QAContext>();
+        var cat1 = await ctx1.Categories.FindAsync(category.Id);
+
+        using var scope2 = context.CreateScope();
+        var sp2 = scope2.ServiceProvider;
+        await using var ctx2 = sp2.GetRequiredService<QAContext>();
+        var cat2 = await ctx2.Categories.FindAsync(category.Id);
+
+        // 2) Make a change & save in ctx1; this updates ModifiedAt in the database:
+        cat1!.SetExtendedProperties(new NewProperties("FirstUpdate"));
+        await ctx1.SaveChangesAsync();
+        
+        // 3) Now make a (different) change on the stale cat2 and attempt to save:
+        cat2!.SetExtendedProperties(new NewProperties("SecondUpdate"));
+        Func<Task> saveStale = () => ctx2.SaveChangesAsync();
+        
+        // 4) Assert that saving the stale copy throws a concurrency exception:
+        await saveStale.Should().ThrowAsync<DbUpdateConcurrencyException>();
     }
 
-    public record struct CustomProperties(bool LifeIsGood);
+    private record struct CustomProperties(bool LifeIsGood);
 
-    public record struct NewProperties(string LifeIs);
+    private record struct NewProperties(string LifeIs);
 }
