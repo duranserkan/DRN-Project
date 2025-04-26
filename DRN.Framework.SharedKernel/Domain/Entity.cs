@@ -58,7 +58,7 @@ public abstract class Entity(long id = 0)
 
     public string ExtendedProperties { get; protected set; } = EmptyJson;
     public TModel GetExtendedProperties<TModel>() => JsonSerializer.Deserialize<TModel>(ExtendedProperties)!;
-    public void SetExtendedProperties<TModel>(TModel extendedProperty) => JsonSerializer.Serialize(extendedProperty);
+    public void SetExtendedProperties<TModel>(TModel extendedProperty) => ExtendedProperties = JsonSerializer.Serialize(extendedProperty);
 
     [ConcurrencyCheck]
     public DateTimeOffset ModifiedAt { get; protected set; }
