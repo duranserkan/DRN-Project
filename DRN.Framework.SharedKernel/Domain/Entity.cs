@@ -112,7 +112,7 @@ public abstract class Entity(long id = 0)
     protected virtual EntityModified? GetModifiedEvent() => null;
     protected virtual EntityDeleted? GetDeletedEvent() => null;
 
-    private bool Equals(Entity other) => EntityIdSource == other.EntityIdSource;
+    private bool Equals(Entity other) => !IsPendingInsert && EntityIdSource == other.EntityIdSource;
     public override bool Equals(object? obj) => ReferenceEquals(this, obj) || obj is Entity other && Equals(other);
     public override int GetHashCode() => EntityIdSource.GetHashCode();
     public static bool operator ==(Entity? left, Entity? right) => Equals(left, right);
