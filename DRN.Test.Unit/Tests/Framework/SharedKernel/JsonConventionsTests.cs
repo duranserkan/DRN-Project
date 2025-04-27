@@ -10,12 +10,43 @@ public class JsonConventionsTests
     public void JsonSerializer_Should_Use_Updated_Conventions()
     {
         JsonSerializerOptions.Default.Should().Be(JsonConventions.DefaultOptions);
-        var enumTest = JsonSerializer.Deserialize<EnumTest>(@"{""environment"":""Production""}")!;
-        enumTest.Environment.Should().Be(AppEnvironment.Production);
+        var payload = $$"""
+                        {
+                        "environment":"Production", 
+                        "MaxValue":{{long.MaxValue}},
+                        "MaxValueQuoted":"{{long.MaxValue}}",
+                        "MinValue":{{long.MinValue}},
+                        "MinValueQuoted":"{{long.MinValue}}",
+                        "ZeroValue": 0,
+                        "ZeroValueQuoted": "0",
+                        }
+                        """;
+
+        var testModel = JsonSerializer.Deserialize<TestModel>(payload)!;
+        testModel.Environment.Should().Be(AppEnvironment.Production);
+        testModel.MaxValue.Should().Be(long.MaxValue);
+        testModel.MaxValueQuoted.Should().Be(long.MaxValue);
+        testModel.MinValue.Should().Be(long.MinValue);
+        testModel.MinValueQuoted.Should().Be(long.MinValue);
+        testModel.ZeroValue.Should().Be(0);
+        testModel.ZeroValueQuoted.Should().Be(0);
+        
+        var payload2 = JsonSerializer.Serialize(testModel);
+        
+        var testModel2 = JsonSerializer.Deserialize<TestModel>(payload2)!;
+        
+        testModel2.Should().BeEquivalentTo(testModel);
     }
-    
-    public class EnumTest
+
+
+    public class TestModel
     {
         public AppEnvironment Environment { get; set; }
+        public long MaxValue { get; set; }
+        public long MaxValueQuoted { get; set; }
+        public long MinValue { get; set; }
+        public long MinValueQuoted { get; set; }
+        public long ZeroValue { get; set; }
+        public long ZeroValueQuoted { get; set; }
     }
 }

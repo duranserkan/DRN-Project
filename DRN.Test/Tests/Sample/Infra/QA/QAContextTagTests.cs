@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tags;
 using Sample.Infra;
 using Sample.Infra.QA;
@@ -17,12 +18,28 @@ public class QAContextTagTests
 
         var firstTag = new Tag("firstTag")
         {
-            Model = new TagValueModel { BoolValue = true, StringValue = "firstTagValue" }
+            Model = new TagValueModel
+            {
+                BoolValue = true,
+                StringValue = "firstTagValue",
+                Max = long.MaxValue,
+                Min = long.MinValue,
+                Other = 0,
+                Type = TagType.System
+            }
         };
-        
+
         var secondTag = new Tag("secondTag")
         {
-            Model = new TagValueModel { BoolValue = false, StringValue = "secondTagValue" }
+            Model = new TagValueModel
+            {
+                BoolValue = false,
+                StringValue = "secondTagValue",
+                Max = int.MaxValue,
+                Min = int.MinValue,
+                Other = uint.MaxValue,
+                Type = TagType.User
+            }
         };
 
         qaContext.Tags.Add(firstTag);
@@ -33,7 +50,7 @@ public class QAContextTagTests
         tagFromDb.Should().NotBeNull();
         tagFromDb.Name.Should().Be(firstTag.Name);
         tagFromDb.Model.Should().BeEquivalentTo(firstTag.Model);
-        
+
         var tagFromDb2 = await qaContext.Tags.FindAsync(secondTag.Id);
         tagFromDb2.Should().NotBeNull();
         tagFromDb2.Name.Should().Be(secondTag.Name);
@@ -43,16 +60,16 @@ public class QAContextTagTests
         var modelBool2Query = qaContext.Tags.Where(t => t.Model.BoolValue == false);
         var modelString1Query = qaContext.Tags.Where(t => t.Model.StringValue == firstTag.Model.StringValue);
         var modelString2Query = qaContext.Tags.Where(t => t.Model.StringValue == secondTag.Model.StringValue);
-        
+
         var sqlQueries = new[] { modelBool1Query.ToQueryString(), modelBool2Query.ToQueryString(), modelString1Query.ToQueryString(), modelString2Query.ToQueryString() };
         sqlQueries.Distinct().Count().Should().Be(4);
-        
+
         var tagFromBool1Query = await modelBool1Query.SingleAsync();
         tagFromBool1Query.Model.Should().BeEquivalentTo(firstTag.Model);
 
         var tagFromBool2Query = await modelBool2Query.SingleAsync();
         tagFromBool2Query.Model.Should().BeEquivalentTo(secondTag.Model);
-        
+
         var tagFromString1Query = await modelString1Query.SingleAsync();
         tagFromString1Query.Model.Should().BeEquivalentTo(firstTag.Model);
 

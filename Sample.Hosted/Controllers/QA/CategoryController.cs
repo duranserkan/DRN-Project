@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Sample.Contract.QA.Category;
+using Sample.Contract.QA.Categories;
 using Sample.Domain.QA.Categories;
 using Sample.Infra.QA;
 

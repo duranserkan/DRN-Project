@@ -19,7 +19,8 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
     public override void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder, IServiceProvider? serviceProvider) => builder
         .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
         .MigrationsAssembly(typeof(TContext).Assembly.FullName)
-        .MigrationsHistoryTable($"{typeof(TContext).Name.ToSnakeCase()}_history", "__entity_migrations");
+        .MigrationsHistoryTable($"{typeof(TContext).Name.ToSnakeCase()}_history", "__entity_migrations")
+        .SetPostgresVersion(17,4);
 
     public override void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider serviceProvider)
     {
@@ -38,7 +39,7 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
         
         // Each integration test will create its own internal service provider
         //ManyServiceProvidersCreatedWarning is expected in integration tests
-        //DrnContextServiceRegistrationAttribute.PostStartupValidationAsync will test this case on normal startup
+        //DrnContextServiceRegistrationAttribute.PostStartupValidationAsync will test this case on a normal startup
         if (TestEnvironment.TestContextEnabled) 
             builder.ConfigureWarnings(warnings => { warnings.Log(CoreEventId.ManyServiceProvidersCreatedWarning); }); 
 

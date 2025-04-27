@@ -42,5 +42,13 @@ public class QAContextCategoryTests
         
         category2.Id.Should().Be(id2);
         category2.IsPendingInsert.Should().BeFalse();
+        
+        var categoryFromDb1 = await qaContext.Categories.FindAsync(category1.Id);
+        categoryFromDb1.Should().NotBeNull();
+        categoryFromDb1.Name.Should().Be(category1.Name);
+        
+        var categoryFromDb2 = await qaContext.Categories.FindAsync(category2.Id);
+        categoryFromDb2.Should().NotBeNull();
+        categoryFromDb2.Name.Should().Be(category2.Name);
     }
 }

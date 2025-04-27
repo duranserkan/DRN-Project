@@ -1,3 +1,4 @@
+using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Questions;
 
 namespace Sample.Domain.QA.Tags;
@@ -16,10 +17,4 @@ public class Tag : Entity<TagValueModel>
 
     public string Name { get; private set; } = null!;
     public List<Question> Questions { get; private set; } = [];
-}
-
-public class TagValueModel
-{
-    public bool BoolValue { get; set; }
-    public string StringValue { get; set; } = string.Empty;
 }

@@ -1,4 +1,4 @@
-namespace Sample.Contract.QA.Category;
+namespace Sample.Contract.QA.Categories;
 
 public class CategoryPostRequest
 {

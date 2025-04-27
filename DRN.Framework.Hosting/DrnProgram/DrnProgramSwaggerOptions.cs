@@ -62,7 +62,7 @@ public class DrnProgramSwaggerOptions
 
         options.AddSecurityDefinition("Bearer", openApiSecurityScheme);
 
-        var requirement = new OpenApiSecurityRequirement { { openApiSecurityScheme, Array.Empty<string>() } };
+        var requirement = new OpenApiSecurityRequirement { { openApiSecurityScheme, [] } };
         options.AddSecurityRequirement(requirement);
     }
 
