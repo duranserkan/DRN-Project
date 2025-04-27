@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.SharedKernel.Json;
 
@@ -30,12 +31,17 @@ public class JsonConventionsTests
         testModel.MinValueQuoted.Should().Be(long.MinValue);
         testModel.ZeroValue.Should().Be(0);
         testModel.ZeroValueQuoted.Should().Be(0);
-        
+        testModel.NullValue.Should().BeNull();
+
         var payload2 = JsonSerializer.Serialize(testModel);
-        
         var testModel2 = JsonSerializer.Deserialize<TestModel>(payload2)!;
-        
+
         testModel2.Should().BeEquivalentTo(testModel);
+
+        var jsonNode2 = JsonNode.Parse(payload2)!;
+        jsonNode2["maxValue"]!.GetValueKind().Should().Be(JsonValueKind.String);
+        jsonNode2["zeroValue"]!.GetValueKind().Should().Be(JsonValueKind.Number);
+        jsonNode2["nullValue"].Should().BeNull();
     }
 
 
@@ -48,5 +54,6 @@ public class JsonConventionsTests
         public long MinValueQuoted { get; set; }
         public long ZeroValue { get; set; }
         public long ZeroValueQuoted { get; set; }
+        public long? NullValue { get; set; }
     }
 }

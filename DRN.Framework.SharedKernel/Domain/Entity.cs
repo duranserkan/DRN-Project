@@ -18,6 +18,12 @@ public sealed class EntityTypeIdAttribute(byte id) : Attribute
     public byte Id { get; } = id;
 }
 
+public interface IEntityETag
+{
+    //todo generate etag hash(ModifiedAt +EntityId) && implement generic support
+    public Guid ETag { get; }
+}
+
 public interface IEntityWithModel<TModel> where TModel : class
 {
     TModel Model { get; set; }
@@ -32,14 +38,14 @@ public abstract class Entity<TModel>(long id = 0) : Entity(id), IEntityWithModel
 /// Represents the base class for entities, encompassing identity, lifecycle events,
 /// and extended property capabilities within the domain model.
 /// </summary>
-/// <param name="id">Should be source known id. If not set DrnContext will provide one on saving changes by default</param>
+/// <param name="id">Should be a source known id. If not set, DrnContext will provide one on saving changes by default</param>
 /// <remarks>
 /// The <c>Entity</c> class provides foundational functionality for domain entities,
 /// including managing identifiers, domain events, and metadata. It supports equality
 /// comparison by reference or identifier and includes mechanisms for state tracking
 /// through domain events.
 /// </remarks>
-public abstract class Entity(long id = 0)
+public abstract class Entity(long id = 0) 
 {
     private const string EmptyJson = "{}";
     private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
@@ -87,7 +93,7 @@ public abstract class Entity(long id = 0)
     public DateTimeOffset ModifiedAt { get; protected set; }
 
     public DateTimeOffset CreatedAt => EntityIdSource.Source.CreatedAt;
-
+    
     protected void AddDomainEvent(DomainEvent? e)
     {
         if (e != null)

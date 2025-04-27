@@ -18,8 +18,8 @@ namespace DRN.Framework.Utils.Ids;
 /// </remarks>
 public static class SequenceManager<TEntity> where TEntity : class
 {
-    private static DateTimeOffset _epoch = SourceKnownIdUtils.DefaultEpoch;
-    private static SequenceTimeScope _timeScope = new(TimeStampManager.CurrentTimestamp(SourceKnownIdUtils.DefaultEpoch));
+    private static DateTimeOffset _epoch = EpochTimeUtils.DefaultEpoch;
+    private static SequenceTimeScope _timeScope = new(TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch));
 
     /// <summary>
     /// Generates a new time-scoped identifier for the entity type.

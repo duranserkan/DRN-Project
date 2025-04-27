@@ -46,7 +46,7 @@ public class SourceKnownIdUtilsBenchmark
 {
     static SourceKnownIdUtilsBenchmark()
     {
-        Utils = new(AppSettings.Development());
+        Utils = new(AppSettings.Development(), new EpochTimeUtils());
         EntityIdUtils = new(AppSettings.Development(), Utils);
     }
 
@@ -62,13 +62,13 @@ public class SourceKnownIdUtilsBenchmark
 
     [Benchmark]
     public Guid RandomGuidV7() => Guid.CreateVersion7();
-    
+
     [Benchmark]
     public DateTimeOffset MonotonicSystemDateTime_UtcNow() => MonotonicSystemDateTime.UtcNow;
-    
+
     [Benchmark]
-    public long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp(SourceKnownIdUtils.DefaultEpoch);
-    
+    public long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
+
     [Benchmark] //todo TimeScopedId look like a bottleneck, review it for possible improvements
     public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<YEntity>.GetTimeScopedId();
 
@@ -80,7 +80,7 @@ public class SourceKnownIdUtilsBenchmark
     {
         return EntityIdUtils.Generate(new YEntity(Utils.Next<SourceKnownIdUtilsBenchmark>()));
     }
-    
+
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdWithProvidedLongValue()
     {

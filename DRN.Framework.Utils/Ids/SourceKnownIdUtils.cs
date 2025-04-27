@@ -2,6 +2,7 @@ using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Numbers;
 using DRN.Framework.Utils.Settings;
+using DRN.Framework.Utils.Time;
 
 namespace DRN.Framework.Utils.Ids;
 
@@ -21,12 +22,8 @@ public interface ISourceKnownIdUtils
 }
 
 [Singleton<ISourceKnownIdUtils>]
-public class SourceKnownIdUtils(IAppSettings appSettings) : ISourceKnownIdUtils
+public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochTimeUtils) : ISourceKnownIdUtils
 {
-    //todo: make _epoch configurable at startup
-    //todo: validate system time on startup
-    public static readonly DateTimeOffset Epoch2025 = new(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
-    internal static readonly DateTimeOffset DefaultEpoch = Epoch2025;
     public static byte MaxAppId => 63;
     public static byte MaxAppInstanceId => 31;
 
@@ -69,23 +66,24 @@ public class SourceKnownIdUtils(IAppSettings appSettings) : ISourceKnownIdUtils
     private readonly byte _nexusAppId = appSettings.NexusAppSettings.AppId;
     private readonly byte _nexusAppInstanceId = appSettings.NexusAppSettings.AppInstanceId;
 
+    public DateTimeOffset Epoch = epochTimeUtils.Epoch;
+
     public long Next<TEntity>() where TEntity : class
         => Next<TEntity>(_nexusAppId, _nexusAppInstanceId);
 
-    public long Next<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class 
+    public long Next<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class
         => Generate<TEntity>(appId, appInstanceId);
 
-    public SourceKnownId Parse(long id, DateTimeOffset? epoch = null) => ParseId(id, epoch);
+    public SourceKnownId Parse(long id, DateTimeOffset? epoch = null) => ParseId(id, Epoch);
 
-    public static SourceKnownId ParseId(long id, DateTimeOffset? epoch = null)
+    public static SourceKnownId ParseId(long id, DateTimeOffset epoch)
     {
         var parser = LongParser.Default(id);
-
         var appId = (byte)parser.Read(6);
         var appInstanceId = (byte)parser.Read(5);
         var instanceId = parser.Read(21);
-        var dateTime = (epoch ?? DefaultEpoch) + TimeSpan.FromSeconds(parser.ReadResidueValue());
 
+        var dateTime = EpochTimeUtils.ConvertToDateTime(parser.ReadResidueValue(), epoch);
         return new SourceKnownId(id, appId, appInstanceId, instanceId, dateTime);
     }
 }

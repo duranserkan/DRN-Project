@@ -1,12 +1,6 @@
 using DRN.Framework.SharedKernel.Domain;
-using DRN.Framework.Testing.Contexts;
-using DRN.Framework.Testing.DataAttributes;
 using DRN.Framework.Utils.Ids;
-using DRN.Framework.Utils.Settings;
-using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
-using Xunit;
-using SourceKnownIdUtils = DRN.Framework.Utils.Ids.SourceKnownIdUtils;
+using DRN.Framework.Utils.Time;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
@@ -31,7 +25,7 @@ public class SourceKnownEntityIdUtilsTests
         var idUtils = context.GetRequiredService<ISourceKnownIdUtils>();
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
 
-        var epoch = SourceKnownIdUtils.Epoch2025;
+        var epoch = EpochTimeUtils.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
         await Task.Delay(1100); // 100 ms buffer added to compensate caching effect
