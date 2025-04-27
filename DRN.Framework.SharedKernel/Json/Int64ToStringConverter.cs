@@ -10,18 +10,6 @@ namespace DRN.Framework.SharedKernel.Json;
 /// </summary>
 public class Int64ToStringConverter : JsonConverter<long>
 {
-    /// <summary>
-    /// The maximum integer value that JavaScript can safely represent without loss of precision:
-    /// 2⁵³ − 1.
-    /// </summary>
-    private const long MaxJavascriptSafeInteger = 9_007_199_254_740_991L;
-    
-    /// <summary>
-    /// The minimum integer value that JavaScript can safely represent without loss of precision:
-    /// −(2⁵³ − 1).
-    /// </summary>
-    private const long MinJavascriptSafeInteger = -9_007_199_254_740_991L;
-
     public override long Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.Number)
