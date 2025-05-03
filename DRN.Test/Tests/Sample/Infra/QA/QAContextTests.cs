@@ -62,7 +62,7 @@ public class QAContextTests
 
         qaContext.Questions.Add(question);
         await qaContext.SaveChangesAsync();
-
+        
         qaContext.Questions.Remove(question);
         await qaContext.SaveChangesAsync();
 
@@ -122,7 +122,7 @@ public class QAContextTests
         await using var ctx2 = sp2.GetRequiredService<QAContext>();
         var cat2 = await ctx2.Categories.FindAsync(category.Id);
 
-        // 2) Make a change & save in ctx1; this updates ModifiedAt in the database:
+        // 2) Make a change and save in ctx1; this updates ModifiedAt in the database:
         cat1!.SetExtendedProperties(new NewProperties("FirstUpdate"));
         await ctx1.SaveChangesAsync();
 

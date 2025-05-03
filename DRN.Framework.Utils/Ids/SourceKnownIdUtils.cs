@@ -65,8 +65,7 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
 
     private readonly byte _nexusAppId = appSettings.NexusAppSettings.AppId;
     private readonly byte _nexusAppInstanceId = appSettings.NexusAppSettings.AppInstanceId;
-
-    public DateTimeOffset Epoch = epochTimeUtils.Epoch;
+    private readonly DateTimeOffset _epoch = epochTimeUtils.Epoch;
 
     public long Next<TEntity>() where TEntity : class
         => Next<TEntity>(_nexusAppId, _nexusAppInstanceId);
@@ -74,7 +73,7 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     public long Next<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class
         => Generate<TEntity>(appId, appInstanceId);
 
-    public SourceKnownId Parse(long id, DateTimeOffset? epoch = null) => ParseId(id, Epoch);
+    public SourceKnownId Parse(long id, DateTimeOffset? epoch = null) => ParseId(id, _epoch);
 
     public static SourceKnownId ParseId(long id, DateTimeOffset epoch)
     {

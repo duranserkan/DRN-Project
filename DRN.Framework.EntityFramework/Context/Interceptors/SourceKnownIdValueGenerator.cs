@@ -7,18 +7,20 @@ using Microsoft.EntityFrameworkCore.ValueGeneration;
 
 namespace DRN.Framework.EntityFramework.Context.Interceptors;
 
-//IDrnSaveChangesInterceptor will generate actual values
 public class SourceKnownIdValueGenerator : ValueGenerator<long>
 {
     private const string NextId = nameof(SourceKnownIdUtils.Next);
 
     private ISourceKnownIdUtils? _idUtils;
+    private readonly Lock _lock = new();
 
     public override long Next(EntityEntry entry)
     {
         if (entry is not { Entity: Entity entity }) return 0;
 
-        _idUtils ??= entry.Context.GetService<ISourceKnownIdUtils>();
+        if (_idUtils == null)
+            lock (_lock)
+                _idUtils ??= entry.Context.GetService<ISourceKnownIdUtils>();
 
         if (entity.Id == 0)
             entity.Id = (long)_idUtils.InvokeGenericMethod(NextId, entity.GetType())!;

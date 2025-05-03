@@ -1,4 +1,5 @@
 using Sample.Domain.QA.Categories;
+using Sample.Domain.QA.Questions;
 using Sample.Infra;
 using Sample.Infra.QA;
 
@@ -70,5 +71,14 @@ public class QAContextCategoryTests
         
         (categoryFromDb1 == categoryFromDb2).Should().BeFalse();
         ReferenceEquals(categoryFromDb1, categoryFromDb2).Should().BeFalse();
+
+        qaContext.Categories.Remove(category1);
+        qaContext.Categories.Remove(category2);
+        await qaContext.SaveChangesAsync();
+        
+        var categoryFromDb3 = await qaContext.Categories.FindAsync(category1.Id);
+        categoryFromDb3.Should().BeNull();
+        var categoryFromDb4 = await qaContext.Categories.FindAsync(category2.Id);
+        categoryFromDb4.Should().BeNull();
     }
 }

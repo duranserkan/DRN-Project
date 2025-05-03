@@ -53,20 +53,16 @@ public class EpochTimeUtils : IEpochTimeUtils
     /// Converts total seconds since the application epoch to DateTimeOffset
     /// </summary>
     /// <param name="totalSeconds">Number of seconds since the epoch (can be negative)</param>
-    public DateTimeOffset ConvertToDatetime(long totalSeconds)
-        => ConvertToDateTime(totalSeconds, Epoch);
+    public DateTimeOffset ConvertToDatetime(long totalSeconds) => ConvertToDateTime(totalSeconds, Epoch);
 
     /// <summary>
     /// Calculates total seconds between a given DateTimeOffset and the application epoch
     /// </summary>
     /// <param name="dateTime">Target DateTimeOffset</param>
-    public long ConvertToSeconds(DateTimeOffset dateTime)
-        => ConvertToSeconds(dateTime, Epoch);
+    public long ConvertToSeconds(DateTimeOffset dateTime) => ConvertToSeconds(dateTime, Epoch);
 
     /// <summary>
     /// Converts a DateTimeOffset to a SourceKnownId timestamp according to the application epoch
     /// </summary>
-    public long ConvertToSourceKnownIdTimeStamp(DateTimeOffset dateTime)
-        => ConvertToSourceKnownIdTimeStamp(dateTime, Epoch);
-    //todo write IQueryable extensions to filter entity with timestamp;
+    public long ConvertToSourceKnownIdTimeStamp(DateTimeOffset dateTime) => ConvertToSourceKnownIdTimeStamp(dateTime, Epoch);
 }

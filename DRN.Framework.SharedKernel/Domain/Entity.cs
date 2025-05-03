@@ -24,18 +24,26 @@ public interface IEntityETag
     public Guid ETag { get; }
 }
 
+public interface IHasEntityId
+{
+    public SourceKnownEntityId EntityIdSource { get; }
+}
+
 public interface IEntityWithModel<TModel> where TModel : class
 {
     TModel Model { get; set; }
 }
 
+/// <summary>
+///  <inheritdoc cref="Entity"/>
+/// </summary>
 public abstract class Entity<TModel>(long id = 0) : Entity(id), IEntityWithModel<TModel> where TModel : class
 {
     public TModel Model { get; set; } = null!;
 }
 
 /// <summary>
-/// Represents the base class for entities, encompassing identity, lifecycle events,
+/// Represents the minimum sustainable entity encompassing identity, lifecycle events,
 /// and extended property capabilities within the domain model.
 /// </summary>
 /// <param name="id">Should be a source known id. If not set, DrnContext will provide one on saving changes by default</param>
@@ -45,7 +53,7 @@ public abstract class Entity<TModel>(long id = 0) : Entity(id), IEntityWithModel
 /// comparison by reference or identifier and includes mechanisms for state tracking
 /// through domain events.
 /// </remarks>
-public abstract class Entity(long id = 0) 
+public abstract class Entity(long id = 0) : IHasEntityId, IComparable<Entity>
 {
     private const string EmptyJson = "{}";
     private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
@@ -77,7 +85,7 @@ public abstract class Entity(long id = 0)
                 return existingType; // No change needed
             });
 
-    private List<IDomainEvent> DomainEvents { get; } = new(2);
+    private List<IDomainEvent> DomainEvents { get; } = new(2); //todo transactional outbox, pre and post publish events
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
     public long Id { get; internal set; } = id;
     public Guid EntityId => EntityIdSource.EntityId;
@@ -93,7 +101,7 @@ public abstract class Entity(long id = 0)
     public DateTimeOffset ModifiedAt { get; protected set; }
 
     public DateTimeOffset CreatedAt => EntityIdSource.Source.CreatedAt;
-    
+
     protected void AddDomainEvent(DomainEvent? e)
     {
         if (e != null)
@@ -123,4 +131,29 @@ public abstract class Entity(long id = 0)
     public override int GetHashCode() => EntityIdSource.GetHashCode();
     public static bool operator ==(Entity? left, Entity? right) => Equals(left, right);
     public static bool operator !=(Entity? left, Entity? right) => !Equals(left, right);
+
+    /// <summary>
+    /// Returns comparison result based on Id. Zero-valued ids are considered less than any other id.
+    /// </summary>
+    /// <returns>
+    ///<li>1 if Id greater than other Id </li>
+    ///<li>-1 if Id less than other Id</li>
+    ///<li>0 if they are equal</li>
+    /// </returns>
+    public int CompareTo(Entity? other)
+    {
+        if (other is null)
+            return 1;
+        // Both are zero: treat as equal to satisfy IComparable contract
+        if (Id == 0 && other.Id == 0) 
+            return 0;
+        // Only this is zero: it's less than any non-zero ID
+        if (Id == 0) 
+            return -1;
+        // Only other is zero: this is greater than zero
+        if (other.Id == 0)
+            return 1;
+
+        return Id.CompareTo(other.Id);
+    }
 }
