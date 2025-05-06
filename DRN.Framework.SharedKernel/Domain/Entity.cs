@@ -53,7 +53,7 @@ public abstract class Entity<TModel>(long id = 0) : Entity(id), IEntityWithModel
 /// comparison by reference or identifier and includes mechanisms for state tracking
 /// through domain events.
 /// </remarks>
-public abstract class Entity(long id = 0) : IHasEntityId, IComparable<Entity>
+public abstract class Entity(long id = 0) : IHasEntityId, IEquatable<Entity>, IComparable<Entity>
 {
     private const string EmptyJson = "{}";
     private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
@@ -125,35 +125,35 @@ public abstract class Entity(long id = 0) : IHasEntityId, IComparable<Entity>
     protected virtual EntityCreated? GetCreatedEvent() => null;
     protected virtual EntityModified? GetModifiedEvent() => null;
     protected virtual EntityDeleted? GetDeletedEvent() => null;
-
-    private bool Equals(Entity other) => !IsPendingInsert && EntityIdSource == other.EntityIdSource;
-    public override bool Equals(object? obj) => ReferenceEquals(this, obj) || obj is Entity other && Equals(other);
+    
+    public bool Equals(Entity? other) => ReferenceEquals(this, other) || (!IsPendingInsert && EntityIdSource == other?.EntityIdSource);
+    public override bool Equals(object? obj) => obj is Entity other && Equals(other);
     public override int GetHashCode() => EntityIdSource.GetHashCode();
-    public static bool operator ==(Entity? left, Entity? right) => Equals(left, right);
-    public static bool operator !=(Entity? left, Entity? right) => !Equals(left, right);
 
     /// <summary>
-    /// Returns comparison result based on Id. Zero-valued ids are considered less than any other id.
+    /// Returns comparison result based on Id. Null and Zero-valued ids are considered less than any other id.
     /// </summary>
     /// <returns>
-    ///<li>1 if Id greater than other Id </li>
-    ///<li>-1 if Id less than other Id</li>
-    ///<li>0 if they are equal</li>
+    ///<li>1: if this entity's Id is greater than the other Id, which means this entity is newer than the other.</li>
+    ///<li>-1: if this entity's Id is less than the other Id, which means this entity is older than the other.</li>
+    ///<li>0: if they are equal, which means they are the same entity.</li>
     /// </returns>
     public int CompareTo(Entity? other)
     {
-        if (other is null)
-            return 1;
-        // Both are zero: treat as equal to satisfy IComparable contract
-        if (Id == 0 && other.Id == 0) 
+        if (Equals(other))
             return 0;
-        // Only this is zero: it's less than any non-zero ID
-        if (Id == 0) 
-            return -1;
-        // Only other is zero: this is greater than zero
-        if (other.Id == 0)
+        if (other is null || other.Id == 0)
             return 1;
+        if (Id == 0)
+            return -1;
 
         return Id.CompareTo(other.Id);
     }
+
+    public static bool operator ==(Entity? left, Entity? right) => Equals(left, right);
+    public static bool operator !=(Entity? left, Entity? right) => !Equals(left, right);
+    public static bool operator >(Entity? left, Entity? right) => (left?.CompareTo(right) ?? -1) > 0;
+    public static bool operator <(Entity? left, Entity? right) => (left?.CompareTo(right) ?? -1) < 0;
+    public static bool operator >=(Entity? left, Entity? right) => (left?.CompareTo(right) ?? -1) >= 0;
+    public static bool operator <=(Entity? left, Entity? right) => (left?.CompareTo(right) ?? -1) <= 0;
 }
