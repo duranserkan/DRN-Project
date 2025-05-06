@@ -82,16 +82,16 @@ public class QAContextTagTests
         var tagFromString2Query = await modelString2Query.SingleAsync();
         tagFromString2Query.Model.Should().BeEquivalentTo(secondTag.Model);
 
-        var tagFromBeforeFilter = await qaContext.Tags.EntityCreatedBefore(afterTagCreation).ToArrayAsync();
-        var tagFromAfterFilter = await qaContext.Tags.EntityCreatedAfter(beforeTagCreation).ToArrayAsync();
+        var tagFromBeforeFilter = await qaContext.Tags.CreatedBefore(afterTagCreation).ToArrayAsync();
+        var tagFromAfterFilter = await qaContext.Tags.CreatedAfter(beforeTagCreation).ToArrayAsync();
         var tagFromBetweenFilter = await qaContext.Tags.CreatedBetween(beforeTagCreation, afterTagCreation).ToArrayAsync();
 
         tagFromBeforeFilter.Length.Should().Be(2);
         tagFromAfterFilter.Length.Should().Be(2);
         tagFromBetweenFilter.Length.Should().Be(2);
 
-        tagFromBeforeFilter = await qaContext.Tags.EntityCreatedBefore(beforeTagCreation).ToArrayAsync();
-        tagFromAfterFilter = await qaContext.Tags.EntityCreatedAfter(afterTagCreation).ToArrayAsync();
+        tagFromBeforeFilter = await qaContext.Tags.CreatedBefore(beforeTagCreation).ToArrayAsync();
+        tagFromAfterFilter = await qaContext.Tags.CreatedAfter(afterTagCreation).ToArrayAsync();
         tagFromBetweenFilter = await qaContext.Tags.CreatedBetween(beforeTagCreation, beforeTagCreation).ToArrayAsync();
         var tagFromBetweenFilter2 = await qaContext.Tags.CreatedBetween(afterTagCreation, afterTagCreation).ToArrayAsync();
 
