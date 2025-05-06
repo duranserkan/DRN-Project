@@ -147,7 +147,9 @@ public abstract class Entity(long id = 0) : IHasEntityId, IEquatable<Entity>, IC
         if (Id == 0)
             return -1;
 
-        return Id.CompareTo(other.Id);
+        return EntityIdSource.EntityTypeId == other.EntityIdSource.EntityTypeId
+            ? Id.CompareTo(other.Id)
+            : 1;
     }
 
     public static bool operator ==(Entity? left, Entity? right) => left?.Equals(right) ?? right == null;
