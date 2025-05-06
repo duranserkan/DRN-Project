@@ -125,7 +125,7 @@ public abstract class Entity(long id = 0) : IHasEntityId, IEquatable<Entity>, IC
     protected virtual EntityCreated? GetCreatedEvent() => null;
     protected virtual EntityModified? GetModifiedEvent() => null;
     protected virtual EntityDeleted? GetDeletedEvent() => null;
-    
+
     public bool Equals(Entity? other) => ReferenceEquals(this, other) || (!IsPendingInsert && EntityIdSource == other?.EntityIdSource);
     public override bool Equals(object? obj) => obj is Entity other && Equals(other);
     public override int GetHashCode() => EntityIdSource.GetHashCode();
@@ -150,10 +150,11 @@ public abstract class Entity(long id = 0) : IHasEntityId, IEquatable<Entity>, IC
         return Id.CompareTo(other.Id);
     }
 
-    public static bool operator ==(Entity? left, Entity? right) => Equals(left, right);
-    public static bool operator !=(Entity? left, Entity? right) => !Equals(left, right);
-    public static bool operator >(Entity? left, Entity? right) => (left?.CompareTo(right) ?? -1) > 0;
-    public static bool operator <(Entity? left, Entity? right) => (left?.CompareTo(right) ?? -1) < 0;
-    public static bool operator >=(Entity? left, Entity? right) => (left?.CompareTo(right) ?? -1) >= 0;
-    public static bool operator <=(Entity? left, Entity? right) => (left?.CompareTo(right) ?? -1) <= 0;
+    public static bool operator ==(Entity? left, Entity? right) => left?.Equals(right) ?? right == null;
+    public static bool operator !=(Entity? left, Entity? right) => !(left == right);
+    public static bool operator >(Entity? left, Entity? right) => Compare(left, right) > 0;
+    public static bool operator <(Entity? left, Entity? right) => Compare(left, right) < 0;
+    public static bool operator >=(Entity? left, Entity? right) => Compare(left, right) >= 0;
+    public static bool operator <=(Entity? left, Entity? right) => Compare(left, right) <= 0;
+    private static int Compare(Entity? left, Entity? right) => left?.CompareTo(right) ?? -1;
 }
