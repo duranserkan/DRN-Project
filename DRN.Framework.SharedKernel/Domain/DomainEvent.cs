@@ -7,15 +7,15 @@ public interface IDomainEvent
     Guid EntityId { get; }
 }
 
-public abstract class DomainEvent(Entity entity) : IDomainEvent
+public abstract class DomainEvent(SourceKnownEntity sourceKnownEntity) : IDomainEvent
 {
     public Guid Id { get; protected init; } = Guid.NewGuid();
-    public Guid EntityId => entity.EntityId;
+    public Guid EntityId => sourceKnownEntity.EntityId;
     public DateTimeOffset Date { get; protected init; } = DateTimeOffset.UtcNow;
 }
 
-public abstract class EntityCreated(Entity entity) : DomainEvent(entity);
+public abstract class EntityCreated(SourceKnownEntity sourceKnownEntity) : DomainEvent(sourceKnownEntity);
 
-public abstract class EntityModified(Entity entity) : DomainEvent(entity);
+public abstract class EntityModified(SourceKnownEntity sourceKnownEntity) : DomainEvent(sourceKnownEntity);
 
-public abstract class EntityDeleted(Entity entity) : DomainEvent(entity);
+public abstract class EntityDeleted(SourceKnownEntity sourceKnownEntity) : DomainEvent(sourceKnownEntity);

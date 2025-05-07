@@ -9,20 +9,20 @@ public static class IQueryableExtensions
         => EpochTimeUtils.ConvertToSourceKnownIdTimeStamp(dateTimeOffset, EpochTimeUtils.DefaultEpoch);
 
     public static IQueryable<TEntity> CreatedAfter<TEntity>(this IQueryable<TEntity> query, DateTimeOffset dateBeforeCreation, 
-        bool inclusive = true) where TEntity : Entity
+        bool inclusive = true) where TEntity : SourceKnownEntity
         => inclusive
             ? query.Where(entity => entity.Id >= ConvertToTimeStamp(dateBeforeCreation))
             : query.Where(e => e.Id > ConvertToTimeStamp(dateBeforeCreation));
 
     public static IQueryable<TEntity> CreatedBefore<TEntity>(this IQueryable<TEntity> query, DateTimeOffset dateAfterCreation,
-        bool inclusive = true) where TEntity : Entity
+        bool inclusive = true) where TEntity : SourceKnownEntity
         => inclusive
             ? query.Where(entity => entity.Id <= ConvertToTimeStamp(dateAfterCreation))
             : query.Where(entity => entity.Id < ConvertToTimeStamp(dateAfterCreation));
 
     public static IQueryable<TEntity> CreatedBetween<TEntity>(this IQueryable<TEntity> query, DateTimeOffset dateBeforeCreation, DateTimeOffset dateAfterCreation,
         bool inclusive = true)
-        where TEntity : Entity
+        where TEntity : SourceKnownEntity
     {
         var timestampAfterCreation = ConvertToTimeStamp(dateAfterCreation);
         var timestampBeforeCreation = ConvertToTimeStamp(dateBeforeCreation);

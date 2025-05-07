@@ -126,7 +126,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
     private static void ValidateEntityTypeIds(DbContext context, IScopedLog? scopedLog)
     {
         var entityTypes = context.Model.GetEntityTypes().Select(entityType => entityType.ClrType).ToArray();
-        var domainTypes = entityTypes.Where(type => type.IsAssignableTo(typeof(Entity))).ToArray();
+        var domainTypes = entityTypes.Where(type => type.IsAssignableTo(typeof(SourceKnownEntity))).ToArray();
         var entityTypeIdPairs = domainTypes.ToDictionary(t => t, t => t.GetCustomAttribute<EntityTypeIdAttribute>());
         var missingAttributes = entityTypeIdPairs.Where(pair => pair.Value == null).Select(pair => pair.Key.FullName!).ToArray();
         var duplicateAttributePairs = entityTypeIdPairs.Where(pair => pair.Value != null)
@@ -159,7 +159,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
 
         //Validates Entity Type Ids implicitly by calling GetEntityTypeId on Entity
         //This will catch application wide inconsistencies. Previous validation was module-wide;
-        var entityTypeIds = domainTypes.Select(Entity.GetEntityTypeId).ToArray();
+        var entityTypeIds = domainTypes.Select(SourceKnownEntity.GetEntityTypeId).ToArray();
         _ = entityTypeIds;
     }
 }

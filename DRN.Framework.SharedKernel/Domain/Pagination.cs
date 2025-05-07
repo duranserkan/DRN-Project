@@ -47,7 +47,7 @@ public readonly struct PaginationRequest(long pageNumber, PageCursor pageCursor,
     public bool UpdateTotalCount { get; } = updateTotalCount;
 }
 
-public readonly struct PaginationResult<TEntity> where TEntity : Entity
+public readonly struct PaginationResult<TEntity> where TEntity : SourceKnownEntity
 {
     public PaginationResult(IReadOnlyList<TEntity> items, PaginationRequest request, long totalCount = -1)
     {

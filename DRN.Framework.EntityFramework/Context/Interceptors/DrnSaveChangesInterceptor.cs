@@ -32,7 +32,7 @@ public class DrnSaveChangesInterceptor(ISourceKnownIdUtils idUtils, ISourceKnown
     {
         foreach (var entityEntry in eventData.Context!.ChangeTracker.Entries())
         {
-            if (entityEntry is not { Entity: Entity entity })
+            if (entityEntry is not { Entity: SourceKnownEntity entity })
                 continue;
 
             switch (entityEntry.State)

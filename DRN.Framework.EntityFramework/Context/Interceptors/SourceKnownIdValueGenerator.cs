@@ -16,7 +16,7 @@ public class SourceKnownIdValueGenerator : ValueGenerator<long>
 
     public override long Next(EntityEntry entry)
     {
-        if (entry is not { Entity: Entity entity }) return 0;
+        if (entry is not { Entity: SourceKnownEntity entity }) return 0;
 
         if (_idUtils == null)
             lock (_lock)

@@ -52,33 +52,54 @@ public class QAContextCategoryTests
         using var scope = context.CreateScope();
         var scopedQaContext = scope.ServiceProvider.GetRequiredService<QAContext>();
 
-        var categoryFromDb1 = await scopedQaContext.Categories.FindAsync(category1.Id);
-        categoryFromDb1.Should().NotBeNull();
-        categoryFromDb1.Name.Should().Be(category1.Name);
+        var category1FromDb2 = await scopedQaContext.Categories.FindAsync(category1.Id);
+        category1FromDb2.Should().NotBeNull();
+        category1FromDb2.Name.Should().Be(category1.Name);
 
-        var categoryFromDb2 = await scopedQaContext.Categories.FindAsync(category2.Id);
-        categoryFromDb2.Should().NotBeNull();
-        categoryFromDb2.Name.Should().Be(category2.Name);
+        var category2FromDb2 = await scopedQaContext.Categories.FindAsync(category2.Id);
+        category2FromDb2.Should().NotBeNull();
+        category2FromDb2.Name.Should().Be(category2.Name);
 
-        (category1 == categoryFromDb1).Should().BeTrue();
-        ReferenceEquals(category1, categoryFromDb1).Should().BeFalse();
-        
-        (category2 == categoryFromDb2).Should().BeTrue();
-        ReferenceEquals(category2, categoryFromDb2).Should().BeFalse();
-        
+        (category1 == category1FromDb2).Should().BeTrue();
+        ReferenceEquals(category1, category1FromDb2).Should().BeFalse();
+
+        (category2 == category2FromDb2).Should().BeTrue();
+        ReferenceEquals(category2, category2FromDb2).Should().BeFalse();
+
         (category1 == category2).Should().BeFalse();
+        (category1 != category2).Should().BeTrue();
         ReferenceEquals(category1, category2).Should().BeFalse();
+
+        (category1FromDb2 == category2FromDb2).Should().BeFalse();
+        (category1FromDb2 != category2FromDb2).Should().BeTrue();
+        ReferenceEquals(category1FromDb2, category2FromDb2).Should().BeFalse();
+
+        category2.CompareTo(category1).Should().Be(1);
+        category1.CompareTo(category2).Should().Be(-1);
+        category1.CompareTo(null).Should().Be(1);
+        category1.CompareTo(category1FromDb2).Should().Be(0);
+
+        (category2 > category1).Should().BeTrue();
+        (category1 < category2).Should().BeTrue();
+        (category2 >= category1).Should().BeTrue();
+        (category1 <= category2).Should().BeTrue();
         
-        (categoryFromDb1 == categoryFromDb2).Should().BeFalse();
-        ReferenceEquals(categoryFromDb1, categoryFromDb2).Should().BeFalse();
+        (category2 < category1).Should().BeFalse();
+        (category1 > category2).Should().BeFalse();
+        (category2 <= category1).Should().BeFalse();
+        (category1 >= category2).Should().BeFalse();
+        
+        (category2 >= category2FromDb2).Should().BeTrue();
+        (category2 <= category2FromDb2).Should().BeTrue();
+        
 
         qaContext.Categories.Remove(category1);
         qaContext.Categories.Remove(category2);
         await qaContext.SaveChangesAsync();
-        
-        var categoryFromDb3 = await qaContext.Categories.FindAsync(category1.Id);
-        categoryFromDb3.Should().BeNull();
-        var categoryFromDb4 = await qaContext.Categories.FindAsync(category2.Id);
-        categoryFromDb4.Should().BeNull();
+
+        category1 = await qaContext.Categories.FindAsync(category1.Id);
+        category1.Should().BeNull();
+        category2 = await qaContext.Categories.FindAsync(category2.Id);
+        category2.Should().BeNull();
     }
 }

@@ -89,4 +89,4 @@ public class SourceKnownIdUtilsBenchmark
 }
 
 [EntityTypeId(92)]
-public class YEntity(long id) : Entity(id);
+public class YEntity(long id) : SourceKnownEntity(id);

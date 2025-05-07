@@ -13,8 +13,8 @@ namespace DRN.Framework.Utils.Ids;
 /// </summary>
 public interface ISourceKnownEntityIdUtils
 {
-    SourceKnownEntityId Generate<TEntity>(long id) where TEntity : Entity;
-    SourceKnownEntityId Generate(Entity entity);
+    SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity;
+    SourceKnownEntityId Generate(SourceKnownEntity sourceKnownEntity);
     SourceKnownEntityId Parse(Guid entityId);
 }
 
@@ -49,8 +49,8 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
 
     private readonly byte[] _defaultMacKey = appSettings.NexusAppSettings.GetDefaultMacKey().KeyAsByteArray; // todo add keyring rotation 
 
-    public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : Entity => Generate(id, Entity.GetEntityTypeId<TEntity>());
-    public SourceKnownEntityId Generate(Entity entity) => Generate(entity.Id, Entity.GetEntityTypeId(entity));
+    public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity => Generate(id, SourceKnownEntity.GetEntityTypeId<TEntity>());
+    public SourceKnownEntityId Generate(SourceKnownEntity sourceKnownEntity) => Generate(sourceKnownEntity.Id, SourceKnownEntity.GetEntityTypeId(sourceKnownEntity));
 
     private SourceKnownEntityId Generate(long id, byte entityTypeId)
     {

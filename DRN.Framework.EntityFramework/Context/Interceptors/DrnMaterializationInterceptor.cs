@@ -12,7 +12,7 @@ public class DrnMaterializationInterceptor(ISourceKnownEntityIdUtils idUtils) : 
 {
     public object InitializedInstance(MaterializationInterceptionData materializationData, object entity)
     {
-        if (entity is Entity e)
+        if (entity is SourceKnownEntity e)
             e.EntityIdSource = idUtils.Generate(e);
 
         return entity;

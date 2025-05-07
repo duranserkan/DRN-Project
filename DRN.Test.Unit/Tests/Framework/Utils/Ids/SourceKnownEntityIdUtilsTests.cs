@@ -41,7 +41,7 @@ public class SourceKnownEntityIdUtilsTests
         entityId.Valid.Should().BeTrue();
         entityId.Source.AppId.Should().Be(nexusSettings.AppId);
         entityId.Source.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
-        entityId.EntityTypeId.Should().Be(Entity.GetEntityTypeId<XEntity>());
+        entityId.EntityTypeId.Should().Be(SourceKnownEntity.GetEntityTypeId<XEntity>());
         IsVersion4Rfc4122(entityId.EntityId).Should().BeTrue();
 
         var idInfo = idUtils.Parse(entityId.Source.Id);
@@ -67,7 +67,7 @@ public class SourceKnownEntityIdUtilsTests
     }
 
     [EntityTypeId(200)]
-    class XEntity(long id) : Entity(id);
+    class XEntity(long id) : SourceKnownEntity(id);
 
     private static bool IsVersion4Rfc4122(Guid guid)
     {

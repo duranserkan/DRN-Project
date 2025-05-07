@@ -35,9 +35,9 @@ public interface IEntityWithModel<TModel> where TModel : class
 }
 
 /// <summary>
-///  <inheritdoc cref="Entity"/>
+///  <inheritdoc cref="SourceKnownEntity"/>
 /// </summary>
-public abstract class Entity<TModel>(long id = 0) : Entity(id), IEntityWithModel<TModel> where TModel : class
+public abstract class SourceKnownEntity<TModel>(long id = 0) : SourceKnownEntity(id), IEntityWithModel<TModel> where TModel : class
 {
     public TModel Model { get; set; } = null!;
 }
@@ -53,15 +53,15 @@ public abstract class Entity<TModel>(long id = 0) : Entity(id), IEntityWithModel
 /// comparison by reference or identifier and includes mechanisms for state tracking
 /// through domain events.
 /// </remarks>
-public abstract class Entity(long id = 0) : IHasEntityId, IEquatable<Entity>, IComparable<Entity>
+public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<SourceKnownEntity>, IComparable<SourceKnownEntity>
 {
     private const string EmptyJson = "{}";
     private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
 
     private static readonly ConcurrentDictionary<byte, Type> IdToTypeMap = new();
 
-    public static byte GetEntityTypeId<TEntity>() where TEntity : Entity => GetEntityTypeId(typeof(TEntity));
-    public static byte GetEntityTypeId<TEntity>(TEntity entity) where TEntity : Entity => GetEntityTypeId(entity.GetType());
+    public static byte GetEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => GetEntityTypeId(typeof(TEntity));
+    public static byte GetEntityTypeId<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetEntityTypeId(entity.GetType());
 
     public static byte GetEntityTypeId(Type entityType) => TypeToIdMap.GetOrAdd(entityType, type =>
     {
@@ -126,8 +126,8 @@ public abstract class Entity(long id = 0) : IHasEntityId, IEquatable<Entity>, IC
     protected virtual EntityModified? GetModifiedEvent() => null;
     protected virtual EntityDeleted? GetDeletedEvent() => null;
 
-    public bool Equals(Entity? other) => ReferenceEquals(this, other) || (!IsPendingInsert && EntityIdSource == other?.EntityIdSource);
-    public override bool Equals(object? obj) => obj is Entity other && Equals(other);
+    public bool Equals(SourceKnownEntity? other) => ReferenceEquals(this, other) || (!IsPendingInsert && EntityIdSource == other?.EntityIdSource);
+    public override bool Equals(object? obj) => obj is SourceKnownEntity other && Equals(other);
     public override int GetHashCode() => EntityIdSource.GetHashCode();
 
     /// <summary>
@@ -138,7 +138,7 @@ public abstract class Entity(long id = 0) : IHasEntityId, IEquatable<Entity>, IC
     ///<li>-1: if this entity's Id is less than the other Id, which means this entity is older than the other.</li>
     ///<li>0: if they are equal, which means they are the same entity.</li>
     /// </returns>
-    public int CompareTo(Entity? other)
+    public int CompareTo(SourceKnownEntity? other)
     {
         if (Equals(other))
             return 0;
@@ -152,11 +152,11 @@ public abstract class Entity(long id = 0) : IHasEntityId, IEquatable<Entity>, IC
             : 1;
     }
 
-    public static bool operator ==(Entity? left, Entity? right) => left?.Equals(right) ?? right == null;
-    public static bool operator !=(Entity? left, Entity? right) => !(left == right);
-    public static bool operator >(Entity? left, Entity? right) => Compare(left, right) > 0;
-    public static bool operator <(Entity? left, Entity? right) => Compare(left, right) < 0;
-    public static bool operator >=(Entity? left, Entity? right) => Compare(left, right) >= 0;
-    public static bool operator <=(Entity? left, Entity? right) => Compare(left, right) <= 0;
-    private static int Compare(Entity? left, Entity? right) => left?.CompareTo(right) ?? -1;
+    public static bool operator ==(SourceKnownEntity? left, SourceKnownEntity? right) => left?.Equals(right) ?? right == null;
+    public static bool operator !=(SourceKnownEntity? left, SourceKnownEntity? right) => !(left == right);
+    public static bool operator >(SourceKnownEntity? left, SourceKnownEntity? right) => Compare(left, right) > 0;
+    public static bool operator <(SourceKnownEntity? left, SourceKnownEntity? right) => Compare(left, right) < 0;
+    public static bool operator >=(SourceKnownEntity? left, SourceKnownEntity? right) => Compare(left, right) >= 0;
+    public static bool operator <=(SourceKnownEntity? left, SourceKnownEntity? right) => Compare(left, right) <= 0;
+    private static int Compare(SourceKnownEntity? left, SourceKnownEntity? right) => left?.CompareTo(right) ?? -1;
 }
