@@ -71,7 +71,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             scopedLog.Add(nameof(DrnAppFeatures.PrototypingMode), appSettings.Features.PrototypingMode);
             scopedLog.Add(nameof(AppSettings.Environment), appSettings.Environment);
             scopedLog.AddToActions("Running Application");
-            Log.Warning("{@Logs}", scopedLog.Logs);
+            logger.Warning("{@Logs}", scopedLog.Logs);
 
             if (appSettings.Features.TemporaryApplication)
                 return;
@@ -138,6 +138,10 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         var application = applicationBuilder.Build();
         program.ConfigureApplication(application, appSettings);
+        var requestPipelineSummary = application.GetRequestPipelineSummary();
+        if (appSettings.IsDevEnvironment) //todo send application summaries to nexus for auditing, implement application dependency summary as well
+            scopeLog.Add(nameof(RequestPipelineSummary), requestPipelineSummary);
+
         program.ValidateEndpoints(application, appSettings);
         program.ValidateServices(application, scopeLog);
 
@@ -178,10 +182,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel"));
         });
 
-        //if (appSettings.IsDevEnvironment)
-            //applicationBuilder.WebHost.UseStaticWebAssets();
+        applicationBuilder.WebHost.UseStaticWebAssets();
 
-        
         var services = applicationBuilder.Services;
         services.AdDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
         services.AddHostedService<DrnBackgroundService>();
@@ -194,6 +196,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             return new EndpointAccessor(endpointHelper, endpoints, apiEndpoints, pageEndpoints, typeof(TProgram));
         });
 
+        //todo validate response cache options and middleware order
         services.AddResponseCaching(ConfigureResponseCachingOptions);
         var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
         ConfigureMvcBuilder(mvcBuilder, appSettings);
@@ -412,7 +415,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         application.UseCookiePolicy();
         application.UseSecurityHeaders();
-        //application.UseStaticFiles(); //todo replace MapStaticAssets
+        //application.UseStaticFiles(); //todo replace MapStaticAssets, evaluate with UseStaticWebAssets
         if (appSettings.Features.UseHttpRequestLogger)
             application.UseMiddleware<HttpRequestLogger>();
     }
@@ -459,6 +462,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void MapApplicationEndpoints(WebApplication application, IAppSettings appSettings)
     {
+        //todo mapstaticAssets https://learn.microsoft.com/en-us/aspnet/core/fundamentals/map-static-files?view=aspnetcore-9.0
+        //remove application.UseStaticFiles() usages
         application.MapControllers();
         application.MapRazorPages();
     }
@@ -508,7 +513,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     protected virtual void ConfigureResponseCachingOptions(ResponseCachingOptions options)
     {
     }
-    
+
     protected virtual void ConfigureMvcOptions(MvcOptions options)
     {
     }
