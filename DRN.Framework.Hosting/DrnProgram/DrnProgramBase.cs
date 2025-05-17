@@ -23,10 +23,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.AspNetCore.ResponseCaching;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.FileProviders;
 using NetEscapades.AspNetCore.SecurityHeaders.Infrastructure;
 using Serilog;
 
@@ -44,7 +43,7 @@ public interface IDrnProgram
 /// <li><a href="https://andrewlock.net/exploring-dotnet-6-part-3-exploring-the-code-behind-webapplicationbuilder">Code behind WebApplicationBuilder</a></li>
 /// <li><a href="https://andrewlock.net/exploring-the-dotnet-8-preview-comparing-createbuilder-to-the-new-createslimbuilder-method">Comparing default builder to slim builder</a></li>
 /// <li><a href="https://andrewlock.net/running-async-tasks-on-app-startup-in-asp-net-core-part-1">Running async tasks at startup</a></li>
-/// <li><a href="https://stackoverflow.com/questions/57846127/what-are-the-differences-between-app-userouting-and-app-useendpoints">UseRouting vs UseEndpoints</a></li>
+/// <li><a href="https://stackoverflow.com/questions/57846127/what-are-the-differences-between-app-userouting-and-app-useendpoints">UseRouting vs. UseEndpoints</a></li>
 /// </summary>
 public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
@@ -62,11 +61,10 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             .CreateBootstrapLogger();
         var logger = bootstrapLogger.ForContext<TProgram>(); //todo evaluate zlogger for allocationless high performance logging
 
-        WebApplication? application = null;
         try
         {
             scopedLog.AddToActions("Creating Application");
-            application = await CreateApplicationAsync(args, appSettings, scopedLog);
+            var application = await CreateApplicationAsync(args, appSettings, scopedLog);
             scopedLog.Add(nameof(DrnAppFeatures.TemporaryApplication), appSettings.Features.TemporaryApplication);
             scopedLog.Add(nameof(DrnAppFeatures.SkipValidation), appSettings.Features.SkipValidation);
             scopedLog.Add(nameof(DrnAppFeatures.AutoMigrateDevEnvironment), appSettings.Features.AutoMigrateDevEnvironment);
@@ -103,7 +101,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         try
         {
-            var (_, applicationBuilder) = await CreateApplicatiomBuilder(args, appSettings, scopedLog);
+            var (_, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopedLog);
             var services = applicationBuilder.Services.BuildServiceProvider();
             var isDevelopment = services.GetService<IAppSettings>()?.IsDevEnvironment ?? false;
             var handler = services.GetService<IDrnExceptionHandler>();
@@ -116,10 +114,10 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
                     var reportDirectory = Path.Combine(directory, "StartupReports");
                     var wwwRootDirectory = Path.Combine(reportDirectory, "wwwroot");
                     ResourceExtractor.CopyWwwrootResourcesToDirectory(wwwRootDirectory);
-                        
+
                     //since the application is down, we should serve exception page scripts from somewhere else;
                     var exceptionReportContent = exceptionContentResult.Content.Replace("/_content/DRN.Framework.Hosting", wwwRootDirectory);
-                        
+
                     var reportPath = Path.Combine(directory, "StartupExceptionReport.html");
                     var reportUrl = $"file://{reportPath}";
                     await File.WriteAllTextAsync(reportPath, exceptionReportContent);
@@ -136,7 +134,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     public static async Task<WebApplication> CreateApplicationAsync(string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
     {
-        var (program, applicationBuilder) = await CreateApplicatiomBuilder(args, appSettings, scopeLog);
+        var (program, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopeLog);
 
         var application = applicationBuilder.Build();
         program.ConfigureApplication(application, appSettings);
@@ -146,7 +144,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         return application;
     }
 
-    private static async Task<(TProgram program, WebApplicationBuilder applicationBuilder)> CreateApplicatiomBuilder(string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
+    private static async Task<(TProgram program, WebApplicationBuilder applicationBuilder)> CreateApplicationBuilder(string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
     {
         var program = new TProgram();
         var options = new WebApplicationOptions
@@ -180,8 +178,10 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel"));
         });
 
-        applicationBuilder.WebHost.UseStaticWebAssets();
+        //if (appSettings.IsDevEnvironment)
+            //applicationBuilder.WebHost.UseStaticWebAssets();
 
+        
         var services = applicationBuilder.Services;
         services.AdDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
         services.AddHostedService<DrnBackgroundService>();
@@ -194,7 +194,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             return new EndpointAccessor(endpointHelper, endpoints, apiEndpoints, pageEndpoints, typeof(TProgram));
         });
 
-        services.AddResponseCaching();
+        services.AddResponseCaching(ConfigureResponseCachingOptions);
         var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
         ConfigureMvcBuilder(mvcBuilder, appSettings);
 
@@ -247,6 +247,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         application.UseMiddleware<ScopedUserMiddleware>();
         ConfigureApplicationPostAuthentication(application, appSettings);
         application.UseAuthorization();
+        application.UseResponseCaching();
         ConfigureApplicationPostAuthorization(application, appSettings);
 
         MapApplicationEndpoints(application, appSettings);
@@ -260,7 +261,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// * https://andrewlock.net/series/understanding-cross-origin-security-headers <br/>
     /// * For additional security checklist: https://mvsp.dev/
     /// </summary>
-    /// <param name="policies">Defines the policies to use for customising security headers for a request added by NetEscapades.AspNetCore.SecurityHeaders</param>
+    /// <param name="policies">Defines the policies to use for customizing security headers for a request added by NetEscapades.AspNetCore.SecurityHeaders</param>
     /// <param name="serviceProvider"></param>
     /// <param name="appSettings"></param>
     protected virtual void ConfigureDefaultSecurityHeaders(HeaderPolicyCollection policies, IServiceProvider serviceProvider, IAppSettings appSettings)
@@ -371,7 +372,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         options.ConsentCookieValue = Base64Utils.UrlSafeBase64Encode(ConsentCookie.DefaultValue);
         //default cookie name(.AspNet.Consent) exposes server
         options.ConsentCookie.Name = $".{appSettings.AppKey}.CookieConsent";
-        options.CheckConsentNeeded = context => true; //user consent for non-essential cookies is needed for a given request.
+        options.CheckConsentNeeded = _ => true; //user consent for non-essential cookies is needed for a given request.
     }
 
     protected virtual void ConfigureCookieTempDataProvider(CookieTempDataProviderOptions options, IAppSettings appSettings)
@@ -411,6 +412,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         application.UseCookiePolicy();
         application.UseSecurityHeaders();
+        //application.UseStaticFiles(); //todo replace MapStaticAssets
         if (appSettings.Features.UseHttpRequestLogger)
             application.UseMiddleware<HttpRequestLogger>();
     }
@@ -419,7 +421,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         application.UseHostFiltering();
         application.UseForwardedHeaders();
-        application.UseResponseCaching();
     }
 
     protected virtual void ConfigureApplicationPreAuthentication(WebApplication application, IAppSettings appSettings)
@@ -465,7 +466,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// <summary>
     /// Configures MFA (Multi-Factor Authentication) redirection logic when return value is not null:
     /// <ul>
-    ///   <li>Redirects to <c>MFALoginUrl</c> if <c>MFAInProgress</c> is true for the user is logged in with a single factor</li>
+    ///   <li>Redirects to <c>MFALoginUrl</c> if <c>MFAInProgress</c> is true for the user is logged in with single factor</li>
     ///   <li>Redirects to <c>MFASetupUrl</c> if <c>MFASetupRequired</c> is true for a new user without MFA configured.</li>
     ///   <li>Prevents misuse or abuse of <c>MFALoginUrl</c> and <c>MFASetupUrl</c> routes.</li>
     /// </ul>
@@ -504,6 +505,10 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         options.FallbackPolicy = options.GetPolicy(AuthPolicy.Mfa)!;
     }
 
+    protected virtual void ConfigureResponseCachingOptions(ResponseCachingOptions options)
+    {
+    }
+    
     protected virtual void ConfigureMvcOptions(MvcOptions options)
     {
     }
