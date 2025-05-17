@@ -186,7 +186,7 @@ void (function (root, factory) {
 
     onmount.selectify = function selectify (selector) {
         if (selector[0] === '@') {
-            return '[role~="' + selector.substr(1).replace(/"/g, '\\"') + '"]'
+            return '[role~="' + selector.substr(1).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]'
         }
         return selector
     }
