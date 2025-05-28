@@ -1,5 +1,5 @@
 using DRN.Framework.SharedKernel;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 namespace DRN.Test.Unit.Tests.Framework.SharedKernel;

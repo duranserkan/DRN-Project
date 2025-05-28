@@ -1,6 +1,6 @@
 using DRN.Framework.Utils.Encodings;
 using DRN.Framework.Utils.Models.Sample;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Encodings;

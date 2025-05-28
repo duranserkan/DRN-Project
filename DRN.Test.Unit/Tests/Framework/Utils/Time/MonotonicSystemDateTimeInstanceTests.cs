@@ -1,6 +1,6 @@
 using DRN.Framework.Testing.DataAttributes;
 using DRN.Framework.Utils.Time;
-using FluentAssertions;
+using AwesomeAssertions;
 using NSubstitute.Extensions;
 using Xunit;
 

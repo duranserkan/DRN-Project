@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 using DRN.Framework.Utils.Json;
-using FluentAssertions;
+using AwesomeAssertions;
 using Xunit;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Json;

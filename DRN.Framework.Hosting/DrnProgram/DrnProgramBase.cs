@@ -26,6 +26,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCaching;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using NetEscapades.AspNetCore.SecurityHeaders.Infrastructure;
 using Serilog;
 
@@ -56,10 +57,12 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationAssemblyName(), args).Build();
         var appSettings = new AppSettings(configuration);
         var scopedLog = new ScopedLog(appSettings).WithLoggerName(typeof(TProgram).FullName);
+
         var bootstrapLogger = new TProgram().ConfigureLogger(configuration)
             .Destructure.AsDictionary<SortedDictionary<string, object>>()
             .CreateBootstrapLogger();
         var logger = bootstrapLogger.ForContext<TProgram>(); //todo evaluate zlogger for allocationless high performance logging
+        Log.Logger = bootstrapLogger;
 
         try
         {
@@ -175,7 +178,9 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder, IAppSettings appSettings)
     {
-        applicationBuilder.Host.UseSerilog();
+        applicationBuilder.Host.UseSerilog((hostingContext, services, loggerConfiguration) 
+            => ConfigureSerilog(loggerConfiguration, hostingContext, services));
+        
         applicationBuilder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
         {
             kestrelServerOptions.AddServerHeader = false;
@@ -233,6 +238,14 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             builder.SetDefaultPolicy(policyCollection);
             ConfigureSecurityHeaderPolicyBuilder(builder, provider, appSettings);
         });
+    }
+
+    protected virtual void ConfigureSerilog(LoggerConfiguration loggerConfiguration, HostBuilderContext hostingContext, IServiceProvider services)
+    {
+        loggerConfiguration
+            .ReadFrom.Configuration(hostingContext.Configuration)
+            .ReadFrom.Services(services) // Allow injecting services (e.g. IHttpContextAccessor) into enrichers
+            .Destructure.AsDictionary<SortedDictionary<string, object>>();
     }
 
     protected virtual void ConfigureApplication(WebApplication application, IAppSettings appSettings)
