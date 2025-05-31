@@ -96,7 +96,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             else
                 logger.Warning("{@Logs}", scopedLog.Logs);
 
-            bootstrapLogger.Dispose();
+            await bootstrapLogger.DisposeAsync();
         }
     }
 
