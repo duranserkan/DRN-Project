@@ -60,7 +60,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         var bootstrapLogger = new TProgram().ConfigureLogger(configuration)
             .Destructure.AsDictionary<SortedDictionary<string, object>>()
-            .CreateBootstrapLogger();
+            .CreateLogger();
         var logger = bootstrapLogger.ForContext<TProgram>(); //todo evaluate zlogger for allocationless high performance logging
         Log.Logger = bootstrapLogger;
 
