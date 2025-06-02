@@ -61,7 +61,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var bootstrapLogger = new TProgram().ConfigureLogger(configuration)
             .Destructure.AsDictionary<SortedDictionary<string, object>>()
             .CreateLogger();
-        var logger = bootstrapLogger.ForContext<TProgram>(); //todo evaluate zlogger for allocationless high performance logging
+        var logger = bootstrapLogger.ForContext<TProgram>(); //todo replace serilog with nlog 6
         Log.Logger = bootstrapLogger;
 
         try
@@ -78,7 +78,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
             if (appSettings.Features.TemporaryApplication)
                 return;
-
+            //todo create startup report for dev environment
             await application.RunAsync();
             scopedLog.AddToActions("Application Shutdown Gracefully");
         }
@@ -428,6 +428,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     {
         application.UseCookiePolicy();
         application.UseSecurityHeaders();
+        application.UseForwardedHeaders();
+        
         //application.UseStaticFiles(); //todo replace MapStaticAssets, evaluate with UseStaticWebAssets
         if (appSettings.Features.UseHttpRequestLogger)
             application.UseMiddleware<HttpRequestLogger>();
@@ -435,8 +437,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ConfigureApplicationPostScopeStart(WebApplication application, IAppSettings appSettings)
     {
-        application.UseHostFiltering();
-        application.UseForwardedHeaders();
+        application.UseHostFiltering(); //kept after post-scope start to capture and log malicious requests
     }
 
     protected virtual void ConfigureApplicationPreAuthentication(WebApplication application, IAppSettings appSettings)
