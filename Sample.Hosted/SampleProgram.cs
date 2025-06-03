@@ -36,12 +36,6 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
         await builder.LaunchExternalDependenciesAsync(scopedLog, appSettings, launchOptions);
     }
 
-    protected override void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
-    {
-        base.ConfigureApplicationPreScopeStart(application, appSettings);
-        application.UseStaticFiles();
-    }
-
     protected override MfaRedirectionConfig ConfigureMFARedirection()
         => new(Get.Page.UserManagement.EnableAuthenticator, Get.Page.User.LoginWith2Fa,
             Get.Page.User.Login, Get.Page.User.Logout, Get.Page.All);

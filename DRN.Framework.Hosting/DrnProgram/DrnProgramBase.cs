@@ -20,6 +20,7 @@ using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -178,9 +179,9 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder, IAppSettings appSettings)
     {
-        applicationBuilder.Host.UseSerilog((hostingContext, services, loggerConfiguration) 
+        applicationBuilder.Host.UseSerilog((hostingContext, services, loggerConfiguration)
             => ConfigureSerilog(loggerConfiguration, hostingContext, services));
-        
+
         applicationBuilder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
         {
             kestrelServerOptions.AddServerHeader = false;
@@ -201,7 +202,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             return new EndpointAccessor(endpointHelper, endpoints, apiEndpoints, pageEndpoints, typeof(TProgram));
         });
 
-        //todo validate response cache options and middleware order
         services.AddResponseCaching(ConfigureResponseCachingOptions);
         var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
         ConfigureMvcBuilder(mvcBuilder, appSettings);
@@ -220,16 +220,9 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         services.Configure<CookiePolicyOptions>(GetConfigureCookiePolicy(appSettings));
         services.Configure<SecurityStampValidatorOptions>(ConfigureSecurityStampValidatorOptions(appSettings));
         services.Configure<CookieTempDataProviderOptions>(GetConfigureCookieTempDataProvider(appSettings));
-        services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
-        services.PostConfigure<HostFilteringOptions>(options =>
-        {
-            if (options.AllowedHosts.Count != 0) return;
-
-            // "AllowedHosts": "localhost;127.0.0.1;[::1]"
-            var hosts = applicationBuilder.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries);
-            // Fall back to "*" to disable.
-            options.AllowedHosts = hosts?.Length > 0 ? hosts : ["*"];
-        });
+        services.Configure<StaticFileOptions>(ConfigureStaticFileOptions(appSettings));
+        services.Configure<ForwardedHeadersOptions>(ConfigureForwardedHeadersOptions(appSettings));
+        services.PostConfigure<HostFilteringOptions>(ConfigureHostFilteringOptions(appSettings));
 
         services.AddSecurityHeaderPolicies((builder, provider) =>
         {
@@ -251,6 +244,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     protected virtual void ConfigureApplication(WebApplication application, IAppSettings appSettings)
     {
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
+
+        ConfigureApplicationPipelineStart(application, appSettings);
 
         ConfigureApplicationPreScopeStart(application, appSettings);
         application.UseMiddleware<HttpScopeMiddleware>();
@@ -424,26 +419,69 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             };
         };
 
-    protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
+    protected virtual Action<StaticFileOptions> ConfigureStaticFileOptions(IAppSettings appSettings) =>
+        options =>
+        {
+            options.HttpsCompression = HttpsCompressionMode.Compress;
+            options.OnPrepareResponse = context =>
+            {
+                context.Context.Response.Headers.CacheControl = "public,max-age=31536000"; // 1 year
+            };
+        };
+
+    private static Action<ForwardedHeadersOptions> ConfigureForwardedHeadersOptions(IAppSettings appSettings)
     {
+        return options => { options.ForwardedHeaders = ForwardedHeaders.All; };
+    }
+
+    private static Action<HostFilteringOptions> ConfigureHostFilteringOptions(IAppSettings appSettings)
+    {
+        return options =>
+        {
+            if (options.AllowedHosts.Count != 0) return;
+
+            // "AllowedHosts": "localhost;127.0.0.1;[::1]"
+            var hosts = appSettings.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            // Fall back to "*" to disable.
+            options.AllowedHosts = hosts?.Length > 0 ? hosts : ["*"];
+        };
+    }
+
+    /// <summary>
+    /// Commonly used for improving behavior not returning a response
+    /// </summary>
+    /// <param name="application"></param>
+    /// <param name="appSettings"></param>
+    protected virtual void ConfigureApplicationPipelineStart(WebApplication application, IAppSettings appSettings)
+    {
+        if (appSettings.Features.UseHttpRequestLogger)
+            application.UseMiddleware<HttpRequestLogger>(); //todo implement micro logging support
+
+        application.UseForwardedHeaders();
+        application.UseHostFiltering();
         application.UseCookiePolicy();
         application.UseSecurityHeaders();
-        application.UseForwardedHeaders();
-        
-        //application.UseStaticFiles(); //todo replace MapStaticAssets, evaluate with UseStaticWebAssets
-        if (appSettings.Features.UseHttpRequestLogger)
-            application.UseMiddleware<HttpRequestLogger>();
+    }
+
+    /// <summary>
+    /// Commonly used for a short-circuiting pipeline with a response such as static resources.
+    /// </summary>
+    protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
+    {
+        //todo add response caching for static resources
+        //todo consider response compression for static resources or general usage
+        application.UseStaticFiles();
     }
 
     protected virtual void ConfigureApplicationPostScopeStart(WebApplication application, IAppSettings appSettings)
     {
-        application.UseHostFiltering(); //kept after post-scope start to capture and log malicious requests
     }
 
     protected virtual void ConfigureApplicationPreAuthentication(WebApplication application, IAppSettings appSettings)
     {
     }
 
+    //todo review stability when no auth is configured
     /// <summary>
     /// Called when PreAuthorization
     /// </summary>
@@ -476,8 +514,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void MapApplicationEndpoints(WebApplication application, IAppSettings appSettings)
     {
-        //todo mapstaticAssets https://learn.microsoft.com/en-us/aspnet/core/fundamentals/map-static-files?view=aspnetcore-9.0
-        //remove application.UseStaticFiles() usages
         application.MapControllers();
         application.MapRazorPages();
     }
