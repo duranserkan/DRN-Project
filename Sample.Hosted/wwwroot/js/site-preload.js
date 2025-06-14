@@ -5,6 +5,7 @@
 window.drnApp = {
     environment: 'Neitherland',
     isDev: false,
+    showCookieBanner: false,
     // provides utility methods
     utils: {},
     // manages behavior of elements.

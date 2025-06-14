@@ -468,7 +468,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// </summary>
     protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
     {
-        //todo add response caching for static resources
+        //todo add response caching for static resources and html pages
         //todo consider response compression for static resources or general usage
         application.UseStaticFiles();
     }
