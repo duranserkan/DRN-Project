@@ -8,17 +8,21 @@ public enum PageSortDirection
 
 public readonly struct PageCursor(long pageNumber, Guid lastId, PageSortDirection direction = PageSortDirection.AscendingByCreatedAt)
 {
-    public static PageCursor Initial => new(0, Guid.Empty);
-    public long PageNumber { get; } = pageNumber > 0 ? pageNumber : 0;
+    public static PageCursor Initial => new(1, Guid.Empty);
+    public long PageNumber { get; } = pageNumber > 1 ? pageNumber : 1;
     public Guid LastId { get; } = lastId;
     public PageSortDirection SortDirection { get; } = direction;
+
+    public bool IsFirstPage => PageNumber == 1;
+
+    public bool IsFirstRequest => IsFirstPage && LastId == Guid.Empty;
 }
 
 public readonly struct PageSize
 {
     public const int MaxSizeDefault = 100;
     public const int MaxSizeThreshold = 1000;
-    
+
     public static PageSize Default => new(10);
 
     public PageSize(int size, int maxSize = MaxSizeDefault, bool overrideMaxsizeThreshold = false)
