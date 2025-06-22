@@ -14,7 +14,7 @@ public interface IPaginationUtils
         where TEntity : SourceKnownEntity;
 }
 
-[Transient<IPaginationUtils>]
+[Singleton<IPaginationUtils>]
 public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
 {
     public async Task<PaginationResult<TEntity>> ToPaginationResultAsync<TEntity>(
@@ -22,22 +22,24 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
         PaginationRequest request, CancellationToken? cancellationToken = null)
         where TEntity : SourceKnownEntity
     {
+        var ct = cancellationToken ?? CancellationToken.None;
+        var totalCount = -1L;
+
+        if (request.UpdateTotalCount)
+            totalCount = await query.LongCountAsync(ct);
+
+        //todo parallelize
         // Task<long>? countTask = null;
         // if (request.UpdateTotalCount) 
         //     countTask = source.LongCountAsync(cancellationToken);
 
-        var ct = cancellationToken ?? CancellationToken.None;
-        var totalCount = -1L;
-        
-        if (request.UpdateTotalCount)
-            totalCount = await query.LongCountAsync(ct); //todo parallelize
 
         var filteredQuery = query;
         if (!request.PageCursor.IsFirstRequest)
         {
             //SourceKnownId carries created date information which is monotonic with drift protection
             var sourceKnownEntityId = utils.Parse(request.PageCursor.LastId);
-            if (sourceKnownEntityId.Valid)
+            if (!sourceKnownEntityId.Valid)
                 throw new ValidationException($"Invalid PaginationRequest.PageCursor.LastId: {request.PageCursor.LastId}");
 
             filteredQuery = request.PageCursor.SortDirection == PageSortDirection.AscendingByCreatedAt
@@ -50,7 +52,7 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
             : filteredQuery.OrderByDescending(x => x.Id);
 
         var items = await orderedQuery
-            .Take(request.PageSize.Size)
+            .Take(request.PageSize.Size + 1)
             .ToListAsync(ct);
 
         return new PaginationResult<TEntity>(items, request, totalCount);

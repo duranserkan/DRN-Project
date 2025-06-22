@@ -28,8 +28,10 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
     public override void ServiceRegistration(IServiceCollection sc, Assembly? assembly)
     {
         sc.AddDbContextsWithConventions(assembly);
+        //todo replace registrations with attribute registration
         sc.TryAddSingleton<IDrnMaterializationInterceptor, DrnMaterializationInterceptor>();
         sc.TryAddSingleton<IDrnSaveChangesInterceptor, DrnSaveChangesInterceptor>();
+        sc.TryAddSingleton<IPaginationUtils, PaginationUtils>();
     }
 
     public override async Task PostStartupValidationAsync(object service, IServiceProvider serviceProvider, IScopedLog? scopedLog = null)

@@ -45,37 +45,53 @@ public readonly struct PageSize
 /// </summary>
 public readonly struct PaginationRequest(long pageNumber, PageCursor pageCursor, PageSize pageSize, bool updateTotalCount = false)
 {
+    public static PaginationRequest Default => new(1, PageCursor.Initial, PageSize.Default, false);
+    public static PaginationRequest DefaultWith(int size = 10, bool updateTotalCount = false) => new(1, PageCursor.Initial, new PageSize(size), updateTotalCount);
+
     public long PageNumber { get; } = pageNumber < 1 ? 1 : pageNumber;
     public PageSize PageSize { get; } = pageSize;
     public PageCursor PageCursor { get; } = pageCursor;
     public bool UpdateTotalCount { get; } = updateTotalCount;
+
+
+    public PaginationRequest GetNextPage(Guid lastId)
+    {
+        var nextPageNumber = PageNumber + 1;
+        var nextCursor = new PageCursor(nextPageNumber, lastId, PageCursor.SortDirection);
+        var nextRequest = new PaginationRequest(nextPageNumber, nextCursor, PageSize);
+
+        return nextRequest;
+    }
 }
 
 public readonly struct PaginationResult<TEntity> where TEntity : SourceKnownEntity
 {
     public PaginationResult(IReadOnlyList<TEntity> items, PaginationRequest request, long totalCount = -1)
     {
-        Items = items;
+        var excessCount = request.PageSize.Size + 1;
+        var hasNext = items.Count == excessCount;
+
+        Items = hasNext ? items.Take(request.PageSize.Size).ToArray() : items;
         PageNumber = request.PageNumber;
         PageSize = request.PageSize.Size;
 
         if (items.Count > 0)
         {
             LastId = request.PageCursor.SortDirection == PageSortDirection.AscendingByCreatedAt
-                ? items.Max()!.EntityId
-                : items.Min()!.EntityId;
+                ? Items.Max()!.EntityId
+                : Items.Min()!.EntityId;
         }
         else
             LastId = Guid.Empty;
 
         HasPrevious = PageNumber > 1;
-        HasNext = items.Count == request.PageSize.Size;
+        HasNext = hasNext;
         TotalCount = totalCount;
 
-        if (totalCount < 0) return;
+        TotalCountSpecified = totalCount > -1;
+        TotalPages = TotalCountSpecified ? (long)Math.Ceiling(TotalCount / (double)PageSize) : -1;
 
-        TotalCountSpecified = true;
-        TotalPages = (long)Math.Ceiling(TotalCount / (double)PageSize);
+        if (!TotalCountSpecified) return;
         HasNext = PageNumber < TotalPages;
     }
 
