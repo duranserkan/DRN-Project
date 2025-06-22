@@ -429,12 +429,12 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             };
         };
 
-    private static Action<ForwardedHeadersOptions> ConfigureForwardedHeadersOptions(IAppSettings appSettings)
+    protected virtual Action<ForwardedHeadersOptions> ConfigureForwardedHeadersOptions(IAppSettings appSettings)
     {
         return options => { options.ForwardedHeaders = ForwardedHeaders.All; };
     }
 
-    private static Action<HostFilteringOptions> ConfigureHostFilteringOptions(IAppSettings appSettings)
+    protected virtual Action<HostFilteringOptions> ConfigureHostFilteringOptions(IAppSettings appSettings)
     {
         return options =>
         {

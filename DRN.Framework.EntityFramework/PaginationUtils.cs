@@ -10,7 +10,7 @@ public interface IPaginationUtils
 {
     Task<PaginationResult<TEntity>> ToPaginationResultAsync<TEntity>(
         IQueryable<TEntity> query,
-        PaginationRequest request, CancellationToken? ct = null)
+        PaginationRequest request, CancellationToken? cancellationToken = null)
         where TEntity : SourceKnownEntity;
 }
 
