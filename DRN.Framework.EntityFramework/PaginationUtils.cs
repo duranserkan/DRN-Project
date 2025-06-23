@@ -28,16 +28,11 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
         if (request.UpdateTotalCount)
             totalCount = await query.LongCountAsync(ct);
 
-        //todo parallelize
-        // Task<long>? countTask = null;
-        // if (request.UpdateTotalCount) 
-        //     countTask = source.LongCountAsync(cancellationToken);
-
-
         var filteredQuery = query;
         if (!request.PageCursor.IsFirstRequest)
         {
-            //SourceKnownId carries created date information which is monotonic with drift protection
+            //Valid SourceKnownIds carry created date information which is monotonic with drift protection
+            //For this reason it can be used for sorting and filtering
             var sourceKnownEntityId = utils.Parse(request.PageCursor.LastId);
             if (!sourceKnownEntityId.Valid)
                 throw new ValidationException($"Invalid PaginationRequest.PageCursor.LastId: {request.PageCursor.LastId}");

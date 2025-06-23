@@ -1,6 +1,6 @@
 namespace DRN.Framework.SharedKernel.Domain;
 
-public enum PageSortDirection
+public enum PageSortDirection : byte
 {
     AscendingByCreatedAt = 1,
     DescendingByCreatedAt
@@ -8,13 +8,14 @@ public enum PageSortDirection
 
 public readonly struct PageCursor(long pageNumber, Guid lastId, PageSortDirection direction = PageSortDirection.AscendingByCreatedAt)
 {
-    public static PageCursor Initial => new(1, Guid.Empty);
+    public static PageCursor Initial => InitialWith(PageSortDirection.AscendingByCreatedAt);
+    public static PageCursor InitialWith(PageSortDirection direction) => new(1, Guid.Empty, direction);
+
     public long PageNumber { get; } = pageNumber > 1 ? pageNumber : 1;
     public Guid LastId { get; } = lastId;
     public PageSortDirection SortDirection { get; } = direction;
 
     public bool IsFirstPage => PageNumber == 1;
-
     public bool IsFirstRequest => IsFirstPage && LastId == Guid.Empty;
 }
 
@@ -27,7 +28,11 @@ public readonly struct PageSize
 
     public PageSize(int size, int maxSize = MaxSizeDefault, bool overrideMaxsizeThreshold = false)
     {
-        MaxSize = maxSize < MaxSizeThreshold || overrideMaxsizeThreshold ? maxSize : MaxSizeDefault;
+        if (overrideMaxsizeThreshold)
+            MaxSize = maxSize;
+        else
+            MaxSize = maxSize < MaxSizeThreshold ? maxSize : MaxSizeThreshold;
+
         if (MaxSize < 1)
             MaxSize = 1;
 
@@ -45,14 +50,15 @@ public readonly struct PageSize
 /// </summary>
 public readonly struct PaginationRequest(long pageNumber, PageCursor pageCursor, PageSize pageSize, bool updateTotalCount = false)
 {
-    public static PaginationRequest Default => new(1, PageCursor.Initial, PageSize.Default, false);
-    public static PaginationRequest DefaultWith(int size = 10, bool updateTotalCount = false) => new(1, PageCursor.Initial, new PageSize(size), updateTotalCount);
+    public static PaginationRequest Default => DefaultWith();
+
+    public static PaginationRequest DefaultWith(int size = 10, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.AscendingByCreatedAt) =>
+        new(1, PageCursor.InitialWith(direction), new PageSize(size), updateTotalCount);
 
     public long PageNumber { get; } = pageNumber < 1 ? 1 : pageNumber;
     public PageSize PageSize { get; } = pageSize;
     public PageCursor PageCursor { get; } = pageCursor;
     public bool UpdateTotalCount { get; } = updateTotalCount;
-
 
     public PaginationRequest GetNextPage(Guid lastId)
     {
@@ -105,10 +111,14 @@ public readonly struct PaginationResult<TEntity> where TEntity : SourceKnownEnti
     public Guid LastId { get; }
     public IReadOnlyList<TEntity> Items { get; }
 
+
     public long TotalCount { get; }
     public long TotalPages { get; }
     public bool TotalCountSpecified { get; }
 
     public bool HasNext { get; }
     public bool HasPrevious { get; }
+
+    public long GetTotalCountUpToCurrentPage(bool includeCurrentPage = true) => (PageNumber - 1) * PageSize + (includeCurrentPage ? Items.Count : 0);
+    public PaginationRequest GetNextPage(PaginationRequest request) => request.GetNextPage(LastId);
 }

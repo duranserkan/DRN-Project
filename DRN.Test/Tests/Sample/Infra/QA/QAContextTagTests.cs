@@ -15,8 +15,10 @@ public class QAContextTagTests
         context.ServiceCollection.AddSampleInfraServices();
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
         var qaContext = context.GetRequiredService<QAContext>();
+        var tagPrefix = $"{nameof(QAContext_Should_Have_Tag)}_{Guid.NewGuid():N}";
+        var tagQuery = qaContext.Tags.Where(t => t.Name.StartsWith(tagPrefix));
 
-        var firstTag = new Tag("firstTag")
+        var firstTag = new Tag($"{tagPrefix}_firstTag")
         {
             Model = new TagValueModel
             {
@@ -29,7 +31,7 @@ public class QAContextTagTests
             }
         };
 
-        var secondTag = new Tag("secondTag")
+        var secondTag = new Tag($"{tagPrefix}_secondTag")
         {
             Model = new TagValueModel
             {
@@ -62,10 +64,10 @@ public class QAContextTagTests
         tagFromDb2.Name.Should().Be(secondTag.Name);
         tagFromDb2.Model.Should().BeEquivalentTo(secondTag.Model);
 
-        var modelBool1Query = qaContext.Tags.Where(t => t.Model.BoolValue == true);
-        var modelBool2Query = qaContext.Tags.Where(t => t.Model.BoolValue == false);
-        var modelString1Query = qaContext.Tags.Where(t => t.Model.StringValue == firstTag.Model.StringValue);
-        var modelString2Query = qaContext.Tags.Where(t => t.Model.StringValue == secondTag.Model.StringValue);
+        var modelBool1Query = tagQuery.Where(t => t.Model.BoolValue == true);
+        var modelBool2Query = tagQuery.Where(t => t.Model.BoolValue == false);
+        var modelString1Query = tagQuery.Where(t => t.Model.StringValue == firstTag.Model.StringValue);
+        var modelString2Query = tagQuery.Where(t => t.Model.StringValue == secondTag.Model.StringValue);
 
         var sqlQueries = new[] { modelBool1Query.ToQueryString(), modelBool2Query.ToQueryString(), modelString1Query.ToQueryString(), modelString2Query.ToQueryString() };
         sqlQueries.Distinct().Count().Should().Be(4);
@@ -82,18 +84,18 @@ public class QAContextTagTests
         var tagFromString2Query = await modelString2Query.SingleAsync();
         tagFromString2Query.Model.Should().BeEquivalentTo(secondTag.Model);
 
-        var tagFromBeforeFilter = await qaContext.Tags.CreatedBefore(afterTagCreation).ToArrayAsync();
-        var tagFromAfterFilter = await qaContext.Tags.CreatedAfter(beforeTagCreation).ToArrayAsync();
-        var tagFromBetweenFilter = await qaContext.Tags.CreatedBetween(beforeTagCreation, afterTagCreation).ToArrayAsync();
+        var tagFromBeforeFilter = await tagQuery.CreatedBefore(afterTagCreation).ToArrayAsync();
+        var tagFromAfterFilter = await tagQuery.CreatedAfter(beforeTagCreation).ToArrayAsync();
+        var tagFromBetweenFilter = await tagQuery.CreatedBetween(beforeTagCreation, afterTagCreation).ToArrayAsync();
 
         tagFromBeforeFilter.Length.Should().Be(2);
         tagFromAfterFilter.Length.Should().Be(2);
         tagFromBetweenFilter.Length.Should().Be(2);
 
-        tagFromBeforeFilter = await qaContext.Tags.CreatedBefore(beforeTagCreation).ToArrayAsync();
-        tagFromAfterFilter = await qaContext.Tags.CreatedAfter(afterTagCreation).ToArrayAsync();
-        tagFromBetweenFilter = await qaContext.Tags.CreatedBetween(beforeTagCreation, beforeTagCreation).ToArrayAsync();
-        var tagFromBetweenFilter2 = await qaContext.Tags.CreatedBetween(afterTagCreation, afterTagCreation).ToArrayAsync();
+        tagFromBeforeFilter = await tagQuery.CreatedBefore(beforeTagCreation).ToArrayAsync();
+        tagFromAfterFilter = await tagQuery.CreatedAfter(afterTagCreation).ToArrayAsync();
+        tagFromBetweenFilter = await tagQuery.CreatedBetween(beforeTagCreation, beforeTagCreation).ToArrayAsync();
+        var tagFromBetweenFilter2 = await tagQuery.CreatedBetween(afterTagCreation, afterTagCreation).ToArrayAsync();
 
         tagFromBeforeFilter.Length.Should().Be(0);
         tagFromAfterFilter.Length.Should().Be(0);
