@@ -48,7 +48,7 @@ public class PaginationUtilsTests
         request.UpdateTotalCount.Should().Be(updateTotalCount);
         request.PageSize.Size.Should().Be(pageSize);
 
-        paginationResult.LastId.Should().Be(paginationResult.Items.Last().EntityId);
+        paginationResult.LastId.Should().Be(paginationResult.Items[^1].EntityId);
 
         paginationResult.HasNext.Should().BeTrue();
         paginationResult.HasPrevious.Should().BeFalse();
@@ -87,7 +87,7 @@ public class PaginationUtilsTests
             nextResult.PageNumber.Should().Be(expectedPageNumber);
             nextResult.Items.Count.Should().BePositive();
             nextResult.Items.Count.Should().Be(expectedCount);
-            nextResult.LastId.Should().Be(nextResult.Items.Last().EntityId);
+            nextResult.LastId.Should().Be(nextResult.Items[^1].EntityId);
             nextResult.TotalCountSpecified.Should().BeFalse();
             nextResult.TotalCount.Should().Be(-1);
             nextResult.TotalPages.Should().Be(-1);
