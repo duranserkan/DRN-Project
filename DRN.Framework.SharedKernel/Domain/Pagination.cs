@@ -11,8 +11,16 @@ public readonly struct PageCursor(long pageNumber, Guid lastId, PageSortDirectio
     public static PageCursor Initial => InitialWith(PageSortDirection.AscendingByCreatedAt);
     public static PageCursor InitialWith(PageSortDirection direction) => new(1, Guid.Empty, direction);
 
+    /// <summary>
+    /// Points previous page or first page if it is the first request
+    /// </summary>
     public long PageNumber { get; } = pageNumber > 1 ? pageNumber : 1;
+
+    /// <summary>
+    /// Points previous page's last item
+    /// </summary>
     public Guid LastId { get; } = lastId;
+
     public PageSortDirection SortDirection { get; } = direction;
 
     public bool IsFirstPage => PageNumber == 1;
@@ -63,10 +71,18 @@ public readonly struct PaginationRequest(long pageNumber, PageCursor pageCursor,
     public PaginationRequest GetNextPage(Guid lastId)
     {
         var nextPageNumber = PageNumber + 1;
-        var nextCursor = new PageCursor(nextPageNumber, lastId, PageCursor.SortDirection);
-        var nextRequest = new PaginationRequest(nextPageNumber, nextCursor, PageSize);
+        var cursor = new PageCursor(PageNumber, lastId, PageCursor.SortDirection);
+        var nextRequest = new PaginationRequest(nextPageNumber, cursor, PageSize);
 
         return nextRequest;
+    }
+
+    public PaginationRequest GetPageJump(Guid lastId, long fromPage, long toPage)
+    {
+        var cursor = new PageCursor(fromPage, lastId, PageCursor.SortDirection);
+        var jumpRequest = new PaginationRequest(toPage, cursor, PageSize);
+
+        return jumpRequest;
     }
 }
 
@@ -120,5 +136,6 @@ public readonly struct PaginationResult<TEntity> where TEntity : SourceKnownEnti
     public bool HasPrevious { get; }
 
     public long GetTotalCountUpToCurrentPage(bool includeCurrentPage = true) => (PageNumber - 1) * PageSize + (includeCurrentPage ? Items.Count : 0);
-    public PaginationRequest GetNextPage(PaginationRequest request) => request.GetNextPage(LastId);
+    public PaginationRequest GetNextPage(PaginationRequest previousRequest) => previousRequest.GetNextPage(LastId);
+    public PaginationRequest GetPageJump(PaginationRequest previousRequest, long toPage) => previousRequest.GetPageJump(LastId, PageNumber, toPage);
 }
