@@ -1,3 +1,4 @@
+using DRN.Framework.Utils.Entity;
 using Microsoft.EntityFrameworkCore;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tags;
@@ -15,6 +16,7 @@ public class QAContextTagTests
         context.ServiceCollection.AddSampleInfraServices();
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
         var qaContext = context.GetRequiredService<QAContext>();
+        var dateTimeUtils = context.GetRequiredService<IEntityDateTimeUtils>();
         var tagPrefix = $"{nameof(QAContext_Should_Have_Tag)}_{Guid.NewGuid():N}";
         var tagQuery = qaContext.Tags.Where(t => t.Name.StartsWith(tagPrefix));
 
@@ -84,18 +86,19 @@ public class QAContextTagTests
         var tagFromString2Query = await modelString2Query.SingleAsync();
         tagFromString2Query.Model.Should().BeEquivalentTo(secondTag.Model);
 
-        var tagFromBeforeFilter = await tagQuery.CreatedBefore(afterTagCreation).ToArrayAsync();
-        var tagFromAfterFilter = await tagQuery.CreatedAfter(beforeTagCreation).ToArrayAsync();
-        var tagFromBetweenFilter = await tagQuery.CreatedBetween(beforeTagCreation, afterTagCreation).ToArrayAsync();
+
+        var tagFromBeforeFilter = await dateTimeUtils.CreatedBefore(tagQuery, afterTagCreation).ToArrayAsync();
+        var tagFromAfterFilter = await dateTimeUtils.CreatedAfter(tagQuery, beforeTagCreation).ToArrayAsync();
+        var tagFromBetweenFilter = await dateTimeUtils.CreatedBetween(tagQuery, beforeTagCreation, afterTagCreation).ToArrayAsync();
 
         tagFromBeforeFilter.Length.Should().Be(2);
         tagFromAfterFilter.Length.Should().Be(2);
         tagFromBetweenFilter.Length.Should().Be(2);
 
-        tagFromBeforeFilter = await tagQuery.CreatedBefore(beforeTagCreation).ToArrayAsync();
-        tagFromAfterFilter = await tagQuery.CreatedAfter(afterTagCreation).ToArrayAsync();
-        tagFromBetweenFilter = await tagQuery.CreatedBetween(beforeTagCreation, beforeTagCreation).ToArrayAsync();
-        var tagFromBetweenFilter2 = await tagQuery.CreatedBetween(afterTagCreation, afterTagCreation).ToArrayAsync();
+        tagFromBeforeFilter = await dateTimeUtils.CreatedBefore(tagQuery, beforeTagCreation).ToArrayAsync();
+        tagFromAfterFilter = await dateTimeUtils.CreatedAfter(tagQuery, afterTagCreation).ToArrayAsync();
+        tagFromBetweenFilter = await dateTimeUtils.CreatedBetween(tagQuery, beforeTagCreation, beforeTagCreation).ToArrayAsync();
+        var tagFromBetweenFilter2 = await dateTimeUtils.CreatedBetween(tagQuery, afterTagCreation, afterTagCreation).ToArrayAsync();
 
         tagFromBeforeFilter.Length.Should().Be(0);
         tagFromAfterFilter.Length.Should().Be(0);

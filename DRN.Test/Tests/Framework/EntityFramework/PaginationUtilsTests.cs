@@ -1,5 +1,6 @@
 using DRN.Framework.EntityFramework;
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.Utils.Entity;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tags;
 using Sample.Hosted;

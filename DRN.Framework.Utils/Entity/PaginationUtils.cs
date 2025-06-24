@@ -1,10 +1,9 @@
-using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Ids;
 using Microsoft.EntityFrameworkCore;
 
-namespace DRN.Framework.EntityFramework;
+namespace DRN.Framework.Utils.Entity;
 
 public interface IPaginationUtils
 {
