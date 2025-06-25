@@ -83,15 +83,15 @@ public readonly struct PaginationRequest(long pageNumber, PageCursor pageCursor,
     public PageCursor PageCursor { get; } = pageCursor;
     public bool UpdateTotalCount { get; } = updateTotalCount;
 
-    public NavigationDirection NavigationDirection { get; } = CalculateDirection(pageNumber, pageCursor.PageNumber);
+    public NavigationDirection NavigationDirection { get; } = CalculateDirection(pageNumber, pageCursor.PageNumber, pageCursor.IsFirstRequest);
 
     public Guid GetCursorId() => NavigationDirection == NavigationDirection.Next
         ? PageCursor.LastId
         : PageCursor.FirstId;
 
-    private static NavigationDirection CalculateDirection(long pageNumber, long cursorPageNumber)
+    private static NavigationDirection CalculateDirection(long pageNumber, long cursorPageNumber, bool firstRequest)
     {
-        if (pageNumber > cursorPageNumber)
+        if (pageNumber > cursorPageNumber || firstRequest)
             return NavigationDirection.Next;
 
         return pageNumber < cursorPageNumber
@@ -131,10 +131,9 @@ public readonly struct PaginationResult<TEntity> where TEntity : SourceKnownEnti
     public PaginationResult(IReadOnlyList<TEntity> items, PaginationRequest request, long totalCount = -1)
     {
         var excessCount = request.PageSize.Size + 1;
-        var hasNext = items.Count == excessCount;
+        var hasExcessCount = items.Count == excessCount;
 
-        //todo fix has next and has previous rules
-        Items = hasNext ? items.Take(request.PageSize.Size).ToArray() : items;
+        Items = hasExcessCount ? items.Take(request.PageSize.Size).ToArray() : items;
         PageNumber = request.PageNumber;
         PageSize = request.PageSize.Size;
 
@@ -161,9 +160,11 @@ public readonly struct PaginationResult<TEntity> where TEntity : SourceKnownEnti
         }
 
         HasPrevious = PageNumber > 1;
-        HasNext = hasNext;
-        TotalCount = totalCount;
+        HasNext = request.NavigationDirection == NavigationDirection.Previous ||
+                  (request.NavigationDirection == NavigationDirection.Next && hasExcessCount);
+        SamePageRequest = request.NavigationDirection == NavigationDirection.Same;
 
+        TotalCount = totalCount;
         TotalCountSpecified = totalCount > -1;
         TotalPages = TotalCountSpecified ? (long)Math.Ceiling(TotalCount / (double)PageSize) : -1;
 
@@ -181,13 +182,18 @@ public readonly struct PaginationResult<TEntity> where TEntity : SourceKnownEnti
     public Guid FirstId { get; }
     public Guid LastId { get; }
     public IReadOnlyList<TEntity> Items { get; }
-    
+
     public long TotalCount { get; }
     public long TotalPages { get; }
     public bool TotalCountSpecified { get; }
 
     public bool HasNext { get; }
     public bool HasPrevious { get; }
+
+    /// <summary>
+    /// Page refreshed
+    /// </summary>
+    public bool SamePageRequest { get; }
 
     public long GetTotalCountUpToCurrentPage(bool includeCurrentPage = true) => (PageNumber - 1) * PageSize + (includeCurrentPage ? Items.Count : 0);
     public PaginationRequest GetNextPage(PaginationRequest previousPageRequest) => previousPageRequest.GetNextPage(FirstId, LastId);

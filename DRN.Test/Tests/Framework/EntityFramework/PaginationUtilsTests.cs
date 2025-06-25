@@ -161,9 +161,9 @@ public class PaginationUtilsTests
             previousPageResult = await paginationUtils.ToPaginationResultAsync(tagQuery, previousPageRequest);
             previousPageResult.HasNext.Should().BeTrue();
 
-            var expectedPageNumber = totalCount - 2;
+            var expectedPageNumber = totalPageCount - 2 - i;
             var nextItems = (expectedPageNumber - 1) * pageSize;
-            var expectedIndexes = itemIndexes.Skip(nextItems).Take(pageSize).ToArray();
+            var expectedIndexes = itemIndexes.Skip((int)nextItems).Take(pageSize).ToArray();
             var expectedCount = expectedIndexes.Length;
 
             previousPageResult.PageSize.Should().Be(pageSize);
@@ -189,7 +189,7 @@ public class PaginationUtilsTests
                 previousPageResult.HasPrevious.Should().BeTrue();
                 previousPageResult.GetTotalCountUpToCurrentPage().Should().Be(previousPageRequest.PageNumber * pageSize);
             }
-            
+
             var indexChunk = backwardIndexChunks[i];
             var resultIndexes = previousPageResult.Items.Select(tag => tag.Model.Other).ToArray();
             resultIndexes.Should().BeEquivalentTo(indexChunk);
