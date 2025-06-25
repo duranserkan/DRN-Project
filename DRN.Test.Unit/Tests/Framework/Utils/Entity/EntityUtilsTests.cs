@@ -10,9 +10,9 @@ public class EntityUtilsTests
     {
         var entityUtils = context.GetRequiredService<IEntityUtils>();
 
-        entityUtils.IdUtils.Should().NotBeNull();
-        entityUtils.EntityIdUtils.Should().NotBeNull();
-        entityUtils.PaginationUtils.Should().NotBeNull();
-        entityUtils.DateTimeUtils.Should().NotBeNull();
+        entityUtils.Id.Should().NotBeNull();
+        entityUtils.EntityId.Should().NotBeNull();
+        entityUtils.Pagination.Should().NotBeNull();
+        entityUtils.DateTime.Should().NotBeNull();
     }
 }

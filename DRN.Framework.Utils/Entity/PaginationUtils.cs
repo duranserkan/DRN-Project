@@ -32,13 +32,33 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
         {
             //Valid SourceKnownIds carry created date information which is monotonic with drift protection
             //For this reason it can be used for sorting and filtering
-            var sourceKnownEntityId = utils.Parse(request.PageCursor.LastId);
-            if (!sourceKnownEntityId.Valid)
+            var firstEntityId = utils.Parse(request.PageCursor.FirstId);
+            var lastEntityId = utils.Parse(request.PageCursor.LastId);
+            if (!firstEntityId.Valid)
+                throw new ValidationException($"Invalid PaginationRequest.PageCursor.FirstId: {request.PageCursor.LastId}");
+            if (!lastEntityId.Valid)
                 throw new ValidationException($"Invalid PaginationRequest.PageCursor.LastId: {request.PageCursor.LastId}");
-
-            filteredQuery = request.PageCursor.SortDirection == PageSortDirection.AscendingByCreatedAt
-                ? query.Where(x => x.Id > sourceKnownEntityId.Source.Id)
-                : query.Where(x => x.Id < sourceKnownEntityId.Source.Id);
+            
+            if (request.NavigationDirection == NavigationDirection.Same)
+            {
+                filteredQuery = request.PageCursor.SortDirection == PageSortDirection.AscendingByCreatedAt
+                    ? query.Where(x => x.Id >= firstEntityId.Source.Id && x.Id <= lastEntityId.Source.Id)
+                    : query.Where(x => x.Id >= lastEntityId.Source.Id && x.Id <= firstEntityId.Source.Id);
+            }
+            else if(request.NavigationDirection == NavigationDirection.Next)
+            {
+                var cursorId = lastEntityId;
+                filteredQuery = request.PageCursor.SortDirection == PageSortDirection.AscendingByCreatedAt
+                    ? query.Where(x => x.Id > cursorId.Source.Id)
+                    : query.Where(x => x.Id < cursorId.Source.Id);
+            }
+            else //previous page
+            {
+                var cursorId = firstEntityId;
+                filteredQuery = request.PageCursor.SortDirection == PageSortDirection.AscendingByCreatedAt
+                    ? query.Where(x => x.Id < cursorId.Source.Id)
+                    : query.Where(x => x.Id > cursorId.Source.Id);
+            }
         }
 
         var orderedQuery = request.PageCursor.SortDirection == PageSortDirection.AscendingByCreatedAt

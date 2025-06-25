@@ -25,7 +25,7 @@ public class PaginationTests
     public void PageCursor_SecondRequest_Defaults(PageSortDirection direction)
     {
         var lastId = Guid.NewGuid();
-        var cursor = new PageCursor(2, lastId, direction);
+        var cursor = new PageCursor(2, lastId,lastId, direction);
         cursor.IsFirstRequest.Should().BeFalse();
         cursor.IsFirstPage.Should().BeFalse();
         cursor.LastId.Should().Be(lastId);
