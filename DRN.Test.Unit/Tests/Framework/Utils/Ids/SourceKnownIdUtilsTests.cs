@@ -6,7 +6,7 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 public class SourceKnownIdUtilsTests
 {
     [Fact]
-    public async Task Generator_Should_Generate_Valid_Id()
+    public async Task SourceKnownIdUtils_Generate_Should_Generate_Valid_Id()
     {
         byte appId = 1;
         byte appInstanceId = 1;
@@ -32,7 +32,7 @@ public class SourceKnownIdUtilsTests
 
     [Theory]
     [DataInlineUnit]
-    public async Task SourceKnownIDs_Should_Be_Generate_Id(UnitTestContext context)
+    public async Task SourceKnownIdUtils_Should_Generate_Next_Valid_Id(UnitTestContext context)
     {
         var nexusSettings = new NexusAppSettings
         {
@@ -52,25 +52,36 @@ public class SourceKnownIdUtilsTests
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
         await Task.Delay(1100); // 100ms buffer added to compensate caching effect
-        var id = generator.Next<SourceKnownIdUtilsTests>();
+        var id1 = generator.Next<SourceKnownIdUtilsTests>();
         await Task.Delay(1100);
 
         var afterIdGenerated = DateTimeOffset.UtcNow;
 
-        id.Should().BeNegative();
+        id1.Should().BeNegative();
         epoch.Should().BeBefore(beforeIdGenerated);
 
-        var idInfo = generator.Parse(id);
-        idInfo.AppId.Should().Be(nexusSettings.AppId);
-        idInfo.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
+        var idInfo1 = generator.Parse(id1);
+        idInfo1.AppId.Should().Be(nexusSettings.AppId);
+        idInfo1.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
 
-        idInfo.CreatedAt.Should().BeBefore(afterIdGenerated);
-        idInfo.CreatedAt.Should().BeAfter(beforeIdGenerated);
+        idInfo1.CreatedAt.Should().BeBefore(afterIdGenerated);
+        idInfo1.CreatedAt.Should().BeAfter(beforeIdGenerated);
+
+        var id2 = generator.Next<SourceKnownIdUtilsTests>();
+        (id2 > id1).Should().BeTrue();
+
+        var idInfo2 = generator.Parse(id2);
+        (idInfo2 > idInfo1).Should().BeTrue();
+        (idInfo2 >= idInfo1).Should().BeTrue();
+        (idInfo2 >= idInfo2).Should().BeTrue();
+        (idInfo1 < idInfo2).Should().BeTrue();
+        (idInfo1 <= idInfo2).Should().BeTrue();
+        (idInfo1 <= idInfo1).Should().BeTrue();
     }
 
     [Theory]
     [DataInlineUnit]
-    public async Task SourceKnownIDs_Should_Be_Generate_Ids_For_3_Seconds(UnitTestContext context)
+    public async Task SourceKnownIdUtils_Should_Generate_Ids_For_3_Seconds(UnitTestContext context)
     {
         var nexusSettings = new NexusAppSettings
         {

@@ -147,7 +147,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         if (Id == 0)
             return -1;
 
-        return EntityIdSource.EntityTypeId == other.EntityIdSource.EntityTypeId
+        return EntityIdSource.HasSameEntityType(other.EntityIdSource)
             ? Id.CompareTo(other.Id)
             : 1;
     }

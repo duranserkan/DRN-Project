@@ -10,6 +10,9 @@ public enum NavigationDirection : byte
 {
     Next = 1,
     Previous,
+    /// <summary>
+    /// can be used to refresh the current page
+    /// </summary>
     Same
 }
 
@@ -126,6 +129,7 @@ public readonly struct PaginationRequest(long pageNumber, PageCursor pageCursor,
     }
 }
 
+//todo add external total count support, correct previous and next page flags when applicable
 public readonly struct PaginationResult<TEntity> where TEntity : SourceKnownEntity
 {
     public PaginationResult(IReadOnlyList<TEntity> items, PaginationRequest request, long totalCount = -1)
@@ -133,7 +137,14 @@ public readonly struct PaginationResult<TEntity> where TEntity : SourceKnownEnti
         var excessCount = request.PageSize.Size + 1;
         var hasExcessCount = items.Count == excessCount;
 
-        Items = hasExcessCount ? items.Take(request.PageSize.Size).ToArray() : items;
+        Items = items;
+        if (hasExcessCount)
+        {
+            Items = request.NavigationDirection != NavigationDirection.Next
+                ? items.Skip(1).Take(request.PageSize.Size).ToArray()
+                : items.Take(request.PageSize.Size).ToArray();
+        }
+
         PageNumber = request.PageNumber;
         PageSize = request.PageSize.Size;
 
