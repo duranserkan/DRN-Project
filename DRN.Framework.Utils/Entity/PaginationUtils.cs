@@ -80,8 +80,11 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
                 ? filteredQuery.OrderBy(entity => entity.Id)
                 : filteredQuery.OrderByDescending(entity => entity.Id);
         }
+
+        IReadOnlyList<TEntity> items = request.IsPageJump()
+            ? await orderedQuery.Skip(request.GetSkipSize()).Take(request.PageSize.Size + 1).ToListAsync(ct)
+            : await orderedQuery.Take(request.PageSize.Size + 1).ToListAsync(ct);
         
-        IReadOnlyList<TEntity> items = await orderedQuery.Take(request.PageSize.Size + 1).ToListAsync(ct);
         if (navigationDirection == NavigationDirection.Previous)
         {
             items = sortDirection == PageSortDirection.AscendingByCreatedAt
