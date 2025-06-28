@@ -56,7 +56,7 @@ public class PaginationResult<TEntity> : PaginationResultBase where TEntity : So
             return;
         }
 
-        HasNext = PageNumber < Total.Pages;
+        HasNext = HasNext || PageNumber < Total.Pages;
     }
 
     public IReadOnlyList<TEntity> Items { get; }

@@ -11,6 +11,7 @@ public class PaginationUtilsTests
 {
     //todo add async enumerable support
     //todo add pagination with model tests
+    //todo test refresh on first and last pages
     [Theory]
     [DataInline(90, 5, true, PageSortDirection.AscendingByCreatedAt)]
     [DataInline(90, 5, true, PageSortDirection.DescendingByCreatedAt)]
