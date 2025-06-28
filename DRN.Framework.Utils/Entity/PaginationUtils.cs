@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Ids;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,7 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
         where TEntity : SourceKnownEntity
     {
         var ct = cancellationToken ?? CancellationToken.None;
-        var totalCount = -1L;
+        var totalCount = request.Total.Count != -1 ? request.Total.Count : -1;
 
         if (request.UpdateTotalCount)
             totalCount = await query.LongCountAsync(ct);
@@ -83,7 +84,7 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
         IReadOnlyList<TEntity> items = request.IsPageJump()
             ? await orderedQuery.Skip(request.GetSkipSize()).Take(request.PageSize.Size + 1).ToListAsync(ct)
             : await orderedQuery.Take(request.PageSize.Size + 1).ToListAsync(ct);
-        
+
         if (navigationDirection == NavigationDirection.Previous)
         {
             items = sortDirection == PageSortDirection.AscendingByCreatedAt

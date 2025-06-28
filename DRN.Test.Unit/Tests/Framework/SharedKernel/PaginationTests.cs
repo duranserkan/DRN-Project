@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.SharedKernel.Domain.Pagination;
 
 namespace DRN.Test.Unit.Tests.Framework.SharedKernel;
 
