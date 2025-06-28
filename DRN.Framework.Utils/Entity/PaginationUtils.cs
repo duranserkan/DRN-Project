@@ -39,7 +39,7 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
             if (!lastEntityId.Valid)
                 throw new ValidationException($"Invalid PaginationRequest.PageCursor.LastId: {request.PageCursor.LastId}");
 
-            if (navigationDirection == NavigationDirection.Same)
+            if (navigationDirection == NavigationDirection.Refresh)
             {
                 var firstId = firstEntityId.Source.Id;
                 var lastId = lastEntityId.Source.Id;

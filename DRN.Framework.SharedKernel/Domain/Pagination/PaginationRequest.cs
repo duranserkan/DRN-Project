@@ -29,7 +29,7 @@ public readonly struct PaginationRequest(
 
     public bool IsPageJump() => PageDifference > 1;
     public int GetSkipSize() => (int)((PageDifference - 1) * PageSize.Size);
-    public bool IsPageRefresh => NavigationDirection == NavigationDirection.Same;
+    public bool IsPageRefresh => NavigationDirection == NavigationDirection.Refresh;
     public NavigationDirection NavigationDirection { get; } = CalculateDirection(pageNumber, pageCursor.PageNumber, pageCursor.IsFirstRequest);
 
     public Guid GetCursorId() => NavigationDirection == NavigationDirection.Next
@@ -43,7 +43,7 @@ public readonly struct PaginationRequest(
 
         return pageNumber < cursorPageNumber
             ? NavigationDirection.Previous
-            : NavigationDirection.Same;
+            : NavigationDirection.Refresh;
     }
 
     public PaginationRequest GetNextPage(Guid firstId, Guid lastId, bool updateTotalCount = false, long totalCount = -1)

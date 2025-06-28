@@ -10,6 +10,7 @@ namespace DRN.Test.Tests.Framework.EntityFramework;
 public class PaginationUtilsTests
 {
     //todo add async enumerable support
+    //todo add pagination with model tests
     [Theory]
     [DataInline(90, 5, true, PageSortDirection.AscendingByCreatedAt)]
     [DataInline(90, 5, true, PageSortDirection.DescendingByCreatedAt)]
@@ -179,7 +180,7 @@ public record ExpectedPageResultCollection(Tag[] Tags, int TotalCount, int PageS
             ? NavigationDirection.Next
             : NavigationDirection.Previous;
         expectedNavigationDirection = request.PageNumber == cursor.PageNumber
-            ? NavigationDirection.Same
+            ? NavigationDirection.Refresh
             : expectedNavigationDirection;
 
         request.NavigationDirection.Should().Be(expectedNavigationDirection);

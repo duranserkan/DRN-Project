@@ -10,9 +10,5 @@ public enum NavigationDirection : byte
 {
     Next = 1,
     Previous,
-
-    /// <summary>
-    /// Used for refreshing the current page
-    /// </summary>
-    Same
+    Refresh
 }
