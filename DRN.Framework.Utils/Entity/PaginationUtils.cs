@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DRN.Framework.Utils.Entity;
 
-//todo add async enumerable support
 public interface IPaginationUtils
 {
     Task<PaginationResult<TEntity>> ToPaginationResultAsync<TEntity>(

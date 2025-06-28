@@ -9,7 +9,8 @@ namespace DRN.Test.Tests.Framework.EntityFramework;
 
 public class PaginationUtilsTests
 {
-    //todo add tests to go same page
+    //todo add external total count support, correct previous and next page flags when applicable
+    //todo add async enumerable support
     [Theory]
     [DataInline(100, 5, true, PageSortDirection.AscendingByCreatedAt)]
     [DataInline(100, 5, true, PageSortDirection.DescendingByCreatedAt)]
@@ -51,7 +52,7 @@ public class PaginationUtilsTests
         expectedPages.ValidateFirstRequest(request);
 
         paginationResult = await paginationUtils.ToPaginationResultAsync(tagQuery, request);
-        expectedPages.ValidatePageResult(request, paginationResult);
+        expectedPages.ValidateResult(request, paginationResult);
 
         //Remaining Pages
         var nextPageRequest = request;
@@ -66,7 +67,7 @@ public class PaginationUtilsTests
             expectedPages.ValidateRequest(nextPageRequest, previousPageNumber, false);
 
             nextPageResult = await paginationUtils.ToPaginationResultAsync(tagQuery, nextPageRequest);
-            expectedPages.ValidatePageResult(nextPageRequest, nextPageResult);
+            expectedPages.ValidateResult(nextPageRequest, nextPageResult);
         }
 
         //Paginate Backward
@@ -75,7 +76,7 @@ public class PaginationUtilsTests
         expectedPages.ValidateRequest(previousPageRequest, totalPageCount, updateTotalCount);
 
         var previousPageResult = await paginationUtils.ToPaginationResultAsync(tagQuery, previousPageRequest);
-        expectedPages.ValidatePageResult(previousPageRequest, previousPageResult);
+        expectedPages.ValidateResult(previousPageRequest, previousPageResult);
 
         var remainingPages = totalPageCount - 1;
         for (var i = 1; i < remainingPages; i++)
@@ -86,147 +87,157 @@ public class PaginationUtilsTests
             expectedPages.ValidateRequest(previousPageRequest, previousPageNumber, false);
 
             previousPageResult = await paginationUtils.ToPaginationResultAsync(tagQuery, previousPageRequest);
-            expectedPages.ValidatePageResult(previousPageRequest, previousPageResult);
+            expectedPages.ValidateResult(previousPageRequest, previousPageResult);
         }
 
         //Page jump to last page
         var preJumpPageNumber = previousPageRequest.PageNumber;
-        var lastPageRequest = previousPageResult.RequestPageJumpTo(totalPageCount);
+        var lastPageRequest = previousPageResult.RequestPage(totalPageCount);
         expectedPages.ValidateRequest(lastPageRequest, preJumpPageNumber, false, true, (int)totalPageCount - 1);
 
         var lastPageResult = await paginationUtils.ToPaginationResultAsync(tagQuery, lastPageRequest);
-        expectedPages.ValidatePageResult(lastPageRequest, lastPageResult);
+        expectedPages.ValidateResult(lastPageRequest, lastPageResult);
 
         //Page jump to First Page
         preJumpPageNumber = lastPageResult.PageNumber;
-        var firstPageRequest = lastPageResult.RequestPageJumpTo(1);
+        var firstPageRequest = lastPageResult.RequestPage(1);
         expectedPages.ValidateRequest(firstPageRequest, preJumpPageNumber, false, true, (int)totalPageCount - 1);
 
         var firstPageResult = await paginationUtils.ToPaginationResultAsync(tagQuery, firstPageRequest);
-        expectedPages.ValidatePageResult(firstPageRequest, firstPageResult);
+        expectedPages.ValidateResult(firstPageRequest, firstPageResult);
 
         //Page jump to Page 4
         preJumpPageNumber = firstPageResult.PageNumber;
-        var request4 = firstPageResult.RequestPageJumpTo(4);
+        var request4 = firstPageResult.RequestPage(4);
         expectedPages.ValidateRequest(request4, preJumpPageNumber, false, true, 3);
 
         var pageResult4 = await paginationUtils.ToPaginationResultAsync(tagQuery, request4);
-        expectedPages.ValidatePageResult(request4, pageResult4);
+        expectedPages.ValidateResult(request4, pageResult4);
 
         //Page jump to Page 2
         preJumpPageNumber = pageResult4.PageNumber;
-        var request2 = pageResult4.RequestPageJumpTo(2);
+        var request2 = pageResult4.RequestPage(2);
         expectedPages.ValidateRequest(request2, preJumpPageNumber, false, true, 2);
 
         var pageResult2 = await paginationUtils.ToPaginationResultAsync(tagQuery, request2);
-        expectedPages.ValidatePageResult(request2, pageResult2);
-    }
+        expectedPages.ValidateResult(request2, pageResult2);
 
-    public record ExpectedPageResultCollection(Tag[] Tags, int TotalCount, int PageSize, bool UpdateTotalCount, PageSortDirection PageSortDirection)
+        //refresh Page 2
+        request2 = pageResult2.RequestPage(2);
+        expectedPages.ValidateRequest(request2, 2, false);
+        
+        pageResult2 = await paginationUtils.ToPaginationResultAsync(tagQuery, request2);
+        expectedPages.ValidateResult(request2, pageResult2);
+    }
+}
+
+public record ExpectedPageResultCollection(Tag[] Tags, int TotalCount, int PageSize, bool UpdateTotalCount, PageSortDirection PageSortDirection)
+{
+    public long TotalPageCount => (long)Math.Ceiling((decimal)TotalCount / PageSize);
+
+    public ExpectedPageResult[] ExpectedPageResults { get; } = PageSortDirection == PageSortDirection.AscendingByCreatedAt
+        ? Tags.Order().Chunk(PageSize).Select((tags, index) => new ExpectedPageResult(tags, index + 1, PageSize)).ToArray()
+        : Tags.OrderDescending().Chunk(PageSize).Select((tags, index) => new ExpectedPageResult(tags, index + 1, PageSize)).ToArray();
+
+    public ExpectedPageResult GetPage(long page) => ExpectedPageResults[page - 1];
+    public ExpectedPageResult GetLastPage() => ExpectedPageResults[^1];
+    public ExpectedPageResult GetFirstPage() => ExpectedPageResults[0];
+
+    public void ValidateFirstRequest(PaginationRequest request)
     {
-        public long TotalPageCount => (long)Math.Ceiling((decimal)TotalCount / PageSize);
+        var cursor = request.PageCursor;
+        cursor.FirstId.Should().Be(Guid.Empty);
+        cursor.LastId.Should().Be(Guid.Empty);
+        cursor.PageNumber.Should().Be(1);
+        cursor.IsFirstPage.Should().BeTrue();
+        cursor.IsFirstRequest.Should().BeTrue();
 
-        public ExpectedPageResult[] ExpectedPageResults { get; } = PageSortDirection == PageSortDirection.AscendingByCreatedAt
-            ? Tags.Order().Chunk(PageSize).Select((tags, index) => new ExpectedPageResult(tags, index + 1, PageSize)).ToArray()
-            : Tags.OrderDescending().Chunk(PageSize).Select((tags, index) => new ExpectedPageResult(tags, index + 1, PageSize)).ToArray();
-
-        public ExpectedPageResult GetPage(long page) => ExpectedPageResults[page - 1];
-        public ExpectedPageResult GetLastPage() => ExpectedPageResults[^1];
-        public ExpectedPageResult GetFirstPage() => ExpectedPageResults[0];
-
-        public void ValidateFirstRequest(PaginationRequest request)
-        {
-            var cursor = request.PageCursor;
-            cursor.FirstId.Should().Be(Guid.Empty);
-            cursor.LastId.Should().Be(Guid.Empty);
-            cursor.PageNumber.Should().Be(1);
-            cursor.IsFirstPage.Should().BeTrue();
-            cursor.IsFirstRequest.Should().BeTrue();
-
-            request.UpdateTotalCount.Should().Be(UpdateTotalCount);
-            request.PageSize.Size.Should().Be(PageSize);
-        }
-
-        public void ValidateRequest(PaginationRequest request, long previousPageNumber, bool updateTotalCount, bool pageJump = false, int pageDifference = 0)
-        {
-            var previousPage = GetPage(previousPageNumber);
-
-            var cursor = request.PageCursor;
-            cursor.FirstId.Should().Be(previousPage.FirstId);
-            cursor.LastId.Should().Be(previousPage.LastId);
-            cursor.PageNumber.Should().Be(previousPage.PageNumber);
-            cursor.IsFirstPage.Should().Be(previousPage.PageNumber == 1);
-            cursor.IsFirstRequest.Should().BeFalse();
-
-            var expectedNavigationDirection = request.PageNumber > cursor.PageNumber
-                ? NavigationDirection.Next
-                : NavigationDirection.Previous;
-            expectedNavigationDirection = request.PageNumber == cursor.PageNumber
-                ? NavigationDirection.Same
-                : expectedNavigationDirection;
-
-            request.NavigationDirection.Should().Be(expectedNavigationDirection);
-            request.PageSize.Size.Should().Be(PageSize);
-            request.UpdateTotalCount.Should().Be(updateTotalCount);
-
-            request.IsPageJump().Should().Be(pageJump);
-            if (pageJump)
-                ValidatePageJump(request, pageDifference);
-        }
-
-        public void ValidatePageJump(PaginationRequest request, int pageDifference)
-        {
-            request.PageDifference.Should().Be(pageDifference);
-            request.GetSkipSize().Should().Be((pageDifference - 1) * PageSize);
-            request.IsPageJump().Should().BeTrue();
-        }
-
-        public void ValidatePageResult(PaginationRequest request, PaginationResult<Tag> result)
-        {
-            var expectedPage = GetPage(request.PageNumber);
-
-            result.FirstId.Should().Be(expectedPage.FirstId);
-            result.LastId.Should().Be(expectedPage.LastId);
-            result.Items.SequenceEqual(expectedPage.Tags).Should().BeTrue();
-
-            var resultIndexes = result.Items.Select(t => t.Model.Other).ToArray();
-            resultIndexes.SequenceEqual(expectedPage.Indexes).Should().BeTrue();
-
-            result.HasNext.Should().Be(expectedPage.PageNumber != TotalPageCount);
-            result.HasPrevious.Should().Be(expectedPage.PageNumber != 1);
-
-            var expectedCount = Tags.Skip((int)(request.PageNumber - 1) * PageSize).Take(PageSize).ToArray().Length;
-            result.Items.Count.Should().Be(expectedCount);
-            result.Items.Count.Should().BePositive();
-
-            result.TotalCountSpecified.Should().Be(request.UpdateTotalCount);
-            result.TotalPages.Should().Be(request.UpdateTotalCount ? TotalPageCount : -1);
-            result.TotalCount.Should().Be(request.UpdateTotalCount ? TotalCount : -1);
-            result.PageSize.Should().Be(PageSize);
-            result.PageNumber.Should().Be(expectedPage.PageNumber);
-
-            var isLastPage = result.PageNumber == TotalPageCount;
-            if (isLastPage)
-            {
-                result.HasNext.Should().BeFalse();
-                result.GetTotalCountUpToCurrentPage().Should().Be(TotalCount);
-            }
-            else
-            {
-                result.HasNext.Should().BeTrue();
-                result.GetTotalCountUpToCurrentPage().Should().Be(request.PageNumber * PageSize);
-            }
-        }
+        request.UpdateTotalCount.Should().Be(UpdateTotalCount);
+        request.PageSize.Size.Should().Be(PageSize);
     }
 
-    public record ExpectedPageResult(Tag[] Tags, long PageNumber, long PageSize)
+    public void ValidateRequest(PaginationRequest request, long previousPageNumber, bool updateTotalCount, bool pageJump = false, int pageDifference = 0)
     {
-        public long[] Indexes => Tags.Select(t => t.Model.Other).ToArray();
-        public Tag FirstTag => Tags[0];
-        public Guid FirstId => Tags[0].EntityId;
-        public long FirstIndex => Indexes[0];
-        public Tag LastTag => Tags[^1];
-        public Guid LastId => Tags[^1].EntityId;
-        public long LastIndex => Indexes[^1];
+        var previousPage = GetPage(previousPageNumber);
+
+        var cursor = request.PageCursor;
+        cursor.FirstId.Should().Be(previousPage.FirstId);
+        cursor.LastId.Should().Be(previousPage.LastId);
+        cursor.PageNumber.Should().Be(previousPage.PageNumber);
+        cursor.IsFirstPage.Should().Be(previousPage.PageNumber == 1);
+        cursor.IsFirstRequest.Should().BeFalse();
+
+        var expectedNavigationDirection = request.PageNumber > cursor.PageNumber
+            ? NavigationDirection.Next
+            : NavigationDirection.Previous;
+        expectedNavigationDirection = request.PageNumber == cursor.PageNumber
+            ? NavigationDirection.Same
+            : expectedNavigationDirection;
+
+        request.NavigationDirection.Should().Be(expectedNavigationDirection);
+        request.PageSize.Size.Should().Be(PageSize);
+        request.UpdateTotalCount.Should().Be(updateTotalCount);
+
+        request.IsPageJump().Should().Be(pageJump);
+        if (pageJump)
+            ValidatePageJump(request, pageDifference);
     }
+
+    public void ValidatePageJump(PaginationRequest request, int pageDifference)
+    {
+        request.PageDifference.Should().Be(pageDifference);
+        request.GetSkipSize().Should().Be((pageDifference - 1) * PageSize);
+        request.IsPageJump().Should().BeTrue();
+    }
+
+    public void ValidateResult(PaginationRequest request, PaginationResult<Tag> result)
+    {
+        var expectedPage = GetPage(request.PageNumber);
+
+        result.FirstId.Should().Be(expectedPage.FirstId);
+        result.LastId.Should().Be(expectedPage.LastId);
+        result.Items.SequenceEqual(expectedPage.Tags).Should().BeTrue();
+
+        var resultIndexes = result.Items.Select(t => t.Model.Other).ToArray();
+        resultIndexes.SequenceEqual(expectedPage.Indexes).Should().BeTrue();
+
+        result.HasNext.Should().Be(expectedPage.PageNumber != TotalPageCount);
+        result.HasPrevious.Should().Be(expectedPage.PageNumber != 1);
+
+        var expectedCount = Tags.Skip((int)(request.PageNumber - 1) * PageSize).Take(PageSize).ToArray().Length;
+        result.Items.Count.Should().Be(expectedCount);
+        result.Items.Count.Should().BePositive();
+
+        result.TotalCountSpecified.Should().Be(request.UpdateTotalCount);
+        result.TotalPages.Should().Be(request.UpdateTotalCount ? TotalPageCount : -1);
+        result.TotalCount.Should().Be(request.UpdateTotalCount ? TotalCount : -1);
+        result.PageSize.Should().Be(PageSize);
+        result.PageNumber.Should().Be(expectedPage.PageNumber);
+
+        var isLastPage = result.PageNumber == TotalPageCount;
+        if (isLastPage)
+        {
+            result.HasNext.Should().BeFalse();
+            result.GetTotalCountUpToCurrentPage().Should().Be(TotalCount);
+        }
+        else
+        {
+            result.HasNext.Should().BeTrue();
+            result.GetTotalCountUpToCurrentPage().Should().Be(request.PageNumber * PageSize);
+        }
+
+        if (!request.PageCursor.IsFirstRequest && request.PageNumber == request.PageCursor.PageNumber)
+            result.SamePageRequest.Should().BeTrue();
+    }
+}
+
+public record ExpectedPageResult(Tag[] Tags, long PageNumber, long PageSize)
+{
+    public long[] Indexes => Tags.Select(t => t.Model.Other).ToArray();
+    public Tag FirstTag => Tags[0];
+    public Guid FirstId => Tags[0].EntityId;
+    public long FirstIndex => Indexes[0];
+    public Tag LastTag => Tags[^1];
+    public Guid LastId => Tags[^1].EntityId;
+    public long LastIndex => Indexes[^1];
 }

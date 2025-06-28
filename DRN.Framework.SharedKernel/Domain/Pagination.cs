@@ -113,8 +113,7 @@ public readonly struct PaginationRequest(long pageNumber, PageCursor pageCursor,
     public PaginationRequest GetNextPage(Guid firstId, Guid lastId)
     {
         var nextPageNumber = PageNumber + 1;
-        var cursor = new PageCursor(PageNumber, firstId, lastId, PageCursor.SortDirection);
-        var nextRequest = new PaginationRequest(nextPageNumber, cursor, PageSize);
+        var nextRequest = GetPage(firstId, lastId, PageNumber, nextPageNumber);
 
         return nextRequest;
     }
@@ -122,18 +121,17 @@ public readonly struct PaginationRequest(long pageNumber, PageCursor pageCursor,
     public PaginationRequest GetPreviousPage(Guid firstId, Guid lastId)
     {
         var previousPageNumber = PageNumber - 1;
-        var cursor = new PageCursor(PageNumber, firstId, lastId, PageCursor.SortDirection);
-        var nextRequest = new PaginationRequest(previousPageNumber, cursor, PageSize);
+        var nextRequest = GetPage(firstId, lastId, PageNumber, previousPageNumber);
 
         return nextRequest;
     }
 
-    public PaginationRequest GetPageJump(Guid firstId, Guid lastId, long fromPage, long toPage)
+    public PaginationRequest GetPage(Guid firstId, Guid lastId, long fromPage, long toPage)
     {
         var cursor = new PageCursor(fromPage, firstId, lastId, PageCursor.SortDirection);
-        var jumpRequest = new PaginationRequest(toPage, cursor, PageSize);
+        var pageRequest = new PaginationRequest(toPage, cursor, PageSize);
 
-        return jumpRequest;
+        return pageRequest;
     }
 }
 
@@ -143,7 +141,6 @@ public class PaginationResultModel<TModel, TEntity>(PaginationResult<TEntity> pa
     public IReadOnlyList<TModel> Items { get; } = paginationResult.Items.Select(mapper).ToArray();
 }
 
-//todo add external total count support, correct previous and next page flags when applicable
 public class PaginationResult<TEntity> : PaginationResult where TEntity : SourceKnownEntity
 {
     public PaginationResult(IReadOnlyList<TEntity> items, PaginationRequest request, long totalCount = -1)
@@ -252,5 +249,5 @@ public abstract class PaginationResult
     public long GetTotalCountUpToCurrentPage(bool includeCurrentPage = true) => (PageNumber - 1) * PageSize + (includeCurrentPage ? ItemCount : 0);
     public PaginationRequest RequestNextPage() => Request.GetNextPage(FirstId, LastId);
     public PaginationRequest RequestPreviousPage() => Request.GetPreviousPage(FirstId, LastId);
-    public PaginationRequest RequestPageJumpTo(long page) => Request.GetPageJump(FirstId, LastId, PageNumber, page);
+    public PaginationRequest RequestPage(long page) => Request.GetPage(FirstId, LastId, PageNumber, page);
 }
