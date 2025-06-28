@@ -3,7 +3,13 @@ namespace DRN.Framework.SharedKernel.Domain.Pagination;
 /// <summary>
 /// Represents pagination parameters for fetching a page of data.
 /// </summary>
-public readonly struct PaginationRequest(long pageNumber, PageCursor pageCursor, PageSize pageSize, bool updateTotalCount = false, long totalCount = -1)
+public readonly struct PaginationRequest(
+    long pageNumber,
+    PageCursor pageCursor,
+    PageSize pageSize,
+    bool updateTotalCount = false,
+    long totalCount = -1,
+    bool markAsHasNextOnRefresh = false)
 {
     public static PaginationRequest Default => DefaultWith();
 
@@ -15,6 +21,7 @@ public readonly struct PaginationRequest(long pageNumber, PageCursor pageCursor,
     public PageCursor PageCursor { get; } = pageCursor;
     public PaginationTotal Total { get; } = new(totalCount, pageSize.Size);
     public bool UpdateTotalCount { get; } = updateTotalCount;
+    public bool MarkAsHasNextOnRefresh { get; } = markAsHasNextOnRefresh;
 
     public long PageDifference { get; } = pageNumber > pageCursor.PageNumber
         ? pageNumber - pageCursor.PageNumber
@@ -55,10 +62,11 @@ public readonly struct PaginationRequest(long pageNumber, PageCursor pageCursor,
         return nextRequest;
     }
 
-    public PaginationRequest GetPage(Guid firstId, Guid lastId, long fromPage, long toPage, bool updateTotalCount = false, long totalCount = -1)
+    public PaginationRequest GetPage(Guid firstId, Guid lastId, long fromPage, long toPage, bool updateTotalCount = false, long totalCount = -1,
+        bool markAsHasNextOnRefresh = false)
     {
         var cursor = new PageCursor(fromPage, firstId, lastId, PageCursor.SortDirection);
-        var pageRequest = new PaginationRequest(toPage, cursor, PageSize, updateTotalCount, totalCount != -1 ? totalCount : Total.Count);
+        var pageRequest = new PaginationRequest(toPage, cursor, PageSize, updateTotalCount, totalCount != -1 ? totalCount : Total.Count, markAsHasNextOnRefresh);
 
         return pageRequest;
     }

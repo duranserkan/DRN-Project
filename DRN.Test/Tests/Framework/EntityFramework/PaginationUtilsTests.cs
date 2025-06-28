@@ -31,7 +31,7 @@ public class PaginationUtilsTests
         //Empty Page Result
         var tagQuery = qaContext.Tags.Where(t => t.Name.StartsWith(tagPrefix));
         var request = PaginationRequest.DefaultWith(pageSize, updateTotalCount, pageSortDirection);
-        var paginationResult = await paginationUtils.ToPaginationResultAsync(tagQuery, request);
+        var paginationResult = await paginationUtils.GetResultAsync(tagQuery, request);
         paginationResult.Items.Count.Should().Be(0);
         request.PageCursor.PageNumber.Should().Be(1);
         request.PageCursor.IsFirstPage.Should().BeTrue();
@@ -50,8 +50,9 @@ public class PaginationUtilsTests
         request = PaginationRequest.DefaultWith(pageSize, updateTotalCount, pageSortDirection);
         expectedPages.ValidateFirstRequest(request);
 
-        paginationResult = await paginationUtils.ToPaginationResultAsync(tagQuery, request);
+        paginationResult = await paginationUtils.GetResultAsync(tagQuery, request);
         expectedPages.ValidateResult(paginationResult, updateTotalCount);
+        paginationResult.TotalCountUpdated.Should().Be(updateTotalCount);
 
         //Remaining Pages
         var nextPageRequest = request;
@@ -65,8 +66,9 @@ public class PaginationUtilsTests
             nextPageRequest = nextPageResult.RequestNextPage();
             expectedPages.ValidateRequest(nextPageRequest, previousPageNumber, false);
 
-            nextPageResult = await paginationUtils.ToPaginationResultAsync(tagQuery, nextPageRequest);
+            nextPageResult = await paginationUtils.GetResultAsync(tagQuery, nextPageRequest);
             expectedPages.ValidateResult(nextPageResult, updateTotalCount);
+            nextPageResult.TotalCountUpdated.Should().Be(false);
         }
 
         //Paginate Backward
@@ -74,7 +76,7 @@ public class PaginationUtilsTests
         var previousPageRequest = new PaginationRequest(nextPageResult.PageNumber - 1, cursor, nextPageRequest.PageSize, updateTotalCount, nextPageResult.Total.Count);
         expectedPages.ValidateRequest(previousPageRequest, totalPageCount, updateTotalCount);
 
-        var previousPageResult = await paginationUtils.ToPaginationResultAsync(tagQuery, previousPageRequest);
+        var previousPageResult = await paginationUtils.GetResultAsync(tagQuery, previousPageRequest);
         expectedPages.ValidateResult(previousPageResult, updateTotalCount);
 
         var remainingPages = totalPageCount - 1;
@@ -85,8 +87,9 @@ public class PaginationUtilsTests
             previousPageRequest = previousPageResult.RequestPreviousPage();
             expectedPages.ValidateRequest(previousPageRequest, previousPageNumber, false);
 
-            previousPageResult = await paginationUtils.ToPaginationResultAsync(tagQuery, previousPageRequest);
+            previousPageResult = await paginationUtils.GetResultAsync(tagQuery, previousPageRequest);
             expectedPages.ValidateResult(previousPageResult, updateTotalCount);
+            previousPageResult.TotalCountUpdated.Should().Be(false);
         }
 
         //Page jump to last page
@@ -94,39 +97,45 @@ public class PaginationUtilsTests
         var lastPageRequest = previousPageResult.RequestPage(totalPageCount);
         expectedPages.ValidateRequest(lastPageRequest, preJumpPageNumber, false, true, (int)totalPageCount - 1);
 
-        var lastPageResult = await paginationUtils.ToPaginationResultAsync(tagQuery, lastPageRequest);
+        var lastPageResult = await paginationUtils.GetResultAsync(tagQuery, lastPageRequest);
         expectedPages.ValidateResult(lastPageResult, updateTotalCount);
+        lastPageResult.TotalCountUpdated.Should().Be(false);
 
         //Page jump to First Page
         preJumpPageNumber = lastPageResult.PageNumber;
         var firstPageRequest = lastPageResult.RequestPage(1);
         expectedPages.ValidateRequest(firstPageRequest, preJumpPageNumber, false, true, (int)totalPageCount - 1);
 
-        var firstPageResult = await paginationUtils.ToPaginationResultAsync(tagQuery, firstPageRequest);
+        var firstPageResult = await paginationUtils.GetResultAsync(tagQuery, firstPageRequest);
         expectedPages.ValidateResult(firstPageResult, updateTotalCount);
+        firstPageResult.TotalCountUpdated.Should().Be(false);
 
         //Page jump to Page 4
         preJumpPageNumber = firstPageResult.PageNumber;
         var request4 = firstPageResult.RequestPage(4);
         expectedPages.ValidateRequest(request4, preJumpPageNumber, false, true, 3);
 
-        var pageResult4 = await paginationUtils.ToPaginationResultAsync(tagQuery, request4);
+        var pageResult4 = await paginationUtils.GetResultAsync(tagQuery, request4);
         expectedPages.ValidateResult(pageResult4, updateTotalCount);
+        pageResult4.TotalCountUpdated.Should().Be(false);
 
         //Page jump to Page 2
         preJumpPageNumber = pageResult4.PageNumber;
         var request2 = pageResult4.RequestPage(2);
         expectedPages.ValidateRequest(request2, preJumpPageNumber, false, true, 2);
 
-        var pageResult2 = await paginationUtils.ToPaginationResultAsync(tagQuery, request2);
+        var pageResult2 = await paginationUtils.GetResultAsync(tagQuery, request2);
         expectedPages.ValidateResult(pageResult2, updateTotalCount);
+        pageResult2.TotalCountUpdated.Should().Be(false);
 
         //refresh Page 2
-        request2 = pageResult2.RequestPage(2);
+        request2 = pageResult2.RequestRefresh();
         expectedPages.ValidateRequest(request2, 2, false);
+        request2.MarkAsHasNextOnRefresh.Should().Be(pageResult2.HasNext);
 
-        pageResult2 = await paginationUtils.ToPaginationResultAsync(tagQuery, request2);
+        pageResult2 = await paginationUtils.GetResultAsync(tagQuery, request2);
         expectedPages.ValidateResult(pageResult2, updateTotalCount);
+        pageResult2.TotalCountUpdated.Should().Be(false);
     }
 }
 

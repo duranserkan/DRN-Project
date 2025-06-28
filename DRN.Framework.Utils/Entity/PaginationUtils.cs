@@ -8,19 +8,15 @@ namespace DRN.Framework.Utils.Entity;
 
 public interface IPaginationUtils
 {
-    Task<PaginationResult<TEntity>> ToPaginationResultAsync<TEntity>(
-        IQueryable<TEntity> query,
-        PaginationRequest request, CancellationToken? cancellationToken = null)
-        where TEntity : SourceKnownEntity;
+    Task<PaginationResult<TEntity>> GetResultAsync<TEntity>(IQueryable<TEntity> query, PaginationRequest request,
+        CancellationToken? cancellationToken = null) where TEntity : SourceKnownEntity;
 }
 
 [Singleton<IPaginationUtils>]
 public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
 {
-    public async Task<PaginationResult<TEntity>> ToPaginationResultAsync<TEntity>(
-        IQueryable<TEntity> query,
-        PaginationRequest request, CancellationToken? cancellationToken = null)
-        where TEntity : SourceKnownEntity
+    public async Task<PaginationResult<TEntity>> GetResultAsync<TEntity>(IQueryable<TEntity> query, PaginationRequest request,
+        CancellationToken? cancellationToken = null) where TEntity : SourceKnownEntity
     {
         var ct = cancellationToken ?? CancellationToken.None;
         var totalCount = request.Total.Count != -1 ? request.Total.Count : -1;

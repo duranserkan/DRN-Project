@@ -47,8 +47,15 @@ public class PaginationResult<TEntity> : PaginationResultBase where TEntity : So
 
         ItemCount = Items.Count;
         Total = new PaginationTotal(totalCount, PageSize);
+        TotalCountUpdated = request.UpdateTotalCount;
 
-        if (!Total.CountSpecified) return;
+        if (!Total.CountSpecified)
+        {
+            if (request is { MarkAsHasNextOnRefresh: true, IsPageRefresh: true })
+                HasNext = true;
+            return;
+        }
+
         HasNext = PageNumber < Total.Pages;
     }
 

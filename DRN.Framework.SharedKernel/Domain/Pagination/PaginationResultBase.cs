@@ -14,9 +14,10 @@ public abstract class PaginationResultBase
         FirstId = paginationResult.FirstId;
         LastId = paginationResult.LastId;
         ItemCount = paginationResult.ItemCount;
-        Total = paginationResult.Total;
         HasNext = paginationResult.HasNext;
         HasPrevious = paginationResult.HasPrevious;
+        Total = paginationResult.Total;
+        TotalCountUpdated = Request.UpdateTotalCount;
     }
 
     public PaginationRequest Request { get; protected init; }
@@ -31,9 +32,12 @@ public abstract class PaginationResultBase
     public Guid FirstId { get; protected init; }
     public Guid LastId { get; protected init; }
     public int ItemCount { get; protected init; }
-    public PaginationTotal Total { get; protected init; }
+
     public bool HasNext { get; protected init; }
     public bool HasPrevious { get; protected init; }
+
+    public PaginationTotal Total { get; protected init; }
+    public bool TotalCountUpdated { get; protected init; }
 
     public long GetTotalCountUpToCurrentPage(bool includeCurrentPage = true)
         => (PageNumber - 1) * PageSize + (includeCurrentPage ? ItemCount : 0);
@@ -44,6 +48,9 @@ public abstract class PaginationResultBase
     public PaginationRequest RequestPreviousPage(bool updateTotalCount = false, long totalCount = -1)
         => Request.GetPreviousPage(FirstId, LastId, updateTotalCount, totalCount != -1 ? totalCount : Total.Count);
 
-    public PaginationRequest RequestPage(long page, bool updateTotalCount = false, long totalCount = -1)
-        => Request.GetPage(FirstId, LastId, PageNumber, page, updateTotalCount, totalCount != -1 ? totalCount : Total.Count);
+    public PaginationRequest RequestRefresh(bool updateTotalCount = false, long totalCount = -1)
+        => RequestPage(PageNumber, updateTotalCount, totalCount, HasNext);
+
+    public PaginationRequest RequestPage(long page, bool updateTotalCount = false, long totalCount = -1, bool markAsHasNextOnRefresh = false)
+        => Request.GetPage(FirstId, LastId, PageNumber, page, updateTotalCount, totalCount != -1 ? totalCount : Total.Count, markAsHasNextOnRefresh);
 }
