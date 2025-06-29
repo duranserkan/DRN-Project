@@ -6,7 +6,7 @@ public readonly struct PageSize
     public const int MaxSizeThreshold = 1000;
 
     public static PageSize Default => new(10);
-
+    
     public PageSize(int size, int maxSize = MaxSizeDefault, bool overrideMaxsizeThreshold = false)
     {
         if (overrideMaxsizeThreshold)
@@ -22,6 +22,6 @@ public readonly struct PageSize
             Size = 1;
     }
 
-    public int Size { get; }
-    public int MaxSize { get; }
+    public int Size { get; init; }
+    public int MaxSize { get; init; }
 }

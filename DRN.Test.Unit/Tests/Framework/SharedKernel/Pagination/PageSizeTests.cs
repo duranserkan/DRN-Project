@@ -1,44 +1,18 @@
-using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
+using DRN.Framework.Testing.Extensions;
 
-namespace DRN.Test.Unit.Tests.Framework.SharedKernel;
+namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Pagination;
 
 public class PaginationTests
 {
-    [Theory]
-    [InlineData(null)]
-    [InlineData(PageSortDirection.AscendingByCreatedAt)]
-    [InlineData(PageSortDirection.DescendingByCreatedAt)]
-    public void PageCursor_FirstRequest_Defaults(PageSortDirection? direction)
-    {
-        var cursor = direction == null ? PageCursor.Initial : PageCursor.InitialWith(direction.Value);
-        direction ??= PageSortDirection.AscendingByCreatedAt;
-
-        cursor.IsFirstRequest.Should().BeTrue();
-        cursor.IsFirstPage.Should().BeTrue();
-        cursor.LastId.Should().Be(Guid.Empty);
-        cursor.SortDirection.Should().Be(direction);
-    }
-
-    [Theory]
-    [InlineData(PageSortDirection.AscendingByCreatedAt)]
-    [InlineData(PageSortDirection.DescendingByCreatedAt)]
-    public void PageCursor_SecondRequest_Defaults(PageSortDirection direction)
-    {
-        var lastId = Guid.NewGuid();
-        var cursor = new PageCursor(2, lastId,lastId, direction);
-        cursor.IsFirstRequest.Should().BeFalse();
-        cursor.IsFirstPage.Should().BeFalse();
-        cursor.LastId.Should().Be(lastId);
-        cursor.SortDirection.Should().Be(direction);
-    }
-
     [Fact]
     public void PageSize_Defaults()
     {
         var pageSize = PageSize.Default;
         pageSize.Size.Should().Be(10);
         pageSize.MaxSize.Should().Be(100);
+
+        pageSize.ValidateObjectSerialization();
     }
 
     [Fact]
@@ -48,9 +22,13 @@ public class PaginationTests
         pageSize.Size.Should().Be(99);
         pageSize.MaxSize.Should().Be(100);
 
+        pageSize.ValidateObjectSerialization();
+
         pageSize = new PageSize(101);
         pageSize.Size.Should().Be(100);
         pageSize.MaxSize.Should().Be(100);
+
+        pageSize.ValidateObjectSerialization();
     }
 
     [Fact]
@@ -60,9 +38,13 @@ public class PaginationTests
         pageSize.Size.Should().Be(1);
         pageSize.MaxSize.Should().Be(100);
 
+        pageSize.ValidateObjectSerialization();
+
         pageSize = new PageSize(0, 0);
         pageSize.Size.Should().Be(1);
         pageSize.MaxSize.Should().Be(1);
+
+        pageSize.ValidateObjectSerialization();
     }
 
     [Fact]
@@ -71,6 +53,8 @@ public class PaginationTests
         var pageSize = new PageSize(50, 30);
         pageSize.Size.Should().Be(30);
         pageSize.MaxSize.Should().Be(30);
+
+        pageSize.ValidateObjectSerialization();
     }
 
     [Fact]
@@ -80,9 +64,13 @@ public class PaginationTests
         pageSize.Size.Should().Be(150);
         pageSize.MaxSize.Should().Be(1000);
 
+        pageSize.ValidateObjectSerialization();
+
         pageSize = new PageSize(1500, 1001);
         pageSize.Size.Should().Be(1000);
         pageSize.MaxSize.Should().Be(1000);
+
+        pageSize.ValidateObjectSerialization();
     }
 
     [Fact]
@@ -92,8 +80,12 @@ public class PaginationTests
         pageSize.Size.Should().Be(150);
         pageSize.MaxSize.Should().Be(1001);
 
+        pageSize.ValidateObjectSerialization();
+
         pageSize = new PageSize(1500, 1001, true);
         pageSize.Size.Should().Be(1001);
         pageSize.MaxSize.Should().Be(1001);
+
+        pageSize.ValidateObjectSerialization();
     }
 }

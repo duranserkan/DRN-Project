@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Utils.Entity;
 using Sample.Contract.QA.Tags;
@@ -10,7 +11,6 @@ namespace DRN.Test.Tests.Framework.EntityFramework;
 public class PaginationUtilsTests
 {
     //todo add async enumerable support
-    //todo add pagination with model tests
     //todo test refresh on first and last pages
     [Theory]
     [DataInline(90, 5, true, PageSortDirection.AscendingByCreatedAt)]
@@ -240,6 +240,21 @@ public record ExpectedPageResultCollection(Tag[] Tags, int TotalCount, int PageS
 
         if (!request.PageCursor.IsFirstRequest && request.PageNumber == request.PageCursor.PageNumber)
             result.Request.IsPageRefresh.Should().BeTrue();
+
+        var resultModel = result.ToModel(y => y.Model.Other);
+
+        resultModel.Items.Count.Should().Be(result.Items.Count);
+        resultModel.Items.SequenceEqual(resultIndexes).Should().BeTrue();
+
+        var serializedRequest = JsonSerializer.Serialize(request);
+        var deserializedRequest = JsonSerializer.Deserialize<PaginationRequest>(serializedRequest);
+
+        request.Should().BeEquivalentTo(deserializedRequest);
+        
+        var serializedResultModel = JsonSerializer.Serialize(resultModel);
+        var deserializedResultModel = JsonSerializer.Deserialize<PaginationResultModel<long, Tag>>(serializedResultModel);
+
+        resultModel.Should().BeEquivalentTo(deserializedResultModel);
     }
 }
 

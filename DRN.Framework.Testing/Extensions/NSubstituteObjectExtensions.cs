@@ -4,7 +4,7 @@ using NSubstitute.Proxies.CastleDynamicProxy;
 
 namespace DRN.Framework.Testing.Extensions;
 
-public static class ObjectExtensions
+public static class NSubstituteObjectExtensions
 {
     public static bool IsSubstitute(this object obj) => obj is ICallRouterProvider;
 
