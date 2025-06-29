@@ -42,7 +42,7 @@ public readonly struct PaginationRequest
     public long PageDifference { get; init; }
 
     public bool IsPageJump() => PageDifference > 1;
-    public int GetSkipSize() => (int)((PageDifference - 1) * PageSize.Size);
+    public int GetSkipSize() => IsPageJump() ? (int)((PageDifference - 1) * PageSize.Size) : 0;
     public bool IsPageRefresh => NavigationDirection == NavigationDirection.Refresh;
     public NavigationDirection NavigationDirection { get; init; }
 

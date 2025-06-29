@@ -2,7 +2,7 @@ namespace DRN.Framework.SharedKernel.Domain.Pagination;
 
 public readonly struct PaginationTotal(long count, int pageSize)
 {
-    public static PaginationTotal NotSpecified() => new(-1, -1);
+    public static PaginationTotal NotSpecified => new(-1, -1);
 
     public long Count { get; init; } = count;
 

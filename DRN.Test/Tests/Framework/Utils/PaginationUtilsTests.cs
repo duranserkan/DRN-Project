@@ -1,12 +1,13 @@
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
+using DRN.Framework.Testing.Extensions;
 using DRN.Framework.Utils.Entity;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tags;
 using Sample.Hosted;
 using Sample.Infra.QA;
 
-namespace DRN.Test.Tests.Framework.EntityFramework;
+namespace DRN.Test.Tests.Framework.Utils;
 
 public class PaginationUtilsTests
 {
@@ -246,15 +247,16 @@ public record ExpectedPageResultCollection(Tag[] Tags, int TotalCount, int PageS
         resultModel.Items.Count.Should().Be(result.Items.Count);
         resultModel.Items.SequenceEqual(resultIndexes).Should().BeTrue();
 
-        var serializedRequest = JsonSerializer.Serialize(request);
-        var deserializedRequest = JsonSerializer.Deserialize<PaginationRequest>(serializedRequest);
+        var resultSummary = result.ToSummary();
+        resultSummary.ValidateObjectSerialization();
+        request.ValidateObjectSerialization();
 
-        request.Should().BeEquivalentTo(deserializedRequest);
-        
-        var serializedResultModel = JsonSerializer.Serialize(resultModel);
-        var deserializedResultModel = JsonSerializer.Deserialize<PaginationResultModel<long, Tag>>(serializedResultModel);
-
-        resultModel.Should().BeEquivalentTo(deserializedResultModel);
+        var resultJson = JsonSerializer.Serialize(result);
+        var resultModelJson = JsonSerializer.Serialize(resultModel);
+        var resultSummaryFromResultJson = JsonSerializer.Deserialize<PaginationResultSummary>(resultJson);
+        var resultSummaryFromResultModelJson = JsonSerializer.Deserialize<PaginationResultSummary>(resultModelJson);
+        resultSummary.Should().BeEquivalentTo(resultSummaryFromResultJson);
+        resultSummary.Should().BeEquivalentTo(resultSummaryFromResultModelJson);
     }
 }
 
