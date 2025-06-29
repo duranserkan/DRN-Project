@@ -32,6 +32,8 @@ public class SourceKnownEntityIdUtilsTests
         var longId1 = idUtils.Next<XEntity>();
         var entity1 = new XEntity(longId1);
         var entityId1 = entityIdUtils.Generate(entity1);
+        var entity1Duplicate = new XEntity(longId1);
+        var entityId1Duplicate = entityIdUtils.Generate(entity1Duplicate);
         entity1.EntityIdSource = entityId1;
         await Task.Delay(1000);
 
@@ -68,12 +70,14 @@ public class SourceKnownEntityIdUtilsTests
         var longId2 = idUtils.Next<XEntity>();
         var entity2 = new XEntity(longId2);
         var entityId2 = entityIdUtils.Generate(entity2);
+        var entity2Duplicate = new XEntity(longId2);
+        var entityId2Duplicate = entityIdUtils.Generate(entity2Duplicate);
         (entityId2 > entityId1).Should().BeTrue();
         (entityId2 >= entityId1).Should().BeTrue();
-        (entityId2 >= entityId2).Should().BeTrue();
+        (entityId2 >= entityId2Duplicate).Should().BeTrue();
         (entityId1 < entityId2).Should().BeTrue();
         (entityId1 <= entityId2).Should().BeTrue();
-        (entityId1 <= entityId1).Should().BeTrue();
+        (entityId1 <= entityId1Duplicate).Should().BeTrue();
         
         entityId1.HasSameEntityType(entityId2).Should().BeTrue();
         

@@ -61,6 +61,7 @@ public class SourceKnownIdUtilsTests
         epoch.Should().BeBefore(beforeIdGenerated);
 
         var idInfo1 = generator.Parse(id1);
+        var idInfo1Duplicate = generator.Parse(id1);
         idInfo1.AppId.Should().Be(nexusSettings.AppId);
         idInfo1.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
 
@@ -71,12 +72,13 @@ public class SourceKnownIdUtilsTests
         (id2 > id1).Should().BeTrue();
 
         var idInfo2 = generator.Parse(id2);
+        var idInfo2Duplicate = generator.Parse(id2);
         (idInfo2 > idInfo1).Should().BeTrue();
         (idInfo2 >= idInfo1).Should().BeTrue();
-        (idInfo2 >= idInfo2).Should().BeTrue();
+        (idInfo2 >= idInfo2Duplicate).Should().BeTrue();
         (idInfo1 < idInfo2).Should().BeTrue();
         (idInfo1 <= idInfo2).Should().BeTrue();
-        (idInfo1 <= idInfo1).Should().BeTrue();
+        (idInfo1 <= idInfo1Duplicate).Should().BeTrue();
     }
 
     [Theory]
