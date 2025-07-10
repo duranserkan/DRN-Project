@@ -5,10 +5,10 @@ using Sample.Domain.QA.Tags;
 
 namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Pagination;
 
-public class PaginationResultSummaryTests
+public class PaginationResultInfoTests
 {
     [Fact]
-    public void PaginationResultSummary_Should_Be_Deserialized()
+    public void PaginationResultInfo_Should_Be_Deserialized()
     {
         var firstId = Guid.NewGuid();
         var lastId = Guid.NewGuid();
@@ -35,66 +35,65 @@ public class PaginationResultSummaryTests
         result.TotalCountUpdated.Should().BeTrue();
 
         var resultModel = result.ToModel(t => t.Name);
-        resultModel.Request.Should().Be(request);
+        resultModel.Info.Request.Should().Be(request);
         resultModel.Items.SequenceEqual([name1, name2]).Should().BeTrue();
-        resultModel.Total.Should().Be(new PaginationTotal(totalCount, pageSize.Size));
-        resultModel.HasNext.Should().BeTrue();
-        resultModel.HasPrevious.Should().BeTrue();
-        resultModel.ItemCount.Should().Be(2);
-        resultModel.PageNumber.Should().Be(pageNumber);
-        resultModel.PageSize.Should().Be(pageSize.Size);
-        resultModel.TotalCountUpdated.Should().BeTrue();
+        resultModel.Info.Total.Should().Be(new PaginationTotal(totalCount, pageSize.Size));
+        resultModel.Info.HasNext.Should().BeTrue();
+        resultModel.Info.HasPrevious.Should().BeTrue();
+        resultModel.Info.ItemCount.Should().Be(2);
+        resultModel.Info.PageNumber.Should().Be(pageNumber);
+        resultModel.Info.PageSize.Should().Be(pageSize.Size);
+        resultModel.Info.TotalCountUpdated.Should().BeTrue();
 
-        var resultSummary = result.ToSummary();
-        resultSummary.Request.Should().Be(request);
-        resultSummary.Total.Should().Be(new PaginationTotal(totalCount, pageSize.Size));
-        resultSummary.HasNext.Should().BeTrue();
-        resultSummary.HasPrevious.Should().BeTrue();
-        resultSummary.ItemCount.Should().Be(2);
-        resultSummary.PageNumber.Should().Be(pageNumber);
-        resultSummary.PageSize.Should().Be(pageSize.Size);
-        resultSummary.TotalCountUpdated.Should().BeTrue();
-        resultSummary.ValidateObjectSerialization();
+        var info = result.ToResultInfo();
+        info.Request.Should().Be(request);
+        info.Total.Should().Be(new PaginationTotal(totalCount, pageSize.Size));
+        info.HasNext.Should().BeTrue();
+        info.HasPrevious.Should().BeTrue();
+        info.ItemCount.Should().Be(2);
+        info.PageNumber.Should().Be(pageNumber);
+        info.PageSize.Should().Be(pageSize.Size);
+        info.TotalCountUpdated.Should().BeTrue();
+        info.ValidateObjectSerialization();
 
         var resultJson = JsonSerializer.Serialize(result);
-        var resultSummary2 = JsonSerializer.Deserialize<PaginationResultSummary>(resultJson);
-        resultSummary.Should().BeEquivalentTo(resultSummary2);
+        var resultInfo2 = JsonSerializer.Deserialize<PaginationResultInfo>(resultJson);
+        info.Should().BeEquivalentTo(resultInfo2);
 
-        var resultJson2 = JsonSerializer.Serialize(resultModel);
-        var resultSummary3 = JsonSerializer.Deserialize<PaginationResultSummary>(resultJson2);
-        resultSummary.Should().BeEquivalentTo(resultSummary3);
-
-
+        var resultInfoJson = JsonSerializer.Serialize(resultModel.Info);
+        var resultInfo3 = JsonSerializer.Deserialize<PaginationResultInfo>(resultInfoJson);
+        info.Should().BeEquivalentTo(resultInfo3);
+        
         var totalCount2 = 132;
-        var nextPage = resultSummary.RequestNextPage(true, totalCount2);
+        var nextPage = info.RequestNextPage(true, totalCount2);
         nextPage.NavigationDirection.Should().Be(NavigationDirection.Next);
         nextPage.PageNumber.Should().Be(4);
         nextPage.Total.Count.Should().Be(totalCount2);
         nextPage.UpdateTotalCount.Should().BeTrue();
         nextPage.IsPageJump().Should().BeFalse();
         
-        var previousPage = resultSummary.RequestPreviousPage(true, totalCount2);
+        var previousPage = info.RequestPreviousPage(true, totalCount2);
         previousPage.NavigationDirection.Should().Be(NavigationDirection.Previous);
         previousPage.PageNumber.Should().Be(2);
         previousPage.Total.Count.Should().Be(totalCount2);
         previousPage.UpdateTotalCount.Should().BeTrue();
         previousPage.IsPageJump().Should().BeFalse();
         
-        var refreshPage = resultSummary.RequestRefresh(true, totalCount2);
+        var refreshPage = info.RequestRefresh(true, totalCount2);
         refreshPage.NavigationDirection.Should().Be(NavigationDirection.Refresh);
         refreshPage.PageNumber.Should().Be(3);
         refreshPage.Total.Count.Should().Be(totalCount2);
         refreshPage.UpdateTotalCount.Should().BeTrue();
         refreshPage.IsPageJump().Should().BeFalse();
         
-        var firstPage = resultSummary.RequestPage(1, true, totalCount2);
+        var firstPage = info.RequestPage(1, true, totalCount2);
         firstPage.NavigationDirection.Should().Be(NavigationDirection.Previous);
         firstPage.PageNumber.Should().Be(1);
         firstPage.Total.Count.Should().Be(totalCount2);
         firstPage.UpdateTotalCount.Should().BeTrue();
         firstPage.IsPageJump().Should().BeTrue();
         
-        var sixthPage = resultSummary.RequestPage(6, true, totalCount2);
+        var sixthPage = info.RequestPage(6, true, totalCount2);
         sixthPage.NavigationDirection.Should().Be(NavigationDirection.Next);
         sixthPage.PageNumber.Should().Be(6);
         sixthPage.Total.Count.Should().Be(totalCount2);

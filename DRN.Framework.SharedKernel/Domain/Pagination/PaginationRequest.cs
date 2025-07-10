@@ -1,10 +1,17 @@
+using System.Text.Json.Serialization;
+
 namespace DRN.Framework.SharedKernel.Domain.Pagination;
 
 /// <summary>
 /// Represents pagination parameters for fetching a page of data.
 /// </summary>
-public readonly struct PaginationRequest
+public class PaginationRequest
 {
+    [JsonConstructor]
+    private PaginationRequest()
+    {
+        
+    }
     /// <summary>
     /// Represents pagination parameters for fetching a page of data.
     /// </summary>

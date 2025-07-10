@@ -2,14 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace DRN.Framework.SharedKernel.Domain.Pagination;
 
-public class PaginationResultSummary : PaginationResultBase
+public class PaginationResultInfo : PaginationResultBase
 {
-    public PaginationResultSummary(PaginationResultBase paginationResult) : base(paginationResult)
+    public PaginationResultInfo(PaginationResultBase paginationResult) : base(paginationResult)
     {
     }
 
     [JsonConstructor]
-    public PaginationResultSummary(PaginationRequest request, Guid firstId, Guid lastId, int itemCount, bool hasNext, bool hasPrevious, PaginationTotal total)
+    public PaginationResultInfo(PaginationRequest request, Guid firstId, Guid lastId, int itemCount, bool hasNext, bool hasPrevious, PaginationTotal total)
     {
         Request = request;
         PageNumber = request.PageNumber;

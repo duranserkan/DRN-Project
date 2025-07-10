@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace DRN.Framework.SharedKernel.Domain;
 
@@ -87,14 +88,19 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
 
     private List<IDomainEvent> DomainEvents { get; } = new(2); //todo transactional outbox, pre and post publish events
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
+    
+    [JsonIgnore]
     public long Id { get; internal set; } = id;
     public Guid EntityId => EntityIdSource.EntityId;
+    
+    [JsonIgnore]
     public SourceKnownEntityId EntityIdSource { get; internal set; }
 
     public string ExtendedProperties { get; set; } = EmptyJson;
     public TModel GetExtendedProperties<TModel>() => JsonSerializer.Deserialize<TModel>(ExtendedProperties)!;
     public void SetExtendedProperties<TModel>(TModel extendedProperty) => ExtendedProperties = JsonSerializer.Serialize(extendedProperty);
 
+    [JsonIgnore]
     public bool IsPendingInsert => EntityId == Guid.Empty;
 
     [ConcurrencyCheck]

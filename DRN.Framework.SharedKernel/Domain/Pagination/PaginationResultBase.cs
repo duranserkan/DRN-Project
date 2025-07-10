@@ -4,6 +4,7 @@ public abstract class PaginationResultBase
 {
     protected PaginationResultBase()
     {
+        Request = null!;
     }
 
     protected PaginationResultBase(PaginationResultBase paginationResult)
@@ -54,5 +55,5 @@ public abstract class PaginationResultBase
     public PaginationRequest RequestPage(long page, bool updateTotalCount = false, long totalCount = -1, bool markAsHasNextOnRefresh = false)
         => Request.GetPage(FirstId, LastId, PageNumber, page, updateTotalCount, totalCount != -1 ? totalCount : Total.Count, markAsHasNextOnRefresh);
 
-    public PaginationResultSummary ToSummary() => new(this);
+    public PaginationResultInfo ToResultInfo() => new(this);
 }

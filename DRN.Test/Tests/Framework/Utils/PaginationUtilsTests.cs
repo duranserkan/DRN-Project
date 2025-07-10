@@ -12,7 +12,7 @@ namespace DRN.Test.Tests.Framework.Utils;
 public class PaginationUtilsTests
 {
     //todo add async enumerable support
-    //todo test refresh on first and last pages
+    //todo DI configuration settings support
     [Theory]
     [DataInline(90, 5, true, PageSortDirection.AscendingByCreatedAt)]
     [DataInline(90, 5, true, PageSortDirection.DescendingByCreatedAt)]
@@ -104,6 +104,14 @@ public class PaginationUtilsTests
         expectedPages.ValidateResult(lastPageResult, updateTotalCount);
         lastPageResult.TotalCountUpdated.Should().Be(false);
 
+        //test refresh on the last page
+        var lastPageRefreshRequest = lastPageResult.RequestRefresh();
+        expectedPages.ValidateRequest(lastPageRefreshRequest, lastPageResult.PageNumber, false, false, 0);
+
+        var lastPageRefreshResult = await paginationUtils.GetResultAsync(tagQuery, lastPageRefreshRequest);
+        expectedPages.ValidateResult(lastPageRefreshResult, updateTotalCount);
+        lastPageRefreshResult.TotalCountUpdated.Should().Be(false);
+        
         //Page jump to First Page
         preJumpPageNumber = lastPageResult.PageNumber;
         var firstPageRequest = lastPageResult.RequestPage(1);
@@ -113,6 +121,14 @@ public class PaginationUtilsTests
         expectedPages.ValidateResult(firstPageResult, updateTotalCount);
         firstPageResult.TotalCountUpdated.Should().Be(false);
 
+        //test refresh on the first page
+        var firstPageRefreshRequest = firstPageResult.RequestRefresh();
+        expectedPages.ValidateRequest(firstPageRefreshRequest, 1, false, false, 0);
+
+        var firstPageRefreshResult = await paginationUtils.GetResultAsync(tagQuery, firstPageRequest);
+        expectedPages.ValidateResult(firstPageRefreshResult, updateTotalCount);
+        firstPageRefreshResult.TotalCountUpdated.Should().Be(false);
+        
         //Page jump to Page 4
         preJumpPageNumber = firstPageResult.PageNumber;
         var request4 = firstPageResult.RequestPage(4);
@@ -247,16 +263,16 @@ public record ExpectedPageResultCollection(Tag[] Tags, int TotalCount, int PageS
         resultModel.Items.Count.Should().Be(result.Items.Count);
         resultModel.Items.SequenceEqual(resultIndexes).Should().BeTrue();
 
-        var resultSummary = result.ToSummary();
-        resultSummary.ValidateObjectSerialization();
+        var resultInfo = result.ToResultInfo();
+        resultInfo.ValidateObjectSerialization();
         request.ValidateObjectSerialization();
 
         var resultJson = JsonSerializer.Serialize(result);
-        var resultModelJson = JsonSerializer.Serialize(resultModel);
-        var resultSummaryFromResultJson = JsonSerializer.Deserialize<PaginationResultSummary>(resultJson);
-        var resultSummaryFromResultModelJson = JsonSerializer.Deserialize<PaginationResultSummary>(resultModelJson);
-        resultSummary.Should().BeEquivalentTo(resultSummaryFromResultJson);
-        resultSummary.Should().BeEquivalentTo(resultSummaryFromResultModelJson);
+        var resultModelInfoJson = JsonSerializer.Serialize(resultModel.Info);
+        var resultInfoFromResultJson = JsonSerializer.Deserialize<PaginationResultInfo>(resultJson);
+        var resultInfoFromResultModelInfoJson = JsonSerializer.Deserialize<PaginationResultInfo>(resultModelInfoJson);
+        resultInfo.Should().BeEquivalentTo(resultInfoFromResultJson);
+        resultInfo.Should().BeEquivalentTo(resultInfoFromResultModelInfoJson);
     }
 }
 
