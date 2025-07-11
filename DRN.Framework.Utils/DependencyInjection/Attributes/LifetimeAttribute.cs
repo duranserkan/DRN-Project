@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace DRN.Framework.Utils.DependencyInjection.Attributes;
 
@@ -53,3 +54,6 @@ public class SingletonAttribute<TService>(bool tryAdd = true) : LifetimeAttribut
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class SingletonWithKeyAttribute<TService>(object key, bool tryAdd = true) : LifetimeWithKeyAttribute<TService>(ServiceLifetime.Singleton, key, tryAdd);
+
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
+public class HostedAttribute<TService>() : LifetimeAttribute<TService>(ServiceLifetime.Singleton, false);

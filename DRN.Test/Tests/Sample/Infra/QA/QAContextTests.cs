@@ -134,7 +134,7 @@ public class QAContextTests
         await saveStale.Should().ThrowAsync<DbUpdateConcurrencyException>();
     }
 
-    private record struct CustomProperties(bool LifeIsGood);
+    private readonly record struct CustomProperties(bool LifeIsGood);
 
-    private record struct NewProperties(string LifeIs);
+    private readonly record struct NewProperties(string LifeIs);
 }

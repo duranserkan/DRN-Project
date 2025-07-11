@@ -1,7 +1,9 @@
 using System.Reflection;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace DRN.Framework.Utils.DependencyInjection;
 
@@ -34,6 +36,17 @@ public class DrnServiceContainer
             var descriptor = lifetime.HasKey
                 ? new ServiceDescriptor(lifetime.ServiceType, lifetime.Key, lifetime.ImplementationType, lifetime.ServiceLifetime)
                 : new ServiceDescriptor(lifetime.ServiceType, lifetime.ImplementationType, lifetime.ServiceLifetime);
+
+            if (lifetime.ImplementationType.IsAssignableTo(typeof(IHostedService)))
+            {
+                var extensionClass = typeof(ServiceCollectionHostedServiceExtensions);
+                var extensionMethod = nameof(ServiceCollectionHostedServiceExtensions.AddHostedService);
+                
+                extensionClass.InvokeStaticGenericMethod(extensionMethod, [lifetime.ImplementationType], sc);
+
+                continue;
+            }
+            
             if (lifetime.TryAdd)
                 sc.TryAdd(descriptor);
             else

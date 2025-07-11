@@ -1,6 +1,6 @@
 namespace DRN.Framework.SharedKernel.Domain;
 
-public record struct SourceKnownId(long Id, byte AppId, byte AppInstanceId, uint InstanceId, DateTimeOffset CreatedAt) : IComparable<SourceKnownId>
+public readonly record struct SourceKnownId(long Id, byte AppId, byte AppInstanceId, uint InstanceId, DateTimeOffset CreatedAt) : IComparable<SourceKnownId>
 {
     public bool Equals(SourceKnownId other) => Id == other.Id;
     public override int GetHashCode() => Id.GetHashCode();

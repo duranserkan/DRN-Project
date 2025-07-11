@@ -73,8 +73,28 @@ public class MethodUtilsStaticTests
         value.Should().Be(12);
     }
 
+    [Fact]
+    public void MethodUtils_Validate_ExtensionMethod()
+    {
+        typeof(ExtensionMethodContainer).GetMethod(nameof(ExtensionMethodContainer.ExtensionMethod))!
+            .IsExtensionMethod().Should().BeTrue();
+        typeof(ExtensionMethodContainer).GetMethod(nameof(ExtensionMethodContainer.StaticMethod))!
+            .IsExtensionMethod().Should().BeFalse();
+    }
+
     public static object? GetStatic() => 2;
     public static object? GetStatic(int a) => a;
     public static object? GetStatic<T>() => 3;
     public static object? GetStatic<T>(int b) => b;
+}
+
+public static class ExtensionMethodContainer
+{
+    public static void ExtensionMethod(this object obj)
+    {
+    }
+
+    public static void StaticMethod(object obj)
+    {
+    }
 }

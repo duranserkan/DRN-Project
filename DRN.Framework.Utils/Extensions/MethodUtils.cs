@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using DRN.Framework.Utils.Models;
 
 namespace DRN.Framework.Utils.Extensions;
@@ -77,12 +78,22 @@ public static class MethodUtils
 
         throw new ArgumentException($"{methods.Length} non-generic methods '{methodName}' found with specified criteria");
     }
-    
+
     private static MethodInfo FindGenericMethodUncached(GenericCacheKey key) =>
         FindGenericMethodUncached(key.Type, key.MethodName, key.TypeArgs.Items, key.ParameterCount, key.BindingFlags);
 
     private static MethodInfo FindNonGenericMethodUncached(NonGenericCacheKey key) =>
         FindNonGenericMethodUncached(key.Type, key.MethodName, key.ParameterCount, key.BindingFlags);
+
+    public static bool IsExtensionMethod(this MethodInfo method)
+    {
+        //The ExtensionAttribute is automatically applied by the compiler when you use this keyword
+        //https://learn.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.extensionattribute
+        return method.IsStatic &&
+               (method.DeclaringType?.IsSealed ?? false) &&
+               method.DeclaringType.IsAbstract && // static classes are abstract and sealed
+               method.IsDefined(typeof(ExtensionAttribute), false);
+    }
 }
 
 public readonly record struct GenericCacheKey(Type Type, string MethodName, EquatableSequence<Type> TypeArgs, int ParameterCount, BindingFlags BindingFlags);

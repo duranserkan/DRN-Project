@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel;
+using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Time;
 using Microsoft.Extensions.Hosting;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DRN.Framework.Hosting.DrnProgram;
 
+[Hosted<DrnBackgroundService>]
 public class DrnBackgroundService(IHostApplicationLifetime lifetime, ILogger<DrnBackgroundService> logger, IScopedLog log) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
