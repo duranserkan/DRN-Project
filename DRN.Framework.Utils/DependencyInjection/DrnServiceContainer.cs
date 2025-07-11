@@ -37,16 +37,18 @@ public class DrnServiceContainer
                 ? new ServiceDescriptor(lifetime.ServiceType, lifetime.Key, lifetime.ImplementationType, lifetime.ServiceLifetime)
                 : new ServiceDescriptor(lifetime.ServiceType, lifetime.ImplementationType, lifetime.ServiceLifetime);
 
-            if (lifetime.ImplementationType.IsAssignableTo(typeof(IHostedService)))
+            if (lifetime is HostedAttribute)
             {
-                var extensionClass = typeof(ServiceCollectionHostedServiceExtensions);
-                var extensionMethod = nameof(ServiceCollectionHostedServiceExtensions.AddHostedService);
-                
-                extensionClass.InvokeStaticGenericMethod(extensionMethod, [lifetime.ImplementationType], sc);
+                if (lifetime.ImplementationType.IsAssignableTo(typeof(IHostedService)))
+                {
+                    var extensionClass = typeof(ServiceCollectionHostedServiceExtensions);
+                    var extensionMethod = nameof(ServiceCollectionHostedServiceExtensions.AddHostedService);
 
+                    extensionClass.InvokeStaticGenericMethod(extensionMethod, [lifetime.ImplementationType], sc);
+                }
                 continue;
             }
-            
+
             if (lifetime.TryAdd)
                 sc.TryAdd(descriptor);
             else

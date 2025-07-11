@@ -56,4 +56,4 @@ public class SingletonAttribute<TService>(bool tryAdd = true) : LifetimeAttribut
 public class SingletonWithKeyAttribute<TService>(object key, bool tryAdd = true) : LifetimeWithKeyAttribute<TService>(ServiceLifetime.Singleton, key, tryAdd);
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
-public class HostedAttribute<TService>() : LifetimeAttribute<TService>(ServiceLifetime.Singleton, false);
+public class HostedAttribute() : LifetimeAttribute<object>(ServiceLifetime.Singleton, false);
