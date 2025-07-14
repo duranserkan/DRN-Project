@@ -30,7 +30,7 @@ public interface IAppSettings
     IConfigurationSection GetRequiredSection(string key);
     T? GetValue<T>(string key);
     T? GetValue<T>(string key, T defaultValue);
-    T? Get<T>(string key, bool errorOnUnknownConfiguration = true, bool bindNonPublicProperties = false);
+    T? Get<T>(string key, bool errorOnUnknownConfiguration = false, bool bindNonPublicProperties = true);
     ConfigurationDebugView GetDebugView();
 }
 

@@ -31,17 +31,7 @@ public static class ServiceProviderExtensions
 
         foreach (var attribute in lifetimeAttributes)
         {
-            if (ignore?.Invoke(attribute) ?? false)
-                continue;
-
-            if (attribute is ConfigAttribute ca)
-            {
-                var config = serviceProvider.GetRequiredService(attribute.ImplementationType);
-                if (ca.ValidateAnnotations)
-                    config.ValidateDataAnnotationsThrowIfInvalid(
-                        $"Startup Validation for {attribute.ImplementationType.FullName} triggered by {nameof(ConfigAttribute)}.{nameof(ConfigAttribute.ValidateAnnotations)}");
-                continue;
-            }
+            if (HandleSpecialCases(ignore, attribute, serviceProvider)) continue;
 
             if (attribute.HasKey)
                 serviceProvider.GetRequiredKeyedService(attribute.ServiceType, attribute.Key);
@@ -55,14 +45,29 @@ public static class ServiceProviderExtensions
         }
 
         foreach (var module in attributeSpecifiedModules)
+        foreach (var descriptor in module.ServiceDescriptors)
         {
-            foreach (var descriptor in module.ServiceDescriptors)
-            {
-                var service = descriptor.IsKeyedService
-                    ? serviceProvider.GetRequiredKeyedService(descriptor.ServiceType, descriptor.ServiceKey)
-                    : serviceProvider.GetRequiredService(descriptor.ServiceType);
-                module.ModuleAttribute.PostStartupValidationAsync(service, serviceProvider, scopedLog).GetAwaiter().GetResult();
-            }
+            var service = descriptor.IsKeyedService
+                ? serviceProvider.GetRequiredKeyedService(descriptor.ServiceType, descriptor.ServiceKey)
+                : serviceProvider.GetRequiredService(descriptor.ServiceType);
+            module.ModuleAttribute.PostStartupValidationAsync(service, serviceProvider, scopedLog).GetAwaiter().GetResult();
         }
+    }
+
+    private static bool HandleSpecialCases(Func<LifetimeAttribute, bool>? ignore, LifetimeAttribute attribute, IServiceProvider serviceProvider)
+    {
+        if (ignore?.Invoke(attribute) ?? false)
+            return true;
+
+        if (attribute is ConfigAttribute ca)
+        {
+            var config = serviceProvider.GetRequiredService(attribute.ImplementationType);
+            if (ca.ValidateAnnotations)
+                config.ValidateDataAnnotationsThrowIfInvalid(
+                    $"Startup Validation for {attribute.ImplementationType.FullName} triggered by {nameof(ConfigAttribute)}.{nameof(ConfigAttribute.ValidateAnnotations)}");
+            return true;
+        }
+
+        return false;
     }
 }

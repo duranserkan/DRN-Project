@@ -21,9 +21,9 @@ public class ConfigAttributeTests
         var philosophicalRazor = "Never attribute to malice that which can be adequately explained by incompetence or stupidity";
         config.DuckTest.Should().Be(duckTest);
         config.PhilosophicalRazor.Should().Be(philosophicalRazor);
-        
+
         //environment is overriden by environment variables on dev pc therefore Environment2 is checked instead
-        config.Environment2.Should().Be(AppEnvironment.Staging); 
+        config.Environment2.Should().Be(AppEnvironment.Staging);
     }
 
     [Theory]
@@ -86,8 +86,8 @@ public class ConfigAttributeTests
 [Config("")]
 public class QuoteConfig
 {
-    public string DuckTest { get; init; }
-    public string PhilosophicalRazor { get; init; }
+    public string DuckTest { get; init; } = string.Empty;
+    public string PhilosophicalRazor { get; init; } = string.Empty;
     public AppEnvironment Environment2 { get; init; }
 }
 
@@ -95,7 +95,7 @@ public class QuoteConfig
 public class ConnectionStringsCollectionConfig
 {
     [MaxLength(3)]
-    public string Foo { get; init; }
+    public string Foo { get; init; } = string.Empty;
 
     public string? Bar { get; init; }
 }
@@ -103,20 +103,20 @@ public class ConnectionStringsCollectionConfig
 [Config("ConnectionStrings")]
 public class ConnectionStringsCollectionConfigWithNonPublicValue
 {
-    internal string Foo { get; init; }
+    internal string Foo { get; init; } = string.Empty;
 }
 
 [Config("ConnectionStrings", bindNonPublicProperties: false)]
 public class ConnectionStringsCollectionConfigWithNonPublicValueUnbound
 {
-    internal string Foo { get; init; }
+    internal string Foo { get; init; } = string.Empty;
 }
 
 [Config("ConnectionStrings", true)]
 public class ConnectionStringsCollectionConfigWithInvalidValue
 {
     [MaxLength(2)]
-    public string Foo { get; init; }
+    public string Foo { get; init; } = string.Empty;
 }
 
 [Config("ConnectionStrings")]
