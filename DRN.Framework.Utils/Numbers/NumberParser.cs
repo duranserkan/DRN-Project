@@ -1,23 +1,19 @@
 namespace DRN.Framework.Utils.Numbers;
 
-public class IntParser(int value, NumberBuildDirection direction, byte residueBitLength)
-    : NumberParser(direction, 32, residueBitLength, true, value);
-
-public class IntUnsignedParser(uint value, NumberBuildDirection direction)
-    : NumberParser(direction, 32, 0, false, unsignedValue: value);
-
-public class LongParser(long value, NumberBuildDirection direction, byte residueBitLength)
-    : NumberParser(direction, 64, residueBitLength, true, value);
-
-public class LongUnsignedParser(ulong value, NumberBuildDirection direction)
-    : NumberParser(direction, 64, 0, false, unsignedValue: value);
-
-public abstract class NumberParser
+public struct NumberParser
 {
-    public static IntParser Default(int value) => new(value, NumberBuildDirection.MostSignificantFirst, 15);
-    public static IntUnsignedParser Default(uint value) => new(value, NumberBuildDirection.MostSignificantFirst);
-    public static LongUnsignedParser Default(ulong value) => new(value, NumberBuildDirection.MostSignificantFirst);
-    public static LongParser Default(long value) => new(value, NumberBuildDirection.MostSignificantFirst, 31);
+    public static NumberParser Get(int value, NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst, byte residueBitLength = 15)
+        => new(direction, 32, residueBitLength, true, value);
+
+    public static NumberParser Get(long value, NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst, byte residueBitLength = 31)
+        => new(direction, 64, residueBitLength, true, value);
+
+    public static NumberParser Get(uint value, NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst)
+        => new(direction, 32, 0, false, unsignedValue: value);
+
+    public static NumberParser Get(ulong value, NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst)
+        => new(direction, 64, 0, false, unsignedValue: value);
+
 
     private readonly NumberBuildDirection _direction;
     private readonly bool _signed;
@@ -28,19 +24,19 @@ public abstract class NumberParser
     private ulong _unsignedValue;
     private int _currentBitOffset;
 
-    protected NumberParser(NumberBuildDirection direction, byte bitLength, byte residueBitLength, bool signed, long signedValue = 0, ulong unsignedValue = 0)
+    private NumberParser(NumberBuildDirection direction, byte bitLength, byte residueBitLength, bool signed, long signedValue = 0, ulong unsignedValue = 0)
     {
         _direction = direction;
         _residueBitLength = residueBitLength;
         _signed = signed;
         _signedValue = signedValue;
         _unsignedValue = unsignedValue;
+
+        //offset from most significant bit, also mean total available bits
         _availableBitLength = signed
             ? (byte)(bitLength - residueBitLength - 1) //1 bit spared for sign
             : bitLength;
     }
-
-    //offset from most significant bit, also mean total available bits
 
     private void ValidateReadOperation(int bitSize)
     {
@@ -65,17 +61,17 @@ public abstract class NumberParser
     public uint Read(byte bitSize)
     {
         ValidateReadOperation(bitSize);
-
-        var shift = CalculateShift(bitSize);
+        
         var value = _signed
-            ? (uint)((_signedValue >> shift) & bitSize.GetBitMaskSigned())
-            : (uint)((_unsignedValue >> shift) & bitSize.GetBitMaskUnsigned());
+            ? (uint)((_signedValue >> CalculateShift(bitSize)) & bitSize.GetBitMaskSigned())
+            : (uint)((_unsignedValue >> CalculateShift(bitSize)) & bitSize.GetBitMaskUnsigned());
 
         _currentBitOffset += bitSize;
 
         return value;
     }
 
+    //todo add tests
     public void ResetToParse(long signedValue)
     {
         _signedValue = signedValue;

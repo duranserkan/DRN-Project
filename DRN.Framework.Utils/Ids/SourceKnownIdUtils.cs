@@ -77,7 +77,7 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
 
     public static SourceKnownId ParseId(long id, DateTimeOffset epoch)
     {
-        var parser = NumberParser.Default(id);
+        var parser = NumberParser.Get(id);
         var appId = (byte)parser.Read(6);
         var appInstanceId = (byte)parser.Read(5);
         var instanceId = parser.Read(21);

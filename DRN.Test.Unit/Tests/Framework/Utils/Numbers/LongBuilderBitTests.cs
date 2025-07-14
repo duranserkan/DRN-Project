@@ -1,6 +1,4 @@
 using DRN.Framework.Utils.Numbers;
-using AwesomeAssertions;
-using Xunit;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Numbers;
 
@@ -122,7 +120,7 @@ public class LongBuilderBitTests
         var actual = builder.GetValue();
         actual.Should().Be(long.MaxValue);
 
-        var parser = new LongParser(actual, direction, 0);
+        var parser = NumberParser.Get(actual, direction, 0);
         var residueValue = parser.ReadResidueValue();
         residueValue.Should().Be(0);
 

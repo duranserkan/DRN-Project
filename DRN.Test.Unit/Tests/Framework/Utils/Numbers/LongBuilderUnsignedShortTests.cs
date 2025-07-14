@@ -1,6 +1,4 @@
 using DRN.Framework.Utils.Numbers;
-using AwesomeAssertions;
-using Xunit;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Numbers;
 
@@ -118,7 +116,7 @@ public class LongBuilderUnsignedShortTests
         var actual = builder.GetValue();
         actual.Should().Be(long.MaxValue);
 
-        var parser = new LongParser(actual, direction, 15);
+        var parser = NumberParser.Get(actual, direction, 15);
         var residueValue = parser.ReadResidueValue();
         residueValue.Should().Be((uint)short.MaxValue);
 
@@ -146,7 +144,7 @@ public class LongBuilderUnsignedShortTests
     [Fact]
     public void LongBuilder_Should_Build_Negative_With_Max_Residue()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst,15);
+        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 15);
         foreach (var _ in Enumerable.Range(0, 3))
             builder.TryAddUShort(0);
 
@@ -163,7 +161,7 @@ public class LongBuilderUnsignedShortTests
     [Fact]
     public void LongBuilder_Should_Build_Minus_One()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst,15);
+        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 15);
         foreach (var _ in Enumerable.Range(0, 3))
             builder.TryAddUShort(ushort.MaxValue);
 

@@ -1,7 +1,4 @@
-using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Numbers;
-using AwesomeAssertions;
-using Xunit;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Numbers;
 
@@ -119,7 +116,7 @@ public class LongBuilderNibbleTests
         var actual = builder.GetValue();
         actual.Should().Be(long.MaxValue);
 
-        var parser = new LongParser(actual, direction, 3);
+        var parser = NumberParser.Get(actual,direction, 3);
         var residueValue = parser.ReadResidueValue();
         residueValue.Should().Be(7);
 

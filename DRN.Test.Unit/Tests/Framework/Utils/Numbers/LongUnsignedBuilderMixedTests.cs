@@ -14,7 +14,7 @@ public class LongUnsignedBuilderMixedTests
         longBuilder.TryAddUInt(expectedValue);
 
         var longValue = longBuilder.GetValue();
-        var longParser = NumberParser.Default(longValue);
+        var longParser = NumberParser.Get(longValue);
 
         var actualValue = longParser.ReadUInt();
         actualValue.Should().Be(expectedValue);
@@ -29,7 +29,7 @@ public class LongUnsignedBuilderMixedTests
 
         var longValue = longBuilder.GetValue();
 
-        var longParser = NumberParser.Default(longValue);
+        var longParser = NumberParser.Get(longValue);
 
         var actualValue = longParser.ReadUShort();
         actualValue.Should().Be(expectedValue);
@@ -44,7 +44,7 @@ public class LongUnsignedBuilderMixedTests
 
         var longValue = longBuilder.GetValue();
 
-        var longParser = NumberParser.Default(longValue);
+        var longParser = NumberParser.Get(longValue);
 
         var actualValue = longParser.ReadByte();
         actualValue.Should().Be(expectedValue);
@@ -59,7 +59,7 @@ public class LongUnsignedBuilderMixedTests
 
         var longValue = longBuilder.GetValue();
 
-        var longParser = NumberParser.Default(longValue);
+        var longParser = NumberParser.Get(longValue);
 
         var actualValue = longParser.ReadCrumb();
         actualValue.Should().Be(expectedValue);
@@ -78,7 +78,7 @@ public class LongUnsignedBuilderMixedTests
 
         var longValue = longBuilder.GetValue();
 
-        var longParser = NumberParser.Default(longValue);
+        var longParser = NumberParser.Get(longValue);
 
         var actualValue1 = longParser.ReadUShort();
         var actualValue2 = longParser.ReadBit();
@@ -99,7 +99,7 @@ public class LongUnsignedBuilderMixedTests
 
         var longValue = longBuilder.GetValue();
 
-        var longParser = NumberParser.Default(longValue);
+        var longParser = NumberParser.Get(longValue);
 
         var actualValue1 = longParser.ReadUInt();
         var actualValue2 = longParser.ReadByte();
@@ -122,7 +122,7 @@ public class LongUnsignedBuilderMixedTests
 
         var longValue = longBuilder.GetValue();
 
-        var longParser = NumberParser.Default(longValue);
+        var longParser = NumberParser.Get(longValue);
 
         var actualValue1 = longParser.ReadUInt();
         var actualValue2 = longParser.ReadUShort();
@@ -148,7 +148,7 @@ public class LongUnsignedBuilderMixedTests
         longBuilder.TryAddUShort(expectedUShort);
         var longValue = longBuilder.GetValue();
 
-        var longParser = NumberParser.Default(longValue);
+        var longParser = NumberParser.Get(longValue);
         var actualUInt = longParser.ReadUInt();
         actualUInt.Should().Be(expectedUInt);
 

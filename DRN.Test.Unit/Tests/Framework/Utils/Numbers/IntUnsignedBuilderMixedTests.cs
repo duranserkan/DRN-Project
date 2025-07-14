@@ -14,7 +14,7 @@ public class IntUnsignedBuilderMixedTests
         intBuilder.TryAddUShort(expectedValue);
 
         var intValue = intBuilder.GetValue();
-        var intParser = NumberParser.Default(intValue);
+        var intParser = NumberParser.Get(intValue);
 
         var actualValue = intParser.ReadUShort();
         actualValue.Should().Be(expectedValue);
@@ -29,7 +29,7 @@ public class IntUnsignedBuilderMixedTests
 
         var intValue = intBuilder.GetValue();
 
-        var intParser = NumberParser.Default(intValue);
+        var intParser = NumberParser.Get(intValue);
 
         var actualValue = intParser.ReadByte();
         actualValue.Should().Be(expectedValue);
@@ -44,7 +44,7 @@ public class IntUnsignedBuilderMixedTests
 
         var intValue = intBuilder.GetValue();
 
-        var intParser = NumberParser.Default(intValue);
+        var intParser = NumberParser.Get(intValue);
 
         var actualValue = intParser.ReadCrumb();
         actualValue.Should().Be(expectedValue);
@@ -64,7 +64,7 @@ public class IntUnsignedBuilderMixedTests
 
         var intValue = intBuilder.GetValue();
 
-        var intParser = NumberParser.Default(intValue);
+        var intParser = NumberParser.Get(intValue);
 
         var actualValue1 = intParser.ReadUShort();
         var actualValue2 = intParser.ReadByte();
