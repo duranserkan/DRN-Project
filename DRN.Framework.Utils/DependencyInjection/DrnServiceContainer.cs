@@ -37,7 +37,7 @@ public class DrnServiceContainer
                 ? new ServiceDescriptor(lifetime.ServiceType, lifetime.Key, lifetime.ImplementationType, lifetime.ServiceLifetime)
                 : new ServiceDescriptor(lifetime.ServiceType, lifetime.ImplementationType, lifetime.ServiceLifetime);
 
-            if (lifetime is HostedAttribute)
+            if (lifetime is HostedServiceAttribute)
             {
                 if (lifetime.ImplementationType.IsAssignableTo(typeof(IHostedService)))
                 {
