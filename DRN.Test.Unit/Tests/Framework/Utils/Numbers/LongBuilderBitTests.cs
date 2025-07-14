@@ -14,7 +14,7 @@ public class LongBuilderBitTests
     public void LongBuilder_Should_Build_Max_With_Bits_Without_Residue(NumberBuildDirection direction, bool setResidue)
     {
         var maxAvailable = long.MaxValue;
-        var builder = new LongBuilder(direction, 0);
+        var builder = NumberBuilder.GetLong(direction, 0);
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             builder.TryAddBit(1);
 
@@ -36,7 +36,7 @@ public class LongBuilderBitTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Zero_With_Bits(NumberBuildDirection direction, bool setResidue)
     {
-        var builder = new LongBuilder(direction, 0);
+        var builder = NumberBuilder.GetLong(direction, 0);
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             builder.TryAddBit(0);
 
@@ -58,7 +58,7 @@ public class LongBuilderBitTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, 0);
+        var builder = NumberBuilder.GetLong(direction, 0);
         builder.TryAddBit(1);
 
         builder.IsPositive().Should().BeFalse();
@@ -74,7 +74,7 @@ public class LongBuilderBitTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, 0);
+        var builder = NumberBuilder.GetLong(direction, 0);
         builder.TryAddBit(1);
         builder.TryAddBit(1);
 
@@ -89,7 +89,7 @@ public class LongBuilderBitTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_TryAddByte_Should_Return_False_When_All_Available_Slots_Filled_With_Bits(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 0);
+        var builder = NumberBuilder.GetLong(direction, 0);
         var added = false;
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             added = builder.TryAddBit(0);
@@ -108,7 +108,7 @@ public class LongBuilderBitTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Max_With_Bits(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 0);
+        var builder = NumberBuilder.GetLong(direction, 0);
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             builder.TryAddBit(1);
 
@@ -133,7 +133,7 @@ public class LongBuilderBitTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min_With_Bits(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 0);
+        var builder = NumberBuilder.GetLong(direction, 0);
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             builder.TryAddByte(0);
 
@@ -148,7 +148,7 @@ public class LongBuilderBitTests
     [Fact]
     public void LongBuilder_Should_Build_Negative_With_Max_Residue()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 0);
+        var builder = NumberBuilder.GetLong(NumberBuildDirection.MostSignificantFirst, 0);
         foreach (var _ in Enumerable.Range(0, 7))
             builder.TryAddByte(0);
 
@@ -165,7 +165,7 @@ public class LongBuilderBitTests
     [Fact]
     public void LongBuilder_Should_Build_Minus_One()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 0);
+        var builder = NumberBuilder.GetLong(NumberBuildDirection.MostSignificantFirst, 0);
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             builder.TryAddBit(1);
 

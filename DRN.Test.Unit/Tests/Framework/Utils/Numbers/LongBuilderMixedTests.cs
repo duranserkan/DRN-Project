@@ -11,7 +11,7 @@ public class LongBuilderMixedTests
     {
         uint expectedResidue = 7756421;
 
-        var longBuilder = LongBuilder.Default;
+        var longBuilder = NumberBuilder.GetLong();
         longBuilder.SetResidueValue(expectedResidue);
         var longValue = longBuilder.GetValue();
 
@@ -26,7 +26,7 @@ public class LongBuilderMixedTests
         uint expectedResidue = 7756421;
         byte expectedByte1 = 1;
 
-        var longBuilder = LongBuilder.Default;
+        var longBuilder = NumberBuilder.GetLong();
         longBuilder.SetResidueValue(expectedResidue);
         longBuilder.TryAddNibble(expectedByte1);
         var longValue = longBuilder.GetValue();
@@ -45,7 +45,7 @@ public class LongBuilderMixedTests
         uint expectedResidue = 7756421;
         byte expectedByte1 = 1;
 
-        var longBuilder = LongBuilder.Default;
+        var longBuilder = NumberBuilder.GetLong();
         longBuilder.SetResidueValue(expectedResidue);
         longBuilder.TryAddByte(expectedByte1);
         var longValue = longBuilder.GetValue();
@@ -65,7 +65,7 @@ public class LongBuilderMixedTests
         byte expectedByte1 = 1;
         byte expectedByte2 = 2;
 
-        var longBuilder = LongBuilder.Default;
+        var longBuilder = NumberBuilder.GetLong();
         longBuilder.SetResidueValue(expectedResidue);
         longBuilder.TryAddByte(expectedByte1);
         longBuilder.TryAddByte(expectedByte2);
@@ -89,7 +89,7 @@ public class LongBuilderMixedTests
     public void LongBuilder_Should_Build_From_Mixed_Numbers(
         uint expectedResidue, byte expectedByte1, byte expectedByte2, ushort expectedUShort)
     {
-        var longBuilder = LongBuilder.Default;
+        var longBuilder = NumberBuilder.GetLong();
         longBuilder.SetResidueValue(expectedResidue);
         longBuilder.TryAddByte(expectedByte1);
         longBuilder.TryAddByte(expectedByte2);

@@ -35,7 +35,7 @@ public class EpochTimeUtils : IEpochTimeUtils
     /// </summary>
     public static long ConvertToSourceKnownIdTimeStamp(DateTimeOffset dateTime, DateTimeOffset epoch)
     {
-        var builder = LongBuilder.Default;
+        var builder = NumberBuilder.GetLong();
         var duration = (uint)ConvertToSeconds(dateTime, epoch);
         builder.SetResidueValue(duration);
 

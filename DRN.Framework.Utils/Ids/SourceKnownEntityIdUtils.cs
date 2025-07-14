@@ -107,7 +107,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         var idSecondHalf = BinaryPrimitives.ReadUInt32LittleEndian(guidBytes.Slice(EntityIdSecondHalfOffset, EntityIdSecondHalfLength));
         var entityTypeId = guidBytes[EntityTypeIdIndex];
 
-        var idBuilder = LongUnsignedBuilder.Default;
+        var idBuilder = NumberBuilder.GetLongUnsigned();
         idBuilder.TryAddUInt(idFirstHalf);
         idBuilder.TryAddUInt(idSecondHalf);
         var id = (long)idBuilder.GetValue();

@@ -10,7 +10,7 @@ public class IntUnsignedBuilderMixedTests
     public void IntBuilder_Should_Build_From_UShort_Value()
     {
         ushort expectedValue = 44_210;
-        var intBuilder = IntUnsignedBuilder.Default;
+        var intBuilder = NumberBuilder.GetIntUnsigned();
         intBuilder.TryAddUShort(expectedValue);
 
         var intValue = intBuilder.GetValue();
@@ -24,7 +24,7 @@ public class IntUnsignedBuilderMixedTests
     public void IntBuilder_Should_Build_From_Byte_Value()
     {
         byte expectedValue = 78;
-        var intBuilder = IntUnsignedBuilder.Default;
+        var intBuilder = NumberBuilder.GetIntUnsigned();
         intBuilder.TryAddByte(expectedValue);
 
         var intValue = intBuilder.GetValue();
@@ -39,7 +39,7 @@ public class IntUnsignedBuilderMixedTests
     public void IntBuilder_Should_Build_From_Crumb_Value()
     {
         byte expectedValue = 2;
-        var intBuilder = IntUnsignedBuilder.Default;
+        var intBuilder = NumberBuilder.GetIntUnsigned();
         intBuilder.TryAddCrumb(expectedValue);
 
         var intValue = intBuilder.GetValue();
@@ -57,7 +57,7 @@ public class IntUnsignedBuilderMixedTests
         byte expectedValue2 = 103;
         byte expectedValue3 = 99;
 
-        var intBuilder = IntUnsignedBuilder.Default;
+        var intBuilder = NumberBuilder.GetIntUnsigned();
         intBuilder.TryAddUShort(expectedValue1);
         intBuilder.TryAddByte(expectedValue2);
         intBuilder.TryAddByte(expectedValue3);

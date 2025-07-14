@@ -1,50 +1,39 @@
+using System.Numerics;
+
 namespace DRN.Framework.Utils.Numbers;
 
-public class IntBuilder(NumberBuildDirection direction, byte residueBitLength) : NumberBuilderBase(direction, 32, residueBitLength, true)
+public static class NumberBuilder
 {
-    public static IntBuilder Default => new(NumberBuildDirection.MostSignificantFirst, 15);
+    public static NumberBuilder<int> GetInt(NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst, byte residueBitLength = 15) =>
+        new(direction, 32, residueBitLength, true);
 
-    public int GetValue() => (int)SignedValue;
+    public static NumberBuilder<long> GetLong(NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst, byte residueBitLength = 31) =>
+        new(direction, 64, residueBitLength, true);
+
+
+    public static NumberBuilder<ulong> GetLongUnsigned(NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst) =>
+        new(direction, 64, 0, false);
+
+    public static NumberBuilder<uint> GetIntUnsigned(NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst) =>
+        new(direction, 32, 0, false);
 }
 
-public class IntUnsignedBuilder(NumberBuildDirection direction) : NumberBuilderBase(direction, 32, 0, false)
+public struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<TNumber>
 {
-    public static IntUnsignedBuilder Default => new(NumberBuildDirection.MostSignificantFirst);
-
-    public uint GetValue() => (uint)UnsignedValue;
-}
-
-public class LongBuilder(NumberBuildDirection direction, byte residueBitLength) : NumberBuilderBase(direction, 64, residueBitLength, true)
-{
-    public static LongBuilder Default => new(NumberBuildDirection.MostSignificantFirst, 31);
-
-    public long GetValue() => SignedValue;
-}
-
-public class LongUnsignedBuilder(NumberBuildDirection direction) : NumberBuilderBase(direction, 64, 0, false)
-{
-    public static LongUnsignedBuilder Default => new(NumberBuildDirection.MostSignificantFirst);
-
-    public ulong GetValue() => UnsignedValue;
-}
-
-public abstract class NumberBuilderBase
-{
-    private int _currentBitOffset;
-
     private long _residue;
     private bool _signBit = true;
     private readonly bool _signed;
 
-    private readonly byte _residueBitLength;
     private readonly byte _bitLength;
-    private byte AvailableBitLength { get; } //offset from most significant bit, also mean total available bits
-
-    protected ulong UnsignedValue = ulong.MinValue;
-    protected long SignedValue = long.MinValue;
+    private readonly byte _residueBitLength;
+    private readonly byte _availableBitLength; //offset from most significant bit, also mean total available bits
     private readonly NumberBuildDirection _direction;
 
-    protected NumberBuilderBase(NumberBuildDirection direction, byte bitLength, byte residueBitLength, bool signed)
+    private int _currentBitOffset;
+    private ulong _unsignedValue = ulong.MinValue;
+    private long _signedValue = long.MinValue;
+
+    internal NumberBuilder(NumberBuildDirection direction, byte bitLength, byte residueBitLength, bool signed)
     {
         _direction = direction;
         _signed = signed;
@@ -55,13 +44,16 @@ public abstract class NumberBuilderBase
         {
             ArgumentOutOfRangeException.ThrowIfNegative(residueBitLength);
             _residueBitLength = residueBitLength;
-            AvailableBitLength = (byte)(bitLength - _residueBitLength - 1); //1 bit spared for sign
+            _availableBitLength = (byte)(bitLength - _residueBitLength - 1); //1 bit spared for sign
         }
         else
-            AvailableBitLength = bitLength;
+            _availableBitLength = bitLength;
     }
 
-    
+    public TNumber GetValue() => _signed
+        ? TNumber.CreateTruncating(_signedValue)
+        : TNumber.CreateTruncating(_unsignedValue);
+
     public int GetResidue() => (int)_residue;
 
     public void SetResidueValue(uint value)
@@ -69,7 +61,7 @@ public abstract class NumberBuilderBase
         if (!_signed) return;
 
         _residue = value & _residueBitLength.GetBitMaskSigned();
-        SignedValue |= _residue << AvailableBitLength;
+        _signedValue |= _residue << _availableBitLength;
     }
 
     public bool IsPositive() => !_signBit;
@@ -81,7 +73,7 @@ public abstract class NumberBuilderBase
     {
         if (!_signed) return;
 
-        SignedValue = signBit ? SignedValue | (1L << (_bitLength - 1)) : SignedValue & ~(1L << (_bitLength - 1));
+        _signedValue = signBit ? _signedValue | (1L << (_bitLength - 1)) : _signedValue & ~(1L << (_bitLength - 1));
         _signBit = signBit;
     }
 
@@ -99,28 +91,28 @@ public abstract class NumberBuilderBase
             return false;
 
         if (_signed)
-            SignedValue |= (value & bitLength.GetBitMaskSigned()) << CalculateShift(bitLength);
+            _signedValue |= (value & bitLength.GetBitMaskSigned()) << CalculateShift(bitLength);
         else
-            UnsignedValue |= (value & bitLength.GetBitMaskUnsigned()) << CalculateShift(bitLength);
+            _unsignedValue |= (value & bitLength.GetBitMaskUnsigned()) << CalculateShift(bitLength);
 
         _currentBitOffset += bitLength;
 
         return true;
     }
 
-    private bool ValidateWriteOperation(int bitSize) => bitSize <= (AvailableBitLength - _currentBitOffset);
+    private bool ValidateWriteOperation(int bitSize) => bitSize <= (_availableBitLength - _currentBitOffset);
 
     private int CalculateShift(int bitSize) => _direction == NumberBuildDirection.MostSignificantFirst
-        ? AvailableBitLength - _currentBitOffset - bitSize
+        ? _availableBitLength - _currentBitOffset - bitSize
         : _currentBitOffset;
-    
+
     /// <summary>
     /// Resets the builder to start constructing a new value.
     /// </summary>
     public void Reset()
     {
-        UnsignedValue = ulong.MinValue;
-        SignedValue = long.MinValue;
+        _unsignedValue = ulong.MinValue;
+        _signedValue = long.MinValue;
         _currentBitOffset = 0;
         _residue = 0;
         _signBit = true;

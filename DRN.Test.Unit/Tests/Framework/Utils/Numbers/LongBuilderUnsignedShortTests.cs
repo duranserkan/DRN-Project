@@ -12,7 +12,7 @@ public class LongBuilderUnsignedShortTests
     public void LongBuilder_Should_Build_Max_With_Shorts_Without_Residue(NumberBuildDirection direction, bool setResidue)
     {
         var maxAvailable = 0x0000_FFFF_FFFF_FFFF;
-        var builder = new LongBuilder(direction, 15);
+        var builder = NumberBuilder.GetLong(direction, 15);
         foreach (var _ in Enumerable.Range(0, 3))
             builder.TryAddUShort(ushort.MaxValue);
 
@@ -33,7 +33,7 @@ public class LongBuilderUnsignedShortTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Zero_With_Shorts(NumberBuildDirection direction, bool setResidue)
     {
-        var builder = new LongBuilder(direction, 15);
+        var builder = NumberBuilder.GetLong(direction, 15);
         foreach (var _ in Enumerable.Range(0, 3))
             builder.TryAddUShort(0);
 
@@ -54,7 +54,7 @@ public class LongBuilderUnsignedShortTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, 15);
+        var builder = NumberBuilder.GetLong(direction, 15);
         builder.TryAddUShort(ushort.MaxValue);
 
         builder.IsPositive().Should().BeFalse();
@@ -70,7 +70,7 @@ public class LongBuilderUnsignedShortTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, 15);
+        var builder = NumberBuilder.GetLong(direction, 15);
         builder.TryAddUShort(ushort.MaxValue);
         builder.TryAddUShort(ushort.MaxValue);
 
@@ -85,7 +85,7 @@ public class LongBuilderUnsignedShortTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_TryAddByte_Should_Return_False_When_All_Available_Slots_Filled_With_Shorts(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 15);
+        var builder = NumberBuilder.GetLong(direction, 15);
         var added = false;
         foreach (var _ in Enumerable.Range(0, 3))
             added = builder.TryAddUShort(0);
@@ -104,7 +104,7 @@ public class LongBuilderUnsignedShortTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Max_With_Shorts(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 15);
+        var builder = NumberBuilder.GetLong(direction, 15);
         foreach (var _ in Enumerable.Range(0, 3))
             builder.TryAddUShort(ushort.MaxValue);
 
@@ -129,7 +129,7 @@ public class LongBuilderUnsignedShortTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min_With_Shorts(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 15);
+        var builder = NumberBuilder.GetLong(direction, 15);
         foreach (var _ in Enumerable.Range(0, 3))
             builder.TryAddUShort(0);
 
@@ -144,7 +144,7 @@ public class LongBuilderUnsignedShortTests
     [Fact]
     public void LongBuilder_Should_Build_Negative_With_Max_Residue()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 15);
+        var builder = NumberBuilder.GetLong(NumberBuildDirection.MostSignificantFirst, 15);
         foreach (var _ in Enumerable.Range(0, 3))
             builder.TryAddUShort(0);
 
@@ -161,7 +161,7 @@ public class LongBuilderUnsignedShortTests
     [Fact]
     public void LongBuilder_Should_Build_Minus_One()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 15);
+        var builder = NumberBuilder.GetLong(NumberBuildDirection.MostSignificantFirst, 15);
         foreach (var _ in Enumerable.Range(0, 3))
             builder.TryAddUShort(ushort.MaxValue);
 

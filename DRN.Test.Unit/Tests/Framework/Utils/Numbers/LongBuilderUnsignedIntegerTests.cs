@@ -12,7 +12,7 @@ public class LongBuilderUnsignedIntegerTests
     public void LongBuilder_Should_Build_Max_With_Ints_Without_Residue(NumberBuildDirection direction, bool setResidue)
     {
         var maxAvailable = 0x0000_0000_FFFF_FFFF;
-        var builder = new LongBuilder(direction, 31);
+        var builder = NumberBuilder.GetLong(direction, 31);
 
         builder.TryAddUInt(uint.MaxValue);
 
@@ -34,7 +34,7 @@ public class LongBuilderUnsignedIntegerTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Zero_With_Ints(NumberBuildDirection direction, bool setResidue)
     {
-        var builder = new LongBuilder(direction, 31);
+        var builder = NumberBuilder.GetLong(direction, 31);
         builder.TryAddUInt(0);
 
         if (setResidue)
@@ -55,7 +55,7 @@ public class LongBuilderUnsignedIntegerTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, 31);
+        var builder = NumberBuilder.GetLong(direction, 31);
         builder.TryAddUInt(uint.MaxValue);
 
         builder.IsPositive().Should().BeFalse();
@@ -69,7 +69,7 @@ public class LongBuilderUnsignedIntegerTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_TryAddByte_Should_Return_False_When_All_Available_Slots_Filled_With_Ints(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 31);
+        var builder = NumberBuilder.GetLong(direction, 31);
         var added = builder.TryAddUInt(uint.MaxValue);
 
         added.Should().BeTrue();
@@ -86,7 +86,7 @@ public class LongBuilderUnsignedIntegerTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Max_With_Ints(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 31);
+        var builder = NumberBuilder.GetLong(direction, 31);
         builder.TryAddUInt(uint.MaxValue);
 
         builder.SetResidueValue(int.MaxValue);
@@ -109,7 +109,7 @@ public class LongBuilderUnsignedIntegerTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min_With_Ints(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 31);
+        var builder = NumberBuilder.GetLong(direction, 31);
         builder.TryAddUInt(0);
 
         builder.SetResidueValue(0);
@@ -123,7 +123,7 @@ public class LongBuilderUnsignedIntegerTests
     [Fact]
     public void LongBuilder_Should_Build_Negative_With_Max_Residue()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 31);
+        var builder = NumberBuilder.GetLong(NumberBuildDirection.MostSignificantFirst, 31);
         builder.TryAddUInt(0);
 
         builder.SetResidueValue(int.MaxValue);
@@ -139,7 +139,7 @@ public class LongBuilderUnsignedIntegerTests
     [Fact]
     public void LongBuilder_Should_Build_Minus_One()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 31);
+        var builder = NumberBuilder.GetLong(NumberBuildDirection.MostSignificantFirst, 31);
         builder.TryAddUInt(uint.MaxValue);
 
         builder.SetResidueValue(int.MaxValue);

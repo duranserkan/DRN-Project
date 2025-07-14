@@ -10,7 +10,7 @@ public class LongUnsignedBuilderMixedTests
     public void LongBuilder_Should_Build_From_UInt_Value()
     {
         uint expectedValue = 1_564_210;
-        var longBuilder = LongUnsignedBuilder.Default;
+        var longBuilder = NumberBuilder.GetLongUnsigned();
         longBuilder.TryAddUInt(expectedValue);
 
         var longValue = longBuilder.GetValue();
@@ -24,7 +24,7 @@ public class LongUnsignedBuilderMixedTests
     public void LongBuilder_Should_Build_From_UShort_Value()
     {
         ushort expectedValue = 56_421;
-        var longBuilder = LongUnsignedBuilder.Default;
+        var longBuilder = NumberBuilder.GetLongUnsigned();
         longBuilder.TryAddUShort(expectedValue);
 
         var longValue = longBuilder.GetValue();
@@ -39,7 +39,7 @@ public class LongUnsignedBuilderMixedTests
     public void LongBuilder_Should_Build_From_Byte_Value()
     {
         byte expectedValue = 78;
-        var longBuilder = LongUnsignedBuilder.Default;
+        var longBuilder = NumberBuilder.GetLongUnsigned();
         longBuilder.TryAddByte(expectedValue);
 
         var longValue = longBuilder.GetValue();
@@ -54,7 +54,7 @@ public class LongUnsignedBuilderMixedTests
     public void LongBuilder_Should_Build_From_Crumb_Value()
     {
         byte expectedValue = 2;
-        var longBuilder = LongUnsignedBuilder.Default;
+        var longBuilder = NumberBuilder.GetLongUnsigned();
         longBuilder.TryAddCrumb(expectedValue);
 
         var longValue = longBuilder.GetValue();
@@ -72,7 +72,7 @@ public class LongUnsignedBuilderMixedTests
         ushort expectedValue1 = 60_421;
         byte expectedValue2 = 1;
 
-        var longBuilder = LongUnsignedBuilder.Default;
+        var longBuilder = NumberBuilder.GetLongUnsigned();
         longBuilder.TryAddUShort(expectedValue1);
         longBuilder.TryAddBit(expectedValue2);
 
@@ -93,7 +93,7 @@ public class LongUnsignedBuilderMixedTests
         uint expectedValue1 = 11_160_421;
         byte expectedValue2 = 103;
 
-        var longBuilder = LongUnsignedBuilder.Default;
+        var longBuilder = NumberBuilder.GetLongUnsigned();
         longBuilder.TryAddUInt(expectedValue1);
         longBuilder.TryAddByte(expectedValue2);
 
@@ -115,7 +115,7 @@ public class LongUnsignedBuilderMixedTests
         ushort expectedValue2 = 61_111;
         byte expectedValue3 = 103;
 
-        var longBuilder = LongUnsignedBuilder.Default;
+        var longBuilder = NumberBuilder.GetLongUnsigned();
         longBuilder.TryAddUInt(expectedValue1);
         longBuilder.TryAddUShort(expectedValue2);
         longBuilder.TryAddByte(expectedValue3);
@@ -141,7 +141,7 @@ public class LongUnsignedBuilderMixedTests
     public void LongBuilder_Should_Build_From_Mixed_Numbers(
         uint expectedUInt, byte expectedByte1, byte expectedByte2, ushort expectedUShort)
     {
-        var longBuilder = LongUnsignedBuilder.Default;
+        var longBuilder = NumberBuilder.GetLongUnsigned();
         longBuilder.TryAddUInt(expectedUInt);
         longBuilder.TryAddByte(expectedByte1);
         longBuilder.TryAddByte(expectedByte2);

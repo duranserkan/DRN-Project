@@ -12,7 +12,7 @@ public class LongBuilderNibbleTests
     public void LongBuilder_Should_Build_Max_Without_Residue(NumberBuildDirection direction, bool setResidue)
     {
         var maxAvailable = 0x0FFF_FFFF_FFFF_FFFF;
-        var builder = new LongBuilder(direction, 3);
+        var builder = NumberBuilder.GetLong(direction, 3);
         foreach (var _ in Enumerable.Range(0, 15))
             builder.TryAddNibble(15);
 
@@ -33,7 +33,7 @@ public class LongBuilderNibbleTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Zero(NumberBuildDirection direction, bool setResidue)
     {
-        var builder = new LongBuilder(direction, 3);
+        var builder = NumberBuilder.GetLong(direction, 3);
         foreach (var _ in Enumerable.Range(0, 15))
             builder.TryAddNibble(0);
 
@@ -55,7 +55,7 @@ public class LongBuilderNibbleTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, 3);
+        var builder = NumberBuilder.GetLong(direction, 3);
         builder.TryAddNibble(15);
 
         builder.IsPositive().Should().BeFalse();
@@ -71,7 +71,7 @@ public class LongBuilderNibbleTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, 3);
+        var builder = NumberBuilder.GetLong(direction, 3);
         builder.TryAddNibble(15);
         builder.TryAddNibble(15);
 
@@ -86,7 +86,7 @@ public class LongBuilderNibbleTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_TryAddNibble_Should_Return_False_When_All_Available_Slots_Filled(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 3);
+        var builder = NumberBuilder.GetLong(direction, 3);
         var added = false;
         foreach (var _ in Enumerable.Range(0, 15))
             added = builder.TryAddNibble(0);
@@ -105,7 +105,7 @@ public class LongBuilderNibbleTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Max(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 3);
+        var builder = NumberBuilder.GetLong(direction, 3);
         foreach (var _ in Enumerable.Range(0, 15))
             builder.TryAddNibble(15);
 
@@ -129,7 +129,7 @@ public class LongBuilderNibbleTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 3);
+        var builder = NumberBuilder.GetLong(direction, 3);
         foreach (var _ in Enumerable.Range(0, 15))
             builder.TryAddNibble(0);
 
@@ -144,7 +144,7 @@ public class LongBuilderNibbleTests
     [Fact]
     public void LongBuilder_Should_Build_Negative_With_Max_Residue()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst,3);
+        var builder = NumberBuilder.GetLong(NumberBuildDirection.MostSignificantFirst,3);
         foreach (var _ in Enumerable.Range(0, 15))
             builder.TryAddNibble(0);
 
@@ -161,7 +161,7 @@ public class LongBuilderNibbleTests
     [Fact]
     public void LongBuilder_Should_Build_Minus_One()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 3);
+        var builder = NumberBuilder.GetLong(NumberBuildDirection.MostSignificantFirst, 3);
         foreach (var _ in Enumerable.Range(0, 15))
             builder.TryAddNibble(15);
 

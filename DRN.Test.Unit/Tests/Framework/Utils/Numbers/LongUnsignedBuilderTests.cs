@@ -11,7 +11,7 @@ public class LongUnsignedBuilderTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Max(NumberBuildDirection direction)
     {
-        var builder = new LongUnsignedBuilder(direction);
+        var builder = NumberBuilder.GetLongUnsigned(direction);
         var nibbles = Enumerable.Range(0, 16).ToArray();
         foreach (var _ in nibbles)
             builder.TryAddNibble(15);
@@ -25,7 +25,7 @@ public class LongUnsignedBuilderTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min(NumberBuildDirection direction)
     {
-        var builder = new LongUnsignedBuilder(direction);
+        var builder = NumberBuilder.GetLongUnsigned(direction);
         var nibbles = Enumerable.Range(0, 16).ToArray();
         foreach (var _ in nibbles)
             builder.TryAddNibble(0);
@@ -41,7 +41,7 @@ public class LongUnsignedBuilderTests
     {
         var expected = ulong.MaxValue & mask;
 
-        var builder = new LongUnsignedBuilder(direction);
+        var builder = NumberBuilder.GetLongUnsigned(direction);
         builder.TryAddNibble(15);
 
         var actual = builder.GetValue();
@@ -55,7 +55,7 @@ public class LongUnsignedBuilderTests
     {
         var expected = ulong.MaxValue & mask;
 
-        var builder = new LongUnsignedBuilder(direction);
+        var builder = NumberBuilder.GetLongUnsigned(direction);
         builder.TryAddNibble(15);
         builder.TryAddNibble(15);
 
@@ -68,7 +68,7 @@ public class LongUnsignedBuilderTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_AddNibble_Should_Return_False_When_All_Available_Slots_Filled(NumberBuildDirection direction)
     {
-        var builder = new LongUnsignedBuilder(direction);
+        var builder = NumberBuilder.GetLongUnsigned(direction);
         var nibbles = Enumerable.Range(0, 16).ToArray();
         var added = false;
         foreach (var _ in nibbles)

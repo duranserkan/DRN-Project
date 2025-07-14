@@ -14,7 +14,7 @@ public class LongBuilderCrumbTests
     public void LongBuilder_Should_Build_Max_Without_Residue(NumberBuildDirection direction, bool setResidue)
     {
         var maxAvailable = 0x3FFF_FFFF_FFFF_FFFF; //1 bit reserved for sign, 1 bit is for the residue remaining 2 bit can build max 3
-        var builder = new LongBuilder(direction, 1);
+        var builder = NumberBuilder.GetLong(direction, 1);
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             builder.TryAddCrumb(3);
 
@@ -35,7 +35,7 @@ public class LongBuilderCrumbTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Zero(NumberBuildDirection direction, bool setResidue)
     {
-        var builder = new LongBuilder(direction, 1);
+        var builder = NumberBuilder.GetLong(direction, 1);
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             builder.TryAddCrumb(0);
 
@@ -57,7 +57,7 @@ public class LongBuilderCrumbTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, 1);
+        var builder = NumberBuilder.GetLong(direction, 1);
         builder.TryAddCrumb(3);
 
         builder.IsPositive().Should().BeFalse();
@@ -73,7 +73,7 @@ public class LongBuilderCrumbTests
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
-        var builder = new LongBuilder(direction, 1);
+        var builder = NumberBuilder.GetLong(direction, 1);
         builder.TryAddCrumb(3);
         builder.TryAddCrumb(3);
 
@@ -88,7 +88,7 @@ public class LongBuilderCrumbTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_TryAddCrumb_Should_Return_False_When_All_Available_Slots_Filled(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 1);
+        var builder = NumberBuilder.GetLong(direction, 1);
         var added = false;
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             added = builder.TryAddCrumb(0);
@@ -107,7 +107,7 @@ public class LongBuilderCrumbTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Max(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 1);
+        var builder = NumberBuilder.GetLong(direction, 1);
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             builder.TryAddCrumb(3);
 
@@ -131,7 +131,7 @@ public class LongBuilderCrumbTests
     [InlineData(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min(NumberBuildDirection direction)
     {
-        var builder = new LongBuilder(direction, 1);
+        var builder = NumberBuilder.GetLong(direction, 1);
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             builder.TryAddCrumb(0);
 
@@ -146,7 +146,7 @@ public class LongBuilderCrumbTests
     [Fact]
     public void LongBuilder_Should_Build_Negative_With_Max_Residue()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 1);
+        var builder = NumberBuilder.GetLong(NumberBuildDirection.MostSignificantFirst, 1);
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             builder.TryAddCrumb(0);
 
@@ -163,7 +163,7 @@ public class LongBuilderCrumbTests
     [Fact]
     public void LongBuilder_Should_Build_Minus_One()
     {
-        var builder = new LongBuilder(NumberBuildDirection.MostSignificantFirst, 1);
+        var builder = NumberBuilder.GetLong(NumberBuildDirection.MostSignificantFirst, 1);
         foreach (var _ in Enumerable.Range(0, AvailableBits))
             builder.TryAddCrumb(3);
 

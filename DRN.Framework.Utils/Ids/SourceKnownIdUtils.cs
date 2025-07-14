@@ -29,7 +29,7 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
 
     public static long Generate<TEntity>(byte appId, byte appInstanceId) where TEntity : class
     {
-        var builder = LongBuilder.Default;
+        var builder = NumberBuilder.GetLong();
 
         var timeScopedId = SequenceManager<TEntity>.GetTimeScopedId();
         if (timeScopedId.TimeStamp is < 0 or > int.MaxValue)
