@@ -1,6 +1,6 @@
 namespace DRN.Framework.Utils.Numbers;
 
-public class IntBuilder(NumberBuildDirection direction, byte residueBitLength) : NumberBuilderSignedBase(direction, residueBitLength, 32)
+public class IntBuilder(NumberBuildDirection direction, byte residueBitLength) : NumberBuilderBase(direction, 32, residueBitLength, true)
 {
     public static IntBuilder Default => new(NumberBuildDirection.MostSignificantFirst, 15);
 

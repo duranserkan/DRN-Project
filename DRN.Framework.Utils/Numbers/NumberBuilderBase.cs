@@ -1,65 +1,62 @@
 namespace DRN.Framework.Utils.Numbers;
 
-//todo evaluate struct implementation/object pooling for high performance scenarios
-public abstract class NumberBuilderUnsignedBase(NumberBuildDirection direction, byte bitLength) : NumberBuilderBase(direction, bitLength, false)
+public abstract class NumberBuilderBase
 {
-    protected override byte AvailableBitLength { get; } = bitLength;
-}
+    private int _currentBitOffset;
 
-public abstract class NumberBuilderSignedBase : NumberBuilderBase
-{
     private long _residue;
     private bool _signBit = true;
+    private readonly bool _signed;
 
     private readonly byte _residueBitLength;
-    protected override byte AvailableBitLength { get; }
 
-    protected NumberBuilderSignedBase(NumberBuildDirection direction, byte residueBitLength, byte bitLength) : base(direction, bitLength, true)
+    protected readonly byte BitLength;
+    protected byte AvailableBitLength { get; } //offset from most significant bit, also mean total available bits
+
+    protected ulong UnsignedValue = ulong.MinValue;
+    protected long SignedValue = long.MinValue;
+    private readonly NumberBuildDirection _direction;
+
+    protected NumberBuilderBase(NumberBuildDirection direction, byte bitLength, byte residueBitLength, bool signed)
     {
+        _direction = direction;
+        _signed = signed;
         _residueBitLength = residueBitLength;
-        AvailableBitLength = (byte)(bitLength - _residueBitLength - 1); //1 bit spared for sign
+        BitLength = bitLength;
+
+        if (_signed)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(residueBitLength);
+            _residueBitLength = residueBitLength;
+            AvailableBitLength = (byte)(bitLength - _residueBitLength - 1); //1 bit spared for sign
+        }
+        else
+            AvailableBitLength = bitLength;
     }
+
+    public int GetResidue() => (int)_residue;
 
     public void SetResidueValue(uint value)
     {
+        if (!_signed) return;
+
         _residue = value & _residueBitLength.GetBitMaskSigned();
         SignedValue |= _residue << AvailableBitLength;
     }
 
+    public bool IsPositive() => !_signBit;
+    public bool IsNegative() => _signBit;
     public void MakeNegative() => UpdateSignBit(true);
-
     public void MakePositive() => UpdateSignBit(false);
 
     private void UpdateSignBit(bool signBit)
     {
+        if (!_signed) return;
+
         SignedValue = signBit ? SignedValue | (1L << (BitLength - 1)) : SignedValue & ~(1L << (BitLength - 1));
         _signBit = signBit;
     }
 
-    public int GetResidue() => (int)_residue;
-    public bool IsPositive() => !_signBit;
-    public bool IsNegative() => _signBit;
-
-    /// <summary>
-    /// Resets the builder to start constructing a new value.
-    /// </summary>
-    public override void Reset()
-    {
-        base.Reset();
-        _residue = 0;
-        _signBit = true;
-    }
-}
-
-public abstract class NumberBuilderBase(NumberBuildDirection direction, byte bitLength, bool signed)
-{
-    private int _currentBitOffset;
-
-    protected readonly byte BitLength = bitLength;
-    protected abstract byte AvailableBitLength { get; } //offset from most significant bit, also mean total available bits
-
-    protected ulong UnsignedValue = ulong.MinValue;
-    protected long SignedValue = long.MinValue;
 
     public bool TryAddBit(byte bit) => TryAdd(bit, 1);
     public bool TryAddCrumb(byte crumb) => TryAdd(crumb, 2);
@@ -73,7 +70,7 @@ public abstract class NumberBuilderBase(NumberBuildDirection direction, byte bit
         if (!ValidateWriteOperation(bitLength))
             return false;
 
-        if (signed)
+        if (_signed)
             SignedValue |= (value & bitLength.GetBitMaskSigned()) << CalculateShift(bitLength);
         else
             UnsignedValue |= (value & bitLength.GetBitMaskUnsigned()) << CalculateShift(bitLength);
@@ -85,17 +82,19 @@ public abstract class NumberBuilderBase(NumberBuildDirection direction, byte bit
 
     private bool ValidateWriteOperation(int bitSize) => bitSize <= (AvailableBitLength - _currentBitOffset);
 
-    private int CalculateShift(int bitSize) => direction == NumberBuildDirection.MostSignificantFirst
+    private int CalculateShift(int bitSize) => _direction == NumberBuildDirection.MostSignificantFirst
         ? AvailableBitLength - _currentBitOffset - bitSize
         : _currentBitOffset;
-
+    
     /// <summary>
     /// Resets the builder to start constructing a new value.
     /// </summary>
-    public virtual void Reset()
+    public void Reset()
     {
         UnsignedValue = ulong.MinValue;
         SignedValue = long.MinValue;
         _currentBitOffset = 0;
+        _residue = 0;
+        _signBit = true;
     }
 }
