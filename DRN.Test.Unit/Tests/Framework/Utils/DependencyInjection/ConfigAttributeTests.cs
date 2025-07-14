@@ -15,8 +15,15 @@ public class ConfigAttributeTests
     {
         context.ServiceCollection.AddServicesWithAttributes();
 
-        var config = context.GetRequiredService<EnvironmentConfig>();
-        config.Environment.Should().Be(AppEnvironment.Development);
+        var config = context.GetRequiredService<QuoteConfig>();
+
+        var duckTest = "If it looks like a duck, swims like a duck, and quacks like a duck, then it probably is a duck";
+        var philosophicalRazor = "Never attribute to malice that which can be adequately explained by incompetence or stupidity";
+        config.DuckTest.Should().Be(duckTest);
+        config.PhilosophicalRazor.Should().Be(philosophicalRazor);
+        
+        //environment is overriden by environment variables on dev pc therefore Environment2 is checked instead
+        config.Environment2.Should().Be(AppEnvironment.Staging); 
     }
 
     [Theory]
@@ -77,9 +84,11 @@ public class ConfigAttributeTests
 }
 
 [Config("")]
-public class EnvironmentConfig
+public class QuoteConfig
 {
-    public AppEnvironment Environment { get; init; }
+    public string DuckTest { get; init; }
+    public string PhilosophicalRazor { get; init; }
+    public AppEnvironment Environment2 { get; init; }
 }
 
 [Config("ConnectionStrings")]
