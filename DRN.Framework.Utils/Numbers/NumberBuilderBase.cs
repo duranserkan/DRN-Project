@@ -9,9 +9,8 @@ public abstract class NumberBuilderBase
     private readonly bool _signed;
 
     private readonly byte _residueBitLength;
-
-    protected readonly byte BitLength;
-    protected byte AvailableBitLength { get; } //offset from most significant bit, also mean total available bits
+    private readonly byte _bitLength;
+    private byte AvailableBitLength { get; } //offset from most significant bit, also mean total available bits
 
     protected ulong UnsignedValue = ulong.MinValue;
     protected long SignedValue = long.MinValue;
@@ -22,7 +21,7 @@ public abstract class NumberBuilderBase
         _direction = direction;
         _signed = signed;
         _residueBitLength = residueBitLength;
-        BitLength = bitLength;
+        _bitLength = bitLength;
 
         if (_signed)
         {
@@ -34,6 +33,7 @@ public abstract class NumberBuilderBase
             AvailableBitLength = bitLength;
     }
 
+    
     public int GetResidue() => (int)_residue;
 
     public void SetResidueValue(uint value)
@@ -53,7 +53,7 @@ public abstract class NumberBuilderBase
     {
         if (!_signed) return;
 
-        SignedValue = signBit ? SignedValue | (1L << (BitLength - 1)) : SignedValue & ~(1L << (BitLength - 1));
+        SignedValue = signBit ? SignedValue | (1L << (_bitLength - 1)) : SignedValue & ~(1L << (_bitLength - 1));
         _signBit = signBit;
     }
 

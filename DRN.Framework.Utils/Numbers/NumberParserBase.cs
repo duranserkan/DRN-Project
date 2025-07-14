@@ -1,29 +1,14 @@
 namespace DRN.Framework.Utils.Numbers;
 
 //todo evaluate struct implementation/object pooling for high performance scenarios
-public abstract class NumberParserSignedBase(NumberBuildDirection direction, byte bitLength, byte residueBitLength, long value)
-    : NumberParserBase(direction, bitLength, true, signedValue: value)
-{
-    protected override byte AvailableBitLength { get; } = (byte)(bitLength - residueBitLength - 1); //1 bit spared for sign
-
-    public uint ReadResidueValue() => (uint)((SignedValue >> AvailableBitLength) & residueBitLength.GetBitMaskSigned());
-}
-
-public abstract class NumberParserUnsignedBase(NumberBuildDirection direction, byte bitLength, ulong value)
-    : NumberParserBase(direction, bitLength, false, unsignedValue: value)
-{
-    protected override byte AvailableBitLength { get; } = bitLength;
-}
-
-public abstract class NumberParserBase(NumberBuildDirection direction, byte bitLength, bool signed, long signedValue = 0, ulong unsignedValue = 0)
+public abstract class NumberParserBase(NumberBuildDirection direction, byte bitLength, byte residueBitLength, bool signed, long signedValue = 0, ulong unsignedValue = 0)
 {
     private int _currentBitOffset;
 
-    protected readonly ulong UnsignedValue = unsignedValue;
-    protected readonly long SignedValue = signedValue;
-
-    protected readonly byte BitLength = bitLength;
-    protected abstract byte AvailableBitLength { get; } //offset from most significant bit, also mean total available bits
+    //offset from most significant bit, also mean total available bits
+    private byte AvailableBitLength { get; } = signed
+        ? (byte)(bitLength - residueBitLength - 1) //1 bit spared for sign
+        : bitLength;
 
     private void ValidateReadOperation(int bitSize)
     {
@@ -37,6 +22,7 @@ public abstract class NumberParserBase(NumberBuildDirection direction, byte bitL
         ? AvailableBitLength - _currentBitOffset - bitSize
         : _currentBitOffset;
 
+    public uint ReadResidueValue() => (uint)((signedValue >> AvailableBitLength) & residueBitLength.GetBitMaskSigned());
     public byte ReadBit() => (byte)Read(1);
     public byte ReadCrumb() => (byte)Read(2);
     public byte ReadNibble() => (byte)Read(4);
@@ -50,8 +36,8 @@ public abstract class NumberParserBase(NumberBuildDirection direction, byte bitL
 
         var shift = CalculateShift(bitSize);
         var value = signed
-            ? (uint)((SignedValue >> shift) & bitSize.GetBitMaskSigned())
-            : (uint)((UnsignedValue >> shift) & bitSize.GetBitMaskUnsigned());
+            ? (uint)((signedValue >> shift) & bitSize.GetBitMaskSigned())
+            : (uint)((unsignedValue >> shift) & bitSize.GetBitMaskUnsigned());
 
         _currentBitOffset += bitSize;
 
