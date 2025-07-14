@@ -15,7 +15,7 @@ public class LongBuilderMixedTests
         longBuilder.SetResidueValue(expectedResidue);
         var longValue = longBuilder.GetValue();
 
-        var longParser = LongParser.Default(longValue);
+        var longParser = NumberParser.Default(longValue);
         var actualResidue = longParser.ReadResidueValue();
         actualResidue.Should().Be(expectedResidue);
     }
@@ -31,7 +31,7 @@ public class LongBuilderMixedTests
         longBuilder.TryAddNibble(expectedByte1);
         var longValue = longBuilder.GetValue();
 
-        var longParser = LongParser.Default(longValue);
+        var longParser = NumberParser.Default(longValue);
         var actualResidue = longParser.ReadResidueValue();
         actualResidue.Should().Be(expectedResidue);
 
@@ -50,7 +50,7 @@ public class LongBuilderMixedTests
         longBuilder.TryAddByte(expectedByte1);
         var longValue = longBuilder.GetValue();
 
-        var longParser = LongParser.Default(longValue);
+        var longParser = NumberParser.Default(longValue);
         var actualResidue = longParser.ReadResidueValue();
         actualResidue.Should().Be(expectedResidue);
 
@@ -71,7 +71,7 @@ public class LongBuilderMixedTests
         longBuilder.TryAddByte(expectedByte2);
         var longValue = longBuilder.GetValue();
 
-        var longParser = LongParser.Default(longValue);
+        var longParser = NumberParser.Default(longValue);
         var actualResidue = longParser.ReadResidueValue();
         actualResidue.Should().Be(expectedResidue);
 
@@ -96,7 +96,7 @@ public class LongBuilderMixedTests
         longBuilder.TryAddUShort(expectedUShort);
         var longValue = longBuilder.GetValue();
 
-        var longParser = LongParser.Default(longValue);
+        var longParser = NumberParser.Default(longValue);
         var actualResidue = longParser.ReadResidueValue();
         actualResidue.Should().Be(expectedResidue);
 

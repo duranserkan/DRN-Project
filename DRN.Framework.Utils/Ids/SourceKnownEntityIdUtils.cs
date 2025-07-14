@@ -58,7 +58,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         Span<byte> guidBytes = stackalloc byte[16]; // Allocate 16 bytes on the stack for the GUID
         guidBytes.Clear();
 
-        var idParser = LongUnsignedParser.Default((ulong)id);
+        var idParser = NumberParser.Default((ulong)id);
         var firstHalf = idParser.ReadUInt();
         var secondHalf = idParser.ReadUInt();
 

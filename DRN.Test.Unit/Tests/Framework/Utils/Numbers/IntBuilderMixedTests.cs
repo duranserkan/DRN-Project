@@ -15,7 +15,7 @@ public class IntBuilderMixedTests
         intBuilder.SetResidueValue(expectedResidue);
         var intValue = intBuilder.GetValue();
 
-        var intParser = IntParser.Default(intValue);
+        var intParser = NumberParser.Default(intValue);
         var actualResidue = intParser.ReadResidueValue();
         actualResidue.Should().Be(expectedResidue);
     }
@@ -31,7 +31,7 @@ public class IntBuilderMixedTests
         intBuilder.TryAddNibble(expectedByte1);
         var intValue = intBuilder.GetValue();
 
-        var intParser = IntParser.Default(intValue);
+        var intParser = NumberParser.Default(intValue);
         var actualResidue = intParser.ReadResidueValue();
         actualResidue.Should().Be(expectedResidue);
 
@@ -50,7 +50,7 @@ public class IntBuilderMixedTests
         intBuilder.TryAddByte(expectedByte1);
         var intValue = intBuilder.GetValue();
 
-        var intParser = IntParser.Default(intValue);
+        var intParser = NumberParser.Default(intValue);
         var actualResidue = intParser.ReadResidueValue();
         actualResidue.Should().Be(expectedResidue);
 
@@ -71,7 +71,7 @@ public class IntBuilderMixedTests
         intBuilder.TryAddByte(expectedByte2);
         var intValue = intBuilder.GetValue();
 
-        var intParser = IntParser.Default(intValue);
+        var intParser = NumberParser.Default(intValue);
         var actualResidue = intParser.ReadResidueValue();
         actualResidue.Should().Be(expectedResidue);
 
