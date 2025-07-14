@@ -1,5 +1,33 @@
 namespace DRN.Framework.Utils.Numbers;
 
+public class IntBuilder(NumberBuildDirection direction, byte residueBitLength) : NumberBuilderBase(direction, 32, residueBitLength, true)
+{
+    public static IntBuilder Default => new(NumberBuildDirection.MostSignificantFirst, 15);
+
+    public int GetValue() => (int)SignedValue;
+}
+
+public class IntUnsignedBuilder(NumberBuildDirection direction) : NumberBuilderBase(direction, 32, 0, false)
+{
+    public static IntUnsignedBuilder Default => new(NumberBuildDirection.MostSignificantFirst);
+
+    public uint GetValue() => (uint)UnsignedValue;
+}
+
+public class LongBuilder(NumberBuildDirection direction, byte residueBitLength) : NumberBuilderBase(direction, 64, residueBitLength, true)
+{
+    public static LongBuilder Default => new(NumberBuildDirection.MostSignificantFirst, 31);
+
+    public long GetValue() => SignedValue;
+}
+
+public class LongUnsignedBuilder(NumberBuildDirection direction) : NumberBuilderBase(direction, 64, 0, false)
+{
+    public static LongUnsignedBuilder Default => new(NumberBuildDirection.MostSignificantFirst);
+
+    public ulong GetValue() => UnsignedValue;
+}
+
 public abstract class NumberBuilderBase
 {
     private int _currentBitOffset;

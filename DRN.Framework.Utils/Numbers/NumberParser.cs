@@ -1,6 +1,25 @@
 namespace DRN.Framework.Utils.Numbers;
 
-//todo evaluate struct implementation/object pooling for high performance scenarios
+public class IntParser(int value, NumberBuildDirection direction, byte residueBitLength) : NumberParserBase(direction, 32, residueBitLength, true, value)
+{
+    public static IntParser Default(int value) => new(value, NumberBuildDirection.MostSignificantFirst, 15);
+}
+
+public class IntUnsignedParser(uint value, NumberBuildDirection direction) : NumberParserBase(direction, 32, 0, false, unsignedValue: value)
+{
+    public static IntUnsignedParser Default(uint value) => new(value, NumberBuildDirection.MostSignificantFirst);
+}
+
+public class LongParser(long value, NumberBuildDirection direction, byte residueBitLength) : NumberParserBase(direction, 64, residueBitLength, true, value)
+{
+    public static LongParser Default(long value) => new(value, NumberBuildDirection.MostSignificantFirst, 31);
+}
+
+public class LongUnsignedParser(ulong value, NumberBuildDirection direction) : NumberParserBase(direction, 64, 0, false, unsignedValue: value)
+{
+    public static LongUnsignedParser Default(ulong value) => new(value, NumberBuildDirection.MostSignificantFirst);
+}
+
 public abstract class NumberParserBase(NumberBuildDirection direction, byte bitLength, byte residueBitLength, bool signed, long signedValue = 0, ulong unsignedValue = 0)
 {
     private int _currentBitOffset;
