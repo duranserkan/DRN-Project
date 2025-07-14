@@ -3,7 +3,6 @@ using Blake3;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Encodings;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Ids;
 using Microsoft.Extensions.Configuration;
@@ -31,7 +30,7 @@ public interface IAppSettings
     IConfigurationSection GetRequiredSection(string key);
     T? GetValue<T>(string key);
     T? GetValue<T>(string key, T defaultValue);
-    T? Get<T>(string key, Action<BinderOptions>? configureOptions = null);
+    T? Get<T>(string key, bool errorOnUnknownConfiguration = true, bool bindNonPublicProperties = false);
     ConfigurationDebugView GetDebugView();
 }
 
@@ -68,7 +67,7 @@ public class AppSettings : IAppSettings
             throw new ConfigurationException($"Nexus AppId must be less than 64: NexusAppId: {NexusAppSettings.AppId}");
         if (NexusAppSettings.AppInstanceId > SourceKnownIdUtils.MaxAppInstanceId)
             throw new ConfigurationException($"Nexus App Instance Id must be less than 32: NexusAppId: {NexusAppSettings.AppInstanceId}");
-        
+
         AppKey = ApplicationName.ToPascalCase();
         AppHashKeyLong = ("MKA " + ApplicationName + " " + Features.SeedKey + " DRN")
             .GetSha512Hash().Substring(18, 81).GetSha512Hash();
@@ -134,8 +133,16 @@ public class AppSettings : IAppSettings
     public T? GetValue<T>(string key) => Configuration.GetValue<T>(key);
     public T? GetValue<T>(string key, T defaultValue) => Configuration.GetValue(key, defaultValue);
 
-    public T? Get<T>(string key, Action<BinderOptions>? configureOptions = null)
-        => Configuration.GetSection(key).Get<T>(configureOptions);
+    public T? Get<T>(string key, bool errorOnUnknownConfiguration = false, bool bindNonPublicProperties = true)
+        => GetSectionOrRoot(key).Get<T>(c =>
+        {
+            c.BindNonPublicProperties = bindNonPublicProperties;
+            c.ErrorOnUnknownConfiguration = errorOnUnknownConfiguration;
+        });
 
     public ConfigurationDebugView GetDebugView() => new(this);
+
+    private IConfiguration GetSectionOrRoot(string key) => string.IsNullOrEmpty(key)
+        ? Configuration
+        : Configuration.GetSection(key);
 }

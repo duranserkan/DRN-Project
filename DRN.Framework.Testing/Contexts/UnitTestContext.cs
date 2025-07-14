@@ -2,6 +2,7 @@ using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
+using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Memory;
@@ -59,7 +60,7 @@ public class UnitTestContext : IDisposable, IKeyedServiceProvider
             ServiceCollection = sc;
     }
 
-    public void ValidateServices() => this.ValidateServicesAddedByAttributes();
+    public void ValidateServices(Func<LifetimeAttribute, bool>? ignore = null) => this.ValidateServicesAddedByAttributes(ignore: ignore);
 
     public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = SettingsProvider.ConventionSettingsName)
     {

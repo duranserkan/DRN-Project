@@ -1,3 +1,5 @@
+using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,7 +13,7 @@ public static class ServiceProviderExtensions
     /// <summary>
     /// Resolves all services registered by attributes to make sure they are resolvable at startup time.
     /// </summary>
-    public static void ValidateServicesAddedByAttributes(this IServiceProvider rootServiceProvider, IScopedLog? scopedLog = null)
+    public static void ValidateServicesAddedByAttributes(this IServiceProvider rootServiceProvider, IScopedLog? scopedLog = null, Func<LifetimeAttribute, bool>? ignore = null)
     {
         using var scope = rootServiceProvider.CreateScope();
         var serviceProvider = scope.ServiceProvider;
@@ -29,6 +31,18 @@ public static class ServiceProviderExtensions
 
         foreach (var attribute in lifetimeAttributes)
         {
+            if (ignore?.Invoke(attribute) ?? false)
+                continue;
+
+            if (attribute is ConfigAttribute ca)
+            {
+                var config = serviceProvider.GetRequiredService(attribute.ImplementationType);
+                if (ca.ValidateAnnotations)
+                    config.ValidateDataAnnotationsThrowIfInvalid(
+                        $"Startup Validation for {attribute.ImplementationType.FullName} triggered by {nameof(ConfigAttribute)}.{nameof(ConfigAttribute.ValidateAnnotations)}");
+                continue;
+            }
+
             if (attribute.HasKey)
                 serviceProvider.GetRequiredKeyedService(attribute.ServiceType, attribute.Key);
             else if (attribute.TryAdd)

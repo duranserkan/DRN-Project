@@ -12,7 +12,6 @@ namespace DRN.Test.Tests.Framework.Utils;
 public class PaginationUtilsTests
 {
     //todo add async enumerable support
-    //todo DI configuration settings support
     [Theory]
     [DataInline(90, 5, true, PageSortDirection.AscendingByCreatedAt)]
     [DataInline(90, 5, true, PageSortDirection.DescendingByCreatedAt)]

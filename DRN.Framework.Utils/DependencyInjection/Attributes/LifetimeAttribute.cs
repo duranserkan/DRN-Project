@@ -1,6 +1,5 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace DRN.Framework.Utils.DependencyInjection.Attributes;
 
@@ -57,3 +56,22 @@ public class SingletonWithKeyAttribute<TService>(object key, bool tryAdd = true)
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class HostedServiceAttribute() : LifetimeAttribute<object>(ServiceLifetime.Singleton, false);
+
+/// <param name="errorOnUnknownConfiguration">
+/// Gets or sets a value that indicates whether exceptions are thrown when converting a value or when a
+/// configuration key is found for which the provided model object doesn't have an appropriate property
+/// that matches the key's name.
+/// </param>
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
+public class ConfigAttribute(
+    string configKey,
+    bool validateAnnotations = true,
+    bool errorOnUnknownConfiguration = true,
+    bool bindNonPublicProperties = true)
+    : SingletonAttribute<object>
+{
+    public string ConfigKey { get; } = configKey;
+    public bool ValidateAnnotations { get; } = validateAnnotations;
+    public bool BindNonPublicProperties { get; } = bindNonPublicProperties;
+    public bool ErrorOnUnknownConfiguration { get; } = errorOnUnknownConfiguration;
+}
