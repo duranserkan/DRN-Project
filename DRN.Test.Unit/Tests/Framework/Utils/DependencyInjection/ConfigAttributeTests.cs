@@ -54,7 +54,7 @@ public class ConfigAttributeTests
         context.ServiceCollection.AddServicesWithAttributes();
 
         var connectionConfig = context.GetRequiredService<ConnectionStringsCollectionConfigWithNonPublicValueUnbound>();
-        connectionConfig.Foo.Should().BeNull();
+        connectionConfig.Foo.Should().Be(string.Empty);
     }
 
     [Theory]
