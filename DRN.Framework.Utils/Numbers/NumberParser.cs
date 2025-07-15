@@ -13,8 +13,7 @@ public struct NumberParser
 
     public static NumberParser Get(ulong value, NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst)
         => new(direction, 64, 0, false, unsignedValue: value);
-
-
+    
     private readonly NumberBuildDirection _direction;
     private readonly bool _signed;
     private readonly byte _residueBitLength;

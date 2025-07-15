@@ -9,8 +9,7 @@ public static class NumberBuilder
 
     public static NumberBuilder<long> GetLong(NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst, byte residueBitLength = 31) =>
         new(direction, 64, residueBitLength, true);
-
-
+    
     public static NumberBuilder<ulong> GetLongUnsigned(NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst) =>
         new(direction, 64, 0, false);
 
@@ -76,8 +75,7 @@ public struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<TNum
         _signedValue = signBit ? _signedValue | (1L << (_bitLength - 1)) : _signedValue & ~(1L << (_bitLength - 1));
         _signBit = signBit;
     }
-
-
+    
     public bool TryAddBit(byte bit) => TryAdd(bit, 1);
     public bool TryAddCrumb(byte crumb) => TryAdd(crumb, 2);
     public bool TryAddNibble(byte nibble) => TryAdd(nibble, 4);

@@ -89,8 +89,16 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     private List<IDomainEvent> DomainEvents { get; } = new(2); //todo transactional outbox, pre and post publish events
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
     
+    /// <summary>
+    /// Internal use only, Use EntityId for external usage
+    /// </summary>
     [JsonIgnore]
     public long Id { get; internal set; } = id;
+    
+    /// <summary>
+    /// External use only, don't use Id for external usage
+    /// </summary>
+    [JsonPropertyName(nameof(Id))]
     public Guid EntityId => EntityIdSource.EntityId;
     
     [JsonIgnore]

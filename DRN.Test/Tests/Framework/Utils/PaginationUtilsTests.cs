@@ -110,7 +110,7 @@ public class PaginationUtilsTests
         var lastPageRefreshResult = await paginationUtils.GetResultAsync(tagQuery, lastPageRefreshRequest);
         expectedPages.ValidateResult(lastPageRefreshResult, updateTotalCount);
         lastPageRefreshResult.TotalCountUpdated.Should().Be(false);
-        
+
         //Page jump to First Page
         preJumpPageNumber = lastPageResult.PageNumber;
         var firstPageRequest = lastPageResult.RequestPage(1);
@@ -127,7 +127,7 @@ public class PaginationUtilsTests
         var firstPageRefreshResult = await paginationUtils.GetResultAsync(tagQuery, firstPageRequest);
         expectedPages.ValidateResult(firstPageRefreshResult, updateTotalCount);
         firstPageRefreshResult.TotalCountUpdated.Should().Be(false);
-        
+
         //Page jump to Page 4
         preJumpPageNumber = firstPageResult.PageNumber;
         var request4 = firstPageResult.RequestPage(4);
@@ -154,6 +154,19 @@ public class PaginationUtilsTests
         pageResult2 = await paginationUtils.GetResultAsync(tagQuery, request2);
         expectedPages.ValidateResult(pageResult2, updateTotalCount);
         pageResult2.TotalCountUpdated.Should().Be(false);
+
+        //jump to page 100 to test the empty page
+        var request100 = pageResult2.RequestPage(100);
+        expectedPages.ValidateRequest(request100, pageResult2.PageNumber, false, true,98);
+        
+        var pageResult100 = await paginationUtils.GetResultAsync(tagQuery, request100);
+        pageResult100.Items.Should().BeEmpty();
+        pageResult100.HasPrevious.Should().BeTrue();
+        pageResult100.HasNext.Should().BeFalse();
+        pageResult100.FirstId.Should().BeEmpty();
+        pageResult100.LastId.Should().BeEmpty();
+        pageResult100.Total.Should().Be(pageResult2.Total);
+        pageResult100.TotalCountUpdated.Should().Be(false);
     }
 }
 
