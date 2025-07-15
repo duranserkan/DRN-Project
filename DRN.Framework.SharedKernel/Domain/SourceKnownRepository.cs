@@ -8,8 +8,10 @@ public interface ISourceKnownRepository<TEntity>
     CancellationToken CancellationToken { get; set; }
     void MergeTokens(CancellationToken other);
     void CancelChanges();
+
     Task<int> SaveChangesAsync();
 
+    //todo add get or create with cache support
     ValueTask<TEntity> GetAsync(Guid id);
     Task<PaginationResult<TEntity>> PaginateAsync(PaginationRequest request);
     Task<PaginationResult<TEntity>> PaginateCreatedBeforeAsync(PaginationRequest request, DateTimeOffset after, bool inclusive = true);
@@ -20,8 +22,10 @@ public interface ISourceKnownRepository<TEntity>
     IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllAsync(PaginationRequest request);
     IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBeforeAsync(PaginationRequest request, DateTimeOffset after, bool inclusive = true);
     IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedAfterAsync(PaginationRequest request, DateTimeOffset before, bool inclusive = true);
+
     IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBetweenAsync(PaginationRequest request, DateTimeOffset before, DateTimeOffset after,
         bool inclusive = true);
+
     IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedOutsideAsync(PaginationRequest request, DateTimeOffset before, DateTimeOffset after,
         bool inclusive = true);
 
