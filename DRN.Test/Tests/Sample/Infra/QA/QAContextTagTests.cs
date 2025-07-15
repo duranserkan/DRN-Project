@@ -1,6 +1,7 @@
 using DRN.Framework.Utils.Entity;
 using Microsoft.EntityFrameworkCore;
 using Sample.Contract.QA.Tags;
+using Sample.Domain.QA.Questions;
 using Sample.Domain.QA.Tags;
 using Sample.Infra;
 using Sample.Infra.QA;
@@ -55,6 +56,9 @@ public class QAContextTagTests
 
         await Task.Delay(TimeSpan.FromSeconds(1.2));
         var afterTagCreation = DateTimeOffset.UtcNow;
+
+        firstTag.EntityIdSource.HasSameEntityType<Tag>().Should().BeTrue();
+        firstTag.EntityIdSource.HasSameEntityType<Question>().Should().BeFalse();
 
         var tagFromDb = await qaContext.Tags.FindAsync(firstTag.Id);
         tagFromDb.Should().NotBeNull();

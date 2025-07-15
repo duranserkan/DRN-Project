@@ -15,6 +15,9 @@ public readonly record struct SourceKnownId(long Id, byte AppId, byte AppInstanc
 public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid EntityId, byte EntityTypeId, bool Valid) : IComparable<SourceKnownEntityId>
 {
     public bool HasSameEntityType(SourceKnownEntityId other) => EntityTypeId == other.EntityTypeId;
+    public bool HasSameEntityType<TEntity>() where TEntity : SourceKnownEntity
+        => EntityTypeId == SourceKnownEntity.GetEntityTypeId<TEntity>();
+
     public bool Equals(SourceKnownEntityId other) => EntityId == other.EntityId;
     public override int GetHashCode() => EntityId.GetHashCode();
     public int CompareTo(SourceKnownEntityId other) => EntityTypeId == other.EntityTypeId ? Source.CompareTo(other.Source) : 1;

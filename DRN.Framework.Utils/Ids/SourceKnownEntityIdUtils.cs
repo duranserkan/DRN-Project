@@ -16,6 +16,7 @@ public interface ISourceKnownEntityIdUtils
     SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity;
     SourceKnownEntityId Generate(SourceKnownEntity sourceKnownEntity);
     SourceKnownEntityId Parse(Guid entityId);
+    SourceKnownEntityId Validate(Guid entityId, byte entityTypeId);
 }
 
 /// <summary>
@@ -125,6 +126,18 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         return expectedHashBytes.SequenceEqual(actualHashBytes)
             ? new SourceKnownEntityId(sourceKnownIdUtils.Parse(id), entityId, entityTypeId, true)
             : CreateInvalid(entityId);
+    }
+
+    public SourceKnownEntityId Validate(Guid entityId, byte entityTypeId)
+    {
+        var sourceKnownId = Parse(entityId);
+        if (!sourceKnownId.Valid)
+            throw new ValidationException($"Invalid EntityId: {entityId:N}");
+
+        if (sourceKnownId.EntityTypeId != entityTypeId)
+            throw new ValidationException($"Expected Entity Type {entityTypeId} but found: {sourceKnownId.EntityTypeId} for EntityId:{entityId:N}");
+
+        return sourceKnownId;
     }
 
     private static SourceKnownEntityId CreateInvalid(Guid entityId) => new(default, entityId, InvalidEntityTypeId, false);

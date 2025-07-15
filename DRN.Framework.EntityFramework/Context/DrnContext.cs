@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.EntityFramework.Context;
 
+public interface IDrnContext;
+
 /// <summary>
 ///     <list type="table">
 ///         <listheader>
@@ -56,7 +58,7 @@ namespace DRN.Framework.EntityFramework.Context;
 ///</code>
 /// </example>
 [DrnContextServiceRegistration, DrnContextDefaults, DrnContextPerformanceDefaults]
-public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices where TContext : DrnContext<TContext>, new()
+public abstract class DrnContext<TContext> : DbContext, IDrnContext, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices where TContext : DrnContext<TContext>, new()
 {
     /// Initializes a new instance of the <see cref="DrnContext"/> class.
     protected DrnContext(DbContextOptions<TContext>? options) : base(options ?? new DbContextOptions<TContext>())

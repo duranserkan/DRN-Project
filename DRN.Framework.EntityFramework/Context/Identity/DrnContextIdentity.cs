@@ -58,7 +58,7 @@ namespace DRN.Framework.EntityFramework.Context.Identity;
 ///</code>
 /// </example>
 [DrnContextServiceRegistration, DrnContextDefaults]
-public abstract class DrnContextIdentity<TContext, TUser> : IdentityDbContext<TUser>, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices
+public abstract class DrnContextIdentity<TContext, TUser> : IdentityDbContext<TUser>, IDrnContext, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices
     where TContext : DrnContextIdentity<TContext, TUser>, new()
     where TUser : IdentityUser
 {
