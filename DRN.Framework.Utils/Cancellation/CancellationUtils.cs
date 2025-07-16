@@ -2,7 +2,7 @@ using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Cancellation;
 
-public interface ICancellationSource : IDisposable
+public interface ICancellationUtils : IDisposable
 {
     CancellationToken Token { get; }
     bool IsCancellationRequested { get; }
@@ -10,8 +10,8 @@ public interface ICancellationSource : IDisposable
     void Merge(CancellationToken other);
 }
 
-[Scoped<ICancellationSource>]
-public sealed class CancellationSource : ICancellationSource
+[Scoped<ICancellationUtils>]
+public sealed class CancellationUtils : ICancellationUtils
 {
     //intentionally made private to not leak control of inner CTS
     private CancellationTokenSource _source = new();

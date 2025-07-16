@@ -6,24 +6,24 @@ namespace DRN.Framework.Utils.Entity;
 
 public interface IEntityUtils
 {
-    ICancellationSource CancellationSource { get; }
+    ICancellationUtils Cancellation { get; }
     ISourceKnownIdUtils Id { get; }
     ISourceKnownEntityIdUtils EntityId { get; }
     IPaginationUtils Pagination { get; }
     IEntityDateTimeUtils DateTime { get; }
 }
 
-[Singleton<IEntityUtils>]
+[Scoped<IEntityUtils>]
 public class EntityUtils(
     ISourceKnownIdUtils idUtils,
     ISourceKnownEntityIdUtils entityIdUtils,
     IPaginationUtils paginationUtils,
     IEntityDateTimeUtils dateTimeUtils,
-    ICancellationSource cancellationSource) : IEntityUtils
+    ICancellationUtils cancellationUtils) : IEntityUtils
 {
     public ISourceKnownIdUtils Id { get; } = idUtils;
     public ISourceKnownEntityIdUtils EntityId { get; } = entityIdUtils;
     public IPaginationUtils Pagination { get; } = paginationUtils;
     public IEntityDateTimeUtils DateTime { get; } = dateTimeUtils;
-    public ICancellationSource CancellationSource { get; } = cancellationSource;
+    public ICancellationUtils Cancellation { get; } = cancellationUtils;
 }

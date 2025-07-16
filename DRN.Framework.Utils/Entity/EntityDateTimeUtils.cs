@@ -63,7 +63,7 @@ public class EntityDateTimeUtils : IEntityDateTimeUtils
             (afterTimeStamp, beforeTimeStamp) = (beforeTimeStamp, afterTimeStamp);
         
         return inclusive
-            ? query.Where(entity => entity.Id <= beforeTimeStamp && entity.Id >= afterTimeStamp)
-            : query.Where(entity => entity.Id < beforeTimeStamp && entity.Id > afterTimeStamp);
+            ? query.Where(entity => entity.Id <= beforeTimeStamp || entity.Id >= afterTimeStamp)
+            : query.Where(entity => entity.Id < beforeTimeStamp || entity.Id > afterTimeStamp);
     }
 }

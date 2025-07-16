@@ -94,19 +94,28 @@ public class QAContextTagTests
         var tagFromBeforeFilter = await dateTimeUtils.CreatedBefore(tagQuery, afterTagCreation).ToArrayAsync();
         var tagFromAfterFilter = await dateTimeUtils.CreatedAfter(tagQuery, beforeTagCreation).ToArrayAsync();
         var tagFromBetweenFilter = await dateTimeUtils.CreatedBetween(tagQuery, beforeTagCreation, afterTagCreation).ToArrayAsync();
+        //utils should correct order when order is incorrect
+        var tagFromBetweenFilter2 = await dateTimeUtils.CreatedBetween(tagQuery, afterTagCreation, beforeTagCreation).ToArrayAsync();
+        var tagFromOutsideFilter = await dateTimeUtils.CreatedOutside(tagQuery, beforeTagCreation, afterTagCreation).ToArrayAsync();
 
         tagFromBeforeFilter.Length.Should().Be(2);
         tagFromAfterFilter.Length.Should().Be(2);
         tagFromBetweenFilter.Length.Should().Be(2);
+        tagFromBetweenFilter2.Length.Should().Be(2);
+        tagFromOutsideFilter.Length.Should().Be(0);
 
         tagFromBeforeFilter = await dateTimeUtils.CreatedBefore(tagQuery, beforeTagCreation).ToArrayAsync();
         tagFromAfterFilter = await dateTimeUtils.CreatedAfter(tagQuery, afterTagCreation).ToArrayAsync();
         tagFromBetweenFilter = await dateTimeUtils.CreatedBetween(tagQuery, beforeTagCreation, beforeTagCreation).ToArrayAsync();
-        var tagFromBetweenFilter2 = await dateTimeUtils.CreatedBetween(tagQuery, afterTagCreation, afterTagCreation).ToArrayAsync();
+        tagFromBetweenFilter2 = await dateTimeUtils.CreatedBetween(tagQuery, afterTagCreation, afterTagCreation).ToArrayAsync();
+        tagFromOutsideFilter = await dateTimeUtils.CreatedOutside(tagQuery, beforeTagCreation, beforeTagCreation).ToArrayAsync();
+        var tagFromOutsideFilter2 = await dateTimeUtils.CreatedOutside(tagQuery, afterTagCreation, afterTagCreation).ToArrayAsync();
 
         tagFromBeforeFilter.Length.Should().Be(0);
         tagFromAfterFilter.Length.Should().Be(0);
         tagFromBetweenFilter.Length.Should().Be(0);
         tagFromBetweenFilter2.Length.Should().Be(0);
+        tagFromOutsideFilter.Length.Should().Be(2);
+        tagFromOutsideFilter2.Length.Should().Be(2);
     }
 }

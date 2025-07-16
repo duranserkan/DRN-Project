@@ -23,13 +23,13 @@ public abstract class SourceKnownRepository<TEntity, TContext>(TContext context,
 
     public CancellationToken CancellationToken
     {
-        get => _cancellationToken == CancellationToken.None ? Utils.CancellationSource.Token : _cancellationToken;
+        get => _cancellationToken == CancellationToken.None ? Utils.Cancellation.Token : _cancellationToken;
         set => _cancellationToken = value;
     }
 
-    public void MergeTokens(CancellationToken other) => Utils.CancellationSource.Merge(other);
+    public void MergeTokens(CancellationToken other) => Utils.Cancellation.Merge(other);
 
-    public void CancelChanges() => Utils.CancellationSource.Cancel();
+    public void CancelChanges() => Utils.Cancellation.Cancel();
 
     /// <summary>
     /// Saves all changes made in this context to the database.
