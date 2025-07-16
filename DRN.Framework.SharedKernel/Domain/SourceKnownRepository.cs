@@ -14,20 +14,16 @@ public interface ISourceKnownRepository<TEntity>
     //todo add get or create with cache support
     ValueTask<TEntity> GetAsync(Guid id);
     Task<PaginationResult<TEntity>> PaginateAsync(PaginationRequest request);
-    Task<PaginationResult<TEntity>> PaginateCreatedBeforeAsync(PaginationRequest request, DateTimeOffset after, bool inclusive = true);
-    Task<PaginationResult<TEntity>> PaginateCreatedAfterAsync(PaginationRequest request, DateTimeOffset before, bool inclusive = true);
-    Task<PaginationResult<TEntity>> PaginateCreatedBetweenAsync(PaginationRequest request, DateTimeOffset before, DateTimeOffset after, bool inclusive = true);
-    Task<PaginationResult<TEntity>> PaginateCreatedOutsideAsync(PaginationRequest request, DateTimeOffset before, DateTimeOffset after, bool inclusive = true);
+    Task<PaginationResult<TEntity>> PaginateCreatedBeforeAsync(PaginationRequest request, DateTimeOffset date, bool inclusive = true);
+    Task<PaginationResult<TEntity>> PaginateCreatedAfterAsync(PaginationRequest request, DateTimeOffset date, bool inclusive = true);
+    Task<PaginationResult<TEntity>> PaginateCreatedBetweenAsync(PaginationRequest request, DateTimeOffset begin, DateTimeOffset end, bool inclusive = true);
+    Task<PaginationResult<TEntity>> PaginateCreatedOutsideAsync(PaginationRequest request, DateTimeOffset begin, DateTimeOffset end, bool inclusive = true);
 
     IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllAsync(PaginationRequest request);
-    IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBeforeAsync(PaginationRequest request, DateTimeOffset after, bool inclusive = true);
-    IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedAfterAsync(PaginationRequest request, DateTimeOffset before, bool inclusive = true);
-
-    IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBetweenAsync(PaginationRequest request, DateTimeOffset before, DateTimeOffset after,
-        bool inclusive = true);
-
-    IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedOutsideAsync(PaginationRequest request, DateTimeOffset before, DateTimeOffset after,
-        bool inclusive = true);
+    IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBeforeAsync(PaginationRequest request, DateTimeOffset date, bool inclusive = true);
+    IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedAfterAsync(PaginationRequest request, DateTimeOffset date, bool inclusive = true);
+    IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBetweenAsync(PaginationRequest request, DateTimeOffset begin, DateTimeOffset end, bool inclusive = true);
+    IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedOutsideAsync(PaginationRequest request, DateTimeOffset begin, DateTimeOffset end, bool inclusive = true);
 
     void Add(params TEntity[] entities);
     void Remove(params TEntity[] entities);

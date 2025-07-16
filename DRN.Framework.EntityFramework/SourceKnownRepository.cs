@@ -119,37 +119,37 @@ public abstract class SourceKnownRepository<TEntity, TContext>(TContext context,
     public async Task<PaginationResult<TEntity>> PaginateAsync(PaginationRequest request)
         => await PaginateAsync(Entities, request);
 
-    public async Task<PaginationResult<TEntity>> PaginateCreatedBeforeAsync(PaginationRequest request, DateTimeOffset after, bool inclusive = true)
-        => await PaginateCreatedBeforeAsync(Entities, request, after, inclusive);
+    public async Task<PaginationResult<TEntity>> PaginateCreatedBeforeAsync(PaginationRequest request, DateTimeOffset date, bool inclusive = true)
+        => await PaginateCreatedBeforeAsync(Entities, request, date, inclusive);
 
-    public async Task<PaginationResult<TEntity>> PaginateCreatedAfterAsync(PaginationRequest request, DateTimeOffset before, bool inclusive = true)
-        => await PaginateCreatedAfterAsync(Entities, request, before, inclusive);
+    public async Task<PaginationResult<TEntity>> PaginateCreatedAfterAsync(PaginationRequest request, DateTimeOffset date, bool inclusive = true)
+        => await PaginateCreatedAfterAsync(Entities, request, date, inclusive);
 
-    public async Task<PaginationResult<TEntity>> PaginateCreatedBetweenAsync(PaginationRequest request, DateTimeOffset before, DateTimeOffset after,
+    public async Task<PaginationResult<TEntity>> PaginateCreatedBetweenAsync(PaginationRequest request, DateTimeOffset begin, DateTimeOffset end,
         bool inclusive = true)
-        => await PaginateCreatedBetweenAsync(Entities, request, before, after, inclusive);
+        => await PaginateCreatedBetweenAsync(Entities, request, begin, end, inclusive);
 
-    public async Task<PaginationResult<TEntity>> PaginateCreatedOutsideAsync(PaginationRequest request, DateTimeOffset before, DateTimeOffset after,
+    public async Task<PaginationResult<TEntity>> PaginateCreatedOutsideAsync(PaginationRequest request, DateTimeOffset begin, DateTimeOffset end,
         bool inclusive = true)
-        => await PaginateCreatedOutsideAsync(Entities, request, before, after, inclusive);
+        => await PaginateCreatedOutsideAsync(Entities, request, begin, end, inclusive);
 
 
     public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllAsync(PaginationRequest request)
         => PaginateAllAsync(Entities, request);
 
-    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBeforeAsync(PaginationRequest request, DateTimeOffset after, bool inclusive = true)
-        => PaginateAllCreatedBeforeAsync(Entities, request, after, inclusive);
+    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBeforeAsync(PaginationRequest request, DateTimeOffset date, bool inclusive = true)
+        => PaginateAllCreatedBeforeAsync(Entities, request, date, inclusive);
 
-    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedAfterAsync(PaginationRequest request, DateTimeOffset before, bool inclusive = true)
-        => PaginateAllCreatedAfterAsync(Entities, request, before, inclusive);
+    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedAfterAsync(PaginationRequest request, DateTimeOffset date, bool inclusive = true)
+        => PaginateAllCreatedAfterAsync(Entities, request, date, inclusive);
 
-    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBetweenAsync(PaginationRequest request, DateTimeOffset before, DateTimeOffset after,
+    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBetweenAsync(PaginationRequest request, DateTimeOffset begin, DateTimeOffset end,
         bool inclusive = true)
-        => PaginateAllCreatedBetweenAsync(Entities, request, before, after, inclusive);
+        => PaginateAllCreatedBetweenAsync(Entities, request, begin, end, inclusive);
 
-    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedOutsideAsync(PaginationRequest request, DateTimeOffset before, DateTimeOffset after,
+    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedOutsideAsync(PaginationRequest request, DateTimeOffset begin, DateTimeOffset end,
         bool inclusive = true)
-        => PaginateAllCreatedOutsideAsync(Entities, request, before, after, inclusive);
+        => PaginateAllCreatedOutsideAsync(Entities, request, begin, end, inclusive);
 
     protected async Task<PaginationResult<TEntity>> PaginateAsync(IQueryable<TEntity> query, PaginationRequest? request = null)
     {
