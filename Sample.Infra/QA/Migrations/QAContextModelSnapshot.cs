@@ -19,7 +19,7 @@ namespace Sample.Infra.QA.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("qa_context")
-                .HasAnnotation("ProductVersion", "9.0.4")
+                .HasAnnotation("ProductVersion", "9.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -47,7 +47,8 @@ namespace Sample.Infra.QA.Migrations
                 {
                     b.Property<long>("Id")
                         .HasColumnType("bigint")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasColumnOrder(0);
 
                     b.Property<string>("Body")
                         .IsRequired()
@@ -68,7 +69,8 @@ namespace Sample.Infra.QA.Migrations
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
+                        .HasColumnName("modified_at")
+                        .HasColumnOrder(1);
 
                     b.Property<long>("QuestionId")
                         .HasColumnType("bigint")
@@ -91,7 +93,8 @@ namespace Sample.Infra.QA.Migrations
                 {
                     b.Property<long>("Id")
                         .HasColumnType("bigint")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasColumnOrder(0);
 
                     b.Property<long?>("AnswerCommentId")
                         .HasColumnType("bigint")
@@ -116,7 +119,8 @@ namespace Sample.Infra.QA.Migrations
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
+                        .HasColumnName("modified_at")
+                        .HasColumnOrder(1);
 
                     b.Property<long>("UserId")
                         .HasColumnType("bigint")
@@ -138,7 +142,8 @@ namespace Sample.Infra.QA.Migrations
                 {
                     b.Property<long>("Id")
                         .HasColumnType("bigint")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasColumnOrder(0);
 
                     b.Property<string>("ExtendedProperties")
                         .IsRequired()
@@ -150,7 +155,8 @@ namespace Sample.Infra.QA.Migrations
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
+                        .HasColumnName("modified_at")
+                        .HasColumnOrder(1);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -167,7 +173,8 @@ namespace Sample.Infra.QA.Migrations
                 {
                     b.Property<long>("Id")
                         .HasColumnType("bigint")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasColumnOrder(0);
 
                     b.Property<string>("Body")
                         .IsRequired()
@@ -188,7 +195,8 @@ namespace Sample.Infra.QA.Migrations
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
+                        .HasColumnName("modified_at")
+                        .HasColumnOrder(1);
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -215,7 +223,8 @@ namespace Sample.Infra.QA.Migrations
                 {
                     b.Property<long>("Id")
                         .HasColumnType("bigint")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasColumnOrder(0);
 
                     b.Property<string>("Body")
                         .IsRequired()
@@ -232,7 +241,8 @@ namespace Sample.Infra.QA.Migrations
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
+                        .HasColumnName("modified_at")
+                        .HasColumnOrder(1);
 
                     b.Property<long?>("QuestionId")
                         .HasColumnType("bigint")
@@ -255,7 +265,8 @@ namespace Sample.Infra.QA.Migrations
                 {
                     b.Property<long>("Id")
                         .HasColumnType("bigint")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasColumnOrder(0);
 
                     b.Property<string>("ExtendedProperties")
                         .IsRequired()
@@ -267,7 +278,8 @@ namespace Sample.Infra.QA.Migrations
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
+                        .HasColumnName("modified_at")
+                        .HasColumnOrder(1);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -284,7 +296,8 @@ namespace Sample.Infra.QA.Migrations
                 {
                     b.Property<long>("Id")
                         .HasColumnType("bigint")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasColumnOrder(0);
 
                     b.Property<string>("ExtendedProperties")
                         .IsRequired()
@@ -296,7 +309,8 @@ namespace Sample.Infra.QA.Migrations
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
+                        .HasColumnName("modified_at")
+                        .HasColumnOrder(1);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -431,7 +445,7 @@ namespace Sample.Infra.QA.Migrations
 
             modelBuilder.Entity("Sample.Domain.QA.Tags.Tag", b =>
                 {
-                    b.OwnsOne("Sample.Domain.QA.Tags.TagValueModel", "Model", b1 =>
+                    b.OwnsOne("Sample.Contract.QA.Tags.TagValueModel", "Model", b1 =>
                         {
                             b1.Property<long>("TagId")
                                 .HasColumnType("bigint");
@@ -439,9 +453,24 @@ namespace Sample.Infra.QA.Migrations
                             b1.Property<bool>("BoolValue")
                                 .HasColumnType("boolean");
 
+                            b1.Property<DateTimeOffset>("Date")
+                                .HasColumnType("timestamp with time zone");
+
+                            b1.Property<long>("Max")
+                                .HasColumnType("bigint");
+
+                            b1.Property<long>("Min")
+                                .HasColumnType("bigint");
+
+                            b1.Property<long>("Other")
+                                .HasColumnType("bigint");
+
                             b1.Property<string>("StringValue")
                                 .IsRequired()
                                 .HasColumnType("text");
+
+                            b1.Property<int>("Type")
+                                .HasColumnType("integer");
 
                             b1.HasKey("TagId");
 

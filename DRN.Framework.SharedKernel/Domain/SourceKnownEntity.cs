@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -93,6 +94,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     /// Internal use only, Use EntityId for external usage
     /// </summary>
     [JsonIgnore]
+    [Column(Order = 0)]
     public long Id { get; internal set; } = id;
 
     /// <summary>
@@ -104,15 +106,16 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     [JsonIgnore]
     public SourceKnownEntityId EntityIdSource { get; internal set; }
 
-    public string ExtendedProperties { get; set; } = EmptyJson;
-    public TModel GetExtendedProperties<TModel>() => JsonSerializer.Deserialize<TModel>(ExtendedProperties)!;
-    public void SetExtendedProperties<TModel>(TModel extendedProperty) => ExtendedProperties = JsonSerializer.Serialize(extendedProperty);
-
     [JsonIgnore]
     public bool IsPendingInsert => EntityId == Guid.Empty;
 
     [ConcurrencyCheck]
+    [Column(Order = 1)]
     public DateTimeOffset ModifiedAt { get; protected set; }
+    
+    public string ExtendedProperties { get; set; } = EmptyJson;
+    public TModel GetExtendedProperties<TModel>() => JsonSerializer.Deserialize<TModel>(ExtendedProperties)!;
+    public void SetExtendedProperties<TModel>(TModel extendedProperty) => ExtendedProperties = JsonSerializer.Serialize(extendedProperty);
 
     public DateTimeOffset CreatedAt => EntityIdSource.Source.CreatedAt;
 

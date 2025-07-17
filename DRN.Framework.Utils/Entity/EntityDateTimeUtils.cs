@@ -25,7 +25,7 @@ public interface IEntityDateTimeUtils
 [Singleton<IEntityDateTimeUtils>]
 public class EntityDateTimeUtils : IEntityDateTimeUtils
 {
-    private long ConvertToTimeStamp(DateTimeOffset dateTimeOffset) => EpochTimeUtils.ConvertToSourceKnownIdTimeStamp(dateTimeOffset, EpochTimeUtils.DefaultEpoch);
+    private static long ConvertToTimeStamp(DateTimeOffset dateTimeOffset) => EpochTimeUtils.ConvertToSourceKnownIdTimeStamp(dateTimeOffset, EpochTimeUtils.DefaultEpoch);
 
     public IQueryable<TEntity> CreatedAfter<TEntity>(IQueryable<TEntity> query, DateTimeOffset date, bool inclusive = true)
         where TEntity : SourceKnownEntity
