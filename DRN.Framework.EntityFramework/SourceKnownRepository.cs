@@ -2,13 +2,13 @@ using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
+using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Entity;
 using Microsoft.EntityFrameworkCore;
 
 namespace DRN.Framework.EntityFramework;
 
 //todo test
-//todo merge date filters
 public abstract class SourceKnownRepository<TEntity, TContext>(TContext context, IEntityUtils utils) : ISourceKnownRepository<TEntity>
     where TContext : DbContext, IDrnContext
     where TEntity : AggregateRoot
@@ -98,8 +98,7 @@ public abstract class SourceKnownRepository<TEntity, TContext>(TContext context,
     /// <returns>The total number of rows deleted in the database.</returns>
     public async Task<int> DeleteAsync(params Guid[] ids)
     {
-        var sourceKnownIds = ValidateEntityIdsAsEnumerable(ids).Select(sourceKnownEntityId => sourceKnownEntityId.Source.Id).ToArray();
-        var rowCount = await Entities.Where(entity => sourceKnownIds.Contains(entity.Id)).ExecuteDeleteAsync(CancellationToken);
+        var rowCount = await Filter(Entities, ids).ExecuteDeleteAsync(CancellationToken);
 
         return rowCount;
     }
@@ -116,156 +115,43 @@ public abstract class SourceKnownRepository<TEntity, TContext>(TContext context,
         => ids.Select(id => ValidateEntityId(id, throwException));
 
 
-    public async Task<PaginationResult<TEntity>> PaginateAsync(PaginationRequest request)
-        => await PaginateAsync(Entities, request);
+    public async Task<PaginationResult<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
+        => await PaginateAsync(Entities, request, filter);
 
-    public async Task<PaginationResult<TEntity>> PaginateCreatedBeforeAsync(PaginationRequest request, DateTimeOffset date, bool inclusive = true)
-        => await PaginateCreatedBeforeAsync(Entities, request, date, inclusive);
+    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
+        => PaginateAllAsync(Entities, request, filter);
 
-    public async Task<PaginationResult<TEntity>> PaginateCreatedAfterAsync(PaginationRequest request, DateTimeOffset date, bool inclusive = true)
-        => await PaginateCreatedAfterAsync(Entities, request, date, inclusive);
-
-    public async Task<PaginationResult<TEntity>> PaginateCreatedBetweenAsync(PaginationRequest request, DateTimeOffset begin, DateTimeOffset end,
-        bool inclusive = true)
-        => await PaginateCreatedBetweenAsync(Entities, request, begin, end, inclusive);
-
-    public async Task<PaginationResult<TEntity>> PaginateCreatedOutsideAsync(PaginationRequest request, DateTimeOffset begin, DateTimeOffset end,
-        bool inclusive = true)
-        => await PaginateCreatedOutsideAsync(Entities, request, begin, end, inclusive);
-
-
-    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllAsync(PaginationRequest request)
-        => PaginateAllAsync(Entities, request);
-
-    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBeforeAsync(PaginationRequest request, DateTimeOffset date, bool inclusive = true)
-        => PaginateAllCreatedBeforeAsync(Entities, request, date, inclusive);
-
-    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedAfterAsync(PaginationRequest request, DateTimeOffset date, bool inclusive = true)
-        => PaginateAllCreatedAfterAsync(Entities, request, date, inclusive);
-
-    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBetweenAsync(PaginationRequest request, DateTimeOffset begin, DateTimeOffset end,
-        bool inclusive = true)
-        => PaginateAllCreatedBetweenAsync(Entities, request, begin, end, inclusive);
-
-    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedOutsideAsync(PaginationRequest request, DateTimeOffset begin, DateTimeOffset end,
-        bool inclusive = true)
-        => PaginateAllCreatedOutsideAsync(Entities, request, begin, end, inclusive);
-
-    protected async Task<PaginationResult<TEntity>> PaginateAsync(IQueryable<TEntity> query, PaginationRequest? request = null)
+    protected async Task<PaginationResult<TEntity>> PaginateAsync(IQueryable<TEntity> query, PaginationRequest request, EntityCreatedFilter? filter = null)
     {
-        request ??= PaginationRequest.Default;
-
         if (!request.PageCursor.IsFirstRequest)
             ValidateEntityId(request.GetCursorId());
 
-        var result = await Utils.Pagination.GetResultAsync(query, request, CancellationToken);
+        var filteredQuery = filter != null ? Filter(Entities, filter) : query;
+        var result = await Utils.Pagination.GetResultAsync(filteredQuery, request, CancellationToken);
+
         return result;
     }
 
-    protected async IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllAsync(IQueryable<TEntity> query, PaginationRequest request)
+    protected async IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllAsync(IQueryable<TEntity> query, PaginationRequest request, EntityCreatedFilter? filter = null)
     {
         PaginationResult<TEntity> result;
         do
         {
-            result = await Utils.Pagination.GetResultAsync(query, request, CancellationToken);
+            result = await PaginateAsync(query, request, filter);
 
             yield return result;
         } while (result.HasNext);
     }
-
-    protected async Task<PaginationResult<TEntity>> PaginateCreatedBeforeAsync(
-        IQueryable<TEntity> query,
-        PaginationRequest request,
-        DateTimeOffset dateAfterCreation,
-        bool inclusive = true)
+    
+    protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, params Guid[] ids)
     {
-        var filteredQuery = Utils.DateTime.CreatedBefore(query, dateAfterCreation, inclusive);
-        var result = await PaginateAsync(filteredQuery, request);
+        var sourceKnownIds = ValidateEntityIdsAsEnumerable(ids).Select(sourceKnownEntityId => sourceKnownEntityId.Source.Id).ToArray();
+        var filteredQuery = Filter(query, sourceKnownIds);
 
-        return result;
+        return filteredQuery;
     }
 
-    protected IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBeforeAsync(
-        IQueryable<TEntity> query,
-        PaginationRequest request,
-        DateTimeOffset dateAfterCreation,
-        bool inclusive = true)
-    {
-        var filteredQuery = Utils.DateTime.CreatedBefore(query, dateAfterCreation, inclusive);
+    protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, params long[] ids) => query.Where(entity => ids.Contains(entity.Id));
 
-        return PaginateAllAsync(filteredQuery, request);
-    }
-
-    protected async Task<PaginationResult<TEntity>> PaginateCreatedAfterAsync(
-        IQueryable<TEntity> query,
-        PaginationRequest request,
-        DateTimeOffset dateBeforeCreation,
-        bool inclusive = true)
-    {
-        var filteredQuery = Utils.DateTime.CreatedAfter(query, dateBeforeCreation, inclusive);
-        var result = await PaginateAsync(filteredQuery, request);
-
-        return result;
-    }
-
-    protected IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedAfterAsync(
-        IQueryable<TEntity> query,
-        PaginationRequest request,
-        DateTimeOffset dateBeforeCreation,
-        bool inclusive = true)
-    {
-        var filteredQuery = Utils.DateTime.CreatedAfter(query, dateBeforeCreation, inclusive);
-
-        return PaginateAllAsync(filteredQuery, request);
-    }
-
-    protected async Task<PaginationResult<TEntity>> PaginateCreatedBetweenAsync(
-        IQueryable<TEntity> query,
-        PaginationRequest request,
-        DateTimeOffset dateBeforeCreation,
-        DateTimeOffset dateAfterCreation,
-        bool inclusive = true)
-    {
-        var filteredQuery = Utils.DateTime.CreatedBetween(query, dateBeforeCreation, dateAfterCreation, inclusive);
-        var result = await PaginateAsync(filteredQuery, request);
-
-        return result;
-    }
-
-    protected IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedBetweenAsync(
-        IQueryable<TEntity> query,
-        PaginationRequest request,
-        DateTimeOffset dateBeforeCreation,
-        DateTimeOffset dateAfterCreation,
-        bool inclusive = true)
-    {
-        var filteredQuery = Utils.DateTime.CreatedBetween(query, dateBeforeCreation, dateAfterCreation, inclusive);
-
-        return PaginateAllAsync(filteredQuery, request);
-    }
-
-    protected async Task<PaginationResult<TEntity>> PaginateCreatedOutsideAsync(
-        IQueryable<TEntity> query,
-        PaginationRequest request,
-        DateTimeOffset before,
-        DateTimeOffset after,
-        bool inclusive = true)
-    {
-        var filteredQuery = Utils.DateTime.CreatedOutside(query, before, after, inclusive);
-        var result = await PaginateAsync(filteredQuery, request);
-
-        return result;
-    }
-
-    protected IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllCreatedOutsideAsync(
-        IQueryable<TEntity> query,
-        PaginationRequest request,
-        DateTimeOffset before,
-        DateTimeOffset after,
-        bool inclusive = true)
-    {
-        var filteredQuery = Utils.DateTime.CreatedOutside(query, before, after, inclusive);
-
-        return PaginateAllAsync(filteredQuery, request);
-    }
+    protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, EntityCreatedFilter filter) => Utils.DateTime.Apply(query, filter);
 }

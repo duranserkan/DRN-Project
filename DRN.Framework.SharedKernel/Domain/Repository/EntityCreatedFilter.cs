@@ -1,4 +1,4 @@
-namespace DRN.Framework.Utils.Entity;
+namespace DRN.Framework.SharedKernel.Domain.Repository;
 
 public enum DateTimeFilterType
 {
@@ -8,19 +8,19 @@ public enum DateTimeFilterType
     Outside
 }
 
-public sealed class EntityCreated
+public sealed class EntityCreatedFilter
 {
     // Factory methods for better readability and type safety
-    public static EntityCreated After(DateTimeOffset date, bool inclusive = true) =>
+    public static EntityCreatedFilter After(DateTimeOffset date, bool inclusive = true) =>
         new() { Begin = date, Inclusive = inclusive, Type = DateTimeFilterType.After };
 
-    public static EntityCreated Before(DateTimeOffset date, bool inclusive = true) =>
+    public static EntityCreatedFilter Before(DateTimeOffset date, bool inclusive = true) =>
         new() { Begin = date, Inclusive = inclusive, Type = DateTimeFilterType.Before };
 
-    public static EntityCreated Between(DateTimeOffset begin, DateTimeOffset end, bool inclusive = true) =>
+    public static EntityCreatedFilter Between(DateTimeOffset begin, DateTimeOffset end, bool inclusive = true) =>
         new() { Begin = begin, End = end, Inclusive = inclusive, Type = DateTimeFilterType.Between };
 
-    public static EntityCreated Outside(DateTimeOffset begin, DateTimeOffset end, bool inclusive = true) =>
+    public static EntityCreatedFilter Outside(DateTimeOffset begin, DateTimeOffset end, bool inclusive = true) =>
         new() { Begin = begin, End = end, Inclusive = inclusive, Type = DateTimeFilterType.Outside };
 
     public DateTimeFilterType Type { get; private set; }

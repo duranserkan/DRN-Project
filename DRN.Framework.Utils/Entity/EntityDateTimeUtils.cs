@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Time;
 
@@ -18,7 +19,7 @@ public interface IEntityDateTimeUtils
     IQueryable<TEntity> CreatedOutside<TEntity>(IQueryable<TEntity> query, DateTimeOffset begin, DateTimeOffset end, bool inclusive = true)
         where TEntity : SourceKnownEntity;
 
-    IQueryable<TEntity> Apply<TEntity>(IQueryable<TEntity> query, EntityCreated filter)
+    IQueryable<TEntity> Apply<TEntity>(IQueryable<TEntity> query, EntityCreatedFilter filter)
         where TEntity : SourceKnownEntity;
 }
 
@@ -70,7 +71,7 @@ public class EntityDateTimeUtils : IEntityDateTimeUtils
     }
 
     //todo add tests
-    public IQueryable<TEntity> Apply<TEntity>(IQueryable<TEntity> query, EntityCreated filter)
+    public IQueryable<TEntity> Apply<TEntity>(IQueryable<TEntity> query, EntityCreatedFilter filter)
         where TEntity : SourceKnownEntity => filter.Type switch
     {
         DateTimeFilterType.After => CreatedAfter(query, filter.Begin, filter.Inclusive),

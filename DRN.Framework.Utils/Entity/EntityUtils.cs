@@ -24,7 +24,7 @@ public class EntityUtils(
     IEntityDateTimeUtils dateTimeUtils,
     IDateTimeProvider dateTimeProvider) : IEntityUtils
 {
-    public ISourceKnownIdUtils Id { get; } = idUtils;
+    public ISourceKnownIdUtils Id { get; } = idUtils; 
     public ISourceKnownEntityIdUtils EntityId { get; } = entityIdUtils;
     public ICancellationUtils Cancellation { get; } = cancellationUtils;
     public IPaginationUtils Pagination { get; } = paginationUtils;
