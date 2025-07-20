@@ -1,5 +1,6 @@
 using DRN.Framework.EntityFramework.Attributes;
 using DRN.Framework.EntityFramework.Extensions;
+using DRN.Framework.SharedKernel.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Migrations.Design;
@@ -7,7 +8,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.EntityFramework.Context;
 
-public interface IDrnContext;
+public interface IDrnContext
+{
+    DbSet<TEntity> GetEntities<TEntity>() where TEntity : SourceKnownEntity;
+    Task<int> SaveChangesAsync(CancellationToken token);
+}
 
 /// <summary>
 ///     <list type="table">
@@ -70,6 +75,8 @@ public abstract class DrnContext<TContext> : DbContext, IDrnContext, IDesignTime
         base.OnModelCreating(modelBuilder);
         this.ModelCreatingDefaults(modelBuilder);
     }
+
+    public DbSet<TEntity> GetEntities<TEntity>() where TEntity : SourceKnownEntity => Set<TEntity>();
 
     public TContext CreateDbContext(string[] args) => args.CreateDbContext<TContext>();
 

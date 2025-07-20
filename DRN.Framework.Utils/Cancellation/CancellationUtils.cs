@@ -6,7 +6,7 @@ public interface ICancellationUtils : IDisposable
 {
     CancellationToken Token { get; }
     bool IsCancellationRequested { get; }
-    void Cancel();
+    void Cancel(); //todo add async and cancel after support
     void Merge(CancellationToken other);
 }
 

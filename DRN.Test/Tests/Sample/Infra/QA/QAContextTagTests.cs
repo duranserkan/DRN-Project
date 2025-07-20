@@ -1,6 +1,7 @@
+using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Entity;
+using DRN.Test.Tests.Sample.Infra.QA.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Questions;
 using Sample.Domain.QA.Tags;
 using Sample.Infra;
@@ -21,31 +22,7 @@ public class QAContextTagTests
         var tagPrefix = $"{nameof(QAContext_Should_Have_Tag)}_{Guid.NewGuid():N}";
         var tagQuery = qaContext.Tags.Where(t => t.Name.StartsWith(tagPrefix));
 
-        var firstTag = new Tag($"{tagPrefix}_firstTag")
-        {
-            Model = new TagValueModel
-            {
-                BoolValue = true,
-                StringValue = "firstTagValue",
-                Max = long.MaxValue,
-                Min = long.MinValue,
-                Other = 0,
-                Type = TagType.System
-            }
-        };
-
-        var secondTag = new Tag($"{tagPrefix}_secondTag")
-        {
-            Model = new TagValueModel
-            {
-                BoolValue = false,
-                StringValue = "secondTagValue",
-                Max = int.MaxValue,
-                Min = int.MinValue,
-                Other = uint.MaxValue,
-                Type = TagType.User
-            }
-        };
+        var (firstTag, secondTag, _) = TagGenerator.GetTags(tagPrefix);
 
         var beforeTagCreation = DateTimeOffset.UtcNow;
         await Task.Delay(TimeSpan.FromSeconds(1.2));
@@ -61,12 +38,12 @@ public class QAContextTagTests
         firstTag.EntityIdSource.HasSameEntityType<Question>().Should().BeFalse();
 
         var tagFromDb = await qaContext.Tags.FindAsync(firstTag.Id);
-        tagFromDb.Should().NotBeNull();
+        tagFromDb.Should().Be(firstTag);
         tagFromDb.Name.Should().Be(firstTag.Name);
         tagFromDb.Model.Should().BeEquivalentTo(firstTag.Model);
 
         var tagFromDb2 = await qaContext.Tags.FindAsync(secondTag.Id);
-        tagFromDb2.Should().NotBeNull();
+        tagFromDb2.Should().Be(secondTag);
         tagFromDb2.Name.Should().Be(secondTag.Name);
         tagFromDb2.Model.Should().BeEquivalentTo(secondTag.Model);
 
@@ -92,30 +69,57 @@ public class QAContextTagTests
 
 
         var tagFromBeforeFilter = await dateTimeUtils.CreatedBefore(tagQuery, afterTagCreation).ToArrayAsync();
+        var tagFromBeforeFilter2 = await dateTimeUtils.Apply(tagQuery, EntityCreatedFilter.Before(afterTagCreation)).ToArrayAsync();
+        tagFromBeforeFilter.Length.Should().Be(2);
+        tagFromBeforeFilter2.Length.Should().Be(2);
+
+        tagFromBeforeFilter = await dateTimeUtils.CreatedBefore(tagQuery, beforeTagCreation).ToArrayAsync();
+        tagFromBeforeFilter2 = await dateTimeUtils.Apply(tagQuery, EntityCreatedFilter.Before(beforeTagCreation)).ToArrayAsync();
+        tagFromBeforeFilter.Length.Should().Be(0);
+        tagFromBeforeFilter2.Length.Should().Be(0);
+
+
         var tagFromAfterFilter = await dateTimeUtils.CreatedAfter(tagQuery, beforeTagCreation).ToArrayAsync();
+        var tagFromAfterFilter2 = await dateTimeUtils.Apply(tagQuery, EntityCreatedFilter.After(beforeTagCreation)).ToArrayAsync();
+        tagFromAfterFilter.Length.Should().Be(2);
+        tagFromAfterFilter2.Length.Should().Be(2);
+
+        tagFromAfterFilter = await dateTimeUtils.CreatedAfter(tagQuery, afterTagCreation).ToArrayAsync();
+        tagFromAfterFilter2 = await dateTimeUtils.Apply(tagQuery, EntityCreatedFilter.After(afterTagCreation)).ToArrayAsync();
+        tagFromAfterFilter.Length.Should().Be(0);
+        tagFromAfterFilter2.Length.Should().Be(0);
+
+
         var tagFromBetweenFilter = await dateTimeUtils.CreatedBetween(tagQuery, beforeTagCreation, afterTagCreation).ToArrayAsync();
         //utils should correct order when order is incorrect
         var tagFromBetweenFilter2 = await dateTimeUtils.CreatedBetween(tagQuery, afterTagCreation, beforeTagCreation).ToArrayAsync();
-        var tagFromOutsideFilter = await dateTimeUtils.CreatedOutside(tagQuery, beforeTagCreation, afterTagCreation).ToArrayAsync();
-
-        tagFromBeforeFilter.Length.Should().Be(2);
-        tagFromAfterFilter.Length.Should().Be(2);
+        var tagFromBetweenFilter3 = await dateTimeUtils.Apply(tagQuery, EntityCreatedFilter.Between(beforeTagCreation, afterTagCreation)).ToArrayAsync();
         tagFromBetweenFilter.Length.Should().Be(2);
         tagFromBetweenFilter2.Length.Should().Be(2);
-        tagFromOutsideFilter.Length.Should().Be(0);
+        tagFromBetweenFilter3.Length.Should().Be(2);
 
-        tagFromBeforeFilter = await dateTimeUtils.CreatedBefore(tagQuery, beforeTagCreation).ToArrayAsync();
-        tagFromAfterFilter = await dateTimeUtils.CreatedAfter(tagQuery, afterTagCreation).ToArrayAsync();
         tagFromBetweenFilter = await dateTimeUtils.CreatedBetween(tagQuery, beforeTagCreation, beforeTagCreation).ToArrayAsync();
         tagFromBetweenFilter2 = await dateTimeUtils.CreatedBetween(tagQuery, afterTagCreation, afterTagCreation).ToArrayAsync();
-        tagFromOutsideFilter = await dateTimeUtils.CreatedOutside(tagQuery, beforeTagCreation, beforeTagCreation).ToArrayAsync();
-        var tagFromOutsideFilter2 = await dateTimeUtils.CreatedOutside(tagQuery, afterTagCreation, afterTagCreation).ToArrayAsync();
-
-        tagFromBeforeFilter.Length.Should().Be(0);
-        tagFromAfterFilter.Length.Should().Be(0);
+        tagFromBetweenFilter3 = await dateTimeUtils.Apply(tagQuery, EntityCreatedFilter.Between(afterTagCreation, afterTagCreation)).ToArrayAsync();
         tagFromBetweenFilter.Length.Should().Be(0);
         tagFromBetweenFilter2.Length.Should().Be(0);
+        tagFromBetweenFilter3.Length.Should().Be(0);
+
+
+        var tagFromOutsideFilter = await dateTimeUtils.CreatedOutside(tagQuery, beforeTagCreation, afterTagCreation).ToArrayAsync();
+        var tagFromOutsideFilter2 = await dateTimeUtils.CreatedOutside(tagQuery, afterTagCreation, beforeTagCreation).ToArrayAsync();
+        var tagFromOutsideFilter3 = await dateTimeUtils.Apply(tagQuery, EntityCreatedFilter.Outside(beforeTagCreation, afterTagCreation)).ToArrayAsync();
+
+        tagFromOutsideFilter.Length.Should().Be(0);
+        tagFromOutsideFilter2.Length.Should().Be(0);
+        tagFromOutsideFilter3.Length.Should().Be(0);
+
+        tagFromOutsideFilter = await dateTimeUtils.CreatedOutside(tagQuery, beforeTagCreation, beforeTagCreation).ToArrayAsync();
+        tagFromOutsideFilter2 = await dateTimeUtils.CreatedOutside(tagQuery, afterTagCreation, afterTagCreation).ToArrayAsync();
+        tagFromOutsideFilter3 = await dateTimeUtils.Apply(tagQuery, EntityCreatedFilter.Outside(beforeTagCreation, beforeTagCreation)).ToArrayAsync();
+
         tagFromOutsideFilter.Length.Should().Be(2);
         tagFromOutsideFilter2.Length.Should().Be(2);
+        tagFromOutsideFilter3.Length.Should().Be(2);
     }
 }

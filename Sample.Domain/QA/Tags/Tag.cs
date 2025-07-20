@@ -4,7 +4,7 @@ using Sample.Domain.QA.Questions;
 namespace Sample.Domain.QA.Tags;
 
 [EntityTypeId((int)SampleEntityTypeIds.Tag)]
-public class Tag : SourceKnownEntity<TagValueModel>
+public class Tag : AggregateRoot<TagValueModel>
 {
     private Tag()
     {

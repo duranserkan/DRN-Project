@@ -8,14 +8,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DRN.Framework.EntityFramework;
 
-//todo test
-public abstract class SourceKnownRepository<TEntity, TContext>(TContext context, IEntityUtils utils) : ISourceKnownRepository<TEntity>
+public abstract class SourceKnownRepository<TContext, TEntity>(TContext context, IEntityUtils utils) : ISourceKnownRepository<TEntity>
     where TContext : DbContext, IDrnContext
     where TEntity : AggregateRoot
 {
     private static readonly byte EntityTypeId = SourceKnownEntity.GetEntityTypeId<TEntity>();
 
-    protected DbSet<TEntity> Entities { get; } = context.Set<TEntity>();
+    protected TContext Context { get; } = context;
+    protected DbSet<TEntity> Entities { get; } = context.GetEntities<TEntity>();
     protected IEntityUtils Utils { get; } = utils;
 
 
@@ -27,7 +27,7 @@ public abstract class SourceKnownRepository<TEntity, TContext>(TContext context,
         set => _cancellationToken = value;
     }
 
-    public void MergeTokens(CancellationToken other) => Utils.Cancellation.Merge(other);
+    public void MergeCancellationTokens(CancellationToken other) => Utils.Cancellation.Merge(other);
 
     public void CancelChanges() => Utils.Cancellation.Cancel();
 
@@ -35,12 +35,7 @@ public abstract class SourceKnownRepository<TEntity, TContext>(TContext context,
     /// Saves all changes made in this context to the database.
     /// </summary>
     /// <returns>The number of state entries written to the database</returns>
-    public async Task<int> SaveChangesAsync()
-    {
-        var rowCount = await context.SaveChangesAsync(CancellationToken);
-
-        return rowCount;
-    }
+    public async Task<int> SaveChangesAsync() => await Context.SaveChangesAsync(CancellationToken);
 
     /// <summary>
     /// Finds an entity with the given source known id
@@ -48,67 +43,73 @@ public abstract class SourceKnownRepository<TEntity, TContext>(TContext context,
     /// <exception cref="NotFoundException">Thrown when entity not found</exception>
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public async ValueTask<TEntity> GetAsync(Guid id)
+        => await GetOrDefaultAsync(id)
+           ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
+
+    /// <summary>
+    /// Finds an entity with the given source known id
+    /// </summary>
+    /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
+    public async ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true)
     {
-        var entityId = ValidateEntityId(id);
-        var entity = await Entities.FindAsync(entityId.Source.Id, CancellationToken)
-                     ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {entityId}");
+        var entityId = ValidateEntityId(id, throwException);
+        if (!entityId.Valid)
+            return null;
+
+        var entity = await Entities.FindAsync(entityId.Source.Id, CancellationToken);
 
         return entity;
     }
+
+    public async Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids) => await Filter(Entities, ids).ToArrayAsync(CancellationToken);
 
     /// <summary>
     /// Begins tracking the given entities, and any other reachable entities that are not already being tracked,
     /// in the Added state such that they will be inserted into the database when SaveChanges() is called.
     /// </summary>
-    public void Add(params TEntity[] entities) => Entities.AddRange(entities);
+    public void Add(params IReadOnlyCollection<TEntity> entities) => Entities.AddRange(entities);
 
     /// <summary>
     /// Begins tracking the given entities in the Deleted state such that they will be removed from the database when SaveChanges() is called.
     /// </summary>
-    public void Remove(params TEntity[] entities) => Entities.RemoveRange(entities);
+    public void Remove(params IReadOnlyCollection<TEntity> entities) => Entities.RemoveRange(entities);
 
 
     /// <summary>
     /// equivalent to calling Add + SaveChangesAsync
     /// </summary>
     /// <returns>The number of state entries written to the database</returns>
-    public async Task<int> CreateAsync(params TEntity[] entities)
+    public async Task<int> CreateAsync(params IReadOnlyCollection<TEntity> entities)
     {
         Add(entities);
-        var rowCount = await context.SaveChangesAsync(CancellationToken);
 
-        return rowCount;
+        return await Context.SaveChangesAsync(CancellationToken);
     }
 
     /// <summary>
     /// equivalent to calling Remove + SaveChangesAsync
     /// </summary>
     /// <returns>The number of state entries written to the database</returns>
-    public async Task<int> DeleteAsync(params TEntity[] entities)
+    public async Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities)
     {
         Remove(entities);
-        var rowCount = await context.SaveChangesAsync(CancellationToken);
 
-        return rowCount;
+        return await Context.SaveChangesAsync(CancellationToken);
     }
 
     /// <summary>
     /// Directly deletes entities from the database without fetching first.
     /// </summary>
     /// <returns>The total number of rows deleted in the database.</returns>
-    public async Task<int> DeleteAsync(params Guid[] ids)
-    {
-        var rowCount = await Filter(Entities, ids).ExecuteDeleteAsync(CancellationToken);
-
-        return rowCount;
-    }
+    public async Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids)
+        => await Filter(Entities, ids).ExecuteDeleteAsync(CancellationToken);
 
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public SourceKnownEntityId ValidateEntityId(Guid id, bool throwException = true)
         => throwException ? Utils.EntityId.Validate(id, EntityTypeId) : Utils.EntityId.Parse(id);
 
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public SourceKnownEntityId[] ValidateEntityIds(IEnumerable<Guid> ids, bool throwException = true)
+    public SourceKnownEntityId[] ValidateEntityIds(IReadOnlyCollection<Guid> ids, bool throwException = true)
         => ValidateEntityIdsAsEnumerable(ids, throwException).ToArray();
 
     public IEnumerable<SourceKnownEntityId> ValidateEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool throwException = true)
@@ -138,20 +139,28 @@ public abstract class SourceKnownRepository<TEntity, TContext>(TContext context,
         do
         {
             result = await PaginateAsync(query, request, filter);
-
             yield return result;
         } while (result.HasNext);
     }
-    
-    protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, params Guid[] ids)
+
+    protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, EntityCreatedFilter filter)
+        => Utils.DateTime.Apply(query, filter);
+
+    protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, params IReadOnlyCollection<Guid> ids)
     {
         var sourceKnownIds = ValidateEntityIdsAsEnumerable(ids).Select(sourceKnownEntityId => sourceKnownEntityId.Source.Id).ToArray();
-        var filteredQuery = Filter(query, sourceKnownIds);
 
-        return filteredQuery;
+        return Filter(query, sourceKnownIds);
     }
 
-    protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, params long[] ids) => query.Where(entity => ids.Contains(entity.Id));
+    protected static IQueryable<TEntity> Filter(IQueryable<TEntity> query, params IReadOnlyCollection<long> ids)
+    {
+        if (ids.Count == 0)
+            throw new ValidationException("Id count must be greater than 0");
+        if (ids.Count != 1)
+            return query.Where(entity => ids.Contains(entity.Id));
 
-    protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, EntityCreatedFilter filter) => Utils.DateTime.Apply(query, filter);
+        var id = ids.First();
+        return query.Where(entity => id == entity.Id);
+    }
 }

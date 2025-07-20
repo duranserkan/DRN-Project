@@ -1,5 +1,6 @@
 using DRN.Framework.EntityFramework.Attributes;
 using DRN.Framework.EntityFramework.Extensions;
+using DRN.Framework.SharedKernel.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -79,6 +80,8 @@ public abstract class DrnContextIdentity<TContext, TUser> : IdentityDbContext<TU
         builder.Entity<IdentityUserRole<string>>().ToTable("user_roles");
         builder.Entity<IdentityRoleClaim<string>>().ToTable("role_claims");
     }
+    
+    public DbSet<TEntity> GetEntities<TEntity>() where TEntity : SourceKnownEntity => Set<TEntity>();
 
     public TContext CreateDbContext(string[] args) => args.CreateDbContext<TContext>();
 

@@ -69,8 +69,7 @@ public class EntityDateTimeUtils : IEntityDateTimeUtils
             ? query.Where(entity => entity.Id <= beforeTimeStamp || entity.Id >= afterTimeStamp)
             : query.Where(entity => entity.Id < beforeTimeStamp || entity.Id > afterTimeStamp);
     }
-
-    //todo add tests
+    
     public IQueryable<TEntity> Apply<TEntity>(IQueryable<TEntity> query, EntityCreatedFilter filter)
         where TEntity : SourceKnownEntity => filter.Type switch
     {

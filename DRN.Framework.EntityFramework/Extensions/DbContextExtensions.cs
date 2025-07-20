@@ -50,12 +50,12 @@ internal static class DbContextExtensions
             if (!implementsModel)
                 continue;
 
-            var property = entityType.GetProperty(nameof(SourceKnownEntity<object>.Model), BindingFlag.InstancePublic);
+            var property = entityType.GetProperty(nameof(IEntityWithModel<object>.Model), BindingFlag.InstancePublic);
             if (property == null)
                 continue;
 
             var ownedType = property.PropertyType;
-            var ownedTypeName = nameof(SourceKnownEntity<object>.Model);
+            var ownedTypeName = nameof(IEntityWithModel<object>.Model);
 
             entityTypeBuilder.OwnsOne(ownedType, ownedTypeName, builder => builder.ToJson());
 
