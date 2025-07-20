@@ -9,25 +9,25 @@ public interface IEntityUtils
 {
     ISourceKnownIdUtils Id { get; }
     ISourceKnownEntityIdUtils EntityId { get; }
+    ICancellationUtils Cancellation { get; }
     IPaginationUtils Pagination { get; }
     IEntityDateTimeUtils DateTime { get; }
-    IMonotonicSystemDateTime SystemDateTime { get; }
-    ICancellationUtils Cancellation { get; }
+    DateTimeOffset UtcNow { get; }
 }
 
 [Scoped<IEntityUtils>]
 public class EntityUtils(
     ISourceKnownIdUtils idUtils,
     ISourceKnownEntityIdUtils entityIdUtils,
+    ICancellationUtils cancellationUtils,
     IPaginationUtils paginationUtils,
     IEntityDateTimeUtils dateTimeUtils,
-    IMonotonicSystemDateTime systemDateTimeUtils,
-    ICancellationUtils cancellationUtils) : IEntityUtils
+    IDateTimeProvider dateTimeProvider) : IEntityUtils
 {
     public ISourceKnownIdUtils Id { get; } = idUtils;
     public ISourceKnownEntityIdUtils EntityId { get; } = entityIdUtils;
+    public ICancellationUtils Cancellation { get; } = cancellationUtils;
     public IPaginationUtils Pagination { get; } = paginationUtils;
     public IEntityDateTimeUtils DateTime { get; } = dateTimeUtils;
-    public IMonotonicSystemDateTime SystemDateTime { get; } = systemDateTimeUtils;
-    public ICancellationUtils Cancellation { get; } = cancellationUtils;
+    public DateTimeOffset UtcNow { get; } = dateTimeProvider.UtcNow;
 }

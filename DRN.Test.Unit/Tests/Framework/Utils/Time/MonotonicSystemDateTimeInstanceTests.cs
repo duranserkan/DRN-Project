@@ -6,12 +6,12 @@ using Xunit;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Time;
 
-public class MonotonicSystemDateTimeInstanceTests
+public class DateTimeProviderInstanceTests
 {
     [Theory]
     [DataInlineUnit(-2)]
     [DataInlineUnit(2)]
-    public void ISystemDateTime_Should_Return_Disrupted_When_Enabled(int disruption, ISystemDateTime system)
+    public void ISystemDateTime_Should_Return_Disrupted_When_Enabled(int disruption, ISystemDateTimeProvider system)
     {
         var disrupt = false;
         var disruptedDateTime = DateTimeOffset.UtcNow;
@@ -36,7 +36,7 @@ public class MonotonicSystemDateTimeInstanceTests
     [Theory]
     [DataInlineUnit(2)]
     [DataInlineUnit(-2)]
-    public async Task MonotonicSystemDateTimeInstance_Should_Set_Shutdown_Requested_True(int disruption, ISystemDateTime system)
+    public async Task MonotonicSystemDateTimeInstance_Should_Set_Shutdown_Requested_True(int disruption, ISystemDateTimeProvider system)
     {
         var disrupt = false;
         var disruptedDateTime = DateTimeOffset.UtcNow;
@@ -44,7 +44,7 @@ public class MonotonicSystemDateTimeInstanceTests
 
         var correctedDrifts = new List<DriftInfo>();
         var checkedDrifts = new List<DriftInfo>();
-        var instance = new MonotonicSystemDateTimeInstance(system, 1);
+        var instance = new DateTimeProviderInstance(system, 1);
         instance.OnDriftChecked += driftInfo => checkedDrifts.Add(driftInfo);
         instance.OnDriftCorrected += driftInfo => correctedDrifts.Add(driftInfo);
 
@@ -65,7 +65,7 @@ public class MonotonicSystemDateTimeInstanceTests
     [Theory]
     [DataInlineUnit(2)]
     [DataInlineUnit(-2)]
-    public async Task MonotonicSystemDateTimeInstance_Should_Trigger_OnDriftCorrected(int disruption, ISystemDateTime system)
+    public async Task MonotonicSystemDateTimeInstance_Should_Trigger_OnDriftCorrected(int disruption, ISystemDateTimeProvider system)
     {
         var disrupt = false;
         var disruptedDateTime = DateTimeOffset.UtcNow;
@@ -73,7 +73,7 @@ public class MonotonicSystemDateTimeInstanceTests
 
         var correctedDrifts = new List<DriftInfo>();
         var checkedDrifts = new List<DriftInfo>();
-        var instance = new MonotonicSystemDateTimeInstance(system, 1);
+        var instance = new DateTimeProviderInstance(system, 1);
         instance.OnDriftChecked += driftInfo => checkedDrifts.Add(driftInfo);
         instance.OnDriftCorrected += driftInfo => correctedDrifts.Add(driftInfo);
 
