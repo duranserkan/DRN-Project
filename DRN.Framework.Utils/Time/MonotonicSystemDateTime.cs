@@ -3,6 +3,25 @@ using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Time;
 
+public interface ISystemDateTime
+{
+    DateTimeOffset UtcNow { get; }
+}
+
+[Singleton<ISystemDateTime>]
+public class DateTimeProvider : ISystemDateTime
+{
+    public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
+}
+
+public interface IMonotonicSystemDateTime : ISystemDateTime;
+
+[Singleton<IMonotonicSystemDateTime>]
+public class MonotonicSystemDateTimeSingleTonInstance : IMonotonicSystemDateTime
+{
+    public DateTimeOffset UtcNow => MonotonicSystemDateTime.UtcNow;
+}
+
 /// <summary>
 /// Monotonic/System hybrid clock that is immune to drastic system clock changes and monotonic clock drifts
 /// </summary>
@@ -35,20 +54,6 @@ public static class MonotonicSystemDateTime
     /// Disposes the resources used by the MonotonicSystemDateTime.
     /// </summary>
     internal static void Dispose() => Instance.Dispose();
-}
-
-public interface ISystemDateTime
-{
-    DateTimeOffset UtcNow { get; }
-}
-
-//MonotonicSystemDateTimeInstance is registered as a service to ioc container with utils module without an attribute
-internal interface IMonotonicSystemDateTime : ISystemDateTime;
-
-[Singleton<ISystemDateTime>]
-public class DateTimeProvider : ISystemDateTime
-{
-    public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
 }
 
 /// <summary>

@@ -57,6 +57,8 @@ public abstract class SourceKnownEntity<TModel>(long id = 0) : SourceKnownEntity
 /// </remarks>
 public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<SourceKnownEntity>, IComparable<SourceKnownEntity>
 {
+    public const int IdColumnOrder = 0;
+    public const int ModifiedAtColumnOrder = 1;
     private const string EmptyJson = "{}";
     private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
 
@@ -94,7 +96,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     /// Internal use only, Use EntityId for external usage
     /// </summary>
     [JsonIgnore]
-    [Column(Order = 0)]
+    [Column(Order = IdColumnOrder)]
     public long Id { get; internal set; } = id;
 
     /// <summary>
@@ -110,9 +112,9 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public bool IsPendingInsert => EntityId == Guid.Empty;
 
     [ConcurrencyCheck]
-    [Column(Order = 1)]
-    public DateTimeOffset ModifiedAt { get; protected set; }
-    
+    [Column(Order = ModifiedAtColumnOrder)]
+    public DateTimeOffset ModifiedAt { get; protected internal set; }
+
     public string ExtendedProperties { get; set; } = EmptyJson;
     public TModel GetExtendedProperties<TModel>() => JsonSerializer.Deserialize<TModel>(ExtendedProperties)!;
     public void SetExtendedProperties<TModel>(TModel extendedProperty) => ExtendedProperties = JsonSerializer.Serialize(extendedProperty);
@@ -125,18 +127,8 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
             DomainEvents.Add(e);
     }
 
-    internal void MarkAsCreated()
-    {
-        ModifiedAt = CreatedAt;
-        AddDomainEvent(GetCreatedEvent());
-    }
-
-    internal void MarkAsModified()
-    {
-        ModifiedAt = DateTimeOffset.UtcNow;
-        AddDomainEvent(GetModifiedEvent());
-    }
-
+    internal void MarkAsCreated() => AddDomainEvent(GetCreatedEvent());
+    internal void MarkAsModified() => AddDomainEvent(GetModifiedEvent());
     internal void MarkAsDeleted() => AddDomainEvent(GetDeletedEvent());
 
     protected virtual EntityCreated? GetCreatedEvent() => null;
