@@ -13,8 +13,8 @@ public interface ISourceKnownRepository<TEntity>
 
     //todo add get or create with cache support
     ValueTask<TEntity> GetAsync(Guid id);
-    ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true);
     Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);
+    ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true);
 
     void Add(params IReadOnlyCollection<TEntity> entities);
     void Remove(params IReadOnlyCollection<TEntity> entities);
