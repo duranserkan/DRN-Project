@@ -21,7 +21,7 @@ public interface ISourceKnownRepository<TEntity>
 
     Task<int> CreateAsync(params IReadOnlyCollection<TEntity> entities);
     Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities);
-    Task<int> DeleteAsync(params IReadOnlyCollection<Guid> id);
+    Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids);
 
     SourceKnownEntityId ValidateEntityId(Guid id, bool throwException = true);
     SourceKnownEntityId[] ValidateEntityIds(IReadOnlyCollection<Guid> ids, bool throwException = true);

@@ -46,6 +46,8 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         => await GetOrDefaultAsync(id)
            ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
 
+    public async Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids) => await Filter(Entities, ids).ToArrayAsync(CancellationToken);
+
     /// <summary>
     /// Finds an entity with the given source known id
     /// </summary>
@@ -61,7 +63,6 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return entity;
     }
 
-    public async Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids) => await Filter(Entities, ids).ToArrayAsync(CancellationToken);
 
     /// <summary>
     /// Begins tracking the given entities, and any other reachable entities that are not already being tracked,
