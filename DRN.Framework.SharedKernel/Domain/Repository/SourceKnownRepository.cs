@@ -5,6 +5,7 @@ namespace DRN.Framework.SharedKernel.Domain.Repository;
 public interface ISourceKnownRepository<TEntity>
     where TEntity : AggregateRoot
 {
+    //todo test cancellation
     CancellationToken CancellationToken { get; set; }
     void MergeCancellationTokens(CancellationToken other);
     void CancelChanges();

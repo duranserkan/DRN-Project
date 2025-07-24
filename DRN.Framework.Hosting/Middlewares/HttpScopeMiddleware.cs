@@ -39,7 +39,7 @@ public class HttpScopeMiddleware(RequestDelegate next)
             context.Response.StatusCode = GetHttpStatusCode(e);
             if (e is FlurlHttpException f)
                 await f.PrepareScopeLogForFlurlExceptionAsync(scopedLog, appSettings.Features);
-
+            
             scopedLog.AddException(e);
             scopedLog.Add("ResponseStatusCode", context.Response.StatusCode);
 

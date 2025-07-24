@@ -16,6 +16,7 @@ public static class ScopedLogConventions
     public const string KeyOfExceptionStackTrace = "ExceptionStackTrace";
     public const string KeyOfExceptionMessage = "ExceptionMessage";
     public const string KeyOfExceptionLogMessage = "ExceptionLogMessage";
+    public const string KeyOfExceptionData = "ExceptionData";
     public const string KeyOfInnerExceptionType = "InnerExceptionType";
     public const string KeyOfInnerExceptionStackTrace = "InnerExceptionStackTrace";
     public const string KeyOfInnerExceptionMessage = "InnerExceptionMessage";

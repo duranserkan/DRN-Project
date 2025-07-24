@@ -58,6 +58,10 @@ public class ScopedLog : IScopedLog
         Add(ScopedLogConventions.KeyOfExceptionMessage, exception.Message);
         Add(ScopedLogConventions.KeyOfExceptionStackTrace, exception.StackTrace ?? string.Empty);
 
+        if (exception is DrnException drnException)
+            foreach (var kvp in drnException.Data)
+                Add($"{ScopedLogConventions.KeyOfExceptionData}_{kvp.Key}", kvp.Value);
+        
         if (exception.InnerException == null) return;
 
         Add(ScopedLogConventions.KeyOfInnerExceptionType, exception.InnerException.GetType().FullName ?? exception.InnerException.GetType().Name);

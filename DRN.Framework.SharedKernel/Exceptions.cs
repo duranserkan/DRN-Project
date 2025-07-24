@@ -9,6 +9,7 @@ public abstract class DrnException(string message, Exception? ex, string? catego
     public const string DefaultCategory = "default";
     public string Category { get; } = category ?? DefaultCategory;
     public short Status { get; } = status ?? 500;
+    public new IDictionary<string, object> Data { get; } = new Dictionary<string, object>();
 }
 
 /// <summary>

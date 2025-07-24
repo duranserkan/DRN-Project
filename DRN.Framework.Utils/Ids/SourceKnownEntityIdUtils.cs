@@ -134,10 +134,13 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         if (!sourceKnownId.Valid)
             throw new ValidationException($"Invalid EntityId: {entityId:N}");
 
-        if (sourceKnownId.EntityTypeId != entityTypeId)
-            throw new ValidationException($"Expected Entity Type {entityTypeId} but found: {sourceKnownId.EntityTypeId} for EntityId:{entityId:N}");
+        if (sourceKnownId.EntityTypeId == entityTypeId) return sourceKnownId;
 
-        return sourceKnownId;
+        var ex = new ValidationException($"Invalid Entity Type: EntityId:{entityId:N}");
+        ex.Data.Add($"Expected_{nameof(SourceKnownEntityId.EntityTypeId)}", entityTypeId);
+        ex.Data.Add($"Found_{nameof(SourceKnownEntityId.EntityTypeId)}", sourceKnownId.EntityTypeId);
+        
+        throw ex;
     }
 
     private static SourceKnownEntityId CreateInvalid(Guid entityId) => new(default, entityId, InvalidEntityTypeId, false);

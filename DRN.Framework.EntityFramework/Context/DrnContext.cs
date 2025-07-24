@@ -8,11 +8,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.EntityFramework.Context;
 
-public interface IDrnContext
+public interface IDrnContext : IDesignTimeServices
 {
     DbSet<TEntity> GetEntities<TEntity>() where TEntity : SourceKnownEntity;
     Task<int> SaveChangesAsync(CancellationToken token);
 }
+
+public interface IDrnContext<out TContext> : IDrnContext, IDesignTimeDbContextFactory<TContext> where TContext : DbContext, new();
 
 /// <summary>
 ///     <list type="table">
@@ -63,7 +65,7 @@ public interface IDrnContext
 ///</code>
 /// </example>
 [DrnContextServiceRegistration, DrnContextDefaults, DrnContextPerformanceDefaults]
-public abstract class DrnContext<TContext> : DbContext, IDrnContext, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices where TContext : DrnContext<TContext>, new()
+public abstract class DrnContext<TContext> : DbContext, IDrnContext<TContext> where TContext : DrnContext<TContext>, new()
 {
     /// Initializes a new instance of the <see cref="DrnContext"/> class.
     protected DrnContext(DbContextOptions<TContext>? options) : base(options ?? new DbContextOptions<TContext>())

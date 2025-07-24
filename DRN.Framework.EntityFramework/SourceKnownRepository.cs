@@ -140,6 +140,9 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         do
         {
             result = await PaginateAsync(query, request, filter);
+            if (result.HasNext)
+                request = result.RequestNextPage();
+
             yield return result;
         } while (result.HasNext);
     }
