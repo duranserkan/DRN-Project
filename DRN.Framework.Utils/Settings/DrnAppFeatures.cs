@@ -1,8 +1,11 @@
+using DRN.Framework.Utils.DependencyInjection.Attributes;
+
 namespace DRN.Framework.Utils.Settings;
 
 /// <summary>
 /// Values from DrnAppFeatures section
 /// </summary>
+[Config(nameof(DrnAppFeatures), true, false)]
 public class DrnAppFeatures
 {
     public static string GetKey(string shortKey) => $"{nameof(DrnAppFeatures)}:{shortKey}";
@@ -13,12 +16,12 @@ public class DrnAppFeatures
     public bool SkipValidation { get; init; }
 
     /// <summary>
-    /// When application is created to obtain configuration and registered services, it should mark as temporary. Mostly, used by Test Contexts.
+    /// When an application is created to get configuration and registered services, it should mark as temporary. Mostly, used by Test Contexts.
     /// </summary>
     public bool TemporaryApplication { get; init; }
 
     /// <summary>
-    /// Shows which test started the application when application is created with TestContext for integration tests.
+    /// Shows which test started the application when the application is created with TestContext for integration tests.
     /// </summary>
     public string? ApplicationStartedBy { get; init; }
 
@@ -28,14 +31,14 @@ public class DrnAppFeatures
     public bool LaunchExternalDependencies { get; init; }
 
     /// <summary>
-    /// When true in dev environment, after registered services validated, database migrations will be applied automatically for rapid application development
+    /// When true in dev-environment, after registered services validated, database migrations will be applied automatically for rapid application development
     /// </summary>
     public bool AutoMigrateDevEnvironment { get; init; }
 
     /// <summary>
-    /// When true in dev environment and AutoMigrateDevEnvironment is enabled, migrations are not used for database creation in order to increase prototyping speed.
-    /// For each DbContext, a new database will be created except when database exists and there are no pending changes.
-    /// If multiple DbContexts needs to share same database do not use prototyping mode.
+    /// When true in dev environment and AutoMigrateDevEnvironment is enabled, migrations are not used for database creation to increase prototyping speed.
+    /// For each DbContext, a new database will be created except when the database exists and there are no pending changes.
+    /// If multiple DbContexts need to share the same database, do not use prototyping mode.
     /// </summary>
     public bool PrototypingMode { get; init; }
 
@@ -44,4 +47,11 @@ public class DrnAppFeatures
     public string InternalRequestHttpVersion { get; init; } = "1.1";
     public string InternalRequestProtocol { get; init; } = "http";
     public bool UseHttpRequestLogger { get; init; } = false;
+
+    /// <summary>
+    /// Response Logger is used only when UseHttpRequestLogger is enabled
+    /// </summary>
+    public bool UseHttpResponseLogger { get; init; } = false;
+    
+    //todo act flag to log request and responses only when an exception is thrown
 }

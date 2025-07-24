@@ -66,7 +66,7 @@ public class HttpScopeMiddleware(RequestDelegate next)
 
             //If you need to preserve the original HTTP method during redirection,
             //the correct status code to use is 307 (Temporary Redirect) or 308 (Permanent Redirect)
-            //Use 303 instead of 302 for  redirects because it is explicit, adheres to modern HTTP standards,
+            //Use 303 instead of 302 for redirects because it is explicit, adheres to modern HTTP standards,
             //ensures predictable behavior across all clients, and clearly communicates your intent to convert the request method.
             if (context.Response.StatusCode == 302)
                 context.Response.StatusCode = 303;
