@@ -1,12 +1,9 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using DRN.Framework.SharedKernel.Utils;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Time;
-
-public interface ISystemDateTimeProvider
-{
-    DateTimeOffset UtcNow { get; }
-}
 
 [Singleton<ISystemDateTimeProvider>]
 public class SystemDateTimeProvider : ISystemDateTimeProvider
@@ -14,13 +11,8 @@ public class SystemDateTimeProvider : ISystemDateTimeProvider
     public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
 }
 
-public interface IDateTimeProvider
-{
-    DateTimeOffset UtcNow { get; }
-}
-
 [Singleton<IDateTimeProvider>]
-public class DateTimeProvider : IDateTimeProvider
+public class MonotonicSystemDateTimeProvider : IDateTimeProvider
 {
     public DateTimeOffset UtcNow => MonotonicSystemDateTime.UtcNow;
 }
@@ -66,15 +58,16 @@ public class DateTimeProviderInstance
 {
     private readonly TimeSpan _gracePeriodUpper = TimeSpan.FromMilliseconds(50);
     private readonly TimeSpan _gracePeriodLower = TimeSpan.FromMilliseconds(-50);
-
-    private DateTimeOffset _initialTime;
+    
     private volatile bool _isShutdownRequested;
 
-    private readonly Lock _syncLock = new(); // Synchronization for high-frequency reads and low frequency writes
-    private readonly Stopwatch _stopwatch;
+    //TimeState is being updated regularly with a new instance for small drifts.
+    //Since initial time and stopwatch are stored together, small errors can be tolerated.
+    //For drastic changes the app shuts itself for a restart to get new app instance id, then it is no longer a problem
+    private TimeState _timeState;
+    
     private readonly ISystemDateTimeProvider _timeProviderProvider;
-
-
+    
     /// <summary>
     /// Application should poll this flag to verify consistency
     /// </summary>
@@ -87,24 +80,16 @@ public class DateTimeProviderInstance
     public DateTimeProviderInstance(ISystemDateTimeProvider timeProviderProvider, int updatePeriod)
     {
         _timeProviderProvider = timeProviderProvider;
-        _initialTime = _timeProviderProvider.UtcNow;
-        _stopwatch = Stopwatch.StartNew();
-
         RecurringAction = new RecurringAction(CheckClockDriftAsync, updatePeriod);
+
+        UpdateTimeState();
     }
 
     /// <summary>
     /// Gets the current UTC time using a monotonic clock (Stopwatch).
     /// Immune to system clock changes (e.g., NTP adjustments).
     /// </summary>
-    public DateTimeOffset UtcNow
-    {
-        get
-        {
-            lock (_syncLock)
-                return _initialTime + _stopwatch.Elapsed; // Atomic read of both values
-        }
-    }
+    public DateTimeOffset UtcNow => _timeState.UtcNow;
 
     /// <summary>
     /// Checks for clock drift between the monotonic time and system time.
@@ -141,14 +126,18 @@ public class DateTimeProviderInstance
         if (drift <= TimeSpan.Zero)
             await Task.Delay(drift * -1 + TimeSpan.FromMicroseconds(2));
 
-        lock (_syncLock) // Atomic write of both values
-        {
-            _stopwatch.Restart();
-            _initialTime = _timeProviderProvider.UtcNow;
-        }
+        UpdateTimeState();
 
         OnDriftCorrected?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
         OnDriftChecked?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
+    }
+    
+    private void UpdateTimeState()
+    {
+        var stopwatch = new Stopwatch();
+        var now = _timeProviderProvider.UtcNow;
+        stopwatch.Start();
+        _timeState = new TimeState(now, stopwatch);
     }
 
     /// <summary>
@@ -158,3 +147,8 @@ public class DateTimeProviderInstance
 }
 
 public record DriftInfo(DateTimeOffset SystemDateTime, DateTimeOffset MonotonicSystemDateTime, TimeSpan Drift);
+
+public readonly record struct TimeState(DateTimeOffset InitialTime, Stopwatch Stopwatch)
+{
+    public DateTimeOffset UtcNow => InitialTime + Stopwatch.Elapsed;
+}
