@@ -3,6 +3,7 @@ using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Settings;
+using DRN.Framework.Utils.Time;
 
 namespace DRN.Framework.Utils.Logging;
 
@@ -29,10 +30,10 @@ public class ScopedLog : IScopedLog
         Add(nameof(AppSettings.NexusAppSettings.AppId), appSettings.NexusAppSettings.AppId);
         Add(nameof(AppSettings.NexusAppSettings.AppInstanceId), appSettings.NexusAppSettings.AppInstanceId);
         Add(nameof(Environment.MachineName), Environment.MachineName);
-        Add(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeOffset.UtcNow);
+        Add(ScopedLogConventions.KeyOfScopeCreatedAt, MonotonicSystemDateTime.UtcNow);
     }
 
-    public TimeSpan ScopeDuration => DateTimeOffset.UtcNow - (DateTimeOffset)LogData[ScopedLogConventions.KeyOfScopeCreatedAt];
+    public TimeSpan ScopeDuration => MonotonicSystemDateTime.UtcNow - (DateTimeOffset)LogData[ScopedLogConventions.KeyOfScopeCreatedAt];
 
     public IReadOnlyDictionary<string, object> Logs
     {
@@ -61,7 +62,7 @@ public class ScopedLog : IScopedLog
         if (exception is DrnException drnException)
             foreach (var kvp in drnException.Data)
                 Add($"{ScopedLogConventions.KeyOfExceptionData}_{kvp.Key}", kvp.Value);
-        
+
         if (exception.InnerException == null) return;
 
         Add(ScopedLogConventions.KeyOfInnerExceptionType, exception.InnerException.GetType().FullName ?? exception.InnerException.GetType().Name);
@@ -97,6 +98,14 @@ public class ScopedLog : IScopedLog
             LogData[ScopedLogConventions.TimeSpanKey(key)] = time.TotalSeconds;
         else
             LogData[key] = value;
+
+        return this;
+    }
+
+    public IScopedLog AddIfNotNullOrEmpty(string key, string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+            Add(key, value);
 
         return this;
     }
@@ -164,8 +173,5 @@ public class ScopedLog : IScopedLog
         }
     }
 
-    public override string ToString()
-    {
-        return JsonSerializer.Serialize(Logs);
-    }
+    public override string ToString() => JsonSerializer.Serialize(Logs);
 }

@@ -453,9 +453,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     /// <param name="appSettings"></param>
     protected virtual void ConfigureApplicationPipelineStart(WebApplication application, IAppSettings appSettings)
     {
-        if (appSettings.Features.UseHttpRequestLogger)
-            application.UseMiddleware<HttpRequestLogger>(); //todo implement micro logging support
-
         application.UseForwardedHeaders();
         application.UseHostFiltering();
         application.UseCookiePolicy();

@@ -1,4 +1,3 @@
-using System.Net;
 using System.Reflection;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
@@ -22,24 +21,23 @@ public static class FlurlExtensions
     {
         var call = ex.Call;
         var request = call.HttpRequestMessage;
-        var requestVersion = request.Version;
+        
+        scopedLog.Add("FlurlEx_Method", request.Method.ToString());
+        scopedLog.Add("FlurlEx_Version", request.Version.ToString());
+        scopedLog.AddIfNotNullOrEmpty("FlurlEx_RequestUri", request.RequestUri?.ToString() ?? string.Empty);
+        scopedLog.AddIfNotNullOrEmpty("FlurlEx_VersionPolicy", request.VersionPolicy.ToString());
 
-        scopedLog.Add("FlurlExceptionHttpMethod", request.Method.ToString());
-        scopedLog.Add("FlurlExceptionHttpVersionRequestUri", request.RequestUri?.ToString() ?? string.Empty);
-        scopedLog.Add("FlurlExceptionHttpVersionPolicy", request.VersionPolicy.ToString());
-        scopedLog.Add("FlurlExceptionHttpVersion", requestVersion.ToString());
-
-        scopedLog.Add("FlurlExceptionCallCompleted", call.Completed);
-        scopedLog.Add("FlurlExceptionCallStartedUtc", call.StartedUtc);
+        scopedLog.Add("FlurlExCall_Completed", call.Completed);
+        scopedLog.Add("FlurlExCall_Started", call.StartedUtc);
         if (call.EndedUtc != null)
-            scopedLog.Add("FlurlExceptionCallEndedUtc", call.EndedUtc);
+            scopedLog.Add("FlurlExCall_Ended", call.EndedUtc);
         if (call.Duration != null)
-            scopedLog.Add("FlurlExceptionCallDuration", call.Duration);
+            scopedLog.Add("FlurlExCall_Duration", call.Duration);
 
-        if (appFeatures.UseHttpRequestLogger && call.Response != null)
+        if (call.Response != null)
         {
             var response = await call.Response.GetStringAsync();
-            scopedLog.Add("FlurlExceptionHttpResponse", response);
+            scopedLog.AddIfNotNullOrEmpty("FlurlExR_Response", response);
         }
     }
 

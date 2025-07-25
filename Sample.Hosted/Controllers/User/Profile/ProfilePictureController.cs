@@ -1,4 +1,5 @@
 using DRN.Framework.Hosting.Auth;
+using DRN.Framework.Utils.Time;
 using Sample.Domain.Identity.ProfilePictures;
 
 namespace Sample.Hosted.Controllers.User.Profile;
@@ -27,7 +28,7 @@ public class ProfilePictureController(IProfilePictureRepository ppRepository, IW
 
         // Set caching headers
         Response.Headers.CacheControl = "private, max-age=31536000"; // Cache for 1 year
-        Response.Headers.Expires = DateTime.UtcNow.AddYears(1).ToString("R");
+        Response.Headers.Expires = MonotonicSystemDateTime.UtcNow.AddYears(1).ToString("R");
 
         return new FileStreamResult(stream, "image/jpeg");
     }

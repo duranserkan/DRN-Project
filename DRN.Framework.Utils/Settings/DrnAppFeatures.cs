@@ -2,6 +2,7 @@ using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Settings;
 
+//todo: explore Feature flags
 /// <summary>
 /// Values from DrnAppFeatures section
 /// </summary>
@@ -46,12 +47,4 @@ public class DrnAppFeatures
     public string SeedKey { get; init; } = "Peace at home, peace in the world — Mustafa Kemal Atatürk";
     public string InternalRequestHttpVersion { get; init; } = "1.1";
     public string InternalRequestProtocol { get; init; } = "http";
-    public bool UseHttpRequestLogger { get; init; } = false;
-
-    /// <summary>
-    /// Response Logger is used only when UseHttpRequestLogger is enabled
-    /// </summary>
-    public bool UseHttpResponseLogger { get; init; } = false;
-    
-    //todo act flag to log request and responses only when an exception is thrown
 }

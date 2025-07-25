@@ -15,8 +15,8 @@ public class ScopedUserMiddleware(RequestDelegate next)
         ((ScopedUser)scopedUser).SetUser(httpContext.User);
 
         log.Add("UserAuthenticated", scopedUser.Authenticated);
-        log.Add("UserId", scopedUser.Id ?? string.Empty);
-        log.Add("amr", scopedUser.Amr ?? string.Empty);
+        log.AddIfNotNullOrEmpty("UserId", scopedUser.Id ?? string.Empty);
+        log.AddIfNotNullOrEmpty("amr", scopedUser.Amr ?? string.Empty);
 
         var consentCookie = httpContext.ToConsentCookieModel(options.Value);
         ScopeContext.Data.SetParameter(nameof(ConsentCookie), consentCookie);

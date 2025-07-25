@@ -12,9 +12,10 @@ using Microsoft.Extensions.Logging;
 
 namespace DRN.Framework.Hosting.Middlewares;
 
-//https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/write?view=aspnetcore-8.0
-//https://learn.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-8.0
+//https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/write
+//https://learn.microsoft.com/en-us/aspnet/core/fundamentals/logging/
 //https://github.com/serilog/serilog/wiki/Structured-Data
+//todo: Model Capture in OnActionExecuting for auditing and observability purposes
 public class HttpScopeMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context, IScopedLog scopedLog, IScopedUser scopedUser, IServiceProvider serviceProvider,
@@ -22,26 +23,25 @@ public class HttpScopeMiddleware(RequestDelegate next)
     {
         try
         {
+            ResponseControls(context);
+
             if (ExceptionPageAccessor.IsExceptionPage(context.Request.Path.Value))
             {
-                context.Abort(); //Requesting exception pages are malicious. Exception pages are rendered when exception occurs.
+                context.Abort(); //Requesting exception pages are malicious. Exception pages are rendered when an exception occurs.
                 return;
             }
 
-            context.Request.EnableBuffering();
             PrepareScopeLog(context, scopedLog);
             ScopeContext.Initialize(context.TraceIdentifier, scopedLog, scopedUser, appSettings, serviceProvider);
             await next(context);
-            scopedLog.Add("ResponseStatusCode", context.Response.StatusCode);
         }
         catch (Exception e)
         {
             context.Response.StatusCode = GetHttpStatusCode(e);
             if (e is FlurlHttpException f)
                 await f.PrepareScopeLogForFlurlExceptionAsync(scopedLog, appSettings.Features);
-            
+
             scopedLog.AddException(e);
-            scopedLog.Add("ResponseStatusCode", context.Response.StatusCode);
 
             if (context.Response.StatusCode is < 100 or > 599) //MaliciousRequestException
             {
@@ -56,13 +56,9 @@ public class HttpScopeMiddleware(RequestDelegate next)
         }
         finally
         {
+            scopedLog.Add("ResponseStatusCode", context.Response.StatusCode);
+            scopedLog.Add("ResponseContentLength", context.Response.ContentLength ?? 0);
             logger.LogScoped(scopedLog);
-            if (!context.Response.Headers.ContainsKey("Cache-Control")) // Add headers to prevent caching
-            {
-                context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
-                context.Response.Headers.Pragma = "no-cache";
-                context.Response.Headers.Expires = "0";
-            }
 
             //If you need to preserve the original HTTP method during redirection,
             //the correct status code to use is 307 (Temporary Redirect) or 308 (Permanent Redirect)
@@ -71,6 +67,23 @@ public class HttpScopeMiddleware(RequestDelegate next)
             if (context.Response.StatusCode == 302)
                 context.Response.StatusCode = 303;
         }
+    }
+
+    private static void ResponseControls(HttpContext context)
+    {
+        context.Response.OnStarting(() =>
+        {
+            var headers = context.Request.Headers;
+            if (headers.ContainsKey("Cache-Control"))
+                return Task.CompletedTask;
+
+            // Add headers to prevent caching
+            headers.CacheControl = "no-store, no-cache, must-revalidate";
+            headers.Pragma = "no-cache";
+            headers.Expires = "0";
+
+            return Task.CompletedTask;
+        });
     }
 
     private static int GetHttpStatusCode(Exception e)
@@ -87,13 +100,16 @@ public class HttpScopeMiddleware(RequestDelegate next)
     private static void PrepareScopeLog(HttpContext httpContext, IScopedLog scopedLog) => scopedLog
         .WithLoggerName(nameof(HttpScopeMiddleware))
         .WithTraceIdentifier(httpContext.TraceIdentifier)
-        .Add("l5d-client-id", httpContext.Request.Headers.TryGetValue("l5d-client-id", out var l5dId) ? l5dId.ToString() : string.Empty)
+        .Add("RequestContentLength", httpContext.Request.ContentLength ?? 0)
         .Add("HttpProtocol", httpContext.Request.Protocol.Split('/')[^1])
         .Add("HttpMethod", httpContext.Request.Method)
         .Add("HttpScheme", httpContext.Request.Scheme)
         .Add("RequestHost", httpContext.Request.Host.ToString())
         .Add("RequestPath", httpContext.Request.Path.ToString())
-        .Add("RequestQueryString", httpContext.Request.QueryString.ToString())
-        .Add("RequestContentLength", httpContext.Request.ContentLength ?? 0)
-        .Add("RequestIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
+        .AddIfNotNullOrEmpty("RequestQueryString", httpContext.Request.QueryString.ToString())
+        .AddIfNotNullOrEmpty("RequestIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty)
+        .AddIfNotNullOrEmpty("l5d-client-id",
+            httpContext.Request.Headers.TryGetValue("l5d-client-id", out var l5dId)
+                ? l5dId.ToString()
+                : string.Empty);
 }
