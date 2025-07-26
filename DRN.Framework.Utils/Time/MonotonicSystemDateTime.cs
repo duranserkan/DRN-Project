@@ -60,7 +60,7 @@ public class DateTimeProviderInstance
     private static readonly TimeSpan GracePeriodUpper = TimeSpan.FromMilliseconds(50);
     private static readonly TimeSpan GracePeriodLower = TimeSpan.FromMilliseconds(-50);
     private static readonly TimeSpan Millisecond = TimeSpan.FromMilliseconds(1);
-    private static readonly int MaxSpinCount = 10;
+    private static readonly int MaxSpinCount = 5;
 
     private readonly ISystemDateTimeProvider _timeProviderProvider;
 
@@ -89,6 +89,7 @@ public class DateTimeProviderInstance
 
     private long _lastReturned;
 
+    //todo: benchmark Interlocked.Increment vs Interlocked.CompareExchange
     /// <summary>
     /// Gets the current UTC time using a monotonic clock (Stopwatch).
     /// Immune to system clock changes (e.g., NTP adjustments).
@@ -98,15 +99,23 @@ public class DateTimeProviderInstance
         //Ensure strict monotonicity
         get
         {
+            long actual;
             var candidate = _timeState.UtcNowTicks;
 
             // Fast path: if the candidate is already ahead, try direct CAS
-            if (candidate > _lastReturned &&
-                Interlocked.CompareExchange(ref _lastReturned, candidate, _lastReturned) == _lastReturned)
-                return new DateTimeOffset(candidate, TimeSpan.Zero);
+            var previous = Volatile.Read(ref _lastReturned);
+            if (candidate > previous) //we call it previous because it may be changed already
+            {
+                actual = Interlocked.CompareExchange(ref _lastReturned, candidate, previous);
+                if (actual == previous)
+                    return new DateTimeOffset(candidate, TimeSpan.Zero);
+                if (actual > candidate) // the last value can be used with an increment
+                    return new DateTimeOffset(Interlocked.Increment(ref _lastReturned), TimeSpan.Zero);
+            }
+            else // bump forward if it would go backward or stay the same
+                return new DateTimeOffset(Interlocked.Increment(ref _lastReturned), TimeSpan.Zero);
 
             // Contended path: use spin-wait with backoff
-            long prev, next;
             var spinCount = 0;
             var spinner = new SpinWait();
             do
@@ -114,22 +123,25 @@ public class DateTimeProviderInstance
                 // Exponential backoff to reduce contention
                 if (spinCount > 0)
                     if (spinCount < MaxSpinCount)
-                        for (var i = 0; i < spinCount * 3; i++)
+                        for (var i = 0; i < spinCount * 2; i++)
                             spinner.SpinOnce();
                     else
                         Thread.Yield(); // Fallback to thread yield after max spins
 
                 candidate = _timeState.UtcNowTicks;
-                prev = _lastReturned;
+                previous = Volatile.Read(ref _lastReturned);
 
-                next = candidate <= prev
-                    ? prev + 1 // bump forward if it would go backward or stay the same
-                    : candidate;
+                if (previous >= candidate) // bump forward if it would go backward or stay the same
+                    return new DateTimeOffset(Interlocked.Increment(ref _lastReturned), TimeSpan.Zero);
+
+                actual = Interlocked.CompareExchange(ref _lastReturned, candidate, previous);
+                if (actual > candidate) // the last value can be used with an increment
+                    return new DateTimeOffset(Interlocked.Increment(ref _lastReturned), TimeSpan.Zero);
 
                 spinCount++;
-            } while (Interlocked.CompareExchange(ref _lastReturned, next, prev) != prev);
+            } while (actual != previous);
 
-            return new DateTimeOffset(next, TimeSpan.Zero);
+            return new DateTimeOffset(candidate, TimeSpan.Zero);
         }
     }
 
