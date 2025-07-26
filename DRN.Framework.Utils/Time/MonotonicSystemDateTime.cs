@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using DRN.Framework.SharedKernel.Utils;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
@@ -56,18 +55,22 @@ public static class MonotonicSystemDateTime
 /// </summary>
 public class DateTimeProviderInstance
 {
-    private readonly TimeSpan _gracePeriodUpper = TimeSpan.FromMilliseconds(50);
-    private readonly TimeSpan _gracePeriodLower = TimeSpan.FromMilliseconds(-50);
-    
-    private volatile bool _isShutdownRequested;
+    private static readonly TimeSpan Minute1 = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan MinuteMinus1 = TimeSpan.FromMinutes(-1);
+    private static readonly TimeSpan GracePeriodUpper = TimeSpan.FromMilliseconds(50);
+    private static readonly TimeSpan GracePeriodLower = TimeSpan.FromMilliseconds(-50);
+    private static readonly TimeSpan Millisecond = TimeSpan.FromMilliseconds(1);
+    private static readonly int MaxSpinCount = 10;
+
+    private readonly ISystemDateTimeProvider _timeProviderProvider;
+
 
     //TimeState is being updated regularly with a new instance for small drifts.
-    //Since initial time and stopwatch are stored together, small errors can be tolerated.
+    //Since initial time and stopwatch are stored together, small drifts can be tolerated for dirty reads.
     //For drastic changes the app shuts itself for a restart to get new app instance id, then it is no longer a problem
-    private TimeState _timeState;
-    
-    private readonly ISystemDateTimeProvider _timeProviderProvider;
-    
+    private volatile TimeState _timeState;
+    private volatile bool _isShutdownRequested;
+
     /// <summary>
     /// Application should poll this flag to verify consistency
     /// </summary>
@@ -80,23 +83,62 @@ public class DateTimeProviderInstance
     public DateTimeProviderInstance(ISystemDateTimeProvider timeProviderProvider, int updatePeriod)
     {
         _timeProviderProvider = timeProviderProvider;
-        RecurringAction = new RecurringAction(CheckClockDriftAsync, updatePeriod);
-
-        UpdateTimeState();
+        _timeState = UpdateTimeState();
+        RecurringAction = new RecurringAction(CheckClockDrift, updatePeriod);
     }
+
+    private long _lastReturned;
 
     /// <summary>
     /// Gets the current UTC time using a monotonic clock (Stopwatch).
     /// Immune to system clock changes (e.g., NTP adjustments).
     /// </summary>
-    public DateTimeOffset UtcNow => _timeState.UtcNow;
+    public DateTimeOffset UtcNow
+    {
+        //Ensure strict monotonicity
+        get
+        {
+            var candidate = _timeState.UtcNowTicks;
+
+            // Fast path: if the candidate is already ahead, try direct CAS
+            if (candidate > _lastReturned &&
+                Interlocked.CompareExchange(ref _lastReturned, candidate, _lastReturned) == _lastReturned)
+                return new DateTimeOffset(candidate, TimeSpan.Zero);
+
+            // Contended path: use spin-wait with backoff
+            long prev, next;
+            var spinCount = 0;
+            var spinner = new SpinWait();
+            do
+            {
+                // Exponential backoff to reduce contention
+                if (spinCount > 0)
+                    if (spinCount < MaxSpinCount)
+                        for (var i = 0; i < spinCount * 3; i++)
+                            spinner.SpinOnce();
+                    else
+                        Thread.Yield(); // Fallback to thread yield after max spins
+
+                candidate = _timeState.UtcNowTicks;
+                prev = _lastReturned;
+
+                next = candidate <= prev
+                    ? prev + 1 // bump forward if it would go backward or stay the same
+                    : candidate;
+
+                spinCount++;
+            } while (Interlocked.CompareExchange(ref _lastReturned, next, prev) != prev);
+
+            return new DateTimeOffset(next, TimeSpan.Zero);
+        }
+    }
 
     /// <summary>
     /// Checks for clock drift between the monotonic time and system time.
     /// - If the system clock has changed by more than 1 minute, sets IsShutdownRequested to true.
     /// - If the change is less than 1 minute, adjusts the monotonic time to sync with the system clock.
     /// </summary>
-    private async Task CheckClockDriftAsync()
+    private async Task CheckClockDrift()
     {
         //When positive it means the monotonic clock is lagged behind the actual value
         //When negative it means the system clock is lagged behind the actual value
@@ -105,15 +147,14 @@ public class DateTimeProviderInstance
         var drift = systemTime - monotonicSystemTime;
 
         //grace interval
-        if (drift > _gracePeriodLower && drift < _gracePeriodUpper)
+        if (drift > GracePeriodLower && drift < GracePeriodUpper)
         {
             OnDriftChecked?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
             return;
         }
 
-
         //long waits are handled by significant drift protection by shutdown request
-        if (drift > TimeSpan.FromMinutes(1) || TimeSpan.FromMinutes(-1) > drift)
+        if (drift > Minute1 || drift < MinuteMinus1)
         {
             _isShutdownRequested = true;
             OnDriftChecked?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
@@ -124,20 +165,26 @@ public class DateTimeProviderInstance
         // When drift is negative and less than 1 minute, the monotonic clock waits to catch system clock
         // When drift is positive, the monotonic clock is behind the system clock and can catch system clock directly, 
         if (drift <= TimeSpan.Zero)
-            await Task.Delay(drift * -1 + TimeSpan.FromMicroseconds(2));
+            await Task.Delay(drift * -1 + Millisecond);
 
+        // The MonotonicTime only moves forward
+        // When drift is negative and less than 1 minute, the monotonic clock reads increment last returned to catch up.
+        // When drift is positive, the monotonic clock is behind the system clock and can catch system clock directly,
+        // It is ok to update TimeState regardless of drift direction 
         UpdateTimeState();
 
         OnDriftCorrected?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
         OnDriftChecked?.Invoke(new DriftInfo(systemTime, monotonicSystemTime, drift));
     }
-    
-    private void UpdateTimeState()
+
+    private TimeState UpdateTimeState()
     {
         var stopwatch = new Stopwatch();
         var now = _timeProviderProvider.UtcNow;
-        stopwatch.Start();
-        _timeState = new TimeState(now, stopwatch);
+        stopwatch.Restart();
+        _timeState = new TimeState(now.Ticks, stopwatch);
+
+        return _timeState;
     }
 
     /// <summary>
@@ -148,7 +195,7 @@ public class DateTimeProviderInstance
 
 public record DriftInfo(DateTimeOffset SystemDateTime, DateTimeOffset MonotonicSystemDateTime, TimeSpan Drift);
 
-public readonly record struct TimeState(DateTimeOffset InitialTime, Stopwatch Stopwatch)
+public class TimeState(long initialTimeTicks, Stopwatch stopwatch)
 {
-    public DateTimeOffset UtcNow => InitialTime + Stopwatch.Elapsed;
+    public long UtcNowTicks => initialTimeTicks + stopwatch.Elapsed.Ticks;
 }

@@ -78,7 +78,6 @@ public class DateTimeProviderInstanceTests
         await WaitUntilCycleChange(checkedDrifts);
         correctedDrifts.Count.Should().Be(0);
 
-
         disruptedDateTime = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(disruption);
         disrupt = true;
 
