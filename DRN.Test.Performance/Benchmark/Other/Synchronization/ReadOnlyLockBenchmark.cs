@@ -7,6 +7,7 @@ using Xunit.Abstractions;
 
 namespace DRN.Test.Performance.Benchmark.Other.Synchronization;
 
+[MemoryDiagnoser]
 public class ReadOnlyLockBenchmarkTests(ITestOutputHelper output)
 {
 #if !DEBUG

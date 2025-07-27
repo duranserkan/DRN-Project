@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DRN.Test.Performance.Benchmark.Other.LookupBenchmark-20250727-102317</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.2, macOS Sequoia 15.5 (24F74) [Darwin 24.5.0]
+Apple M2, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 9.0.301
+  [Host]   : .NET 9.0.6 (9.0.625.26613), Arm64 RyuJIT AdvSIMD
+  .NET 9.0 : .NET 9.0.6 (9.0.625.26613), Arm64 RyuJIT AdvSIMD
+</code></pre>
+<pre><code>Job=.NET 9.0  Runtime=.NET 9.0  
+</code></pre>
+
+<table>
+<thead><tr><th>Method             </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Allocated</th>
+</tr>
+</thead><tbody><tr><td>Dictionary1Lookup</td><td>5.410 ns</td><td>0.0238 ns</td><td>0.0223 ns</td><td>-</td>
+</tr><tr><td>Dictionary10Lookup</td><td>6.823 ns</td><td>0.0069 ns</td><td>0.0062 ns</td><td>-</td>
+</tr><tr><td>Dictionary100Lookup</td><td>7.137 ns</td><td>0.0244 ns</td><td>0.0228 ns</td><td>-</td>
+</tr><tr><td>Dictionary1_000Lookup</td><td>7.216 ns</td><td>0.0110 ns</td><td>0.0092 ns</td><td>-</td>
+</tr><tr><td>Dictionary10_000Lookup</td><td>7.402 ns</td><td>0.0096 ns</td><td>0.0080 ns</td><td>-</td>
+</tr><tr><td>Dictionary100_000Lookup</td><td>7.838 ns</td><td>0.1429 ns</td><td>0.1337 ns</td><td>-</td>
+</tr><tr><td>Dictionary1_000_000Lookup</td><td>8.698 ns</td><td>0.0974 ns</td><td>0.0761 ns</td><td>-</td>
+</tr><tr><td>Set1Lookup</td><td>6.661 ns</td><td>0.1179 ns</td><td>0.1103 ns</td><td>-</td>
+</tr><tr><td>Set10Lookup</td><td>8.950 ns</td><td>0.1528 ns</td><td>0.1355 ns</td><td>-</td>
+</tr><tr><td>Set100Lookup</td><td>9.589 ns</td><td>0.1830 ns</td><td>0.1712 ns</td><td>-</td>
+</tr><tr><td>Set1_000Lookup</td><td>9.642 ns</td><td>0.1704 ns</td><td>0.1511 ns</td><td>-</td>
+</tr><tr><td>Set10_000Lookup</td><td>9.645 ns</td><td>0.2173 ns</td><td>0.2134 ns</td><td>-</td>
+</tr><tr><td>Set100_000Lookup</td><td>9.477 ns</td><td>0.1567 ns</td><td>0.1466 ns</td><td>-</td>
+</tr><tr><td>Set1_000_000Lookup</td><td>9.735 ns</td><td>0.1614 ns</td><td>0.1430 ns</td><td>-</td>
+</tr></tbody></table>
+</body>
+</html>

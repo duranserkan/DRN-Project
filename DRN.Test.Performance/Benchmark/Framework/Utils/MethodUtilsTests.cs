@@ -8,6 +8,7 @@ using Xunit.Abstractions;
 
 namespace DRN.Test.Performance.Benchmark.Framework.Utils;
 
+[MemoryDiagnoser]
 public class MethodUtilsPerformanceTests(ITestOutputHelper output)
 {
 #if !DEBUG

@@ -1,10 +1,10 @@
 using DRN.Framework.Utils.Time;
-using DRN.Framework.SharedKernel.Utils;
 using NSubstitute.Extensions;
+using Xunit.Abstractions;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Time;
 
-public class DateTimeProviderInstanceTests
+public class MonotonicDateTimeProviderInstanceTests(ITestOutputHelper outputHelper)
 {
     [Theory]
     [DataInlineUnit(-2)]
@@ -42,7 +42,7 @@ public class DateTimeProviderInstanceTests
 
         var correctedDrifts = new List<DriftInfo>();
         var checkedDrifts = new List<DriftInfo>();
-        var instance = new DateTimeProviderInstance(system, 1);
+        var instance = new MonotonicDateTimeProviderInstance(system, 1);
         instance.OnDriftChecked += driftInfo => checkedDrifts.Add(driftInfo);
         instance.OnDriftCorrected += driftInfo => correctedDrifts.Add(driftInfo);
 
@@ -71,7 +71,7 @@ public class DateTimeProviderInstanceTests
 
         var correctedDrifts = new List<DriftInfo>();
         var checkedDrifts = new List<DriftInfo>();
-        var instance = new DateTimeProviderInstance(system, 1);
+        var instance = new MonotonicDateTimeProviderInstance(system, 1);
         instance.OnDriftChecked += driftInfo => checkedDrifts.Add(driftInfo);
         instance.OnDriftCorrected += driftInfo => correctedDrifts.Add(driftInfo);
 

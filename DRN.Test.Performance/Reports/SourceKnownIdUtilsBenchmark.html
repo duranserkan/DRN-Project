@@ -2,7 +2,7 @@
 <html lang='en'>
 <head>
 <meta charset='utf-8' />
-<title>DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdGeneratorBenchmark-20250425-233202</title>
+<title>DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdUtilsBenchmark-20250726-200327</title>
 
 <style type="text/css">
 	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
@@ -13,27 +13,28 @@
 </head>
 <body>
 <pre><code>
-BenchmarkDotNet v0.14.0, macOS Sequoia 15.4.1 (24E263) [Darwin 24.4.0]
+BenchmarkDotNet v0.15.2, macOS Sequoia 15.5 (24F74) [Darwin 24.5.0]
 Apple M2, 1 CPU, 8 logical and 8 physical cores
-.NET SDK 9.0.203
-  [Host]     : .NET 9.0.4 (9.0.425.16305), Arm64 RyuJIT AdvSIMD
-  Job-QSTBML : .NET 9.0.4 (9.0.425.16305), Arm64 RyuJIT AdvSIMD
+.NET SDK 9.0.301
+  [Host]     : .NET 9.0.6 (9.0.625.26613), Arm64 RyuJIT AdvSIMD
+  Job-RLPPNN : .NET 9.0.6 (9.0.625.26613), Arm64 RyuJIT AdvSIMD
 </code></pre>
 <pre><code>OutlierMode=RemoveUpper  
 </code></pre>
 
 <table>
-<thead><tr><th>Method                            </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Median</th>
+<thead><tr><th>Method                            </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Allocated</th>
 </tr>
-</thead><tbody><tr><td>RandomLong</td><td>83.359 ns</td><td>0.1257 ns</td><td>0.1050 ns</td><td>83.378 ns</td>
-</tr><tr><td>RandomGuidV4</td><td>243.283 ns</td><td>3.2954 ns</td><td>3.0825 ns</td><td>242.817 ns</td>
-</tr><tr><td>RandomGuidV7</td><td>265.692 ns</td><td>0.6402 ns</td><td>0.4998 ns</td><td>265.587 ns</td>
-</tr><tr><td>MonotonicSystemDateTime_UtcNow</td><td>33.413 ns</td><td>0.0405 ns</td><td>0.0316 ns</td><td>33.400 ns</td>
-</tr><tr><td>TimeStampManager_TimeStamp</td><td>2.550 ns</td><td>0.0204 ns</td><td>0.0170 ns</td><td>2.543 ns</td>
-</tr><tr><td>SequenceManager_TimeScopedId</td><td>468.799 ns</td><td>9.3508 ns</td><td>10.7683 ns</td><td>472.412 ns</td>
-</tr><tr><td>SourceKnownId</td><td>472.068 ns</td><td>147.3063 ns</td><td>434.3359 ns</td><td>438.301 ns</td>
-</tr><tr><td>SourceKnownEntityId</td><td>473.237 ns</td><td>9.4908 ns</td><td>15.0535 ns</td><td>481.528 ns</td>
-</tr><tr><td>SourceKnownEntityIdWithProvidedLongValue</td><td>137.194 ns</td><td>0.7940 ns</td><td>0.7427 ns</td><td>137.264 ns</td>
+</thead><tbody><tr><td>RandomLong</td><td>83.415 ns</td><td>0.4883 ns</td><td>0.4329 ns</td><td>0.0038</td><td>32 B</td>
+</tr><tr><td>RandomGuidV4</td><td>245.413 ns</td><td>0.8761 ns</td><td>0.8195 ns</td><td>-</td><td>-</td>
+</tr><tr><td>RandomGuidV7</td><td>271.811 ns</td><td>1.5862 ns</td><td>1.4838 ns</td><td>-</td><td>-</td>
+</tr><tr><td>MonotonicSystemDateTime_UtcNow</td><td>22.878 ns</td><td>0.1413 ns</td><td>0.1321 ns</td><td>-</td><td>-</td>
+</tr><tr><td>TimeStampManager_TimeStamp</td><td>7.391 ns</td><td>0.1766 ns</td><td>0.3444 ns</td><td>-</td><td>-</td>
+</tr><tr><td>SequenceManager_TimeScopedId</td><td>469.101 ns</td><td>155.2702 ns</td><td>457.8178 ns</td><td>-</td><td>-</td>
+</tr><tr><td>SourceKnownId</td><td>471.167 ns</td><td>151.1890 ns</td><td>445.7843 ns</td><td>-</td><td>-</td>
+</tr><tr><td>SourceKnownEntityId</td><td>467.251 ns</td><td>9.2404 ns</td><td>17.3558 ns</td><td>-</td><td>-</td>
+</tr><tr><td>SourceKnownEntityIdWithEntity</td><td>471.514 ns</td><td>9.3278 ns</td><td>19.2635 ns</td><td>0.0219</td><td>184 B</td>
+</tr><tr><td>SourceKnownEntityIdWithProvidedLongValue</td><td>119.696 ns</td><td>0.4939 ns</td><td>0.4378 ns</td><td>-</td><td>-</td>
 </tr></tbody></table>
 </body>
 </html>

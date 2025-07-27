@@ -1,5 +1,3 @@
-using DRN.Framework.SharedKernel.Utils;
-
 namespace DRN.Framework.SharedKernel.Domain;
 
 public interface IDomainEvent
@@ -13,7 +11,7 @@ public abstract class DomainEvent(SourceKnownEntity sourceKnownEntity) : IDomain
 {
     public Guid Id { get; protected init; } = Guid.NewGuid();
     public Guid EntityId => sourceKnownEntity.EntityId;
-    public DateTimeOffset Date { get; protected init; } = DateTimeProvider.UtcNow;
+    public DateTimeOffset Date { get; protected init; } = DateTimeOffset.UtcNow;
 }
 
 public abstract class EntityCreated(SourceKnownEntity sourceKnownEntity) : DomainEvent(sourceKnownEntity);

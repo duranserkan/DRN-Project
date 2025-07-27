@@ -9,6 +9,7 @@ using Xunit.Abstractions;
 
 namespace DRN.Test.Performance.Benchmark.Other.Hash;
 
+[MemoryDiagnoser]
 public class HmacPerformanceTests(ITestOutputHelper output)
 {
 #if !DEBUG

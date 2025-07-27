@@ -1,5 +1,3 @@
-using DRN.Framework.SharedKernel.Utils;
-using DRN.Framework.Utils.Time;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -12,7 +10,6 @@ public static class UtilsModule
         collection.AddServicesWithAttributes();
         collection.AddHybridCache(); //todo: evaluate fusion cache
         collection.TryAddSingleton<TimeProvider>(_ => TimeProvider.System);
-        DateTimeProvider.Provider = new MonotonicSystemDateTimeProvider();
 
         return collection;
     }

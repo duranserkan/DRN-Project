@@ -30,10 +30,10 @@ public class ScopedLog : IScopedLog
         Add(nameof(AppSettings.NexusAppSettings.AppId), appSettings.NexusAppSettings.AppId);
         Add(nameof(AppSettings.NexusAppSettings.AppInstanceId), appSettings.NexusAppSettings.AppInstanceId);
         Add(nameof(Environment.MachineName), Environment.MachineName);
-        Add(ScopedLogConventions.KeyOfScopeCreatedAt, MonotonicSystemDateTime.UtcNow);
+        Add(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeProvider.UtcNow);
     }
 
-    public TimeSpan ScopeDuration => MonotonicSystemDateTime.UtcNow - (DateTimeOffset)LogData[ScopedLogConventions.KeyOfScopeCreatedAt];
+    public TimeSpan ScopeDuration => DateTimeProvider.UtcNow - (DateTimeOffset)LogData[ScopedLogConventions.KeyOfScopeCreatedAt];
 
     public IReadOnlyDictionary<string, object> Logs
     {

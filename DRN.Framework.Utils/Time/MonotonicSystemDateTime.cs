@@ -1,29 +1,47 @@
 using System.Diagnostics;
-using DRN.Framework.SharedKernel.Utils;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Time;
 
-[Singleton<ISystemDateTimeProvider>]
+public interface IDateTimeProvider
+{
+    DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
+}
+
+public interface ISystemDateTimeProvider : IDateTimeProvider;
+
+public interface IMonotonicDateTimeProvider : IDateTimeProvider;
+
+[Singleton<IDateTimeProvider>]
 public class SystemDateTimeProvider : ISystemDateTimeProvider
 {
     public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
 }
 
-[Singleton<IDateTimeProvider>]
-public class MonotonicSystemDateTimeProvider : IDateTimeProvider
+[Singleton<IMonotonicDateTimeProvider>]
+public class MonotonicSystemDateTimeProvider : IMonotonicDateTimeProvider
 {
     public DateTimeOffset UtcNow => MonotonicSystemDateTime.UtcNow;
+}
+
+public static class DateTimeProvider
+{
+    public static DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
 }
 
 /// <summary>
 /// Monotonic/System hybrid clock that is immune to drastic system clock changes and monotonic clock drifts
 /// </summary>
+/// <remarks>
+/// Prefer IDateTimeProvider.UtcNow, DateTimeProvider.UtcNow or DateTimeOffset.UtcNow over this implementation.
+/// According to DateTimeProviderBenchmark.html, stopwatch-based implementation is slower than getting system date from DateTimeOffset.UtcNow.
+/// Although this code looks useless because of slowness and complexity, It actually is a monument of dedication and learning.
+/// </remarks>
 public static class MonotonicSystemDateTime
 {
     private const int UpdatePeriod = 10000; // 10 seconds
 
-    private static readonly DateTimeProviderInstance ProviderInstance = new(new SystemDateTimeProvider(), UpdatePeriod);
+    private static readonly MonotonicDateTimeProviderInstance ProviderInstance = new(new SystemDateTimeProvider(), UpdatePeriod);
 
     internal static event Action<DriftInfo> OnDriftCorrected
     {
@@ -53,7 +71,7 @@ public static class MonotonicSystemDateTime
 /// <summary>
 /// Monotonic/System hybrid clock that is immune to drastic system clock changes and monotonic clock drifts
 /// </summary>
-public class DateTimeProviderInstance
+public class MonotonicDateTimeProviderInstance
 {
     private static readonly TimeSpan Minute1 = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan MinuteMinus1 = TimeSpan.FromMinutes(-1);
@@ -80,7 +98,7 @@ public class DateTimeProviderInstance
     internal event Action<DriftInfo>? OnDriftChecked;
     public RecurringAction RecurringAction { get; private set; }
 
-    public DateTimeProviderInstance(ISystemDateTimeProvider timeProviderProvider, int updatePeriod)
+    public MonotonicDateTimeProviderInstance(ISystemDateTimeProvider timeProviderProvider, int updatePeriod)
     {
         _timeProviderProvider = timeProviderProvider;
         _timeState = UpdateTimeState();
@@ -89,7 +107,6 @@ public class DateTimeProviderInstance
 
     private long _lastReturned;
 
-    //todo: benchmark Interlocked.Increment vs Interlocked.CompareExchange
     /// <summary>
     /// Gets the current UTC time using a monotonic clock (Stopwatch).
     /// Immune to system clock changes (e.g., NTP adjustments).

@@ -28,7 +28,7 @@ public class ProfilePictureController(IProfilePictureRepository ppRepository, IW
 
         // Set caching headers
         Response.Headers.CacheControl = "private, max-age=31536000"; // Cache for 1 year
-        Response.Headers.Expires = MonotonicSystemDateTime.UtcNow.AddYears(1).ToString("R");
+        Response.Headers.Expires = DateTimeProvider.UtcNow.AddYears(1).ToString("R");
 
         return new FileStreamResult(stream, "image/jpeg");
     }

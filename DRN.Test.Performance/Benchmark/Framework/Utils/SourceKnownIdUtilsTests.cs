@@ -42,6 +42,7 @@ public class SourceKnownIdUtilsPerformanceTests(ITestOutputHelper output)
 }
 
 [Outliers(OutlierMode.RemoveUpper)]
+[MemoryDiagnoser]
 public class SourceKnownIdUtilsBenchmark
 {
     static SourceKnownIdUtilsBenchmark()
@@ -53,6 +54,7 @@ public class SourceKnownIdUtilsBenchmark
     private static SourceKnownIdUtils Utils { get; }
     private static SourceKnownEntityIdUtils EntityIdUtils { get; }
     private static YEntity Entity { get; } = new(5);
+    private static YEntity Entity2 { get; } = new(5);
 
     [Benchmark]
     public long RandomLong() => BinaryPrimitives.ReadInt64LittleEndian(RandomNumberGenerator.GetBytes(8));
@@ -74,18 +76,18 @@ public class SourceKnownIdUtilsBenchmark
 
     [Benchmark]
     public long SourceKnownId() => Utils.Next<SourceKnownIdUtilsBenchmark>();
-
+    
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityId()
-    {
-        return EntityIdUtils.Generate(new YEntity(Utils.Next<SourceKnownIdUtilsBenchmark>()));
-    }
+        => EntityIdUtils.Generate<YEntity>(Utils.Next<SourceKnownIdUtilsBenchmark>());
+
+    [Benchmark]
+    public SourceKnownEntityId SourceKnownEntityIdWithEntity()
+        => EntityIdUtils.Generate(new YEntity(Utils.Next<SourceKnownIdUtilsBenchmark>()));
 
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdWithProvidedLongValue()
-    {
-        return EntityIdUtils.Generate(Entity);
-    }
+        => EntityIdUtils.Generate(Entity);
 }
 
 [EntityTypeId(92)]

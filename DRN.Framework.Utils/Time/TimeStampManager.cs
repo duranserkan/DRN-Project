@@ -15,7 +15,7 @@ public static class TimeStampManager
 
     private static Task Update()
     {
-        var now = MonotonicSystemDateTime.UtcNow.Ticks;
+        var now = DateTimeProvider.UtcNow.Ticks;
         var secondResidue = now % TimeSpan.TicksPerSecond;
         _cachedUtcNow = new DateTimeOffset(now - secondResidue, TimeSpan.Zero);
         _cachedUtcNowTicks = _cachedUtcNow.Ticks;

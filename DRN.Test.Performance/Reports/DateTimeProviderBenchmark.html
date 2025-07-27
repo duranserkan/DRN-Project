@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DRN.Test.Performance.Benchmark.Framework.Utils.DateTimeProviderBenchmark-20250726-222123</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.2, macOS Sequoia 15.5 (24F74) [Darwin 24.5.0]
+Apple M2, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 9.0.301
+  [Host]   : .NET 9.0.6 (9.0.625.26613), Arm64 RyuJIT AdvSIMD
+  .NET 9.0 : .NET 9.0.6 (9.0.625.26613), Arm64 RyuJIT AdvSIMD
+</code></pre>
+<pre><code>Job=.NET 9.0  Runtime=.NET 9.0  
+</code></pre>
+
+<table>
+<thead><tr><th>Method                        </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Median</th><th>Ratio</th><th>RatioSD</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>TimeState_Tick</td><td>20.940 ns</td><td>0.3848 ns</td><td>0.9796 ns</td><td>21.171 ns</td><td>7.40</td><td>0.34</td><td>-</td><td>NA</td>
+</tr><tr><td>TimeState_Tick2</td><td>19.099 ns</td><td>0.4075 ns</td><td>0.5299 ns</td><td>18.721 ns</td><td>6.75</td><td>0.18</td><td>-</td><td>NA</td>
+</tr><tr><td>TimeState_Tick3</td><td>18.899 ns</td><td>0.0149 ns</td><td>0.0116 ns</td><td>18.899 ns</td><td>6.67</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>Stopwatch_Elapsed</td><td>14.159 ns</td><td>0.0116 ns</td><td>0.0108 ns</td><td>14.156 ns</td><td>5.00</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>Stopwatch_Tick</td><td>18.282 ns</td><td>0.0178 ns</td><td>0.0149 ns</td><td>18.279 ns</td><td>6.46</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>Stopwatch_Tick_Separate</td><td>18.275 ns</td><td>0.0154 ns</td><td>0.0144 ns</td><td>18.273 ns</td><td>6.45</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>Stopwatch_DateTime</td><td>18.949 ns</td><td>0.0128 ns</td><td>0.0107 ns</td><td>18.948 ns</td><td>6.69</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>MonotonicSystemDateTime_UtcNowUnsafe</td><td>19.136 ns</td><td>0.0154 ns</td><td>0.0137 ns</td><td>19.137 ns</td><td>6.76</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>MonotonicSystemDateTime_UtcNow</td><td>21.903 ns</td><td>0.0149 ns</td><td>0.0124 ns</td><td>21.900 ns</td><td>7.74</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>SystemDateTime_UtcNow</td><td>15.867 ns</td><td>0.0156 ns</td><td>0.0146 ns</td><td>15.868 ns</td><td>5.60</td><td>0.01</td><td>-</td><td>NA</td>
+</tr><tr><td>InterlockedIncrement</td><td>2.832 ns</td><td>0.0034 ns</td><td>0.0031 ns</td><td>2.831 ns</td><td>1.00</td><td>0.00</td><td>-</td><td>NA</td>
+</tr><tr><td>InterlockedCompareExchange_Simple</td><td>2.792 ns</td><td>0.0036 ns</td><td>0.0032 ns</td><td>2.791 ns</td><td>0.99</td><td>0.00</td><td>-</td><td>NA</td>
+</tr><tr><td>InterlockedCompareExchange_Full</td><td>2.790 ns</td><td>0.0023 ns</td><td>0.0021 ns</td><td>2.790 ns</td><td>0.99</td><td>0.00</td><td>-</td><td>NA</td>
+</tr></tbody></table>
+</body>
+</html>

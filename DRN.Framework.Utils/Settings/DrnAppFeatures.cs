@@ -47,4 +47,6 @@ public class DrnAppFeatures
     public string SeedKey { get; init; } = "Peace at home, peace in the world — Mustafa Kemal Atatürk";
     public string InternalRequestHttpVersion { get; init; } = "1.1";
     public string InternalRequestProtocol { get; init; } = "http";
+
+    public bool UseMonotonicDateTimeProvider { get; init; } = false;
 }

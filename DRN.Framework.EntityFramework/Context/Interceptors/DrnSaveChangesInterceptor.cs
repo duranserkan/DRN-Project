@@ -48,7 +48,7 @@ public class DrnSaveChangesInterceptor(IEntityUtils entityUtils) : IDrnSaveChang
                     entity.MarkAsCreated();
                     break;
                 case EntityState.Modified:
-                    entity.ModifiedAt = MonotonicSystemDateTime.UtcNow;
+                    entity.ModifiedAt = DateTimeProvider.UtcNow;
                     entity.MarkAsModified();
                     break;
                 case EntityState.Deleted:
