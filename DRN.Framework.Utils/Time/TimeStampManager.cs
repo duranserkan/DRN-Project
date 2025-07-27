@@ -4,7 +4,7 @@ public static class TimeStampManager
 {
     private static DateTimeOffset _cachedUtcNow;
     private static long _cachedUtcNowTicks;
-    internal static readonly int UpdatePeriod = 50;
+    internal static readonly int UpdatePeriod = 10;
     private static readonly RecurringAction RecurringAction = new RecurringAction(GetUpdateAction(), UpdatePeriod);
     
     private static Func<Task> GetUpdateAction()

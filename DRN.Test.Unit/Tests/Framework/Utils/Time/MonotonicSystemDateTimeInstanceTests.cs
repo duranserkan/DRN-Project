@@ -1,10 +1,9 @@
 using DRN.Framework.Utils.Time;
 using NSubstitute.Extensions;
-using Xunit.Abstractions;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Time;
 
-public class MonotonicDateTimeProviderInstanceTests(ITestOutputHelper outputHelper)
+public class MonotonicDateTimeProviderInstanceTests
 {
     [Theory]
     [DataInlineUnit(-2)]
