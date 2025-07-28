@@ -8,6 +8,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DRN.Framework.EntityFramework;
 
+/// <summary>
+/// Represents an abstract repository that manages entities of type <typeparamref name="TEntity"/> within a specific database context of type <typeparamref name="TContext"/>.
+/// Provides methods for CRUD operations, entity retrieval, pagination, and cancellation token management.
+/// </summary>
+/// <remarks>
+/// Entity updates, additional filtering logic, and query includes (e.g., <c>Include</c> statements) are the responsibility of concrete subclasses.
+/// </remarks>
 public abstract class SourceKnownRepository<TContext, TEntity>(TContext context, IEntityUtils utils) : ISourceKnownRepository<TEntity>
     where TContext : DbContext, IDrnContext
     where TEntity : AggregateRoot
@@ -38,6 +45,15 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<int> SaveChangesAsync() => await Context.SaveChangesAsync(CancellationToken);
 
     /// <summary>
+    /// Finds an entity with the given source known ids
+    /// </summary>
+    /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
+    public async Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids, bool ignoreAutoIncludes = false) =>
+        ignoreAutoIncludes
+            ? await Filter(Entities, ids).IgnoreAutoIncludes().ToArrayAsync(CancellationToken)
+            : await Filter(Entities, ids).ToArrayAsync(CancellationToken);
+    
+    /// <summary>
     /// Finds an entity with the given source known id
     /// </summary>
     /// <exception cref="NotFoundException">Thrown when entity not found</exception>
@@ -45,13 +61,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async ValueTask<TEntity> GetAsync(Guid id, bool ignoreAutoIncludes = false)
         => await GetOrDefaultAsync(id, ignoreAutoIncludes: ignoreAutoIncludes)
            ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
-
-    public async Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids, bool ignoreAutoIncludes = false) =>
-        ignoreAutoIncludes
-            ? await Filter(Entities, ids).IgnoreAutoIncludes().ToArrayAsync(CancellationToken)
-            : await Filter(Entities, ids).ToArrayAsync(CancellationToken);
-
-
+    
     /// <summary>
     /// Finds an entity with the given source known id
     /// </summary>
@@ -111,6 +121,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids)
         => await Filter(Entities, ids).ExecuteDeleteAsync(CancellationToken);
 
+    
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public SourceKnownEntityId ValidateEntityId(Guid id, bool throwException = true)
         => throwException ? Utils.EntityId.Validate(id, EntityTypeId) : Utils.EntityId.Parse(id);
@@ -121,8 +132,8 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     public IEnumerable<SourceKnownEntityId> ValidateEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool throwException = true)
         => ids.Select(id => ValidateEntityId(id, throwException));
-
-
+    
+    
     public async Task<PaginationResult<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false)
         => await PaginateAsync(Entities, request, filter, ignoreAutoIncludes);
 
@@ -160,6 +171,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         } while (result.HasNext);
     }
 
+    
     protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, EntityCreatedFilter filter)
         => Utils.DateTime.Apply(query, filter);
 

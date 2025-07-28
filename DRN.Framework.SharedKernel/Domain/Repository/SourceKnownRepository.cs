@@ -2,6 +2,13 @@ using DRN.Framework.SharedKernel.Domain.Pagination;
 
 namespace DRN.Framework.SharedKernel.Domain.Repository;
 
+/// <summary>
+/// Represents a repository interface that manages entities of type <typeparamref name="TEntity"/>.
+/// Provides methods for CRUD operations, entity retrieval, pagination, and cancellation token management.
+/// </summary>
+/// <remarks>
+/// Entity updates, additional filtering logic, and query includes (e.g., <c>Include</c> statements) are the responsibility of concrete subclasses.
+/// </remarks>
 public interface ISourceKnownRepository<TEntity>
     where TEntity : AggregateRoot
 {
@@ -15,7 +22,7 @@ public interface ISourceKnownRepository<TEntity>
 
     //todo add get or create with cache support
     ValueTask<TEntity> GetAsync(Guid id, bool ignoreAutoIncludes = false);
-    Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids, bool ignoreAutoInclude = false);
+    Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids, bool ignoreAutoIncludes = false);
     ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true, bool ignoreAutoIncludes = false);
 
     void Add(params IReadOnlyCollection<TEntity> entities);
