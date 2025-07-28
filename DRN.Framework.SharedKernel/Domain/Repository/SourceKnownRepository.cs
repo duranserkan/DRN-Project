@@ -6,6 +6,7 @@ public interface ISourceKnownRepository<TEntity>
     where TEntity : AggregateRoot
 {
     //todo test cancellation
+    //todo test ignore auto includes
     CancellationToken CancellationToken { get; set; }
     void MergeCancellationTokens(CancellationToken other);
     void CancelChanges();
@@ -13,9 +14,9 @@ public interface ISourceKnownRepository<TEntity>
     Task<int> SaveChangesAsync();
 
     //todo add get or create with cache support
-    ValueTask<TEntity> GetAsync(Guid id);
-    Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);
-    ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true);
+    ValueTask<TEntity> GetAsync(Guid id, bool ignoreAutoIncludes = false);
+    Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids, bool ignoreAutoInclude = false);
+    ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true, bool ignoreAutoIncludes = false);
 
     void Add(params IReadOnlyCollection<TEntity> entities);
     void Remove(params IReadOnlyCollection<TEntity> entities);
@@ -28,6 +29,6 @@ public interface ISourceKnownRepository<TEntity>
     SourceKnownEntityId[] ValidateEntityIds(IReadOnlyCollection<Guid> ids, bool throwException = true);
     IEnumerable<SourceKnownEntityId> ValidateEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool throwException = true);
 
-    Task<PaginationResult<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
-    IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
+    Task<PaginationResult<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false);
+    IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false);
 }
