@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DRN.Framework.SharedKernel\DRN.Framework.SharedKernel.csproj" />
+    <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj" />
     <ProjectReference Include="..\Sample.Contract\Sample.Contract.csproj" />
   </ItemGroup>
 

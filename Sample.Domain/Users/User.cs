@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 namespace Sample.Domain.Users;
 
 [EntityTypeId((int)SampleEntityTypeIds.User)]
@@ -23,6 +25,7 @@ public class User : AggregateRoot
     public Address Address { get; private set; } = null!;
 }
 
+[Owned]
 public class ContactDetail
 {
     private ContactDetail()
@@ -39,6 +42,7 @@ public class ContactDetail
     public string? Phone { get; private set; }
 }
 
+[Owned]
 public class Address
 {
     private Address()
