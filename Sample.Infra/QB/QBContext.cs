@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using DRN.Framework.SharedKernel.Domain;
 using Sample.Domain;
 
@@ -15,12 +16,15 @@ public class QBContext : DrnContext<QBContext>
     {
     }
 
-    public DbSet<TestEntity> TestEntity { get; set; }
+    //Added to test prototype mode
+    //public DbSet<TestEntity> TestEntity { get; set; }
 }
 
 [EntityTypeId((int)SampleEntityTypeIds.TestEntity)]
 public class TestEntity : AggregateRoot
 {
     public long TestValue { get; set; }
+
+    [MaxLength(100)]
     public string TestValueString { get; set; } = string.Empty;
 }
