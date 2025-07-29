@@ -55,12 +55,13 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
     public const string NlogConfigSectionName = "NLog";
     protected DrnProgramSwaggerOptions DrnProgramSwaggerOptions { get; private set; } = new();
     protected DrnAppBuilderType AppBuilderType { get; set; } = DrnAppBuilderType.DrnDefaults;
+
     protected static NLogAspNetCoreOptions NLogOptions { get; set; } = new()
     {
         ReplaceLoggerFactory = false,
         RemoveLoggerFactoryFilter = false
     };
-    
+
     private static LogFactory CreateLogFactory(IAppSettings appSettings)
     {
         var logFactory = new LogFactory();
@@ -147,7 +148,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
                     var reportUrl = $"file://{reportPath}";
                     await File.WriteAllTextAsync(reportPath, exceptionReportContent);
                     scopedLog.Add("StartupExceptionReportPath", reportUrl);
-                    logger.LogError(reportUrl);
+                    logger.LogError("Startup Exception Report Path: {0}", reportUrl);
                 }
             }
         }
@@ -200,7 +201,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         if (appSettings.TryGetSection("Logging", out var loggingSection))
             applicationBuilder.Logging.AddConfiguration(loggingSection);
         applicationBuilder.Logging.AddNLogWeb(CreateLogFactory(appSettings), NLogOptions);
-        
+
         applicationBuilder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
         {
             kestrelServerOptions.AddServerHeader = false;

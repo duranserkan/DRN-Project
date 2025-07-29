@@ -23,6 +23,9 @@ public class HttpScopeMiddleware(RequestDelegate next)
     {
         try
         {
+            //todo manage request buffering it may not be desired in production
+            //It is currently required to obtain detailed exception report which reads request body
+            context.Request.EnableBuffering();
             ResponseControls(context);
 
             if (ExceptionPageAccessor.IsExceptionPage(context.Request.Path.Value))
