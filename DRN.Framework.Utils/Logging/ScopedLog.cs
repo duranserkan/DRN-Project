@@ -41,7 +41,7 @@ public class ScopedLog : IScopedLog
         {
             Add(ScopedLogConventions.KeyOfScopeDuration, ScopeDuration);
 
-            return new SortedDictionary<string, object>(LogData);
+            return new Dictionary<string, object>(LogData);
         }
     }
 

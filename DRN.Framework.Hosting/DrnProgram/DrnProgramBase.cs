@@ -27,9 +27,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCaching;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using NetEscapades.AspNetCore.SecurityHeaders.Infrastructure;
-using Serilog;
+using NLog;
+using NLog.Extensions.Logging;
+using NLog.Web;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace DRN.Framework.Hosting.DrnProgram;
 
@@ -49,8 +52,30 @@ public interface IDrnProgram
 /// </summary>
 public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
+    public const string NlogConfigSectionName = "NLog";
     protected DrnProgramSwaggerOptions DrnProgramSwaggerOptions { get; private set; } = new();
     protected DrnAppBuilderType AppBuilderType { get; set; } = DrnAppBuilderType.DrnDefaults;
+    protected static NLogAspNetCoreOptions NLogOptions { get; set; } = new()
+    {
+        ReplaceLoggerFactory = false,
+        RemoveLoggerFactoryFilter = false
+    };
+    
+    private static LogFactory CreateLogFactory(IAppSettings appSettings)
+    {
+        var logFactory = new LogFactory();
+        logFactory.Setup().SetupExtensions(ext =>
+        {
+            ext.RegisterAssembly("NLog.Extensions.Logging");
+            ext.RegisterAssembly("NLog.Web.AspNetCore");
+            ext.RegisterAssembly("NLog.Targets.Network");
+        });
+
+        var configuration = new NLogLoggingConfiguration(appSettings.GetRequiredSection(NlogConfigSectionName));
+        logFactory.Configuration = configuration;
+
+        return logFactory;
+    }
 
     protected static async Task RunAsync(string[]? args = null)
     {
@@ -58,12 +83,8 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         var configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationAssemblyName(), args).Build();
         var appSettings = new AppSettings(configuration);
         var scopedLog = new ScopedLog(appSettings).WithLoggerName(typeof(TProgram).FullName);
-
-        var bootstrapLogger = new TProgram().ConfigureLogger(configuration)
-            .Destructure.AsDictionary<SortedDictionary<string, object>>()
-            .CreateLogger();
-        var logger = bootstrapLogger.ForContext<TProgram>(); //todo replace serilog with nlog 6
-        Log.Logger = bootstrapLogger;
+        var loggerProvider = new NLogLoggerProvider(NLogOptions, CreateLogFactory(appSettings));
+        var logger = loggerProvider.CreateLogger(typeof(TProgram).FullName!);
 
         try
         {
@@ -75,7 +96,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             scopedLog.Add(nameof(DrnAppFeatures.PrototypingMode), appSettings.Features.PrototypingMode);
             scopedLog.Add(nameof(AppSettings.Environment), appSettings.Environment);
             scopedLog.AddToActions("Running Application");
-            logger.Warning("{@Logs}", scopedLog.Logs);
+            logger.LogWarning("{@Logs}", scopedLog.Logs);
 
             if (appSettings.Features.TemporaryApplication)
                 return;
@@ -93,11 +114,11 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         finally
         {
             if (scopedLog.HasException)
-                logger.Error("{@Logs}", scopedLog.Logs);
+                logger.LogError("{@Logs}", scopedLog.Logs);
             else
-                logger.Warning("{@Logs}", scopedLog.Logs);
+                logger.LogWarning("{@Logs}", scopedLog.Logs);
 
-            await bootstrapLogger.DisposeAsync();
+            loggerProvider.Dispose();
         }
     }
 
@@ -126,7 +147,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
                     var reportUrl = $"file://{reportPath}";
                     await File.WriteAllTextAsync(reportPath, exceptionReportContent);
                     scopedLog.Add("StartupExceptionReportPath", reportUrl);
-                    logger.Error(reportUrl);
+                    logger.LogError(reportUrl);
                 }
             }
         }
@@ -171,17 +192,15 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         return (program, applicationBuilder);
     }
 
-    protected abstract Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings,
-        IScopedLog scopedLog);
-
-    protected virtual LoggerConfiguration ConfigureLogger(IConfiguration configuration)
-        => new LoggerConfiguration().ReadFrom.Configuration(configuration);
+    protected abstract Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog);
 
     protected virtual void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder, IAppSettings appSettings)
     {
-        applicationBuilder.Host.UseSerilog((hostingContext, services, loggerConfiguration)
-            => ConfigureSerilog(loggerConfiguration, hostingContext, services));
-
+        applicationBuilder.Logging.ClearProviders();
+        if (appSettings.TryGetSection("Logging", out var loggingSection))
+            applicationBuilder.Logging.AddConfiguration(loggingSection);
+        applicationBuilder.Logging.AddNLogWeb(CreateLogFactory(appSettings), NLogOptions);
+        
         applicationBuilder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
         {
             kestrelServerOptions.AddServerHeader = false;
@@ -216,12 +235,12 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         services.AddAuthorization(ConfigureAuthorizationOptions);
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
-        services.Configure<CookiePolicyOptions>(GetConfigureCookiePolicy(appSettings));
-        services.Configure<SecurityStampValidatorOptions>(ConfigureSecurityStampValidatorOptions(appSettings));
-        services.Configure<CookieTempDataProviderOptions>(GetConfigureCookieTempDataProvider(appSettings));
-        services.Configure<StaticFileOptions>(ConfigureStaticFileOptions(appSettings));
-        services.Configure<ForwardedHeadersOptions>(ConfigureForwardedHeadersOptions(appSettings));
-        services.PostConfigure<HostFilteringOptions>(ConfigureHostFilteringOptions(appSettings));
+        services.Configure(GetConfigureCookiePolicy(appSettings));
+        services.Configure(ConfigureSecurityStampValidatorOptions(appSettings));
+        services.Configure(GetConfigureCookieTempDataProvider(appSettings));
+        services.Configure(ConfigureStaticFileOptions(appSettings));
+        services.Configure(ConfigureForwardedHeadersOptions(appSettings));
+        services.PostConfigure(ConfigureHostFilteringOptions(appSettings));
 
         services.AddSecurityHeaderPolicies((builder, provider) =>
         {
@@ -230,14 +249,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             builder.SetDefaultPolicy(policyCollection);
             ConfigureSecurityHeaderPolicyBuilder(builder, provider, appSettings);
         });
-    }
-
-    protected virtual void ConfigureSerilog(LoggerConfiguration loggerConfiguration, HostBuilderContext hostingContext, IServiceProvider services)
-    {
-        loggerConfiguration
-            .ReadFrom.Configuration(hostingContext.Configuration)
-            .ReadFrom.Services(services) // Allow injecting services (e.g. IHttpContextAccessor) into enrichers
-            .Destructure.AsDictionary<SortedDictionary<string, object>>();
     }
 
     protected virtual void ConfigureApplication(WebApplication application, IAppSettings appSettings)

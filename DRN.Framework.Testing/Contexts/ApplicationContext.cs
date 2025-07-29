@@ -7,9 +7,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Serilog;
-using Serilog.Events;
+using NLog;
+using NLog.Config;
+using NLog.Targets;
+using NLog.Web;
 using Xunit.Abstractions;
+using LogLevel = NLog.LogLevel;
 
 namespace DRN.Framework.Testing.Contexts;
 
@@ -67,20 +70,24 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
             webHostBuilder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();
-                if (_outputHelper != null)
-                    logging.Services.AddSerilog(loggerConfiguration =>
-                    {
-                        loggerConfiguration.Destructure.AsDictionary<SortedDictionary<string, object>>();
-                        loggerConfiguration
-                            .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
-                            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                            .MinimumLevel.Override("System", LogEventLevel.Warning)
-                            .MinimumLevel.Override("System", LogEventLevel.Warning)
-                            .MinimumLevel.Override("Npgsql", LogEventLevel.Warning);
+                if (_outputHelper == null)
+                    return;
 
-                        loggerConfiguration.WriteTo.TestOutput(_outputHelper, LogEventLevel.Information,
-                            "[BEGIN {Timestamp:HH:mm:ss.fffffff} {Level:u3} {SourceContext}]{NewLine}{Message:lj}{NewLine}[END {Timestamp:HH:mm:ss.fffffff} {Level:u3} {SourceContext}]");
-                    });
+                // Create a custom NLog target that writes to the test output helper
+                var testOutputTarget = new TestOutputTarget(_outputHelper);
+                var config = new LoggingConfiguration();
+                config.AddTarget(testOutputTarget);
+                config.AddRule(LogLevel.Info, LogLevel.Fatal, testOutputTarget);
+
+                var logFactory = new LogFactory();
+                logFactory.Configuration = config;
+
+                var options = new NLogAspNetCoreOptions()
+                {
+                    ReplaceLoggerFactory = false,
+                    RemoveLoggerFactoryFilter = false
+                };
+                logging.AddNLogWeb(logFactory, options);
             });
             webHostConfigurator?.Invoke(webHostBuilder);
         });
@@ -137,5 +144,33 @@ public class DrnWebApplicationFactory<TEntryPoint>(TestContext context, bool tem
             context.OverrideServiceProvider(host.Services);
 
         return host;
+    }
+}
+
+// Custom NLog target for writing to ITestOutputHelper
+public sealed class TestOutputTarget : TargetWithLayout
+{
+    private readonly ITestOutputHelper _testOutputHelper;
+
+    public TestOutputTarget(ITestOutputHelper testOutputHelper)
+    {
+        _testOutputHelper = testOutputHelper ?? throw new ArgumentNullException(nameof(testOutputHelper));
+        Name = "testOutput";
+        Layout = "[BEGIN ${date:format=HH\\:mm\\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}]${newline}${message}${newline}[END ${date:format=HH\\:mm\\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}]${newline}";
+    }
+
+    protected override void Write(LogEventInfo logEvent)
+    {
+        try
+        {
+            var logMessage = RenderLogEvent(Layout, logEvent);
+            _testOutputHelper.WriteLine(logMessage);
+        }
+        catch (Exception ex)
+        {
+            // Avoid throwing exceptions from logging infrastructure
+            // In test scenarios, we might want to output to debug instead
+            Debug.WriteLine($"Failed to write to test output: {ex.Message}");
+        }
     }
 }
