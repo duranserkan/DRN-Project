@@ -148,7 +148,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
                     var reportUrl = $"file://{reportPath}";
                     await File.WriteAllTextAsync(reportPath, exceptionReportContent);
                     scopedLog.Add("StartupExceptionReportPath", reportUrl);
-                    logger.LogError("Startup Exception Report Path: {0}", reportUrl);
+                    logger.LogError("Startup Exception Report Path: {reportUrl}", reportUrl);
                 }
             }
         }
