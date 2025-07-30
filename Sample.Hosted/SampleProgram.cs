@@ -6,10 +6,7 @@ using DRN.Framework.Testing.Extensions;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Identity;
-using Sample.Application;
 using Sample.Hosted.Helpers;
-using Sample.Hosted.Pages;
-using Sample.Infra;
 
 namespace Sample.Hosted;
 
@@ -21,10 +18,7 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 
     protected override async Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
     {
-        builder.Services
-            .AddSampleInfraServices()
-            .AddSampleApplicationServices()
-            .AddSampleHostedServices(appSettings);
+        builder.Services.AddSampleHostedServices(appSettings);
 
         var launchOptions = new ExternalDependencyLaunchOptions
         {

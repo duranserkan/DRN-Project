@@ -10,7 +10,7 @@ window.drnApp = {
     utils: {},
     // manages behavior of elements.
     onmount: {},
-    // to manages state of elements.
+    // to manage the state of elements.
     state: {}
 };
 document.addEventListener('popstate', () => { // History changed (back/forward navigation)
@@ -92,7 +92,7 @@ drnApp.onmount.unregister = function (options) {
  *
  * @param {string} selector - CSS selector for elements to be mounted.
  * @param {Function} registerCallback - Callback to execute upon registration.
- * @param {string} [idempotencyKey] - Optional key that prevents duplicate registrations of the selector. Selector and key together determine uniquness.
+ * @param {string} [idempotencyKey] - Optional key that prevents duplicate registrations of the selector. Selector and key together determine uniqueness.
  */
 drnApp.onmount.register = function (selector, registerCallback, idempotencyKey = '') {
     drnApp.onmount.registerFull(selector, registerCallback, drnApp.onmount.unregister, idempotencyKey);
@@ -105,7 +105,7 @@ drnApp.onmount.register = function (selector, registerCallback, idempotencyKey =
  * @param {string} selector - CSS selector for elements to be mounted.
  * @param {Function} registerCallback - Callback to execute upon registration.
  * @param {Function} [unregisterCallback] - Optional callback to execute if registration fails.
- * @param {string} [idempotencyKey] - Optional key that prevents duplicate registrations of the selector. Selector and key together determine uniquness.
+ * @param {string} [idempotencyKey] - Optional key that prevents duplicate registrations of the selector. Selector and key together determine uniqueness.
  */
 drnApp.onmount.registerFull = (selector, registerCallback, unregisterCallback = undefined, idempotencyKey = '') => {
     if (typeof selector !== 'string' || selector.trim() === '') {

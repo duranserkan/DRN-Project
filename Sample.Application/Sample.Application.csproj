@@ -7,9 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj" />
     <ProjectReference Include="..\Sample.Infra\Sample.Infra.csproj" />
-    <ProjectReference Include="..\Sample.Utils\Sample.Utils.csproj" />
   </ItemGroup>
 
 </Project>

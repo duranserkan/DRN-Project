@@ -2,10 +2,11 @@ using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
+using Sample.Application;
 using Sample.Domain.Users;
 using Sample.Hosted.Helpers;
-using Sample.Hosted.Pages.Shared.Models;
 using Sample.Hosted.Settings;
+using Sample.Infra;
 
 namespace Sample.Hosted;
 
@@ -13,9 +14,21 @@ public static class SampleModule
 {
     public static IServiceCollection AddSampleHostedServices(this IServiceCollection services, IAppSettings settings)
     {
-        services.AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings.IsDevEnvironment));
+        services
+            .AddSampleInfraServices()
+            .AddSampleApplicationServices()
+            .Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024) // size limit
+            .ConfigureCookieAuthenticationOptions(settings)
+            .AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings.IsDevEnvironment));
         //.AddPersonalDataProtection<>() //todo: enable personal data protection
+        
+        services.AddServicesWithAttributes();
 
+        return services;
+    }
+
+    private static IServiceCollection ConfigureCookieAuthenticationOptions(this IServiceCollection services, IAppSettings settings)
+    {
         services.ConfigureApplicationCookie(options =>
         {
             options.ExpireTimeSpan = TimeSpan.FromHours(24);
@@ -29,9 +42,6 @@ public static class SampleModule
             options.LogoutPath = Get.Page.User.Logout;
             options.ReturnUrlParameter = Get.ViewDataKeys.ReturnUrl;
         });
-
-        services.AddServicesWithAttributes();
-        services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024);
 
         return services;
     }

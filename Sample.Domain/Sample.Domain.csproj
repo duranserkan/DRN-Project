@@ -7,13 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DRN.Framework.SharedKernel\DRN.Framework.SharedKernel.csproj" />
-    <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj" />
     <ProjectReference Include="..\Sample.Contract\Sample.Contract.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="9.0.7" />
+    <ProjectReference Include="..\Sample.Utils\Sample.Utils.csproj" />
   </ItemGroup>
 
 </Project>
