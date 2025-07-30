@@ -21,4 +21,5 @@ public interface IScopedLog
     void AddToList(string key, object value);
     long Increase(string key, long by = 1);
     TimeSpan IncreaseTimeSpentOn(string key, TimeSpan by);
+    ScopeDuration Measure(string key);
 }

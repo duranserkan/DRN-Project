@@ -141,6 +141,7 @@ public class ScopedLog : IScopedLog
         }
     }
 
+    //todo add tests
     public long Increase(string key, long by = 1)
     {
         lock (_counter)
@@ -156,6 +157,7 @@ public class ScopedLog : IScopedLog
         }
     }
 
+    //todo add tests
     public TimeSpan IncreaseTimeSpentOn(string key, TimeSpan by)
     {
         Increase(ScopedLogConventions.TimeSpentOnCounter(key));
@@ -172,6 +174,9 @@ public class ScopedLog : IScopedLog
             return TimeSpan.FromSeconds(timeSpent);
         }
     }
+
+    //todo add tests
+    public ScopeDuration Measure(string key) => new(key, this);
 
     public override string ToString() => JsonSerializer.Serialize(Logs);
 }
