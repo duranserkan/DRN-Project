@@ -1,29 +1,27 @@
-using Microsoft.EntityFrameworkCore;
+using DRN.Framework.SharedKernel.Domain.Pagination;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tags;
-using Sample.Infra.QA;
 
 namespace Sample.Hosted.Controllers.QA;
 
 [ApiController]
 [Route("Api/QA/[controller]")]
-public class TagController(QAContext context) : ControllerBase
+public class TagController(ITagRepository repository) : ControllerBase
 {
     [HttpGet]
-    public async Task<Tag[]> GetAsync()
+    public async Task<PaginationResult<Tag>> GetAsync(PaginationRequest? request)
     {
-        var tags = await context.Tags.ToArrayAsync();
+        var result = await repository.PaginateAsync(request ?? PaginationRequest.Default);
 
-        return tags;
+        return result;
     }
 
-    [HttpGet("{id:long}")]
-    public async Task<Tag> GetAsync([FromRoute] long id)
+    [HttpGet("{id:guid}")]
+    public async Task<Tag> GetAsync([FromRoute] Guid id)
     {
-        var tag = await context.Tags.FindAsync(id);
-        if (tag == null) throw new NotFoundException($"Category: {id}");
+        var result = await repository.GetAsync(id);
 
-        return tag;
+        return result;
     }
 
     [HttpPost]
@@ -33,9 +31,8 @@ public class TagController(QAContext context) : ControllerBase
         {
             Model = request.Model
         };
-        context.Tags.Add(tag);
 
-        await context.SaveChangesAsync();
+        await repository.CreateAsync(tag);
 
         return tag;
     }
