@@ -28,7 +28,7 @@ services:
     environment:
       # https://hub.docker.com/r/graylog/graylog-datanode#configuration
       # https://go2docs.graylog.org/current/setting_up_graylog/data_node_configuration_file.htm
-      GRAYLOG_DATANODE_OPENSEARCH_HEAP: 3g
+      GRAYLOG_DATANODE_OPENSEARCH_HEAP: 2g
       GRAYLOG_DATANODE_NODE_ID_FILE: "/var/lib/graylog-datanode/node-id"
       # GRAYLOG_DATANODE_PASSWORD_SECRET and GRAYLOG_PASSWORD_SECRET MUST be the same value
       GRAYLOG_DATANODE_PASSWORD_SECRET: "${GRAYLOG_PASSWORD_SECRET:?Please configure GRAYLOG_PASSWORD_SECRET in the .env file}"

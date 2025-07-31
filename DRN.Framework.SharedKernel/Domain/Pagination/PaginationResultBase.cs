@@ -1,11 +1,10 @@
+using System.Text.Json.Serialization;
+
 namespace DRN.Framework.SharedKernel.Domain.Pagination;
 
 public abstract class PaginationResultBase
 {
-    protected PaginationResultBase()
-    {
-        Request = null!;
-    }
+    protected PaginationResultBase() => Request = null!;
 
     protected PaginationResultBase(PaginationResultBase paginationResult)
     {
@@ -26,8 +25,10 @@ public abstract class PaginationResultBase
     /// <summary>
     /// Starts from 1.
     /// </summary>
+    [JsonIgnore]
     public long PageNumber { get; protected init; }
-
+    
+    [JsonIgnore]
     public int PageSize { get; protected init; }
 
     public Guid FirstId { get; protected init; }

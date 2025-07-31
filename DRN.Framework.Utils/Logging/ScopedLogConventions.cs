@@ -7,6 +7,7 @@ public static class ScopedLogConventions
     public const string IgnoredLogValue = "ignored";
     public const short StringLimit = 1250;
 
+    public const string Stats = "Stats_";
     public const string KeyOfLoggerName = "LoggerName";
     public const string KeyOfTraceIdentifier = "TraceIdentifier";
     public const string KeyOfScopeCreatedAt = "ScopeCreatedAt";
@@ -21,10 +22,10 @@ public static class ScopedLogConventions
     public const string KeyOfInnerExceptionStackTrace = "InnerExceptionStackTrace";
     public const string KeyOfInnerExceptionMessage = "InnerExceptionMessage";
     public const string KeyOfWarningMessage = "WarningMessage";
-    public const string KeyOfWarningHasException= "WarningHasException";
+    public const string KeyOfWarningHasException = "WarningHasException";
 
     public static string TimeSpanKey(string key) => $"{key}_Seconds";
-    public static string TimeSpentOnKey(string key) => $"TimeSpentOn_{key}_Seconds";
-    public static string TimeSpentOnCounter(string key) => $"TimeSpentOn_{key}_Counter";
-    public static string PropertyLogKeyKey(string prefix, PropertyInfo propertyInfo) => $"{prefix}.{propertyInfo.Name}";
+    public static string TimeSpentOnKey(string key, string prefix = Stats) => $"{prefix}TimeSpentOn_{key}_Seconds";
+    public static string TimeSpentOnCounter(string key, string prefix = Stats) => $"{prefix}TimeSpentOn_{key}_Counter";
+    public static string PropertyLogKey(string prefix, PropertyInfo propertyInfo) => $"{prefix}.{propertyInfo.Name}";
 }

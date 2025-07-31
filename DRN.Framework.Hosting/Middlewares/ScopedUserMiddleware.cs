@@ -14,9 +14,9 @@ public class ScopedUserMiddleware(RequestDelegate next)
     {
         ((ScopedUser)scopedUser).SetUser(httpContext.User);
 
-        log.Add("UserAuthenticated", scopedUser.Authenticated);
-        log.AddIfNotNullOrEmpty("UserId", scopedUser.Id ?? string.Empty);
-        log.AddIfNotNullOrEmpty("amr", scopedUser.Amr ?? string.Empty);
+        log.Add("User_Authenticated", scopedUser.Authenticated);
+        log.AddIfNotNullOrEmpty("User_Id", scopedUser.Id ?? string.Empty);
+        log.AddIfNotNullOrEmpty("User_Amr", scopedUser.Amr ?? string.Empty);
 
         var consentCookie = httpContext.ToConsentCookieModel(options.Value);
         ScopeContext.Data.SetParameter(nameof(ConsentCookie), consentCookie);
@@ -24,8 +24,8 @@ public class ScopedUserMiddleware(RequestDelegate next)
         var userConsentNeeded = options.Value.CheckConsentNeeded?.Invoke(httpContext) ?? false;
         if (!string.IsNullOrWhiteSpace(consentCookie.ConsentString) && userConsentNeeded)
         {
-            log.Add(nameof(ConsentCookieValues.AnalyticsConsent), consentCookie.Values.AnalyticsConsent ?? false);
-            log.Add(nameof(ConsentCookieValues.MarketingConsent), consentCookie.Values.MarketingConsent ?? false);
+            log.Add("Consent_Analytics", consentCookie.Values.AnalyticsConsent ?? false);
+            log.Add("Consent_Marketing", consentCookie.Values.MarketingConsent ?? false);
         }
 
         await next(httpContext);

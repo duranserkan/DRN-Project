@@ -19,7 +19,7 @@ public interface IScopedLog
     bool HasWarning { get; }
     void AddToActions(string action);
     void AddToList(string key, object value);
-    long Increase(string key, long by = 1);
-    TimeSpan IncreaseTimeSpentOn(string key, TimeSpan by);
+    long Increase(string key, long by = 1, string prefix = ScopedLogConventions.Stats);
+    TimeSpan IncreaseTimeSpentOn(string key, TimeSpan by, string prefix = ScopedLogConventions.Stats);
     ScopeDuration Measure(string key);
 }

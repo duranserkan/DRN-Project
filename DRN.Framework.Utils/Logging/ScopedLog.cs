@@ -24,12 +24,12 @@ public class ScopedLog : IScopedLog
     public ScopedLog(IAppSettings appSettings)
     {
         Add(nameof(ScopedLog), true);
-        Add(nameof(AppSettings.Environment), appSettings.Environment.ToString());
-        Add(nameof(AppSettings.ApplicationName), appSettings.ApplicationName);
-        Add(nameof(AppConstants.AppInstanceId), AppConstants.AppInstanceId);
-        Add(nameof(AppSettings.NexusAppSettings.AppId), appSettings.NexusAppSettings.AppId);
-        Add(nameof(AppSettings.NexusAppSettings.AppInstanceId), appSettings.NexusAppSettings.AppInstanceId);
-        Add(nameof(Environment.MachineName), Environment.MachineName);
+        Add("App_Name", appSettings.ApplicationName);
+        Add("App_InstanceId", AppConstants.AppInstanceId);
+        Add("App_NexusId", appSettings.NexusAppSettings.AppId);
+        Add("App_NexusInstanceId", appSettings.NexusAppSettings.AppInstanceId);
+        Add("App_Environment", appSettings.Environment.ToString());
+        Add("App_Environment_MachineName", Environment.MachineName);
         Add(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeProvider.UtcNow);
     }
 
@@ -119,7 +119,7 @@ public class ScopedLog : IScopedLog
         {
             var ignored = propertyInfo.IgnoredLog() || ignoredPropertyNames.Contains(propertyInfo.Name);
             var logValue = ignored ? ScopedLogConventions.IgnoredLogValue : propertyInfo.GetValue(classObject);
-            var logKey = ScopedLogConventions.PropertyLogKeyKey(prefix, propertyInfo);
+            var logKey = ScopedLogConventions.PropertyLogKey(prefix, propertyInfo);
             Add(logKey, logValue ?? string.Empty);
         }
 
@@ -142,26 +142,27 @@ public class ScopedLog : IScopedLog
     }
 
     //todo add tests
-    public long Increase(string key, long by = 1)
+    public long Increase(string key, long by = 1, string prefix = ScopedLogConventions.Stats)
     {
+        var counterKey = $"{prefix}{key}";
         lock (_counter)
         {
-            var counter = LogData.TryGetValue(key, out var obj) && obj is long i
+            var counter = LogData.TryGetValue(counterKey, out var obj) && obj is long i
                 ? i
                 : 0;
 
             counter += by;
-            Add(key, counter);
+            Add(counterKey, counter);
 
             return counter;
         }
     }
 
     //todo add tests
-    public TimeSpan IncreaseTimeSpentOn(string key, TimeSpan by)
+    public TimeSpan IncreaseTimeSpentOn(string key, TimeSpan by, string prefix = ScopedLogConventions.Stats)
     {
-        Increase(ScopedLogConventions.TimeSpentOnCounter(key));
-        var updateKey = ScopedLogConventions.TimeSpentOnKey(key);
+        Increase(ScopedLogConventions.TimeSpentOnCounter(key, prefix: prefix), prefix: string.Empty);
+        var updateKey = ScopedLogConventions.TimeSpentOnKey(key, prefix: prefix);
         lock (_timeUpdater)
         {
             var timeSpent = LogData.TryGetValue(updateKey, out var obj) && obj is double durationSeconds
@@ -169,7 +170,7 @@ public class ScopedLog : IScopedLog
                 : 0;
 
             timeSpent += by.TotalSeconds;
-            Add(ScopedLogConventions.TimeSpentOnKey(key), timeSpent);
+            Add(updateKey, timeSpent);
 
             return TimeSpan.FromSeconds(timeSpent);
         }

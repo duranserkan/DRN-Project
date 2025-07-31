@@ -169,7 +169,7 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
 
         return deletedCount;
     }
-    
+
     //todo evaluate validation scope log support
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public SourceKnownEntityId ValidateEntityId(Guid id, bool throwException = true)
@@ -186,7 +186,7 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
         => ids.Select(id => ValidateEntityId(id, throwException));
 
 
-    public async Task<PaginationResult<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false) 
+    public async Task<PaginationResult<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false)
         => await PaginateAsync(Entities, request, filter, ignoreAutoIncludes);
 
     public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false)
@@ -195,6 +195,7 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
     protected async Task<PaginationResult<TEntity>> PaginateAsync(IQueryable<TEntity> query, PaginationRequest request, EntityCreatedFilter? filter = null,
         bool ignoreAutoIncludes = false)
     {
+        using var _ = ScopedLog.Measure(_scopeName.GetKey());
         if (!request.PageCursor.IsFirstRequest)
             ValidateEntityId(request.GetCursorId());
 

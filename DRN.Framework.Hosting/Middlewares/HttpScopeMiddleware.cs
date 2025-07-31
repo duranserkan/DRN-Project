@@ -53,14 +53,14 @@ public class HttpScopeMiddleware(RequestDelegate next)
             }
 
             if (context.Response.HasStarted)
-                scopedLog.Add("ResponseStarted", true);
+                scopedLog.Add("Response_Started", true);
 
             await exceptionHandler.HandleExceptionAsync(context, e);
         }
         finally
         {
-            scopedLog.Add("ResponseStatusCode", context.Response.StatusCode);
-            scopedLog.Add("ResponseContentLength", context.Response.ContentLength ?? 0);
+            scopedLog.Add("Response_StatusCode", context.Response.StatusCode);
+            scopedLog.Add("Response_ContentLength", context.Response.ContentLength ?? 0);
             logger.LogScoped(scopedLog);
 
             //If you need to preserve the original HTTP method during redirection,
@@ -103,15 +103,15 @@ public class HttpScopeMiddleware(RequestDelegate next)
     private static void PrepareScopeLog(HttpContext httpContext, IScopedLog scopedLog) => scopedLog
         .WithLoggerName(nameof(HttpScopeMiddleware))
         .WithTraceIdentifier(httpContext.TraceIdentifier)
-        .Add("RequestContentLength", httpContext.Request.ContentLength ?? 0)
+        .Add("Request_ContentLength", httpContext.Request.ContentLength ?? 0)
         .Add("HttpProtocol", httpContext.Request.Protocol.Split('/')[^1])
         .Add("HttpMethod", httpContext.Request.Method)
         .Add("HttpScheme", httpContext.Request.Scheme)
-        .Add("RequestHost", httpContext.Request.Host.ToString())
-        .Add("RequestPath", httpContext.Request.Path.ToString())
-        .AddIfNotNullOrEmpty("RequestQueryString", httpContext.Request.QueryString.ToString())
-        .AddIfNotNullOrEmpty("RequestIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty)
-        .AddIfNotNullOrEmpty("l5d-client-id",
+        .Add("Request_Host", httpContext.Request.Host.ToString())
+        .Add("Request_Path", httpContext.Request.Path.ToString())
+        .AddIfNotNullOrEmpty("Request_QueryString", httpContext.Request.QueryString.ToString())
+        .AddIfNotNullOrEmpty("Request_IpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty)
+        .AddIfNotNullOrEmpty("Request_l5d-client-id",
             httpContext.Request.Headers.TryGetValue("l5d-client-id", out var l5dId)
                 ? l5dId.ToString()
                 : string.Empty);

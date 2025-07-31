@@ -6,6 +6,4 @@ using Sample.Domain.QA.Tags;
 namespace Sample.Infra.QA.Repositories;
 
 [Scoped<ITagRepository>]
-public class TagRepository(QAContext context, IEntityUtils utils) : SourceKnownRepository<QAContext, Tag>(context, utils), ITagRepository
-{
-}
+public class TagRepository(QAContext context, IEntityUtils utils) : SourceKnownRepository<QAContext, Tag>(context, utils), ITagRepository;

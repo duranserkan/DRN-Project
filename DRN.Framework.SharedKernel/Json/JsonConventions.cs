@@ -38,6 +38,7 @@ public static class JsonConventions
     public static JsonSerializerOptions SetJsonDefaults(JsonSerializerOptions? options = null)
     {
         options ??= new JsonSerializerOptions(JsonSerializerDefaults.Web);
+
         options.Converters.Add(new JsonStringEnumConverter());
         options.Converters.Add(new Int64ToStringConverter());
         options.Converters.Add(new Int64NullableToStringConverter());

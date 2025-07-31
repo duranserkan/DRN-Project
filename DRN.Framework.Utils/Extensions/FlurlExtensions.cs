@@ -37,7 +37,7 @@ public static class FlurlExtensions
         if (call.Response != null)
         {
             var response = await call.Response.GetStringAsync();
-            scopedLog.AddIfNotNullOrEmpty("FlurlExR_Response", response);
+            scopedLog.AddIfNotNullOrEmpty("FlurlEx_Response", response);
         }
     }
 
