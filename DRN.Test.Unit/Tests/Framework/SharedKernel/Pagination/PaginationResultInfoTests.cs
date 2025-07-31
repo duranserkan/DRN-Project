@@ -22,7 +22,7 @@ public class PaginationResultInfoTests
         var tag2 = new Tag(name2);
         IReadOnlyList<Tag> tags = [tag1, tag2];
 
-        var request = new PaginationRequest(pageNumber, pageCursor, pageSize, true, totalCount, true);
+        var request = new PaginationRequest(pageNumber, pageSize, pageCursor, totalCount, true, true);
         var result = new PaginationResult<Tag>(tags, request, totalCount);
         result.Request.Should().Be(request);
         result.Items.SequenceEqual(tags).Should().BeTrue();
@@ -63,7 +63,7 @@ public class PaginationResultInfoTests
         var resultInfoJson = JsonSerializer.Serialize(resultModel.Info);
         var resultInfo3 = JsonSerializer.Deserialize<PaginationResultInfo>(resultInfoJson);
         info.Should().BeEquivalentTo(resultInfo3);
-        
+
         var totalCount2 = 132;
         var nextPage = info.RequestNextPage(true, totalCount2);
         nextPage.NavigationDirection.Should().Be(NavigationDirection.Next);
@@ -71,28 +71,28 @@ public class PaginationResultInfoTests
         nextPage.Total.Count.Should().Be(totalCount2);
         nextPage.UpdateTotalCount.Should().BeTrue();
         nextPage.IsPageJump().Should().BeFalse();
-        
+
         var previousPage = info.RequestPreviousPage(true, totalCount2);
         previousPage.NavigationDirection.Should().Be(NavigationDirection.Previous);
         previousPage.PageNumber.Should().Be(2);
         previousPage.Total.Count.Should().Be(totalCount2);
         previousPage.UpdateTotalCount.Should().BeTrue();
         previousPage.IsPageJump().Should().BeFalse();
-        
+
         var refreshPage = info.RequestRefresh(true, totalCount2);
         refreshPage.NavigationDirection.Should().Be(NavigationDirection.Refresh);
         refreshPage.PageNumber.Should().Be(3);
         refreshPage.Total.Count.Should().Be(totalCount2);
         refreshPage.UpdateTotalCount.Should().BeTrue();
         refreshPage.IsPageJump().Should().BeFalse();
-        
+
         var firstPage = info.RequestPage(1, true, totalCount2);
         firstPage.NavigationDirection.Should().Be(NavigationDirection.Previous);
         firstPage.PageNumber.Should().Be(1);
         firstPage.Total.Count.Should().Be(totalCount2);
         firstPage.UpdateTotalCount.Should().BeTrue();
         firstPage.IsPageJump().Should().BeTrue();
-        
+
         var sixthPage = info.RequestPage(6, true, totalCount2);
         sixthPage.NavigationDirection.Should().Be(NavigationDirection.Next);
         sixthPage.PageNumber.Should().Be(6);

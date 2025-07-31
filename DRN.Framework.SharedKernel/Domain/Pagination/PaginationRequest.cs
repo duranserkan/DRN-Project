@@ -7,55 +7,60 @@ namespace DRN.Framework.SharedKernel.Domain.Pagination;
 /// </summary>
 public class PaginationRequest
 {
-    [JsonConstructor]
-    private PaginationRequest()
-    {
-        
-    }
     /// <summary>
     /// Represents pagination parameters for fetching a page of data.
     /// </summary>
-    public PaginationRequest(long pageNumber,
-        PageCursor pageCursor,
-        PageSize pageSize,
-        bool updateTotalCount = false,
+    public PaginationRequest(
+        long pageNumber = 1,
+        PageSize pageSize = default,
+        PageCursor pageCursor = default,
         long totalCount = -1,
+        bool updateTotalCount = false,
         bool markAsHasNextOnRefresh = false)
     {
         PageNumber = pageNumber < 1 ? 1 : pageNumber;
-        PageSize = pageSize;
-        PageCursor = pageCursor;
-        Total = new PaginationTotal(totalCount, pageSize.Size);
+        PageSize = pageSize.Valid() ? pageSize : PageSize.Default;
+        PageCursor = pageCursor.Valid() ? pageCursor : PageCursor.Initial;
+        Total = new PaginationTotal(totalCount, PageSize.Size);
         UpdateTotalCount = updateTotalCount;
         MarkAsHasNextOnRefresh = markAsHasNextOnRefresh;
-        PageDifference = pageNumber > pageCursor.PageNumber
-            ? pageNumber - pageCursor.PageNumber
-            : pageCursor.PageNumber - pageNumber;
-        NavigationDirection = CalculateDirection(pageNumber, pageCursor.PageNumber, pageCursor.IsFirstRequest);
     }
 
     public static PaginationRequest Default => DefaultWith();
 
-    public static PaginationRequest DefaultWith(int size = 10, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.AscendingByCreatedAt) =>
-        new(1, PageCursor.InitialWith(direction), new PageSize(size), updateTotalCount);
+    public static PaginationRequest DefaultWith(int size = PageSize.SizeDefault, bool updateTotalCount = false,
+        PageSortDirection direction = PageSortDirection.AscendingByCreatedAt) =>
+        new(1, new PageSize(size), PageCursor.InitialWith(direction), updateTotalCount: updateTotalCount);
 
     public long PageNumber { get; init; }
     public PageSize PageSize { get; init; }
     public PageCursor PageCursor { get; init; }
-    public PaginationTotal Total { get; init; }
+
     public bool UpdateTotalCount { get; init; }
     public bool MarkAsHasNextOnRefresh { get; init; }
 
-    public long PageDifference { get; init; }
+    public long TotalCount => Total.Count;
 
-    public bool IsPageJump() => PageDifference > 1;
-    public int GetSkipSize() => IsPageJump() ? (int)((PageDifference - 1) * PageSize.Size) : 0;
+    [JsonIgnore]
+    public PaginationTotal Total { get; }
+
+    [JsonIgnore]
+    public long PageDifference => PageNumber > PageCursor.PageNumber
+        ? PageNumber - PageCursor.PageNumber
+        : PageCursor.PageNumber - PageNumber;
+
+    [JsonIgnore]
     public bool IsPageRefresh => NavigationDirection == NavigationDirection.Refresh;
-    public NavigationDirection NavigationDirection { get; init; }
+
+    [JsonIgnore]
+    public NavigationDirection NavigationDirection => CalculateDirection(PageNumber, PageCursor.PageNumber, PageCursor.IsFirstRequest);
 
     public Guid GetCursorId() => NavigationDirection == NavigationDirection.Next
         ? PageCursor.LastId
         : PageCursor.FirstId;
+
+    public bool IsPageJump() => PageDifference > 1;
+    public int GetSkipSize() => IsPageJump() ? (int)((PageDifference - 1) * PageSize.Size) : 0;
 
     private static NavigationDirection CalculateDirection(long pageNumber, long cursorPageNumber, bool firstRequest)
     {
@@ -87,7 +92,7 @@ public class PaginationRequest
         bool markAsHasNextOnRefresh = false)
     {
         var cursor = new PageCursor(fromPage, firstId, lastId, PageCursor.SortDirection);
-        var pageRequest = new PaginationRequest(toPage, cursor, PageSize, updateTotalCount, totalCount != -1 ? totalCount : Total.Count, markAsHasNextOnRefresh);
+        var pageRequest = new PaginationRequest(toPage, PageSize, cursor, totalCount != -1 ? totalCount : Total.Count, updateTotalCount, markAsHasNextOnRefresh);
 
         return pageRequest;
     }

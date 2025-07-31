@@ -74,7 +74,7 @@ public class PaginationUtilsTests
 
         //Paginate Backward
         var cursor = new PageCursor(nextPageResult.PageNumber, nextPageResult.FirstId, nextPageResult.LastId, nextPageRequest.PageCursor.SortDirection);
-        var previousPageRequest = new PaginationRequest(nextPageResult.PageNumber - 1, cursor, nextPageRequest.PageSize, updateTotalCount, nextPageResult.Total.Count);
+        var previousPageRequest = new PaginationRequest(nextPageResult.PageNumber - 1, nextPageRequest.PageSize, cursor, nextPageResult.Total.Count, updateTotalCount);
         expectedPages.ValidateRequest(previousPageRequest, totalPageCount, updateTotalCount);
 
         var previousPageResult = await paginationUtils.GetResultAsync(tagQuery, previousPageRequest);
@@ -156,8 +156,8 @@ public class PaginationUtilsTests
 
         //jump to page 100 to test the empty page
         var request100 = pageResult2.RequestPage(100);
-        expectedPages.ValidateRequest(request100, pageResult2.PageNumber, false, true,98);
-        
+        expectedPages.ValidateRequest(request100, pageResult2.PageNumber, false, true, 98);
+
         var pageResult100 = await paginationUtils.GetResultAsync(tagQuery, request100);
         pageResult100.Items.Should().BeEmpty();
         pageResult100.HasPrevious.Should().BeTrue();

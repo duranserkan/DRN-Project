@@ -8,8 +8,8 @@ namespace Sample.Hosted.Controllers.QA;
 [Route("Api/QA/[controller]")]
 public class TagController(ITagRepository repository) : ControllerBase
 {
-    [HttpGet]
-    public async Task<PaginationResult<Tag>> GetAsync(PaginationRequest? request)
+    [HttpPost("Pagination")]
+    public async Task<PaginationResult<Tag>> GetAsync([FromBody]PaginationRequest? request)
     {
         var result = await repository.PaginateAsync(request ?? PaginationRequest.Default);
 

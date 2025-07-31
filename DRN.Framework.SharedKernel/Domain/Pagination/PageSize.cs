@@ -1,13 +1,21 @@
+using System.Text.Json.Serialization;
+
 namespace DRN.Framework.SharedKernel.Domain.Pagination;
 
 public readonly struct PageSize
 {
+    public const int SizeDefault = 10;
     public const int MaxSizeDefault = 100;
     public const int MaxSizeThreshold = 1000;
 
-    public static PageSize Default => new(10);
-    
-    public PageSize(int size, int maxSize = MaxSizeDefault, bool overrideMaxsizeThreshold = false)
+    public static PageSize Default => new(SizeDefault);
+
+    [JsonConstructor]
+    public PageSize(int size, int maxSize = MaxSizeDefault) : this(size, maxSize, false)
+    {
+    }
+
+    public PageSize(int size, int maxSize, bool overrideMaxsizeThreshold = false)
     {
         if (overrideMaxsizeThreshold)
             MaxSize = maxSize;
@@ -24,4 +32,6 @@ public readonly struct PageSize
 
     public int Size { get; init; }
     public int MaxSize { get; init; }
+
+    public bool Valid() => MaxSize >= Size && Size > 0;
 }

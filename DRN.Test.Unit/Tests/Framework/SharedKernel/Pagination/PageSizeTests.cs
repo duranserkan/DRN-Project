@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Testing.Extensions;
 
@@ -80,12 +81,17 @@ public class PaginationTests
         pageSize.Size.Should().Be(150);
         pageSize.MaxSize.Should().Be(1001);
 
-        pageSize.ValidateObjectSerialization();
+        var json = JsonSerializer.Serialize(pageSize);
+        var deserializedObj = JsonSerializer.Deserialize<PageSize>(json);
+
+        deserializedObj.Size.Should().Be(150);
+        deserializedObj.MaxSize.Should().Be(PageSize.MaxSizeThreshold); //prevent override maxsize from serializations
 
         pageSize = new PageSize(1500, 1001, true);
         pageSize.Size.Should().Be(1001);
         pageSize.MaxSize.Should().Be(1001);
 
-        pageSize.ValidateObjectSerialization();
+        deserializedObj.Size.Should().Be(150);
+        deserializedObj.MaxSize.Should().Be(PageSize.MaxSizeThreshold); //prevent override maxsize from serializations
     }
 }

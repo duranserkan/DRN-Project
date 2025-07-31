@@ -45,7 +45,7 @@ public class PaginationRequestTests
         var pageNumber = 3;
         var totalCount = 73;
 
-        request = new PaginationRequest(pageNumber, pageCursor, pageSize, true, totalCount, true);
+        request = new PaginationRequest(pageNumber, pageSize, pageCursor, totalCount, true, true);
         request.NavigationDirection.Should().Be(NavigationDirection.Previous);
         request.PageSize.Should().Be(pageSize);
         request.PageCursor.Should().Be(pageCursor);
