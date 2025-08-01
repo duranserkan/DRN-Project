@@ -51,7 +51,7 @@ public abstract class PaginationResultBase
         => Request.GetPreviousPage(FirstId, LastId, updateTotalCount, totalCount != -1 ? totalCount : Total.Count);
 
     public PaginationRequest RequestRefresh(bool updateTotalCount = false, long totalCount = -1)
-        => RequestPage(PageNumber, updateTotalCount, totalCount, HasNext);
+        => RequestPage(PageNumber, updateTotalCount, totalCount != -1 ? totalCount : Total.Count, HasNext);
 
     public PaginationRequest RequestPage(long page, bool updateTotalCount = false, long totalCount = -1, bool markAsHasNextOnRefresh = false)
         => Request.GetPage(FirstId, LastId, PageNumber, page, updateTotalCount, totalCount != -1 ? totalCount : Total.Count, markAsHasNextOnRefresh);

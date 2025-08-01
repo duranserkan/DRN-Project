@@ -42,5 +42,30 @@ public interface ISourceKnownRepository<TEntity>
     IEnumerable<SourceKnownEntityId> ValidateEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool throwException = true);
 
     Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
+
+    /// <summary>
+    /// Can start initial pagination with system defaults if result info not provided.
+    /// If a previous result is provided, then navigates accordingly by using creating a cursor by it
+    /// </summary>
+    /// <param name="resultInfo">Previous request result</param>
+    /// <param name="jumpTo">To be jumped page when the NavigationDirection is Jump </param>
+    /// <param name="pageSize">
+    /// The number of items per page. Used only when <paramref name="resultInfo"/> is null.
+    /// </param>
+    /// <param name="updateTotalCount">
+    /// Whether to calculate and return the total number of items. Used only when <paramref name="resultInfo"/> is null.
+    /// </param>
+    /// <param name="direction">
+    /// The sorting direction to use for pagination. Used only when <paramref name="resultInfo"/> is null.
+    /// </param>
+    /// <returns>
+    /// A <see cref="PaginationResultModel{TEntity}"/> containing the paginated results.
+    /// </returns>
+    /// <remarks>
+    /// The maximum allowed jump distance is limited to 10 pages in either direction.
+    /// </remarks>
+    Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null,
+        long jumpTo = 1, int pageSize = PageSize.SizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.AscendingByCreatedAt);
+
     IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
 }

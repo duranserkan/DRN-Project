@@ -33,9 +33,9 @@ public class PaginationRequest
         PageSortDirection direction = PageSortDirection.AscendingByCreatedAt) =>
         new(1, new PageSize(size), PageCursor.InitialWith(direction), updateTotalCount: updateTotalCount);
 
-    public long PageNumber { get; init; }
+    public long PageNumber { get; private set; }
     public PageSize PageSize { get; init; }
-    public PageCursor PageCursor { get; init; }
+    public PageCursor PageCursor { get; private set; }
 
     public bool UpdateTotalCount { get; init; }
     public bool MarkAsHasNextOnRefresh { get; init; }
@@ -62,6 +62,12 @@ public class PaginationRequest
 
     public bool IsPageJump() => PageDifference > 1;
     public int GetSkipSize() => IsPageJump() ? (int)((PageDifference - 1) * PageSize.Size) : 0;
+
+    public void MarkAsFirstPage()
+    {
+        PageNumber = 1;
+        PageCursor = PageCursor.Initial;
+    }
 
     private static NavigationDirection CalculateDirection(long pageNumber, long cursorPageNumber, bool firstRequest)
     {

@@ -193,8 +193,97 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
         => await PaginateAsync(EntitiesWithAppliedSettings, request, filter);
 
+    //todo test
+    /// <summary>
+    /// Begins or continues pagination on the entity set.
+    /// When called without <paramref name="resultInfo"/>, starts initial pagination using the provided settings.
+    /// Otherwise, continues from the given <paramref name="resultInfo"/> and jumps to the specified page.
+    /// </summary>
+    /// <param name="resultInfo">
+    /// Optional. The result of a previous pagination call. If null, a new pagination session is started.
+    /// </param>
+    /// <param name="jumpTo">
+    /// The page number to navigate to when continuing pagination. Ignored on initial calls (<paramref name="resultInfo"/> is null).
+    /// </param>
+    /// <param name="pageSize">
+    /// The number of items per page for the initial pagination request. Ignored when <paramref name="resultInfo"/> is provided.
+    /// </param>
+    /// <param name="updateTotalCount">
+    /// Whether to calculate and return the total item count on the initial pagination request.
+    /// </param>
+    /// <param name="direction">
+    /// The sort direction for the initial pagination request. Ignored when <paramref name="resultInfo"/> is provided.
+    /// </param>
+    /// <returns>
+    /// A <see cref="PaginationResultModel{TEntity}"/> containing the page of items.
+    /// </returns>
+    /// <remarks>
+    /// When continuing pagination, jump distances beyond 10 pages in either direction are capped at 10.
+    /// </remarks>
+    public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null,
+        long jumpTo = 1, int pageSize = PageSize.SizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.AscendingByCreatedAt)
+        => await PaginateAsync(EntitiesWithAppliedSettings, resultInfo, jumpTo, pageSize, updateTotalCount, direction);
+
     public IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
         => PaginateAllAsync(EntitiesWithAppliedSettings, request, filter);
+
+    /// <summary>
+    /// Executes pagination against a specific <see cref="IQueryable{TEntity}"/>.
+    /// If <paramref name="resultInfo"/> is null, starts initial pagination using the provided settings.
+    /// Otherwise, continues pagination from <paramref name="resultInfo"/> and jumps to the specified page.
+    /// </summary>
+    /// <param name="query">
+    /// The data source to paginate.
+    /// </param>
+    /// <param name="resultInfo">
+    /// Optional. The result of a previous pagination call. If null, a new pagination session is started.
+    /// </param>
+    /// <param name="jumpTo">
+    /// The page number to navigate to when continuing pagination. Ignored on initial calls (<paramref name="resultInfo"/> is null).
+    /// </param>
+    /// <param name="pageSize">
+    /// The number of items per page for the initial pagination request. Ignored when <paramref name="resultInfo"/> is provided.
+    /// </param>
+    /// <param name="updateTotalCount">
+    /// Whether to calculate and return the total item count on the initial pagination request.
+    /// </param>
+    /// <param name="direction">
+    /// The sort direction for the initial pagination request. Ignored when <paramref name="resultInfo"/> is provided.
+    /// </param>
+    /// <returns>
+    /// A <see cref="PaginationResultModel{TEntity}"/> containing the page of items.
+    /// </returns>
+    /// <remarks>
+    /// When continuing pagination, jump distances beyond 10 pages in either direction are capped at 10.
+    /// </remarks>
+    protected async Task<PaginationResultModel<TEntity>> PaginateAsync(IQueryable<TEntity> query, PaginationResultInfo? resultInfo = null,
+        long jumpTo = 1, int pageSize = PageSize.SizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.AscendingByCreatedAt)
+    {
+        if (resultInfo == null)
+        {
+            var firstPageRequest = PaginationRequest.DefaultWith(pageSize, updateTotalCount, direction);
+            var firstPageResult = await PaginateAsync(query, firstPageRequest);
+
+            return firstPageResult;
+        }
+
+        var pageDifference = resultInfo.PageNumber - jumpTo;
+        if (pageDifference > 10)
+            jumpTo = resultInfo.PageNumber + 10;
+        else if (pageDifference < -10)
+            jumpTo = resultInfo.PageNumber - 10;
+
+        if (jumpTo < 1)
+            jumpTo = 1;
+
+        var request = pageDifference == 0
+            ? resultInfo.RequestRefresh(updateTotalCount)
+            : resultInfo.RequestPage(jumpTo, updateTotalCount);
+
+        var result = await PaginateAsync(request);
+
+        return result;
+    }
 
     protected async Task<PaginationResultModel<TEntity>> PaginateAsync(IQueryable<TEntity> query, PaginationRequest request, EntityCreatedFilter? filter = null)
     {

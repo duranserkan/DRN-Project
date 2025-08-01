@@ -9,45 +9,17 @@ namespace Sample.Hosted.Controllers.QA;
 public class TagController(ITagRepository repository) : ControllerBase
 {
     [HttpPost("Pagination")]
-    public async Task<PaginationResultModel<Tag>> GetAsync([FromBody] PaginationRequest? request)
+    public async Task<PaginationResultModel<Tag>> PaginateAsync([FromBody] PaginationResultInfo? resultInfo,
+        [FromQuery] int jumpTo = 1,
+        [FromQuery] int pageSize = PageSize.SizeDefault,
+        [FromQuery] bool updateTotalCount = false,
+        [FromQuery] PageSortDirection direction = PageSortDirection.AscendingByCreatedAt)
     {
-        var result = await repository.PaginateAsync(request ?? PaginationRequest.Default);
+        var result = await repository.PaginateAsync(resultInfo, jumpTo, pageSize, updateTotalCount, direction);
 
         return result;
     }
 
-    [HttpPost("Pagination/Next")]
-    public async Task<PaginationResultModel<Tag>> GetNextAsync([FromBody] PaginationResultInfo resultInfo)
-    {
-        var result = await repository.PaginateAsync(resultInfo.RequestNextPage());
-
-        return result;
-    }
-
-    [HttpPost("Pagination/Previous")]
-    public async Task<PaginationResultModel<Tag>> GetPreviousAsync([FromBody] PaginationResultInfo resultInfo)
-    {
-        var result = await repository.PaginateAsync(resultInfo.RequestPreviousPage());
-
-        return result;
-    }
-    
-    [HttpPost("Pagination/Refresh")]
-    public async Task<PaginationResultModel<Tag>> GetRefreshAsync([FromBody] PaginationResultInfo resultInfo)
-    {
-        var result = await repository.PaginateAsync(resultInfo.RequestRefresh());
-
-        return result;
-    }
-
-    [HttpPost("Pagination/Jump/{pageNumber:int}")]
-    public async Task<PaginationResultModel<Tag>> GetJumpAsync([FromBody] PaginationResultInfo resultInfo, [FromRoute] int pageNumber)
-    {
-        var result = await repository.PaginateAsync(resultInfo.RequestPage(pageNumber));
-
-        return result;
-    }
-    
     [HttpGet("{id:guid}")]
     public async Task<Tag> GetAsync([FromRoute] Guid id)
     {
