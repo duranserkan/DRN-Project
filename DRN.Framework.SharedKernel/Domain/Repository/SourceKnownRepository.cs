@@ -12,6 +12,11 @@ namespace DRN.Framework.SharedKernel.Domain.Repository;
 public interface ISourceKnownRepository<TEntity>
     where TEntity : AggregateRoot
 {
+    /// <summary>
+    /// Settings for default public members of SourceKnownRepositories
+    /// </summary>
+    RepositorySettings Settings { get; set; }
+
     //todo test cancellation
     //todo test ignore auto includes
     CancellationToken CancellationToken { get; set; }
@@ -21,9 +26,9 @@ public interface ISourceKnownRepository<TEntity>
     Task<int> SaveChangesAsync();
 
     //todo add get or create with cache support
-    ValueTask<TEntity> GetAsync(Guid id, bool ignoreAutoIncludes = false);
-    Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids, bool ignoreAutoIncludes = false);
-    ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true, bool ignoreAutoIncludes = false);
+    ValueTask<TEntity> GetAsync(Guid id);
+    Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);
+    ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true);
 
     void Add(params IReadOnlyCollection<TEntity> entities);
     void Remove(params IReadOnlyCollection<TEntity> entities);
@@ -36,6 +41,6 @@ public interface ISourceKnownRepository<TEntity>
     SourceKnownEntityId[] ValidateEntityIds(IReadOnlyCollection<Guid> ids, bool throwException = true);
     IEnumerable<SourceKnownEntityId> ValidateEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool throwException = true);
 
-    Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false);
-    IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false);
+    Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
+    IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
 }

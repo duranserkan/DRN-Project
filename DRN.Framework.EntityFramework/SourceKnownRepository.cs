@@ -30,8 +30,27 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     protected TContext Context { get; } = context;
     protected DbSet<TEntity> Entities { get; } = context.GetEntities<TEntity>();
+
+    protected IQueryable<TEntity> EntitiesWithAppliedSettings
+    {
+        get
+        {
+            IQueryable<TEntity> entities = Entities;
+
+            entities = Settings.AsNoTracking ? entities.AsNoTracking() : entities;
+            entities = Settings.IgnoreAutoIncludes ? Entities.IgnoreAutoIncludes() : entities;
+
+            return entities;
+        }
+    }
+
     protected IEntityUtils Utils { get; } = utils;
     protected IScopedLog ScopedLog { get; } = utils.ScopedLog;
+
+    /// <summary>
+    /// Settings for default public members of SourceKnownRepositories
+    /// </summary>
+    public RepositorySettings Settings { get; set; } = new();
 
     public CancellationToken CancellationToken
     {
@@ -64,12 +83,10 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// Finds an entity with the given source known ids
     /// </summary>
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public async Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids, bool ignoreAutoIncludes = false)
+    public async Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids)
     {
         using var _ = ScopedLog.Measure(this);
-        var items = ignoreAutoIncludes
-            ? await Filter(Entities, ids).IgnoreAutoIncludes().ToArrayAsync(CancellationToken)
-            : await Filter(Entities, ids).ToArrayAsync(CancellationToken);
+        var items = await Filter(EntitiesWithAppliedSettings, ids).ToArrayAsync(CancellationToken);
         ScopedLog.Increase(GetCountKey, items.Length);
 
         return items;
@@ -80,24 +97,21 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// </summary>
     /// <exception cref="NotFoundException">Thrown when entity not found</exception>
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public async ValueTask<TEntity> GetAsync(Guid id, bool ignoreAutoIncludes = false) =>
-        await GetOrDefaultAsync(id, ignoreAutoIncludes: ignoreAutoIncludes)
-        ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
+    public async ValueTask<TEntity> GetAsync(Guid id) => await GetOrDefaultAsync(id)
+                                                         ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
 
     /// <summary>
     /// Finds an entity with the given source known id
     /// </summary>
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public async ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true, bool ignoreAutoIncludes = false)
+    public async ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true)
     {
         using var _ = ScopedLog.Measure(this);
         var entityId = ValidateEntityId(id, throwException);
         if (!entityId.Valid)
             return null;
 
-        var entity = ignoreAutoIncludes
-            ? await Entities.IgnoreAutoIncludes().FirstOrDefaultAsync(entity => entity.Id == entityId.Source.Id, CancellationToken)
-            : await Entities.FindAsync(entityId.Source.Id, CancellationToken);
+        var entity = await EntitiesWithAppliedSettings.FirstOrDefaultAsync(entity => entity.Id == entityId.Source.Id, CancellationToken);
 
         return entity;
     }
@@ -176,22 +190,19 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         => ids.Select(id => ValidateEntityId(id, throwException));
 
 
-    public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false)
-        => await PaginateAsync(Entities, request, filter, ignoreAutoIncludes);
+    public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
+        => await PaginateAsync(EntitiesWithAppliedSettings, request, filter);
 
-    public IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false)
-        => PaginateAllAsync(Entities, request, filter, ignoreAutoIncludes);
+    public IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
+        => PaginateAllAsync(EntitiesWithAppliedSettings, request, filter);
 
-    protected async Task<PaginationResultModel<TEntity>> PaginateAsync(IQueryable<TEntity> query, PaginationRequest request, EntityCreatedFilter? filter = null,
-        bool ignoreAutoIncludes = false)
+    protected async Task<PaginationResultModel<TEntity>> PaginateAsync(IQueryable<TEntity> query, PaginationRequest request, EntityCreatedFilter? filter = null)
     {
         using var _ = ScopedLog.Measure(this);
         if (!request.PageCursor.IsFirstRequest)
             ValidateEntityId(request.GetCursorId());
 
         var filteredQuery = filter != null ? Filter(Entities, filter) : query;
-        filteredQuery = ignoreAutoIncludes ? filteredQuery.IgnoreAutoIncludes() : filteredQuery;
-
         var result = await Utils.Pagination.GetResultAsync(filteredQuery, request, CancellationToken);
         ScopedLog.Increase(GetCountKey, result.ItemCount);
 
@@ -201,20 +212,18 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     protected async IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(
         IQueryable<TEntity> query,
         PaginationRequest request,
-        EntityCreatedFilter? filter = null,
-        bool ignoreAutoIncludes = false)
+        EntityCreatedFilter? filter = null)
     {
         PaginationResultModel<TEntity> result;
         do
         {
-            result = await PaginateAsync(query, request, filter, ignoreAutoIncludes);
+            result = await PaginateAsync(query, request, filter);
             if (result.Info.HasNext)
                 request = result.Info.RequestNextPage();
 
             yield return result;
         } while (result.Info.HasNext);
     }
-
 
     protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, EntityCreatedFilter filter)
         => Utils.DateTime.Apply(query, filter);

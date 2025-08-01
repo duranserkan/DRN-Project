@@ -31,6 +31,7 @@ public readonly struct PageSize
     }
 
     public int Size { get; init; }
+    //todo review maxsize usage and serialization
     public int MaxSize { get; init; }
 
     public bool Valid() => MaxSize >= Size && Size > 0;

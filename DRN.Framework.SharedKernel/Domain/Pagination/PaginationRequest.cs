@@ -7,6 +7,7 @@ namespace DRN.Framework.SharedKernel.Domain.Pagination;
 /// </summary>
 public class PaginationRequest
 {
+    //todo test default values
     /// <summary>
     /// Represents pagination parameters for fetching a page of data.
     /// </summary>
