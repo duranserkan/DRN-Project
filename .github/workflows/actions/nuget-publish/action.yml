@@ -16,3 +16,4 @@ runs:
       shell: bash
       run: |
         dotnet nuget push artifacts/packages/${{ inputs.project-name }}.${VERSION}.nupkg --skip-duplicate --api-key ${NUGET_TOKEN} --source https://api.nuget.org/v3/index.json
+        dotnet nuget push artifacts/packages/${{ inputs.project-name }}.${VERSION}.snupkg --skip-duplicate --api-key ${NUGET_TOKEN} --source https://api.nuget.org/v3/index.json
