@@ -16,7 +16,7 @@ namespace DRN.Framework.EntityFramework;
 /// <remarks>
 /// Entity updates, additional filtering logic, and query includes (e.g., <c>Include</c> statements) are the responsibility of concrete subclasses.
 /// </remarks>
-public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRepository<TEntity>
+public abstract class SourceKnownRepository<TContext, TEntity>(TContext context, IEntityUtils utils) : ISourceKnownRepository<TEntity>
     where TContext : DbContext, IDrnContext
     where TEntity : AggregateRoot
 {
@@ -27,21 +27,11 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
     private static readonly string DeleteCountKey = $"Count.{nameof(DeleteAsync)}.{typeof(TEntity).Name}";
 
     private CancellationToken _cancellationToken = CancellationToken.None;
-    private readonly ScopeName _scopeName;
 
-    protected SourceKnownRepository(TContext context, IEntityUtils utils)
-    {
-        Context = context;
-        Entities = context.GetEntities<TEntity>();
-        Utils = utils;
-        ScopedLog = utils.ScopedLog;
-        _scopeName = new ScopeName(GetType().Name);
-    }
-
-    protected TContext Context { get; }
-    protected DbSet<TEntity> Entities { get; }
-    protected IEntityUtils Utils { get; }
-    protected IScopedLog ScopedLog { get; }
+    protected TContext Context { get; } = context;
+    protected DbSet<TEntity> Entities { get; } = context.GetEntities<TEntity>();
+    protected IEntityUtils Utils { get; } = utils;
+    protected IScopedLog ScopedLog { get; } = utils.ScopedLog;
 
     public CancellationToken CancellationToken
     {
@@ -53,7 +43,7 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
 
     public void CancelChanges()
     {
-        using var _ = ScopedLog.Measure(_scopeName.GetKey());
+        using var _ = ScopedLog.Measure(this);
         Utils.Cancellation.Cancel();
     }
 
@@ -63,7 +53,7 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
     /// <returns>The number of state entries written to the database</returns>
     public async Task<int> SaveChangesAsync()
     {
-        using var _ = ScopedLog.Measure(_scopeName.GetKey());
+        using var _ = ScopedLog.Measure(this);
         var changeCount = await Context.SaveChangesAsync(CancellationToken);
         ScopedLog.Increase(ChangeCountKey, changeCount);
 
@@ -76,7 +66,7 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public async Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids, bool ignoreAutoIncludes = false)
     {
-        using var _ = ScopedLog.Measure(_scopeName.GetKey());
+        using var _ = ScopedLog.Measure(this);
         var items = ignoreAutoIncludes
             ? await Filter(Entities, ids).IgnoreAutoIncludes().ToArrayAsync(CancellationToken)
             : await Filter(Entities, ids).ToArrayAsync(CancellationToken);
@@ -100,7 +90,7 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public async ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true, bool ignoreAutoIncludes = false)
     {
-        using var _ = ScopedLog.Measure(_scopeName.GetKey());
+        using var _ = ScopedLog.Measure(this);
         var entityId = ValidateEntityId(id, throwException);
         if (!entityId.Valid)
             return null;
@@ -139,7 +129,7 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
     /// <returns>The number of state entries written to the database</returns>
     public async Task<int> CreateAsync(params IReadOnlyCollection<TEntity> entities)
     {
-        using var _ = ScopedLog.Measure(_scopeName.GetKey());
+        using var _ = ScopedLog.Measure(this);
         Add(entities);
 
         return await Context.SaveChangesAsync(CancellationToken);
@@ -151,7 +141,7 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
     /// <returns>The number of state entries written to the database</returns>
     public async Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities)
     {
-        using var _ = ScopedLog.Measure(_scopeName.GetKey());
+        using var _ = ScopedLog.Measure(this);
         Remove(entities);
 
         return await Context.SaveChangesAsync(CancellationToken);
@@ -163,7 +153,7 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
     /// <returns>The total number of rows deleted in the database.</returns>
     public async Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids)
     {
-        using var _ = ScopedLog.Measure(_scopeName.GetKey());
+        using var _ = ScopedLog.Measure(this);
         var deletedCount = await Filter(Entities, ids).ExecuteDeleteAsync(CancellationToken);
         ScopedLog.Increase(DeleteCountKey, deletedCount);
 
@@ -174,7 +164,7 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public SourceKnownEntityId ValidateEntityId(Guid id, bool throwException = true)
     {
-        using var _ = ScopedLog.Measure(_scopeName.GetKey());
+        using var _ = ScopedLog.Measure(this);
         return throwException ? Utils.EntityId.Validate(id, EntityTypeId) : Utils.EntityId.Parse(id);
     }
 
@@ -186,16 +176,16 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
         => ids.Select(id => ValidateEntityId(id, throwException));
 
 
-    public async Task<PaginationResult<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false)
+    public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false)
         => await PaginateAsync(Entities, request, filter, ignoreAutoIncludes);
 
-    public IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false)
+    public IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null, bool ignoreAutoIncludes = false)
         => PaginateAllAsync(Entities, request, filter, ignoreAutoIncludes);
 
-    protected async Task<PaginationResult<TEntity>> PaginateAsync(IQueryable<TEntity> query, PaginationRequest request, EntityCreatedFilter? filter = null,
+    protected async Task<PaginationResultModel<TEntity>> PaginateAsync(IQueryable<TEntity> query, PaginationRequest request, EntityCreatedFilter? filter = null,
         bool ignoreAutoIncludes = false)
     {
-        using var _ = ScopedLog.Measure(_scopeName.GetKey());
+        using var _ = ScopedLog.Measure(this);
         if (!request.PageCursor.IsFirstRequest)
             ValidateEntityId(request.GetCursorId());
 
@@ -205,24 +195,24 @@ public abstract class SourceKnownRepository<TContext, TEntity> : ISourceKnownRep
         var result = await Utils.Pagination.GetResultAsync(filteredQuery, request, CancellationToken);
         ScopedLog.Increase(GetCountKey, result.ItemCount);
 
-        return result;
+        return result.ToModel();
     }
 
-    protected async IAsyncEnumerable<PaginationResult<TEntity>> PaginateAllAsync(
+    protected async IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(
         IQueryable<TEntity> query,
         PaginationRequest request,
         EntityCreatedFilter? filter = null,
         bool ignoreAutoIncludes = false)
     {
-        PaginationResult<TEntity> result;
+        PaginationResultModel<TEntity> result;
         do
         {
             result = await PaginateAsync(query, request, filter, ignoreAutoIncludes);
-            if (result.HasNext)
-                request = result.RequestNextPage();
+            if (result.Info.HasNext)
+                request = result.Info.RequestNextPage();
 
             yield return result;
-        } while (result.HasNext);
+        } while (result.Info.HasNext);
     }
 
 

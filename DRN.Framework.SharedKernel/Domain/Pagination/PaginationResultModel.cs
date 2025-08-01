@@ -1,8 +1,10 @@
 namespace DRN.Framework.SharedKernel.Domain.Pagination;
 
-public class PaginationResultModel<TModel, TEntity>(PaginationResult<TEntity> paginationResult, Func<TEntity, TModel> mapper) 
-    where TEntity : SourceKnownEntity
+public class PaginationResultModel<TModel>(PaginationResultInfo resultInfo, IReadOnlyList<TModel> items)
 {
-    public IReadOnlyList<TModel> Items { get; } = paginationResult.Items.Select(mapper).ToArray();
-    public PaginationResultInfo Info { get; } = paginationResult.ToResultInfo();
+    public PaginationResultInfo Info { get; } = resultInfo;
+    public IReadOnlyList<TModel> Items { get; } = items;
+
+    //todo add tests
+    public PaginationResultModel<TMapped> ToModel<TMapped>(Func<TModel, TMapped> mapper) => new(Info, Items.Select(mapper).ToArray());
 }

@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace DRN.Framework.Utils.Logging;
 
 public interface IScopedLog
@@ -22,4 +24,5 @@ public interface IScopedLog
     long Increase(string key, long by = 1, string prefix = ScopedLogConventions.Stats);
     TimeSpan IncreaseTimeSpentOn(string key, TimeSpan by, string prefix = ScopedLogConventions.Stats);
     ScopeDuration Measure(string key);
+    ScopeDuration Measure(object callerObject, [CallerMemberName] string? caller = null);
 }

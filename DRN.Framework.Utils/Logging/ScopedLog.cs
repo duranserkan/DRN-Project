@@ -178,6 +178,7 @@ public class ScopedLog : IScopedLog
 
     //todo add tests
     public ScopeDuration Measure(string key) => new(key, this);
+    public ScopeDuration Measure(object callerObject, string? caller = null) => Measure($"{callerObject.GetType().FullName}.{caller}");
 
     public override string ToString() => JsonSerializer.Serialize(Logs);
 }

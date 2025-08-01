@@ -60,5 +60,7 @@ public class PaginationResult<TEntity> : PaginationResultBase where TEntity : So
     }
 
     public IReadOnlyList<TEntity> Items { get; }
-    public PaginationResultModel<TModel, TEntity> ToModel<TModel>(Func<TEntity, TModel> mapper) => new(this, mapper);
+
+    public PaginationResultModel<TModel> ToModel<TModel>(Func<TEntity, TModel> mapper) => new(ToResultInfo(), Items.Select(mapper).ToArray());
+    public PaginationResultModel<TEntity> ToModel() => ToModel<TEntity>(entity => entity);
 }

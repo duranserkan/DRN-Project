@@ -103,7 +103,7 @@ public class TagRepositoryTests
         validationAction2 = () => idsEnumerable.ToArray();
         validationAction2.Should().Throw<ValidationException>();
     }
-    
+
     private static async Task AssertPagination(DateTimeOffset beforeTagCreation, DateTimeOffset afterTagCreation, ITagRepository repository, Tag firstTag, Tag secondTag)
     {
         var selectAll = EntityCreatedFilter.Between(beforeTagCreation, afterTagCreation);
@@ -113,7 +113,7 @@ public class TagRepositoryTests
 
         var selectNone = EntityCreatedFilter.Outside(beforeTagCreation, afterTagCreation);
         paginationResult = await repository.PaginateAsync(PaginationRequest.Default, selectNone);
-        paginationResult.ItemCount.Should().Be(0);
+        paginationResult.Info.ItemCount.Should().Be(0);
 
         paginationResult = await repository.PaginateAsync(PaginationRequest.Default);
         paginationResult.Items[0].Should().Be(firstTag);
@@ -126,11 +126,11 @@ public class TagRepositoryTests
             paginationResult2.Items[0].Should().Be(paginationResult.Items[index]);
             index++;
         }
-        
+
         index = 0;
         await foreach (var paginationResult3 in repository.PaginateAllAsync(paginateSingle, selectNone))
         {
-            paginationResult3.ItemCount.Should().Be(0);
+            paginationResult3.Info.ItemCount.Should().Be(0);
             index++;
         }
 

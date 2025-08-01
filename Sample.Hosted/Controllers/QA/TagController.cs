@@ -9,7 +9,7 @@ namespace Sample.Hosted.Controllers.QA;
 public class TagController(ITagRepository repository) : ControllerBase
 {
     [HttpPost("Pagination")]
-    public async Task<PaginationResult<Tag>> GetAsync([FromBody]PaginationRequest? request)
+    public async Task<PaginationResultModel<Tag>> GetAsync([FromBody]PaginationRequest? request)
     {
         var result = await repository.PaginateAsync(request ?? PaginationRequest.Default);
 
