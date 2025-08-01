@@ -8,7 +8,7 @@ namespace DRN.Framework.Utils.Http;
 
 /// <summary>
 /// ExternalRequest request is a simple factory for your external http(s) request calls.
-/// <summary>
+/// </summary>
 public interface IExternalRequest
 {
     IFlurlRequest For(Url endpoint, Version httpVersion);

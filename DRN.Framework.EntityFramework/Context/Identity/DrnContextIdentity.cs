@@ -63,7 +63,8 @@ public abstract class DrnContextIdentity<TContext, TUser> : IdentityDbContext<TU
     where TContext : DrnContextIdentity<TContext, TUser>, new()
     where TUser : IdentityUser
 {
-    /// Initializes a new instance of the <see cref="DrnContextIdentity"/> class.
+
+    /// Initializes a new instance of the <see cref="DrnContextIdentity{TContext, TUser}"/> class.
     protected DrnContextIdentity(DbContextOptions<TContext>? options) : base(options ?? new DbContextOptions<TContext>())
     {
     }

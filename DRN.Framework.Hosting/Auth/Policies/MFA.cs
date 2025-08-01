@@ -1,3 +1,4 @@
+using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;

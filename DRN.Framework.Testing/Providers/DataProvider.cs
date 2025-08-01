@@ -3,14 +3,19 @@ namespace DRN.Framework.Testing.Providers;
 public static class DataProvider
 {
     /// <summary>
-    /// Gets the content of specified data file in the Data directory.
-    /// Data directory must be created in the root of the test Project or provided location.
+    /// Gets the content of the specified data file from the Data directory.
+    /// The Data directory must exist at the root of the test project or a provided location.
     /// </summary>
     /// <param name="pathRelativeToDataDirectory">
-    /// Path is relative Data directory including file extension.
-    /// Make sure the data file is copied to output directory.
+    /// Path relative to the Data directory, including file extension.
+    /// Ensure the data file is copied to the output directory.
     /// </param>
-    /// <param name="dataDirectoryPath">If not provided global convention location will be applied</param>
+    /// <param name="dataDirectoryPath">
+    /// Optional custom path to the Data directory. If not provided, a global convention path is used.
+    /// </param>
+    /// <param name="conventionDirectory">
+    /// Optional path that overrides the default convention directory for locating the Data directory.
+    /// </param>
     public static DataProviderResult Get(string pathRelativeToDataDirectory, string? dataDirectoryPath = null, string? conventionDirectory = null)
     {
         var location = GetDataPath(pathRelativeToDataDirectory, dataDirectoryPath, conventionDirectory);

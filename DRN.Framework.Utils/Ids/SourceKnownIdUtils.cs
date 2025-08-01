@@ -11,7 +11,7 @@ public interface ISourceKnownIdUtils
     /// <summary>
     /// Generates Ids for the app, app instance and entity.
     /// Gets appId and appInstanceId from appsettings.
-    /// Uses <see cref="SourceKnownIdUtils.Epoch2025"/>"
+    /// Uses <see cref="IEpochTimeUtils.Epoch"/>"
     /// </summary>
     /// <typeparam name="TEntity">The entity type for which Ids are generated. Must be a reference type.</typeparam>
     long Next<TEntity>() where TEntity : class;

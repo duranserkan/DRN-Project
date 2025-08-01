@@ -57,10 +57,22 @@ public class SingletonWithKeyAttribute<TService>(object key, bool tryAdd = true)
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class HostedServiceAttribute() : LifetimeAttribute<object>(ServiceLifetime.Singleton, false);
 
+/// <summary>
+/// Specifies configuration binding behavior for a class.
+/// This attribute is used to bind configuration keys to objects
+/// </summary>
+/// <param name="configKey">
+/// The configuration key or section name to bind from the configuration source.
+/// </param>
+/// <param name="validateAnnotations">
+/// Indicates whether data annotation attributes should be validated after binding. Default is <c>true</c>.
+/// </param>
 /// <param name="errorOnUnknownConfiguration">
-/// Gets or sets a value that indicates whether exceptions are thrown when converting a value or when a
-/// configuration key is found for which the provided model object doesn't have an appropriate property
-/// that matches the key's name.
+/// Indicates whether an exception should be thrown if a configuration key is found
+/// that does not map to a property on the target model. Default is <c>true</c>.
+/// </param>
+/// <param name="bindNonPublicProperties">
+/// Indicates whether non-public properties (e.g., private setters) should be bound from the configuration source. Default is <c>true</c>.
 /// </param>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class ConfigAttribute(

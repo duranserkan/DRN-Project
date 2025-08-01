@@ -67,7 +67,7 @@ public interface IDrnContext<out TContext> : IDrnContext, IDesignTimeDbContextFa
 [DrnContextServiceRegistration, DrnContextDefaults, DrnContextPerformanceDefaults]
 public abstract class DrnContext<TContext> : DbContext, IDrnContext<TContext> where TContext : DrnContext<TContext>, new()
 {
-    /// Initializes a new instance of the <see cref="DrnContext"/> class.
+    /// Initializes a new instance of the <see cref="DrnContext{TContext}"/> class.
     protected DrnContext(DbContextOptions<TContext>? options) : base(options ?? new DbContextOptions<TContext>())
     {
     }
