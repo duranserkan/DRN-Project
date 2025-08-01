@@ -13,6 +13,7 @@
         <PackageId>DRN.Framework.Testing</PackageId>
         <RepositoryType>git</RepositoryType>
         <RepositoryUrl>https://github.com/duranserkan/DRN-Project</RepositoryUrl>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 
     <ItemGroup>
