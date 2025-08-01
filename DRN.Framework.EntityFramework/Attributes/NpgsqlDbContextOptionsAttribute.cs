@@ -45,6 +45,8 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
     }
 
     public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings) => Task.CompletedTask;
+    
+    //Todo: test protoype mode integration test support
     public virtual bool UsePrototypeMode { get; set; } = false;
     public virtual bool UsePrototypeModeWhenMigrationExists { get; set; } = false;
 }
