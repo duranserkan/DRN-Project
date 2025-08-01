@@ -3,17 +3,16 @@ namespace DRN.Framework.Utils.Logging;
 public struct ScopeDuration(string key, IScopedLog? log = null) : IDisposable
 {
     public string Key { get; } = key;
-    public bool Completed { get; private set; }
     public DateTimeOffset Start { get; } = DateTimeOffset.Now;
     public DateTimeOffset? End { get; private set; }
     public TimeSpan Duration => (End ?? DateTimeOffset.Now) - Start;
-
+    public bool IsCompleted => End is not null;
+    
     public void Complete()
     {
-        if (Completed)
+        if (IsCompleted)
             return;
 
-        Completed = true;
         End = DateTimeOffset.Now;
         log?.IncreaseTimeSpentOn(Key, Duration);
     }

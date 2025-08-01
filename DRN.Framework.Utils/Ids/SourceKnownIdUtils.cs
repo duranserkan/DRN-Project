@@ -83,6 +83,6 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         var instanceId = parser.Read(21);
 
         var dateTime = EpochTimeUtils.ConvertToDateTime(parser.ReadResidueValue(), epoch);
-        return new SourceKnownId(id, appId, appInstanceId, instanceId, dateTime);
+        return new SourceKnownId(id, dateTime, instanceId, appId, appInstanceId);
     }
 }
