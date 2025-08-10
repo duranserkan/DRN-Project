@@ -17,7 +17,7 @@ public static class NumberBuilder
         new(direction, 32, 0, false);
 }
 
-public struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<TNumber>
+public ref struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<TNumber>
 {
     private long _residue;
     private bool _signBit = true;

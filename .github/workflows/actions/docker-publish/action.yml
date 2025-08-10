@@ -9,7 +9,7 @@ runs:
   steps:
     - name: Extract metadata (tags, labels) for Docker
       id: meta
-      uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96
+      uses: docker/metadata-action@v5
       with:
           images: duranserkan/${{ inputs.image-repository-name }}
           tags: |
@@ -19,7 +19,7 @@ runs:
             type=semver,pattern={{major}}.{{minor}}
     - name: Build and push Docker image
       id: container-build-push
-      uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355
+      uses: docker/build-push-action@v6
       with:
         context: .
         file: ./${{ inputs.project-name }}/Dockerfile

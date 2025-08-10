@@ -69,9 +69,6 @@
   <Folder Name="/Items/.github/workflows/actions/nuget-publish/">
     <File Path=".github\workflows\actions\nuget-publish\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/scan-file-system-vulnerabilities/">
-    <File Path=".github\workflows\actions\scan-file-system-vulnerabilities\action.yml" />
-  </Folder>
   <Folder Name="/Items/.github/workflows/actions/scan-nuget-vulnerabilities/">
     <File Path=".github\workflows\actions\scan-nuget-vulnerabilities\action.yml" />
   </Folder>
