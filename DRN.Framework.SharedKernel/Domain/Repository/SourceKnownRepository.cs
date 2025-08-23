@@ -16,7 +16,7 @@ public interface ISourceKnownRepository<TEntity>
     /// Settings for default public members of SourceKnownRepositories
     /// </summary>
     RepositorySettings Settings { get; set; }
-
+    
     //todo test cancellation
     //todo test ignore auto includes
     CancellationToken CancellationToken { get; set; }
@@ -25,6 +25,7 @@ public interface ISourceKnownRepository<TEntity>
 
     Task<int> SaveChangesAsync();
 
+    Task<bool> AnyAsync();
     //todo add get or create with cache support
     ValueTask<TEntity> GetAsync(Guid id);
     Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);

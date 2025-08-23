@@ -1,22 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <DockerComposeProjectPath>../docker-compose.dcproj</DockerComposeProjectPath>
-    <UserSecretsId>f84cc3f4-2a9b-44a2-ad30-68bb3facb9b8</UserSecretsId>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <DockerComposeProjectPath>../docker-compose.dcproj</DockerComposeProjectPath>
+        <UserSecretsId>f84cc3f4-2a9b-44a2-ad30-68bb3facb9b8</UserSecretsId>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\DRN.Framework.Hosting\DRN.Framework.Hosting.csproj" />
-    <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
-    <ProjectReference Include="..\Sample.Application\Sample.Application.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\DRN.Framework.Hosting\DRN.Framework.Hosting.csproj"/>
+        <ProjectReference Include="..\Sample.Application\Sample.Application.csproj"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="9.0.8" />
-    <PackageReference Include="QRCoder" Version="1.6.0" />
-  </ItemGroup>
+    <!-- CONDITIONAL TESTING REFERENCE (Development ONLY) -->
+    <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+        <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="9.0.8"/>
+        <PackageReference Include="QRCoder" Version="1.6.0"/>
+    </ItemGroup>
 
 </Project>

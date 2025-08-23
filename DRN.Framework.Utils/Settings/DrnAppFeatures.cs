@@ -1,7 +1,7 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Settings;
-
+//todo: Separate development settings
 //todo: explore Feature flags
 /// <summary>
 /// Values from DrnAppFeatures section

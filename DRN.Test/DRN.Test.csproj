@@ -9,8 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-        <PackageReference Include="NSubstitute.Analyzers.CSharp" Version="1.0.17" PrivateAssets="none"/>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" PrivateAssets="none"/>
     </ItemGroup>
 
     <ItemGroup>

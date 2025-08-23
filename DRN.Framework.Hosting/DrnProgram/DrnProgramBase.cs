@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Security.Claims;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
@@ -159,16 +160,21 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     public static async Task<WebApplication> CreateApplicationAsync(string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
     {
+        var actions = GetApplicationAssembly().CreateSubType<DrnProgramActions>();
         var (program, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopeLog);
+        await (actions?.ApplicationBuilderCreatedAsync(program, applicationBuilder, appSettings, scopeLog) ?? Task.CompletedTask);
 
         var application = applicationBuilder.Build();
         program.ConfigureApplication(application, appSettings);
+        await (actions?.ApplicationBuiltAsync(program, application, appSettings, scopeLog) ?? Task.CompletedTask);
+
         var requestPipelineSummary = application.GetRequestPipelineSummary();
         if (appSettings.IsDevEnvironment) //todo send application summaries to nexus for auditing, implement application dependency summary as well
             scopeLog.Add(nameof(RequestPipelineSummary), requestPipelineSummary);
 
         program.ValidateEndpoints(application, appSettings);
         program.ValidateServices(application, scopeLog);
+        await (actions?.ApplicationValidatedAsync(program, application, appSettings, scopeLog) ?? Task.CompletedTask);
 
         return application;
     }
@@ -610,4 +616,5 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         application.Services.ValidateServicesAddedByAttributes(scopeLog);
 
     private static string GetApplicationAssemblyName() => typeof(TProgram).GetAssemblyName();
+    private static Assembly GetApplicationAssembly() => typeof(TProgram).Assembly;
 }
