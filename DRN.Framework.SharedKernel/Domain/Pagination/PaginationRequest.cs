@@ -30,7 +30,7 @@ public class PaginationRequest
     public static PaginationRequest Default => DefaultWith();
 
     public static PaginationRequest DefaultWith(int size = PageSize.SizeDefault, bool updateTotalCount = false,
-        PageSortDirection direction = PageSortDirection.AscendingByCreatedAt) =>
+        PageSortDirection direction = PageSortDirection.Ascending) =>
         new(1, new PageSize(size), PageCursor.InitialWith(direction), updateTotalCount: updateTotalCount);
 
     public long PageNumber { get; private set; }
@@ -51,12 +51,12 @@ public class PaginationRequest
         : PageCursor.PageNumber - PageNumber;
 
     [JsonIgnore]
-    public bool IsPageRefresh => NavigationDirection == NavigationDirection.Refresh;
+    public bool IsPageRefresh => NavigationDirection == PageNavigationDirection.Refresh;
 
     [JsonIgnore]
-    public NavigationDirection NavigationDirection => CalculateDirection(PageNumber, PageCursor.PageNumber, PageCursor.IsFirstRequest);
+    public PageNavigationDirection NavigationDirection => CalculateDirection(PageNumber, PageCursor.PageNumber, PageCursor.IsFirstRequest);
 
-    public Guid GetCursorId() => NavigationDirection == NavigationDirection.Next
+    public Guid GetCursorId() => NavigationDirection == PageNavigationDirection.Next
         ? PageCursor.LastId
         : PageCursor.FirstId;
 
@@ -69,14 +69,14 @@ public class PaginationRequest
         PageCursor = PageCursor.Initial;
     }
 
-    private static NavigationDirection CalculateDirection(long pageNumber, long cursorPageNumber, bool firstRequest)
+    private static PageNavigationDirection CalculateDirection(long pageNumber, long cursorPageNumber, bool firstRequest)
     {
         if (pageNumber > cursorPageNumber || firstRequest)
-            return NavigationDirection.Next;
+            return PageNavigationDirection.Next;
 
         return pageNumber < cursorPageNumber
-            ? NavigationDirection.Previous
-            : NavigationDirection.Refresh;
+            ? PageNavigationDirection.Previous
+            : PageNavigationDirection.Refresh;
     }
 
     public PaginationRequest GetNextPage(Guid firstId, Guid lastId, bool updateTotalCount = false, long totalCount = -1)

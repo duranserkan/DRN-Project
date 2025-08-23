@@ -11,7 +11,7 @@ public class PaginationResult<TEntity> : PaginationResultBase where TEntity : So
         Items = items;
         if (hasExcessCount)
         {
-            Items = request.NavigationDirection != NavigationDirection.Next
+            Items = request.NavigationDirection != PageNavigationDirection.Next
                 ? items.Skip(1).Take(request.PageSize.Size).ToArray()
                 : items.Take(request.PageSize.Size).ToArray();
         }
@@ -24,7 +24,7 @@ public class PaginationResult<TEntity> : PaginationResultBase where TEntity : So
             var newestEntity = Items.Max()!;
             var oldestEntity = Items.Min()!;
 
-            if (request.PageCursor.SortDirection == PageSortDirection.AscendingByCreatedAt)
+            if (request.PageCursor.SortDirection == PageSortDirection.Ascending)
             {
                 LastId = newestEntity.EntityId;
                 FirstId = oldestEntity.EntityId;
@@ -42,8 +42,8 @@ public class PaginationResult<TEntity> : PaginationResultBase where TEntity : So
         }
 
         HasPrevious = PageNumber > 1;
-        HasNext = request.NavigationDirection == NavigationDirection.Previous ||
-                  (request.NavigationDirection == NavigationDirection.Next && hasExcessCount);
+        HasNext = request.NavigationDirection == PageNavigationDirection.Previous ||
+                  (request.NavigationDirection == PageNavigationDirection.Next && hasExcessCount);
 
         ItemCount = Items.Count;
         Total = new PaginationTotal(totalCount, PageSize);

@@ -13,7 +13,7 @@ public class TagController(ITagRepository repository) : ControllerBase
         [FromQuery] int jumpTo = 1,
         [FromQuery] int pageSize = PageSize.SizeDefault,
         [FromQuery] bool updateTotalCount = false,
-        [FromQuery] PageSortDirection direction = PageSortDirection.AscendingByCreatedAt)
+        [FromQuery] PageSortDirection direction = PageSortDirection.Ascending)
     {
         var result = await repository.PaginateAsync(resultInfo, jumpTo, pageSize, updateTotalCount, direction);
 

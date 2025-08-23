@@ -226,7 +226,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// When continuing pagination, jump distances beyond 10 pages in either direction are capped at 10.
     /// </remarks>
     public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null,
-        long jumpTo = 1, int pageSize = PageSize.SizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.AscendingByCreatedAt)
+        long jumpTo = 1, int pageSize = PageSize.SizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.Ascending)
         => await PaginateAsync(EntitiesWithAppliedSettings, resultInfo, jumpTo, pageSize, updateTotalCount, direction);
 
     public IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
@@ -262,7 +262,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// When continuing pagination, jump distances beyond 10 pages in either direction are capped at 10.
     /// </remarks>
     protected async Task<PaginationResultModel<TEntity>> PaginateAsync(IQueryable<TEntity> query, PaginationResultInfo? resultInfo = null,
-        long jumpTo = 1, int pageSize = PageSize.SizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.AscendingByCreatedAt)
+        long jumpTo = 1, int pageSize = PageSize.SizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.Ascending)
     {
         if (resultInfo == null)
         {

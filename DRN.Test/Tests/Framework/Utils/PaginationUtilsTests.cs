@@ -12,14 +12,14 @@ namespace DRN.Test.Tests.Framework.Utils;
 public class PaginationUtilsTests
 {
     [Theory]
-    [DataInline(90, 5, true, PageSortDirection.AscendingByCreatedAt)]
-    [DataInline(90, 5, true, PageSortDirection.DescendingByCreatedAt)]
-    [DataInline(90, 5, false, PageSortDirection.AscendingByCreatedAt)]
-    [DataInline(90, 5, false, PageSortDirection.DescendingByCreatedAt)]
-    [DataInline(67, 10, true, PageSortDirection.AscendingByCreatedAt)]
-    [DataInline(67, 10, true, PageSortDirection.DescendingByCreatedAt)]
-    [DataInline(67, 10, false, PageSortDirection.AscendingByCreatedAt)]
-    [DataInline(67, 10, false, PageSortDirection.DescendingByCreatedAt)]
+    [DataInline(90, 5, true, PageSortDirection.Ascending)]
+    [DataInline(90, 5, true, PageSortDirection.Descending)]
+    [DataInline(90, 5, false, PageSortDirection.Ascending)]
+    [DataInline(90, 5, false, PageSortDirection.Descending)]
+    [DataInline(67, 10, true, PageSortDirection.Ascending)]
+    [DataInline(67, 10, true, PageSortDirection.Descending)]
+    [DataInline(67, 10, false, PageSortDirection.Ascending)]
+    [DataInline(67, 10, false, PageSortDirection.Descending)]
     public async Task PaginationUtils_Should_Return_Paginated_Result(TestContext context, int totalCount, int pageSize, bool updateTotalCount, PageSortDirection pageSortDirection)
     {
         _ = await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<SampleProgram>();
@@ -173,7 +173,7 @@ public record ExpectedPageResultCollection(Tag[] Tags, int TotalCount, int PageS
 {
     public long TotalPageCount => (long)Math.Ceiling((decimal)TotalCount / PageSize);
 
-    public ExpectedPageResult[] ExpectedPageResults { get; } = PageSortDirection == PageSortDirection.AscendingByCreatedAt
+    public ExpectedPageResult[] ExpectedPageResults { get; } = PageSortDirection == PageSortDirection.Ascending
         ? Tags.Order().Chunk(PageSize).Select((tags, index) => new ExpectedPageResult(tags, index + 1, PageSize)).ToArray()
         : Tags.OrderDescending().Chunk(PageSize).Select((tags, index) => new ExpectedPageResult(tags, index + 1, PageSize)).ToArray();
 
@@ -206,10 +206,10 @@ public record ExpectedPageResultCollection(Tag[] Tags, int TotalCount, int PageS
         cursor.IsFirstRequest.Should().BeFalse();
 
         var expectedNavigationDirection = request.PageNumber > cursor.PageNumber
-            ? NavigationDirection.Next
-            : NavigationDirection.Previous;
+            ? PageNavigationDirection.Next
+            : PageNavigationDirection.Previous;
         expectedNavigationDirection = request.PageNumber == cursor.PageNumber
-            ? NavigationDirection.Refresh
+            ? PageNavigationDirection.Refresh
             : expectedNavigationDirection;
 
         request.NavigationDirection.Should().Be(expectedNavigationDirection);

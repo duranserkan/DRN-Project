@@ -7,12 +7,12 @@ public class PageCursorTests
 {
     [Theory]
     [InlineData(null)]
-    [InlineData(PageSortDirection.AscendingByCreatedAt)]
-    [InlineData(PageSortDirection.DescendingByCreatedAt)]
+    [InlineData(PageSortDirection.Ascending)]
+    [InlineData(PageSortDirection.Descending)]
     public void PageCursor_FirstRequest_Defaults(PageSortDirection? direction)
     {
         var cursor = direction == null ? PageCursor.Initial : PageCursor.InitialWith(direction.Value);
-        direction ??= PageSortDirection.AscendingByCreatedAt;
+        direction ??= PageSortDirection.Ascending;
 
         cursor.IsFirstRequest.Should().BeTrue();
         cursor.IsFirstPage.Should().BeTrue();
@@ -23,8 +23,8 @@ public class PageCursorTests
     }
 
     [Theory]
-    [InlineData(PageSortDirection.AscendingByCreatedAt)]
-    [InlineData(PageSortDirection.DescendingByCreatedAt)]
+    [InlineData(PageSortDirection.Ascending)]
+    [InlineData(PageSortDirection.Descending)]
     public void PageCursor_SecondRequest_Defaults(PageSortDirection direction)
     {
         var lastId = Guid.NewGuid();

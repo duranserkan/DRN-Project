@@ -66,7 +66,7 @@ public interface ISourceKnownRepository<TEntity>
     /// The maximum allowed jump distance is limited to 10 pages in either direction.
     /// </remarks>
     Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null,
-        long jumpTo = 1, int pageSize = PageSize.SizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.AscendingByCreatedAt);
+        long jumpTo = 1, int pageSize = PageSize.SizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.Ascending);
 
     IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
 }

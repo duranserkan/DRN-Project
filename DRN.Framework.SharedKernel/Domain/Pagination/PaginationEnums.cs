@@ -1,14 +1,17 @@
 namespace DRN.Framework.SharedKernel.Domain.Pagination;
 
+/// <summary>
+/// Sorts by CreatedAt unless a different sort order is specified.
+/// </summary>
 public enum PageSortDirection : byte
 {
-    AscendingByCreatedAt = 1,
-    DescendingByCreatedAt
+    Ascending = 1,
+    Descending = 2
 }
 
-public enum NavigationDirection : byte
+public enum PageNavigationDirection : byte
 {
     Next = 1,
-    Previous,
-    Refresh
+    Previous = 2,
+    Refresh = 3
 }

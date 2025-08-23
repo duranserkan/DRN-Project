@@ -13,7 +13,7 @@ public class PaginationResultInfoTests
         var firstId = Guid.NewGuid();
         var lastId = Guid.NewGuid();
         var pageSize = new PageSize(7, 19);
-        var pageCursor = new PageCursor(5, firstId, lastId, PageSortDirection.DescendingByCreatedAt);
+        var pageCursor = new PageCursor(5, firstId, lastId, PageSortDirection.Descending);
         var pageNumber = 3;
         var totalCount = 41;
         var name1 = "1";
@@ -66,35 +66,35 @@ public class PaginationResultInfoTests
 
         var totalCount2 = 132;
         var nextPage = info.RequestNextPage(true, totalCount2);
-        nextPage.NavigationDirection.Should().Be(NavigationDirection.Next);
+        nextPage.NavigationDirection.Should().Be(PageNavigationDirection.Next);
         nextPage.PageNumber.Should().Be(4);
         nextPage.Total.Count.Should().Be(totalCount2);
         nextPage.UpdateTotalCount.Should().BeTrue();
         nextPage.IsPageJump().Should().BeFalse();
 
         var previousPage = info.RequestPreviousPage(true, totalCount2);
-        previousPage.NavigationDirection.Should().Be(NavigationDirection.Previous);
+        previousPage.NavigationDirection.Should().Be(PageNavigationDirection.Previous);
         previousPage.PageNumber.Should().Be(2);
         previousPage.Total.Count.Should().Be(totalCount2);
         previousPage.UpdateTotalCount.Should().BeTrue();
         previousPage.IsPageJump().Should().BeFalse();
 
         var refreshPage = info.RequestRefresh(true, totalCount2);
-        refreshPage.NavigationDirection.Should().Be(NavigationDirection.Refresh);
+        refreshPage.NavigationDirection.Should().Be(PageNavigationDirection.Refresh);
         refreshPage.PageNumber.Should().Be(3);
         refreshPage.Total.Count.Should().Be(totalCount2);
         refreshPage.UpdateTotalCount.Should().BeTrue();
         refreshPage.IsPageJump().Should().BeFalse();
 
         var firstPage = info.RequestPage(1, true, totalCount2);
-        firstPage.NavigationDirection.Should().Be(NavigationDirection.Previous);
+        firstPage.NavigationDirection.Should().Be(PageNavigationDirection.Previous);
         firstPage.PageNumber.Should().Be(1);
         firstPage.Total.Count.Should().Be(totalCount2);
         firstPage.UpdateTotalCount.Should().BeTrue();
         firstPage.IsPageJump().Should().BeTrue();
 
         var sixthPage = info.RequestPage(6, true, totalCount2);
-        sixthPage.NavigationDirection.Should().Be(NavigationDirection.Next);
+        sixthPage.NavigationDirection.Should().Be(PageNavigationDirection.Next);
         sixthPage.PageNumber.Should().Be(6);
         sixthPage.Total.Count.Should().Be(totalCount2);
         sixthPage.UpdateTotalCount.Should().BeTrue();

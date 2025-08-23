@@ -49,28 +49,28 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
     }
 
     private static IQueryable<TEntity> FilterQueryByCursor<TEntity>(IQueryable<TEntity> query, SourceKnownEntityId firstEntityId, SourceKnownEntityId lastEntityId,
-        NavigationDirection navigation, PageSortDirection sort) where TEntity : SourceKnownEntity
+        PageNavigationDirection navigation, PageSortDirection sort) where TEntity : SourceKnownEntity
     {
         IQueryable<TEntity> filteredQuery;
-        if (navigation == NavigationDirection.Refresh)
+        if (navigation == PageNavigationDirection.Refresh)
         {
             var firstId = firstEntityId.Source.Id;
             var lastId = lastEntityId.Source.Id;
-            filteredQuery = sort == PageSortDirection.AscendingByCreatedAt
+            filteredQuery = sort == PageSortDirection.Ascending
                 ? query.Where(entity => entity.Id >= firstId && entity.Id <= lastId)
                 : query.Where(entity => entity.Id >= lastId && entity.Id <= firstId);
         }
-        else if (navigation == NavigationDirection.Next)
+        else if (navigation == PageNavigationDirection.Next)
         {
             var cursorId = lastEntityId.Source.Id;
-            filteredQuery = sort == PageSortDirection.AscendingByCreatedAt
+            filteredQuery = sort == PageSortDirection.Ascending
                 ? query.Where(entity => entity.Id > cursorId)
                 : query.Where(entity => entity.Id < cursorId);
         }
         else //previous page
         {
             var cursorId = firstEntityId.Source.Id;
-            filteredQuery = sort == PageSortDirection.AscendingByCreatedAt
+            filteredQuery = sort == PageSortDirection.Ascending
                 ? query.Where(entity => entity.Id < cursorId)
                 : query.Where(entity => entity.Id > cursorId);
         }
@@ -78,19 +78,19 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
         return filteredQuery;
     }
 
-    private static IOrderedQueryable<TEntity> SortByEntityId<TEntity>(IQueryable<TEntity> filteredQuery, NavigationDirection navigation, PageSortDirection sort)
+    private static IOrderedQueryable<TEntity> SortByEntityId<TEntity>(IQueryable<TEntity> filteredQuery, PageNavigationDirection navigation, PageSortDirection sort)
         where TEntity : SourceKnownEntity
     {
         IOrderedQueryable<TEntity> orderedQuery;
-        if (navigation == NavigationDirection.Previous)
+        if (navigation == PageNavigationDirection.Previous)
         {
-            orderedQuery = sort == PageSortDirection.DescendingByCreatedAt
+            orderedQuery = sort == PageSortDirection.Descending
                 ? filteredQuery.OrderBy(entity => entity.Id)
                 : filteredQuery.OrderByDescending(entity => entity.Id);
         }
         else
         {
-            orderedQuery = sort == PageSortDirection.AscendingByCreatedAt
+            orderedQuery = sort == PageSortDirection.Ascending
                 ? filteredQuery.OrderBy(entity => entity.Id)
                 : filteredQuery.OrderByDescending(entity => entity.Id);
         }
@@ -99,16 +99,16 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
     }
 
     private static async Task<IReadOnlyList<TEntity>> GetEntitiesAsync<TEntity>(IQueryable<TEntity> query, PaginationRequest request,
-        NavigationDirection navigation, PageSortDirection sort, CancellationToken cancellationToken)
+        PageNavigationDirection navigation, PageSortDirection sort, CancellationToken cancellationToken)
         where TEntity : SourceKnownEntity
     {
         IReadOnlyList<TEntity> items = request.IsPageJump()
             ? await query.Skip(request.GetSkipSize()).Take(request.PageSize.Size + 1).ToListAsync(cancellationToken)
             : await query.Take(request.PageSize.Size + 1).ToListAsync(cancellationToken);
 
-        if (navigation == NavigationDirection.Previous)
+        if (navigation == PageNavigationDirection.Previous)
         {
-            items = sort == PageSortDirection.AscendingByCreatedAt
+            items = sort == PageSortDirection.Ascending
                 ? items.OrderBy(entity => entity.Id).ToArray()
                 : items.OrderByDescending(entity => entity.Id).ToArray();
         }

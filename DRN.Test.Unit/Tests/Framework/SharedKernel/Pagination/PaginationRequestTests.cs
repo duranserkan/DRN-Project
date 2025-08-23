@@ -11,7 +11,7 @@ public class PaginationRequestTests
         var request = PaginationRequest.Default;
         request.IsPageRefresh.Should().BeFalse();
         request.MarkAsHasNextOnRefresh.Should().BeFalse();
-        request.NavigationDirection.Should().Be(NavigationDirection.Next);
+        request.NavigationDirection.Should().Be(PageNavigationDirection.Next);
         request.PageCursor.Should().Be(PageCursor.Initial);
         request.PageSize.Should().Be(PageSize.Default);
         request.PageNumber.Should().Be(1);
@@ -23,9 +23,9 @@ public class PaginationRequestTests
         request.GetSkipSize().Should().Be(0);
         request.ValidateObjectSerialization();
 
-        request = PaginationRequest.DefaultWith(50, true, PageSortDirection.DescendingByCreatedAt);
-        request.NavigationDirection.Should().Be(NavigationDirection.Next);
-        request.PageCursor.Should().Be(new PageCursor(1, Guid.Empty, Guid.Empty, PageSortDirection.DescendingByCreatedAt));
+        request = PaginationRequest.DefaultWith(50, true, PageSortDirection.Descending);
+        request.NavigationDirection.Should().Be(PageNavigationDirection.Next);
+        request.PageCursor.Should().Be(new PageCursor(1, Guid.Empty, Guid.Empty, PageSortDirection.Descending));
         request.PageSize.Should().Be(new PageSize(50));
         request.PageNumber.Should().Be(1);
         request.PageDifference.Should().Be(0);
@@ -41,12 +41,12 @@ public class PaginationRequestTests
         var firstId = Guid.NewGuid();
         var lastId = Guid.NewGuid();
         var pageSize = new PageSize(13, 28);
-        var pageCursor = new PageCursor(5, firstId, lastId, PageSortDirection.DescendingByCreatedAt);
+        var pageCursor = new PageCursor(5, firstId, lastId, PageSortDirection.Descending);
         var pageNumber = 3;
         var totalCount = 73;
 
         request = new PaginationRequest(pageNumber, pageSize, pageCursor, totalCount, true, true);
-        request.NavigationDirection.Should().Be(NavigationDirection.Previous);
+        request.NavigationDirection.Should().Be(PageNavigationDirection.Previous);
         request.PageSize.Should().Be(pageSize);
         request.PageCursor.Should().Be(pageCursor);
         request.PageNumber.Should().Be(pageNumber);
@@ -63,10 +63,10 @@ public class PaginationRequestTests
 
         var firstId2 = Guid.NewGuid();
         var lastId2 = Guid.NewGuid();
-        var pageCursor2 = new PageCursor(3, firstId2, lastId2, PageSortDirection.DescendingByCreatedAt);
+        var pageCursor2 = new PageCursor(3, firstId2, lastId2, PageSortDirection.Descending);
         var totalCount2 = 90;
         request = request.GetPage(firstId2, lastId2, pageNumber, pageNumber, true, totalCount2, true);
-        request.NavigationDirection.Should().Be(NavigationDirection.Refresh);
+        request.NavigationDirection.Should().Be(PageNavigationDirection.Refresh);
         request.PageSize.Should().Be(pageSize);
         request.PageCursor.Should().Be(pageCursor2);
         request.PageNumber.Should().Be(pageNumber);
@@ -80,10 +80,10 @@ public class PaginationRequestTests
         request.GetSkipSize().Should().Be(0);
         request.ValidateObjectSerialization();
 
-        var pageCursor3 = new PageCursor(pageNumber, firstId2, lastId2, PageSortDirection.DescendingByCreatedAt);
+        var pageCursor3 = new PageCursor(pageNumber, firstId2, lastId2, PageSortDirection.Descending);
         var totalCount3 = 95;
         request = request.GetNextPage(firstId2, lastId2, true, totalCount3);
-        request.NavigationDirection.Should().Be(NavigationDirection.Next);
+        request.NavigationDirection.Should().Be(PageNavigationDirection.Next);
         request.PageSize.Should().Be(pageSize);
         request.PageCursor.Should().Be(pageCursor3);
         request.PageNumber.Should().Be(pageNumber + 1);
@@ -97,9 +97,9 @@ public class PaginationRequestTests
         request.GetSkipSize().Should().Be(0);
         request.ValidateObjectSerialization();
 
-        var pageCursor4 = new PageCursor(pageNumber + 1, firstId2, lastId2, PageSortDirection.DescendingByCreatedAt);
+        var pageCursor4 = new PageCursor(pageNumber + 1, firstId2, lastId2, PageSortDirection.Descending);
         request = request.GetPreviousPage(firstId2, lastId2, true, totalCount3 + 1);
-        request.NavigationDirection.Should().Be(NavigationDirection.Previous);
+        request.NavigationDirection.Should().Be(PageNavigationDirection.Previous);
         request.PageSize.Should().Be(pageSize);
         request.PageCursor.Should().Be(pageCursor4);
         request.PageNumber.Should().Be(pageNumber);

@@ -4,9 +4,9 @@ namespace DRN.Framework.SharedKernel.Domain.Pagination;
 
 //structs have implicit constructors
 [method: JsonConstructor]
-public readonly struct PageCursor(long pageNumber, Guid firstId, Guid lastId, PageSortDirection sortDirection = PageSortDirection.AscendingByCreatedAt)
+public readonly struct PageCursor(long pageNumber, Guid firstId, Guid lastId, PageSortDirection sortDirection = PageSortDirection.Ascending)
 {
-    public static PageCursor Initial => InitialWith(PageSortDirection.AscendingByCreatedAt);
+    public static PageCursor Initial => InitialWith(PageSortDirection.Ascending);
     public static PageCursor InitialWith(PageSortDirection direction) => new(1, Guid.Empty, Guid.Empty, direction);
 
     /// <summary>
@@ -32,5 +32,5 @@ public readonly struct PageCursor(long pageNumber, Guid firstId, Guid lastId, Pa
     public bool IsFirstPage => PageNumber == 1;
     public bool IsFirstRequest => IsFirstPage && LastId == Guid.Empty;
 
-    public bool Valid() => PageNumber >= 1 && (SortDirection == PageSortDirection.AscendingByCreatedAt || SortDirection == PageSortDirection.DescendingByCreatedAt);
+    public bool Valid() => PageNumber >= 1 && (SortDirection == PageSortDirection.Ascending || SortDirection == PageSortDirection.Descending);
 }
