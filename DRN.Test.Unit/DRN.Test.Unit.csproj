@@ -22,6 +22,12 @@
       <None Update="Settings\settings.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="Tests\Framework\Hosting\MountDir\json-settings\settings-override.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Tests\Framework\Hosting\MountDir\key-per-file-settings\postgres-password">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

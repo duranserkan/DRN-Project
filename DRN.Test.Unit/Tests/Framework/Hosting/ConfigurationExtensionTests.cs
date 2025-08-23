@@ -2,13 +2,13 @@ using System.Text.Json;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Settings.Conventions;
 
-namespace DRN.Test.Tests.Framework.Hosting;
+namespace DRN.Test.Unit.Tests.Framework.Hosting;
 
 public class ConfigurationExtensionTests
 {
     [Theory]
-    [DataInline]
-    public void MountDirectorySettings_Should_Be_Added(TestContext context, IMountedSettingsConventionsOverride conventionsOverride)
+    [DataInlineUnit]
+    public void MountDirectorySettings_Should_Be_Added(UnitTestContext context, IMountedSettingsConventionsOverride conventionsOverride)
     {
         var testFolder = context.MethodContext.GetTestFolderLocation();
         conventionsOverride.MountedSettingsDirectory.Returns(Path.Combine(testFolder, "MountDir"));
