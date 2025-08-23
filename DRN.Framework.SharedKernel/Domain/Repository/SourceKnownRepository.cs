@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 
 namespace DRN.Framework.SharedKernel.Domain.Repository;
@@ -26,6 +27,10 @@ public interface ISourceKnownRepository<TEntity>
     Task<int> SaveChangesAsync();
 
     Task<bool> AnyAsync();
+    Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate);
+    Task<long> CountAsync();
+    Task<long> CountAsync(Expression<Func<TEntity, bool>> predicate);
+    
     //todo add get or create with cache support
     ValueTask<TEntity> GetAsync(Guid id);
     Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);

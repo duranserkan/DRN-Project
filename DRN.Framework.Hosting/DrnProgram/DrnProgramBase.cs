@@ -94,7 +94,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
             var application = await CreateApplicationAsync(args, appSettings, scopedLog);
             scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.TemporaryApplication)}", appSettings.DevelopmentSettings.TemporaryApplication);
             scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.SkipValidation)}", appSettings.DevelopmentSettings.SkipValidation);
-            scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.AutoMigrateDevEnvironment)}", appSettings.DevelopmentSettings.AutoMigrateDevEnvironment);
+            scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.AutoMigrate)}", appSettings.DevelopmentSettings.AutoMigrate);
             scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.PrototypingMode)}", appSettings.DevelopmentSettings.PrototypingMode);
             scopedLog.AddToActions("Running Application");
             logger.LogWarning("{@Logs}", scopedLog.Logs);

@@ -68,7 +68,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         scopedLog?.AddToActions($"{contextName} has {migrations.Length} total migrations");
         scopedLog?.AddToActions($"{contextName} has pending model changes");
 
-        var migrate = appSettings is { IsDevEnvironment: true, DevelopmentSettings.AutoMigrateDevEnvironment: true };
+        var migrate = appSettings is { IsDevEnvironment: true, DevelopmentSettings.AutoMigrate: true };
         if (!migrate)
         {
             scopedLog?.AddToActions($"{contextName} auto migration disabled in {environment}");

@@ -1,7 +1,7 @@
 {
   "Environment": "staging",
   "DrnDevelopmentSettings": {
-    "AutoMigrateDevEnvironment": true
+    "AutoMigrate": true
   },
   "NexusAppSettings": {
     "MacKeys": [

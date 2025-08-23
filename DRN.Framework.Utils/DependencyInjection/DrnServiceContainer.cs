@@ -63,44 +63,47 @@ public class DrnServiceContainer
 
         if (lifetime is ConfigAttribute ca)
         {
-            sc.TryAddSingleton(lifetime.ImplementationType, sp =>
-            {
-                var appSettings = sp.GetRequiredService<IAppSettings>();
-                try
-                {
-                    var configKey = ca.ConfigKey ?? ca.ImplementationType.Name;
-                    var errorOnUnknownConfiguration = configKey != string.Empty && ca.ErrorOnUnknownConfiguration;
-                    var configObject = appSettings.InvokeGenericMethod(nameof(IAppSettings.Get), [lifetime.ImplementationType],
-                        configKey, errorOnUnknownConfiguration, ca.BindNonPublicProperties);
-
-                    if (configObject == null)
-                    {
-                        try
-                        {
-                            configObject = Activator.CreateInstance(lifetime.ImplementationType);
-                        }
-                        catch (Exception)
-                        {
-                        }
-                    }
-
-                    if (configObject == null)
-                        throw new ConfigurationException($"ConfigKey: {configKey} is not configured");
-
-                    return configObject;
-                }
-                catch (TargetInvocationException e)
-                {
-                    if (e.InnerException != null)
-                        throw e.InnerException;
-                    throw;
-                }
-            });
+            sc.TryAddSingleton(lifetime.ImplementationType, sp => CreateConfigObject(lifetime, sp, ca));
 
             return true;
         }
 
         return false;
+    }
+
+    private static object CreateConfigObject(LifetimeAttribute lifetime, IServiceProvider sp, ConfigAttribute ca)
+    {
+        var appSettings = sp.GetRequiredService<IAppSettings>();
+        try
+        {
+            var configKey = ca.ConfigKey ?? ca.ImplementationType.Name;
+            var errorOnUnknownConfiguration = configKey != string.Empty && ca.ErrorOnUnknownConfiguration;
+            var configObject = appSettings.InvokeGenericMethod(nameof(IAppSettings.Get), [lifetime.ImplementationType],
+                configKey, errorOnUnknownConfiguration, ca.BindNonPublicProperties);
+
+            if (configObject == null)
+            {
+                try
+                {
+                    configObject = Activator.CreateInstance(lifetime.ImplementationType);
+                }
+                catch (Exception)
+                {
+                    // ignored
+                }
+            }
+
+            if (configObject == null)
+                throw new ConfigurationException($"ConfigKey: {configKey} is not configured");
+
+            return configObject;
+        }
+        catch (TargetInvocationException e)
+        {
+            if (e.InnerException != null)
+                throw e.InnerException;
+            throw;
+        }
     }
 
     private void AddAttributeSpecifiedModules(IServiceCollection serviceCollection)

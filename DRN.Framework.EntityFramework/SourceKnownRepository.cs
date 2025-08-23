@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
@@ -83,8 +84,32 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     {
         using var _ = ScopedLog.Measure(this);
         var any = await Entities.AnyAsync(CancellationToken);
-        
+
         return any;
+    }
+
+    public async Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate)
+    {
+        using var _ = ScopedLog.Measure(this);
+        var any = await Entities.AnyAsync(predicate, CancellationToken);
+
+        return any;
+    }
+
+    public async Task<long> CountAsync()
+    {
+        using var _ = ScopedLog.Measure(this);
+        var count = await Entities.CountAsync(CancellationToken);
+
+        return count;
+    }
+
+    public async Task<long> CountAsync(Expression<Func<TEntity, bool>> predicate)
+    {
+        using var _ = ScopedLog.Measure(this);
+        var count = await Entities.CountAsync(predicate, CancellationToken);
+
+        return count;
     }
 
     /// <summary>
@@ -107,6 +132,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public async ValueTask<TEntity> GetAsync(Guid id) => await GetOrDefaultAsync(id)
                                                          ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
+
     /// <summary>
     /// Finds an entity with the given source known id
     /// </summary>
@@ -122,7 +148,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
         return entity;
     }
-    
+
     /// <summary>
     /// Begins tracking the given entities, and any other reachable entities that are not already being tracked,
     /// in the Added state such that they will be inserted into the database when SaveChanges() is called.
@@ -141,7 +167,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         Entities.RemoveRange(entities);
         ScopedLog.Increase(DeleteCountKey, entities.Count);
     }
-    
+
     /// <summary>
     /// equivalent to calling Add + SaveChangesAsync
     /// </summary>

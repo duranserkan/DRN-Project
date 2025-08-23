@@ -25,7 +25,7 @@ public class DrnDevelopmentSettings
     /// <summary>
     /// When true in dev-environment, after registered services validated, database migrations will be applied automatically for rapid application development
     /// </summary>
-    public bool AutoMigrateDevEnvironment { get; init; }
+    public bool AutoMigrate { get; init; }
 
     /// <summary>
     /// When true in dev environment and AutoMigrateDevEnvironment is enabled, migrations are not used for database creation to increase prototyping speed.
