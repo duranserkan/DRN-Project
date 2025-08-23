@@ -1,6 +1,6 @@
 {
   "Environment": "staging",
-  "DrnAppFeatures": {
+  "DrnDevelopmentSettings": {
     "AutoMigrateDevEnvironment": true
   },
   "NexusAppSettings": {

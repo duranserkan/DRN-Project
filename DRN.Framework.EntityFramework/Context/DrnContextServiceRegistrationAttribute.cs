@@ -68,7 +68,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         scopedLog?.AddToActions($"{contextName} has {migrations.Length} total migrations");
         scopedLog?.AddToActions($"{contextName} has pending model changes");
 
-        var migrate = appSettings is { IsDevEnvironment: true, Features.AutoMigrateDevEnvironment: true };
+        var migrate = appSettings is { IsDevEnvironment: true, DevelopmentSettings.AutoMigrateDevEnvironment: true };
         if (!migrate)
         {
             scopedLog?.AddToActions($"{contextName} auto migration disabled in {environment}");
@@ -77,12 +77,12 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
 
         if (!changeModel.HasPendingChanges)
         {
-            if (appSettings.Features.PrototypingMode)
+            if (appSettings.DevelopmentSettings.PrototypingMode)
                 scopedLog?.AddToActions($"existing {contextName} db is used for prototyping mode since there is no pending changes");
             return;
         }
 
-        if (appSettings.Features.PrototypingMode && changeModel.HasPendingModelChangesForPrototypingMode)
+        if (appSettings.DevelopmentSettings.PrototypingMode && changeModel.HasPendingModelChangesForPrototypingMode)
         {
             scopedLog?.AddToActions($"checking {contextName} database in prototyping mode.");
 

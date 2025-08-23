@@ -22,7 +22,7 @@ public static class ServiceProviderExtensions
         if (appSettings.Features.ApplicationStartedBy != null)
             scopedLog?.Add(nameof(appSettings.Features.ApplicationStartedBy), appSettings.Features.ApplicationStartedBy);
 
-        if (appSettings.Features.SkipValidation)
+        if (appSettings.DevelopmentSettings.SkipValidation)
             return;
 
         var containers = serviceProvider.GetServices<DrnServiceContainer>().ToArray();

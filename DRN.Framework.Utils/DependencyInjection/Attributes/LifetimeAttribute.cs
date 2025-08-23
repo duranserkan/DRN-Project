@@ -62,7 +62,10 @@ public class HostedServiceAttribute() : LifetimeAttribute<object>(ServiceLifetim
 /// This attribute is used to bind configuration keys to objects
 /// </summary>
 /// <param name="configKey">
-/// The configuration key or section name to bind from the configuration source.
+/// <para>
+/// When <see langword="null"/>, the annotated class name is used.
+/// </para>
+/// When empty, the configuration root is used, and the <c>errorOnUnknownConfiguration</c> flag is disregarded.
 /// </param>
 /// <param name="validateAnnotations">
 /// Indicates whether data annotation attributes should be validated after binding. Default is <c>true</c>.
@@ -76,13 +79,13 @@ public class HostedServiceAttribute() : LifetimeAttribute<object>(ServiceLifetim
 /// </param>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class ConfigAttribute(
-    string configKey,
+    string? configKey = null,
     bool validateAnnotations = true,
     bool errorOnUnknownConfiguration = true,
     bool bindNonPublicProperties = true)
     : SingletonAttribute<object>
 {
-    public string ConfigKey { get; } = configKey;
+    public string? ConfigKey { get; } = configKey;
     public bool ValidateAnnotations { get; } = validateAnnotations;
     public bool BindNonPublicProperties { get; } = bindNonPublicProperties;
     public bool ErrorOnUnknownConfiguration { get; } = errorOnUnknownConfiguration;

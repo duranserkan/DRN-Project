@@ -12,6 +12,7 @@ namespace DRN.Framework.Utils.Settings;
 public interface IAppSettings
 {
     DrnAppFeatures Features { get; }
+    DrnDevelopmentSettings DevelopmentSettings { get; }
     NexusAppSettings NexusAppSettings { get; }
     AppEnvironment Environment { get; }
     bool IsDevEnvironment { get; }
@@ -61,6 +62,7 @@ public class AppSettings : IAppSettings
 
 
         Features = Get<DrnAppFeatures>(nameof(DrnAppFeatures)) ?? new DrnAppFeatures();
+        DevelopmentSettings = Get<DrnDevelopmentSettings>(nameof(DrnDevelopmentSettings)) ?? new DrnDevelopmentSettings();
         NexusAppSettings = Get<NexusAppSettings>(nameof(Settings.NexusAppSettings)) ?? new NexusAppSettings();
 
         if (NexusAppSettings.AppId > SourceKnownIdUtils.MaxAppId)
@@ -87,6 +89,7 @@ public class AppSettings : IAppSettings
         NexusAppSettings.AddNexusMacKey(new NexusMacKey(key) { Default = true });
     }
 
+    public DrnDevelopmentSettings DevelopmentSettings { get; }
     public DrnAppFeatures Features { get; }
     public NexusAppSettings NexusAppSettings { get; }
     public AppEnvironment Environment { get; }

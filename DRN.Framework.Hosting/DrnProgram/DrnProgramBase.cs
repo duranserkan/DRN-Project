@@ -92,14 +92,14 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         {
             scopedLog.AddToActions("Creating Application");
             var application = await CreateApplicationAsync(args, appSettings, scopedLog);
-            scopedLog.Add($"AppFeatures_{nameof(DrnAppFeatures.TemporaryApplication)}", appSettings.Features.TemporaryApplication);
-            scopedLog.Add($"AppFeatures_{nameof(DrnAppFeatures.SkipValidation)}", appSettings.Features.SkipValidation);
-            scopedLog.Add($"AppFeatures_{nameof(DrnAppFeatures.AutoMigrateDevEnvironment)}", appSettings.Features.AutoMigrateDevEnvironment);
-            scopedLog.Add($"AppFeatures_{nameof(DrnAppFeatures.PrototypingMode)}", appSettings.Features.PrototypingMode);
+            scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.TemporaryApplication)}", appSettings.DevelopmentSettings.TemporaryApplication);
+            scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.SkipValidation)}", appSettings.DevelopmentSettings.SkipValidation);
+            scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.AutoMigrateDevEnvironment)}", appSettings.DevelopmentSettings.AutoMigrateDevEnvironment);
+            scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.PrototypingMode)}", appSettings.DevelopmentSettings.PrototypingMode);
             scopedLog.AddToActions("Running Application");
             logger.LogWarning("{@Logs}", scopedLog.Logs);
 
-            if (appSettings.Features.TemporaryApplication)
+            if (appSettings.DevelopmentSettings.TemporaryApplication)
                 return;
             //todo create startup report for dev environment
             await application.RunAsync();
@@ -604,7 +604,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected virtual void ValidateEndpoints(WebApplication application, IAppSettings appSettings)
     {
-        if (appSettings.Features.TemporaryApplication) return;
+        if (appSettings.DevelopmentSettings.TemporaryApplication) return;
         // We don't know if user code called UseEndpoints(), so we will call it just in case, UseEndpoints() will ignore duplicate DataSources
         application.UseEndpoints(_ => { });
 

@@ -68,9 +68,26 @@ public class DrnServiceContainer
                 var appSettings = sp.GetRequiredService<IAppSettings>();
                 try
                 {
+                    var configKey = ca.ConfigKey ?? ca.ImplementationType.Name;
+                    var errorOnUnknownConfiguration = configKey != string.Empty && ca.ErrorOnUnknownConfiguration;
                     var configObject = appSettings.InvokeGenericMethod(nameof(IAppSettings.Get), [lifetime.ImplementationType],
-                        ca.ConfigKey, !string.IsNullOrEmpty(ca.ConfigKey) && ca.ErrorOnUnknownConfiguration, ca.BindNonPublicProperties);
-                    return configObject!;
+                        configKey, errorOnUnknownConfiguration, ca.BindNonPublicProperties);
+
+                    if (configObject == null)
+                    {
+                        try
+                        {
+                            configObject = Activator.CreateInstance(lifetime.ImplementationType);
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
+
+                    if (configObject == null)
+                        throw new ConfigurationException($"ConfigKey: {configKey} is not configured");
+
+                    return configObject;
                 }
                 catch (TargetInvocationException e)
                 {
