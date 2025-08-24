@@ -31,7 +31,7 @@ public class PaginationUtilsTests
 
         //Empty Page Result
         var tagQuery = qaContext.Tags.Where(t => t.Name.StartsWith(tagPrefix));
-        var request = PaginationRequest.DefaultWith(pageSize, updateTotalCount, pageSortDirection);
+        var request = PaginationRequest.DefaultWith(pageSize, PageSize.MaxSizeDefault, updateTotalCount, pageSortDirection);
         var paginationResult = await paginationUtils.GetResultAsync(tagQuery, request);
         paginationResult.Items.Count.Should().Be(0);
         request.PageCursor.PageNumber.Should().Be(1);
@@ -48,7 +48,7 @@ public class PaginationUtilsTests
 
         //Initial Page Result
         var expectedPages = new ExpectedPageResultCollection(tags, totalCount, pageSize, updateTotalCount, pageSortDirection);
-        request = PaginationRequest.DefaultWith(pageSize, updateTotalCount, pageSortDirection);
+        request = PaginationRequest.DefaultWith(pageSize, PageSize.MaxSizeDefault, updateTotalCount, pageSortDirection);
         expectedPages.ValidateFirstRequest(request);
 
         paginationResult = await paginationUtils.GetResultAsync(tagQuery, request);

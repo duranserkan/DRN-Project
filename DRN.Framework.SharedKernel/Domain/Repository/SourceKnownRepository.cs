@@ -57,6 +57,7 @@ public interface ISourceKnownRepository<TEntity>
     /// <param name="pageSize">
     /// The number of items per page. Used only when <paramref name="resultInfo"/> is null.
     /// </param>
+    /// <param name="maxSize">The max size value needs to be preserved when it is above the default max size</param>
     /// <param name="updateTotalCount">
     /// Whether to calculate and return the total number of items. Used only when <paramref name="resultInfo"/> is null.
     /// </param>
@@ -69,8 +70,8 @@ public interface ISourceKnownRepository<TEntity>
     /// <remarks>
     /// The maximum allowed jump distance is limited to 10 pages in either direction.
     /// </remarks>
-    Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null,
-        long jumpTo = 1, int pageSize = PageSize.SizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.Ascending);
-    
+    Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null, long jumpTo = 1,
+        int pageSize = PageSize.SizeDefault, int maxSize = PageSize.MaxSizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.Ascending);
+
     IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
 }

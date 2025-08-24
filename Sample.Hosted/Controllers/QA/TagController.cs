@@ -8,14 +8,31 @@ namespace Sample.Hosted.Controllers.QA;
 [Route("Api/QA/[controller]")]
 public class TagController(ITagRepository repository) : ControllerBase
 {
-    [HttpPost("Pagination")]
-    public async Task<PaginationResultModel<Tag>> PaginateAsync([FromBody] PaginationResultInfo? resultInfo,
-        [FromQuery] int jumpTo = 1,
+    [HttpGet("Paginate")]
+    public async Task<PaginationResultModel<Tag>> PaginateAsync(
         [FromQuery] int pageSize = PageSize.SizeDefault,
+        [FromQuery] int maxSize = PageSize.MaxSizeDefault,
         [FromQuery] bool updateTotalCount = false,
         [FromQuery] PageSortDirection direction = PageSortDirection.Ascending)
     {
-        var result = await repository.PaginateAsync(resultInfo, jumpTo, pageSize, updateTotalCount, direction);
+        var request = PaginationRequest.DefaultWith(pageSize, maxSize, updateTotalCount, direction);
+        var result = await repository.PaginateAsync(request);
+
+        return result;
+    }
+
+    [HttpGet("PaginateWithQuery")]
+    public async Task<PaginationResultModel<Tag>> PaginateWithQueryAsync([FromQuery] PaginationResultInfo? resultInfo, [FromQuery] int jumpTo = 1)
+    {
+        var result = await repository.PaginateAsync(resultInfo, jumpTo);
+
+        return result;
+    }
+
+    [HttpPost("PaginateWithBody")]
+    public async Task<PaginationResultModel<Tag>> PaginateWithBodyAsync([FromBody] PaginationResultInfo? resultInfo, [FromQuery] int jumpTo = 1)
+    {
+        var result = await repository.PaginateAsync(resultInfo, jumpTo);
 
         return result;
     }

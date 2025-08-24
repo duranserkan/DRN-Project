@@ -29,9 +29,9 @@ public class PaginationRequest
 
     public static PaginationRequest Default => DefaultWith();
 
-    public static PaginationRequest DefaultWith(int size = PageSize.SizeDefault, bool updateTotalCount = false,
+    public static PaginationRequest DefaultWith(int size = PageSize.SizeDefault, int maxSize = Pagination.PageSize.MaxSizeDefault, bool updateTotalCount = false,
         PageSortDirection direction = PageSortDirection.Ascending) =>
-        new(1, new PageSize(size), PageCursor.InitialWith(direction), updateTotalCount: updateTotalCount);
+        new(1, new PageSize(size, maxSize), PageCursor.InitialWith(direction), updateTotalCount: updateTotalCount);
 
     public long PageNumber { get; private set; }
     public PageSize PageSize { get; init; }

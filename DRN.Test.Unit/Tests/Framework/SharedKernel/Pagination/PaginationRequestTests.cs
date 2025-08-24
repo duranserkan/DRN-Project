@@ -23,10 +23,10 @@ public class PaginationRequestTests
         request.GetSkipSize().Should().Be(0);
         request.ValidateObjectSerialization();
 
-        request = PaginationRequest.DefaultWith(50, true, PageSortDirection.Descending);
+        request = PaginationRequest.DefaultWith(50, 150, true, PageSortDirection.Descending);
         request.NavigationDirection.Should().Be(PageNavigationDirection.Next);
         request.PageCursor.Should().Be(new PageCursor(1, Guid.Empty, Guid.Empty, PageSortDirection.Descending));
-        request.PageSize.Should().Be(new PageSize(50));
+        request.PageSize.Should().Be(new PageSize(50, 150));
         request.PageNumber.Should().Be(1);
         request.PageDifference.Should().Be(0);
         request.Total.Should().Be(PaginationTotal.NotSpecified);
