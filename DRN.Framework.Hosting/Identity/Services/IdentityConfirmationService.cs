@@ -43,7 +43,7 @@ public class IdentityConfirmationService(IServiceProvider serviceProvider, LinkG
         if (isChange) // This is validated by the /confirmEmail endpoint on change.
             routeValues.Add("changedEmail", email);
 
-        var confirmEmailUrl = linkGenerator.GetUriByAction(context, emailEndpoint.ActionName, emailEndpoint.ControllerName, routeValues)!;
+        var confirmEmailUrl = linkGenerator.GetUriByAction(context, emailEndpoint.ActionMethodName, emailEndpoint.ControllerName, routeValues)!;
 
         //Todo: check user type. Can it be IdentityUser?
         await emailSender.SendConfirmationLinkAsync(user, email, HtmlEncoder.Default.Encode(confirmEmailUrl));

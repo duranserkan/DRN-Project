@@ -1,7 +1,9 @@
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 
@@ -15,12 +17,14 @@ public abstract class EndpointCollectionBase<TProgram>
     private static readonly SemaphoreSlim StartupLock = new(1, 1);
 
     public static EndpointCollectionBase<TProgram>? EndpointCollection { get; } = GetCollectionInstance();
+
+    public static DrnEndpointSource EndpointSource { get; private set; } = new();
     public static IReadOnlyList<Endpoint> Endpoints { get; private set; } = [];
     public static IReadOnlyList<PageEndpoint> PageEndpoints { get; private set; } = [];
     public static IReadOnlyList<ApiEndpoint> ApiEndpoints { get; private set; } = [];
 
     /// <summary>
-    /// Assuming that all instances of the program will have same endpoints so that we can initialize this once.
+    /// Assuming that all instances of the program will have the same endpoints so that we can initialize this once.
     /// There may be exceptions, but we consider it a bad practice and don't support it.
     /// </summary>
     internal static void SetEndpointDataSource(IEndpointHelper endpointHelper)
@@ -31,7 +35,10 @@ public abstract class EndpointCollectionBase<TProgram>
         try
         {
             if (_triggered) return;
+
             Endpoints = endpointHelper.EndpointDataSource.Endpoints;
+            EndpointSource = new DrnEndpointSource(endpointHelper.EndpointDataSource);
+
             PageEndpoints = InitializePageEndpoints();
             ApiEndpoints = InitializeApiEndpoints();
             _triggered = true;
@@ -85,7 +92,7 @@ public abstract class EndpointCollectionBase<TProgram>
 
         return endpointList
             .OrderBy(x => x.ControllerClassName)
-            .ThenBy(x => x.ActionName).ToArray();
+            .ThenBy(x => x.ActionMethodName).ToArray();
     }
 
     private static Type? GetCollectionType()
@@ -117,8 +124,50 @@ public abstract class EndpointCollectionBase<TProgram>
 
         foreach (var apiEndpoint in apiForBase.Endpoints)
         {
-            apiEndpoint.SetEndPoint(Endpoints);
+            apiEndpoint.SetEndPoint(EndpointSource);
             endpointList.Add(apiEndpoint);
         }
     }
+}
+
+public class DrnEndpointSource
+{
+    public DrnEndpointSource(EndpointDataSource endpointDataSource)
+    {
+        EndpointDataSource = endpointDataSource;
+        Endpoints = endpointDataSource.Endpoints;
+        EndpointMap = Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<ControllerActionDescriptor>() != null)
+            .GroupBy(endpoint => endpoint.Metadata.GetRequiredMetadata<ControllerActionDescriptor>().GetEndpointKey())
+            .ToDictionary(
+                group => group.Key,
+                group => group.ToArray());
+
+        DescriptorMap = Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<ControllerActionDescriptor>() != null)
+            .GroupBy(endpoint => endpoint.Metadata.GetRequiredMetadata<ControllerActionDescriptor>().GetEndpointKey())
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(endpoint => endpoint.Metadata.GetRequiredMetadata<ControllerActionDescriptor>()).ToArray());
+        
+        EndpointDescriptorMap = Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<ControllerActionDescriptor>() != null)
+            .ToDictionary(
+                endpoint => endpoint.Metadata.GetRequiredMetadata<ControllerActionDescriptor>(),
+                endpoint => endpoint);
+    }
+
+    public DrnEndpointSource()
+    {
+    }
+
+    public EndpointDataSource EndpointDataSource { get; set; } = null!;
+    public IReadOnlyList<Endpoint> Endpoints { get; } = [];
+
+    public Dictionary<string, RouteEndpoint[]> EndpointMap { get; } = new();
+    public Dictionary<string, ControllerActionDescriptor[]> DescriptorMap { get; } = new();
+    public Dictionary<ControllerActionDescriptor, RouteEndpoint> EndpointDescriptorMap { get; } = new();
 }

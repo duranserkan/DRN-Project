@@ -1,7 +1,6 @@
 using System.Reflection;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Routing;
@@ -29,7 +28,7 @@ public abstract class ControllerForBase<TController>
     public ApiEndpoint[] Endpoints { get; }
     public string ControllerRoute { get; }
 
-    private static ApiEndpoint CreateEndpoint(string action) => new(Controller, action);
+    private static ApiEndpoint CreateEndpoint(string actionMethodName) => new(Controller, actionMethodName);
 
     private ApiEndpoint[] InitializeEndpoints() => GetType()
         .GetProperties(BindingFlags.Instance | BindingFlags.Public)
@@ -46,27 +45,31 @@ public abstract class ControllerForBase<TController>
 
 public class ApiEndpoint
 {
-    public ApiEndpoint(Type controller, string actionName)
+    public ApiEndpoint(Type controller, string actionMethodName)
     {
-        ActionName = actionName;
+        ActionMethodName = actionMethodName;
         ControllerName = controller.Name.Replace("Controller", string.Empty);
         ControllerClassName = controller.Name;
-        EndpointName = $"{ControllerClassName}.{ActionName}";
+        EndpointName = $"{ControllerClassName}.{ActionMethodName}";
     }
 
-    public string ActionName { get; }
+    public string ActionMethodName { get; }
     public string ControllerName { get; }
     public string ControllerClassName { get; }
     public string EndpointName { get; }
     public string? RoutePattern { get; private set; }
-    public RouteEndpoint RouteEndpoint { get; private set; } = null!;
-    public ControllerActionDescriptor ActionDescriptor { get; private set; } = null!;
+    public string[]? RoutePatterns { get; private set; }
+    public RouteEndpoint[] RouteEndpoints { get; private set; } = null!;
+    public ControllerActionDescriptor[] ActionDescriptor { get; private set; } = null!;
+    public string EndpointKey { get; private set; } = null!;
 
-    internal void SetEndPoint(IReadOnlyList<Endpoint> endpoints)
+    internal void SetEndPoint(DrnEndpointSource source)
     {
-        var routeEndpoint = endpoints.GetEndpoint(ControllerClassName, ActionName);
-        RouteEndpoint = routeEndpoint ?? throw new ValidationException($"Endpoint not found for {ControllerClassName}.{ActionName}");
-        RoutePattern = RouteEndpoint.RoutePattern.RawText!;
-        ActionDescriptor = RouteEndpoint.Metadata.OfType<ControllerActionDescriptor>().First();
+        EndpointKey = this.GetEndpointKey();
+        var routeEndpoint = source.EndpointMap[EndpointKey];
+        RouteEndpoints = routeEndpoint ?? throw new ValidationException($"Endpoint not found for {EndpointKey}");
+        RoutePatterns = RouteEndpoints.Select(route => route.RoutePattern.RawText!).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+        RoutePattern = RoutePatterns.FirstOrDefault();
+        ActionDescriptor = RouteEndpoints.SelectMany(route => route.Metadata.OfType<ControllerActionDescriptor>()).ToArray();
     }
 }
