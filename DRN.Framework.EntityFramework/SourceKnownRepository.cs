@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
@@ -32,17 +33,17 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     protected TContext Context { get; } = context;
     protected DbSet<TEntity> Entities { get; } = context.GetEntities<TEntity>();
 
-    protected IQueryable<TEntity> EntitiesWithAppliedSettings
+    protected IQueryable<TEntity> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null)
     {
-        get
-        {
-            IQueryable<TEntity> entities = Entities;
+        var repositoryType = GetType();
+        var entities = Entities.TagWith(repositoryType.FullName ?? repositoryType.Name);
+        if (caller != null)
+            entities.TagWith(caller);
 
-            entities = Settings.AsNoTracking ? entities.AsNoTracking() : entities;
-            entities = Settings.IgnoreAutoIncludes ? Entities.IgnoreAutoIncludes() : entities;
+        entities = Settings.AsNoTracking ? entities.AsNoTracking() : entities;
+        entities = Settings.IgnoreAutoIncludes ? Entities.IgnoreAutoIncludes() : entities;
 
-            return entities;
-        }
+        return entities;
     }
 
     protected IEntityUtils Utils { get; } = utils;
@@ -80,34 +81,30 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return changeCount;
     }
 
-    public async Task<bool> AnyAsync()
+    public async Task<bool> AnyAsync(Expression<Func<TEntity, bool>>? predicate = null)
     {
         using var _ = ScopedLog.Measure(this);
-        var any = await Entities.AnyAsync(CancellationToken);
+        var any = predicate == null
+            ? await EntitiesWithAppliedSettings().AnyAsync(CancellationToken)
+            : await EntitiesWithAppliedSettings().AnyAsync(predicate, CancellationToken);
 
         return any;
     }
 
-    public async Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate)
+    public async Task<bool> AllAsync(Expression<Func<TEntity, bool>> predicate)
     {
         using var _ = ScopedLog.Measure(this);
-        var any = await Entities.AnyAsync(predicate, CancellationToken);
+        var any = await EntitiesWithAppliedSettings().AllAsync(predicate, CancellationToken);
 
         return any;
     }
 
-    public async Task<long> CountAsync()
+    public async Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null)
     {
         using var _ = ScopedLog.Measure(this);
-        var count = await Entities.CountAsync(CancellationToken);
-
-        return count;
-    }
-
-    public async Task<long> CountAsync(Expression<Func<TEntity, bool>> predicate)
-    {
-        using var _ = ScopedLog.Measure(this);
-        var count = await Entities.CountAsync(predicate, CancellationToken);
+        var count = predicate == null
+            ? await EntitiesWithAppliedSettings().CountAsync(CancellationToken)
+            : await EntitiesWithAppliedSettings().CountAsync(predicate, CancellationToken);
 
         return count;
     }
@@ -119,7 +116,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids)
     {
         using var _ = ScopedLog.Measure(this);
-        var items = await Filter(EntitiesWithAppliedSettings, ids).ToArrayAsync(CancellationToken);
+        var items = await Filter(EntitiesWithAppliedSettings(), ids).ToArrayAsync(CancellationToken);
         ScopedLog.Increase(GetCountKey, items.Length);
 
         return items;
@@ -144,7 +141,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         if (!entityId.Valid)
             return null;
 
-        var entity = await EntitiesWithAppliedSettings.FirstOrDefaultAsync(entity => entity.Id == entityId.Source.Id, CancellationToken);
+        var entity = await EntitiesWithAppliedSettings().FirstOrDefaultAsync(entity => entity.Id == entityId.Source.Id, CancellationToken);
 
         return entity;
     }
@@ -199,7 +196,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids)
     {
         using var _ = ScopedLog.Measure(this);
-        var deletedCount = await Filter(Entities, ids).ExecuteDeleteAsync(CancellationToken);
+        var deletedCount = await Filter(EntitiesWithAppliedSettings(), ids).ExecuteDeleteAsync(CancellationToken);
         ScopedLog.Increase(DeleteCountKey, deletedCount);
 
         return deletedCount;
@@ -222,7 +219,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
 
     public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
-        => await PaginateAsync(EntitiesWithAppliedSettings, request, filter);
+        => await PaginateAsync(EntitiesWithAppliedSettings(), request, filter);
 
     //todo test
     /// <summary>
@@ -253,10 +250,10 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// </remarks>
     public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null,
         long jumpTo = 1, int pageSize = PageSize.SizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.Ascending)
-        => await PaginateAsync(EntitiesWithAppliedSettings, resultInfo, jumpTo, pageSize, updateTotalCount, direction);
+        => await PaginateAsync(EntitiesWithAppliedSettings(), resultInfo, jumpTo, pageSize, updateTotalCount, direction);
 
     public IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
-        => PaginateAllAsync(EntitiesWithAppliedSettings, request, filter);
+        => PaginateAllAsync(EntitiesWithAppliedSettings(), request, filter);
 
     /// <summary>
     /// Executes pagination against a specific <see cref="IQueryable{TEntity}"/>.
@@ -322,7 +319,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         if (!request.PageCursor.IsFirstRequest)
             ValidateEntityId(request.GetCursorId());
 
-        var filteredQuery = filter != null ? Filter(Entities, filter) : query;
+        var filteredQuery = filter != null ? Filter(query, filter) : query;
         var result = await Utils.Pagination.GetResultAsync(filteredQuery, request, CancellationToken);
         ScopedLog.Increase(GetCountKey, result.ItemCount);
 

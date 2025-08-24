@@ -80,23 +80,19 @@ public class DrnServiceContainer
             var errorOnUnknownConfiguration = configKey != string.Empty && ca.ErrorOnUnknownConfiguration;
             var configObject = appSettings.InvokeGenericMethod(nameof(IAppSettings.Get), [lifetime.ImplementationType],
                 configKey, errorOnUnknownConfiguration, ca.BindNonPublicProperties);
-
-            if (configObject == null)
+            if (configObject != null) 
+                return configObject;
+            
+            try
             {
-                try
-                {
-                    configObject = Activator.CreateInstance(lifetime.ImplementationType);
-                }
-                catch (Exception)
-                {
-                    // ignored
-                }
+                configObject = Activator.CreateInstance(lifetime.ImplementationType);
+            }
+            catch (Exception)
+            {
+                // ignored
             }
 
-            if (configObject == null)
-                throw new ConfigurationException($"ConfigKey: {configKey} is not configured");
-
-            return configObject;
+            return configObject ?? throw new ConfigurationException($"ConfigKey: {configKey} is not configured");
         }
         catch (TargetInvocationException e)
         {

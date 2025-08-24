@@ -17,7 +17,7 @@ public interface ISourceKnownRepository<TEntity>
     /// Settings for default public members of SourceKnownRepositories
     /// </summary>
     RepositorySettings Settings { get; set; }
-    
+
     //todo test cancellation
     //todo test ignore auto includes
     CancellationToken CancellationToken { get; set; }
@@ -26,11 +26,10 @@ public interface ISourceKnownRepository<TEntity>
 
     Task<int> SaveChangesAsync();
 
-    Task<bool> AnyAsync();
-    Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate);
-    Task<long> CountAsync();
-    Task<long> CountAsync(Expression<Func<TEntity, bool>> predicate);
-    
+    Task<bool> AllAsync(Expression<Func<TEntity, bool>> predicate);
+    Task<bool> AnyAsync(Expression<Func<TEntity, bool>>? predicate = null);
+    Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null);
+
     //todo add get or create with cache support
     ValueTask<TEntity> GetAsync(Guid id);
     Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);
@@ -72,6 +71,6 @@ public interface ISourceKnownRepository<TEntity>
     /// </remarks>
     Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null,
         long jumpTo = 1, int pageSize = PageSize.SizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.Ascending);
-
+    
     IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
 }
