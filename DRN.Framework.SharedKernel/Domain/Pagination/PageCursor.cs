@@ -28,8 +28,9 @@ public readonly struct PageCursor(long pageNumber, Guid firstId, Guid lastId, Pa
     public Guid FirstId { get; } = firstId;
 
     public PageSortDirection SortDirection { get; } = sortDirection;
-
+    
     public bool IsFirstPage => PageNumber == 1;
+    
     public bool IsFirstRequest => IsFirstPage && LastId == Guid.Empty;
 
     public bool Valid() => PageNumber >= 1 && (SortDirection == PageSortDirection.Ascending || SortDirection == PageSortDirection.Descending);

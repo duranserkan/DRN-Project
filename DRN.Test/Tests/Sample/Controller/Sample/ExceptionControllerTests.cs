@@ -1,9 +1,8 @@
 using System.Net;
 using Sample.Hosted;
 using Sample.Hosted.Helpers;
-using Xunit.Abstractions;
 
-namespace DRN.Test.Tests.Sample.Controller;
+namespace DRN.Test.Tests.Sample.Controller.Sample;
 
 public class ExceptionControllerTests(ITestOutputHelper outputHelper)
 {

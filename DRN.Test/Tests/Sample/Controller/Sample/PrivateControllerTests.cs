@@ -4,9 +4,8 @@ using DRN.Framework.Utils.Auth;
 using DRN.Test.Tests.Sample.Controller.Helpers;
 using Sample.Hosted;
 using Sample.Hosted.Helpers;
-using Xunit.Abstractions;
 
-namespace DRN.Test.Tests.Sample.Controller;
+namespace DRN.Test.Tests.Sample.Controller.Sample;
 
 public class PrivateControllerTests(ITestOutputHelper outputHelper)
 {

@@ -3,9 +3,8 @@ using System.Net.Http.Json;
 using DRN.Framework.Utils.Models.Sample;
 using Sample.Hosted;
 using Sample.Hosted.Helpers;
-using Xunit.Abstractions;
 
-namespace DRN.Test.Tests.Sample.Controller;
+namespace DRN.Test.Tests.Sample.Controller.Sample;
 
 public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
 {

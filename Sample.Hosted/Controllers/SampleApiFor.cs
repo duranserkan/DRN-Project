@@ -2,7 +2,7 @@ using DRN.Framework.Hosting.Endpoints;
 using Sample.Hosted.Controllers.Sample;
 
 namespace Sample.Hosted.Controllers;
-
+//todo evaluate source generator base imlementation
 public class SampleApiFor
 {
     public const string Prefix = "/Api/Sample";
@@ -16,7 +16,7 @@ public class SampleApiFor
 public class PrivateFor()
     : ControllerForBase<PrivateController>(SampleApiFor.ControllerRouteTemplate)
 {
-    //By convention Endpoint name should match Action name and property should have setter;
+    //By convention, Endpoint name should match Action name and property should have setter;
     public ApiEndpoint Authorized { get; private set; } = null!;
     public ApiEndpoint Anonymous { get; private set; } = null!;
     public ApiEndpoint Context { get; private set; } = null!;
@@ -26,7 +26,7 @@ public class PrivateFor()
 public class WeatherForecastFor()
     : ControllerForBase<WeatherForecastController>(SampleApiFor.ControllerRouteTemplate)
 {
-    //By convention Endpoint name should match Action name and property should have setter;
+    //By convention, Endpoint name should match Action name and property should have setter;
     public ApiEndpoint Get { get; private set; } = null!;
     public ApiEndpoint GetNexusWeatherForecasts { get; private set; } = null!;
 }
@@ -34,7 +34,7 @@ public class WeatherForecastFor()
 public class ExceptionControllerFor()
     : ControllerForBase<ExceptionController>(SampleApiFor.ControllerRouteTemplate)
 {
-    //By convention Endpoint name should match Action name and property should have setter;
+    //By convention, Endpoint name should match Action name and property should have setter;
     public ApiEndpoint ValidationException { get; private set; } = null!;
     public ApiEndpoint UnauthorizedException { get; private set; } = null!;
     public ApiEndpoint ForbiddenException { get; private set; } = null!;
