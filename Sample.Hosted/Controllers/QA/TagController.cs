@@ -1,6 +1,7 @@
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tags;
+using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.Controllers.QA;
 
@@ -46,7 +47,7 @@ public class TagController(ITagRepository repository) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<Tag> PostAsync([FromBody] TagPostRequest request)
+    public async Task<ActionResult<Tag>> PostAsync([FromBody] TagPostRequest request)
     {
         var tag = new Tag(request.Name)
         {
@@ -54,15 +55,16 @@ public class TagController(ITagRepository repository) : ControllerBase
         };
 
         await repository.CreateAsync(tag);
+        var location = Get.Endpoint.QA.Tag.GetAsync.Path(tag.EntityId);
 
-        return tag;
+        return Created(location, tag);
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<int> DeleteAsync([FromRoute] Guid id)
+    public async Task<NoContentResult> DeleteAsync([FromRoute] Guid id)
     {
-        var count = await repository.DeleteAsync(id);
+        await repository.DeleteAsync(id);
 
-        return count;
+        return NoContent();
     }
 }

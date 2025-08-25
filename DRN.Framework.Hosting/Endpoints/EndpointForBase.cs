@@ -63,6 +63,30 @@ public class ApiEndpoint
     public ControllerActionDescriptor[] ActionDescriptor { get; private set; } = null!;
     public string EndpointKey { get; private set; } = null!;
 
+
+    public string Path() => RoutePattern ?? string.Empty;
+
+    public string Path(Guid id, string template = "{id:guid}")
+        => RoutePattern?.Replace("{id:guid}", id.ToString("N")) ?? string.Empty;
+
+    public string Path(Dictionary<string, string> parameters)
+    {
+        if (string.IsNullOrEmpty(RoutePattern))
+            return string.Empty;
+
+        var path = RoutePattern;
+        foreach (var kvp in parameters)
+        {
+            var placeholder = $"{{{kvp.Key}}}";
+            if (path.Contains(placeholder))
+            {
+                path = path.Replace(placeholder, kvp.Value);
+            }
+        }
+
+        return path;
+    }
+
     internal void SetEndPoint(DrnEndpointSource source)
     {
         EndpointKey = this.GetEndpointKey();
