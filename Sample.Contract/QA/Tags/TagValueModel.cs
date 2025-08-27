@@ -7,7 +7,7 @@ public class TagValueModel
     public long Max { get; set; }
     public long Min { get; set; }
     public long Other { get; set; }
-    public DateTimeOffset Date { get; set; } = DateTimeOffset.Now;
+    public DateTimeOffset Date { get; set; } = DateTimeOffset.UnixEpoch;
 
     public TagType Type { get; set; }
 }
