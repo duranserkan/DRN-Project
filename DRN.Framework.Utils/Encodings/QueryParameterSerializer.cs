@@ -5,7 +5,7 @@ namespace DRN.Framework.Utils.Encodings;
 //todo: review 
 public static class QueryParameterSerializer
 {
-    public static string SerializeToQueryString<T>(T obj)
+    public static string SerializeToQueryString<T>(T? obj)
     {
         if (obj == null) return string.Empty;
 

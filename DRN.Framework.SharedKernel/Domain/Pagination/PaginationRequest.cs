@@ -22,7 +22,7 @@ public class PaginationRequest
     /// Represents pagination parameters for fetching a page of data.
     /// </summary>
     public PaginationRequest(
-        long pageNumber = 1,
+        long pageNumber,
         PageSize pageSize = default,
         PageCursor pageCursor = default,
         long totalCount = -1,
