@@ -1,7 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace DRN.Framework.SharedKernel.Domain.Pagination;
 
 public class PaginationResult<TEntity> : PaginationResultBase where TEntity : SourceKnownEntity
 {
+    [SetsRequiredMembers]
     public PaginationResult(IReadOnlyList<TEntity> items, PaginationRequest request, long totalCount = -1)
     {
         Request = request;
@@ -15,9 +18,6 @@ public class PaginationResult<TEntity> : PaginationResultBase where TEntity : So
                 ? items.Skip(1).Take(request.PageSize.Size).ToArray()
                 : items.Take(request.PageSize.Size).ToArray();
         }
-
-        PageNumber = request.PageNumber;
-        PageSize = request.PageSize.Size;
 
         if (items.Count > 0)
         {
@@ -41,12 +41,12 @@ public class PaginationResult<TEntity> : PaginationResultBase where TEntity : So
             FirstId = Guid.Empty;
         }
 
-        HasPrevious = PageNumber > 1;
+        HasPrevious = Request.PageNumber > 1;
         HasNext = request.NavigationDirection == PageNavigationDirection.Previous ||
                   (request.NavigationDirection == PageNavigationDirection.Next && hasExcessCount);
 
         ItemCount = Items.Count;
-        Total = new PaginationTotal(totalCount, PageSize);
+        Total = new PaginationTotal(totalCount, Request.PageSize.Size);
         TotalCountUpdated = request.UpdateTotalCount;
 
         if (!Total.CountSpecified)
@@ -56,7 +56,7 @@ public class PaginationResult<TEntity> : PaginationResultBase where TEntity : So
             return;
         }
 
-        HasNext = HasNext || PageNumber < Total.Pages;
+        HasNext = HasNext || Request.PageNumber < Total.Pages;
     }
 
     public IReadOnlyList<TEntity> Items { get; }

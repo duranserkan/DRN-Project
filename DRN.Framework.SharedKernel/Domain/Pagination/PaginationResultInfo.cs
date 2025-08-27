@@ -1,9 +1,15 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
 namespace DRN.Framework.SharedKernel.Domain.Pagination;
 
 public class PaginationResultInfo : PaginationResultBase
 {
+    public PaginationResultInfo()
+    {
+    }
+
+    [SetsRequiredMembers]
     public PaginationResultInfo(PaginationResultBase paginationResult) : base(paginationResult)
     {
     }
@@ -12,8 +18,6 @@ public class PaginationResultInfo : PaginationResultBase
     public PaginationResultInfo(PaginationRequest request, Guid firstId, Guid lastId, int itemCount, bool hasNext, bool hasPrevious, PaginationTotal total)
     {
         Request = request;
-        PageNumber = request.PageNumber;
-        PageSize = request.PageSize.Size;
         FirstId = firstId;
         LastId = lastId;
         ItemCount = itemCount;

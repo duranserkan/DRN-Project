@@ -63,7 +63,7 @@
         <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" Version="1.1.0" />
         <PackageReference Include="NLog.Targets.Network" Version="6.0.3" />
         <PackageReference Include="NLog.Web.AspNetCore" Version="6.0.3" />
-        <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.3" />
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.4" />
     </ItemGroup>
     
 </Project>

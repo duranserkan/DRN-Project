@@ -5,12 +5,13 @@ using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.Controllers.QA;
 
+//https://learn.microsoft.com/en-us/aspnet/core/web-api/?view=aspnetcore-9.0#controllerbase-class
 [ApiController]
 [Route("Api/QA/[controller]")]
 public class TagController(ITagRepository repository) : ControllerBase
 {
     [HttpGet("Paginate")]
-    public async Task<PaginationResultModel<Tag>> PaginateAsync(
+    public async Task<PaginationResultModel<TagDto>> PaginateAsync(
         [FromQuery] int pageSize = PageSize.SizeDefault,
         [FromQuery] int maxSize = PageSize.MaxSizeDefault,
         [FromQuery] bool updateTotalCount = false,
@@ -19,23 +20,23 @@ public class TagController(ITagRepository repository) : ControllerBase
         var request = PaginationRequest.DefaultWith(pageSize, maxSize, updateTotalCount, direction);
         var result = await repository.PaginateAsync(request);
 
-        return result;
+        return result.ToModel(tag => tag.ToDto());
     }
 
     [HttpGet("PaginateWithQuery")]
-    public async Task<PaginationResultModel<Tag>> PaginateWithQueryAsync([FromQuery] PaginationResultInfo? resultInfo, [FromQuery] int jumpTo = 1)
+    public async Task<PaginationResultModel<TagDto>> PaginateWithQueryAsync([FromQuery] PaginationResultInfo? resultInfo, [FromQuery] int jumpTo = 1)
     {
         var result = await repository.PaginateAsync(resultInfo, jumpTo);
 
-        return result;
+        return result.ToModel(tag => tag.ToDto());
     }
 
     [HttpPost("PaginateWithBody")]
-    public async Task<PaginationResultModel<Tag>> PaginateWithBodyAsync([FromBody] PaginationResultInfo? resultInfo, [FromQuery] int jumpTo = 1)
+    public async Task<PaginationResultModel<TagDto>> PaginateWithBodyAsync([FromBody] PaginationResultInfo? resultInfo, [FromQuery] int jumpTo = 1)
     {
         var result = await repository.PaginateAsync(resultInfo, jumpTo);
 
-        return result;
+        return result.ToModel(tag => tag.ToDto());
     }
 
     [HttpGet("{id:guid}")]

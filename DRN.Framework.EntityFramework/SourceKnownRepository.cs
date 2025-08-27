@@ -298,11 +298,12 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
             return firstPageResult;
         }
 
-        var pageDifference = resultInfo.PageNumber - jumpTo;
+        var pageNumber = resultInfo.Request.PageNumber;
+        var pageDifference = pageNumber - jumpTo;
         if (pageDifference > 10)
-            jumpTo = resultInfo.PageNumber + 10;
+            jumpTo = pageNumber + 10;
         else if (pageDifference < -10)
-            jumpTo = resultInfo.PageNumber - 10;
+            jumpTo = pageNumber - 10;
 
         if (jumpTo < 1)
             jumpTo = 1;

@@ -7,6 +7,16 @@ namespace DRN.Framework.SharedKernel.Domain.Pagination;
 /// </summary>
 public class PaginationRequest
 {
+    private readonly long _pageNumber = 1;
+    private readonly PageSize _pageSize = PageSize.Default;
+    private readonly PageCursor _pageCursor = PageCursor.Initial;
+    private readonly long _totalCount = -1;
+
+    //required for model binding
+    public PaginationRequest()
+    {
+    }
+
     //todo test default values
     /// <summary>
     /// Represents pagination parameters for fetching a page of data.
@@ -19,31 +29,50 @@ public class PaginationRequest
         bool updateTotalCount = false,
         bool markAsHasNextOnRefresh = false)
     {
-        PageNumber = pageNumber < 1 ? 1 : pageNumber;
-        PageSize = pageSize.Valid() ? pageSize : PageSize.Default;
-        PageCursor = pageCursor.Valid() ? pageCursor : PageCursor.Initial;
-        Total = new PaginationTotal(totalCount, PageSize.Size);
+        PageNumber = pageNumber;
+        PageSize = pageSize;
+        PageCursor = pageCursor;
+        TotalCount = totalCount;
         UpdateTotalCount = updateTotalCount;
         MarkAsHasNextOnRefresh = markAsHasNextOnRefresh;
     }
 
     public static PaginationRequest Default => DefaultWith();
 
-    public static PaginationRequest DefaultWith(int size = PageSize.SizeDefault, int maxSize = Pagination.PageSize.MaxSizeDefault, bool updateTotalCount = false,
+    public static PaginationRequest DefaultWith(int size = PageSize.SizeDefault, int maxSize = PageSize.MaxSizeDefault, bool updateTotalCount = false,
         PageSortDirection direction = PageSortDirection.Ascending) =>
         new(1, new PageSize(size, maxSize), PageCursor.InitialWith(direction), updateTotalCount: updateTotalCount);
 
-    public long PageNumber { get; private set; }
-    public PageSize PageSize { get; init; }
-    public PageCursor PageCursor { get; private set; }
+    public long PageNumber
+    {
+        get => _pageNumber;
+        init => _pageNumber = value < 1 ? 1 : value;
+    }
+
+    public PageSize PageSize
+    {
+        get => _pageSize;
+        init => _pageSize = value.Valid() ? value : PageSize.Default;
+    }
+
+    public PageCursor PageCursor
+    {
+        get => _pageCursor;
+        init => _pageCursor = value.Valid() ? value : PageCursor.Initial;
+    }
+
+    public long TotalCount
+    {
+        get => _totalCount;
+        init => _totalCount = value < -1 ? -1 : value;
+    }
 
     public bool UpdateTotalCount { get; init; }
     public bool MarkAsHasNextOnRefresh { get; init; }
 
-    public long TotalCount => Total.Count;
 
     [JsonIgnore]
-    public PaginationTotal Total { get; }
+    public PaginationTotal Total => new(TotalCount, PageSize.Size);
 
     [JsonIgnore]
     public long PageDifference => PageNumber > PageCursor.PageNumber
@@ -62,12 +91,6 @@ public class PaginationRequest
 
     public bool IsPageJump() => PageDifference > 1;
     public int GetSkipSize() => IsPageJump() ? (int)((PageDifference - 1) * PageSize.Size) : 0;
-
-    public void MarkAsFirstPage()
-    {
-        PageNumber = 1;
-        PageCursor = PageCursor.Initial;
-    }
 
     private static PageNavigationDirection CalculateDirection(long pageNumber, long cursorPageNumber, bool firstRequest)
     {

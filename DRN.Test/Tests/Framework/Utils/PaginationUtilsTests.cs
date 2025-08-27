@@ -73,8 +73,8 @@ public class PaginationUtilsTests
         }
 
         //Paginate Backward
-        var cursor = new PageCursor(nextPageResult.PageNumber, nextPageResult.FirstId, nextPageResult.LastId, nextPageRequest.PageCursor.SortDirection);
-        var previousPageRequest = new PaginationRequest(nextPageResult.PageNumber - 1, nextPageRequest.PageSize, cursor, nextPageResult.Total.Count, updateTotalCount);
+        var cursor = new PageCursor(nextPageResult.Request.PageNumber, nextPageResult.FirstId, nextPageResult.LastId, nextPageRequest.PageCursor.SortDirection);
+        var previousPageRequest = new PaginationRequest(nextPageResult.Request.PageNumber - 1, nextPageRequest.PageSize, cursor, nextPageResult.Total.Count, updateTotalCount);
         expectedPages.ValidateRequest(previousPageRequest, totalPageCount, updateTotalCount);
 
         var previousPageResult = await paginationUtils.GetResultAsync(tagQuery, previousPageRequest);
@@ -104,14 +104,14 @@ public class PaginationUtilsTests
 
         //test refresh on the last page
         var lastPageRefreshRequest = lastPageResult.RequestRefresh();
-        expectedPages.ValidateRequest(lastPageRefreshRequest, lastPageResult.PageNumber, false, false, 0);
+        expectedPages.ValidateRequest(lastPageRefreshRequest, lastPageResult.Request.PageNumber, false, false, 0);
 
         var lastPageRefreshResult = await paginationUtils.GetResultAsync(tagQuery, lastPageRefreshRequest);
         expectedPages.ValidateResult(lastPageRefreshResult, updateTotalCount);
         lastPageRefreshResult.TotalCountUpdated.Should().Be(false);
 
         //Page jump to First Page
-        preJumpPageNumber = lastPageResult.PageNumber;
+        preJumpPageNumber = lastPageResult.Request.PageNumber;
         var firstPageRequest = lastPageResult.RequestPage(1);
         expectedPages.ValidateRequest(firstPageRequest, preJumpPageNumber, false, true, (int)totalPageCount - 1);
 
@@ -128,7 +128,7 @@ public class PaginationUtilsTests
         firstPageRefreshResult.TotalCountUpdated.Should().Be(false);
 
         //Page jump to Page 4
-        preJumpPageNumber = firstPageResult.PageNumber;
+        preJumpPageNumber = firstPageResult.Request.PageNumber;
         var request4 = firstPageResult.RequestPage(4);
         expectedPages.ValidateRequest(request4, preJumpPageNumber, false, true, 3);
 
@@ -137,7 +137,7 @@ public class PaginationUtilsTests
         pageResult4.TotalCountUpdated.Should().Be(false);
 
         //Page jump to Page 2
-        preJumpPageNumber = pageResult4.PageNumber;
+        preJumpPageNumber = pageResult4.Request.PageNumber;
         var request2 = pageResult4.RequestPage(2);
         expectedPages.ValidateRequest(request2, preJumpPageNumber, false, true, 2);
 
@@ -156,7 +156,7 @@ public class PaginationUtilsTests
 
         //jump to page 100 to test the empty page
         var request100 = pageResult2.RequestPage(100);
-        expectedPages.ValidateRequest(request100, pageResult2.PageNumber, false, true, 98);
+        expectedPages.ValidateRequest(request100, pageResult2.Request.PageNumber, false, true, 98);
 
         var pageResult100 = await paginationUtils.GetResultAsync(tagQuery, request100);
         pageResult100.Items.Should().BeEmpty();
@@ -251,10 +251,10 @@ public record ExpectedPageResultCollection(Tag[] Tags, int TotalCount, int PageS
         result.Total.CountSpecified.Should().Be(updateTotalCount);
         result.Total.Pages.Should().Be(updateTotalCount ? TotalPageCount : -1);
         result.Total.Count.Should().Be(updateTotalCount ? TotalCount : -1);
-        result.PageSize.Should().Be(PageSize);
-        result.PageNumber.Should().Be(expectedPage.PageNumber);
+        result.Request.PageSize.Size.Should().Be(PageSize);
+        result.Request.PageNumber.Should().Be(expectedPage.PageNumber);
 
-        var isLastPage = result.PageNumber == TotalPageCount;
+        var isLastPage = result.Request.PageNumber == TotalPageCount;
         if (isLastPage)
         {
             result.HasNext.Should().BeFalse();

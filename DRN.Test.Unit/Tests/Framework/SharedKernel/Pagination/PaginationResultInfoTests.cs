@@ -30,8 +30,8 @@ public class PaginationResultInfoTests
         result.HasNext.Should().BeTrue();
         result.HasPrevious.Should().BeTrue();
         result.ItemCount.Should().Be(2);
-        result.PageNumber.Should().Be(pageNumber);
-        result.PageSize.Should().Be(pageSize.Size);
+        result.Request.PageNumber.Should().Be(pageNumber);
+        result.Request.PageSize.Should().Be(pageSize);
         result.TotalCountUpdated.Should().BeTrue();
 
         var resultModel = result.ToModel(t => t.Name);
@@ -41,9 +41,10 @@ public class PaginationResultInfoTests
         resultModel.Info.HasNext.Should().BeTrue();
         resultModel.Info.HasPrevious.Should().BeTrue();
         resultModel.Info.ItemCount.Should().Be(2);
-        resultModel.Info.PageNumber.Should().Be(pageNumber);
-        resultModel.Info.PageSize.Should().Be(pageSize.Size);
+        resultModel.Info.Request.PageNumber.Should().Be(pageNumber);
+        resultModel.Info.Request.PageSize.Should().Be(pageSize);
         resultModel.Info.TotalCountUpdated.Should().BeTrue();
+        resultModel.ValidateObjectSerialization();
 
         var info = result.ToResultInfo();
         info.Request.Should().Be(request);
@@ -51,8 +52,8 @@ public class PaginationResultInfoTests
         info.HasNext.Should().BeTrue();
         info.HasPrevious.Should().BeTrue();
         info.ItemCount.Should().Be(2);
-        info.PageNumber.Should().Be(pageNumber);
-        info.PageSize.Should().Be(pageSize.Size);
+        info.Request.PageNumber.Should().Be(pageNumber);
+        info.Request.PageSize.Should().Be(pageSize);
         info.TotalCountUpdated.Should().BeTrue();
         info.ValidateObjectSerialization();
 

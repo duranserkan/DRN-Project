@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.SharedKernel.Domain.Pagination;
+using DRN.Framework.Utils.Encodings;
 using DRN.Test.Tests.Sample.Controller.Helpers;
 using Flurl;
 using Sample.Contract.QA.Tags;
@@ -72,13 +72,39 @@ public class TagControllerTests(ITestOutputHelper outputHelper)
         //Paginate
         var paginateEndpoint = Get.Endpoint.QA.Tag.PaginateAsync.Path().AppendQueryParam("pageSize", "1");
         result = await client.GetAsync(paginateEndpoint);
-        var content = await result.Content.ReadAsStringAsync();
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // var tags = await result.Content.ReadFromJsonAsync<PaginationResultModel<TagDto>>();
-        // tags.Should().NotBeNull();
-        //
-        // tags.Items.Count.Should().Be(1);
-        // tags.Items[0].Should().BeEquivalentTo(tag2Expected);
+        var firstPageResult = await result.Content.ReadFromJsonAsync<PaginationResultModel<TagDto>>();
+        firstPageResult.Should().NotBeNull();
+        firstPageResult.Items.Count.Should().Be(1);
+        firstPageResult.Info.Request.PageNumber.Should().Be(1);
+
+        //Paginate Second with Post
+        var paginateWithBodyEndpoint = Get.Endpoint.QA.Tag.PaginateWithBodyAsync.Path().AppendQueryParam("jumpTo", "2")!;
+        result = await client.PostAsJsonAsync(paginateWithBodyEndpoint, firstPageResult.Info);
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var secondPageResult = await result.Content.ReadFromJsonAsync<PaginationResultModel<TagDto>>();
+        secondPageResult.Should().NotBeNull();
+        secondPageResult.Items.Count.Should().Be(1);
+        secondPageResult.Info.Request.PageNumber.Should().Be(2);
+
+
+        //Paginate Second with Get
+        var qs = QueryParameterSerializer.SerializeToQueryString(secondPageResult.Info);
+
+        var paginateWithQueryEndpoint = Get.Endpoint.QA.Tag.PaginateWithQueryAsync.Path()
+            .AppendQueryParam(qs)
+            .AppendQueryParam("jumpTo", "2")!;
+        paginateWithQueryEndpoint.SetQueryParams(secondPageResult.Info.Request);
+
+        result = await client.GetAsync(paginateWithQueryEndpoint);
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        secondPageResult = await result.Content.ReadFromJsonAsync<PaginationResultModel<TagDto>>();
+        secondPageResult.Should().NotBeNull();
+        secondPageResult.Items.Count.Should().Be(1);
+        secondPageResult.Info.Request.PageNumber.Should().Be(2);
     }
 
     //todo use data generator
@@ -97,25 +123,18 @@ public class TagControllerTests(ITestOutputHelper outputHelper)
         {
             Name = nameof(TagController_Should_Return_Tags)
         };
-        postRequest1.Model.StringValue = "Égalité";
-        postRequest1.Model.Other = 2;
-        postRequest1.Model.Type = TagType.User;
+        postRequest2.Model.StringValue = "Égalité";
+        postRequest2.Model.Other = 2;
+        postRequest2.Model.Type = TagType.User;
 
         var postRequest3 = new TagPostRequest
         {
             Name = nameof(TagController_Should_Return_Tags)
         };
-        postRequest1.Model.StringValue = "Fraternité";
-        postRequest1.Model.Other = 3;
-        postRequest1.Model.Type = TagType.User;
-
-
+        postRequest3.Model.StringValue = "Fraternité";
+        postRequest3.Model.Other = 3;
+        postRequest3.Model.Type = TagType.User;
+        
         return [postRequest1, postRequest2, postRequest3];
     }
-}
-
-public static class TemplateExtensions
-{
-    public static string GetPath(this ApiEndpoint endpoint, Guid id)
-        => endpoint.RoutePattern!.Replace("{id:guid}", id.ToString("N"));
 }
