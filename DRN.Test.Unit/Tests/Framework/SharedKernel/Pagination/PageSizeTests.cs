@@ -43,7 +43,7 @@ public class PaginationTests
 
         pageSize = new PageSize(0, 0);
         pageSize.Size.Should().Be(1);
-        pageSize.MaxSize.Should().Be(1);
+        pageSize.MaxSize.Should().Be(PageSize.MaxSizeDefault);
 
         pageSize.ValidateObjectSerialization();
     }
@@ -82,7 +82,7 @@ public class PaginationTests
         pageSize.MaxSize.Should().Be(1001);
 
         var json = JsonSerializer.Serialize(pageSize);
-        var deserializedObj = JsonSerializer.Deserialize<PageSize>(json);
+        var deserializedObj = JsonSerializer.Deserialize<PageSize>(json)!;
 
         deserializedObj.Size.Should().Be(150);
         deserializedObj.MaxSize.Should().Be(PageSize.MaxSizeThreshold); //prevent override maxsize from serializations

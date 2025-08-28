@@ -26,34 +26,34 @@ public class PaginationResultInfoTests
         var result = new PaginationResult<Tag>(tags, request, totalCount);
         result.Request.Should().Be(request);
         result.Items.SequenceEqual(tags).Should().BeTrue();
-        result.Total.Should().Be(new PaginationTotal(totalCount, pageSize.Size));
+        result.Total.Should().BeEquivalentTo(new PaginationTotal(totalCount, pageSize.Size));
         result.HasNext.Should().BeTrue();
         result.HasPrevious.Should().BeTrue();
         result.ItemCount.Should().Be(2);
         result.Request.PageNumber.Should().Be(pageNumber);
-        result.Request.PageSize.Should().Be(pageSize);
+        result.Request.PageSize.Should().BeEquivalentTo(pageSize);
         result.TotalCountUpdated.Should().BeTrue();
 
         var resultModel = result.ToModel(t => t.Name);
         resultModel.Info.Request.Should().Be(request);
         resultModel.Items.SequenceEqual([name1, name2]).Should().BeTrue();
-        resultModel.Info.Total.Should().Be(new PaginationTotal(totalCount, pageSize.Size));
+        resultModel.Info.Total.Should().BeEquivalentTo(new PaginationTotal(totalCount, pageSize.Size));
         resultModel.Info.HasNext.Should().BeTrue();
         resultModel.Info.HasPrevious.Should().BeTrue();
         resultModel.Info.ItemCount.Should().Be(2);
         resultModel.Info.Request.PageNumber.Should().Be(pageNumber);
-        resultModel.Info.Request.PageSize.Should().Be(pageSize);
+        resultModel.Info.Request.PageSize.Should().BeEquivalentTo(pageSize);
         resultModel.Info.TotalCountUpdated.Should().BeTrue();
         resultModel.ValidateObjectSerialization();
 
         var info = result.ToResultInfo();
         info.Request.Should().Be(request);
-        info.Total.Should().Be(new PaginationTotal(totalCount, pageSize.Size));
+        info.Total.Should().BeEquivalentTo(new PaginationTotal(totalCount, pageSize.Size));
         info.HasNext.Should().BeTrue();
         info.HasPrevious.Should().BeTrue();
         info.ItemCount.Should().Be(2);
         info.Request.PageNumber.Should().Be(pageNumber);
-        info.Request.PageSize.Should().Be(pageSize);
+        info.Request.PageSize.Should().BeEquivalentTo(pageSize);
         info.TotalCountUpdated.Should().BeTrue();
         info.ValidateObjectSerialization();
 

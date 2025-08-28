@@ -12,7 +12,11 @@ public class PaginationRequest
     private readonly PageCursor _pageCursor = PageCursor.Initial;
     private readonly long _totalCount = -1;
 
-    //required for model binding
+    /// <summary>
+    /// Required for ASP.NET Core model binding from query strings and form data.
+    /// The framework needs a parameterless constructor to instantiate the object
+    /// before setting properties during binding with application/x-www-form-urlencoded format.
+    /// </summary>
     public PaginationRequest()
     {
     }
@@ -23,15 +27,15 @@ public class PaginationRequest
     /// </summary>
     public PaginationRequest(
         long pageNumber,
-        PageSize pageSize = default,
-        PageCursor pageCursor = default,
+        PageSize? pageSize = null,
+        PageCursor? pageCursor = null,
         long totalCount = -1,
         bool updateTotalCount = false,
         bool markAsHasNextOnRefresh = false)
     {
         PageNumber = pageNumber;
-        PageSize = pageSize;
-        PageCursor = pageCursor;
+        PageSize = pageSize ?? PageSize.Default;
+        PageCursor = pageCursor?? PageCursor.Initial;
         TotalCount = totalCount;
         UpdateTotalCount = updateTotalCount;
         MarkAsHasNextOnRefresh = markAsHasNextOnRefresh;

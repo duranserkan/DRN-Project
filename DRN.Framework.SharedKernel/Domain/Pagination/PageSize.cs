@@ -1,8 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
 namespace DRN.Framework.SharedKernel.Domain.Pagination;
 
-public readonly struct PageSize
+public class PageSize
 {
     public const int SizeDefault = 10;
     public const int MaxSizeDefault = 100;
@@ -10,7 +11,20 @@ public readonly struct PageSize
 
     public static PageSize Default => new(SizeDefault);
 
+    private readonly int _size = SizeDefault;
+    private readonly int _maxSize = MaxSizeDefault;
+
+    /// <summary>
+    /// Required for ASP.NET Core model binding from query strings and form data.
+    /// The framework needs a parameterless constructor to instantiate the object
+    /// before setting properties during binding with application/x-www-form-urlencoded format.
+    /// </summary>
+    public PageSize()
+    {
+    }
+
     [JsonConstructor]
+    [SetsRequiredMembers]
     public PageSize(int size, int maxSize = MaxSizeDefault) : this(size, maxSize, false)
     {
     }
@@ -18,28 +32,31 @@ public readonly struct PageSize
     /// <summary>
     /// overrideMaxsizeThreshold only can be used for in process requests. Intentionally made non-serializable.
     /// </summary>
+    [SetsRequiredMembers]
     public PageSize(int size, int maxSize, bool overrideMaxsizeThreshold = false)
     {
         if (overrideMaxsizeThreshold)
-            MaxSize = maxSize;
+            _maxSize = maxSize;
         else
-            MaxSize = maxSize < MaxSizeThreshold ? maxSize : MaxSizeThreshold;
+            MaxSize = maxSize;
 
-        if (MaxSize < 1)
-            MaxSize = 1;
-
-        Size = size > MaxSize ? MaxSize : size;
-        if (Size < 1)
-            Size = 1;
+        Size = size;
     }
-
-    public int Size { get; init; }
-
 
     /// <summary>
     /// Required to preserve MaxSizeDefault override up to MaxSizeThreshold for additional requests
     /// </summary>
-    public int MaxSize { get; init; }
+    public required int MaxSize
+    {
+        get => _maxSize < 1 ? MaxSizeDefault : _maxSize;
+        init => _maxSize = value > MaxSizeThreshold ? MaxSizeThreshold : value;
+    }
+
+    public required int Size
+    {
+        get => _size > MaxSize ? MaxSize : _size;
+        init => _size = value < 1 ? 1 : value;
+    }
 
     public bool Valid() => MaxSize >= Size && Size > 0;
 }

@@ -164,7 +164,7 @@ public class PaginationUtilsTests
         pageResult100.HasNext.Should().BeFalse();
         pageResult100.FirstId.Should().BeEmpty();
         pageResult100.LastId.Should().BeEmpty();
-        pageResult100.Total.Should().Be(pageResult2.Total);
+        pageResult100.Total.Should().BeEquivalentTo(pageResult2.Total);
         pageResult100.TotalCountUpdated.Should().Be(false);
     }
 }

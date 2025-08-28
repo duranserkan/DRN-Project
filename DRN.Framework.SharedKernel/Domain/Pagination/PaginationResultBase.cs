@@ -5,6 +5,11 @@ namespace DRN.Framework.SharedKernel.Domain.Pagination;
 
 public abstract class PaginationResultBase
 {
+    /// <summary>
+    /// Required for ASP.NET Core model binding from query strings and form data.
+    /// The framework needs a parameterless constructor to instantiate the object
+    /// before setting properties during binding with application/x-www-form-urlencoded format.
+    /// </summary>
     protected PaginationResultBase()
     {
     }
@@ -25,25 +30,19 @@ public abstract class PaginationResultBase
     [Required]
     public required PaginationRequest Request { get; init; }
 
-    [Required]
     public required Guid FirstId { get; init; }
 
-    [Required]
     public required Guid LastId { get; init; }
 
-    [Required]
     public required int ItemCount { get; init; }
 
-    [Required]
     public required bool HasNext { get; init; }
 
-    [Required]
     public required bool HasPrevious { get; init; }
 
     [Required]
-    public required PaginationTotal Total { get; init; }
+    public required PaginationTotal Total { get; init; } = PaginationTotal.NotSpecified;
 
-    [Required]
     public required bool TotalCountUpdated { get; init; }
 
     public long GetTotalCountUpToCurrentPage(bool includeCurrentPage = true)

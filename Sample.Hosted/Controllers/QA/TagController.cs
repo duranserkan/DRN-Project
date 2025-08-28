@@ -24,31 +24,34 @@ public class TagController(ITagRepository repository) : ControllerBase
     }
 
     [HttpGet("PaginateWithQuery")]
-    public async Task<PaginationResultModel<TagDto>> PaginateWithQueryAsync([FromQuery] PaginationResultInfo? resultInfo, [FromQuery] int jumpTo = 1)
+    public async Task<PaginationResultModel<TagDto>> PaginateWithQueryAsync([FromQuery] PaginationResultInfo? resultInfo,
+        [FromQuery] int jumpTo = 1, [FromQuery] bool updateTotalCount = false)
     {
-        var result = await repository.PaginateAsync(resultInfo, jumpTo);
+        var result = await repository.PaginateAsync(resultInfo, jumpTo, updateTotalCount: updateTotalCount);
 
         return result.ToModel(tag => tag.ToDto());
     }
 
     [HttpPost("PaginateWithBody")]
-    public async Task<PaginationResultModel<TagDto>> PaginateWithBodyAsync([FromBody] PaginationResultInfo? resultInfo, [FromQuery] int jumpTo = 1)
+    public async Task<PaginationResultModel<TagDto>> PaginateWithBodyAsync([FromBody] PaginationResultInfo? resultInfo,
+        [FromQuery] int jumpTo = 1,
+        [FromQuery] bool updateTotalCount = false)
     {
-        var result = await repository.PaginateAsync(resultInfo, jumpTo);
+        var result = await repository.PaginateAsync(resultInfo, jumpTo, updateTotalCount: updateTotalCount);
 
         return result.ToModel(tag => tag.ToDto());
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<Tag> GetAsync([FromRoute] Guid id)
+    public async Task<TagDto> GetAsync([FromRoute] Guid id)
     {
         var result = await repository.GetAsync(id);
 
-        return result;
+        return result.ToDto();
     }
 
     [HttpPost]
-    public async Task<ActionResult<Tag>> PostAsync([FromBody] TagPostRequest request)
+    public async Task<ActionResult<TagDto>> PostAsync([FromBody] TagPostRequest request)
     {
         var tag = new Tag(request.Name)
         {
@@ -58,7 +61,7 @@ public class TagController(ITagRepository repository) : ControllerBase
         await repository.CreateAsync(tag);
         var location = Get.Endpoint.QA.Tag.GetAsync.Path(tag.EntityId);
 
-        return Created(location, tag);
+        return Created(location, tag.ToDto());
     }
 
     [HttpDelete("{id:guid}")]
