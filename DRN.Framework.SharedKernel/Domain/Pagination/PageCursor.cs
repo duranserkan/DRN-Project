@@ -6,10 +6,7 @@ namespace DRN.Framework.SharedKernel.Domain.Pagination;
 public class PageCursor
 {
     private readonly long _pageNumber = 1;
-    private readonly Guid _lastId = Guid.Empty;
-    private readonly Guid _firstId = Guid.Empty;
-    private readonly PageSortDirection _sortDirection = PageSortDirection.Ascending;
-    
+
     /// <summary>
     /// Required for ASP.NET Core model binding from query strings and form data.
     /// The framework needs a parameterless constructor to instantiate the object
@@ -46,27 +43,15 @@ public class PageCursor
     /// Points the previous page's last item or first page's first item if it is Guid.Empty
     /// Used for fetching next pages
     /// </summary>
-    public required Guid LastId
-    {
-        get => _lastId;
-        init => _lastId = value;
-    }
+    public required Guid LastId { get; init; } = Guid.Empty;
 
     /// <summary>
     /// Points the previous page's first item or the first page's first item if it is Guid.Empty.
     /// Used for fetching previous pages
     /// </summary>
-    public required Guid FirstId
-    {
-        get => _firstId;
-        init => _firstId = value;
-    }
+    public required Guid FirstId { get; init; } = Guid.Empty;
 
-    public required PageSortDirection SortDirection
-    {
-        get => _sortDirection;
-        init => _sortDirection = value;
-    }
+    public required PageSortDirection SortDirection { get; init; } = PageSortDirection.Ascending;
 
     [JsonIgnore]
     public bool IsFirstPage => PageNumber == 1;

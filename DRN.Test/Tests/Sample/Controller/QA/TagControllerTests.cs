@@ -101,7 +101,7 @@ public class TagControllerTests(ITestOutputHelper outputHelper)
         firstPageResult.Info.HasNext.Should().BeTrue();
         firstPageResult.Info.HasPrevious.Should().BeFalse();
         firstPageResult.Info.Request.PageCursor.Should().BeEquivalentTo(PageCursor.Initial);
-        var firstItem = firstPageResult.Items.First();
+        var firstItem = firstPageResult.Items[0];
 
         //Paginate Page 2 with Get
         var queryStringPage2 = QueryParameterSerializer.SerializeToQueryString(firstPageResult.Info);
