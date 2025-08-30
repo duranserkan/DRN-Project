@@ -90,3 +90,6 @@ public class ConfigAttribute(
     public bool BindNonPublicProperties { get; } = bindNonPublicProperties;
     public bool ErrorOnUnknownConfiguration { get; } = errorOnUnknownConfiguration;
 }
+
+public class ConfigRootAttribute(bool validateAnnotations = true, bool bindNonPublicProperties = true)
+    : ConfigAttribute(string.Empty, validateAnnotations, false, bindNonPublicProperties);

@@ -83,7 +83,7 @@ public class ConfigAttributeTests
         attribute => ignoredTypes.Contains(attribute.ImplementationType.Name);
 }
 
-[Config("")]
+[ConfigRoot]
 public class QuoteConfig
 {
     public string DuckTest { get; init; } = string.Empty;
