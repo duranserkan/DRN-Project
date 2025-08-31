@@ -14,7 +14,7 @@ public class PaginationResult<TEntity> : PaginationResultBase where TEntity : So
         Items = items;
         if (hasExcessCount)
         {
-            Items = request.NavigationDirection != PageNavigationDirection.Next
+            Items = request.NavigationDirection == PageNavigationDirection.Previous
                 ? items.Skip(1).Take(request.PageSize.Size).ToArray()
                 : items.Take(request.PageSize.Size).ToArray();
         }

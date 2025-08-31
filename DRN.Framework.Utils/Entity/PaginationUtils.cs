@@ -54,11 +54,9 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
         IQueryable<TEntity> filteredQuery;
         if (navigation == PageNavigationDirection.Refresh)
         {
-            var firstId = firstEntityId.Source.Id;
-            var lastId = lastEntityId.Source.Id;
             filteredQuery = sort == PageSortDirection.Ascending
-                ? query.Where(entity => entity.Id >= firstId && entity.Id <= lastId)
-                : query.Where(entity => entity.Id >= lastId && entity.Id <= firstId);
+                ? query.Where(entity => entity.Id >= firstEntityId.Source.Id)
+                : query.Where(entity => entity.Id <= firstEntityId.Source.Id);
         }
         else if (navigation == PageNavigationDirection.Next)
         {
