@@ -91,5 +91,6 @@ public class ConfigAttribute(
     public bool ErrorOnUnknownConfiguration { get; } = errorOnUnknownConfiguration;
 }
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class ConfigRootAttribute(bool validateAnnotations = true, bool bindNonPublicProperties = true)
     : ConfigAttribute(string.Empty, validateAnnotations, false, bindNonPublicProperties);
