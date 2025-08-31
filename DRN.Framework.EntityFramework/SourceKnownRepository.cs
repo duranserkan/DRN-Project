@@ -221,27 +221,35 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
         => await PaginateAsync(EntitiesWithAppliedSettings(), request, filter);
 
-    //todo test
     /// <summary>
-    /// Begins or continues pagination on the entity set.
-    /// When called without <paramref name="resultInfo"/>, starts initial pagination using the provided settings.
-    /// Otherwise, continues from the given <paramref name="resultInfo"/> and jumps to the specified page.
+    /// Executes pagination against a specific <see cref="IQueryable{TEntity}"/>.
+    /// If <paramref name="resultInfo"/> is null, starts initial pagination using the provided settings.
+    /// Otherwise, continues pagination from <paramref name="resultInfo"/> and jumps to the specified page.
     /// </summary>
     /// <param name="resultInfo">
-    /// Optional. The result of a previous pagination call. If null, a new pagination session is started.
+    ///     Optional. The result of a previous pagination call. If null, a new pagination session is started.
     /// </param>
     /// <param name="jumpTo">
-    /// The page number to navigate to when continuing pagination. Ignored on initial calls (<paramref name="resultInfo"/> is null).
+    ///     The page number to navigate to when continuing pagination. Ignored on initial calls (<paramref name="resultInfo"/> is null).
     /// </param>
     /// <param name="pageSize">
-    /// The number of items per page for the initial pagination request. Ignored when <paramref name="resultInfo"/> is provided.
+    ///     The number of items per page for the initial pagination request.
+    ///     If a positive value is not provided, <see cref="PageSize"/>'s default value (10) will be used. 
+    ///     If this value is positive and differs from the page size specified in <paramref name="resultInfo" />,
+    ///     the current page number will be reset to 1.
     /// </param>
-    /// <param name="maxSize">The max size value needs to be preserved when it is above the default max size</param>
-    /// <param name="updateTotalCount">
-    /// Whether to calculate and return the total item count on the initial pagination request.
+    /// <param name="maxSize">
+    ///     The max size value needs to be preserved when it is above the default max size
+    ///     If a positive value is not provided, <see cref="PageSize"/>'s default max value(100) will be used. 
     /// </param>
     /// <param name="direction">
-    /// The sort direction for the initial pagination request. Ignored when <paramref name="resultInfo"/> is provided.
+    ///     The sort direction for the initial pagination request. Default behavior preserve resultInfo's or use Ascending when info is null.
+    ///     If this value differs from the sort direction specified in <paramref name="resultInfo" />,
+    ///     the current page number will be reset to 1.
+    /// </param>
+    /// <param name="totalCount">Total count to be used if calculated previously</param>
+    /// <param name="updateTotalCount">
+    ///     Whether to calculate and return the total item count on the initial pagination request.
     /// </param>
     /// <returns>
     /// A <see cref="PaginationResultModel{TEntity}"/> containing the page of items.
@@ -249,9 +257,9 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// <remarks>
     /// When continuing pagination, jump distances beyond 10 pages in either direction are capped at 10.
     /// </remarks>
-    public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null, long jumpTo = 1,
-        int pageSize = PageSize.SizeDefault, int maxSize = PageSize.MaxSizeDefault, bool updateTotalCount = false, PageSortDirection direction = PageSortDirection.Ascending)
-        => await PaginateAsync(EntitiesWithAppliedSettings(), resultInfo, jumpTo, pageSize, maxSize, updateTotalCount, direction);
+    public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null, long jumpTo = 1L,
+        int pageSize = -1, int maxSize = -1, PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)
+        => await PaginateAsync(EntitiesWithAppliedSettings(), resultInfo, jumpTo, pageSize, maxSize, direction, totalCount, updateTotalCount);
 
     public IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
         => PaginateAllAsync(EntitiesWithAppliedSettings(), request, filter);
@@ -262,23 +270,32 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// Otherwise, continues pagination from <paramref name="resultInfo"/> and jumps to the specified page.
     /// </summary>
     /// <param name="query">
-    /// The data source to paginate.
+    ///     The data source to paginate.
     /// </param>
     /// <param name="resultInfo">
-    /// Optional. The result of a previous pagination call. If null, a new pagination session is started.
+    ///     Optional. The result of a previous pagination call. If null, a new pagination session is started.
     /// </param>
     /// <param name="jumpTo">
-    /// The page number to navigate to when continuing pagination. Ignored on initial calls (<paramref name="resultInfo"/> is null).
+    ///     The page number to navigate to when continuing pagination. Ignored on initial calls (<paramref name="resultInfo"/> is null).
     /// </param>
     /// <param name="pageSize">
-    /// The number of items per page for the initial pagination request. Ignored when <paramref name="resultInfo"/> is provided.
+    ///     The number of items per page for the initial pagination request.
+    ///     If a positive value is not provided, <see cref="PageSize"/>'s default value (10) will be used. 
+    ///     If this value is positive and differs from the page size specified in <paramref name="resultInfo" />,
+    ///     the current page number will be reset to 1.
     /// </param>
-    /// <param name="maxSize">The max size value needs to be preserved when it is above the default max size</param>
-    /// <param name="updateTotalCount">
-    /// Whether to calculate and return the total item count on the initial pagination request.
+    /// <param name="maxSize">
+    ///     The max size value needs to be preserved when it is above the default max size
+    ///     If a positive value is not provided, <see cref="PageSize"/>'s default max value(100) will be used. 
     /// </param>
     /// <param name="direction">
-    /// The sort direction for the initial pagination request. Ignored when <paramref name="resultInfo"/> is provided.
+    ///     The sort direction for the initial pagination request. Default behavior preserve resultInfo's or use Ascending when info is null.
+    ///     If this value differs from the sort direction specified in <paramref name="resultInfo" />,
+    ///     the current page number will be reset to 1.
+    /// </param>
+    /// <param name="totalCount">Total count to be used if calculated previously</param>
+    /// <param name="updateTotalCount">
+    ///     Whether to calculate and return the total item count on the initial pagination request.
     /// </param>
     /// <returns>
     /// A <see cref="PaginationResultModel{TEntity}"/> containing the page of items.
@@ -286,13 +303,15 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// <remarks>
     /// When continuing pagination, jump distances beyond 10 pages in either direction are capped at 10.
     /// </remarks>
-    protected async Task<PaginationResultModel<TEntity>> PaginateAsync(IQueryable<TEntity> query, PaginationResultInfo? resultInfo = null,
-        long jumpTo = 1, int pageSize = PageSize.SizeDefault, int maxSize = PageSize.MaxSizeDefault, bool updateTotalCount = false,
-        PageSortDirection direction = PageSortDirection.Ascending)
+    protected async Task<PaginationResultModel<TEntity>> PaginateAsync(
+        IQueryable<TEntity> query, PaginationResultInfo? resultInfo = null, long jumpTo = 1, int pageSize = -1, int maxSize = -1,
+        PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)
     {
-        if (resultInfo == null)
+        var directionChanged = resultInfo != null && direction != PageSortDirection.None && direction != resultInfo.Request.PageCursor.SortDirection;
+        var sizeChanged = resultInfo != null && pageSize > 0 && pageSize != resultInfo.Request.PageSize.Size;
+        if (resultInfo == null || directionChanged || sizeChanged)
         {
-            var firstPageRequest = PaginationRequest.DefaultWith(pageSize, maxSize, updateTotalCount, direction);
+            var firstPageRequest = PaginationRequest.DefaultWith(pageSize, maxSize, direction, totalCount: totalCount, updateTotalCount: updateTotalCount);
             var firstPageResult = await PaginateAsync(query, firstPageRequest);
 
             return firstPageResult;

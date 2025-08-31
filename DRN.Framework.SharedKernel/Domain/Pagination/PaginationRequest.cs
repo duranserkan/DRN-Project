@@ -35,7 +35,7 @@ public class PaginationRequest
     {
         PageNumber = pageNumber;
         PageSize = pageSize ?? PageSize.Default;
-        PageCursor = pageCursor?? PageCursor.Initial;
+        PageCursor = pageCursor ?? PageCursor.Initial;
         TotalCount = totalCount;
         UpdateTotalCount = updateTotalCount;
         MarkAsHasNextOnRefresh = markAsHasNextOnRefresh;
@@ -43,9 +43,9 @@ public class PaginationRequest
 
     public static PaginationRequest Default => DefaultWith();
 
-    public static PaginationRequest DefaultWith(int size = PageSize.SizeDefault, int maxSize = PageSize.MaxSizeDefault, bool updateTotalCount = false,
-        PageSortDirection direction = PageSortDirection.Ascending) =>
-        new(1, new PageSize(size, maxSize), PageCursor.InitialWith(direction), updateTotalCount: updateTotalCount);
+    public static PaginationRequest DefaultWith(int size = PageSize.SizeDefault, int maxSize = PageSize.MaxSizeDefault, PageSortDirection direction = PageSortDirection.Ascending,
+        long totalCount = -1, bool updateTotalCount = false) =>
+        new(1, new PageSize(size, maxSize), PageCursor.InitialWith(direction), totalCount, updateTotalCount: updateTotalCount);
 
     public long PageNumber
     {

@@ -6,6 +6,7 @@ namespace DRN.Framework.SharedKernel.Domain.Pagination;
 public class PageCursor
 {
     private readonly long _pageNumber = 1;
+    private readonly PageSortDirection _sortDirection = PageSortDirection.Ascending;
 
     /// <summary>
     /// Required for ASP.NET Core model binding from query strings and form data.
@@ -51,7 +52,11 @@ public class PageCursor
     /// </summary>
     public required Guid FirstId { get; init; } = Guid.Empty;
 
-    public required PageSortDirection SortDirection { get; init; } = PageSortDirection.Ascending;
+    public required PageSortDirection SortDirection
+    {
+        get => _sortDirection;
+        init => _sortDirection = value == PageSortDirection.None ? PageSortDirection.Ascending : value;
+    }
 
     [JsonIgnore]
     public bool IsFirstPage => PageNumber == 1;

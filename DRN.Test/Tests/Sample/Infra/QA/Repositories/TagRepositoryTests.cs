@@ -33,6 +33,34 @@ public class TagRepositoryTests
         AssertValidations(firstTag, repository);
         await AssertCRUD(repository, firstTag, secondTag, thirdTag, tagPrefix);
         await AssertPagination(beforeTagCreation, afterTagCreation, repository, firstTag, secondTag);
+
+        var firstPageResult = await repository.PaginateAsync(pageSize: 1, direction: PageSortDirection.Descending, updateTotalCount: true);
+        firstPageResult.Info.Request.PageCursor.IsFirstRequest.Should().BeTrue();
+        firstPageResult.Items.Count.Should().Be(1);
+        firstPageResult.Info.Total.Count.Should().BeGreaterThan(1);
+        firstPageResult.Info.Request.PageCursor.SortDirection.Should().Be(PageSortDirection.Descending);
+
+        var secondPageResult = await repository.PaginateAsync(firstPageResult.Info, 2, pageSize: 1);
+        secondPageResult.Info.Request.PageNumber.Should().Be(2);
+        secondPageResult.Items.Count.Should().Be(1);
+        secondPageResult.Info.Total.Count.Should().BeGreaterThan(1);
+        secondPageResult.Info.Request.PageCursor.SortDirection.Should().Be(PageSortDirection.Descending);
+
+        var resetDirectionResult = await repository.PaginateAsync(firstPageResult.Info, 2, pageSize: 1, direction: PageSortDirection.Ascending,
+            totalCount: secondPageResult.Info.Total.Count);
+        resetDirectionResult.Info.Request.PageCursor.IsFirstRequest.Should().BeTrue();
+        resetDirectionResult.Items.Count.Should().Be(1);
+        resetDirectionResult.Info.Total.Count.Should().BeGreaterThan(1);
+        resetDirectionResult.Info.Request.PageCursor.SortDirection.Should().Be(PageSortDirection.Ascending);
+        resetDirectionResult.Info.Total.Count.Should().Be(secondPageResult.Info.Total.Count);
+        
+        var resetSizeResult = await repository.PaginateAsync(firstPageResult.Info, 2, pageSize: 2, direction: PageSortDirection.Descending,
+            totalCount: secondPageResult.Info.Total.Count);
+        resetSizeResult.Info.Request.PageCursor.IsFirstRequest.Should().BeTrue();
+        resetSizeResult.Items.Count.Should().Be(2);
+        resetSizeResult.Info.Total.Count.Should().BeGreaterThan(1);
+        resetSizeResult.Info.Request.PageCursor.SortDirection.Should().Be(PageSortDirection.Descending);
+        resetSizeResult.Info.Total.Count.Should().Be(secondPageResult.Info.Total.Count);
     }
 
     private static async Task AssertCRUD(ITagRepository repository, Tag firstTag, Tag secondTag, Tag thirdTag, string tagPrefix)
