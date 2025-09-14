@@ -77,9 +77,9 @@ https://rstacruz.github.io/rsjs/
 </footer>
 
 <script>        
-    drnApp.showCookieBanner = @Json.Serialize(showCookieAlertBanner);
+    DRN.App.showCookieBanner = @Json.Serialize(showCookieAlertBanner);
     
-    drnApp.onmount.register("[data-js-drn-footer]", function () {
+    DRN.Onmount.register("[data-js-drn-footer]", function () {
         'use strict';
         const footerComponent = this;
         const preferencesCookieName = @Json.Serialize(ConsentContext.CookieName);
@@ -88,9 +88,9 @@ https://rstacruz.github.io/rsjs/
             if (parts.length === 2)
                 return parts.pop().split(';').shift();
 
-            return drnApp.utils.urlSafeBase64Encode(JSON.stringify({}));
+            return DRN.Utils.urlSafeBase64Encode(JSON.stringify({}));
         };
-        const getPreferenceCookieWithDecode = () => JSON.parse(drnApp.utils.urlSafeBase64Decode(getPreferenceCookie()));
+        const getPreferenceCookieWithDecode = () => JSON.parse(DRN.Utils.urlSafeBase64Decode(getPreferenceCookie()));
         let globalPreferences = getPreferenceCookieWithDecode();
 
         const footerNavbar = ".footerNavbar";
@@ -104,7 +104,7 @@ https://rstacruz.github.io/rsjs/
         const savePreferences = (preferences) => {
             globalPreferences = preferences;
             const preferencesAsJson = JSON.stringify(preferences);
-            const preferencesJsonAsEncoded = drnApp.utils.urlSafeBase64Encode(preferencesAsJson);
+            const preferencesJsonAsEncoded = DRN.Utils.urlSafeBase64Encode(preferencesAsJson);
             const oneYearInSeconds = 365 * 24 * 60 * 60; // Set the cookie to expire in 1 year using Max-Age
             document.cookie = `${preferencesCookieName}=${preferencesJsonAsEncoded}; path=/; Max-Age=${oneYearInSeconds}; SameSite=Strict;`;
 
@@ -138,6 +138,6 @@ https://rstacruz.github.io/rsjs/
             savePreferences(createPreferences(analytics, marketing));
         });
         
-        adjustFooterVisibility(drnApp.showCookieBanner);
+        adjustFooterVisibility(DRN.App.showCookieBanner);
     });
 </script>

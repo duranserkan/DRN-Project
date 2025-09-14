@@ -18,6 +18,7 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
         <title>@ViewData[Get.ViewDataKeys.Title] - @ScopeContext.Settings.ApplicationName</title>
         @{
                 var canonicalUrl = Context.Request.Scheme + "://" + Context.Request.Host + Context.Request.Path;
+                var nonce = Context.GetNonce();
         }
         <link rel="canonical" href="@canonicalUrl"/>
         <link href="/images/100.jpeg" rel="icon" type="image/x-icon"/>
@@ -25,7 +26,9 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
         @*https://icons.getbootstrap.com/#usage*@
         @*todo: bootstrap customizations https://getbootstrap.com/docs/5.3/customize/overview/*@
         <link rel="preload" href="~/lib/bootstrap/fonts/bootstrap-icons.woff2?e34853135f9e39acf64315236852cd5a" as="font" crossorigin="anonymous">
-        <link href="~/lib/bootstrap/bootstrap.min.PI8n5gCc.css" rel="stylesheet" crossorigin="anonymous" integrity="sha256-PI8n5gCcz9cQqQXm3PEtDuPG8qx9oFsFctPg0S5zb8g="/>
+        @*<link href="~/lib/bootstrap/bootstrap.min.PI8n5gCc.css" rel="stylesheet" crossorigin="anonymous" integrity="sha256-PI8n5gCcz9cQqQXm3PEtDuPG8qx9oFsFctPg0S5zb8g="/>*@
+
+        @Html.Raw(ViteManifestHelper.GetStyleTag("buildwww/scss/bootstrap.scss", nonce))
         <link href="~/lib/bootstrap/bootstrap-icons.min.pdY4ejLK.css" rel="stylesheet" crossorigin="anonymous" integrity="sha256-pdY4ejLKO67E0CM2tbPtq1DJ3VGDVVdqAR6j3ZwdiE4="/>
 
         <!-- Custom CSS -->
@@ -33,10 +36,13 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
         <link href="~/css/sidebars.css?v=1" rel="stylesheet"/>
 
         <!-- Preload -->
-        <script src="~/js/site-preload.js?v=1"></script> @*defines drnApp*@
+        @*<script src="~/js/site-preload.js?v=1"></script>*@
+
+        @*defines DRN.App, DRN.Utils, DRN.Onmount*@
+        @Html.Raw(ViteManifestHelper.GetScriptTag("buildwww/js/site-preload.js", nonce))
         <script>
-                drnApp.environment =  @Json.Serialize(ScopeContext.Settings.Environment.ToString());
-                drnApp.isDev = @Json.Serialize(ScopeContext.Settings.IsDevEnvironment);
+                DRN.App.environment =  @Json.Serialize(ScopeContext.Settings.Environment.ToString());
+                DRN.App.isDev = @Json.Serialize(ScopeContext.Settings.IsDevEnvironment);
         </script>
         <!-- Preload -->
 
@@ -52,6 +58,8 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
 <body class="d-flex flex-column bg-secondary-subtle vh-100" style="overflow: hidden;" hx-ext="safe-nonce" hx-boost="true" hx-history="false">
 @RenderBody()
 
+@*npm install bootstrap@5.3.8*
+https://getbootstrap.com/docs/5.3/getting-started/download/*@
 <script defer src="~/lib/bootstrap/bootstrap.bundle.min.NfRUfZNk.js" crossorigin="anonymous" integrity="sha256-NfRUfZNkERrKSFA0c1a8VmCplPDYtpTYj5lQmKe1R/o="></script>
 <script defer src="~/lib/jquery/jquery.validate.min.umbTaFxP31.js" crossorigin="anonymous" integrity="sha256-umbTaFxP31Fv6O1itpLS/3+v5fOAWDLOUzlmvOGaKV4="></script>
 <script defer src="~/lib/jquery/jquery.validate.unobtrusive.min.YJa7W8Ei.js" crossorigin="anonymous" integrity="sha256-YJa7W8EiQdQpkk93iGEjjnLSUWRpRJbSfzfURh1kxz4="></script>

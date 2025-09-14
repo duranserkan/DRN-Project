@@ -59,8 +59,10 @@ drnApp.utils.getRequestElementSelector = requestElement => {
     if (!requestElement) return 'Unknown Element';
 
     let selectorSuffix = '';
-    if (requestElement.id) selectorSuffix += `#${requestElement.id}`;
-    if (requestElement.classList.length > 0) selectorSuffix += `.${[...requestElement.classList].join('.')}`;
+    if (requestElement.id) 
+        selectorSuffix += `#${requestElement.id}`;
+    if (requestElement.classList.length > 0) 
+        selectorSuffix += `.${[...requestElement.classList].join('.')}`;
 
     Array.from(requestElement.attributes)
         .filter(attr => attr.name.startsWith('data-'))
@@ -71,17 +73,70 @@ drnApp.utils.getRequestElementSelector = requestElement => {
     return requestElement.tagName + selectorSuffix;
 };
 
+/**
+ * Checks if a value is a plain object (not an array, function, Date, etc.)
+ * Only objects created by the Object constructor are considered plain objects.
+ *
+ * @param {any} value - The value to check
+ * @returns {boolean} True if the value is a plain object, false otherwise
+ *
+ * @example
+ * isPlainObject({}) // true
+ * isPlainObject([]) // false
+ * isPlainObject(new Date()) // false
+ */
+drnApp.utils.isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]';
+
+/**
+ * Deeply merges two objects, with override properties taking precedence over base.
+ *
+ * - Base serves as the foundation object
+ * - Overrides provide new values and take precedence
+ * - When both have the same property:
+ *   - For plain objects: recursively merge them
+ *   - Otherwise: override value wins
+ * - Returns a new object; does not mutate inputs
+ *
+ * @param {Object} base - Base object that provides default structure/values
+ * @param {Object} overrides - Object containing values that should take precedence
+ * @returns {Object} New merged object combining both inputs
+ *
+ * @example
+ * const base = { name: 'Duran', config: { theme: 'dark', size: 'large' } };
+ * const updates = { age: 25, config: { theme: 'light' } };
+ * const result = deepMerge(base, updates);
+ * // Returns: { name: 'Duran', age: 25, config: { theme: 'light', size: 'large' } }
+ */
+drnApp.utils.deepMerge = (base, overrides) => {
+    if (!overrides) return base;
+    if (!base) return overrides;
+
+    const output = {...base};
+
+    for (const key in overrides) {
+        if (Object.prototype.hasOwnProperty.call(overrides, key)) {
+            const overrideValue = overrides[key];
+            const baseValue = output[key];
+
+            if (drnApp.utils.isPlainObject(overrideValue) && drnApp.utils.isPlainObject(baseValue))
+                output[key] = drnApp.utils.deepMerge(baseValue, overrideValue);
+            else
+                output[key] = overrideValue;
+        }
+    }
+
+    return output;
+};
+
 //https://ricostacruz.com/rsjs/index.html#consider-using-onmount
 //https://rstacruz.github.io/onmount
 drnApp.onmount.unregister = function (options) {
     if (!this) return;
-
-    if (options.disposable && typeof options.disposable.dispose === 'function') {
+    
+    if (options.disposable && typeof options.disposable.dispose === 'function')
         options.disposable.dispose();
-    }
-    if (options.disposable && typeof options.disposable.destroy === 'function') {
+    if (options.disposable && typeof options.disposable.destroy === 'function')
         options.disposable.destroy();
-    }
 
     $(this).off();
 }
@@ -132,7 +187,6 @@ drnApp.onmount.registerFull = (selector, registerCallback, unregisterCallback = 
         onmount();
         return;
     }
-
 
     drnApp.onmount._registry.add(selectorKey);
 
