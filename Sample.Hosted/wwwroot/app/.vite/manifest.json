@@ -1,0 +1,22 @@
+{
+  "buildwww/app/css/app.css": {
+    "file": "app.oS4Ouav3.css",
+    "src": "buildwww/app/css/app.css",
+    "isEntry": true,
+    "names": [
+      "app.css"
+    ]
+  },
+  "buildwww/app/js/app_postload.js": {
+    "file": "app_postload.DqKm_zSp.js",
+    "name": "app_postload",
+    "src": "buildwww/app/js/app_postload.js",
+    "isEntry": true
+  },
+  "buildwww/app/js/app_preload.js": {
+    "file": "app_preload.XGORZqF1.js",
+    "name": "app_preload",
+    "src": "buildwww/app/js/app_preload.js",
+    "isEntry": true
+  }
+}

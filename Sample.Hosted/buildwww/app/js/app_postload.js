@@ -11,11 +11,11 @@ document.addEventListener('DOMContentLoaded', onmount, {once: true});
 // Reinitialize onmount after HTMX partial updates
 document.addEventListener('htmx:load', onmount);
 
-drnApp.onmount.register('[data-bs-toggle="tooltip"]', function (options) {
+DRN.Onmount.register('[data-bs-toggle="tooltip"]', function (options) {
     options.disposable = new bootstrap.Tooltip(this, {animation: false}); // Initialize Bootstrap Tooltip for the current element
 })
 
-if (drnApp.isDev) {
+if (DRN.App.isDev) {
     document.addEventListener('htmx:responseError', function (evt) {
         if (!evt.detail) {
             console.error("htmx:responseError fired without detail");
@@ -43,8 +43,8 @@ if (drnApp.isDev) {
             .map(([key, value]) => `${key}: ${value}`)
             .join('\n') || 'No headers sent';
 
-        const requestElementSelector = drnApp.utils.getRequestElementSelector(evt.target);
-        const targetSelector = drnApp.utils.getRequestElementSelector(request.target) || 'Unknown Target';
+        const requestElementSelector = DRN.Utils.getRequestElementSelector(evt.target);
+        const targetSelector = DRN.Utils.getRequestElementSelector(request.target) || 'Unknown Target';
 
         // Construct a detailed error message
         const errorMessage = `

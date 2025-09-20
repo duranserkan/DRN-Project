@@ -1,13 +1,13 @@
 // vite.config.js
 import {defineConfig} from 'vite';
 import {resolve} from 'path'; // Import resolve for path management
-import drnUtils from './buildwww/js/drnUtils.js';
+import drnUtils from './buildwww/app/js/drnUtils.js';
 
 const sharedConfig = {
     // Set the base public path for assets (important for ASP.NET)
     // This should match the virtual path where your dist folder is served from
     // E.g., if served from ~/dist/, set to '/dist/'
-    base: '/site-dist/',
+    base: '/',
     build: {
         // Ensure the output directory is cleaned before each build
         emptyOutDir: true,
@@ -19,18 +19,17 @@ const sharedConfig = {
                 // Add hashes for cache busting
                 entryFileNames: `[name].[hash].js`,
                 chunkFileNames: `[name].[hash].js`,
-                assetFileNames: `[name].[hash].[ext]`
+                assetFileNames: `[name].[hash].[ext]`,
             }
         }
     },
     resolve: {
         alias: {
-            // It should point to your node_modules directory
-            // Vite usually handles this automatically, but good to be explicit if issues arise
             '@scss': resolve(__dirname, 'buildwww/scss'),
             '@css': resolve(__dirname, 'buildwww/css'),
             '@js': resolve(__dirname, 'buildwww/js'),
             '@ts': resolve(__dirname, 'buildwww/ts'),
+            '@plugins': resolve(__dirname, 'buildwww/plugins'),
         }
     }
 };
@@ -39,29 +38,32 @@ const builds = {
     app: {
         build: {
             // Output directory relative to the project root
-            outDir: 'wwwroot/site-dist/app',
+            outDir: 'wwwroot/app',
             rollupOptions: {
+                // Define entry points. These are the files Vite will bundle.
                 input: {
-                    site_preload: resolve(__dirname, 'buildwww/js/site-preload.js')
+                    // Key is the output name (e.g., app_css), value is the input file path
+                    app: resolve(__dirname, 'buildwww/app/css/app.css'), // This will output app.[hash].css
+                    app_preload: resolve(__dirname, 'buildwww/app/js/app_preload.js'),
+                    app_postload: resolve(__dirname, 'buildwww/app/js/app_postload.js')
                 }
             },
         },
     },
     bootstrap: {
-        // Set the base public path for assets (important for ASP.NET)
-        // This should match the virtual path where your dist folder is served from
-        // E.g., if served from ~/dist/, set to '/dist/'
         build: {
             // Output directory relative to the project root
-            outDir: 'wwwroot/site-dist/lib/bootstrap',
+            outDir: 'wwwroot/lib/bootstrap',
             rollupOptions: {
                 // Define entry points. These are the files Vite will bundle.
                 input: {
-                    // Key is the output name (e.g., bootstrap), value is the input file path
-                    bootstrap: resolve(__dirname, 'buildwww/scss/bootstrap.scss') // This will output bootstrap.[hash].css
+                    bootstrap: resolve(__dirname, 'buildwww/lib/bootstrap/bootstrap.scss'), // This will output bootstrap.[hash].css
+                    bootstrap_bundle: resolve(__dirname, 'buildwww/lib/bootstrap/bootstrap.js') // This will output bootstrap_bundle.[hash].js
                 }
             }
         },
+        plugins: [
+        ],
         css: {
             preprocessorOptions: {
                 scss: {
