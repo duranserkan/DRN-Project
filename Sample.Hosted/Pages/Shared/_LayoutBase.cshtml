@@ -9,8 +9,8 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
 
 @{
         var canonicalUrl = Context.Request.Scheme + "://" + Context.Request.Host + Context.Request.Path;
-        var nonce = Context.GetNonce();
 }
+
 <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,7 +19,7 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
         <meta name="htmx-config" content='{
                 "selfRequestsOnly":true,"allowEval":false,
                 "refreshOnHistoryMiss":true, "historyCacheSize":0,
-                "inlineScriptNonce":"@nonce"}'>
+                "inlineScriptNonce":"@Context.GetNonce()"}'>
 
         <title>@ViewData[Get.ViewDataKeys.Title] - @ScopeContext.Settings.ApplicationName</title>
 
@@ -27,15 +27,16 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
         <link href="/images/100.jpeg" rel="icon" type="image/x-icon"/>
         <!-- Preload -->
         @*https://icons.getbootstrap.com/#usage*@
-        <link rel="preload" href="~/lib/bootstrap-icons/fonts/bootstrap-icons.woff2?e34853135f9e39acf64315236852cd5a" as="font" crossorigin="anonymous">
         @*https://getbootstrap.com/docs/5.3/customize/overview/*@
-        @Html.Raw(ViteManifest.GetStyleTag("buildwww/lib/bootstrap/bootstrap.scss", nonce))
+        
+        <link rel="preload" href="~/lib/bootstrap-icons/fonts/bootstrap-icons.woff2?e34853135f9e39acf64315236852cd5a" as="font" crossorigin="anonymous">
+        <link href="buildwww/lib/bootstrap/bootstrap.scss" rel="stylesheet" crossorigin="anonymous"/>
         <link href="~/lib/bootstrap-icons/bootstrap-icons.min.pdY4ejLK.css" rel="stylesheet" crossorigin="anonymous"
               integrity="sha256-pdY4ejLKO67E0CM2tbPtq1DJ3VGDVVdqAR6j3ZwdiE4="/>
-
-        @Html.Raw(ViteManifest.GetStyleTag("buildwww/app/css/app.css", nonce))
+        
         @*defines DRN.App, DRN.Utils, DRN.Onmount*@
-        @Html.Raw(ViteManifest.GetScriptTag("buildwww/app/js/app_preload.js", nonce))
+        <link href="buildwww/app/css/app.css" rel="stylesheet" crossorigin="anonymous"/>
+        <script src="buildwww/app/js/app_preload.js" crossorigin="anonymous"></script>
         <script>
                 DRN.App.environment =  @Json.Serialize(ScopeContext.Settings.Environment.ToString());
                 DRN.App.isDev = @Json.Serialize(ScopeContext.Settings.IsDevEnvironment);
@@ -48,14 +49,14 @@ https://getbootstrap.com/docs/5.3/examples/sidebars/
         <script src="~/lib/onmount/onmount.tS6D5Yzw.js" crossorigin="anonymous" integrity="sha256-tS6D5Yzwxoy/uLQA9mVEiTu/GaafGn+we0HjTlj4zzM="></script>
 
         <!-- Postload -->
-        @Html.Raw(ViteManifest.GetScriptTag("buildwww/app/js/app_postload.js", nonce))
+        <script src="buildwww/app/js/app_postload.js" crossorigin="anonymous"></script>
         <!-- Postload -->
 </head>
 <body class="d-flex flex-column bg-secondary-subtle vh-100" style="overflow: hidden;" hx-ext="safe-nonce" hx-boost="true" hx-history="false">
 @RenderBody()
 
 @*https://getbootstrap.com/docs/5.3/getting-started/download/*@
-@Html.Raw(ViteManifest.GetScriptTag("buildwww/lib/bootstrap/bootstrap.js", nonce, defer: true))
+<script defer src="buildwww/lib/bootstrap/bootstrap.js" crossorigin="anonymous"></script>
 <script defer src="~/lib/jquery/jquery.validate.min.umbTaFxP31.js" crossorigin="anonymous" integrity="sha256-umbTaFxP31Fv6O1itpLS/3+v5fOAWDLOUzlmvOGaKV4="></script>
 <script defer src="~/lib/jquery/jquery.validate.unobtrusive.min.YJa7W8Ei.js" crossorigin="anonymous" integrity="sha256-YJa7W8EiQdQpkk93iGEjjnLSUWRpRJbSfzfURh1kxz4="></script>
 
