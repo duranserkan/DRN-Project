@@ -20,10 +20,10 @@ public class ViteLinkTagHelper : TagHelper
 
         if (!ViteManifest.IsViteOrigin(Href))
         {
-            output.Attributes.SetAttribute(HrefAttributeName, Href);
+            output.Attributes.Insert(0, new TagHelperAttribute(HrefAttributeName, Href));
             return;
         }
-        
+
         var hrefPath = ViteManifest.GetPath(Href);
         if (hrefPath == null)
         {
@@ -32,6 +32,6 @@ public class ViteLinkTagHelper : TagHelper
             return;
         }
 
-        output.Attributes.SetAttribute(HrefAttributeName, hrefPath);
+        output.Attributes.Insert(0, new TagHelperAttribute(HrefAttributeName, hrefPath));
     }
 }

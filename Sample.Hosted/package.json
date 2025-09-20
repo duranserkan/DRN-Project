@@ -5,8 +5,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "vite build",
-    "build:bootstrap": "BUILD_TYPE=bootstrap vite build",
-    "build:app": "BUILD_TYPE=app vite build"
+    "build:app": "BUILD_TYPE=app vite build",
+    "build:htmx": "BUILD_TYPE=htmx vite build",
+    "build:bootstrap": "BUILD_TYPE=bootstrap vite build"
   },
   "type": "module",
   "dependencies": {
@@ -16,7 +17,8 @@
     "htmx.org": "^2.0.7",
     "jquery": "^3.7.1",
     "jquery-validation": "^1.21.0",
-    "jquery-validation-unobtrusive": "^4.0.0"
+    "jquery-validation-unobtrusive": "^4.0.0",
+    "onmount": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

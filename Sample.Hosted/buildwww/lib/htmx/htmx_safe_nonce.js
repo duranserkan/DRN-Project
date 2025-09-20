@@ -3,6 +3,8 @@
 * Source codes under this file obtained and modified from https://github.com/MichaelWest22/htmx-extensions/blob/main/src/safe-nonce/safe-nonce.js
 */
 
+import {htmx} from './htmx.js'
+
 htmx.defineExtension('safe-nonce', {
     transformResponse: function (text, xhr, elt) {
         if (!htmx.config.refreshOnHistoryMiss) // disable ajax fetching on history miss because it doesn't handle nonce replacement

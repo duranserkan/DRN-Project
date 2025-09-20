@@ -17,9 +17,9 @@ const sharedConfig = {
             // Control output file naming
             output: {
                 // Add hashes for cache busting
-                entryFileNames: `[name].[hash].js`,
-                chunkFileNames: `[name].[hash].js`,
-                assetFileNames: `[name].[hash].[ext]`,
+                entryFileNames: `[name].[hash:12].js`,
+                chunkFileNames: `[name].[hash:12].js`,
+                assetFileNames: `[name].[hash:12].[ext]`,
             }
         }
     },
@@ -50,6 +50,19 @@ const builds = {
             },
         },
     },
+    htmx: {
+        build: {
+            // Output directory relative to the project root
+            outDir: 'wwwroot/lib/htmx',
+            rollupOptions: {
+                // Define entry points. These are the files Vite will bundle.
+                input: {
+                    // Key is the output name (e.g., app_css), value is the input file path
+                    htmx_bundle: resolve(__dirname, 'buildwww/lib/htmx/htmx_bundle.js'), // This will output htmx_bundle.[hash].css
+                }
+            },
+        },
+    },
     bootstrap: {
         build: {
             // Output directory relative to the project root
@@ -62,8 +75,7 @@ const builds = {
                 }
             }
         },
-        plugins: [
-        ],
+        plugins: [],
         css: {
             preprocessorOptions: {
                 scss: {

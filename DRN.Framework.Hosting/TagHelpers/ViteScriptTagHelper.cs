@@ -7,9 +7,9 @@ namespace DRN.Framework.Hosting.TagHelpers;
 public class ViteScriptTagHelper : TagHelper
 {
     private const string SrcAttributeName = "src";
-    
+
     public override int Order => int.MinValue; // Lower numbers execute first
-    
+
     [HtmlAttributeName(SrcAttributeName)]
     public string? Src { get; set; }
 
@@ -17,10 +17,10 @@ public class ViteScriptTagHelper : TagHelper
     {
         if (Src == null)
             return;
-        
+
         if (!ViteManifest.IsViteOrigin(Src))
         {
-            output.Attributes.SetAttribute(SrcAttributeName, Src);
+            output.Attributes.Insert(0, new TagHelperAttribute(SrcAttributeName, Src));
             return;
         }
 
@@ -32,6 +32,6 @@ public class ViteScriptTagHelper : TagHelper
             return;
         }
 
-        output.Attributes.SetAttribute(SrcAttributeName, scriptPath);
+        output.Attributes.Insert(0, new TagHelperAttribute(SrcAttributeName, scriptPath));
     }
 }
