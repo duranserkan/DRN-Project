@@ -1,12 +1,12 @@
 {
   "buildwww/lib/bootstrap/bootstrap.js": {
-    "file": "bootstrap_bundle.B2XzU81llMgE.js",
+    "file": "bootstrap_bundle.B2XzU81llMgE0wG6.js",
     "name": "bootstrap_bundle",
     "src": "buildwww/lib/bootstrap/bootstrap.js",
     "isEntry": true
   },
   "buildwww/lib/bootstrap/bootstrap.scss": {
-    "file": "bootstrap.B41OMi6_xJBa.css",
+    "file": "bootstrap.B41OMi6_xJBaZF3h.css",
     "src": "buildwww/lib/bootstrap/bootstrap.scss",
     "isEntry": true,
     "names": [

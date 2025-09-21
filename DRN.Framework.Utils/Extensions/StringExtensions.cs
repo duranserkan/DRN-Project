@@ -5,7 +5,6 @@ namespace DRN.Framework.Utils.Extensions;
 
 public static class StringExtensions
 {
-
     public static T Parse<T>(this string s, IFormatProvider? provider = null) where T : IParsable<T>
         => T.Parse(s, provider);
 

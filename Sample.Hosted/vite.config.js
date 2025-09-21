@@ -17,9 +17,9 @@ const sharedConfig = {
             // Control output file naming
             output: {
                 // Add hashes for cache busting
-                entryFileNames: `[name].[hash:12].js`,
-                chunkFileNames: `[name].[hash:12].js`,
-                assetFileNames: `[name].[hash:12].[ext]`,
+                entryFileNames: `[name].[hash:16].js`,
+                chunkFileNames: `[name].[hash:16].js`,
+                assetFileNames: `[name].[hash:16].[ext]`,
             }
         }
     },

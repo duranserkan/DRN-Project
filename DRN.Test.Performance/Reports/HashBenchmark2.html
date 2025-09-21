@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DRN.Test.Performance.Benchmark.Other.Hash.HashBenchmark-20250921-174306</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.3, macOS Sequoia 15.7 (24G222) [Darwin 24.6.0]
+Apple M2, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 9.0.305
+  [Host]     : .NET 9.0.9 (9.0.9, 9.0.925.41916), Arm64 RyuJIT armv8.0-a
+  DefaultJob : .NET 9.0.9 (9.0.9, 9.0.925.41916), Arm64 RyuJIT armv8.0-a
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method                   </th><th>Size</th><th>Mean      </th><th>Error   </th><th>StdDev  </th><th>Median    </th>
+</tr>
+</thead><tbody><tr><td>Blake3_256_Update</td><td>4</td><td>86.335 ns</td><td>0.5923 ns</td><td>0.5540 ns</td><td>86.008 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>4</td><td>86.960 ns</td><td>0.1648 ns</td><td>0.1287 ns</td><td>86.974 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>4</td><td>99.421 ns</td><td>0.5958 ns</td><td>0.4975 ns</td><td>99.232 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>4</td><td>105.293 ns</td><td>0.2234 ns</td><td>0.1866 ns</td><td>105.249 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>4</td><td>6.693 ns</td><td>0.0280 ns</td><td>0.0234 ns</td><td>6.686 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>4</td><td>6.896 ns</td><td>0.0334 ns</td><td>0.0261 ns</td><td>6.887 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>4</td><td>5.456 ns</td><td>0.0811 ns</td><td>0.0758 ns</td><td>5.414 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>4</td><td>6.889 ns</td><td>0.0195 ns</td><td>0.0163 ns</td><td>6.884 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>4</td><td>8.591 ns</td><td>0.0222 ns</td><td>0.0186 ns</td><td>8.588 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>4</td><td>6.260 ns</td><td>0.0071 ns</td><td>0.0059 ns</td><td>6.262 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>4</td><td>318.662 ns</td><td>1.4551 ns</td><td>1.3611 ns</td><td>317.951 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>4</td><td>744.076 ns</td><td>1.5028 ns</td><td>1.1733 ns</td><td>743.591 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>8</td><td>85.200 ns</td><td>0.6389 ns</td><td>0.5335 ns</td><td>84.908 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>8</td><td>86.391 ns</td><td>0.2895 ns</td><td>0.2417 ns</td><td>86.262 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>8</td><td>98.807 ns</td><td>0.4999 ns</td><td>0.4676 ns</td><td>98.629 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>8</td><td>104.550 ns</td><td>0.3210 ns</td><td>0.2681 ns</td><td>104.422 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>8</td><td>5.526 ns</td><td>0.0610 ns</td><td>0.0540 ns</td><td>5.509 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>8</td><td>8.526 ns</td><td>0.0193 ns</td><td>0.0161 ns</td><td>8.526 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>8</td><td>5.434 ns</td><td>0.0334 ns</td><td>0.0296 ns</td><td>5.437 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>8</td><td>7.507 ns</td><td>0.0335 ns</td><td>0.0279 ns</td><td>7.497 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>8</td><td>9.262 ns</td><td>0.0168 ns</td><td>0.0140 ns</td><td>9.256 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>8</td><td>6.290 ns</td><td>0.0609 ns</td><td>0.0475 ns</td><td>6.268 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>8</td><td>311.306 ns</td><td>1.0854 ns</td><td>0.9064 ns</td><td>310.961 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>8</td><td>735.469 ns</td><td>1.9784 ns</td><td>1.6521 ns</td><td>735.664 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>12</td><td>85.680 ns</td><td>0.1622 ns</td><td>0.1267 ns</td><td>85.638 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>12</td><td>87.976 ns</td><td>0.2688 ns</td><td>0.2383 ns</td><td>87.983 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>12</td><td>101.701 ns</td><td>0.1589 ns</td><td>0.1326 ns</td><td>101.672 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>12</td><td>100.514 ns</td><td>0.5525 ns</td><td>0.4613 ns</td><td>100.295 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>12</td><td>6.981 ns</td><td>0.0128 ns</td><td>0.0100 ns</td><td>6.979 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>12</td><td>12.942 ns</td><td>0.0755 ns</td><td>0.0669 ns</td><td>12.932 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>12</td><td>5.399 ns</td><td>0.0046 ns</td><td>0.0039 ns</td><td>5.398 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>12</td><td>9.615 ns</td><td>0.0185 ns</td><td>0.0164 ns</td><td>9.612 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>12</td><td>9.497 ns</td><td>0.0375 ns</td><td>0.0332 ns</td><td>9.483 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>12</td><td>6.716 ns</td><td>0.0058 ns</td><td>0.0045 ns</td><td>6.717 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>12</td><td>309.976 ns</td><td>0.9834 ns</td><td>0.7678 ns</td><td>310.209 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>12</td><td>730.312 ns</td><td>2.5527 ns</td><td>2.2629 ns</td><td>729.511 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>16</td><td>85.228 ns</td><td>0.1190 ns</td><td>0.0994 ns</td><td>85.196 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>16</td><td>86.301 ns</td><td>0.1239 ns</td><td>0.0967 ns</td><td>86.270 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>16</td><td>105.189 ns</td><td>0.6637 ns</td><td>0.6208 ns</td><td>105.021 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>16</td><td>99.856 ns</td><td>0.1915 ns</td><td>0.1698 ns</td><td>99.800 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>16</td><td>5.764 ns</td><td>0.0569 ns</td><td>0.0444 ns</td><td>5.750 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>16</td><td>6.023 ns</td><td>0.0078 ns</td><td>0.0061 ns</td><td>6.021 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>16</td><td>5.558 ns</td><td>0.0190 ns</td><td>0.0169 ns</td><td>5.551 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>16</td><td>7.068 ns</td><td>0.0063 ns</td><td>0.0049 ns</td><td>7.069 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>16</td><td>9.947 ns</td><td>0.0248 ns</td><td>0.0220 ns</td><td>9.935 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>16</td><td>6.698 ns</td><td>0.0187 ns</td><td>0.0156 ns</td><td>6.695 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>16</td><td>300.943 ns</td><td>0.5853 ns</td><td>0.4888 ns</td><td>300.829 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>16</td><td>728.288 ns</td><td>4.9763 ns</td><td>4.4114 ns</td><td>726.838 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>32</td><td>85.757 ns</td><td>0.2648 ns</td><td>0.2211 ns</td><td>85.671 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>32</td><td>86.627 ns</td><td>0.1318 ns</td><td>0.1101 ns</td><td>86.608 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>32</td><td>101.902 ns</td><td>0.7712 ns</td><td>0.6440 ns</td><td>101.534 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>32</td><td>99.919 ns</td><td>0.3037 ns</td><td>0.2692 ns</td><td>99.854 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>32</td><td>6.669 ns</td><td>0.0326 ns</td><td>0.0289 ns</td><td>6.659 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>32</td><td>6.249 ns</td><td>0.0136 ns</td><td>0.0114 ns</td><td>6.245 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>32</td><td>6.333 ns</td><td>0.0150 ns</td><td>0.0117 ns</td><td>6.332 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>32</td><td>8.198 ns</td><td>0.0168 ns</td><td>0.0140 ns</td><td>8.193 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>32</td><td>11.641 ns</td><td>0.0945 ns</td><td>0.0789 ns</td><td>11.606 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>32</td><td>7.764 ns</td><td>0.0165 ns</td><td>0.0138 ns</td><td>7.758 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>32</td><td>275.580 ns</td><td>0.7371 ns</td><td>0.6155 ns</td><td>275.836 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>32</td><td>684.848 ns</td><td>1.3502 ns</td><td>1.1275 ns</td><td>684.534 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>64</td><td>86.123 ns</td><td>0.1798 ns</td><td>0.1403 ns</td><td>86.186 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>64</td><td>87.628 ns</td><td>0.2058 ns</td><td>0.1718 ns</td><td>87.668 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>64</td><td>104.459 ns</td><td>0.2624 ns</td><td>0.2191 ns</td><td>104.493 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>64</td><td>104.749 ns</td><td>0.1549 ns</td><td>0.1294 ns</td><td>104.725 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>64</td><td>8.025 ns</td><td>0.0065 ns</td><td>0.0054 ns</td><td>8.024 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>64</td><td>7.881 ns</td><td>0.0309 ns</td><td>0.0241 ns</td><td>7.881 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>64</td><td>8.243 ns</td><td>0.0084 ns</td><td>0.0065 ns</td><td>8.243 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>64</td><td>13.276 ns</td><td>0.5368 ns</td><td>1.5488 ns</td><td>12.869 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>64</td><td>14.212 ns</td><td>0.0657 ns</td><td>0.0582 ns</td><td>14.230 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>64</td><td>9.734 ns</td><td>0.1858 ns</td><td>0.1738 ns</td><td>9.749 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>64</td><td>343.203 ns</td><td>0.3100 ns</td><td>0.2420 ns</td><td>343.215 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>64</td><td>633.794 ns</td><td>1.4785 ns</td><td>1.2346 ns</td><td>633.618 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>128</td><td>152.827 ns</td><td>0.4503 ns</td><td>0.3760 ns</td><td>152.715 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>128</td><td>152.063 ns</td><td>0.9609 ns</td><td>0.8024 ns</td><td>151.609 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>128</td><td>170.471 ns</td><td>0.3064 ns</td><td>0.2717 ns</td><td>170.470 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>128</td><td>171.470 ns</td><td>0.5020 ns</td><td>0.4192 ns</td><td>171.327 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>128</td><td>7.758 ns</td><td>0.1861 ns</td><td>0.1650 ns</td><td>7.683 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>128</td><td>10.652 ns</td><td>0.1603 ns</td><td>0.1339 ns</td><td>10.586 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>128</td><td>14.163 ns</td><td>1.0211 ns</td><td>2.7607 ns</td><td>13.233 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>128</td><td>17.083 ns</td><td>0.3822 ns</td><td>0.3754 ns</td><td>16.898 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>128</td><td>18.407 ns</td><td>0.0399 ns</td><td>0.0311 ns</td><td>18.414 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>128</td><td>13.577 ns</td><td>0.0547 ns</td><td>0.0456 ns</td><td>13.569 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>128</td><td>359.792 ns</td><td>2.9368 ns</td><td>2.7471 ns</td><td>358.482 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>128</td><td>833.574 ns</td><td>6.0783 ns</td><td>5.0757 ns</td><td>831.370 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>256</td><td>289.553 ns</td><td>0.3096 ns</td><td>0.2417 ns</td><td>289.565 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>256</td><td>292.331 ns</td><td>0.2496 ns</td><td>0.2084 ns</td><td>292.353 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>256</td><td>306.973 ns</td><td>0.3062 ns</td><td>0.2391 ns</td><td>306.920 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>256</td><td>308.692 ns</td><td>0.1595 ns</td><td>0.1246 ns</td><td>308.710 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>256</td><td>9.724 ns</td><td>0.0186 ns</td><td>0.0156 ns</td><td>9.720 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>256</td><td>10.481 ns</td><td>0.0543 ns</td><td>0.0453 ns</td><td>10.465 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>256</td><td>19.178 ns</td><td>0.0408 ns</td><td>0.0361 ns</td><td>19.167 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>256</td><td>32.016 ns</td><td>0.1010 ns</td><td>0.0844 ns</td><td>31.978 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>256</td><td>45.379 ns</td><td>4.8434 ns</td><td>14.0517 ns</td><td>39.779 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>256</td><td>31.894 ns</td><td>0.6500 ns</td><td>0.9112 ns</td><td>31.600 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>256</td><td>492.508 ns</td><td>3.4891 ns</td><td>3.2637 ns</td><td>492.380 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>256</td><td>1,054.048 ns</td><td>10.2253 ns</td><td>9.5647 ns</td><td>1,054.298 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>512</td><td>663.234 ns</td><td>13.2882 ns</td><td>19.0575 ns</td><td>655.992 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>512</td><td>641.084 ns</td><td>5.8991 ns</td><td>5.5180 ns</td><td>640.468 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>512</td><td>674.372 ns</td><td>5.5150 ns</td><td>6.1299 ns</td><td>673.067 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>512</td><td>673.193 ns</td><td>4.7852 ns</td><td>4.4761 ns</td><td>671.386 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>512</td><td>21.208 ns</td><td>0.1247 ns</td><td>0.1105 ns</td><td>21.208 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>512</td><td>22.798 ns</td><td>0.2935 ns</td><td>0.2745 ns</td><td>22.749 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>512</td><td>41.432 ns</td><td>0.4653 ns</td><td>0.4124 ns</td><td>41.541 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>512</td><td>81.973 ns</td><td>1.0596 ns</td><td>1.7993 ns</td><td>81.564 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>512</td><td>56.456 ns</td><td>0.6004 ns</td><td>0.5013 ns</td><td>56.419 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>512</td><td>42.420 ns</td><td>0.4015 ns</td><td>0.3560 ns</td><td>42.372 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>512</td><td>609.367 ns</td><td>6.2618 ns</td><td>5.5510 ns</td><td>606.318 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>512</td><td>1,241.232 ns</td><td>10.3046 ns</td><td>8.6048 ns</td><td>1,242.347 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>1024</td><td>1,311.372 ns</td><td>20.7165 ns</td><td>38.9105 ns</td><td>1,306.363 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>1024</td><td>1,307.324 ns</td><td>10.7613 ns</td><td>10.0662 ns</td><td>1,306.640 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>1024</td><td>1,318.843 ns</td><td>9.0750 ns</td><td>8.0447 ns</td><td>1,319.518 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>1024</td><td>1,313.774 ns</td><td>3.4555 ns</td><td>3.2323 ns</td><td>1,313.941 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>1024</td><td>37.955 ns</td><td>0.4315 ns</td><td>0.3825 ns</td><td>37.946 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>1024</td><td>40.508 ns</td><td>0.5673 ns</td><td>1.0930 ns</td><td>40.750 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>1024</td><td>67.827 ns</td><td>0.8438 ns</td><td>0.7893 ns</td><td>67.691 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>1024</td><td>163.803 ns</td><td>1.1972 ns</td><td>1.1199 ns</td><td>164.041 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>1024</td><td>101.910 ns</td><td>0.5206 ns</td><td>0.4065 ns</td><td>102.039 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>1024</td><td>68.086 ns</td><td>0.6912 ns</td><td>0.5772 ns</td><td>68.240 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>1024</td><td>836.218 ns</td><td>11.2429 ns</td><td>13.8073 ns</td><td>833.616 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>1024</td><td>1,668.306 ns</td><td>33.1206 ns</td><td>53.4836 ns</td><td>1,649.194 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>2048</td><td>2,684.120 ns</td><td>19.5828 ns</td><td>16.3525 ns</td><td>2,680.768 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>2048</td><td>2,650.696 ns</td><td>24.0532 ns</td><td>22.4994 ns</td><td>2,650.713 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>2048</td><td>2,742.775 ns</td><td>37.7636 ns</td><td>62.0467 ns</td><td>2,734.416 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>2048</td><td>2,755.945 ns</td><td>28.2161 ns</td><td>26.3933 ns</td><td>2,753.297 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>2048</td><td>80.467 ns</td><td>0.4225 ns</td><td>0.3528 ns</td><td>80.447 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>2048</td><td>72.517 ns</td><td>1.1971 ns</td><td>1.0612 ns</td><td>72.414 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>2048</td><td>121.036 ns</td><td>0.9886 ns</td><td>0.8255 ns</td><td>121.135 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>2048</td><td>326.843 ns</td><td>4.7303 ns</td><td>7.3646 ns</td><td>326.034 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>2048</td><td>196.010 ns</td><td>2.2023 ns</td><td>2.0600 ns</td><td>195.772 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>2048</td><td>118.251 ns</td><td>1.3760 ns</td><td>1.2198 ns</td><td>118.085 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>2048</td><td>1,258.990 ns</td><td>14.7264 ns</td><td>13.0546 ns</td><td>1,257.568 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>2048</td><td>2,369.089 ns</td><td>18.6992 ns</td><td>17.4912 ns</td><td>2,377.032 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>4096</td><td>2,638.475 ns</td><td>8.3016 ns</td><td>6.9322 ns</td><td>2,637.394 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>4096</td><td>2,699.656 ns</td><td>50.3240 ns</td><td>89.4509 ns</td><td>2,664.656 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>4096</td><td>2,564.405 ns</td><td>50.7559 ns</td><td>77.5096 ns</td><td>2,532.759 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>4096</td><td>2,459.598 ns</td><td>19.5459 ns</td><td>18.2833 ns</td><td>2,467.329 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>4096</td><td>133.856 ns</td><td>1.1408 ns</td><td>1.0671 ns</td><td>133.802 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>4096</td><td>128.972 ns</td><td>2.6317 ns</td><td>7.0246 ns</td><td>132.470 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>4096</td><td>223.861 ns</td><td>4.4386 ns</td><td>4.3593 ns</td><td>226.083 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>4096</td><td>657.768 ns</td><td>13.0867 ns</td><td>33.0718 ns</td><td>648.485 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>4096</td><td>385.135 ns</td><td>5.8587 ns</td><td>5.4802 ns</td><td>385.356 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>4096</td><td>221.207 ns</td><td>2.2646 ns</td><td>2.0075 ns</td><td>220.733 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>4096</td><td>2,144.072 ns</td><td>10.7345 ns</td><td>10.0411 ns</td><td>2,144.688 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>4096</td><td>3,927.976 ns</td><td>34.0128 ns</td><td>31.8156 ns</td><td>3,938.100 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>8192</td><td>5,211.071 ns</td><td>43.8520 ns</td><td>34.2367 ns</td><td>5,207.672 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>8192</td><td>30,944.475 ns</td><td>804.9080 ns</td><td>2,335.1841 ns</td><td>30,343.726 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>8192</td><td>5,079.676 ns</td><td>59.8378 ns</td><td>55.9723 ns</td><td>5,096.341 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>8192</td><td>26,529.154 ns</td><td>215.0902 ns</td><td>287.1393 ns</td><td>26,547.757 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>8192</td><td>284.558 ns</td><td>3.5939 ns</td><td>3.0011 ns</td><td>283.136 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>8192</td><td>212.991 ns</td><td>2.0656 ns</td><td>1.7248 ns</td><td>212.908 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>8192</td><td>346.553 ns</td><td>2.1442 ns</td><td>1.9008 ns</td><td>345.829 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>8192</td><td>1,068.720 ns</td><td>1.0895 ns</td><td>0.9098 ns</td><td>1,068.430 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>8192</td><td>592.443 ns</td><td>2.8366 ns</td><td>2.5146 ns</td><td>592.982 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>8192</td><td>335.045 ns</td><td>0.6451 ns</td><td>0.5387 ns</td><td>334.981 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>8192</td><td>3,471.121 ns</td><td>2.8274 ns</td><td>2.2074 ns</td><td>3,470.525 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>8192</td><td>6,145.294 ns</td><td>5.1375 ns</td><td>4.0110 ns</td><td>6,144.327 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>16384</td><td>8,529.157 ns</td><td>6.3152 ns</td><td>5.5982 ns</td><td>8,529.261 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>16384</td><td>35,234.312 ns</td><td>2,165.4896 ns</td><td>6,384.9955 ns</td><td>36,447.550 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>16384</td><td>9,583.528 ns</td><td>75.2561 ns</td><td>70.3946 ns</td><td>9,554.634 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>16384</td><td>32,083.604 ns</td><td>381.4529 ns</td><td>356.8112 ns</td><td>32,088.135 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>16384</td><td>572.223 ns</td><td>5.2864 ns</td><td>4.9449 ns</td><td>570.439 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>16384</td><td>424.984 ns</td><td>5.2212 ns</td><td>4.6284 ns</td><td>426.683 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>16384</td><td>699.646 ns</td><td>7.4561 ns</td><td>6.9745 ns</td><td>697.845 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>16384</td><td>2,137.075 ns</td><td>5.9376 ns</td><td>4.9582 ns</td><td>2,135.168 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>16384</td><td>1,296.472 ns</td><td>13.2143 ns</td><td>12.3607 ns</td><td>1,293.956 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>16384</td><td>707.804 ns</td><td>13.7206 ns</td><td>20.9528 ns</td><td>697.486 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>16384</td><td>6,693.216 ns</td><td>35.2034 ns</td><td>32.9293 ns</td><td>6,693.444 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>16384</td><td>11,597.274 ns</td><td>38.8564 ns</td><td>36.3463 ns</td><td>11,588.010 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>32768</td><td>16,986.981 ns</td><td>10.2194 ns</td><td>8.5337 ns</td><td>16,989.502 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>32768</td><td>38,567.290 ns</td><td>855.8892 ns</td><td>2,523.6088 ns</td><td>39,637.618 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>32768</td><td>18,424.995 ns</td><td>77.3893 ns</td><td>68.6036 ns</td><td>18,424.556 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>32768</td><td>36,155.348 ns</td><td>531.5075 ns</td><td>471.1676 ns</td><td>36,072.459 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>32768</td><td>1,122.401 ns</td><td>2.0958 ns</td><td>1.7500 ns</td><td>1,122.652 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>32768</td><td>807.697 ns</td><td>5.1610 ns</td><td>4.8276 ns</td><td>807.164 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>32768</td><td>1,341.450 ns</td><td>16.2208 ns</td><td>15.1729 ns</td><td>1,336.632 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>32768</td><td>4,276.076 ns</td><td>2.8603 ns</td><td>2.2331 ns</td><td>4,276.026 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>32768</td><td>2,297.290 ns</td><td>44.9310 ns</td><td>67.2506 ns</td><td>2,326.461 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>32768</td><td>1,267.723 ns</td><td>15.2132 ns</td><td>14.2304 ns</td><td>1,263.798 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>32768</td><td>12,988.887 ns</td><td>18.9079 ns</td><td>15.7889 ns</td><td>12,982.374 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>32768</td><td>22,372.873 ns</td><td>10.1118 ns</td><td>7.8946 ns</td><td>22,374.039 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>1048576</td><td>540,056.944 ns</td><td>330.5576 ns</td><td>276.0306 ns</td><td>540,018.473 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>1048576</td><td>142,699.284 ns</td><td>309.3510 ns</td><td>258.3221 ns</td><td>142,668.010 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>1048576</td><td>540,034.211 ns</td><td>363.9930 ns</td><td>303.9507 ns</td><td>539,963.339 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>1048576</td><td>142,619.394 ns</td><td>358.7956 ns</td><td>280.1240 ns</td><td>142,673.223 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>1048576</td><td>39,137.103 ns</td><td>19.0670 ns</td><td>15.9218 ns</td><td>39,133.921 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>1048576</td><td>21,845.647 ns</td><td>11.9532 ns</td><td>9.9814 ns</td><td>21,845.351 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>1048576</td><td>36,451.358 ns</td><td>26.7051 ns</td><td>22.3000 ns</td><td>36,454.981 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>1048576</td><td>137,231.983 ns</td><td>651.5553 ns</td><td>577.5868 ns</td><td>136,938.823 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>1048576</td><td>68,416.575 ns</td><td>61.6107 ns</td><td>48.1016 ns</td><td>68,408.206 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>1048576</td><td>53,068.120 ns</td><td>828.5103 ns</td><td>774.9890 ns</td><td>53,133.766 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>1048576</td><td>405,556.239 ns</td><td>267.8246 ns</td><td>209.0998 ns</td><td>405,522.593 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>1048576</td><td>692,675.788 ns</td><td>598.6177 ns</td><td>467.3613 ns</td><td>692,560.710 ns</td>
+</tr><tr><td>Blake3_256_Update</td><td>10485760</td><td>5,405,981.432 ns</td><td>4,685.6323 ns</td><td>3,912.7152 ns</td><td>5,405,571.457 ns</td>
+</tr><tr><td>Blake3_256_UpdateWithJoin</td><td>10485760</td><td>1,472,691.416 ns</td><td>28,498.7250 ns</td><td>60,113.4881 ns</td><td>1,488,155.110 ns</td>
+</tr><tr><td>Blake3_256_New_Update</td><td>10485760</td><td>5,401,388.836 ns</td><td>3,353.2958 ns</td><td>2,618.0328 ns</td><td>5,402,186.852 ns</td>
+</tr><tr><td>Blake3_256_New_Update_With_Join</td><td>10485760</td><td>1,503,277.333 ns</td><td>26,833.0825 ns</td><td>37,616.2373 ns</td><td>1,489,603.758 ns</td>
+</tr><tr><td>Fast_Crc32</td><td>10485760</td><td>392,351.050 ns</td><td>304.4696 ns</td><td>237.7098 ns</td><td>392,436.025 ns</td>
+</tr><tr><td>Fast_Crc64</td><td>10485760</td><td>262,498.275 ns</td><td>1,532.8978 ns</td><td>1,280.0391 ns</td><td>262,368.693 ns</td>
+</tr><tr><td>Fast_XxHash3</td><td>10485760</td><td>418,745.331 ns</td><td>4,329.5770 ns</td><td>4,049.8890 ns</td><td>417,927.022 ns</td>
+</tr><tr><td>Fast_XxHash32</td><td>10485760</td><td>1,367,525.768 ns</td><td>2,608.6629 ns</td><td>2,312.5117 ns</td><td>1,366,783.772 ns</td>
+</tr><tr><td>Fast_XxHash64</td><td>10485760</td><td>739,743.285 ns</td><td>14,741.2523 ns</td><td>24,220.3022 ns</td><td>746,335.123 ns</td>
+</tr><tr><td>Fast_XxHash128</td><td>10485760</td><td>435,043.625 ns</td><td>3,550.3738 ns</td><td>3,321.0218 ns</td><td>434,264.954 ns</td>
+</tr><tr><td>Hmac_Sha256</td><td>10485760</td><td>4,049,334.435 ns</td><td>3,192.3307 ns</td><td>2,665.7407 ns</td><td>4,049,478.516 ns</td>
+</tr><tr><td>Hmac_Sha512</td><td>10485760</td><td>6,914,360.903 ns</td><td>3,844.0666 ns</td><td>3,209.9697 ns</td><td>6,915,761.395 ns</td>
+</tr></tbody></table>
+</body>
+</html>

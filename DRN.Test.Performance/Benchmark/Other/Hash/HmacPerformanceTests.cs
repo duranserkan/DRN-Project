@@ -1,3 +1,4 @@
+using System.IO.Hashing;
 using System.Security.Cryptography;
 using System.Text.Json;
 using BenchmarkDotNet.Attributes;
@@ -28,7 +29,7 @@ public class HmacPerformanceTests(ITestOutputHelper output)
             output.WriteLine("===================================");
             output.WriteLine("Validation errors");
             output.WriteLine("===================================");
-            output.WriteLine(JsonSerializer.Serialize(summary.ValidationErrors)); 
+            output.WriteLine(JsonSerializer.Serialize(summary.ValidationErrors));
             output.WriteLine("===================================");
         }
 
@@ -141,6 +142,23 @@ public class HashBenchmark
         return tag.AsSpan().ToArray();
     }
 
+    [Benchmark]
+    public byte[] Fast_Crc32() => Crc32.Hash(GetData());
+
+    [Benchmark]
+    public byte[] Fast_Crc64() => Crc64.Hash(GetData());
+
+    [Benchmark]
+    public byte[] Fast_XxHash3() => XxHash3.Hash(GetData());
+
+    [Benchmark]
+    public byte[] Fast_XxHash32() => XxHash32.Hash(GetData());
+
+    [Benchmark]
+    public byte[] Fast_XxHash64() => XxHash64.Hash(GetData());
+
+    [Benchmark]
+    public byte[] Fast_XxHash128() => XxHash128.Hash(GetData());
 
     [Benchmark]
     public byte[] Hmac_Sha256() => HMACSHA256.HashData(_key, GetData());

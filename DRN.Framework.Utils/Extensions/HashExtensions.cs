@@ -1,44 +1,50 @@
+using System.IO.Hashing;
 using System.Security.Cryptography;
+using Blake3;
 
 namespace DRN.Framework.Utils.Extensions;
 
+//todo write tests
 public static class HashExtensions
 {
-    private const string HexChars = "0123456789abcdef";
+    public static string GetHashOfFile(this string filePath, HashAlgorithm algorithm, ByteEncoding encoding) => File.Exists(filePath)
+        ? new BinaryData(File.ReadAllBytes(filePath)).GetHash(algorithm, encoding)
+        : string.Empty;
 
-    public static string ComputeSha256HashBase64UrlEncoded(this string filePath)
+    public static string GetHash(this string value, HashAlgorithm algorithm, ByteEncoding encoding)
+        => new BinaryData(value).GetHash(algorithm, encoding);
+
+    public static string GetHash(this byte[] value, HashAlgorithm algorithm, ByteEncoding encoding)
+        => new BinaryData(value).GetHash(algorithm, encoding);
+
+    public static string GetHash(this ReadOnlyMemory<byte> value, HashAlgorithm algorithm, ByteEncoding encoding)
+        => new BinaryData(value).GetHash(algorithm, encoding);
+
+    public static string GetHash(this BinaryData bytes, HashAlgorithm algorithm, ByteEncoding encoding, BinaryData? key = null)
     {
-        if (!File.Exists(filePath))
-            return string.Empty;
-
-        using var stream = File.OpenRead(filePath);
-        return stream.ComputeSha256HashBase64UrlEncoded();
-    }
-
-    public static string ComputeSha256HashBase64UrlEncoded(this Stream stream, bool dispose = false)
-    {
-        var hash = SHA256.HashData(stream);
-
-        if (dispose)
-            stream.Dispose();
-
-        return hash.UrlSafeBase64Encode();
-    }
-
-    
-    public static string GetSha512HashHexEncoded(this string value)
-    {
-        var hashBytes = SHA512.HashData(value.ToByteArray());
-
-        return string.Create(hashBytes.Length * 2, hashBytes, (chars, bytes) =>
+        var hashBytes = algorithm switch
         {
-            for (var i = 0; i < bytes.Length; i++)
-            {
-                var b = bytes[i];
-                chars[i * 2] = HexChars[b >> 4]; // the high-order 4 bits(nibbles) (first hex digit)
-                chars[i * 2 + 1] = HexChars[b & 0x0F]; // the low-order 4 bits(nibbles) (second hex digit):
-            }
-        });
+            HashAlgorithm.Blake3 => Hasher.Hash(bytes).AsSpan(),
+            HashAlgorithm.Blake3WithKey => GetBlake3HashWithKey(bytes, key ?? BinaryData.Empty).AsSpan(),
+            HashAlgorithm.XxHash3 => XxHash3.Hash(bytes),
+            HashAlgorithm.XxHash128 => XxHash128.Hash(bytes),
+            HashAlgorithm.XxHash64 => XxHash64.Hash(bytes),
+            HashAlgorithm.Sha256 => SHA256.HashData(bytes),
+            HashAlgorithm.Sha512 => SHA512.HashData(bytes),
+            _ => throw new ArgumentOutOfRangeException(nameof(algorithm), algorithm, null)
+        };
+
+        var hash = hashBytes.Encode(encoding);
+        
+        return hash;
+    }
+
+    public static Hash GetBlake3HashWithKey(BinaryData bytes, BinaryData key)
+    {
+        using var hasher = Hasher.NewKeyed(key);
+        hasher.Update(bytes);
+
+        return hasher.Finalize();
     }
 
     public static long GenerateLongSeedFromHash(this string input)
@@ -52,4 +58,15 @@ public static class HashExtensions
         var hashBytes = SHA256.HashData(input.ToByteArray());
         return BitConverter.ToInt32(hashBytes, 19);
     }
+}
+
+public enum HashAlgorithm
+{
+    Sha256 = 1,
+    Sha512,
+    Blake3,
+    Blake3WithKey,
+    XxHash64,
+    XxHash3,
+    XxHash128,
 }

@@ -119,7 +119,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         guidBytes[10] = 0;
         guidBytes[11] = 0;
 
-        using var hasher = Hasher.NewKeyed(_defaultMacKey); //consider object pooling for performance
+        using var hasher = Hasher.NewKeyed(_defaultMacKey);
         hasher.Update(guidBytes);
         hasher.Finalize(expectedHashBytes);
 
