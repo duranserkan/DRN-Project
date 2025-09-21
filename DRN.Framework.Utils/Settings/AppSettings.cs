@@ -72,7 +72,7 @@ public class AppSettings : IAppSettings
 
         AppKey = ApplicationName.ToPascalCase();
         AppHashKeyLong = ("MKA " + ApplicationName + " " + Features.SeedKey + " DRN")
-            .GetSha512Hash().Substring(18, 81).GetSha512Hash();
+            .GetSha512HashHexEncoded().Substring(18, 81).GetSha512HashHexEncoded();
 
         AppHashKey = AppHashKeyLong.Substring(100, 8);
         AppKey = $"{AppKey}.{AppHashKey}";

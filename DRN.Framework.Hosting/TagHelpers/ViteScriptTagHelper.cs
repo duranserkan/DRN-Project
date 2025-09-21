@@ -7,6 +7,7 @@ namespace DRN.Framework.Hosting.TagHelpers;
 public class ViteScriptTagHelper : TagHelper
 {
     private const string SrcAttributeName = "src";
+    private const string IntegrityAttributeName = "integrity";
 
     public override int Order => int.MinValue; // Lower numbers execute first
 
@@ -24,14 +25,15 @@ public class ViteScriptTagHelper : TagHelper
             return;
         }
 
-        var scriptPath = ViteManifest.GetPath(Src);
-        if (scriptPath == null)
+        var manifestItem = ViteManifest.GetManifestItem(Src);
+        if (manifestItem?.Path == null)
         {
             output.TagName = null;
             output.Content.SetHtmlContent($"<!-- Vite entry '{Src}' not found -->");
             return;
         }
 
-        output.Attributes.Insert(0, new TagHelperAttribute(SrcAttributeName, scriptPath));
+        output.Attributes.Insert(0, new TagHelperAttribute(SrcAttributeName, manifestItem.Path));
+        output.Attributes.Add(IntegrityAttributeName, manifestItem.Integrity);
     }
 }

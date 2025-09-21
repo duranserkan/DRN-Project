@@ -6,50 +6,40 @@ https://getbootstrap.com/docs/5.3/examples/
 https://getbootstrap.com/docs/5.3/examples/sidebars/
 *@
 
-@{
-        var canonicalUrl = Context.Request.Scheme + "://" + Context.Request.Host + Context.Request.Path;
-}
-
 <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="description" content="DRN App">
-        <meta name="author" content="Duran Serkan KILIÇ">
-        <meta name="htmx-config" content='{
-                "selfRequestsOnly":true,"allowEval":false,
-                "refreshOnHistoryMiss":true, "historyCacheSize":0,
-                "inlineScriptNonce":"@Context.GetNonce()"}'>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="DRN App">
+    <meta name="author" content="Duran Serkan KILIÇ">
+    <meta name="htmx-config" content='{"inlineScriptNonce":"@Context.GetNonce()"}'>
+    <title>@ViewData[Get.ViewDataKeys.Title] - @ScopeContext.Settings.ApplicationName</title>
+    <link rel="canonical" href="@(Context.Request.Scheme + "://" + Context.Request.Host + Context.Request.Path)"/>
+    <link href="/images/100.jpeg" rel="icon" type="image/x-icon"/>
 
-        <title>@ViewData[Get.ViewDataKeys.Title] - @ScopeContext.Settings.ApplicationName</title>
+    <!-- Preload -->
+    @*https://icons.getbootstrap.com/#usage*@
+    @*https://getbootstrap.com/docs/5.3/customize/overview/*@
+    <link rel="preload" href="~/lib/bootstrap-icons/fonts/bootstrap-icons.woff2?e34853135f9e39acf64315236852cd5a" as="font" crossorigin="anonymous">
+    <link href="buildwww/lib/bootstrap/bootstrap.scss" rel="stylesheet" crossorigin="anonymous"/>
+    <link href="~/lib/bootstrap-icons/bootstrap-icons.min.pdY4ejLK.css" rel="stylesheet" crossorigin="anonymous"
+          integrity="sha256-pdY4ejLKO67E0CM2tbPtq1DJ3VGDVVdqAR6j3ZwdiE4="/>
 
-        <link rel="canonical" href="@canonicalUrl"/>
-        <link href="/images/100.jpeg" rel="icon" type="image/x-icon"/>
-        <!-- Preload -->
-        @*https://icons.getbootstrap.com/#usage*@
-        @*https://getbootstrap.com/docs/5.3/customize/overview/*@
-        
-        <link rel="preload" href="~/lib/bootstrap-icons/fonts/bootstrap-icons.woff2?e34853135f9e39acf64315236852cd5a" as="font" crossorigin="anonymous">
-        <link href="buildwww/lib/bootstrap/bootstrap.scss" rel="stylesheet" crossorigin="anonymous"/>
-        <link href="~/lib/bootstrap-icons/bootstrap-icons.min.pdY4ejLK.css" rel="stylesheet" crossorigin="anonymous"
-              integrity="sha256-pdY4ejLKO67E0CM2tbPtq1DJ3VGDVVdqAR6j3ZwdiE4="/>
-        
-        @*defines DRN.App, DRN.Utils, DRN.Onmount*@
-        <link href="buildwww/app/css/app.css" rel="stylesheet" crossorigin="anonymous"/>
-        <script src="buildwww/app/js/app_preload.js" crossorigin="anonymous"></script>
-        <script>
-                DRN.App.environment =  @Json.Serialize(ScopeContext.Settings.Environment.ToString());
-                DRN.App.isDev = @Json.Serialize(ScopeContext.Settings.IsDevEnvironment);
-        </script>
-        <!-- Preload -->
+    @*defines DRN.App, DRN.Utils, DRN.Onmount*@
+    <link href="buildwww/app/css/app.css" rel="stylesheet" crossorigin="anonymous"/>
+    <script src="buildwww/app/js/app_preload.js" crossorigin="anonymous"></script>
+    <script>
+        DRN.App.environment =  @Json.Serialize(ScopeContext.Settings.Environment.ToString());
+        DRN.App.isDev = @Json.Serialize(ScopeContext.Settings.IsDevEnvironment);
+    </script>
+    <!-- Preload -->
 
-        <script src="buildwww/lib/htmx/htmx_bundle.js" crossorigin="anonymous"></script>
-        
-        <script src="~/lib/jquery/jquery.min.PnUB0Vw2.js" crossorigin="anonymous" integrity="sha256-PnUB0Vw2MOeRyLIDkuud7jGp9lzj793nbO9ccQFBqyQ="></script>
-        <script src="~/lib/onmount/onmount.tS6D5Yzw.js" crossorigin="anonymous" integrity="sha256-tS6D5Yzwxoy/uLQA9mVEiTu/GaafGn+we0HjTlj4zzM="></script>
+    <script src="buildwww/lib/htmx/htmx_bundle.js" crossorigin="anonymous"></script>
+    <script src="~/lib/jquery/jquery.min.PnUB0Vw2.js" crossorigin="anonymous" integrity="sha256-PnUB0Vw2MOeRyLIDkuud7jGp9lzj793nbO9ccQFBqyQ="></script>
+    <script src="~/lib/onmount/onmount.tS6D5Yzw.js" crossorigin="anonymous" integrity="sha256-tS6D5Yzwxoy/uLQA9mVEiTu/GaafGn+we0HjTlj4zzM="></script>
 
-        <!-- Postload -->
-        <script src="buildwww/app/js/app_postload.js" crossorigin="anonymous"></script>
-        <!-- Postload -->
+    <!-- Postload -->
+    <script src="buildwww/app/js/app_postload.js" crossorigin="anonymous"></script>
+    <!-- Postload -->
 </head>
 <body class="d-flex flex-column bg-secondary-subtle vh-100" style="overflow: hidden;" hx-ext="safe-nonce" hx-boost="true" hx-history="false">
 @RenderBody()
