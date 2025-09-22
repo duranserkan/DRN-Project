@@ -98,32 +98,32 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     [JsonIgnore]
     [Column(Order = IdColumnOrder)]
     public long Id { get; internal set; } = id;
-    
+
     /// <summary>
     /// External use only, don't use Id for external usage
     /// </summary>
     [JsonPropertyName(nameof(Id))]
     [JsonPropertyOrder(-3)]
     public Guid EntityId => EntityIdSource.EntityId;
-    
+
     [JsonPropertyOrder(-2)]
     public DateTimeOffset CreatedAt => EntityIdSource.Source.CreatedAt;
-    
+
     [ConcurrencyCheck]
     [JsonPropertyOrder(-1)]
     [Column(Order = ModifiedAtColumnOrder)]
     public DateTimeOffset ModifiedAt { get; protected internal set; }
-    
+
     [JsonIgnore]
     public SourceKnownEntityId EntityIdSource { get; internal set; }
 
     [JsonIgnore]
     public bool IsPendingInsert => EntityId == Guid.Empty;
-    
+
     public string ExtendedProperties { get; set; } = EmptyJson;
     public TModel GetExtendedProperties<TModel>() => JsonSerializer.Deserialize<TModel>(ExtendedProperties)!;
     public void SetExtendedProperties<TModel>(TModel extendedProperty) => ExtendedProperties = JsonSerializer.Serialize(extendedProperty);
-    
+
 
     protected void AddDomainEvent(DomainEvent? e)
     {
@@ -165,11 +165,11 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
             : 1;
     }
 
-    public static bool operator ==(SourceKnownEntity? left, SourceKnownEntity? right) => left?.Equals(right) ?? right == null;
+    public static bool operator ==(SourceKnownEntity? left, SourceKnownEntity? right) => left?.Equals(right) ?? right is null;
     public static bool operator !=(SourceKnownEntity? left, SourceKnownEntity? right) => !(left == right);
     public static bool operator >(SourceKnownEntity? left, SourceKnownEntity? right) => Compare(left, right) > 0;
     public static bool operator <(SourceKnownEntity? left, SourceKnownEntity? right) => Compare(left, right) < 0;
     public static bool operator >=(SourceKnownEntity? left, SourceKnownEntity? right) => Compare(left, right) >= 0;
     public static bool operator <=(SourceKnownEntity? left, SourceKnownEntity? right) => Compare(left, right) <= 0;
-    private static int Compare(SourceKnownEntity? left, SourceKnownEntity? right) => left?.CompareTo(right) ?? -1;
+    private static int Compare(SourceKnownEntity? left, SourceKnownEntity? right) => left?.CompareTo(right) ?? (right is null ? 0 : -1);
 }

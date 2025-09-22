@@ -83,15 +83,15 @@ public class QAContextCategoryTests
         (category1 < category2).Should().BeTrue();
         (category2 >= category1).Should().BeTrue();
         (category1 <= category2).Should().BeTrue();
-        
+
         (category2 < category1).Should().BeFalse();
         (category1 > category2).Should().BeFalse();
         (category2 <= category1).Should().BeFalse();
         (category1 >= category2).Should().BeFalse();
-        
+
         (category2 >= category2FromDb2).Should().BeTrue();
         (category2 <= category2FromDb2).Should().BeTrue();
-        
+
 
         qaContext.Categories.Remove(category1);
         qaContext.Categories.Remove(category2);
@@ -101,5 +101,40 @@ public class QAContextCategoryTests
         category1.Should().BeNull();
         category2 = await qaContext.Categories.FindAsync(category2.Id);
         category2.Should().BeNull();
+
+        var category3 = new Category("second category");
+        qaContext.Categories.Add(category3);
+        await qaContext.SaveChangesAsync();
+
+        //operator overload edge case tests
+        //compare null with null (both should be equal to each other)
+        (category1 <= null).Should().BeTrue();
+        (category1 >= null).Should().BeTrue();
+        (category1 == null).Should().BeTrue();
+        (null <= category1).Should().BeTrue();
+        (null >= category1).Should().BeTrue();
+        (null == category1).Should().BeTrue();
+
+        (category1 != null).Should().BeFalse();
+        (category1 > null).Should().BeFalse();
+        (category1 < null).Should().BeFalse();
+        (null != category1).Should().BeFalse();
+        (null > category1).Should().BeFalse();
+        (null < category1).Should().BeFalse();
+
+        //compare non-null with null (non-null should be greater or not equal)
+        (category3 >= null).Should().BeTrue();
+        (category3 > null).Should().BeTrue();
+        (category3 != null).Should().BeTrue();
+        (null != category3).Should().BeTrue();
+        (null < category3).Should().BeTrue();
+        (null <= category3).Should().BeTrue();
+
+        (category3 <= null).Should().BeFalse();
+        (category3 == null).Should().BeFalse();
+        (category3 < null).Should().BeFalse();
+        (null >= category3).Should().BeFalse();
+        (null == category3).Should().BeFalse();
+        (null > category3).Should().BeFalse();
     }
 }
