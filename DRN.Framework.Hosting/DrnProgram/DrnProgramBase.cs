@@ -396,7 +396,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
         options.MinimumSameSitePolicy = SameSiteMode.Strict;
         options.Secure = CookieSecurePolicy.SameAsRequest;
 
-        options.ConsentCookieValue = Base64Utils.UrlSafeBase64Encode(ConsentCookie.DefaultValue);
+        options.ConsentCookieValue = ConsentCookie.DefaultValue.Encode(ByteEncoding.Base64UrlEncoded);
         //default cookie name(.AspNet.Consent) exposes server
         options.ConsentCookie.Name = $".{appSettings.AppKey}.CookieConsent";
         options.CheckConsentNeeded = _ => true; //user consent for non-essential cookies is needed for a given request.

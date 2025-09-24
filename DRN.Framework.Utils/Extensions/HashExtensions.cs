@@ -1,6 +1,7 @@
 using System.IO.Hashing;
 using System.Security.Cryptography;
 using Blake3;
+using DRN.Framework.Utils.Encodings;
 
 namespace DRN.Framework.Utils.Extensions;
 
@@ -39,7 +40,7 @@ public static class HashExtensions
         return hash;
     }
 
-    public static Hash GetBlake3HashWithKey(BinaryData bytes, BinaryData key)
+    private static Hash GetBlake3HashWithKey(BinaryData bytes, BinaryData key)
     {
         using var hasher = Hasher.NewKeyed(key);
         hasher.Update(bytes);

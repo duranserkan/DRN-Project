@@ -87,15 +87,6 @@ const builds = {
                     ],
                     //global variables
                     additionalData: `
-                // Color Palette
-                $primary: #3d5f6c; // Example: Change primary color to green pastel
-                
-                // Design Preferences
-                $enable-shadows: false;
-                $enable-gradients: true;
-                
-                // Optional: Ensure text contrast
-                $min-contrast-ratio: 4.5;
                 `
                 }
             }

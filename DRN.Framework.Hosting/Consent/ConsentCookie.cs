@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DRN.Framework.Utils.Encodings;
+using DRN.Framework.Utils.Extensions;
 
 namespace DRN.Framework.Hosting.Consent;
 
@@ -22,7 +23,7 @@ public class ConsentCookie
     public ConsentCookie(string name, string? cookieString)
     {
         Name = name;
-        ConsentString = Base64Utils.UrlSafeBase64Decode(cookieString ?? string.Empty);
+        ConsentString = (cookieString ?? string.Empty).DecodeAsString(ByteEncoding.Base64UrlEncoded);
         if (string.IsNullOrEmpty(ConsentString))
             return;
 

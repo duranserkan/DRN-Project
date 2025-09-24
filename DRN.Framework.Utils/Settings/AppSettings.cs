@@ -3,6 +3,7 @@ using Blake3;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Encodings;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Ids;
 using Microsoft.Extensions.Configuration;
@@ -87,7 +88,7 @@ public class AppSettings : IAppSettings
             throw new ConfigurationException($"Default Mac Key not found for the environment: {Environment.ToString()}");
 
         //Even if the application is not connected to nexus, we still need to add a default Mac key to make development easier.
-        var key = Hasher.Hash(AppKey.ToByteArray()).AsSpan().ToArray();
+        var key = Hasher.Hash(AppKey.ToByteArray()).AsSpan();
         NexusAppSettings.AddNexusMacKey(new NexusMacKey(key) { Default = true });
     }
 

@@ -1,4 +1,5 @@
 using DRN.Framework.Utils.Encodings;
+using DRN.Framework.Utils.Extensions;
 
 namespace DRN.Framework.Utils.Settings;
 
@@ -15,7 +16,7 @@ public class NexusAppSettings
     //Nexus App will generate ids randomly in production
     public byte AppId { get; init; }
     public byte AppInstanceId { get; init; }
-    
+
     public IReadOnlyList<NexusMacKey> MacKeys
     {
         get => _macKeys;
@@ -37,17 +38,23 @@ public class NexusMacKey
     public NexusMacKey(string key)
     {
         Key = key;
-        KeyAsByteArray = Base64Utils.UrlSafeBase64DecodeToBytes(key);
+        KeyAsBinary = key.Decode(ByteEncoding.Base64UrlEncoded);
     }
 
-    internal NexusMacKey(byte[] keyAsByteArray)
+    internal NexusMacKey(BinaryData keyAsBinary)
     {
-        Key = Base64Utils.UrlSafeBase64Encode(keyAsByteArray);
-        KeyAsByteArray = keyAsByteArray;
+        Key = keyAsBinary.Encode(ByteEncoding.Base64UrlEncoded);
+        KeyAsBinary = keyAsBinary;
+    }
+
+    internal NexusMacKey(ReadOnlySpan<byte> key)
+    {
+        Key = key.Encode(ByteEncoding.Base64UrlEncoded);
+        KeyAsBinary = BinaryData.FromBytes(key.ToArray());
     }
 
     public string Key { get; }
-    public byte[] KeyAsByteArray { get; }
+    public BinaryData KeyAsBinary { get; }
     public bool Default { get; init; }
     public bool IsValid => Key.Length >= 32;
 }

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DRN.Framework.SharedKernel;
+using DRN.Framework.Utils.Encodings;
 using DRN.Framework.Utils.Extensions;
 
 namespace DRN.Framework.Hosting.Utils;

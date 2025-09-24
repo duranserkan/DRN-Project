@@ -1,3 +1,9 @@
+/**
+ * --------------------------------------------------------------------------
+ * Licensed under MIT (https://github.com/twbs/bootstrap/blob/main/LICENSE)
+ * --------------------------------------------------------------------------
+ */
+
 import Alert from '../../../node_modules/bootstrap/js/dist/alert'
 import Button from '../../../node_modules/bootstrap/js/dist/button'
 import Modal from '../../../node_modules/bootstrap/js/dist/modal'
