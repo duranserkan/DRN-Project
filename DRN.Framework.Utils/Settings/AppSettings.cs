@@ -71,11 +71,12 @@ public class AppSettings : IAppSettings
         if (NexusAppSettings.AppInstanceId > SourceKnownIdUtils.MaxAppInstanceId)
             throw new ConfigurationException($"Nexus App Instance Id must be less than 32: NexusAppId: {NexusAppSettings.AppInstanceId}");
 
+        //todo review key generation with blake3
         AppKey = ApplicationName.ToPascalCase();
         AppHashKeyLong = ("MKA " + ApplicationName + " " + Features.SeedKey + " DRN")
-            .GetHash(HashAlgorithm.Sha512, ByteEncoding.Hex)
+            .Hash(HashAlgorithm.Sha512, ByteEncoding.Hex)
             .Substring(18, 81)
-            .GetHash(HashAlgorithm.Sha512, ByteEncoding.Hex);
+            .Hash(HashAlgorithm.Sha512, ByteEncoding.Hex);
 
         AppHashKey = AppHashKeyLong.Substring(100, 8);
         AppKey = $"{AppKey}.{AppHashKey}";

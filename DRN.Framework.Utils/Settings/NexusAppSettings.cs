@@ -38,18 +38,18 @@ public class NexusMacKey
     public NexusMacKey(string key)
     {
         Key = key;
-        KeyAsBinary = key.Decode(ByteEncoding.Base64UrlEncoded);
+        KeyAsBinary = key.Decode();
     }
 
     internal NexusMacKey(BinaryData keyAsBinary)
     {
-        Key = keyAsBinary.Encode(ByteEncoding.Base64UrlEncoded);
+        Key = keyAsBinary.Encode();
         KeyAsBinary = keyAsBinary;
     }
 
     internal NexusMacKey(ReadOnlySpan<byte> key)
     {
-        Key = key.Encode(ByteEncoding.Base64UrlEncoded);
+        Key = key.Encode();
         KeyAsBinary = BinaryData.FromBytes(key.ToArray());
     }
 

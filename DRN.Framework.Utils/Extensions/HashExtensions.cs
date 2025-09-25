@@ -5,29 +5,39 @@ using DRN.Framework.Utils.Encodings;
 
 namespace DRN.Framework.Utils.Extensions;
 
-//todo write tests
+//todo add 64 bit hash extension with xxhash3
 public static class HashExtensions
 {
-    public static string GetHashOfFile(this string filePath, HashAlgorithm algorithm, ByteEncoding encoding) => File.Exists(filePath)
-        ? new BinaryData(File.ReadAllBytes(filePath)).GetHash(algorithm, encoding)
-        : string.Empty;
+    public static string HashOfFile(this string filePath,
+        HashAlgorithm algorithm = HashAlgorithm.XxHash3_64,
+        ByteEncoding encoding = ByteEncoding.Base64UrlEncoded) =>
+        File.Exists(filePath)
+            ? new BinaryData(File.ReadAllBytes(filePath)).Hash(algorithm, encoding)
+            : string.Empty;
 
-    public static string GetHash(this string value, HashAlgorithm algorithm, ByteEncoding encoding)
-        => new BinaryData(value).GetHash(algorithm, encoding);
+    public static string Hash(this string value,
+        HashAlgorithm algorithm = HashAlgorithm.XxHash3_64,
+        ByteEncoding encoding = ByteEncoding.Base64UrlEncoded)
+        => new BinaryData(value).Hash(algorithm, encoding);
 
-    public static string GetHash(this byte[] value, HashAlgorithm algorithm, ByteEncoding encoding)
-        => new BinaryData(value).GetHash(algorithm, encoding);
+    public static string Hash(this byte[] value,
+        HashAlgorithm algorithm = HashAlgorithm.XxHash3_64,
+        ByteEncoding encoding = ByteEncoding.Base64UrlEncoded)
+        => new BinaryData(value).Hash(algorithm, encoding);
 
-    public static string GetHash(this ReadOnlyMemory<byte> value, HashAlgorithm algorithm, ByteEncoding encoding)
-        => new BinaryData(value).GetHash(algorithm, encoding);
+    public static string Hash(this ReadOnlyMemory<byte> value,
+        HashAlgorithm algorithm = HashAlgorithm.XxHash3_64,
+        ByteEncoding encoding = ByteEncoding.Base64UrlEncoded)
+        => new BinaryData(value).Hash(algorithm, encoding);
 
-    public static string GetHash(this BinaryData bytes, HashAlgorithm algorithm, ByteEncoding encoding, BinaryData? key = null)
+    public static string Hash(this BinaryData bytes,
+        HashAlgorithm algorithm = HashAlgorithm.XxHash3_64,
+        ByteEncoding encoding = ByteEncoding.Base64UrlEncoded)
     {
         var hashBytes = algorithm switch
         {
             HashAlgorithm.Blake3 => Hasher.Hash(bytes).AsSpan(),
-            HashAlgorithm.Blake3WithKey => GetBlake3HashWithKey(bytes, key ?? BinaryData.Empty).AsSpan(),
-            HashAlgorithm.XxHash3 => XxHash3.Hash(bytes),
+            HashAlgorithm.XxHash3_64 => XxHash3.Hash(bytes),
             HashAlgorithm.XxHash128 => XxHash128.Hash(bytes),
             HashAlgorithm.XxHash64 => XxHash64.Hash(bytes),
             HashAlgorithm.Sha256 => SHA256.HashData(bytes),
@@ -36,7 +46,37 @@ public static class HashExtensions
         };
 
         var hash = hashBytes.Encode(encoding);
-        
+
+        return hash;
+    }
+
+    public static string HashWithKey(this string value, BinaryData key,
+        SecureHashAlgorithm algorithm = SecureHashAlgorithm.Blake3With32CharKey,
+        ByteEncoding encoding = ByteEncoding.Base64UrlEncoded)
+        => new BinaryData(value).HashWithKey(key, algorithm, encoding);
+
+    public static string HashWithKey(this byte[] value, BinaryData key,
+        SecureHashAlgorithm algorithm = SecureHashAlgorithm.Blake3With32CharKey,
+        ByteEncoding encoding = ByteEncoding.Base64UrlEncoded)
+        => new BinaryData(value).HashWithKey(key, algorithm, encoding);
+
+    public static string HashWithKey(this ReadOnlyMemory<byte> value, BinaryData key,
+        SecureHashAlgorithm algorithm = SecureHashAlgorithm.Blake3With32CharKey,
+        ByteEncoding encoding = ByteEncoding.Base64UrlEncoded)
+        => new BinaryData(value).HashWithKey(key, algorithm, encoding);
+
+    public static string HashWithKey(this BinaryData bytes, BinaryData key,
+        SecureHashAlgorithm algorithm = SecureHashAlgorithm.Blake3With32CharKey,
+        ByteEncoding encoding = ByteEncoding.Base64UrlEncoded)
+    {
+        var hashBytes = algorithm switch
+        {
+            SecureHashAlgorithm.Blake3With32CharKey => GetBlake3HashWithKey(bytes, key).AsSpan(),
+            _ => throw new ArgumentOutOfRangeException(nameof(algorithm), algorithm, null)
+        };
+
+        var hash = hashBytes.Encode(encoding);
+
         return hash;
     }
 
@@ -66,8 +106,13 @@ public enum HashAlgorithm
     Sha256 = 1,
     Sha512,
     Blake3,
-    Blake3WithKey,
     XxHash64,
-    XxHash3,
+    // ReSharper disable once InconsistentNaming
+    XxHash3_64,
     XxHash128,
+}
+
+public enum SecureHashAlgorithm
+{
+    Blake3With32CharKey = 1
 }

@@ -55,7 +55,7 @@ public static class ViteManifest
                         var normalizedKey = key.Split('?')[0];
 
                         var fullFilePath = Path.Combine(scriptDir, value.File);
-                        var hash = fullFilePath.GetHashOfFile(HashAlgorithm.Sha256, ByteEncoding.Base64UrlEncoded);
+                        var hash = fullFilePath.HashOfFile(HashAlgorithm.Sha256, ByteEncoding.Base64UrlEncoded);
 
                         cache[normalizedKey] = value.FromCalculatedProperties($"/{relativeDir}/", hash);
                     }

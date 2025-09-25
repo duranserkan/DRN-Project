@@ -23,7 +23,7 @@ public class ConsentCookie
     public ConsentCookie(string name, string? cookieString)
     {
         Name = name;
-        ConsentString = (cookieString ?? string.Empty).DecodeAsString(ByteEncoding.Base64UrlEncoded);
+        ConsentString = (cookieString ?? string.Empty).DecodeAsString();
         if (string.IsNullOrEmpty(ConsentString))
             return;
 
