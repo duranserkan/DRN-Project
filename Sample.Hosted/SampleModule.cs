@@ -21,7 +21,7 @@ public static class SampleModule
             .ConfigureCookieAuthenticationOptions(settings)
             .AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings.IsDevEnvironment));
         //.AddPersonalDataProtection<>() //todo: enable personal data protection
-        
+
         services.AddServicesWithAttributes();
 
         return services;
@@ -35,7 +35,7 @@ public static class SampleModule
             options.SlidingExpiration = true;
             options.ClaimsIssuer = settings.ApplicationName.ToPascalCase(); //todo: test the issuer, test valid issuer such as TokenValidationParameters.ValidIssuer
             options.Cookie.IsEssential = true;
-            options.Cookie.Name = $".{settings.AppKey}.Identity";
+            options.Cookie.Name = settings.GetAppSpecificName("Identity");
             options.Cookie.HttpOnly = true;
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             options.LoginPath = Get.Page.User.Login;

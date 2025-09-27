@@ -28,6 +28,9 @@
       <None Update="Tests\Framework\Hosting\MountDir\key-per-file-settings\postgres-password">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="Tests\Framework\Utils\Encodings\Data\HelloWorld.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

@@ -5,7 +5,6 @@ using DRN.Framework.Utils.Encodings;
 
 namespace DRN.Framework.Utils.Extensions;
 
-//todo improve tests
 public static class HashExtensions
 {
     public static string HashOfFileWithKey(this string filePath, BinaryData key,
@@ -84,7 +83,7 @@ public static class HashExtensions
     public static ulong Hash64Bit(this ReadOnlySpan<byte> value, long seed = 0) => XxHash3.HashToUInt64(value, seed);
     public static ulong Hash64Bit(this ReadOnlyMemory<byte> value, long seed = 0) => new BinaryData(value).Hash64Bit(seed);
     public static ulong Hash64Bit(this string value, long seed = 0) => BinaryData.FromString(value).Hash64Bit(seed);
-    
+
     public static string HashWithKey(this string value, BinaryData key,
         HashAlgorithmSecure algorithm = HashAlgorithmSecure.Blake3With32CharKey,
         ByteEncoding encoding = ByteEncoding.Base64UrlEncoded)
@@ -123,11 +122,12 @@ public static class HashExtensions
         return hasher.Finalize();
     }
 
-    public static long GenerateLongSeedFromHash(this string input, int startIndex = 19)
-        => BitConverter.ToInt64(input.HashToBinary().ToMemory().Span[startIndex..]);
+    public static long GenerateSeedFromInputHash(this string input, byte hashStartIndex = 19)
+    {
+        hashStartIndex = hashStartIndex <= 32 ? hashStartIndex : (byte)19;
 
-    public static int GenerateIntSeedFromHash(this string input, int startIndex = 19)
-        => BitConverter.ToInt32(input.HashToBinary().ToMemory().Span[startIndex..]);
+        return BitConverter.ToInt64(input.HashToBinary().ToMemory().Span[hashStartIndex..]);
+    }
 }
 
 public enum HashAlgorithm

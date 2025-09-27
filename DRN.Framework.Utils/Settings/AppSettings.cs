@@ -18,13 +18,15 @@ public interface IAppSettings
     AppEnvironment Environment { get; }
     bool IsDevEnvironment { get; }
     string ApplicationName { get; }
+    string ApplicationNameNormalized { get; }
     string AppKey { get; }
     string AppHashKey { get; }
-    long AppSeedLong { get; }
-    int AppSeedInt { get; }
+    long AppSeed { get; }
 
     [JsonIgnore]
     IConfiguration Configuration { get; }
+
+    string GetAppSpecificName(string name, string prefix = "_");
 
     bool TryGetConnectionString(string name, out string connectionString);
     string GetRequiredConnectionString(string name);
@@ -71,17 +73,15 @@ public class AppSettings : IAppSettings
         if (NexusAppSettings.AppInstanceId > SourceKnownIdUtils.MaxAppInstanceId)
             throw new ConfigurationException($"Nexus App Instance Id must be less than 32: NexusAppId: {NexusAppSettings.AppInstanceId}");
 
-        //todo review key generation with blake3
-        AppKey = ApplicationName.ToPascalCase();
-        AppHashKeyLong = ("MKA " + ApplicationName + " " + Features.SeedKey + " DRN")
+        ApplicationNameNormalized = ApplicationName.ToPascalCase();
+        AppHashKey = ("MKA " + ApplicationName + " " + Features.SeedKey + " DRN")
             .Hash(HashAlgorithm.Sha512, ByteEncoding.Hex)
             .Substring(18, 81)
-            .Hash(HashAlgorithm.Sha512, ByteEncoding.Hex);
+            .Hash(HashAlgorithm.Sha256, ByteEncoding.Hex)
+            .Hash();
 
-        AppHashKey = AppHashKeyLong.Substring(100, 8);
-        AppKey = $"{AppKey}.{AppHashKey}";
-        AppSeedLong = Features.SeedKey.GenerateLongSeedFromHash();
-        AppSeedInt = Features.SeedKey.GenerateIntSeedFromHash();
+        AppKey = $"{ApplicationNameNormalized}.{AppHashKey}";
+        AppSeed = Features.SeedKey.GenerateSeedFromInputHash();
 
         var hasDefaultMacKey = NexusAppSettings.MacKeys.Any(k => k.Default);
         if (hasDefaultMacKey) return;
@@ -100,14 +100,15 @@ public class AppSettings : IAppSettings
 
     public bool IsDevEnvironment => Environment == AppEnvironment.Development;
     public string ApplicationName { get; }
+    public string ApplicationNameNormalized { get; }
     public string AppKey { get; }
     public string AppHashKey { get; }
-    public string AppHashKeyLong { get; }
-    public long AppSeedLong { get; }
-    public int AppSeedInt { get; }
+    public long AppSeed { get; }
 
     [JsonIgnore]
     public IConfiguration Configuration { get; }
+
+    public string GetAppSpecificName(string name, string prefix = "_") => $"{prefix}{ApplicationNameNormalized}.{name}.{AppHashKey}";
 
     public bool TryGetConnectionString(string name, out string connectionString)
     {

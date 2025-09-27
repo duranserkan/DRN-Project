@@ -232,7 +232,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         services.AddAntiforgery(options =>
         {
-            options.Cookie.Name = $".{appSettings.AppKey}.Antiforgery";
+            options.Cookie.Name = appSettings.GetAppSpecificName("Antiforgery");
             options.Cookie.IsEssential = true;
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             options.Cookie.HttpOnly = true;
@@ -398,7 +398,7 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
         options.ConsentCookieValue = ConsentCookie.DefaultValue.Encode();
         //default cookie name(.AspNet.Consent) exposes server
-        options.ConsentCookie.Name = $".{appSettings.AppKey}.CookieConsent";
+        options.ConsentCookie.Name = appSettings.GetAppSpecificName("CookieConsent");
         options.CheckConsentNeeded = _ => true; //user consent for non-essential cookies is needed for a given request.
     }
 

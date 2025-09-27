@@ -85,7 +85,7 @@ public static class StringExtensions
         var camelCaseStringBuilder = new StringBuilder(text.Length);
         var isFirstWord = true;
 
-        foreach (string word in words)
+        foreach (var word in words)
         {
             if (isFirstWord)
             {
@@ -108,7 +108,7 @@ public static class StringExtensions
 
         var words = GetWords(text);
         var pascalCaseBuilder = new StringBuilder(text.Length);
-        foreach (string word in words)
+        foreach (var word in words)
         {
             pascalCaseBuilder.Append(char.ToUpper(word[0]));
             pascalCaseBuilder.Append(word.Substring(1).ToLower());
@@ -121,6 +121,7 @@ public static class StringExtensions
     {
         var cleanedInput = RemoveNonAlphanumeric(text);
         var words = cleanedInput.Split([' '], StringSplitOptions.RemoveEmptyEntries);
+        
         return words;
     }
 
@@ -130,12 +131,8 @@ public static class StringExtensions
             return input;
 
         var result = new StringBuilder(input.Length);
-
-        foreach (char c in input)
-            if (char.IsLetterOrDigit(c))
-                result.Append(c);
-            else
-                result.Append(' ');
+        foreach (var c in input) 
+            result.Append(char.IsLetterOrDigit(c) ? c : ' ');
 
         return result.ToString();
     }
