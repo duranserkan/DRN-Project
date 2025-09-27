@@ -76,13 +76,13 @@ public static class HashExtensions
         var hash = BinaryData.FromBytes(hashBytes);
         return hash;
     }
-
-    public static ulong Hash64Bit(this BinaryData value, long seed = 0) => XxHash3.HashToUInt64(value, seed);
+    
     public static ulong Hash64Bit(this byte[] value, long seed = 0) => XxHash3.HashToUInt64(value, seed);
     public static ulong Hash64Bit(this Span<byte> value, long seed = 0) => XxHash3.HashToUInt64(value, seed);
     public static ulong Hash64Bit(this ReadOnlySpan<byte> value, long seed = 0) => XxHash3.HashToUInt64(value, seed);
     public static ulong Hash64Bit(this ReadOnlyMemory<byte> value, long seed = 0) => new BinaryData(value).Hash64Bit(seed);
     public static ulong Hash64Bit(this string value, long seed = 0) => BinaryData.FromString(value).Hash64Bit(seed);
+    public static ulong Hash64Bit(this BinaryData value, long seed = 0) => XxHash3.HashToUInt64(value, seed);
 
     public static string HashWithKey(this string value, BinaryData key,
         HashAlgorithmSecure algorithm = HashAlgorithmSecure.Blake3With32CharKey,
@@ -135,7 +135,6 @@ public enum HashAlgorithm
     Sha256 = 1,
     Sha512,
     Blake3,
-
     // ReSharper disable once InconsistentNaming
     XxHash3_64
 }
