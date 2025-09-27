@@ -5,7 +5,7 @@ namespace DRN.Framework.Testing.Contexts.Postgres;
 public class PostgresContainerSettings
 {
     public static string DefaultImage { get; set; } = "postgres";
-    public static string DefaultVersion { get; set; } = "17.5-alpine3.22";
+    public static string DefaultVersion { get; set; } = "18.0-alpine3.22";
     public static string DefaultPassword { get; set; } = "drn";
 
     public string? Image { get; init; } = DefaultImage;
