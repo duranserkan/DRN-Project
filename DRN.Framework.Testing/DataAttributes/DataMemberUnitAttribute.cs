@@ -4,7 +4,7 @@ namespace DRN.Framework.Testing.DataAttributes;
 
 /// <summary>
 /// Provides a data source same approach with <see cref="MemberDataAttribute"/> and generates missing data using AutoFixture and NSubstitute.
-/// Also, if <see cref="UnitTestContext"/> is added as first parameter it automatically creates an instance and provides
+/// Also, if <see cref="TestContextUnit"/> is added as first parameter it automatically creates an instance and provides
 ///<b>This attribute can provide Complex Types that can not be provided by DataInline attributes</b>
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]

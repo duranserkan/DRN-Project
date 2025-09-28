@@ -18,6 +18,8 @@ namespace DRN.Framework.Testing.Contexts;
 /// </summary>
 public class TestContext : IDisposable, IKeyedServiceProvider
 {
+    static TestContext() => UtilsConventionBuilder.BuildConvention();
+
     private readonly Lazy<HttpTest> _flurlHttpTest = new(() => new HttpTest());
     private readonly List<IConfigurationSource> _configurationSources = [];
     private ServiceProvider? _serviceProvider;

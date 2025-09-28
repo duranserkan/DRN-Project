@@ -10,6 +10,7 @@ using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Utils;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Auth;
+using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
@@ -37,6 +38,11 @@ using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace DRN.Framework.Hosting.DrnProgram;
 
+public abstract class DrnProgram
+{
+    static DrnProgram() => UtilsConventionBuilder.BuildConvention();
+}
+
 public interface IDrnProgram
 {
     static abstract Task Main(string[] args);
@@ -51,12 +57,14 @@ public interface IDrnProgram
 /// <li><a href="https://andrewlock.net/running-async-tasks-on-app-startup-in-asp-net-core-part-1">Running async tasks at startup</a></li>
 /// <li><a href="https://stackoverflow.com/questions/57846127/what-are-the-differences-between-app-userouting-and-app-useendpoints">UseRouting vs. UseEndpoints</a></li>
 /// </summary>
-public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
+public abstract class DrnProgramBase<TProgram> : DrnProgram
+    where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
     public const string NlogConfigSectionName = "NLog";
     protected DrnProgramSwaggerOptions DrnProgramSwaggerOptions { get; private set; } = new();
     protected DrnAppBuilderType AppBuilderType { get; set; } = DrnAppBuilderType.DrnDefaults;
 
+    // ReSharper disable once StaticMemberInGenericType
     protected static NLogAspNetCoreOptions NLogOptions { get; set; } = new()
     {
         ReplaceLoggerFactory = false,
@@ -81,7 +89,6 @@ public abstract class DrnProgramBase<TProgram> where TProgram : DrnProgramBase<T
 
     protected static async Task RunAsync(string[]? args = null)
     {
-        _ = JsonConventions.DefaultOptions;
         var configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationAssemblyName(), args).Build();
         var appSettings = new AppSettings(configuration);
         var scopedLog = new ScopedLog(appSettings).WithLoggerName(typeof(TProgram).FullName);

@@ -11,7 +11,7 @@ public class ConfigAttributeTests
 
     [Theory]
     [DataInlineUnit]
-    public void EnvironmentConfig_Should_Be_Resolved(UnitTestContext context)
+    public void EnvironmentConfig_Should_Be_Resolved(TestContextUnit context)
     {
         context.ServiceCollection.AddServicesWithAttributes();
 
@@ -28,7 +28,7 @@ public class ConfigAttributeTests
 
     [Theory]
     [DataInlineUnit]
-    public void Config_Should_Be_Resolved(UnitTestContext context)
+    public void Config_Should_Be_Resolved(TestContextUnit context)
     {
         context.ServiceCollection.AddServicesWithAttributes();
 
@@ -39,7 +39,7 @@ public class ConfigAttributeTests
 
     [Theory]
     [DataInlineUnit]
-    public void Config_Should_Be_Resolved_With_NonPublicValue(UnitTestContext context)
+    public void Config_Should_Be_Resolved_With_NonPublicValue(TestContextUnit context)
     {
         context.ServiceCollection.AddServicesWithAttributes();
 
@@ -49,7 +49,7 @@ public class ConfigAttributeTests
 
     [Theory]
     [DataInlineUnit]
-    public void Config_Should_Be_Resolved_With_NonPublicValue_Unbound(UnitTestContext context)
+    public void Config_Should_Be_Resolved_With_NonPublicValue_Unbound(TestContextUnit context)
     {
         context.ServiceCollection.AddServicesWithAttributes();
 
@@ -59,7 +59,7 @@ public class ConfigAttributeTests
 
     [Theory]
     [DataInlineUnit(MissingFoo)]
-    public void Config_Should_Throw_Exception_At_ServiceProvider_Validation_For_InvalidConfig(UnitTestContext context, params string[] ignoredType)
+    public void Config_Should_Throw_Exception_At_ServiceProvider_Validation_For_InvalidConfig(TestContextUnit context, params string[] ignoredType)
     {
         context.ServiceCollection.AddServicesWithAttributes();
 
@@ -70,7 +70,7 @@ public class ConfigAttributeTests
 
     [Theory]
     [DataInlineUnit(InvalidConfig)]
-    public void Config_Should_Throw_Exception_At_ServiceProvider_Validation_For_Missing_Foo_Value(UnitTestContext context, params string[] ignoredType)
+    public void Config_Should_Throw_Exception_At_ServiceProvider_Validation_For_Missing_Foo_Value(TestContextUnit context, params string[] ignoredType)
     {
         context.ServiceCollection.AddServicesWithAttributes();
 

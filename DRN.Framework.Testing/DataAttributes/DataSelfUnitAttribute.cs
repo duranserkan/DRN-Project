@@ -4,7 +4,7 @@ namespace DRN.Framework.Testing.DataAttributes;
 
 /// <summary>
 /// Provides self-contained data from attributes derived from this attribute and generates missing data using AutoFixture and NSubstitute.
-/// Also, if <see cref="UnitTestContext"/> is added as first parameter it automatically creates an instance and provides
+/// Also, if <see cref="TestContextUnit"/> is added as first parameter it automatically creates an instance and provides
 ///<b>This attribute can provide Complex Types that can not be provided by DataInline attributes</b>
 /// </summary>
 public abstract class DataSelfUnitAttribute : DataAttribute

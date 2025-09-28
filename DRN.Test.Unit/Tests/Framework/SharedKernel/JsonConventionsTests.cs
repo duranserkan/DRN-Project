@@ -11,7 +11,7 @@ public class JsonConventionsTests
     [Fact]
     public void JsonSerializer_Should_Use_Updated_Conventions()
     {
-        JsonSerializerOptions.Default.Should().Be(JsonConventions.DefaultOptions);
+        JsonConventions.DefaultOptions.Should().Be(JsonSerializerOptions.Default );
         var payload = $$"""
                         {
                         "environment":"Production", 

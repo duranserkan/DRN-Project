@@ -4,7 +4,7 @@ namespace DRN.Framework.Testing.DataAttributes;
 
 /// <summary>
 /// First Inlines data provided and then generates missing data using AutoFixture and NSubstitute.
-/// Also, if <see cref="UnitTestContext"/> is added as first parameter it automatically creates an instance and provides
+/// Also, if <see cref="TestContextUnit"/> is added as first parameter it automatically creates an instance and provides
 /// Have same constraints with <see cref="InlineDataAttribute"/>. Inlined data must be compile-time constant expression
 /// <b>To provide complex types use DataMember or DataSelf attributes</b>
 /// </summary>

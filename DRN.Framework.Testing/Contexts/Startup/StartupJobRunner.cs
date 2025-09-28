@@ -1,4 +1,4 @@
-using DRN.Framework.SharedKernel.Json;
+using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
 
@@ -6,6 +6,8 @@ namespace DRN.Framework.Testing.Contexts.Startup;
 
 public static class StartupJobRunner
 {
+    static StartupJobRunner() => UtilsConventionBuilder.BuildConvention();
+
     private static bool _triggered;
     private static readonly SemaphoreSlim StartupLock = new(1, 1);
 
@@ -31,7 +33,6 @@ public static class StartupJobRunner
     private static void Trigger(MethodInfo testMethod)
     {
         var startedAt = DateTimeOffset.Now;
-        _ = JsonConventions.DefaultOptions; // to trigger static ctor that replaces .net defaults with better one
         TestEnvironment.TestContextEnabled = true;
 
         var jobTypes = GetTestStartupJobTypes(testMethod);

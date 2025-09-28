@@ -8,7 +8,7 @@ public class SourceKnownEntityIdUtilsTests
 {
     [Theory]
     [DataInlineUnit]
-    public async Task SourceKnownIDs_Should_Be_Generate_Id(UnitTestContext context)
+    public async Task SourceKnownIDs_Should_Be_Generate_Id(TestContextUnit context)
     {
         var nexusSettings = new NexusAppSettings
         {

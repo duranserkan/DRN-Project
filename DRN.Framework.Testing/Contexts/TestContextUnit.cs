@@ -11,13 +11,15 @@ using Microsoft.Extensions.Logging;
 
 namespace DRN.Framework.Testing.Contexts;
 
-public class UnitTestContext : IDisposable, IKeyedServiceProvider
+public class TestContextUnit : IDisposable, IKeyedServiceProvider
 {
+    static TestContextUnit() => UtilsConventionBuilder.BuildConvention();
+
     private readonly List<IConfigurationSource> _configurationSources = [];
     private ServiceProvider? _serviceProvider;
     private bool _disposed;
 
-    public UnitTestContext(MethodInfo testMethod)
+    public TestContextUnit(MethodInfo testMethod)
     {
         MethodContext = new MethodContext(testMethod);
         AddToConfiguration(nameof(DrnAppFeatures), nameof(DrnAppFeatures.ApplicationStartedBy), MethodContext.TestMethod.Name);

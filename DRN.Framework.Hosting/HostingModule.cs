@@ -1,6 +1,10 @@
+using System.Text.Json;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.SharedKernel.Json;
+using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
+using Flurl.Http;
+using Flurl.Http.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -14,7 +18,7 @@ public static class HostingModule
         //https://andrewlock.net/extending-the-shutdown-timeout-setting-to-ensure-graceful-ihostedservice-shutdown/
         //https://learn.microsoft.com/en-us/dotnet/core/extensions/options
         sc.Configure<HostOptions>(configuration.GetSection("HostOptions"));
-        sc.ConfigureHttpJsonOptions(options => JsonConventions.SetJsonDefaults(options.SerializerOptions));
+        sc.ConfigureHttpJsonOptions(jsonOptions => JsonConventions.SetJsonDefaults(jsonOptions.SerializerOptions));
         sc.AddLogging();
         sc.AddEndpointsApiExplorer();
 

@@ -6,7 +6,7 @@ public class EntityUtilsTests
 {
     [Theory]
     [DataInlineUnit]
-    public void SourceKnownIDs_Should_Be_Generate_Id(UnitTestContext context)
+    public void SourceKnownIDs_Should_Be_Generate_Id(TestContextUnit context)
     {
         var entityUtils = context.GetRequiredService<IEntityUtils>();
 
