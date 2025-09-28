@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DRN.Framework.Utils.Data.Encodings;
-using DRN.Framework.Utils.Extensions;
+using DRN.Framework.Utils.Data.Serialization;
 
 namespace DRN.Framework.Hosting.Consent;
 
@@ -18,7 +18,7 @@ public class ConsentCookieValues
 
 public class ConsentCookie
 {
-    public static readonly string DefaultValue = JsonSerializer.Serialize(ConsentCookieValues.Default);
+    public static readonly string DefaultValue = ConsentCookieValues.Default.Serialize();
 
     public ConsentCookie(string name, string? cookieString)
     {
@@ -29,7 +29,7 @@ public class ConsentCookie
 
         try
         {
-            Values = JsonSerializer.Deserialize<ConsentCookieValues>(ConsentString) ?? new ConsentCookieValues();
+            Values = ConsentString.Deserialize<ConsentCookieValues>() ?? new ConsentCookieValues();
         }
         catch (Exception e)
         {

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 using System.Text.Json;
+using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.Logging;
 
 namespace DRN.Framework.Hosting.TagHelpers;
@@ -109,7 +110,7 @@ public class CsrfTokenTagHelper(IAntiforgery antiForgery, IHttpContextAccessor h
 
         try
         {
-            return JsonSerializer.Deserialize<Dictionary<string, string>>(existingHeadersJson) ?? new();
+            return existingHeadersJson.Deserialize<Dictionary<string, string>>() ?? new();
         }
         catch (JsonException ex)
         {
@@ -122,7 +123,7 @@ public class CsrfTokenTagHelper(IAntiforgery antiForgery, IHttpContextAccessor h
     private static void UpdateExistingHeaders(TagHelperOutput output, Dictionary<string, string> headersDict, string requestToken)
     {
         headersDict[CsrfTokenHeader] = requestToken;
-        var newJson = JsonSerializer.Serialize(headersDict);
+        var newJson = headersDict.Serialize();
         output.Attributes.SetAttribute(HxHeadersAttribute, newJson);
     }
 
@@ -139,7 +140,7 @@ public class CsrfTokenTagHelper(IAntiforgery antiForgery, IHttpContextAccessor h
                 [CsrfTokenHeader] = requestToken
             };
 
-        var newJson = JsonSerializer.Serialize(headers);
+        var newJson = headers.Serialize();
         output.Attributes.SetAttribute(HxHeadersAttribute, newJson);
     }
 }

@@ -12,10 +12,10 @@ public static class SerializerExtensions
             _ => throw new ArgumentOutOfRangeException(nameof(serializationMethod), serializationMethod, null)
         };
     
-    public static TModel? Deserialize<TModel>(this string json, SerializationMethod serializationMethod = SerializationMethod.SystemTextJson)
+    public static TModel? Deserialize<TModel>(this string data, SerializationMethod serializationMethod = SerializationMethod.SystemTextJson)
         => serializationMethod switch
         {
-            SerializationMethod.SystemTextJson => JsonSerializer.Deserialize<TModel>(json),
+            SerializationMethod.SystemTextJson => JsonSerializer.Deserialize<TModel>(data),
             _ => throw new ArgumentOutOfRangeException(nameof(serializationMethod), serializationMethod, null)
         };
 }

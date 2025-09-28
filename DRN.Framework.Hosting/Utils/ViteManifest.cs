@@ -1,9 +1,8 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
-using DRN.Framework.Utils.Extensions;
+using DRN.Framework.Utils.Data.Serialization;
 
 namespace DRN.Framework.Hosting.Utils;
 
@@ -41,7 +40,7 @@ public static class ViteManifest
                 try
                 {
                     var json = File.ReadAllText(manifestFile);
-                    var manifest = JsonSerializer.Deserialize<Dictionary<string, ViteManifestItem>>(json);
+                    var manifest = json.Deserialize<Dictionary<string, ViteManifestItem>>();
 
                     if (manifest == null)
                         continue;

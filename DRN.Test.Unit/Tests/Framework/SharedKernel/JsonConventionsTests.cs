@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.SharedKernel.Json;
+using DRN.Framework.Utils.Data.Serialization;
 
 namespace DRN.Test.Unit.Tests.Framework.SharedKernel;
 
@@ -23,7 +24,7 @@ public class JsonConventionsTests
                         }
                         """;
 
-        var testModel = JsonSerializer.Deserialize<TestModel>(payload)!;
+        var testModel = payload.Deserialize<TestModel>()!;
         testModel.Environment.Should().Be(AppEnvironment.Production);
         testModel.MaxValue.Should().Be(long.MaxValue);
         testModel.MaxValueQuoted.Should().Be(long.MaxValue);
@@ -33,8 +34,8 @@ public class JsonConventionsTests
         testModel.ZeroValueQuoted.Should().Be(0);
         testModel.NullValue.Should().BeNull();
 
-        var payload2 = JsonSerializer.Serialize(testModel);
-        var testModel2 = JsonSerializer.Deserialize<TestModel>(payload2)!;
+        var payload2 = testModel.Serialize();
+        var testModel2 = payload2.Deserialize<TestModel>()!;
 
         testModel2.Should().BeEquivalentTo(testModel);
 

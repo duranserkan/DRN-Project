@@ -1,5 +1,5 @@
-using System.Text.Json;
 using DRN.Framework.SharedKernel.Enums;
+using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.Settings.Conventions;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting;
@@ -21,7 +21,7 @@ public class ConfigurationExtensionTests
 
         appsettings.DevelopmentSettings.AutoMigrate.Should().BeTrue();
 
-        var summaryJson = JsonSerializer.Serialize(appsettings.GetDebugView().ToSummary());
+        var summaryJson = appsettings.GetDebugView().ToSummary().Serialize();
         summaryJson.Should().NotBeEmpty();
     }
 }

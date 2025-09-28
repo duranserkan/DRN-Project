@@ -1,9 +1,9 @@
 using System.Reflection;
-using System.Text.Json;
 using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Entity;
 using DRN.Framework.Utils.Logging;
@@ -148,7 +148,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         {
             var validationDetails = string.Empty;
             if (scopedLog == null)
-                validationDetails = JsonSerializer.Serialize(idValidation);
+                validationDetails = idValidation.Serialize();
             else
             {
                 if (missingAttributes.Length > 0)
