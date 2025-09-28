@@ -4,50 +4,76 @@ namespace DRN.Framework.Utils.Data.Serialization;
 
 public static class StreamExtensions
 {
-    public static byte[] ToByteArray(this Stream inputStream, long maxSize)
+    private const int DefaultBufferSize = 8192; // 8KB is often optimal
+
+    public static async ValueTask<byte[]> ToArrayAsync(this Stream inputStream,
+        long maxSize = long.MaxValue, CancellationToken cancellationToken = default)
     {
-        // If the stream supports seeking, use the stream length to pre-allocate the buffer
-        int bytesRead;
+        var binaryData = await inputStream.ToBinaryDataAsync(maxSize, cancellationToken);
+        return binaryData.ToArray();
+    }
+
+    public static async ValueTask<BinaryData> ToBinaryDataAsync(this Stream inputStream,
+        long maxSize = long.MaxValue, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(inputStream);
+
         if (inputStream.CanSeek)
         {
-            MaxSizeGuard(inputStream.Length, maxSize);
+            var originalPosition = inputStream.Position;
+            try
+            {
+                var length = inputStream.Length - inputStream.Position;
+                MaxSizeGuard(length, maxSize);
 
-            var buffer = new byte[inputStream.Length];
-            var offset = 0;
+                if (length == 0) return BinaryData.Empty;
 
-            while ((bytesRead = inputStream.Read(buffer, offset, buffer.Length - offset)) > 0)
-                offset += bytesRead;
-
-            return buffer;
+                var seekableBuffer = new byte[length];
+                await inputStream.ReadExactlyAsync(seekableBuffer, cancellationToken);
+                return BinaryData.FromBytes(seekableBuffer);
+            }
+            finally
+            {
+                inputStream.Position = originalPosition;
+            }
         }
 
-        // For non-seekable streams (e.g., network streams), use ArrayPool to minimize allocations
-        var bufferPool = ArrayPool<byte>.Shared;
-        var rentedBuffer = bufferPool.Rent(1024); // Rent buffer in 1KB chunks
-        using var memoryStream = new MemoryStream();
-        var totalBytesRead = 0L;
+        // For non-seekable streams, we still need the loop approach
+        var pool = ArrayPool<byte>.Shared;
+        var pooledBuffer = pool.Rent(DefaultBufferSize);
+
         try
         {
-            // Read the stream in chunks and write to the MemoryStream
-            while ((bytesRead = inputStream.Read(rentedBuffer, 0, rentedBuffer.Length)) > 0)
-            {
-                totalBytesRead += bytesRead;
+            using var memoryStream = new MemoryStream();
+            int bytesRead;
+            long totalRead = 0;
 
-                MaxSizeGuard(totalBytesRead, maxSize);
-                memoryStream.Write(rentedBuffer, 0, bytesRead);
-            }
-            
-            return memoryStream.ToArray();
+            do
+            {
+                var remainingSpace = Math.Min(pooledBuffer.Length, (int)Math.Max(0, maxSize - totalRead));
+                if (remainingSpace == 0) break;
+
+                var readBuffer = pooledBuffer.AsMemory(0, remainingSpace);
+                bytesRead = await inputStream.ReadAsync(readBuffer, cancellationToken);
+
+                if (bytesRead <= 0) continue;
+
+                totalRead += bytesRead;
+                MaxSizeGuard(totalRead, maxSize);
+                await memoryStream.WriteAsync(pooledBuffer.AsMemory(0, bytesRead), cancellationToken);
+            } while (bytesRead > 0);
+
+            return BinaryData.FromBytes(memoryStream.ToArray());
         }
         finally
         {
-            bufferPool.Return(rentedBuffer);
+            pool.Return(pooledBuffer);
         }
     }
 
-    private static void MaxSizeGuard(long lenght, long maxSize)
+    private static void MaxSizeGuard(long length, long maxSize)
     {
-        if (lenght > maxSize)
-            throw new InvalidOperationException($"The stream exceeds the maximum allowed size of {maxSize / 1024}KB.");
+        if (length > maxSize)
+            throw new InvalidOperationException($"The stream exceeds the maximum allowed size of {maxSize:N0} bytes.");
     }
 }

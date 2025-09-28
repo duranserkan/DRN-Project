@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Utils.Data.Encodings;
+using DRN.Framework.Utils.Data.Serialization;
 using DRN.Test.Tests.Sample.Controller.Helpers;
 using Flurl;
 using Sample.Contract.QA.Tags;

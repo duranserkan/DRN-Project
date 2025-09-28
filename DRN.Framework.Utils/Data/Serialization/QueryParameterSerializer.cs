@@ -1,8 +1,8 @@
 using System.Text.Json;
 using Flurl;
 
-namespace DRN.Framework.Utils.Data.Encodings;
-//todo: review 
+namespace DRN.Framework.Utils.Data.Serialization;
+
 public static class QueryParameterSerializer
 {
     public static string SerializeToQueryString<T>(T? obj)

@@ -1,7 +1,5 @@
 using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Extensions;
-using Microsoft.AspNetCore.Identity;
 using Sample.Domain.Identity.ProfilePictures;
 using Sample.Domain.Users;
 
@@ -17,7 +15,7 @@ public class ProfilePictureService(IProfilePictureRepository repository) : IProf
 {
     public async Task CreateProfilePictureAsync(SampleUser user, Stream pictureStream, long maxSize)
     {
-        var pictureBytes = pictureStream.ToByteArray(maxSize);
+        var pictureBytes = await pictureStream.ToArrayAsync(maxSize);
         var profilePicture = new ProfilePicture(user, pictureBytes);
 
         await repository.UpdateProfilePictureAsync(profilePicture, user);
