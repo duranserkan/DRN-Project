@@ -38,7 +38,7 @@ public class QAContextTests
         category.Id.Should().BeNegative();
         category.EntityId.Should().NotBe(Guid.Empty);
         category.EntityIdSource.Valid.Should().BeTrue();
-        category.EntityIdSource.EntityTypeId.Should().Be((byte)SampleEntityTypeIds.Category);
+        category.EntityIdSource.EntityType.Should().Be((byte)SampleEntityTypes.Category);
         category.EntityIdSource.Source.Id.Should().Be(category.Id);
         category.EntityIdSource.Source.AppId.Should().Be(appSettings.NexusAppSettings.AppId);
         category.EntityIdSource.Source.AppInstanceId.Should().Be(appSettings.NexusAppSettings.AppInstanceId);

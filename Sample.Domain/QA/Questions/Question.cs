@@ -5,7 +5,7 @@ using Sample.Domain.Users;
 
 namespace Sample.Domain.QA.Questions;
 
-[EntityTypeId((int)SampleEntityTypeIds.Question)]
+[EntityType((int)SampleEntityTypes.Question)]
 public class Question : AggregateRoot
 {
     private Question()

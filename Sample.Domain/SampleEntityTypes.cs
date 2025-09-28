@@ -1,6 +1,6 @@
 namespace Sample.Domain;
 
-public enum SampleEntityTypeIds : byte
+public enum SampleEntityTypes : byte
 {
     Answer = 1,
     AnswerComment = 2,

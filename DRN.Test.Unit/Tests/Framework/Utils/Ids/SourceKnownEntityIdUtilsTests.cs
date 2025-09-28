@@ -43,7 +43,7 @@ public class SourceKnownEntityIdUtilsTests
         entityId1.Valid.Should().BeTrue();
         entityId1.Source.AppId.Should().Be(nexusSettings.AppId);
         entityId1.Source.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
-        entityId1.EntityTypeId.Should().Be(SourceKnownEntity.GetEntityTypeId<XEntity>());
+        entityId1.EntityType.Should().Be(SourceKnownEntity.GetEntityType<XEntity>());
         IsVersion4Rfc4122(entityId1.EntityId).Should().BeTrue();
 
         var idInfo = idUtils.Parse(entityId1.Source.Id);
@@ -64,7 +64,7 @@ public class SourceKnownEntityIdUtilsTests
         parsedSourceKnownEntityId.Source.InstanceId.Should().Be(entityId1.Source.InstanceId);
         parsedSourceKnownEntityId.Source.CreatedAt.Should().Be(entityId1.Source.CreatedAt);
         parsedSourceKnownEntityId.Source.Should().Be(entityId1.Source);
-        parsedSourceKnownEntityId.EntityTypeId.Should().Be(entityId1.EntityTypeId);
+        parsedSourceKnownEntityId.EntityType.Should().Be(entityId1.EntityType);
         parsedSourceKnownEntityId.Valid.Should().BeTrue();
 
         var longId2 = idUtils.Next<XEntity>();
@@ -86,9 +86,9 @@ public class SourceKnownEntityIdUtilsTests
         entityId2.HasSameEntityType(entityId3).Should().BeFalse();
     }
 
-    [EntityTypeId(200)]
+    [EntityType(200)]
     class XEntity(long id) : SourceKnownEntity(id);
-    [EntityTypeId(201)]
+    [EntityType(201)]
     class YEntity(long id) : SourceKnownEntity(id);
 
     private static bool IsVersion4Rfc4122(Guid guid)

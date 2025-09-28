@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Sample.Domain.Users;
 
-[EntityTypeId((int)SampleEntityTypeIds.User)]
+[EntityType((int)SampleEntityTypes.User)]
 public class User : AggregateRoot
 {
     private User()

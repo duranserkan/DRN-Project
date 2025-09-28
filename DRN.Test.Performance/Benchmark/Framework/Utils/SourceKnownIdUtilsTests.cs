@@ -90,5 +90,5 @@ public class SourceKnownIdUtilsBenchmark
         => EntityIdUtils.Generate(Entity);
 }
 
-[EntityTypeId(92)]
+[EntityType(92)]
 public class YEntity(long id) : SourceKnownEntity(id);

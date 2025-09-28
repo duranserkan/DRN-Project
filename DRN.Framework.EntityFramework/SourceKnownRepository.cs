@@ -22,7 +22,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     where TContext : DbContext, IDrnContext
     where TEntity : AggregateRoot
 {
-    private static readonly byte EntityTypeId = SourceKnownEntity.GetEntityTypeId<TEntity>();
+    private static readonly byte EntityType = SourceKnownEntity.GetEntityType<TEntity>();
     private static readonly string ChangeCountKey = $"Count.{nameof(SaveChangesAsync)}.{typeof(TEntity).Name}";
     private static readonly string GetCountKey = $"Count.{nameof(GetAsync)}.{typeof(TEntity).Name}";
     private static readonly string CreateCountKey = $"Count.{nameof(CreateAsync)}.{typeof(TEntity).Name}";
@@ -207,7 +207,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public SourceKnownEntityId ValidateEntityId(Guid id, bool throwException = true)
     {
         using var _ = ScopedLog.Measure(this);
-        return throwException ? Utils.EntityId.Validate(id, EntityTypeId) : Utils.EntityId.Parse(id);
+        return throwException ? Utils.EntityId.Validate(id, EntityType) : Utils.EntityId.Parse(id);
     }
 
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>

@@ -39,12 +39,12 @@ public class QAContextTagTests
         
         //generator set by DrnSaveChangesInterceptor
         var foreignId = firstTag.GetForeignId(1, -1);
-        foreignId.EntityTypeId.Should().Be(1);
+        foreignId.EntityType.Should().Be(1);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
         
         foreignId = firstTag.GetForeignId(2, -2);
-        foreignId.EntityTypeId.Should().Be(2);
+        foreignId.EntityType.Should().Be(2);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
 
@@ -140,23 +140,23 @@ public class QAContextTagTests
         
         //generator set by DrnMaterializationInterceptor
         foreignId = firstTagFromDb!.GetForeignId(3, -3);
-        foreignId.EntityTypeId.Should().Be(3);
+        foreignId.EntityType.Should().Be(3);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
         
         foreignId = firstTagFromDb.GetForeignId(3, -4);
-        foreignId.EntityTypeId.Should().Be(3);
+        foreignId.EntityType.Should().Be(3);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
         
         foreignId = firstTagFromDb.GetForeignId(3, -5);
-        foreignId.EntityTypeId.Should().Be(3);
+        foreignId.EntityType.Should().Be(3);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
         
         //test cache hit
         foreignId = firstTagFromDb.GetForeignId(3, -5);
-        foreignId.EntityTypeId.Should().Be(3);
+        foreignId.EntityType.Should().Be(3);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
     }

@@ -13,7 +13,7 @@ using Sample.Infra.QA;
 namespace Sample.Infra.QA.Migrations
 {
     [DbContext(typeof(QAContext))]
-    [Migration("20250717194747_InitialMigration")]
+    [Migration("20250928184014_InitialMigration")]
     partial class InitialMigration
     {
         /// <inheritdoc />
@@ -22,7 +22,7 @@ namespace Sample.Infra.QA.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("qa_context")
-                .HasAnnotation("ProductVersion", "9.0.7")
+                .HasAnnotation("ProductVersion", "9.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);

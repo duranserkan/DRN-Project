@@ -8,16 +8,16 @@ using System.Text.Json.Serialization;
 namespace DRN.Framework.SharedKernel.Domain;
 
 /// <summary>
-/// Application wide Unique Entity Type Id
+/// Application wide Unique Entity Type
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class EntityTypeIdAttribute(byte id) : Attribute
+public sealed class EntityTypeAttribute(byte entityType) : Attribute
 {
     //todo add roselyn analyzer to check for conflicts and missing attributes
     /// <summary>
-    /// Application wide Unique Entity Type ID
+    /// Application wide Unique Entity Type
     /// </summary>
-    public byte Id { get; } = id;
+    public byte EntityType { get; } = entityType;
 }
 
 public interface IEntityETag
@@ -64,30 +64,26 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
     private static readonly ConcurrentDictionary<byte, Type> IdToTypeMap = new();
 
-    public static byte GetEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => GetEntityTypeId(typeof(TEntity));
-    public static byte GetEntityTypeId<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetEntityTypeId(entity.GetType());
+    public static byte GetEntityType<TEntity>() where TEntity : SourceKnownEntity => GetEntityType(typeof(TEntity));
+    public static byte GetEntityType<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetEntityType(entity.GetType());
 
-    public static byte GetEntityTypeId(Type entityType) => TypeToIdMap.GetOrAdd(entityType, type =>
+    public static byte GetEntityType(Type entityType) => TypeToIdMap.GetOrAdd(entityType, type =>
     {
-        var attribute = type.GetCustomAttribute<EntityTypeIdAttribute>();
+        var attribute = type.GetCustomAttribute<EntityTypeAttribute>();
         if (attribute == null)
-            throw new InvalidOperationException($"{type.Name} must use {nameof(EntityTypeIdAttribute)}");
+            throw new InvalidOperationException($"{type.Name} must use {nameof(EntityTypeAttribute)}");
 
-        EnsureUniqueId(type, attribute.Id);
-        return attribute.Id;
+        EnsureUniqueEntityType(type, attribute.EntityType);
+        return attribute.EntityType;
     });
 
-    private static void EnsureUniqueId(Type newType, byte newId) =>
+    private static void EnsureUniqueEntityType(Type newType, byte newEntityType) =>
         IdToTypeMap.AddOrUpdate( // Thread-safe check-or-add with value factory
-            newId,
+            newEntityType,
             addValueFactory: _ => newType,
-            updateValueFactory: (id, existingType) =>
-            {
-                if (existingType != newType)
-                    throw new InvalidOperationException($"ID {id} is used by both {existingType.FullName} and {newType.FullName}");
-
-                return existingType; // No change needed
-            });
+            updateValueFactory: (entityType, existingType) => existingType != newType 
+                ? throw new InvalidOperationException($"Entity type value: {entityType} is used by both {existingType.FullName} and {newType.FullName}") 
+                : existingType);
 
     private Dictionary<byte, Dictionary<long, SourceKnownEntityId>>? _idCache;
     internal Func<long, byte, SourceKnownEntityId>? IdFactory;

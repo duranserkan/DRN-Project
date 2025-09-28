@@ -25,7 +25,7 @@ namespace DRN.Nexus.Infra.Identity.Migrations
 
             modelBuilder.Entity("DRN.Nexus.Domain.User.NexusUser", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<string>("EntityType")
                         .HasColumnType("text")
                         .HasColumnName("id");
 
@@ -90,7 +90,7 @@ namespace DRN.Nexus.Infra.Identity.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("user_name");
 
-                    b.HasKey("Id")
+                    b.HasKey("EntityType")
                         .HasName("pk_users");
 
                     b.HasIndex("NormalizedEmail")
@@ -105,7 +105,7 @@ namespace DRN.Nexus.Infra.Identity.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<string>("EntityType")
                         .HasColumnType("text")
                         .HasColumnName("id");
 
@@ -124,7 +124,7 @@ namespace DRN.Nexus.Infra.Identity.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("normalized_name");
 
-                    b.HasKey("Id")
+                    b.HasKey("EntityType")
                         .HasName("pk_roles");
 
                     b.HasIndex("NormalizedName")
@@ -136,12 +136,12 @@ namespace DRN.Nexus.Infra.Identity.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("EntityType")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("EntityType"));
 
                     b.Property<string>("ClaimType")
                         .HasColumnType("text")
@@ -156,7 +156,7 @@ namespace DRN.Nexus.Infra.Identity.Migrations
                         .HasColumnType("text")
                         .HasColumnName("role_id");
 
-                    b.HasKey("Id")
+                    b.HasKey("EntityType")
                         .HasName("pk_role_claims");
 
                     b.HasIndex("RoleId")
@@ -167,12 +167,12 @@ namespace DRN.Nexus.Infra.Identity.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("EntityType")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("EntityType"));
 
                     b.Property<string>("ClaimType")
                         .HasColumnType("text")
@@ -187,7 +187,7 @@ namespace DRN.Nexus.Infra.Identity.Migrations
                         .HasColumnType("text")
                         .HasColumnName("user_id");
 
-                    b.HasKey("Id")
+                    b.HasKey("EntityType")
                         .HasName("pk_user_claims");
 
                     b.HasIndex("UserId")

@@ -17,7 +17,7 @@ public interface ISourceKnownEntityIdUtils
     SourceKnownEntityId Generate(SourceKnownEntity sourceKnownEntity);
     SourceKnownEntityId Generate(long id, byte entityType);
     SourceKnownEntityId Parse(Guid entityId);
-    SourceKnownEntityId Validate(Guid entityId, byte entityTypeId);
+    SourceKnownEntityId Validate(Guid entityId, byte entityType);
 }
 
 /// <summary>
@@ -33,8 +33,8 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     private const byte EntityIdFirstHalfOffset = 0;
     private const byte EntityIdFirstHalfLength = 4; // 0-3
 
-    private const byte EntityTypeIdIndex = 4; //4
-    private const byte InvalidEntityTypeId = byte.MaxValue;
+    private const byte EntityTypeIndex = 4; //4
+    private const byte InvalidEntityType = byte.MaxValue;
 
     //5 and 6 are reserved for hash
 
@@ -51,10 +51,10 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
 
     private readonly BinaryData _defaultMacKey = appSettings.NexusAppSettings.GetDefaultMacKey().KeyAsBinary; // todo add keyring rotation 
 
-    public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity => Generate(id, SourceKnownEntity.GetEntityTypeId<TEntity>());
-    public SourceKnownEntityId Generate(SourceKnownEntity sourceKnownEntity) => Generate(sourceKnownEntity.Id, SourceKnownEntity.GetEntityTypeId(sourceKnownEntity));
+    public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity => Generate(id, SourceKnownEntity.GetEntityType<TEntity>());
+    public SourceKnownEntityId Generate(SourceKnownEntity sourceKnownEntity) => Generate(sourceKnownEntity.Id, SourceKnownEntity.GetEntityType(sourceKnownEntity));
 
-    public SourceKnownEntityId Generate(long id, byte entityTypeId)
+    public SourceKnownEntityId Generate(long id, byte entityType)
     {
         Span<byte> hashBytes = stackalloc byte[5];
         Span<byte> guidBytes = stackalloc byte[16]; // Allocate 16 bytes on the stack for the GUID
@@ -65,7 +65,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         var secondHalf = idParser.ReadUInt();
 
         BinaryPrimitives.WriteUInt32LittleEndian(guidBytes.Slice(EntityIdFirstHalfOffset, EntityIdFirstHalfLength), firstHalf); //0-3
-        guidBytes[EntityTypeIdIndex] = entityTypeId; //4
+        guidBytes[EntityTypeIndex] = entityType; //4
         //5 and 6 are reserved for hash
         guidBytes[SourceKnownMarkerVersionIndex] = SourceKnownMarkerVersionByte; //7
         guidBytes[SourceKnownMarkerVariantIndex] = SourceKnownMarkerVariantByte; //8
@@ -85,7 +85,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         var entityId = new Guid(guidBytes);
         var sourceKnownId = sourceKnownIdUtils.Parse(id);
 
-        return new SourceKnownEntityId(sourceKnownId, entityId, entityTypeId, true);
+        return new SourceKnownEntityId(sourceKnownId, entityId, entityType, true);
     }
 
     public SourceKnownEntityId Parse(Guid entityId)
@@ -107,7 +107,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
 
         var idFirstHalf = BinaryPrimitives.ReadUInt32LittleEndian(guidBytes.Slice(EntityIdFirstHalfOffset, EntityIdFirstHalfLength));
         var idSecondHalf = BinaryPrimitives.ReadUInt32LittleEndian(guidBytes.Slice(EntityIdSecondHalfOffset, EntityIdSecondHalfLength));
-        var entityTypeId = guidBytes[EntityTypeIdIndex];
+        var entityType = guidBytes[EntityTypeIndex];
 
         var idBuilder = NumberBuilder.GetLongUnsigned();
         idBuilder.TryAddUInt(idFirstHalf);
@@ -125,24 +125,24 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         hasher.Finalize(expectedHashBytes);
 
         return expectedHashBytes.SequenceEqual(actualHashBytes)
-            ? new SourceKnownEntityId(sourceKnownIdUtils.Parse(id), entityId, entityTypeId, true)
+            ? new SourceKnownEntityId(sourceKnownIdUtils.Parse(id), entityId, entityType, true)
             : CreateInvalid(entityId);
     }
 
-    public SourceKnownEntityId Validate(Guid entityId, byte entityTypeId)
+    public SourceKnownEntityId Validate(Guid entityId, byte entityType)
     {
         var sourceKnownId = Parse(entityId);
         if (!sourceKnownId.Valid)
             throw new ValidationException($"Invalid EntityId: {entityId:N}");
 
-        if (sourceKnownId.EntityTypeId == entityTypeId) return sourceKnownId;
+        if (sourceKnownId.EntityType == entityType) return sourceKnownId;
 
         var ex = new ValidationException($"Invalid Entity Type: EntityId:{entityId:N}");
-        ex.Data.Add($"Expected_{nameof(SourceKnownEntityId.EntityTypeId)}", entityTypeId);
-        ex.Data.Add($"Found_{nameof(SourceKnownEntityId.EntityTypeId)}", sourceKnownId.EntityTypeId);
+        ex.Data.Add($"Expected_{nameof(SourceKnownEntityId.EntityType)}", entityType);
+        ex.Data.Add($"Found_{nameof(SourceKnownEntityId.EntityType)}", sourceKnownId.EntityType);
 
         throw ex;
     }
 
-    private static SourceKnownEntityId CreateInvalid(Guid entityId) => new(default, entityId, InvalidEntityTypeId, false);
+    private static SourceKnownEntityId CreateInvalid(Guid entityId) => new(default, entityId, InvalidEntityType, false);
 }

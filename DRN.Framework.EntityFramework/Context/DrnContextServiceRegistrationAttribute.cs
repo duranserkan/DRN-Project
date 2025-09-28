@@ -47,7 +47,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             scopedProvider.ServiceProvider.GetRequiredService(service.GetType());
         }
 
-        ValidateEntityTypeIds(context, scopedLog);
+        ValidateEntityTypes(context, scopedLog);
 
         serviceProvider.GetRequiredService(service.GetType());
 
@@ -126,23 +126,23 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             await optionsAttribute.SeedAsync(serviceProvider, appSettings);
     }
 
-    private static void ValidateEntityTypeIds(DbContext context, IScopedLog? scopedLog)
+    private static void ValidateEntityTypes(DbContext context, IScopedLog? scopedLog)
     {
         var entityTypes = context.Model.GetEntityTypes().Select(entityType => entityType.ClrType).ToArray();
         var domainTypes = entityTypes.Where(type => type.IsAssignableTo(typeof(SourceKnownEntity))).ToArray();
-        var entityTypeIdPairs = domainTypes.ToDictionary(t => t, t => t.GetCustomAttribute<EntityTypeIdAttribute>());
-        var missingAttributes = entityTypeIdPairs.Where(pair => pair.Value == null).Select(pair => pair.Key.FullName!).ToArray();
-        var duplicateAttributePairs = entityTypeIdPairs.Where(pair => pair.Value != null)
-            .GroupBy(pair => pair.Value?.Id)
+        var entityTypePairs = domainTypes.ToDictionary(t => t, t => t.GetCustomAttribute<EntityTypeAttribute>());
+        var missingAttributes = entityTypePairs.Where(pair => pair.Value == null).Select(pair => pair.Key.FullName!).ToArray();
+        var duplicateAttributePairs = entityTypePairs.Where(pair => pair.Value != null)
+            .GroupBy(pair => pair.Value?.EntityType)
             .Where(group => group.Count() > 1)
             .OrderBy(group => group.Key)
-            .SelectMany(group => group.Select(pair => new DuplicateEntityTypeIdValue(pair.Key.FullName!, pair.Value!.Id))).ToArray();
+            .SelectMany(group => group.Select(pair => new DuplicateEntityTypeValue(pair.Key.FullName!, pair.Value!.EntityType))).ToArray();
 
-        var idValidation = new EntityTypeIdValidationResult(missingAttributes, duplicateAttributePairs);
+        var idValidation = new EntityTypeValidationResult(missingAttributes, duplicateAttributePairs);
         if (missingAttributes.Length > 0)
-            scopedLog?.Add("EntityTypeMissingIds", idValidation.MissingEntityTypeIds);
+            scopedLog?.Add("EntityTypesMissing", idValidation.MissingEntityTypes);
         if (duplicateAttributePairs.Length > 0)
-            scopedLog?.Add("EntityTypeDuplicateIds", idValidation.DuplicateEntityTypeIds);
+            scopedLog?.Add("EntityTypesDuplicate", idValidation.DuplicateEntityTypes);
 
         if (missingAttributes.Length > 0 || duplicateAttributePairs.Length > 0)
         {
@@ -157,25 +157,25 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
                     validationDetails += " Check: EntityTypeDuplicateIds.";
             }
 
-            throw new UnprocessableEntityException($"Invalid Entity Type Id Configuration: {validationDetails}");
+            throw new UnprocessableEntityException($"Invalid Entity Type Configuration: {validationDetails}");
         }
 
-        //Validates Entity Type Ids implicitly by calling GetEntityTypeId on Entity
+        //Validates Entity Type Ids implicitly by calling GetEntityType on Entity
         //This will catch application wide inconsistencies. Previous validation was module-wide;
-        var entityTypeIds = domainTypes.Select(SourceKnownEntity.GetEntityTypeId).ToArray();
-        _ = entityTypeIds;
+        var entityTypeValues = domainTypes.Select(SourceKnownEntity.GetEntityType).ToArray();
+        _ = entityTypeValues;
     }
 }
 
-public record DuplicateEntityTypeIdValue(string EntityName, ushort EntityTypeId)
+public record DuplicateEntityTypeValue(string EntityName, ushort EntityType)
 {
-    public override string ToString() => $"{EntityTypeId}: {EntityName}";
+    public override string ToString() => $"{EntityType}: {EntityName}";
 }
 
-public record EntityTypeIdValidationResult(string[] MissingEntityTypeIds, DuplicateEntityTypeIdValue[] DuplicateEntityTypeIds)
+public record EntityTypeValidationResult(string[] MissingEntityTypes, DuplicateEntityTypeValue[] DuplicateEntityTypes)
 {
-    public string GetEntityTypeMissingIds() => string.Join(',', MissingEntityTypeIds);
-    public string GetEntityTypeDuplicateIds() => string.Join(',', string.Join(',', DuplicateEntityTypeIds.Select(p => p.ToString())));
+    public string GetMissingEntityTypes() => string.Join(',', MissingEntityTypes);
+    public string GetDuplicateEntityTypes() => string.Join(',', string.Join(',', DuplicateEntityTypes.Select(p => p.ToString())));
 }
 
 public class DbContextChangeModel

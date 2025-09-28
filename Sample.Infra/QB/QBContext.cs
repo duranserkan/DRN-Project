@@ -34,12 +34,12 @@ public class QBContext : DrnContext<QBContext>
     //public DbSet<TestEntity> TestEntity { get; set; }
 }
 
-public enum TestEntityTypeIds : byte
+public enum TestEntityTypes : byte
 {
     TestEntity = 255
 }
 
-[EntityTypeId((int)TestEntityTypeIds.TestEntity)]
+[EntityType((int)TestEntityTypes.TestEntity)]
 public class TestEntity : AggregateRoot
 {
     public long TestValue { get; init; }

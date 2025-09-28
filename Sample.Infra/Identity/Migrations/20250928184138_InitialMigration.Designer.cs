@@ -12,7 +12,7 @@ using Sample.Infra.Identity;
 namespace Sample.Infra.Identity.Migrations
 {
     [DbContext(typeof(SampleIdentityContext))]
-    [Migration("20241127184913_InitialMigration")]
+    [Migration("20250928184138_InitialMigration")]
     partial class InitialMigration
     {
         /// <inheritdoc />
@@ -21,7 +21,7 @@ namespace Sample.Infra.Identity.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("sample_identity_context")
-                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("ProductVersion", "9.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
