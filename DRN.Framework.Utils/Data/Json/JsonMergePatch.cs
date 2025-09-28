@@ -87,7 +87,6 @@ public static class JsonMergePatch
     {
         if (currentDepth > maxDepth)
             throw new InvalidOperationException(
-                $"Maximum recursion depth {maxDepth} exceeded. " +
-                "Prevents stack overflow attacks and complex document abuse.");
+                $"Maximum recursion depth {maxDepth} exceeded. Prevents stack overflow attacks and complex document abuse.");
     }
 }

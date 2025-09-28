@@ -103,7 +103,6 @@ public static class QueryParameterSerializer
         parameters[key] = value;
     }
 
-    public static string BuildQueryString(this Dictionary<string, string> parameters) => parameters.Count == 0
-        ? string.Empty
-        : new Uri("http://x").SetQueryParams(parameters).Query.TrimStart('?');
+    public static string BuildQueryString(this Dictionary<string, string> parameters) =>
+        string.Empty.SetQueryParams(parameters).Query.TrimStart('?');
 }
