@@ -1,9 +1,9 @@
 using System.IO.Hashing;
 using System.Security.Cryptography;
 using Blake3;
-using DRN.Framework.Utils.Encodings;
+using DRN.Framework.Utils.Data.Encodings;
 
-namespace DRN.Framework.Utils.Extensions;
+namespace DRN.Framework.Utils.Data.Hashing;
 
 public static class HashExtensions
 {
@@ -128,18 +128,4 @@ public static class HashExtensions
 
         return BitConverter.ToInt64(input.HashToBinary().ToMemory().Span[hashStartIndex..]);
     }
-}
-
-public enum HashAlgorithm
-{
-    Sha256 = 1,
-    Sha512,
-    Blake3,
-    // ReSharper disable once InconsistentNaming
-    XxHash3_64
-}
-
-public enum HashAlgorithmSecure
-{
-    Blake3With32CharKey = 1
 }

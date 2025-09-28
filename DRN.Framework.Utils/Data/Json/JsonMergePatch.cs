@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace DRN.Framework.Utils.Json;
+namespace DRN.Framework.Utils.Data.Json;
 
 public static class JsonMergePatch
 {
@@ -14,25 +14,12 @@ public static class JsonMergePatch
     /// <param name="maxDepth">Maximum recursion depth (default: 64)</param>
     /// <param name="changeOriginal">When true, modifies and returns original node instead of cloning</param>
     /// <returns>Merged JsonNode (original or new instance)</returns>
-    public static MergeResult SafeApplyMergePatch(
-        JsonNode target,
-        JsonNode patch,
-        bool changeOriginal,
-        int maxDepth = 64
-    )
-    {
-        if (maxDepth <= 0)
-            throw new ArgumentException("Max depth must be positive", nameof(maxDepth));
+    public static MergeResult SafeApplyMergePatch(JsonNode target, JsonNode patch, bool changeOriginal, int maxDepth = 64) =>
+        maxDepth <= 0
+            ? throw new ArgumentException("Max depth must be positive", nameof(maxDepth))
+            : ApplyMergePatchImpl(target, patch, maxDepth, changeOriginal, currentDepth: 0);
 
-        return ApplyMergePatchImpl(target, patch, maxDepth, changeOriginal, currentDepth: 0);
-    }
-
-    private static MergeResult ApplyMergePatchImpl(
-        JsonNode target,
-        JsonNode patch,
-        int maxDepth,
-        bool changeOriginal,
-        int currentDepth)
+    private static MergeResult ApplyMergePatchImpl(JsonNode target, JsonNode patch, int maxDepth, bool changeOriginal, int currentDepth)
     {
         ValidateDepth(currentDepth, maxDepth);
 
@@ -47,8 +34,7 @@ public static class JsonMergePatch
         currentDepth++;
         ValidateDepth(currentDepth, maxDepth);
 
-        // Use original or create clone based on flag
-        var mergedObject = changeOriginal
+        var mergedObject = changeOriginal // Use original or create clone based on flag
             ? targetObject
             : targetObject.DeepClone().AsObject();
 
@@ -57,11 +43,7 @@ public static class JsonMergePatch
         return new MergeResult(mergedObject, changed);
     }
 
-    private static bool MergeObjectsImpl(
-        JsonObject target,
-        JsonObject patch,
-        int maxDepth,
-        int currentDepth)
+    private static bool MergeObjectsImpl(JsonObject target, JsonObject patch, int maxDepth, int currentDepth)
     {
         var anyChanged = false;
         foreach (var (key, patchValue) in patch)
@@ -74,40 +56,31 @@ public static class JsonMergePatch
             }
 
             var (newValue, changed) = HandlePropertyMerge(target, key, patchValue, maxDepth, currentDepth);
-            if (changed)
-            {
-                target[key] = newValue;
-                anyChanged = true;
-            }
+            if (!changed) continue;
+
+            target[key] = newValue;
+            anyChanged = true;
         }
 
         return anyChanged;
     }
 
     private static (JsonNode? Value, bool Changed) HandlePropertyMerge(
-        JsonObject target,
-        string key,
-        JsonNode patchValue,
-        int maxDepth,
-        int currentDepth)
+        JsonObject target, string key, JsonNode patchValue, int maxDepth, int currentDepth)
     {
         if (!target.TryGetPropertyValue(key, out var targetValue))
             return (patchValue.DeepClone(), true); // New property - always changed
 
-        if (targetValue is JsonObject targetObject && patchValue is JsonObject patchObject)
-        {
-            ValidateDepth(currentDepth + 1, maxDepth);
+        if (targetValue is not JsonObject targetObject || patchValue is not JsonObject patchObject)
+            return !JsonNode.DeepEquals(targetValue, patchValue) // Value replacement check
+                ? (patchValue.DeepClone(), true)
+                : (null, false);
 
-            var mergedChild = targetObject.DeepClone().AsObject();
-            var childChanged = MergeObjectsImpl(mergedChild, patchObject, maxDepth, currentDepth + 1);
+        ValidateDepth(currentDepth + 1, maxDepth);
+        var mergedChild = targetObject.DeepClone().AsObject();
+        var childChanged = MergeObjectsImpl(mergedChild, patchObject, maxDepth, currentDepth + 1);
 
-            return childChanged ? (mergedChild, true) : (null, false);
-        }
-
-        // Value replacement check
-        return !JsonNode.DeepEquals(targetValue, patchValue)
-            ? (patchValue.DeepClone(), true)
-            : (null, false);
+        return childChanged ? (mergedChild, true) : (null, false);
     }
 
     private static void ValidateDepth(int currentDepth, int maxDepth)

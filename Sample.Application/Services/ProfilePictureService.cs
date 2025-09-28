@@ -1,3 +1,4 @@
+using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.AspNetCore.Identity;

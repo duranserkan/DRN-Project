@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using ValidationException = DRN.Framework.SharedKernel.ValidationException;
 
-namespace DRN.Framework.Utils.Extensions;
+namespace DRN.Framework.Utils.Data.Validation;
 
 public static class ValidationExtensions
 {
@@ -30,10 +30,4 @@ public static class ValidationExtensions
                                        {errorMessages}
                                        """);
     }
-}
-
-public class Validation
-{
-    public bool IsValid { get; set; }
-    public List<ValidationResult> Errors { get; set; } = new();
 }

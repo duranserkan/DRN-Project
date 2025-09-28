@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
-using DRN.Framework.Utils.Encodings;
+using DRN.Framework.Utils.Data.Encodings;
+using DRN.Framework.Utils.Data.Hashing;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Encodings;
 

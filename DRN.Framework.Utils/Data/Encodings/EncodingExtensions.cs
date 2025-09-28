@@ -1,7 +1,7 @@
 using System.Buffers.Text;
 using System.Text.Json;
 
-namespace DRN.Framework.Utils.Encodings;
+namespace DRN.Framework.Utils.Data.Encodings;
 
 public static class EncodingExtensions
 {
@@ -42,12 +42,4 @@ public static class EncodingExtensions
     };
 
     public static string DecodeAsString(this string input, ByteEncoding encoding = ByteEncoding.Base64UrlEncoded) => input.Decode(encoding).ToString();
-}
-
-public enum ByteEncoding
-{
-    Hex = 1,
-    Base64,
-    Base64UrlEncoded,
-    Utf8
 }

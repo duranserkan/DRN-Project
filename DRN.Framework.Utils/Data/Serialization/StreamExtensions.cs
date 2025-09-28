@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace DRN.Framework.Utils.Extensions;
+namespace DRN.Framework.Utils.Data.Serialization;
 
 public static class StreamExtensions
 {
@@ -36,13 +36,11 @@ public static class StreamExtensions
                 MaxSizeGuard(totalBytesRead, maxSize);
                 memoryStream.Write(rentedBuffer, 0, bytesRead);
             }
-
-            // Return the final byte array from the MemoryStream
-            return memoryStream.ToArray(); // Allocates only once for the final array
+            
+            return memoryStream.ToArray();
         }
         finally
         {
-            // Return the rented buffer to the pool
             bufferPool.Return(rentedBuffer);
         }
     }

@@ -5,7 +5,7 @@ using Microsoft.Extensions.FileProviders;
 
 namespace DRN.Framework.Utils.Extensions;
 
-public static class IFileInfoExtensions
+public static class FileInfoExtensions
 {
     public static IEnumerable<string>? GetLines(this IFileInfo fileInfo)
     {

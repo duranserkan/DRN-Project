@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Flurl;
 
-namespace DRN.Framework.Utils.Encodings;
+namespace DRN.Framework.Utils.Data.Encodings;
 //todo: review 
 public static class QueryParameterSerializer
 {
