@@ -105,7 +105,7 @@ public class TagControllerTests(ITestOutputHelper outputHelper)
         var firstItem = firstPageResult.Items[0];
 
         //Paginate Page 2 with Get
-        var queryStringPage2 = QueryParameterSerializer.SerializeToQueryString(firstPageResult.Info);
+        var queryStringPage2 = firstPageResult.Info.Serialize(SerializationMethod.QueryString);
         var paginateWithQueryEndpoint = Get.Endpoint.QA.Tag.PaginateWithQueryAsync.Path()
             .AppendQueryParam(queryStringPage2)
             .AppendQueryParam("jumpTo", 2)!;
@@ -145,7 +145,7 @@ public class TagControllerTests(ITestOutputHelper outputHelper)
         //The test database is shared. Other integration tests can insert tags, so evaluating HasNext is not right.
 
         //Return Page 2 with Get
-        var queryStringPage2Return = QueryParameterSerializer.SerializeToQueryString(thirdPageResultPost.Info);
+        var queryStringPage2Return = thirdPageResultPost.Info.Serialize(SerializationMethod.QueryString);
         var paginateWithQueryEndpointPage2Return = Get.Endpoint.QA.Tag.PaginateWithQueryAsync.Path()
             .AppendQueryParam(queryStringPage2Return)
             .AppendQueryParam("jumpTo", 2)
@@ -164,7 +164,7 @@ public class TagControllerTests(ITestOutputHelper outputHelper)
         secondPageResultReturnGet.Info.HasPrevious.Should().BeTrue();
 
         //Paginate Page 3 with Get
-        var queryStringPage3 = QueryParameterSerializer.SerializeToQueryString(secondPageResult.Info);
+        var queryStringPage3 = secondPageResult.Info.Serialize(SerializationMethod.QueryString);
         paginateWithQueryEndpoint = Get.Endpoint.QA.Tag.PaginateWithQueryAsync.Path()
             .AppendQueryParam(queryStringPage3)
             .AppendQueryParam("jumpTo", 3)
