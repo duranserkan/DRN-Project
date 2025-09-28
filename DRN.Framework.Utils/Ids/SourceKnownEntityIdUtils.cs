@@ -15,6 +15,7 @@ public interface ISourceKnownEntityIdUtils
 {
     SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity;
     SourceKnownEntityId Generate(SourceKnownEntity sourceKnownEntity);
+    SourceKnownEntityId Generate(long id, byte entityType);
     SourceKnownEntityId Parse(Guid entityId);
     SourceKnownEntityId Validate(Guid entityId, byte entityTypeId);
 }
@@ -53,7 +54,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity => Generate(id, SourceKnownEntity.GetEntityTypeId<TEntity>());
     public SourceKnownEntityId Generate(SourceKnownEntity sourceKnownEntity) => Generate(sourceKnownEntity.Id, SourceKnownEntity.GetEntityTypeId(sourceKnownEntity));
 
-    private SourceKnownEntityId Generate(long id, byte entityTypeId)
+    public SourceKnownEntityId Generate(long id, byte entityTypeId)
     {
         Span<byte> hashBytes = stackalloc byte[5];
         Span<byte> guidBytes = stackalloc byte[16]; // Allocate 16 bytes on the stack for the GUID
@@ -139,7 +140,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         var ex = new ValidationException($"Invalid Entity Type: EntityId:{entityId:N}");
         ex.Data.Add($"Expected_{nameof(SourceKnownEntityId.EntityTypeId)}", entityTypeId);
         ex.Data.Add($"Found_{nameof(SourceKnownEntityId.EntityTypeId)}", sourceKnownId.EntityTypeId);
-        
+
         throw ex;
     }
 

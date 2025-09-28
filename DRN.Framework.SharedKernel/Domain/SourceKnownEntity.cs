@@ -60,8 +60,8 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public const int IdColumnOrder = 0;
     public const int ModifiedAtColumnOrder = 1;
     private const string EmptyJson = "{}";
-    private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
 
+    private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
     private static readonly ConcurrentDictionary<byte, Type> IdToTypeMap = new();
 
     public static byte GetEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => GetEntityTypeId(typeof(TEntity));
@@ -88,6 +88,9 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
 
                 return existingType; // No change needed
             });
+
+    private Dictionary<byte, Dictionary<long, SourceKnownEntityId>>? _idCache;
+    internal Func<long, byte, SourceKnownEntityId>? IdFactory;
 
     private List<IDomainEvent> DomainEvents { get; } = new(2); //todo transactional outbox, pre and post publish events
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
@@ -124,6 +127,30 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public TModel GetExtendedProperties<TModel>() => JsonSerializer.Deserialize<TModel>(ExtendedProperties)!;
     public void SetExtendedProperties<TModel>(TModel extendedProperty) => ExtendedProperties = JsonSerializer.Serialize(extendedProperty);
 
+    private readonly Lock _idCacheLock = new();
+
+    public SourceKnownEntityId GetForeignId(long id, byte entityType)
+    {
+        if (IsPendingInsert)
+            throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
+        if (IdFactory == null)
+            throw ExceptionFor.Configuration("Id Factory is not set");
+
+        lock (_idCacheLock)
+        {
+            _idCache ??= new Dictionary<byte, Dictionary<long, SourceKnownEntityId>>(3);
+            if (_idCache.TryGetValue(entityType, out var entityIds))
+                return entityIds[id];
+
+            var entityId = IdFactory.Invoke(id, entityType);
+            _idCache[entityType] = new Dictionary<long, SourceKnownEntityId>(3)
+            {
+                [id] = entityId
+            };
+
+            return entityId;
+        }
+    }
 
     protected void AddDomainEvent(DomainEvent? e)
     {
@@ -141,6 +168,8 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
 
     public bool Equals(SourceKnownEntity? other) => ReferenceEquals(this, other) || (!IsPendingInsert && EntityIdSource == other?.EntityIdSource);
     public override bool Equals(object? obj) => obj is SourceKnownEntity other && Equals(other);
+
+    // ReSharper disable once NonReadonlyMemberInGetHashCode
     public override int GetHashCode() => EntityIdSource.GetHashCode();
 
     /// <summary>
