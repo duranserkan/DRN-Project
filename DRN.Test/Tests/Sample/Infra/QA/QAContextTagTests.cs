@@ -36,6 +36,17 @@ public class QAContextTagTests
 
         firstTag.EntityIdSource.HasSameEntityType<Tag>().Should().BeTrue();
         firstTag.EntityIdSource.HasSameEntityType<Question>().Should().BeFalse();
+        
+        //generator set by DrnSaveChangesInterceptor
+        var foreignId = firstTag.GetForeignId(1, -1);
+        foreignId.EntityTypeId.Should().Be(1);
+        foreignId.EntityId.Should().NotBeEmpty();
+        foreignId.Valid.Should().BeTrue();
+        
+        foreignId = firstTag.GetForeignId(2, -2);
+        foreignId.EntityTypeId.Should().Be(2);
+        foreignId.EntityId.Should().NotBeEmpty();
+        foreignId.Valid.Should().BeTrue();
 
         var tagFromDb = await qaContext.Tags.FindAsync(firstTag.Id);
         tagFromDb.Should().Be(firstTag);
@@ -121,5 +132,32 @@ public class QAContextTagTests
         tagFromOutsideFilter.Length.Should().Be(2);
         tagFromOutsideFilter2.Length.Should().Be(2);
         tagFromOutsideFilter3.Length.Should().Be(2);
+        
+        var serviceProvider = context.GetRequiredService<IServiceProvider>();
+        var newScope = serviceProvider.CreateScope();
+        var qaContext2 = newScope.ServiceProvider.GetRequiredService<QAContext>();
+        var firstTagFromDb = await qaContext2.Tags.FindAsync(firstTag.Id);
+        
+        //generator set by DrnMaterializationInterceptor
+        foreignId = firstTagFromDb!.GetForeignId(3, -3);
+        foreignId.EntityTypeId.Should().Be(3);
+        foreignId.EntityId.Should().NotBeEmpty();
+        foreignId.Valid.Should().BeTrue();
+        
+        foreignId = firstTagFromDb.GetForeignId(3, -4);
+        foreignId.EntityTypeId.Should().Be(3);
+        foreignId.EntityId.Should().NotBeEmpty();
+        foreignId.Valid.Should().BeTrue();
+        
+        foreignId = firstTagFromDb.GetForeignId(3, -5);
+        foreignId.EntityTypeId.Should().Be(3);
+        foreignId.EntityId.Should().NotBeEmpty();
+        foreignId.Valid.Should().BeTrue();
+        
+        //test cache hit
+        foreignId = firstTagFromDb.GetForeignId(3, -5);
+        foreignId.EntityTypeId.Should().Be(3);
+        foreignId.EntityId.Should().NotBeEmpty();
+        foreignId.Valid.Should().BeTrue();
     }
 }

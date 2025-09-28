@@ -129,7 +129,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
 
     private readonly Lock _idCacheLock = new();
 
-    public SourceKnownEntityId GetForeignId(long id, byte entityType)
+    public SourceKnownEntityId GetForeignId(byte entityType, long id)
     {
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
@@ -139,10 +139,19 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         lock (_idCacheLock)
         {
             _idCache ??= new Dictionary<byte, Dictionary<long, SourceKnownEntityId>>(3);
-            if (_idCache.TryGetValue(entityType, out var entityIds))
-                return entityIds[id];
 
-            var entityId = IdFactory.Invoke(id, entityType);
+            SourceKnownEntityId entityId;
+            if (_idCache.TryGetValue(entityType, out var entityIds))
+            {
+                if (entityIds.TryGetValue(id, out var existingId))
+                    return existingId;
+
+                entityId = IdFactory.Invoke(id, entityType);
+                entityIds[id] = entityId;
+                return entityId;
+            }
+
+            entityId = IdFactory.Invoke(id, entityType);
             _idCache[entityType] = new Dictionary<long, SourceKnownEntityId>(3)
             {
                 [id] = entityId
