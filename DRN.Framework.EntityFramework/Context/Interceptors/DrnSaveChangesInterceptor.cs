@@ -46,6 +46,8 @@ public class DrnSaveChangesInterceptor(IEntityUtils entityUtils) : IDrnSaveChang
                         entity.EntityIdSource = entityUtils.EntityId.Generate(entity);
                     
                     entity.IdFactory = entityUtils.EntityId.Generate;
+                    entity.Parser = entityUtils.EntityId.Parse;
+                    entity.Validator = entityUtils.EntityId.Validate;
                     entity.ModifiedAt = entity.CreatedAt;
                     entity.MarkAsCreated();
                     break;

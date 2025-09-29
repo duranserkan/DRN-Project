@@ -81,12 +81,9 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         IdToTypeMap.AddOrUpdate( // Thread-safe check-or-add with value factory
             newEntityType,
             addValueFactory: _ => newType,
-            updateValueFactory: (entityType, existingType) => existingType != newType 
-                ? throw new InvalidOperationException($"Entity type value: {entityType} is used by both {existingType.FullName} and {newType.FullName}") 
+            updateValueFactory: (entityType, existingType) => existingType != newType
+                ? throw new InvalidOperationException($"Entity type value: {entityType} is used by both {existingType.FullName} and {newType.FullName}")
                 : existingType);
-
-    private Dictionary<byte, Dictionary<long, SourceKnownEntityId>>? _idCache;
-    internal Func<long, byte, SourceKnownEntityId>? IdFactory;
 
     private List<IDomainEvent> DomainEvents { get; } = new(2); //todo transactional outbox, pre and post publish events
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
@@ -124,19 +121,60 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public void SetExtendedProperties<TModel>(TModel extendedProperty) => ExtendedProperties = JsonSerializer.Serialize(extendedProperty);
 
     private readonly Lock _idCacheLock = new();
+    private Dictionary<Guid, SourceKnownEntityId>? _entityIdCache;
+    private Dictionary<byte, Dictionary<long, SourceKnownEntityId>>? _idCache;
+    internal Func<long, byte, SourceKnownEntityId>? IdFactory;
+    internal Func<Guid, SourceKnownEntityId>? Parser;
+    internal Func<SourceKnownEntityId, byte, SourceKnownEntityId>? Validator;
 
-    public SourceKnownEntityId GetForeignId(byte entityType, long id)
+    public SourceKnownEntityId GetForeignId(Guid id, byte entityType, bool cache = false)
+    {
+        if (IsPendingInsert)
+            throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
+        if (Validator == null)
+            throw ExceptionFor.Configuration("Validator is not set");
+
+        var sourceKnownId = GetForeignId(id, cache);
+        return Validator.Invoke(sourceKnownId, entityType);
+    }
+
+    public SourceKnownEntityId GetForeignId(Guid id, bool cache = false)
+    {
+        if (IsPendingInsert)
+            throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
+        if (Parser == null)
+            throw ExceptionFor.Configuration("Parser is not set");
+        if (!cache)
+            return Parser.Invoke(id);
+
+        lock (_idCacheLock)
+        {
+            _entityIdCache ??= new Dictionary<Guid, SourceKnownEntityId>(3);
+            if (_entityIdCache.TryGetValue(id, out var existingId))
+                return existingId;
+
+            var entityId = Parser.Invoke(id);
+            _entityIdCache[id] = entityId;
+            return entityId;
+        }
+    }
+
+    public SourceKnownEntityId GetForeignId<TEntity>(long id, bool cache = false) where TEntity : SourceKnownEntity
+        => GetForeignId(GetEntityType<TEntity>(), id, cache);
+
+    public SourceKnownEntityId GetForeignId(byte entityType, long id, bool cache = false)
     {
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
         if (IdFactory == null)
             throw ExceptionFor.Configuration("Id Factory is not set");
+        if (!cache)
+            return IdFactory.Invoke(id, entityType);
 
         lock (_idCacheLock)
         {
-            _idCache ??= new Dictionary<byte, Dictionary<long, SourceKnownEntityId>>(3);
-
             SourceKnownEntityId entityId;
+            _idCache ??= new Dictionary<byte, Dictionary<long, SourceKnownEntityId>>(3);
             if (_idCache.TryGetValue(entityType, out var entityIds))
             {
                 if (entityIds.TryGetValue(id, out var existingId))
@@ -157,6 +195,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         }
     }
 
+    // ReSharper disable once MemberCanBePrivate.Global
     protected void AddDomainEvent(DomainEvent? e)
     {
         if (e != null)

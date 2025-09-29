@@ -18,6 +18,7 @@ public interface ISourceKnownEntityIdUtils
     SourceKnownEntityId Generate(long id, byte entityType);
     SourceKnownEntityId Parse(Guid entityId);
     SourceKnownEntityId Validate(Guid entityId, byte entityType);
+    SourceKnownEntityId Validate(SourceKnownEntityId entityId, byte entityType);
 }
 
 /// <summary>
@@ -132,12 +133,17 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     public SourceKnownEntityId Validate(Guid entityId, byte entityType)
     {
         var sourceKnownId = Parse(entityId);
+        return Validate(sourceKnownId, entityType);
+    }
+
+    public SourceKnownEntityId Validate(SourceKnownEntityId sourceKnownId, byte entityType)
+    {
         if (!sourceKnownId.Valid)
-            throw new ValidationException($"Invalid EntityId: {entityId:N}");
+            throw new ValidationException($"Invalid EntityId: {sourceKnownId.EntityId:N}");
 
         if (sourceKnownId.EntityType == entityType) return sourceKnownId;
 
-        var ex = new ValidationException($"Invalid Entity Type: EntityId:{entityId:N}");
+        var ex = new ValidationException($"Invalid Entity Type: EntityId:{sourceKnownId.EntityId:N}");
         ex.Data.Add($"Expected_{nameof(SourceKnownEntityId.EntityType)}", entityType);
         ex.Data.Add($"Found_{nameof(SourceKnownEntityId.EntityType)}", sourceKnownId.EntityType);
 
