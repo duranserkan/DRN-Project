@@ -22,8 +22,7 @@ public sealed class EntityTypeAttribute(byte entityType) : Attribute
 
 public interface IEntityETag
 {
-    //todo generate etag hash(ModifiedAt +EntityId) && implement generic support
-    public Guid ETag { get; }
+    public Guid ETag { get; } //todo generate etag hash(ModifiedAt +EntityId) && implement generic support
 }
 
 public interface IHasEntityId
@@ -126,6 +125,9 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     internal Func<long, byte, SourceKnownEntityId>? IdFactory;
     internal Func<Guid, SourceKnownEntityId>? Parser;
     internal Func<SourceKnownEntityId, byte, SourceKnownEntityId>? Validator;
+
+    public SourceKnownEntityId GetForeignId<TEntity>(Guid id, bool cache = false) where TEntity : SourceKnownEntity
+        => GetForeignId(id, GetEntityType<TEntity>(), cache);
 
     public SourceKnownEntityId GetForeignId(Guid id, byte entityType, bool cache = false)
     {

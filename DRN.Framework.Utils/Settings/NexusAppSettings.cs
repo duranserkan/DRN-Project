@@ -1,5 +1,7 @@
+using System.ComponentModel.DataAnnotations;
 using DRN.Framework.Utils.Data.Encodings;
-using DRN.Framework.Utils.Extensions;
+using DRN.Framework.Utils.Data.Hashing;
+using DRN.Framework.Utils.Data.Validation;
 
 namespace DRN.Framework.Utils.Settings;
 
@@ -31,30 +33,49 @@ public class NexusAppSettings
             list.Add(key);
         _macKeys = _macKeys.Union([key]).ToArray();
     }
+
+    public void Validate()
+    {
+        if (MacKeys.Count(k => k.Default) == 0)
+            throw ExceptionFor.Configuration($"Default {nameof(NexusMacKey)}, not found");
+        if (MacKeys.Count(k => k.Default) != 1)
+            throw ExceptionFor.Configuration($"Only 1 default {nameof(NexusMacKey)} is allowed");
+
+        foreach (var key in MacKeys)
+            key.ValidateDataAnnotationsThrowIfInvalid();
+    }
 }
 
+//todo write mac key rules
 public class NexusMacKey
 {
     public NexusMacKey(string key)
     {
         Key = key;
+        KeyHash = key.Hash();
         KeyAsBinary = key.Decode();
+        AlternativeKey = (((KeyHash + "1919").Hash() + "1923").Hash() + "193∞").Hash();
+        AlternativeKeyAsBinary = AlternativeKey.Decode();
     }
 
-    internal NexusMacKey(BinaryData keyAsBinary)
+    internal NexusMacKey(BinaryData keyAsBinary) : this(keyAsBinary.Encode())
     {
-        Key = keyAsBinary.Encode();
-        KeyAsBinary = keyAsBinary;
     }
 
-    internal NexusMacKey(ReadOnlySpan<byte> key)
+    internal NexusMacKey(ReadOnlySpan<byte> key) : this(key.Encode())
     {
-        Key = key.Encode();
-        KeyAsBinary = BinaryData.FromBytes(key.ToArray());
     }
 
+    [MinLength(64)]
     public string Key { get; }
+
+    [MinLength(32)]
+    public string KeyHash { get; }
+
     public BinaryData KeyAsBinary { get; }
+
+    public string AlternativeKey { get; }
+    public BinaryData AlternativeKeyAsBinary { get; }
     public bool Default { get; init; }
     public bool IsValid => Key.Length >= 32;
 }

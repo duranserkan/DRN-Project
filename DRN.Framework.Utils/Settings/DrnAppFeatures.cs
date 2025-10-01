@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Settings;
@@ -18,6 +19,7 @@ public class DrnAppFeatures
     
 
     public bool SeedData { get; init; }
+    [MinLength(57)]
     public string SeedKey { get; init; } = "Peace at home, peace in the world — Mustafa Kemal Atatürk";
     public string InternalRequestHttpVersion { get; init; } = "1.1";
     public string InternalRequestProtocol { get; init; } = "http";

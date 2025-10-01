@@ -196,5 +196,11 @@ public class QAContextTagTests
         foreignId.Source.Id.Should().Be(-5);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
+        
+        foreignId = firstTagFromDb.GetForeignId<TestEntity>(foreignId.EntityId);
+        foreignId.EntityType.Should().Be(255);
+        foreignId.Source.Id.Should().Be(-5);
+        foreignId.EntityId.Should().NotBeEmpty();
+        foreignId.Valid.Should().BeTrue();
     }
 }

@@ -13,21 +13,22 @@ namespace DRN.Framework.Utils.Settings;
 
 public interface IAppSettings
 {
+    [JsonIgnore]
+    IConfiguration Configuration { get; }
+
     DrnAppFeatures Features { get; }
     DrnDevelopmentSettings DevelopmentSettings { get; }
     NexusAppSettings NexusAppSettings { get; }
     AppEnvironment Environment { get; }
     bool IsDevEnvironment { get; }
+
+    /// <summary>
+    ///  Default app key, can be used publicly. For example, to separate development and production data.
+    /// </summary>
+    string AppKey { get; }
+
     string ApplicationName { get; }
     string ApplicationNameNormalized { get; }
-    string AppKey { get; }
-    string AppHashKey { get; }
-    string AppEncryptionKey { get; }
-    long AppSeed { get; }
-
-    [JsonIgnore]
-    IConfiguration Configuration { get; }
-
     string GetAppSpecificName(string name, string prefix = "_");
 
     bool TryGetConnectionString(string name, out string connectionString);
@@ -54,7 +55,6 @@ public class AppSettings : IAppSettings
         return new AppSettings(configurationBuilder.Build());
     }
 
-
     public AppSettings(IConfiguration configuration)
     {
         Configuration = configuration;
@@ -68,7 +68,9 @@ public class AppSettings : IAppSettings
 
         Features = Get<DrnAppFeatures>(nameof(DrnAppFeatures)) ?? new DrnAppFeatures();
         DevelopmentSettings = Get<DrnDevelopmentSettings>(nameof(DrnDevelopmentSettings)) ?? new DrnDevelopmentSettings();
-        NexusAppSettings = Get<NexusAppSettings>(nameof(Settings.NexusAppSettings)) ?? new NexusAppSettings();
+        NexusAppSettings = Get<NexusAppSettings>(nameof(NexusAppSettings)) ?? new NexusAppSettings();
+        var securitySettings = new AppSecuritySettings(Features);
+        AppKey = securitySettings.AppKey;
 
         if (NexusAppSettings.AppId > SourceKnownIdUtils.MaxAppId)
             throw new ConfigurationException($"Nexus AppId must be less than 64: NexusAppId: {NexusAppSettings.AppId}");
@@ -76,27 +78,24 @@ public class AppSettings : IAppSettings
             throw new ConfigurationException($"Nexus App Instance Id must be less than 32: NexusAppId: {NexusAppSettings.AppInstanceId}");
 
         ApplicationNameNormalized = ApplicationName.ToPascalCase();
-        //Inside only usage
-        AppHashKey = string.Concat("Peace at home", ("MKA " + ApplicationName + " " + Features.SeedKey + " DRN")
-                .Hash(HashAlgorithm.Sha512, ByteEncoding.Hex)
-                .AsSpan(18, 81), "Peace in the world")
-            .Hash(HashAlgorithm.Sha256, ByteEncoding.Hex).Hash().Hash();
-
-        //Inside only usage
-        AppEncryptionKey = (AppHashKey + "1919").Hash().Hash().Hash().Hash();
-        //Outside only usage
-        AppKey = (AppHashKey + "1923" + AppEncryptionKey + "2923").Hash().Hash().Hash().Hash().Hash().Hash().Substring(12);
-        AppSeed = (Features.SeedKey + "2923").GenerateSeedFromInputHash();
 
         var hasDefaultMacKey = NexusAppSettings.MacKeys.Any(k => k.Default);
-        if (hasDefaultMacKey) return;
-        if (Environment != AppEnvironment.Development)
-            throw new ConfigurationException($"Default Mac Key not found for the environment: {Environment.ToString()}");
+        if (!hasDefaultMacKey)
+        {
+            if (Environment != AppEnvironment.Development)
+                throw new ConfigurationException($"Default Mac Key not found for the environment: {Environment.ToString()}");
 
-        //Even if the application is not connected to nexus, we still need to add a default Mac key to make development easier.
-        var key = Hasher.Hash(("1881" + AppHashKey + AppEncryptionKey + "Forever").ToByteArray()).AsSpan();
-        NexusAppSettings.AddNexusMacKey(new NexusMacKey(key) { Default = true });
+            //Even if the application is not connected to nexus, we still need to add a default Mac key to make development easier.
+            var keyPart1 = Hasher.Hash(("1881" + securitySettings.AppHashKey + securitySettings.AppEncryptionKey + "Forever").ToByteArray()).AsSpan().Encode();
+            var keyPart2 = Hasher.Hash(("193∞" + securitySettings.AppHashKey + securitySettings.AppEncryptionKey + "Forever").ToByteArray()).AsSpan().Encode();
+            NexusAppSettings.AddNexusMacKey(new NexusMacKey(keyPart1 + keyPart2) { Default = true });
+        }
+
+        NexusAppSettings.Validate();
     }
+
+    [JsonIgnore]
+    public IConfiguration Configuration { get; }
 
     public DrnDevelopmentSettings DevelopmentSettings { get; }
     public DrnAppFeatures Features { get; }
@@ -104,29 +103,15 @@ public class AppSettings : IAppSettings
     public AppEnvironment Environment { get; }
 
     public bool IsDevEnvironment => Environment == AppEnvironment.Development;
-    public string ApplicationName { get; }
-    public string ApplicationNameNormalized { get; }
+
 
     /// <summary>
     ///  Default app key, can be used publicly. For example, to separate development and production data.
     /// </summary>
     public string AppKey { get; }
 
-    /// <summary>
-    ///  Default app specific hash Key, use privately, never expose
-    /// </summary>
-    public string AppHashKey { get; }
-
-    /// <summary>
-    ///  Default app specific encryption Key, use privately, never expose
-    /// </summary>
-    public string AppEncryptionKey { get; }
-
-    public long AppSeed { get; }
-
-    [JsonIgnore]
-    public IConfiguration Configuration { get; }
-
+    public string ApplicationName { get; }
+    public string ApplicationNameNormalized { get; }
     public string GetAppSpecificName(string name, string prefix = "_") => $"{prefix}{ApplicationNameNormalized}.{name}.{AppKey}";
 
     public bool TryGetConnectionString(string name, out string connectionString)

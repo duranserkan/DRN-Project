@@ -5,7 +5,7 @@ using Flurl.Http.Configuration;
 
 namespace DRN.Framework.Utils.Configurations;
 
-internal static class UtilsConventionBuilder
+public static class UtilsConventionBuilder
 {
     private static bool _triggered;
     private static readonly SemaphoreSlim StartupLock = new(1, 1);
@@ -31,6 +31,6 @@ internal static class UtilsConventionBuilder
     {
         _ = JsonConventions.DefaultOptions;
         FlurlHttp.Clients.Clear();
-        FlurlHttp.Clients.WithDefaults(builder => builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonSerializerOptions.Default));
+        FlurlHttp.Clients.WithDefaults(builder => builder.Settings.JsonSerializer = new DefaultJsonSerializer(JsonConventions.DefaultOptions));
     }
 }
