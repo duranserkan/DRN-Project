@@ -14,7 +14,7 @@ namespace DRN.Framework.Utils.Ids;
 public interface ISourceKnownEntityIdUtils
 {
     SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity;
-    SourceKnownEntityId Generate(SourceKnownEntity sourceKnownEntity);
+    SourceKnownEntityId Generate(SourceKnownEntity entity);
     SourceKnownEntityId Generate(long id, byte entityType);
     SourceKnownEntityId Parse(Guid entityId);
     SourceKnownEntityId Validate(Guid entityId, byte entityType);
@@ -52,7 +52,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     private readonly BinaryData _defaultMacKey = appSettings.NexusAppSettings.GetDefaultMacKey().KeyAsBinary; // todo add keyring rotation 
 
     public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity => Generate(id, SourceKnownEntity.GetEntityType<TEntity>());
-    public SourceKnownEntityId Generate(SourceKnownEntity sourceKnownEntity) => Generate(sourceKnownEntity.Id, SourceKnownEntity.GetEntityType(sourceKnownEntity));
+    public SourceKnownEntityId Generate(SourceKnownEntity entity) => Generate(entity.Id, SourceKnownEntity.GetEntityType(entity));
 
     public SourceKnownEntityId Generate(long id, byte entityType)
     {
@@ -135,16 +135,16 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         return Validate(sourceKnownId, entityType);
     }
 
-    public SourceKnownEntityId Validate(SourceKnownEntityId sourceKnownId, byte entityType)
+    public SourceKnownEntityId Validate(SourceKnownEntityId entityId, byte entityType)
     {
-        if (!sourceKnownId.Valid)
-            throw new ValidationException($"Invalid EntityId: {sourceKnownId.EntityId:N}");
+        if (!entityId.Valid)
+            throw new ValidationException($"Invalid EntityId: {entityId.EntityId:N}");
 
-        if (sourceKnownId.EntityType == entityType) return sourceKnownId;
+        if (entityId.EntityType == entityType) return entityId;
 
-        var ex = new ValidationException($"Invalid Entity Type: EntityId:{sourceKnownId.EntityId:N}");
+        var ex = new ValidationException($"Invalid Entity Type: EntityId:{entityId.EntityId:N}");
         ex.Data.Add($"Expected_{nameof(SourceKnownEntityId.EntityType)}", entityType);
-        ex.Data.Add($"Found_{nameof(SourceKnownEntityId.EntityType)}", sourceKnownId.EntityType);
+        ex.Data.Add($"Found_{nameof(SourceKnownEntityId.EntityType)}", entityId.EntityType);
 
         throw ex;
     }

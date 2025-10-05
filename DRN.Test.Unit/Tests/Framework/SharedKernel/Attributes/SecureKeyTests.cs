@@ -75,7 +75,7 @@ public class SecureKeyTests
         // Four '!' characters in a row (> MaxRepeatedChars=3)
         new object[] { "Aa1!!!!Aa1!!!Aa1", false },
         // Null input
-        new object[] { null, false },
+        new object[] { null!, false },
         // Empty string
         new object[] { "", false },
         // Too short (4 characters)

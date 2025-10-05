@@ -35,7 +35,7 @@ public class NexusAppSettings
 
     public void Validate()
     {
-        if (MacKeys.Count(k => k.Default) == 0)
+        if (!MacKeys.Any(k => k.Default))
             throw ExceptionFor.Configuration($"Default {nameof(NexusMacKey)}, not found");
         if (MacKeys.Count(k => k.Default) != 1)
             throw ExceptionFor.Configuration($"Only 1 default {nameof(NexusMacKey)} is allowed");

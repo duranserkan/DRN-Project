@@ -51,32 +51,13 @@ public sealed class SecureKeyAttribute() : ValidationAttribute(DefaultErrorMessa
         if (MinLength < 1 || MaxLength < 1 || MinLength > MaxLength)
             return new ValidationResult($"SecureKeyAttribute is misconfigured: MinLength={MinLength}, MaxLength={MaxLength}. Both must be ≥1 and MinLength ≤ MaxLength.",
                 memberName);
-
         if (key.Length < MinLength || key.Length > MaxLength)
             return new ValidationResult($"Key must be between {MinLength} and {MaxLength} characters long.", memberName);
 
-        // Character validation and classification
-        bool hasUpper = false, hasLower = false, hasDigit = false, hasSpecial = false;
-        foreach (var c in key)
-        {
-            if (!AllowedChars.Contains(c))
-                return new ValidationResult($"Key contains invalid character '{c}'. Allowed characters are alphanumeric and: ! * ( ) - _", memberName);
-
-            if (c is >= 'A' and <= 'Z') hasUpper = true;
-            else if (c is >= 'a' and <= 'z') hasLower = true;
-            else if (c is >= '0' and <= '9') hasDigit = true;
-            else if (SpecialChars.Contains(c)) hasSpecial = true;
-        }
-
-        //  Complexity requirements
-        if (RequireUppercase && !hasUpper)
-            return new ValidationResult("Key must contain at least one uppercase letter.", memberName);
-        if (RequireLowercase && !hasLower)
-            return new ValidationResult("Key must contain at least one lowercase letter.", memberName);
-        if (RequireDigit && !hasDigit)
-            return new ValidationResult("Key must contain at least one digit.", memberName);
-        if (RequireSpecialChar && !hasSpecial)
-            return new ValidationResult("Key must contain at least one special character: !, *, (, ), -, or _.", memberName);
+        
+        var result = ValidateClassification(Classify(key), memberName);
+        if (result is not null)
+            return result;
 
         // Sequential character check (e.g., 'abcd', '4567')
         if (MaxSequentialChars >= 2 && HasSequentialCharacters(key, MaxSequentialChars))
@@ -87,6 +68,48 @@ public sealed class SecureKeyAttribute() : ValidationAttribute(DefaultErrorMessa
             return new ValidationResult($"Key cannot contain more than {MaxRepeatedChars} identical characters in a row.", memberName);
 
         return ValidationResult.Success;
+    }
+
+    private ValidationResult? ValidateClassification(SecureKeyClassificationResult classificationResult, IEnumerable<string> memberName)
+    {
+        if (classificationResult.HasNonAllowed)
+            return new ValidationResult($"Key contains invalid character '{classificationResult.NonAllowed}'. Allowed characters are alphanumeric and: ! * ( ) - _", memberName);
+        if (RequireUppercase && !classificationResult.HasUpper)
+            return new ValidationResult("Key must contain at least one uppercase letter.", memberName);
+        if (RequireLowercase && !classificationResult.HasLower)
+            return new ValidationResult("Key must contain at least one lowercase letter.", memberName);
+        if (RequireDigit && !classificationResult.HasDigit)
+            return new ValidationResult("Key must contain at least one digit.", memberName);
+        if (RequireSpecialChar && !classificationResult.HasSpecial)
+            return new ValidationResult("Key must contain at least one special character: !, *, (, ), -, or _.", memberName);
+
+        return null;
+    }
+
+    private static SecureKeyClassificationResult Classify(string key)
+    {
+        var nonAllowed = '\0';
+        bool hasUpper = false, hasLower = false, hasDigit = false, hasSpecial = false, hasNonAllowed = false;
+        foreach (var c in key)
+        {
+            if (!AllowedChars.Contains(c))
+            {
+                hasNonAllowed = true;
+                nonAllowed = c;
+                break;
+            }
+
+            if (c is >= 'A' and <= 'Z') hasUpper = true;
+            else if (c is >= 'a' and <= 'z') hasLower = true;
+            else if (c is >= '0' and <= '9') hasDigit = true;
+            else if (SpecialChars.Contains(c)) hasSpecial = true;
+        }
+
+        return new SecureKeyClassificationResult
+        {
+            HasDigit = hasDigit, HasLower = hasLower, HasUpper = hasUpper,
+            HasSpecial = hasSpecial, HasNonAllowed = hasNonAllowed, NonAllowed = nonAllowed
+        };
     }
 
     /// <summary>
@@ -161,4 +184,14 @@ public sealed class SecureKeyAttribute() : ValidationAttribute(DefaultErrorMessa
 
     public override string FormatErrorMessage(string name) =>
         string.Format(ErrorMessageString, MinLength, MaxLength);
+}
+
+public struct SecureKeyClassificationResult
+{
+    public bool HasUpper { get; set; }
+    public bool HasLower { get; set; }
+    public bool HasDigit { get; set; }
+    public bool HasSpecial { get; set; }
+    public bool HasNonAllowed { get; set; }
+    public char NonAllowed { get; set; }
 }
