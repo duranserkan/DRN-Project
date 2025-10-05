@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DRN.Framework.SharedKernel.Attributes;
 
-//todo: write tests
 /// <summary>
 /// Validates that a string meets secure key requirements:
 /// - Length within [MinLength, MaxLength]
@@ -14,11 +13,11 @@ namespace DRN.Framework.SharedKernel.Attributes;
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter, AllowMultiple = false)]
 public sealed class SecureKeyAttribute() : ValidationAttribute(DefaultErrorMessage)
 {
+    public static readonly FrozenSet<char> SpecialChars = " !*()-_".ToFrozenSet();
+    public static readonly FrozenSet<char> AllowedChars = "ABCÇDEFGHIİJKLMNOÖPQRSŞTUÜVWXYZabcçdefghıijklmnoöpqrsştuüvwxyz0123456789 !*()-_".ToFrozenSet();
+
     private const string DefaultErrorMessage =
         "Key must be between {0} and {1} characters long and contain uppercase, lowercase, digit, space or and at least one special character from: ! * ( ) - _";
-
-    private static readonly FrozenSet<char> SpecialChars = " !*()-_".ToFrozenSet();
-    private static readonly FrozenSet<char> AllowedChars = "ABCÇDEFGHIİJKLMNOÖPQRSŞTUÜVWXYZabcçdefghıijklmnoöpqrsştuüvwxyz0123456789 !*()-_".ToFrozenSet();
 
     public ushort MinLength { get; set; } = 16;
     public ushort MaxLength { get; set; } = 256;
@@ -54,8 +53,8 @@ public sealed class SecureKeyAttribute() : ValidationAttribute(DefaultErrorMessa
         if (key.Length < MinLength || key.Length > MaxLength)
             return new ValidationResult($"Key must be between {MinLength} and {MaxLength} characters long.", memberName);
 
-        
-        var result = ValidateClassification(Classify(key), memberName);
+        var classification = SecureKeyClassificationResult.Classify(key);
+        var result = ValidateClassification(classification, memberName);
         if (result is not null)
             return result;
 
@@ -86,31 +85,6 @@ public sealed class SecureKeyAttribute() : ValidationAttribute(DefaultErrorMessa
         return null;
     }
 
-    private static SecureKeyClassificationResult Classify(string key)
-    {
-        var nonAllowed = '\0';
-        bool hasUpper = false, hasLower = false, hasDigit = false, hasSpecial = false, hasNonAllowed = false;
-        foreach (var c in key)
-        {
-            if (!AllowedChars.Contains(c))
-            {
-                hasNonAllowed = true;
-                nonAllowed = c;
-                break;
-            }
-
-            if (c is >= 'A' and <= 'Z') hasUpper = true;
-            else if (c is >= 'a' and <= 'z') hasLower = true;
-            else if (c is >= '0' and <= '9') hasDigit = true;
-            else if (SpecialChars.Contains(c)) hasSpecial = true;
-        }
-
-        return new SecureKeyClassificationResult
-        {
-            HasDigit = hasDigit, HasLower = hasLower, HasUpper = hasUpper,
-            HasSpecial = hasSpecial, HasNonAllowed = hasNonAllowed, NonAllowed = nonAllowed
-        };
-    }
 
     /// <summary>
     /// Checks for ascending or descending sequences of characters (case-insensitive, ASCII-only).
@@ -194,4 +168,30 @@ public struct SecureKeyClassificationResult
     public bool HasSpecial { get; set; }
     public bool HasNonAllowed { get; set; }
     public char NonAllowed { get; set; }
+
+    public static SecureKeyClassificationResult Classify(string key)
+    {
+        var nonAllowed = '\0';
+        bool hasUpper = false, hasLower = false, hasDigit = false, hasSpecial = false, hasNonAllowed = false;
+        foreach (var c in key)
+        {
+            if (!SecureKeyAttribute.AllowedChars.Contains(c))
+            {
+                hasNonAllowed = true;
+                nonAllowed = c;
+                break;
+            }
+
+            if (c is >= 'A' and <= 'Z') hasUpper = true;
+            else if (c is >= 'a' and <= 'z') hasLower = true;
+            else if (c is >= '0' and <= '9') hasDigit = true;
+            else if (SecureKeyAttribute.SpecialChars.Contains(c)) hasSpecial = true;
+        }
+
+        return new SecureKeyClassificationResult
+        {
+            HasDigit = hasDigit, HasLower = hasLower, HasUpper = hasUpper,
+            HasSpecial = hasSpecial, HasNonAllowed = hasNonAllowed, NonAllowed = nonAllowed
+        };
+    }
 }
