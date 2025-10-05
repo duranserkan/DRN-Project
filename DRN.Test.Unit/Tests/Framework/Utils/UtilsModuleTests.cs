@@ -13,6 +13,6 @@ public class UtilsModuleTests
 
         var appSettings = context.GetRequiredService<IAppSettings>();
         var key = appSettings.NexusAppSettings.GetDefaultMacKey();
-        key.Key.Should().Be("wN2dC5sO7vVkXpQnYqRtJbZaUxLmKoMhH8GfP4yEI0k=");
+        key.Key.Should().Be("SFnefTwiLUfxc_RCX54vHROJQ50TDvqDdHImA2rvrso");
     }
 }

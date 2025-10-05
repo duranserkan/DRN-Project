@@ -1,11 +1,11 @@
 namespace DRN.Test.Unit.Tests.Framework.Utils.Settings;
 
-public class AppFeatureTests
+public class DrnDevelopmentSettingsTests
 {
     [Theory]
-    [DataInline(true, false, true, false)]
-    [DataInline(false, true, false, true)]
-    public void Features_Should_BeValid(TestContext testContext, bool skipValidation, bool temporary, bool launch, bool prototype)
+    [DataInlineUnit(true, false, true, false)]
+    [DataInlineUnit(false, true, false, true)]
+    public void Development_Features_Should_BeValid(TestContextUnit testContext, bool skipValidation, bool temporary, bool launch, bool prototype)
     {
         var section = nameof(DrnDevelopmentSettings);
         testContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.SkipValidation), skipValidation.ToString());

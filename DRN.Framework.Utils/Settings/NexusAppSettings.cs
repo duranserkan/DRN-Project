@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.Data.Validation;
@@ -46,14 +45,13 @@ public class NexusAppSettings
     }
 }
 
-//todo write mac key rules
 public class NexusMacKey
 {
     public NexusMacKey(string key)
     {
         Key = key;
-        KeyHash = key.Hash();
-        KeyAsBinary = key.Decode();
+        KeyHash = Key.Hash();
+        KeyAsBinary = Key.Decode();
         AlternativeKey = (((KeyHash + "1919").Hash() + "1923").Hash() + "193∞").Hash();
         AlternativeKeyAsBinary = AlternativeKey.Decode();
     }
@@ -66,10 +64,8 @@ public class NexusMacKey
     {
     }
 
-    [MinLength(64)]
-    public string Key { get; }
 
-    [MinLength(32)]
+    public string Key { get; }
     public string KeyHash { get; }
 
     public BinaryData KeyAsBinary { get; }
@@ -77,5 +73,5 @@ public class NexusMacKey
     public string AlternativeKey { get; }
     public BinaryData AlternativeKeyAsBinary { get; }
     public bool Default { get; init; }
-    public bool IsValid => Key.Length >= 32;
+    public bool IsValid => Key.Length == 32;
 }

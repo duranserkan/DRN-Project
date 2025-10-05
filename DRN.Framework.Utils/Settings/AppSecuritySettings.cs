@@ -32,13 +32,13 @@ public class AppSecuritySettings : IAppSecuritySettings
         //Inside only usage
         AppHashKey = string.Concat("Peace at home", ("MKA " + features.SeedKey + " DRN")
                 .Hash(HashAlgorithm.Sha512, ByteEncoding.Hex)
-                .AsSpan(18, 81), "Peace in the world")[16..]
+                .AsSpan(18, 81), "Peace in the world")
             .Hash(HashAlgorithm.Sha256, ByteEncoding.Hex).Hash().Hash();
 
         //Inside only usage
         AppEncryptionKey = (AppHashKey + "1919").Hash().Hash().Hash().Hash();
         //Outside only usage
-        AppKey = (AppHashKey + "1923" + AppEncryptionKey + "2923").Hash().Hash().Hash().Hash().Hash().Hash()[16..];
+        AppKey = (AppHashKey + "1923" + AppEncryptionKey + "2923").Hash().Hash().Hash().Hash().Hash().Hash();
         AppSeed = (features.SeedKey + "2923").GenerateSeedFromInputHash();
     }
 

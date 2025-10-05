@@ -4,6 +4,7 @@ using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
+using DRN.Framework.Utils.Data.Validation;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Ids;
@@ -64,10 +65,12 @@ public class AppSettings : IAppSettings
         ApplicationName = TryGetSection(nameof(ApplicationName), out _)
             ? configuration.GetValue<string>(nameof(ApplicationName)) ?? AppConstants.EntryAssemblyName
             : AppConstants.EntryAssemblyName;
-
-
+        
         Features = Get<DrnAppFeatures>(nameof(DrnAppFeatures)) ?? new DrnAppFeatures();
+        Features.ValidateDataAnnotationsThrowIfInvalid();
         DevelopmentSettings = Get<DrnDevelopmentSettings>(nameof(DrnDevelopmentSettings)) ?? new DrnDevelopmentSettings();
+        DevelopmentSettings.ValidateDataAnnotationsThrowIfInvalid();
+
         NexusAppSettings = Get<NexusAppSettings>(nameof(NexusAppSettings)) ?? new NexusAppSettings();
         var securitySettings = new AppSecuritySettings(Features);
         AppKey = securitySettings.AppKey;
@@ -88,7 +91,8 @@ public class AppSettings : IAppSettings
             //Even if the application is not connected to nexus, we still need to add a default Mac key to make development easier.
             var keyPart1 = Hasher.Hash(("1881" + securitySettings.AppHashKey + securitySettings.AppEncryptionKey + "Forever").ToByteArray()).AsSpan().Encode();
             var keyPart2 = Hasher.Hash(("193∞" + securitySettings.AppHashKey + securitySettings.AppEncryptionKey + "Forever").ToByteArray()).AsSpan().Encode();
-            NexusAppSettings.AddNexusMacKey(new NexusMacKey(keyPart1 + keyPart2) { Default = true });
+            var key = (keyPart1 + keyPart2 + securitySettings.AppKey).Hash();
+            NexusAppSettings.AddNexusMacKey(new NexusMacKey(key) { Default = true });
         }
 
         NexusAppSettings.Validate();

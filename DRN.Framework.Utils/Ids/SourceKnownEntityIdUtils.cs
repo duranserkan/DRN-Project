@@ -49,7 +49,6 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
 
     private const byte EntityIdSecondHalfOffset = 12;
     private const byte EntityIdSecondHalfLength = 4; // 12-15
-
     private readonly BinaryData _defaultMacKey = appSettings.NexusAppSettings.GetDefaultMacKey().KeyAsBinary; // todo add keyring rotation 
 
     public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity => Generate(id, SourceKnownEntity.GetEntityType<TEntity>());

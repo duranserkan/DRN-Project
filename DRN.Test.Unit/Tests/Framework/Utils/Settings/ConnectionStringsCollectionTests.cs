@@ -5,7 +5,7 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Settings;
 public class ConnectionStringsCollectionTests
 {
     [Theory]
-    [DataInline("testDb", "Server=127.0.0.1;Port=5432;Database=myDataBase;User Id=myUsername;Password=myPassword;")]
+    [DataInlineUnit("testDb", "Server=127.0.0.1;Port=5432;Database=myDataBase;User Id=myUsername;Password=myPassword;")]
     public void ConnectionStringsCollection_Should_Be_Serialized(string name, string connectionString)
     {
         var collection = new ConnectionStringsCollection();

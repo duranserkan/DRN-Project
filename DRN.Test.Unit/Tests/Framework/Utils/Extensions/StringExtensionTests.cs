@@ -1,7 +1,3 @@
-using DRN.Framework.Utils.Extensions;
-using AwesomeAssertions;
-using Xunit;
-
 namespace DRN.Test.Unit.Tests.Framework.Utils.Extensions;
 
 public class StringExtensionTests
