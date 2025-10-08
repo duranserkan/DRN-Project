@@ -43,7 +43,7 @@ const builds = {
                 // Define entry points. These are the files Vite will bundle.
                 input: {
                     // Key is the output name (e.g., app_css), value is the input file path
-                    app: resolve(__dirname, 'buildwww/app/css/app.css'), // This will output app.[hash].css
+                    // app: resolve(__dirname, 'buildwww/app/css/app.css'), // This will output app.[hash].css, app.css is not used yet.
                     app_preload: resolve(__dirname, 'buildwww/app/js/app_preload.js'),
                     app_postload: resolve(__dirname, 'buildwww/app/js/app_postload.js')
                 }
