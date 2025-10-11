@@ -39,12 +39,12 @@ public class QAContextTagTests
         firstTag.EntityIdSource.HasSameEntityType<Question>().Should().BeFalse();
 
         //generator set by DrnSaveChangesInterceptor
-        var foreignId = firstTag.GetForeignId(1, -1);
+        var foreignId = firstTag.GetEntityId(1, -1);
         foreignId.EntityType.Should().Be(1);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
 
-        foreignId = firstTag.GetForeignId(255, -2, true);
+        foreignId = firstTag.GetEntityId(255, -2, true);
         foreignId.EntityType.Should().Be(255);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
@@ -140,64 +140,64 @@ public class QAContextTagTests
         var firstTagFromDb = await qaContext2.Tags.FindAsync(firstTag.Id);
 
         //generator set by DrnMaterializationInterceptor
-        foreignId = firstTagFromDb!.GetForeignId(255, -3, true);
+        foreignId = firstTagFromDb!.GetEntityId(255, -3, true);
         foreignId.EntityType.Should().Be(255);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
 
-        foreignId = firstTagFromDb.GetForeignId(255, -4, true);
+        foreignId = firstTagFromDb.GetEntityId(255, -4, true);
         foreignId.EntityType.Should().Be(255);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
 
-        foreignId = firstTagFromDb.GetForeignId(255, -5, true);
+        foreignId = firstTagFromDb.GetEntityId(255, -5, true);
         foreignId.EntityType.Should().Be(255);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
 
         //test cache hit
-        foreignId = firstTagFromDb.GetForeignId(255, -5, true);
+        foreignId = firstTagFromDb.GetEntityId(255, -5, true);
         foreignId.EntityType.Should().Be(255);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
 
         //test uncached
-        foreignId = firstTagFromDb.GetForeignId(255, -5);
+        foreignId = firstTagFromDb.GetEntityId(255, -5);
         foreignId.EntityType.Should().Be(255);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
 
         //test other overloads
-        foreignId = firstTagFromDb.GetForeignId<TestEntity>(-5);
+        foreignId = firstTagFromDb.GetEntityId<TestEntity>(-5);
         foreignId.EntityType.Should().Be(255);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
 
-        foreignId = firstTagFromDb.GetForeignId(foreignId.EntityId);
-        foreignId.EntityType.Should().Be(255);
-        foreignId.Source.Id.Should().Be(-5);
-        foreignId.EntityId.Should().NotBeEmpty();
-        foreignId.Valid.Should().BeTrue();
-
-        foreignId = firstTagFromDb.GetForeignId(foreignId.EntityId, true);
+        foreignId = firstTagFromDb.GetEntityId(foreignId.EntityId);
         foreignId.EntityType.Should().Be(255);
         foreignId.Source.Id.Should().Be(-5);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
 
-        foreignId = firstTagFromDb.GetForeignId(foreignId.EntityId, true);
+        foreignId = firstTagFromDb.GetEntityId(foreignId.EntityId, true);
         foreignId.EntityType.Should().Be(255);
         foreignId.Source.Id.Should().Be(-5);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
 
-        foreignId = firstTagFromDb.GetForeignId(foreignId.EntityId, 255);
+        foreignId = firstTagFromDb.GetEntityId(foreignId.EntityId, true);
+        foreignId.EntityType.Should().Be(255);
+        foreignId.Source.Id.Should().Be(-5);
+        foreignId.EntityId.Should().NotBeEmpty();
+        foreignId.Valid.Should().BeTrue();
+
+        foreignId = firstTagFromDb.GetEntityId(foreignId.EntityId, 255);
         foreignId.EntityType.Should().Be(255);
         foreignId.Source.Id.Should().Be(-5);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
         
-        foreignId = firstTagFromDb.GetForeignId<TestEntity>(foreignId.EntityId);
+        foreignId = firstTagFromDb.GetEntityId<TestEntity>(foreignId.EntityId);
         foreignId.EntityType.Should().Be(255);
         foreignId.Source.Id.Should().Be(-5);
         foreignId.EntityId.Should().NotBeEmpty();

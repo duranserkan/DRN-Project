@@ -21,11 +21,10 @@
     "onmount": "^2.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "eslint": "^9.36.0",
+    "@eslint/js": "^9.37.0",
+    "eslint": "^9.37.0",
     "globals": "^16.4.0",
-    "sass": "^1.93.0",
-    "typescript": "^5.9.2",
-    "vite": "^7.1.6"
+    "sass": "^1.93.2",
+    "vite": "^7.1.9"
   }
 }

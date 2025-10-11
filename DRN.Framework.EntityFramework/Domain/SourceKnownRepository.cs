@@ -9,7 +9,7 @@ using DRN.Framework.Utils.Entity;
 using DRN.Framework.Utils.Logging;
 using Microsoft.EntityFrameworkCore;
 
-namespace DRN.Framework.EntityFramework;
+namespace DRN.Framework.EntityFramework.Domain;
 
 /// <summary>
 /// Represents an abstract repository that manages entities of type <typeparamref name="TEntity"/> within a specific database context of type <typeparamref name="TContext"/>.
@@ -137,7 +137,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true)
     {
         using var _ = ScopedLog.Measure(this);
-        var entityId = ValidateEntityId(id, throwException);
+        var entityId = GetEntityId(id, throwException);
         if (!entityId.Valid)
             return null;
 
@@ -204,18 +204,30 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     //todo evaluate validation scope log support
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public SourceKnownEntityId ValidateEntityId(Guid id, bool throwException = true)
+    public SourceKnownEntityId GetEntityId(Guid id, bool throwException = true)
     {
         using var _ = ScopedLog.Measure(this);
         return throwException ? Utils.EntityId.Validate(id, EntityType) : Utils.EntityId.Parse(id);
     }
 
-    /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public SourceKnownEntityId[] ValidateEntityIds(IReadOnlyCollection<Guid> ids, bool throwException = true)
-        => ValidateEntityIdsAsEnumerable(ids, throwException).ToArray();
+    public SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity
+    {
+        using var _ = ScopedLog.Measure(this);
+        return Utils.EntityId.Validate(id, SourceKnownEntity.GetEntityType<TOtherEntity>());
+    }
 
-    public IEnumerable<SourceKnownEntityId> ValidateEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool throwException = true)
-        => ids.Select(id => ValidateEntityId(id, throwException));
+    /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
+    public SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool throwException = true)
+        => GetEntityIdsAsEnumerable(ids, throwException).ToArray();
+
+    public SourceKnownEntityId[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid> ids) where TOtherEntity : SourceKnownEntity
+        => GetEntityIdsAsEnumerable<TOtherEntity>(ids).ToArray();
+
+    public IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool throwException = true)
+        => ids.Select(id => GetEntityId(id, throwException));
+
+    public IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids) where TOtherEntity : SourceKnownEntity
+        => ids.Select(GetEntityId<TOtherEntity>);
 
 
     public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
@@ -340,7 +352,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     {
         using var _ = ScopedLog.Measure(this);
         if (!request.PageCursor.IsFirstRequest)
-            ValidateEntityId(request.GetCursorId());
+            GetEntityId(request.GetCursorId());
 
         var filteredQuery = filter != null ? Filter(query, filter) : query;
         var result = await Utils.Pagination.GetResultAsync(filteredQuery, request, CancellationToken);
@@ -370,7 +382,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, params IReadOnlyCollection<Guid> ids)
     {
-        var sourceKnownIds = ValidateEntityIdsAsEnumerable(ids).Select(sourceKnownEntityId => sourceKnownEntityId.Source.Id).ToArray();
+        var sourceKnownIds = GetEntityIdsAsEnumerable(ids).Select(sourceKnownEntityId => sourceKnownEntityId.Source.Id).ToArray();
 
         return Filter(query, sourceKnownIds);
     }

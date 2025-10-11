@@ -6,8 +6,10 @@
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
+        <NoWarn>$(NoWarn);NU1608</NoWarn>
     </PropertyGroup>
 
+    
     <ItemGroup>
         <PackageReference Include="BenchmarkDotNet" Version="0.15.4" />
         <PackageReference Include="Blake3" Version="2.0.0" />

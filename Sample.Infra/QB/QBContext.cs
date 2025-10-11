@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using DRN.Framework.EntityFramework;
 using DRN.Framework.EntityFramework.Attributes;
+using DRN.Framework.EntityFramework.Domain;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Entity;

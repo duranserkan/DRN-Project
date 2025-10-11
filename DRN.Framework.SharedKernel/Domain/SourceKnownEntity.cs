@@ -126,21 +126,21 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     internal Func<Guid, SourceKnownEntityId>? Parser;
     internal Func<SourceKnownEntityId, byte, SourceKnownEntityId>? Validator;
 
-    public SourceKnownEntityId GetForeignId<TEntity>(Guid id, bool cache = false) where TEntity : SourceKnownEntity
-        => GetForeignId(id, GetEntityType<TEntity>(), cache);
+    public SourceKnownEntityId GetEntityId<TEntity>(Guid id, bool cache = false) where TEntity : SourceKnownEntity
+        => GetEntityId(id, GetEntityType<TEntity>(), cache);
 
-    public SourceKnownEntityId GetForeignId(Guid id, byte entityType, bool cache = false)
+    public SourceKnownEntityId GetEntityId(Guid id, byte entityType, bool cache = false)
     {
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
         if (Validator == null)
             throw ExceptionFor.Configuration("Validator is not set");
 
-        var sourceKnownId = GetForeignId(id, cache);
+        var sourceKnownId = GetEntityId(id, cache);
         return Validator.Invoke(sourceKnownId, entityType);
     }
 
-    public SourceKnownEntityId GetForeignId(Guid id, bool cache = false)
+    public SourceKnownEntityId GetEntityId(Guid id, bool cache = false)
     {
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
@@ -161,10 +161,10 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         }
     }
 
-    public SourceKnownEntityId GetForeignId<TEntity>(long id, bool cache = false) where TEntity : SourceKnownEntity
-        => GetForeignId(GetEntityType<TEntity>(), id, cache);
+    public SourceKnownEntityId GetEntityId<TEntity>(long id, bool cache = false) where TEntity : SourceKnownEntity
+        => GetEntityId(GetEntityType<TEntity>(), id, cache);
 
-    public SourceKnownEntityId GetForeignId(byte entityType, long id, bool cache = false)
+    public SourceKnownEntityId GetEntityId(byte entityType, long id, bool cache = false)
     {
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");

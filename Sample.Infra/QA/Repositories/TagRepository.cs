@@ -1,4 +1,5 @@
 using DRN.Framework.EntityFramework;
+using DRN.Framework.EntityFramework.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Entity;
 using Sample.Domain.QA.Tags;

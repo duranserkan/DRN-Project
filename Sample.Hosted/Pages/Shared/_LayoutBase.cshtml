@@ -4,6 +4,14 @@
 https://getbootstrap.com/docs/5.3/customize/color-modes/
 https://getbootstrap.com/docs/5.3/examples/
 https://getbootstrap.com/docs/5.3/examples/sidebars/
+
+Vite is configured through package.json and vite.config.js.
+When you trigger a build, it outputs compiled assets to wwwroot.
+A manifest.json file is also created.
+This file maps source files to their versioned outputs.
+
+ASP.NET Core Tag Helpers—such as ViteLinkTagHelper and ViteScriptTagHelper—read from the manifest.
+They automatically resolve the correct script and stylesheet paths for both development and production.
 *@
 
 <head>
