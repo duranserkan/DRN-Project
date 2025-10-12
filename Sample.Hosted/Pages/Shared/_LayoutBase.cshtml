@@ -13,7 +13,6 @@ This file maps source files to their versioned outputs.
 ASP.NET Core Tag Helpers—such as ViteLinkTagHelper and ViteScriptTagHelper—read from the manifest.
 They automatically resolve the correct script and stylesheet paths for both development and production.
 *@
-
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -37,6 +36,7 @@ They automatically resolve the correct script and stylesheet paths for both deve
     <script>
         DRN.App.environment =  @Json.Serialize(ScopeContext.Settings.Environment.ToString());
         DRN.App.isDev = @Json.Serialize(ScopeContext.Settings.IsDevEnvironment);
+        DRN.App.csrfToken = @Json.Serialize(Context.GetCsrfToken());
     </script>
     <!-- Preload -->
 

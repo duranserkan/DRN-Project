@@ -39,6 +39,7 @@ const builds = {
         build: {
             // Output directory relative to the project root
             outDir: 'wwwroot/app',
+            minify: false,
             rollupOptions: {
                 // Define entry points. These are the files Vite will bundle.
                 input: {

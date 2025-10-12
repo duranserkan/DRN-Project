@@ -12,6 +12,7 @@ interface DrnApp {
     environment: string;
     isDev: boolean;
     showCookieBanner: boolean;
+    csrfToken: string;
     state: {
         // Define state structure if needed, e.g.:
         // components?: Record<string, any>;

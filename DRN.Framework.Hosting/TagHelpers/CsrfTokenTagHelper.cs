@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Razor.TagHelpers;
 using System.Text.Json;
 using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.TagHelpers;
 
@@ -18,7 +19,7 @@ namespace DRN.Framework.Hosting.TagHelpers;
 [HtmlTargetElement(Attributes = "hx-patch")]
 [HtmlTargetElement(Attributes = "hx-put")]
 [HtmlTargetElement(Attributes = "add-csrf-token")]
-public class CsrfTokenTagHelper(IAntiforgery antiForgery, IHttpContextAccessor httpContextAccessor, IScopedLog scopedLog) : TagHelper
+public class CsrfTokenTagHelper(IHttpContextAccessor httpContextAccessor, IScopedLog scopedLog) : TagHelper
 {
     private const string HxHeadersAttribute = "hx-headers";
     private const string CsrfTokenHeader = "RequestVerificationToken";
@@ -28,7 +29,6 @@ public class CsrfTokenTagHelper(IAntiforgery antiForgery, IHttpContextAccessor h
     private const string AutoCsrfAttribute = "csrf-protection";
     private static readonly string[] HxMethodAttributes = ["hx-post", "hx-put", "hx-delete", "hx-patch"];
 
-    private readonly IAntiforgery _antiForgery = antiForgery ?? throw new ArgumentNullException(nameof(antiForgery));
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
 
     public override void Process(TagHelperContext context, TagHelperOutput output)
@@ -64,15 +64,11 @@ public class CsrfTokenTagHelper(IAntiforgery antiForgery, IHttpContextAccessor h
             }
             else
             {
-                var requestToken = _antiForgery.GetAndStoreTokens(httpContext);
-                if (requestToken.RequestToken == null)
+                tokenValue = httpContext.GetCsrfToken();
+                if (string.IsNullOrEmpty(tokenValue))
                 {
-                    scopedLog.AddWarning("Generated CSRF token is null. Using placeholder token.");
+                    scopedLog.AddWarning("Generated CSRF token is empty. Using placeholder token.");
                     tokenValue = CsrfTokenPlaceHolder;
-                }
-                else
-                {
-                    tokenValue = requestToken.RequestToken;
                 }
             }
         }
@@ -143,4 +139,10 @@ public class CsrfTokenTagHelper(IAntiforgery antiForgery, IHttpContextAccessor h
         var newJson = headers.Serialize();
         output.Attributes.SetAttribute(HxHeadersAttribute, newJson);
     }
+}
+
+public static class CsrfExtensions
+{
+    public static string GetCsrfToken(this HttpContext context)
+        => context.RequestServices.GetRequiredService<IAntiforgery>().GetAndStoreTokens(context).RequestToken ?? string.Empty;
 }

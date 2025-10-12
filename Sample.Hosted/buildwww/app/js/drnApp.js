@@ -5,6 +5,7 @@ const drnApp = {
     environment: 'Neitherland',
     isDev: false,
     showCookieBanner: false,
+    csrfToken: '',
     // Placeholder for application state management
     state: {}
 };

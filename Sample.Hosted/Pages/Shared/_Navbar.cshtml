@@ -1,6 +1,4 @@
 @using DRN.Framework.SharedKernel.Enums
-@using Sample.Hosted.Helpers
-@using Sample.Hosted.TagHelpers
 
 <header class="navbar navbar-expand-md container-xxl bg-primary" data-bs-theme="dark">
     <div class="container-fluid">
@@ -16,12 +14,12 @@
                 <li class="nav-item">
                     <a class="nav-link" href="@Get.Page.Root.Home">Home</a>
                 </li>
-                <environment include="@AppEnvironment.Development.ToString()">
+                <environment include="@nameof(AppEnvironment.Development)">
                     <li class="nav-item">
                         <a class="nav-link" authorized-only href="@Get.Page.Root.Swagger" target="_blank">Swagger</a>
                     </li>
                 </environment>
-                <environment include="@AppEnvironment.Development.ToString()">
+                <environment include="@nameof(AppEnvironment.Development)">
                     @if (Get.Role.System.Admin)
                     {
                         <li class="nav-item">

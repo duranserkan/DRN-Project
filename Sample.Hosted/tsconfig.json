@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Vite + TypeScript",
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "ES2023",
+    "allowJs": true, // Allow importing .js files
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true, // Required for Vite
+
+    /* Strictness */
+    "strict": true, // Enable all strict type-checking options
+    "noUncheckedIndexedAccess": true, // Stricter indexing
+    "noImplicitOverride": true, // Enforce 'override' keyword
+    // Consider adding if your codebase is ready:
+    //"exactOptionalPropertyTypes": true, // Distinguish between undefined and missing properties
+
+    "module": "ESNext", // Let bundler handle module format
+    "moduleResolution": "bundler", // Aligns with modern bundlers like Vite
+    "allowImportingTsExtensions": true, // Allow importing .ts files without extension
+    "verbatimModuleSyntax": true, // Modern way to handle imports/exports
+    "noEmit": true, // Vite handles emitting JS, so TS doesn't need to
+
+    /* Linting */
+    "noUnusedLocals": false, // Report errors on unused local variables
+    "noUnusedParameters": false, // Report errors on unused parameters
+    "noFallthroughCasesInSwitch": true, // Report errors for fallthrough cases in switch statement
+    "forceConsistentCasingInFileNames": true,
+
+    /* Type Checking */
+    "lib": ["ES2023", "DOM", "DOM.Iterable"], // Include necessary libraries
+
+    /* Path Aliases (if you are using them) */
+    // Adjust paths relative to baseUrl if needed
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["build/*"],
+      "@js/*": ["build/js/*"],
+      "@scss/*": ["build/scss/*"],
+      "@types/*": ["build/types/*"] // Or wherever your types are
+    },
+    "typeRoots": [
+      "./node_modules/@types",           // Default location for DefinitelyTyped packages
+      "./build/types"                   // Add your custom types directory
+      // If tsconfig is in OPT.Hosted/, you might use:
+      // "./OPT.Hosted/build/types"
+      // Adjust the path relative to THIS tsconfig.json file
+    ],
+    "include": [
+      "build/ts/**/*" // Ensure your TS files are included
+    ],
+    // Exclude node_modules and build outputs
+    "exclude": ["node_modules", "wwwroot/dist"]
+  }
+}
