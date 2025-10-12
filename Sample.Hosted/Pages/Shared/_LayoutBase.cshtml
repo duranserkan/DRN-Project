@@ -31,7 +31,7 @@ They automatically resolve the correct script and stylesheet paths for both deve
     <link href="buildwww/lib/bootstrap/bootstrap.scss" rel="stylesheet" crossorigin="anonymous"/>
     <link href="~/lib/bootstrap-icons/bootstrap-icons.min.pdY4ejLK.css" rel="stylesheet" crossorigin="anonymous" integrity="sha256-pdY4ejLKO67E0CM2tbPtq1DJ3VGDVVdqAR6j3ZwdiE4="/>
     @*<link href="buildwww/app/css/app.css" rel="stylesheet" crossorigin="anonymous"/>*@
-    
+
     @*defines DRN.App, DRN.Utils, DRN.Onmount*@
     <script src="buildwww/app/js/app_preload.js" crossorigin="anonymous"></script>
     <script>
@@ -39,11 +39,15 @@ They automatically resolve the correct script and stylesheet paths for both deve
         DRN.App.isDev = @Json.Serialize(ScopeContext.Settings.IsDevEnvironment);
     </script>
     <!-- Preload -->
-    
+
     <script src="buildwww/lib/htmx/htmx_bundle.js" crossorigin="anonymous"></script>
     <script src="~/lib/jquery/jquery.min.PnUB0Vw2.js" crossorigin="anonymous" integrity="sha256-PnUB0Vw2MOeRyLIDkuud7jGp9lzj793nbO9ccQFBqyQ="></script>
     <script src="~/lib/onmount/onmount.tS6D5Yzw.js" crossorigin="anonymous" integrity="sha256-tS6D5Yzwxoy/uLQA9mVEiTu/GaafGn+we0HjTlj4zzM="></script>
-    
+
+    @*https://www.jetbrains.com/help/rider/eslint.html
+    https://www.jetbrains.com/help/rider/Installing_and_Removing_External_Software_Using_Node_Package_Manager.html
+    https://www.jetbrains.com/help/rider/Configuring_JavaScript_Libraries.html#ws_js_configure_libraries_ts_definition_files*@
+
     <!-- Postload -->
     <script src="buildwww/app/js/app_postload.js" crossorigin="anonymous"></script>
     <!-- Postload -->

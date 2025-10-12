@@ -40,20 +40,27 @@
         }
 
         <!-- Main content -->
-        <div class=" d-flex  @(layoutOptions.CenterVertically ? "flex-column" : "") justify-content-center flex-grow-1" style="overflow-y: auto;">
+        <div class="d-flex  @(layoutOptions.CenterVertically ? "flex-column" : "") justify-content-center flex-grow-1" style="overflow-y: auto;">
             <main class="p-3 @(layoutOptions.CenterVertically ? "" : "flex-grow-1")" style="max-width: 100%;">
                 <div class="row @(layoutOptions.CenterHorizontally ? "justify-content-center" : "")">
                     <div class="@layoutOptions.CssColumnSize() @layoutOptions.CssTextAlignment()">
-                        @if (layoutOptions.Type == MainContentType.Card || layoutOptions.Type == MainContentType.CardBody)
+                        @if (layoutOptions.Type is MainContentType.Card or MainContentType.CardBody)
                         {
                             <div class="card bg-light-subtle m-0">
                                 @if (!string.IsNullOrWhiteSpace(layoutOptions.Title))
                                 {
-                                    <h3 class="card-header">@layoutOptions.Title</h3>
+                                    @if (Get.Claim.Profile.SlimUi)
+                                    {
+                                        <h4 class="card-header">@layoutOptions.Title</h4>
+                                    }
+                                    else
+                                    {
+                                        <h3 class="card-header">@layoutOptions.Title</h3>
+                                    }
                                 }
                                 @if (layoutOptions.Type == MainContentType.CardBody)
                                 {
-                                    <div class="card-body">@RenderBody()</div>
+                                    <div class="card-body" >@RenderBody()</div>
                                 }
                                 else
                                 {
