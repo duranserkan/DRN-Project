@@ -42,11 +42,11 @@ public interface ISourceKnownRepository<TEntity>
     Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities);
     Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids);
 
-    SourceKnownEntityId GetEntityId(Guid id, bool throwException = true);
+    SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
     SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool throwException = true);
+    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true);
     SourceKnownEntityId[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid> ids) where TOtherEntity : SourceKnownEntity;
-    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool throwException = true);
+    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool validate = true);
     IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids) where TOtherEntity : SourceKnownEntity;
 
     Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);

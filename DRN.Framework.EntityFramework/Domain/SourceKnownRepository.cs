@@ -204,10 +204,10 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     //todo evaluate validation scope log support
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public SourceKnownEntityId GetEntityId(Guid id, bool throwException = true)
+    public SourceKnownEntityId GetEntityId(Guid id, bool validate = true)
     {
         using var _ = ScopedLog.Measure(this);
-        return throwException ? Utils.EntityId.Validate(id, EntityType) : Utils.EntityId.Parse(id);
+        return validate ? Utils.EntityId.Validate(id, EntityType) : Utils.EntityId.Parse(id);
     }
 
     public SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity
@@ -217,14 +217,14 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     }
 
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool throwException = true)
-        => GetEntityIdsAsEnumerable(ids, throwException).ToArray();
+    public SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true)
+        => GetEntityIdsAsEnumerable(ids, validate).ToArray();
 
     public SourceKnownEntityId[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid> ids) where TOtherEntity : SourceKnownEntity
         => GetEntityIdsAsEnumerable<TOtherEntity>(ids).ToArray();
 
-    public IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool throwException = true)
-        => ids.Select(id => GetEntityId(id, throwException));
+    public IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool validate = true)
+        => ids.Select(id => GetEntityId(id, validate));
 
     public IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids) where TOtherEntity : SourceKnownEntity
         => ids.Select(GetEntityId<TOtherEntity>);

@@ -114,12 +114,18 @@ public class TagRepositoryTests
         repository.GetEntityId(invalidEntityId, false).Valid.Should().BeFalse();
         var validationAction = () => repository.GetEntityId(invalidEntityId);
         validationAction.Should().Throw<ValidationException>();
+        
+        validationAction = () => repository.GetEntityId<Tag>(invalidEntityId);
+        validationAction.Should().Throw<ValidationException>();
 
         var ids = repository.GetEntityIds([validEntityId, invalidEntityId], false);
         ids[0].Valid.Should().BeTrue();
         ids[1].Valid.Should().BeFalse();
 
         var validationAction2 = () => repository.GetEntityIds([validEntityId, invalidEntityId]);
+        validationAction2.Should().Throw<ValidationException>();
+        
+        validationAction2 = () => repository.GetEntityIds<Tag>([validEntityId, invalidEntityId]);
         validationAction2.Should().Throw<ValidationException>();
 
         var idsEnumerable = repository.GetEntityIdsAsEnumerable([validEntityId, invalidEntityId], false);
@@ -128,6 +134,10 @@ public class TagRepositoryTests
         ids[1].Valid.Should().BeFalse();
 
         idsEnumerable = repository.GetEntityIdsAsEnumerable([validEntityId, invalidEntityId]);
+        validationAction2 = () => idsEnumerable.ToArray();
+        validationAction2.Should().Throw<ValidationException>();
+        
+        idsEnumerable = repository.GetEntityIdsAsEnumerable<Tag>([validEntityId, invalidEntityId]);
         validationAction2 = () => idsEnumerable.ToArray();
         validationAction2.Should().Throw<ValidationException>();
     }

@@ -140,14 +140,17 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         return Validator.Invoke(sourceKnownId, entityType);
     }
 
-    public SourceKnownEntityId GetEntityId(Guid id, bool cache = false)
+    public SourceKnownEntityId GetEntityId(Guid id, bool cache = false, bool validate = true)
     {
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
         if (Parser == null)
             throw ExceptionFor.Configuration("Parser is not set");
         if (!cache)
-            return Parser.Invoke(id);
+        {
+            var entityId = Parser.Invoke(id);
+            return validate && entityId.Valid ? entityId : throw ExceptionFor.Validation($"EntityId is not valid: {id}");
+        }
 
         lock (_idCacheLock)
         {
@@ -156,7 +159,8 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
                 return existingId;
 
             var entityId = Parser.Invoke(id);
-            _entityIdCache[id] = entityId;
+            _entityIdCache[id] = validate && entityId.Valid ? entityId : throw ExceptionFor.Validation($"EntityId is not valid: {id}");
+
             return entityId;
         }
     }
