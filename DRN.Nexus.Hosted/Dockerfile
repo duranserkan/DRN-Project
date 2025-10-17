@@ -1,6 +1,7 @@
 #https://aka.ms/containerfastmode
 #https://blog.jetbrains.com/dotnet/2023/06/07/how-docker-fast-mode-works-in-rider/
 #https://www.jetbrains.com/help/rider/Docker_fast_mode.html
+#from solution root: docker build -f DRN.Nexus.Hosted/Dockerfile -t drn/nexus.hosted:localbuild .
 ARG PROJECT=DRN.Nexus.Hosted
 
 #https://www.mytechramblings.com/posts/testing-chiseled-ubuntu-containers-with-dotnet/
@@ -22,7 +23,7 @@ WORKDIR /appconfig/json-settings
 WORKDIR /app
 
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
-#https://mcr.microsoft.com/en-us/artifact/mar/dotnet/sdk/tags alternative registry for bitnami/dotnet-sdk
+#https://mcr.microsoft.com/en-us/artifact/mar/dotnet/sdk/tags
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0.306-alpine3.22   AS build
 ARG PROJECT
 ARG TARGETARCH
