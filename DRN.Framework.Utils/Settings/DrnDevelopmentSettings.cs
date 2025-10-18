@@ -32,5 +32,5 @@ public class DrnDevelopmentSettings
     /// For each DbContext, a new database will be created except when the database exists and there are no pending changes.
     /// If multiple DbContexts need to share the same database, do not use prototyping mode.
     /// </summary>
-    public bool PrototypingMode { get; init; }
+    public bool Prototype { get; init; }
 }

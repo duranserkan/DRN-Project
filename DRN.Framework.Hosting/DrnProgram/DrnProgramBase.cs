@@ -99,10 +99,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         {
             scopedLog.AddToActions("Creating Application");
             var application = await CreateApplicationAsync(args, appSettings, scopedLog);
-            scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.TemporaryApplication)}", appSettings.DevelopmentSettings.TemporaryApplication);
-            scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.SkipValidation)}", appSettings.DevelopmentSettings.SkipValidation);
-            scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.AutoMigrate)}", appSettings.DevelopmentSettings.AutoMigrate);
-            scopedLog.Add($"AppFeatures_{nameof(DrnDevelopmentSettings.PrototypingMode)}", appSettings.DevelopmentSettings.PrototypingMode);
+            scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.SkipValidation)}", appSettings.DevelopmentSettings.SkipValidation);
+            scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.TemporaryApplication)}", appSettings.DevelopmentSettings.TemporaryApplication);
+            scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.Prototype)}", appSettings.DevelopmentSettings.Prototype);
+            scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.AutoMigrate)}", appSettings.DevelopmentSettings.AutoMigrate);
+            scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.LaunchExternalDependencies)}", appSettings.DevelopmentSettings.LaunchExternalDependencies);
             scopedLog.AddToActions("Running Application");
             logger.LogWarning("{@Logs}", scopedLog.Logs);
 

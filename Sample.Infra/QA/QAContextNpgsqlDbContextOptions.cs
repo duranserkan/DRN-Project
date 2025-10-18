@@ -8,4 +8,7 @@ public class QAContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAt
 {
     public override void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder, IServiceProvider? serviceProvider)
         => builder.CommandTimeout(30);
+
+    public override bool UsePrototypeMode { get; set; } = true;
+    public override bool UsePrototypeModeWhenMigrationExists { get; set; } = true;
 }

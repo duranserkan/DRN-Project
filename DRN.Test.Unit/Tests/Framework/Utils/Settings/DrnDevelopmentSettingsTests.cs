@@ -11,7 +11,7 @@ public class DrnDevelopmentSettingsTests
         testContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.SkipValidation), skipValidation.ToString());
         testContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.TemporaryApplication), temporary.ToString());
         testContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.LaunchExternalDependencies), launch.ToString());
-        testContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.PrototypingMode), prototype.ToString());
+        testContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.Prototype), prototype.ToString());
 
 
         var appSetting = testContext.GetRequiredService<IAppSettings>();
@@ -20,6 +20,6 @@ public class DrnDevelopmentSettingsTests
         developmentSettings.TemporaryApplication.Should().Be(temporary);
         developmentSettings.SkipValidation.Should().Be(skipValidation);
         developmentSettings.LaunchExternalDependencies.Should().Be(launch);
-        developmentSettings.PrototypingMode.Should().Be(prototype);
+        developmentSettings.Prototype.Should().Be(prototype);
     }
 }

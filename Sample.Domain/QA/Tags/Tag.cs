@@ -16,6 +16,7 @@ public class Tag : AggregateRoot<TagValueModel>
     }
 
     public string Name { get; private set; } = null!;
+    public string? Value { get; private set; }
     public List<Question> Questions { get; private set; } = [];
 
     public TagDto ToDto() => new()
