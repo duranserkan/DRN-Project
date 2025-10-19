@@ -1,4 +1,5 @@
 @using DRN.Framework.SharedKernel.Enums
+@using DRN.Framework.Utils.Models
 @{
     var index = 0;
     var actionCount = SidebarActionCollection.DefaultItems.Count;
@@ -35,13 +36,14 @@
             }
         </ul>
     </nav>
-    <nav>
-        <ul id="ActionBarBadgeList" class="nav nav-pills nav-flush flex-column">
+    <nav style="overflow-y:auto; overflow-x: hidden">
+        <ul id="ActionBarBadgeList" class="nav nav-pills nav-flush flex-column mt-1 mb-auto">
             @if (ScopeContext.Settings.Environment != AppEnvironment.Production)
             {
                 @if (ScopeContext.Settings.Environment == AppEnvironment.Development)
                 {
-                    @if (ScopeContext.Settings.HasPendingChanges)
+                    var developmentStatus = ScopeContext.Services.GetRequiredService<DevelopmentStatus>();
+                    @if (developmentStatus.HasPendingChanges)
                     {
                         <li class="nav-item">
                             <div title="Has Pending Changes" data-bs-toggle="tooltip" data-bs-placement="left">
@@ -51,6 +53,7 @@
                             </div>
                         </li>
                     }
+
                     @if (ScopeContext.Settings.DevelopmentSettings.Prototype)
                     {
                         <li class="nav-item">
@@ -61,6 +64,7 @@
                             </div>
                         </li>
                     }
+
                     @if (ScopeContext.Settings.DevelopmentSettings.AutoMigrate)
                     {
                         <li class="nav-item">
@@ -71,6 +75,7 @@
                             </div>
                         </li>
                     }
+
                     @if (ScopeContext.Settings.DevelopmentSettings.LaunchExternalDependencies)
                     {
                         <li class="nav-item">
@@ -82,7 +87,7 @@
                         </li>
                     }
                 }
-                
+
                 var environment = $"{ScopeContext.Settings.Environment.ToString()} Environment";
                 <li class="nav-item">
                     <div title="@environment" data-bs-toggle="tooltip" data-bs-placement="left">

@@ -22,7 +22,6 @@ public interface IAppSettings
     NexusAppSettings NexusAppSettings { get; }
     AppEnvironment Environment { get; }
     bool IsDevEnvironment { get; }
-    bool HasPendingChanges { get; }
 
     /// <summary>
     ///  Default app key, can be used publicly. For example, to separate development and production data.
@@ -108,9 +107,7 @@ public class AppSettings : IAppSettings
     public AppEnvironment Environment { get; }
 
     public bool IsDevEnvironment => Environment == AppEnvironment.Development;
-    public bool HasPendingChanges { get; internal set; }
-
-
+    
     /// <summary>
     ///  Default app key, can be used publicly. For example, to separate development and production data.
     /// </summary>

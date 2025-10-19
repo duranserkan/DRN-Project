@@ -7,6 +7,7 @@ using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Entity;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Models;
 using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,77 +49,52 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         }
 
         ValidateEntityTypes(context, scopedLog);
-
         serviceProvider.GetRequiredService(service.GetType());
 
-        var appSettings = (AppSettings)serviceProvider.GetRequiredService<IAppSettings>();
+        var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
+        var developmentStatus = serviceProvider.GetRequiredService<DevelopmentStatus>();
         var environment = appSettings.Environment.ToString();
-        var contextName = context.GetType().FullName!;
+        var changeModel = await GetChangeModel(context, appSettings);
 
-        var migrations = context.Database.GetMigrations().ToArray();
-        var appliedMigrations = migrations.Length > 0 ? (await context.Database.GetAppliedMigrationsAsync()).ToArray() : [];
-        var hasPendingModelChanges = context.Database.HasPendingModelChanges();
-        var optionsAttributes = DbContextConventions.GetContextAttributes(context);
-        var usePrototypeModeWhenMigrationExists = optionsAttributes.Any(a => a.UsePrototypeModeWhenMigrationExists);
-        var changeModel = new DbContextChangeModel(migrations, appliedMigrations, hasPendingModelChanges, usePrototypeModeWhenMigrationExists);
-        
-        appSettings.HasPendingChanges = appSettings.HasPendingChanges || hasPendingModelChanges;
-        scopedLog?.AddToActions($"{contextName} has {migrations.Length} migrations");
-        scopedLog?.AddToActions($"{contextName} has {appliedMigrations.Length} applied migrations. Last applied: {changeModel.LastAppliedMigration}");
-        scopedLog?.AddToActions($"{contextName} has {changeModel.PendingMigrations.Length} pending migrations. Last pending: {changeModel.LastPendingMigration}");
-        scopedLog?.AddToActions($"{contextName} has {migrations.Length} total migrations");
-        if (hasPendingModelChanges)
-            scopedLog?.AddToActions($"{contextName} has pending model changes");
+        changeModel.LogChanges(scopedLog, appSettings.Environment.ToString());
+        developmentStatus.AddChangeModel(changeModel);
 
-        var migrate = appSettings is { IsDevEnvironment: true, DevelopmentSettings.AutoMigrate: true };
-        if (!migrate)
+        if (!changeModel.Flags.Migrate) return;
+        if (!changeModel.Flags.HasPendingChanges) return;
+
+        if (appSettings.DevelopmentSettings.Prototype && changeModel.Flags.HasPendingModelChangesForPrototype)
         {
-            scopedLog?.AddToActions($"{contextName} auto migration disabled in {environment}");
-            return;
-        }
-
-        if (!changeModel.HasPendingChanges)
-        {
-            if (appSettings.DevelopmentSettings.Prototype)
-                scopedLog?.AddToActions($"existing {contextName} db is used for prototyping mode since there is no pending changes");
-            return;
-        }
-
-        if (appSettings.DevelopmentSettings.Prototype && changeModel.HasPendingModelChangesForPrototype)
-        {
-            scopedLog?.AddToActions($"checking {contextName} database in prototype mode.");
-
+            scopedLog?.AddToActions($"checking {changeModel.Name} database in prototype mode.");
             var created = await context.Database.EnsureCreatedAsync();
             if (!created)
             {
-                scopedLog?.AddToActions($"{contextName} db will be recreated for pending model changes.");
+                scopedLog?.AddToActions($"{changeModel.Name} db will be recreated for pending model changes.");
                 await context.Database.EnsureDeletedAsync();
                 await context.Database.EnsureCreatedAsync();
                 await SeedData(context, serviceProvider, appSettings);
-                scopedLog?.AddToActions($"{contextName} db recreated for pending model changes.");
+                scopedLog?.AddToActions($"{changeModel.Name} db recreated for pending model changes.");
 
                 return;
             }
 
             await SeedData(context, serviceProvider, appSettings);
-
-            scopedLog?.AddToActions($"{contextName} db created for prototype mode");
+            scopedLog?.AddToActions($"{changeModel.Name} db created for prototype mode");
 
             return;
         }
 
-        if (changeModel.HasPendingMigrationsWithoutPendingModelChanges)
+        if (changeModel.Flags.HasPendingMigrationsWithoutPendingModelChanges)
         {
-            scopedLog?.AddToActions($"{contextName} is migrating {environment}");
+            scopedLog?.AddToActions($"{changeModel.Name} is migrating {environment}");
             await context.Database.MigrateAsync();
 
-            if (appliedMigrations.Length == 0)
+            if (changeModel.AppliedMigrations.Count == 0)
                 await SeedData(context, serviceProvider, appSettings);
-            scopedLog?.AddToActions($"{contextName} migrated {changeModel.PendingMigrations.Length} pending migrations");
+            scopedLog?.AddToActions($"{changeModel.Name} migrated {changeModel.PendingMigrations.Count} pending migrations");
         }
 
-        if (hasPendingModelChanges)
-            throw new ConfigurationException($"{contextName} has pending model changes. Create migration or enable Prototype Mode in DrnAppFeatures.");
+        if (changeModel.Flags.HasPendingModelChanges)
+            throw new ConfigurationException($"{changeModel.Name} has pending model changes. Create migration or enable Prototype Mode in DrnAppFeatures.");
     }
 
     private static async Task SeedData(DbContext context, IServiceProvider serviceProvider, IAppSettings appSettings)
@@ -126,6 +102,23 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         var optionsAttributes = DbContextConventions.GetContextAttributes(context);
         foreach (var optionsAttribute in optionsAttributes)
             await optionsAttribute.SeedAsync(serviceProvider, appSettings);
+    }
+
+    private static async Task<DbContextChangeModel> GetChangeModel(DbContext context, IAppSettings appSettings)
+    {
+        var contextName = context.GetType().FullName ?? context.GetType().Name;
+        var migrations = context.Database.GetMigrations().ToArray();
+        var appliedMigrations = migrations.Length > 0 ? (await context.Database.GetAppliedMigrationsAsync()).ToArray() : [];
+        var hasPendingModelChanges = context.Database.HasPendingModelChanges();
+        var optionsAttributes = DbContextConventions.GetContextAttributes(context);
+        var prototype = appSettings.DevelopmentSettings.Prototype;
+        var usePrototypeMode = optionsAttributes.Any(a => a.UsePrototypeMode);
+        var usePrototypeModeWhenMigrationExists = optionsAttributes.Any(a => a.UsePrototypeModeWhenMigrationExists);
+
+        var migrate = appSettings is { IsDevEnvironment: true, DevelopmentSettings.AutoMigrate: true };
+        var changeModelFlags = new DbContextChangeModelFlags(hasPendingModelChanges, prototype, usePrototypeMode, usePrototypeModeWhenMigrationExists);
+        var changeModel = new DbContextChangeModel(contextName, migrate, migrations, appliedMigrations, changeModelFlags);
+        return changeModel;
     }
 
     private static void ValidateEntityTypes(DbContext context, IScopedLog? scopedLog)
@@ -178,35 +171,4 @@ public record EntityTypeValidationResult(string[] MissingEntityTypes, DuplicateE
 {
     public string GetMissingEntityTypes() => string.Join(',', MissingEntityTypes);
     public string GetDuplicateEntityTypes() => string.Join(',', string.Join(',', DuplicateEntityTypes.Select(p => p.ToString())));
-}
-
-public class DbContextChangeModel
-{
-    public DbContextChangeModel(string[] migrations, string[] appliedMigrations, bool hasPendingModelChanges, bool usePrototypeModeWhenMigrationExists)
-    {
-        Migrations = migrations;
-        AppliedMigrations = appliedMigrations;
-        PendingMigrations = migrations.Except(appliedMigrations).ToArray();
-        LastAppliedMigration = appliedMigrations.LastOrDefault() ?? "n/a";
-        LastPendingMigration = PendingMigrations.LastOrDefault() ?? "n/a";
-        HasPendingMigrations = PendingMigrations.Length > 0;
-        HasPendingModelChanges = hasPendingModelChanges;
-
-        HasPendingChanges = HasPendingMigrations || HasPendingModelChanges;
-        UsePrototypeModeWhenMigrationExists = usePrototypeModeWhenMigrationExists;
-        HasPendingModelChangesForPrototype = (migrations.Length == 0 && hasPendingModelChanges) ||
-                                             (migrations.Length > 0 && usePrototypeModeWhenMigrationExists && hasPendingModelChanges);
-    }
-
-    public string[] Migrations { get; }
-    public string[] AppliedMigrations { get; }
-    public string[] PendingMigrations { get; }
-    public string LastAppliedMigration { get; }
-    public string LastPendingMigration { get; }
-    public bool HasPendingMigrations { get; }
-    public bool HasPendingModelChanges { get; }
-    public bool HasPendingChanges { get; }
-    public bool HasPendingModelChangesForPrototype { get; }
-    public bool UsePrototypeModeWhenMigrationExists { get; }
-    public bool HasPendingMigrationsWithoutPendingModelChanges => PendingMigrations.Length > 0 && !HasPendingModelChanges;
 }
