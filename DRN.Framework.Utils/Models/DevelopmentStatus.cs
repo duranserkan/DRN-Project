@@ -1,28 +1,36 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Settings;
 
 namespace DRN.Framework.Utils.Models;
 
 [Singleton<DevelopmentStatus>]
-public class DevelopmentStatus
+public class DevelopmentStatus(IAppSettings appSettings)
 {
     private readonly List<DbContextChangeModel> _contextModels = [];
     public IReadOnlyList<DbContextChangeModel> Models => _contextModels;
-    internal void AddChangeModel(DbContextChangeModel contextModel) => _contextModels.Add(contextModel);
+
+    internal void AddChangeModel(DbContextChangeModel contextModel)
+    {
+        contextModel.Flags.Migrate = appSettings is { IsDevEnvironment: true, DevelopmentSettings.AutoMigrate: true };
+        contextModel.Flags.Prototype = appSettings.DevelopmentSettings.Prototype;
+        _contextModels.Add(contextModel);
+    }
+
     public bool HasPendingChanges => _contextModels.Any(c => c.Flags.HasPendingModelChanges);
 }
 
-public record DbContextChangeModelFlags(bool HasPendingModelChanges, bool Prototype, bool UsePrototypeMode, bool UsePrototypeModeWhenMigrationExists)
+public record DbContextChangeModelFlags(bool HasPendingModelChanges, bool UsePrototypeMode, bool UsePrototypeModeWhenMigrationExists)
 {
-    public bool HasPendingMigrations { get; private set; }
-    public bool HasPendingChanges { get; internal set; }
-    public bool HasPendingModelChangesForPrototype { get; internal set; }
-    public bool HasPendingMigrationsWithoutPendingModelChanges { get; internal set; }
+    public bool Prototype { get; internal set; }
     public bool Migrate { get; internal set; }
-
-    public void SetMigrationFlags(bool migrate, int migrationCount, int pendingMigrationCount)
+    public bool HasPendingMigrations { get; private set; }
+    public bool HasPendingChanges { get; private set; }
+    public bool HasPendingModelChangesForPrototype { get; private set; }
+    public bool HasPendingMigrationsWithoutPendingModelChanges { get; private set; }
+    
+    public void SetMigrationFlags(int migrationCount, int pendingMigrationCount)
     {
-        Migrate = migrate;
         HasPendingMigrations = pendingMigrationCount > 0;
         HasPendingChanges = HasPendingMigrations || HasPendingModelChanges;
         HasPendingModelChangesForPrototype = (migrationCount == 0 && HasPendingModelChanges) ||
@@ -34,7 +42,7 @@ public record DbContextChangeModelFlags(bool HasPendingModelChanges, bool Protot
 
 public class DbContextChangeModel
 {
-    public DbContextChangeModel(string name, bool migrate, IReadOnlyList<string> migrations, IReadOnlyList<string> appliedMigrations, DbContextChangeModelFlags flags)
+    public DbContextChangeModel(string name, IReadOnlyList<string> migrations, IReadOnlyList<string> appliedMigrations, DbContextChangeModelFlags flags)
     {
         Name = name;
         Migrations = migrations;
@@ -44,7 +52,7 @@ public class DbContextChangeModel
         LastPendingMigration = PendingMigrations.LastOrDefault() ?? "n/a";
 
         Flags = flags;
-        Flags.SetMigrationFlags(migrate, appliedMigrations.Count, PendingMigrations.Count);
+        Flags.SetMigrationFlags(appliedMigrations.Count, PendingMigrations.Count);
     }
 
     public string Name { get; }

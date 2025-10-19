@@ -39,53 +39,38 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
     public override async Task PostStartupValidationAsync(object service, IServiceProvider serviceProvider, IScopedLog? scopedLog = null)
     {
         if (service is not DbContext context) return;
-
-        for (var i = 0; i < 50; i++)
-        {
-            //Test CoreEventId.ManyServiceProvidersCreatedWarning which is ignored at DrnContextDefaultsAttribute.ConfigureDbContextOptions
-            //If there is an invalid configuration that causes many internal service provider creations, calling this more than 20 times should cause an exception to fail fast.
-            using var scopedProvider = serviceProvider.CreateScope();
-            scopedProvider.ServiceProvider.GetRequiredService(service.GetType());
-        }
-
-        ValidateEntityTypes(context, scopedLog);
-        serviceProvider.GetRequiredService(service.GetType());
+        Validate(serviceProvider, scopedLog, context);
 
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
         var developmentStatus = serviceProvider.GetRequiredService<DevelopmentStatus>();
-        var environment = appSettings.Environment.ToString();
-        var changeModel = await GetChangeModel(context, appSettings);
+        var changeModel = await GetChangeModel(context);
 
         changeModel.LogChanges(scopedLog, appSettings.Environment.ToString());
         developmentStatus.AddChangeModel(changeModel);
 
-        if (!changeModel.Flags.Migrate) return;
-        if (!changeModel.Flags.HasPendingChanges) return;
-
-        if (appSettings.DevelopmentSettings.Prototype && changeModel.Flags.HasPendingModelChangesForPrototype)
+        if (changeModel.Flags is { Migrate: false, HasPendingChanges: false }) return;
+        if (changeModel.Flags is { Prototype: true, HasPendingModelChangesForPrototype: true })
         {
             scopedLog?.AddToActions($"checking {changeModel.Name} database in prototype mode.");
             var created = await context.Database.EnsureCreatedAsync();
-            if (!created)
+            if (created)
+                scopedLog?.AddToActions($"{changeModel.Name} db created for prototype mode");
+            else
             {
                 scopedLog?.AddToActions($"{changeModel.Name} db will be recreated for pending model changes.");
                 await context.Database.EnsureDeletedAsync();
                 await context.Database.EnsureCreatedAsync();
-                await SeedData(context, serviceProvider, appSettings);
                 scopedLog?.AddToActions($"{changeModel.Name} db recreated for pending model changes.");
-
-                return;
             }
 
             await SeedData(context, serviceProvider, appSettings);
-            scopedLog?.AddToActions($"{changeModel.Name} db created for prototype mode");
 
             return;
         }
 
         if (changeModel.Flags.HasPendingMigrationsWithoutPendingModelChanges)
         {
-            scopedLog?.AddToActions($"{changeModel.Name} is migrating {environment}");
+            scopedLog?.AddToActions($"{changeModel.Name} is migrating {appSettings.Environment.ToString()}");
             await context.Database.MigrateAsync();
 
             if (changeModel.AppliedMigrations.Count == 0)
@@ -97,6 +82,20 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             throw new ConfigurationException($"{changeModel.Name} has pending model changes. Create migration or enable Prototype Mode in DrnAppFeatures.");
     }
 
+    private static void Validate(IServiceProvider serviceProvider, IScopedLog? scopedLog, DbContext context)
+    {
+        for (var i = 0; i < 50; i++)
+        {
+            //Test CoreEventId.ManyServiceProvidersCreatedWarning which is ignored at DrnContextDefaultsAttribute.ConfigureDbContextOptions
+            //If there is an invalid configuration that causes many internal service provider creations, calling this more than 20 times should cause an exception to fail fast.
+            using var scopedProvider = serviceProvider.CreateScope();
+            scopedProvider.ServiceProvider.GetRequiredService(context.GetType());
+        }
+
+        ValidateEntityTypes(context, scopedLog);
+        serviceProvider.GetRequiredService(context.GetType());
+    }
+
     private static async Task SeedData(DbContext context, IServiceProvider serviceProvider, IAppSettings appSettings)
     {
         var optionsAttributes = DbContextConventions.GetContextAttributes(context);
@@ -104,20 +103,18 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             await optionsAttribute.SeedAsync(serviceProvider, appSettings);
     }
 
-    private static async Task<DbContextChangeModel> GetChangeModel(DbContext context, IAppSettings appSettings)
+    private static async Task<DbContextChangeModel> GetChangeModel(DbContext context)
     {
         var contextName = context.GetType().FullName ?? context.GetType().Name;
         var migrations = context.Database.GetMigrations().ToArray();
         var appliedMigrations = migrations.Length > 0 ? (await context.Database.GetAppliedMigrationsAsync()).ToArray() : [];
         var hasPendingModelChanges = context.Database.HasPendingModelChanges();
         var optionsAttributes = DbContextConventions.GetContextAttributes(context);
-        var prototype = appSettings.DevelopmentSettings.Prototype;
         var usePrototypeMode = optionsAttributes.Any(a => a.UsePrototypeMode);
         var usePrototypeModeWhenMigrationExists = optionsAttributes.Any(a => a.UsePrototypeModeWhenMigrationExists);
 
-        var migrate = appSettings is { IsDevEnvironment: true, DevelopmentSettings.AutoMigrate: true };
-        var changeModelFlags = new DbContextChangeModelFlags(hasPendingModelChanges, prototype, usePrototypeMode, usePrototypeModeWhenMigrationExists);
-        var changeModel = new DbContextChangeModel(contextName, migrate, migrations, appliedMigrations, changeModelFlags);
+        var changeModelFlags = new DbContextChangeModelFlags(hasPendingModelChanges, usePrototypeMode, usePrototypeModeWhenMigrationExists);
+        var changeModel = new DbContextChangeModel(contextName, migrations, appliedMigrations, changeModelFlags);
         return changeModel;
     }
 
