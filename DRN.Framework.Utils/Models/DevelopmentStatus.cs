@@ -28,7 +28,7 @@ public record DbContextChangeModelFlags(bool HasPendingModelChanges, bool UsePro
     public bool HasPendingChanges { get; private set; }
     public bool HasPendingModelChangesForPrototype { get; private set; }
     public bool HasPendingMigrationsWithoutPendingModelChanges { get; private set; }
-    
+
     public void SetMigrationFlags(int migrationCount, int pendingMigrationCount)
     {
         HasPendingMigrations = pendingMigrationCount > 0;
@@ -48,9 +48,8 @@ public class DbContextChangeModel
         Migrations = migrations;
         AppliedMigrations = appliedMigrations;
         PendingMigrations = migrations.Except(appliedMigrations).ToArray();
-        LastAppliedMigration = appliedMigrations.LastOrDefault() ?? "n/a";
-        LastPendingMigration = PendingMigrations.LastOrDefault() ?? "n/a";
-
+        LastAppliedMigration = appliedMigrations.Count > 0 ? appliedMigrations[^1] : "n/a";
+        LastPendingMigration = PendingMigrations.Count > 0 ? PendingMigrations[^1] : "n/a";
         Flags = flags;
         Flags.SetMigrationFlags(appliedMigrations.Count, PendingMigrations.Count);
     }

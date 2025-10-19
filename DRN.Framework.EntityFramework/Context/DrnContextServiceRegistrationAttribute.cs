@@ -42,11 +42,8 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         Validate(serviceProvider, scopedLog, context);
 
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
-        var developmentStatus = serviceProvider.GetRequiredService<DevelopmentStatus>();
-        var changeModel = await GetChangeModel(context);
-
+        var changeModel = await GetChangeModel(serviceProvider, context);
         changeModel.LogChanges(scopedLog, appSettings.Environment.ToString());
-        developmentStatus.AddChangeModel(changeModel);
 
         if (changeModel.Flags is { Migrate: false, HasPendingChanges: false }) return;
         if (changeModel.Flags is { Prototype: true, HasPendingModelChangesForPrototype: true })
@@ -103,7 +100,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             await optionsAttribute.SeedAsync(serviceProvider, appSettings);
     }
 
-    private static async Task<DbContextChangeModel> GetChangeModel(DbContext context)
+    private static async Task<DbContextChangeModel> GetChangeModel(IServiceProvider serviceProvider, DbContext context)
     {
         var contextName = context.GetType().FullName ?? context.GetType().Name;
         var migrations = context.Database.GetMigrations().ToArray();
@@ -115,6 +112,9 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
 
         var changeModelFlags = new DbContextChangeModelFlags(hasPendingModelChanges, usePrototypeMode, usePrototypeModeWhenMigrationExists);
         var changeModel = new DbContextChangeModel(contextName, migrations, appliedMigrations, changeModelFlags);
+        var developmentStatus = serviceProvider.GetRequiredService<DevelopmentStatus>();
+        developmentStatus.AddChangeModel(changeModel);
+        
         return changeModel;
     }
 
