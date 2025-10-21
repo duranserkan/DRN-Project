@@ -14,9 +14,35 @@ public readonly record struct SourceKnownId(long Id, DateTimeOffset CreatedAt, u
 
 public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid EntityId, byte EntityType, bool Valid) : IComparable<SourceKnownEntityId>
 {
-    public bool HasSameEntityType(SourceKnownEntityId other) => EntityType == other.EntityType;
-    public bool HasSameEntityType<TEntity>() where TEntity : SourceKnownEntity
-        => EntityType == SourceKnownEntity.GetEntityType<TEntity>();
+    public bool HasSameEntityType(byte other) => EntityType == other;
+    public bool HasSameEntityType(SourceKnownEntityId other) => HasSameEntityType(other.EntityType);
+    public bool HasSameEntityType<TEntity>() where TEntity : SourceKnownEntity => HasSameEntityType(SourceKnownEntity.GetEntityType<TEntity>());
+
+    public void ValidateId()
+    {
+        if (!Valid)
+            throw ExceptionFor.Validation($"Invalid EntityId: {EntityId}");
+    }
+
+    public void Validate<TEntity>() where TEntity : SourceKnownEntity => Validate(SourceKnownEntity.GetEntityType<TEntity>());
+    public void Validate(byte entityType)
+    {
+        ValidateId();
+        if (HasSameEntityType(entityType))
+            return;
+
+        var expectedType = SourceKnownEntity.GetEntityType(entityType);
+        var expectedName = expectedType == null ? entityType.ToString() : expectedType.FullName ?? expectedType.Name;
+
+        var actualType = SourceKnownEntity.GetEntityType(EntityType);
+        var actualName = actualType == null ? EntityType.ToString() : actualType.FullName ?? actualType.Name;
+
+        var ex = new ValidationException($"Invalid Entity Type: EntityId:{EntityId:N}");
+        ex.Data.Add($"Expected_{nameof(EntityType)}", expectedName);
+        ex.Data.Add($"Found_{nameof(EntityType)}", actualName);
+
+        throw ex;
+    }
 
     public bool Equals(SourceKnownEntityId other) => EntityId == other.EntityId;
     public override int GetHashCode() => EntityId.GetHashCode();

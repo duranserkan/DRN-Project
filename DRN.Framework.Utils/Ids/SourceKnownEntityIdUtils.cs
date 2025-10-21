@@ -18,7 +18,7 @@ public interface ISourceKnownEntityIdUtils
     SourceKnownEntityId Generate(long id, byte entityType);
     SourceKnownEntityId Parse(Guid entityId);
     SourceKnownEntityId Validate(Guid entityId, byte entityType);
-    SourceKnownEntityId Validate(SourceKnownEntityId entityId, byte entityType);
+    SourceKnownEntityId Validate<TEntity>(Guid entityId) where TEntity : SourceKnownEntity;
 }
 
 /// <summary>
@@ -132,21 +132,17 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     public SourceKnownEntityId Validate(Guid entityId, byte entityType)
     {
         var sourceKnownId = Parse(entityId);
-        return Validate(sourceKnownId, entityType);
+        sourceKnownId.Validate(entityType);
+
+        return sourceKnownId;
     }
 
-    public SourceKnownEntityId Validate(SourceKnownEntityId entityId, byte entityType)
+    public SourceKnownEntityId Validate<TEntity>(Guid entityId) where TEntity : SourceKnownEntity
     {
-        if (!entityId.Valid)
-            throw new ValidationException($"Invalid EntityId: {entityId.EntityId:N}");
+        var sourceKnownId = Parse(entityId);
+        sourceKnownId.Validate<TEntity>();
 
-        if (entityId.EntityType == entityType) return entityId;
-
-        var ex = new ValidationException($"Invalid Entity Type: EntityId:{entityId.EntityId:N}");
-        ex.Data.Add($"Expected_{nameof(SourceKnownEntityId.EntityType)}", entityType);
-        ex.Data.Add($"Found_{nameof(SourceKnownEntityId.EntityType)}", entityId.EntityType);
-
-        throw ex;
+        return sourceKnownId;
     }
 
     private static SourceKnownEntityId CreateInvalid(Guid entityId) => new(default, entityId, InvalidEntityType, false);

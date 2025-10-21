@@ -228,8 +228,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     public IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids) where TOtherEntity : SourceKnownEntity
         => ids.Select(GetEntityId<TOtherEntity>);
-
-
+    
     public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
         => await PaginateAsync(EntitiesWithAppliedSettings(), request, filter);
 

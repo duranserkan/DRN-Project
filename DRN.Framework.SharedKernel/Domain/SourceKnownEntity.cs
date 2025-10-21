@@ -63,6 +63,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
     private static readonly ConcurrentDictionary<byte, Type> IdToTypeMap = new();
 
+    public static Type? GetEntityType(byte entityType) => IdToTypeMap.GetValueOrDefault(entityType);
     public static byte GetEntityType<TEntity>() where TEntity : SourceKnownEntity => GetEntityType(typeof(TEntity));
     public static byte GetEntityType<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetEntityType(entity.GetType());
 
@@ -124,7 +125,6 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     private Dictionary<byte, Dictionary<long, SourceKnownEntityId>>? _idCache;
     internal Func<long, byte, SourceKnownEntityId>? IdFactory;
     internal Func<Guid, SourceKnownEntityId>? Parser;
-    internal Func<SourceKnownEntityId, byte, SourceKnownEntityId>? Validator;
 
     public SourceKnownEntityId GetEntityId<TEntity>(Guid id, bool cache = false) where TEntity : SourceKnownEntity
         => GetEntityId(id, GetEntityType<TEntity>(), cache);
@@ -133,11 +133,11 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     {
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
-        if (Validator == null)
-            throw ExceptionFor.Configuration("Validator is not set");
 
-        var sourceKnownId = GetEntityId(id, cache);
-        return Validator.Invoke(sourceKnownId, entityType);
+        var sourceKnownId = GetEntityId(id, cache, false);
+        sourceKnownId.Validate(entityType);
+
+        return sourceKnownId;
     }
 
     public SourceKnownEntityId GetEntityId(Guid id, bool cache = false, bool validate = true)
@@ -146,23 +146,24 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
         if (Parser == null)
             throw ExceptionFor.Configuration("Parser is not set");
-        if (!cache)
-        {
-            var entityId = Parser.Invoke(id);
-            return validate && entityId.Valid ? entityId : throw ExceptionFor.Validation($"EntityId is not valid: {id}");
-        }
 
-        lock (_idCacheLock)
-        {
-            _entityIdCache ??= new Dictionary<Guid, SourceKnownEntityId>(3);
-            if (_entityIdCache.TryGetValue(id, out var existingId))
-                return existingId;
+        SourceKnownEntityId entityId;
+        if (cache)
+            lock (_idCacheLock)
+            {
+                _entityIdCache ??= new Dictionary<Guid, SourceKnownEntityId>(3);
+                if (!_entityIdCache.TryGetValue(id, out entityId))
+                {
+                    entityId = Parser.Invoke(id);
+                    _entityIdCache[id] = entityId;
+                }
+            }
+        else
+            entityId = Parser.Invoke(id);
 
-            var entityId = Parser.Invoke(id);
-            _entityIdCache[id] = validate && entityId.Valid ? entityId : throw ExceptionFor.Validation($"EntityId is not valid: {id}");
+        if (validate) entityId.ValidateId();
 
-            return entityId;
-        }
+        return entityId;
     }
 
     public SourceKnownEntityId GetEntityId<TEntity>(long id, bool cache = false) where TEntity : SourceKnownEntity
@@ -204,8 +205,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     // ReSharper disable once MemberCanBePrivate.Global
     protected void AddDomainEvent(DomainEvent? e)
     {
-        if (e != null)
-            DomainEvents.Add(e);
+        if (e != null) DomainEvents.Add(e);
     }
 
     internal void MarkAsCreated() => AddDomainEvent(GetCreatedEvent());
@@ -232,16 +232,11 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     /// </returns>
     public int CompareTo(SourceKnownEntity? other)
     {
-        if (Equals(other))
-            return 0;
-        if (other is null || other.Id == 0)
-            return 1;
-        if (Id == 0)
-            return -1;
+        if (Equals(other)) return 0;
+        if (other is null || other.Id == 0) return 1;
+        if (Id == 0) return -1;
 
-        return EntityIdSource.HasSameEntityType(other.EntityIdSource)
-            ? Id.CompareTo(other.Id)
-            : 1;
+        return EntityIdSource.HasSameEntityType(other.EntityIdSource) ? Id.CompareTo(other.Id) : 1;
     }
 
     public static bool operator ==(SourceKnownEntity? left, SourceKnownEntity? right) => left?.Equals(right) ?? right is null;
