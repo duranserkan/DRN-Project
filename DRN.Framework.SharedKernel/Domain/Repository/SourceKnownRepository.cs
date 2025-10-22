@@ -29,11 +29,13 @@ public interface ISourceKnownRepository<TEntity>
     Task<bool> AllAsync(Expression<Func<TEntity, bool>> predicate);
     Task<bool> AnyAsync(Expression<Func<TEntity, bool>>? predicate = null);
     Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null);
-
-    //todo add get or create with cache support
+    
     ValueTask<TEntity> GetAsync(Guid id);
+    ValueTask<TEntity> GetAsync(SourceKnownEntityId id);
     Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);
-    ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true);
+    Task<TEntity[]> GetAsync(IReadOnlyCollection<SourceKnownEntityId> ids);
+    ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true);
+    ValueTask<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true);
 
     void Add(params IReadOnlyCollection<TEntity> entities);
     void Remove(params IReadOnlyCollection<TEntity> entities);
@@ -41,6 +43,7 @@ public interface ISourceKnownRepository<TEntity>
     Task<int> CreateAsync(params IReadOnlyCollection<TEntity> entities);
     Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities);
     Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids);
+    Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids);
 
     SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
     SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;

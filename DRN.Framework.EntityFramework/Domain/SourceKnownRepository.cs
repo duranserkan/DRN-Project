@@ -11,6 +11,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DRN.Framework.EntityFramework.Domain;
 
+//todo improve test coverage
+
 /// <summary>
 /// Represents an abstract repository that manages entities of type <typeparamref name="TEntity"/> within a specific database context of type <typeparamref name="TContext"/>.
 /// Provides methods for CRUD operations, entity retrieval, pagination, and cancellation token management.
@@ -122,6 +124,15 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return items;
     }
 
+    public async Task<TEntity[]> GetAsync(IReadOnlyCollection<SourceKnownEntityId> ids)
+    {
+        using var _ = ScopedLog.Measure(this);
+        var items = await Filter(EntitiesWithAppliedSettings(), ids).ToArrayAsync(CancellationToken);
+        ScopedLog.Increase(GetCountKey, items.Length);
+
+        return items;
+    }
+
     /// <summary>
     /// Finds an entity with the given source known id
     /// </summary>
@@ -130,18 +141,32 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async ValueTask<TEntity> GetAsync(Guid id) => await GetOrDefaultAsync(id)
                                                          ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
 
+    public async ValueTask<TEntity> GetAsync(SourceKnownEntityId id) => await GetOrDefaultAsync(id)
+                                                                        ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
+
     /// <summary>
     /// Finds an entity with the given source known id
     /// </summary>
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public async ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool throwException = true)
+    public async ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true)
     {
         using var _ = ScopedLog.Measure(this);
-        var entityId = GetEntityId(id, throwException);
+        var entityId = GetEntityId(id, validate);
         if (!entityId.Valid)
             return null;
 
         var entity = await EntitiesWithAppliedSettings().FirstOrDefaultAsync(entity => entity.Id == entityId.Source.Id, CancellationToken);
+
+        return entity;
+    }
+
+    public async ValueTask<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true)
+    {
+        using var _ = ScopedLog.Measure(this);
+        if (validate) id.Validate<TEntity>();
+        if (!id.Valid) return null;
+
+        var entity = await EntitiesWithAppliedSettings().FirstOrDefaultAsync(entity => entity.Id == id.Source.Id, CancellationToken);
 
         return entity;
     }
@@ -202,6 +227,15 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return deletedCount;
     }
 
+    public async Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids)
+    {
+        using var _ = ScopedLog.Measure(this);
+        var deletedCount = await Filter(EntitiesWithAppliedSettings(), ids).ExecuteDeleteAsync(CancellationToken);
+        ScopedLog.Increase(DeleteCountKey, deletedCount);
+
+        return deletedCount;
+    }
+
     //todo evaluate validation scope log support
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public SourceKnownEntityId GetEntityId(Guid id, bool validate = true)
@@ -228,7 +262,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     public IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids) where TOtherEntity : SourceKnownEntity
         => ids.Select(GetEntityId<TOtherEntity>);
-    
+
     public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
         => await PaginateAsync(EntitiesWithAppliedSettings(), request, filter);
 
@@ -382,6 +416,13 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, params IReadOnlyCollection<Guid> ids)
     {
         var sourceKnownIds = GetEntityIdsAsEnumerable(ids).Select(sourceKnownEntityId => sourceKnownEntityId.Source.Id).ToArray();
+
+        return Filter(query, sourceKnownIds);
+    }
+
+    protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, params IReadOnlyCollection<SourceKnownEntityId> ids)
+    {
+        var sourceKnownIds = ids.Select(sourceKnownEntityId => sourceKnownEntityId.Source.Id).ToArray();
 
         return Filter(query, sourceKnownIds);
     }
