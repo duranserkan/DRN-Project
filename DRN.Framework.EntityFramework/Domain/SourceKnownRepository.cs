@@ -420,7 +420,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return Filter(query, sourceKnownIds);
     }
 
-    protected IQueryable<TEntity> Filter(IQueryable<TEntity> query, params IReadOnlyCollection<SourceKnownEntityId> ids)
+    protected static IQueryable<TEntity> Filter(IQueryable<TEntity> query, params IReadOnlyCollection<SourceKnownEntityId> ids)
     {
         var sourceKnownIds = ids.Select(sourceKnownEntityId => sourceKnownEntityId.Source.Id).ToArray();
 
