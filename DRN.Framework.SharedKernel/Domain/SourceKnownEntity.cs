@@ -127,9 +127,6 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
 
     public SourceKnownEntityId GetEntityId(Guid id, byte entityType)
     {
-        if (IsPendingInsert)
-            throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
-
         var sourceKnownId = GetEntityId(id, false);
         sourceKnownId.Validate(entityType);
 
@@ -140,25 +137,21 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     {
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
-        if (Parser == null)
-            throw ExceptionFor.Configuration("Parser is not set");
 
-        var entityId = Parser.Invoke(id);
+        var entityId = Parser?.Invoke(id) ?? throw ExceptionFor.Configuration("Parser is not set");
         if (validate) entityId.ValidateId();
 
         return entityId;
     }
 
-    public SourceKnownEntityId GetEntityId<TEntity>(long id) where TEntity : SourceKnownEntity => GetEntityId(GetEntityType<TEntity>(), id);
+    public SourceKnownEntityId GetEntityId<TEntity>(long id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
 
-    public SourceKnownEntityId GetEntityId(byte entityType, long id)
+    public SourceKnownEntityId GetEntityId(long id, byte entityType)
     {
         if (IsPendingInsert)
- throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
-        if (IdFactory == null)
-            throw ExceptionFor.Configuration("Id Factory is not set");
+            throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
 
-        return IdFactory.Invoke(id, entityType);
+        return IdFactory?.Invoke(id, entityType) ?? throw ExceptionFor.Configuration("Id Factory is not set");
     }
 
     // ReSharper disable once MemberCanBePrivate.Global

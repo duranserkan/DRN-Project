@@ -39,12 +39,12 @@ public class QAContextTagTests
         firstTag.EntityIdSource.HasSameEntityType<Question>().Should().BeFalse();
 
         //generator set by DrnSaveChangesInterceptor
-        var foreignId = firstTag.GetEntityId(1, -1);
+        var foreignId = firstTag.GetEntityId(-1, 1);
         foreignId.EntityType.Should().Be(1);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
 
-        foreignId = firstTag.GetEntityId(255, -2);
+        foreignId = firstTag.GetEntityId(-2, 255);
         foreignId.EntityType.Should().Be(255);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
@@ -140,11 +140,11 @@ public class QAContextTagTests
         var firstTagFromDb = await qaContext2.Tags.FindAsync(firstTag.Id);
 
         //generator set by DrnMaterializationInterceptor
-        foreignId = firstTagFromDb!.GetEntityId(255, -3);
+        foreignId = firstTagFromDb!.GetEntityId(-3, 255);
         foreignId.EntityType.Should().Be(255);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
-        
+
         foreignId = firstTagFromDb.GetEntityId<TestEntity>(-5);
         foreignId.EntityType.Should().Be(255);
         foreignId.EntityId.Should().NotBeEmpty();
@@ -161,7 +161,7 @@ public class QAContextTagTests
         foreignId.Source.Id.Should().Be(-5);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
-        
+
         foreignId = firstTagFromDb.GetEntityId<TestEntity>(foreignId.EntityId);
         foreignId.EntityType.Should().Be(255);
         foreignId.Source.Id.Should().Be(-5);
