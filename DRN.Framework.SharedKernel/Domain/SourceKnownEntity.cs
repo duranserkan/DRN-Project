@@ -120,86 +120,45 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public TModel GetExtendedProperties<TModel>() => JsonSerializer.Deserialize<TModel>(ExtendedProperties)!;
     public void SetExtendedProperties<TModel>(TModel extendedProperty) => ExtendedProperties = JsonSerializer.Serialize(extendedProperty);
 
-    private readonly Lock _idCacheLock = new();
-    private Dictionary<Guid, SourceKnownEntityId>? _entityIdCache;
-    private Dictionary<byte, Dictionary<long, SourceKnownEntityId>>? _idCache;
     internal Func<long, byte, SourceKnownEntityId>? IdFactory;
     internal Func<Guid, SourceKnownEntityId>? Parser;
 
-    public SourceKnownEntityId GetEntityId<TEntity>(Guid id, bool cache = false) where TEntity : SourceKnownEntity
-        => GetEntityId(id, GetEntityType<TEntity>(), cache);
+    public SourceKnownEntityId GetEntityId<TEntity>(Guid id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
 
-    public SourceKnownEntityId GetEntityId(Guid id, byte entityType, bool cache = false)
+    public SourceKnownEntityId GetEntityId(Guid id, byte entityType)
     {
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
 
-        var sourceKnownId = GetEntityId(id, cache, false);
+        var sourceKnownId = GetEntityId(id, false);
         sourceKnownId.Validate(entityType);
 
         return sourceKnownId;
     }
 
-    public SourceKnownEntityId GetEntityId(Guid id, bool cache = false, bool validate = true)
+    public SourceKnownEntityId GetEntityId(Guid id, bool validate = true)
     {
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
         if (Parser == null)
             throw ExceptionFor.Configuration("Parser is not set");
 
-        SourceKnownEntityId entityId;
-        if (cache)
-            lock (_idCacheLock)
-            {
-                _entityIdCache ??= new Dictionary<Guid, SourceKnownEntityId>(3);
-                if (!_entityIdCache.TryGetValue(id, out entityId))
-                {
-                    entityId = Parser.Invoke(id);
-                    _entityIdCache[id] = entityId;
-                }
-            }
-        else
-            entityId = Parser.Invoke(id);
-
+        var entityId = Parser.Invoke(id);
         if (validate) entityId.ValidateId();
 
         return entityId;
     }
 
-    public SourceKnownEntityId GetEntityId<TEntity>(long id, bool cache = false) where TEntity : SourceKnownEntity
-        => GetEntityId(GetEntityType<TEntity>(), id, cache);
+    public SourceKnownEntityId GetEntityId<TEntity>(long id) where TEntity : SourceKnownEntity => GetEntityId(GetEntityType<TEntity>(), id);
 
-    public SourceKnownEntityId GetEntityId(byte entityType, long id, bool cache = false)
+    public SourceKnownEntityId GetEntityId(byte entityType, long id)
     {
         if (IsPendingInsert)
-            throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
+ throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
         if (IdFactory == null)
             throw ExceptionFor.Configuration("Id Factory is not set");
-        if (!cache)
-            return IdFactory.Invoke(id, entityType);
 
-        lock (_idCacheLock)
-        {
-            SourceKnownEntityId entityId;
-            _idCache ??= new Dictionary<byte, Dictionary<long, SourceKnownEntityId>>(3);
-            if (_idCache.TryGetValue(entityType, out var entityIds))
-            {
-                if (entityIds.TryGetValue(id, out var existingId))
-                    return existingId;
-
-                entityId = IdFactory.Invoke(id, entityType);
-                entityIds[id] = entityId;
-                return entityId;
-            }
-
-            entityId = IdFactory.Invoke(id, entityType);
-            _idCache[entityType] = new Dictionary<long, SourceKnownEntityId>(3)
-            {
-                [id] = entityId
-            };
-
-            return entityId;
-        }
+        return IdFactory.Invoke(id, entityType);
     }
 
     // ReSharper disable once MemberCanBePrivate.Global
