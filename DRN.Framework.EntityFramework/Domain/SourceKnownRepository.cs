@@ -152,8 +152,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     {
         using var _ = ScopedLog.Measure(this);
         var entityId = GetEntityId(id, validate);
-        if (!entityId.Valid)
-            return null;
+        if (!entityId.Valid) return null;
 
         var entity = await EntitiesWithAppliedSettings().FirstOrDefaultAsync(entity => entity.Id == entityId.Source.Id, CancellationToken);
 
