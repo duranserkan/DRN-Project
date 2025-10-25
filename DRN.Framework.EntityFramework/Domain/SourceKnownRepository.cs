@@ -11,8 +11,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DRN.Framework.EntityFramework.Domain;
 
-//todo improve test coverage
-
 /// <summary>
 /// Represents an abstract repository that manages entities of type <typeparamref name="TEntity"/> within a specific database context of type <typeparamref name="TContext"/>.
 /// Provides methods for CRUD operations, entity retrieval, pagination, and cancellation token management.

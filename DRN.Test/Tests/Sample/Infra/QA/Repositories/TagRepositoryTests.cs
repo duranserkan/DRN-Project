@@ -31,7 +31,7 @@ public class TagRepositoryTests
         var afterTagCreation = DateTimeOffset.UtcNow;
 
         AssertValidations(firstTag, repository);
-        await AssertCRUD(repository, firstTag, secondTag, thirdTag, tagPrefix);
+        await AssertCrud(repository, firstTag, secondTag, thirdTag, tagPrefix);
         await AssertPagination(beforeTagCreation, afterTagCreation, repository, firstTag, secondTag);
 
         var firstPageResult = await repository.PaginateAsync(pageSize: 1, direction: PageSortDirection.Descending, updateTotalCount: true);
@@ -53,7 +53,7 @@ public class TagRepositoryTests
         resetDirectionResult.Info.Total.Count.Should().BeGreaterThan(1);
         resetDirectionResult.Info.Request.PageCursor.SortDirection.Should().Be(PageSortDirection.Ascending);
         resetDirectionResult.Info.Total.Count.Should().Be(secondPageResult.Info.Total.Count);
-        
+
         var resetSizeResult = await repository.PaginateAsync(firstPageResult.Info, 2, pageSize: 2, direction: PageSortDirection.Descending,
             totalCount: secondPageResult.Info.Total.Count);
         resetSizeResult.Info.Request.PageCursor.IsFirstRequest.Should().BeTrue();
@@ -63,14 +63,14 @@ public class TagRepositoryTests
         resetSizeResult.Info.Total.Count.Should().Be(secondPageResult.Info.Total.Count);
     }
 
-    private static async Task AssertCRUD(ITagRepository repository, Tag firstTag, Tag secondTag, Tag thirdTag, string tagPrefix)
+    private static async Task AssertCrud(ITagRepository repository, Tag firstTag, Tag secondTag, Tag thirdTag, string tagPrefix)
     {
         var tagFromDb = await repository.GetAsync(firstTag.EntityId);
         tagFromDb.Should().Be(firstTag);
         tagFromDb.Name.Should().Be(firstTag.Name);
         tagFromDb.Model.Should().BeEquivalentTo(firstTag.Model);
 
-        var tagFromDb2 = await repository.GetAsync(secondTag.EntityId);
+        var tagFromDb2 = await repository.GetAsync(secondTag.EntityIdSource);
         tagFromDb2.Should().Be(secondTag);
         tagFromDb2.Name.Should().Be(secondTag.Name);
         tagFromDb2.Model.Should().BeEquivalentTo(secondTag.Model);
@@ -97,12 +97,60 @@ public class TagRepositoryTests
         var changeCount = await repository.CreateAsync(fourthTag);
         changeCount.Should().Be(1);
 
+        var tagFromDb4 = await repository.GetAsync([fourthTag.EntityIdSource]);
+        tagFromDb4.Should().BeEquivalentTo([fourthTag]);
+
         repository.Remove(fourthTag);
         changeCount = await repository.SaveChangesAsync();
         changeCount.Should().Be(1);
 
+        var fourthTagDeleted = await repository.GetOrDefaultAsync(fourthTag.EntityIdSource);
+        fourthTagDeleted.Should().BeNull();
+
         tagFromDb3 = await repository.GetOrDefaultAsync(fourthTag.EntityId);
         tagFromDb3.Should().BeNull();
+
+        var fifthTag = TagGenerator.New(tagPrefix, "fifthTag");
+        await repository.CreateAsync(fifthTag);
+        var fifthTagDeleted = await repository.DeleteAsync(fifthTag.EntityIdSource);
+        fifthTagDeleted.Should().Be(1);
+
+        var stringValue = Guid.NewGuid().ToString("N");
+        var sixthTag = TagGenerator.New(tagPrefix, "sixthTag");
+        sixthTag.Model.StringValue = stringValue;
+        sixthTag.Model.BoolValue = true;
+
+        var seventhTag = TagGenerator.New(tagPrefix, "seventhTag");
+        seventhTag.Model.StringValue = stringValue;
+        seventhTag.Model.BoolValue = false;
+        
+        var any = await repository.AnyAsync(t => t.Model.StringValue == stringValue && t.Model.BoolValue);
+        any.Should().BeFalse();
+
+        var createdCount = await repository.CreateAsync(sixthTag, seventhTag);
+        createdCount.Should().Be(2);
+        
+        var all = await repository.AllAsync(t => t.Id < 0);
+        all.Should().BeTrue();
+
+        all = await repository.AllAsync(t => t.Id == 0);
+        all.Should().BeFalse();
+        
+        any = await repository.AnyAsync(t => t.Model.StringValue == stringValue && t.Model.BoolValue);
+        any.Should().BeTrue();
+
+        var count = await repository.CountAsync(t => t.Model.StringValue == stringValue);
+        count.Should().Be(2);
+
+        count = await repository.CountAsync(t => t.Model.StringValue == stringValue && t.Model.BoolValue);
+        count.Should().Be(1);
+
+        count = await repository.CountAsync(t => t.Model.StringValue == stringValue && !t.Model.BoolValue);
+        count.Should().Be(1);
+
+        await repository.DeleteAsync(sixthTag, seventhTag);
+        count = await repository.CountAsync(t => t.Model.StringValue == stringValue);
+        count.Should().Be(0);
     }
 
     private static void AssertValidations(Tag firstTag, ITagRepository repository)
@@ -114,7 +162,7 @@ public class TagRepositoryTests
         repository.GetEntityId(invalidEntityId, false).Valid.Should().BeFalse();
         var validationAction = () => repository.GetEntityId(invalidEntityId);
         validationAction.Should().Throw<ValidationException>();
-        
+
         validationAction = () => repository.GetEntityId<Tag>(invalidEntityId);
         validationAction.Should().Throw<ValidationException>();
 
@@ -124,7 +172,7 @@ public class TagRepositoryTests
 
         var validationAction2 = () => repository.GetEntityIds([validEntityId, invalidEntityId]);
         validationAction2.Should().Throw<ValidationException>();
-        
+
         validationAction2 = () => repository.GetEntityIds<Tag>([validEntityId, invalidEntityId]);
         validationAction2.Should().Throw<ValidationException>();
 
@@ -134,9 +182,11 @@ public class TagRepositoryTests
         ids[1].Valid.Should().BeFalse();
 
         idsEnumerable = repository.GetEntityIdsAsEnumerable([validEntityId, invalidEntityId]);
-        validationAction2 = () => idsEnumerable.ToArray();
-        validationAction2.Should().Throw<ValidationException>();
+        var enumerable = idsEnumerable;
         
+        validationAction2 = () => enumerable.ToArray();
+        validationAction2.Should().Throw<ValidationException>();
+
         idsEnumerable = repository.GetEntityIdsAsEnumerable<Tag>([validEntityId, invalidEntityId]);
         validationAction2 = () => idsEnumerable.ToArray();
         validationAction2.Should().Throw<ValidationException>();
