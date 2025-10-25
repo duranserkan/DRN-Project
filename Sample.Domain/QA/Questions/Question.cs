@@ -16,12 +16,12 @@ public class Question : AggregateRoot
     {
         Title = title;
         Body = body;
-        UserId = user.Id;
-        CategoryId = category.Id;
+        User = user;
+        Category = category;
     }
 
-    public string Title { get; private set; } = null!;
-    public string Body { get; private set; } = null!;
+    public string Title { get; private set; } = string.Empty;
+    public string Body { get; private set; } = string.Empty;
 
     public long UserId { get; private set; }
     public User User { get; private set; } = null!;

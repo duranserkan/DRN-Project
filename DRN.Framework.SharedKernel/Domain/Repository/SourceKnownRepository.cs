@@ -19,7 +19,6 @@ public interface ISourceKnownRepository<TEntity>
     RepositorySettings Settings { get; set; }
 
     //todo test cancellation
-    //todo test ignore auto includes
     CancellationToken CancellationToken { get; set; }
     void MergeCancellationTokens(CancellationToken other);
     void CancelChanges();

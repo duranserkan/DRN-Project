@@ -10,5 +10,7 @@ public class TagConfig : IEntityTypeConfiguration<Tag>
         builder
             .HasMany(tag => tag.Questions)
             .WithMany(question => question.Tags);
+
+        builder.Navigation(tag => tag.Questions).AutoInclude();
     }
 }

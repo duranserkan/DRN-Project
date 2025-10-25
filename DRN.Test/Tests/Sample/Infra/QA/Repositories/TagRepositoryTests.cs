@@ -1,7 +1,9 @@
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
+using DRN.Test.Tests.Sample.Infra.QA.Repositories.Data;
 using Sample.Domain.QA.Tags;
 using Sample.Infra;
+using Sample.Infra.QA;
 
 namespace DRN.Test.Tests.Sample.Infra.QA.Repositories;
 
@@ -61,7 +63,10 @@ public class TagRepositoryTests
         resetSizeResult.Info.Total.Count.Should().BeGreaterThan(1);
         resetSizeResult.Info.Request.PageCursor.SortDirection.Should().Be(PageSortDirection.Descending);
         resetSizeResult.Info.Total.Count.Should().Be(secondPageResult.Info.Total.Count);
+
+        await AssertRepositorySettings(context, tagPrefix);
     }
+
 
     private static async Task AssertCrud(ITagRepository repository, Tag firstTag, Tag secondTag, Tag thirdTag, string tagPrefix)
     {
@@ -123,19 +128,19 @@ public class TagRepositoryTests
         var seventhTag = TagGenerator.New(tagPrefix, "seventhTag");
         seventhTag.Model.StringValue = stringValue;
         seventhTag.Model.BoolValue = false;
-        
+
         var any = await repository.AnyAsync(t => t.Model.StringValue == stringValue && t.Model.BoolValue);
         any.Should().BeFalse();
 
         var createdCount = await repository.CreateAsync(sixthTag, seventhTag);
         createdCount.Should().Be(2);
-        
+
         var all = await repository.AllAsync(t => t.Id < 0);
         all.Should().BeTrue();
 
         all = await repository.AllAsync(t => t.Id == 0);
         all.Should().BeFalse();
-        
+
         any = await repository.AnyAsync(t => t.Model.StringValue == stringValue && t.Model.BoolValue);
         any.Should().BeTrue();
 
@@ -183,7 +188,7 @@ public class TagRepositoryTests
 
         idsEnumerable = repository.GetEntityIdsAsEnumerable([validEntityId, invalidEntityId]);
         var enumerable = idsEnumerable;
-        
+
         validationAction2 = () => enumerable.ToArray();
         validationAction2.Should().Throw<ValidationException>();
 
@@ -223,5 +228,40 @@ public class TagRepositoryTests
         }
 
         index.Should().Be(1);
+    }
+
+    private static async Task AssertRepositorySettings(TestContext context, string tagPrefix)
+    {
+        var scope1 = context.CreateScope();
+        var repository1 = scope1.ServiceProvider.GetRequiredService<ITagRepository>();
+
+        var settingsTag = TagGenerator.New(tagPrefix, "settingsTag");
+        var settingsQuestion = QuestionGenerator.New(tagPrefix, "settingsTagQuestion");
+        settingsTag.Questions.Add(settingsQuestion);
+
+        await repository1.CreateAsync(settingsTag);
+        
+        var scope2 = context.CreateScope();
+        var repository2 = scope2.ServiceProvider.GetRequiredService<ITagRepository>();
+        var qaContext2 = scope2.ServiceProvider.GetRequiredService<QAContext>();
+        
+        var tagFromDb2 = await repository2.GetAsync(settingsTag.EntityIdSource);
+        var questionsFromDb2 = tagFromDb2.Questions;
+        questionsFromDb2.Count.Should().Be(1);
+        var entry2=qaContext2.ChangeTracker.Entries<Tag>().ToArray();
+        entry2.Length.Should().Be(1);
+        
+        var scope3 = context.CreateScope();
+        var repository3 = scope3.ServiceProvider.GetRequiredService<ITagRepository>();
+        var qaContext3 = scope3.ServiceProvider.GetRequiredService<QAContext>();
+        repository3.Settings.IgnoreAutoIncludes = true;
+        repository3.Settings.AsNoTracking = true;
+        
+        var tagFromDb3 = await repository3.GetAsync(settingsTag.EntityIdSource);
+        var questionsFromDb3 = tagFromDb3.Questions;
+        questionsFromDb3.Count.Should().Be(0);
+
+        var entry3=qaContext3.ChangeTracker.Entries<Tag>().ToArray();
+        entry3.Length.Should().Be(0);
     }
 }

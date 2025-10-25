@@ -1,6 +1,7 @@
 using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Entity;
 using DRN.Test.Tests.Sample.Infra.QA.Repositories;
+using DRN.Test.Tests.Sample.Infra.QA.Repositories.Data;
 using Microsoft.EntityFrameworkCore;
 using Sample.Domain.QA.Questions;
 using Sample.Domain.QA.Tags;

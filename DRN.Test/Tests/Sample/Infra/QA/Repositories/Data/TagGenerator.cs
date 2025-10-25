@@ -1,11 +1,11 @@
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tags;
 
-namespace DRN.Test.Tests.Sample.Infra.QA.Repositories;
+namespace DRN.Test.Tests.Sample.Infra.QA.Repositories.Data;
 
 public static class TagGenerator
 {
-    public static Tag New(string tagPrefix, string suffix, bool value = true) => new Tag($"{tagPrefix}_{suffix}")
+    public static Tag New(string prefix, string suffix, bool value = true) => new($"{prefix}_{suffix}")
     {
         Model = new TagValueModel
         {
