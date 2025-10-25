@@ -13,7 +13,7 @@
         <RepositoryUrl>https://github.com/duranserkan/DRN-Project</RepositoryUrl>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <IncludeSymbols>true</IncludeSymbols>
-        <IncludeSource>true</IncludeSource>
+        <EmbedAllSources>true</EmbedAllSources>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <NoWarn>$(NoWarn);1591</NoWarn>
