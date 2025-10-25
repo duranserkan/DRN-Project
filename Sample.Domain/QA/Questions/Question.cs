@@ -17,7 +17,9 @@ public class Question : AggregateRoot
         Title = title;
         Body = body;
         User = user;
+        UserId = user.Id;
         Category = category;
+        CategoryId = category.Id;
     }
 
     public string Title { get; private set; } = string.Empty;

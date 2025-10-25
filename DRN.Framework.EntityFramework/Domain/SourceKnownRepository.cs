@@ -32,20 +32,6 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     protected TContext Context { get; } = context;
     protected DbSet<TEntity> Entities { get; } = context.GetEntities<TEntity>();
-
-    protected IQueryable<TEntity> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null)
-    {
-        var repositoryType = GetType();
-        var entities = Entities.TagWith(repositoryType.FullName ?? repositoryType.Name);
-        if (caller != null)
-            entities.TagWith(caller);
-
-        entities = Settings.AsNoTracking ? entities.AsNoTracking() : entities;
-        entities = Settings.IgnoreAutoIncludes ? entities.IgnoreAutoIncludes() : entities;
-
-        return entities;
-    }
-
     protected IEntityUtils Utils { get; } = utils;
     protected IScopedLog ScopedLog { get; } = utils.ScopedLog;
 
@@ -53,6 +39,24 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// Settings for default public members of SourceKnownRepositories
     /// </summary>
     public RepositorySettings Settings { get; set; } = new();
+
+    protected IQueryable<TEntity> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null)
+    {
+        var entities = EntitiesWithCallerTag(caller);
+        entities = Settings.AsNoTracking ? entities.AsNoTracking() : entities;
+        entities = Settings.IgnoreAutoIncludes ? entities.IgnoreAutoIncludes() : entities;
+
+        return entities;
+    }
+
+    protected IQueryable<TEntity> EntitiesWithCallerTag([CallerMemberName] string? caller = null)
+    {
+        var repositoryType = GetType();
+        var entities = Entities.TagWith(repositoryType.FullName ?? repositoryType.Name);
+        if (caller != null) entities.TagWith(caller);
+
+        return entities;
+    }
 
     public CancellationToken CancellationToken
     {
@@ -218,9 +222,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids)
     {
         using var _ = ScopedLog.Measure(this);
-        var repositoryType = GetType();
-        var entities = Entities.TagWith(repositoryType.FullName ?? repositoryType.Name);
-        entities.TagWith(nameof(DeleteAsync));
+        var entities = EntitiesWithCallerTag();
 
         var deletedCount = await Filter(entities.IgnoreAutoIncludes(), ids).ExecuteDeleteAsync(CancellationToken);
         ScopedLog.Increase(DeleteCountKey, deletedCount);
@@ -231,9 +233,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids)
     {
         using var _ = ScopedLog.Measure(this);
-        var repositoryType = GetType();
-        var entities = Entities.TagWith(repositoryType.FullName ?? repositoryType.Name);
-        entities.TagWith(nameof(DeleteAsync));
+        var entities = EntitiesWithCallerTag();
 
         var deletedCount = await Filter(entities.IgnoreAutoIncludes(), ids).ExecuteDeleteAsync(CancellationToken);
         ScopedLog.Increase(DeleteCountKey, deletedCount);
@@ -241,7 +241,6 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return deletedCount;
     }
 
-    //todo evaluate validation scope log support
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public SourceKnownEntityId GetEntityId(Guid id, bool validate = true)
     {
