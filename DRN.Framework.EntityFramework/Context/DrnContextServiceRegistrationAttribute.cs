@@ -46,7 +46,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         changeModel.LogChanges(scopedLog, appSettings.Environment.ToString());
 
         if (changeModel.Flags is { Migrate: false, HasPendingChanges: false }) return;
-        if (changeModel.Flags is { Prototype: true, HasPendingModelChangesForPrototype: true })
+        if (changeModel.Flags is { Prototype: true, HasPendingChangesForPrototype: true })
         {
             scopedLog?.AddToActions($"checking {changeModel.Name} database in prototype mode.");
             var created = await context.Database.EnsureCreatedAsync();

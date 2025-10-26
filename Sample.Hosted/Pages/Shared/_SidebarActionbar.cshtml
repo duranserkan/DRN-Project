@@ -40,62 +40,8 @@
         <ul id="ActionBarBadgeList" class="nav nav-pills nav-flush flex-column mt-1 mb-auto">
             @if (ScopeContext.Settings.Environment != AppEnvironment.Production)
             {
-                @if (ScopeContext.Settings.Environment == AppEnvironment.Development)
-                {
-                    var developmentStatus = ScopeContext.Services.GetRequiredService<DevelopmentStatus>();
-                    @if (developmentStatus.HasPendingChanges)
-                    {
-                        <li class="nav-item">
-                            <div title="Has Pending Changes" data-bs-toggle="tooltip" data-bs-placement="left">
-                                <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
-                                    <i class="bi bi-plus-circle-dotted text-primary" style="font-size: 1.25em;" role="img"></i>
-                                </span>
-                            </div>
-                        </li>
-                    }
-
-                    @if (ScopeContext.Settings.DevelopmentSettings.Prototype)
-                    {
-                        <li class="nav-item">
-                            <div title="Prototyping Enabled" data-bs-toggle="tooltip" data-bs-placement="left">
-                                <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
-                                    <i class="bi bi-wrench-adjustable text-primary" style="font-size: 1.25em;" role="img"></i>
-                                </span>
-                            </div>
-                        </li>
-                    }
-
-                    @if (ScopeContext.Settings.DevelopmentSettings.AutoMigrate)
-                    {
-                        <li class="nav-item">
-                            <div title="Auto Migration Enabled" data-bs-toggle="tooltip" data-bs-placement="left">
-                                <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
-                                    <i class="bi bi-robot text-primary" style="font-size: 1.25em;" role="img"></i>
-                                </span>
-                            </div>
-                        </li>
-                    }
-
-                    @if (ScopeContext.Settings.DevelopmentSettings.LaunchExternalDependencies)
-                    {
-                        <li class="nav-item">
-                            <div title="External Dependencies Launched" data-bs-toggle="tooltip" data-bs-placement="left">
-                                <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
-                                    <i class="bi bi-plugin text-primary" style="font-size: 1.25em;" role="img"></i>
-                                </span>
-                            </div>
-                        </li>
-                    }
-                }
-
-                var environment = $"{ScopeContext.Settings.Environment.ToString()} Environment";
-                <li class="nav-item">
-                    <div title="@environment" data-bs-toggle="tooltip" data-bs-placement="left">
-                        <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0">
-                            <i class="bi bi-exclamation-triangle text-primary" style="font-size: 1.25em;" role="img"></i>
-                        </span>
-                    </div>
-                </li>
+                var developmentStatus = ScopeContext.Services.GetRequiredService<DevelopmentStatus>();
+                <partial name="_SidebarActionbarBadges" model="developmentStatus"/>
             }
         </ul>
     </nav>

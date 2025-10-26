@@ -26,14 +26,14 @@ public record DbContextChangeModelFlags(bool HasPendingModelChanges, bool UsePro
     public bool Migrate { get; internal set; }
     public bool HasPendingMigrations { get; private set; }
     public bool HasPendingChanges { get; private set; }
-    public bool HasPendingModelChangesForPrototype { get; private set; }
+    public bool HasPendingChangesForPrototype { get; private set; }
     public bool HasPendingMigrationsWithoutPendingModelChanges { get; private set; }
 
     public void SetMigrationFlags(int migrationCount, int pendingMigrationCount)
     {
         HasPendingMigrations = pendingMigrationCount > 0;
         HasPendingChanges = HasPendingMigrations || HasPendingModelChanges;
-        HasPendingModelChangesForPrototype = (migrationCount == 0 && HasPendingModelChanges) ||
+        HasPendingChangesForPrototype = (migrationCount == 0 && HasPendingModelChanges) ||
                                              (migrationCount > 0 && UsePrototypeModeWhenMigrationExists && HasPendingModelChanges);
 
         HasPendingMigrationsWithoutPendingModelChanges = pendingMigrationCount > 0 && !HasPendingModelChanges;

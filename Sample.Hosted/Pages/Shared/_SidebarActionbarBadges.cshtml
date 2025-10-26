@@ -1,0 +1,69 @@
+@model DevelopmentStatus
+@using DRN.Framework.SharedKernel.Enums
+@using DRN.Framework.Utils.Models
+@{
+    var environment = $"{ScopeContext.Settings.Environment.ToString()} Environment";
+    var prototypeModels = Model.Models.Where(m => m.Flags.UsePrototypeMode).ToArray();
+    var prototypeModelInfos = prototypeModels
+        .Select(m => $"{m.Name} (UseWhenMigrationExists: {m.Flags.UsePrototypeModeWhenMigrationExists})")
+        .ToArray();
+
+    var prototypeModelInfoJoin = prototypeModelInfos.Length > 0 ? string.Join("; ", prototypeModelInfos) : "No DbContext is configured";
+    var prototypeTitle = $"Prototyping Enabled: {prototypeModelInfoJoin}";
+}
+
+@if (ScopeContext.Settings.Environment == AppEnvironment.Development)
+{
+    @if (Model.HasPendingChanges)
+    {
+        <li class="nav-item">
+            <div title="Has Pending Changes" data-bs-toggle="tooltip" data-bs-placement="left">
+                <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
+                    <i class="bi bi-plus-circle-dotted text-primary" style="font-size: 1.25em;" role="img"></i>
+                </span>
+            </div>
+        </li>
+    }
+
+    @if (ScopeContext.Settings.DevelopmentSettings.Prototype)
+    {
+        <li class="nav-item">
+            <div title="@prototypeTitle" data-bs-toggle="tooltip" data-bs-placement="left">
+                <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
+                    <i class="bi bi-wrench-adjustable text-primary" style="font-size: 1.25em;" role="img"></i>
+                </span>
+            </div>
+        </li>
+    }
+
+    @if (ScopeContext.Settings.DevelopmentSettings.AutoMigrate)
+    {
+        <li class="nav-item">
+            <div title="Auto Migration Enabled" data-bs-toggle="tooltip" data-bs-placement="left">
+                <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
+                    <i class="bi bi-robot text-primary" style="font-size: 1.25em;" role="img"></i>
+                </span>
+            </div>
+        </li>
+    }
+
+    @if (ScopeContext.Settings.DevelopmentSettings.LaunchExternalDependencies)
+    {
+        <li class="nav-item">
+            <div title="External Dependencies Launched" data-bs-toggle="tooltip" data-bs-placement="left">
+                
+                <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
+                    <i class="bi bi-plugin text-primary" style="font-size: 1.25em;" role="img"></i>
+                </span>
+            </div>
+        </li>
+    }
+}
+
+<li class="nav-item">
+    <div title="@environment" data-bs-toggle="tooltip" data-bs-placement="left">
+        <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0">
+            <i class="bi bi-exclamation-triangle text-primary" style="font-size: 1.25em;" role="img"></i>
+        </span>
+    </div>
+</li>
