@@ -120,6 +120,8 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids)
     {
         using var _ = ScopedLog.Measure(this);
+        if (ids.Count == 0) return [];
+
         var items = await Filter(EntitiesWithAppliedSettings(), ids).ToArrayAsync(CancellationToken);
         ScopedLog.Increase(GetCountKey, items.Length);
 
@@ -129,6 +131,8 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<TEntity[]> GetAsync(IReadOnlyCollection<SourceKnownEntityId> ids)
     {
         using var _ = ScopedLog.Measure(this);
+        if (ids.Count == 0) return [];
+        
         var items = await Filter(EntitiesWithAppliedSettings(), ids).ToArrayAsync(CancellationToken);
         ScopedLog.Increase(GetCountKey, items.Length);
 
