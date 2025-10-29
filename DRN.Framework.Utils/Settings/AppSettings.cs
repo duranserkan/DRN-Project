@@ -18,6 +18,7 @@ public interface IAppSettings
     IConfiguration Configuration { get; }
 
     DrnAppFeatures Features { get; }
+    DrnLocalizationSettings Localization { get; }
     DrnDevelopmentSettings DevelopmentSettings { get; }
     NexusAppSettings NexusAppSettings { get; }
     AppEnvironment Environment { get; }
@@ -68,6 +69,10 @@ public class AppSettings : IAppSettings
 
         Features = Get<DrnAppFeatures>(nameof(DrnAppFeatures)) ?? new DrnAppFeatures();
         Features.ValidateDataAnnotationsThrowIfInvalid();
+
+        Localization = Get<DrnLocalizationSettings>(nameof(DrnLocalizationSettings)) ?? new DrnLocalizationSettings();
+        Localization.ValidateDataAnnotationsThrowIfInvalid();
+
         DevelopmentSettings = Get<DrnDevelopmentSettings>(nameof(DrnDevelopmentSettings)) ?? new DrnDevelopmentSettings();
         DevelopmentSettings.ValidateDataAnnotationsThrowIfInvalid();
 
@@ -101,13 +106,14 @@ public class AppSettings : IAppSettings
     [JsonIgnore]
     public IConfiguration Configuration { get; }
 
+    public DrnLocalizationSettings Localization { get; }
     public DrnDevelopmentSettings DevelopmentSettings { get; }
     public DrnAppFeatures Features { get; }
     public NexusAppSettings NexusAppSettings { get; }
     public AppEnvironment Environment { get; }
 
     public bool IsDevEnvironment => Environment == AppEnvironment.Development;
-    
+
     /// <summary>
     ///  Default app key, can be used publicly. For example, to separate development and production data.
     /// </summary>

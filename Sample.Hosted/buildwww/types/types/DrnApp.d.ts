@@ -13,6 +13,8 @@ interface DrnApp {
     isDev: boolean;
     showCookieBanner: boolean;
     csrfToken: string;
+    defaultCulture: string,
+    supportedCultures: [string],
     state: {
         // Define state structure if needed, e.g.:
         // components?: Record<string, any>;

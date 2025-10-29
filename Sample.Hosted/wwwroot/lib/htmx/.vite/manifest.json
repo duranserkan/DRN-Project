@@ -1,8 +1,8 @@
 {
-  "buildwww/lib/htmx/htmx_bundle.js": {
+  "buildwww/lib/htmx/htmxBundle.js": {
     "file": "htmx_bundle.CnZF9kopuHFR5X5W.js",
     "name": "htmx_bundle",
-    "src": "buildwww/lib/htmx/htmx_bundle.js",
+    "src": "buildwww/lib/htmx/htmxBundle.js",
     "isEntry": true
   }
 }

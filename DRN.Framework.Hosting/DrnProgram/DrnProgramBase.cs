@@ -25,6 +25,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCaching;
 using Microsoft.Extensions.Configuration;
@@ -254,6 +255,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         services.Configure(GetConfigureCookieTempDataProvider(appSettings));
         services.Configure(ConfigureStaticFileOptions(appSettings));
         services.Configure(ConfigureForwardedHeadersOptions(appSettings));
+        services.Configure(ConfigureRequestLocalizationOptions(appSettings));
+
         services.PostConfigure(ConfigureHostFilteringOptions(appSettings));
 
         services.AddSecurityHeaderPolicies((builder, provider) =>
@@ -276,7 +279,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         ConfigureApplicationPostScopeStart(application, appSettings);
 
         application.UseRouting();
-
+        
         ConfigureApplicationPreAuthentication(application, appSettings);
         application.UseAuthentication();
         application.UseMiddleware<ScopedUserMiddleware>();
@@ -458,6 +461,24 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         return options => { options.ForwardedHeaders = ForwardedHeaders.All; };
     }
 
+    protected virtual Action<RequestLocalizationOptions> ConfigureRequestLocalizationOptions(IAppSettings appSettings)
+    {
+        var locOptions = appSettings.Localization;
+        return options =>
+        {
+            var cookieRequestCultureProvider = new CookieRequestCultureProvider();
+            cookieRequestCultureProvider.CookieName = appSettings.GetAppSpecificName("Culture");
+            
+            options.RequestCultureProviders.Clear();
+            options.RequestCultureProviders.Add(cookieRequestCultureProvider);
+            options.RequestCultureProviders.Add(new QueryStringRequestCultureProvider());
+            options.RequestCultureProviders.Add(new AcceptLanguageHeaderRequestCultureProvider());
+            options.SetDefaultCulture(locOptions.DefaultCulture)
+                .AddSupportedCultures(locOptions.SupportedCultures)
+                .AddSupportedUICultures(locOptions.SupportedCultures);
+        };
+    }
+
     protected virtual Action<HostFilteringOptions> ConfigureHostFilteringOptions(IAppSettings appSettings)
     {
         return options =>
@@ -500,6 +521,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
     protected virtual void ConfigureApplicationPreAuthentication(WebApplication application, IAppSettings appSettings)
     {
+        application.UseRequestLocalization();
     }
 
     //todo review stability when no auth is configured

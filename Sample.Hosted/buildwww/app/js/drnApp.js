@@ -6,6 +6,8 @@ const drnApp = {
     isDev: false,
     showCookieBanner: false,
     csrfToken: '',
+    defaultCulture: 'tr',
+    supportedCultures: ['en', 'tr'],
     // Placeholder for application state management
     state: {}
 };

@@ -45,8 +45,8 @@ const builds = {
                 input: {
                     // Key is the output name (e.g., app_css), value is the input file path
                     // app: resolve(__dirname, 'buildwww/app/css/app.css'), // This will output app.[hash].css, app.css is not used yet.
-                    app_preload: resolve(__dirname, 'buildwww/app/js/app_preload.js'),
-                    app_postload: resolve(__dirname, 'buildwww/app/js/app_postload.js')
+                    app_preload: resolve(__dirname, 'buildwww/app/js/appPreload.js'),
+                    app_postload: resolve(__dirname, 'buildwww/app/js/appPostload.js')
                 }
             },
         },
@@ -59,7 +59,7 @@ const builds = {
                 // Define entry points. These are the files Vite will bundle.
                 input: {
                     // Key is the output name (e.g., app_css), value is the input file path
-                    htmx_bundle: resolve(__dirname, 'buildwww/lib/htmx/htmx_bundle.js'), // This will output htmx_bundle.[hash].css
+                    htmx_bundle: resolve(__dirname, 'buildwww/lib/htmx/htmxBundle.js'), // This will output htmx_bundle.[hash].css
                 }
             },
         },

@@ -1,14 +1,14 @@
 {
-  "buildwww/app/js/app_postload.js": {
+  "buildwww/app/js/appPostload.js": {
     "file": "app_postload.DcHcOhBx8Ak194gk.js",
     "name": "app_postload",
-    "src": "buildwww/app/js/app_postload.js",
+    "src": "buildwww/app/js/appPostload.js",
     "isEntry": true
   },
-  "buildwww/app/js/app_preload.js": {
-    "file": "app_preload.Dw2Ut58AHhBXFt-i.js",
+  "buildwww/app/js/appPreload.js": {
+    "file": "app_preload.CxkIeV6WajDVQZfS.js",
     "name": "app_preload",
-    "src": "buildwww/app/js/app_preload.js",
+    "src": "buildwww/app/js/appPreload.js",
     "isEntry": true
   }
 }

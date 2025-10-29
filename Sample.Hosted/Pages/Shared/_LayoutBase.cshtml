@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="@CultureInfo.CurrentUICulture.Name" data-bs-theme="light">
+
 @*
 https://getbootstrap.com/docs/5.3/customize/color-modes/
 https://getbootstrap.com/docs/5.3/examples/
@@ -32,15 +33,17 @@ They automatically resolve the correct script and stylesheet paths for both deve
     @*<link href="buildwww/app/css/app.css" rel="stylesheet" crossorigin="anonymous"/>*@
 
     @*defines DRN.App, DRN.Utils, DRN.Onmount*@
-    <script src="buildwww/app/js/app_preload.js" crossorigin="anonymous"></script>
+    <script src="buildwww/app/js/appPreload.js" crossorigin="anonymous"></script>
     <script>
         DRN.App.environment =  @Json.Serialize(ScopeContext.Settings.Environment.ToString());
         DRN.App.isDev = @Json.Serialize(ScopeContext.Settings.IsDevEnvironment);
         DRN.App.csrfToken = @Json.Serialize(Context.GetCsrfToken());
+        DRN.App.defaultCulture = @Json.Serialize(ScopeContext.Settings.Localization.DefaultCulture);
+        DRN.App.supportedCultures = @Json.Serialize(ScopeContext.Settings.Localization.SupportedCultures);
     </script>
     <!-- Preload -->
 
-    <script src="buildwww/lib/htmx/htmx_bundle.js" crossorigin="anonymous"></script>
+    <script src="buildwww/lib/htmx/htmxBundle.js" crossorigin="anonymous"></script>
     <script src="~/lib/jquery/jquery.min.PnUB0Vw2.js" crossorigin="anonymous" integrity="sha256-PnUB0Vw2MOeRyLIDkuud7jGp9lzj793nbO9ccQFBqyQ="></script>
     <script src="~/lib/onmount/onmount.tS6D5Yzw.js" crossorigin="anonymous" integrity="sha256-tS6D5Yzwxoy/uLQA9mVEiTu/GaafGn+we0HjTlj4zzM="></script>
 
@@ -49,16 +52,15 @@ They automatically resolve the correct script and stylesheet paths for both deve
     https://www.jetbrains.com/help/rider/Configuring_JavaScript_Libraries.html#ws_js_configure_libraries_ts_definition_files*@
 
     <!-- Postload -->
-    <script src="buildwww/app/js/app_postload.js" crossorigin="anonymous"></script>
+    <script src="buildwww/app/js/appPostload.js" crossorigin="anonymous"></script>
+    @*https://getbootstrap.com/docs/5.3/getting-started/download/*@
+    <script defer src="buildwww/lib/bootstrap/bootstrap.js" crossorigin="anonymous"></script>
+    <script defer src="~/lib/jquery/jquery.validate.min.umbTaFxP31.js" crossorigin="anonymous" integrity="sha256-umbTaFxP31Fv6O1itpLS/3+v5fOAWDLOUzlmvOGaKV4="></script>
+    <script defer src="~/lib/jquery/jquery.validate.unobtrusive.min.YJa7W8Ei.js" crossorigin="anonymous" integrity="sha256-YJa7W8EiQdQpkk93iGEjjnLSUWRpRJbSfzfURh1kxz4="></script>
     <!-- Postload -->
 </head>
 <body class="d-flex flex-column bg-secondary-subtle vh-100" style="overflow: hidden;" hx-ext="safe-nonce" hx-boost="true" hx-history="false">
 @RenderBody()
-
-@*https://getbootstrap.com/docs/5.3/getting-started/download/*@
-<script defer src="buildwww/lib/bootstrap/bootstrap.js" crossorigin="anonymous"></script>
-<script defer src="~/lib/jquery/jquery.validate.min.umbTaFxP31.js" crossorigin="anonymous" integrity="sha256-umbTaFxP31Fv6O1itpLS/3+v5fOAWDLOUzlmvOGaKV4="></script>
-<script defer src="~/lib/jquery/jquery.validate.unobtrusive.min.YJa7W8Ei.js" crossorigin="anonymous" integrity="sha256-YJa7W8EiQdQpkk93iGEjjnLSUWRpRJbSfzfURh1kxz4="></script>
 
 @await RenderSectionAsync("Scripts", required: false)
 </body>
