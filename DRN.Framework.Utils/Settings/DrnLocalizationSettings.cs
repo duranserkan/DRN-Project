@@ -27,12 +27,9 @@ public class DrnLocalizationSettings: IValidatableObject
                 validCultures.Add(cultureName);
 
         DefaultCulture = !IsValidCulture(DefaultCulture, out _) ? "en" : DefaultCulture;
-
-        var culturesWithBaseLanguages = EnsureBaseLanguage
-            ? EnsureBaseLanguages(validCultures)
-            : validCultures;
-
-        SupportedCultures = culturesWithBaseLanguages.Distinct().ToArray();
+        SupportedCultures = EnsureBaseLanguage
+            ? EnsureBaseLanguages(validCultures).Distinct().ToArray()
+            : validCultures.Distinct().ToArray();
     }
 
     private static bool IsValidCulture(string cultureName, out CultureInfo? cultureInfo)
@@ -53,7 +50,7 @@ public class DrnLocalizationSettings: IValidatableObject
         }
     }
 
-    private static IReadOnlyCollection<string> EnsureBaseLanguages(IReadOnlyList<string> cultures)
+    private static string[] EnsureBaseLanguages(IReadOnlyList<string> cultures)
     {
         var cultureSet = new HashSet<string>(cultures);
         var result = new HashSet<string>(cultures);
@@ -67,7 +64,7 @@ public class DrnLocalizationSettings: IValidatableObject
                 result.Add(baseLanguage);
         }
 
-        return cultureSet.Union(result).ToHashSet();
+        return cultureSet.Union(result).ToArray();
     }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
