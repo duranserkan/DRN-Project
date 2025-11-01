@@ -13,16 +13,16 @@ public class DevelopmentStatus(IAppSettings appSettings)
     internal void AddChangeModel(DbContextChangeModel contextModel)
     {
         contextModel.Flags.Migrate = appSettings is { IsDevEnvironment: true, DevelopmentSettings.AutoMigrate: true };
-        contextModel.Flags.Prototype = appSettings.DevelopmentSettings.Prototype;
+        contextModel.Flags.DevelopmentSettingsPrototypeFlag = appSettings.DevelopmentSettings.Prototype;
         _contextModels.Add(contextModel);
     }
 
     public bool HasPendingChanges => _contextModels.Any(c => c.Flags.HasPendingModelChanges);
 }
 
-public record DbContextChangeModelFlags(bool HasPendingModelChanges, bool UsePrototypeMode, bool UsePrototypeModeWhenMigrationExists)
+public record DbContextChangeModelFlags(bool HasPendingModelChanges, bool NpgsqlDbContextOptionsPrototypeFlag, bool UsePrototypeModeWhenMigrationExists)
 {
-    public bool Prototype { get; internal set; }
+    public bool DevelopmentSettingsPrototypeFlag { get; internal set; }
     public bool Migrate { get; internal set; }
     public bool HasPendingMigrations { get; private set; }
     public bool HasPendingChanges { get; private set; }
@@ -38,6 +38,8 @@ public record DbContextChangeModelFlags(bool HasPendingModelChanges, bool UsePro
 
         HasPendingMigrationsWithoutPendingModelChanges = pendingMigrationCount > 0 && !HasPendingModelChanges;
     }
+
+    public bool RecreatePrototypeDatabaseForPendingModelChanges => DevelopmentSettingsPrototypeFlag && NpgsqlDbContextOptionsPrototypeFlag && HasPendingChangesForPrototype;
 }
 
 public class DbContextChangeModel
@@ -70,7 +72,7 @@ public class DbContextChangeModel
         scopedLog.AddToActions($"{Name} has {AppliedMigrations.Count} applied migrations. Last applied: {LastAppliedMigration}");
         scopedLog.AddToActions($"{Name} has {PendingMigrations.Count} pending migrations. Last pending: {LastPendingMigration}");
         scopedLog.AddToActions(Flags.HasPendingModelChanges ? $"{Name} has pending model changes" : $"{Name} has no pending model changes");
-        if (Flags is { HasPendingChanges: false, Prototype: true })
+        if (Flags is { HasPendingChanges: false, DevelopmentSettingsPrototypeFlag: true })
             scopedLog.AddToActions($"existing {Name} db is used for prototyping mode since there is no pending changes");
         if (!Flags.Migrate)
             scopedLog.AddToActions($"{Name} auto migration disabled in {environment}");

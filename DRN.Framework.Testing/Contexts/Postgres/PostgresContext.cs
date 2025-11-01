@@ -135,7 +135,7 @@ public class PostgresContext(TestContext testContext)
         foreach (var descriptor in dbContextCollection.ServiceDescriptors)
         {
             var optionsAttributes = DbContextConventions.GetContextAttributes(descriptor.Value.ServiceType);
-            if (optionsAttributes.Any(x => x.UsePrototypeMode)) //prototype dbcontext uses separete throw away database
+            if (optionsAttributes.Any(x => x.UsePrototypeMode)) //prototype dbcontext uses separate throw away database
             {
                 var prototypeContainerSettings = options.PostgresContainerSettings.Clone(options.PostgresContainerSettings.HostPort + 1);
                 prototypeContainerSettings.ContainerName = $"{prototypeContainerSettings.ContainerName} Prototype".ToSnakeCase();

@@ -46,7 +46,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         changeModel.LogChanges(scopedLog, appSettings.Environment.ToString());
 
         if (changeModel.Flags is { Migrate: false, HasPendingChanges: false }) return;
-        if (changeModel.Flags is { Prototype: true, HasPendingChangesForPrototype: true })
+        if (changeModel.Flags.RecreatePrototypeDatabaseForPendingModelChanges)
         {
             scopedLog?.AddToActions($"checking {changeModel.Name} database in prototype mode.");
             var created = await context.Database.EnsureCreatedAsync();
@@ -76,7 +76,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         }
 
         if (changeModel.Flags.HasPendingModelChanges)
-            throw new ConfigurationException($"{changeModel.Name} has pending model changes. Create migration or enable Prototype Mode in DrnAppFeatures.");
+            throw new ConfigurationException($"{changeModel.Name} has pending model changes. Create migration or enable Prototype Mode in DrnDevelopmentSettings.");
     }
 
     private static void Validate(IServiceProvider serviceProvider, IScopedLog? scopedLog, DbContext context)
@@ -107,14 +107,14 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         var appliedMigrations = migrations.Length > 0 ? (await context.Database.GetAppliedMigrationsAsync()).ToArray() : [];
         var hasPendingModelChanges = context.Database.HasPendingModelChanges();
         var optionsAttributes = DbContextConventions.GetContextAttributes(context);
-        var usePrototypeMode = optionsAttributes.Any(a => a.UsePrototypeMode);
+        var contextOptionsUsePrototypeModeFlag = optionsAttributes.Any(a => a.UsePrototypeMode);
         var usePrototypeModeWhenMigrationExists = optionsAttributes.Any(a => a.UsePrototypeModeWhenMigrationExists);
 
-        var changeModelFlags = new DbContextChangeModelFlags(hasPendingModelChanges, usePrototypeMode, usePrototypeModeWhenMigrationExists);
+        var changeModelFlags = new DbContextChangeModelFlags(hasPendingModelChanges, contextOptionsUsePrototypeModeFlag, usePrototypeModeWhenMigrationExists);
         var changeModel = new DbContextChangeModel(contextName, migrations, appliedMigrations, changeModelFlags);
         var developmentStatus = serviceProvider.GetRequiredService<DevelopmentStatus>();
         developmentStatus.AddChangeModel(changeModel);
-        
+
         return changeModel;
     }
 

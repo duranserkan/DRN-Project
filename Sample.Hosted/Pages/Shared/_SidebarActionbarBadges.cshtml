@@ -3,7 +3,7 @@
 @using DRN.Framework.Utils.Models
 @{
     var environment = $"{ScopeContext.Settings.Environment.ToString()} Environment";
-    var prototypeModels = Model.Models.Where(m => m.Flags.UsePrototypeMode).ToArray();
+    var prototypeModels = Model.Models.Where(m => m.Flags.NpgsqlDbContextOptionsPrototypeFlag).ToArray();
     var prototypeModelInfos = prototypeModels
         .Select(m => $"{m.Name} (UseWhenMigrationExists: {m.Flags.UsePrototypeModeWhenMigrationExists})")
         .ToArray();

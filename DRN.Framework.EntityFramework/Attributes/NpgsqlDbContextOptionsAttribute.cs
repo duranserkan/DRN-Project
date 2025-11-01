@@ -46,7 +46,14 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
 
     public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings) => Task.CompletedTask;
     
+
     //Todo: test protoype mode integration test support
+    /// <summary>
+    /// When enabled, the prototype DbContext uses a separate, throwaway database.
+    /// This database is recreated only if there are pending model changes not yet reflected in a migration 
+    /// and the prototype flag is enabled in DrnDevelopmentSettings. 
+    /// If the prototype flag is disabled in DrnDevelopmentSettings, the database is never recreated—even if model changes are detected and UsePrototypeMode is true.
+    /// </summary>
     public virtual bool UsePrototypeMode { get; set; } = false;
     public virtual bool UsePrototypeModeWhenMigrationExists { get; set; } = false;
 }
