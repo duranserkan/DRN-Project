@@ -45,15 +45,31 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
     }
 
     public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings) => Task.CompletedTask;
-    
+
 
     //Todo: test protoype mode integration test support
     /// <summary>
-    /// When enabled, the prototype DbContext uses a separate, throwaway database.
-    /// This database is recreated only if there are pending model changes not yet reflected in a migration 
-    /// and the prototype flag is enabled in DrnDevelopmentSettings. 
-    /// If the prototype flag is disabled in DrnDevelopmentSettings, the database is never recreated—even if model changes are detected and UsePrototypeMode is true.
+    /// When <see cref="UsePrototypeMode"/> is enabled and 
+    /// <see cref="DrnDevelopmentSettings.LaunchExternalDependencies"/> is <see langword="true"/>, 
+    /// the <see cref="DbContext"/> uses a separate, throwaway database created using Testcontainers.
+    /// 
+    /// This database is recreated only if all the following conditions are met:
+    /// <list type="number">
+    ///   <item>
+    ///     <description>There are pending model changes not yet reflected in a migration.</description>
+    ///   </item>
+    ///   <item>
+    ///     <description><see cref="UsePrototypeMode"/> is enabled.</description>
+    ///   </item>
+    ///   <item>
+    ///     <description>The prototype flag in <see cref="DrnDevelopmentSettings"/> is enabled.</description>
+    ///   </item>
+    /// </list>
+    /// 
+    /// If the prototype flag in <see cref="DrnDevelopmentSettings"/> is disabled, the database is never recreated—
+    /// even if <see cref="UsePrototypeMode"/> is enabled and model changes are detected.
     /// </summary>
     public virtual bool UsePrototypeMode { get; set; } = false;
+
     public virtual bool UsePrototypeModeWhenMigrationExists { get; set; } = false;
 }

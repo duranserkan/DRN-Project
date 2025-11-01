@@ -28,9 +28,14 @@ public class DrnDevelopmentSettings
     public bool AutoMigrate { get; init; }
 
     /// <summary>
-    /// When true in dev environment and AutoMigrateDevEnvironment is enabled, migrations are not used for database creation to increase prototyping speed.
-    /// For each DbContext, a new database will be created except when the database exists and there are no pending changes.
-    /// If multiple DbContexts need to share the same database, do not use prototyping mode.
+    /// Turns on fast prototyping for database development when <see cref="AutoMigrate"/> is on.
+    /// <para>
+    /// When true, any DbContext that has <c>NpgsqlDbContextOptionsAttribute.UsePrototypeMode = true</c> will be recreated if there is pending model changes.
+    /// </para>
+    /// <para>
+    /// ⚠️ Only one DbContext should use prototyping at a time. <br/>
+    /// ⚠️ Use prototyping when <see cref="LaunchExternalDependencies"/> is on.
+    /// </para>
     /// </summary>
     public bool Prototype { get; init; }
 }
