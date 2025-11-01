@@ -4,7 +4,7 @@ using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Settings;
 
-[Config(validateAnnotations: true, errorOnUnknownConfiguration: false)]
+[Config(validateAnnotations: true, errorOnUnknownConfiguration: true)]
 public class DrnLocalizationSettings: IValidatableObject
 {
     /// <summary>
@@ -18,6 +18,8 @@ public class DrnLocalizationSettings: IValidatableObject
     /// Generates base language codes from regional culture codes (e.g., "de" from "de-CH")
     /// </summary>
     public bool EnsureBaseLanguage { get; init; } = true;
+    
+    public bool Enabled { get; init; }
     
     public void ValidateCultures()
     {

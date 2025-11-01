@@ -255,7 +255,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         services.Configure(GetConfigureCookieTempDataProvider(appSettings));
         services.Configure(ConfigureStaticFileOptions(appSettings));
         services.Configure(ConfigureForwardedHeadersOptions(appSettings));
-        services.Configure(ConfigureRequestLocalizationOptions(appSettings));
+        if (appSettings.Localization.Enabled)
+            services.Configure(ConfigureRequestLocalizationOptions(appSettings));
 
         services.PostConfigure(ConfigureHostFilteringOptions(appSettings));
 
@@ -279,7 +280,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         ConfigureApplicationPostScopeStart(application, appSettings);
 
         application.UseRouting();
-        
+
         ConfigureApplicationPreAuthentication(application, appSettings);
         application.UseAuthentication();
         application.UseMiddleware<ScopedUserMiddleware>();
@@ -468,7 +469,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         {
             var cookieRequestCultureProvider = new CookieRequestCultureProvider();
             cookieRequestCultureProvider.CookieName = appSettings.GetAppSpecificName("Culture");
-            
+
             options.RequestCultureProviders.Clear();
             options.RequestCultureProviders.Add(cookieRequestCultureProvider);
             options.RequestCultureProviders.Add(new QueryStringRequestCultureProvider());
@@ -521,7 +522,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
     protected virtual void ConfigureApplicationPreAuthentication(WebApplication application, IAppSettings appSettings)
     {
-        application.UseRequestLocalization();
+        if (appSettings.Localization.Enabled)
+            application.UseRequestLocalization();
     }
 
     //todo review stability when no auth is configured
