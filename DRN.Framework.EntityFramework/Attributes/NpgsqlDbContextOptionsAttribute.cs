@@ -45,9 +45,7 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
     }
 
     public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings) => Task.CompletedTask;
-
-
-    //Todo: test protoype mode integration test support
+    
     /// <summary>
     /// When <see cref="UsePrototypeMode"/> is enabled and 
     /// <see cref="DrnDevelopmentSettings.LaunchExternalDependencies"/> is <see langword="true"/>, 
