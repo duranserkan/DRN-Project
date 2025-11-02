@@ -45,7 +45,9 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         var changeModel = await GetChangeModel(serviceProvider, context);
         changeModel.LogChanges(scopedLog, appSettings.Environment.ToString());
 
-        if (changeModel.Flags is { Migrate: false}) return;
+        if (changeModel.Flags is { Migrate: false}) 
+            return;
+        
         if (changeModel.Flags.RecreatePrototypeDatabaseForPendingModelChanges)
         {
             scopedLog?.AddToActions($"checking {changeModel.Name} database in prototype mode.");

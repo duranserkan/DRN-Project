@@ -132,7 +132,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     {
         using var _ = ScopedLog.Measure(this);
         if (ids.Count == 0) return [];
-        
+
         var items = await Filter(EntitiesWithAppliedSettings(), ids).ToArrayAsync(CancellationToken);
         ScopedLog.Increase(GetCountKey, items.Length);
 
@@ -360,31 +360,9 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         IQueryable<TEntity> query, PaginationResultInfo? resultInfo = null, long jumpTo = 1, int pageSize = -1, int maxSize = -1,
         PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)
     {
-        var directionChanged = resultInfo != null && direction != PageSortDirection.None && direction != resultInfo.Request.PageCursor.SortDirection;
-        var sizeChanged = resultInfo != null && pageSize > 0 && pageSize != resultInfo.Request.PageSize.Size;
-        if (resultInfo == null || directionChanged || sizeChanged)
-        {
-            var firstPageRequest = PaginationRequest.DefaultWith(pageSize, maxSize, direction, totalCount: totalCount, updateTotalCount: updateTotalCount);
-            var firstPageResult = await PaginateAsync(query, firstPageRequest);
-
-            return firstPageResult;
-        }
-
-        var pageNumber = resultInfo.Request.PageNumber;
-        var pageDifference = pageNumber - jumpTo;
-        if (pageDifference > 10)
-            jumpTo = pageNumber + 10;
-        else if (pageDifference < -10)
-            jumpTo = pageNumber - 10;
-
-        if (jumpTo < 1)
-            jumpTo = 1;
-
-        var request = pageDifference == 0
-            ? resultInfo.RequestRefresh(updateTotalCount)
-            : resultInfo.RequestPage(jumpTo, updateTotalCount);
-
-        var result = await PaginateAsync(request);
+        //todo improve test cases with additional query filter
+        var request = PaginationRequest.From(resultInfo, jumpTo, pageSize, maxSize, direction, totalCount, updateTotalCount);
+        var result = await PaginateAsync(query, request);
 
         return result;
     }
