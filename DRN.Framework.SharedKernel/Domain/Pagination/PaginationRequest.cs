@@ -47,6 +47,16 @@ public class PaginationRequest
         long totalCount = -1, bool updateTotalCount = false) =>
         new(1, new PageSize(size, maxSize), PageCursor.InitialWith(direction), totalCount, updateTotalCount: updateTotalCount);
 
+    public static PaginationRequest FromOffset(PaginationResultInfo? resultInfo = null, int skip = -1, int take = -1, int maxSize = -1,
+        PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)
+    {
+        var pageSize = take < 1 ? PageSize.SizeDefault : take;
+        var page = skip < 1 || take < 1 ? 1 : skip / take + 1;
+        totalCount = resultInfo is not null && totalCount == -1 ? resultInfo.Total.Count : totalCount;
+
+        return From(resultInfo, page, pageSize, maxSize, direction, totalCount, updateTotalCount);
+    }
+
     public static PaginationRequest From(PaginationResultInfo? resultInfo = null, long jumpTo = 1, int pageSize = -1, int maxSize = -1,
         PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)
     {
