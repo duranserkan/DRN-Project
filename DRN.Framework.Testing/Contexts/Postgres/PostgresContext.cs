@@ -138,7 +138,7 @@ public class PostgresContext(TestContext testContext)
             if (optionsAttributes.Any(x => x.UsePrototypeMode)) //prototype dbcontext uses separate throw away database
             {
                 var prototypeContainerSettings = options.PostgresContainerSettings.Clone(options.PostgresContainerSettings.HostPort + 1);
-                prototypeContainerSettings.ContainerName = $"{prototypeContainerSettings.ContainerName} Prototype".ToSnakeCase();
+                prototypeContainerSettings.ContainerName = $"{prototypeContainerSettings.ContainerName} {descriptor.Key} Prototype".ToSnakeCase();
 
                 prototypeContainer = BuildContainer(prototypeContainerSettings);
                 await prototypeContainer.StartAsync();
