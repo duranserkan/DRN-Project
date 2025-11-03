@@ -38,22 +38,25 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// <summary>
     /// Settings for default public members of SourceKnownRepositories
     /// </summary>
-    public RepositorySettings Settings { get; set; } = new();
+    public RepositorySettings<TEntity> Settings { get; set; } = new();
 
     protected IQueryable<TEntity> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null)
     {
-        var entities = EntitiesWithCallerTag(caller);
+        var entities = EntitiesWithDefaultSettings(caller);
         entities = Settings.AsNoTracking ? entities.AsNoTracking() : entities;
         entities = Settings.IgnoreAutoIncludes ? entities.IgnoreAutoIncludes() : entities;
 
         return entities;
     }
 
-    protected IQueryable<TEntity> EntitiesWithCallerTag([CallerMemberName] string? caller = null)
+    protected IQueryable<TEntity> EntitiesWithDefaultSettings([CallerMemberName] string? caller = null)
     {
         var repositoryType = GetType();
         var entities = Entities.TagWith(repositoryType.FullName ?? repositoryType.Name);
         if (caller != null) entities.TagWith(caller);
+
+        if (Settings.DefaultFilter is not null)
+            entities = entities.Where(Settings.DefaultFilter);
 
         return entities;
     }
@@ -226,7 +229,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids)
     {
         using var _ = ScopedLog.Measure(this);
-        var entities = EntitiesWithCallerTag();
+        var entities = EntitiesWithDefaultSettings();
 
         var deletedCount = await Filter(entities.IgnoreAutoIncludes(), ids).ExecuteDeleteAsync(CancellationToken);
         ScopedLog.Increase(DeleteCountKey, deletedCount);
@@ -237,7 +240,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids)
     {
         using var _ = ScopedLog.Measure(this);
-        var entities = EntitiesWithCallerTag();
+        var entities = EntitiesWithDefaultSettings();
 
         var deletedCount = await Filter(entities.IgnoreAutoIncludes(), ids).ExecuteDeleteAsync(CancellationToken);
         ScopedLog.Increase(DeleteCountKey, deletedCount);

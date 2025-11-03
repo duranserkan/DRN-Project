@@ -16,7 +16,7 @@ public interface ISourceKnownRepository<TEntity>
     /// <summary>
     /// Settings for default public members of SourceKnownRepositories
     /// </summary>
-    RepositorySettings Settings { get; set; }
+    RepositorySettings<TEntity> Settings { get; set; }
 
     //todo test cancellation
     CancellationToken CancellationToken { get; set; }
