@@ -52,7 +52,6 @@ public class PaginationRequest
     {
         var pageSize = take < 1 ? PageSize.SizeDefault : take;
         var page = skip < 1 || take < 1 ? 1 : skip / take + 1;
-        totalCount = resultInfo is not null && totalCount == -1 ? resultInfo.Total.Count : totalCount;
 
         return From(resultInfo, page, pageSize, maxSize, direction, totalCount, updateTotalCount);
     }
@@ -60,6 +59,7 @@ public class PaginationRequest
     public static PaginationRequest From(PaginationResultInfo? resultInfo = null, long jumpTo = 1, int pageSize = -1, int maxSize = -1,
         PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)
     {
+        totalCount = resultInfo is not null && totalCount < 1 ? resultInfo.Total.Count : totalCount;
         var directionChanged = resultInfo != null && direction != PageSortDirection.None && direction != resultInfo.Request.PageCursor.SortDirection;
         var sizeChanged = resultInfo != null && pageSize > 0 && pageSize != resultInfo.Request.PageSize.Size;
         if (resultInfo == null || directionChanged || sizeChanged)
