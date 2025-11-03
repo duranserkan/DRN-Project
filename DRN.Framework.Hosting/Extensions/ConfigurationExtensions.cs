@@ -9,7 +9,7 @@ using Microsoft.Extensions.FileProviders;
 
 namespace DRN.Framework.Hosting.Extensions;
 
-public static class ConfigurationExtension
+public static class ConfigurationExtensions
 {
     /// <summary>
     /// Mounted settings like kubernetes secrets or configmaps

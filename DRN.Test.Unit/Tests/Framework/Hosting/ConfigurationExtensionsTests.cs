@@ -4,7 +4,7 @@ using DRN.Framework.Utils.Settings.Conventions;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting;
 
-public class ConfigurationExtensionTests
+public class ConfigurationExtensionsTests
 {
     [Theory]
     [DataInlineUnit]
