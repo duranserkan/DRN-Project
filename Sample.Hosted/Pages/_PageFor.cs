@@ -26,8 +26,8 @@ public class TestPageFor : PageForBase
 {
     protected override string[] PathSegments { get; } = ["Test"];
 
-    public string Htmx { get; init; } = string.Empty;
     public string DeveloperView { get; init; } = string.Empty;
+    public string Htmx { get; init; } = string.Empty;
 }
 
 public class UserPageFor : PageForBase
