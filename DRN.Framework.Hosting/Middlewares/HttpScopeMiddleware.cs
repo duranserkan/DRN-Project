@@ -27,15 +27,14 @@ public class HttpScopeMiddleware(RequestDelegate next)
             //It is currently required to obtain detailed exception report which reads request body
             context.Request.EnableBuffering();
             ResponseControls(context);
-
-            if (ExceptionPageAccessor.IsExceptionPage(context.Request.Path.Value))
+            PrepareScopeLog(context, scopedLog);
+            ScopeContext.Initialize(context.TraceIdentifier, scopedLog, scopedUser, appSettings, serviceProvider);
+            if (ExceptionPageAccessor.IsExceptionPage(context.Request.Path.Value, appSettings.IsDevEnvironment))
             {
                 context.Abort(); //Requesting exception pages are malicious. Exception pages are rendered when an exception occurs.
                 return;
             }
 
-            PrepareScopeLog(context, scopedLog);
-            ScopeContext.Initialize(context.TraceIdentifier, scopedLog, scopedUser, appSettings, serviceProvider);
             await next(context);
         }
         catch (Exception e)

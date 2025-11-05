@@ -42,14 +42,14 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     protected IQueryable<TEntity> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null)
     {
-        var entities = EntitiesWithDefaultSettings(caller);
+        var entities = EntitiesWithAppliedBaseSettings(caller);
         entities = Settings.AsNoTracking ? entities.AsNoTracking() : entities;
         entities = Settings.IgnoreAutoIncludes ? entities.IgnoreAutoIncludes() : entities;
 
         return entities;
     }
 
-    protected IQueryable<TEntity> EntitiesWithDefaultSettings([CallerMemberName] string? caller = null)
+    protected IQueryable<TEntity> EntitiesWithAppliedBaseSettings([CallerMemberName] string? caller = null)
     {
         var repositoryType = GetType();
         var entities = Entities.TagWith(repositoryType.FullName ?? repositoryType.Name);
@@ -229,7 +229,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids)
     {
         using var _ = ScopedLog.Measure(this);
-        var entities = EntitiesWithDefaultSettings();
+        var entities = EntitiesWithAppliedBaseSettings();
 
         var deletedCount = await Filter(entities.IgnoreAutoIncludes(), ids).ExecuteDeleteAsync(CancellationToken);
         ScopedLog.Increase(DeleteCountKey, deletedCount);
@@ -240,7 +240,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public async Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids)
     {
         using var _ = ScopedLog.Measure(this);
-        var entities = EntitiesWithDefaultSettings();
+        var entities = EntitiesWithAppliedBaseSettings();
 
         var deletedCount = await Filter(entities.IgnoreAutoIncludes(), ids).ExecuteDeleteAsync(CancellationToken);
         ScopedLog.Increase(DeleteCountKey, deletedCount);

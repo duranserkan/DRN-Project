@@ -18,8 +18,9 @@
                     <li class="nav-item">
                         <a class="nav-link" authorized-only href="@Get.Page.Root.Swagger" target="_blank">Swagger</a>
                     </li>
-                </environment>
-                <environment include="@nameof(AppEnvironment.Development)">
+                    <li class="nav-item">
+                        <a class="nav-link" authorized-only href="@Get.Page.Test.DeveloperView" target="_blank">Developer View</a>
+                    </li>
                     @if (Get.Role.System.Admin)
                     {
                         <li class="nav-item">
