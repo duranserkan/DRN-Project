@@ -23,4 +23,10 @@
         <PackageReference Include="QRCoder" Version="1.7.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Content Update="tsconfig.json">
+        <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+
 </Project>
