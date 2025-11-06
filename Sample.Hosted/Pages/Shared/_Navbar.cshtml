@@ -18,25 +18,22 @@
                     <li class="nav-item">
                         <a class="nav-link" authorized-only href="@Get.Page.Root.Swagger" target="_blank">Swagger</a>
                     </li>
-                    @if (Get.Role.System.Admin)
-                    {
-                        <div class="btn-group nav-item">
-                            <button class="nav-link dropdown-toggle" id="navbarTestPages" data-bs-toggle="dropdown" aria-expanded="false">
-                                Test Pages
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end" data-bs-theme="light" aria-labelledby="navbarTestPages">
-                                <li>
-                                    <a class="dropdown-item" authorized-only href="@Get.Page.Test.DeveloperView" target="_blank">Developer View</a>
-                                </li>
-                                <li>
-                                    <hr class="dropdown-divider">
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" authorized-only href="@Get.Page.Test.Htmx">Htmx</a>
-                                </li>
-                            </ul>
-                        </div>
-                    }
+                    <div class="btn-group nav-item">
+                        <button class="nav-link dropdown-toggle" id="navbarTestPages" data-bs-toggle="dropdown" aria-expanded="false">
+                            Test Pages
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" data-bs-theme="light" aria-labelledby="navbarTestPages">
+                            <li>
+                                <a class="dropdown-item" authorized-only href="@Get.Page.Test.DeveloperView" target="_blank">Developer View</a>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                <a class="dropdown-item" authorized-only href="@Get.Page.Test.Htmx">Htmx</a>
+                            </li>
+                        </ul>
+                    </div>
                 </environment>
                 <!-- Add more links here if needed -->
             </ul>

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DRN.Framework.SharedKernel.Domain;
@@ -6,7 +5,7 @@ namespace DRN.Framework.SharedKernel.Domain;
 public class Dto
 {
     [JsonConstructor]
-    private Dto()
+    public Dto()
     {
     }
 
