@@ -5,7 +5,7 @@ namespace DRN.Framework.SharedKernel.Domain;
 public class Dto
 {
     [JsonConstructor]
-    public Dto()
+    protected Dto()
     {
     }
 
