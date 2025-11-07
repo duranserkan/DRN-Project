@@ -29,12 +29,24 @@ public interface ISourceKnownRepository<TEntity>
     Task<bool> AnyAsync(Expression<Func<TEntity, bool>>? predicate = null);
     Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null);
     
-    ValueTask<TEntity> GetAsync(Guid id);
-    ValueTask<TEntity> GetAsync(SourceKnownEntityId id);
+    /// <summary>
+    /// ⚠️ Returns all matching entities in a single query — use with extreme caution.
+    /// <para>
+    /// ❌ Avoid in public APIs or user-driven queries without size limits.
+    /// <para>
+    /// </para>
+    /// Only safe when: <br/>
+    /// • Filters from repository settings (e.g., tenant ID, soft-delete) guarantee a bounded result set, OR <br/>
+    /// • The entity count is known to be small (e.g., less than 1000 records).
+    /// </para>
+    /// </summary>
+    Task<TEntity[]> GetAllAsync();
+    Task<TEntity> GetAsync(Guid id);
+    Task<TEntity> GetAsync(SourceKnownEntityId id);
     Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);
     Task<TEntity[]> GetAsync(IReadOnlyCollection<SourceKnownEntityId> ids);
-    ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true);
-    ValueTask<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true);
+    Task<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true);
+    Task<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true);
 
     void Add(params IReadOnlyCollection<TEntity> entities);
     void Remove(params IReadOnlyCollection<TEntity> entities);

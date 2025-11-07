@@ -117,6 +117,25 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     }
 
     /// <summary>
+    /// ⚠️ Returns all matching entities in a single query — use with extreme caution.
+    /// <para>
+    /// ❌ Avoid in public APIs or user-driven queries without size limits.
+    /// <para>
+    /// </para>
+    /// Only safe when: <br/>
+    /// • Filters from repository settings (e.g., tenant ID, soft-delete) guarantee a bounded result set, OR <br/>
+    /// • The entity count is known to be small (e.g., less than 1000 records).
+    /// </para>
+    /// </summary>
+    public async Task<TEntity[]> GetAllAsync()
+    {
+        using var _ = ScopedLog.Measure(this);
+        var entities = await EntitiesWithAppliedSettings().ToArrayAsync(CancellationToken);
+
+        return entities;
+    }
+
+    /// <summary>
     /// Finds an entity with the given source known ids
     /// </summary>
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
@@ -147,17 +166,17 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// </summary>
     /// <exception cref="NotFoundException">Thrown when entity not found</exception>
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public async ValueTask<TEntity> GetAsync(Guid id) => await GetOrDefaultAsync(id)
-                                                         ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
+    public async Task<TEntity> GetAsync(Guid id) => await GetOrDefaultAsync(id)
+                                                    ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
 
-    public async ValueTask<TEntity> GetAsync(SourceKnownEntityId id) => await GetOrDefaultAsync(id)
-                                                                        ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
+    public async Task<TEntity> GetAsync(SourceKnownEntityId id) => await GetOrDefaultAsync(id)
+                                                                   ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
 
     /// <summary>
     /// Finds an entity with the given source known id
     /// </summary>
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public async ValueTask<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true)
+    public async Task<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true)
     {
         using var _ = ScopedLog.Measure(this);
         var entityId = GetEntityId(id, validate);
@@ -168,7 +187,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return entity;
     }
 
-    public async ValueTask<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true)
+    public async Task<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true)
     {
         using var _ = ScopedLog.Measure(this);
         if (validate) id.Validate<TEntity>();
