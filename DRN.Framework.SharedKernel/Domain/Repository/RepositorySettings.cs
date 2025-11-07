@@ -11,6 +11,7 @@ public class RepositorySettings<TEntity>
     public bool IgnoreAutoIncludes { get; set; }
     public bool AsNoTracking { get; set; }
 
+    //todo test with GetAllAsync()
     private readonly Dictionary<string, Expression<Func<TEntity, bool>>> _filters = [];
     public IReadOnlyDictionary<string, Expression<Func<TEntity, bool>>> Filters => _filters;
 
