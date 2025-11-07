@@ -7,10 +7,8 @@ public class Dto
 {
     [JsonIgnore] //JsonIgnore is added to prevent entity serialization
     [JsonInclude] //JsonInclude is added to make constructor happy during deserialization
-#pragma warning disable CS0169
-    private SourceKnownEntity? _entity; // Field is never used, entity and _entity added to share same constructor with serializer and application code 
-#pragma warning restore CS0169
-
+    private SourceKnownEntity? Entity { get; } // Field is never used, entity and _entity added to share same constructor with serializer and application code 
+    
     public Dto(SourceKnownEntity? entity = null)
     {
         if (entity is null)
