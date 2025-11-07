@@ -55,8 +55,8 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         var entities = Entities.TagWith(repositoryType.FullName ?? repositoryType.Name);
         if (caller != null) entities.TagWith(caller);
 
-        if (Settings.DefaultFilter is not null)
-            entities = entities.Where(Settings.DefaultFilter);
+        foreach (var filter in Settings.Filters)
+            entities = entities.Where(filter.Value);
 
         return entities;
     }

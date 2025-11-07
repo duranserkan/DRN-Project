@@ -10,5 +10,11 @@ public class RepositorySettings<TEntity>
 {
     public bool IgnoreAutoIncludes { get; set; }
     public bool AsNoTracking { get; set; }
-    public Expression<Func<TEntity, bool>>? DefaultFilter { get; set; }
+
+    private readonly Dictionary<string, Expression<Func<TEntity, bool>>> _filters = [];
+    public IReadOnlyDictionary<string, Expression<Func<TEntity, bool>>> Filters => _filters;
+
+    public void AddFilter(string name, Expression<Func<TEntity, bool>> filter) => _filters[name] = filter;
+    public bool RemoveFilter(string name) => _filters.Remove(name);
+    public void ClearFilters() => _filters.Clear();
 }
