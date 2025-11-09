@@ -29,6 +29,33 @@ public class TagRepositoryTests
 
         await repository.SaveChangesAsync();
 
+        var prefixFilter = "ShouldContainPrefix";
+        repository.Settings.AddFilter(prefixFilter, tag => tag.Name.Contains(tagPrefix));
+        repository.Settings.Filters.ContainsKey(prefixFilter).Should().BeTrue();
+        repository.Settings.Filters.Count.Should().Be(1);
+        var tags = await repository.GetAllAsync();
+        tags.Length.Should().Be(3);
+
+        var maxValueFilter = "GreaterThanMax-2";
+        repository.Settings.AddFilter(maxValueFilter, tag => tag.Model.Other > long.MaxValue - 2);
+        repository.Settings.Filters.ContainsKey(maxValueFilter).Should().BeTrue();
+        repository.Settings.Filters.Count.Should().Be(2);
+        tags = await repository.GetAllAsync();
+        tags.Length.Should().Be(1);
+        
+        repository.Settings.ClearFilters();
+        repository.Settings.Filters.Count.Should().Be(0);
+
+        maxValueFilter = "GreaterThanMax-3";
+        repository.Settings.AddFilter(maxValueFilter, tag => tag.Model.Other > long.MaxValue - 3);
+        repository.Settings.Filters.ContainsKey(maxValueFilter).Should().BeTrue();
+        repository.Settings.Filters.Count.Should().Be(1);
+        tags = await repository.GetAllAsync();
+        tags.Length.Should().Be(2);
+
+        repository.Settings.ClearFilters();
+        repository.Settings.Filters.Count.Should().Be(0);
+        
         await Task.Delay(TimeSpan.FromSeconds(1.2));
         var afterTagCreation = DateTimeOffset.UtcNow;
 
@@ -240,28 +267,28 @@ public class TagRepositoryTests
         settingsTag.Questions.Add(settingsQuestion);
 
         await repository1.CreateAsync(settingsTag);
-        
+
         var scope2 = context.CreateScope();
         var repository2 = scope2.ServiceProvider.GetRequiredService<ITagRepository>();
         var qaContext2 = scope2.ServiceProvider.GetRequiredService<QAContext>();
-        
+
         var tagFromDb2 = await repository2.GetAsync(settingsTag.EntityIdSource);
         var questionsFromDb2 = tagFromDb2.Questions;
         questionsFromDb2.Count.Should().Be(1);
-        var entry2=qaContext2.ChangeTracker.Entries<Tag>().ToArray();
+        var entry2 = qaContext2.ChangeTracker.Entries<Tag>().ToArray();
         entry2.Length.Should().Be(1);
-        
+
         var scope3 = context.CreateScope();
         var repository3 = scope3.ServiceProvider.GetRequiredService<ITagRepository>();
         var qaContext3 = scope3.ServiceProvider.GetRequiredService<QAContext>();
         repository3.Settings.IgnoreAutoIncludes = true;
         repository3.Settings.AsNoTracking = true;
-        
+
         var tagFromDb3 = await repository3.GetAsync(settingsTag.EntityIdSource);
         var questionsFromDb3 = tagFromDb3.Questions;
         questionsFromDb3.Count.Should().Be(0);
 
-        var entry3=qaContext3.ChangeTracker.Entries<Tag>().ToArray();
+        var entry3 = qaContext3.ChangeTracker.Entries<Tag>().ToArray();
         entry3.Length.Should().Be(0);
     }
 }
