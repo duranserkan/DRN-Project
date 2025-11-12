@@ -8,7 +8,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 * CredentialsProvider added
 * ApplicationContext async methods names changed with async suffixes
-* StartupContext can create new TestContexts with CreateNewContext
+* StartupContext can create new DrnTestContexts with CreateNewContext
 
 ## Version 0.5.0
 
@@ -16,9 +16,9 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### New Features
 
-* ITestStartupJob interface - added to run startup tasks before any TestContext is created.
+* ITestStartupJob interface - added to run startup tasks before any DrnTestContext is created.
   * PostgresContainerSettings or RabbitMQContainerSettings can be updated in a job that implements ITestStartupJob in the test project
-* TestContext
+* DrnTestContext
   * FlurlHttpTest property to mock http requests
   * GetSettingsData
   * GetSettingsPath
@@ -87,22 +87,22 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ### New Features
 
-* TestContext exposes AddToConfiguration to add poco objects to configuration root with System.Text.Json.
-* TestContext exposes BuildConfigurationRoot method.
-* TestContext exposes GetConfigurationDebugView method.
-* TestContext exposes ContainerContext and WebApplicationContext.
+* DrnTestContext exposes AddToConfiguration to add poco objects to configuration root with System.Text.Json.
+* DrnTestContext exposes BuildConfigurationRoot method.
+* DrnTestContext exposes GetConfigurationDebugView method.
+* DrnTestContext exposes ContainerContext and WebApplicationContext.
 * FactDebuggerOnly and TheoryDebuggerOnly test attributes
 * Following data attributes added:
   * DataInlineAttribute
   * DataMemberAttribute
   * DataSelfAttribute
-* If TestContext is first parameter of the test method, data attributes will automatically detect and provide it.
+* If DrnTestContext is first parameter of the test method, data attributes will automatically detect and provide it.
 
 ## Version 0.1.0
 
 ### New Features
 
-* TestContext 
+* DrnTestContext 
 * FactDebuggerOnly and TheoryDebuggerOnly test attributes
 * Following data attributes added:
   * DataInlineAutoAttribute

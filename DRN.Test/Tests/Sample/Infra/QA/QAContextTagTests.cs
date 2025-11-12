@@ -15,7 +15,7 @@ public class QAContextTagTests
 {
     [Theory]
     [DataInline]
-    public async Task QAContext_Should_Have_Tag(TestContext context)
+    public async Task QAContext_Should_Have_Tag(DrnTestContext context)
     {
         context.ServiceCollection.AddSampleInfraServices();
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();

@@ -6,9 +6,9 @@ public class AppSecuritySettingsTests
 {
     [Theory]
     [DataInlineUnit]
-    public void SecuritySettings_Should_BeValid(TestContextUnit testContext)
+    public void SecuritySettings_Should_BeValid(DrnTestContextUnit drnTestContext)
     {
-        var securitySettings = testContext.GetRequiredService<IAppSecuritySettings>();
+        var securitySettings = drnTestContext.GetRequiredService<IAppSecuritySettings>();
 
         var decodedEncryptionKey = securitySettings.AppEncryptionKey.Decode();
         decodedEncryptionKey.Length.Should().Be(32);

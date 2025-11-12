@@ -16,7 +16,7 @@ public class DataProviderTests
     [Theory]
     [DataInline("data.txt", "Atatürk")]
     [DataInline("alternateData.txt", "Father of Turks")]
-    public void DataProvider_Should_Return_Test_Specific_Data(TestContext context, string dataPath, string data)
+    public void DataProvider_Should_Return_Test_Specific_Data(DrnTestContext context, string dataPath, string data)
     {
         var folderLocation = context.MethodContext.GetTestFolderLocation();
         DataProvider.Get(dataPath, folderLocation).Data.Should().Be(data);
@@ -27,7 +27,7 @@ public class DataProviderTests
     [DataInline("data.txt", "Atatürk")]
     [DataInline("alternateData.txt", "Father of Turks")]
     [DataInline("globalData.txt", "Mustafa Kemal Atatürk's enlightenment ideals")]
-    public void TestContext_Should_Return_Test_Specific_Data(TestContext context, string dataPath, string data)
+    public void DrnTestContext_Should_Return_Test_Specific_Data(DrnTestContext context, string dataPath, string data)
     {
         //data file can be found in the same folder with test file, in the global Data folder or Data folder that stays in the same folder with test file
         var dataResult = context.GetData(dataPath);

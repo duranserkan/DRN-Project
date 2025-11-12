@@ -91,7 +91,7 @@ public class HashExtensionTests
 
     [Theory]
     [DataInlineUnit]
-    public void FileContent_Should_Be_Hashed(TestContextUnit context)
+    public void FileContent_Should_Be_Hashed(DrnTestContextUnit context)
     {
         var data = context.GetData("HelloWorld.txt");
         var path = data.DataPath.DataPath;

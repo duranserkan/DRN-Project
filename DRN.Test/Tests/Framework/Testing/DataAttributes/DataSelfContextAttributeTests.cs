@@ -4,11 +4,11 @@ public class DataSelfContextAttributeTests
 {
     [Theory]
     [DataSelfContextTestData1]
-    public void TestContextClassData_Should_Inline_And_Auto_Generate_Missing_Test_Data(TestContext testContext,
+    public void DrnTestContextClassData_Should_Inline_And_Auto_Generate_Missing_Test_Data(DrnTestContext DrnTestContext,
         int inline, ComplexInline complexInline, Guid autoGenerate, IMockable mock)
     {
-        testContext.Should().NotBeNull();
-        testContext.MethodContext.TestMethod.Name.Should().Be(nameof(TestContextClassData_Should_Inline_And_Auto_Generate_Missing_Test_Data));
+        DrnTestContext.Should().NotBeNull();
+        DrnTestContext.MethodContext.TestMethod.Name.Should().Be(nameof(DrnTestContextClassData_Should_Inline_And_Auto_Generate_Missing_Test_Data));
         inline.Should().BeGreaterThan(98);
         complexInline.Count.Should().BeLessThan(1001);
         autoGenerate.Should().NotBeEmpty();
@@ -26,14 +26,14 @@ public class DataSelfContextTestData1 : DataSelfAttribute
     }
 }
 
-public class TestContextClassDataTests2
+public class DrnTestContextClassDataTests2
 {
     [Theory]
     [DataSelfContextTestData2]
-    public void TestContextClassData_Should_Inline_And_Auto_Generate_Missing_Test_Data(TestContext testContext,
+    public void DrnTestContextClassData_Should_Inline_And_Auto_Generate_Missing_Test_Data(DrnTestContext DrnTestContext,
         int inline, ComplexInline complexInline, string autoGenerate, IMockable mock)
     {
-        testContext.Should().NotBeNull();
+        DrnTestContext.Should().NotBeNull();
         inline.Should().BeGreaterThan(1);
         complexInline.Count.Should().BeLessThan(4);
         autoGenerate.Should().NotBeEmpty();

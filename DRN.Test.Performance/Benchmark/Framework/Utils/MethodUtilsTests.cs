@@ -4,7 +4,6 @@ using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
 using DRN.Framework.Utils.Extensions;
-using Xunit.Abstractions;
 
 namespace DRN.Test.Performance.Benchmark.Framework.Utils;
 

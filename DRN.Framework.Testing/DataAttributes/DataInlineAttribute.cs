@@ -4,30 +4,37 @@ namespace DRN.Framework.Testing.DataAttributes;
 
 /// <summary>
 /// First Inlines data provided and then generates missing data using AutoFixture and NSubstitute.
-/// Also, if <see cref="TestContextUnit"/> is added as first parameter it automatically creates an instance and provides
+/// Also, if <see cref="DrnTestContext"/> is added as first parameter it automatically creates an instance and provides
 /// Have same constraints with <see cref="InlineDataAttribute"/>. Inlined data must be compile-time constant expression
 /// <b>To provide complex types use DataMember or DataSelf attributes</b>
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-public sealed class DataInlineAttribute(params object[] data) : DataAttribute
+public sealed class DataInlineAttribute(params object?[] data) : DataAttribute
 {
-    public override IEnumerable<object[]> GetData(MethodInfo testMethod)
+    public override async ValueTask<IReadOnlyCollection<ITheoryDataRow>> GetData(MethodInfo testMethod, DisposalTracker disposalTracker)
     {
-        var hasTestContext = testMethod.GetParameters().FirstOrDefault()?.ParameterType == typeof(TestContext);
-        if (hasTestContext)
+        var hasDrnTestContext = testMethod.GetParameters().FirstOrDefault()?.ParameterType == typeof(DrnTestContext);
+        if (hasDrnTestContext)
         {
-            var testContext = new TestContext(testMethod);
-            var dataWithTestContext = new object[] { testContext }.Concat(data).ToArray();
-            var testContextDataAttribute = new DataInlineNSubstituteAutoAttribute(dataWithTestContext);
+            var drnTestContext = new DrnTestContext(testMethod);
+            var dataWithDrnTestContext = new object[] { drnTestContext }.Concat(data).ToArray();
+            var drnTestContextDataAttribute = new DataInlineNSubstituteAutoAttribute(dataWithDrnTestContext);
 
-            return testContextDataAttribute.GetData(testMethod).Select(row =>
+            var drnTestContextData = await drnTestContextDataAttribute.GetData(testMethod, disposalTracker);
+
+            return drnTestContextData.Select(row =>
             {
-                ((TestContext)row[0]).MethodContext.SetTestData(row);
+                var rowData = row.GetData();
+
+                ((DrnTestContext)rowData[0]!).MethodContext.SetTestData(rowData!);
                 return row;
             }).ToArray();
         }
 
         var dataAttribute = new DataInlineNSubstituteAutoAttribute(data);
-        return dataAttribute.GetData(testMethod).ToArray();
+        var dataCollection = await dataAttribute.GetData(testMethod, disposalTracker);
+        return dataCollection;
     }
+
+    public override bool SupportsDiscoveryEnumeration() => true;
 }

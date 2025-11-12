@@ -6,7 +6,7 @@ public class SampleInfraModuleTests
 {
     [Theory]
     [DataInline]
-    public async Task AddSampleInfraServices_ShouldRegisterRequiredServices(TestContext context)
+    public async Task AddSampleInfraServices_ShouldRegisterRequiredServices(DrnTestContext context)
     {
         context.ServiceCollection.AddSampleInfraServices();
         await context.ContainerContext.BindExternalDependenciesAsync();

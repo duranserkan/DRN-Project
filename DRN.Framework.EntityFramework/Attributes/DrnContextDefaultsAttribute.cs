@@ -40,7 +40,7 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
         // Each integration test will create its own internal service provider
         //ManyServiceProvidersCreatedWarning is expected in integration tests
         //DrnContextServiceRegistrationAttribute.PostStartupValidationAsync will test this case on a normal startup
-        if (TestEnvironment.TestContextEnabled) 
+        if (TestEnvironment.DrnTestContextEnabled) 
             builder.ConfigureWarnings(warnings => { warnings.Log(CoreEventId.ManyServiceProvidersCreatedWarning); }); 
 
         var scopedLog = serviceProvider?.GetRequiredService<IScopedLog>();

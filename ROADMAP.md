@@ -6,7 +6,7 @@
 - [ ] DRN.Nexus  (will be released with 1.0.0)
 ## DRN.Framework
 ### DRN.Framework.Testing
-- [X] TestContext
+- [X] DrnTestContext
   - MethodContext
   - ContainerContext
     - PostgresContext
@@ -19,8 +19,8 @@
 - [X] Debugger only test attributes
   - FactDebuggerOnly
   - TheoryDebuggerOnly
-- [X] DataProvider & TestContext conventions
-- [X] Settings Provider & TestContext conventions
+- [X] DataProvider & DrnTestContext conventions
+- [X] Settings Provider & DrnTestContext conventions
 - [ ] AuthContext for OpenID Connect (OIDC)
 - [ ] EmailContext with MailHog
 - [ ] MessageBrokerContext with MassTransit

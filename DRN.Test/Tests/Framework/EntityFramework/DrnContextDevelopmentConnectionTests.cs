@@ -13,14 +13,14 @@ public class DrnContextDevelopmentConnectionTests
     [Theory]
     [DataInline(AppEnvironment.Development, "ViveLaRépublique", true)]
     [DataInline(AppEnvironment.Production, "ViveLaRépublique", true)]
-    public async Task ConnectionString_Should_Be_Created(TestContext testContext, AppEnvironment environment, string password, bool migrate)
+    public async Task ConnectionString_Should_Be_Created(DrnTestContext DrnTestContext, AppEnvironment environment, string password, bool migrate)
     {
         var containerSettings = new PostgresContainerSettings
         {
             Password = password
         };
 
-        var container = await testContext.ContainerContext.Postgres.Isolated.StartAsync(containerSettings);
+        var container = await DrnTestContext.ContainerContext.Postgres.Isolated.StartAsync(containerSettings);
         var csBuilder = new NpgsqlConnectionStringBuilder(container.GetConnectionString());
 
         var developmentDbSettings = new Dictionary<string, object>
@@ -32,10 +32,10 @@ public class DrnContextDevelopmentConnectionTests
             { DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.AutoMigrate)), migrate }
         };
 
-        testContext.AddToConfiguration(developmentDbSettings);
-        testContext.ServiceCollection.AddSampleInfraServices();
+        DrnTestContext.AddToConfiguration(developmentDbSettings);
+        DrnTestContext.ServiceCollection.AddSampleInfraServices();
 
-        var appSettings = testContext.GetRequiredService<IAppSettings>();
+        var appSettings = DrnTestContext.GetRequiredService<IAppSettings>();
         appSettings.GetValue<string>(DbContextConventions.DevPasswordKey).Should().Be(password);
         appSettings.DevelopmentSettings.AutoMigrate.Should().BeTrue();
 
@@ -44,15 +44,15 @@ public class DrnContextDevelopmentConnectionTests
 
         if (environment != AppEnvironment.Development)
         {
-            var serviceProviderValidation = testContext.ValidateServices;
+            var serviceProviderValidation = DrnTestContext.ValidateServices;
             //connection strings are not auto-generated other than development environment
             serviceProviderValidation.Should().Throw<ConfigurationException>();
             return;
         }
 
         //trigger PostStartupValidation
-        testContext.ValidateServices();
-        var qaContext = testContext.GetRequiredService<QAContext>();
+        DrnTestContext.ValidateServices();
+        var qaContext = DrnTestContext.GetRequiredService<QAContext>();
         var migrations = (await qaContext.Database.GetAppliedMigrationsAsync()).ToArray();
         migrations.Length.Should().BePositive();
     }

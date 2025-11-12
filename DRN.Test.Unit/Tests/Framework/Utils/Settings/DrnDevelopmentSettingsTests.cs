@@ -5,16 +5,16 @@ public class DrnDevelopmentSettingsTests
     [Theory]
     [DataInlineUnit(true, false, true, false)]
     [DataInlineUnit(false, true, false, true)]
-    public void Development_Features_Should_BeValid(TestContextUnit testContext, bool skipValidation, bool temporary, bool launch, bool prototype)
+    public void Development_Features_Should_BeValid(DrnTestContextUnit drnTestContext, bool skipValidation, bool temporary, bool launch, bool prototype)
     {
         var section = nameof(DrnDevelopmentSettings);
-        testContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.SkipValidation), skipValidation.ToString());
-        testContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.TemporaryApplication), temporary.ToString());
-        testContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.LaunchExternalDependencies), launch.ToString());
-        testContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.Prototype), prototype.ToString());
+        drnTestContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.SkipValidation), skipValidation.ToString());
+        drnTestContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.TemporaryApplication), temporary.ToString());
+        drnTestContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.LaunchExternalDependencies), launch.ToString());
+        drnTestContext.AddToConfiguration(section, nameof(DrnDevelopmentSettings.Prototype), prototype.ToString());
 
 
-        var appSetting = testContext.GetRequiredService<IAppSettings>();
+        var appSetting = drnTestContext.GetRequiredService<IAppSettings>();
         var developmentSettings = appSetting.DevelopmentSettings;
 
         developmentSettings.TemporaryApplication.Should().Be(temporary);

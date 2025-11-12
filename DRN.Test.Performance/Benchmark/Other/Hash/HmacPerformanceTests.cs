@@ -6,7 +6,6 @@ using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
 using Blake3;
-using Xunit.Abstractions;
 
 namespace DRN.Test.Performance.Benchmark.Other.Hash;
 

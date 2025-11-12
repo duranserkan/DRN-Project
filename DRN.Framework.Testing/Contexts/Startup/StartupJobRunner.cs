@@ -15,7 +15,7 @@ public static class StartupJobRunner
 
     public static void TriggerStartupJobs(MethodInfo testMethod, Type type)
     {
-        if (_triggered || type != typeof(TestContext)) return;
+        if (_triggered || type != typeof(DrnTestContext)) return;
 
         StartupLock.Wait();
         try
@@ -33,7 +33,7 @@ public static class StartupJobRunner
     private static void Trigger(MethodInfo testMethod)
     {
         var startedAt = DateTimeOffset.Now;
-        TestEnvironment.TestContextEnabled = true;
+        TestEnvironment.DrnTestContextEnabled = true;
 
         var jobTypes = GetTestStartupJobTypes(testMethod);
         foreach (var startupJobType in jobTypes)

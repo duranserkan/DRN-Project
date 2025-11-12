@@ -10,7 +10,7 @@ public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
 {
     [Theory]
     [DataInline]
-    public async Task WeatherForecastController_Should_Return_Forecasts(TestContext context)
+    public async Task WeatherForecastController_Should_Return_Forecasts(DrnTestContext context)
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
         var weatherEndpoint = Get.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
@@ -26,7 +26,7 @@ public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
 
     [Theory]
     [DataInline]
-    public async Task WeatherForecastController_Should_Return_FlurlHttpExceptionStatusCodes(TestContext context)
+    public async Task WeatherForecastController_Should_Return_FlurlHttpExceptionStatusCodes(DrnTestContext context)
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
         var appSettings = context.GetRequiredService<IAppSettings>();

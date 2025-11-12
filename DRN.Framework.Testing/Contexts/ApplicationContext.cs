@@ -11,12 +11,11 @@ using NLog;
 using NLog.Config;
 using NLog.Targets;
 using NLog.Web;
-using Xunit.Abstractions;
 using LogLevel = NLog.LogLevel;
 
 namespace DRN.Framework.Testing.Contexts;
 
-public sealed class ApplicationContext(TestContext testContext) : IDisposable
+public sealed class ApplicationContext(DrnTestContext drnTestContext) : IDisposable
 {
     private IDisposable? _factory;
     private ITestOutputHelper? _outputHelper;
@@ -37,17 +36,17 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
     {
         Dispose();
 
-        var initialTestContextServiceDescriptors = testContext.ServiceCollection.ToArray();
-        //Add program services to testContext
-        var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true).WithWebHostBuilder(webHostBuilder =>
+        var initialDrnTestContextServiceDescriptors = drnTestContext.ServiceCollection.ToArray();
+        //Add program services to drnTestContext
+        var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(drnTestContext, true).WithWebHostBuilder(webHostBuilder =>
         {
             //only need service collection descriptors, so ValidateServicesAddedByAttributes should not fail test at this stage
-            var configuration = testContext.GetRequiredService<IConfiguration>();
+            var configuration = drnTestContext.GetRequiredService<IConfiguration>();
             webHostBuilder.UseConfiguration(configuration);
             webHostBuilder.UseSetting(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.SkipValidation)), "true");
             webHostBuilder.UseSetting(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.TemporaryApplication)), "true");
 
-            webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
+            webHostBuilder.ConfigureServices(services => drnTestContext.ServiceCollection.Add(services));
             webHostConfigurator?.Invoke(webHostBuilder);
         });
         _ = tempApplicationFactory.Server; //To trigger webHostBuilder action
@@ -55,17 +54,17 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
 
         //register action to pass test context configuration to web application.
         //This will be triggered when TestServer or HttpClient requested until then further configurations can be added to test context configuration
-        var factory = new DrnWebApplicationFactory<TEntryPoint>(testContext).WithWebHostBuilder(webHostBuilder =>
+        var factory = new DrnWebApplicationFactory<TEntryPoint>(drnTestContext).WithWebHostBuilder(webHostBuilder =>
         {
             webHostBuilder.ConfigureServices(services =>
             {
-                services.Add(initialTestContextServiceDescriptors);
-                testContext.OverrideServiceCollection(services);
-                testContext.MethodContext.ReplaceSubstitutedInterfaces(services);
-                testContext.ServiceCollection = new ServiceCollection { services };
+                services.Add(initialDrnTestContextServiceDescriptors);
+                drnTestContext.OverrideServiceCollection(services);
+                drnTestContext.MethodContext.ReplaceSubstitutedInterfaces(services);
+                drnTestContext.ServiceCollection = new ServiceCollection { services };
             });
 
-            var configuration = testContext.GetRequiredService<IConfiguration>();
+            var configuration = drnTestContext.GetRequiredService<IConfiguration>();
             webHostBuilder.UseConfiguration(configuration);
             webHostBuilder.ConfigureLogging(logging =>
             {
@@ -107,7 +106,7 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
             LogToTestOutput(outputHelper);
 
         var application = CreateApplication<TEntryPoint>();
-        await testContext.ContainerContext.BindExternalDependenciesAsync();
+        await drnTestContext.ContainerContext.BindExternalDependenciesAsync();
         application.Server.PreserveExecutionContext = true;
 
         return application;
@@ -132,7 +131,7 @@ public sealed class ApplicationContext(TestContext testContext) : IDisposable
     public void Dispose() => _factory?.Dispose();
 }
 
-public class DrnWebApplicationFactory<TEntryPoint>(TestContext context, bool temporary = false) : WebApplicationFactory<TEntryPoint>
+public class DrnWebApplicationFactory<TEntryPoint>(DrnTestContext context, bool temporary = false) : WebApplicationFactory<TEntryPoint>
     where TEntryPoint : class
 {
     public bool Temporary { get; } = temporary;

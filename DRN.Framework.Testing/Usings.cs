@@ -1,9 +1,9 @@
-global using System.Collections;
 global using System.IO;
 global using System.Linq;
 global using System.Reflection;
 global using AutoFixture;
 global using AutoFixture.AutoNSubstitute;
-global using AutoFixture.Xunit2;
+global using AutoFixture.Xunit3;
 global using Xunit;
 global using Xunit.Sdk;
+global using Xunit.v3;

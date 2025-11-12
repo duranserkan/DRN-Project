@@ -6,7 +6,7 @@ public class NSubstituteTests
 {
     [Theory]
     [DataInline]
-    public void Mockable_Should_Be_Replaced_In_Context_ServiceProvider(TestContext context, IMockable mockable, IMockable mockable2, IDisposable disposable)
+    public void Mockable_Should_Be_Replaced_In_Context_ServiceProvider(DrnTestContext context, IMockable mockable, IMockable mockable2, IDisposable disposable)
     {
         mockable.IsSubstitute().Should().BeTrue();
         mockable2.IsSubstitute().Should().BeTrue();

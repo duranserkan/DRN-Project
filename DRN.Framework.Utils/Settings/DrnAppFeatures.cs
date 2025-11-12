@@ -14,7 +14,7 @@ public class DrnAppFeatures
     public static string GetKey(string shortKey) => $"{nameof(DrnAppFeatures)}:{shortKey}";
 
     /// <summary>
-    /// Shows which test started the application when the application is created with TestContext for integration tests.
+    /// Shows which test started the application when the application is created with DrnTestContext for integration tests.
     /// </summary>
     public string? ApplicationStartedBy { get; init; }
     

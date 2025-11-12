@@ -7,7 +7,7 @@ public class SampleEndpointForTests
 {
     [Theory]
     [DataInline]
-    public async Task EndPointFor_Should_Return_Endpoint_Address(TestContext context)
+    public async Task EndPointFor_Should_Return_Endpoint_Address(DrnTestContext context)
     {
         await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<SampleProgram>();
 

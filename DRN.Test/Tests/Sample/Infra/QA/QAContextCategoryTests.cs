@@ -9,7 +9,7 @@ public class QAContextCategoryTests
 {
     [Theory]
     [DataInline]
-    public async Task QAContext_Should_Have_Categories(TestContext context)
+    public async Task QAContext_Should_Have_Categories(DrnTestContext context)
     {
         context.ServiceCollection.AddSampleInfraServices();
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();

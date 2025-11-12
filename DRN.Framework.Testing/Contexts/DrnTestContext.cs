@@ -1,9 +1,10 @@
+using DRN.Framework.Testing.Contexts.Startup;
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Settings;
+using Flurl.Http.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,22 +12,53 @@ using Microsoft.Extensions.Logging;
 
 namespace DRN.Framework.Testing.Contexts;
 
-public class TestContextUnit : IDisposable, IKeyedServiceProvider
+/// <summary>
+/// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
+/// It disposes itself automatically at the end of the test.
+/// </summary>
+public class DrnTestContext : IDisposable, IKeyedServiceProvider
 {
-    static TestContextUnit() => UtilsConventionBuilder.BuildConvention();
+    static DrnTestContext() => UtilsConventionBuilder.BuildConvention();
 
+    private readonly Lazy<HttpTest> _flurlHttpTest = new(() => new HttpTest());
     private readonly List<IConfigurationSource> _configurationSources = [];
     private ServiceProvider? _serviceProvider;
     private bool _disposed;
 
-    public TestContextUnit(MethodInfo testMethod)
+    /// <summary>
+    /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
+    /// It disposes itself automatically at the end of the test.
+    /// </summary>
+    public DrnTestContext(MethodInfo testMethod)
     {
+        StartupJobRunner.TriggerStartupJobs(testMethod, GetType());
         MethodContext = new MethodContext(testMethod);
+        ContainerContext = new ContainerContext(this);
+        ApplicationContext = new ApplicationContext(this);
         AddToConfiguration(nameof(DrnAppFeatures), nameof(DrnAppFeatures.ApplicationStartedBy), MethodContext.TestMethod.Name);
     }
 
+    /// <summary>
+    /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
+    /// It disposes itself automatically at the end of the test.
+    /// </summary>
+    internal DrnTestContext(MethodInfo testMethod, bool triggerStartUp)
+    {
+        if (triggerStartUp)
+            StartupJobRunner.TriggerStartupJobs(testMethod, GetType());
+        MethodContext = new MethodContext(testMethod);
+        ContainerContext = new ContainerContext(this);
+        ApplicationContext = new ApplicationContext(this);
+
+        var initiatorName = testMethod.DeclaringType == null ? testMethod.Name : $"{testMethod.DeclaringType.Name}.{MethodContext.TestMethod.Name}";
+        AddToConfiguration(nameof(DrnAppFeatures), nameof(DrnAppFeatures.ApplicationStartedBy), initiatorName);
+    }
+
     public MethodContext MethodContext { get; }
+    public ContainerContext ContainerContext { get; }
+    public ApplicationContext ApplicationContext { get; }
     public ServiceCollection ServiceCollection { get; internal set; } = [];
+    public HttpTest FlurlHttpTest => _flurlHttpTest.Value;
 
     /// <summary>
     /// Creates a service provider from test context service collection
@@ -62,7 +94,7 @@ public class TestContextUnit : IDisposable, IKeyedServiceProvider
             ServiceCollection = sc;
     }
 
-    public void ValidateServices(Func<LifetimeAttribute, bool>? ignore = null) => this.ValidateServicesAddedByAttributes(ignore: ignore);
+    public void ValidateServices() => this.ValidateServicesAddedByAttributes();
 
     public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = SettingsProvider.ConventionSettingsName)
     {
@@ -134,7 +166,7 @@ public class TestContextUnit : IDisposable, IKeyedServiceProvider
         return _serviceProvider.GetRequiredKeyedService(serviceType, serviceKey);
     }
 
-    public override string ToString() => "TestContext";
+    public override string ToString() => "drnTestContext";
 
     public void Dispose()
     {
@@ -155,6 +187,9 @@ public class TestContextUnit : IDisposable, IKeyedServiceProvider
         {
             DisposeServiceProvider();
             if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
+            ContainerContext.Dispose();
+            ApplicationContext.Dispose();
+            FlurlHttpTest.Dispose();
         }
 
         _disposed = true;

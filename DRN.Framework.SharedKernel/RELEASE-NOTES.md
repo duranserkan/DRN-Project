@@ -25,7 +25,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 ### Breaking Changes
 
 * JsonSerializerOptions - moved to JsonConventions. System.Text.Json defaults will be overridden by JsonConventions when
-  * TestContext is used in tests
+  * DrnTestContext is used in tests
   * DrnHostBuilder is used to build host
 
 ### New Features

@@ -8,7 +8,7 @@ public class ExceptionControllerTests(ITestOutputHelper outputHelper)
 {
     [Theory]
     [DataInline]
-    public async Task ExceptionController_Should_Return_DrnException_Status_Codes(TestContext context)
+    public async Task ExceptionController_Should_Return_DrnException_Status_Codes(DrnTestContext context)
     {
         var exceptionEndpoints = Get.Endpoint.Sample.Exception;
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);

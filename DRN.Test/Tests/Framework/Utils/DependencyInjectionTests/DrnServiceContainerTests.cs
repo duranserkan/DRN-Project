@@ -10,7 +10,7 @@ public class DrnServiceContainerTests
 {
     [Theory]
     [DataInline]
-    public void Services_Marked_By_Lifetime_Attributes_Should_Be_Added_To_ServiceProvider(TestContext context)
+    public void Services_Marked_By_Lifetime_Attributes_Should_Be_Added_To_ServiceProvider(DrnTestContext context)
     {
         context.ServiceCollection.AddTestModule();
         var containers = context.GetServices<DrnServiceContainer>().ToArray();
@@ -32,7 +32,7 @@ public class DrnServiceContainerTests
 
     [Theory]
     [DataInline]
-    public void Service_Provider_Should_Throw_Exception_When_Service_Is_Not_Resolvable(TestContext context)
+    public void Service_Provider_Should_Throw_Exception_When_Service_Is_Not_Resolvable(DrnTestContext context)
     {
         context.ServiceCollection.AddTestModule();
         context.ServiceCollection.RemoveAll<IIndependent>();
@@ -43,7 +43,7 @@ public class DrnServiceContainerTests
 
     [Theory]
     [DataInline]
-    public void Service_Provider_Should_Throw_Exception_When_Keyed_Service_Is_Not_Resolvable(TestContext context)
+    public void Service_Provider_Should_Throw_Exception_When_Keyed_Service_Is_Not_Resolvable(DrnTestContext context)
     {
         context.ServiceCollection.AddTestModule();
         context.ServiceCollection.RemoveAll<IKeyedDependency>();
@@ -54,7 +54,7 @@ public class DrnServiceContainerTests
 
     [Theory]
     [DataInline]
-    public void Lifetime_Attributes_Should_Add_Multiple(TestContext context)
+    public void Lifetime_Attributes_Should_Add_Multiple(DrnTestContext context)
     {
         context.ServiceCollection.AddTestModule();
         context.GetServices<IMultiple>().ToArray().Length.Should().Be(2);
@@ -62,7 +62,7 @@ public class DrnServiceContainerTests
 
     [Theory]
     [DataInline]
-    public void Service_Provider_Should_Throw_Exception_When_One_Of_Multiple_Services_Is_Not_Resolvable(TestContext context)
+    public void Service_Provider_Should_Throw_Exception_When_One_Of_Multiple_Services_Is_Not_Resolvable(DrnTestContext context)
     {
         context.ServiceCollection.AddTestModule();
         context.ServiceCollection.RemoveAll<IMultipleIndependent>();
@@ -73,7 +73,7 @@ public class DrnServiceContainerTests
 
     [Theory]
     [DataInline]
-    public async Task Validate_Sample_Dependencies(TestContext context)
+    public async Task Validate_Sample_Dependencies(DrnTestContext context)
     {
         context.ServiceCollection.AddSampleApplicationServices();
         context.ServiceCollection.AddSampleInfraServices();
@@ -83,7 +83,7 @@ public class DrnServiceContainerTests
 
     [Theory]
     [DataInline]
-    public async Task Validate_Nexus_Dependencies(TestContext context)
+    public async Task Validate_Nexus_Dependencies(DrnTestContext context)
     {
         context.ServiceCollection.AddNexusApplicationServices();
         context.ServiceCollection.AddNexusInfraServices();

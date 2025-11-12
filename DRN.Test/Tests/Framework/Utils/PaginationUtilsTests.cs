@@ -20,7 +20,7 @@ public class PaginationUtilsTests
     [DataInline(67, 10, true, PageSortDirection.Descending)]
     [DataInline(67, 10, false, PageSortDirection.Ascending)]
     [DataInline(67, 10, false, PageSortDirection.Descending)]
-    public async Task PaginationUtils_Should_Return_Paginated_Result(TestContext context, int totalCount, int pageSize, bool updateTotalCount, PageSortDirection pageSortDirection)
+    public async Task PaginationUtils_Should_Return_Paginated_Result(DrnTestContext context, int totalCount, int pageSize, bool updateTotalCount, PageSortDirection pageSortDirection)
     {
         _ = await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<SampleProgram>();
         var qaContext = context.GetRequiredService<QAContext>();

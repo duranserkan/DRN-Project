@@ -32,7 +32,7 @@ public class SourceKnownIdUtilsTests
 
     [Theory]
     [DataInlineUnit]
-    public async Task SourceKnownIdUtils_Should_Generate_Next_Valid_Id(TestContextUnit context)
+    public async Task SourceKnownIdUtils_Should_Generate_Next_Valid_Id(DrnTestContextUnit context)
     {
         var nexusSettings = new NexusAppSettings
         {
@@ -83,7 +83,7 @@ public class SourceKnownIdUtilsTests
 
     [Theory]
     [DataInlineUnit]
-    public async Task SourceKnownIdUtils_Should_Generate_Ids_For_3_Seconds(TestContextUnit context)
+    public async Task SourceKnownIdUtils_Should_Generate_Ids_For_3_Seconds(DrnTestContextUnit context)
     {
         var nexusSettings = new NexusAppSettings
         {

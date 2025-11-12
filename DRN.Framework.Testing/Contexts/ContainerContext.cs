@@ -4,17 +4,17 @@ using DRN.Framework.Testing.Contexts.RabbitMQ;
 
 namespace DRN.Framework.Testing.Contexts;
 
-public sealed class ContainerContext(TestContext testContext) : IDisposable
+public sealed class ContainerContext(DrnTestContext drnTestContext) : IDisposable
 {
     private readonly List<DockerContainer> _isolatedContainers = [];
 
     /// <summary>
     /// Intentionally made public to allow extension methods to support more containers
     /// </summary>
-    public TestContext TestContext { get; } = testContext;
+    public DrnTestContext drnTestContext { get; } = drnTestContext;
 
-    public PostgresContext Postgres { get; } = new(testContext);
-    public RabbitMQContext RabbitMQ { get; } = new(testContext);
+    public PostgresContext Postgres { get; } = new(drnTestContext);
+    public RabbitMQContext RabbitMQ { get; } = new(drnTestContext);
 
     /// <summary>
     /// Intentionally made public to allow extension methods to support more containers
@@ -23,7 +23,7 @@ public sealed class ContainerContext(TestContext testContext) : IDisposable
 
     public async Task BindExternalDependenciesAsync()
     {
-        await TestContext.ContainerContext.Postgres.ApplyMigrationsAsync();
+        await drnTestContext.ContainerContext.Postgres.ApplyMigrationsAsync();
     }
 
     public void Dispose() => Task.WaitAll(_isolatedContainers.Select(c => c.DisposeAsync().AsTask()).ToArray());

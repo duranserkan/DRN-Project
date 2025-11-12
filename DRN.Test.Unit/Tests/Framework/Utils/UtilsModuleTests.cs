@@ -6,7 +6,7 @@ public class UtilsModuleTests
 {
     [Theory]
     [DataInlineUnit]
-    public void AddDrnUtils_ShouldRegisterRequiredServices(TestContextUnit context)
+    public void AddDrnUtils_ShouldRegisterRequiredServices(DrnTestContextUnit context)
     {
         context.ServiceCollection.AddDrnUtils();
         context.ValidateServices();

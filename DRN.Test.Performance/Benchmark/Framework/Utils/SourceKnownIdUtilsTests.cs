@@ -9,7 +9,6 @@ using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Time;
 using Perfolizer.Mathematics.OutlierDetection;
-using Xunit.Abstractions;
 
 namespace DRN.Test.Performance.Benchmark.Framework.Utils;
 

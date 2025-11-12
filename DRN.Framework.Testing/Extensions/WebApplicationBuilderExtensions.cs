@@ -59,7 +59,7 @@ public class ExternalDependencyLaunchResult(IAppSettings appSettings)
     /// </item>
     /// <item>
     /// <term>Application</term>
-    /// <description>is not created in a test(TestContext.IsRunning should be false)</description>
+    /// <description>is not created in a test(drnTestContext.IsRunning should be false)</description>
     /// </item>
     /// <item>
     /// <term>Application</term>
@@ -67,7 +67,7 @@ public class ExternalDependencyLaunchResult(IAppSettings appSettings)
     /// </item>
     /// </list>
     /// </summary>
-    public bool Launch { get; } = !TestEnvironment.TestContextEnabled
+    public bool Launch { get; } = !TestEnvironment.DrnTestContextEnabled
                                   && appSettings.IsDevEnvironment
                                   && appSettings.DevelopmentSettings.LaunchExternalDependencies
                                   && !appSettings.DevelopmentSettings.TemporaryApplication;

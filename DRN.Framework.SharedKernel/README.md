@@ -16,7 +16,7 @@ projects such as other DRN.Framework packages, projects developed with DRN.Frame
 ## JsonConventions
 
 System.Text.Json defaults will be overridden by JsonConventions when
-  * TestContext is used in tests
+  * DrnTestContext is used in tests
   * DrnHostBuilder is used to build host
 
 ```csharp

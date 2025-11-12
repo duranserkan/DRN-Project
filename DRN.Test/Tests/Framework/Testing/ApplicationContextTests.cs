@@ -10,7 +10,7 @@ public class ApplicationContextTests
 {
     [Theory]
     [DataInline]
-    public async Task ApplicationContext_Should_Provide_Configuration_To_Program(TestContext context)
+    public async Task ApplicationContext_Should_Provide_Configuration_To_Program(DrnTestContext context)
     {
         var webApplication = context.ApplicationContext.CreateApplication<SampleProgram>();
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
@@ -24,19 +24,19 @@ public class ApplicationContextTests
         var connectionString = appSettingsFromWebApplication.GetRequiredConnectionString(nameof(QAContext));
         connectionString.Should().NotBeNull();
 
-        var appSettingsFromTestContext = context.GetRequiredService<IAppSettings>();
-        appSettingsFromWebApplication.Should().BeSameAs(appSettingsFromTestContext); //resolved from same service provider
+        var appSettingsFromDrnTestContext = context.GetRequiredService<IAppSettings>();
+        appSettingsFromWebApplication.Should().BeSameAs(appSettingsFromDrnTestContext); //resolved from same service provider
 
         //comes from settings.json in test project's global data directory
         var duckTest = "If it looks like a duck, swims like a duck, and quacks like a duck, then it probably is a duck";
-        appSettingsFromTestContext.GetValue("DuckTest", "").Should().Be(duckTest);
+        appSettingsFromDrnTestContext.GetValue("DuckTest", "").Should().Be(duckTest);
 
         //comes from appsettings.json in web application's directory
         var saganStandard = "Extraordinary claims require extraordinary evidence";
-        appSettingsFromTestContext.GetValue("SaganStandard", "").Should().Be(saganStandard);
+        appSettingsFromDrnTestContext.GetValue("SaganStandard", "").Should().Be(saganStandard);
 
         //appsettings.json value is overriden by settings.json
         var philosophicalRazor = "Never attribute to malice that which can be adequately explained by incompetence or stupidity";
-        appSettingsFromTestContext.GetValue("PhilosophicalRazor", "").Should().Be(philosophicalRazor);
+        appSettingsFromDrnTestContext.GetValue("PhilosophicalRazor", "").Should().Be(philosophicalRazor);
     }
 }

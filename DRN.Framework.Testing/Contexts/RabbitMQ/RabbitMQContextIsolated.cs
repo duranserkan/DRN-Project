@@ -2,10 +2,10 @@ using Testcontainers.RabbitMq;
 
 namespace DRN.Framework.Testing.Contexts.RabbitMQ;
 
-public class RabbitMQContextIsolated(TestContext testContext)
+public class RabbitMQContextIsolated(DrnTestContext drnTestContext)
 {
-    public TestContext TestContext { get; } = testContext;
-    public ContainerContext ContainerContext => TestContext.ContainerContext;
+    public DrnTestContext drnTestContext { get; } = drnTestContext;
+    public ContainerContext ContainerContext => drnTestContext.ContainerContext;
 
     public async Task<RabbitMqContainer> StartRabbitMqAsync(RabbitMQContainerSettings? settings = null)
     {

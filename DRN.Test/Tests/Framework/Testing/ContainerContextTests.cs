@@ -9,7 +9,7 @@ public class ContainerContextPostgresTests
 {
     [Theory]
     [DataInline]
-    public async Task ContainerContext_Should_Migrate_DbContexts(TestContext context)
+    public async Task ContainerContext_Should_Migrate_DbContexts(DrnTestContext context)
     {
         context.ServiceCollection.AddSampleInfraServices();
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
@@ -24,7 +24,7 @@ public class ContainerContextRabbitMqTests
 {
     [TheoryDebuggerOnly]
     [DataInline]
-    public async Task ContainerContext_Should_Create_RabbitMq_Container(TestContext _)
+    public async Task ContainerContext_Should_Create_RabbitMq_Container(DrnTestContext _)
     {
         var container = await RabbitMQContext.StartAsync();
         var connectionString = container.GetConnectionString();

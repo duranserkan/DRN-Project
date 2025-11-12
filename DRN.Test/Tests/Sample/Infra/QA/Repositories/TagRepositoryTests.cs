@@ -11,7 +11,7 @@ public class TagRepositoryTests
 {
     [Theory]
     [DataInline]
-    public async Task TagRepository_Should_Implement_SourceKnownRepository_Functionalities(TestContext context)
+    public async Task TagRepository_Should_Implement_SourceKnownRepository_Functionalities(DrnTestContext context)
     {
         context.ServiceCollection.AddSampleInfraServices();
         await context.ContainerContext.Postgres.Isolated.ApplyMigrationsAsync();
@@ -257,7 +257,7 @@ public class TagRepositoryTests
         index.Should().Be(1);
     }
 
-    private static async Task AssertRepositorySettings(TestContext context, string tagPrefix)
+    private static async Task AssertRepositorySettings(DrnTestContext context, string tagPrefix)
     {
         var scope1 = context.CreateScope();
         var repository1 = scope1.ServiceProvider.GetRequiredService<ITagRepository>();

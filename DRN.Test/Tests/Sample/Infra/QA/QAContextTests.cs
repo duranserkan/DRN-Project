@@ -13,7 +13,7 @@ public class QAContextTests
 {
     [Theory]
     [DataInline]
-    public async Task QAContext_Should_Add_And_Remove_Question(TestContext context)
+    public async Task QAContext_Should_Add_And_Remove_Question(DrnTestContext context)
     {
         byte heroCount = 33;
         byte destinationId = 12;

@@ -30,7 +30,7 @@ public class StatusControllerTests(ITestOutputHelper outputHelper)
 {
     [Theory]
     [DataInline]
-    public async Task StatusController_Should_Return_Status(TestContext context)
+    public async Task StatusController_Should_Return_Status(DrnTestContext context)
     {
         context.ApplicationContext.LogToTestOutput(outputHelper);
         var application = context.ApplicationContext.CreateApplication<Program>();

@@ -8,7 +8,7 @@ public class ConfigurationExtensionsTests
 {
     [Theory]
     [DataInlineUnit]
-    public void MountDirectorySettings_Should_Be_Added(TestContextUnit context, IMountedSettingsConventionsOverride conventionsOverride)
+    public void MountDirectorySettings_Should_Be_Added(DrnTestContextUnit context, IMountedSettingsConventionsOverride conventionsOverride)
     {
         var testFolder = context.MethodContext.GetTestFolderLocation();
         conventionsOverride.MountedSettingsDirectory.Returns(Path.Combine(testFolder, "MountDir"));

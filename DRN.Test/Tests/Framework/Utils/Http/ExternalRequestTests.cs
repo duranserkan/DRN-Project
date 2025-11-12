@@ -8,7 +8,7 @@ public class ExternalRequestTests
 {
     [Theory]
     [DataInline("What can be asserted without evidence can be dismissed without evidence")]
-    public async Task ExternalRequest_Should_Return_Response(TestContext context, string responseText)
+    public async Task ExternalRequest_Should_Return_Response(DrnTestContext context, string responseText)
     {
         var endpoint = "https://hitchensrazor.com";
         context.FlurlHttpTest.ForCallsTo(endpoint).RespondWith(responseText, 201);

@@ -11,7 +11,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
 {
     [Theory]
     [DataInline]
-    public async Task Authorized_Action_Should_Return_AuthenticatedUser(TestContext context)
+    public async Task Authorized_Action_Should_Return_AuthenticatedUser(DrnTestContext context)
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
         var user = await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
@@ -23,7 +23,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
 
     [Theory]
     [DataInline]
-    public async Task Anonymous_Action_Should_Return_AnonymousUser(TestContext context)
+    public async Task Anonymous_Action_Should_Return_AnonymousUser(DrnTestContext context)
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
 
@@ -34,7 +34,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
 
     [Theory]
     [DataInline]
-    public async Task Validate_Scope_Action_Should_Request_ScopeContext(TestContext context)
+    public async Task Validate_Scope_Action_Should_Request_ScopeContext(DrnTestContext context)
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
         await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
@@ -45,7 +45,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
 
     [Theory]
     [DataInline]
-    public async Task Validate_Scope_Action_Should_Validate_Scope(TestContext context)
+    public async Task Validate_Scope_Action_Should_Validate_Scope(DrnTestContext context)
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
         await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
