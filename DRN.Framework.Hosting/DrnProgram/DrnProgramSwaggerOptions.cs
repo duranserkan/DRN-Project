@@ -3,7 +3,7 @@ using Flurl;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Swashbuckle.AspNetCore.SwaggerUI;
@@ -30,6 +30,8 @@ public class DrnProgramSwaggerOptions
         if (ApplyTargetServerForwardedHeadersCorrection)
             options.PreSerializeFilters.Add(SwaggerProxyPathFilter);
 
+        options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_1;
+
         ConfigureSwaggerEndpointOptionsAction?.Invoke(options);
     }
 
@@ -46,24 +48,18 @@ public class DrnProgramSwaggerOptions
 
     private static void BearerTokenSecurityRequirement(SwaggerGenOptions options)
     {
-        var openApiSecurityScheme = new OpenApiSecurityScheme
+        options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
         {
-            In = ParameterLocation.Header,
-            Description = "Please enter token",
-            Name = "Authorization",
             Type = SecuritySchemeType.Http,
+            In = ParameterLocation.Header,
+            Name = "Authorization",
             Scheme = "bearer",
-            Reference = new OpenApiReference
-            {
-                Type = ReferenceType.SecurityScheme,
-                Id = "Bearer"
-            }
-        };
-
-        options.AddSecurityDefinition("Bearer", openApiSecurityScheme);
-
-        var requirement = new OpenApiSecurityRequirement { { openApiSecurityScheme, [] } };
-        options.AddSecurityRequirement(requirement);
+            Description = "Please enter token",
+        });
+        options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference("bearer", document)] = []
+        });
     }
 
     private void SwaggerProxyPathFilter(OpenApiDocument swaggerDoc, HttpRequest httpRequest)

@@ -8,8 +8,6 @@ namespace DRN.Framework.SharedKernel.Json;
 
 public static class JsonConventions
 {
-    private const string DefaultSerializerOptions = "s_defaultOptions";
-    private const string DefaultWebSerializerOptions = "s_webOptions";
     private const BindingFlags StaticPrivate = BindingFlags.Static | BindingFlags.NonPublic;
 
     static JsonConventions()
@@ -22,10 +20,11 @@ public static class JsonConventions
 
     private static void UpdateDefaultJsonSerializerOptions()
     {
-        var systemDefaults = typeof(JsonSerializerOptions).GetField(DefaultSerializerOptions, StaticPrivate)!;
-        var webDefaults = typeof(JsonSerializerOptions).GetField(DefaultWebSerializerOptions, StaticPrivate)!;
-        systemDefaults.SetValue(null, DefaultOptions);
-        webDefaults.SetValue(null, DefaultOptions);
+        var fields = typeof(JsonSerializerOptions).GetFields(StaticPrivate)
+            .Where(f => f.FieldType == typeof(JsonSerializerOptions)).ToArray();
+
+        foreach (var optionField in fields)
+            optionField.SetValue(null, DefaultOptions);
     }
 
     /// <summary>
