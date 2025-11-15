@@ -2,13 +2,13 @@ using Testcontainers.RabbitMq;
 
 namespace DRN.Framework.Testing.Contexts.RabbitMQ;
 
-public class RabbitMQContext(DrnTestContext drnTestContext)
+public class RabbitMQContext(DrnTestContext testContext)
 {
     private static bool _started;
     private static readonly SemaphoreSlim ContainerLock = new(1, 1);
 
-    public DrnTestContext drnTestContext { get; } = drnTestContext;
-    public RabbitMQContextIsolated RabbitMqContextIsolated { get; } = new(drnTestContext);
+    public DrnTestContext DrnTestContext { get; } = testContext;
+    public RabbitMQContextIsolated RabbitMqContextIsolated { get; } = new(testContext);
 
     public static readonly Lazy<RabbitMqContainer> Container = new(() => BuildContainer(RabbitMqContainerSettings));
 

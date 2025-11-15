@@ -3,10 +3,10 @@ using Testcontainers.PostgreSql;
 
 namespace DRN.Framework.Testing.Contexts.Postgres;
 
-public class PostgresContextIsolated(DrnTestContext drnTestContext)
+public class PostgresContextIsolated(DrnTestContext testContext)
 {
-    private DrnTestContext drnTestContext { get; } = drnTestContext;
-    private ContainerContext ContainerContext => drnTestContext.ContainerContext;
+    private DrnTestContext DrnTestContext { get; } = testContext;
+    private ContainerContext ContainerContext => DrnTestContext.ContainerContext;
 
     public async Task<PostgreSqlContainer> StartAsync(PostgresContainerSettings? settings = null)
     {
@@ -21,7 +21,7 @@ public class PostgresContextIsolated(DrnTestContext drnTestContext)
     public async Task<PostgreSqlContainer> ApplyMigrationsAsync(PostgresContainerSettings? settings = null)
     {
         var container = await StartAsync(settings);
-        var dbContexts = PostgresContext.SetConnectionStrings(drnTestContext, container);
+        var dbContexts = PostgresContext.SetConnectionStrings(DrnTestContext, container);
         await MigrateDbContextsAsync(dbContexts);
 
         return container;
@@ -34,7 +34,7 @@ public class PostgresContextIsolated(DrnTestContext drnTestContext)
         where TContext : DbContext
     {
         var container = await StartAsync(settings);
-        var dbContexts = PostgresContext.SetConnectionStrings(drnTestContext, container);
+        var dbContexts = PostgresContext.SetConnectionStrings(DrnTestContext, container);
         var dbContext = Array.Find(dbContexts, d => d.GetType() == typeof(TContext));
         ArgumentNullException.ThrowIfNull(dbContext);
 

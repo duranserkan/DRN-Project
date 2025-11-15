@@ -15,7 +15,7 @@ using LogLevel = NLog.LogLevel;
 
 namespace DRN.Framework.Testing.Contexts;
 
-public sealed class ApplicationContext(DrnTestContext drnTestContext) : IDisposable
+public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
 {
     private IDisposable? _factory;
     private ITestOutputHelper? _outputHelper;
@@ -36,17 +36,17 @@ public sealed class ApplicationContext(DrnTestContext drnTestContext) : IDisposa
     {
         Dispose();
 
-        var initialDrnTestContextServiceDescriptors = drnTestContext.ServiceCollection.ToArray();
+        var initialDrnTestContextServiceDescriptors = testContext.ServiceCollection.ToArray();
         //Add program services to drnTestContext
-        var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(drnTestContext, true).WithWebHostBuilder(webHostBuilder =>
+        var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true).WithWebHostBuilder(webHostBuilder =>
         {
             //only need service collection descriptors, so ValidateServicesAddedByAttributes should not fail test at this stage
-            var configuration = drnTestContext.GetRequiredService<IConfiguration>();
+            var configuration = testContext.GetRequiredService<IConfiguration>();
             webHostBuilder.UseConfiguration(configuration);
             webHostBuilder.UseSetting(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.SkipValidation)), "true");
             webHostBuilder.UseSetting(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.TemporaryApplication)), "true");
 
-            webHostBuilder.ConfigureServices(services => drnTestContext.ServiceCollection.Add(services));
+            webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
             webHostConfigurator?.Invoke(webHostBuilder);
         });
         _ = tempApplicationFactory.Server; //To trigger webHostBuilder action
@@ -54,17 +54,17 @@ public sealed class ApplicationContext(DrnTestContext drnTestContext) : IDisposa
 
         //register action to pass test context configuration to web application.
         //This will be triggered when TestServer or HttpClient requested until then further configurations can be added to test context configuration
-        var factory = new DrnWebApplicationFactory<TEntryPoint>(drnTestContext).WithWebHostBuilder(webHostBuilder =>
+        var factory = new DrnWebApplicationFactory<TEntryPoint>(testContext).WithWebHostBuilder(webHostBuilder =>
         {
             webHostBuilder.ConfigureServices(services =>
             {
                 services.Add(initialDrnTestContextServiceDescriptors);
-                drnTestContext.OverrideServiceCollection(services);
-                drnTestContext.MethodContext.ReplaceSubstitutedInterfaces(services);
-                drnTestContext.ServiceCollection = new ServiceCollection { services };
+                testContext.OverrideServiceCollection(services);
+                testContext.MethodContext.ReplaceSubstitutedInterfaces(services);
+                testContext.ServiceCollection = new ServiceCollection { services };
             });
 
-            var configuration = drnTestContext.GetRequiredService<IConfiguration>();
+            var configuration = testContext.GetRequiredService<IConfiguration>();
             webHostBuilder.UseConfiguration(configuration);
             webHostBuilder.ConfigureLogging(logging =>
             {
@@ -106,7 +106,7 @@ public sealed class ApplicationContext(DrnTestContext drnTestContext) : IDisposa
             LogToTestOutput(outputHelper);
 
         var application = CreateApplication<TEntryPoint>();
-        await drnTestContext.ContainerContext.BindExternalDependenciesAsync();
+        await testContext.ContainerContext.BindExternalDependenciesAsync();
         application.Server.PreserveExecutionContext = true;
 
         return application;

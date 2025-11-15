@@ -13,16 +13,15 @@ public sealed class DataInlineAttribute(params object?[] data) : DataAttribute
 {
     public override async ValueTask<IReadOnlyCollection<ITheoryDataRow>> GetData(MethodInfo testMethod, DisposalTracker disposalTracker)
     {
-        var hasDrnTestContext = testMethod.GetParameters().FirstOrDefault()?.ParameterType == typeof(DrnTestContext);
-        if (hasDrnTestContext)
+        var hasTestContext = testMethod.GetParameters().FirstOrDefault()?.ParameterType == typeof(DrnTestContext);
+        if (hasTestContext)
         {
-            var drnTestContext = new DrnTestContext(testMethod);
-            var dataWithDrnTestContext = new object[] { drnTestContext }.Concat(data).ToArray();
-            var drnTestContextDataAttribute = new DataInlineNSubstituteAutoAttribute(dataWithDrnTestContext);
+            var testContext  = new DrnTestContext(testMethod);
+            var dataWithTestContext = new object[] { testContext  }.Concat(data).ToArray();
+            var testContextDataAttribute = new DataInlineNSubstituteAutoAttribute(dataWithTestContext);
+            var testContextData = await testContextDataAttribute.GetData(testMethod, disposalTracker);
 
-            var drnTestContextData = await drnTestContextDataAttribute.GetData(testMethod, disposalTracker);
-
-            return drnTestContextData.Select(row =>
+            return testContextData.Select(row =>
             {
                 var rowData = row.GetData();
 

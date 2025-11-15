@@ -12,14 +12,14 @@ using ConfigurationException = DRN.Framework.SharedKernel.ConfigurationException
 
 namespace DRN.Framework.Testing.Contexts.Postgres;
 
-public class PostgresContext(DrnTestContext drnTestContext)
+public class PostgresContext(DrnTestContext testContext)
 {
     private static readonly SemaphoreSlim ContainerLock = new(1, 1);
     private static readonly SemaphoreSlim MigrationLock = new(1, 1);
     private static readonly List<Type> MigratedDbContexts = new(10);
 
-    public DrnTestContext drnTestContext { get; } = drnTestContext;
-    public PostgresContextIsolated Isolated { get; } = new(drnTestContext);
+    public DrnTestContext DrnTestContext { get; } = testContext;
+    public PostgresContextIsolated Isolated { get; } = new(testContext);
 
     public static Lazy<PostgreSqlContainer> Container { get; } = new(() => BuildContainer(PostgresContainerSettings));
 
@@ -72,7 +72,7 @@ public class PostgresContext(DrnTestContext drnTestContext)
     public async Task<PostgreSqlContainer> ApplyMigrationsAsync()
     {
         var container = await StartAsync();
-        var dbContexts = SetConnectionStrings(drnTestContext, container);
+        var dbContexts = SetConnectionStrings(DrnTestContext, container);
 
         await MigrationLock.WaitAsync();
         try
@@ -92,18 +92,18 @@ public class PostgresContext(DrnTestContext drnTestContext)
         return container;
     }
 
-    public static DbContext[] SetConnectionStrings(DrnTestContext drnTestContext, PostgreSqlContainer container)
+    public static DbContext[] SetConnectionStrings(DrnTestContext testContext, PostgreSqlContainer container)
     {
-        var dbContextCollection = GetDbContextCollection(drnTestContext.ServiceCollection);
+        var dbContextCollection = GetDbContextCollection(testContext.ServiceCollection);
         foreach (var descriptor in dbContextCollection.ServiceDescriptors)
             dbContextCollection.ConnectionStrings.Upsert(descriptor.Key, container.GetConnectionString());
 
-        drnTestContext.AddToConfiguration(dbContextCollection.ConnectionStrings);
+        testContext.AddToConfiguration(dbContextCollection.ConnectionStrings);
 
         var empty = !dbContextCollection.Any;
         if (empty) return [];
 
-        var serviceProvider = drnTestContext.BuildServiceProvider();
+        var serviceProvider = testContext.BuildServiceProvider();
         var dbContexts = dbContextCollection.GetDbContexts(serviceProvider);
 
         return dbContexts;
