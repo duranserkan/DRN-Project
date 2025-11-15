@@ -5,7 +5,7 @@ services:
   # Source codes under this folder is obtained/derived from https://github.com/Graylog2/docker-compose/blob/main/open-core/docker-compose.yml 
   # and have same license restrictions with original source codes. 
   mongodb:
-    image: "mongo:6.0.25"
+    image: "mongo:6.0.26"
     restart: "on-failure"
     container_name: drn-graylog-mongo
     networks:
@@ -22,7 +22,7 @@ services:
   # Please take a look at the README at the top of this repo or the regular docs for more info.
   # Graylog Data Node: https://hub.docker.com/r/graylog/graylog-datanode
   datanode:
-    image: "${DATANODE_IMAGE:-graylog/graylog-datanode:6.3.2}"
+    image: "${DATANODE_IMAGE:-graylog/graylog-datanode:6.3.6}"
     container_name: drn-graylog-datanode
     hostname: "datanode"
     environment:
@@ -62,7 +62,7 @@ services:
   # drn-graylog           | Try clicking on http://admin:vwtxJbPxqM@0.0.0.0:9000
 
   graylog:
-    image: "${GRAYLOG_IMAGE:-graylog/graylog:6.3.2}"
+    image: "${GRAYLOG_IMAGE:-graylog/graylog:6.3.6}"
     container_name: drn-graylog
     hostname: "server"
     depends_on:
