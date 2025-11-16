@@ -110,7 +110,7 @@ public class DrnExceptionHandler(
         if (!appSettings.IsDevEnvironment || model == null) return null;
 
         //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-9.0#database-error-page
-        var result = await contentProvider.CreatErrorContentResult(context, exception, model);
+        var result = await contentProvider.CreateErrorContentResult(context, exception, model);
         return result;
     }
 

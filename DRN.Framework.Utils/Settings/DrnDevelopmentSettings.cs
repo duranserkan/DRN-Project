@@ -38,4 +38,6 @@ public class DrnDevelopmentSettings
     /// </para>
     /// </summary>
     public bool Prototype { get; init; }
+
+    public bool BreakForUserUnhandledException { get; init; }
 }
