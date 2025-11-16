@@ -40,6 +40,7 @@ public static class SampleModule
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             options.LoginPath = Get.Page.User.Login;
             options.LogoutPath = Get.Page.User.Logout;
+            options.AccessDeniedPath = "/AccessDenied"; // Optional: for authorized-but-forbidden
             options.ReturnUrlParameter = Get.ViewDataKeys.ReturnUrl;
         });
 
