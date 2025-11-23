@@ -86,33 +86,33 @@
   </Folder>
   <Folder Name="/Src/" />
   <Folder Name="/Src/Framework/">
-    <Project Path="DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" Type="Classic C#" />
-    <Project Path="DRN.Framework.Hosting\DRN.Framework.Hosting.csproj" Type="Classic C#" />
-    <Project Path="DRN.Framework.Jobs\DRN.Framework.Jobs.csproj" Type="Classic C#" />
-    <Project Path="DRN.Framework.MassTransit\DRN.Framework.MassTransit.csproj" Type="Classic C#" />
-    <Project Path="DRN.Framework.SharedKernel\DRN.Framework.SharedKernel.csproj" Type="Classic C#" />
-    <Project Path="DRN.Framework.Testing\DRN.Framework.Testing.csproj" Type="Classic C#" />
-    <Project Path="DRN.Framework.Utils\DRN.Framework.Utils.csproj" Type="Classic C#" />
+    <Project Path="DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" Type="C#" />
+    <Project Path="DRN.Framework.Hosting\DRN.Framework.Hosting.csproj" Type="C#" />
+    <Project Path="DRN.Framework.Jobs\DRN.Framework.Jobs.csproj" Type="C#" />
+    <Project Path="DRN.Framework.MassTransit\DRN.Framework.MassTransit.csproj" Type="C#" />
+    <Project Path="DRN.Framework.SharedKernel\DRN.Framework.SharedKernel.csproj" Type="C#" />
+    <Project Path="DRN.Framework.Testing\DRN.Framework.Testing.csproj" Type="C#" />
+    <Project Path="DRN.Framework.Utils\DRN.Framework.Utils.csproj" Type="C#" />
   </Folder>
   <Folder Name="/Src/Nexus/">
-    <Project Path="DRN.Nexus.Application\DRN.Nexus.Application.csproj" Type="Classic C#" />
-    <Project Path="DRN.Nexus.Contract\DRN.Nexus.Contract.csproj" Type="Classic C#" />
-    <Project Path="DRN.Nexus.Domain\DRN.Nexus.Domain.csproj" Type="Classic C#" />
-    <Project Path="DRN.Nexus.Hosted\DRN.Nexus.Hosted.csproj" Type="Classic C#" />
-    <Project Path="DRN.Nexus.Infra\DRN.Nexus.Infra.csproj" Type="Classic C#" />
-    <Project Path="DRN.Nexus.Utils\DRN.Nexus.Utils.csproj" Type="Classic C#" />
+    <Project Path="DRN.Nexus.Application\DRN.Nexus.Application.csproj" Type="C#" />
+    <Project Path="DRN.Nexus.Contract\DRN.Nexus.Contract.csproj" Type="C#" />
+    <Project Path="DRN.Nexus.Domain\DRN.Nexus.Domain.csproj" Type="C#" />
+    <Project Path="DRN.Nexus.Hosted\DRN.Nexus.Hosted.csproj" Type="C#" />
+    <Project Path="DRN.Nexus.Infra\DRN.Nexus.Infra.csproj" Type="C#" />
+    <Project Path="DRN.Nexus.Utils\DRN.Nexus.Utils.csproj" Type="C#" />
   </Folder>
   <Folder Name="/Src/Sample/">
-    <Project Path="Sample.Application\Sample.Application.csproj" Type="Classic C#" />
-    <Project Path="Sample.Contract\Sample.Contract.csproj" Type="Classic C#" />
-    <Project Path="Sample.Domain\Sample.Domain.csproj" Type="Classic C#" />
-    <Project Path="Sample.Hosted\Sample.Hosted.csproj" Type="Classic C#" />
-    <Project Path="Sample.Infra\Sample.Infra.csproj" Type="Classic C#" />
-    <Project Path="Sample.Utils\Sample.Utils.csproj" Type="Classic C#" />
+    <Project Path="Sample.Application\Sample.Application.csproj" Type="C#" />
+    <Project Path="Sample.Contract\Sample.Contract.csproj" Type="C#" />
+    <Project Path="Sample.Domain\Sample.Domain.csproj" Type="C#" />
+    <Project Path="Sample.Hosted\Sample.Hosted.csproj" Type="C#" />
+    <Project Path="Sample.Infra\Sample.Infra.csproj" Type="C#" />
+    <Project Path="Sample.Utils\Sample.Utils.csproj" Type="C#" />
   </Folder>
   <Folder Name="/Test/">
-    <Project Path="DRN.Test.Performance\DRN.Test.Performance.csproj" Type="Classic C#" />
-    <Project Path="DRN.Test.Unit\DRN.Test.Unit.csproj" Type="Classic C#" />
-    <Project Path="DRN.Test\DRN.Test.csproj" Type="Classic C#" />
+    <Project Path="DRN.Test.Performance\DRN.Test.Performance.csproj" Type="C#" />
+    <Project Path="DRN.Test.Unit\DRN.Test.Unit.csproj" Type="C#" />
+    <Project Path="DRN.Test\DRN.Test.csproj" Type="C#" />
   </Folder>
 </Solution>
