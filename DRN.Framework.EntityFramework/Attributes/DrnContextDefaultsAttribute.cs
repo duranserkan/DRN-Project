@@ -20,7 +20,7 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
         .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
         .MigrationsAssembly(typeof(TContext).Assembly.FullName)
         .MigrationsHistoryTable($"{typeof(TContext).Name.ToSnakeCase()}_history", "__entity_migrations")
-        .SetPostgresVersion(17,4);
+        .SetPostgresVersion(18,1);
 
     public override void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider serviceProvider)
     {
