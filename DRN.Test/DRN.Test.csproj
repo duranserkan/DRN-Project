@@ -8,8 +8,9 @@
         <IsTestProject>true</IsTestProject>
         <OutputType>Exe</OutputType>
         <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+        <NoWarn>$(NoWarn);xUnit1051</NoWarn>
     </PropertyGroup>
-
+    
     <ItemGroup>
         <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj"/>
         <ProjectReference Include="..\DRN.Nexus.Hosted\DRN.Nexus.Hosted.csproj"/>
