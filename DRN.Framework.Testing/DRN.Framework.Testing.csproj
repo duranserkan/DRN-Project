@@ -55,6 +55,10 @@
         <PackageReference Include="xunit.v3.extensibility.core" Version="3.2.0" />
         <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="none" />
         <PackageReference Include="NSubstitute.Analyzers.CSharp" Version="1.0.17" PrivateAssets="none"/>
+        <!-- Transitive vulnerable packages overriden  -->
+        <PackageReference Include="System.Net.Http" Version="4.3.4"/>
+        <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1"/>
+        <!-- Transitive vulnerable packages overriden  -->
     </ItemGroup>
 
     <ItemGroup>
