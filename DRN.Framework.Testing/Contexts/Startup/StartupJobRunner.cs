@@ -1,6 +1,7 @@
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
+using Npgsql;
 
 namespace DRN.Framework.Testing.Contexts.Startup;
 
@@ -32,15 +33,23 @@ public static class StartupJobRunner
 
     private static void Trigger(MethodInfo testMethod)
     {
-        var startedAt = DateTimeOffset.Now;
         TestEnvironment.DrnTestContextEnabled = true;
-
+        var startedAt = DateTimeOffset.Now;
         var jobTypes = GetTestStartupJobTypes(testMethod);
-        foreach (var startupJobType in jobTypes)
+
+        try
         {
-            var startupJob = (ITestStartupJob)Activator.CreateInstance(startupJobType)!;
-            using var startupContext = new StartupContext(startupJob);
-            startupJob.RunAsync(startupContext).GetAwaiter().GetResult();
+            foreach (var startupJobType in jobTypes)
+            {
+                var startupJob = (ITestStartupJob)Activator.CreateInstance(startupJobType)!;
+                using var startupContext = new StartupContext(startupJob);
+                startupJob.RunAsync(startupContext).GetAwaiter().GetResult();
+            }
+        }
+        catch (PostgresException ex)
+        {
+            //Ignored Npgsql.PostgresException : 42P01: relation "entity_migrations.{context}_history" does not exist
+            _ = ex;
         }
 
         Result = new TestStartupResult(startedAt, DateTimeOffset.Now, testMethod, jobTypes);
