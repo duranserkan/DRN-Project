@@ -19,7 +19,7 @@ namespace Sample.Infra.QA.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("qa_context")
-                .HasAnnotation("ProductVersion", "9.0.9")
+                .HasAnnotation("ProductVersion", "10.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -327,7 +327,7 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnType("text")
                         .HasColumnName("user_name");
 
-                    b.ComplexProperty<Dictionary<string, object>>("Address", "Sample.Domain.Users.User.Address#Address", b1 =>
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Address", "Sample.Domain.Users.User.Address#Address", b1 =>
                         {
                             b1.IsRequired();
 
@@ -352,7 +352,7 @@ namespace Sample.Infra.QA.Migrations
                                 .HasColumnName("address_street");
                         });
 
-                    b.ComplexProperty<Dictionary<string, object>>("Contact", "Sample.Domain.Users.User.Contact#ContactDetail", b1 =>
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Contact", "Sample.Domain.Users.User.Contact#ContactDetail", b1 =>
                         {
                             b1.IsRequired();
 
@@ -447,30 +447,22 @@ namespace Sample.Infra.QA.Migrations
                 {
                     b.OwnsOne("Sample.Contract.QA.Tags.TagValueModel", "Model", b1 =>
                         {
-                            b1.Property<long>("TagId")
-                                .HasColumnType("bigint");
+                            b1.Property<long>("TagId");
 
-                            b1.Property<bool>("BoolValue")
-                                .HasColumnType("boolean");
+                            b1.Property<bool>("BoolValue");
 
-                            b1.Property<DateTimeOffset>("Date")
-                                .HasColumnType("timestamp with time zone");
+                            b1.Property<DateTimeOffset>("Date");
 
-                            b1.Property<long>("Max")
-                                .HasColumnType("bigint");
+                            b1.Property<long>("Max");
 
-                            b1.Property<long>("Min")
-                                .HasColumnType("bigint");
+                            b1.Property<long>("Min");
 
-                            b1.Property<long>("Other")
-                                .HasColumnType("bigint");
+                            b1.Property<long>("Other");
 
                             b1.Property<string>("StringValue")
-                                .IsRequired()
-                                .HasColumnType("text");
+                                .IsRequired();
 
-                            b1.Property<int>("Type")
-                                .HasColumnType("integer");
+                            b1.Property<int>("Type");
 
                             b1.HasKey("TagId");
 

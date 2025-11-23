@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Identity\Migrations\" />
     <Folder Include="QA\Migrations\" />
   </ItemGroup>
   
