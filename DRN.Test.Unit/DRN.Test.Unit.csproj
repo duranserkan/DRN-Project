@@ -8,32 +8,63 @@
         <IsTestProject>true</IsTestProject>
         <OutputType>Exe</OutputType>
         <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
-        <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
     </PropertyGroup>
-    
+
     <ItemGroup>
         <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj"/>
-        <ProjectReference Include="..\DRN.Nexus.Hosted\DRN.Nexus.Hosted.csproj" />
-        <ProjectReference Include="..\Sample.Hosted\Sample.Hosted.csproj" />
+        <ProjectReference Include="..\DRN.Nexus.Hosted\DRN.Nexus.Hosted.csproj"/>
+        <ProjectReference Include="..\Sample.Hosted\Sample.Hosted.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="xunit.v3.mtp-v2" Version="3.2.0" />
+        <PackageReference Include="xunit.v3.mtp-v2" Version="3.2.0"/>
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="Settings\settings.json">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="Tests\Framework\Hosting\MountDir\json-settings\settings-override.json">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="Tests\Framework\Hosting\MountDir\key-per-file-settings\postgres-password">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
-      <None Update="Tests\Framework\Utils\Encodings\Data\HelloWorld.txt">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
+        <None Update="Settings\settings.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Settings\alternateSettings.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Settings\globalDummySettings.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Data\globalData.txt">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Data\Test.txt">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Data\100.jpeg">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+
+        <None Update="Tests\Framework\Hosting\MountDir\json-settings\settings-override.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Framework\Hosting\MountDir\key-per-file-settings\postgres-password">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Framework\Utils\Encodings\Data\HelloWorld.txt">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Framework\Testing\Providers\Data\data.txt">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Framework\Testing\Providers\Settings\settings.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Framework\Testing\Providers\alternateData.txt">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="Tests\Framework\Testing\Providers\alternateSettings.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Tests\Framework\Testing\"/>
     </ItemGroup>
 
 </Project>

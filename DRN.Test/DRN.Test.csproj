@@ -8,19 +8,18 @@
         <IsTestProject>true</IsTestProject>
         <OutputType>Exe</OutputType>
         <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
-        <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj"/>
-        <ProjectReference Include="..\DRN.Nexus.Hosted\DRN.Nexus.Hosted.csproj" />
-        <ProjectReference Include="..\Sample.Hosted\Sample.Hosted.csproj" />
+        <ProjectReference Include="..\DRN.Nexus.Hosted\DRN.Nexus.Hosted.csproj"/>
+        <ProjectReference Include="..\Sample.Hosted\Sample.Hosted.csproj"/>
     </ItemGroup>
-    
+
     <ItemGroup>
-        <PackageReference Include="xunit.v3.mtp-v2" Version="3.2.0" />
+        <PackageReference Include="xunit.v3.mtp-v2" Version="3.2.0"/>
     </ItemGroup>
-    
+
     <ItemGroup>
         <None Update="Settings\settings.json">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -29,48 +28,20 @@
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
         <None Update="Settings\alternateSettings.json">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
-        <None Update="Tests\Testing\Providers\Settings\settings.json">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
-        <None Update="Tests\Testing\Providers\alternateSettings.json">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
-        <None Update="Tests\Testing\Providers\Data\data.txt">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
-        <None Update="Tests\Testing\Providers\alternateData.txt">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
-        <None Update="Tests\Framework\Testing\Providers\Data\data.txt">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-        <None Update="Tests\Framework\Testing\Providers\alternateData.txt">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-        <None Update="Tests\Framework\Testing\Providers\Settings\settings.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-        <None Update="Tests\Framework\Testing\Providers\alternateSettings.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
         <None Update="Data\globalData.txt">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
         <None Update="Settings\globalDummySettings.json">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
         <None Update="StartUpData.txt">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
-    </ItemGroup>
-    
-    <ItemGroup>
-      <Content Update="Data\100.jpeg">
-        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      </Content>
+        <None Update="Data\100.jpeg">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
 </Project>

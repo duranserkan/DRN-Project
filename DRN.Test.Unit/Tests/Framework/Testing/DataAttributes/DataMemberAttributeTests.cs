@@ -1,9 +1,9 @@
-namespace DRN.Test.Tests.Framework.Testing.DataAttributes;
+namespace DRN.Test.Unit.Tests.Framework.Testing.DataAttributes;
 
 public class DataMemberAttributeTests
 {
     [Theory]
-    [DataMember(nameof(DataMemberAutoData))]
+    [DataMemberUnit(nameof(DataMemberAutoData))]
     public void AutoMember_Should_Inline_And_Auto_Generate_Missing_Test_Data(int inline, ComplexInline complexInline, Guid autoGenerate, IMockable mock)
     {
         inline.Should().BeGreaterThan(10);

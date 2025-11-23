@@ -1,0 +1,8 @@
+{
+  "Environment": "Development", 
+  "AllowedHosts": "*",
+  "Foo": "*",
+  "ConnectionStrings": {
+    "Bar": "Foo"
+  }
+}

@@ -1,4 +1,4 @@
-namespace DRN.Test.Tests.Framework.Testing.DataAttributes;
+namespace DRN.Test.Unit.Tests.Framework.Testing.DataAttributes;
 
 public interface IMockable
 {

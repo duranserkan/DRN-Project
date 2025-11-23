@@ -33,4 +33,6 @@ public abstract class DataSelfUnitAttribute : DataAttribute
 
         return resultData;
     }
+    
+    public override bool SupportsDiscoveryEnumeration() => true;
 }

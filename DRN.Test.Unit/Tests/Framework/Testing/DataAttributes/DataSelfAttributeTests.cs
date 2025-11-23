@@ -1,4 +1,4 @@
-namespace DRN.Test.Tests.Framework.Testing.DataAttributes;
+namespace DRN.Test.Unit.Tests.Framework.Testing.DataAttributes;
 
 public class DataSelfAttributeTests
 {
@@ -14,7 +14,7 @@ public class DataSelfAttributeTests
     }
 }
 
-public class DataSelfTestData : DataSelfAttribute
+public class DataSelfTestData : DataSelfUnitAttribute
 {
     public DataSelfTestData()
     {

@@ -1,12 +1,12 @@
 using DRN.Framework.Testing.Extensions;
 
-namespace DRN.Test.Tests.Framework.Testing.DataAttributes;
+namespace DRN.Test.Unit.Tests.Framework.Testing.DataAttributes;
 
 public class NSubstituteTests
 {
     [Theory]
-    [DataInline]
-    public void Mockable_Should_Be_Replaced_In_Context_ServiceProvider(DrnTestContext context, IMockable mockable, IMockable mockable2, IDisposable disposable)
+    [DataInlineUnit]
+    public void Mockable_Should_Be_Replaced_In_Context_ServiceProvider(DrnTestContextUnit context, IMockable mockable, IMockable mockable2, IDisposable disposable)
     {
         mockable.IsSubstitute().Should().BeTrue();
         mockable2.IsSubstitute().Should().BeTrue();

@@ -220,7 +220,7 @@ Example usages for DataMember attribute
 ```csharp
 [Theory]
 [DataMember(nameof(DrnTestContextInlineMemberData))]
-public void DrnTestContextMember_Should_Inline_And_Auto_Generate_Missing_Test_Data(DrnTestContext DrnTestContext,
+public void DrnTestContextMember_Should_Inline_And_Auto_Generate_Missing_Test_Data(DrnTestContext testContext,
     int inline, ComplexInline complexInline, Guid autoGenerate, IMockable mock)
 {
     DrnTestContext.Should().NotBeNull();
@@ -245,7 +245,7 @@ public class DataSelfContextAttributeTests
 {
     [Theory]
     [DataSelfContextTestData]
-    public void DrnTestContextClassData_Should_Inline_And_Auto_Generate_Missing_Test_Data(DrnTestContext DrnTestContext,
+    public void DrnTestContextClassData_Should_Inline_And_Auto_Generate_Missing_Test_Data(DrnTestContext testContext,
         int inline, ComplexInline complexInline, Guid autoGenerate, IMockable mock)
     {
         DrnTestContext.Should().NotBeNull();

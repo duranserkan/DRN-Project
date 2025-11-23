@@ -1,4 +1,4 @@
-namespace DRN.Test.Tests.Framework.Testing.TestAttributes;
+namespace DRN.Test.Unit.Tests.Framework.Testing.TestAttributes;
 
 #pragma warning disable xUnit1006
 public class DebuggerOnlyAttributeTests

@@ -1,4 +1,4 @@
-namespace DRN.Test.Tests.Framework.Testing.Providers;
+namespace DRN.Test.Unit.Tests.Framework.Testing.Providers;
 
 public class CredentialsProviderTests
 {

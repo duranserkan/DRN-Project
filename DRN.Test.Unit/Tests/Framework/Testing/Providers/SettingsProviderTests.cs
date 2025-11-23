@@ -1,4 +1,4 @@
-namespace DRN.Test.Tests.Framework.Testing.Providers;
+namespace DRN.Test.Unit.Tests.Framework.Testing.Providers;
 
 public class SettingsProviderTests
 {
@@ -26,10 +26,10 @@ public class SettingsProviderTests
     }
 
     [Theory]
-    [DataInline("settings", "localhost")]
-    [DataInline("alternateSettings", "127.0. 0.1")]
-    [DataInline("globalDummySettings", "*")]
-    public void SettingsProvider_Should_Return_Test_Specific_IConfiguration_Instance(DrnTestContext context, string settingsName, string value)
+    [DataInlineUnit("settings", "localhost")]
+    [DataInlineUnit("alternateSettings", "127.0. 0.1")]
+    [DataInlineUnit("globalDummySettings", "*")]
+    public void SettingsProvider_Should_Return_Test_Specific_IConfiguration_Instance(DrnTestContextUnit context, string settingsName, string value)
     {
         var settingsPath = context.GetSettingsPath(settingsName);
         settingsPath.DataExists.Should().BeTrue();
@@ -44,9 +44,9 @@ public class SettingsProviderTests
     }
 
     [Theory]
-    [DataInline("settings", "localhost")]
-    [DataInline("alternateSettings", "127.0. 0.1")]
-    public void SettingsProvider_Should_Return_Test_Specific_IAppSettings_Instance(DrnTestContext context, string settingsName, string value)
+    [DataInlineUnit("settings", "localhost")]
+    [DataInlineUnit("alternateSettings", "127.0. 0.1")]
+    public void SettingsProvider_Should_Return_Test_Specific_IAppSettings_Instance(DrnTestContextUnit context, string settingsName, string value)
     {
         var appSettings = SettingsProvider.GetAppSettings(settingsName, context.MethodContext.GetTestFolderLocation());
         appSettings.GetRequiredSection("AllowedHosts").Value.Should().Be(value);
@@ -56,8 +56,8 @@ public class SettingsProviderTests
     }
 
     [Theory]
-    [DataInline("localhost")]
-    public void DrnTestContext_Should_Add_Settings_Json_To_Configuration(DrnTestContext context, string value)
+    [DataInlineUnit("localhost")]
+    public void DrnTestContext_Should_Add_Settings_Json_To_Configuration(DrnTestContextUnit context, string value)
     {
         //settings.json file can be found in the same folder with test file, in the global Settings folder or Settings folder that stays in the same folder with test file
         context.GetRequiredService<IAppSettings>().GetRequiredSection("AllowedHosts").Value.Should().Be(value);
