@@ -16,7 +16,7 @@ public class PostgresContext(DrnTestContext testContext)
 {
     private static readonly SemaphoreSlim ContainerLock = new(1, 1);
     private static readonly SemaphoreSlim MigrationLock = new(1, 1);
-    private static readonly List<Type> MigratedDbContexts = new(10);
+    private static readonly List<Type> MigratedDbContextTypes = new(10);
 
     public DrnTestContext DrnTestContext { get; } = testContext;
     public PostgresContextIsolated Isolated { get; } = new(testContext);
@@ -56,8 +56,11 @@ public class PostgresContext(DrnTestContext testContext)
         await ContainerLock.WaitAsync();
         try
         {
-            if (Container.Value.StartedTime != default) return Container.Value;
+            if (Container.Value.StartedTime != default) 
+                return Container.Value;
+            
             await Container.Value.StartAsync();
+            
             return Container.Value;
         }
         finally
@@ -77,12 +80,13 @@ public class PostgresContext(DrnTestContext testContext)
         await MigrationLock.WaitAsync();
         try
         {
-            var toBeMigratedDbContextTypes = dbContexts.Select(x => x.GetType()).Except(MigratedDbContexts).ToArray();
-            var migrationTasks = dbContexts
-                .Where(dbContext => toBeMigratedDbContextTypes.Contains(dbContext.GetType()))
-                .Select(dbContext => dbContext.Database.MigrateAsync()).ToArray();
-            await Task.WhenAll(migrationTasks);
-            MigratedDbContexts.AddRange(toBeMigratedDbContextTypes);
+            var toBeMigratedDbContextTypes = dbContexts.Select(x => x.GetType()).Except(MigratedDbContextTypes).ToArray();
+            var toBeMigratedDbContexts = dbContexts.Where(dbContext => toBeMigratedDbContextTypes.Contains(dbContext.GetType())).ToArray();
+
+            foreach (var toBeMigratedDbContext in toBeMigratedDbContexts) 
+                await toBeMigratedDbContext.Database.MigrateAsync();
+
+            MigratedDbContextTypes.AddRange(toBeMigratedDbContextTypes);
         }
         finally
         {
