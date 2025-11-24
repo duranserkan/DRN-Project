@@ -305,12 +305,10 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// <param name="appSettings"></param>
     protected virtual void ConfigureDefaultSecurityHeaders(HeaderPolicyCollection policies, IServiceProvider serviceProvider, IAppSettings appSettings)
     {
-        //Todo review default hsts policy, it may affect internal requests
-        policies.RemoveServerHeader()
+        var policyCollection = policies.RemoveServerHeader()
             .AddFrameOptionsDeny()
             .AddContentTypeOptionsNoSniff()
             .AddReferrerPolicyStrictOriginWhenCrossOrigin()
-            //.AddStrictTransportSecurity(63072000, true, true) //https://hstspreload.org/
             .AddContentSecurityPolicy(ConfigureDefaultCsp)
             .AddCrossOriginOpenerPolicy(x => x.SameOrigin())
             .AddCrossOriginEmbedderPolicy(builder => builder.Credentialless())
@@ -320,6 +318,15 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
                 builder.AddDefaultSecureDirectives();
                 builder.AddFullscreen().Self();
             });
+
+        if (!appSettings.IsDevEnvironment)
+        {
+            //https://hstspreload.org/ preload can be risky
+            //What to Do When Your Certificate Fails
+            //Monitor proactively, Automate renewal, Test staging first,
+            //Emergency response plan Know how to deploy a cert fix in < 5 min (e.g., via CI/CD or infra-as-code).
+            policyCollection.AddStrictTransportSecurity(63072000, true, false);
+        }
     }
 
     /// <summary>
@@ -502,7 +509,13 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     {
         application.UseForwardedHeaders();
         application.UseHostFiltering();
-        application.UseCookiePolicy();
+        //enforce strict security experimental, If cookie is not HttpOnly it must be set by js in client-side
+        application.UseCookiePolicy(new CookiePolicyOptions
+        {
+            Secure = appSettings.IsDevEnvironment ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always,
+            HttpOnly = HttpOnlyPolicy.Always,
+            MinimumSameSitePolicy = SameSiteMode.Strict
+        });
         application.UseSecurityHeaders();
     }
 
