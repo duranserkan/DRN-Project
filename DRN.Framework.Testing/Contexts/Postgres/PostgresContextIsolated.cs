@@ -46,8 +46,8 @@ public class PostgresContextIsolated(DrnTestContext testContext)
     private static async Task MigrateDbContextsAsync(DbContext[] dbContexts)
     {
         if (dbContexts.Length == 0) return;
-
-        var migrationTasks = dbContexts.Select(c => c.Database.MigrateAsync()).ToArray();
-        await Task.WhenAll(migrationTasks);
+        
+        foreach (var toBeMigratedDbContext in dbContexts) 
+            await toBeMigratedDbContext.Database.MigrateAsync();
     }
 }
