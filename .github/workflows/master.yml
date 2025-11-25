@@ -35,7 +35,7 @@ jobs:
         uses: ./.github/workflows/actions/dotnet-build
 
       - name: Test Unit
-        run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test/DRN.Test.Unit.csproj --no-build --verbosity normal" -f xml -o "coverage.xml"
+        run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity normal" -f xml -o "coverage.xml"
 
       - name: Test Integration
         run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity normal" -f xml -o "coverage.xml"
