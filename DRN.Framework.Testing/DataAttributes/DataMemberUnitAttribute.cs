@@ -26,13 +26,4 @@ public class DataMemberUnitAttribute(string methodName, params object[] methodPa
 
         return resultData;
     }
-
-    // /// <inheritdoc />
-    // protected override object[]? ConvertDataItem(MethodInfo testMethod, object? item)
-    // {
-    //     if (item == null) return null;
-    //     if (item is not object[] array)
-    //         throw new ArgumentException($"Property {MemberName} on {MemberType ?? testMethod.DeclaringType} yielded an item that is not an object[]");
-    //     return array;
-    // }
 }
