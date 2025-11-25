@@ -34,8 +34,11 @@ jobs:
       - name: Build for Sonar Scan
         uses: ./.github/workflows/actions/dotnet-build
 
-      - name: Test
-        run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test/DRN.Test.csproj --no-build --verbosity normal" -f xml -o "coverage.xml"
+      - name: Test Unit
+        run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test/DRN.Test.Unit.csproj --no-build --verbosity normal" -f xml -o "coverage.xml"
+
+      - name: Test Integration
+        run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity normal" -f xml -o "coverage.xml"
 
       - name: Sonar Scan End
         uses: ./.github/workflows/actions/sonar-end

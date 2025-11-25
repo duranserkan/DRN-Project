@@ -94,7 +94,7 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
             ServiceCollection = sc;
     }
 
-    public void ValidateServices() => this.ValidateServicesAddedByAttributes();
+    public async Task ValidateServicesAsync() => await this.ValidateServicesAddedByAttributesAsync();
 
     public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = SettingsProvider.ConventionSettingsName)
     {

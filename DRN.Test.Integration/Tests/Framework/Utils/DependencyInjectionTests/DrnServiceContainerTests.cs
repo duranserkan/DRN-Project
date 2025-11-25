@@ -1,0 +1,93 @@
+using DRN.Nexus.Application;
+using DRN.Nexus.Infra;
+using DRN.Test.Integration.Tests.Framework.Utils.DependencyInjectionTests.Models;
+using Sample.Application;
+using Sample.Infra;
+
+namespace DRN.Test.Integration.Tests.Framework.Utils.DependencyInjectionTests;
+
+public class DrnServiceContainerTests
+{
+    [Theory]
+    [DataInline]
+    public async Task Services_Marked_By_Lifetime_Attributes_Should_Be_Added_To_ServiceProvider(DrnTestContext context)
+    {
+        context.ServiceCollection.AddTestModule();
+        var containers = context.GetServices<DrnServiceContainer>().ToArray();
+        var utilsAssemblyContainer = containers.Single(c => c.Assembly == typeof(IAppSettings).Assembly);
+        _ = utilsAssemblyContainer.LifetimeAttributes.Single(l =>
+            l.ServiceType == typeof(IAppSettings) && l.ImplementationType == typeof(AppSettings) && l.ServiceLifetime == ServiceLifetime.Singleton);
+
+        context.GetRequiredService<Dependent>();
+        context.GetRequiredKeyedService<IKeyed>(1);
+        context.GetRequiredKeyedService<IKeyed>(2);
+        context.GetRequiredKeyedService<IKeyed>("A");
+        context.GetRequiredKeyedService<IKeyed>("B");
+        context.GetKeyedServices<IKeyed>("Multiple").Count().Should().Be(2);
+        context.GetRequiredKeyedService<IKeyed>(Keyed.First);
+        context.GetRequiredKeyedService<IKeyed>(Keyed.Second);
+
+        await context.ValidateServicesAsync();
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task Service_Provider_Should_Throw_Exception_When_Service_Is_Not_Resolvable(DrnTestContext context)
+    {
+        context.ServiceCollection.AddTestModule();
+        context.ServiceCollection.RemoveAll<IIndependent>();
+
+        var action = context.ValidateServicesAsync;
+        await action.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task Service_Provider_Should_Throw_Exception_When_Keyed_Service_Is_Not_Resolvable(DrnTestContext context)
+    {
+        context.ServiceCollection.AddTestModule();
+        context.ServiceCollection.RemoveAll<IKeyedDependency>();
+
+        var action = context.ValidateServicesAsync;
+        await action.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Theory]
+    [DataInline]
+    public void Lifetime_Attributes_Should_Add_Multiple(DrnTestContext context)
+    {
+        context.ServiceCollection.AddTestModule();
+        context.GetServices<IMultiple>().ToArray().Length.Should().Be(2);
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task Service_Provider_Should_Throw_Exception_When_One_Of_Multiple_Services_Is_Not_Resolvable(DrnTestContext context)
+    {
+        context.ServiceCollection.AddTestModule();
+        context.ServiceCollection.RemoveAll<IMultipleIndependent>();
+
+        var action = context.ValidateServicesAsync;
+        await action.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task Validate_Sample_Dependencies(DrnTestContext context)
+    {
+        context.ServiceCollection.AddSampleApplicationServices();
+        context.ServiceCollection.AddSampleInfraServices();
+        await context.ContainerContext.Postgres.ApplyMigrationsAsync();
+        await context.ValidateServicesAsync();
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task Validate_Nexus_Dependencies(DrnTestContext context)
+    {
+        context.ServiceCollection.AddNexusApplicationServices();
+        context.ServiceCollection.AddNexusInfraServices();
+        await context.ContainerContext.Postgres.ApplyMigrationsAsync();
+        await context.ValidateServicesAsync();
+    }
+}

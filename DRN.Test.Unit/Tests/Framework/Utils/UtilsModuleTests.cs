@@ -6,10 +6,10 @@ public class UtilsModuleTests
 {
     [Theory]
     [DataInlineUnit]
-    public void AddDrnUtils_ShouldRegisterRequiredServices(DrnTestContextUnit context)
+    public async Task AddDrnUtils_ShouldRegisterRequiredServices(DrnTestContextUnit context)
     {
         context.ServiceCollection.AddDrnUtils();
-        context.ValidateServices();
+        await context.ValidateServicesAsync();
 
         var appSettings = context.GetRequiredService<IAppSettings>();
         var key = appSettings.NexusAppSettings.GetDefaultMacKey();

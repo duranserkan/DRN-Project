@@ -62,7 +62,7 @@ public class DrnTestContextUnit : IDisposable, IKeyedServiceProvider
             ServiceCollection = sc;
     }
 
-    public void ValidateServices(Func<LifetimeAttribute, bool>? ignore = null) => this.ValidateServicesAddedByAttributes(ignore: ignore);
+    public async Task ValidateServicesAsync(Func<LifetimeAttribute, bool>? ignore = null) => await this.ValidateServicesAddedByAttributesAsync(ignore: ignore);
 
     public IConfigurationRoot BuildConfigurationRoot(string appSettingsName = SettingsProvider.ConventionSettingsName)
     {

@@ -13,4 +13,4 @@ runs:
       env:
         # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
         TESTINGPLATFORM_TELEMETRY_OPTOUT: '0'
-      run: dotnet run --project DRN.Test/DRN.Test.csproj --no-build --verbosity normal --configuration Release
+      run: dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity normal --configuration Release

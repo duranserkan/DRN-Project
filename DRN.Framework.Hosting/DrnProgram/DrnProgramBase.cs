@@ -182,7 +182,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             scopeLog.Add(nameof(RequestPipelineSummary), requestPipelineSummary);
 
         program.ValidateEndpoints(application, appSettings);
-        program.ValidateServices(application, scopeLog);
+        await program.ValidateServicesAsync(application, scopeLog);
         await (actions?.ApplicationValidatedAsync(program, application, appSettings, scopeLog) ?? Task.CompletedTask);
 
         return application;
@@ -657,8 +657,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         EndpointCollectionBase<TProgram>.SetEndpointDataSource(helper);
     }
 
-    protected virtual void ValidateServices(WebApplication application, IScopedLog scopeLog) =>
-        application.Services.ValidateServicesAddedByAttributes(scopeLog);
+    protected virtual async Task ValidateServicesAsync(WebApplication application, IScopedLog scopeLog) =>
+        await application.Services.ValidateServicesAddedByAttributesAsync(scopeLog);
 
     private static string GetApplicationAssemblyName() => typeof(TProgram).GetAssemblyName();
     private static Assembly GetApplicationAssembly() => typeof(TProgram).Assembly;

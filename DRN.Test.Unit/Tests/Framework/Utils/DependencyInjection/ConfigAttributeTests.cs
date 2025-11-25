@@ -59,24 +59,24 @@ public class ConfigAttributeTests
 
     [Theory]
     [DataInlineUnit(MissingFoo)]
-    public void Config_Should_Throw_Exception_At_ServiceProvider_Validation_For_InvalidConfig(DrnTestContextUnit context, params string[] ignoredType)
+    public async Task Config_Should_Throw_Exception_At_ServiceProvider_Validation_For_InvalidConfig(DrnTestContextUnit context, params string[] ignoredType)
     {
         context.ServiceCollection.AddServicesWithAttributes();
 
-        var validationAction = () => context.ValidateServices(ignore: IgnoreValidationsFor(ignoredType));
+        var validationAction = async () => await context.ValidateServicesAsync(ignore: IgnoreValidationsFor(ignoredType));
 
-        validationAction.Should().Throw<ValidationException>();
+        await validationAction.Should().ThrowAsync<ValidationException>();
     }
 
     [Theory]
     [DataInlineUnit(InvalidConfig)]
-    public void Config_Should_Throw_Exception_At_ServiceProvider_Validation_For_Missing_Foo_Value(DrnTestContextUnit context, params string[] ignoredType)
+    public async Task Config_Should_Throw_Exception_At_ServiceProvider_Validation_For_Missing_Foo_Value(DrnTestContextUnit context, params string[] ignoredType)
     {
         context.ServiceCollection.AddServicesWithAttributes();
 
-        var validationAction = () => context.ValidateServices(ignore: IgnoreValidationsFor(ignoredType));
+        var validationAction = async () => await context.ValidateServicesAsync(ignore: IgnoreValidationsFor(ignoredType));
 
-        validationAction.Should().Throw<InvalidOperationException>();
+        await validationAction.Should().ThrowAsync<InvalidOperationException>();
     }
 
     private static Func<LifetimeAttribute, bool> IgnoreValidationsFor(params string[] ignoredTypes) =>
