@@ -46,17 +46,25 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
 
         await next(httpContext);
 
-        if (httpContext.Response.StatusCode == 401 && redirectionOptions.AppPages.Contains(requestPath))
-        {
-            var returnUrl = new Url(requestPath);
-            if (httpContext.Request.Query.Count > 0)
-                foreach (var pair in httpContext.Request.Query)
+        RedirectToLoginIfNotAuthorized(httpContext, redirectionOptions);
+    }
+
+    private static void RedirectToLoginIfNotAuthorized(HttpContext httpContext, MfaRedirectionOptions redirectionOptions)
+    {
+        var requestPath = httpContext.Request.Path;
+        if (httpContext.Response.StatusCode != 401 || !redirectionOptions.AppPages.Contains(requestPath))
+            return;
+
+        var returnUrl = new Url(requestPath);
+        if (httpContext.Request.Query.Count > 0)
+            foreach (var pair in httpContext.Request.Query)
+            {
                 foreach (var parameterValue in pair.Value.ToArray())
                     returnUrl.SetQueryParam(pair.Key, parameterValue);
+            }
 
-            var redirectionUrl = new Url(redirectionOptions.LoginUrl).SetQueryParam(DrnRedirection.ReturnUrl, returnUrl.ToString());
-            httpContext.Response.Redirect(redirectionUrl.ToString());
-        }
+        var redirectionUrl = new Url(redirectionOptions.LoginUrl).SetQueryParam(DrnRedirection.ReturnUrl, returnUrl.ToString());
+        httpContext.Response.Redirect(redirectionUrl.ToString());
     }
 }
 
