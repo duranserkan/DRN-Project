@@ -6,7 +6,7 @@
       "doc": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/environments",
       "commandName": "Project",
       "launchBrowser": true,
-      "launchUrl": "http://localhost:5998/Home",
+      "launchUrl": "http://localhost:5998/",
       "applicationUrl": "http://localhost:5998;",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",

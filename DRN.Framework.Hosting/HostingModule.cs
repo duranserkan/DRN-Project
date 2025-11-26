@@ -1,10 +1,6 @@
-using System.Text.Json;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.SharedKernel.Json;
-using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
-using Flurl.Http;
-using Flurl.Http.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

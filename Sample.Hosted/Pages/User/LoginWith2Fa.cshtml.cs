@@ -1,32 +1,32 @@
 using System.ComponentModel.DataAnnotations;
 using DRN.Framework.Hosting.Auth;
+using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Users;
 using Sample.Hosted.Helpers;
-using Sample.Hosted.Pages.Shared.Models;
 
 namespace Sample.Hosted.Pages.User;
 
 [Authorize(AuthPolicy.MfaExempt)]
-public class LoginWith2Fa(SignInManager<SampleUser> signInManager) : PageModel
+public class LoginWith2Fa(SignInManager<SampleUser> signInManager, MfaRedirectionOptions redirectionOptions) : PageModel
 {
     private const string InvalidCodeAttempts = nameof(InvalidCodeAttempts);
 
-    [BindProperty] public Login2FaModel Login2FaModel { get; set; } = new();
-    
+    [BindProperty]
+    public Login2FaModel Login2FaModel { get; set; } = new();
+
     public IActionResult OnGet(bool rememberMe, string? returnUrl = null)
     {
         if (!MfaFor.MfaInProgress)
             return LocalRedirect(Get.Page.User.Login);
-        
+
         Login2FaModel.RememberMe = rememberMe;
         ViewData[Get.ViewDataKeys.ReturnUrl] = returnUrl;
 
         return Page();
     }
-
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
@@ -41,7 +41,16 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager) : PageModel
         if (result.Succeeded)
         {
             ResetInvalidCodeAttempts(HttpContext);
-            return LocalRedirect(returnUrl ?? Get.Page.Root.Home);
+
+            returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : Get.Page.Root.Home;
+
+            var url = new Flurl.Url(returnUrl);
+            if (redirectionOptions.AppPages.Contains(url.Path))
+                return url.QueryParams.Count == 0
+                    ? RedirectToPage(url.Path)
+                    : RedirectToPage(url.Path, url.QueryParams.ToDictionary(tuple => tuple.Name, tuple => tuple.Value));
+            
+            return LocalRedirect(returnUrl);
         }
 
         if (result.IsLockedOut)
@@ -77,5 +86,6 @@ public class Login2FaModel
     [Display(Name = "Authenticator code")]
     public string TwoFactorCode { get; init; } = string.Empty;
 
-    [Display(Name = "Remember me?")] public bool RememberMe { get; set; }
+    [Display(Name = "Remember me?")]
+    public bool RememberMe { get; set; }
 }

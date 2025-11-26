@@ -12,7 +12,8 @@ namespace Sample.Hosted.Pages.User;
 [AllowAnonymous]
 public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<SampleUser> userManager) : PageModel
 {
-    [BindProperty] public LoginInput Input { get; set; } = null!;
+    [BindProperty]
+    public LoginInput Input { get; set; } = null!;
 
     public string? ReturnUrl { get; set; }
 
@@ -21,11 +22,11 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
         if (ScopeContext.Authenticated)
             return RedirectToPage(Get.Page.Root.Home);
 
-        ReturnUrl = returnUrl;
+        ReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : string.Empty;
         return Page();
     }
 
-    public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
+    public async Task<IActionResult> OnPostAsync()
     {
         if (!ModelState.IsValid) return Page();
 
@@ -46,7 +47,9 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
             return ReturnInvalidAttempt();
 
         await signInManager.SignInAsync(user, false, authenticationMethod: MfaClaimValues.MfaInProgress);
-        return RedirectToPage(Get.Page.User.LoginWith2Fa, new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
+
+        Input.ReturnUrl = Url.IsLocalUrl(Input.ReturnUrl) ? Input.ReturnUrl : string.Empty;
+        return RedirectToPage(Get.Page.User.LoginWith2Fa, new { Input.ReturnUrl, Input.RememberMe });
     }
 
     public record UserLoginValidation(bool LockedOut, bool PasswordValid, bool TwoFactorEnabled);
@@ -71,9 +74,16 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
 
 public class LoginInput
 {
-    [Required] [EmailAddress] public string Email { get; init; } = null!;
+    public string? ReturnUrl { get; set; }
 
-    [Required] [DataType(DataType.Password)] public string Password { get; init; } = null!;
+    [Required]
+    [EmailAddress]
+    public string Email { get; init; } = null!;
 
-    [Display(Name = "Remember me?")] public bool RememberMe { get; init; }
+    [Required]
+    [DataType(DataType.Password)]
+    public string Password { get; init; } = null!;
+
+    [Display(Name = "Remember me?")]
+    public bool RememberMe { get; init; }
 }

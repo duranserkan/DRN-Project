@@ -44,9 +44,6 @@
     "typeRoots": [
       "./node_modules/@types",           // Default location for DefinitelyTyped packages
       "./build/types"                   // Add your custom types directory
-      // If tsconfig is in OPT.Hosted/, you might use:
-      // "./OPT.Hosted/build/types"
-      // Adjust the path relative to THIS tsconfig.json file
     ],
     "include": [
       "build/ts/**/*" // Ensure your TS files are included

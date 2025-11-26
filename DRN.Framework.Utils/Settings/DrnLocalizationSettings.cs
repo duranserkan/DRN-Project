@@ -5,7 +5,7 @@ using DRN.Framework.Utils.DependencyInjection.Attributes;
 namespace DRN.Framework.Utils.Settings;
 
 [Config(validateAnnotations: true, errorOnUnknownConfiguration: true)]
-public class DrnLocalizationSettings: IValidatableObject
+public class DrnLocalizationSettings : IValidatableObject
 {
     /// <summary>
     /// As a best practice, always define language only cultures so that Regions specific cultures can fall back to neutral region when not available.
@@ -18,9 +18,9 @@ public class DrnLocalizationSettings: IValidatableObject
     /// Generates base language codes from regional culture codes (e.g., "de" from "de-CH")
     /// </summary>
     public bool EnsureBaseLanguage { get; init; } = true;
-    
+
     public bool Enabled { get; init; }
-    
+
     public void ValidateCultures()
     {
         var validCultures = new List<string>();
@@ -54,8 +54,8 @@ public class DrnLocalizationSettings: IValidatableObject
 
     private static string[] EnsureBaseLanguages(IReadOnlyList<string> cultures)
     {
-        var cultureSet = new HashSet<string>(cultures);
-        var result = new HashSet<string>(cultures);
+        var cultureSet = new HashSet<string>(cultures, StringComparer.OrdinalIgnoreCase);
+        var result = new HashSet<string>(cultures, StringComparer.OrdinalIgnoreCase);
 
         foreach (var culture in cultures)
         {

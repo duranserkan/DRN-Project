@@ -1,0 +1,27 @@
+@page "/"
+@model Sample.Hosted.Pages.HomeAnonymous
+
+@{
+    var title = "Welcome";
+    var options = Get.LayoutOptions.Centered(string.Empty);
+    options.Type = MainContentType.None;
+    options.ColumnSize = BootstrapColumnSize.None;
+    
+    ViewData[Get.ViewDataKeys.Title] = title;
+    ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
+}
+
+@* UI Examples
+https://hypermedia.gallery/built-with/htmx/
+https://getbootstrap.com/docs/5.3/examples/
+https://themes.getbootstrap.com
+*@
+
+<h1 class="display-4">Welcome to @ScopeContext.Settings.ApplicationName!</h1>
+<p>This is a simple home page example using Razor Pages.</p>
+
+@section Scripts {
+    <script>
+        console.log("Welcome, Anonymous User!");
+    </script>
+}

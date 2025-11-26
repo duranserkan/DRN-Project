@@ -10,7 +10,8 @@
 
 <form method="post" class="text-start">
     <div asp-validation-summary="All" class="text-danger"></div>
-
+    <input asp-for="Input.ReturnUrl" type="hidden" value="@(Model.ReturnUrl ?? string.Empty)"/>
+    
     <div class="form-floating mb-3">
         <input asp-for="Input.Email" class="form-control" type="email" placeholder="name@example.com" autocomplete="email"/>
         <label asp-for="Input.Email"></label>

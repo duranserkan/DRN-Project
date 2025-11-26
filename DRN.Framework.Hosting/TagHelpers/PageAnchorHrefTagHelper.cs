@@ -26,7 +26,7 @@ public class PageAnchorHrefTagHelper : TagHelper
 
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
-        if (!output.Attributes.TryGetAttribute(HrefAttributeName, out var hrefAttribute))
+        if (!context.AllAttributes.TryGetAttribute(HrefAttributeName, out var hrefAttribute))
             return;
 
         var hrefValue = hrefAttribute.Value?.ToString();

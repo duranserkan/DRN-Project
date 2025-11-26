@@ -8,6 +8,8 @@ namespace DRN.Framework.Hosting.TagHelpers;
 public class PageAnchorAspPageTagHelper : TagHelper
 {
     private const string PageAttributeName = "asp-page";
+    
+    public override int Order => int.MinValue; // Lower numbers execute first
 
     [ViewContext]
     [HtmlAttributeNotBound]
@@ -25,7 +27,7 @@ public class PageAnchorAspPageTagHelper : TagHelper
 
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
-        if (!output.Attributes.TryGetAttribute(PageAttributeName, out var aspPageAttribute))
+        if (!context.AllAttributes.TryGetAttribute(PageAttributeName, out var aspPageAttribute))
             return;
 
         var aspPageValue = aspPageAttribute.Value?.ToString();

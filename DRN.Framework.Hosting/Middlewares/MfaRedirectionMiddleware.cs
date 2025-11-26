@@ -1,6 +1,7 @@
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using Flurl;
 using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Middlewares;
@@ -13,6 +14,7 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
         if (redirectionOptions.RedirectionNotNeeded(requestPath))
         {
             await next(httpContext);
+
             return;
         }
 
@@ -43,7 +45,24 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
         }
 
         await next(httpContext);
+
+        if (httpContext.Response.StatusCode == 401 && redirectionOptions.AppPages.Contains(requestPath))
+        {
+            var returnUrl = new Url(requestPath);
+            if (httpContext.Request.Query.Count > 0)
+                foreach (var pair in httpContext.Request.Query)
+                foreach (var parameterValue in pair.Value.ToArray())
+                    returnUrl.SetQueryParam(pair.Key, parameterValue);
+
+            var redirectionUrl = new Url(redirectionOptions.LoginUrl).SetQueryParam(DrnRedirection.ReturnUrl, returnUrl.ToString());
+            httpContext.Response.Redirect(redirectionUrl.ToString());
+        }
     }
+}
+
+public static class DrnRedirection
+{
+    public const string ReturnUrl = nameof(ReturnUrl);
 }
 
 [Singleton<MfaRedirectionOptions>]
@@ -97,7 +116,7 @@ public class MfaRedirectionConfig
         LogoutUrl = logoutUrl;
 
         //create new set to keep original set unchanged
-        AppPages = appPages.ToHashSet();
+        AppPages = appPages.ToHashSet(StringComparer.OrdinalIgnoreCase);
         AppPages.Remove(loginUrl);
         AppPages.Remove(logoutUrl);
     }

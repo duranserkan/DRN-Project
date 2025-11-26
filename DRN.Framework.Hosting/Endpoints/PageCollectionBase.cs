@@ -15,7 +15,7 @@ public abstract class PageCollectionBase<TPageCollection>
         var properties = typeof(TPageCollection).GetProperties()
             .Where(p => p.PropertyType.IsAssignableTo(typeof(PageForBase)));
 
-        HashSet<string> pageList = [];
+        var pageList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var propertyInfo in properties)
         {
             var pageForBase = (PageForBase?)propertyInfo.GetValue(PageCollection);
