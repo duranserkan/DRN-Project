@@ -2,7 +2,7 @@ using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 
 namespace DRN.Framework.Hosting.TagHelpers;
-
+//todo: add ClaimOnly - ClaimValueOnly tag Helperss
 [HtmlTargetElement("*", Attributes = "authorized-only")]
 public class AuthorizedOnlyTagHelper : TagHelper
 {

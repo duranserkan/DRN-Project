@@ -38,7 +38,7 @@ public class AppSecuritySettings : IAppSecuritySettings
         //Inside only usage
         AppEncryptionKey = (AppHashKey + "1919").Hash().Hash().Hash().Hash();
         //Outside only usage
-        AppKey = (AppHashKey + "1923" + AppEncryptionKey + "2923").Hash().Hash().Hash().Hash().Hash().Hash();
+        AppKey = (AppHashKey + "1923" + AppEncryptionKey + "2923").Hash().Hash().Hash().Hash().Hash().Hash()[..8];
         AppSeed = (features.SeedKey + "2923").GenerateSeedFromInputHash();
     }
 
