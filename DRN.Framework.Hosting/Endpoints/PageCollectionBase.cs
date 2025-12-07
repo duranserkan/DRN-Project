@@ -12,18 +12,7 @@ public abstract class PageCollectionBase<TPageCollection>
 
     private static HashSet<string> InitializePages()
     {
-        var properties = typeof(TPageCollection).GetProperties()
-            .Where(p => p.PropertyType.IsAssignableTo(typeof(PageForBase)));
-
-        var pageList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var propertyInfo in properties)
-        {
-            var pageForBase = (PageForBase?)propertyInfo.GetValue(PageCollection);
-            if (pageForBase == null) continue;
-
-            foreach (var page in pageForBase.GetPages())
-                pageList.Add(page);
-        }
+        var pageList = PageForBase.GetPages(PageCollection);
 
         return pageList;
     }

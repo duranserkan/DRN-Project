@@ -25,4 +25,24 @@ public abstract class PageForBase
         .Where(p => p.PropertyType == typeof(string))
         .Select(p => p.GetValue(this))
         .Where(v => v != null).Cast<string>();
+    
+    internal static HashSet<string> GetPages(object pageForSource)
+    {
+        var properties = GetPageForProperties(pageForSource.GetType());
+
+        var pageList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var propertyInfo in properties)
+        {
+            var pageForBase = (PageForBase?)propertyInfo.GetValue(pageForSource);
+            if (pageForBase == null) continue;
+
+            foreach (var page in pageForBase.GetPages())
+                pageList.Add(page);
+        }
+
+        return pageList;
+    }
+
+    internal static PropertyInfo[] GetPageForProperties(Type type) => type.GetProperties()
+        .Where(p => p.PropertyType.IsAssignableTo(typeof(PageForBase))).ToArray();
 }

@@ -12,9 +12,9 @@ public class PagerForTests
         pages.Should().Contain(Get.Page.Root.GetPages());
         pages.Should().Contain(Get.Page.User.GetPages());
         pages.Should().Contain(Get.Page.UserManagement.GetPages());
-        pages.Should().Contain(Get.Page.SystemManagement.GetPages());
+        pages.Should().Contain(Get.Page.System.GetPages());
 
         Get.Page.UserManagement.ShowRecoveryCodes.Should().Be("/User/Management/ShowRecoveryCodes");
-        Get.Page.SystemManagement.Setup.Should().Be("/System/Setup");
+        Get.Page.System.Setup.Should().Be("/System/Setup");
     }
 }
