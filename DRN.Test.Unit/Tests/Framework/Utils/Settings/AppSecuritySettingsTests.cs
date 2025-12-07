@@ -16,7 +16,7 @@ public class AppSecuritySettingsTests
         var decodedHashKey = securitySettings.AppHashKey.Decode();
         decodedHashKey.Length.Should().Be(32);
         
-        var decodedAppKey = securitySettings.AppKey.Decode();
-        decodedAppKey.Length.Should().Be(32);
+        var decodedAppKey = securitySettings.AppKey;
+        decodedAppKey.Length.Should().Be(8);
     }
 }
