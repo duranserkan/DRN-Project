@@ -36,7 +36,7 @@ https://rstacruz.github.io/rsjs/
             <div id="preferenceManagementContainer" class="d-flex align-items-center">
                 <div class="dropup">
                     <!-- Main button for opening the cookie manager dropdown -->
-                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="PreferenceManager" 
+                    <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="PreferenceManager"
                             data-bs-toggle="dropdown" aria-expanded="false" aria-label="Preference Manager">
                         Preferences <i class="bi bi-sliders"></i>
                     </button>
@@ -76,22 +76,11 @@ https://rstacruz.github.io/rsjs/
     </div>
 </footer>
 
-<script>        
-    DRN.App.showCookieBanner = @Json.Serialize(showCookieAlertBanner);
+<script>
+    DRN.App.ShowCookieBanner = @Json.Serialize(showCookieAlertBanner);
     DRN.Onmount.register("[data-js-drn-footer]", function () {
         'use strict';
-        const footerComponent = this;
-        const preferencesCookieName = @Json.Serialize(ConsentContext.CookieName);
-        const getPreferenceCookie = () => {
-            const parts = `; ${document.cookie}`.split(`; ${preferencesCookieName}=`);
-            if (parts.length === 2)
-                return parts.pop().split(';').shift();
-
-            return DRN.Utils.urlSafeBase64Encode(JSON.stringify({}));
-        };
-        const getPreferenceCookieWithDecode = () => JSON.parse(DRN.Utils.urlSafeBase64Decode(getPreferenceCookie()));
-        let globalPreferences = getPreferenceCookieWithDecode();
-
+        
         const footerNavbar = ".footerNavbar";
         const preferenceCookieAlert = ".preferenceCookieAlert";
         const analyticsCookiesCheckBoxId = "#analyticsCookiesCheckBox";
@@ -99,35 +88,11 @@ https://rstacruz.github.io/rsjs/
         const acceptPreferenceCookieBtnId = "#acceptPreferencesCookieBtn";
         const rejectPreferenceCookieBtnId = "#rejectPreferencesCookieBtn";
         const savePreferencesBtnId = "#savePreferencesBtn";
+        const footerComponent = this;
+        const preferencesCookieName = @Json.Serialize(ConsentContext.CookieName);
+
+        let globalPreferences = DRN.Cookie.get(preferencesCookieName, {encoding: 'base64'}) || {};
         
-        const savePreferences = (preferences) => {
-            globalPreferences = preferences;
-            const preferencesAsJson = JSON.stringify(preferences);
-            const preferencesJsonAsEncoded = DRN.Utils.urlSafeBase64Encode(preferencesAsJson);
-            const oneYearInSeconds = 365 * 24 * 60 * 60; // Set the cookie to expire in 1 year using Max-Age
-            document.cookie = `${preferencesCookieName}=${preferencesJsonAsEncoded}; path=/; Max-Age=${oneYearInSeconds}; SameSite=Strict;`;
-
-            adjustFooterVisibility(false);
-            loadPreferences();
-        }
-        const loadPreferences = () => {
-            footerComponent.querySelector(analyticsCookiesCheckBoxId).checked = globalPreferences.AnalyticsConsent || false;
-            footerComponent.querySelector(marketingCookiesCheckBoxId).checked = globalPreferences.MarketingConsent || false;
-        }
-        const adjustFooterVisibility = (showCookieAlertBanner) => {
-            if (showCookieAlertBanner) {
-                footerComponent.querySelector(footerNavbar).classList.replace("d-flex", "d-none");
-                footerComponent.querySelector(preferenceCookieAlert).classList.replace("d-none", "d-flex");
-            } else {
-                footerComponent.querySelector(footerNavbar).classList.replace("d-none", "d-flex");
-                footerComponent.querySelector(preferenceCookieAlert).classList.replace("d-flex", "d-none");
-            }
-        }
-        const createPreferences = (analyticsConsent, marketingConsent) => ({
-            @nameof(ConsentCookieValues.AnalyticsConsent): analyticsConsent,
-            @nameof(ConsentCookieValues.MarketingConsent): marketingConsent
-        });
-
         loadPreferences();
         footerComponent.querySelector(acceptPreferenceCookieBtnId).addEventListener("click", () => savePreferences(createPreferences(true, true)));
         footerComponent.querySelector(rejectPreferenceCookieBtnId).addEventListener("click", () => savePreferences(createPreferences(false, false)));
@@ -136,7 +101,39 @@ https://rstacruz.github.io/rsjs/
             const marketing = footerComponent.querySelector(marketingCookiesCheckBoxId).checked;
             savePreferences(createPreferences(analytics, marketing));
         });
+
+        adjustFooterVisibility(DRN.App.ShowCookieBanner);
         
-        adjustFooterVisibility(DRN.App.showCookieBanner);
+        function savePreferences(preferences) {
+            globalPreferences = preferences;
+            DRN.Cookie.set(preferencesCookieName, preferences, {
+                days: 365,
+                encoding: 'base64'
+            });
+
+            adjustFooterVisibility(false);
+            loadPreferences();
+        }
+        function loadPreferences() {
+            footerComponent.querySelector(analyticsCookiesCheckBoxId).checked = globalPreferences.AnalyticsConsent || false;
+            footerComponent.querySelector(marketingCookiesCheckBoxId).checked = globalPreferences.MarketingConsent || false;
+        }
+
+        function adjustFooterVisibility(showCookieAlertBanner) {
+            if (showCookieAlertBanner) {
+                footerComponent.querySelector(footerNavbar).classList.replace("d-flex", "d-none");
+                footerComponent.querySelector(preferenceCookieAlert).classList.replace("d-none", "d-flex");
+            } else {
+                footerComponent.querySelector(footerNavbar).classList.replace("d-none", "d-flex");
+                footerComponent.querySelector(preferenceCookieAlert).classList.replace("d-flex", "d-none");
+            }
+        }
+
+        function createPreferences (analyticsConsent, marketingConsent) {
+            return {
+                @nameof(ConsentCookieValues.AnalyticsConsent): analyticsConsent,
+                @nameof(ConsentCookieValues.MarketingConsent): marketingConsent
+            }
+        }
     });
 </script>

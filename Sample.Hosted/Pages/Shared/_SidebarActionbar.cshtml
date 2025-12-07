@@ -1,5 +1,8 @@
 @using DRN.Framework.SharedKernel.Enums
 @using DRN.Framework.Utils.Models
+@inject IAppSettings AppSettings
+@inject DevelopmentStatus DevelopmentStatus
+
 @{
     var index = 0;
     var actionCount = SidebarActionCollection.DefaultItems.Count;
@@ -12,22 +15,26 @@
             @foreach (var navItem in sidebarActionCollection.Items)
             {
                 var borderBottom = ++index == actionCount ? "border-bottom" : "";
-                var canvasId = $"#offCanvasSidebarAction{navItem.Id}";
-                <li class="nav-item">
+
+                <li class="nav-item" id="@navItem.ActionItemId" data-js-actionbar-item>
                     <div title="@navItem.Title" data-bs-toggle="tooltip" data-bs-placement="left">
                         <button class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0" type="button"
-                                data-bs-toggle="offcanvas" data-bs-target="@canvasId">
+                                data-bs-toggle="offcanvas" data-bs-target="#@navItem.ActionItemCanvasId">
                             <span class="position-relative">
                                 <i class="bi @navItem.Icon" style="font-size: 1.25em;" role="img" aria-label="@navItem.Title"></i>
-                                @if (!string.IsNullOrWhiteSpace(navItem.BadgeContent))
+                                @if (navItem.BadgeContentGenerator != null || !string.IsNullOrWhiteSpace(navItem.BadgeContent))
                                 {
-                                    <span style="font-size: 0.7rem;"
-                                          class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">@navItem.BadgeContent
-                                        @if (!string.IsNullOrWhiteSpace(navItem.BadgeVisuallyHiddenContent))
-                                        {
-                                            <span class="visually-hidden">@navItem.BadgeVisuallyHiddenContent</span>
-                                        }
-                                    </span>
+                                    var badgeContent = navItem.GetBadgeContent();
+                                    @if (!string.IsNullOrWhiteSpace(badgeContent))
+                                    {
+                                        <span style="font-size: 0.7rem;" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">                                    
+                                            <span class="@navItem.ActionItemBadgeContentClass">@badgeContent</span>
+                                            @if (!string.IsNullOrWhiteSpace(navItem.BadgeVisuallyHiddenContent))
+                                            {
+                                                <span class="visually-hidden">@navItem.BadgeVisuallyHiddenContent</span>
+                                            }
+                                        </span>
+                                    }
                                 }
                             </span>
                         </button>
@@ -38,10 +45,9 @@
     </nav>
     <nav style="overflow-y:auto; overflow-x: hidden">
         <ul id="ActionBarBadgeList" class="nav nav-pills nav-flush flex-column mt-1 mb-auto">
-            @if (ScopeContext.Settings.Environment != AppEnvironment.Production)
+            @if (AppSettings.Environment != AppEnvironment.Production)
             {
-                var developmentStatus = ScopeContext.Services.GetRequiredService<DevelopmentStatus>();
-                <partial name="_SidebarActionbarBadges" model="developmentStatus"/>
+                <partial name="_SidebarActionbarBadges" model="DevelopmentStatus"/>
             }
         </ul>
     </nav>
@@ -49,16 +55,38 @@
 
 @foreach (var navItem in SidebarActionCollection.DefaultItems)
 {
-    var canvasId = $"offCanvasSidebarAction{navItem.Id}";
-    var canvasLabelId = $"offCanvasSidebarActionLabel{navItem.Id}";
-    var partialName = $"_SidebarActionbarItem{navItem.Id}";
-    <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="@canvasId" role="dialog" aria-modal="true" aria-labelledby="@canvasLabelId">
+    <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="@navItem.ActionItemCanvasId" role="dialog" aria-modal="true"
+         aria-labelledby="@navItem.ActionItemCanvasLabelId">
         <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="@canvasLabelId">@navItem.Title</h5>
+            <h5 class="offcanvas-title" id="@navItem.ActionItemCanvasLabelId">
+                <div class="d-flex gap-3 text-primary">
+                    <h4 class="position-relative">
+                        <i class="bi @navItem.Icon" role="img" aria-label="@navItem.Title"></i>
+                        @if (navItem.BadgeContentGenerator != null || !string.IsNullOrWhiteSpace(navItem.BadgeContent))
+                        {
+                            var badgeContent = navItem.GetBadgeContent();
+                            @if (!string.IsNullOrWhiteSpace(badgeContent))
+                            {
+                                <span style="font-size: 0.7rem;" data-js-actionbar-badge
+                                      class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    <span class="@navItem.ActionItemBadgeContentClass">@badgeContent</span>
+                                    @if (!string.IsNullOrWhiteSpace(navItem.BadgeVisuallyHiddenContent))
+                                    {
+                                        <span class="visually-hidden">@navItem.BadgeVisuallyHiddenContent</span>
+                                    }
+                                </span>
+                            }
+                        }
+                    </h4>
+                    <h4>
+                        @navItem.Title
+                    </h4>
+                </div>
+            </h5>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body">
-            <partial name="@partialName" model="navItem"/>
+            <partial name="@navItem.PartialViewName" model="navItem"/>
         </div>
     </div>
 }

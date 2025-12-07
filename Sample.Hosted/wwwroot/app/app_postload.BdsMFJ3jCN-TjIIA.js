@@ -9,7 +9,7 @@ document.addEventListener("htmx:load", onmount);
 DRN.Onmount.register('[data-bs-toggle="tooltip"]', function(options) {
   options.disposable = new bootstrap.Tooltip(this, { animation: false });
 });
-if (DRN.App.isDev) {
+if (DRN.App.IsDev) {
   document.addEventListener("htmx:responseError", function(evt) {
     if (!evt.detail) {
       console.error("htmx:responseError fired without detail");

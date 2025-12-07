@@ -1,12 +1,12 @@
 const drnApp = {
-  environment: "Neitherland",
-  isDev: false,
-  showCookieBanner: false,
-  csrfToken: "",
-  defaultCulture: "tr",
-  supportedCultures: ["en", "tr"],
+  Environment: "Neitherland",
+  IsDev: false,
+  ShowCookieBanner: false,
+  CsrfToken: "",
+  DefaultCulture: "tr",
+  SupportedCultures: ["en", "tr"],
   // Placeholder for application state management
-  state: {}
+  State: {}
 };
 const drnOnmount = {
   _registry: /* @__PURE__ */ new Set(),
@@ -91,8 +91,13 @@ const drnUtils = {
       console.warn("urlSafeBase64Encode: Input must be a string.");
       return "";
     }
-    const base64 = btoa(str);
-    return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    try {
+      const base64 = btoa(str);
+      return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    } catch (e) {
+      console.error("urlSafeBase64Encode: Base64 encoding failed", e);
+      return str;
+    }
   },
   /**
    * Decodes a URL-safe Base64 string.
@@ -106,15 +111,6 @@ const drnUtils = {
     }
     const base64 = str.replace(/-/g, "+").replace(/_/g, "/").padEnd(str.length + (4 - str.length % 4) % 4, "=");
     return atob(base64);
-  },
-  /**
-   * Checks if a cookie with the given name exists.
-   * @param {string} cookieName - The name of the cookie to check.
-   * @returns {boolean} True if the cookie exists, false otherwise.
-   */
-  checkCookieExists: (cookieName) => {
-    if (typeof cookieName !== "string") return false;
-    return document.cookie.split("; ").some((cookie) => cookie.startsWith(`${cookieName}=`));
   },
   /**
    * Generates a CSS selector string representing the given element.
@@ -184,11 +180,146 @@ const drnUtils = {
     return output;
   }
 };
+class DrnCookieManager {
+  constructor() {
+    this.defaults = {
+      path: "/",
+      sameSite: "Strict",
+      secure: window.location.protocol === "https:",
+      encoding: "uri"
+      // 'uri' | 'base64' | 'none'
+    };
+  }
+  /**
+   * Lists all cookies as { name, value, raw } objects.
+   * @returns {Array<{name: string, value: string, raw: string}>}
+   */
+  list() {
+    return document.cookie.split(";").map((c) => c.trimStart()).filter((c) => c).map((raw) => {
+      const eqIndex = raw.indexOf("=");
+      return eqIndex > 0 ? { name: raw.slice(0, eqIndex), value: raw.slice(eqIndex + 1), raw } : { name: raw, value: "", raw };
+    });
+  }
+  /**
+   * Sets a cookie with the specified name, value, and options.
+   * @param {string} name - The name of the cookie.
+   * @param {string|object} value - The value to store. Objects are automatically stringified.
+   * @param {DrnCookieOptions} [options] - Configuration options.
+   * @param {number} [options.days] - Expiration in days.
+   * @param {number} [options.maxAge] - Expiration in seconds (takes precedence over days).
+   * @param {string} [options.path='/'] - The path scope (defaults to root).
+   * @param {string} [options.domain] - The domain scope.
+   * @param {boolean} [options.secure] - If true, cookie requires HTTPS. Defaults to location.protocol === 'https:'.
+   * @param {'Strict'|'Lax'|'None'} [options.sameSite='Strict'] - CSRF protection level
+   * @param {'uri'|'base64'|'none'} [options.encoding='uri'] - Encoding strategy.
+   */
+  set(name, value, options = {}) {
+    if (!this._validateName(name)) return;
+    const config = { ...this.defaults, ...options };
+    let stringValue = value;
+    if (typeof value === "object" && value !== null) {
+      try {
+        stringValue = JSON.stringify(value);
+      } catch (e) {
+        console.error(`DrnCookieManager: Serialization failed for '${name}'`, e);
+        return;
+      }
+    }
+    let encodedValue = stringValue;
+    if (config.encoding === "uri") {
+      encodedValue = encodeURIComponent(stringValue);
+    } else if (config.encoding === "base64") {
+      encodedValue = drnUtils.urlSafeBase64Encode(stringValue);
+    }
+    let cookieString = `${encodeURIComponent(name)}=${encodedValue}`;
+    if (config.maxAge !== void 0) {
+      cookieString += `; Max-Age=${config.maxAge}`;
+    } else if (config.days) {
+      const date = /* @__PURE__ */ new Date();
+      date.setTime(date.getTime() + config.days * 24 * 60 * 60 * 1e3);
+      cookieString += `; expires=${date.toUTCString()}`;
+    }
+    if (config.domain) cookieString += `; domain=${config.domain}`;
+    if (config.path) cookieString += `; path=${config.path}`;
+    if (config.secure) cookieString += `; Secure`;
+    if (config.sameSite) cookieString += `; SameSite=${config.sameSite}`;
+    document.cookie = cookieString;
+  }
+  /**
+   * Retrieves a cookie value by name.
+   * @param {string} name - The name of the cookie.
+   * @param {object} [options] - Retrieval options.
+   * @param {boolean} [options.deserialize=true] - If true, attempts to JSON.parse.
+   * @param {'uri'|'base64'|'none'} [options.encoding='uri'] - Decoding strategy matching the set strategy.
+   * @returns {string|object|null} The value or null if not found.
+   */
+  get(name, options = {}) {
+    if (!this._validateName(name)) return null;
+    const encoding = options.encoding || this.defaults.encoding;
+    options.deserialize || true;
+    const encodedName = encodeURIComponent(name);
+    const nameEQ = encodedName + "=";
+    const ca = document.cookie.split(";");
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i].trimStart();
+      if (c.indexOf(nameEQ) === 0) {
+        let value = c.substring(nameEQ.length, c.length);
+        try {
+          if (encoding === "uri")
+            value = decodeURIComponent(value);
+          else if (encoding === "base64")
+            value = drnUtils.urlSafeBase64Decode?.(value) ?? value;
+        } catch (e) {
+          console.warn(`Cookie read error [${name}]:`, e);
+          return null;
+        }
+        {
+          try {
+            return JSON.parse(value);
+          } catch (e) {
+            return value;
+          }
+        }
+        return value;
+      }
+    }
+    return null;
+  }
+  /**
+   * Deletes a cookie.
+   * IMPORTANT: Path and Domain must match how the cookie was set.
+   * @param {string} name - The name of the cookie.
+   * @param {object} [options] - Must match path/domain of original cookie.
+   */
+  remove(name, options = {}) {
+    if (!this.exists(name))
+      console.warn(`DrnCookieManager: Attempted to remove non-existent cookie '${name}'`);
+    this.set(name, "", { ...options, maxAge: 0 });
+  }
+  /**
+   * Checks if a specific cookie exists.
+   * @param {string} name
+   * @returns {boolean}
+   */
+  exists(name) {
+    return this.get(name) !== null;
+  }
+  // --- Internal Helpers ---
+  _validateName(name) {
+    if (!name || typeof name !== "string") {
+      console.error("DrnCookieManager: Cookie name must be a non-empty string.");
+      return false;
+    }
+    return true;
+  }
+}
+const drnCookieManager = new DrnCookieManager();
 if (typeof window !== "undefined") {
   window.DRN = window.DRN || {};
   window.DRN.App = drnApp;
   window.DRN.Onmount = drnOnmount;
   window.DRN.Utils = drnUtils;
+  window.DRN.Cookie = drnCookieManager;
   document.addEventListener("popstate", () => {
     window.location.href = window.location.href;
   });

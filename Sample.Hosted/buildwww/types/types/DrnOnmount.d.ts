@@ -1,6 +1,6 @@
 // Declare the minimal structure of onmount for typing purposes
 // This assumes onmount is available globally (e.g., loaded before this script)
-interface OnMountStatic {
+export interface OnMountStatic {
     (selector?: string, register?: (this: Element) => void, unregister?: (this: Element) => void): void;
     // Add other onmount properties/methods if needed
 }
@@ -8,7 +8,7 @@ interface OnMountStatic {
 // Declare the global onmount function
 declare const onmount: OnMountStatic;
 
-interface DrnOnmount {
+export interface IDrnOnmount {
     _registry?: Set<string>; // Optional, internal use
 
     unregister(this: Element, options?: { disposable?: { dispose?: () => void; destroy?: () => void } }): void;

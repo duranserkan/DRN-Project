@@ -1,7 +1,7 @@
 // vite.config.js
 import {defineConfig} from 'vite';
 import {resolve} from 'path'; // Import resolve for path management
-import drnUtils from './buildwww/app/js/drnUtils.js';
+import drnUtils from './buildwww/app/js/drn/drnUtils.js';
 
 const sharedConfig = {
     // Set the base public path for assets (important for ASP.NET)

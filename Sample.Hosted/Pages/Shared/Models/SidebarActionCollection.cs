@@ -1,8 +1,10 @@
+using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Extensions;
+using DRN.Framework.Utils.Scope;
 
 namespace Sample.Hosted.Pages.Shared.Models;
 
-public class SidebarActionCollection(IReadOnlyList<SidebarActionItem> items, bool ordered = true)
+public class SidebarActionCollection
 {
     public static IReadOnlyList<SidebarActionItem> DefaultItems { get; } = new List<SidebarActionItem>
     {
@@ -15,23 +17,61 @@ public class SidebarActionCollection(IReadOnlyList<SidebarActionItem> items, boo
         new("#", "Service Status", "bi-heart-pulse")
     }.OrderBy(i => i.Order).ToArray();
 
+
     public SidebarActionCollection() : this(DefaultItems)
     {
     }
 
-    public IReadOnlyList<SidebarActionItem> Items { get; } = ordered ? items : items.OrderBy(x => x.Order).ToArray();
+    public SidebarActionCollection(IReadOnlyList<SidebarActionItem> items)
+    {
+        var availableItems = ScopeContext.Settings.Environment == AppEnvironment.Development
+            ? items
+            : items.Where(item => !item.DevelopmentOnly);
+
+        Items = availableItems.OrderBy(x => x.Order).ToArray();
+    }
+
+    public IReadOnlyList<SidebarActionItem> Items { get; }
 }
 
-public class SidebarActionItem(string target, string title, string icon, int order = 0)
+public class SidebarActionItem
 {
-    public string Id { get; } = title.ToPascalCase();
-    public string Target { get; } = target;
-    public string Title { get; } = title;
-    public string Icon { get; } = icon;
-    public int Order { get; init; } = order;
+    public SidebarActionItem(string target, string title, string icon, int order = 0, string? partialViewName = null, bool developmentOnly = false)
+    {
+        Target = target;
+        Title = title;
+        Icon = icon;
+        Order = order;
+        DevelopmentOnly = developmentOnly;
 
+        Id = Title.ToPascalCase();
+        ActionItemId = $"offCanvasSidebarAction{Id}";
+        ActionItemCanvasId = $"offCanvasSidebarActionCanvas{Id}";
+        ActionItemCanvasLabelId = $"offCanvasSidebarActionLabel{Id}";
+        ActionItemBadgeContentClass = $"offCanvasSidebarActionBadgeContent{Id}";
+        PartialViewName = partialViewName ?? $"_SidebarActionbarItem{Title.ToPascalCase()}";
+    }
+
+    public string Id { get; }
+    public string Target { get; }
+    public string Title { get; }
+    public string Icon { get; }
+    public int Order { get; init; }
+    public bool DevelopmentOnly { get; }
+
+    public Func<string>? BadgeContentGenerator { get; init; }
     public string BadgeContent { get; init; } = string.Empty;
     public string BadgeVisuallyHiddenContent { get; init; } = string.Empty;
 
     public bool IsDefault { get; init; } = true;
+    public string ActionItemId { get; }
+    public string ActionItemCanvasId { get; }
+    public string ActionItemCanvasLabelId { get; }
+    public string ActionItemBadgeContentClass { get; }
+    public string PartialViewName { get; }
+
+    public string GetBadgeContent()
+    {
+        return BadgeContentGenerator?.Invoke() ?? BadgeContent;
+    }
 }

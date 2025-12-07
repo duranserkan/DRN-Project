@@ -1,14 +1,15 @@
 {
   "buildwww/lib/bootstrap/bootstrap.js": {
-    "file": "bootstrap_bundle.B2XzU81llMgE0wG6.js",
+    "file": "bootstrap_bundle.C4RZvpbHDIQ8-ywy.js",
     "name": "bootstrap_bundle",
     "src": "buildwww/lib/bootstrap/bootstrap.js",
     "isEntry": true
   },
   "buildwww/lib/bootstrap/bootstrap.scss": {
-    "file": "bootstrap.B41OMi6_xJBaZF3h.css",
+    "file": "bootstrap.CoRWghH3r0cGbSow.css",
     "src": "buildwww/lib/bootstrap/bootstrap.scss",
     "isEntry": true,
+    "name": "bootstrap",
     "names": [
       "bootstrap.css"
     ]

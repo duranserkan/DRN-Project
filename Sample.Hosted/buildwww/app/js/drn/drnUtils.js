@@ -12,11 +12,16 @@ const drnUtils = {
             console.warn('urlSafeBase64Encode: Input must be a string.');
             return '';
         }
-        const base64 = btoa(str);
-        return base64
-            .replace(/\+/g, '-')  // Replace '+' with '-'
-            .replace(/\//g, '_')  // Replace '/' with '_'
-            .replace(/=+$/, '');
+        try {
+            const base64 = btoa(str);
+            return base64
+                .replace(/\+/g, '-')  // Replace '+' with '-'
+                .replace(/\//g, '_')  // Replace '/' with '_'
+                .replace(/=+$/, '');
+        } catch (e) {
+            console.error("urlSafeBase64Encode: Base64 encoding failed", e);
+            return str;
+        }
     },
 
     /**
@@ -36,17 +41,6 @@ const drnUtils = {
             .padEnd(str.length + (4 - str.length % 4) % 4, '=');  // Add padding if necessary
 
         return atob(base64);
-    },
-
-    /**
-     * Checks if a cookie with the given name exists.
-     * @param {string} cookieName - The name of the cookie to check.
-     * @returns {boolean} True if the cookie exists, false otherwise.
-     */
-    checkCookieExists: (cookieName) => {
-        if (typeof cookieName !== 'string') return false;
-
-        return document.cookie.split('; ').some(cookie => cookie.startsWith(`${cookieName}=`))
     },
 
     /**

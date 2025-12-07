@@ -3,7 +3,7 @@
 
 @{
     var title = "Home Page";
-    var options = Get.LayoutOptions.Centered(string.Empty);
+    var options = Get.LayoutOptions.Full(string.Empty);
     options.Type = MainContentType.None;
     options.ColumnSize = BootstrapColumnSize.None;
 
@@ -19,29 +19,25 @@ https://themes.getbootstrap.com
 
 <h1 class="display-4 mb-4">Welcome to @ScopeContext.Settings.ApplicationName!</h1>
 
-<div class="container">
+<div class="container" style="height: 70vh">
     <h1 class="mb-4">Examples</h1>
 
     <div class="row g-3">
         <!-- Hypermedia Gallery -->
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">HTMX Examples</h5>
-                    <p class="card-text">Real projects using HTMX for dynamic interfaces.</p>
-                    <a href="https://hypermedia.gallery/built-with/htmx/" class="btn btn-outline-primary" target="_blank">View Gallery</a>
-                </div>
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">HTMX Examples</h5>
+                <p class="card-text">Real projects using HTMX for dynamic interfaces.</p>
+                <a href="https://hypermedia.gallery/built-with/htmx/" class="btn btn-outline-primary" target="_blank">View Gallery</a>
             </div>
         </div>
 
         <!-- Bootstrap Official Examples -->
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Bootstrap Examples</h5>
-                    <p class="card-text">Official templates: dashboards, sign-in, pricing, blog, and more.</p>
-                    <a href="https://getbootstrap.com/docs/5.3/examples/" class="btn btn-outline-primary" target="_blank">Browse Examples</a>
-                </div>
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Bootstrap Examples</h5>
+                <p class="card-text">Official templates: dashboards, sign-in, pricing, blog, and more.</p>
+                <a href="https://getbootstrap.com/docs/5.3/examples/" class="btn btn-outline-primary" target="_blank">Browse Examples</a>
             </div>
         </div>
     </div>

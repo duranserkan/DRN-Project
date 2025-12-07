@@ -40,10 +40,10 @@
         }
 
         <!-- Main content -->
-        <div class="d-flex  @(layoutOptions.CenterVertically ? "flex-column" : "") justify-content-center flex-grow-1" style="overflow-y: auto;">
+        <div class="d-flex @(layoutOptions.CenterVertically ? "flex-column" : "") justify-content-center flex-grow-1" style="overflow-y: auto;">
             <main class="p-3 @(layoutOptions.CenterVertically ? "" : "flex-grow-1")" style="max-width: 100%;">
                 <div class="row @(layoutOptions.CenterHorizontally ? "justify-content-center" : "")">
-                    <div class="@layoutOptions.CssColumnSize() @layoutOptions.CssTextAlignment()">
+                    <div class="@layoutOptions.CssColumnSize() @layoutOptions.CssTextAlignment() pb-3">
                         @if (layoutOptions.Type is MainContentType.Card or MainContentType.CardBody)
                         {
                             <div class="card bg-light-subtle m-0">
