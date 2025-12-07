@@ -7,8 +7,8 @@ public class ProfileSubNavigationCollection() : SubNavigationCollection(DefaultI
 {
     public static IReadOnlyList<SubNavigationItem> DefaultItems { get; } =
     [
-        new(Get.Page.UserProfile.Details, nameof(Get.Page.UserProfile.Details), "bi-file-earmark"),
-        new(Get.Page.UserProfile.Edit, nameof(Get.Page.UserProfile.Edit), "bi-pencil-square"),
-        new(Get.Page.UserProfile.Picture, nameof(Get.Page.UserProfile.Picture), "bi-image")
+        new(Get.Page.User.Profile.Details, nameof(Get.Page.User.Profile.Details), "bi-file-earmark"),
+        new(Get.Page.User.Profile.Edit, nameof(Get.Page.User.Profile.Edit), "bi-pencil-square"),
+        new(Get.Page.User.Profile.Picture, nameof(Get.Page.User.Profile.Picture), "bi-image")
     ];
 }

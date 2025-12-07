@@ -8,7 +8,7 @@ public class SidebarSettingsCollection(IReadOnlyList<SidebarSettingsItem> items,
     {
         new("New project..."),
         new("Advanced"),
-        new("My Profile", Get.Page.UserProfile.Details),
+        new("My Profile", Get.Page.User.Profile.Details),
         new(1),
         new("Log out", Get.Page.User.Logout, 1)
     }.OrderBy(i => i.Order).ToArray();

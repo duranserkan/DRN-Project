@@ -5,6 +5,9 @@ namespace Sample.Hosted.Helpers.PageFor;
 public class UserPageFor : PageForBase
 {
     protected override string[] PathSegments { get; } = ["User"];
+    
+    public UserProfilePageFor Profile { get; } = new();
+    public UserManagementPageFor Management { get; } = new();
 
     public string Login { get; init; } = string.Empty;
     public string LoginWith2Fa { get; init; } = string.Empty;

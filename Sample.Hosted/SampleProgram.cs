@@ -18,7 +18,7 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
         => Task.FromResult(builder.Services.AddSampleHostedServices(appSettings));
 
     protected override MfaRedirectionConfig ConfigureMFARedirection()
-        => new(Get.Page.UserManagement.EnableAuthenticator, Get.Page.User.LoginWith2Fa,
+        => new(Get.Page.User.Management.EnableAuthenticator, Get.Page.User.LoginWith2Fa,
             Get.Page.User.Login, Get.Page.User.Logout, Get.Page.All);
 
     protected override MfaExemptionConfig ConfigureMFAExemption()

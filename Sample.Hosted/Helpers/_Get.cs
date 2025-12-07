@@ -1,6 +1,5 @@
 using DRN.Framework.Hosting.Endpoints;
 using Sample.Hosted.Controllers;
-using Sample.Hosted.Pages;
 using Sample.Hosted.Pages.Shared.Models;
 
 namespace Sample.Hosted.Helpers;

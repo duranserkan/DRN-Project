@@ -25,7 +25,7 @@ public abstract class PageForBase
         .Where(p => p.PropertyType == typeof(string))
         .Select(p => p.GetValue(this))
         .Where(v => v != null).Cast<string>();
-    
+
     internal static HashSet<string> GetPages(object pageForSource)
     {
         var properties = GetPageForProperties(pageForSource.GetType());
@@ -38,11 +38,15 @@ public abstract class PageForBase
 
             foreach (var page in pageForBase.GetPages())
                 pageList.Add(page);
+
+            var pagesFromNestedProperties = GetPages(pageForBase);
+            foreach (var nestedPage in pagesFromNestedProperties) 
+                pageList.Add(nestedPage);
         }
 
         return pageList;
     }
 
-    internal static PropertyInfo[] GetPageForProperties(Type type) => type.GetProperties()
+    private static PropertyInfo[] GetPageForProperties(Type type) => type.GetProperties()
         .Where(p => p.PropertyType.IsAssignableTo(typeof(PageForBase))).ToArray();
 }

@@ -13,7 +13,7 @@ public static class PageModelExtensions
     {
         await signInManager.SignInAsync(user, false, authenticationMethod: MfaClaimValues.MfaSetupRequired);
 
-        return pageModel.RedirectToPage(Get.Page.UserManagement.EnableAuthenticator);
+        return pageModel.RedirectToPage(Get.Page.User.Management.EnableAuthenticator);
     }
 
     public static IActionResult ReturnPageWithUserRegisterErrors(this PageModel model, IdentityResult result)
