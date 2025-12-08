@@ -1,6 +1,6 @@
 using DRN.Framework.Hosting.Endpoints;
 
-namespace Sample.Hosted.Controllers;
+namespace Sample.Hosted.Helpers.EndpointFor;
 
 public class SampleEndpointFor : EndpointCollectionBase<SampleProgram>
 {

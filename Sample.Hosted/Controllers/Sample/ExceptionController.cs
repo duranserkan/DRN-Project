@@ -5,7 +5,7 @@ namespace Sample.Hosted.Controllers.Sample;
 
 [AllowAnonymous]
 [ApiController]
-[Route("Api/Sample/[controller]")]
+[Route(SampleApiFor.ControllerRouteTemplate)]
 public class ExceptionController(IExceptionUtils exceptionUtils) : ControllerBase
 {
     [HttpGet(nameof(ValidationException))]

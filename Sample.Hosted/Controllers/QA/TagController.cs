@@ -1,13 +1,12 @@
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tags;
-using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.Controllers.QA;
 
 //https://learn.microsoft.com/en-us/aspnet/core/web-api/?view=aspnetcore-9.0#controllerbase-class
 [ApiController]
-[Route("Api/QA/[controller]")]
+[Route(QaApiFor.ControllerRouteTemplate)]
 public class TagController(ITagRepository repository) : ControllerBase
 {
     [HttpGet("Paginate")]

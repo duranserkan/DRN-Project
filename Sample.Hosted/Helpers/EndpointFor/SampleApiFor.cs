@@ -1,8 +1,8 @@
 using DRN.Framework.Hosting.Endpoints;
 using Sample.Hosted.Controllers.Sample;
 
-namespace Sample.Hosted.Controllers;
-//todo evaluate source generator base imlementation
+namespace Sample.Hosted.Helpers.EndpointFor;
+//todo evaluate source generator base implementation
 public class SampleApiFor
 {
     public const string Prefix = "/Api/Sample";

@@ -2,7 +2,7 @@ using DRN.Framework.Hosting.Endpoints;
 using Sample.Hosted.Controllers.User;
 using Sample.Hosted.Controllers.User.Profile;
 
-namespace Sample.Hosted.Controllers;
+namespace Sample.Hosted.Helpers.EndpointFor;
 
 public class UserApiFor
 {

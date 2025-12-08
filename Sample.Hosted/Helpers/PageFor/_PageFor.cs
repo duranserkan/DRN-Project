@@ -2,7 +2,7 @@ using DRN.Framework.Hosting.Endpoints;
 
 namespace Sample.Hosted.Helpers.PageFor;
 
-public class PageFor : PageCollectionBase<PageFor>
+public class SamplePageFor : PageCollectionBase<SamplePageFor>
 {
     public RootPageFor Root { get; } = new();
     public TestPageFor Test { get; } = new();

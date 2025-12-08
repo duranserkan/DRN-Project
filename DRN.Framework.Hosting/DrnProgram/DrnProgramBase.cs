@@ -52,6 +52,7 @@ public interface IDrnProgram
 //todo: add static file cache && compression
 //todo: add cookie manager
 //todo: add csp manager
+//todo: review page for and endpoint for
 //todo: add personal data protection support
 /// <summary>
 /// <li><a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host">Generic host model</a></li>

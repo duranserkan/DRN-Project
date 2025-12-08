@@ -1,7 +1,6 @@
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Identity.Controllers;
 using Sample.Domain.Users;
-using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.Controllers.User;
 

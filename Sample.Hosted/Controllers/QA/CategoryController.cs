@@ -6,7 +6,7 @@ using Sample.Infra.QA;
 namespace Sample.Hosted.Controllers.QA;
 
 [ApiController]
-[Route("Api/QA/[controller]")]
+[Route(QaApiFor.ControllerRouteTemplate)]
 public class CategoryController(QAContext context) : ControllerBase
 {
     [HttpGet]

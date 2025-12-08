@@ -1,7 +1,7 @@
 using DRN.Framework.Hosting.Endpoints;
 using Sample.Hosted.Controllers.QA;
 
-namespace Sample.Hosted.Controllers;
+namespace Sample.Hosted.Helpers.EndpointFor;
 
 public class QaApiFor
 {
