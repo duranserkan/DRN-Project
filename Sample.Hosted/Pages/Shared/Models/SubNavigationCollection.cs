@@ -1,5 +1,3 @@
-using Sample.Hosted.Helpers;
-
 namespace Sample.Hosted.Pages.Shared.Models;
 
 public class DefaultSubNavigationCollection() : SubNavigationCollection(DefaultItems)
