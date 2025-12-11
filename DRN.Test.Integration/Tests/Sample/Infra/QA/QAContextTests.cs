@@ -83,8 +83,8 @@ public class QAContextTests
         category.CreatedAt.Should().Be(categoryInitialCreatedAt);
         category.ModifiedAt.Should().BeAfter(categoryInitialModifiedAt);
 
-        var now = DateTimeOffset.UtcNow;
-        categoryInitialModifiedAt.Should().BeBefore(now);
+        var dateTimeSnapshotAfterFirstCategoryCreation = DateTimeOffset.UtcNow;
+        categoryInitialModifiedAt.Should().BeBefore(dateTimeSnapshotAfterFirstCategoryCreation);
 
         var task = async () =>
         {
@@ -125,6 +125,8 @@ public class QAContextTests
         // 2) Make a change and save in ctx1; this updates ModifiedAt in the database:
         cat1!.SetExtendedProperties(new NewProperties("FirstUpdate"));
         await ctx1.SaveChangesAsync();
+
+        cat1.ModifiedAt.Should().BeAfter(dateTimeSnapshotAfterFirstCategoryCreation);
 
         // 3) Now make a (different) change on the stale cat2 and attempt to save:
         cat2!.SetExtendedProperties(new NewProperties("SecondUpdate"));
