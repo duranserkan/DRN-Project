@@ -124,7 +124,9 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     internal Func<Guid, SourceKnownEntityId>? Parser;
 
     public SourceKnownEntityId GetEntityId<TEntity>(Guid id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
+    public SourceKnownEntityId? GetEntityId<TEntity>(Guid? id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
 
+    public SourceKnownEntityId? GetEntityId(Guid? id, byte entityType) => id == null ? null : GetEntityId(id.Value, entityType);
     public SourceKnownEntityId GetEntityId(Guid id, byte entityType)
     {
         var sourceKnownId = GetEntityId(id, false);
@@ -133,6 +135,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         return sourceKnownId;
     }
 
+    public SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true) => id == null ? null : GetEntityId(id.Value, validate);
     public SourceKnownEntityId GetEntityId(Guid id, bool validate = true)
     {
         if (IsPendingInsert)
@@ -144,8 +147,10 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         return entityId;
     }
 
+    public SourceKnownEntityId? GetEntityId<TEntity>(long? id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
     public SourceKnownEntityId GetEntityId<TEntity>(long id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
 
+    public SourceKnownEntityId? GetEntityId(long? id, byte entityType) => id == null ? null : GetEntityId(id.Value, entityType);
     public SourceKnownEntityId GetEntityId(long id, byte entityType)
     {
         if (IsPendingInsert)
