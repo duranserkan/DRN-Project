@@ -2,7 +2,7 @@ name: drn-postgres
 services:
   # https://hub.docker.com/_/postgres
   postgres:
-    image: postgres:18.1-alpine3.22
+    image: postgres:18.1-alpine3.23
     container_name: drn-postgres
     restart: unless-stopped
     volumes:
