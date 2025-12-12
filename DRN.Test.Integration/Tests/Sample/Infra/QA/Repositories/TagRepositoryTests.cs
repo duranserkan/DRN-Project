@@ -192,9 +192,12 @@ public class TagRepositoryTests
 
         repository.GetEntityId(validEntityId).Valid.Should().BeTrue();
         repository.GetEntityId(invalidEntityId, false).Valid.Should().BeFalse();
+
+        repository.GetEntityId(null).Should().BeNull();
         var validationAction = () => repository.GetEntityId(invalidEntityId);
         validationAction.Should().Throw<ValidationException>();
 
+        repository.GetEntityId<Tag>(null).Should().BeNull();
         validationAction = () => repository.GetEntityId<Tag>(invalidEntityId);
         validationAction.Should().Throw<ValidationException>();
 
@@ -202,9 +205,11 @@ public class TagRepositoryTests
         ids[0].Valid.Should().BeTrue();
         ids[1].Valid.Should().BeFalse();
 
+        repository.GetEntityIds([null]).First().Should().BeNull();
         var validationAction2 = () => repository.GetEntityIds([validEntityId, invalidEntityId]);
         validationAction2.Should().Throw<ValidationException>();
 
+        repository.GetEntityIds<Tag>([null]).First().Should().BeNull();
         validationAction2 = () => repository.GetEntityIds<Tag>([validEntityId, invalidEntityId]);
         validationAction2.Should().Throw<ValidationException>();
 
