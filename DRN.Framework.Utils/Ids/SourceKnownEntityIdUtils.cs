@@ -17,6 +17,7 @@ public interface ISourceKnownEntityIdUtils
     SourceKnownEntityId Generate(SourceKnownEntity entity);
     SourceKnownEntityId Generate(long id, byte entityType);
     SourceKnownEntityId Parse(Guid entityId);
+    SourceKnownEntityId? Parse(Guid? entityId);
     SourceKnownEntityId Validate(Guid entityId, byte entityType);
     SourceKnownEntityId Validate<TEntity>(Guid entityId) where TEntity : SourceKnownEntity;
 }
@@ -87,6 +88,8 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
 
         return new SourceKnownEntityId(sourceKnownId, entityId, entityType, true);
     }
+
+    public SourceKnownEntityId? Parse(Guid? entityId) => entityId.HasValue ? Parse(entityId.Value) : null;
 
     public SourceKnownEntityId Parse(Guid entityId)
     {

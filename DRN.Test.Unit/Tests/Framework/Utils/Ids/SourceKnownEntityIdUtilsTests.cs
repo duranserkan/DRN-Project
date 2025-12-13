@@ -52,7 +52,9 @@ public class SourceKnownEntityIdUtilsTests
         idInfo.CreatedAt.Should().BeBefore(afterIdGenerated);
         idInfo.CreatedAt.Should().BeAfter(beforeIdGenerated);
         epoch.Should().BeBefore(beforeIdGenerated);
-
+        
+        
+        entityIdUtils.Parse(null).Should().BeNull();
         var parsedSourceKnownEntityId = entityIdUtils.Parse(entityId1.EntityId);
         parsedSourceKnownEntityId.Should().Be(entityId1);
         parsedSourceKnownEntityId.EntityId.Should().Be(entityId1.EntityId);
