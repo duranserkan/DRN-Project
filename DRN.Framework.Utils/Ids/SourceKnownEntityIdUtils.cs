@@ -16,9 +16,14 @@ public interface ISourceKnownEntityIdUtils
     SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity;
     SourceKnownEntityId Generate(SourceKnownEntity entity);
     SourceKnownEntityId Generate(long id, byte entityType);
-    SourceKnownEntityId Parse(Guid entityId);
+
     SourceKnownEntityId? Parse(Guid? entityId);
+    SourceKnownEntityId Parse(Guid entityId);
+
+    SourceKnownEntityId? Validate(Guid? entityId, byte entityType);
     SourceKnownEntityId Validate(Guid entityId, byte entityType);
+
+    SourceKnownEntityId? Validate<TEntity>(Guid? entityId) where TEntity : SourceKnownEntity;
     SourceKnownEntityId Validate<TEntity>(Guid entityId) where TEntity : SourceKnownEntity;
 }
 
@@ -131,6 +136,9 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
             ? new SourceKnownEntityId(sourceKnownIdUtils.Parse(id), entityId, entityType, true)
             : CreateInvalid(entityId);
     }
+    
+    public SourceKnownEntityId? Validate(Guid? entityId, byte entityType)
+        => entityId.HasValue ? Validate(entityId.Value, entityType) : null;
 
     public SourceKnownEntityId Validate(Guid entityId, byte entityType)
     {
@@ -139,6 +147,9 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
 
         return sourceKnownId;
     }
+
+    public SourceKnownEntityId? Validate<TEntity>(Guid? entityId) where TEntity : SourceKnownEntity
+        => entityId.HasValue ? Validate<TEntity>(entityId.Value) : null;
 
     public SourceKnownEntityId Validate<TEntity>(Guid entityId) where TEntity : SourceKnownEntity
     {
