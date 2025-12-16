@@ -42,9 +42,8 @@ internal static class DbContextExtensions
 
             entityTypeBuilder.Property(nameof(SourceKnownEntity.ExtendedProperties))
                 .HasColumnType("jsonb")
-                .HasDefaultValueSql("'{}'::jsonb")
                 .ValueGeneratedOnAdd()
-                .IsRequired();
+                .IsRequired(false);
 
             var implementsModel = entityType.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == iEntityWithModelType);
             if (!implementsModel)

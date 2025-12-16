@@ -13,7 +13,7 @@ using Sample.Infra.QA;
 namespace Sample.Infra.QA.Migrations
 {
     [DbContext(typeof(QAContext))]
-    [Migration("20251123173107_InitialMigration")]
+    [Migration("20251216173905_InitialMigration")]
     partial class InitialMigration
     {
         /// <inheritdoc />
@@ -22,7 +22,7 @@ namespace Sample.Infra.QA.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("qa_context")
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -59,11 +59,9 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnName("body");
 
                     b.Property<string>("ExtendedProperties")
-                        .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("jsonb")
-                        .HasColumnName("extended_properties")
-                        .HasDefaultValueSql("'{}'::jsonb");
+                        .HasColumnName("extended_properties");
 
                     b.Property<bool>("IsAccepted")
                         .HasColumnType("boolean")
@@ -113,11 +111,9 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnName("body");
 
                     b.Property<string>("ExtendedProperties")
-                        .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("jsonb")
-                        .HasColumnName("extended_properties")
-                        .HasDefaultValueSql("'{}'::jsonb");
+                        .HasColumnName("extended_properties");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
@@ -149,11 +145,9 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnOrder(0);
 
                     b.Property<string>("ExtendedProperties")
-                        .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("jsonb")
-                        .HasColumnName("extended_properties")
-                        .HasDefaultValueSql("'{}'::jsonb");
+                        .HasColumnName("extended_properties");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
@@ -189,11 +183,9 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnName("category_id");
 
                     b.Property<string>("ExtendedProperties")
-                        .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("jsonb")
-                        .HasColumnName("extended_properties")
-                        .HasDefaultValueSql("'{}'::jsonb");
+                        .HasColumnName("extended_properties");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
@@ -235,11 +227,9 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnName("body");
 
                     b.Property<string>("ExtendedProperties")
-                        .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("jsonb")
-                        .HasColumnName("extended_properties")
-                        .HasDefaultValueSql("'{}'::jsonb");
+                        .HasColumnName("extended_properties");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
@@ -272,11 +262,9 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnOrder(0);
 
                     b.Property<string>("ExtendedProperties")
-                        .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("jsonb")
-                        .HasColumnName("extended_properties")
-                        .HasDefaultValueSql("'{}'::jsonb");
+                        .HasColumnName("extended_properties");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()
@@ -303,11 +291,9 @@ namespace Sample.Infra.QA.Migrations
                         .HasColumnOrder(0);
 
                     b.Property<string>("ExtendedProperties")
-                        .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("jsonb")
-                        .HasColumnName("extended_properties")
-                        .HasDefaultValueSql("'{}'::jsonb");
+                        .HasColumnName("extended_properties");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .IsConcurrencyToken()

@@ -116,9 +116,12 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     [JsonIgnore]
     public bool IsPendingInsert => EntityId == Guid.Empty;
 
-    public string ExtendedProperties { get; set; } = EmptyJson;
-    public TModel GetExtendedProperties<TModel>() => JsonSerializer.Deserialize<TModel>(ExtendedProperties)!;
-    public void SetExtendedProperties<TModel>(TModel extendedProperty) => ExtendedProperties = JsonSerializer.Serialize(extendedProperty);
+    public string? ExtendedProperties { get; set; } = EmptyJson;
+    public TModel? GetExtendedProperties<TModel>() => ExtendedProperties != null ? JsonSerializer.Deserialize<TModel>(ExtendedProperties) : default;
+
+    public void SetExtendedProperties<TModel>(TModel? extendedProperty) => ExtendedProperties = extendedProperty != null
+        ? JsonSerializer.Serialize(extendedProperty)
+        : null;
 
     internal Func<long, byte, SourceKnownEntityId>? IdFactory;
     internal Func<Guid, SourceKnownEntityId>? Parser;
@@ -127,6 +130,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public SourceKnownEntityId? GetEntityId<TEntity>(Guid? id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
 
     public SourceKnownEntityId? GetEntityId(Guid? id, byte entityType) => id == null ? null : GetEntityId(id.Value, entityType);
+
     public SourceKnownEntityId GetEntityId(Guid id, byte entityType)
     {
         var sourceKnownId = GetEntityId(id, false);
@@ -136,6 +140,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     }
 
     public SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true) => id == null ? null : GetEntityId(id.Value, validate);
+
     public SourceKnownEntityId GetEntityId(Guid id, bool validate = true)
     {
         if (IsPendingInsert)
@@ -151,6 +156,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public SourceKnownEntityId GetEntityId<TEntity>(long id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
 
     public SourceKnownEntityId? GetEntityId(long? id, byte entityType) => id == null ? null : GetEntityId(id.Value, entityType);
+
     public SourceKnownEntityId GetEntityId(long id, byte entityType)
     {
         if (IsPendingInsert)

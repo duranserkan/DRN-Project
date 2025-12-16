@@ -22,7 +22,7 @@ namespace Sample.Infra.QA.Migrations
                     id = table.Column<long>(type: "bigint", nullable: false),
                     modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     name = table.Column<string>(type: "text", nullable: false),
-                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "'{}'::jsonb")
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -37,7 +37,7 @@ namespace Sample.Infra.QA.Migrations
                     id = table.Column<long>(type: "bigint", nullable: false),
                     modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     name = table.Column<string>(type: "text", nullable: false),
-                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "'{}'::jsonb"),
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: true),
                     model = table.Column<string>(type: "jsonb", nullable: false)
                 },
                 constraints: table =>
@@ -61,7 +61,7 @@ namespace Sample.Infra.QA.Migrations
                     address_street = table.Column<string>(type: "text", nullable: false),
                     contact_email = table.Column<string>(type: "text", nullable: false),
                     contact_phone = table.Column<string>(type: "text", nullable: true),
-                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "'{}'::jsonb")
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -79,7 +79,7 @@ namespace Sample.Infra.QA.Migrations
                     body = table.Column<string>(type: "text", nullable: false),
                     user_id = table.Column<long>(type: "bigint", nullable: false),
                     category_id = table.Column<long>(type: "bigint", nullable: false),
-                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "'{}'::jsonb")
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -111,7 +111,7 @@ namespace Sample.Infra.QA.Migrations
                     question_id = table.Column<long>(type: "bigint", nullable: false),
                     user_id = table.Column<long>(type: "bigint", nullable: false),
                     is_accepted = table.Column<bool>(type: "boolean", nullable: false),
-                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "'{}'::jsonb")
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -135,7 +135,7 @@ namespace Sample.Infra.QA.Migrations
                     body = table.Column<string>(type: "text", nullable: false),
                     user_id = table.Column<long>(type: "bigint", nullable: false),
                     question_id = table.Column<long>(type: "bigint", nullable: true),
-                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "'{}'::jsonb")
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -186,7 +186,7 @@ namespace Sample.Infra.QA.Migrations
                     user_id = table.Column<long>(type: "bigint", nullable: false),
                     answer_id = table.Column<long>(type: "bigint", nullable: false),
                     answer_comment_id = table.Column<long>(type: "bigint", nullable: true),
-                    extended_properties = table.Column<string>(type: "jsonb", nullable: false, defaultValueSql: "'{}'::jsonb")
+                    extended_properties = table.Column<string>(type: "jsonb", nullable: true)
                 },
                 constraints: table =>
                 {
