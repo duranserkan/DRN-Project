@@ -119,9 +119,8 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public string? ExtendedProperties { get; set; } = EmptyJson;
     public TModel? GetExtendedProperties<TModel>() => ExtendedProperties != null ? JsonSerializer.Deserialize<TModel>(ExtendedProperties) : default;
 
-    public void SetExtendedProperties<TModel>(TModel? extendedProperty) => ExtendedProperties = extendedProperty != null
-        ? JsonSerializer.Serialize(extendedProperty)
-        : null;
+    public void SetExtendedProperties<TModel>(TModel? extendedProperty) where TModel : class
+        => ExtendedProperties = extendedProperty != null ? JsonSerializer.Serialize(extendedProperty) : null;
 
     internal Func<long, byte, SourceKnownEntityId>? IdFactory;
     internal Func<Guid, SourceKnownEntityId>? Parser;
