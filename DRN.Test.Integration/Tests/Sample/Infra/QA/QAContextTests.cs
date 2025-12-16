@@ -62,7 +62,7 @@ public class QAContextTests
 
         qaContext.Questions.Add(question);
         await qaContext.SaveChangesAsync();
-        
+
         qaContext.Questions.Remove(question);
         await qaContext.SaveChangesAsync();
 
@@ -72,13 +72,13 @@ public class QAContextTests
         // entity base class extended properties and modification validations
         category = await qaContext.Categories.FindAsync(category.Id);
         var custom = category!.GetExtendedProperties<CustomProperties>();
-        custom.LifeIsGood.Should().BeTrue();
+        custom?.LifeIsGood.Should().BeTrue();
 
         category.SetExtendedProperties(new NewProperties("Good"));
         await qaContext.SaveChangesAsync();
 
         category = await qaContext.Categories.FindAsync(category.Id);
-        category!.GetExtendedProperties<NewProperties>().LifeIs.Should().Be("Good");
+        category!.GetExtendedProperties<NewProperties>()?.LifeIs.Should().Be("Good");
 
         category.CreatedAt.Should().Be(categoryInitialCreatedAt);
         category.ModifiedAt.Should().BeAfter(categoryInitialModifiedAt);
@@ -136,7 +136,7 @@ public class QAContextTests
         await saveStale.Should().ThrowAsync<DbUpdateConcurrencyException>();
     }
 
-    private readonly record struct CustomProperties(bool LifeIsGood);
+    private record CustomProperties(bool LifeIsGood);
 
-    private readonly record struct NewProperties(string LifeIs);
+    private record NewProperties(string LifeIs);
 }
