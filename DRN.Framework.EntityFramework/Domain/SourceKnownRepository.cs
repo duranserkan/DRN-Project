@@ -40,7 +40,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// </summary>
     public RepositorySettings<TEntity> Settings { get; set; } = new();
 
-    protected IQueryable<TEntity> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null)
+    protected virtual IQueryable<TEntity> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null)
     {
         var entities = EntitiesWithAppliedBaseSettings(caller);
         entities = Settings.AsNoTracking ? entities.AsNoTracking() : entities;
