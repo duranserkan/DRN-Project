@@ -8,6 +8,8 @@
 
     var statusMessage = TempData[Get.TempDataKeys.StatusMessage] as string;
     var layoutOptions = ViewData[Get.ViewDataKeys.MainContentLayoutOptions] as MainContentLayoutOptions ?? new MainContentLayoutOptions();
+    // Main content card should stretch if not centered.
+    var shouldExpandCard = layoutOptions is { CenterVertically: false, CenterHorizontally: false, Type: MainContentType.Card or MainContentType.CardBody };
     //todo: add toolbar
     //todo: add debug store as an item to action bar
 }
@@ -40,13 +42,13 @@
         }
 
         <!-- Main content -->
-        <div class="d-flex @(layoutOptions.CenterVertically ? "flex-column" : "") justify-content-center flex-grow-1" style="overflow-y: auto;">
-            <main class="p-3 @(layoutOptions.CenterVertically ? "" : "flex-grow-1")" style="max-width: 100%;">
-                <div class="row @(layoutOptions.CenterHorizontally ? "justify-content-center" : "")">
-                    <div class="@layoutOptions.CssColumnSize() @layoutOptions.CssTextAlignment() pb-3">
+        <div class="d-flex pt-1 flex-grow-1 justify-content-center @(layoutOptions.CenterVertically ? "flex-column" : "") " style="overflow-y: auto;">
+            <main class="p-3 w-100 @(shouldExpandCard ? "d-flex flex-column flex-grow-1" : "") @(layoutOptions.CenterVertically ? "" : "h-100")">
+                <div class="row @(layoutOptions.CenterHorizontally ? "justify-content-center" : "") @(shouldExpandCard ? "flex-grow-1" : "")">
+                    <div class="pb-2 @layoutOptions.CssColumnSize() @layoutOptions.CssTextAlignment()  @(shouldExpandCard ? "d-flex flex-column" : "")">
                         @if (layoutOptions.Type is MainContentType.Card or MainContentType.CardBody)
                         {
-                            <div class="card bg-light-subtle m-0">
+                            <div class="card bg-light-subtle shadow @(shouldExpandCard ? "d-flex flex-grow-1" : "")">
                                 @if (!string.IsNullOrWhiteSpace(layoutOptions.Title))
                                 {
                                     @if (Get.Claim.Profile.SlimUi)
@@ -60,7 +62,7 @@
                                 }
                                 @if (layoutOptions.Type == MainContentType.CardBody)
                                 {
-                                    <div class="card-body" >@RenderBody()</div>
+                                    <div class="card-body">@RenderBody()</div>
                                 }
                                 else
                                 {
