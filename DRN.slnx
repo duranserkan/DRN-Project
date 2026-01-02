@@ -24,6 +24,7 @@
     <File Path="Docker\Rabbitmq\image\Dockerfile" />
     <File Path="Docker\Rabbitmq\image\rabbitmq.conf" />
     <File Path="Docker\Rabbitmq\Image\rabbitmq_delayed_message_exchange-4.1.0.ez" />
+    <File Path="Docker\Rabbitmq\Image\rabbitmq_delayed_message_exchange-4.2.0.ez" />
   </Folder>
   <Folder Name="/Docs/">
     <File Path="LICENSE" />

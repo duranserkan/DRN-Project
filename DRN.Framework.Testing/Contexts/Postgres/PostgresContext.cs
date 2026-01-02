@@ -35,7 +35,7 @@ public class PostgresContext(DrnTestContext testContext)
         settings ??= new PostgresContainerSettings();
 
         var containerPort = PostgreSqlBuilder.PostgreSqlPort;
-        var builder = new PostgreSqlBuilder().WithImage(settings.GetImageTag());
+        var builder = new PostgreSqlBuilder(settings.GetImageTag());
         if (settings.HasDatabase) builder = builder.WithDatabase(settings.Database);
         if (settings.HasUsername) builder = builder.WithUsername(settings.Username);
         if (settings.HasPassword) builder = builder.WithPassword(settings.Password);

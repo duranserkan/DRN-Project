@@ -2,18 +2,23 @@ name: drn-rabbit
 services:
   # https://hub.docker.com/_/rabbitmq
   rabbit:
-    image: ${DOCKER_REGISTRY-}rabbit:4.2.0-management-alpine
+    image: drn-rabbitmq:4.2.2-management-alpine-drn
     build:
       context: ./image/
     container_name: drn-rabbit
+    hostname: drn-rabbit
+    restart: unless-stopped
     ports:
       - "5672:5672"
       - "15672:15672"
     volumes:
       - drn-rabbit-log:/var/log/rabbitmq/
       - drn-rabbit-lib:/var/lib/rabbitmq/
-      - drn-rabbit-etc:/etc/rabbitmq/
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 volumes:
   drn-rabbit-log:
   drn-rabbit-lib:
-  drn-rabbit-etc:

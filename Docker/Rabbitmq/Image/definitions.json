@@ -1,21 +1,42 @@
 {
-    "users": [
-        {
-            "name": "drn",
-            "password": "drn",
-            "tags": "administrator"
-        }
-    ],
-    "vhosts": [
-        {
-            "name": "/"
-        }
-    ],
-    "permissions": [
-    ],
-    "parameters": [],
-    "policies": [],
-    "queues": [],
-    "exchanges": [],
-    "bindings": []
+  "users": [
+    {
+      "name": "drn",
+      "password_hash": "s6oP7Pbt6AZhSJT/m8NNLNJGhxmChcM8EHJI3pdKJk4ExPjK",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": "administrator"
+    },
+    {
+      "name": "guest",
+      "password_hash": "h6uKD50xywn889PJfZMGf2+HezR4C/46W7XJWksHd2FVrbGc",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": "administrator"
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "drn",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "guest",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "parameters": [],
+  "policies": [],
+  "queues": [],
+  "exchanges": [],
+  "bindings": []
 }

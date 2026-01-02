@@ -11,19 +11,17 @@
   "type": "module",
   "dependencies": {
     "@popperjs/core": "^2.11.8",
+    "onmount": "^2.0.0",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "htmx.org": "^2.0.8",
     "jquery": "^3.7.1",
     "jquery-validation": "^1.21.0",
-    "jquery-validation-unobtrusive": "^4.0.0",
-    "onmount": "^2.0.0"
+    "jquery-validation-unobtrusive": "^4.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
-    "eslint": "^9.39.2",
     "globals": "^16.5.0",
-    "sass": "^1.97.0",
+    "sass": "1.94.3",
     "vite": "^7.3.0",
     "typescript": "^5.9.3"
   }

@@ -22,7 +22,7 @@ public class RabbitMQContext(DrnTestContext testContext)
     {
         settings ??= new RabbitMQContainerSettings();
 
-        var builder = new RabbitMqBuilder().WithImage(settings.GetImageTag());
+        var builder = new RabbitMqBuilder(settings.GetImageTag());
         if (settings.HasUsername) builder = builder.WithUsername(settings.Username);
         if (settings.HasPassword) builder = builder.WithPassword(settings.Password);
 
