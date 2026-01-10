@@ -7,7 +7,7 @@ ARG PROJECT=DRN.Nexus.Hosted
 #https://www.mytechramblings.com/posts/testing-chiseled-ubuntu-containers-with-dotnet/
 #https://hub.docker.com/r/ubuntu/dotnet-aspnet use this dotnet deps with self contained apps are not supported with dockerfastmode
 #https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/ enable buildkit to build multiplatform images
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.0-noble-chiseled AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.1-noble-chiseled-extra AS base
 ARG TARGETARCH
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -24,7 +24,7 @@ WORKDIR /app
 
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
 #https://mcr.microsoft.com/en-us/artifact/mar/dotnet/sdk/tags
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.100-alpine3.22   AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.101-alpine3.23   AS build
 ARG PROJECT
 ARG TARGETARCH
 
