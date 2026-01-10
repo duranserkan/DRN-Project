@@ -15,7 +15,7 @@
       }
     },
     "Docker": {
-      "doc": "https://learn.microsoft.com/en-us/visualstudio/containers/container-launch-settings - not supported in rider yet",
+      "doc": "https://learn.microsoft.com/en-us/visualstudio/containers/container-launch-settings",
       "commandName": "Docker",
       "launchBrowser": true,
       "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",

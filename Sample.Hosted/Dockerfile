@@ -26,7 +26,8 @@ WORKDIR /app
 
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
 #https://mcr.microsoft.com/en-us/artifact/mar/dotnet/sdk/tags
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.101-alpine3.23    AS build
+#build image should use same distro with base image to prevent mismatches such as Alpine (Musl) vs. Ubuntu (Glibc)
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.101-noble AS build
 ARG PROJECT
 ARG TARGETARCH
 
