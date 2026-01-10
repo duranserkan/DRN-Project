@@ -36,19 +36,21 @@
     // Adjust paths relative to baseUrl if needed
     "baseUrl": ".",
     "paths": {
-      "@/*": ["build/*"],
-      "@js/*": ["build/js/*"],
-      "@scss/*": ["build/scss/*"],
-      "@types/*": ["build/types/*"] // Or wherever your types are
+      "@/*": ["buildwww/*"],
+      "@js/*": ["buildwww/app/js/*"],
+      "@scss/*": ["buildwww/app/scss/*"],
+      "@types/*": ["buildwww/types/*"] // Or wherever your types are
     },
     "typeRoots": [
-      "./node_modules/@types",           // Default location for DefinitelyTyped packages
-      "./build/types"                   // Add your custom types directory
-    ],
-    "include": [
-      "build/ts/**/*" // Ensure your TS files are included
-    ],
-    // Exclude node_modules and build outputs
-    "exclude": ["node_modules", "wwwroot/dist"]
-  }
+      "./buildwww/types",  // Add your custom types directory
+      "./node_modules/@types" // Default location for DefinitelyTyped packages
+    ]
+  },
+  "include": [
+    "buildwww/app/**/*",
+    "buildwww/lib/**/*",
+    "buildwww/types/**/*"
+  ],
+  // Exclude node_modules and build outputs
+  "exclude": ["node_modules", "wwwroot/dist"]
 }
