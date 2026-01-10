@@ -40,7 +40,7 @@ runs:
     - name: Upload SARIF result
       id: upload-container-sarif
       if: ${{ github.event_name != 'pull_request' }}
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       with:
         sarif_file: sarif.${{ inputs.project-name }}.output.json
         category: docker-scout-${{ inputs.project-name }}

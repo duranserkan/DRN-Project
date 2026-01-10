@@ -13,7 +13,7 @@ jobs:
       security-events: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup SDK
         uses: ./.github/workflows/actions/setup-sdk-and-tools
