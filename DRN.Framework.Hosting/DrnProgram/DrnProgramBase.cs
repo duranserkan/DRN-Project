@@ -53,7 +53,6 @@ public interface IDrnProgram
 //todo: add cookie manager
 //todo: add csp manager
 //todo: review page for and endpoint for
-//todo: add personal data protection support
 /// <summary>
 /// <li><a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host">Generic host model</a></li>
 /// <li><a href="https://learn.microsoft.com/en-us/aspnet/core/migration/50-to-60">WebApplication - new hosting model</a></li>
@@ -230,7 +229,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         applicationBuilder.WebHost.UseStaticWebAssets();
 
         var services = applicationBuilder.Services;
-        services.AdDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
+        services.AddDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
         services.AddSingleton<IEndpointAccessor>(sp =>
         {
             var endpointHelper = sp.GetRequiredService<IEndpointHelper>();

@@ -4,12 +4,12 @@ using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Identity;
-using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted;
 
 //todo: use TimeProvider
 //todo: robots.txt example usage
+//https://learn.microsoft.com/en-us/aspnet/core/security/
 public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 {
     public static async Task Main(string[] args) => await RunAsync(args);

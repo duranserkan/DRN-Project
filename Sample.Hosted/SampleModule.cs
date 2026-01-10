@@ -1,15 +1,18 @@
+using DRN.Framework.EntityFramework;
+using DRN.Framework.EntityFramework.Context.DataProtection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Sample.Application;
 using Sample.Domain.Users;
-using Sample.Hosted.Helpers;
 using Sample.Hosted.Settings;
 using Sample.Infra;
 
 namespace Sample.Hosted;
 
+//https://learn.microsoft.com/en-us/aspnet/core/security/
 public static class SampleModule
 {
     public static IServiceCollection AddSampleHostedServices(this IServiceCollection services, IAppSettings settings)
@@ -20,8 +23,14 @@ public static class SampleModule
             .Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024) // size limit
             .ConfigureCookieAuthenticationOptions(settings)
             .AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings.IsDevEnvironment));
-        //.AddPersonalDataProtection<>() //todo: enable personal data protection
 
+        //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
+        //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/
+        services
+            .AddDrnDataProtectionContext()
+            .AddDataProtection().PersistKeysToDbContext<DrnDataProtectionContext>();
+
+        //.AddPersonalDataProtection<>()
         services.AddServicesWithAttributes();
 
         return services;

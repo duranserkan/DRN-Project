@@ -28,8 +28,6 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     private static readonly string CreateCountKey = $"Count.{nameof(CreateAsync)}.{typeof(TEntity).Name}";
     private static readonly string DeleteCountKey = $"Count.{nameof(DeleteAsync)}.{typeof(TEntity).Name}";
 
-    private CancellationToken _cancellationToken = CancellationToken.None;
-
     protected TContext Context { get; } = context;
     protected DbSet<TEntity> Entities { get; } = context.GetEntities<TEntity>();
     protected IEntityUtils Utils { get; } = utils;
@@ -63,9 +61,9 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     public CancellationToken CancellationToken
     {
-        get => _cancellationToken == CancellationToken.None ? Utils.Cancellation.Token : _cancellationToken;
-        set => _cancellationToken = value;
-    }
+        get => field == CancellationToken.None ? Utils.Cancellation.Token : field;
+        set;
+    } = CancellationToken.None;
 
     public void MergeCancellationTokens(CancellationToken other) => Utils.Cancellation.Merge(other);
 

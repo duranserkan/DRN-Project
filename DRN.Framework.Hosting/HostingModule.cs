@@ -9,7 +9,7 @@ namespace DRN.Framework.Hosting;
 
 public static class HostingModule
 {
-    public static IServiceCollection AdDrnHosting(this IServiceCollection sc, DrnProgramSwaggerOptions options, IConfiguration configuration)
+    public static IServiceCollection AddDrnHosting(this IServiceCollection sc, DrnProgramSwaggerOptions options, IConfiguration configuration)
     {
         //https://andrewlock.net/extending-the-shutdown-timeout-setting-to-ensure-graceful-ihostedservice-shutdown/
         //https://learn.microsoft.com/en-us/dotnet/core/extensions/options

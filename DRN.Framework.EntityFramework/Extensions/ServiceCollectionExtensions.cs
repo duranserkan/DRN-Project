@@ -50,7 +50,8 @@ public static class ServiceCollectionExtensions
     public static void AddDbContextsWithConventions(this IServiceCollection sc, Assembly? assembly)
     {
         assembly ??= Assembly.GetCallingAssembly();
-        var contextTypes = assembly.GetTypesAssignableTo(typeof(DbContext));
+        var contextTypes = assembly.GetTypesAssignableTo(typeof(IDrnContext))
+            .Where(t => t is { IsClass: true, IsAbstract: false });
 
         foreach (var contextType in contextTypes)
             typeof(ServiceCollectionExtensions).InvokeStaticGenericMethod(nameof(AddDbContextWithConventions), [contextType], sc);
