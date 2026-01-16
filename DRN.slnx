@@ -37,6 +37,10 @@
     <File Path=".dockerignore" />
     <File Path="vive la republique.png" />
   </Folder>
+  <Folder Name="/Items/.agent/" />
+  <Folder Name="/Items/.agent/rules/">
+    <File Path=".agent\rules\duran-serkan.md" />
+  </Folder>
   <Folder Name="/Items/.github/" />
   <Folder Name="/Items/.github/workflows/">
     <File Path=".github\workflows\develop.yml" />
@@ -83,6 +87,17 @@
   </Folder>
   <Folder Name="/Items/.github/workflows/actions/sonar-tools/">
     <File Path=".github\workflows\actions\sonar-tools\action.yml" />
+  </Folder>
+  <Folder Name="/Items/Prompt/">
+    <File Path="Prompt\duran-serkan.md" />
+  </Folder>
+  <Folder Name="/Items/Prompt/Enhancements/">
+    <File Path="Prompt\enhancements\advanced-reasoning.md" />
+    <File Path="Prompt\enhancements\panel-synthesis.md" />
+    <File Path="Prompt\enhancements\README.md" />
+    <File Path="Prompt\enhancements\session-protocol.md" />
+    <File Path="Prompt\enhancements\state-preservation.md" />
+    <File Path="Prompt\enhancements\worked-examples.md" />
   </Folder>
   <Folder Name="/Src/" />
   <Folder Name="/Src/Framework/">
