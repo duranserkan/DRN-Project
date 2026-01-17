@@ -237,6 +237,7 @@ Confidence level applies to HOW, not WHETHER to proceed on restricted operations
 - DevSecOps & GitOps
 - Security(threat modeling, defensive programming)
 - Accessibility
+- Taint analysis
 **Reliability**:
 - Secure
 - Observable
