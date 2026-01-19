@@ -34,11 +34,11 @@ namespace DRN.Framework.EntityFramework.Context;
 
 [HasDrnContextServiceCollectionModule]
 public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices where TContext : DbContext, new()
-{ 
+{
 ...
 
 public class HasDrnContextServiceCollectionModuleAttribute : HasServiceCollectionModuleAttribute
-{
+    {
     static HasDrnContextServiceCollectionModuleAttribute()
     {
         ModuleMethodInfo = typeof(ServiceCollectionExtensions).GetMethod(nameof(ServiceCollectionExtensions.AddDbContextsWithConventions))!;
@@ -64,12 +64,12 @@ public static class InfraModule
 public class QAContext : DrnContext<QAContext>
 {
     public QAContext(DbContextOptions<QAContext> options) : base(options)
-    {
-    }
+{
+}
 
     public QAContext() : base(null)
-    {
-    }
+{
+}
 
     public DbSet<User> Users { get; set; }
     public DbSet<Question> Questions { get; set; }

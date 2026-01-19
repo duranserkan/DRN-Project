@@ -187,7 +187,7 @@ With `ContainerContext` and conventions you can easily write effective integrati
     {
         var webApplication = context.WebApplicationContext.CreateWebApplication<Program>();
         await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
-
+        
         var client = webApplication.CreateClient();
         var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>("WeatherForecast");
         forecasts.Should().NotBeNull();
@@ -262,8 +262,8 @@ public class DataSelfContextTestData : DataSelfContextAttribute
 {
     public DataSelfContextTestData1()
     {
-        AddRow(99,new ComplexInline(100));
-        AddRow(199,new ComplexInline(1000));
+        AddRow(99, new ComplexInline(100));
+        AddRow(199, new ComplexInline(1000));
     }
 }
 ```

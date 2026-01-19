@@ -16,8 +16,8 @@ projects such as other DRN.Framework packages, projects developed with DRN.Frame
 ## JsonConventions
 
 System.Text.Json defaults will be overridden by JsonConventions when
-  * DrnTestContext is used in tests
-  * DrnHostBuilder is used to build host
+* DrnTestContext is used in tests
+* DrnHostBuilder is used to build host
 
 ```csharp
 namespace DRN.Framework.SharedKernel.Json;
@@ -158,8 +158,8 @@ public class IgnoreLogAttribute : Attribute;
 
 public static class IgnoreLogExtensions
 {
-public static bool IgnoredLog(this object obj) => obj.GetType().GetCustomAttributes()
-.Any(attribute => attribute.GetType() == typeof(IgnoreLogAttribute));
+    public static bool IgnoredLog(this object obj) => obj.GetType().GetCustomAttributes()
+        .Any(attribute => attribute.GetType() == typeof(IgnoreLogAttribute));
 
     public static bool IgnoredLog(this PropertyInfo info) =>
         info.PropertyType == typeof(object) ||
@@ -211,27 +211,27 @@ public abstract class Entity
     public DateTimeOffset CreatedAt { get; protected set; }
 
     protected void AddDomainEvent(DomainEvent? e)
-    {
+{
         if (e != null) DomainEvents.Add(e);
-    }
+}
 
     public void MarkAsCreated()
-    {
+{
         CreatedAt = DateTimeOffset.UtcNow;
         ModifiedAt = DateTimeOffset.UtcNow;
         AddDomainEvent(GetCreatedEvent());
-    }
+}
 
     public void MarkAsModified()
-    {
+{
         ModifiedAt = DateTimeOffset.UtcNow;
         AddDomainEvent(GetModifiedEvent());
-    }
+}
 
     public void MarkAsDeleted()
-    {
+{
         AddDomainEvent(GetDeletedEvent());
-    }
+}
 
     protected abstract EntityCreated? GetCreatedEvent();
     protected abstract EntityModified? GetModifiedEvent();

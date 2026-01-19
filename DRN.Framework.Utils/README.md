@@ -56,14 +56,14 @@ Attribute based dependency injection reduces wiring efforts and helps developer 
 validation during startup and integration testing.
 
 ```csharp
-    [Theory]
-    [DataInlineContext]
-    public void Validate_Sample_Dependencies(DrnTestContext context)
-    {
-        context.ServiceCollection.AddSampleApplicationServices();
-        context.ServiceCollection.AddSampleInfraServices();
-        context.ValidateServices();
-    }
+[Theory]
+[DataInlineContext]
+public void Validate_Sample_Dependencies(DrnTestContext context)
+{
+    context.ServiceCollection.AddSampleApplicationServices();
+    context.ServiceCollection.AddSampleInfraServices();
+    context.ValidateServices();
+}
 ```
 
 ### Lifetime Attributes
@@ -197,7 +197,7 @@ public interface IAppSettings
 }
 ```
 
-## ExtensionMethods
+## Extension Methods
 
 * ServiceCollectionExtensions
     * ReplaceInstance

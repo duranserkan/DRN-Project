@@ -47,48 +47,48 @@ public class StatusControllerTests(ITestOutputHelper outputHelper)
 ## Configuration
 DRN hosting package applies configuration in following order:
 ```csharp
-    public static IConfigurationBuilder AddDrnSettings(this IConfigurationBuilder builder, string applicationName, string[]? args = null,
-        string settingJsonName = "appsettings",
-        IServiceCollection? sc = null)
-    {
+public static IConfigurationBuilder AddDrnSettings(this IConfigurationBuilder builder, string applicationName, string[]? args = null,
+    string settingJsonName = "appsettings",
+    IServiceCollection? sc = null)
+{
         if (string.IsNullOrWhiteSpace(settingJsonName))
             settingJsonName = "appsettings";
 
-        var environment = GetEnvironment(settingJsonName, args, sc);
-        builder.AddJsonFile($"{settingJsonName}.json", true);
-        builder.AddJsonFile($"{settingJsonName}.{environment.ToString()}.json", true);
+    var environment = GetEnvironment(settingJsonName, args, sc);
+    builder.AddJsonFile($"{settingJsonName}.json", true);
+    builder.AddJsonFile($"{settingJsonName}.{environment.ToString()}.json", true);
 
-        if (applicationName.Length > 0)
-            try
-            {
-                var assembly = Assembly.Load(new AssemblyName(applicationName));
-                builder.AddUserSecrets(assembly, true);
-            }
+    if (applicationName.Length > 0)
+        try
+        {
+            var assembly = Assembly.Load(new AssemblyName(applicationName));
+            builder.AddUserSecrets(assembly, true);
+        }
             catch (FileNotFoundException e)
             {
                 _ = e;
             }
 
-        builder.AddSettingsOverrides(args, sc);
-        builder.AddInMemoryCollection(new[]
-        {
-            new KeyValuePair<string, string?>(nameof(IAppSettings.ApplicationName), applicationName)
-        });
-
-        return builder;
-    }
-    
-    //In the future, DRN.Nexus's remote configuration support will also be added to AddSettingsOverrides.
-    private static void AddSettingsOverrides(this IConfigurationBuilder builder, string[]? args, IServiceCollection? sc)
+    builder.AddSettingsOverrides(args, sc);
+    builder.AddInMemoryCollection(new[]
     {
-        builder.AddEnvironmentVariables("ASPNETCORE_");
-        builder.AddEnvironmentVariables("DOTNET_");
-        builder.AddEnvironmentVariables();
+        new KeyValuePair<string, string?>(nameof(IAppSettings.ApplicationName), applicationName)
+    });
+
+    return builder;
+}
+
+    //In the future, DRN.Nexus's remote configuration support will also be added to AddSettingsOverrides.
+private static void AddSettingsOverrides(this IConfigurationBuilder builder, string[]? args, IServiceCollection? sc)
+{
+    builder.AddEnvironmentVariables("ASPNETCORE_");
+    builder.AddEnvironmentVariables("DOTNET_");
+    builder.AddEnvironmentVariables();
         builder.AddMountDirectorySettings(sc);
 
-        if (args != null && args.Length > 0)
-            builder.AddCommandLine(args);
-    }
+    if (args != null && args.Length > 0)
+        builder.AddCommandLine(args);
+}
     
     /// <summary>
     /// Mounted settings like kubernetes secrets or configmaps
@@ -187,7 +187,7 @@ DrnProgramBase applies Kestrel configurations. To configure logging you should a
 DrnProgramBase handles most of the application level wiring and standardizes JsonDefaults across all of the `System.Text.Json` usages.
 ```csharp
     protected static async Task RunAsync(string[]? args = null)
-    {
+{
         _ = JsonConventions.DefaultOptions;
         Configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationName(), args).Build();
         AppSettings = new AppSettings(Configuration);
@@ -207,9 +207,9 @@ DrnProgramBase handles most of the application level wiring and standardizes Jso
             scopedLog.AddToActions("Application Shutdown Gracefully");
         }
         catch (Exception exception)
-        {
+{
             scopedLog.AddException(exception);
-        }
+}
         finally
         {
             if (scopedLog.HasException)
@@ -225,11 +225,11 @@ DrnProgramBase handles most of the application level wiring and standardizes Jso
     {
         var program = new TProgram();
         var options = new WebApplicationOptions
-        {
+{
             Args = args,
             ApplicationName = GetApplicationName(),
             EnvironmentName = AppSettings.Environment.ToString()
-        };
+};
 
         var applicationBuilder = DrnProgramConventions.GetApplicationBuilder<TProgram>(options, program.DrnProgramOptions.AppBuilderType);
         applicationBuilder.Configuration.AddDrnSettings(GetApplicationName(), args);
@@ -240,7 +240,7 @@ DrnProgramBase handles most of the application level wiring and standardizes Jso
         program.ConfigureApplication(application);
 
         return application;
-    }
+}
 ```
 
 ## DrnDefaults
@@ -278,7 +278,7 @@ DrnDefaults are added to empty WebApplicationBuilder and WebApplication and cons
         applicationBuilder.Services.AddSwaggerGen();
         applicationBuilder.Services.Configure<ForwardedHeadersOptions>(options => { options.ForwardedHeaders = ForwardedHeaders.All; });
         applicationBuilder.Services.PostConfigure<HostFilteringOptions>(options =>
-        {
+{
             if (options.AllowedHosts != null && options.AllowedHosts.Count != 0) return;
             var separator = new[] { ';' };
             // "AllowedHosts": "localhost;127.0.0.1;[::1]"
@@ -286,10 +286,10 @@ DrnDefaults are added to empty WebApplicationBuilder and WebApplication and cons
             // Fall back to "*" to disable.
             options.AllowedHosts = hosts?.Length > 0 ? hosts : ["*"];
         });
-    }
+}
 
     protected virtual void ConfigureApplication(WebApplication application)
-    {
+{
         application.Services.ValidateServicesAddedByAttributes();
         if (DrnProgramOptions.AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
@@ -322,11 +322,11 @@ DrnDefaults are added to empty WebApplicationBuilder and WebApplication and cons
     protected virtual void ConfigureApplicationPostAuth(WebApplication application)
     {
 
-    }
+}
 
     protected virtual void ConfigureMvcOptions(MvcOptions options)
-    {
-    }
+{
+}
 ```
 
 ---
