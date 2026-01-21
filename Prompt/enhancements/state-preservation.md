@@ -9,13 +9,6 @@
 | **Blocked Items** | What's waiting for user input | Explicit list with required action |
 | **Hypotheses** | Current working theory for debugging | Update or discard as evidence arrives |
 
-### Context Window Discipline
-| Threshold | Action |
-|-----------|--------|
-| **50% used** | Summarize verbose tool outputs |
-| **70% used** | Compress completed work to conclusions |
-| **85% used** | Preserve essentials only; drop exploration |
-
 ### State Transitions
 - **Task start**: Initialize fresh state; inherit project-level context
 - **Task pause**: Checkpoint current state; note resumption requirements
