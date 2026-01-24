@@ -28,13 +28,8 @@ Optional extensions to [DiSCOS.md](../DiSCOS.md) providing tactical depth for sp
 | [uncertainty-calibration.md](common/uncertainty-calibration.md) | Evidence weighting, boundary detection | Confidence Signaling | Medium |
 | [worked-examples.md](common/worked-examples.md) | Concrete scenarios demonstrating patterns | All sections | Reference |
 
-### DRN.Framework Enhancements
-
-| File | Purpose | Extends DiSCOS Section | Complexity |
-|------|---------|----------------------|------------|
-| [drn-framework-expert.md](drn-framework/drn-framework-expert.md) | DRN.Framework domain expertise | Technical Mastery | High |
-| [drn-framework-architecture.md](drn-framework/drn-framework-architecture.md) | DRN.Framework architecture overview (slim) | Technical Mastery | Medium |
-| [drn-hosted-app-expert.md](drn-framework/drn-hosted-app-expert.md) | DRN hosted app patterns (Sample.Hosted) | Technical Mastery | High |
+> [!TIP]
+> **Technical Framework Skills**: For DRN.Framework specific technical knowledge (architecture, testing, hosting), refer to the `.agent/skills/` directory. DiSCOS Enhancements focus on *cognitive and behavioral* patterns, while Skills focus on *implementation* details.
 
 ---
 
@@ -48,8 +43,6 @@ Optional extensions to [DiSCOS.md](../DiSCOS.md) providing tactical depth for sp
 - **panel-synthesis.md**: Architectural decisions, security-sensitive changes
 - **advanced-reasoning.md**: Complex debugging, multi-path problems
 - **state-preservation.md**: Long multi-turn tasks
-- **drn-framework-expert.md**: Working with DRN.Framework projects, testing, or extending framework
-- **drn-hosted-app-expert.md**: Building hosted web applications on DRN.Framework
 
 ### Reference
 - **worked-examples.md**: Consult when uncertain about applying patterns
@@ -79,7 +72,6 @@ Combine enhancements based on task classification:
 - **Quick task**: DiSCOS core only
 - **Complex task**: + session-protocol + state-preservation
 - **Critical decision**: + panel-synthesis + uncertainty-calibration
-- **DRN development**: + drn-framework-architecture or drn-framework-expert
 
 ---
 
@@ -88,17 +80,13 @@ Combine enhancements based on task classification:
 ```
 Enhancements/
 ├── README.md                           # This file
-├── common/                             # General-purpose enhancements
-│   ├── session-protocol.md
-│   ├── state-preservation.md
-│   ├── panel-synthesis.md
-│   ├── advanced-reasoning.md
-│   ├── uncertainty-calibration.md
-│   └── worked-examples.md
-└── drn-framework/                      # DRN.Framework specific
-    ├── drn-framework-expert.md         # Deep framework internals
-    ├── drn-framework-architecture.md   # Slim architecture overview
-    └── drn-hosted-app-expert.md        # Hosted app patterns
+└── common/                             # General-purpose enhancements
+    ├── session-protocol.md
+    ├── state-preservation.md
+    ├── panel-synthesis.md
+    ├── advanced-reasoning.md
+    ├── uncertainty-calibration.md
+    └── worked-examples.md
 ```
 
 ---
@@ -119,12 +107,6 @@ Enhancements/
 │  │  Advanced   │ │  Uncertainty  │               │
 │  │  Reasoning  │ │  Calibration  │               │
 │  └─────────────┘ └───────────────┘               │
-├───────────────────────────────────────────────────┤
-│  drn-framework/                                   │
-│  ┌─────────────────────────────────────────────┐ │
-│  │  Expert │ Architecture │ Hosted App Expert  │ │
-│  └─────────────────────────────────────────────┘ │
-│               (Enhancements)                      │
 └───────────────────────────────────────────────────┘
 ```
 
