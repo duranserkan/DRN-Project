@@ -1,8 +1,7 @@
 using DRN.Framework.EntityFramework.Attributes;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
-namespace DRN.Framework.EntityFramework.Context.DataProtection;
+namespace Sample.Infra.DataProtection;
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public class DrnDataProtectionContextOptionsAttribute() : NpgsqlPerformanceSettingsAttribute(multiplexing: false)

@@ -12,6 +12,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.2" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Folder Include="DataProtection\Migrations\" />
     <Folder Include="Identity\Migrations\" />
     <Folder Include="QA\Migrations\" />
   </ItemGroup>

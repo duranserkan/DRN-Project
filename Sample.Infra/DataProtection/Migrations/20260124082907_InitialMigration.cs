@@ -3,10 +3,10 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace DRN.Framework.EntityFramework.Context.DataProtection.Migrations
+namespace Sample.Infra.DataProtection.Migrations
 {
     /// <inheritdoc />
-    public partial class DataProtectionKeysAdded : Migration
+    public partial class InitialMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

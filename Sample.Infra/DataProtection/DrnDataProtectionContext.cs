@@ -1,8 +1,7 @@
 using DRN.Framework.Utils.Extensions;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
 
-namespace DRN.Framework.EntityFramework.Context.DataProtection;
+namespace Sample.Infra.DataProtection;
 
 //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
 //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/

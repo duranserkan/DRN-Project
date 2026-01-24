@@ -41,7 +41,7 @@ public interface IDrnContext<out TContext> : IDrnContext, IDesignTimeDbContextFa
 /// <b>EF Tool Usage</b>
 ///<code>
 /// dotnet tool install --global dotnet-ef
-/// dotnet tool update
+/// dotnet tool update --global --all
 ///</code>
 /// </example>
 ///<example>

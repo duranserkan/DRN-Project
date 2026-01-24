@@ -20,11 +20,17 @@ public static class DrnContextDevelopmentConnection
             var password = appSettings.Configuration.GetValue<string>(DbContextConventions.DevPasswordKey);
 
             if (password != null)
-                connectionString = $"Host={host};Port={port};Database={database};User ID={username};password={password};Multiplexing=true;Max Auto Prepare=10;Maximum Pool Size=2;Application Name={AppConstants.EntryAssemblyName};";
+                connectionString =
+                    $"Host={host};Port={port};Database={database};User ID={username};password={password};Multiplexing=true;Max Auto Prepare=10;Maximum Pool Size=2;Application Name={AppConstants.EntryAssemblyName};";
         }
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        if (!string.IsNullOrWhiteSpace(connectionString))
+            return connectionString;
 
-        return connectionString;
+        var exceptionMessage = $"Connection string for '{name}' not found.";
+        if (appSettings.IsDevEnvironment)
+            exceptionMessage += " Ensure the app is compiled in debug mode when using Postgres in Dev Environment with Test Containers.";
+
+        throw ExceptionFor.Configuration(exceptionMessage);
     }
 }

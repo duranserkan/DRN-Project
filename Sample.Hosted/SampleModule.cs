@@ -1,5 +1,4 @@
 using DRN.Framework.EntityFramework;
-using DRN.Framework.EntityFramework.Context.DataProtection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.DataProtection;
@@ -9,6 +8,7 @@ using Sample.Application;
 using Sample.Domain.Users;
 using Sample.Hosted.Settings;
 using Sample.Infra;
+using Sample.Infra.DataProtection;
 
 namespace Sample.Hosted;
 
@@ -27,7 +27,6 @@ public static class SampleModule
         //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
         //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/
         services
-            .AddDrnDataProtectionContext()
             .AddDataProtection().PersistKeysToDbContext<DrnDataProtectionContext>();
 
         //.AddPersonalDataProtection<>()
