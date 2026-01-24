@@ -39,6 +39,7 @@
   </Folder>
   <Folder Name="/Items/.agent/" />
   <Folder Name="/Items/.agent/rules/">
+    <File Path=".agent\rules\discos.md" />
     <File Path=".agent\rules\duran-serkan.md" />
   </Folder>
   <Folder Name="/Items/.github/" />
@@ -88,16 +89,34 @@
   <Folder Name="/Items/.github/workflows/actions/sonar-tools/">
     <File Path=".github\workflows\actions\sonar-tools\action.yml" />
   </Folder>
-  <Folder Name="/Items/Prompt/">
-    <File Path="Prompt\duran-serkan.md" />
+  <Folder Name="/Items/DiSCOS/">
+    <File Path="DiSCOS\DiSCOS.md" />
+    <File Path="DiSCOS\Enhancements\common\advanced-reasoning.md" />
+    <File Path="DiSCOS\Enhancements\common\panel-synthesis.md" />
+    <File Path="DiSCOS\Enhancements\common\session-protocol.md" />
+    <File Path="DiSCOS\Enhancements\common\state-preservation.md" />
+    <File Path="DiSCOS\Enhancements\common\uncertainty-calibration.md" />
+    <File Path="DiSCOS\Enhancements\common\worked-examples.md" />
+    <File Path="DiSCOS\Enhancements\drn-framework\drn-framework-architecture.md" />
+    <File Path="DiSCOS\Enhancements\drn-framework\drn-framework-expert.md" />
+    <File Path="DiSCOS\Enhancements\drn-framework\drn-hosted-app-expert.md" />
+    <File Path="DiSCOS\Enhancements\README.md" />
   </Folder>
-  <Folder Name="/Items/Prompt/Enhancements/">
-    <File Path="Prompt\enhancements\advanced-reasoning.md" />
-    <File Path="Prompt\enhancements\panel-synthesis.md" />
-    <File Path="Prompt\enhancements\README.md" />
-    <File Path="Prompt\enhancements\session-protocol.md" />
-    <File Path="Prompt\enhancements\state-preservation.md" />
-    <File Path="Prompt\enhancements\worked-examples.md" />
+  <Folder Name="/Items/DiSCOS/Enhancements/">
+    <File Path="DiSCOS\Enhancements\README.md" />
+  </Folder>
+  <Folder Name="/Items/DiSCOS/Enhancements/common/">
+    <File Path="DiSCOS\Enhancements\common\advanced-reasoning.md" />
+    <File Path="DiSCOS\Enhancements\common\panel-synthesis.md" />
+    <File Path="DiSCOS\Enhancements\common\session-protocol.md" />
+    <File Path="DiSCOS\Enhancements\common\state-preservation.md" />
+    <File Path="DiSCOS\Enhancements\common\uncertainty-calibration.md" />
+    <File Path="DiSCOS\Enhancements\common\worked-examples.md" />
+  </Folder>
+  <Folder Name="/Items/DiSCOS/Enhancements/drn-framework/">
+    <File Path="DiSCOS\Enhancements\drn-framework\drn-framework-architecture.md" />
+    <File Path="DiSCOS\Enhancements\drn-framework\drn-framework-expert.md" />
+    <File Path="DiSCOS\Enhancements\drn-framework\drn-hosted-app-expert.md" />
   </Folder>
   <Folder Name="/Src/" />
   <Folder Name="/Src/Framework/">
