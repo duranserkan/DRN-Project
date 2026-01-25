@@ -23,8 +23,8 @@ Host a central static class (typically named `Get`) in the `Hosted` project. Thi
 public static class Get
 {
     // Navigation & Routing
-    public static SamplePageFor Page { get; } = new();
-    public static SampleEndpointFor Endpoint { get; } = new();
+    public static SamplePageFor Page { get; } = PageCollectionBase<SamplePageFor>.PageCollection;
+    public static SampleEndpointFor Endpoint { get; } = (SampleEndpointFor)EndpointCollectionBase<SampleProgram>.EndpointCollection!;
     
     // Security (ScopeContext wrappers)
     public static RoleFor Role { get; } = new();
@@ -32,6 +32,35 @@ public static class Get
     
     // Constants
     public static ViewDataKeys ViewDataKeys { get; } = new();
+}
+```
+
+---
+
+
+---
+
+## Helper Collections (Dependency Construction)
+
+Collections are used to group accessors logicially (e.g., by feature or area).
+
+**Page Collection Pattern**:
+```csharp
+public class SamplePageFor : PageCollectionBase<SamplePageFor>
+{
+    // Property injection for nested helpers
+    public RootPageFor Root { get; } = new();
+    public UserPageFor User { get; } = new();
+}
+```
+
+**Endpoint Collection Pattern**:
+```csharp
+public class SampleEndpointFor : EndpointCollectionBase<SampleProgram>
+{
+    // Dependencies initialized in constructor/property
+    public UserApiFor User { get; } = new();
+    public QaApiFor QA { get; } = new();
 }
 ```
 
@@ -45,10 +74,22 @@ Avoid hardcoding URL strings. Use helper classes that generate routes.
 
 **Pattern**:
 ```csharp
+// 1. Grouping Class (referenced by SampleEndpointFor)
 public class UserApiFor
 {
+    public const string RouteTemplate = "Api/User/[controller]";
+    
+    // Intermediate grouping or direct controller endpoint
+    public UserIdentityLoginFor LoginController { get; } = new();
+}
+
+// 2. Controller Endpoint Class
+public class UserIdentityLoginFor : ControllerForBase<SampleIdentityLoginController>
+{
+    public UserIdentityLoginFor() : base(UserApiFor.RouteTemplate) { }
+
     // Returns type-safe endpoint reference
-    public EndpointFor<LoginController> Login { get; } = new(c => c.Login);
+    public ApiEndpoint Login { get; private set; } = null!;
 }
 ```
 
@@ -56,7 +97,7 @@ public class UserApiFor
 ```razor
 <!-- Refactoring-safe link generation -->
 <a href="@Get.Page.User.Login">Login</a>
-<form hx-post="@Get.Endpoint.QA.Question.PostAsync">
+<form hx-post="@Get.Endpoint.User.LoginController.Login.Path()">
 ```
 
 ### logical Accessors (`ClaimFor` / `FeatureFor`)

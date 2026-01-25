@@ -27,7 +27,7 @@ Hosting provides the **application shell** for DRN web applications with built-i
 ```
 DRN.Framework.Hosting/
 ├── DrnProgram/       # DrnProgramBase, options, conventions
-├── Endpoints/        # EndpointCollectionBase, EndpointFor
+├── Endpoints/        # EndpointCollectionBase, EndpointForBase, PageForBase
 ├── Auth/             # Policies, MFA configuration
 ├── Consent/          # Cookie consent management
 ├── Identity/         # Identity integration
@@ -278,7 +278,45 @@ Default optimizations included in the host:
 
 - **Static Asset Caching**: `ConfigureStaticFileOptions` sets `Cache-Control` to 1 year and enables `HttpsCompression`.
 - **Response Caching**: `AddResponseCaching()` is registered by default, configurable via `ConfigureResponseCachingOptions`.
-- **Service Validation**: End-to-end service validation happens *before* the host starts listening (`ValidateServicesAsync`), preventing late-stage dependency errors.
+### Service Validation
+- End-to-end service validation happens *before* the host starts listening (`ValidateServicesAsync`), preventing late-stage dependency errors.
+
+---
+
+## Page Management
+
+### PageCollectionBase
+
+Type-safe Razor Page references:
+
+```csharp
+public class SamplePageFor : PageCollectionBase<SamplePageFor>
+{
+    public RootPageFor Root { get; } = new();
+    public UserPageFor User { get; } = new();
+}
+
+public class UserPageFor : PageForBase
+{
+    // Defined path segments: /User
+    protected override string[] PathSegments { get; } = ["User"];
+
+    // Pages (Properties matching .cshtml file names)
+    public string Login { get; init; } = string.Empty; // Becomes "/User/Login"
+    public string Register { get; init; } = string.Empty; // Becomes "/User/Register"
+    
+    // Nested folders
+    public UserProfilePageFor Profile { get; } = new();
+}
+```
+
+### Usage
+
+```razor
+<!-- In Razor -->
+<a asp-page="@Get.Page.User.Login">Log In</a>
+<a href="@Get.Page.Root.Home">Home</a>
+```
 
 ---
 
@@ -297,18 +335,30 @@ public class SampleEndpointFor : EndpointCollectionBase<SampleProgram>
 
 public class QaApiFor
 {
-    public EndpointFor<QaController> GetQuestions { get; } = new(c => c.GetQuestions);
+    public const string Prefix = "/Api/QA";
+    public const string ControllerRouteTemplate = $"{Prefix}/[controller]";
+
+    public TagFor Tag { get; } = new();
+}
+
+public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRouteTemplate)
+{
+    //By convention, Endpoint name should match Action name and property should have setter;
+    public ApiEndpoint GetAsync { get; private set; } = null!;
+    public ApiEndpoint PostAsync { get; private set; } = null!;
 }
 ```
 
 ### Usage
 
 ```csharp
-// In code
-var url = Get.Endpoint.Qa.GetQuestions;
+### Usage
 
-// In Razor
-<a href="@Get.Endpoint.User.Profile">Profile</a>
+```csharp
+// In code (Get ApiEndpoint object)
+ApiEndpoint endpoint = Get.Endpoint.Qa.Tag.GetAsync;
+string urlPattern = endpoint.Path();
+```
 ```
 
 ---

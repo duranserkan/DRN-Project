@@ -100,6 +100,32 @@ public void OnGet()
 }
 ```
 
+### LayoutOptionsFor
+
+Helper factory pattern for creating common layout configurations (e.g., accessed via `Get.LayoutOptions`).
+
+```csharp
+public class LayoutOptionsFor
+{
+    public MainContentLayoutOptions Full(string title) => new() { Title = title };
+
+    public MainContentLayoutOptions Centered(string title) => new() 
+    { 
+        Title = title, 
+        CenterVertically = true,
+        CenterHorizontally = true,
+        ColumnSize = BootstrapColumnSize.Six 
+    };
+}
+```
+
+**Usage**:
+```csharp
+ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = Get.LayoutOptions.Centered("Login");
+```
+
+---
+
 ## Related Skills
 - [frontend-razor-pages-navigation.md](../frontend-razor-pages-navigation/SKILL.md) - Navigation & Sidebar
 - [frontend-razor-accessors.md](../frontend-razor-accessors/SKILL.md) - Accessor patterns

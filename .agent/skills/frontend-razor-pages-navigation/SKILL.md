@@ -86,7 +86,23 @@ ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = new MainContentLayoutOptio
         new(Get.Page.Profile.Security, "Security", "bi-shield-lock")
     ])
 };
+    ])
+};
 ```
+
+### SubNavigationFor
+
+Helper class pattern for defining reusable sub-navigation collections (e.g., accessed via `Get.SubNavigation`).
+
+```csharp
+public class SubNavigationFor
+{
+    public DefaultSubNavigationCollection Default { get; } = new();
+    public ProfileSubNavigationCollection Profile { get; } = new();
+}
+```
+
+---
 
 ## Helper Classes & Components
 
