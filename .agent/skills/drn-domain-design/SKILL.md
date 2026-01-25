@@ -1,6 +1,6 @@
 ---
 name: drn-domain-design
-description: Domain-Driven Design patterns and implementations - Entity design with Source-Known IDs, EntityType attributes, repository patterns, domain event handling, and EF Core entity configuration. Critical for implementing domain models and data access layers. Keywords: ddd, entity-design, repository-pattern, source-known-id, entity-type, domain-events, ef-core-configuration, fluent-api, entity-framework, domain-modeling
+description: Domain-Driven Design patterns and implementations - Entity design with Source-Known IDs, EntityType attributes, repository patterns, domain event handling, and EF Core entity configuration. Critical for implementing domain models and data access layers. Keywords: ddd, entity-design, repository-pattern, source-known-id, entity-type, domain-events, ef-core-configuration, fluent-api, entity-framework, domain-modeling, skills, shared kernel, drn, entity framework, hosting, utils
 ---
 
 # Domain Design Skill (DRN.Framework)
