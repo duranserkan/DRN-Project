@@ -1,6 +1,6 @@
 ---
 name: test-integration
-description: Integration testing overview - Orchestrates API testing (WebApplicationFactory) and database component testing (Testcontainers). Navigation hub for test-integration-api and test-integration-db specialized skills. Keywords: integration-testing, testcontainers, webapplicationfactory, api-testing, database-testing, e2e-testing, dtt, skills, test integration api, test integration db
+description: Integration testing overview - Orchestrates API testing (WebApplicationFactory) and database component testing (Testcontainers). Navigation hub for test-integration-api and test-integration-db specialized skills. Keywords: integration-testing, testcontainers, webapplicationfactory, api-testing, database-testing, e2e-testing, dtt, skills, test integration api, test, integration, db
 ---
 
 # DRN.Test.Integration Overview

@@ -1,6 +1,6 @@
 ---
 name: drn-utils
-description: DRN.Framework.Utils - Attribute-based dependency injection ([Scoped], [Singleton], [Transient]), IAppSettings configuration pattern, logging infrastructure, extension methods, and core utilities. Foundational for service registration, configuration management, and cross-cutting concerns. Keywords: dependency-injection, di, service-registration, configuration, appsettings, logging, extensions, attributes, scoped, singleton, transient, iappsettings, skills, drn domain design, overview drn framework, drn shared kernel, drn hosting, drn entity framework, drn testing
+description: DRN.Framework.Utils - Attribute-based dependency injection ([Scoped], [Singleton], [Transient]), IAppSettings configuration pattern, logging infrastructure, extension methods, and core utilities. Foundational for service registration, configuration management, and cross-cutting concerns. Keywords: dependency-injection, di, service-registration, configuration, appsettings, logging, extensions, attributes, scoped, singleton, transient, skills, drn, domain, design, overview, framework, shared, kernel, hosting, entity, testing
 ---
 
 # DRN.Framework.Utils

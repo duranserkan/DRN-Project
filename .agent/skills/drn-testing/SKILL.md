@@ -1,6 +1,6 @@
 ---
 name: drn-testing
-description: DRN.Framework.Testing - Comprehensive testing infrastructure with DrnTestContext (auto-mocking, DI), ContainerContext (Testcontainers for PostgreSQL), WebApplicationContext (WebApplicationFactory), DataAttributes (DataInline, DataMember), and test providers. Foundation for all DTT (Duran's Testing Technique) test types. Keywords: testing, drntest context, testcontainers, webapplicationfactory, auto-mocking, nsubstitute, autofixture, data-attributes, integration-testing, unit-testing, dtt, skills, overview drn testing, drn utils, drn entity framework, test unit, test integration, test performance
+description: DRN.Framework.Testing - Comprehensive testing infrastructure with DrnTestContext (auto-mocking, DI), ContainerContext (Testcontainers for PostgreSQL), WebApplicationContext (WebApplicationFactory), DataAttributes (DataInline, DataMember), and test providers. Foundation for all DTT (Duran's Testing Technique) test types. Keywords: testing, drntest context, testcontainers, webapplicationfactory, auto-mocking, nsubstitute, autofixture, data-attributes, integration-testing, unit-testing, dtt, skills, overview, drn, testing, utils, entity, framework, test, unit, integration, performance
 ---
 
 # DRN.Framework.Testing
