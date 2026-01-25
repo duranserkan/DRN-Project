@@ -15,7 +15,7 @@ This skill provides standards and patterns for domain-driven design within the D
 The framework uses a composite identifier system to balance DB performance (long IDs) with external security (GUIDs) and type safety.
 
 > [!IMPORTANT]
-> **External Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must never be exposed outside the infrastructure/domain boundaries.
+> **External Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must never be exposed outside the infrastructure/domain boundaries. DTOs must expose `Guid Id` (not `SourceKnownEntityId`) to ensure safe serialization.
 
 ### SourceKnownId
 The internal structure representing identity components.
@@ -183,7 +183,8 @@ public class MyConfigAttribute : NpgsqlDbContextOptionsAttribute {
 - **Audit Properties**: `CreatedAt` and `ModifiedAt` are automatically tracked and have standardized column order configurations.
 
 ### Configuration Best Practices
-- **Isolation**: Place `IEntityTypeConfiguration` classes in a `Configurations` folder within the infrastructure layer, alongside the context.
+- **Isolation**: Place `IEntityTypeConfiguration` classes in a `Configurations` folder within the specific Context's directory in the infrastructure layer (e.g., `Infra/Marketing/Configurations`).
+- **Repositories**: Place implementation classes in a `Repositories` folder within the specific Context's directory (e.g., `Infra/Marketing/Repositories`).
 - **Explicit Key Handling**: While the base context handles standard keys, use configurations for unique indexes, relationships, and property-specific constraints (e.g., `HasMaxLength`).
 
 ## Repository Implementation
@@ -259,6 +260,8 @@ To maintain consistency across the DRN ecosystem, follow these patterns when exp
 ### Entity Identification
 - **Route Parameters**: Use `:guid` constraints for single entity actions (e.g., `[HttpGet("{id:guid}")]`).
 - **DTO Mapping**: Map `AggregateRoot.EntityId` to the DTO's `Id` property.
+- **DTO Id Type**: DTOs must use `Guid` for identifiers, not `SourceKnownEntityId`.
+- **Mappers**: Implement DTO-to-Entity and Entity-to-DTO mappers as extension methods in a `static class` within the same file as the Entity definition.
 
 ### Pagination Patterns
 - **Strict Rule**: **Never enumerate all entities unless explicitly requested.** Always use pagination instead to protect system performance.
