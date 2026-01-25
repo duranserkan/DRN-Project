@@ -1,130 +1,188 @@
 # DRN.Framework.Hosting
 
-## Introduction
-DRN.Framework.Hosting package provides practical, effective distributed application hosting code with sensible defaults, configuration options.
+[![master](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml/badge.svg?branch=master)](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml)
+[![develop](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml/badge.svg?branch=develop)](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 
-This package manages configuration, logging, http server (Kestrel) codes and configuration. Since each distributed app at least requires an endpoint to support health checking, this packages assumes each distributed application is also a web application.   
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=bugs)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 
-### QuickStart: Basics
+**DRN.Framework.Hosting** provides the **application shell** for DRN web applications. It abstracts away the boilerplate of configuring reliable, secure, and observable ASP.NET Core applications.
 
-Here's a basic test demonstration to take your attention and get you started:
+## Table of Contents
+
+- [TL;DR](#tldr)
+- [Directory Structure](#directory-structure)
+- [QuickStart](#quickstart)
+- [Lifecycle & Execution Flow](#lifecycle--execution-flow)
+- [DrnProgramBase Deep Dive](#drnprogrambase-deep-dive)
+- [Configuration](#configuration)
+- [Security Features](#security-features)
+- [Endpoint Management](#endpoint-management)
+- [Razor TagHelpers](#razor-taghelpers)
+- [Local Development](#local-development-infrastructure)
+- [Global Usings](#global-usings)
+
+## TL;DR
+* **Secure by Default**: Enforces MFA, strict CSP with Nonces, and HSTS automatically.
+* **Opinionated Startup**: `DrnProgramBase` creates a predictable lifecycle for all services.
+* **Type-Safe Routing**: Replaces "magic strings" with typed `Endpoint` and `Page` accessors.
+* **Frontend Synergy**: Includes TagHelpers for Vite integration and secure asset loading.
+
+## Directory Structure
+```
+DRN.Framework.Hosting/
+├── DrnProgram/       # DrnProgramBase, options, conventions
+├── Endpoints/        # EndpointCollectionBase, EndpointForBase
+├── Auth/             # Policies, MFA configuration
+├── Middlewares/      # HttpScopeLogger, security middlewares
+├── TagHelpers/       # Razor TagHelpers (Script, CSP, etc.)
+└── wwwroot/          # Static files (JS/CSS)
+```
+
+## QuickStart
+
+### 1. Basic Program
+All DRN web apps inherit from `DrnProgramBase<TProgram>` to inherit the lifecycle hooks and default behaviors.
+
 ```csharp
 using DRN.Framework.Hosting.DrnProgram;
-using Sample.Application;
-using Sample.Infra;
 
 namespace Sample.Hosted;
 
 public class Program : DrnProgramBase<Program>, IDrnProgram
 {
+    // Entry Point
     public static async Task Main(string[] args) => await RunAsync(args);
 
-    protected override void AddServices(IServiceCollection services) => services
-        .AddSampleInfraServices()
-        .AddSampleApplicationServices();
-}
-```
-You can easily test your application with DRN.Framework.Testing package.
-```csharp
-public class StatusControllerTests(ITestOutputHelper outputHelper)
-{
-    [Theory]
-    [DataInline]
-    public async Task StatusController_Should_Return_Status(DrnTestContext context)
+    // Service Registration
+    protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
     {
-        context.ApplicationContext.LogToTestOutput(outputHelper);
-        var application = context.ApplicationContext.CreateApplication<Program>();
-        await context.ContainerContext.Postgres.ApplyMigrationsAsync();
-
-        var client = application.CreateClient();
-        var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>("Status");
-        var programName = typeof(Program).GetAssemblyName();
-        status?.ApplicationName.Should().Be(programName);
+        builder.Services.AddSampleInfraServices();
+        builder.Services.AddSampleApplicationServices();
+        return Task.CompletedTask;
     }
 }
 ```
+
+### 2. Testing Integration
+You can easily test your application using `DRN.Framework.Testing`.
+
+```csharp
+[Theory, DataInline]
+public async Task StatusController_Should_Return_Status(DrnTestContext context, ITestOutputHelper outputHelper)
+{
+  // Arrange: Create authenticated client for the Program
+  var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
+  var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>("Status");
+  status?.ApplicationName.Should().Be("Sample.Hosted");
+}
+```
+
+## Lifecycle & Execution Flow
+
+`DrnProgramBase` orchestrates the application startup to ensure security headers, logging scopes, and validation logic run in the correct order.
+
+```mermaid
+graph TD
+    Start["RunAsync()"] --> CAB["CreateApplicationBuilder()"]
+    
+    subgraph "1. Builder Phase"
+    CAB --> CSO["ConfigureSwaggerOptions()"]
+    CAB --> CDSH["ConfigureDefaultSecurityHeaders()"]
+    CAB --> ASA["AddServicesAsync()"]
+    end
+
+    ASA --> ABC["ApplicationBuilderCreatedAsync"]
+    ABC --> Build["builder.Build()"]
+    
+    subgraph "2. Application Phase"
+    Build --> CA["ConfigureApplication()"]
+    CA --> CAPS["ConfigureApplicationPipelineStart() (HSTS/Headers)"]
+    CA --> LOG["HttpScopeMiddleware (TraceId)"]
+    CA --> UR["UseRouting()"]
+    CA --> UA["UseAuthorization()"]
+    CA --> MAE["MapApplicationEndpoints()"]
+    end
+
+    MAE --> ABA["ApplicationBuiltAsync"]
+    ABA --> VE["ValidateEndpoints()"]
+    VE --> VSA["ValidateServicesAsync()"]
+    VSA --> Run["application.RunAsync()"]
+```
+
+## DrnProgramBase Deep Dive
+
+This section details every overrideable hook and internal behavior of the base class.
+
+### 1. Configuration Hooks (Protected Virtual)
+
+Override these methods to customize specific subsystems without breaking the overall logical flow.
+
+| Method | Argument | Purpose |
+|--------|----------|---------|
+| `ConfigureSwaggerOptions` | `DrnProgramSwaggerOptions` | Customize OpenAPI metadata text (Title, Desc). |
+| `ConfigureMvcBuilder` | `IMvcBuilder` | Add ApplicationParts, JSON options, or Runtime compilation. |
+| `ConfigureMvcOptions` | `MvcOptions` | Customize global MVC filters or conventions. |
+| `ConfigureAuthorizationOptions` | `AuthorizationOptions` | **Critical**: Defines Policies (`MFA`, `MFAExempt`) and Default/Fallback policies. |
+| `ConfigureResponseCachingOptions` | `ResponseCachingOptions` | Customize HTTP response caching behavior. |
+| `ConfigureDefaultSecurityHeaders` | `HeaderPolicyCollection` | Define global headers (FrameOptions, ContentTypeOptions). |
+| `ConfigureDefaultCsp` | `CspBuilder` | Define the generic Content Security Policy (Nonces are auto-handled). |
+| `ConfigureSecurityHeaderPolicyBuilder` | `SecurityHeaderPolicyBuilder` | Define advanced conditional CSP policies (e.g. for Swagger UI vs App). |
+| `ConfigureCookiePolicy` | `CookiePolicyOptions` | Customize GDPR consent logic and cookie security attributes. |
+| `ConfigureMFARedirection` | Returns `MfaRedirectionConfig` | Define where users go when MFA is required vs setup needed. |
+
+### 2. Pipeline Hooks
+
+These methods insert middleware into key slots of the request pipeline.
+
+| Method | Order | Uses |
+|--------|-------|------|
+| `ConfigureApplicationPipelineStart` | 1 | `UseForwardedHeaders`, `UseHostFiltering`, `UseCookiePolicy`, `UseSecurityHeaders`. |
+| `ConfigureApplicationPreScopeStart` | 2 | `UseStaticFiles`. Runs before Logging/Scope. |
+| `ConfigureApplicationPostScopeStart` | 3 | Runs immediately after `HttpScopeMiddleware` (TraceId available). |
+| `ConfigureApplicationPreAuthentication` | 5 | `UseRequestLocalization`. Runs before Auth logic. |
+| `ConfigureApplicationPostAuthentication` | 8 | `MfaRedirectionMiddleware`. Runs after Identity is established. |
+| `ConfigureApplicationPostAuthorization` | 10 | `UseSwaggerUI`. Runs after access is confirmed. |
+
+
+
+### 3. Internal Wiring (Automatic)
+
+* **Service Validation**: Calls `ValidateServicesAsync` to scan `[Attribute]`-registered services and ensure they are resolvable at startup.
+* **Secure JSON**: Enforces `HtmlSafeWebJsonDefaults` to prevent XSS via JSON serialization.
+* **Endpoint Accessor**: Registers `IEndpointAccessor` for typed access to `EndpointCollectionBase`.
+
+### 4. Properties
+
+| Property | Default | Purpose |
+|----------|---------|---------|
+| `AppBuilderType` | `DrnDefaults` | Controls builder creation. Use `Slim` for minimal APIs. |
+| `DrnProgramSwaggerOptions` | (Object) | Toggles Swagger generation. Defaults to `IsDevEnvironment`. |
+| `NLogOptions` | (Object) | Controls NLog bootstrapping (e.g., replace logger factory). |
 
 ## Configuration
-DRN hosting package applies configuration in following order:
-```csharp
-public static IConfigurationBuilder AddDrnSettings(this IConfigurationBuilder builder, string applicationName, string[]? args = null,
-    string settingJsonName = "appsettings",
-    IServiceCollection? sc = null)
-{
-    if (string.IsNullOrWhiteSpace(settingJsonName))
-        settingJsonName = "appsettings";
-    var fileProvider = builder.Properties
-        .Where(pair => pair.Value.GetType() == typeof(PhysicalFileProvider))
-        .Select(pair => (PhysicalFileProvider)pair.Value).FirstOrDefault();
 
-    var environment = GetEnvironment(settingJsonName, args, sc, fileProvider?.Root);
-    builder.AddJsonFile($"{settingJsonName}.json", true);
-    builder.AddJsonFile($"{settingJsonName}.{environment.ToString()}.json", true);
+> [!TIP]
+> **Configuration Precedence**: Environment > Secrets > AppSettings.
+> Always use `User Secrets` for local connection strings to avoid committing credentials.
 
-    if (applicationName.Length > 0)
-        try
-        {
-            var assembly = Assembly.Load(new AssemblyName(applicationName));
-            builder.AddUserSecrets(assembly, true);
-        }
-        catch (FileNotFoundException e)
-        {
-            _ = e;
-        }
+### Layering
+1.  `appsettings.json`
+2.  `appsettings.{Environment}.json`
+3.  **User Secrets** (Development only)
+4.  **Environment Variables** (`ASPNETCORE_`, `DOTNET_`)
+5.  **Mounted Directories** (e.g. `/app/config`)
+6.  **Command Line Arguments**
 
-    builder.AddSettingsOverrides(args, sc);
+### Reference Configurations
 
-    return builder;
-}
-
-private static void AddSettingsOverrides(this IConfigurationBuilder builder, string[]? args, IServiceCollection? sc)
-{
-    builder.AddEnvironmentVariables("ASPNETCORE_");
-    builder.AddEnvironmentVariables("DOTNET_");
-    builder.AddEnvironmentVariables();
-    builder.AddMountDirectorySettings(sc);
-
-    if (args != null && args.Length > 0)
-        builder.AddCommandLine(args);
-}
-    
-/// <summary>
-/// Mounted settings like kubernetes secrets or configmaps
-/// </summary>
-public static IConfigurationBuilder AddMountDirectorySettings(this IConfigurationBuilder builder, IServiceCollection? sc = null)
-{
-    var overrideService = sc?.BuildServiceProvider().GetService<IMountedSettingsConventionsOverride>();
-    var mountOverride = overrideService?.MountedSettingsDirectory;
-    if (overrideService != null)
-        builder.AddObjectToJsonConfiguration(overrideService);
-
-    builder.AddKeyPerFile(MountedSettingsConventions.KeyPerFileSettingsMountDirectory(mountOverride), true);
-    var jsonDirectory = MountedSettingsConventions.JsonSettingDirectoryInfo(mountOverride);
-    if (!jsonDirectory.Exists) return builder;
-
-    foreach (var files in jsonDirectory.GetFiles())
-        builder.AddJsonFile(files.FullName);
-
-    return builder;
-}
-```
-You can easily obtain effective configuration with appSettings. Api controller is used for demonstration. **Do not expose your configuration**.
-```csharp
-[ApiController]
-[Route("[controller]")]
-public class StatusController(IAppSettings appSettings) : ControllerBase
-{
-    [HttpGet]
-    [ProducesResponseType(200)]
-    public ActionResult Status()
-    {
-        return Ok(appSettings.GetDebugView().ToSummary());
-    }
-}
-```
-## Logging
-DrnProgramBase applies NLog configurations. Console and Graylog targets are supported by default. To configure logging you can add NLog configs in appsettings.json
-
+#### NLog (Logging)
+Standard configuration for Console and Graylog output.
 ```json
 {
   "NLog": {
@@ -134,218 +192,118 @@ DrnProgramBase applies NLog configurations. Console and Graylog targets are supp
       "console": {
         "type": "Console",
         "layout": "${longdate}|${level:uppercase=true}|${logger}|${message} ${exception:format=tostring}"
-      },
-      "graylog": {
-        "type": "Network",
-        "address": "udp://localhost:12201",
-        "layout": "${longdate}|${level:uppercase=true}|${logger}|${message} ${exception:format=tostring}"
       }
     },
     "rules": [
-      {
-        "logger": "*",
-        "minLevel": "Info",
-        "writeTo": "console"
-      },
-      {
-        "logger": "*",
-        "minLevel": "Info",
-        "writeTo": "graylog"
-      }
+      { "logger": "*", "minLevel": "Info", "writeTo": "console" }
     ]
   }
 }
 ```
-## Kestrel
 
-DrnProgramBase applies Kestrel configurations. To configure logging you should add kestrel configs in appsettings.json
-
+#### Kestrel (Server)
 ```json
 {
   "Kestrel": {
-    "Docs": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/endpoints",
-    "EndpointDefaults": {
-      "Protocols": "Http1"
-    },
+    "EndpointDefaults": { "Protocols": "Http1" },
     "Endpoints": {
-      "All": {
-        "Url": "http://*:5988"
-      }
+      "All": { "Url": "http://*:5988" }
     }
   }
 }
 ```
 
-## DrnProgramBase RunAsync
-DrnProgramBase handles most of the application level wiring and standardizes JsonDefaults across all of the `System.Text.Json` usages.
+## Security Features
+
+DRN Hosting enforces **"Security by Default"**:
+
+> [!IMPORTANT]
+> **MFA Enforcement**: By default, **ALL** routes require MFA unless explicitly opted-out.
+> Any new controller without `[AllowAnonymous]` is secure by default (Fail-Closed).
+
+### 1. MFA by Default (Fail-Closed)
+The `FallbackPolicy` is set to require MFA. Any controller **not** marked with `[AllowAnonymous]` or `[Authorize(Policy = AuthPolicy.MfaExempt)]` will reject requests without a verified MFA session. Configured in `ConfigureAuthorizationOptions` by setting `FallbackPolicy`.
+
+### 2. Content Security Policy (CSP)
+* **Nonce-based**: A cryptographic nonce is generated per request.
+* **TagHelpers**: The `NonceTagHelper` automatically injecting `nonce="{current_nonce}"` into scripts and styles.
+
+### 3. Strict Headers
+* Strict-Transport-Security (HSTS)
+* X-Frame-Options: DENY
+* X-Content-Type-Options: nosniff
+* Referrer-Policy: strict-origin-when-cross-origin
+
+### 4. GDPR Compliance
+* Built-in consent cookie `SameSite=Strict`.
+
+### Opting-Out
 ```csharp
-    protected static async Task RunAsync(string[]? args = null)
-    {
-        var configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationAssemblyName(), args).Build();
-        var appSettings = new AppSettings(configuration);
-        var scopedLog = new ScopedLog(appSettings).WithLoggerName(typeof(TProgram).FullName);
-        var loggerProvider = new NLogLoggerProvider(NLogOptions, CreateLogFactory(appSettings));
-        var logger = loggerProvider.CreateLogger(typeof(TProgram).FullName!);
+// Public landing page
+[AllowAnonymous]
+public class HomeController : Controller { ... }
 
-        try
-        {
-            scopedLog.AddToActions("Creating Application");
-            var application = await CreateApplicationAsync(args, appSettings, scopedLog);
-            scopedLog.AddToActions("Running Application");
-            logger.LogWarning("{@Logs}", scopedLog.Logs);
-
-            if (appSettings.DevelopmentSettings.TemporaryApplication)
-                return;
-            //todo create startup report for dev environment
-            await application.RunAsync();
-            scopedLog.AddToActions("Application Shutdown Gracefully");
-        }
-        catch (Exception exception)
-        {
-            scopedLog.AddException(exception);
-            await TryCreateStartupExceptionReport(args, appSettings, scopedLog, exception, logger);
-
-            throw;
-        }
-        finally
-        {
-            if (scopedLog.HasException)
-                logger.LogError("{@Logs}", scopedLog.Logs);
-            else
-                logger.LogWarning("{@Logs}", scopedLog.Logs);
-
-            loggerProvider.Dispose();
-        }
-    }
-
-    public static async Task<WebApplication> CreateApplicationAsync(string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
-    {
-        var actions = GetApplicationAssembly().CreateSubType<DrnProgramActions>();
-        var (program, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopeLog);
-        await (actions?.ApplicationBuilderCreatedAsync(program, applicationBuilder, appSettings, scopeLog) ?? Task.CompletedTask);
-
-        var application = applicationBuilder.Build();
-        program.ConfigureApplication(application, appSettings);
-        await (actions?.ApplicationBuiltAsync(program, application, appSettings, scopeLog) ?? Task.CompletedTask);
-
-        var requestPipelineSummary = application.GetRequestPipelineSummary();
-        if (appSettings.IsDevEnvironment) //todo send application summaries to nexus for auditing, implement application dependency summary as well
-            scopeLog.Add(nameof(RequestPipelineSummary), requestPipelineSummary);
-
-        program.ValidateEndpoints(application, appSettings);
-        await program.ValidateServicesAsync(application, scopeLog);
-        await (actions?.ApplicationValidatedAsync(program, application, appSettings, scopeLog) ?? Task.CompletedTask);
-
-        return application;
-    }
+// Login Page (Single Factor Allowed)
+[Authorize(Policy = AuthPolicy.MfaExempt)]
+public class LoginController : Controller { ... }
 ```
+
+## Endpoint Management
+
+Avoid "magic strings" for routes. Use `EndpointCollectionBase` and `PageCollectionBase` for type-safe endpoint references.
+
+```csharp
+// Usage in Code
+ApiEndpoint endpoint = Get.Endpoint.User.Login;
+string url = endpoint.Path();
+```
+
+## Razor TagHelpers
+
+| TagHelper | Target | Purpose |
+|-----------|--------|---------|
+| `ViteScriptTagHelper` | `<script src="buildwww/..." />` | Resolves Vite manifest entries. |
+| `NonceTagHelper` | `<script>`, `<style>` | Auto-adds CSP nonce. |
+| `CsrfTokenTagHelper` | `hx-post` | Adds CSRF tokens to HTMX requests. |
+| `AuthorizedOnlyTagHelper` | `<div authorized-only>` | Renders only for authenticated users. |
 
 ## Local Development Infrastructure
 
-You can leverage `DRN.Framework.Testing`'s container management features directly in your hosted application to automatically provision infrastructure (like Postgres) during local development.
+Use `DRN.Framework.Testing` to provision infrastructure (Postgres, RabbitMQ) during local development.
 
 ### Setup
 
-1.  **Add Conditional Reference**: Add a reference to `DRN.Framework.Testing` that is only active in `Debug` configuration.
-
+1.  **Add Conditional Reference**:
     ```xml
     <ItemGroup Condition="'$(Configuration)' == 'Debug'">
         <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
     </ItemGroup>
     ```
 
-2.  **Configure Startup Actions**: Implement `DrnProgramActions` to hook into the application startup and launch dependencies.
-
+2.  **Configure Startup Actions**:
     ```csharp
-    // Sample.Hosted/SampleProgramActions.cs
     #if DEBUG
-    using DRN.Framework.Hosting.DrnProgram;
-    using DRN.Framework.Testing.Extensions;
-    // ... other usings
-
     public class SampleProgramActions : DrnProgramActions
     {
         public override async Task ApplicationBuilderCreatedAsync<TProgram>(
             TProgram program, WebApplicationBuilder builder,
             IAppSettings appSettings, IScopedLog scopedLog)
         {
+            // Auto-starts containers if not running
             await builder.LaunchExternalDependenciesAsync(scopedLog, appSettings);
         }
     }
     #endif
     ```
 
-This allows your application to strictly depend on `Hosting` in production while benefiting from `Testing`'s infrastructure tools during development.
+## Global Usings
 
-## DrnDefaults
-
-DrnProgramBase has a DrnProgramOptions property which defines behavior and defaults to WebApplication and WebApplicationBuilder. See following document for new hosting model introduced with .NET 6,
-
-* https://learn.microsoft.com/en-us/aspnet/core/migration/50-to-60#new-hosting-model
-
-DrnDefaults are added to empty WebApplicationBuilder and WebApplication and considered as sensible and configurable. Further Overriding and fine-tuning options for DrnDefaults can be added in versions after 0.3.0.
+Standard global usings for Hosted applications:
 ```csharp
-    protected DrnProgramSwaggerOptions DrnProgramSwaggerOptions { get; private set; } = new();
-    
-    // ReSharper disable once StaticMemberInGenericType
-    protected static NLogAspNetCoreOptions NLogOptions { get; set; } = new()
-    {
-        ReplaceLoggerFactory = false,
-        RemoveLoggerFactoryFilter = false
-    };
-
-    protected DrnAppBuilderType AppBuilderType { get; set; } = DrnAppBuilderType.DrnDefaults;
-
-    protected abstract Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog);
-
-    protected virtual void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder, IAppSettings appSettings)
-    {
-        applicationBuilder.Logging.ClearProviders();
-        if (appSettings.TryGetSection("Logging", out var loggingSection))
-            applicationBuilder.Logging.AddConfiguration(loggingSection);
-        applicationBuilder.Logging.AddNLogWeb(CreateLogFactory(appSettings), NLogOptions);
-
-        applicationBuilder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
-        {
-            kestrelServerOptions.AddServerHeader = false;
-            kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel"));
-        });
-
-        applicationBuilder.WebHost.UseStaticWebAssets();
-
-        var services = applicationBuilder.Services;
-        services.AddDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
-        
-        // ... (Endpoints & Mvc configuration)
-
-        services.AddAuthorization(ConfigureAuthorizationOptions);
-        if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
-
-        // ... (Defaults configuration)
-    }
-
-    protected virtual void ConfigureApplication(WebApplication application, IAppSettings appSettings)
-    {
-        if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
-
-        ConfigureApplicationPipelineStart(application, appSettings);
-
-        ConfigureApplicationPreScopeStart(application, appSettings);
-        application.UseMiddleware<HttpScopeMiddleware>();
-        ConfigureApplicationPostScopeStart(application, appSettings);
-
-        application.UseRouting();
-
-        ConfigureApplicationPreAuthentication(application, appSettings);
-        application.UseAuthentication();
-        application.UseMiddleware<ScopedUserMiddleware>();
-        ConfigureApplicationPostAuthentication(application, appSettings);
-        application.UseAuthorization();
-        application.UseResponseCaching();
-        ConfigureApplicationPostAuthorization(application, appSettings);
-
-        MapApplicationEndpoints(application, appSettings);
-    }
+global using DRN.Framework.Hosting.DrnProgram;
+global using DRN.Framework.Hosting.Endpoints;
+global using DRN.Framework.Utils.DependencyInjection;
+global using Microsoft.AspNetCore.Mvc;
 ```
 
 ---
