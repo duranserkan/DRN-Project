@@ -10,265 +10,76 @@
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=coverage)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 
-DRN.Framework.SharedKernel package is an lightweight package that contains common codes suitable for contract and domain layers. It can be referenced by any
-projects such as other DRN.Framework packages, projects developed with DRN.Framework.
+# DRN.Framework.SharedKernel
 
-## JsonConventions
+> Lightweight package containing domain primitives, exceptions, and shared code suitable for Contract and Domain layers.
 
-System.Text.Json defaults will be overridden by JsonConventions when
-* DrnTestContext is used in tests
-* DrnHostBuilder is used to build host
+## Package Purpose
+
+SharedKernel is the **lightest** DRN package with **no external DRN dependencies**. It can be safely referenced by:
+- **Contract/API layers** (DTOs, Exceptions)
+- **Domain layers** (Entities, Aggregates, Events)
+- **Any project** needing DRN primitives without heavy framework dependencies.
+
+## Table of Contents
+- [When to Apply](#when-to-apply)
+- [Domain Primitives](#domain-primitives)
+- [SourceKnownRepository](#sourceknownrepository)
+- [Pagination](#pagination)
+- [Exceptions](#exceptions)
+- [JsonConventions](#jsonconventions)
+- [Attributes](#attributes)
+- [AppConstants](#appconstants)
+
+## When to Apply
+
+- Defining **Domain Entities** and **Aggregates**
+- Working with **Domain Events**
+- Using or extending **DRN Exceptions**
+- Understanding **JSON Serialization** conventions
+- Accessing **Application Constants**
+
+---
+
+## Domain Primitives
+
+Following definitions provide guidance and conventions for rapid and effective domain design. Their usage is optional but highly recommended for compatibility with `DrnContext` features.
+
+### Entity and AggregateRoot
+
+- **`SourceKnownEntity`**: The base class for all entities. Handles identity (`long Id` internal, `Guid EntityId` external), domain events, and auditing.
+- **`AggregateRoot`**: Marker class for DDD aggregate roots.
+- **`[EntityType(byte)]`**: Attribute defining a stable, unique byte identifier for each entity type. **Required** for ID generation and `DrnContext` startup validation.
+
+> [!IMPORTANT]
+> **Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must **never** be exposed outside the infrastructure/domain boundaries.
 
 ```csharp
-namespace DRN.Framework.SharedKernel.Json;
+using DRN.Framework.SharedKernel.Domain;
 
-public static class JsonConventions
+[EntityType(1)] // Mandatory: Unique byte identifier for this entity type
+public class User : AggregateRoot 
 {
-    private const BindingFlags StaticPrivate = BindingFlags.Static | BindingFlags.NonPublic;
+    public string Name { get; private set; }
 
-    static JsonConventions()
+    public User(string name) 
     {
-        //https://stackoverflow.com/questions/58331479/how-to-globally-set-default-options-for-system-text-json-jsonserializer
-        UpdateDefaultJsonSerializerOptions();
-    }
-
-    public static readonly JsonSerializerOptions DefaultOptions = SetJsonDefaults();
-
-    public static JsonSerializerOptions SetJsonDefaults(JsonSerializerOptions? options = null)
-    {
-        options ??= new JsonSerializerOptions(JsonSerializerDefaults.Web);
-
-        options.Converters.Add(new JsonStringEnumConverter());
-        options.Converters.Add(new Int64ToStringConverter());
-        options.Converters.Add(new Int64NullableToStringConverter());
-        options.AllowTrailingCommas = true;
-        options.PropertyNameCaseInsensitive = true;
-        options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-        options.NumberHandling = JsonNumberHandling.AllowReadingFromString;
-        options.MaxDepth = 32;
-        options.TypeInfoResolver = JsonSerializer.IsReflectionEnabledByDefault
-            ? new DefaultJsonTypeInfoResolver()
-            : JsonTypeInfoResolver.Combine();
-
-        return options;
-    }
-
-    public static JsonSerializerOptions SetHtmlSafeWebJsonDefaults(JsonSerializerOptions? options = null)
-    {
-        options = SetJsonDefaults(options);
-        options.Encoder = JavaScriptEncoder.Default;
-
-        return options;
+        Name = name;
+        AddDomainEvent(new UserCreated(this)); // Auto-published by DrnContext
     }
 }
 ```
 
+### Domain Events
 
-## Exceptions
-
-`DrnException` are used in DRN.Framework and DRN.Nexus and can be used any project. These exceptions contain additional category property so that same
-exception types can be differentiated with a subcategory. They also contain status code so that HttpScopeHandler can respect that.
-
-`ExceptionFor` factory class groups all DrnExceptions.
+Entities encapsulate their events. `DrnContext` publishes them automatically upon saving changes.
 
 ```csharp
-namespace DRN.Framework.SharedKernel;
-
-/// <summary>
-/// DrnExceptions are handled by scope handler and can be used to short circuit the processing pipeline
-/// </summary>
-public abstract class DrnException(string message, Exception? ex, string? category, short? status = null)
-    : Exception(message, ex)
+public class UserCreated(User user) : EntityCreated(user)
 {
-    public const string DefaultCategory = "default";
-    public string Category { get; } = category ?? DefaultCategory;
-    public short Status { get; } = status ?? 500;
-    public new IDictionary<string, object> Data { get; } = new Dictionary<string, object>();
+    public string UserName => user.Name;
 }
 
-/// <summary>
-/// Scope handler returns 400 when thrown
-/// </summary>
-public class ValidationException(string message, Exception? ex = null, string? category = null)
-    : DrnException(message, ex, category, 400);
-...
-    
-public static class ExceptionFor
-{
-    private const string Default = DrnException.DefaultCategory;
-
-    /// <summary>
-    /// Scope handler returns 400 when thrown
-    /// </summary>
-    public static ValidationException Validation(string message, Exception exception = null!, string? category = Default)
-        => new(message, exception, category);
-
-    /// <summary>
-    /// Scope handler returns 401 when thrown
-    /// </summary>
-    public static UnauthorizedException Unauthorized(string message, Exception exception = null!, string? category = Default)
-        => new(message, exception, category);
-
-    /// <summary>
-    /// Scope handler returns 403 when thrown
-    /// </summary>
-    public static ForbiddenException Forbidden(string message, Exception? exception = null, string? category = Default)
-        => new(message, exception, category);
-
-    /// <summary>
-    /// Scope handler returns 404 when thrown
-    /// </summary>
-    public static NotFoundException NotFound(string message, Exception exception = null!, string? category = Default)
-        => new(message, exception, category);
-
-    /// <summary>
-    /// Scope handler returns 409 when thrown
-    /// </summary>
-    public static ConflictException Conflict(string message, Exception exception = null!, string? category = Default)
-        => new(message, exception, category);
-
-    /// <summary>
-    /// Scope handler returns 410 when thrown
-    /// </summary>
-    public static ExpiredException Expired(string message, Exception exception = null!, string? category = Default)
-        => new(message, exception, category);
-
-    /// <summary>
-    /// Scope handler returns 500 when thrown
-    /// </summary>
-    public static ConfigurationException Configuration(string message, Exception? ex = null, string? category = Default)
-        => new(message, ex, category);
-
-    /// <summary>
-    /// Scope handler returns 422 when thrown
-    /// </summary>
-    public static UnprocessableEntityException UnprocessableEntity(string message, Exception exception = null!, string? category = Default)
-        => new(message, exception, category);
-
-    /// <summary>
-    /// To abort requests that doesn't even deserve a result
-    /// </summary>
-    public static MaliciousRequestException MaliciousRequest(string message, Exception exception = null!, string? category = Default)
-        => new(message, exception, category);
-}
-```
-
-## Attributes
-
-When an object, property, or field is annotated with the IgnoreLog attribute, the IScopeLog implementation detects this attribute and excludes the marked element from the log data.
-
-```csharp
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Property | AttributeTargets.Field)]
-public class IgnoreLogAttribute : Attribute;
-
-public static class IgnoreLogExtensions
-{
-    public static bool IgnoredLog(this object obj) => obj.GetType().GetCustomAttributes()
-        .Any(attribute => attribute.GetType() == typeof(IgnoreLogAttribute));
-
-    public static bool IgnoredLog(this PropertyInfo info) =>
-        info.PropertyType == typeof(object) ||
-        info.GetCustomAttributes().Union(info.PropertyType.GetCustomAttributes())
-            .Any(attribute => attribute.GetType() == typeof(IgnoreLogAttribute));
-}
-```
-
-### SecureKeyAttribute
-
-Validates that a string meets secure key requirements (length, character classes, allowed characters).
-
-```csharp
-[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter, AllowMultiple = false)]
-public sealed class SecureKeyAttribute() : ValidationAttribute(DefaultErrorMessage)
-{
-    public ushort MinLength { get; set; } = 16;
-    public ushort MaxLength { get; set; } = 256;
-    // ... configuration properties
-}
-```
-
-## AppConstants
-
-```csharp
-namespace DRN.Framework.SharedKernel;
-
-public static class AppConstants
-{
-    public static int ProcessId { get; } = Environment.ProcessId;
-    public static Guid AppInstanceId { get; } = Guid.NewGuid();
-    public static string EntryAssemblyName { get; } = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";
-    public static string TempPath { get; } = GetTempPath(); //Cleans directory at every startup
-    public static string LocalIpAddress { get; } = GetLocalIpAddress();
-...
-}
-```
-
-## Domain Base Definitions
-
-Following definitions provide guidance and conventions for rapid and effective domain design. Their usage is not necessary however other framework features such
-as DrnContext benefits from them.
-
-* **SourceKnownEntity**: The base class for entities. It handles identity (long Id for DB, Guid EntityId for external), domain events, and auditing.
-* **EntityTypeAttribute**: Defines a stable, unique byte identifier for each entity type.
-* **Domain Events**: Entities encapsulate their events. `DrnContext` publishes them automatically.
-
-```csharp
-namespace DRN.Framework.SharedKernel.Domain;
-
-/// <summary>
-/// Application wide Unique Entity Type
-/// </summary>
-[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class EntityTypeAttribute(byte entityType) : Attribute
-{
-    public byte EntityType { get; } = entityType;
-}
-
-public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<SourceKnownEntity>, IComparable<SourceKnownEntity>
-{
-    public const int IdColumnOrder = 0;
-    public const int ModifiedAtColumnOrder = 1;
-
-    private List<IDomainEvent> DomainEvents { get; } = new(2);
-    public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
-
-    /// <summary>
-    /// Internal use only, Use EntityId for external usage
-    /// </summary>
-    [JsonIgnore]
-    [Column(Order = IdColumnOrder)]
-    public long Id { get; internal set; } = id;
-
-    /// <summary>
-    /// External use only, don't use Id for external usage
-    /// </summary>
-    [JsonPropertyName(nameof(Id))]
-    [JsonPropertyOrder(-3)]
-    public Guid EntityId => EntityIdSource.EntityId;
-
-    [JsonPropertyOrder(-2)]
-    public DateTimeOffset CreatedAt => EntityIdSource.Source.CreatedAt;
-
-    [ConcurrencyCheck]
-    [JsonPropertyOrder(-1)]
-    [Column(Order = ModifiedAtColumnOrder)]
-    public DateTimeOffset ModifiedAt { get; protected internal set; }
-
-    [JsonIgnore]
-    public SourceKnownEntityId EntityIdSource { get; internal set; }
-    
-    // ... GetEntityId methods, Equals, CompareTo
-}
-
-public abstract class AggregateRoot(long id = 0) : SourceKnownEntity(id);
-
-public abstract class AggregateRoot<TModel>(long id = 0) : AggregateRoot(id), IEntityWithModel<TModel> where TModel : class
-{
-    public TModel Model { get; set; } = null!;
-}
-```
-
-```csharp
 public interface IDomainEvent
 {
     Guid Id { get; }
@@ -288,59 +99,88 @@ public abstract class EntityModified(SourceKnownEntity sourceKnownEntity) : Doma
 public abstract class EntityDeleted(SourceKnownEntity sourceKnownEntity) : DomainEvent(sourceKnownEntity);
 ```
 
-## SourceKnownRepository
+### SourceKnownEntityId & SourceKnownId
 
-`ISourceKnownRepository<TEntity>` defines a standard contract for repositories managing `AggregateRoot` entities. It offers a consistent API for data access, identity management, and unit of work patterns.
-
-*   **Standardized Access**: Provides common CRUD operations (`CreateAsync`, `GetAsync`, `DeleteAsync`).
-*   **Identity Conversion**: Includes methods to convert between external `Guid`s and internal `SourceKnownEntityId`s using `GetEntityId` helper methods, ensuring IDs are valid and match the expected entity type.
-*   **Cancellation Support**: Built-in support for `CancellationToken` propagation.
-
-> [!WARNING]
-> `GetAllAsync()` returns all matching entities in a single query. This should be used **only** when the result set is guaranteed to be small (e.g., via repository settings filters) or for specific maintenance tasks. Avoid in public-facing APIs.
+The framework uses a composite identifier system (`SourceKnownEntityId`) to balance database performance (long) with external security (Guid) and type safety.
 
 ```csharp
-public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
+// 1. entityId.Valid will be true only if the GUID structure is correct AND matches the User entity type.
+var entityId = user.GetEntityId(someGuid, validate: true);
+
+### ID Validation & Retrieval Strategies
+
+The framework provides three distinct ways to validate and retrieve typed identifiers based on the operational context:
+
+**1. Injectable Utility (Recommended for Service Layer)**
+Ideal for cross-cutting business logic or when you have the `sourceKnownEntityIdUtils` in scope.
+```csharp
+var id = sourceKnownEntityIdUtils.Validate<User>(externalGuid);
+```
+
+**2. Repository (Recommended for Data Access)**
+Directly available on `ISourceKnownRepository<TEntity>`. Standardizes validation at the data entry point.
+```csharp
+var id = userRepository.GetEntityId(externalGuid); 
+```
+
+**3. Domain Entity (Recommended for Domain Logic)**
+Uses helper methods on the `SourceKnownEntity` base class. Best for intra-domain operations.
+```csharp
+var id = userInstance.GetEntityId<User>(externalGuid);
+```
+```
+
+```csharp
+namespace DRN.Framework.SharedKernel.Domain;
+
+/// <summary>
+/// Application wide Unique Entity Type
+/// </summary>
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public sealed class EntityTypeAttribute(byte entityType) : Attribute
 {
-    RepositorySettings<TEntity> Settings { get; set; }
+    public byte EntityType { get; } = entityType;
+}
+
+public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<SourceKnownEntity>, IComparable<SourceKnownEntity>
+{
+    public const int IdColumnOrder = 0;
+    public const int ModifiedAtColumnOrder = 1;
+
+    // ... Internal implementation omitted for brevity ...
+
+    /// <summary>
+    /// Internal use only, Use EntityId for external usage
+    /// </summary>
+    [JsonIgnore]
+    [Column(Order = IdColumnOrder)]
+    public long Id { get; internal set; } = id;
+
+    /// <summary>
+    /// External use only, don't use Id for external usage
+    /// </summary>
+    [JsonPropertyName(nameof(Id))]
+    public Guid EntityId => EntityIdSource.EntityId;
+
+    public DateTimeOffset CreatedAt => EntityIdSource.Source.CreatedAt;
+
+    [ConcurrencyCheck]
+    public DateTimeOffset ModifiedAt { get; protected internal set; }
+
+    [JsonIgnore]
+    public SourceKnownEntityId EntityIdSource { get; internal set; }
     
-    // Identity Conversion & Validation
-    SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
-    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;
-    
-    // Data Access
-    Task<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true);
-    Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
+    // ... GetEntityId methods ...
+}
+
+public abstract class AggregateRoot(long id = 0) : SourceKnownEntity(id);
+
+public abstract class AggregateRoot<TModel>(long id = 0) : AggregateRoot(id), IEntityWithModel<TModel> where TModel : class
+{
+    public TModel Model { get; set; } = null!;
 }
 ```
 
-## SourceKnownEntity
-
-`SourceKnownEntity` is the base class for all domain entities. It standardizes identity management, domain events, and auditing.
-
-*   **EntityTypeAttribute**: Every `SourceKnownEntity` must be decorated with `[EntityType(byte)]`. This assigns a unique, stable byte identifier to the class, which is used for ID generation and type safety.
-*   **ID Conversion**: Provides `GetEntityId` methods to convert internal `long` IDs or external `Guid`s into strongly-typed `SourceKnownEntityId`s.
-*   **Validation**:
-    *   **Parser & IdFactory**: Internal delegates used to reconstruct IDs.
-    *   **Validation**: `GetEntityId` methods include a `bool validate = true` parameter (default). When true, it verifies the ID's structure and ensures the entity type matches the expected type.
-
-```csharp
-[EntityType(1)] // Unique byte identifier for this entity type
-public class MyEntity : SourceKnownEntity 
-{
-    // ...
-}
-
-// Usage
-var entityId = myEntity.GetEntityId(someGuid, validate: true); // Validates ID structure and EntityType
-```
-
-## SourceKnownEntityId & SourceKnownId
-
-The framework uses a composite identifier system to balance database performance with external security and type safety.
-
-### SourceKnownId
-The internal structure representing the identity components.
 ```csharp
 public readonly record struct SourceKnownId(
     long Id,                // The internal database ID (64-bit integer)
@@ -349,11 +189,7 @@ public readonly record struct SourceKnownId(
     byte AppId,             // Application ID
     byte AppInstanceId      // Application Instance ID
 );
-```
 
-### SourceKnownEntityId
-The public-facing identifier wrapper.
-```csharp
 public readonly record struct SourceKnownEntityId(
     SourceKnownId Source,   // The decoded internal components
     Guid EntityId,          // The external opaque GUID
@@ -370,22 +206,211 @@ public readonly record struct SourceKnownEntityId(
 }
 ```
 
+---
+
+## SourceKnownRepository
+
+`ISourceKnownRepository<TEntity>` defines a standard contract for repositories managing `AggregateRoot` entities.
+
+*   **Standardized Access**: Provides common CRUD operations (`CreateAsync`, `GetAsync`, `DeleteAsync`).
+*   **Identity Conversion**: Includes methods to convert between external `Guid`s and internal `SourceKnownEntityId`s ensuring IDs are valid.
+*   **Cancellation Support**: Built-in support for `CancellationToken` propagation and merging.
+*   **Streaming**: Supports `IAsyncEnumerable` for processing large datasets efficiently.
+
+```csharp
+public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
+{
+    RepositorySettings<TEntity> Settings { get; set; }
+    CancellationToken CancellationToken { get; set; }
+    
+    // Identity Conversion & Validation
+    SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
+    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;
+    
+    // Data Access
+    Task<TEntity> GetAsync(Guid id);
+    Task<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true);
+    
+    // Batch & Counts
+    Task<bool> AnyAsync(Expression<Func<TEntity, bool>>? predicate = null);
+    Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null);
+    
+    // Modification
+    void Add(params IReadOnlyCollection<TEntity> entities);
+    void Remove(params IReadOnlyCollection<TEntity> entities);
+    Task<int> SaveChangesAsync();
+    
+    // Pagination & Streaming
+    Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
+    IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
+    
+    // Dangerous
+    Task<TEntity[]> GetAllAsync();
+}
+```
+
+> [!WARNING]
+> `GetAllAsync()` returns all matching entities in a single query. This should be used **only** when the result set is guaranteed to be small or for specific maintenance tasks. Avoid in public-facing APIs.
+
+### Filtering
+
+`EntityCreatedFilter` provides standardized date-based filtering, useful for time-series data or audit logs.
+
+```csharp
+// Example: Get records created in the last 7 days
+var filter = EntityCreatedFilter.After(DateTimeOffset.UtcNow.AddDays(-7));
+var result = await repository.PaginateAsync(request, filter);
+```
+
+---
+
 ## Pagination
 
-The framework provides a robust pagination system capable of handling large datasets efficiently using cursor-based navigation.
+The framework provides a robust **cursor-based** pagination system to balance performance and usability.
 
-*   **PaginationRequest**: Encapsulates page number, page size, cursor (sorting/filtering position), and optional total count updates.
-*   **PaginationResult**: Returns a slice of data along with navigation metadata (`HasNext`, `HasPrevious`, `TotalCount`).
-*   **Cursor Support**: Optimizes performance for "Next/Previous" navigation by using stable cursors instead of expensive offset-based skipping.
+### API Integration
+
+`PaginationRequest` is natively **URL-serializable**. In Controllers, simply bind it from the query string.
+
+```csharp
+[HttpGet]
+public async Task<PaginationResultModel<UserDto>> GetAsync([FromQuery] PaginationRequest request)
+{
+    var result = await repository.PaginateAsync(request);
+    return result.ToModel(user => user.ToDto());
+}
+```
+
+### Usage
 
 ```csharp
 // Example usage in a repository or service
 var request = PaginationRequest.DefaultWith(size: 20, direction: PageSortDirection.Descending);
 var result = await repository.PaginateAsync(request);
 
-if (result.HasNext) 
+if (result.Info.HasNext) 
 {
-    // Logic to prepare next page link
+    // Use result.Info.RequestNextPage() for the next link
+}
+```
+
+---
+
+## Exceptions
+
+`DrnException` types map automatically to HTTP status codes via the `ExceptionFor` factory.
+
+| Factory Method | Exception Type | HTTP Status |
+|---------------|----------------|-------------|
+| `ExceptionFor.Validation(msg)` | `ValidationException` | **400** |
+| `ExceptionFor.Unauthorized(msg)` | `UnauthorizedException` | **401** |
+| `ExceptionFor.Forbidden(msg)` | `ForbiddenException` | **403** |
+| `ExceptionFor.NotFound(msg)` | `NotFoundException` | **404** |
+| `ExceptionFor.Conflict(msg)` | `ConflictException` | **409** |
+| `ExceptionFor.Expired(msg)` | `ExpiredException` | **410** |
+| `ExceptionFor.UnprocessableEntity(msg)` | `UnprocessableEntityException` | **422** |
+| `ExceptionFor.Configuration(msg)` | `ConfigurationException` | **500** |
+| `ExceptionFor.MaliciousRequest(msg)` | `MaliciousRequestException` | **Abort** |
+
+```csharp
+namespace DRN.Framework.SharedKernel;
+
+/// <summary>
+/// DrnExceptions are handled by scope handler and can be used to short circuit the processing pipeline
+/// </summary>
+public abstract class DrnException(string message, Exception? ex, string? category, short? status = null)
+    : Exception(message, ex)
+{
+    public const string DefaultCategory = "default";
+    public string Category { get; } = category ?? DefaultCategory;
+    public short Status { get; } = status ?? 500;
+}
+
+public static class ExceptionFor
+{
+    private const string Default = DrnException.DefaultCategory;
+
+    public static ValidationException Validation(string message, Exception exception = null!, string? category = Default)
+        => new(message, exception, category);
+        
+    public static NotFoundException NotFound(string message, Exception exception = null!, string? category = Default)
+        => new(message, exception, category);
+        
+    // ... other factory methods ...
+}
+```
+
+---
+
+## JsonConventions
+
+`JsonConventions` globally overrides `System.Text.Json` settings. These are automatically applied by `DrnTestContext` (in tests) and `DrnHostBuilder` (in hosted apps).
+
+**Applied Settings:**
+- `JsonSerializerDefaults.Web` (CamelCase naming, case-insensitive)
+- `JsonStringEnumConverter` (Enums as strings)
+- `AllowTrailingCommas` = true
+- `NumberHandling` = AllowReadingFromString
+
+```csharp
+namespace DRN.Framework.SharedKernel.Json;
+
+public static class JsonConventions
+{
+    static JsonConventions()
+    {
+        UpdateDefaultJsonSerializerOptions();
+    }
+
+    public static readonly JsonSerializerOptions DefaultOptions = SetJsonDefaults();
+
+    public static JsonSerializerOptions SetJsonDefaults(JsonSerializerOptions? options = null)
+    {
+        options ??= new JsonSerializerOptions(JsonSerializerDefaults.Web);
+
+        options.Converters.Add(new JsonStringEnumConverter());
+        options.Converters.Add(new Int64ToStringConverter());
+        options.Converters.Add(new Int64NullableToStringConverter());
+        options.AllowTrailingCommas = true;
+        options.PropertyNameCaseInsensitive = true;
+        options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.NumberHandling = JsonNumberHandling.AllowReadingFromString;
+        options.MaxDepth = 32;
+        // ...
+        return options;
+    }
+}
+```
+
+---
+
+## Attributes
+
+### `[IgnoreLog]`
+Excludes sensitive properties or entire classes from scoped logging.
+
+```csharp
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Property | AttributeTargets.Field)]
+public class IgnoreLogAttribute : Attribute;
+```
+
+### `[SecureKey]`
+Validates that a string meets secure key requirements (length, character classes).
+
+---
+
+## AppConstants
+
+```csharp
+namespace DRN.Framework.SharedKernel;
+
+public static class AppConstants
+{
+    public static int ProcessId { get; } = Environment.ProcessId;
+    public static Guid AppInstanceId { get; } = Guid.NewGuid();
+    public static string EntryAssemblyName { get; } = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";
+    public static string TempPath { get; } = GetTempPath(); //Cleans directory at every startup
+    public static string LocalIpAddress { get; } = GetLocalIpAddress();
 }
 ```
 

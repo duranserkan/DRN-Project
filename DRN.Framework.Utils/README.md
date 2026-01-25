@@ -10,246 +10,346 @@
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=coverage)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 
-DRN.Framework.Utils package contains common codes for other DRN.Framework packages and projects developed with DRN.Framework.
+# DRN.Framework.Utils
 
-## Module
+Core utilities package providing attribute-based dependency injection, configuration management, scoped logging, ambient context, and essential extensions. This package serves as the **core infrastructure** for most DRN framework packages.
 
-DRN.Utils can be added with following module
+## Directory Structure
+
+```
+DRN.Framework.Utils/
+├── DependencyInjection/  # Lifetime attributes, assembly scanning
+├── Settings/             # IAppSettings, conventions
+├── Configurations/       # Configuration sources
+├── Logging/              # IScopedLog, ScopeLog
+├── Extensions/           # ServiceCollection, String, Type extensions
+├── Scope/                # ScopeContext (Ambient attributes)
+├── Ids/                  # ID generation (SourceKnownId)
+├── Auth/                 # Authentication helpers
+└── UtilsModule.cs        # Module registration
+```
+
+## Setup
+
+> [!NOTE]
+> If you are using `DRN.Framework.Hosting` (inheriting from `DrnProgramBase`), this package is **automatically registered and validated**.
+
+For manual installation (e.g. Console Apps, Workers):
 
 ```csharp
-namespace DRN.Framework.Utils;
+// Registers attributes, HybridCache, and TimeProvider
+builder.Services.AddDrnUtils();
+```
 
-public static class UtilsModule
+## Dependency Injection
+
+### Attribute-Based Registration
+
+Reduce wiring code by using attributes directly on your services. The registration method scans the calling assembly for these attributes.
+
+| Attribute | Lifetime | Usage |
+|-----------|----------|-------|
+| `[Singleton<T>]` | Singleton | `[Singleton<IMyService>] public class MyService : IMyService` |
+| `[Scoped<T>]` | Scoped | `[Scoped<IMyService>] public class MyService : IMyService` |
+| `[Transient<T>]` | Transient | `[Transient<IMyService>] public class MyService : IMyService` |
+| `[ScopedWithKey<T>]` | Scoped (Keyed) | `[ScopedWithKey<IMyService>("key")]` |
+
+### Validation & Testing
+
+> [!NOTE]
+> `DrnProgramBase` automatically runs this validation at startup.
+
+You can manually validate that all attribute-marked services are resolvable:
+
+```csharp
+// In Program.cs
+app.Services.ValidateServicesAddedByAttributes();
+```
+
+In integration tests with `DRN.Framework.Testing`:
+```csharp
+[Theory, DataInlineContext]
+public void Validate_Dependencies(DrnTestContext context)
 {
-    public static IServiceCollection AddDrnUtils(this IServiceCollection collection)
-    {
-        collection.AddServicesWithAttributes();
-        collection.AddHybridCache();
-        collection.TryAddSingleton<TimeProvider>(_ => TimeProvider.System);
+    context.ServiceCollection.AddServicesWithAttributes(); // Register local assembly
+    context.ValidateServices(); // Verifies resolution of all registered descriptors
+}
+```
 
-        return collection;
+### Module Registration & Startup Actions
+
+Services can require complex registration logic or post-startup actions. Attributes inheriting from `ServiceRegistrationAttribute` handle this.
+
+**Example**: `DrnContext<T>` (in `DRN.Framework.EntityFramework`) is decorated with `[DrnContextServiceRegistration]`, which:
+1.  Registers the DbContext.
+2.  **Automatically triggers EF Core Migrations** when the application starts in Development environments (via `PostStartupValidationAsync`).
+
+```csharp
+// The base class DrnContext handles the registration attributes.
+// You just inherit from it, and your context is auto-registered with migration support.
+public class MyDbContext : DrnContext<MyDbContext> { }
+```
+
+## Configuration
+
+### IAppSettings
+
+Access configuration safely with typed environments and utility methods.
+
+```csharp
+public class MyService(IAppSettings settings)
+{
+    public void DoWork()
+    {
+        if (settings.IsDevEnvironment) { ... }
+        
+        var conn = settings.GetRequiredConnectionString("Default");
+        var value = settings.GetValue<int>("MySettings:Timeout", 30);
     }
 }
 ```
 
-## Dependency Injection with Attributes
+### Configuration Attributes (`[Config]`)
 
-Each module should be created in the assembly that will be scanned.
+Bind classes directly to configuration sections. These are registered as **Singletons**.
 
 ```csharp
-public static class InfraModule
-{
-    public static IServiceCollection AddSampleInfraServices(this IServiceCollection sc)
-    {
-        sc.AddServicesWithAttributes();
+[Config("PaymentSettings")] // Binds to "PaymentSettings" section
+public class PaymentOptions 
+{ 
+    public string ApiKey { get; set; }
+}
 
-        return sc;
+[Config] // Binds to "FeatureFlags" section (class name)
+public class FeatureFlags { ... }
+
+[ConfigRoot] // Binds to root configuration
+public class RootSettings { ... }
+```
+
+### Configuration Sources
+
+The framework automatically loads configuration in this order:
+1.  `appsettings.json` / `appsettings.{Environment}.json`
+2.  Environment Variables
+3.  **Mounted Settings**:
+    -   `/appconfig/json-settings/*.json`
+    -   `/appconfig/key-per-file-settings/*`
+
+Override the mount directory by registering `IMountedSettingsConventionsOverride`.
+
+## Logging (`IScopedLog`)
+
+`IScopedLog` provides request-scoped structured logging. It aggregates logs, metrics, and actions throughout the request lifetime and flushes them as a single structured log entry at the end, making it ideal for high-traffic observability and performance monitoring.
+
+### Core Features
+*   **Contextual**: Automatically captures `TraceId`, `UserId`, `RequestPath`, and custom scope data.
+*   **Aggregation**: Groups all actions, metrics, and exceptions into a single structured log entry.
+*   **Performance Tracking**: Built-in measurement for code block durations and execution counts.
+*   **Resilience**: Captures exceptions without interrupting the business flow unless explicitly thrown.
+
+### API Usage
+
+```csharp
+public class OrderService(IScopedLog logger)
+{
+    public void ProcessOrder(int orderId)
+    {
+        // 1. Measure execution time and count
+        // Automatically tracks duration and increments "Stats_ProcessOrder_Count"
+        using var _ = logger.Measure("ProcessOrder"); 
+        
+        // 2. Add structured data (Key-Value)
+        logger.Add("OrderId", orderId); 
+        logger.AddIfNotNullOrEmpty("Referrer", "PartnerA");
+
+        // 3. Track execution checkpoints
+        logger.AddToActions("Validating order"); 
+        
+        try 
+        {
+            // ... logic ...
+            // 4. Flatten and add complex objects
+            logger.AddProperties("User", new { Name = "John", Role = "Admin" });
+        }
+        catch(Exception ex)
+        {
+            // 5. Log exception but keep the request contextual log intact
+            logger.AddException(ex, "Failed to process order");
+        }
     }
 }
 ```
 
-Services resolution for attribute based services can be validated with a single line.
+## HTTP Client Factories (`IExternalRequest`, `IInternalRequest`)
+
+Lightweight wrappers around [Flurl](https://flurl.dev/) for consistent, resilient HTTP client configuration with built-in JSON convention support.
+
+### External Requests
+Use `IExternalRequest` for standard external API calls. It pre-configures `DefaultJsonSerializer` and enforces HTTP version policies.
 
 ```csharp
-serviceProvider.ValidateServicesAddedByAttributes();
-```
-
-Attribute based dependency injection reduces wiring efforts and helps developer to focus on developing. This approach also improves service resolution
-validation during startup and integration testing.
-
-```csharp
-[Theory]
-[DataInlineContext]
-public void Validate_Sample_Dependencies(DrnTestContext context)
+public class PaymentService(IExternalRequest request)
 {
-    context.ServiceCollection.AddSampleApplicationServices();
-    context.ServiceCollection.AddSampleInfraServices();
-    context.ValidateServices();
-}
-```
-
-### Lifetime Attributes
-
-Example attribute usage:
-
-```csharp
-[Transient<IIndependent>]
-public class Independent : IIndependent
-{
-}
-```
-
-Following attributes marks services with a lifetime and when service collection called with **AddServicesWithAttributes** method in the assembly marked belong
-they are automatically added.
-
-```csharp
-namespace DRN.Framework.Utils.DependencyInjection.Attributes;
-
-public class LifetimeAttribute<TService>(ServiceLifetime serviceLifetime, bool tryAdd = true, object? key = null)
-    : LifetimeAttribute(serviceLifetime, typeof(TService), tryAdd, key);
-
-public class LifetimeWithKeyAttribute<TService>(ServiceLifetime serviceLifetime, object key, bool tryAdd = true)
-    : LifetimeAttribute(serviceLifetime, typeof(TService), tryAdd, key);
-
-public class ScopedAttribute<TService>(bool tryAdd = true) : LifetimeAttribute<TService>(ServiceLifetime.Scoped, tryAdd);
-
-public class ScopedWithKeyAttribute<TService>(object key, bool tryAdd = true) : LifetimeWithKeyAttribute<TService>(ServiceLifetime.Scoped, key, tryAdd);
-
-public class TransientAttribute<TService>(bool tryAdd = true) : LifetimeAttribute<TService>(ServiceLifetime.Transient, tryAdd);
-
-public class TransientWithKeyAttribute<TService>(object key, bool tryAdd = true) : LifetimeWithKeyAttribute<TService>(ServiceLifetime.Transient, key, tryAdd);
-
-public class SingletonAttribute<TService>(bool tryAdd = true) : LifetimeAttribute<TService>(ServiceLifetime.Singleton, tryAdd);
-
-public class SingletonWithKeyAttribute<TService>(object key, bool tryAdd = true) : LifetimeWithKeyAttribute<TService>(ServiceLifetime.Singleton, key, tryAdd);
-```
-
-### HasServiceCollectionModuleAttribute
-
-Attributes derived from `HasServiceCollectionModuleAttribute` can be used to mark custom service collection modules.
-In the following example `HasDrnContextServiceCollectionModuleAttribute` marks `DrnContext<TContext>` and its service collection module.
-This way dbContexts inherited from `DrnContext` doesn't need a lifetime attribute and they can be registered by `AddServicesWithAttributes` with their custom
-factory.
-
-This offers following flexibility:
-
-1. ServiceCollectionModule of DrnContexts are defined in `DRN.Framework.EntityFramework`
-2. Inherited dbContexts are defined in user defined projects and points a module in another project.
-3. `AddServicesWithAttributes` extension method defined in `DRN.Framework.Utils` registers them without depending `DRN.Framework.EntityFramework` project
-
-```csharp
-public class HasDrnContextServiceCollectionModuleAttribute : HasServiceCollectionModuleAttribute
-{
-    static HasDrnContextServiceCollectionModuleAttribute() =>
-        ModuleMethodInfo = typeof(ServiceCollectionExtensions)
-            .GetMethod(nameof(ServiceCollectionExtensions.AddDbContextsWithConventions))!;
-
-    public override async Task PostStartupValidationAsync(object service, IServiceProvider serviceProvider)
+    public async Task Process()
     {
-        var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
-        var migrate = appSettings.Configuration.GetValue(DbContextConventions.AutoMigrateDevEnvironmentKey, false);
-        if (appSettings.Environment == AppEnvironment.Development && migrate && service is DbContext context)
-            await context.Database.MigrateAsync();
+        // Enforces exact HTTP version for better compatibility with modern APIs
+        var response = await request.For("https://api.example.com", HttpVersion.Version11)
+            .AppendPathSegment("v1/charges")
+            .PostJsonAsync(new { Amount = 1000 })
+            .ToJsonAsync<ExternalApiResponse>();
     }
 }
-
-[HasDrnContextServiceCollectionModule]
-public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices where TContext : DbContext, new()
-{
-...
 ```
 
-HasServiceCollectionModuleAttribute's PostStartupValidationAsync will be called when,
-* ValidateServicesAddedByAttributes extension method called from service provider if all services resolved successfully.
-* For instance, DrnContext can apply EF migrations after service provider services resolved successfully.
+### Internal Requests (Service Mesh)
+Use `IInternalRequest` for Service-to-Service communication in Kubernetes. It's designed to work with Linkerd/Istio, supporting automatic protocol switching (HTTP/HTTPS) based on infrastructure settings.
 
-## Configurations
-
-Following configuration sources can be used to add configurations from different sources
-
-* JsonSerializerConfigurationSource converts poco objects to configuration
-* RemoteJsonConfigurationSource fetches remote configuration (experimental and incomplete)
-
-Following MountedSettingsConventions will be added to configuration.
-* /appconfig/json-settings json files will be added to configuration if any exist
-* /appconfig/key-per-file-settings files will be added to configuration if any exist
-* IMountedSettingsConventionsOverride overrides default /appconfig location if added to service collection before host built
+#### Recommended Pattern: Request Wrappers
+Instead of using `IInternalRequest` directly in business logic, wrap it in a typed request factory for better maintainability and configuration encapsulation.
 
 ```csharp
-namespace DRN.Framework.Utils.Settings.Conventions;
+// 1. Definition (External Factory Wrapper)
+public interface INexusRequest { IFlurlRequest For(string path); }
 
-public static class MountedSettingsConventions
+[Singleton<INexusRequest>]
+public class NexusRequest(IInternalRequest request, IAppSettings settings) : INexusRequest
 {
-    public const string DefaultMountDirectory = "/appconfig";
-    
-    public static string JsonSettingsMountDirectory(string? mountDirectory = null)
-        => Path.Combine(mountDirectory ?? DefaultMountDirectory, "json-settings");
-    public static string KeyPerFileSettingsMountDirectory(string? mountDirectory = null)
-        => Path.Combine(mountDirectory ?? DefaultMountDirectory, "key-per-file-settings");
-
-    public static DirectoryInfo JsonSettingDirectoryInfo(string? mountDirectory = null)
-        => new(JsonSettingsMountDirectory(mountDirectory));
+    private readonly string _nexusAddress = settings.NexusAppSettings.NexusAddress;
+    public IFlurlRequest For(string path) => request.For(_nexusAddress).AppendPathSegment(path);
 }
 
-public interface IMountedSettingsConventionsOverride
+// 2. Client Usage
+public class NexusClient(INexusRequest request) : INexusClient
 {
-    string? MountedSettingsDirectory { get; }
-}
-
-public class MountedSettingsOverride : IMountedSettingsConventionsOverride
-{
-    public string? MountedSettingsDirectory { get; init; }
+    public async Task<HttpResponse<string>> GetStatusAsync() =>
+        await request.For("status").GetAsync().ToStringAsync();
 }
 ```
 
-## AppSettings
+## Scope & Ambient Context (`ScopeContext`)
 
-Following IAppSettings interface is defined and can be used to obtain appsettings. It has utility methods that allow fail fast.
+`ScopeContext` provides ambient (static) access to scoped information within a valid execution context (like an HTTP request). This is ideal for cross-cutting concerns like auditing, multi-tenancy, or security where deep parameter passing is undesirable.
+
+*   **Contextual Identity**: Access `UserId`, `TraceId`, and `Authenticated` status anywhere.
+*   **Static Accessors**: Provides direct access to `IAppSettings`, `IScopedLog`, and `IServiceProvider`.
+*   **RBAC Helpers**: Built-in support for role and claim checks.
 
 ```csharp
-namespace DRN.Framework.Utils.Settings;
+var currentUserId = ScopeContext.UserId;
+var traceId = ScopeContext.TraceId;
+var settings = ScopeContext.Settings; // Static IAppSettings access
+var logger = ScopeContext.Log; // Static IScopedLog access
 
-public interface IAppSettings
-{
-    AppEnvironment Environment { get; }
-    IConfiguration Configuration { get; }
-
-    DrnAppFeatures Features { get; }
-    DrnLocalizationSettings Localization { get; }
-    DrnDevelopmentSettings DevelopmentSettings { get; }
-    NexusAppSettings NexusAppSettings { get; }
-    bool IsDevEnvironment { get; }
-
-    /// <summary>
-    ///  Default app key, can be used publicly. For example, to separate development and production data.
-    /// </summary>
-    string AppKey { get; }
-
-    string ApplicationName { get; }
-    string ApplicationNameNormalized { get; }
-    string GetAppSpecificName(string name, string prefix = "_");
-
-    bool TryGetConnectionString(string name, out string connectionString);
-    string GetRequiredConnectionString(string name);
-    bool TryGetSection(string key, out IConfigurationSection section);
-    IConfigurationSection GetRequiredSection(string key);
-    T? GetValue<T>(string key);
-    T? GetValue<T>(string key, T defaultValue);
-    T? Get<T>(string key, bool errorOnUnknownConfiguration = false, bool bindNonPublicProperties = true);
-    ConfigurationDebugView GetDebugView();
-}
+if (ScopeContext.IsUserInRole("Admin")) { ... }
 ```
 
-## Extension Methods
+## Data Utilities
 
-* ServiceCollectionExtensions
-    * ReplaceInstance
-    * ReplaceTransient
-    * ReplaceScoped
-    * ReplaceSingleton
-    * GetAllAssignableTo<TService>
-* StringExtensions
-    * Parse
-    * TryParse
-    * ToStream
-    * ToByteArray
-    * ToSnakeCase
-    * ToCamelCase
-    * ToPascalCase
-* TypeExtensions
-    * GetSubTypes
-    * CreateSubTypes
-    * CreateSubType
-    * GetTypesAssignableTo
-    * GetAssemblyName
-* AssemblyExtensions is merged into TypeExtensions or otherUtils
-* MethodUtils (Reflection Helper)
-    * InvokeMethod
-    * InvokeStaticMethod
-    * InvokeGenericMethod
-    * InvokeStaticGenericMethod
-    * FindGenericMethod
-    * FindNonGenericMethod
+### Encodings (`EncodingExtensions`)
+Unified API for binary-to-text encodings and model serialization-encoding.
+*   **Encodings**: Base64, Base64Url (Safe for URLs), Hex, and Utf8.
+*   **Integrated**: `model.Encode(ByteEncoding.Hex)` and `hexString.Decode<TModel>()`.
+
+### Hashing (`HashExtensions`)
+High-performance hashing extensions supporting modern and legacy algorithms.
+*   **Blake3**: Default modern cryptographic hash (fast and secure).
+*   **XxHash3**: Non-cryptographic hashing for performance-critical scenarios (IDs, Cache keys).
+*   **Security**: Keyed hashing support (`HashWithKey`) for integrity protection.
+
+### JSON & Document Utilities
+*   **JSON Merge Patch**: `JsonMergePatch.SafeApplyMergePatch` follows RFC 7386 for partial updates with built-in recursion depth protection.
+*   **Query String Serialization**: `QueryParameterSerializer` flattens complex nested objects/arrays into clean query strings for API clients.
+
+### Serialization & Streams
+*   **Unified Extensions**: `model.Serialize(method)` supports both JSON and Query String formats.
+*   **Safe Stream Consumption**: `ToBinaryDataAsync` and `ToArrayAsync` extensions with `MaxSizeGuard` to prevent memory exhaustion from untrusted streams.
+
+### Validation
+Extensions for programmatic validation using `System.ComponentModel.DataAnnotations`.
+*   **Contextual**: Integrates with `DRN.Framework.SharedKernel.ValidationException` for standardized error reporting across layers.
+
+```csharp
+// Multi-format serialization
+var json = model.Serialize(SerializationMethod.SystemTextJson);
+var query = model.Serialize(SerializationMethod.QueryString);
+
+// Data Integrity
+var hash = data.Hash(HashAlgorithm.Blake3);
+
+// Secure stream conversion
+var bytes = await requestStream.ToBinaryDataAsync(maxSize: 1024 * 1024);
+```
+
+## Utilities
+
+### ID Generation & Validation
+
+**SourceKnownEntity ID's** provide reversible, type-safe, and integrity-checked identifiers.
+> [!NOTE]
+> ID generation is automatically handled by `DrnContext` when SourceKnownEntities are saved.
+
+Users can validate incoming IDs (e.g., from APIs) using multiple approaches depending on the context:
+
+**1. Injectable Utility (Recommended for Service Layer)**
+```csharp
+var sourceKnownId = sourceKnownEntityIdUtils.Validate<User>(externalGuidId);
+```
+
+**2. SourceKnownRepository (Recommended for Data Access)**
+```csharp
+// Method on SourceKnownRepository<TEntity>
+var sourceKnownId = userRepository.GetEntityId(externalGuidId); 
+```
+
+**3. SourceKnownEntity (Recommended for Domain Logic)**
+```csharp
+// Helper on SourceKnownEntity base class
+var sourceKnownId = userInstance.GetEntityId<User>(externalGuidId);
+```
+
+### Time
+`TimeProvider` singleton is registered by default to `TimeProvider.System` for testable time entry.
+
+## Extensions
+
+Comprehensive set of extensions for standard .NET types and reflection.
+
+### Reflection & `MethodUtils`
+Highly optimized reflection helpers with built-in caching for generic and non-generic method invocation.
+*   **Invoke**: `instance.InvokeMethod("Name", args)` and `type.InvokeStaticMethod("Name", args)`.
+*   **Generics**: `instance.InvokeGenericMethod("Name", typeArgs, args)` with static and uncached variations.
+*   **Caching**: Uses internal `ConcurrentDictionary` and `record struct` keys for zero-allocation cache lookups.
+
+### Service Collection
+Advanced DI container manipulation for testing and modularity.
+*   **Querying**: `sc.GetAllAssignableTo<TService>()` retrieves all descriptors matching a type.
+*   **Replacement**: `ReplaceScoped`, `ReplaceSingleton`, and `ReplaceInstance` for mocking/overriding dependencies in integration tests.
+
+### String Extensions
+*   **Casing**: `ToSnakeCase`, `ToCamelCase`, and `ToPascalCase` for clean code-to-external system mapping.
+*   **Parsing**: `string.Parse<T>()` and `string.TryParse<T>(out result)` using the modern `IParsable<T>` interface.
+*   **Binary**: `ToStream()` and `ToByteArray()` shortcuts with UTF8 default.
+
+### Type & Assembly Extensions
+*   **Discovery**: `assembly.GetSubTypes(typeof(T))` and `assembly.GetTypesAssignableTo(to)`.
+*   **Instantiation**: `assembly.CreateSubTypes<T>()` automatically discovers and instantiates classes with parameterless constructors.
+*   **Metadata**: `type.GetAssemblyName()` returns a clean assembly name.
+
+### Object & Dictionary Extensions
+*   **Deep Discovery**: `instance.GetGroupedPropertiesOfSubtype(type)` recursively finds properties matching a base type across complex object graphs.
+*   **Dictionary Utility**: Extensions for `IDictionary` to handle null-safe value retrieval and manipulation.
+
+```csharp
+// Discovery and Instantiation
+var implementations = typeof(IMyInterface).Assembly.CreateSubTypes<IMyInterface>();
+
+// Modern Parsing
+int value = "123".Parse<int>();
+
+// Casing for APIs
+var key = "MyPropertyName".ToSnakeCase(); // my_property_name
+```
 
 ---
 **Semper Progressivus: Always Progressive**
