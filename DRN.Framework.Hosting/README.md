@@ -28,20 +28,24 @@
 - [Global Usings](#global-usings)
 
 ## TL;DR
-* **Secure by Default**: Enforces MFA, strict CSP with Nonces, and HSTS automatically.
-* **Opinionated Startup**: `DrnProgramBase` creates a predictable lifecycle for all services.
+* **Secure by Default**: Enforces MFA (Fail-Closed), strict CSP with Nonces, and HSTS automatically.
+* **Opinionated Startup**: `DrnProgramBase` creates a predictable lifecycle with 20+ overrideable hooks.
 * **Type-Safe Routing**: Replaces "magic strings" with typed `Endpoint` and `Page` accessors.
-* **Frontend Synergy**: Includes TagHelpers for Vite integration and secure asset loading.
+* **Zero-Configuration Infrastructure**: Auto-provisions Postgres/RabbitMQ containers in `Debug` mode via `DRN.Framework.Testing`.
+* **Frontend Synergy**: Includes TagHelpers for Vite manifest resolution, CSRF for HTMX, and secure asset loading.
 
 ## Directory Structure
 ```
 DRN.Framework.Hosting/
-├── DrnProgram/       # DrnProgramBase, options, conventions
-├── Endpoints/        # EndpointCollectionBase, EndpointForBase
-├── Auth/             # Policies, MFA configuration
-├── Middlewares/      # HttpScopeLogger, security middlewares
-├── TagHelpers/       # Razor TagHelpers (Script, CSP, etc.)
-└── wwwroot/          # Static files (JS/CSS)
+├── DrnProgram/       # DrnProgramBase, options, actions, conventions
+├── Endpoints/        # EndpointCollectionBase, PageForBase, type-safe accessors
+├── Auth/             # Policies, MFA configuration, requirements
+├── Consent/          # GDPR cookie consent management
+├── Identity/         # Identity integration and scoped user middleware
+├── Middlewares/      # HttpScopeLogger, exception handling, security middlewares
+├── TagHelpers/       # Razor TagHelpers (Vite, Nonce, CSRF, Auth-Only)
+├── Areas/            # Framework-provided Razor Pages (e.g., Error pages)
+└── wwwroot/          # Framework style and script assets
 ```
 
 ## QuickStart
@@ -51,105 +55,124 @@ All DRN web apps inherit from `DrnProgramBase<TProgram>` to inherit the lifecycl
 
 ```csharp
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Hosting.HealthCheck;
 
 namespace Sample.Hosted;
 
 public class Program : DrnProgramBase<Program>, IDrnProgram
 {
-    // Entry Point
+    // Entry Point (Runs the opinionated bootstrapping)
     public static async Task Main(string[] args) => await RunAsync(args);
 
-    // Service Registration
+    // [Required] Service Registration Hook
     protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
     {
-        builder.Services.AddSampleInfraServices();
+        builder.Services.AddSampleInfraServices(appSettings);
         builder.Services.AddSampleApplicationServices();
         return Task.CompletedTask;
     }
 }
+
+// Immediate API endpoint for testing (Inherits [AllowAnonymous] and Get())
+[Route("[controller]")]
+public class WeatherForecastController : WeatherForecastControllerBase;
 ```
 
 ### 2. Testing Integration
-You can easily test your application using `DRN.Framework.Testing`.
+Test your application using `DRN.Framework.Testing` to spin up the full pipeline including databases.
 
 ```csharp
 [Theory, DataInline]
-public async Task StatusController_Should_Return_Status(DrnTestContext context, ITestOutputHelper outputHelper)
+public async Task WeatherForecast_Should_Return_Data(DrnTestContext context, ITestOutputHelper outputHelper)
 {
-  // Arrange: Create authenticated client for the Program
-  var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
-  var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>("Status");
-  status?.ApplicationName.Should().Be("Sample.Hosted");
+    // Arrange
+    var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
+    
+    // Act
+    var response = await client.GetAsync("WeatherForecast");
+    
+    // Assert
+    response.StatusCode.Should().Be(HttpStatusCode.OK);
+    var data = await response.Content.ReadFromJsonAsync<IEnumerable<WeatherForecast>>();
+    data.Should().NotBeEmpty();
 }
 ```
 
 ## Lifecycle & Execution Flow
 
-`DrnProgramBase` orchestrates the application startup to ensure security headers, logging scopes, and validation logic run in the correct order.
+`DrnProgramBase` orchestrates the application startup to ensure security headers, logging scopes, and validation logic run in the correct order. Use `DrnProgramActions` to intercept these phases without cluttering your main Program class.
 
 ```mermaid
 graph TD
     Start["RunAsync()"] --> CAB["CreateApplicationBuilder()"]
     
-    subgraph "1. Builder Phase"
+    subgraph "1. Builder Phase (Services & Config)"
     CAB --> CSO["ConfigureSwaggerOptions()"]
     CAB --> CDSH["ConfigureDefaultSecurityHeaders()"]
     CAB --> ASA["AddServicesAsync()"]
+    ASA --> ABC["ApplicationBuilderCreatedAsync (Action)"]
     end
 
-    ASA --> ABC["ApplicationBuilderCreatedAsync"]
     ABC --> Build["builder.Build()"]
     
-    subgraph "2. Application Phase"
+    subgraph "2. Application Phase (Middleware)"
     Build --> CA["ConfigureApplication()"]
     CA --> CAPS["ConfigureApplicationPipelineStart() (HSTS/Headers)"]
-    CA --> LOG["HttpScopeMiddleware (TraceId)"]
-    CA --> UR["UseRouting()"]
-    CA --> UA["UseAuthorization()"]
-    CA --> MAE["MapApplicationEndpoints()"]
+    CAPS --> LOG["HttpScopeMiddleware (TraceId/Logging)"]
+    LOG --> UR["UseRouting()"]
+    UR --> UA["UseAuthorization() (MFA Enforcement)"]
+    UA --> CPSTA["ConfigureApplicationPostAuthorization() (Swagger UI)"]
+    CPSTA --> MAE["MapApplicationEndpoints()"]
     end
 
-    MAE --> ABA["ApplicationBuiltAsync"]
+    MAE --> ABA["ApplicationBuiltAsync (Action)"]
     ABA --> VE["ValidateEndpoints()"]
     VE --> VSA["ValidateServicesAsync()"]
-    VSA --> Run["application.RunAsync()"]
+    VSA --> AVA["ApplicationValidatedAsync (Action)"]
+    AVA --> Run["application.RunAsync()"]
 ```
 
 ## DrnProgramBase Deep Dive
 
-This section details every overrideable hook and internal behavior of the base class.
+This section details the hooks available to customize your application's lifecycle. `DrnProgramBase` follows a **"Hook Method"** pattern: the base class defines the workflow, and you override virtual methods to inject logic.
 
-### 1. Configuration Hooks (Protected Virtual)
+### 1. Configuration Hooks (Builder Phase)
 
-Override these methods to customize specific subsystems without breaking the overall logical flow.
+These hooks run while the `WebApplicationBuilder` is active, allowing you to configure the DI container and system options.
 
-| Method | Argument | Purpose |
-|--------|----------|---------|
-| `ConfigureSwaggerOptions` | `DrnProgramSwaggerOptions` | Customize OpenAPI metadata text (Title, Desc). |
-| `ConfigureMvcBuilder` | `IMvcBuilder` | Add ApplicationParts, JSON options, or Runtime compilation. |
-| `ConfigureMvcOptions` | `MvcOptions` | Customize global MVC filters or conventions. |
-| `ConfigureAuthorizationOptions` | `AuthorizationOptions` | **Critical**: Defines Policies (`MFA`, `MFAExempt`) and Default/Fallback policies. |
-| `ConfigureResponseCachingOptions` | `ResponseCachingOptions` | Customize HTTP response caching behavior. |
-| `ConfigureDefaultSecurityHeaders` | `HeaderPolicyCollection` | Define global headers (FrameOptions, ContentTypeOptions). |
-| `ConfigureDefaultCsp` | `CspBuilder` | Define the generic Content Security Policy (Nonces are auto-handled). |
-| `ConfigureSecurityHeaderPolicyBuilder` | `SecurityHeaderPolicyBuilder` | Define advanced conditional CSP policies (e.g. for Swagger UI vs App). |
-| `ConfigureCookiePolicy` | `CookiePolicyOptions` | Customize GDPR consent logic and cookie security attributes. |
-| `ConfigureMFARedirection` | Returns `MfaRedirectionConfig` | Define where users go when MFA is required vs setup needed. |
+| Category | Method | Purpose |
+| :--- | :--- | :--- |
+| **OpenAPI** | `ConfigureSwaggerOptions` | Customize Swagger UI title, version, and visibility settings. |
+| **MVC** | `ConfigureMvcBuilder` | Add `ApplicationParts`, custom formatters, or enable Razor Runtime Compilation. |
+| **MVC** | `ConfigureMvcOptions` | Add global filters, conventions, or customize model binding. |
+| **Auth** | `ConfigureAuthorizationOptions` | Define security policies. **Note**: Sets MFA as the default/fallback by default. |
+| **Security** | `ConfigureDefaultSecurityHeaders` | Define global headers (HSTS, CSP, FrameOptions). |
+| **Security** | `ConfigureDefaultCsp` | Customize CSP directives (Script, Image, Style sources). |
+| **Cookies** | `ConfigureCookiePolicy` | Set GDPR consent logic and security attributes for all cookies. |
+| **Infras.** | `ConfigureStaticFileOptions` | Customize caching (default: 1 year) and HTTPS compression. |
+| **Infras.** | `ConfigureForwardedHeadersOptions` | Configure proxy/load-balancer header forwarding. |
+| **Global** | `AddServicesAsync` | **[Required]** The primary place to register your application services. |
 
-### 2. Pipeline Hooks
+### 2. Pipeline Hooks (Application Phase)
 
-These methods insert middleware into key slots of the request pipeline.
+These hooks define the request processing middleware sequence.
 
-| Method | Order | Uses |
-|--------|-------|------|
-| `ConfigureApplicationPipelineStart` | 1 | `UseForwardedHeaders`, `UseHostFiltering`, `UseCookiePolicy`, `UseSecurityHeaders`. |
-| `ConfigureApplicationPreScopeStart` | 2 | `UseStaticFiles`. Runs before Logging/Scope. |
-| `ConfigureApplicationPostScopeStart` | 3 | Runs immediately after `HttpScopeMiddleware` (TraceId available). |
-| `ConfigureApplicationPreAuthentication` | 5 | `UseRequestLocalization`. Runs before Auth logic. |
-| `ConfigureApplicationPostAuthentication` | 8 | `MfaRedirectionMiddleware`. Runs after Identity is established. |
-| `ConfigureApplicationPostAuthorization` | 10 | `UseSwaggerUI`. Runs after access is confirmed. |
+| Order | Hook | Typical Usage |
+| :--- | :--- | :--- |
+| **1** | `ConfigureApplicationPipelineStart` | `UseForwardedHeaders`, `UseHostFiltering`, `UseCookiePolicy`. |
+| **2** | `ConfigureApplicationPreScopeStart` | `UseStaticFiles`. Runs before request logging/trace ID is established. |
+| **3** | `ConfigureApplicationPostScopeStart` | Add middleware that needs access to `IScopedLog` but runs before routing. |
+| **4** | `ConfigureApplicationPreAuthentication` | `UseRequestLocalization`. Runs before the user identity is resolved. |
+| **5** | `ConfigureApplicationPostAuthentication` | `MfaRedirectionMiddleware`. Logic that runs after the user is known but before access checks. |
+| **6** | `ConfigureApplicationPostAuthorization` | `UseSwaggerUI`. Runs after access is granted but before the final endpoint. |
+| **7** | `MapApplicationEndpoints` | `MapControllers`, `MapRazorPages`, `MapHubs`. |
 
+### 3. Verification Hooks
 
+| Hook | Purpose |
+| :--- | :--- |
+| `ValidateEndpoints` | Ensures all type-safe endpoint accessors match actual mapped routes. |
+| `ValidateServicesAsync` | Scans the container for `[Attribute]` based registrations and ensures they are resolvable. |
 
 ### 3. Internal Wiring (Automatic)
 
@@ -215,94 +238,138 @@ Standard configuration for Console and Graylog output.
 
 ## Security Features
 
-DRN Hosting enforces **"Security by Default"**:
+DRN Hosting enforces a **"Fail-Closed"** security model. If you forget to configure something, it remains locked.
 
-> [!IMPORTANT]
-> **MFA Enforcement**: By default, **ALL** routes require MFA unless explicitly opted-out.
-> Any new controller without `[AllowAnonymous]` is secure by default (Fail-Closed).
+### 1. MFA Enforcement (Fail-Closed)
+The framework sets the `FallbackPolicy` for the entire application to require a Multi-Factor Authentication session. 
+*   **Result**: Any new controller or page you add is **secure by default**. 
+*   **Opt-Out**: Use `[AllowAnonymous]` or `[Authorize(Policy = AuthPolicy.MfaExempt)]` for single-factor pages like Login or MFA Setup.
 
-### 1. MFA by Default (Fail-Closed)
-The `FallbackPolicy` is set to require MFA. Any controller **not** marked with `[AllowAnonymous]` or `[Authorize(Policy = AuthPolicy.MfaExempt)]` will reject requests without a verified MFA session. Configured in `ConfigureAuthorizationOptions` by setting `FallbackPolicy`.
+### 2. Content Security Policy (Nonce-based)
+DRN automatically generates a unique cryptographic nonce for every request.
+*   **Automatic Protection**: Scripts and styles without a matching nonce are blocked by the browser, stopping most XSS attacks.
+*   **Usage**: Use the `NonceTagHelper` (see below) to automatically inject these nonces.
 
-### 2. Content Security Policy (CSP)
-* **Nonce-based**: A cryptographic nonce is generated per request.
-* **TagHelpers**: The `NonceTagHelper` automatically injecting `nonce="{current_nonce}"` into scripts and styles.
+### 3. Transparent Security Headers
+Standard security headers are injected into every response:
+*   **HSTS**: Strict-Transport-Security (2 years, includes subdomains).
+*   **FrameOptions**: `DENY` (prevents clickjacking).
+*   **ContentTypeOptions**: `nosniff`.
+*   **ReferrerPolicy**: `strict-origin-when-cross-origin`.
 
-### 3. Strict Headers
-* Strict-Transport-Security (HSTS)
-* X-Frame-Options: DENY
-* X-Content-Type-Options: nosniff
-* Referrer-Policy: strict-origin-when-cross-origin
+### 4. GDPR & Cookie Security
+Cookies are configured with `SameSite=Strict` and `HttpOnly` by default to mitigate CSRF and session hijacking. The `ConsentCookie` system ensures compliance with privacy regulations.
 
-### 4. GDPR Compliance
-* Built-in consent cookie `SameSite=Strict`.
-
-### Opting-Out
-```csharp
-// Public landing page
-[AllowAnonymous]
-public class HomeController : Controller { ... }
-
-// Login Page (Single Factor Allowed)
-[Authorize(Policy = AuthPolicy.MfaExempt)]
-public class LoginController : Controller { ... }
-```
 
 ## Endpoint Management
 
-Avoid "magic strings" for routes. Use `EndpointCollectionBase` and `PageCollectionBase` for type-safe endpoint references.
+Avoid "magic strings" in your code. DRN provides a type-safe way to reference routes that is verified at startup.
+
+### 1. Define Your Accessors
+Create a class inheriting from `EndpointCollectionBase<Program>` or `PageCollectionBase<Program>`.
 
 ```csharp
-// Usage in Code
-ApiEndpoint endpoint = Get.Endpoint.User.Login;
-string url = endpoint.Path();
+public class Get : EndpointCollectionBase<Program>
+{
+    public static UserEndpoints User { get; } = new();
+}
+
+public class UserEndpoints : ControllerForBase<UserController>
+{
+    // Template: /Api/User/[controller]/[action]
+    public UserEndpoints() : base("/Api/User/[controller]") { }
+
+    // Properties matching Controller Action names
+    public ApiEndpoint Login { get; private set; } = null!;
+    public ApiEndpoint Profile { get; private set; } = null!;
+}
+```
+
+### 2. Usage in Code
+Resolve routes at compile-time with full IDE support (intellisense).
+
+```csharp
+// Get the typed endpoint object
+ApiEndpoint endpoint = Get.User.Login;
+
+// Generate the path string
+string url = endpoint.Path(); // "/Api/User/User/Login"
+
+// Generate path with route parameters
+string profileUrl = Get.User.ProfileDetail.Path(new() { ["id"] = userId.ToString() });
 ```
 
 ## Razor TagHelpers
 
 | TagHelper | Target | Purpose |
-|-----------|--------|---------|
-| `ViteScriptTagHelper` | `<script src="buildwww/..." />` | Resolves Vite manifest entries. |
-| `NonceTagHelper` | `<script>`, `<style>` | Auto-adds CSP nonce. |
-| `CsrfTokenTagHelper` | `hx-post` | Adds CSRF tokens to HTMX requests. |
-| `AuthorizedOnlyTagHelper` | `<div authorized-only>` | Renders only for authenticated users. |
+| :--- | :--- | :--- |
+| `ViteScriptTagHelper` | `<script src="buildwww/...">` | Resolves Vite manifest entries and adds subresource integrity. |
+| `NonceTagHelper` | `<script>`, `<style>` | Automatically injects the request-specific CSP nonce. |
+| `CsrfTokenTagHelper` | `hx-post`, `hx-put` | Automatically adds `RequestVerificationToken` to HTMX headers. |
+| `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Renders the element only if the user has an active MFA session. |
+| `PageAnchorTagHelper` | `<a asp-page="...">` | Automatically adds `active` CSS class if the link matches current page. |
+
+### Example: Secure Script Loading
+```html
+<!-- Input: Original Vite source path -->
+<script src="buildwww/app/main.ts" crossorigin="anonymous"></script>
+
+<!-- Output: Browser receives hashed path + integrity + nonce -->
+<script src="/app/main.abc123.js" 
+        integrity="sha256-xyz..." 
+        nonce="random_nonce_here" 
+        crossorigin="anonymous"></script>
+```
 
 ## Local Development Infrastructure
 
-Use `DRN.Framework.Testing` to provision infrastructure (Postgres, RabbitMQ) during local development.
+Use `DRN.Framework.Testing` to provision infrastructure (Postgres, RabbitMQ) during local development without manual Docker management.
 
-### Setup
+### 1. Add Conditional Reference
+Add the following to your `.csproj` file to ensure the testing library (and its heavy dependencies like Testcontainers) is only included during development.
 
-1.  **Add Conditional Reference**:
-    ```xml
-    <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-        <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
-    </ItemGroup>
-    ```
+```xml
+<ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
+</ItemGroup>
+```
 
-2.  **Configure Startup Actions**:
-    ```csharp
-    #if DEBUG
-    public class SampleProgramActions : DrnProgramActions
+### 2. Configure Startup Actions
+Implement `DrnProgramActions` to trigger the auto-provisioning.
+
+```csharp
+#if DEBUG
+public class SampleProgramActions : DrnProgramActions
+{
+    public override async Task ApplicationBuilderCreatedAsync<TProgram>(
+        TProgram program, WebApplicationBuilder builder,
+        IAppSettings appSettings, IScopedLog scopedLog)
     {
-        public override async Task ApplicationBuilderCreatedAsync<TProgram>(
-            TProgram program, WebApplicationBuilder builder,
-            IAppSettings appSettings, IScopedLog scopedLog)
+        var options = new ExternalDependencyLaunchOptions
         {
-            // Auto-starts containers if not running
-            await builder.LaunchExternalDependenciesAsync(scopedLog, appSettings);
-        }
+            PostgresContainerSettings = new() 
+            { 
+                Reuse = true, // Faster restarts
+                HostPort = 6432 // Avoid conflicts with local Postgres
+            }
+        };
+
+        // Auto-starts containers if not running and updates AppSettings
+        await builder.LaunchExternalDependenciesAsync(scopedLog, appSettings, options);
     }
-    #endif
-    ```
+}
+#endif
+```
 
 ## Global Usings
 
-Standard global usings for Hosted applications:
+Standard global usings for Hosted applications to reduce boilerplate:
 ```csharp
 global using DRN.Framework.Hosting.DrnProgram;
 global using DRN.Framework.Hosting.Endpoints;
 global using DRN.Framework.Utils.DependencyInjection;
+global using DRN.Framework.Utils.Logging;
+global using DRN.Framework.Utils.Settings;
 global using Microsoft.AspNetCore.Mvc;
 ```
 
