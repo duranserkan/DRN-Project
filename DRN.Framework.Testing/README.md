@@ -460,6 +460,18 @@ Following attributes can be used to run test only when the debugger is attached.
         credentials.Password.Length.Should().BeGreaterThanOrEqualTo(12);
     }
 ```
+### xUnit Runner Configuration
+`xunit.runner.json` is optional but recommended for configuring the test runner. When using **Microsoft Testing Platform (MTP)**, this file ensures the runner behaves as expected (e.g., parallelization settings). Ensure this file is set to `CopyToOutputDirectory` in your csproj.
+
+```json
+{
+  "$schema": "https://xunit.net/schema/current/xunit.runner.schema.json",
+  "diagnosticMessages": true,
+  "parallelizeAssembly": true,
+  "parallelizeTestCollections": true
+}
+```
+
 ## Global Usings
 Following global usings can be used in a `Usings.cs` file in test projects to reduce line of code in test files
 ```csharp
@@ -493,15 +505,17 @@ Don't forget to replace DRN.Framework.Testing project reference with its nuget p
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net7.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
+        <OutputType>Exe</OutputType>
+        <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.2"/>
+        <PackageReference Include="xunit.v3.mtp-v2" Version="3.2.2" />
     </ItemGroup>
 
     <ItemGroup>
@@ -517,6 +531,9 @@ Don't forget to replace DRN.Framework.Testing project reference with its nuget p
         </None>
         <None Update="Settings\secondaryAppSettings.json">
           <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="xunit.runner.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
     </ItemGroup>
 

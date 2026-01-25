@@ -123,39 +123,34 @@ public class StatusController(IAppSettings appSettings) : ControllerBase
 }
 ```
 ## Logging
-DrnProgramBase applies Serilog configurations. Console and Graylog sinks are supported by default. To configure logging you can add serilog configs in appsettings.json
+DrnProgramBase applies NLog configurations. Console and Graylog targets are supported by default. To configure logging you can add NLog configs in appsettings.json
 
 ```json
 {
-  "Serilog": {
-    "Docs": "https://github.com/serilog/serilog-settings-configuration",
-    "Using": [
-      "Serilog.Sinks.Console",
-      "Serilog.Sinks.Graylog"
-    ],
-    "MinimumLevel": {
-      "Default": "Information",
-      "Override": {
-        "Microsoft.Hosting.Lifetime": "Information",
-        "Microsoft": "Warning",
-        "System": "Warning"
+  "NLog": {
+    "throwConfigExceptions": true,
+    "targets": {
+      "async": true,
+      "console": {
+        "type": "Console",
+        "layout": "${longdate}|${level:uppercase=true}|${logger}|${message} ${exception:format=tostring}"
+      },
+      "graylog": {
+        "type": "Network",
+        "address": "udp://localhost:12201",
+        "layout": "${longdate}|${level:uppercase=true}|${logger}|${message} ${exception:format=tostring}"
       }
     },
-    "WriteTo": [
+    "rules": [
       {
-        "Name": "Console",
-        "Args": {
-          "theme": "Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme::Code, Serilog.Sinks.Console",
-          "outputTemplate": "[BEGIN {Timestamp:HH:mm:ss.fffffff} {Level:u3} {SourceContext}]{NewLine}{Message:lj}{NewLine}[END {Timestamp:HH:mm:ss.fffffff} {Level:u3} {SourceContext}]{NewLine}"
-        }
+        "logger": "*",
+        "minLevel": "Info",
+        "writeTo": "console"
       },
       {
-        "Name": "Graylog",
-        "Args": {
-          "hostnameOrAddress": "localhost",
-          "port": "12201",
-          "transportType": "Udp"
-        }
+        "logger": "*",
+        "minLevel": "Info",
+        "writeTo": "graylog"
       }
     ]
   }
