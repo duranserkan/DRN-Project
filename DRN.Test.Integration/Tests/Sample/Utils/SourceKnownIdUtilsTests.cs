@@ -5,7 +5,7 @@ namespace DRN.Test.Integration.Tests.Sample.Utils;
 
 public class SourceKnownIdUtilsTests
 {
-        [Theory]
+    [Theory]
     [DataInlineUnit]
     public async Task SourceKnownIdUtils_Should_Generate_Ids_For_3_Seconds(DrnTestContextUnit context)
     {
