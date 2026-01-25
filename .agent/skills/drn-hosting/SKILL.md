@@ -74,15 +74,76 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 
 | Method | Purpose |
 |--------|---------|
-| `AddServicesAsync()` | Add services to DI container |
+| `AddServicesAsync()` | [Required] Add services to DI container |
+| `ConfigureSwaggerOptions()` | Customize Swagger/OpenAPI title and availability |
+| `ConfigureApplicationBuilder()` | Root application builder customization |
+| `ConfigureMvcOptions()` | MVC options configuration |
+| `ConfigureMvcBuilder()` | IMvcBuilder customization (JSON, Runtime compilation) |
+| `ConfigureDefaultSecurityHeaders()` | Main CSP and security header policy definitions |
+| `ConfigureDefaultCsp()` | Customize CSP directives |
+| `ConfigureSecurityHeaderPolicyBuilder()`| Advanced conditional security policies |
+| `ConfigureCookiePolicy()` | GDRP and consent cookie settings |
+| `ConfigureApplicationPipelineStart()` | Earliest middleware (HSTS, Cookies, Security Headers) |
+| `ConfigureApplicationPreScopeStart()` | Pre-logger/scope (Static files) |
+| `ConfigureApplicationPreAuthentication()` | Before Auth (Localization) |
+| `ConfigureApplicationPostAuthentication()` | Post-Auth, Pre-AuthZ (MFA Redirection/Exemption) |
+| `ConfigureApplicationPostAuthorization()` | Post-AuthZ (Swagger UI) |
+| `MapApplicationEndpoints()` | Route mapping (Controllers, Razor Pages) |
+| `ValidateEndpoints()` | Post-mapping endpoint validation |
+| `ValidateServicesAsync()` | DI validation (Attributes/Conventions) |
 | `ConfigureMFARedirection()` | MFA page configuration |
 | `ConfigureMFAExemption()` | Exempt schemes from MFA |
-| `ConfigureLogger()` | Customize Logger (NLog) |
-| `ConfigureApplicationBuilder()` | Pre-build customization |
-| `ConfigureApplication()` | Post-build middleware |
-| `ConfigureApplicationPreAuth()` | Before auth middleware |
-| `ConfigureApplicationPostAuth()` | After auth middleware |
-| `ConfigureMvcOptions()` | MVC options |
+
+### Life-cycle & Execution Flow
+
+The following diagram illustrates the relationship and execution order of overrideable hooks during application startup.
+
+```mermaid
+graph TD
+    Start["RunAsync()"] --> CAB["CreateApplicationBuilder()"]
+    
+    subgraph "1. Builder Phase (Services & Configuration)"
+    CAB --> CSO["ConfigureSwaggerOptions()"]
+    CSO --> CAB_Internal["ConfigureApplicationBuilder()"]
+    CAB_Internal --> CAO["ConfigureAuthorizationOptions()"]
+    CAB_Internal --> CMVCB["ConfigureMvcBuilder()"]
+    CAB_Internal --> CDSH["ConfigureDefaultSecurityHeaders()"]
+    CDSH --> CDCSP["ConfigureDefaultCsp()"]
+    CAB_Internal --> CSHPB["ConfigureSecurityHeaderPolicyBuilder()"]
+    CAB_Internal --> CSFO["ConfigureStaticFileOptions()"]
+    CAB_Internal --> ASA["AddServicesAsync()"]
+    end
+
+    ASA --> ABC["ApplicationBuilderCreatedAsync (Actions Hook)"]
+    ABC --> Build["builder.Build()"]
+    
+    subgraph "2. Application Phase (Middleware Pipeline)"
+    Build --> CA["ConfigureApplication()"]
+    CA --> CAPS["ConfigureApplicationPipelineStart()"]
+    CAPS --> CAPR["ConfigureApplicationPreScopeStart() (Static Files)"]
+    CAPR --> HSM["HttpScopeMiddleware"]
+    HSM --> CPSS["ConfigureApplicationPostScopeStart()"]
+    CPSS --> UR["UseRouting()"]
+    UR --> CAPREA["ConfigureApplicationPreAuthentication()"]
+    CAPREA --> SUM["ScopedUserMiddleware"]
+    SUM --> CAPOSTA["ConfigureApplicationPostAuthentication() (MFA Hooks)"]
+    CAPOSTA --> UA["UseAuthorization()"]
+    UA --> CPSTAZ["ConfigureApplicationPostAuthorization() (Swagger UI)"]
+    CPSTAZ --> MAE["MapApplicationEndpoints()"]
+    end
+
+    MAE --> ABA["ApplicationBuiltAsync (Actions Hook)"]
+    ABA --> VE["ValidateEndpoints()"]
+    VE --> VSA["ValidateServicesAsync()"]
+    VSA --> AVA["ApplicationValidatedAsync (Actions Hook)"]
+    AVA --> Run["application.RunAsync()"]
+```
+
+#### Hierarchy Summary
+1.  **Bootstrapping**: The program instance is created, and `ConfigureSwaggerOptions` is invoked immediately to set early metadata (Title, Version) *before* the `WebApplicationBuilder` is initialized.
+2.  **Configuration (Builder Phase)**: `ConfigureApplicationBuilder` and its specialized sub-hooks (`ConfigureMvcBuilder`, `ConfigureDefaultSecurityHeaders`, etc.) prepare the DI container and system defaults, ending with the user's `AddServicesAsync`.
+3.  **Pipeline (Application Phase)**: `ConfigureApplication` defines the middleware sequence. It uses `Pre` and `Post` hooks to allow insertion of logic around critical stages (Static Files, Authentication, Authorization).
+4.  **Verification**: Final mapping of endpoints and end-to-end service validation occur *before* the application starts listening for requests.
 
 ### Advanced Startup Customization (`DrnProgramActions`)
 
@@ -96,6 +157,16 @@ public class SampleProgramActions : DrnProgramActions
         IAppSettings appSettings, IScopedLog scopedLog)
     {
         // Hook into builder creation (e.g., launch containers)
+    }
+
+    public override async Task ApplicationBuiltAsync<TProgram>(...)
+    {
+        // Hook after application is built (e.g., final validations)
+    }
+
+    public override async Task ApplicationValidatedAsync<TProgram>(...)
+    {
+        // Hook after DRN validations (e.g., seed data)
     }
 }
 ```
@@ -157,22 +228,57 @@ public override async Task ApplicationBuilderCreatedAsync<TProgram>(...)
 | **Logging Setup** | Bootstraps NLog with JSON structure and `HttpScopeLogger` for request tracing. |
 | **Infrastructure** | (Debug only) Can launch external dependencies (Postgres, RabbitMQ) via `LaunchExternalDependenciesAsync`. |
 
-### MFA Enforcement
+### MFA by Default
+
+MFA is enforced globally via `FallbackPolicy`. Any route not explicitly opted-out requires MFA. Custom policies are automatically combined with MFA requirements via the `MfaEnforcingAuthorizationPolicyProvider`.
+
+#### Opting-Out / Exemptions
+
+To bypass MFA for specific routes, use `AllowAnonymous` or the `MfaExempt` policy:
 
 ```csharp
-[Authorize(Policy = AuthPolicy.Mfa)]
-public class SecureController : Controller { }
+// 1. Fully anonymous (Public landing page)
+[AllowAnonymous]
+public class PublicController : Controller { }
+
+// 2. Single-Factor only (MFA Setup or Login pages)
+[Authorize(Policy = AuthPolicy.MfaExempt)]
+public class MfaSetupController : Controller { }
 ```
 
-### DrnProgramOptions
+### Configuration Properties
+
+`DrnProgramBase` provides several properties for high-level configuration:
+
+| Property | Description |
+|----------|-------------|
+| `AppBuilderType` | Controls `WebApplicationBuilder` creation (Empty, Slim, Default, or DrnDefaults) |
+| `DrnProgramSwaggerOptions`| OpenAPI and Swagger UI configuration |
+| `NLogOptions` | Static NLog bootstrap options |
 
 ```csharp
-protected DrnProgramOptions DrnProgramOptions => new()
+protected override void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
 {
-    AppBuilderType = DrnAppBuilderType.DrnDefaults,
-    UseHttpRequestLogger = true
-};
+    options.AddSwagger = appSettings.IsDevEnvironment;
+}
 ```
+
+### Security Invariants (Priority 1)
+
+DRN Hosting enforces several security invariants by default:
+
+- **MFA by Default**: The `ConfigureAuthorizationOptions` sets both `DefaultPolicy` and `FallbackPolicy` to the `MFA` policy. Unauthenticated or single-factor users are denied access unless explicitly opted-out via `[AllowAnonymous]` or `[Authorize(Policy = AuthPolicy.MfaExempt)]`.
+- **Identity Context**: `ScopedUserMiddleware` automatically populates `IScopedLog` with user identity for auditability and provides a secure `HttpScope` for transaction tracking.
+- **Strict Headers**: `ConfigureDefaultSecurityHeaders` enforces `FrameOptionsDeny`, `ContentTypeOptionsNoSniff`, and strict `CSP` with nonces.
+- **GDPR Compliance**: `ConfigureCookiePolicy` enforces `SameSiteMode.Strict`, `HttpOnly`, and integrates with `ConsentCookie` logic.
+
+### Performance & Caching (Priority 5)
+
+Default optimizations included in the host:
+
+- **Static Asset Caching**: `ConfigureStaticFileOptions` sets `Cache-Control` to 1 year and enables `HttpsCompression`.
+- **Response Caching**: `AddResponseCaching()` is registered by default, configurable via `ConfigureResponseCachingOptions`.
+- **Service Validation**: End-to-end service validation happens *before* the host starts listening (`ValidateServicesAsync`), preventing late-stage dependency errors.
 
 ---
 
