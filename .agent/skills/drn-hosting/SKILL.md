@@ -1,6 +1,6 @@
 ---
 name: drn-hosting
-description: DRN.Framework.Hosting - DrnProgramBase, endpoints, security, middlewares, TagHelpers, and web hosting
+description: DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, asp.net-core
 ---
 
 # DRN.Framework.Hosting

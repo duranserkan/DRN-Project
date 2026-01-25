@@ -1,6 +1,6 @@
 ---
 name: frontend-buildwww-libraries
-description: DRN JavaScript utilities (drnUtils, drnApp, drnCookieManager, drnOnmount), RSJS architecture, htmx bundle with nonce security, and Bootstrap customization
+description: Frontend JavaScript architecture - DRN utilities (drnUtils, drnApp, drnCookieManager, drnOnmount), RSJS pattern for component mounting, htmx integration with CSP nonce security, and Bootstrap customization. Essential for client-side interactivity and component lifecycle. Keywords: javascript, frontend, rsjs, onmount, htmx, csp, nonce, security, bootstrap, cookie-management, component-mounting, client-side
 ---
 
 # buildwww Libraries

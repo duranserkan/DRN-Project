@@ -1,6 +1,6 @@
 ---
 name: drn-sharedkernel
-description: DRN.Framework.SharedKernel - Domain primitives, exceptions, JSON conventions, and lightweight shared code
+description: DRN.Framework.SharedKernel - Foundational domain primitives (Entity, AggregateRoot, DomainEvent), exception hierarchy, repository contracts, pagination, and JSON conventions. Essential for domain modeling, entity design, and repository implementation. Keywords: entity, aggregate-root, domain-event, repository, pagination, exception, json, domain-modeling, ddd, source-known-id
 ---
 
 # DRN.Framework.SharedKernel
@@ -269,6 +269,7 @@ public class Order : SourceKnownEntity { }
 
 ## Related Skills
 
+- [drn-domain-design.md](../drn-domain-design/SKILL.md) - Domain & Repository patterns
 - [overview-drn-framework.md](../overview-drn-framework/SKILL.md) - Framework architecture
 - [drn-utils.md](../drn-utils/SKILL.md) - DI and settings
 - [drn-entityframework.md](../drn-entityframework/SKILL.md) - DrnContext usage

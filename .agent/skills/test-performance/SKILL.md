@@ -1,6 +1,6 @@
 ---
 name: test-performance
-description: DRN.Test.Performance - BenchmarkDotNet usage, K6 load testing, and performance reports
+description: Performance testing and benchmarking - BenchmarkDotNet for micro-benchmarks, K6 for load/stress/spike testing, performance regression tracking, and report generation. Use for measuring and optimizing performance. Keywords: performance-testing, benchmarking, benchmarkdotnet, k6, load-testing, stress-testing, performance-optimization, regression-testing, dtt
 ---
 
 # DRN.Test.Performance

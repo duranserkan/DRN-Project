@@ -1,6 +1,6 @@
 ---
 name: drn-entityframework
-description: DRN.Framework.EntityFramework - DrnContext, conventions, automatic migrations, entity tracking, and database access
+description: DRN.Framework.EntityFramework - DrnContext base class, automatic migration application, entity tracking with domain events, NpgsqlDbContextOptions for database configuration, and repository implementations. Essential for database operations, migrations, and data persistence. Keywords: drncontext, ef-core, entity-framework, migrations, database, postgresql, npgsql, repository-implementation, entity-tracking, domain-events, dbcontext-configuration
 ---
 
 # DRN.Framework.EntityFramework
@@ -249,6 +249,7 @@ global using DRN.Framework.Utils.DependencyInjection;
 
 ## Related Skills
 
+- [drn-domain-design.md](../drn-domain-design/SKILL.md) - Domain & Repository patterns
 - [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) - Entity base classes
 - [drn-utils.md](../drn-utils/SKILL.md) - DI and configuration
 - [drn-testing.md](../drn-testing/SKILL.md) - ContainerContext

@@ -1,6 +1,6 @@
 ---
 name: test-integration-db
-description: Isolated testing of Repositories and EF Core configurations using Testcontainers
+description: Database component testing - Isolated repository and EF Core testing with Testcontainers (PostgreSQL), manual migration application, concurrency testing, and SQL query validation. Use for testing data access without web overhead. Keywords: database-testing, repository-testing, testcontainers, postgresql, ef-core, concurrency-testing, migration-testing, integration-testing, dtt
 ---
 
 # Database Component Testing

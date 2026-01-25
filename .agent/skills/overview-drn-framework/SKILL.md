@@ -1,6 +1,6 @@
 ---
 name: overview-drn-framework
-description: DRN.Framework stack architecture, package hierarchy, and core conventions for all framework packages
+description: DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, drn-framework, package-dependencies
 ---
 
 # DRN.Framework Overview
@@ -163,6 +163,7 @@ DRN Framework ensures:
 
 | Skill | Package |
 |-------|---------|
+| [drn-domain-design.md](../drn-domain-design/SKILL.md) | Identity, Entities, Repositories |
 | [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) | Domain primitives, exceptions |
 | [drn-utils.md](../drn-utils/SKILL.md) | DI, settings, logging |
 | [drn-hosting.md](../drn-hosting/SKILL.md) | Web hosting, security |

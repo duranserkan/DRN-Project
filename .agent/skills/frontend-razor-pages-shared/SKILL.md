@@ -1,6 +1,6 @@
 ---
 name: frontend-razor-pages-shared
-description: Shared layout system for Razor Page applications - layouts, HTML shell, and layout options
+description: Razor Pages layout system - Layout hierarchy (_LayoutBase, _Layout), MainContentLayoutOptions for page configuration, HTMX integration for partial rendering, and Bootstrap grid integration. Foundation for consistent page structure and responsive layouts. Keywords: razor-pages, layout, html-shell, layout-options, htmx, partial-rendering, bootstrap, responsive-design, page-structure, ui-framework
 ---
 
 # Razor Pages Layout System

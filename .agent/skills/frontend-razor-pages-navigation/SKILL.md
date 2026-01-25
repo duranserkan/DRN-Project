@@ -1,6 +1,6 @@
 ---
 name: frontend-razor-pages-navigation
-description: Standardized navigation patterns for Razor Page applications - Sidebar, SubNavigation, and Menu Configurations
+description: Razor Pages navigation system - SidebarNavigationCollection for main navigation, SidebarSettingsCollection for user menu, SubNavigationCollection for tabs, and navigation data structures. Use for implementing and customizing application navigation UI. Keywords: razor-pages, navigation, sidebar, menu, sub-navigation, tabs, ui-components, navigation-collections, layout
 ---
 
 # Razor Page Navigation

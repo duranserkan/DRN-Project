@@ -1,6 +1,6 @@
 ---
 name: overview-ddd-architecture
-description: DRN recommended DDD-compatible tiered architecture guidelines
+description: Domain-Driven Design architecture - Recommended tiered architecture (Domain, Application, Infrastructure, Presentation), layer responsibilities, dependency rules, and DDD pattern application. Architectural guidance for structuring DRN applications. Keywords: ddd, architecture, tiered-architecture, domain-layer, application-layer, infrastructure-layer, presentation-layer, architectural-patterns, project-structure
 ---
 
 # DRN DDD Architecture
@@ -233,6 +233,7 @@ public static class InfraModule
 
 ## Related Skills
 
+- [drn-domain-design.md](../drn-domain-design/SKILL.md) - Domain & Repository patterns
 - [overview-repository-structure.md](../overview-repository-structure/SKILL.md) - Repository overview
 - [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) - Domain primitives
 - [drn-entityframework.md](../drn-entityframework/SKILL.md) - Database access

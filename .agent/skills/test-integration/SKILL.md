@@ -1,6 +1,6 @@
 ---
 name: test-integration
-description: Integration testing suite using Testcontainers, WebApplicationFactory, and xUnit
+description: Integration testing overview - Orchestrates API testing (WebApplicationFactory) and database component testing (Testcontainers). Navigation hub for test-integration-api and test-integration-db specialized skills. Keywords: integration-testing, testcontainers, webapplicationfactory, api-testing, database-testing, e2e-testing, dtt
 ---
 
 # DRN.Test.Integration Overview

@@ -1,6 +1,6 @@
 ---
 name: overview-repository-structure
-description: High-level overview of DRN-Project repository structure, solution organization, and project dependencies
+description: Repository structure overview - Solution organization (Src, Test, Docker, Docs), project dependencies, folder conventions, and codebase navigation. Start here for understanding the repository layout. Keywords: repository-structure, solution-organization, project-organization, codebase-navigation, folder-structure, project-dependencies
 ---
 
 # DRN-Project Repository Structure

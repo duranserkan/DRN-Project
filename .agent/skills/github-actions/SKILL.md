@@ -1,6 +1,6 @@
 ---
 name: github-actions
-description: Standardized GitHub Actions utilization for CI/CD, Docker publishing, and NuGet package management
+description: CI/CD and deployment - GitHub Actions workflows (develop, master, release), composite actions, Docker multi-arch publishing with SBOM/provenance, NuGet package publishing, and security scanning (SonarCloud, CodeQL). Complete deployment pipeline documentation. Keywords: cicd, github-actions, deployment, docker, nuget, security-scanning, sonarcloud, codeql, release-management, continuous-integration, continuous-deployment
 ---
 
 # Deployment
