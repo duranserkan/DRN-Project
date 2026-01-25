@@ -37,8 +37,9 @@ Here's a basic test demonstration to take your attention and get you started:
 * Introduction
 * DrnTestContext
 * ContainerContext
-* WebApplicationContext
+* ApplicationContext
 * DataAttributes
+* Unit Testing
 * DebugOnly Tests
 * Settings and Data Providers
 * Global Usings
@@ -117,7 +118,7 @@ public void TextContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
   * logged data will not be leaked to anywhere since it has no logging provider.
 * provides `ContainerContext`
   * can start a `postgres` container, apply migrations for dbContexts derived from DrnContext and updates connection string configuration with a single line of code
-* provides `WebApplicationContext`
+* provides `ApplicationContext`
   * syncs `DrnTestContext` service collection and service provider with provided application by WebApplicationFactory
 * provides `IConfiguration` and `IAppSettings` with SettingsProvider by using convention.
   * settings.json file can be found in the same folder with test
@@ -177,15 +178,62 @@ With `ContainerContext` and conventions you can easily write effective integrati
   * Adds a connection strings to DrnTestContext's configuration for each derived `DrnContext` according to convention.
 * `DrnTestContext` acts as a ServiceProvider and when a service is requested it can build it from service collection with all dependencies.
 
-## WebApplicationContext
-`WebApplicationContext` syncs `DrnTestContext` service collection and service provider with provided application by WebApplicationFactory.
+### Advanced Container Configuration
+
+You can customize the Postgres container before starting it using `PostgresContainerSettings`:
+
+```csharp
+[Theory]
+[DataInline]
+public async Task Custom_Container_Verification(DrnTestContext context)
+{
+    // Configure settings before accessing ContainerContext.Postgres
+    PostgresContext.PostgresContainerSettings = new PostgresContainerSettings
+    {
+        ContainerName = "my-custom-db",
+        Database = "custom_db",
+        HostPort = 5440 // Bind to specific host port
+    };
+    
+    await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
+    // ...
+}
+```
+
+### Isolated Containers
+
+By default, `DrnTestContext` shares a single Postgres container across tests for performance. For scenarios requiring complete isolation (e.g., changing global system state), use `PostgresContextIsolated`:
+
+```csharp
+[Theory]
+[DataInline]
+public async Task Isolated_Test_Run(DrnTestContext context)
+{
+    // Starts a FRESH, exclusive container for this test
+    var container = await context.ContainerContext.Postgres.Isolated.ApplyMigrationsAsync();
+    
+    // ... use the isolated container ...
+}
+```
+
+### Rapid Prototyping (No Migrations)
+
+For rapid development where migrations are not yet created, use `EnsureDatabaseAsync` to create the schema directly from the model:
+
+```csharp
+    await context.ContainerContext.Postgres.Isolated.EnsureDatabaseAsync<MyDbContext>();
+```
+
+
+## ApplicationContext
+`ApplicationContext` syncs `DrnTestContext` service collection and service provider with provided application by WebApplicationFactory.
 * You can provide or override configurations and services to your program until you force `WebApplicationFactory` to build a `Host` such as creating `HttpClient` or requesting `TestServer`.
 ```csharp
     [Theory]
     [DataInline]
-    public async Task WebApplicationContext_Should_Provide_Configuration_To_Program(DrnTestContext context)
+    public async Task ApplicationContext_Should_Provide_Configuration_To_Program(DrnTestContext context)
     {
-        var webApplication = context.WebApplicationContext.CreateWebApplication<Program>();
+        var webApplication = context.ApplicationContext.CreateApplication<Program>();
         await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
         
         var client = webApplication.CreateClient();
@@ -200,6 +248,51 @@ With `ContainerContext` and conventions you can easily write effective integrati
         appSettingsFromWebApplication.Should().BeSameAs(appSettingsFromDrnTestContext);//resolved from same service provider
     }
 ```
+
+## Local Development Experience
+
+`DRN.Framework.Testing` can be used to enhance the local development experience by providing infrastructure management capabilities to the main application during development.
+
+### Setup
+
+To use this feature in your main application (not in test projects), you must add a reference to `DRN.Framework.Testing` that is **only active in Debug configuration**. This prevents test dependencies from leaking into production builds.
+
+```xml
+<ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
+</ItemGroup>
+```
+
+### LaunchExternalDependenciesAsync
+
+This extension method on `WebApplicationBuilder` automatically launches external dependencies (like Postgres, RabbitMQ) using Testcontainers when the application starts in a development environment.
+
+```csharp
+// In your DrnProgramActions implementation (e.g., SampleProgramActions.cs)
+#if DEBUG
+public override async Task ApplicationBuilderCreatedAsync<TProgram>(
+    TProgram program, WebApplicationBuilder builder,
+    IAppSettings appSettings, IScopedLog scopedLog)
+{
+    var launchOptions = new ExternalDependencyLaunchOptions
+    {
+        PostgresContainerSettings = new PostgresContainerSettings
+        {
+            Reuse = true, // Keep container running across restarts
+            HostPort = 6432 // Bind to a specific port to avoid conflicts
+        }
+    };
+    
+    // Automatically starts containers if they are not already running
+    await builder.LaunchExternalDependenciesAsync(scopedLog, appSettings, launchOptions);
+}
+#endif
+```
+
+This feature is particularly useful for:
+*   **Onboarding**: New developers can run the app without manually setting up infrastructure.
+*   **Consistency**: Ensures all developers use the same infrastructure configuration.
+*   **Rapid Prototyping**: Quickly spin up throwaway databases.
 
 ## Data Attributes
 DRN.Framework.Testing provides following data attributes that can provide data to tests:
@@ -287,6 +380,33 @@ public void TextContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
 }
 ```
 
+## Unit Testing
+
+For pure unit tests where you don't need the full dependency injection container or container orchestration, use `DrnTestContextUnit` and the corresponding **Unit** attributes.
+
+### Unit Attributes
+* `[DataInlineUnit]`: Same as `DataInline` but provides `DrnTestContextUnit`.
+* `[DataMemberUnit]`: Same as `DataMember` but provides `DrnTestContextUnit`.
+* `[DataSelfUnit]`: Same as `DataSelf` but provides `DrnTestContextUnit`.
+
+### DrnTestContextUnit
+Unlike `DrnTestContext`, `DrnTestContextUnit` is lightweight and focused on Method Context (managing test data and method info) without the overhead of `ServiceCollection` or `ContainerContext`.
+
+```csharp
+[Theory]
+[DataInlineUnit(99)]
+public void Unit_Test_Example(DrnTestContextUnit context, int value, IMockable mock)
+{
+    // Fast, lightweight, no container overhead
+    context.MethodContext.MethodName.Should().Be(nameof(Unit_Test_Example));
+    
+    mock.Max.Returns(value);
+    var service = new DependentService(mock); // Manually inject dependencies
+    
+    service.Max.Should().Be(99);
+}
+```
+
 ## DebugOnly Tests
 Following attributes can be used to run test only when the debugger is attached. These attributes does respect the attached debugger, not debug or release configuration.
 * FactDebuggerOnly
@@ -328,27 +448,40 @@ Following attributes can be used to run test only when the debugger is attached.
         DataProvider.Get("Test.txt").Should().Be("Foo");
     }
 ```
+
+### CredentialsProvider
+`CredentialsProvider` is a helper class for generating and caching test usernames and passwords.
+```csharp
+    [Fact]
+    public void CredentialsProvider_Should_Generate_Test_User()
+    {
+        var credentials = CredentialsProvider.GenerateCredentials();
+        credentials.Username.Should().StartWith("testuser_");
+        credentials.Password.Length.Should().BeGreaterThanOrEqualTo(12);
+    }
+```
 ## Global Usings
 Following global usings can be used in a `Usings.cs` file in test projects to reduce line of code in test files
 ```csharp
 global using Xunit;
+global using Xunit.v3;
 global using AutoFixture;
 global using AutoFixture.AutoNSubstitute;
-global using AutoFixture.Xunit2;
-global using DRN.Framework.Utils.Extensions;
-global using DRN.Framework.SharedKernel;
-global using DRN.Framework.Utils.Settings;
-global using DRN.Framework.Utils.DependencyInjection;
-global using DRN.Framework.Testing;
-global using DRN.Framework.Testing.DataAttributes;
-global using DRN.Framework.Testing.Providers;
-global using DRN.Framework.Testing.TestAttributes;
-global using DRN.Framework.Testing.Contexts;
-global using AwesomeAssertions;
+global using AutoFixture.Xunit3;
+global using FluentAssertions;
+global using NSubstitute;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.DependencyInjection.Extensions;
 global using Microsoft.Extensions.Configuration;
-global using NSubstitute;
+global using DRN.Framework.Testing;
+global using DRN.Framework.Testing.Contexts;
+global using DRN.Framework.Testing.DataAttributes;
+global using DRN.Framework.Testing.Providers;
+global using DRN.Framework.Testing.TestAttributes;
+global using DRN.Framework.Utils.Extensions;
+global using DRN.Framework.Utils.Settings;
+global using DRN.Framework.SharedKernel;
+global using DRN.Framework.Utils.DependencyInjection;
 global using System.Reflection;
 global using System.IO;
 global using System.Linq;

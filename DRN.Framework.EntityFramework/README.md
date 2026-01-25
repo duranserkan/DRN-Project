@@ -14,95 +14,83 @@ DRN.Framework.EntityFramework provides DrnContext with conventions to develop ra
 
 ## DRNContext
 
-DrnContext has following unique features:
+`DrnContext` is the foundational `DbContext` implementation that integrates with the DRN Framework ecosystem.
 
-* Implements `IDesignTimeDbContextFactory` to enable migrations from dbContext defining projects.
-* Implements `IDesignTimeServices` to support multi context projects with default output directories in the context specific folder.
-* Uses `HasDrnContextServiceCollectionModule` attribute for automatic registration with AddServicesWithAttributes service collection extension method.
-* Uses context name (typeof(TContext).Name) as connection string key by convention.
-* Automatically applies `IEntityTypeConfiguration` implementations from the assembly whose namespace contains the derived context's namespace.
-* Automatically marks Entities derived from `DRN.Framework.SharedKernel.Domain.Entity` as created, modified or deleted.
-* Enables `DRN.Framework.Testing` to create easy and effective integration tests with conventions and automatic registrations.
-    * Application modules can be registered without any modification to `DrnTestContext`
-    * `DrnTestContext`'s `ContainerContext`
-        * creates a `postgresql container` then scans DrnTestContext's service collection for inherited DrnContexts.
-        * Adds a connection strings to DrnTestContext's configuration for each `DrnContext` according to convention.
-    * `DrnTestContext` acts as a ServiceProvider and when a service is requested it can build it from service collection with all dependencies.
+*   **Zero-Config Registration**: Uses `[DrnContextServiceRegistration]` for automatic DI registration, including `IDesignTimeDbContextFactory` support for migrations.
+*   **Convention-Based Configuration**:
+    *   Context name defines the connection string key.
+    *   Automatically applies `IEntityTypeConfiguration` from the assembly.
+*   **Audit Support**: Automatically manages `IDomainEvent` dispatching and `Tracking` properties (`CreatedAt`, `ModifiedAt`) for `SourceKnownEntity`.
+*   **Integration Testing**: Native support for `DRN.Framework.Testing`'s `ContainerContext` for isolated Postgres container tests.
 
 ```csharp
-namespace DRN.Framework.EntityFramework.Context;
-
-[HasDrnContextServiceCollectionModule]
-public abstract class DrnContext<TContext> : DbContext, IDesignTimeDbContextFactory<TContext>, IDesignTimeServices where TContext : DbContext, new()
+[DrnContextServiceRegistration, DrnContextDefaults, DrnContextPerformanceDefaults]
+public abstract class DrnContext<TContext> : DbContext, IDrnContext<TContext> where TContext : DrnContext<TContext>, new()
 {
-...
-
-public class HasDrnContextServiceCollectionModuleAttribute : HasServiceCollectionModuleAttribute
-    {
-    static HasDrnContextServiceCollectionModuleAttribute()
-    {
-        ModuleMethodInfo = typeof(ServiceCollectionExtensions).GetMethod(nameof(ServiceCollectionExtensions.AddDbContextsWithConventions))!;
-    }
+    // ...
 }
 ```
 
-### Example Usage
+## SourceKnownRepository
+
+`SourceKnownRepository<TContext, TEntity>` is the EF Core implementation of `SharedKernel.ISourceKnownRepository`. It provides a production-ready data access layer with built-in performance and consistency checks.
+
+*   **RepositorySettings**:
+    *   `AsNoTracking`: Globally enable/disable tracking for queries.
+    *   `IgnoreAutoIncludes`: prevent auto-loading of navigation properties for performance.
+    *   `Filters`: Apply global LINQ filters (e.g., Soft Delete, Tenancy) automatically to all queries.
+*   **Pagination**: Efficient cursor-based pagination using `PaginateAsync`.
+*   **Validation**: Validates `SourceKnownEntityId` entity types before query execution.
 
 ```csharp
-namespace Sample.Infra;
-
-public static class InfraModule
+public class UserRepository(MyDbContext context, IEntityUtils utils) 
+    : SourceKnownRepository<MyDbContext, User>(context, utils), IUserRepository
 {
-    public static IServiceCollection AddSampleInfraServices(this IServiceCollection sc)
-    {
-        sc.AddServicesWithAttributes();
-
-        return sc;
-    }
+    // Custom query methods...
 }
+```
 
-public class QAContext : DrnContext<QAContext>
-{
-    public QAContext(DbContextOptions<QAContext> options) : base(options)
-{
-}
+## Attributes & Configuration
 
-    public QAContext() : base(null)
-{
-}
+### DrnContextServiceRegistrationAttribute
 
-    public DbSet<User> Users { get; set; }
-    public DbSet<Question> Questions { get; set; }
-    public DbSet<Answer> Answers { get; set; }
-    public DbSet<QuestionComment> Comments { get; set; }
-    public DbSet<Category> Categories { get; set; }
-    public DbSet<Tag> Tags { get; set; }
-}
+Decorate your `DbContext` with this to enable automatic registration and lifecycle management.
+
+*   **Startup Validation**:
+    *   **Scope Check**: Validates that 50+ service scopes can be created rapidly (catches singleton/scoped mismatches early).
+    *   **Entity Type Check**: Scans all `SourceKnownEntity` types in the model to ensure they have unique `[EntityType]` attributes.
+*   **Auto-Migration & Seeding**:
+    *   Detects pending migrations and applies them if configured (`DrnContext_AutoMigrateDevEnvironment`).
+    *   Runs `SeedAsync` implementations from registered `NpgsqlDbContextOptionsAttribute`s after migration.
+
+### NpgsqlDbContextOptionsAttribute
+
+Provides Npgsql-specific configuration and enables **Prototype Mode**.
+
+*   **Prototype Mode** `[NpgsqlDbContextOptions(UsePrototypeMode = true)]`:
+    *   Designed for rapid development.
+    *   **How it works**: If the framework detects pending model changes (e.g., you added a property to an entity) but no corresponding migration exists yet, it will **automatically drop and recreate the local development database**.
+    *   **Benefit**: Eliminates the need to create "junk" migrations during the initial prototyping phase.
+*   **Configuration Hooks**: Override `ConfigureNpgsqlOptions` or `ConfigureDbContextOptions` to customize the driver.
+
+```csharp
+[DrnContextServiceRegistration]
+[DrnContextDefaults]
+[MyProjectPrototypeSettings(UsePrototypeMode = true)] // Custom attribute inheriting NpgsqlDbContextOptionsAttribute
+public class MyDbContext : DrnContext<MyDbContext> { ... }
 ```
 
 ### Development Environment Configurations
-Following configuration options added to minimize development environment creation efforts:
-* DrnContext development connection string will be auto generated when
-    * `Environment` configuration key set as Development and,
-    * `postgres-password` configuration key set and,
-    * No other connection string is provided for the DbContexts.
-* Following keys can set optionally according to DbContextConventions;
-    * `DrnContext_AutoMigrateDevEnvironment`
-        * When set true applies migrations automatically
-    * `DrnContext_DevHost`
-        * default is postgresql
-    * `DrnContext_DevPort`
-        * default is 5432
-    * `DrnContext_DevUsername`
-        * default is postgres
-    * `DrnContext_DevDatabase`
-        * default is drnDb
 
-`postgres-password` and `DrnContext_AutoMigrateDevEnvironment` should be enough to start a hosted service that has DrnContext dependencies. 
+The framework reduces dev-setup friction by inferring configurations:
 
-For instance: 
- * When a Postgresql helm chart is used for dev environment and it creates a password secret automatically,
- * Then only defining a volume mount should be enough for database configuration.
+*   **Auto-Connection String**: If `postgres-password` is set and environment is Development, a connection string is generated automatically (defaulting to localhost:5432).
+*   **Environment Variables**:
+    *   `DrnContext_AutoMigrateDevEnvironment`: Set `true` to apply migrations at startup.
+    *   `DrnContext_DevHost`, `DrnContext_DevPort`, `DrnContext_DevDatabase`: Customize the auto-generated connection details.
+
+> [!TIP]
+> Just setting `postgres-password` and mounting a volume for your DB container is usually enough to get a full persistent dev environment running.
 
 ### Global Usings
 

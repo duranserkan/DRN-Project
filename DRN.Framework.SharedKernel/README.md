@@ -24,35 +24,39 @@ namespace DRN.Framework.SharedKernel.Json;
 
 public static class JsonConventions
 {
-    private const string JsonHelpersFQN = "System.Net.Http.Json.JsonHelpers";
-    private const string JsonHelpersOptions = "s_defaultSerializerOptions";
-    private const string DefaultSerializerOptions = "s_defaultOptions";
     private const BindingFlags StaticPrivate = BindingFlags.Static | BindingFlags.NonPublic;
 
     static JsonConventions()
     {
         //https://stackoverflow.com/questions/58331479/how-to-globally-set-default-options-for-system-text-json-jsonserializer
         UpdateDefaultJsonSerializerOptions();
-        UpdateHttpClientDefaultJsonSerializerOptions();
     }
 
     public static readonly JsonSerializerOptions DefaultOptions = SetJsonDefaults();
-...
-    /// <summary>
-    ///   <para>Option values appropriate to Web-based scenarios.</para>
-    ///   <para>This member implies that:</para>
-    ///   <para>- Property names are treated as case-insensitive.</para>
-    ///   <para>- "camelCase" name formatting should be employed.</para>
-    ///   <para>- Quoted numbers (JSON strings for number properties) are allowed.</para>
-    /// </summary>
+
     public static JsonSerializerOptions SetJsonDefaults(JsonSerializerOptions? options = null)
     {
         options ??= new JsonSerializerOptions(JsonSerializerDefaults.Web);
+
         options.Converters.Add(new JsonStringEnumConverter());
+        options.Converters.Add(new Int64ToStringConverter());
+        options.Converters.Add(new Int64NullableToStringConverter());
         options.AllowTrailingCommas = true;
         options.PropertyNameCaseInsensitive = true;
         options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         options.NumberHandling = JsonNumberHandling.AllowReadingFromString;
+        options.MaxDepth = 32;
+        options.TypeInfoResolver = JsonSerializer.IsReflectionEnabledByDefault
+            ? new DefaultJsonTypeInfoResolver()
+            : JsonTypeInfoResolver.Combine();
+
+        return options;
+    }
+
+    public static JsonSerializerOptions SetHtmlSafeWebJsonDefaults(JsonSerializerOptions? options = null)
+    {
+        options = SetJsonDefaults(options);
+        options.Encoder = JavaScriptEncoder.Default;
 
         return options;
     }
@@ -79,6 +83,7 @@ public abstract class DrnException(string message, Exception? ex, string? catego
     public const string DefaultCategory = "default";
     public string Category { get; } = category ?? DefaultCategory;
     public short Status { get; } = status ?? 500;
+    public new IDictionary<string, object> Data { get; } = new Dictionary<string, object>();
 }
 
 /// <summary>
@@ -168,6 +173,20 @@ public static class IgnoreLogExtensions
 }
 ```
 
+### SecureKeyAttribute
+
+Validates that a string meets secure key requirements (length, character classes, allowed characters).
+
+```csharp
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter, AllowMultiple = false)]
+public sealed class SecureKeyAttribute() : ValidationAttribute(DefaultErrorMessage)
+{
+    public ushort MinLength { get; set; } = 16;
+    public ushort MaxLength { get; set; } = 256;
+    // ... configuration properties
+}
+```
+
 ## AppConstants
 
 ```csharp
@@ -176,7 +195,7 @@ namespace DRN.Framework.SharedKernel;
 public static class AppConstants
 {
     public static int ProcessId { get; } = Environment.ProcessId;
-    public static Guid ApplicationId { get; } = Guid.NewGuid();
+    public static Guid AppInstanceId { get; } = Guid.NewGuid();
     public static string EntryAssemblyName { get; } = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";
     public static string TempPath { get; } = GetTempPath(); //Cleans directory at every startup
     public static string LocalIpAddress { get; } = GetLocalIpAddress();
@@ -189,59 +208,63 @@ public static class AppConstants
 Following definitions provide guidance and conventions for rapid and effective domain design. Their usage is not necessary however other framework features such
 as DrnContext benefits from them.
 
-* An entity should always have an long Id. It can have an additional ids.
-* All DateTime values should include offset
-* Entities should encapsulate their events
-* Entity status changes should be marked automatically by dbContext
-* Domain events should be published automatically by dbContext
+* **SourceKnownEntity**: The base class for entities. It handles identity (long Id for DB, Guid EntityId for external), domain events, and auditing.
+* **EntityTypeAttribute**: Defines a stable, unique byte identifier for each entity type.
+* **Domain Events**: Entities encapsulate their events. `DrnContext` publishes them automatically.
 
 ```csharp
 namespace DRN.Framework.SharedKernel.Domain;
 
-public abstract class AggregateRoot : Entity;
-
-public abstract class Entity
+/// <summary>
+/// Application wide Unique Entity Type
+/// </summary>
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public sealed class EntityTypeAttribute(byte entityType) : Attribute
 {
-    private List<IDomainEvent> DomainEvents { get; } = new();
+    public byte EntityType { get; } = entityType;
+}
+
+public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<SourceKnownEntity>, IComparable<SourceKnownEntity>
+{
+    public const int IdColumnOrder = 0;
+    public const int ModifiedAtColumnOrder = 1;
+
+    private List<IDomainEvent> DomainEvents { get; } = new(2);
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
-    public long Id { get; protected set; }
+
+    /// <summary>
+    /// Internal use only, Use EntityId for external usage
+    /// </summary>
+    [JsonIgnore]
+    [Column(Order = IdColumnOrder)]
+    public long Id { get; internal set; } = id;
+
+    /// <summary>
+    /// External use only, don't use Id for external usage
+    /// </summary>
+    [JsonPropertyName(nameof(Id))]
+    [JsonPropertyOrder(-3)]
+    public Guid EntityId => EntityIdSource.EntityId;
+
+    [JsonPropertyOrder(-2)]
+    public DateTimeOffset CreatedAt => EntityIdSource.Source.CreatedAt;
 
     [ConcurrencyCheck]
-    public DateTimeOffset ModifiedAt { get; protected set; }
-    public DateTimeOffset CreatedAt { get; protected set; }
+    [JsonPropertyOrder(-1)]
+    [Column(Order = ModifiedAtColumnOrder)]
+    public DateTimeOffset ModifiedAt { get; protected internal set; }
 
-    protected void AddDomainEvent(DomainEvent? e)
-{
-        if (e != null) DomainEvents.Add(e);
+    [JsonIgnore]
+    public SourceKnownEntityId EntityIdSource { get; internal set; }
+    
+    // ... GetEntityId methods, Equals, CompareTo
 }
 
-    public void MarkAsCreated()
+public abstract class AggregateRoot(long id = 0) : SourceKnownEntity(id);
+
+public abstract class AggregateRoot<TModel>(long id = 0) : AggregateRoot(id), IEntityWithModel<TModel> where TModel : class
 {
-        CreatedAt = DateTimeOffset.UtcNow;
-        ModifiedAt = DateTimeOffset.UtcNow;
-        AddDomainEvent(GetCreatedEvent());
-}
-
-    public void MarkAsModified()
-{
-        ModifiedAt = DateTimeOffset.UtcNow;
-        AddDomainEvent(GetModifiedEvent());
-}
-
-    public void MarkAsDeleted()
-{
-        AddDomainEvent(GetDeletedEvent());
-}
-
-    protected abstract EntityCreated? GetCreatedEvent();
-    protected abstract EntityModified? GetModifiedEvent();
-    protected abstract EntityDeleted? GetDeletedEvent();
-
-    private bool Equals(Entity other) => Id == other.Id;
-    public override bool Equals(object? obj) => ReferenceEquals(this, obj) || obj is Entity other && Equals(other);
-    public override int GetHashCode() => Id.GetHashCode();
-    public static bool operator ==(Entity? left, Entity? right) => Equals(left, right);
-    public static bool operator !=(Entity? left, Entity? right) => !Equals(left, right);
+    public TModel Model { get; set; } = null!;
 }
 ```
 
@@ -250,21 +273,120 @@ public interface IDomainEvent
 {
     Guid Id { get; }
     DateTimeOffset Date { get; }
-    long EntityId { get; }
-    string EntityName { get; }
+    Guid EntityId { get; }
 }
 
-public abstract class DomainEvent(Entity entity) : IDomainEvent
+public abstract class DomainEvent(SourceKnownEntity sourceKnownEntity) : IDomainEvent
 {
     public Guid Id { get; protected init; } = Guid.NewGuid();
+    public Guid EntityId => sourceKnownEntity.EntityId;
     public DateTimeOffset Date { get; protected init; } = DateTimeOffset.UtcNow;
-    public long EntityId => entity.Id;
-    public string EntityName { get; protected init; } = entity.GetType().FullName!;
 }
 
-public abstract class EntityCreated(Entity entity) : DomainEvent(entity);
-public abstract class EntityModified(Entity entity) : DomainEvent(entity);
-public abstract class EntityDeleted(Entity entity) : DomainEvent(entity);
+public abstract class EntityCreated(SourceKnownEntity sourceKnownEntity) : DomainEvent(sourceKnownEntity);
+public abstract class EntityModified(SourceKnownEntity sourceKnownEntity) : DomainEvent(sourceKnownEntity);
+public abstract class EntityDeleted(SourceKnownEntity sourceKnownEntity) : DomainEvent(sourceKnownEntity);
+```
+
+## SourceKnownRepository
+
+`ISourceKnownRepository<TEntity>` defines a standard contract for repositories managing `AggregateRoot` entities. It offers a consistent API for data access, identity management, and unit of work patterns.
+
+*   **Standardized Access**: Provides common CRUD operations (`CreateAsync`, `GetAsync`, `DeleteAsync`).
+*   **Identity Conversion**: Includes methods to convert between external `Guid`s and internal `SourceKnownEntityId`s using `GetEntityId` helper methods, ensuring IDs are valid and match the expected entity type.
+*   **Cancellation Support**: Built-in support for `CancellationToken` propagation.
+
+> [!WARNING]
+> `GetAllAsync()` returns all matching entities in a single query. This should be used **only** when the result set is guaranteed to be small (e.g., via repository settings filters) or for specific maintenance tasks. Avoid in public-facing APIs.
+
+```csharp
+public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
+{
+    RepositorySettings<TEntity> Settings { get; set; }
+    
+    // Identity Conversion & Validation
+    SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
+    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;
+    
+    // Data Access
+    Task<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true);
+    Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
+}
+```
+
+## SourceKnownEntity
+
+`SourceKnownEntity` is the base class for all domain entities. It standardizes identity management, domain events, and auditing.
+
+*   **EntityTypeAttribute**: Every `SourceKnownEntity` must be decorated with `[EntityType(byte)]`. This assigns a unique, stable byte identifier to the class, which is used for ID generation and type safety.
+*   **ID Conversion**: Provides `GetEntityId` methods to convert internal `long` IDs or external `Guid`s into strongly-typed `SourceKnownEntityId`s.
+*   **Validation**:
+    *   **Parser & IdFactory**: Internal delegates used to reconstruct IDs.
+    *   **Validation**: `GetEntityId` methods include a `bool validate = true` parameter (default). When true, it verifies the ID's structure and ensures the entity type matches the expected type.
+
+```csharp
+[EntityType(1)] // Unique byte identifier for this entity type
+public class MyEntity : SourceKnownEntity 
+{
+    // ...
+}
+
+// Usage
+var entityId = myEntity.GetEntityId(someGuid, validate: true); // Validates ID structure and EntityType
+```
+
+## SourceKnownEntityId & SourceKnownId
+
+The framework uses a composite identifier system to balance database performance with external security and type safety.
+
+### SourceKnownId
+The internal structure representing the identity components.
+```csharp
+public readonly record struct SourceKnownId(
+    long Id,                // The internal database ID (64-bit integer)
+    DateTimeOffset CreatedAt, // Timestamp when the ID was generated
+    uint InstanceId,        // Generator instance ID (for distributed uniqueness)
+    byte AppId,             // Application ID
+    byte AppInstanceId      // Application Instance ID
+);
+```
+
+### SourceKnownEntityId
+The public-facing identifier wrapper.
+```csharp
+public readonly record struct SourceKnownEntityId(
+    SourceKnownId Source,   // The decoded internal components
+    Guid EntityId,          // The external opaque GUID
+    byte EntityType,        // The entity type identifier (from EntityTypeAttribute)
+    bool Valid              // Whether the ID structure is valid
+)
+{
+    // Validates that this ID belongs to the specified TEntity type
+    public void Validate<TEntity>() where TEntity : SourceKnownEntity 
+        => Validate(SourceKnownEntity.GetEntityType<TEntity>());
+        
+    // Validates ID structure and checks type match
+    public void Validate(byte entityType);
+}
+```
+
+## Pagination
+
+The framework provides a robust pagination system capable of handling large datasets efficiently using cursor-based navigation.
+
+*   **PaginationRequest**: Encapsulates page number, page size, cursor (sorting/filtering position), and optional total count updates.
+*   **PaginationResult**: Returns a slice of data along with navigation metadata (`HasNext`, `HasPrevious`, `TotalCount`).
+*   **Cursor Support**: Optimizes performance for "Next/Previous" navigation by using stable cursors instead of expensive offset-based skipping.
+
+```csharp
+// Example usage in a repository or service
+var request = PaginationRequest.DefaultWith(size: 20, direction: PageSortDirection.Descending);
+var result = await repository.PaginateAsync(request);
+
+if (result.HasNext) 
+{
+    // Logic to prepare next page link
+}
 ```
 
 ---

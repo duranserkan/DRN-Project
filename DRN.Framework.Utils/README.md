@@ -24,6 +24,8 @@ public static class UtilsModule
     public static IServiceCollection AddDrnUtils(this IServiceCollection collection)
     {
         collection.AddServicesWithAttributes();
+        collection.AddHybridCache();
+        collection.TryAddSingleton<TimeProvider>(_ => TimeProvider.System);
 
         return collection;
     }
@@ -173,6 +175,11 @@ public interface IMountedSettingsConventionsOverride
 {
     string? MountedSettingsDirectory { get; }
 }
+
+public class MountedSettingsOverride : IMountedSettingsConventionsOverride
+{
+    public string? MountedSettingsDirectory { get; init; }
+}
 ```
 
 ## AppSettings
@@ -186,13 +193,29 @@ public interface IAppSettings
 {
     AppEnvironment Environment { get; }
     IConfiguration Configuration { get; }
+
+    DrnAppFeatures Features { get; }
+    DrnLocalizationSettings Localization { get; }
+    DrnDevelopmentSettings DevelopmentSettings { get; }
+    NexusAppSettings NexusAppSettings { get; }
+    bool IsDevEnvironment { get; }
+
+    /// <summary>
+    ///  Default app key, can be used publicly. For example, to separate development and production data.
+    /// </summary>
+    string AppKey { get; }
+
+    string ApplicationName { get; }
+    string ApplicationNameNormalized { get; }
+    string GetAppSpecificName(string name, string prefix = "_");
+
     bool TryGetConnectionString(string name, out string connectionString);
     string GetRequiredConnectionString(string name);
     bool TryGetSection(string key, out IConfigurationSection section);
     IConfigurationSection GetRequiredSection(string key);
     T? GetValue<T>(string key);
     T? GetValue<T>(string key, T defaultValue);
-    T? Get<T>(string key, Action<BinderOptions>? configureOptions = null);
+    T? Get<T>(string key, bool errorOnUnknownConfiguration = false, bool bindNonPublicProperties = true);
     ConfigurationDebugView GetDebugView();
 }
 ```
@@ -206,11 +229,27 @@ public interface IAppSettings
     * ReplaceSingleton
     * GetAllAssignableTo<TService>
 * StringExtensions
+    * Parse
+    * TryParse
     * ToStream
+    * ToByteArray
+    * ToSnakeCase
+    * ToCamelCase
+    * ToPascalCase
 * TypeExtensions
-    * MakeGenericMethod
-* AssemblyExtensions
+    * GetSubTypes
+    * CreateSubTypes
+    * CreateSubType
     * GetTypesAssignableTo
+    * GetAssemblyName
+* AssemblyExtensions is merged into TypeExtensions or otherUtils
+* MethodUtils (Reflection Helper)
+    * InvokeMethod
+    * InvokeStaticMethod
+    * InvokeGenericMethod
+    * InvokeStaticGenericMethod
+    * FindGenericMethod
+    * FindNonGenericMethod
 
 ---
 **Semper Progressivus: Always Progressive**
