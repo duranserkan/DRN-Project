@@ -52,13 +52,16 @@ public static class SequenceManager<TEntity> where TEntity : class
     public static SequenceTimeScopedId GetTimeScopedId()
     {
         var timeStamp = TimeStampManager.CurrentTimestamp(_epoch);
+        var currentScope = _timeScope;
 
-        if (_timeScope.ScopeTimestamp != timeStamp)
+        if (currentScope.ScopeTimestamp != timeStamp)
             UpdateTimeScope();
 
         //todo: optionally generate instance Ids randomly to avoid predictability
-        if (_timeScope.TryGetNextId(out var sequenceId))
-            return new SequenceTimeScopedId(_timeScope.ScopeTimestamp, sequenceId);
+        //Reassign currentScope after potential update
+        currentScope = _timeScope;
+        if (currentScope.TryGetNextId(out var sequenceId))
+            return new SequenceTimeScopedId(currentScope.ScopeTimestamp, sequenceId);
 
         while (true)
         {
@@ -72,8 +75,11 @@ public static class SequenceManager<TEntity> where TEntity : class
             }
 
             UpdateTimeScope();
-            if (_timeScope.TryGetNextId(out sequenceId))
-                return new SequenceTimeScopedId(_timeScope.ScopeTimestamp, sequenceId);
+            currentScope = _timeScope;
+            if (currentScope.TryGetNextId(out sequenceId))
+                return new SequenceTimeScopedId(currentScope.ScopeTimestamp, sequenceId);
+            
+            timeStamp = newTimestamp;
         }
     }
 

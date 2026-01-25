@@ -64,7 +64,6 @@ public class SourceKnownIdUtilsTests
             .ToArray();
 
         var buckets = idInfoGroups.Select(x => x.Key).ToArray();
-        //todo: fix flaky test
         buckets.Length.Should().BeGreaterThanOrEqualTo(bucketCount); //during generation initial and last buckets may be halflings
         buckets.Length.Should().BeLessThanOrEqualTo(bucketCount + 2); //we should also consider bucket creep testing overhead by adding another 1 bucket
 
