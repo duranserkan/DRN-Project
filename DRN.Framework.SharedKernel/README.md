@@ -14,15 +14,18 @@
 
 > Lightweight package containing domain primitives, exceptions, and shared code suitable for Contract and Domain layers.
 
-## Package Purpose
+## TL;DR
 
-SharedKernel is the **lightest** DRN package with **no external DRN dependencies**. It can be safely referenced by:
-- **Contract/API layers** (DTOs, Exceptions)
-- **Domain layers** (Entities, Aggregates, Events)
-- **Any project** needing DRN primitives without heavy framework dependencies.
+- **Zero dependencies** - Safe for Contract/Domain layers without framework overhead
+- **Domain primitives** - `SourceKnownEntity`, `AggregateRoot`, `DomainEvent` for DDD patterns
+- **Type-safe exceptions** - `ExceptionFor.NotFound()`, `ExceptionFor.Validation()` map to HTTP status codes
+- **JSON conventions** - Global `System.Text.Json` defaults with camelCase, enums-as-strings
+- **Source Known IDs** - Internal `long` for DB performance, external `Guid` for API security
 
 ## Table of Contents
-- [When to Apply](#when-to-apply)
+
+- [QuickStart: Beginner](#quickstart-beginner)
+- [QuickStart: Advanced](#quickstart-advanced)
 - [Domain Primitives](#domain-primitives)
 - [SourceKnownRepository](#sourceknownrepository)
 - [Pagination](#pagination)
@@ -31,13 +34,64 @@ SharedKernel is the **lightest** DRN package with **no external DRN dependencies
 - [Attributes](#attributes)
 - [AppConstants](#appconstants)
 
-## When to Apply
+---
 
-- Defining **Domain Entities** and **Aggregates**
-- Working with **Domain Events**
-- Using or extending **DRN Exceptions**
-- Understanding **JSON Serialization** conventions
-- Accessing **Application Constants**
+## QuickStart: Beginner
+
+Define your first domain entity with automatic ID generation and domain events:
+
+```csharp
+using DRN.Framework.SharedKernel.Domain;
+
+[EntityType(1)] // Unique byte identifier for this entity type
+public class User : AggregateRoot
+{
+    public string Name { get; private set; }
+
+    public User(string name)
+    {
+        Name = name;
+        AddDomainEvent(new UserCreated(this)); // Automatically published by DrnContext
+    }
+}
+
+public class UserCreated(User user) : EntityCreated(user)
+{
+    public string UserName => user.Name;
+}
+```
+
+## QuickStart: Advanced
+
+Complete example with pagination, validation, and exception handling:
+
+```csharp
+// Repository usage with pagination
+public class UserService(ISourceKnownRepository<User> repository)
+{
+    public async Task<PaginationResultModel<UserDto>> GetUsersAsync(PaginationRequest request)
+    {
+        // Cursor-based pagination with date filtering
+        var filter = EntityCreatedFilter.After(DateTimeOffset.UtcNow.AddDays(-30));
+        var result = await repository.PaginateAsync(request, filter);
+        
+        return result.ToModel(user => new UserDto
+        {
+            Id = user.EntityId,  // External GUID for API
+            Name = user.Name
+        });
+    }
+
+    public async Task<User> GetUserAsync(Guid id)
+    {
+        var user = await repository.GetOrDefaultAsync(id);
+        if (user is null)
+            throw ExceptionFor.NotFound($"User {id} not found"); // Maps to HTTP 404
+        
+        return user;
+    }
+}
+```
 
 ---
 
@@ -101,33 +155,39 @@ public abstract class EntityDeleted(SourceKnownEntity sourceKnownEntity) : Domai
 
 ### SourceKnownEntityId & SourceKnownId
 
-The framework uses a composite identifier system (`SourceKnownEntityId`) to balance database performance (long) with external security (Guid) and type safety.
+The framework uses a Source Known identifier system (`SourceKnownEntityId`) to balance database performance (long) with external security (Guid) and type safety.
 
 ```csharp
-// 1. entityId.Valid will be true only if the GUID structure is correct AND matches the User entity type.
+// entityId.Valid will be true only if the GUID structure is correct AND matches the User entity type.
 var entityId = user.GetEntityId(someGuid, validate: true);
+```
 
 ### ID Validation & Retrieval Strategies
 
 The framework provides three distinct ways to validate and retrieve typed identifiers based on the operational context:
 
 **1. Injectable Utility (Recommended for Service Layer)**
+
 Ideal for cross-cutting business logic or when you have the `sourceKnownEntityIdUtils` in scope.
+
 ```csharp
 var id = sourceKnownEntityIdUtils.Validate<User>(externalGuid);
 ```
 
 **2. Repository (Recommended for Data Access)**
+
 Directly available on `ISourceKnownRepository<TEntity>`. Standardizes validation at the data entry point.
+
 ```csharp
 var id = userRepository.GetEntityId(externalGuid); 
 ```
 
 **3. Domain Entity (Recommended for Domain Logic)**
+
 Uses helper methods on the `SourceKnownEntity` base class. Best for intra-domain operations.
+
 ```csharp
 var id = userInstance.GetEntityId<User>(externalGuid);
-```
 ```
 
 ```csharp

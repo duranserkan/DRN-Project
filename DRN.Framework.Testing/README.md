@@ -11,14 +11,40 @@
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=coverage)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 
-## Introduction
-DRN.Framework.Testing package provides practical, effective helpers such as resourceful data attributes and test context.
+# DRN.Framework.Testing
 
-This package enables a new encouraging testing technique called as DTT(Duran's Testing Technique). 
-With DTT, any developer can write clean and hassle-free unit and integration tests without complexity.
+> Practical, effective testing helpers with data attributes, test context, and container orchestration for unit and integration tests.
 
-### QuickStart: Basics
-Here's a basic test demonstration to take your attention and get you started:
+## TL;DR
+
+- **Auto-Mocking** - `[DataInline]` provides `DrnTestContext` and auto-mocks interface parameters with NSubstitute
+- **Container Context** - One-line Postgres/RabbitMQ container setup with auto-migration
+- **Application Context** - Full `WebApplicationFactory` integration with container awareness
+- **Convention-Based** - Settings and data files auto-discovered from test folder hierarchy
+- **DTT Pattern** - Duran's Testing Technique for clean, hassle-free testing
+
+## Table of Contents
+
+- [QuickStart: Beginner](#quickstart-beginner)
+- [QuickStart: Advanced](#quickstart-advanced)
+- [DrnTestContext](#drntestcontext)
+- [ContainerContext](#containercontext)
+- [ApplicationContext](#applicationcontext)
+- [Local Development Experience](#local-development-experience)
+- [Data Attributes](#data-attributes)
+- [Unit Testing](#unit-testing)
+- [DebugOnly Tests](#debugonly-tests)
+- [Providers](#providers)
+- [Global Usings](#global-usings)
+- [Example Test Project](#example-test-project-csproj-file)
+- [Test Snippet](#test-snippet)
+- [Testing Guide and DTT Approach](#testing-guide-and-dtt-approach)
+
+---
+
+## QuickStart: Beginner
+
+Write your first auto-mocked test in seconds:
 ```csharp
     [Theory]
     [DataInline]
@@ -32,21 +58,6 @@ Here's a basic test demonstration to take your attention and get you started:
         dependentService.Max.Should().Be(int.MaxValue); //That is all. It is clean and effective 
     }
 ```
-
-### Table of Contents
-* Introduction
-* DrnTestContext
-* ContainerContext
-* ApplicationContext
-* DataAttributes
-* Unit Testing
-* DebugOnly Tests
-* Providers
-* Global Usings
-* Example Test Project
-* Test Snippet
-* Testing Guide and DTT Approach
-* Local Development Experience
 
 ### Testing models used in the QuickStart
 ```csharp
@@ -83,11 +94,14 @@ public class DependentService : IMockable
 }
 ```
 
-### QuickStart: Advanced Data Inline
-* `DataInline` will provide `DrnTestContext` as first parameter. 
-* Then it will provide inlined values.
-* Then it will provide auto inline missing values with AutoFixture.
-* `AutoFixture` will mock any interface requested with `NSubstitute`.
+## QuickStart: Advanced
+
+Advanced example with inlined values, auto-generated data, and mocked interfaces:
+
+- `DataInline` provides `DrnTestContext` as first parameter
+- Then it provides inlined values
+- Then it auto-generates missing values with AutoFixture
+- `AutoFixture` mocks any interface parameter with `NSubstitute`
 ```csharp
 /// <param name="context"> Provided by DataInline even if it is not a compile time constant</param>
 /// <param name="inlineData">Provided by DataInline</param>

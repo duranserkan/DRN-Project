@@ -10,10 +10,22 @@
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=coverage)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 
-DRN.Framework.EntityFramework provides `DrnContext` with conventions to develop rapid and effective domain models.
+# DRN.Framework.EntityFramework
+
+> Convention-based Entity Framework Core integration with automatic configuration, migrations, and domain event support.
+
+## TL;DR
+
+- **Zero-Config DbContext** - `DrnContext<T>` auto-registers, discovers configurations, and manages migrations
+- **Source Known IDs** - Internal `long` for DB performance, external `Guid` for API security
+- **Auto-Tracking** - Automatic `CreatedAt`/`ModifiedAt` timestamps and domain events
+- **Prototype Mode** - Auto-recreate database on model changes during development
+- **Repository Base** - `SourceKnownRepository<TContext, TEntity>` with pagination and validation
 
 ## Table of Contents
 
+- [QuickStart: Beginner](#quickstart-beginner)
+- [QuickStart: Advanced](#quickstart-advanced)
 - [Identity System](#identity-system)
 - [DrnContext](#drncontext)
 - [SourceKnownRepository](#sourceknownrepository)
@@ -23,9 +35,92 @@ DRN.Framework.EntityFramework provides `DrnContext` with conventions to develop 
 - [Entity Configuration](#entity-configuration)
 - [Global Usings](#global-usings)
 
+---
+
+## QuickStart: Beginner
+
+Define a DbContext and entity with automatic ID generation:
+
+```csharp
+// 1. Define your entity with EntityType attribute
+[EntityType(1)] // Unique byte per entity type
+public class User : SourceKnownEntity
+{
+    public string Username { get; set; } = "";
+}
+
+// 2. Create your context inheriting from DrnContext
+[DrnContextServiceRegistration]
+[DrnContextDefaults]
+[DrnContextPerformanceDefaults]
+public class AppContext : DrnContext<AppContext>
+{
+    public AppContext(DbContextOptions<AppContext> options) : base(options) { }
+    public AppContext() : base(null) { } // Required for migrations
+
+    public DbSet<User> Users { get; set; }
+}
+
+// 3. Use in your service - IDs are auto-generated
+public class UserService(AppContext context)
+{
+    public async Task CreateUserAsync(string username)
+    {
+        context.Users.Add(new User { Username = username }); // ID auto-generated
+        await context.SaveChangesAsync();
+    }
+}
+```
+
+## QuickStart: Advanced
+
+Complete repository pattern with pagination and filtering:
+
+```csharp
+// Repository with custom query methods
+public interface IUserRepository : ISourceKnownRepository<User> 
+{
+    Task<User[]> GetActiveUsersAsync();
+}
+
+[Scoped<IUserRepository>]
+public class UserRepository(AppContext context, IEntityUtils utils) 
+    : SourceKnownRepository<AppContext, User>(context, utils), IUserRepository
+{
+    public async Task<User[]> GetActiveUsersAsync()
+    {
+        // EntitiesWithAppliedSettings() applies AsNoTracking, Filters, etc.
+        return await EntitiesWithAppliedSettings()
+            .Where(u => u.IsActive)
+            .ToArrayAsync();
+    }
+}
+
+// Controller with pagination
+[ApiController, Route("api/users")]
+public class UserController(IUserRepository repository) : ControllerBase
+{
+    [HttpGet]
+    public async Task<PaginationResultModel<UserDto>> GetAsync([FromQuery] PaginationRequest request)
+    {
+        var result = await repository.PaginateAsync(request);
+        return result.ToModel(u => new UserDto { Id = u.EntityId, Username = u.Username });
+    }
+    
+    [HttpGet("{id:guid}")]
+    public async Task<UserDto> GetByIdAsync(Guid id)
+    {
+        var user = await repository.GetAsync(id); // Validates ID automatically
+        return new UserDto { Id = user.EntityId, Username = user.Username };
+    }
+}
+```
+
+---
+
 ## Identity System
 
-The framework uses a composite identifier system that balances database performance (long IDs) with external security (GUIDs) and type safety.
+The framework uses a Source Known identifier system that balances database performance (long IDs) with external security (GUIDs) and type safety.
 
 ### SourceKnownId
 

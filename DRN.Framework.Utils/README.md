@@ -12,22 +12,95 @@
 
 # DRN.Framework.Utils
 
-Core utilities package providing attribute-based dependency injection, configuration management, scoped logging, ambient context, and essential extensions. This package serves as the **core infrastructure** for most DRN framework packages.
+> Core utilities package providing attribute-based dependency injection, configuration management, scoped logging, ambient context, and essential extensions.
 
-## Directory Structure
+## TL;DR
 
+- **Attribute DI** - `[Scoped<T>]`, `[Singleton<T>]`, `[Transient<T>]` for zero-config service registration
+- **Configuration** - `IAppSettings` with typed access, `[Config("Section")]` bindings
+- **Scoped Logging** - `IScopedLog` aggregates structured logs per request
+- **Ambient Context** - `ScopeContext.UserId`, `ScopeContext.Settings` anywhere
+- **Auto-Registration** - `AddServicesWithAttributes()` scans and registers all attributed services
+
+## Table of Contents
+
+- [QuickStart: Beginner](#quickstart-beginner)
+- [QuickStart: Advanced](#quickstart-advanced)
+- [Setup](#setup)
+- [Dependency Injection](#dependency-injection)
+- [Configuration](#configuration)
+- [Logging (IScopedLog)](#logging-iscopedlog)
+- [HTTP Client Factories](#http-client-factories-iexternalrequest-iinternalrequest)
+- [Scope & Ambient Context](#scope--ambient-context-scopecontext)
+- [Data Utilities](#data-utilities)
+- [Utilities](#utilities)
+- [Extensions](#extensions)
+
+---
+
+## QuickStart: Beginner
+
+Register and use a service with attribute-based DI:
+
+```csharp
+// 1. Define your service with DI attribute
+public interface IGreetingService { string Greet(string name); }
+
+[Scoped<IGreetingService>]
+public class GreetingService : IGreetingService
+{
+    public string Greet(string name) => $"Hello, {name}!";
+}
+
+// 2. Register all attributed services in Startup
+services.AddServicesWithAttributes();
+
+// 3. Inject and use
+public class HomeController(IGreetingService greetingService) : Controller
+{
+    public IActionResult Index() => Ok(greetingService.Greet("World"));
+}
 ```
-DRN.Framework.Utils/
-├── DependencyInjection/  # Lifetime attributes, assembly scanning
-├── Settings/             # IAppSettings, conventions
-├── Configurations/       # Configuration sources
-├── Logging/              # IScopedLog, ScopeLog
-├── Extensions/           # ServiceCollection, String, Type extensions
-├── Scope/                # ScopeContext (Ambient attributes)
-├── Ids/                  # ID generation (SourceKnownId)
-├── Auth/                 # Authentication helpers
-└── UtilsModule.cs        # Module registration
+
+## QuickStart: Advanced
+
+Complete example with configuration binding, scoped logging, and ambient context:
+
+```csharp
+// Bind configuration section to strongly-typed class
+[Config("PaymentSettings")]
+public class PaymentSettings
+{
+    public string ApiKey { get; set; } = "";
+    public int TimeoutSeconds { get; set; } = 30;
+}
+
+// Service using scoped logging and settings
+[Scoped<IPaymentService>]
+public class PaymentService(IAppSettings settings, IScopedLog log, PaymentSettings config) : IPaymentService
+{
+    public async Task<PaymentResult> ProcessAsync(decimal amount)
+    {
+        // Track execution time
+        using var duration = log.Measure("PaymentProcessing");
+        
+        // Add structured context
+        log.Add("Amount", amount);
+        log.AddToActions("Processing payment");
+        
+        // Access ambient data anywhere
+        var userId = ScopeContext.UserId;
+        
+        // Use typed configuration
+        if (config.TimeoutSeconds < 10)
+            throw ExceptionFor.Configuration("Timeout too short");
+        
+        return new PaymentResult(Success: true);
+    }
+}
 ```
+
+---
 
 ## Setup
 

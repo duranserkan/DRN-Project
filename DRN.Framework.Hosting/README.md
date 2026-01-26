@@ -1,5 +1,3 @@
-# DRN.Framework.Hosting
-
 [![master](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml/badge.svg?branch=master)](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml)
 [![develop](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml/badge.svg?branch=develop)](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
@@ -11,13 +9,23 @@
 [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=bugs)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 
-**DRN.Framework.Hosting** provides the **application shell** for DRN web applications. It abstracts away the boilerplate of configuring reliable, secure, and observable ASP.NET Core applications.
+# DRN.Framework.Hosting
+
+> Application shell for DRN web applications with security-first design, structured lifecycle, and type-safe routing.
+
+## TL;DR
+
+- **Secure by Default** - MFA enforced (Fail-Closed), strict CSP with Nonces, HSTS automatic
+- **Opinionated Startup** - `DrnProgramBase` with 20+ overrideable lifecycle hooks
+- **Type-Safe Routing** - Typed `Endpoint` and `Page` accessors replace magic strings
+- **Zero-Config Infrastructure** - Auto-provision Postgres/RabbitMQ in Debug mode
+- **Frontend Integration** - TagHelpers for Vite manifest, CSRF for HTMX, secure assets
 
 ## Table of Contents
 
-- [TL;DR](#tldr)
+- [QuickStart: Beginner](#quickstart-beginner)
+- [QuickStart: Advanced](#quickstart-advanced)
 - [Directory Structure](#directory-structure)
-- [QuickStart](#quickstart)
 - [Lifecycle & Execution Flow](#lifecycle--execution-flow)
 - [DrnProgramBase Deep Dive](#drnprogrambase-deep-dive)
 - [Configuration](#configuration)
@@ -27,30 +35,10 @@
 - [Local Development](#local-development-infrastructure)
 - [Global Usings](#global-usings)
 
-## TL;DR
-* **Secure by Default**: Enforces MFA (Fail-Closed), strict CSP with Nonces, and HSTS automatically.
-* **Opinionated Startup**: `DrnProgramBase` creates a predictable lifecycle with 20+ overrideable hooks.
-* **Type-Safe Routing**: Replaces "magic strings" with typed `Endpoint` and `Page` accessors.
-* **Zero-Configuration Infrastructure**: Auto-provisions Postgres/RabbitMQ containers in `Debug` mode via `DRN.Framework.Testing`.
-* **Frontend Synergy**: Includes TagHelpers for Vite manifest resolution, CSRF for HTMX, and secure asset loading.
+---
 
-## Directory Structure
-```
-DRN.Framework.Hosting/
-├── DrnProgram/       # DrnProgramBase, options, actions, conventions
-├── Endpoints/        # EndpointCollectionBase, PageForBase, type-safe accessors
-├── Auth/             # Policies, MFA configuration, requirements
-├── Consent/          # GDPR cookie consent management
-├── Identity/         # Identity integration and scoped user middleware
-├── Middlewares/      # HttpScopeLogger, exception handling, security middlewares
-├── TagHelpers/       # Razor TagHelpers (Vite, Nonce, CSRF, Auth-Only)
-├── Areas/            # Framework-provided Razor Pages (e.g., Error pages)
-└── wwwroot/          # Framework style and script assets
-```
+## QuickStart: Beginner
 
-## QuickStart
-
-### 1. Basic Program
 All DRN web apps inherit from `DrnProgramBase<TProgram>` to inherit the lifecycle hooks and default behaviors.
 
 ```csharp
@@ -73,12 +61,13 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     }
 }
 
-// Immediate API endpoint for testing (Inherits [AllowAnonymous] and Get())
+// Immediate API endpoint for testing and health checks (Inherits [AllowAnonymous] and Get())
 [Route("[controller]")]
 public class WeatherForecastController : WeatherForecastControllerBase;
 ```
 
-### 2. Testing Integration
+## QuickStart: Advanced
+
 Test your application using `DRN.Framework.Testing` to spin up the full pipeline including databases.
 
 ```csharp
@@ -96,6 +85,20 @@ public async Task WeatherForecast_Should_Return_Data(DrnTestContext context, ITe
     var data = await response.Content.ReadFromJsonAsync<IEnumerable<WeatherForecast>>();
     data.Should().NotBeEmpty();
 }
+```
+
+## Directory Structure
+```
+DRN.Framework.Hosting/
+├── DrnProgram/       # DrnProgramBase, options, actions, conventions
+├── Endpoints/        # EndpointCollectionBase, PageForBase, type-safe accessors
+├── Auth/             # Policies, MFA configuration, requirements
+├── Consent/          # GDPR cookie consent management
+├── Identity/         # Identity integration and scoped user middleware
+├── Middlewares/      # HttpScopeLogger, exception handling, security middlewares
+├── TagHelpers/       # Razor TagHelpers (Vite, Nonce, CSRF, Auth-Only)
+├── Areas/            # Framework-provided Razor Pages (e.g., Error pages)
+├── wwwroot/          # Framework style and script assets
 ```
 
 ## Lifecycle & Execution Flow
