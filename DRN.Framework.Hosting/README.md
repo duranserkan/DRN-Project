@@ -109,6 +109,13 @@ graph TD
     subgraph "1. Builder Phase (Services & Config)"
     CAB --> CSO["ConfigureSwaggerOptions()"]
     CAB --> CDSH["ConfigureDefaultSecurityHeaders()"]
+    CDSH --> CDCSP["ConfigureDefaultCsp()"]
+    CAB --> CSHPB["ConfigureSecurityHeaderPolicyBuilder()"]
+    CAB --> CCP["ConfigureCookiePolicy()"]
+    CAB --> CSFO["ConfigureStaticFileOptions()"]
+    CAB --> CFHO["ConfigureForwardedHeadersOptions()"]
+    CAB --> CMVCB["ConfigureMvcBuilder()"]
+    CAB --> CAO["ConfigureAuthorizationOptions()"]
     CAB --> ASA["AddServicesAsync()"]
     ASA --> ABC["ApplicationBuilderCreatedAsync (Action)"]
     end
@@ -118,11 +125,20 @@ graph TD
     subgraph "2. Application Phase (Middleware)"
     Build --> CA["ConfigureApplication()"]
     CA --> CAPS["ConfigureApplicationPipelineStart() (HSTS/Headers)"]
-    CAPS --> LOG["HttpScopeMiddleware (TraceId/Logging)"]
-    LOG --> UR["UseRouting()"]
-    UR --> UA["UseAuthorization() (MFA Enforcement)"]
-    UA --> CPSTA["ConfigureApplicationPostAuthorization() (Swagger UI)"]
-    CPSTA --> MAE["MapApplicationEndpoints()"]
+    CAPS --> CAPR["ConfigureApplicationPreScopeStart() (Static Files)"]
+    CAPR --> HSM["HttpScopeMiddleware (TraceId/Logging)"]
+    HSM --> CPSS["ConfigureApplicationPostScopeStart()"]
+    CPSS --> UR["UseRouting()"]
+    UR --> CAPREA["ConfigureApplicationPreAuthentication()"]
+    CAPREA --> AUTH["UseAuthentication()"]
+    AUTH --> SUM["ScopedUserMiddleware"]
+    SUM --> CAPOSTA["ConfigureApplicationPostAuthentication()"]
+    CAPOSTA --> MFAE["MfaExemptionMiddleware"]
+    CAPOSTA --> MFAR["MfaRedirectionMiddleware"]
+    MFAE --> UA["UseAuthorization()"]
+    MFAR --> UA
+    UA --> CPSTAZ["ConfigureApplicationPostAuthorization() (Swagger UI)"]
+    CPSTAZ --> MAE["MapApplicationEndpoints()"]
     end
 
     MAE --> ABA["ApplicationBuiltAsync (Action)"]
@@ -148,9 +164,15 @@ These hooks run while the `WebApplicationBuilder` is active, allowing you to con
 | **Auth** | `ConfigureAuthorizationOptions` | Define security policies. **Note**: Sets MFA as the default/fallback by default. |
 | **Security** | `ConfigureDefaultSecurityHeaders` | Define global headers (HSTS, CSP, FrameOptions). |
 | **Security** | `ConfigureDefaultCsp` | Customize CSP directives (Script, Image, Style sources). |
+| **Security** | `ConfigureSecurityHeaderPolicyBuilder` | Advanced conditional security policies (e.g., per-route CSP). |
 | **Cookies** | `ConfigureCookiePolicy` | Set GDPR consent logic and security attributes for all cookies. |
+| **Cookies** | `ConfigureCookieTempDataProvider` | Configure TempData cookie settings (HttpOnly, IsEssential). |
+| **Identity** | `ConfigureSecurityStampValidatorOptions` | Customize security stamp validation and claim preservation. |
 | **Infras.** | `ConfigureStaticFileOptions` | Customize caching (default: 1 year) and HTTPS compression. |
 | **Infras.** | `ConfigureForwardedHeadersOptions` | Configure proxy/load-balancer header forwarding. |
+| **Infras.** | `ConfigureRequestLocalizationOptions` | Configure culture providers and supported cultures. |
+| **Infras.** | `ConfigureHostFilteringOptions` | Configure allowed hosts for host header validation. |
+| **Infras.** | `ConfigureResponseCachingOptions` | Configure response caching middleware settings. |
 | **Global** | `AddServicesAsync` | **[Required]** The primary place to register your application services. |
 
 ### 2. Pipeline Hooks (Application Phase)
@@ -163,7 +185,7 @@ These hooks define the request processing middleware sequence.
 | **2** | `ConfigureApplicationPreScopeStart` | `UseStaticFiles`. Runs before request logging/trace ID is established. |
 | **3** | `ConfigureApplicationPostScopeStart` | Add middleware that needs access to `IScopedLog` but runs before routing. |
 | **4** | `ConfigureApplicationPreAuthentication` | `UseRequestLocalization`. Runs before the user identity is resolved. |
-| **5** | `ConfigureApplicationPostAuthentication` | `MfaRedirectionMiddleware`. Logic that runs after the user is known but before access checks. |
+| **5** | `ConfigureApplicationPostAuthentication` | `MfaRedirectionMiddleware`, `MfaExemptionMiddleware`. Logic that runs after the user is known but before access checks. |
 | **6** | `ConfigureApplicationPostAuthorization` | `UseSwaggerUI`. Runs after access is granted but before the final endpoint. |
 | **7** | `MapApplicationEndpoints` | `MapControllers`, `MapRazorPages`, `MapHubs`. |
 
@@ -174,13 +196,20 @@ These hooks define the request processing middleware sequence.
 | `ValidateEndpoints` | Ensures all type-safe endpoint accessors match actual mapped routes. |
 | `ValidateServicesAsync` | Scans the container for `[Attribute]` based registrations and ensures they are resolvable. |
 
-### 3. Internal Wiring (Automatic)
+### 4. MFA Configuration Hooks
+
+| Hook | Purpose |
+| :--- | :--- |
+| `ConfigureMFARedirection` | Configure MFA setup and login redirection URLs. Returns `null` to disable. |
+| `ConfigureMFAExemption` | Configure authentication schemes exempt from MFA requirements. Returns `null` to disable. |
+
+### 5. Internal Wiring (Automatic)
 
 * **Service Validation**: Calls `ValidateServicesAsync` to scan `[Attribute]`-registered services and ensure they are resolvable at startup.
 * **Secure JSON**: Enforces `HtmlSafeWebJsonDefaults` to prevent XSS via JSON serialization.
 * **Endpoint Accessor**: Registers `IEndpointAccessor` for typed access to `EndpointCollectionBase`.
 
-### 4. Properties
+### 6. Properties
 
 | Property | Default | Purpose |
 |----------|---------|---------|
@@ -245,19 +274,38 @@ The framework sets the `FallbackPolicy` for the entire application to require a 
 *   **Result**: Any new controller or page you add is **secure by default**. 
 *   **Opt-Out**: Use `[AllowAnonymous]` or `[Authorize(Policy = AuthPolicy.MfaExempt)]` for single-factor pages like Login or MFA Setup.
 
-### 2. Content Security Policy (Nonce-based)
+### 2. MFA Configuration
+Configure MFA behavior by overriding these hooks in your `DrnProgramBase` implementation:
+
+```csharp
+// Configure MFA redirection URLs
+protected override MfaRedirectionConfig ConfigureMFARedirection()
+    => new(
+        mfaSetupUrl: Get.Page.User.EnableAuthenticator,
+        mfaLoginUrl: Get.Page.User.LoginWith2Fa,
+        loginUrl: Get.Page.User.Login,
+        logoutUrl: Get.Page.User.Logout,
+        allowedUrls: Get.Page.All
+    );
+
+// Exempt specific authentication schemes from MFA
+protected override MfaExemptionConfig ConfigureMFAExemption()
+    => new(exemptSchemes: ["ApiKey", "Certificate"]);
+```
+
+### 3. Content Security Policy (Nonce-based)
 DRN automatically generates a unique cryptographic nonce for every request.
 *   **Automatic Protection**: Scripts and styles without a matching nonce are blocked by the browser, stopping most XSS attacks.
 *   **Usage**: Use the `NonceTagHelper` (see below) to automatically inject these nonces.
 
-### 3. Transparent Security Headers
+### 4. Transparent Security Headers
 Standard security headers are injected into every response:
 *   **HSTS**: Strict-Transport-Security (2 years, includes subdomains).
 *   **FrameOptions**: `DENY` (prevents clickjacking).
 *   **ContentTypeOptions**: `nosniff`.
 *   **ReferrerPolicy**: `strict-origin-when-cross-origin`.
 
-### 4. GDPR & Cookie Security
+### 5. GDPR & Cookie Security
 Cookies are configured with `SameSite=Strict` and `HttpOnly` by default to mitigate CSRF and session hijacking. The `ConsentCookie` system ensures compliance with privacy regulations.
 
 

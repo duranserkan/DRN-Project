@@ -1,14 +1,64 @@
 ---
 name: drn-domain-design
-description: Domain-Driven Design patterns and implementations - Entity design with Source-Known IDs, EntityType attributes, repository patterns, domain event handling, and EF Core entity configuration. Critical for implementing domain models and data access layers. Keywords: ddd, entity-design, repository-pattern, source-known-id, entity-type, domain-events, ef-core-configuration, fluent-api, entity-framework, domain-modeling, skills, shared kernel, drn, entity framework, hosting, utils
+description: Domain-Driven Design implementation patterns - Entity design, Source-Known IDs, repository contracts, domain events, EF Core configuration. Essential for domain modeling and data access. Keywords: skills, ddd, drn, domain modeling, entity design, repository, source known id, entity type, domain events, ef core configuration, fluent api, aggregate root, pagination,shared kernel, entity framework, hosting, utils
 ---
 
 # Domain Design Skill (DRN.Framework)
 
-This skill provides standards and patterns for domain-driven design within the DRN.Framework, emphasizing type-safe identity, consistent entity life-cycle, and standard repository contracts.
+> Type-safe domain modeling with Source-Known IDs, repository patterns, and EF Core conventions.
+
+## When to Apply
+- Defining domain entities and aggregate roots
+- Implementing repositories for data access
+- Working with Source-Known identity system
+- Configuring EF Core entity mappings
+- Implementing pagination and filtering in APIs
+- Understanding DrnContext conventions
+
+---
+
+## Overview
+
+This skill defines the standards for domain-driven design within DRN.Framework, emphasizing:
+- **Type-Safe Identity**: Composite IDs balancing DB performance (long) with external security (GUID)
+- **Repository Contracts**: Standard interfaces for data access
+- **Entity Life-Cycle**: Automatic tracking and domain events
+- **EF Core Conventions**: Attribute-first configuration with Fluent API for complex cases
 
 > [!TIP]
-> **Design Preference**: Prefer **Attribute-based design** over Fluent API when available. Use Fluent API only for **complex definitions** that cannot be elegantly expressed with attributes (e.g., composite keys, complex many-to-many relationships, or conditional mapping). This keeps standard configuration co-located with implementation while reserving the power of Fluent API for exceptional cases.
+> **Design Preference**: Prefer **Attribute-based configuration** over Fluent API when available. Use Fluent API only for **complex definitions** that cannot be elegantly expressed with attributes (e.g., composite keys, complex many-to-many relationships, or conditional mapping). This keeps standard configuration co-located with implementation while reserving the power of Fluent API for exceptional cases.
+
+## Table of Contents
+
+- [Identity System](#identity-system)
+  - [SourceKnownId](#sourceknownid)
+  - [SourceKnownEntityId](#sourceknownentityid)
+  - [Construction Mechanisms](#construction-mechanisms)
+  - [Validation Features](#validation-features)
+- [Entity Bases](#entity-bases)
+  - [SourceKnownEntity](#sourceknownentity)
+  - [AggregateRoot](#aggregateroot)
+- [Repository Contract](#repository-contract)
+  - [Complete Interface Members](#complete-interface-members)
+  - [RepositorySettings](#repositorysettings)
+  - [EntityCreatedFilter](#entitycreatedfilter)
+- [Data Persistence Conventions](#data-persistence-conventions)
+  - [DrnContext Features](#drncontext-features)
+  - [Advanced Database Configuration](#advanced-database-configuration)
+  - [Model Composition Patterns](#model-composition-patterns)
+  - [Configuration Best Practices](#configuration-best-practices)
+- [Repository Implementation](#repository-implementation)
+  - [SourceKnownRepository](#sourceknownrepository-base-class)
+  - [Query Composition Methods](#query-composition-methods)
+- [Pagination Models](#pagination-models)
+  - [PaginationRequest](#paginationrequest)
+  - [PaginationResultInfo](#paginationresultinfo)
+  - [PaginationResultModel](#paginationresultmodel)
+- [Entity Utilities](#entity-utilities)
+- [Public API Integration Standards](#public-api-integration-standards)
+- [Related Skills](#related-skills)
+
+---
 
 ## Identity System
 
@@ -245,42 +295,100 @@ Generic wrapper for a page of data.
 
 ## Entity Utilities
 
-`EntityUtils` (found in `DRN.Framework.Utils/Entity`) provides a scoped context for common domain operations:
-- `Id`: Identity utilities.
-- `EntityId`: Public ID utilities.
-- `Cancellation`: Token management.
-- `Pagination`: Logic helpers.
-- `DateTime`: Time-aware operations.
-- `ScopedLog`: Integrated logging.
+`IEntityUtils` (from `DRN.Framework.Utils`) provides scoped utilities for common domain operations:
+
+### Available Utilities
+
+| Property | Type | Purpose |
+|----------|------|----------|
+| `Id` | `ISourceKnownIdUtils` | Generate internal long IDs |
+| `EntityId` | `ISourceKnownEntityIdUtils` | Generate/parse/validate external GUIDs |
+| `Cancellation` | `ICancellationUtils` | Token management and merging |
+| `Pagination` | `IPaginationUtils` | Pagination logic helpers |
+| `DateTime` | `IDateTimeUtils` | Time-aware operations |
+| `ScopedLog` | `IScopedLog` | Integrated logging |
+
+### Usage in Repositories
+
+```csharp
+public class MyRepository(QAContext context, IEntityUtils utils) 
+    : SourceKnownRepository<QAContext, MyEntity>(context, utils)
+{
+    // Utils automatically available via base class
+    public async Task<MyEntity> GetByExternalIdAsync(Guid id)
+    {
+        var entityId = Utils.EntityId.Validate<MyEntity>(id);
+        return await GetAsync(entityId);
+    }
+}
+```
+
+---
 
 ## Public API Integration Standards
 
-To maintain consistency across the DRN ecosystem, follow these patterns when exposing domain entities via controllers:
+To maintain consistency across the DRN ecosystem, follow these patterns when exposing domain entities via controllers.
 
 ### Entity Identification
-- **Route Parameters**: Use `:guid` constraints for single entity actions (e.g., `[HttpGet("{id:guid}")]`).
-- **DTO Mapping**: Map `AggregateRoot.EntityId` to the DTO's `Id` property.
-- **DTO Id Type**: DTOs must use `Guid` for identifiers, not `SourceKnownEntityId`.
-- **Mappers**: Implement DTO-to-Entity and Entity-to-DTO mappers as extension methods in a `static class` within the same file as the Entity definition.
+
+**Critical Rules**:
+- **Route Parameters**: Use `:guid` constraints for single entity actions (e.g., `[HttpGet("{id:guid}")]`)
+- **DTO Mapping**: Map `AggregateRoot.EntityId` to the DTO's `Id` property
+- **DTO Id Type**: DTOs must use `Guid` for identifiers, not `SourceKnownEntityId`
+- **Mappers**: Implement DTO-to-Entity and Entity-to-DTO mappers as extension methods in a `static class` within the same file as the Entity definition
+
+> [!IMPORTANT]
+> **External Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must never be exposed outside the infrastructure/domain boundaries.
 
 ### Pagination Patterns
-- **Strict Rule**: **Never enumerate all entities unless explicitly requested.** Always use pagination instead to protect system performance.
-- **Preference**: Use `PaginateAsync` for all list endpoints.
-- **Model Binding**: Use `[FromQuery] PaginationRequest request` for default GET endpoints; it is natively URL serializable.
+
+> [!WARNING]
+> **Strict Rule**: **Never enumerate all entities unless explicitly requested.** Always use pagination to protect system performance. The `GetAllAsync()` method should only be used when bounded by settings filters or for small, known-size collections.
+
+**Best Practices**:
+- **Preference**: Use `PaginateAsync` for all list endpoints
+- **Model Binding**: Use `[FromQuery] PaginationRequest request` for default GET endpoints (natively URL serializable)
 - **Controller Overloads**: Implement the following triad for comprehensive pagination support:
-  1. `GetAsync([FromQuery] PaginationRequest request)`: Main entry point.
-  2. `PaginateWithQueryAsync([FromQuery] PaginationResultInfo? resultInfo, ...)`: Navigation support via query string.
-  3. `PaginateWithBodyAsync([FromBody] PaginationResultInfo? resultInfo, ...)`: Navigation support via request body (POST).
+  1. `GetAsync([FromQuery] PaginationRequest request)`: Main entry point
+  2. `PaginateWithQueryAsync([FromQuery] PaginationResultInfo? resultInfo, ...)`: Navigation support via query string
+  3. `PaginateWithBodyAsync([FromBody] PaginationResultInfo? resultInfo, ...)`: Navigation support via request body (POST)
 
 ### Implementation Template
+
 ```csharp
-[HttpGet]
-public async Task<PaginationResultModel<MyDto>> GetAsync([FromQuery] PaginationRequest request)
+// Controller
+[ApiController]
+[Route("api/[controller]")]
+public class MyEntityController(ISourceKnownRepository<MyEntity> repository) : ControllerBase
 {
-    var result = await repository.PaginateAsync(request);
-    return result.ToModel(entity => entity.ToDto());
+    [HttpGet]
+    public async Task<PaginationResultModel<MyDto>> GetAsync([FromQuery] PaginationRequest request)
+    {
+        var result = await repository.PaginateAsync(request);
+        return result.ToModel(entity => entity.ToDto());
+    }
+    
+    [HttpGet("{id:guid}")]
+    public async Task<MyDto> GetByIdAsync(Guid id)
+    {
+        var entity = await repository.GetAsync(id);
+        return entity.ToDto();
+    }
+}
+
+// From entity and ToDTO Mapper methods (in same file as MyEntity) 
+public static class MyEntityExtensions
+{
+    public static MyDto ToDto(this MyEntity entity) => new()
+    {
+        Id = entity.EntityId,  // External GUID
+        Name = entity.Name,
+        CreatedAt = entity.CreatedAt
+    };
 }
 ```
+
+---
 
 ## Related Skills
 - [drn-sharedkernel](../drn-sharedkernel/SKILL.md)

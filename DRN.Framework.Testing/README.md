@@ -41,11 +41,12 @@ Here's a basic test demonstration to take your attention and get you started:
 * DataAttributes
 * Unit Testing
 * DebugOnly Tests
-* Settings and Data Providers
+* Providers
 * Global Usings
 * Example Test Project
-* Test snippet
-* Testing guide and DTT approach
+* Test Snippet
+* Testing Guide and DTT Approach
+* Local Development Experience
 
 ### Testing models used in the QuickStart
 ```csharp
@@ -117,9 +118,11 @@ public void TextContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
   * `ServiceProvider` can provide services that depends on like `ILogger<DefaultService>`
   * logged data will not be leaked to anywhere since it has no logging provider.
 * provides `ContainerContext`
-  * can start a `postgres` container, apply migrations for dbContexts derived from DrnContext and updates connection string configuration with a single line of code
+  * can start `postgres` and `rabbitmq` containers, apply migrations for dbContexts derived from DrnContext and updates connection string configuration with a single line of code
 * provides `ApplicationContext`
   * syncs `DrnTestContext` service collection and service provider with provided application by WebApplicationFactory
+  * supports `ITestOutputHelper` integration for capturing application logs in test output
+* provides `FlurlHttpTest` for mocking external HTTP requests
 * provides `IConfiguration` and `IAppSettings` with SettingsProvider by using convention.
   * settings.json file can be found in the same folder with test
   * settings.json file can be found in the global Settings folder or Settings folder that stays in the test folder
@@ -129,6 +132,7 @@ public void TextContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
   * data file can be found in the same folder with test
   * data file can be found in the global Data folder or Data folder that stays in the test folder
   * Make sure file is copied to output directory
+* triggers `StartupJobRunner` to execute one-time test setup jobs marked with `ITestStartupJob`
 * `ServiceProvider` provides utils provided with DRN.Framework.Utils' `UtilsModule`
 * `BuildServiceProvider` replaces dependencies that can be replaced with inlined interfaces.
 * `ServiceProvider` and `DrnTestContext` will be disposed by xunit when test finishes
@@ -156,14 +160,16 @@ public void TextContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
 ```
 
 ## ContainerContext
-With `ContainerContext` and conventions you can easily write effective integration tests against your database dependencies 
+With `ContainerContext` and conventions you can easily write effective integration tests against your database and message queue dependencies.
+
+### PostgreSQL Container
 ```csharp
     [Theory]
     [DataInline]
     public async Task QAContext_Should_Add_Category(DrnTestContext context)
     {
         context.ServiceCollection.AddSampleInfraServices();
-        await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
+        await context.ContainerContext.Postgres.ApplyMigrationsAsync();
         var qaContext = context.GetRequiredService<QAContext>();
 
         var category = new Category("dotnet8");
@@ -174,9 +180,25 @@ With `ContainerContext` and conventions you can easily write effective integrati
 ```
 * Application modules can be registered without any modification to `DrnTestContext`
 * `DrnTestContext`'s `ContainerContext`
-  * creates a `postgresql container` then scans DrnTestContext's service collection for inherited DrnContexts.
-  * Adds a connection strings to DrnTestContext's configuration for each derived `DrnContext` according to convention.
+  * creates `postgresql` and `rabbitmq` containers then scans DrnTestContext's service collection for inherited DrnContexts.
+  * Adds connection strings to DrnTestContext's configuration for each derived `DrnContext` according to convention.
 * `DrnTestContext` acts as a ServiceProvider and when a service is requested it can build it from service collection with all dependencies.
+
+### RabbitMQ Container
+
+You can start a RabbitMQ container for testing message queue integrations:
+
+```csharp
+[Theory]
+[DataInline]
+public async Task RabbitMQ_Integration_Test(DrnTestContext context)
+{
+    var container = await context.ContainerContext.RabbitMq.StartAsync();
+    var connectionString = container.GetConnectionString();
+    
+    // Use connectionString for your message queue tests
+}
+```
 
 ### Advanced Container Configuration
 
@@ -228,13 +250,16 @@ For rapid development where migrations are not yet created, use `EnsureDatabaseA
 ## ApplicationContext
 `ApplicationContext` syncs `DrnTestContext` service collection and service provider with provided application by WebApplicationFactory.
 * You can provide or override configurations and services to your program until you force `WebApplicationFactory` to build a `Host` such as creating `HttpClient` or requesting `TestServer`.
+* Supports `ITestOutputHelper` integration to capture application logs in test output
+
+### Basic Usage
 ```csharp
     [Theory]
     [DataInline]
     public async Task ApplicationContext_Should_Provide_Configuration_To_Program(DrnTestContext context)
     {
         var webApplication = context.ApplicationContext.CreateApplication<Program>();
-        await context.ContainerContext.StartPostgresAndApplyMigrationsAsync();
+        await context.ContainerContext.Postgres.ApplyMigrationsAsync();
         
         var client = webApplication.CreateClient();
         var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>("WeatherForecast");
@@ -246,6 +271,39 @@ For rapid development where migrations are not yet created, use `EnsureDatabaseA
 
         var appSettingsFromDrnTestContext = context.GetRequiredService<IAppSettings>();
         appSettingsFromWebApplication.Should().BeSameAs(appSettingsFromDrnTestContext);//resolved from same service provider
+    }
+```
+
+### Simplified Client Creation
+
+For most API testing scenarios, use `CreateClientAsync` which handles common setup:
+
+```csharp
+    [Theory]
+    [DataInline]
+    public async Task Simplified_API_Test(DrnTestContext context, ITestOutputHelper output)
+    {
+        // Automatically starts containers, applies migrations, and returns authenticated client
+        var client = await context.ApplicationContext.CreateClientAsync<Program>(output);
+        
+        var response = await client.GetAsync("/api/endpoint");
+        response.Should().BeSuccessful();
+    }
+```
+
+### Test Output Logging
+
+Capture application logs in test output for debugging:
+
+```csharp
+    [Theory]
+    [DataInline]
+    public async Task Test_With_Logging(DrnTestContext context, ITestOutputHelper output)
+    {
+        context.ApplicationContext.LogToTestOutput(output);
+        var app = context.ApplicationContext.CreateApplication<Program>();
+        
+        // Application logs will appear in test output
     }
 ```
 
@@ -353,7 +411,7 @@ public class DataSelfContextAttributeTests
 
 public class DataSelfContextTestData : DataSelfContextAttribute
 {
-    public DataSelfContextTestData1()
+    public DataSelfContextTestData()
     {
         AddRow(99, new ComplexInline(100));
         AddRow(199, new ComplexInline(1000));
@@ -480,7 +538,7 @@ global using Xunit.v3;
 global using AutoFixture;
 global using AutoFixture.AutoNSubstitute;
 global using AutoFixture.Xunit3;
-global using FluentAssertions;
+global using AwesomeAssertions;
 global using NSubstitute;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -498,6 +556,7 @@ global using System.Reflection;
 global using System.IO;
 global using System.Linq;
 global using System.Collections;
+global using Xunit.Abstractions;
 ```
 ## Example Test Project .csproj File
 Don't forget to replace DRN.Framework.Testing project reference with its nuget package reference
@@ -540,7 +599,7 @@ Don't forget to replace DRN.Framework.Testing project reference with its nuget p
 </Project>
 ```
 
-##  Test snippet
+## Test Snippet
 
 **dtt** snippet for creating tests with a test context.
 ```csharp
@@ -552,7 +611,7 @@ public async Task $name$(DrnTestContext context)
 }
 ```
 
-## Testing guide and DTT approach
+## Testing Guide and DTT Approach
 
 DTT(Duran's Testing Technique) is developed upon following 2 idea to make testing natural part of the software development:
 * Writing a unit or integration test, providing settings and data to it should be easy, effective and encouraging as much as possible
@@ -566,7 +625,6 @@ DTT with **DrnTestContext** makes these ideas possible by
 * effortlessly validating service provider
 * effortlessly wiring external dependencies with Container Context
 * effortlessly wiring application with Application Context
-s
 With the help of test context, integration tests can be written easily with following styles.
 1. A data context attribute can provide NSubstituted interfaces and test context automatically replaces actual implementations with mocked interfaces and provides test data.
 2. Test containers can be used as actual dependencies instead of mocking them.
