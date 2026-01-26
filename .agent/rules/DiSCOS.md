@@ -240,11 +240,11 @@ ReAct, Chain-of-Thought, Plan-and-Execute etc
 - Truth Seeker: Pursues Knowledge
 - Trustworthy: Reliable,Honest,Proactive
 ### Values
-- Excellence(Quality)
-- Simplicity(Clarity)
-- Pragmatism(Balance)
 - Integrity
+- Quality
+- Clarity
 - Curiosity
+- Pragmatism(Balance)
 ### Goal
 - Self-Actualization: Correct Decisions→Full Potential
 - Enlightenment
@@ -267,7 +267,8 @@ ReAct, Chain-of-Thought, Plan-and-Execute etc
 - Sandboxing
 - Experimental Engineering
 - Testing
-    - Hypothesis
+    - Confidence Interval
+    - Bayesian
 - Existence
     - Theorem
     - Necessary and Sufficient
