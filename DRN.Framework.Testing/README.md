@@ -34,6 +34,8 @@
 - [Data Attributes](#data-attributes)
 - [Unit Testing](#unit-testing)
 - [DebugOnly Tests](#debugonly-tests)
+- [DI Health Validation](#di-health-validation)
+- [JSON Utilities](#json-utilities)
 - [Providers](#providers)
 - [Global Usings](#global-usings)
 - [Example Test Project](#example-test-project-csproj-file)
@@ -150,6 +152,7 @@ public void TextContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
 * `ServiceProvider` provides utils provided with DRN.Framework.Utils' `UtilsModule`
 * `BuildServiceProvider` replaces dependencies that can be replaced with inlined interfaces.
 * `ServiceProvider` and `DrnTestContext` will be disposed by xunit when test finishes
+* **DI Health Check**: `ValidateServicesAsync()` ensures that all services added to `ServiceCollection` (including those via attributes) can be resolved without runtime errors.
 
 `settings.json` can be put in the same folder that test file belongs. This way providing and isolating test settings is much easier
 ```csharp
@@ -361,6 +364,14 @@ public override async Task ApplicationBuilderCreatedAsync<TProgram>(
 #endif
 ```
 
+### Launch Conditions
+
+`LaunchExternalDependenciesAsync` is designed to be safe and non-intrusive. It only executes when all following conditions are met:
+1. **Environment**: Must be `Development`.
+2. **Launch Flag**: `AppSettings.DevelopmentSettings.LaunchExternalDependencies` must be `true`.
+3. **Not in Test**: `TestEnvironment.DrnTestContextEnabled` must be `false` (prevents collision with test containers).
+4. **Not Temporary**: `AppSettings.DevelopmentSettings.TemporaryApplication` must be `false`.
+
 This feature is particularly useful for:
 *   **Onboarding**: New developers can run the app without manually setting up infrastructure.
 *   **Consistency**: Ensures all developers use the same infrastructure configuration.
@@ -483,6 +494,40 @@ public void Unit_Test_Example(DrnTestContextUnit context, int value, IMockable m
 Following attributes can be used to run test only when the debugger is attached. These attributes does respect the attached debugger, not debug or release configuration.
 * FactDebuggerOnly
 * TheoryDebuggerOnly
+
+## DI Health Validation
+
+Use `ValidateServicesAsync()` to catch missing dependency registrations before they fail your application at runtime.
+
+```csharp
+[Theory]
+[DataInline]
+public async Task Dependency_Injection_Should_Be_Healthy(DrnTestContext context)
+{
+    context.ServiceCollection.AddApplicationServices();
+    
+    // Verifies that all registered services can be successfully resolved
+    await context.ValidateServicesAsync();
+}
+```
+
+## JSON Utilities
+
+The `JsonObjectExtensions` provide a simple way to verify API contracts and serialization stability.
+
+### ValidateObjectSerialization
+
+Ensures that an object can be serialized to JSON and deserialized back to an equivalent object.
+
+```csharp
+[Theory]
+[DataInline]
+public void Contract_Should_RoundTrip_Successfully(MyContractDto dto)
+{
+    // AutoFixture fills dto, then we verify round-trip
+    dto.ValidateObjectSerialization();
+}
+```
 
 ## Providers
 ### SettingsProvider

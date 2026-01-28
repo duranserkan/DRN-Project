@@ -1,69 +1,38 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
-## Version 0.6.0
+## Version 0.7.0
 
-My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to the memory of Mustafa Kemal Atatürk, founder of the Republic of Türkiye, and to his vision for a modern, enlightened, democratic nation. In his eternal rest, he continues to guide us through his ideals of freedom, progress, and national sovereignty.
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals.
 
-## Version 0.5.0
-
-My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to August 30 Victory Day, a day that marks the decisive victory achieved by the Turkish people against imperialism during the Turkish War of Independence, leading to the establishment of the Republic of Türkiye.
-
-### New Features
-
-* DbContext attributes to make default configurations visible and easier to configure
-  * NpgsqlPerformanceSettingsAttribute and its default implementation DrnContextPerformanceDefaultsAttribute added
-  * NpgsqlDbContextOptionsAttribute and its default implementation DrnContextDefaultsAttribute added 
-
-## Version 0.4.0
-
-My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 19 May Commemoration of Atatürk, Youth and Sports Day.
-
-### Breaking Changes
-
-* DrnContext and DrnContextIdentity MigrationsHistoryTable database schema changes as __entity_migrations
-  * Each DbContext's history table is named according to following convention:
-    * {contextName.ToSnakeCase()}_history
-* DrnContext and DrnContextIdentity applies context name with snake case formatting as default schema name.
+> [!WARNING]
+> Since v0.6.0 (released 10 November 2024), substantial changes have occurred. This release notes file has been reset to reflect the current state of the project as of 29 January 2026. Previous history has been archived to maintain a clean source of truth based on the current codebase.
 
 ### New Features
 
-* DrnContextIdentity to support ASP.NET Core Identity  with DrnContext features
-  * DrnContextIdentity to inherits IdentityDbContext
-
-### Bug Fixes
-
-* Microsoft.EntityFrameworkCore.Tools PrivateAssets were preventing migration
-
-## Version 0.3.0
-
-My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to 23 April National Sovereignty and Children's Day.
-
-### New Features
-
-* DrnContext development connection string will be auto generated when
-    * Environment configuration key set as Development and,
-    * postgres-password configuration key set and,
-    * No other connection string is provided for the DbContexts.
-* Following keys can set optionally according to DbContextConventions;
-    * DrnContext_AutoMigrateDevEnvironment
-        * When set true applies migrations automatically
-    * DrnContext_DevHost
-    * DrnContext_DevPort
-    * DrnContext_DevUsername
-        * default is postgres
-    * DrnContext_DevDatabase
-        * default is drnDb
-
-## Version 0.2.0
-
-### New Features
-
-*  DrnContext
-    * Implemented IDesignTimeDbContextFactory to enable migrations from dbContext defining projects.
-    * Implemented IDesignTimeServices to support multi context projects with default output directory in the context specific folder.
-    * Uses HasDrnContextServiceCollectionModule to automatic registration with AddServicesWithAttributes service collection extension method.
-    * Uses context name (typeof(TContext).Name) as connection string key by convention.
-    * Enables DRN.Framework.Testing to create easy and effective integration tests with conventions and automatic registrations.
+*   **DrnContext & Convention Pattern**
+    *   **Zero-Config Registration**: `DrnContext<T>` automatically handles service registration, connection string resolution (`ConnectionStrings:ContextName`), and configuration discovery.
+    *   **Design-Time Support**: Implements `IDesignTimeDbContextFactory<T>` and `IDesignTimeServices` for seamless migration generation in context-specific folders.
+    *   **Startup Validation**: `[DrnContextServiceRegistration]` validates entity types and scopes at startup.
+    *   **Custom Migration Scaffolding**: `DrnMigrationsScaffolder` automatically organizes migrations into context-specific `Migrations/` folders, keeping the project structure clean.
+    *   **Identity Table Conventions**: `DrnContextIdentity` maps standard Identity tables to clean snake_case names (e.g., `users`, `user_logins`, `role_claims`, `user_tokens`).
+*   **Augmented Entity Behavior**
+    *   **Auto-Tracking & Lifecycle**:
+        - Automatic `CreatedAt`/`ModifiedAt` management.
+        - Initialization of `IdFactory` and `Parser` during materialization/save for type-safe ID operations.
+    *   **Domain Events**: Events are collected and automatically published after `SaveChangesAsync`.
+*   **SourceKnownRepository**
+    *   **Complete Implementation**: `SourceKnownRepository<TContext, TEntity>` providing standard CRUD, identity validation, and logging.
+    *   **Repository Settings**: `AsNoTracking`, `IgnoreAutoIncludes`, and custom `Filters` support via `RepositorySettings`.
+    *   **Advanced Pagination**: Cursor-based pagination (`PaginateAsync`) and infinite scrolling (`PaginateAllAsync`) with `EntityCreatedFilter`.
+*   **Database Configuration**
+    *   **Npgsql Optimization**: `[DrnContextPerformanceDefaults]` enables connection multiplexing, pooling, batching, and query splitting.
+    *   **Extensive Defaults**: `[DrnContextDefaults]` configures snake_case naming, JSON options, and places migration history in `__entity_migrations` schema.
+    *   **Customizable Options**: `NpgsqlDbContextOptionsAttribute` allows overriding Npgsql (`ConfigureNpgsqlOptions`) and generic DbContext settings.
+*   **Development Experience**
+    *   **Auto-Connection Strings**: Automatically generates connection strings for local Docker containers (e.g., `Host=postgresql;Port=5432...`) if missing.
+    *   **Configurable Keys**: Supports overrides via `DrnContext_DevHost`, `DrnContext_DevUsername`, `DrnContext_DevDatabase`.
+    *   **Prototype Mode**: Auto-recreates database on model changes when `UsePrototypeMode=true` and `DrnDevelopmentSettings:Prototype=true`.
+    *   **Auto-Migration**: `DrnContext_AutoMigrateDevEnvironment` applies pending migrations at startup.
 
 ---
 

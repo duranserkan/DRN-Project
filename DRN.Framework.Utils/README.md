@@ -19,6 +19,9 @@
 - **Attribute DI** - `[Scoped<T>]`, `[Singleton<T>]`, `[Transient<T>]` for zero-config service registration
 - **Configuration** - `IAppSettings` with typed access, `[Config("Section")]` bindings
 - **Scoped Logging** - `IScopedLog` aggregates structured logs per request
+- **Scoped Cancellation** - Scoped `ICancellationUtils` for request lifecycle control
+- **Monotonic Pagination** - Cursor-based pagination leveraging entity ID temporal ordering
+- **Bit Packing** - High-performance `NumberBuilder` for custom data structures
 - **Ambient Context** - `ScopeContext.UserId`, `ScopeContext.Settings` anywhere
 - **Auto-Registration** - `AddServicesWithAttributes()` scans and registers all attributed services
 
@@ -30,10 +33,14 @@
 - [Dependency Injection](#dependency-injection)
 - [Configuration](#configuration)
 - [Logging (IScopedLog)](#logging-iscopedlog)
+- [Scoped Cancellation](#scoped-cancellation)
 - [HTTP Client Factories](#http-client-factories-iexternalrequest-iinternalrequest)
 - [Scope & Ambient Context](#scope--ambient-context-scopecontext)
 - [Data Utilities](#data-utilities)
-- [Utilities](#utilities)
+- [Pagination](#pagination)
+- [Bit Packing](#bit-packing)
+- [Diagnostics](#diagnostics)
+- [Time & Async](#time--async)
 - [Extensions](#extensions)
 
 ---
@@ -132,11 +139,11 @@ Reduce wiring code by using attributes directly on your services. The registrati
 > [!NOTE]
 > `DrnProgramBase` automatically runs this validation at startup.
 
-You can manually validate that all attribute-marked services are resolvable:
+- **Validation**: Ensure all registrations are resolvable via `ValidateServicesAddedByAttributesAsync()`.
 
 ```csharp
 // In Program.cs
-app.Services.ValidateServicesAddedByAttributes();
+await app.Services.ValidateServicesAddedByAttributesAsync();
 ```
 
 In integration tests with `DRN.Framework.Testing`:
@@ -146,6 +153,27 @@ public void Validate_Dependencies(DrnTestContext context)
 {
     context.ServiceCollection.AddServicesWithAttributes(); // Register local assembly
     context.ValidateServices(); // Verifies resolution of all registered descriptors
+}
+```
+
+### Scoped Cancellation
+
+Manage request-wide cancellation tokens efficiently using `ICancellationUtils`. It supports merging tokens from multiple sources (e.g., `HttpContext.RequestAborted` and internal timeouts).
+
+```csharp
+public class MyScopedService(ICancellationUtils cancellation)
+{
+    public async Task DoWorkAsync(CancellationToken externalToken)
+    {
+        // Automatically merges with the scoped token
+        cancellation.Merge(externalToken);
+        
+        // Use the unified token
+        await SomeAsyncOp(cancellation.Token);
+        
+        if (cancellation.IsCancellationRequested)
+            return;
+    }
 }
 ```
 
@@ -338,9 +366,41 @@ High-performance hashing extensions supporting modern and legacy algorithms.
 *   **Unified Extensions**: `model.Serialize(method)` supports both JSON and Query String formats.
 *   **Safe Stream Consumption**: `ToBinaryDataAsync` and `ToArrayAsync` extensions with `MaxSizeGuard` to prevent memory exhaustion from untrusted streams.
 
-### Validation
+### programatic Validation
 Extensions for programmatic validation using `System.ComponentModel.DataAnnotations`.
 *   **Contextual**: Integrates with `DRN.Framework.SharedKernel.ValidationException` for standardized error reporting across layers.
+
+## Pagination
+
+The framework provides `IPaginationUtils` for high-performance, monotonic cursor-based pagination. It leverages the temporal sequence of `SourceKnownEntityId` to ensure stable results even as data is being added.
+
+```csharp
+public class OrderService(IPaginationUtils pagination)
+{
+    public async Task<PaginationResult<Order>> GetRecentOrdersAsync(PaginationRequest request)
+    {
+        var query = dbContext.Orders.Where(x => x.Active);
+        return await pagination.GetResultAsync(query, request);
+    }
+}
+```
+
+## Bit Packing
+
+For scenarios requiring custom ID generation or compact binary data structures, use `NumberBuilder` and `NumberParser`. These ref-structs provide zero-allocation bit manipulation.
+
+```csharp
+// Use NumberBuilder to pack data into a long
+var builder = NumberBuilder.GetLong();
+builder.TryAddNibble(0x05);  // Add 4 bits
+builder.TryAddUShort(65535); // Add 16 bits
+long packedValue = builder.GetValue();
+
+// Use NumberParser to unpack
+var parser = NumberParser.Get(packedValue);
+byte nibble = parser.ReadNibble();
+ushort value = parser.ReadUShort();
+```
 
 ```csharp
 // Multi-format serialization
@@ -354,7 +414,51 @@ var hash = data.Hash(HashAlgorithm.Blake3);
 var bytes = await requestStream.ToBinaryDataAsync(maxSize: 1024 * 1024);
 ```
 
-## Utilities
+## Diagnostics
+
+### Development Status
+
+Track database migration status and pending model changes in real-time during development.
+
+```csharp
+public class StartupService(DevelopmentStatus status, IScopedLog log)
+{
+    public void CheckStatus()
+    {
+        if (status.HasPendingChanges)
+        {
+            log.AddToActions("Warning: Pending database changes detected");
+            foreach (var model in status.Models)
+            {
+                 model.LogChanges(log, "Development");
+            }
+        }
+    }
+}
+```
+
+## Time & Async
+
+### High-Performance Time (`TimeStampManager`)
+
+For systems requiring frequent timestamp lookups (like ID generation or rate limiting), `TimeStampManager` provides a cached UTC timestamp updated periodically (default 10ms) to reduce `DateTimeOffset.UtcNow` overhead.
+
+```csharp
+long seconds = TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
+DateTimeOffset now = TimeStampManager.UtcNow; // Cached precision up to the second
+```
+
+### Async-Safe Timer (`RecurringAction`)
+
+A lock-free, atomic timer implementation that prevents overlapping executions if one cycle takes longer than the period.
+
+```csharp
+var worker = new RecurringAction(async () => {
+    await DoHeavyWork();
+}, period: 1000, start: true);
+
+worker.Stop();
+```
 
 ### ID Generation & Validation
 
@@ -382,7 +486,7 @@ var sourceKnownId = userInstance.GetEntityId<User>(externalGuidId);
 ```
 
 ### Time
-`TimeProvider` singleton is registered by default to `TimeProvider.System` for testable time entry.
+`TimeProvider` singleton is registered by default to `TimeProvider.System` for testable time entry. See [Time & Async](#time--async) for high-performance alternatives.
 
 ## Extensions
 
@@ -399,19 +503,26 @@ Advanced DI container manipulation for testing and modularity.
 *   **Querying**: `sc.GetAllAssignableTo<TService>()` retrieves all descriptors matching a type.
 *   **Replacement**: `ReplaceScoped`, `ReplaceSingleton`, and `ReplaceInstance` for mocking/overriding dependencies in integration tests.
 
-### String Extensions
+### String & Binary Extensions
 *   **Casing**: `ToSnakeCase`, `ToCamelCase`, and `ToPascalCase` for clean code-to-external system mapping.
 *   **Parsing**: `string.Parse<T>()` and `string.TryParse<T>(out result)` using the modern `IParsable<T>` interface.
 *   **Binary**: `ToStream()` and `ToByteArray()` shortcuts with UTF8 default.
+*   **FileSystem**: `GetLines()` for `IFileInfo` with efficient physical path reading.
 
 ### Type & Assembly Extensions
 *   **Discovery**: `assembly.GetSubTypes(typeof(T))` and `assembly.GetTypesAssignableTo(to)`.
 *   **Instantiation**: `assembly.CreateSubTypes<T>()` automatically discovers and instantiates classes with parameterless constructors.
 *   **Metadata**: `type.GetAssemblyName()` returns a clean assembly name.
 
+### Flurl & HTTP Diagnostics
+*   **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` captures exhaustive request/response metadata from Flurl exceptions into `IScopedLog`.
+*   **Status Codes**: `GetGatewayStatusCode()` maps API errors to standard gateway codes (502, 503, 504).
+*   **Testing**: `ClearFilteredSetups()` utility for complex test scenarios.
+
 ### Object & Dictionary Extensions
 *   **Deep Discovery**: `instance.GetGroupedPropertiesOfSubtype(type)` recursively finds properties matching a base type across complex object graphs.
 *   **Dictionary Utility**: Extensions for `IDictionary` to handle null-safe value retrieval and manipulation.
+*   **Bit Manipulation**: `GetBitPositions()` for `long` values and bitmask generators for signed/unsigned lengths.
 
 ```csharp
 // Discovery and Instantiation

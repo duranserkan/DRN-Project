@@ -30,6 +30,8 @@
 - [DrnContext](#drncontext)
 - [SourceKnownRepository](#sourceknownrepository)
 - [Attributes & Configuration](#attributes--configuration)
+- [Context-Specific Migrations](#context-specific-migrations)
+- [Identity Naming Conventions](#identity-naming-conventions)
 - [Prototype Mode](#prototype-mode)
 - [Development Environment](#development-environment)
 - [Entity Configuration](#entity-configuration)
@@ -179,6 +181,30 @@ public abstract class DrnContext<TContext> : DbContext, IDrnContext<TContext>
 | `DrnContextServiceRegistration` | Auto-registration, startup validation, migration management |
 | `DrnContextDefaults` | Npgsql defaults, JSON configuration, logging setup |
 | `DrnContextPerformanceDefaults` | Connection pooling, multiplexing, command timeouts |
+| `commandTimeout` | 30 | Standard command timeout in seconds. |
+
+## Context-Specific Migrations
+
+DRN Framework simplifies multi-context projects by automatically managing migration locations via `DrnMigrationsScaffolder`.
+
+- **Automatic Folder Management**: You do not need to specify the `--output-dir` flag when adding migrations. The framework detects the context's namespace and places migrations in a corresponding `Migrations/{ContextName}/` folder.
+- **Clean Project Structure**: Keeps migrations separated logically by context, preventing clutter in the project root.
+
+## Identity Naming Conventions
+
+When using `DrnContextIdentity`, the framework automatically applies clean `snake_case` naming to standard ASP.NET Core Identity tables.
+
+| Original Table | DRN Table Name |
+| :--- | :--- |
+| `AspNetUsers` | `users` |
+| `AspNetUserLogins` | `user_logins` |
+| `AspNetUserClaims` | `user_claims` |
+| `AspNetRoles` | `roles` |
+| `AspNetUserRoles` | `user_roles` |
+| `AspNetRoleClaims` | `role_claims` |
+| `AspNetUserTokens` | `user_tokens` |
+
+This ensures that your identity schema feels at home with the rest of your `snake_case` domain tables.
 
 ### Features
 
@@ -396,6 +422,7 @@ Provides framework defaults for Npgsql and EF Core:
 - Migrations assembly: Context's assembly
 - Migrations history table: `{context_name}_history` in `__entity_migrations` schema
 - PostgreSQL version: 18.1
+- **Database History**: Automically placed in the `__entity_migrations` schema (e.g., `__entity_migrations.mycontext_history`) to keep the public schema focused on domain data.
 
 **Data Source Defaults:**
 - Parameter logging: Disabled

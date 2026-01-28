@@ -32,6 +32,9 @@
 - [Security Features](#security-features)
 - [Endpoint Management](#endpoint-management)
 - [Razor TagHelpers](#razor-taghelpers)
+- [Developer Diagnostics](#developer-diagnostics)
+- [Modern HTTP Standards](#modern-http-standards)
+- [GDPR & Consent Integration](#gdpr--consent-integration)
 - [Local Development](#local-development-infrastructure)
 - [Global Usings](#global-usings)
 
@@ -197,7 +200,7 @@ These hooks define the request processing middleware sequence.
 | Hook | Purpose |
 | :--- | :--- |
 | `ValidateEndpoints` | Ensures all type-safe endpoint accessors match actual mapped routes. |
-| `ValidateServicesAsync` | Scans the container for `[Attribute]` based registrations and ensures they are resolvable. |
+| `ValidateServicesAsync` | Scans the container for `[Attribute]` based registrations and ensures they are resolvable at startup via `ValidateServicesAddedByAttributesAsync`. |
 
 ### 4. MFA Configuration Hooks
 
@@ -354,11 +357,38 @@ string profileUrl = Get.User.ProfileDetail.Path(new() { ["id"] = userId.ToString
 
 | TagHelper | Target | Purpose |
 | :--- | :--- | :--- |
-| `ViteScriptTagHelper` | `<script src="buildwww/...">` | Resolves Vite manifest entries and adds subresource integrity. |
-| `NonceTagHelper` | `<script>`, `<style>` | Automatically injects the request-specific CSP nonce. |
-| `CsrfTokenTagHelper` | `hx-post`, `hx-put` | Automatically adds `RequestVerificationToken` to HTMX headers. |
+| `ViteScriptTagHelper` | `<script src="buildwww/...">` | Resolves Vite manifest entries, adds subresource integrity (SRI), and automatic nonce. |
+| `NonceTagHelper` | `<script>`, `<style>`, `<link>`, `<iframe>` | Automatically injects the request-specific CSP nonce. |
+| `CsrfTokenTagHelper` | `hx-post`, `hx-put`, etc. | Automatically adds `RequestVerificationToken` to HTMX headers for non-GET requests. |
 | `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Renders the element only if the user has an active MFA session. |
 | `PageAnchorTagHelper` | `<a asp-page="...">` | Automatically adds `active` CSS class if the link matches current page. |
+
+## Developer Diagnostics
+
+DRN Hosting provides deep observability into application failures, especially during the critical startup phase.
+
+### Startup Exception Reports
+If the application fails to start during `RunAsync`, it generates a `StartupExceptionReport.html` in the execution directory. This report includes:
+-   Full stack traces with source code highlighting (if symbols available).
+-   Environment details and configuration snapshots.
+-   Scoped logs leading up to the crash.
+
+### Custom Error Pages
+The framework includes built-in Razor Pages for developer-time exception handling:
+-   **RuntimeExceptionPage**: Detailed breakdown of unhandled exceptions with request state and logs.
+-   **CompilationExceptionPage**: Visualizes Razor or code compilation errors with line-specific highlighting.
+
+## Modern HTTP Standards
+
+DRN Hosting enforces modern web standards to improve security and predictability:
+-   **303 See Other**: The middleware automatically converts `302 Found` redirects to `303 See Other`. This ensures that following a POST request, the browser correctly uses `GET` for the redirected URL, adhering to established web patterns.
+-   **Strict Caching**: By default, `Cache-Control: no-store, no-cache, must-revalidate` is applied to all sensitive responses to prevent data leaking into shared or browser caches.
+
+## GDPR & Consent Integration
+
+The framework provides a structured way to handle user privacy choices:
+-   **ConsentCookie**: A strongly-typed model to track analytics and marketing preferences.
+-   **Middleware Integration**: `ScopedUserMiddleware` automatically extracts consent data and makes it available via `ScopeContext.Data`, allowing services to check consent status without reaching into the raw cookie.
 
 ### Example: Secure Script Loading
 ```html
