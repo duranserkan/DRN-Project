@@ -53,7 +53,6 @@ public class SourceKnownIdUtilsBenchmark
     private static SourceKnownIdUtils Utils { get; }
     private static SourceKnownEntityIdUtils EntityIdUtils { get; }
     private static YEntity Entity { get; } = new(5);
-    private static YEntity Entity2 { get; } = new(5);
 
     [Benchmark]
     public long RandomLong() => BinaryPrimitives.ReadInt64LittleEndian(RandomNumberGenerator.GetBytes(8));
@@ -63,9 +62,6 @@ public class SourceKnownIdUtilsBenchmark
 
     [Benchmark]
     public Guid RandomGuidV7() => Guid.CreateVersion7();
-
-    [Benchmark]
-    public DateTimeOffset MonotonicSystemDateTime_UtcNow() => MonotonicSystemDateTime.UtcNow;
 
     [Benchmark]
     public long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);

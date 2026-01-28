@@ -59,7 +59,6 @@ public class DateTimeProviderBenchmark
         {
             _ = DateTime.UtcNow;
             _ = DateTimeOffset.UtcNow;
-            _ = MonotonicSystemDateTime.UtcNow;
             _ = _stopwatch.Elapsed;
             _ = Stopwatch.GetTimestamp();
         }
@@ -81,9 +80,6 @@ public class DateTimeProviderBenchmark
 
     [Benchmark]
     public DateTimeOffset Stopwatch_DateTime() => new(_stopwatch.Elapsed.Ticks + 2, TimeSpan.Zero);
-
-    [Benchmark]
-    public DateTimeOffset MonotonicSystemDateTime_UtcNow() => MonotonicSystemDateTime.UtcNow;
 
     [Benchmark]
     public DateTimeOffset SystemDateTime_UtcNow() => DateTimeOffset.UtcNow;
