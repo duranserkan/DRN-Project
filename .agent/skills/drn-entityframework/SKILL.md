@@ -187,11 +187,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 ### HasDrnContextServiceCollectionModuleAttribute
 
 ```csharp
-[HasDrnContextServiceCollectionModule]
+[DrnContextServiceRegistration, DrnContextDefaults, DrnContextPerformanceDefaults]
 public abstract class DrnContext<TContext> : DbContext, 
     IDesignTimeDbContextFactory<TContext>, 
     IDesignTimeServices 
-    where TContext : DbContext, new()
+    where TContext : DrnContext<TContext>, new()
 ```
 
 ### Post-Startup Validation

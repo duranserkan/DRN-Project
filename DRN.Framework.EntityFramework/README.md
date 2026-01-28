@@ -50,9 +50,6 @@ public class User : SourceKnownEntity
 }
 
 // 2. Create your context inheriting from DrnContext
-[DrnContextServiceRegistration]
-[DrnContextDefaults]
-[DrnContextPerformanceDefaults]
 public class AppContext : DrnContext<AppContext>
 {
     public AppContext(DbContextOptions<AppContext> options) : base(options) { }
@@ -163,11 +160,12 @@ public readonly record struct SourceKnownEntityId(
 
 `DrnContext` is the foundational `DbContext` implementation that integrates with the DRN Framework ecosystem.
 
-### Required Attributes
+### Standard Attributes (Inherited)
 
-Every `DrnContext` must be decorated with three attributes:
+Every `DrnContext` automatically inherits three critical attributes from the base class. You do not need to add them again unless you want to override their default parameters.
 
 ```csharp
+// The base class defines these defaults:
 [DrnContextServiceRegistration, DrnContextDefaults, DrnContextPerformanceDefaults]
 public abstract class DrnContext<TContext> : DbContext, IDrnContext<TContext> 
     where TContext : DrnContext<TContext>, new()
@@ -223,9 +221,6 @@ public class User : SourceKnownEntity
 ### Example
 
 ```csharp
-[DrnContextServiceRegistration]
-[DrnContextDefaults]
-[DrnContextPerformanceDefaults]
 public class QAContext : DrnContext<QAContext>
 {
     public QAContext(DbContextOptions<QAContext> options) : base(options) { }
@@ -484,8 +479,6 @@ public class MyContextOptions : NpgsqlDbContextOptionsAttribute
 **Usage:**
 
 ```csharp
-[DrnContextServiceRegistration]
-[DrnContextDefaults]
 [MyContextOptions(UsePrototypeMode = true)]
 public class MyDbContext : DrnContext<MyDbContext> { }
 ```
@@ -528,8 +521,6 @@ Prototype mode requires **all three** of the following conditions:
 1. **Attribute Configuration**: Set `UsePrototypeMode = true` on your `NpgsqlDbContextOptionsAttribute`
 
 ```csharp
-[DrnContextServiceRegistration]
-[DrnContextDefaults]
 [MyProjectPrototypeSettings(UsePrototypeMode = true)]
 public class MyDbContext : DrnContext<MyDbContext> { }
 ```
