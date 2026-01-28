@@ -85,7 +85,7 @@ public static IServiceCollection AddMyServices(this IServiceCollection sc)
 }
 
 // Validation:
-serviceProvider.ValidateServicesAddedByAttributes();
+serviceProvider.ValidateServicesAddedByAttributesAsync(); // Validate registered services health
 ```
 
 ### HasServiceCollectionModuleAttribute
@@ -106,6 +106,13 @@ public interface IAppSettings
 {
     AppEnvironment Environment { get; }
     IConfiguration Configuration { get; }
+    DrnAppFeatures Features { get; }
+    DrnLocalizationSettings Localization { get; }
+    DrnDevelopmentSettings DevelopmentSettings { get; }
+    NexusAppSettings NexusAppSettings { get; }
+    bool IsDevEnvironment { get; }
+    string AppKey { get; }
+    string ApplicationName { get; }
     
     bool TryGetConnectionString(string name, out string connectionString);
     string GetRequiredConnectionString(string name);
@@ -113,7 +120,7 @@ public interface IAppSettings
     IConfigurationSection GetRequiredSection(string key);
     T? GetValue<T>(string key);
     T? GetValue<T>(string key, T defaultValue);
-    T? Get<T>(string key, Action<BinderOptions>? configureOptions = null);
+    T? Get<T>(string key, bool errorOnUnknownConfiguration = false, bool bindNonPublicProperties = true);
     ConfigurationDebugView GetDebugView();
 }
 ```
@@ -171,12 +178,26 @@ public class MyService(IScopedLog scopedLog)
 {
     public void DoWork()
     {
-        scopedLog.Add("Operation", "DoWork");
-        scopedLog.AddToActions("Started processing");
-        
-        using var duration = scopedLog.Measure("ProcessingTime");
-        // work...
-    }
+| `Add(key, value)` | Add structured log entry |
+| `AddToActions(msg)` | Add entry to execution trail |
+| `Measure(key)` | Capture execution duration |
+| `AddException(ex)` | Logs exception with inner details |
+| `Increase(key, by)` | Atomically increment a counter |
+| `IncreaseTimeSpentOn(key, by)` | Accumulate time for a metric |
+
+```csharp
+public interface IScopedLog
+{
+    TimeSpan ScopeDuration { get; }
+    IReadOnlyDictionary<string, object> Logs { get; }
+    bool HasException { get; }
+    bool HasWarning { get; }
+
+    IScopedLog Add(string key, object value);
+    void AddToActions(string action);
+    void AddException(Exception exception, string? message = null);
+    ScopeDuration Measure(string key);
+    long Increase(string key, long by = 1, string prefix = "Stats");
 }
 ```
 

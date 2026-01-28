@@ -69,11 +69,9 @@ public void MyTest(DrnTestContext context, IMockable mock)
 
 ### Key Properties
 
-| Property | Purpose |
-|----------|---------|
 | `ServiceCollection` | Add services before building |
-| `ContainerContext` | PostgreSQL testcontainer management |
-| `ApplicationContext` | Full application context |
+| `ContainerContext` | Postgres and RabbitMq testcontainer management |
+| `ApplicationContext` | Full application context (WebApplicationFactory) |
 | `FlurlHttpTest` | HTTP mocking for external calls |
 | `Configuration` | Test configuration |
 
@@ -136,11 +134,9 @@ public async Task ApiTest(DrnTestContext context, ITestOutputHelper outputHelper
 
 ### Key Methods
 
-| Method | Purpose |
-|--------|---------|
-| `CreateClientAsync<TProgram>(outputHelper)` | Create authenticated HTTP client |
-| `CreateApplicationAndBindDependenciesAsync<TProgram>()` | Bind dependencies without HTTP client |
-| `LogToTestOutput(outputHelper)` | Direct logs to test output |
+| `CreateClientAsync<TProgram>(outputHelper, clientOptions)` | Create authenticated HTTP client |
+| `CreateApplicationAndBindDependenciesAsync<TProgram>(outputHelper)` | Bind dependencies without HTTP client |
+| `LogToTestOutput(outputHelper, debuggerOnly)` | Direct logs to test output |
 
 ### Features
 - Syncs DrnTestContext with WebApplicationFactory

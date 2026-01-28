@@ -159,12 +159,16 @@ public class SampleProgramActions : DrnProgramActions
         // Hook into builder creation (e.g., launch containers)
     }
 
-    public override async Task ApplicationBuiltAsync<TProgram>(...)
+    public override async Task ApplicationBuiltAsync<TProgram>(
+        TProgram program, WebApplication application,
+        IAppSettings appSettings, IScopedLog scopedLog)
     {
-        // Hook after application is built (e.g., final validations)
+        // Hook after app is built
     }
 
-    public override async Task ApplicationValidatedAsync<TProgram>(...)
+    public override async Task ApplicationValidatedAsync<TProgram>(
+        TProgram program, WebApplication application,
+        IAppSettings appSettings, IScopedLog scopedLog)
     {
         // Hook after DRN validations (e.g., seed data)
     }

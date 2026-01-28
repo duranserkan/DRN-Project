@@ -289,23 +289,32 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     
     // Data Access
     Task<TEntity> GetAsync(Guid id);
+    Task<TEntity> GetAsync(SourceKnownEntityId id);
+    Task<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true);
     Task<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true);
+    
+    // Batch Retrieval
+    Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);
+    Task<TEntity[]> GetAsync(IReadOnlyCollection<SourceKnownEntityId> ids);
+    Task<TEntity[]> GetAllAsync(); 
     
     // Batch & Counts
     Task<bool> AnyAsync(Expression<Func<TEntity, bool>>? predicate = null);
+    Task<bool> AllAsync(Expression<Func<TEntity, bool>> predicate);
     Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null);
     
     // Modification
     void Add(params IReadOnlyCollection<TEntity> entities);
     void Remove(params IReadOnlyCollection<TEntity> entities);
+    Task<int> CreateAsync(params IReadOnlyCollection<TEntity> entities);
+    Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities);
+    Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids);
+    Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids);
     Task<int> SaveChangesAsync();
-    
-    // Pagination & Streaming
+
+    // Pagination
     Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
     IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
-    
-    // Dangerous
-    Task<TEntity[]> GetAllAsync();
 }
 ```
 

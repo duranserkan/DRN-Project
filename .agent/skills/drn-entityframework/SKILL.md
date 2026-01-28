@@ -180,6 +180,21 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 }
 ```
 
+### DB Context Attributes
+
+| Attribute | Purpose |
+|-----------|---------|
+| `[NpgsqlDbContextOptions]` | Configure Postgres specific options (NpgsqlOptions, DataSource, DbContextOptions) |
+| `[DrnContextDefaults]` | Apply standard DRN conventions (Naming, Discovery) |
+| `[DrnContextPerformanceDefaults]` | Apply performance optimizations (NoTracking, etc.) |
+
+**Npgsql Configuration Hooks**:
+```csharp
+public virtual void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder, IServiceProvider? serviceProvider);
+public virtual void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider serviceProvider);
+public virtual void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder builder, IServiceProvider? serviceProvider);
+```
+
 ---
 
 ## Service Registration
@@ -236,13 +251,23 @@ global using DRN.Framework.Utils.DependencyInjection;
 
 ```
 
-## SourceKnownRepository Implementation
+### SourceKnownRepository Implementation
 
 `SourceKnownRepository<TContext, TEntity>` implements `ISourceKnownRepository<TEntity>`:
 
 - Uses `IEntityUtils` for ID validation and parsing.
 - Implements `GetAsync`, `GetOrDefaultAsync` using `SourceKnownEntityId` validation.
 - Provides automatic `ScopedLog` measurements for operations.
+
+**Pagination Overloads**:
+```csharp
+// Simple
+Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
+
+// Full control (Jump to, manual total count, etc.)
+Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null, long jumpTo = 1, int pageSize = -1, int maxSize = -1, PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false);
+```
+
 - See [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) for the interface definition.
 
 ---

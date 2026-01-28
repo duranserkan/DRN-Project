@@ -93,8 +93,7 @@ public interface IDomainEvent
 {
     Guid Id { get; }
     DateTimeOffset Date { get; }
-    long Next<TEntity>() where TEntity : SourceKnownEntity;
-    string EntityName { get; }
+    Guid EntityId { get; }
 }
 
 public abstract class DomainEvent(SourceKnownEntity entity) : IDomainEvent;
@@ -114,19 +113,25 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     Task<TEntity> GetAsync(Guid id);
     Task<TEntity> GetAsync(SourceKnownEntityId id);
     Task<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true); // Validates ID before query
+    Task<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true);
     
     // Batch Retrieval
     Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);
+    Task<TEntity[]> GetAsync(IReadOnlyCollection<SourceKnownEntityId> ids);
     Task<TEntity[]> GetAllAsync(); // ⚠️ Use with caution
     
-    // CRUD
+    // Commands
     void Add(params IReadOnlyCollection<TEntity> entities);
     void Remove(params IReadOnlyCollection<TEntity> entities);
+    Task<int> CreateAsync(params IReadOnlyCollection<TEntity> entities);
+    Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities);
+    Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids);
+    Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids);
     Task<int> SaveChangesAsync();
     
     // Utility
     SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
-    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id);
+    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;
 
     // Pagination
     Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
