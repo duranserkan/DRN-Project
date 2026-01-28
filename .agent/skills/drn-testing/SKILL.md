@@ -51,7 +51,7 @@ Core test context providing service collection and provider.
 
 `DrnTestContext` augments the test environment by:
 - **Auto-Registration**: Automatically calls `AddDrnUtils()` (logging, settings, etc.).
-- **Startup Jobs**: Triggers `StartupJobRunner` to handle one-time setups (e.g., Auth tokens, global config) defined via `[StartupJob]`.
+- **Startup Jobs**: Triggers `StartupJobRunner` to handle one-time setups (e.g., Auth tokens, global config) defined via `ITestStartupJob`.
 - **Method Context**: Captures test method metadata for folder-based settings resolution.
 
 ```csharp
@@ -84,7 +84,6 @@ public void MyTest(DrnTestContext context, IMockable mock)
 | `ValidateServicesAsync()` | Validate attribute-based services |
 | `GetData(path)` | Get test data file content |
 | `AddToConfiguration(object)` | Add configuration before service resolution |
-| `CreateScope()` | Create new DI scope for concurrent contexts |
 
 ---
 
