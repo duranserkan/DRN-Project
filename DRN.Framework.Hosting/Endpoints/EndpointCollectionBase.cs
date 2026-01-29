@@ -53,7 +53,9 @@ public abstract class EndpointCollectionBase<TProgram>
     {
         var pageEndpoints = Endpoints
             .Where(e => e is RouteEndpoint && e.Metadata.GetMetadata<PageActionDescriptor>() != null)
-            .Select(e => new PageEndpoint((RouteEndpoint)e));
+            .Cast<RouteEndpoint>()
+            .GroupBy(e => e.Metadata.GetMetadata<PageActionDescriptor>()!.RelativePath)
+            .Select(g => new PageEndpoint(g.ToArray()));
 
         return pageEndpoints.ToArray();
     }
