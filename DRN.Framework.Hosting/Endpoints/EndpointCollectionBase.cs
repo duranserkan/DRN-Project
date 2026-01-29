@@ -52,7 +52,8 @@ public abstract class EndpointCollectionBase<TProgram>
     private static PageEndpoint[] InitializePageEndpoints()
     {
         var pageEndpoints = Endpoints
-            .Where(e => e is RouteEndpoint && e.Metadata.GetMetadata<PageActionDescriptor>() != null)
+            .Where(e => e is RouteEndpoint { RoutePattern.RawText: not null } 
+                        && e.Metadata.GetMetadata<PageActionDescriptor>() is not null)
             .Cast<RouteEndpoint>()
             .GroupBy(e => e.Metadata.GetMetadata<PageActionDescriptor>()!.RelativePath)
             .Select(g => new PageEndpoint(g.ToArray()));
@@ -153,7 +154,7 @@ public class DrnEndpointSource
             .ToDictionary(
                 group => group.Key,
                 group => group.Select(endpoint => endpoint.Metadata.GetRequiredMetadata<ControllerActionDescriptor>()).ToArray());
-        
+
         EndpointDescriptorMap = Endpoints
             .OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.Metadata.GetMetadata<ControllerActionDescriptor>() != null)
