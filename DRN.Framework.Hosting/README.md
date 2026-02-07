@@ -124,6 +124,9 @@ flowchart TD
             CAB --> CSHPB["ConfigureSecurityHeaderPolicyBuilder()"]
             CAB --> CCP["ConfigureCookiePolicy()"]
             CAB --> CSFO["ConfigureStaticFileOptions()"]
+            CAB --> CRCO["ConfigureResponseCachingOptions()"]
+            CAB --> CRCMO["ConfigureResponseCompressionOptions()"]
+            CAB --> CCP2["ConfigureCompressionProviders()"]
             CAB --> CFHO["ConfigureForwardedHeadersOptions()"]
             CAB --> CMVCB["ConfigureMvcBuilder()"]
             CAB --> CAO["ConfigureAuthorizationOptions()"]
@@ -138,7 +141,7 @@ flowchart TD
             A_NOTE["Note: Handles Middleware Pipeline"]
             Build --> CA["ConfigureApplication()"]
             CA --> CAPS["ConfigureApplicationPipelineStart() (HSTS/Headers)"]
-            CAPS --> CAPR["ConfigureApplicationPreScopeStart() (Static Files)"]
+            CAPS --> CAPR["ConfigureApplicationPreScopeStart() (Caching/Compression/Static)"]
             CAPR --> HSM["HttpScopeMiddleware (TraceId/Logging)"]
             HSM --> CPSS["ConfigureApplicationPostScopeStart()"]
             CPSS --> UR["UseRouting()"]
@@ -175,13 +178,17 @@ flowchart TD
     classDef action fill:#FFE0B2,stroke:#F57C00,stroke-width:2px,color:#E65100
     classDef core fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20
     classDef note fill:#FFF9C4,stroke:#F57C00,stroke-width:1px,color:#E65100,stroke-dasharray: 5 5
+    classDef decision fill:#FFE0B2,stroke:#E65100,stroke-width:3px,color:#E65100
 
     %% Apply Styles
-    class CAB,CSO,CDSH,CDCSP,CSHPB,CCP,CSFO,CFHO,CMVCB,CAO,ASA builderNode
+    class CAB,CSO,CDSH,CDCSP,CSHPB,CCP,CSFO,CRCO,CRCMO,CCP2,CFHO,CMVCB,CAO,ASA builderNode
     class CA,CAPS,CAPR,HSM,CPSS,UR,CAPREA,AUTH,SUM,CAPOSTA,MFAE,MFAR,UA,CPSTAZ,MAE appNode
     class ABC,ABA,AVA action
     class Start,Build,VE,VSA,Run core
     class B_NOTE,A_NOTE note
+
+    %% Link Styles for Decision Paths (Grey Arrows)
+    linkStyle default stroke:#666,stroke-width:2px
 ```
 
 ## DrnProgramBase Deep Dive
@@ -208,7 +215,11 @@ These hooks run while the `WebApplicationBuilder` is active, allowing you to con
 | **Infras.** | `ConfigureForwardedHeadersOptions` | Configure proxy/load-balancer header forwarding. |
 | **Infras.** | `ConfigureRequestLocalizationOptions` | Configure culture providers and supported cultures. |
 | **Infras.** | `ConfigureHostFilteringOptions` | Configure allowed hosts for host header validation. |
-| **Infras.** | `ConfigureResponseCachingOptions` | Configure response caching middleware settings. |
+| **Infras.** | `ConfigureResponseCachingOptions` | Configure server-side response caching with sensible defaults (16MB max body size, case-insensitive paths). |
+| **Infras.** | `ConfigureResponseCompressionOptions` | Configure response compression (Brotli/Gzip) for static assets. HTTPS compression disabled by default for BREACH prevention. |
+| **Infras.** | `ConfigureCompressionProviders` | Configure Brotli and Gzip compression provider options including compression levels. |
+| **Infras.** | `ConfigureBrotliCompressionLevel` | Customize Brotli compression level (default: SmallestSize for static assets). |
+| **Infras.** | `ConfigureGzipCompressionLevel` | Customize Gzip compression level (default: SmallestSize for static assets). |
 | **Global** | `AddServicesAsync` | **[Required]** The primary place to register your application services. |
 
 ### 2. Pipeline Hooks (Application Phase)
@@ -218,7 +229,7 @@ These hooks define the request processing middleware sequence.
 | Order | Hook | Typical Usage |
 | :--- | :--- | :--- |
 | **1** | `ConfigureApplicationPipelineStart` | `UseForwardedHeaders`, `UseHostFiltering`, `UseCookiePolicy`. |
-| **2** | `ConfigureApplicationPreScopeStart` | `UseStaticFiles`. Runs before request logging/trace ID is established. |
+| **2** | `ConfigureApplicationPreScopeStart` | `UseResponseCaching`, `UseResponseCompression`, `UseStaticFiles`. Caching placed before compression for efficiency. |
 | **3** | `ConfigureApplicationPostScopeStart` | Add middleware that needs access to `IScopedLog` but runs before routing. |
 | **4** | `ConfigureApplicationPreAuthentication` | `UseRequestLocalization`. Runs before the user identity is resolved. |
 | **5** | `ConfigureApplicationPostAuthentication` | `MfaRedirectionMiddleware`, `MfaExemptionMiddleware`. Logic that runs after the user is known but before access checks. |

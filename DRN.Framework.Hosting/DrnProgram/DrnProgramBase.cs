@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Reflection;
 using System.Security.Claims;
 using DRN.Framework.Hosting.Auth;
@@ -28,6 +29,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCaching;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -49,7 +51,6 @@ public interface IDrnProgram
     static abstract Task Main(string[] args);
 }
 //todo: add rate limit
-//todo: add static file cache && compression
 //todo: add cookie manager
 //todo: add csp manager
 //todo: review page for and endpoint for
@@ -167,7 +168,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         }
         catch (Exception e)
         {
-            _ = e; // ignored
+            logger.LogDebug(e, "Failed to generate startup exception report");
         }
     }
 
@@ -240,6 +241,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         });
 
         services.AddResponseCaching(ConfigureResponseCachingOptions);
+        services.AddResponseCompression(ConfigureResponseCompressionOptions);
+        ConfigureCompressionProviders(services);
         var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
         ConfigureMvcBuilder(mvcBuilder, appSettings);
 
@@ -290,7 +293,6 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         application.UseMiddleware<ScopedUserMiddleware>();
         ConfigureApplicationPostAuthentication(application, appSettings);
         application.UseAuthorization();
-        application.UseResponseCaching();
         ConfigureApplicationPostAuthorization(application, appSettings);
 
         MapApplicationEndpoints(application, appSettings);
@@ -417,12 +419,12 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         //https://learn.microsoft.com/en-us/aspnet/core/security/gdpr
         options.HttpOnly = HttpOnlyPolicy.None; //Ensures cookies are accessible via JavaScript, use with strict csp
         options.MinimumSameSitePolicy = SameSiteMode.Strict;
-        options.Secure = CookieSecurePolicy.SameAsRequest;
+        options.Secure = appSettings.IsDevEnvironment ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 
         options.ConsentCookieValue = ConsentCookie.DefaultValue.Encode();
-        //default cookie name(.AspNet.Consent) exposes server
+        // default cookie name(.AspNet.Consent) exposes server
         options.ConsentCookie.Name = appSettings.GetAppSpecificName("CookieConsent");
-        options.CheckConsentNeeded = _ => true; //user consent for non-essential cookies is needed for a given request.
+        options.CheckConsentNeeded = _ => true; // user consent for non-essential cookies is needed for a given request.
     }
 
     protected virtual void ConfigureCookieTempDataProvider(CookieTempDataProviderOptions options, IAppSettings appSettings)
@@ -458,12 +460,26 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             };
         };
 
+    /// <summary>
+    /// Configures static file serving with HTTPS compression enabled.
+    /// <para>
+    /// <b>Cache-Control: public</b> enables server-side caching of compressed bytes via ResponseCaching middleware.
+    /// </para>
+    /// </summary>
+    /// <remarks>
+    /// <list type="bullet">
+    ///   <item><a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/static-files">Static files in ASP.NET Core</a></item>
+    ///   <item><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression#compression-with-https">Compression with HTTPS</a></item>
+    /// </list>
+    /// </remarks>
     protected virtual Action<StaticFileOptions> ConfigureStaticFileOptions(IAppSettings appSettings) =>
         options =>
         {
             options.HttpsCompression = HttpsCompressionMode.Compress;
             options.OnPrepareResponse = context =>
             {
+                // Note: This 'public' header triggers the ResponseCaching middleware placed before UseStaticFiles in the pipeline.
+                // This allows the server to cache the compressed bytes of static assets in memory.
                 context.Context.Response.Headers.CacheControl = "public,max-age=31536000"; // 1 year
             };
         };
@@ -513,13 +529,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     {
         application.UseForwardedHeaders();
         application.UseHostFiltering();
-        //enforce strict security experimental, If cookie is not HttpOnly it must be set by js in client-side
-        application.UseCookiePolicy(new CookiePolicyOptions
-        {
-            Secure = appSettings.IsDevEnvironment ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always,
-            HttpOnly = HttpOnlyPolicy.Always,
-            MinimumSameSitePolicy = SameSiteMode.Strict
-        });
+        application.UseCookiePolicy();
         application.UseSecurityHeaders();
     }
 
@@ -528,8 +538,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// </summary>
     protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
     {
-        //todo add response caching for static resources and html pages
-        //todo consider response compression for static resources or general usage
+        // For Performance, Caching placed before Compression.
+        // This ensures the server caches the ALREADY COMPRESSED bytes in memory, saving CPU cycles on every cache hit.
+        // By placing these before UseStaticFiles, static resources are also compressed and cached server-side.
+        application.UseResponseCaching();
+        application.UseResponseCompression();
         application.UseStaticFiles();
     }
 
@@ -590,14 +603,6 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// </summary>
     protected virtual MfaRedirectionConfig? ConfigureMFARedirection() => null;
 
-    /// <summary>
-    /// Configures MFA (Multi-Factor Authentication) redirection logic when return value is not null:
-    /// <ul>
-    ///   <li>Redirects to <c>MFALoginUrl</c> if <c>MFAInProgress</c> is true for the user is logged in with a single factor</li>
-    ///   <li>Redirects to <c>MFASetupUrl</c> if <c>MFASetupRequired</c> is true for a new user without MFA configured.</li>
-    ///   <li>Prevents misuse or abuse of <c>MFALoginUrl</c> and <c>MFASetupUrl</c> routes.</li>
-    /// </ul>
-    /// </summary>
     protected virtual MfaExemptionConfig? ConfigureMFAExemption() => null;
 
     /// <summary>
@@ -622,9 +627,99 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         options.FallbackPolicy = options.GetPolicy(AuthPolicy.Mfa)!;
     }
 
+    /// <summary>
+    /// Sensible defaults for response caching.
+    /// <para>
+    /// <b>Caching Behavior:</b>
+    /// <list type="bullet">
+    ///   <item><b>Static Assets:</b> Automatically cached because <see cref="ConfigureStaticFileOptions"/> adds 'public' cache headers.</item>
+    ///   <item><b>Dynamic API/Pages:</b> NOT cached by default. Use <c>[ResponseCache]</c> attribute to opt-in.</item>
+    ///   <item><b>Auth/Security:</b> Middleware automatically ignores responses with <c>Set-Cookie</c> or <c>Authorization</c> headers for safety.</item>
+    /// </list>
+    /// </para>
+    /// </summary>
     protected virtual void ConfigureResponseCachingOptions(ResponseCachingOptions options)
     {
+        options.MaximumBodySize = 16 * 1024 * 1024; // 16 MB safety limit for memory preservation
+        options.UseCaseSensitivePaths = false;
     }
+
+    /// <summary>
+    /// Configures response compression with security-first defaults.
+    /// <para><b>References:</b></para>
+    /// <list type="bullet">
+    ///   <item><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression">Response compression in ASP.NET Core</a></item>
+    ///   <item><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression#compression-with-https">Compression with HTTPS (BREACH/CRIME)</a></item>
+    ///   <item><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/caching/middleware">Response Caching Middleware</a></item>
+    ///   <item><a href="https://en.wikipedia.org/wiki/BREACH">BREACH attack (Wikipedia)</a></item>
+    /// </list>
+    /// </summary>
+    protected virtual void ConfigureResponseCompressionOptions(ResponseCompressionOptions options)
+    {
+        // STATIC ASSETS (CSS, JS, fonts, images) ARE SAFELY COMPRESSED via ConfigureStaticFileOptions
+        // because they contain no per-user secrets and are identical for all users.
+        // References:
+        //   - Caching exclusion conditions: https://learn.microsoft.com/en-us/aspnet/core/performance/caching/middleware#conditions-for-caching
+        //   - Response compression middleware: https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression
+        options.EnableForHttps = false;
+        options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        [
+            "text/css",
+            "application/javascript",
+            "image/svg+xml",
+            // Font MIME types: modern + legacy for maximum compatibility
+            "font/ttf",
+            "application/x-font-ttf",
+            "font/otf",
+            "font/opentype",
+            "font/woff",
+            "application/font-woff",
+            "font/woff2",
+            "application/font-woff2"
+        ]);
+        options.Providers.Add<BrotliCompressionProvider>();
+        options.Providers.Add<GzipCompressionProvider>();
+    }
+
+    /// <summary>
+    /// Configures Brotli and Gzip compression provider options.
+    /// Override <see cref="ConfigureBrotliCompressionLevel"/> or <see cref="ConfigureGzipCompressionLevel"/>
+    /// to customize compression levels for specific workloads.
+    /// </summary>
+    protected virtual void ConfigureCompressionProviders(IServiceCollection services)
+    {
+        // SmallestSize: Maximum compression because only static files are compressed.
+        // CPU cost is paid once, then ResponseCaching serves compressed bytes from memory.
+        // Bandwidth savings compound across all users.
+        services.Configure<BrotliCompressionProviderOptions>(options => options.Level = ConfigureBrotliCompressionLevel());
+        services.Configure<GzipCompressionProviderOptions>(options => options.Level = ConfigureGzipCompressionLevel());
+    }
+
+    /// <summary>
+    /// Returns the Brotli compression level. Override to customize.
+    /// <para>
+    /// Since only static files are compressed (HTTPS dynamic content is excluded for BREACH prevention),
+    /// maximum compression is optimal: CPU cost is paid once, compressed bytes are cached by ResponseCaching,
+    /// and bandwidth savings compound across all subsequent requests.
+    /// </para>
+    /// <list type="bullet">
+    ///   <item><b>0-3:</b> Fast, low compression (real-time streaming)</item>
+    ///   <item><b>4-6:</b> Balanced (dynamic content if HTTPS compression were enabled)</item>
+    ///   <item><b>7-11:</b> Maximum compression (static assets—compress once, cache forever)</item>
+    /// </list>
+    /// Default: <see cref="CompressionLevel.SmallestSize"/> (Level 11 equivalent)
+    /// </summary>
+    protected virtual CompressionLevel ConfigureBrotliCompressionLevel() => CompressionLevel.SmallestSize;
+
+    /// <summary>
+    /// Returns the Gzip compression level. Override to customize.
+    /// <para>
+    /// Same rationale as Brotli: static files are compressed once and cached,
+    /// so maximum compression maximizes bandwidth savings with no per-request CPU cost.
+    /// </para>
+    /// Default: <see cref="CompressionLevel.SmallestSize"/>
+    /// </summary>
+    protected virtual CompressionLevel ConfigureGzipCompressionLevel() => CompressionLevel.SmallestSize;
 
     protected virtual void ConfigureMvcOptions(MvcOptions options)
     {

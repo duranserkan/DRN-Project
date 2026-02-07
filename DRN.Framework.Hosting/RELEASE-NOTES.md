@@ -19,10 +19,12 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
         *   `ConfigureSwaggerOptions`: Customize OpenAPI metadata.
         *   `ConfigureDefaultSecurityHeaders` / `ConfigureDefaultCsp`: Define security policies.
         *   `ConfigureMvcBuilder` / `ConfigureMvcOptions`: Customize MVC conventions and runtime compilation.
-        *   `ConfigureStaticFileOptions` / `ConfigureResponseCachingOptions`: Optimize asset delivery.
+        *   `ConfigureStaticFileOptions` / `ConfigureResponseCachingOptions`: Optimize asset delivery with server-side response caching (16MB max, case-insensitive) and automatic static asset caching.
+        *   `ConfigureResponseCompressionOptions` / `ConfigureCompressionProviders`: Brotli and Gzip compression for static assets with built-in BREACH/CRIME protection.
+        *   `ConfigureCookiePolicy`: Centralized security settings for cookies (HttpOnly, Secure, SameSite) with environment-aware defaults.
     *   **Pipeline Phase**:
         *   `ConfigureApplicationPipelineStart`: HSTS, Forwarded Headers.
-        *   `ConfigureApplicationPreScopeStart`: Static files (pre-auth).
+        *   `ConfigureApplicationPreScopeStart`: Static files, caching, and compression (caching middleware placed before compression for pre-compressed byte serving).
         *   `ConfigureApplicationPreAuthentication` / `PostAuthentication`: Localization, MFA logic.
         *   `MapApplicationEndpoints`: Route mapping.
     *   **DrnProgramActions**: "Hook Method" pattern for intercepting startup (`ApplicationBuilderCreatedAsync`, `ApplicationBuiltAsync`, `ApplicationValidatedAsync`) without modifying Program.cs.
