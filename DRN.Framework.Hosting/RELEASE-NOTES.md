@@ -2,10 +2,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.7.0
 
-My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals.
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. This release is dedicated to freedom of speech, democracy, and Prof. Dr. Ümit Özdağ, a defender of Mustafa Kemal Atatürk’s enlightenment ideals.
 
 > [!WARNING]
-> Since v0.6.0 (released 10 November 2024), substantial changes have occurred. This release notes file has been reset to reflect the current state of the project as of 29 January 2026. Previous history has been archived to maintain a clean source of truth based on the current codebase.
+> Since v0.6.0 (released 10 November 2024), substantial changes have occurred. This release notes file has been reset to reflect the current state of the project as of 06 February 2026. Previous history has been archived to maintain a clean source of truth based on the current codebase.
 
 ### New Features
 
@@ -24,7 +24,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
         *   `ConfigureCookiePolicy`: Centralized security settings for cookies (HttpOnly, Secure, SameSite) with environment-aware defaults.
     *   **Pipeline Phase**:
         *   `ConfigureApplicationPipelineStart`: HSTS, Forwarded Headers.
-        *   `ConfigureApplicationPreScopeStart`: Static files, caching, and compression (caching middleware placed before compression for pre-compressed byte serving).
+        *   `ConfigureApplicationPreScopeStart`: Static files, caching, and compression.
         *   `ConfigureApplicationPreAuthentication` / `PostAuthentication`: Localization, MFA logic.
         *   `MapApplicationEndpoints`: Route mapping.
     *   **DrnProgramActions**: "Hook Method" pattern for intercepting startup (`ApplicationBuilderCreatedAsync`, `ApplicationBuiltAsync`, `ApplicationValidatedAsync`) without modifying Program.cs.
