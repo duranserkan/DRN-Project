@@ -36,11 +36,13 @@
 - [DebugOnly Tests](#debugonly-tests)
 - [DI Health Validation](#di-health-validation)
 - [JSON Utilities](#json-utilities)
+- [FlurlHttpTest Integration](#flurlhttptest-integration)
 - [Providers](#providers)
-- [Global Usings](#global-usings)
 - [Example Test Project](#example-test-project-csproj-file)
 - [Test Snippet](#test-snippet)
 - [Testing Guide and DTT Approach](#testing-guide-and-dtt-approach)
+- [Global Usings](#global-usings)
+- [Related Packages](#related-packages)
 
 ---
 
@@ -138,7 +140,7 @@ public void TextContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
 * provides `ApplicationContext`
   * syncs `DrnTestContext` service collection and service provider with provided application by WebApplicationFactory
   * supports `ITestOutputHelper` integration for capturing application logs in test output
-* provides `FlurlHttpTest` for mocking external HTTP requests
+* provides `FlurlHttpTest` for mocking external HTTP requests (see [FlurlHttpTest Integration](#flurlhttptest-integration))
 * provides `IConfiguration` and `IAppSettings` with SettingsProvider by using convention.
   * settings.json file can be found in the same folder with test
   * settings.json file can be found in the global Settings folder or Settings folder that stays in the test folder
@@ -268,6 +270,9 @@ For rapid development where migrations are not yet created, use `EnsureDatabaseA
 `ApplicationContext` syncs `DrnTestContext` service collection and service provider with provided application by WebApplicationFactory.
 * You can provide or override configurations and services to your program until you force `WebApplicationFactory` to build a `Host` such as creating `HttpClient` or requesting `TestServer`.
 * Supports `ITestOutputHelper` integration to capture application logs in test output
+* **Automatic Flag Management**: automatically sets the following flags to ensure test isolation and prevent collision with local development infrastructure:
+  *   `TestEnvironment.DrnTestContextEnabled` = `true`
+  *   `AppSettings.DevelopmentSettings.TemporaryApplication` = `true`
 
 ### Basic Usage
 ```csharp
@@ -326,7 +331,7 @@ Capture application logs in test output for debugging:
 
 ## Local Development Experience
 
-`DRN.Framework.Testing` can be used to enhance the local development experience by providing infrastructure management capabilities to the main application during development.
+`DRN.Framework.Testing` enhances local development by providing infrastructure management capabilities directly to the host application.
 
 ### Setup
 
@@ -376,6 +381,75 @@ This feature is particularly useful for:
 *   **Onboarding**: New developers can run the app without manually setting up infrastructure.
 *   **Consistency**: Ensures all developers use the same infrastructure configuration.
 *   **Rapid Prototyping**: Quickly spin up throwaway databases.
+
+---
+
+## Connection String Resolution
+
+The framework uses different strategies for connection string resolution. See the comprehensive flow diagram in [DRN.Framework.EntityFramework README](../DRN.Framework.EntityFramework/README.md#connection-string-resolution-by-environment).
+
+### Key Scenarios
+
+| Scenario | Connection Source | Settings Used |
+|----------|-------------------|---------------|
+| **Production/Staging** | `ConnectionStrings:{ContextName}` | Explicit config only |
+| **Local Debug** | `LaunchExternalDependenciesAsync()` | `PostgresContainerSettings.DefaultPassword` |
+| **Docker/K8s Dev** | `DrnContextDevelopmentConnection` | `DbContextConventions->DrnContext_Dev* & postgres-password` |
+| **DrnTestContext** | `ContainerContext.Postgres` | `PostgresContainerSettings` defaults |
+
+> [!IMPORTANT]
+> **Testcontainers Mode** (tests or `LaunchExternalDependencies = true`):
+> - `postgres-password` and `DrnContext_Dev*` settings are **NOT used**
+> - Containers use [PostgresContainerSettings](Contexts/Postgres/PostgresContainerSettings.cs) defaults:
+>   - `DefaultPassword = "drn"`
+>   - `Username = "drn"` (from `DbContextConventions.DefaultUsername`)
+>   - `Database = "drn"` (from `DbContextConventions.DefaultDatabase`)
+> - Connection strings are automatically injected into configuration
+
+---
+
+### Configuration Settings Reference
+
+#### Settings for Docker/Kubernetes Development
+
+These settings are used **only** by [DrnContextDevelopmentConnection](../DRN.Framework.EntityFramework/Context/DrnContextDevelopmentConnection.cs) for containerized development. They are **NOT used** by `ContainerContext` or `LaunchExternalDependencies`.
+
+| Setting | Default | Source |
+|---------|---------|--------|
+| `DrnContext_DevHost` | `drn` | DbContextConventions.DevHostKey |
+| `DrnContext_DevPort` | `5432` | DbContextConventions.DevPortKey |
+| `DrnContext_DevUsername` | `drn` | DbContextConventions.DevUsernameKey |
+| `DrnContext_DevDatabase` | `drn` | DbContextConventions.DevDatabaseKey |
+| `postgres-password` | *(required)* | DbContextConventions.DevPasswordKey |
+
+#### Migration and Workflow Settings
+Usually set by appsettings.Development.json, environment variables, config maps.
+
+| Setting | Default | Source | Purpose |
+|---------|---------|--------|---------|
+| `DrnDevelopmentSettings:AutoMigrate` | `false` | DrnDevelopmentSettings.AutoMigrate | Enables migration flow |
+| `DrnDevelopmentSettings:Prototype` | `false` | DrnDevelopmentSettings.Prototype | Enable DB recreation on model changes |
+| `DrnDevelopmentSettings:LaunchExternalDependencies` | `false` | DrnDevelopmentSettings.LaunchExternalDependencies | Launch Testcontainers |
+| `DrnDevelopmentSettings:TemporaryApplication` | `false` | DrnDevelopmentSettings.TemporaryApplication | **Auto-set by tests** to prevent collision |
+
+---
+
+### DrnDevelopmentSettings in Tests
+
+`ApplicationContext` automatically manages flags to ensure test isolation:
+
+```csharp
+// Automatically set by ApplicationContext.CreateApplication<TProgram>()
+TestEnvironment.DrnTestContextEnabled = true;
+AppSettings.DevelopmentSettings.TemporaryApplication = true;
+```
+
+**What This Means**:
+- **`TemporaryApplication = true`**: Prevents test runs from interfering with local dev containers
+- **`DrnTestContextEnabled = true`**: Signals test context, enabling test-specific behaviors
+
+
+See [DrnDevelopmentSettings.cs](../DRN.Framework.Utils/Settings/DrnDevelopmentSettings.cs) for the complete class definition.
 
 ## Data Attributes
 DRN.Framework.Testing provides following data attributes that can provide data to tests:
@@ -529,6 +603,69 @@ public void Contract_Should_RoundTrip_Successfully(MyContractDto dto)
 }
 ```
 
+## FlurlHttpTest Integration
+
+`DrnTestContext` provides built-in support for mocking HTTP requests via [Flurl.Http.Testing](https://flurl.dev/docs/testable-http/). This enables testing services that make external API calls without hitting real endpoints.
+
+### Basic Usage
+
+```csharp
+[Theory]
+[DataInline]
+public async Task External_API_Should_Be_Mocked(DrnTestContext context)
+{
+    // Setup mock response
+    context.FlurlHttpTest.RespondWith("{ \"status\": \"ok\" }", 200);
+    
+    context.ServiceCollection.AddSingleton<IExternalApiClient, ExternalApiClient>();
+    var client = context.GetRequiredService<IExternalApiClient>();
+    
+    var result = await client.GetStatusAsync();
+    
+    result.Status.Should().Be("ok");
+    
+    // Verify the request was made
+    context.FlurlHttpTest.ShouldHaveCalled("https://api.example.com/status")
+        .WithVerb(HttpMethod.Get)
+        .Times(1);
+}
+```
+
+### Simulating Failures
+
+```csharp
+[Theory]
+[DataInline]
+public async Task Service_Should_Handle_API_Failure(DrnTestContext context)
+{
+    // Simulate server error
+    context.FlurlHttpTest.RespondWith(status: 500);
+    
+    context.ServiceCollection.AddSingleton<IExternalApiClient, ExternalApiClient>();
+    var client = context.GetRequiredService<IExternalApiClient>();
+    
+    var act = async () => await client.GetStatusAsync();
+    
+    await act.Should().ThrowAsync<FlurlHttpException>();
+}
+```
+
+### Sequential Responses
+
+```csharp
+[Theory]
+[DataInline]
+public async Task Retry_Logic_Should_Work(DrnTestContext context)
+{
+    // First call fails, second succeeds (testing retry logic)
+    context.FlurlHttpTest
+        .RespondWith(status: 503)
+        .RespondWith("{ \"status\": \"ok\" }", 200);
+    
+    // ... test retry behavior
+}
+```
+
 ## Providers
 ### SettingsProvider
 `SettingsProvider` gets the settings from Settings folder. Settings file path is relative Settings folder. Settings folder must be created in the root of the test Project. Make sure the settings file is copied to output directory.
@@ -589,34 +726,6 @@ public void Contract_Should_RoundTrip_Successfully(MyContractDto dto)
 }
 ```
 
-## Global Usings
-Following global usings can be used in a `Usings.cs` file in test projects to reduce line of code in test files
-```csharp
-global using Xunit;
-global using Xunit.v3;
-global using AutoFixture;
-global using AutoFixture.AutoNSubstitute;
-global using AutoFixture.Xunit3;
-global using AwesomeAssertions;
-global using NSubstitute;
-global using Microsoft.Extensions.DependencyInjection;
-global using Microsoft.Extensions.DependencyInjection.Extensions;
-global using Microsoft.Extensions.Configuration;
-global using DRN.Framework.Testing;
-global using DRN.Framework.Testing.Contexts;
-global using DRN.Framework.Testing.DataAttributes;
-global using DRN.Framework.Testing.Providers;
-global using DRN.Framework.Testing.TestAttributes;
-global using DRN.Framework.Utils.Extensions;
-global using DRN.Framework.Utils.Settings;
-global using DRN.Framework.SharedKernel;
-global using DRN.Framework.Utils.DependencyInjection;
-global using System.Reflection;
-global using System.IO;
-global using System.Linq;
-global using System.Collections;
-global using Xunit.Abstractions;
-```
 ## Example Test Project .csproj File
 Don't forget to replace DRN.Framework.Testing project reference with its nuget package reference
 ```xml
@@ -809,19 +918,61 @@ public async Task DTT_Full_Integration_Magic(DrnTestContext context, ITestOutput
 
 ### Willpower Depletion
 
-Willpower is a finite daily resource. When testing requires high activation energy—manually wiring dependencies, managing container lifecycles, and writing boilerplate—it consumes this resource rapidly. This leads to "testing fatigue," where developers subconsciously avoid writing tests or delay them until the last possible moment.
+Willpower is a finite daily resource. When testing requires high activation energy (manually wiring dependencies, managing container lifecycles, and writing boilerplate), it consumes this resource rapidly. This leads to "testing fatigue," where developers subconsciously avoid writing tests or delay them until the last possible moment.
 
 DTT is designed to minimize this cognitive cost. By making the "correct" way to test (isolated, realistic, dependency-injected) also the **easiest** way to test, it preserves your willpower for solving business problems. 
 
-This encapsulates the core philosophy of **"The Pit of Success"**—a concept where the system design guides you to the right thing naturally, rather than fighting you.
+This encapsulates the core philosophy of **"The Pit of Success"** - a concept where the system design guides you to the right thing naturally, rather than fighting you.
 
-*   **The "Disciplined Chore" (The Old Way)**: Usually, writing high-quality software tests—especially integration tests—requires friction. You have to manually spin up containers, wipe databases, and wire up DI boilerplate. Because this is hard and tedious, doing it correctly requires *Discipline*. When you are tired or under a deadline, that discipline fails, and you stop writing good tests.
+*   **The "Disciplined Chore" (The Old Way)**: Usually, writing high-quality software tests (especially integration tests) requires friction. You have to manually spin up containers, wipe databases, and wire up DI boilerplate. Because this is hard and tedious, doing it correctly requires *Discipline*. When you are tired or under a deadline, that discipline fails, and you stop writing good tests.
 *   **The "Path of Least Resistance" (The Human Nature)**: Humans are wired to conserve energy and gravitate towards the easiest possible action. Traditionally, the "Path of Least Resistance" is not writing tests or writing bad, fragile tests just to get it over with.
-*   **The DTT Transformation**: DTT flips this equation. By wrapping all that complex "rigour"—containers, migrations, DI, auto-mocking—into a single attribute (`[DataInline]`), it makes the **Result** (High Quality Test) accessible via the **Action** (Lowest Effort).
+*   **The DTT Transformation**: DTT flips this equation. By wrapping all that complex rigour (containers, migrations, DI, and auto-mocking) into a single attribute (`[DataInline]`), it makes the **Result** (High Quality Test) accessible via the **Action** (Lowest Effort).
 
 It makes the "Right Thing" easier than the "Wrong Thing." You no longer need discipline to write great tests; you just need to follow the easiest path available to you.
 
-With DTT, software testing becomes natural part of the software development.
+With DTT, software testing becomes a natural part of software development.
+
+## Global Usings
+
+```csharp
+global using Xunit;
+global using Xunit.v3;
+global using AutoFixture;
+global using AutoFixture.AutoNSubstitute;
+global using AutoFixture.Xunit3;
+global using AwesomeAssertions;
+global using NSubstitute;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.DependencyInjection.Extensions;
+global using Microsoft.Extensions.Configuration;
+global using DRN.Framework.Testing;
+global using DRN.Framework.Testing.Contexts;
+global using DRN.Framework.Testing.DataAttributes;
+global using DRN.Framework.Testing.Providers;
+global using DRN.Framework.Testing.TestAttributes;
+global using DRN.Framework.Utils.Extensions;
+global using DRN.Framework.Utils.Settings;
+global using DRN.Framework.SharedKernel;
+global using DRN.Framework.Utils.DependencyInjection;
+global using System.Reflection;
+global using System.IO;
+global using System.Linq;
+global using System.Collections;
+global using Xunit.Abstractions;
+```
+
+## Related Packages
+
+- [DRN.Framework.SharedKernel](https://www.nuget.org/packages/DRN.Framework.SharedKernel/) - Domain primitives and exceptions
+- [DRN.Framework.Utils](https://www.nuget.org/packages/DRN.Framework.Utils/) - Configuration and DI utilities
+- [DRN.Framework.EntityFramework](https://www.nuget.org/packages/DRN.Framework.EntityFramework/) - EF Core integration
+- [DRN.Framework.Hosting](https://www.nuget.org/packages/DRN.Framework.Hosting/) - Web application hosting
+
+For complete examples, see [Sample.Hosted](https://github.com/duranserkan/DRN-Project/tree/master/Sample.Hosted).
+
+---
+
+Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/DiSCOS/DiSCOS.md)
 
 ---
 **Semper Progressivus: Always Progressive**

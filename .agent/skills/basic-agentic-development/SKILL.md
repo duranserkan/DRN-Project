@@ -241,6 +241,26 @@ Follow this cycle for every coding task, adapting depth to task complexity.
 ✅ Good: view_file_outline → view_code_item for specific method (saves 1900 lines of context)
 ```
 
+### 4.7 Name & Namespace Hallucination
+
+**Problem**: Using names or namespaces based on assumptions rather than verification.
+
+**Symptoms**:
+- Suggesting `using` directives for non-existent namespaces.
+- Referencing methods with slightly incorrect names.
+- Assuming a class is in a certain namespace because of its folder.
+
+**Fix**:
+1. Always verify the exact name and namespace using `view_file_outline` or `grep_search`.
+2. Check `GlobalUsings.cs` to see if a namespace is already available.
+3. Use `view_code_item` to confirm method signatures and class definitions.
+
+**Example**:
+```diff
+❌ Bad: Suggesting `using DRN.Framework.EntityFramework.Models;` (namespace doesn't exist)
+✅ Good: grep_search "namespace DRN.Framework.EntityFramework" → Confirm `DRN.Framework.EntityFramework.Context` is correct.
+```
+
 ---
 
 ## Quick Reference

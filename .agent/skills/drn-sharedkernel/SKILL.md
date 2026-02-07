@@ -78,6 +78,17 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
 - Encapsulated domain events
 - Automatic status marking by DrnContext
 
+> [!WARNING]
+> Each entity requires unique `[EntityType(byte)]` attribute. DrnContext validates at startup and throws `ConfigurationException` on duplicates.
+> 
+> [!IMPORTANT]
+> **DTO Mapping & Exposure Rules**:
+> 1. **Inheritance**: All DTOs **must derive from the `Dto` base class**.
+> 2. **Primary Constructor**: DTOs must use a primary constructor accepting `SourceKnownEntity?` to auto-map `Id`, `CreatedAt`, and `ModifiedAt`.
+> 3. **No Entities in API**: Public APIs must never return or accept Entities. Always use DTOs/Response Models.
+> 4. **Guid IDs**: Public APIs must only expose `Guid` identifiers. DTOs should not include SourceKnownEntityIds or SourceKnownIds.
+> 5. **Consice**: DTOs should be concise and only include necessary properties. DTOs should not include pagination results etc.
+
 ### AggregateRoot
 
 ```csharp

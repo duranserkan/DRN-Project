@@ -37,12 +37,13 @@
 - [GDPR & Consent Integration](#gdpr--consent-integration)
 - [Local Development](#local-development-infrastructure)
 - [Global Usings](#global-usings)
+- [Related Packages](#related-packages)
 
 ---
 
 ## QuickStart: Beginner
 
-All DRN web apps inherit from `DrnProgramBase<TProgram>` to inherit the lifecycle hooks and default behaviors.
+DRN web applications inherit from `DrnProgramBase<TProgram>` to implement standard lifecycle hooks and behaviors.
 
 ```csharp
 using DRN.Framework.Hosting.DrnProgram;
@@ -106,57 +107,86 @@ DRN.Framework.Hosting/
 
 ## Lifecycle & Execution Flow
 
-`DrnProgramBase` orchestrates the application startup to ensure security headers, logging scopes, and validation logic run in the correct order. Use `DrnProgramActions` to intercept these phases without cluttering your main Program class.
+`DrnProgramBase` manages application startup sequence to ensure security headers, logging scopes, and validation logic execute in order. Use `DrnProgramActions` to intercept these phases without modifying the primary Program class.
 
 ```mermaid
-graph TD
-    Start["RunAsync()"] --> CAB["CreateApplicationBuilder()"]
-    
-    subgraph "1. Builder Phase (Services & Config)"
-    CAB --> CSO["ConfigureSwaggerOptions()"]
-    CAB --> CDSH["ConfigureDefaultSecurityHeaders()"]
-    CDSH --> CDCSP["ConfigureDefaultCsp()"]
-    CAB --> CSHPB["ConfigureSecurityHeaderPolicyBuilder()"]
-    CAB --> CCP["ConfigureCookiePolicy()"]
-    CAB --> CSFO["ConfigureStaticFileOptions()"]
-    CAB --> CFHO["ConfigureForwardedHeadersOptions()"]
-    CAB --> CMVCB["ConfigureMvcBuilder()"]
-    CAB --> CAO["ConfigureAuthorizationOptions()"]
-    CAB --> ASA["AddServicesAsync()"]
-    ASA --> ABC["ApplicationBuilderCreatedAsync (Action)"]
+flowchart TD
+    subgraph CONTAINER [" "]
+        direction TB
+        Start(["RunAsync()"]) --> CAB["CreateApplicationBuilder()"]
+        
+        subgraph BUILDER ["1. Builder Phase"]
+            direction TB
+            B_NOTE["Note: Handles Services & Config"]
+            CAB --> CSO["ConfigureSwaggerOptions()"]
+            CAB --> CDSH["ConfigureDefaultSecurityHeaders()"]
+            CDSH --> CDCSP["ConfigureDefaultCsp()"]
+            CAB --> CSHPB["ConfigureSecurityHeaderPolicyBuilder()"]
+            CAB --> CCP["ConfigureCookiePolicy()"]
+            CAB --> CSFO["ConfigureStaticFileOptions()"]
+            CAB --> CFHO["ConfigureForwardedHeadersOptions()"]
+            CAB --> CMVCB["ConfigureMvcBuilder()"]
+            CAB --> CAO["ConfigureAuthorizationOptions()"]
+            CAB --> ASA["AddServicesAsync()"]
+            ASA --> ABC["ApplicationBuilderCreatedAsync (Action)"]
+        end
+
+        ABC --> Build["builder.Build()"]
+        
+        subgraph APPLICATION ["2. Application Phase"]
+            direction TB
+            A_NOTE["Note: Handles Middleware Pipeline"]
+            Build --> CA["ConfigureApplication()"]
+            CA --> CAPS["ConfigureApplicationPipelineStart() (HSTS/Headers)"]
+            CAPS --> CAPR["ConfigureApplicationPreScopeStart() (Static Files)"]
+            CAPR --> HSM["HttpScopeMiddleware (TraceId/Logging)"]
+            HSM --> CPSS["ConfigureApplicationPostScopeStart()"]
+            CPSS --> UR["UseRouting()"]
+            UR --> CAPREA["ConfigureApplicationPreAuthentication()"]
+            CAPREA --> AUTH["UseAuthentication()"]
+            AUTH --> SUM["ScopedUserMiddleware"]
+            SUM --> CAPOSTA["ConfigureApplicationPostAuthentication()"]
+            CAPOSTA --> MFAE["MfaExemptionMiddleware"]
+            CAPOSTA --> MFAR["MfaRedirectionMiddleware"]
+            MFAE --> UA["UseAuthorization()"]
+            MFAR --> UA
+            UA --> CPSTAZ["ConfigureApplicationPostAuthorization() (Swagger UI)"]
+            CPSTAZ --> MAE["MapApplicationEndpoints()"]
+        end
+
+        MAE --> ABA["ApplicationBuiltAsync (Action)"]
+        ABA --> VE["ValidateEndpoints()"]
+        VE --> VSA["ValidateServicesAsync()"]
+        VSA --> AVA["ApplicationValidatedAsync (Action)"]
+        AVA --> Run(["application.RunAsync()"])
     end
 
-    ABC --> Build["builder.Build()"]
-    
-    subgraph "2. Application Phase (Middleware)"
-    Build --> CA["ConfigureApplication()"]
-    CA --> CAPS["ConfigureApplicationPipelineStart() (HSTS/Headers)"]
-    CAPS --> CAPR["ConfigureApplicationPreScopeStart() (Static Files)"]
-    CAPR --> HSM["HttpScopeMiddleware (TraceId/Logging)"]
-    HSM --> CPSS["ConfigureApplicationPostScopeStart()"]
-    CPSS --> UR["UseRouting()"]
-    UR --> CAPREA["ConfigureApplicationPreAuthentication()"]
-    CAPREA --> AUTH["UseAuthentication()"]
-    AUTH --> SUM["ScopedUserMiddleware"]
-    SUM --> CAPOSTA["ConfigureApplicationPostAuthentication()"]
-    CAPOSTA --> MFAE["MfaExemptionMiddleware"]
-    CAPOSTA --> MFAR["MfaRedirectionMiddleware"]
-    MFAE --> UA["UseAuthorization()"]
-    MFAR --> UA
-    UA --> CPSTAZ["ConfigureApplicationPostAuthorization() (Swagger UI)"]
-    CPSTAZ --> MAE["MapApplicationEndpoints()"]
-    end
+    %% WCAG AA Compliant Styling
+    %% Outer Container
+    style CONTAINER fill:#F0F8FF,stroke:#B0C4DE,stroke-width:2px,color:#4682B4
 
-    MAE --> ABA["ApplicationBuiltAsync (Action)"]
-    ABA --> VE["ValidateEndpoints()"]
-    VE --> VSA["ValidateServicesAsync()"]
-    VSA --> AVA["ApplicationValidatedAsync (Action)"]
-    AVA --> Run["application.RunAsync()"]
+    %% Subgraph Backgrounds (Direct styling)
+    style BUILDER fill:#E1F5FE,stroke:#0288D1,stroke-width:2px,color:#01579B
+    style APPLICATION fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px,color:#1A237E
+
+    %% Node Styles (White for contrast against subgraph)
+    classDef builderNode fill:#FFFFFF,stroke:#0288D1,stroke-width:2px,color:#01579B
+    classDef appNode fill:#FFFFFF,stroke:#3F51B5,stroke-width:2px,color:#1A237E
+    classDef action fill:#FFE0B2,stroke:#F57C00,stroke-width:2px,color:#E65100
+    classDef core fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20
+    classDef note fill:#FFF9C4,stroke:#F57C00,stroke-width:1px,color:#E65100,stroke-dasharray: 5 5
+
+    %% Apply Styles
+    class CAB,CSO,CDSH,CDCSP,CSHPB,CCP,CSFO,CFHO,CMVCB,CAO,ASA builderNode
+    class CA,CAPS,CAPR,HSM,CPSS,UR,CAPREA,AUTH,SUM,CAPOSTA,MFAE,MFAR,UA,CPSTAZ,MAE appNode
+    class ABC,ABA,AVA action
+    class Start,Build,VE,VSA,Run core
+    class B_NOTE,A_NOTE note
 ```
 
 ## DrnProgramBase Deep Dive
 
-This section details the hooks available to customize your application's lifecycle. `DrnProgramBase` follows a **"Hook Method"** pattern: the base class defines the workflow, and you override virtual methods to inject logic.
+This section details the hooks for customizing the application lifecycle. `DrnProgramBase` implements a Hook Method pattern where the base defines the workflow and specific logic is injected via overrides.
 
 ### 1. Configuration Hooks (Builder Phase)
 
@@ -299,6 +329,33 @@ protected override MfaExemptionConfig ConfigureMFAExemption()
     => new(exemptSchemes: ["ApiKey", "Certificate"]);
 ```
 
+### Disabling MFA Entirely
+
+To disable MFA enforcement for your entire application (e.g., for internal tools or development):
+
+```csharp
+public class Program : DrnProgramBase<Program>, IDrnProgram
+{
+    // Return null to disable MFA redirection middleware
+    protected override MfaRedirectionConfig? ConfigureMFARedirection() => null;
+
+    // Return null to disable MFA exemption middleware  
+    protected override MfaExemptionConfig? ConfigureMFAExemption() => null;
+
+    // Override authorization to remove MFA requirement from fallback policy
+    protected override void ConfigureAuthorizationOptions(AuthorizationOptions options)
+    {
+        // Remove MFA enforcement - authenticated users can access without MFA
+        options.FallbackPolicy = new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
+    }
+}
+```
+
+> [!WARNING]
+> Disabling MFA removes a critical security layer. Only do this for internal applications on secured networks.
+
 ### 3. Content Security Policy (Nonce-based)
 DRN automatically generates a unique cryptographic nonce for every request.
 *   **Automatic Protection**: Scripts and styles without a matching nonce are blocked by the browser, stopping most XSS attacks.
@@ -313,6 +370,63 @@ Standard security headers are injected into every response:
 
 ### 5. GDPR & Cookie Security
 Cookies are configured with `SameSite=Strict` and `HttpOnly` by default to mitigate CSRF and session hijacking. The `ConsentCookie` system ensures compliance with privacy regulations.
+
+### 6. Per-Route Security Headers
+
+Customize security headers for specific routes by overriding `ConfigureSecurityHeaderPolicyBuilder`:
+
+```csharp
+protected override void ConfigureSecurityHeaderPolicyBuilder(
+    HeaderPolicyCollection policies, 
+    IAppSettings appSettings)
+{
+    base.ConfigureSecurityHeaderPolicyBuilder(policies, appSettings);
+    
+    // Add route-specific CSP for embedding external content
+    policies.AddContentSecurityPolicy(builder =>
+    {
+        builder.AddFrameAncestors().Self();
+        builder.AddScriptSrc().Self().UnsafeInline(); // Only for specific legacy routes
+    }, 
+    // Apply only to specific paths
+    context => context.Request.Path.StartsWithSegments("/legacy"));
+}
+```
+
+### 7. Rate Limiting
+
+Configure rate limiting by overriding `AddServicesAsync`:
+
+```csharp
+protected override Task AddServicesAsync(
+    WebApplicationBuilder builder, 
+    IAppSettings appSettings, 
+    IScopedLog scopedLog)
+{
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
+            context => RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: context.User?.Identity?.Name ?? context.Request.Headers.Host.ToString(),
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    AutoReplenishment = true,
+                    PermitLimit = 100,
+                    Window = TimeSpan.FromMinutes(1)
+                }));
+        
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    });
+    
+    return Task.CompletedTask;
+}
+
+protected override void ConfigureApplicationPostAuthorization(WebApplication application)
+{
+    base.ConfigureApplicationPostAuthorization(application);
+    application.UseRateLimiter();
+}
+```
 
 
 ## Endpoint Management
@@ -453,6 +567,21 @@ global using DRN.Framework.Utils.Logging;
 global using DRN.Framework.Utils.Settings;
 global using Microsoft.AspNetCore.Mvc;
 ```
+
+---
+
+## Related Packages
+
+- [DRN.Framework.SharedKernel](https://www.nuget.org/packages/DRN.Framework.SharedKernel/) - Domain primitives and exceptions
+- [DRN.Framework.Utils](https://www.nuget.org/packages/DRN.Framework.Utils/) - Configuration and DI utilities
+- [DRN.Framework.EntityFramework](https://www.nuget.org/packages/DRN.Framework.EntityFramework/) - EF Core integration
+- [DRN.Framework.Testing](https://www.nuget.org/packages/DRN.Framework.Testing/) - Testing utilities
+
+For complete examples, see [Sample.Hosted](https://github.com/duranserkan/DRN-Project/tree/master/Sample.Hosted).
+
+---
+
+Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/DiSCOS/DiSCOS.md)
 
 ---
 **Semper Progressivus: Always Progressive**

@@ -82,6 +82,23 @@ public async Task Should_Mock_External_Api(DrnTestContext context, ITestOutputHe
 }
 ```
 
+### Simulating Failures
+
+```csharp
+[Theory]
+[DataInline]
+public async Task Should_Handle_API_Failure(DrnTestContext context, ITestOutputHelper output)
+{
+    var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(output);
+    
+    // Simulate server error
+    context.FlurlHttpTest.ForCallsTo("*").RespondWith(status: 500);
+    
+    var response = await client.GetAsync("/api/external-dependent");
+    response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
+}
+```
+
 ### Route Validation
 Validate route patterns without starting the full app server if only route data is needed.
 
@@ -95,6 +112,13 @@ public async Task EndPointFor_Should_Return_Endpoint_Address(DrnTestContext cont
     var endpoint = Get.Endpoint.User.Identity.RegisterController.ConfirmEmail;
     endpoint.RoutePattern.Should().NotBeNull();
 }
+
+### Test Isolation
+`ApplicationContext` automatically sets the following flags to ensure your tests run in isolation and do not attempt to launch external dependencies (which would collide with test containers):
+1. **Not in Test**: `TestEnvironment.DrnTestContextEnabled` is set to `true`.
+2. **Temporary**: `AppSettings.DevelopmentSettings.TemporaryApplication` is set to `true`.
+
+This ensures that logic like `LaunchExternalDependenciesAsync` knows it is running in a test context and skips starting local development containers.
 ```
 
 ## Related

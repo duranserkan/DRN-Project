@@ -10,30 +10,30 @@ namespace Sample.Hosted.Controllers.QA;
 public class CategoryController(QAContext context) : ControllerBase
 {
     [HttpGet]
-    public async Task<Category[]> GetAsync()
+    public async Task<CategoryDto[]> GetAsync()
     {
         var categories = await context.Categories.ToArrayAsync();
 
-        return categories;
+        return categories.Select(c => c.ToDto()).ToArray();
     }
 
-    [HttpGet("{id:long}")]
-    public async Task<Category> GetAsync([FromRoute] long id)
+    [HttpGet("{id:guid}")]
+    public async Task<CategoryDto> GetAsync([FromRoute] Guid id)
     {
-        var category = await context.Categories.FindAsync(id);
-        if (category == null) throw new NotFoundException($"Category: {id}");
+        var category = await context.Categories.FirstOrDefaultAsync(c => c.EntityIdSource.EntityId == id);
+        if (category == null) throw ExceptionFor.NotFound($"Category: {id}");
 
-        return category;
+        return category.ToDto();
     }
 
     [HttpPost]
-    public async Task<Category> PostAsync([FromBody] CategoryPostRequest request)
+    public async Task<CategoryDto> PostAsync([FromBody] CategoryPostRequest request)
     {
         var category = new Category(request.Name);
         context.Categories.Add(category);
 
         await context.SaveChangesAsync();
 
-        return category;
+        return category.ToDto();
     }
 }

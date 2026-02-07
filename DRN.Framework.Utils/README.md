@@ -33,15 +33,16 @@
 - [Dependency Injection](#dependency-injection)
 - [Configuration](#configuration)
 - [Logging (IScopedLog)](#logging-iscopedlog)
-- [Scoped Cancellation](#scoped-cancellation)
-- [HTTP Client Factories](#http-client-factories-iexternalrequest-iinternalrequest)
-- [Scope & Ambient Context](#scope--ambient-context-scopecontext)
+- [HTTP Client Factories (IExternalRequest, IInternalRequest)](#http-client-factories-iexternalrequest-iinternalrequest)
+- [Scope & Ambient Context (ScopeContext)](#scope--ambient-context-scopecontext)
 - [Data Utilities](#data-utilities)
 - [Pagination](#pagination)
 - [Bit Packing](#bit-packing)
 - [Diagnostics](#diagnostics)
 - [Time & Async](#time--async)
 - [Extensions](#extensions)
+- [Global Usings](#global-usings)
+- [Related Packages](#related-packages)
 
 ---
 
@@ -75,7 +76,7 @@ Complete example with configuration binding, scoped logging, and ambient context
 
 ```csharp
 // Bind configuration section to strongly-typed class
-[Config("PaymentSettings")]
+[Config]
 public class PaymentSettings
 {
     public string ApiKey { get; set; } = "";
@@ -121,11 +122,26 @@ For manual installation (e.g. Console Apps, Workers):
 builder.Services.AddDrnUtils();
 ```
 
+### HybridCache Registration
+
+`AddDrnUtils()` registers Microsoft's `HybridCache` with default in-memory caching. To configure distributed caching (e.g., Redis), add your `IDistributedCache` registration before calling `AddDrnUtils()`:
+
+```csharp
+// Optional: Add distributed cache backend
+builder.Services.AddStackExchangeRedisCache(options => 
+{
+    options.Configuration = "localhost:6379";
+});
+
+// HybridCache will use the distributed cache if available
+builder.Services.AddDrnUtils();
+```
+
 ## Dependency Injection
 
 ### Attribute-Based Registration
 
-Reduce wiring code by using attributes directly on your services. The registration method scans the calling assembly for these attributes.
+Reduce configuration boilerplate by using attributes directly on services. The **AddServicesWithAttributes** method scans the calling assembly for these attributes and registers all services in the target assembly.
 
 | Attribute | Lifetime | Usage |
 |-----------|----------|-------|
@@ -158,7 +174,7 @@ public void Validate_Dependencies(DrnTestContext context)
 
 ### Scoped Cancellation
 
-Manage request-wide cancellation tokens efficiently using `ICancellationUtils`. It supports merging tokens from multiple sources (e.g., `HttpContext.RequestAborted` and internal timeouts).
+Manage request-scoped cancellation tokens using `ICancellationUtils`. It supports merging tokens from multiple sources, such as `HttpContext.RequestAborted` and application-level timeouts.
 
 ```csharp
 public class MyScopedService(ICancellationUtils cancellation)
@@ -195,7 +211,7 @@ public class MyDbContext : DrnContext<MyDbContext> { }
 
 ### IAppSettings
 
-Access configuration safely with typed environments and utility methods.
+Access configuration using strongly-typed environment checks and utility methods.
 
 ```csharp
 public class MyService(IAppSettings settings)
@@ -239,9 +255,19 @@ The framework automatically loads configuration in this order:
 
 Override the mount directory by registering `IMountedSettingsConventionsOverride`.
 
+### IAppSettings Troubleshooting
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| `ConfigurationException` on startup | Missing required configuration key | Add the key to `appsettings.json` or environment variables |
+| `GetRequiredConnectionString` throws | Connection string not found | Verify key exists under `ConnectionStrings` section |
+| `IsDevEnvironment` always false | `ASPNETCORE_ENVIRONMENT` not set | Set environment variable or use `launchSettings.json` |
+| Mounted settings not loading | Wrong mount path | Verify files exist at `/appconfig/json-settings/` or override via `IMountedSettingsConventionsOverride` |
+| Environment variables not binding | Wrong naming format | Use `__` (double underscore) for nested keys: `MySection__MyKey` |
+
 ## Logging (`IScopedLog`)
 
-`IScopedLog` provides request-scoped structured logging. It aggregates logs, metrics, and actions throughout the request lifetime and flushes them as a single structured log entry at the end, making it ideal for high-traffic observability and performance monitoring.
+`IScopedLog` provides request-scoped structured logging. It aggregates operational data, metrics, and checkpoints during the request lifecycle, flushing them as a single entry for efficient monitoring.
 
 ### Core Features
 *   **Contextual**: Automatically captures `TraceId`, `UserId`, `RequestPath`, and custom scope data.
@@ -284,7 +310,7 @@ public class OrderService(IScopedLog logger)
 
 ## HTTP Client Factories (`IExternalRequest`, `IInternalRequest`)
 
-Lightweight wrappers around [Flurl](https://flurl.dev/) for consistent, resilient HTTP client configuration with built-in JSON convention support.
+Wrappers around [Flurl](https://flurl.dev/) for resilient HTTP clients with standardized JSON conventions.
 
 ### External Requests
 Use `IExternalRequest` for standard external API calls. It pre-configures `DefaultJsonSerializer` and enforces HTTP version policies.
@@ -304,7 +330,7 @@ public class PaymentService(IExternalRequest request)
 ```
 
 ### Internal Requests (Service Mesh)
-Use `IInternalRequest` for Service-to-Service communication in Kubernetes. It's designed to work with Linkerd/Istio, supporting automatic protocol switching (HTTP/HTTPS) based on infrastructure settings.
+Use `IInternalRequest` for Service-to-Service communication in Kubernetes. It's designed to work with Linkerd, supporting automatic protocol switching (HTTP/HTTPS) based on infrastructure settings.
 
 #### Recommended Pattern: Request Wrappers
 Instead of using `IInternalRequest` directly in business logic, wrap it in a typed request factory for better maintainability and configuration encapsulation.
@@ -328,9 +354,9 @@ public class NexusClient(INexusRequest request) : INexusClient
 }
 ```
 
-## Scope & Ambient Context (`ScopeContext`)
+## Scope & Ambient Context (ScopeContext)
 
-`ScopeContext` provides ambient (static) access to scoped information within a valid execution context (like an HTTP request). This is ideal for cross-cutting concerns like auditing, multi-tenancy, or security where deep parameter passing is undesirable.
+`ScopeContext` provides ambient access to request-scoped data. This simplifies cross-cutting concerns like auditing, multi-tenancy, and security by avoiding deep parameter passing especially in Razor Pages(.cshtml) files.
 
 *   **Contextual Identity**: Access `UserId`, `TraceId`, and `Authenticated` status anywhere.
 *   **Static Accessors**: Provides direct access to `IAppSettings`, `IScopedLog`, and `IServiceProvider`.
@@ -534,6 +560,30 @@ int value = "123".Parse<int>();
 // Casing for APIs
 var key = "MyPropertyName".ToSnakeCase(); // my_property_name
 ```
+
+---
+
+## Global Usings
+
+```csharp
+global using DRN.Framework.SharedKernel;
+global using DRN.Framework.Utils.DependencyInjection;
+```
+
+---
+
+## Related Packages
+
+- [DRN.Framework.SharedKernel](https://www.nuget.org/packages/DRN.Framework.SharedKernel/) - Domain primitives and exceptions
+- [DRN.Framework.EntityFramework](https://www.nuget.org/packages/DRN.Framework.EntityFramework/) - EF Core integration
+- [DRN.Framework.Hosting](https://www.nuget.org/packages/DRN.Framework.Hosting/) - Web application hosting
+- [DRN.Framework.Testing](https://www.nuget.org/packages/DRN.Framework.Testing/) - Testing utilities
+
+For complete examples, see [Sample.Hosted](https://github.com/duranserkan/DRN-Project/tree/master/Sample.Hosted).
+
+---
+
+Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/DiSCOS/DiSCOS.md)
 
 ---
 **Semper Progressivus: Always Progressive**

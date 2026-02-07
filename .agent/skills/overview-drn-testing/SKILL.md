@@ -65,6 +65,7 @@ DRN-Project/
 | `ContainerContext` | PostgreSQL testcontainer | Database tests |
 | `WebApplicationContext` | WebApplicationFactory wrapper | API tests |
 | `ApplicationContext` | Full app context | End-to-end tests |
+| `FlurlHttpTest` | HTTP mocking | External API testing |
 
 ---
 

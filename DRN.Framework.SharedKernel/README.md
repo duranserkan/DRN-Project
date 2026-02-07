@@ -33,6 +33,8 @@
 - [JsonConventions](#jsonconventions)
 - [Attributes](#attributes)
 - [AppConstants](#appconstants)
+- [Global Usings](#global-usings)
+- [Related Packages](#related-packages)
 
 ---
 
@@ -97,7 +99,7 @@ public class UserService(ISourceKnownRepository<User> repository)
 
 ## Domain Primitives
 
-Following definitions provide guidance and conventions for rapid and effective domain design. Their usage is optional but highly recommended for compatibility with `DrnContext` features.
+Core primitives provide conventions for rapid and effective domain design and ensure compatibility with `DrnContext` features.
 
 ### Entity and AggregateRoot
 
@@ -107,6 +109,10 @@ Following definitions provide guidance and conventions for rapid and effective d
 
 > [!IMPORTANT]
 > **Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must **never** be exposed outside the infrastructure/domain boundaries.
+>
+> **DTO Mapping Rule**: DTOs should implement a primary constructor accepting a `SourceKnownEntity?` to automatically map `Id`, `CreatedAt`, and `ModifiedAt`. Avoid manual mapping of these fields.
+>
+> **Entity Exposure Prohibition**: Entities must never be exposed via public APIs. Always map to DTOs or Response Models. Entities are only permitted in Razor Pages (Internal UI).
 
 ```csharp
 using DRN.Framework.SharedKernel.Domain;
@@ -166,25 +172,22 @@ var entityId = user.GetEntityId(someGuid, validate: true);
 
 The framework provides three distinct ways to validate and retrieve typed identifiers based on the operational context:
 
-**1. Injectable Utility (Recommended for Service Layer)**
-
-Ideal for cross-cutting business logic or when you have the `sourceKnownEntityIdUtils` in scope.
+#### 1. Injectable Utility
+Recommended for service layer logic or when `sourceKnownEntityIdUtils` is in scope.
 
 ```csharp
 var id = sourceKnownEntityIdUtils.Validate<User>(externalGuid);
 ```
 
-**2. Repository (Recommended for Data Access)**
-
-Directly available on `ISourceKnownRepository<TEntity>`. Standardizes validation at the data entry point.
+#### 2. Repository
+Directly available on `ISourceKnownRepository<TEntity>` to standardize validation at the data entry point.
 
 ```csharp
 var id = userRepository.GetEntityId(externalGuid); 
 ```
 
-**3. Domain Entity (Recommended for Domain Logic)**
-
-Uses helper methods on the `SourceKnownEntity` base class. Best for intra-domain operations.
+#### 3. Domain Entity
+Helper methods on the `SourceKnownEntity` base class, optimized for intra-domain operations.
 
 ```csharp
 var id = userInstance.GetEntityId<User>(externalGuid);
@@ -272,10 +275,10 @@ public readonly record struct SourceKnownEntityId(
 
 `ISourceKnownRepository<TEntity>` defines a standard contract for repositories managing `AggregateRoot` entities.
 
-*   **Standardized Access**: Provides common CRUD operations (`CreateAsync`, `GetAsync`, `DeleteAsync`).
-*   **Identity Conversion**: Includes methods to convert between external `Guid`s and internal `SourceKnownEntityId`s ensuring IDs are valid.
-*   **Cancellation Support**: Built-in support for `CancellationToken` propagation and merging.
-*   **Streaming**: Supports `IAsyncEnumerable` for processing large datasets efficiently.
+- **Standardized Access**: Common CRUD operations (`CreateAsync`, `GetAsync`, `DeleteAsync`).
+- **Identity Conversion**: Specialized methods for mapping external `Guid` to internal `SourceKnownEntityId`.
+- **Cancellation**: Native support for `CancellationToken` merging and propagation.
+- **Streaming**: Supports `IAsyncEnumerable` for efficient large dataset processing.
 
 ```csharp
 public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
@@ -482,6 +485,31 @@ public static class AppConstants
     public static string LocalIpAddress { get; } = GetLocalIpAddress();
 }
 ```
+
+---
+
+## Global Usings
+
+```csharp
+global using DRN.Framework.SharedKernel.Domain;
+global using DRN.Framework.SharedKernel;
+global using DRN.Framework.SharedKernel.Json;
+```
+
+---
+
+## Related Packages
+
+- [DRN.Framework.Utils](https://www.nuget.org/packages/DRN.Framework.Utils/) - Configuration, logging, and DI utilities
+- [DRN.Framework.EntityFramework](https://www.nuget.org/packages/DRN.Framework.EntityFramework/) - EF Core integration with DrnContext
+- [DRN.Framework.Hosting](https://www.nuget.org/packages/DRN.Framework.Hosting/) - Web application hosting
+- [DRN.Framework.Testing](https://www.nuget.org/packages/DRN.Framework.Testing/) - Testing utilities
+
+For complete examples, see [Sample.Hosted](https://github.com/duranserkan/DRN-Project/tree/master/Sample.Hosted).
+
+---
+
+Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/DiSCOS/DiSCOS.md)
 
 ---
 **Semper Progressivus: Always Progressive**

@@ -40,6 +40,8 @@ Non-invasive Altruistic Digital Twin of Duran Serkan KILIÇ(Author) for Collabor
 - Execute with Precision
 - What Evidence Would Change My Mind
 - Lean Kaizen(Improve Continuously)
+- Guiding Structure
+- Pit of Success
 ### Max
 - Attention to DiSCOS
 - Emotional Intelligence
@@ -214,7 +216,7 @@ Confidence Level Applies to HOW to Proceed on Restricted Operations
 Auto-proceed(Safe)→Notify(Progress)→Review(Decisions)→Collaborate(Security)
 ## Agentic(If Usable)
 ### Patterns
-ReAct, Chain-of-Thought, Plan-and-Execute etc
+ReAct, CoT, CoVe, CoN etc
 ### Conditional Tool Orchestration
 - Dependencies→Sequential
 - Speed→Parallel

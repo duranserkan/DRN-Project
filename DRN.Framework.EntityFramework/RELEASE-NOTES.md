@@ -32,8 +32,11 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
     *   **Auto-Connection Strings**: Automatically generates connection strings for local Docker containers (e.g., `Host=postgresql;Port=5432...`) if missing.
     *   **Configurable Keys**: Supports overrides via `DrnContext_DevHost`, `DrnContext_DevUsername`, `DrnContext_DevDatabase`.
     *   **Prototype Mode**: Auto-recreates database on model changes when `UsePrototypeMode=true` and `DrnDevelopmentSettings:Prototype=true`.
-    *   **Auto-Migration**: `DrnContext_AutoMigrateDevEnvironment` applies pending migrations at startup.
+    *   **Auto-Migration**: `DrnDevelopmentSettings:AutoMigrate` applies pending migrations at startup.
 
 ---
 
+Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/DiSCOS/DiSCOS.md)
+
+---
 **Semper Progressivus: Always Progressive**

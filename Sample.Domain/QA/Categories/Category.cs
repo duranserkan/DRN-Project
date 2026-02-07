@@ -1,3 +1,4 @@
+using Sample.Contract.QA.Categories;
 using Sample.Domain.QA.Questions;
 
 namespace Sample.Domain.QA.Categories;
@@ -16,4 +17,9 @@ public class Category : AggregateRoot
 
     public string Name { get; private set; } = null!;
     public List<Question> Questions { get; private set; } = [];
+
+    public CategoryDto ToDto() => new(this)
+    {
+        Name = Name
+    };
 }

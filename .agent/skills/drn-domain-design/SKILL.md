@@ -65,7 +65,9 @@ This skill defines the standards for domain-driven design within DRN.Framework, 
 The framework uses a composite identifier system to balance DB performance (long IDs) with external security (GUIDs) and type safety.
 
 > [!IMPORTANT]
-> **External Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must never be exposed outside the infrastructure/domain boundaries. DTOs must expose `Guid Id` (not `SourceKnownEntityId`) to ensure safe serialization.
+> **External Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must never be exposed outside the infrastructure/domain boundaries. 
+> 
+> **DTO Mapping Rule**: DTOs **must derive from the `Dto` base class** (`DRN.Framework.SharedKernel.Domain.Dto`). They must use a **primary constructor** (or base constructor) that accepts a `SourceKnownEntity?` to automatically handle `Id`, `CreatedAt`, and `ModifiedAt` mapping. Manual mapping of these infrastructure fields is forbidden to ensure consistency.
 
 ### SourceKnownId
 The internal structure representing identity components.
@@ -91,7 +93,8 @@ public readonly record struct SourceKnownEntityId(
 ```
 
 ### Construction Mechanisms
-Identity reconstruction is handled via delegates in `SourceKnownEntity`:
+Identity reconstruction is handled via delegates and interceptors:
+- **During Materialization**: `IDrnMaterializationInterceptor` initializes `IdFactory` and `Parser` delegates on the entity instance.
 - `Parser`: `Func<Guid, SourceKnownEntityId>` - Converts GUID to structured ID.
 - `IdFactory`: `Func<long, byte, SourceKnownEntityId>` - Reconstructs ID from long and type.
 
@@ -110,6 +113,10 @@ Base class for all entities (`DRN.Framework.SharedKernel.Domain`).
   [EntityType(1)]
   public class MyEntity : SourceKnownEntity { ... }
   ```
+  
+  > [!WARNING]
+  > Each entity must have unique `[EntityType(byte)]` value. DrnContext validates at startup and throws `ConfigurationException` on duplicates.
+  
 - **Auditing**: Automatically tracks `Id`, `EntityId`, `CreatedAt`, and `ModifiedAt`.
 - **Domain Events**: Encapsulates `IDomainEvent` collection.
 - **Extended Properties**: Supports JSON-based flexible extensions via `ExtendedProperties` string and `Get/SetExtendedProperties<TModel>` methods.
@@ -187,7 +194,7 @@ The framework uses `DrnContext<T>` as the foundation for EF Core data access, pr
 ### DrnContext Features
 - **Auto-Discovery**: `IEntityTypeConfiguration<T>` implementations are automatically discovered and applied if they reside in the same assembly as the context and share its namespace (or a sub-namespace).
 - **Schema Naming**: The default database schema is derived from the context class name converted to `snake_case`.
-- **Automatic Identity**: Entities inheriting from `SourceKnownEntity` have their `Id` property automatically configured with `SourceKnownIdValueGenerator`.
+- **Automatic Identity**: Entities inheriting from `SourceKnownEntity` have their `Id` property automatically assigned by `IDrnSaveChangesInterceptor` during `SaveChangesAsync` for new records. Properties are initialized by `IDrnMaterializationInterceptor` when reading from DB.
 
 ### Advanced Database Configuration
 The framework provides attributes for Npgsql-specific configuration directly on the `DrnContext` class.
@@ -258,6 +265,19 @@ Base class methods for starting queries with standardized behavior:
 > [!TIP]
 > Always use `EntitiesWithAppliedSettings()` when building custom queries (joins, complex filters) to ensure repository settings are respected.
 
+### Overriding Standard Behavior
+
+Override `EntitiesWithAppliedSettings` to change the behavior of all built-in retrieval methods. This is the recommended way to add global `Include` statements, especially for nested properties.
+
+```csharp
+protected override IQueryable<TEntity> EntitiesWithAppliedSettings(string? caller = null)
+{
+    return base.EntitiesWithAppliedSettings(caller)
+        .Include(x => x.NestedProperty)
+            .ThenInclude(n => n.SubProperty);
+}
+```
+
 ## Pagination Models
 
 The framework provides structured models for cursor-based and offset-based pagination, optimized for API usage and model binding.
@@ -292,6 +312,7 @@ Generic wrapper for a page of data.
 - **Items**: `IReadOnlyList<TModel>` - The actual data set.
 - **Info**: `PaginationResultInfo` - The navigation metadata.
 - **Mapping**: `ToModel<TMapped>(mapper)` - Fluent utility to transform domain entities into DTOs while preserving pagination metadata.
+- **Mapping Rule**: `PaginationResultModel` must always contain DTOs or response models when returned from an API. Mapping must be performed using `.ToModel(e => e.ToDto())` or a similar converter. 
 
 ## Entity Utilities
 
@@ -333,12 +354,15 @@ To maintain consistency across the DRN ecosystem, follow these patterns when exp
 
 **Critical Rules**:
 - **Route Parameters**: Use `:guid` constraints for single entity actions (e.g., `[HttpGet("{id:guid}")]`)
-- **DTO Mapping**: Map `AggregateRoot.EntityId` to the DTO's `Id` property
+- **DTO Mapping**: Map `AggregateRoot.EntityId` to the DTO's `Id` property (automatic if inheriting from `Dto`)
+- **DTO Inheritance**: DTOs must derive from `Dto`
 - **DTO Id Type**: DTOs must use `Guid` for identifiers, not `SourceKnownEntityId`
 - **Mappers**: Implement DTO-to-Entity and Entity-to-DTO mappers as extension methods in a `static class` within the same file as the Entity definition
 
 > [!IMPORTANT]
 > **External Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must never be exposed outside the infrastructure/domain boundaries.
+>
+> **Entity Exposure Prohibition**: Entities must **never** be exposed via public APIs (Controllers, Response Models). Always use DTOs or specialized response models. Entities are permitted in Razor Pages (Internal UI) when direct access is required for rendering logic.
 
 ### Pagination Patterns
 

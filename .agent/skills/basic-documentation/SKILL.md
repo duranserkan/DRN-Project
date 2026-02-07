@@ -198,10 +198,273 @@ public string? Authenticate(string username, string password)
 -   **Headers**: Use ATX style (`#`, `##`). One `#` per document.
 -   **Lists**: Use hyphens (`-`) for unordered lists, `1.` for ordered.
 -   **Links**: Use relative paths for internal files: `[Link](./path/to/file)`.
--   **Code**: Always specify language for syntax highlighting (e.g., \`\`\`csharp).
+-   **Code**: Always specify language for syntax highlighting (e.g., ```csharp).
 -   **Diagrams**: Use Mermaid for architecture, sequence, or flow diagrams.
 -   **Images**: Include alt text: `![Description of image](path/to/image.png)`.
 -   **Tables**: Use for structured data, align columns for readability.
+
+## 8. Diagram Accessibility & WCAG Compliance
+
+All diagrams must meet WCAG 2.1 Level AA standards for accessibility and professional presentation.
+
+### Color Contrast Requirements
+
+**WCAG AA Minimum Standards**:
+-   **Normal text**: 4.5:1 contrast ratio
+-   **Large text** (18pt+): 3:1 contrast ratio
+-   **UI components**: 3:1 contrast ratio
+
+**Recommended Approach**: Aim for 7:1+ contrast to exceed standards and ensure readability.
+
+### Professional Color Palette (Material Design)
+
+Use these WCAG-compliant color combinations for Mermaid diagrams:
+
+| Purpose | Background | Border | Text | Contrast | Use Case |
+|---------|------------|--------|------|----------|----------|
+| **Production** | `#E8EAF6` | `#3F51B5` | `#1A237E` | 12.6:1 | Production environments, critical paths |
+| **Development** | `#E1F5FE` | `#0288D1` | `#01579B` | 10.8:1 | Development flows, active processes |
+| **Testing** | `#E8F5E9` | `#43A047` | `#1B5E20` | 11.2:1 | Testing scenarios, validation steps |
+| **Error/Warning** | `#FFCDD2` | `#C62828` | `#B71C1C` | 9.4:1 | Error states, warnings |
+| **Decision Points** | `#FFF9C4` | `#F57C00` | `#E65100` | 8.7:1 | Decision nodes, branching logic |
+| **Information** | `#E0F7FA` | `#00ACC1` | `#006064` | 10.2:1 | Informational content |
+| **Notes** | `#FFF9C4` | `#F57C00` | `#E65100` | 8.7:1 | Supplementary details, non-process nodes |
+
+### Mermaid Diagram Best Practices
+
+**1. Quote All Labels**: Prevent parsing errors with special characters
+```mermaid
+P_START["GetRequiredConnectionString"]  # ✅ Quoted
+vs
+P_START[GetRequiredConnectionString]    # ❌ Can break with special chars
+```
+
+**2. Apply Consistent Styling**: Use explicit style declarations
+```mermaid
+%% WCAG AA Compliant Styling
+style PROD_FLOW fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px,color:#1A237E
+style DEV_FLOW fill:#E1F5FE,stroke:#0288D1,stroke-width:2px,color:#01579B
+```
+
+**3. Use Multiple Visual Cues**: Don't rely on color alone
+-   **Shape coding**: Rectangle (process), Diamond (decision), Rounded (terminal)
+-   **Text labels**: Clear, descriptive labels on all nodes
+-   **Border emphasis**: 2px stroke width for definition
+-   **Subgraph titles**: Clear section headings
+
+**4. Semantic Color Coding**:
+-   **Blue spectrum**: Technical/professional (production, development)
+-   **Green spectrum**: Safe/success (testing, validation)
+-   **Red spectrum**: Warning/danger (errors, critical paths)
+-   **Amber spectrum**: Attention/caution (decisions, branching)
+
+**5. Subgraph Highlighting**:
+-   **Container**: Use light background color for the subgraph to indicate phase/context.
+-   **Contrast**: Force internal nodes to have `fill:#FFFFFF` (White) to pop against the colored subgraph.
+-   **Hierarchy**: Subgraph border should match the primary color of that phase.
+-   **Titles**: Use quoted labels for clear identification (e.g., `subgraph ID ["Title"]`).
+-   **Direct Styling**: Use `style SUBGRAPH_ID fill:...` instead of `classDef` for subgraph backgrounds.
+
+```mermaid
+%% Subgraph Background (Direct styling)
+style DEV_FLOW fill:#E1F5FE,stroke:#0288D1,stroke-width:2px,color:#01579B
+
+%% Node Styles (White for contrast against subgraph)
+classDef devNode fill:#FFFFFF,stroke:#0288D1,stroke-width:2px,color:#01579B
+class NODE1,NODE2 devNode
+```
+
+**6. Nested Subgraphs**:
+-   **Lighter Backgrounds**: Use lighter shades for nested subgraphs to create visual hierarchy.
+-   **Thinner Borders**: Use 1px stroke for nested subgraphs vs 2px for parent.
+-   **Concise Titles**: Keep nested subgraph titles short to prevent text wrapping.
+
+```mermaid
+subgraph PARENT ["Parent Flow"]
+    subgraph NESTED ["Nested"]
+        NODE["Process"]
+    end
+end
+
+%% Parent: Darker background, 2px border
+style PARENT fill:#E1F5FE,stroke:#0288D1,stroke-width:2px,color:#01579B
+
+%% Nested: Lighter background, 1px border
+style NESTED fill:#F1F8FD,stroke:#0288D1,stroke-width:1px,color:#01579B
+```
+
+**7. Decision Path Labeling**:
+-   **Visual Symbols**: Use ✓ (checkmark) for Yes/positive paths, ✗ (cross) for No/negative paths.
+-   **Accessibility**: Symbols work without color, improving accessibility.
+-   **Format**: `|✓ Yes|` and `|✗ No|` on decision edges.
+
+```mermaid
+DECISION{Ready?} -->|✓ Yes| SUCCESS
+DECISION -->|✗ No| RETRY
+```
+
+**8. Decision Node Styling**:
+-   **Enhanced Visibility**: Use deeper amber background (`#FFE0B2`) instead of pale yellow.
+-   **Stronger Borders**: Use 3px stroke width for decision diamonds to emphasize branching points.
+-   **High Contrast**: Ensure 10.5:1+ contrast ratio for decision node text.
+
+```mermaid
+classDef decision fill:#FFE0B2,stroke:#E65100,stroke-width:3px,color:#E65100
+```
+
+**9. Outer Container Pattern**:
+-   **Unified Presentation**: Wrap entire diagram in a container subgraph with pastel background.
+-   **Empty Title**: Use `[" "]` for invisible title to avoid clutter.
+-   **Soft Colors**: Alice Blue (`#F0F8FF`) or similar soft pastels work well.
+
+```mermaid
+flowchart TD
+    subgraph CONTAINER [" "]
+        direction TB
+        %% Your entire diagram here
+    end
+    
+    style CONTAINER fill:#F0F8FF,stroke:#B0C4DE,stroke-width:2px,color:#4682B4
+```
+
+**10. Note Nodes**:
+-   **Purpose**: Provide supplementary details without cluttering the main flow or subgraph titles.
+-   **Style**: Use soft yellow background (`#FFF9C4`) with a dashed amber border (`stroke-dasharray: 5 5`).
+-   **Hierarchy**: Place inside the relevant subgraph, typically at the top or bottom of the sequence.
+
+```mermaid
+subgraph SUB ["Process"]
+    direction TB
+    NOTE["Note: Technical detail"]
+    STEP1["Actual Step"]
+end
+
+classDef note fill:#FFF9C4,stroke:#F57C00,stroke-width:1px,color:#E65100,stroke-dasharray: 5 5
+class NOTE note
+```
+
+### Color Blindness Considerations
+
+Ensure diagrams work for all types of color vision deficiency:
+
+**Protanopia (Red-Blind)**:
+-   ✅ Use blue/green distinctions
+-   ✅ Provide shape and label differentiation
+
+**Deuteranopia (Green-Blind)**:
+-   ✅ Use blue/red distinctions
+-   ✅ Border thickness provides additional cues
+
+**Tritanopia (Blue-Blind)**:
+-   ✅ Use green/red distinctions
+-   ✅ Text labels ensure comprehension
+
+**Universal Design**:
+-   ✅ Never use color as the only means of conveying information
+-   ✅ Include text labels on all diagram elements
+-   ✅ Use patterns, shapes, and borders in addition to color
+-   ✅ Test with color blindness simulators (e.g., Coblis)
+
+### Diagram Accessibility Checklist
+
+Before committing a diagram:
+-   [ ] **Contrast**: All text meets 4.5:1 minimum (use WebAIM Contrast Checker)
+-   [ ] **Color Independence**: Information conveyed through shape, text, and borders, not just color
+-   [ ] **Labels**: All nodes have clear, descriptive text labels
+-   [ ] **Quotes**: All Mermaid labels use quotes to prevent parsing errors
+-   [ ] **Consistency**: Color scheme follows Material Design palette
+-   [ ] **Professional**: Appropriate colors for context (blue for tech, green for safe, red for warnings)
+-   [ ] **Stroke Width**: 2px borders for clear definition (3px for decision nodes)
+-   [ ] **Comments**: Styling sections are commented for maintainability
+-   [ ] **Tested**: Verified with color blindness simulator
+-   [ ] **Print Friendly**: Works in grayscale
+-   [ ] **Decision Symbols**: Use ✓/✗ on decision paths for accessibility
+-   [ ] **Subgraph Styling**: Use direct `style` declarations for subgraph backgrounds
+-   [ ] **White Nodes**: Force nodes inside colored subgraphs to `fill:#FFFFFF` (except Note nodes)
+-   [ ] **Note Styling**: Note nodes use dashed borders and amber text for clear differentiation
+-   [ ] **Nested Hierarchy**: Lighter backgrounds and thinner borders for nested subgraphs
+-   [ ] **Outer Container**: Consider wrapping complex diagrams in pastel container for unified presentation
+
+### Tools for Validation
+
+-   **WebAIM Contrast Checker**: https://webaim.org/resources/contrastchecker/
+-   **Material Design Color Tool**: https://material.io/resources/color/
+-   **Coblis Color Blindness Simulator**: https://www.color-blindness.com/coblis-color-blindness-simulator/
+-   **Chrome DevTools**: Lighthouse accessibility audit
+
+### Example: WCAG-Compliant Mermaid Diagram
+
+```mermaid
+flowchart TD
+    subgraph CONTAINER [" "]
+        direction TB
+        START([Start]) --> ENV{Environment?}
+        
+        ENV -->|Production| PROD_FLOW
+        subgraph PROD_FLOW ["Production Flow"]
+            direction TB
+            P1["Process Step"] --> P2["Validation"]
+            P2 --> P3([Complete])
+        end
+        
+        ENV -->|Development| DEV_FLOW
+        subgraph DEV_FLOW ["Development Flow"]
+            direction TB
+            D1["Setup"] --> D2{Check Config?}
+            D2 -->|✓ Yes| D3["Execute"]
+            D2 -->|✗ No| ERR([Error])
+            D3 --> D4([Complete])
+            D1 --- D_NOTE["Note: Requires .env"]
+        end
+    end
+    
+    %% WCAG AA Compliant Styling
+    %% Outer Container
+    style CONTAINER fill:#F0F8FF,stroke:#B0C4DE,stroke-width:2px,color:#4682B4
+    
+    %% Subgraph Backgrounds (Direct styling)
+    style PROD_FLOW fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px,color:#1A237E
+    style DEV_FLOW fill:#E1F5FE,stroke:#0288D1,stroke-width:2px,color:#01579B
+    
+    %% Node Styles (White for contrast against subgraph)
+    classDef prodNode fill:#FFFFFF,stroke:#3F51B5,stroke-width:2px,color:#1A237E
+    classDef devNode fill:#FFFFFF,stroke:#0288D1,stroke-width:2px,color:#01579B
+    classDef errNode fill:#FFCDD2,stroke:#C62828,stroke-width:2px,color:#B71C1C
+    classDef decision fill:#FFE0B2,stroke:#E65100,stroke-width:3px,color:#E65100
+    classDef note fill:#FFF9C4,stroke:#F57C00,stroke-width:1px,color:#E65100,stroke-dasharray: 5 5
+    
+    %% Apply Styles
+    class P1,P2,P3 prodNode
+    class D1,D3,D4 devNode
+    class ERR errNode
+    class ENV,D2 decision
+    class D_NOTE note
+```
+
+### Anti-Patterns to Avoid
+
+❌ **Don't use**:
+-   Low contrast colors: `#f9f`, `#bdf`, `#cfc` (fail WCAG)
+-   Color-only indicators without labels
+-   Unquoted labels with special characters
+-   Default Mermaid colors without customization
+-   Inconsistent styling across similar diagrams
+-   Pale yellow (`#FFF9C4`) for decision nodes (use deeper amber `#FFE0B2`)
+-   `classDef` for subgraph backgrounds (use direct `style` declarations)
+-   Plain "Yes"/"No" labels without visual symbols
+-   Long nested subgraph titles that wrap to multiple lines
+
+✅ **Do use**:
+-   Material Design palette with 8.7:1+ contrast
+-   Multiple visual cues (shape + color + text + borders)
+-   Quoted labels for all nodes
+-   Explicit styling with comments
+-   Consistent color semantics across project
+-   ✓/✗ symbols on decision paths for accessibility
+-   Direct `style SUBGRAPH_ID` for subgraph backgrounds
+-   White node backgrounds inside colored subgraphs
+-   3px stroke width for decision diamonds
+-   Outer container with pastel background for complex diagrams
 
 ### Table of Contents
 Long documents (>2 screens or >100 lines) **must** include a Table of Contents.
@@ -220,7 +483,7 @@ Long documents (>2 screens or >100 lines) **must** include a Table of Contents.
 -   **Runnability**: Code should work as-is or clearly indicate placeholders.
 -   **Comments**: Explain non-obvious logic.
 
-## 8. Verification Checklist
+## 9. Verification Checklist
 
 Before committing documentation:
 -   [ ] **Security**: Are security implications documented? Sensitive data handling clear?
@@ -228,6 +491,7 @@ Before committing documentation:
 -   [ ] **Accurate**: Do code snippets actually work? Are examples tested?
 -   [ ] **Complete**: Are all public APIs documented? All configuration options explained?
 -   [ ] **Accessible**: Alt text for images? Clear language? Semantic structure?
+-   [ ] **Diagrams**: Do diagrams meet WCAG AA standards? (4.5:1 contrast, quoted labels, multiple visual cues)
 -   [ ] **Links**: Are all relative links valid? External links working?
 -   [ ] **TOC**: Does the document need a Table of Contents (>100 lines)?
 -   [ ] **Versioning**: Is the document version or last-updated date clear?

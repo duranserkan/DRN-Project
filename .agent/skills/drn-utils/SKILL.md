@@ -167,6 +167,15 @@ public class MyOverride : IMountedSettingsConventionsOverride
 }
 ```
 
+### IAppSettings Troubleshooting
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| `ConfigurationException` | Missing required key | Add to `appsettings.json` |
+| `GetRequiredConnectionString` throws | Key not found | Check `ConnectionStrings` section |
+| Env vars not binding | Wrong format | Use `__` for nested: `Section__Key` |
+| Mounted settings not loading | Wrong path | Check `/appconfig/` or override via `IMountedSettingsConventionsOverride` |
+
 ---
 
 ## Scoped Logging (IScopedLog)

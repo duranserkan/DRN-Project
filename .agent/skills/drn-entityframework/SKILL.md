@@ -87,11 +87,12 @@ Domain events are collected and can be published after `SaveChangesAsync()`.
 
 `DrnContext` augments entities during `OnModelCreating` and runtime:
 
-### 1. Auto-ID Generation
-Entities with `Id = 0` are automatically assigned a unique Source-Known ID via `SourceKnownIdValueGenerator`:
-- Uses `ISourceKnownIdUtils.Next<TEntity>()` to generate a collision-free `long` ID.
-- Configured via `HasValueGenerator<SourceKnownIdValueGenerator>()`.
-- **Note**: `EntityId` (Guid) and `EntityIdSource` are ignored by EF as they are computed properties.
+### 1. Interceptor-Based Identity
+Entities inheriting from `SourceKnownEntity` have their identity managed via specialized interceptors:
+- **ID Generation**: `IDrnSaveChangesInterceptor` assigns collision-free `long` IDs during `SaveChangesAsync` for new entities (`Id = 0`).
+- **Property Initialization**: `IDrnMaterializationInterceptor` initializes `EntityIdSource` and identity-related delegates (`IdFactory`, `Parser`) during entity materialization from the database.
+- **Mechanism**: Power by `ISourceKnownIdUtils` and `ISourceKnownEntityIdUtils`.
+- **Note**: `EntityId` (Guid) and `EntityIdSource` are ignored by EF mapping as they are computed or runtime traits.
 
 ### 2. JSON Models
 Entities implementing `IEntityWithModel<TModel>` have their `.Model` property automatically mapped to a `jsonb` column:
@@ -161,6 +162,9 @@ dotnet ef database update --context QAContext
 DrnContext implements `IDesignTimeDbContextFactory<T>` and `IDesignTimeServices`:
 - Migrations generate in context-specific folders
 - Supports multi-context projects
+
+> [!TIP]
+> **Migration Startup Project**: When adding or applying migrations, the project containing the `DrnContext` should be used as the startup project (e.g., `--project Sample.Infra --startup-project Sample.Infra`). This is because the context already implements `IDesignTimeDbContextFactory`.
 
 ---
 
@@ -258,6 +262,7 @@ global using DRN.Framework.Utils.DependencyInjection;
 - Uses `IEntityUtils` for ID validation and parsing.
 - Implements `GetAsync`, `GetOrDefaultAsync` using `SourceKnownEntityId` validation.
 - Provides automatic `ScopedLog` measurements for operations.
+- Supports **Behavior Overrides**: Override `EntitiesWithAppliedSettings` to apply global query transformations (e.g., `Include`, nested `ThenInclude`) across all retrieval methods.
 
 **Pagination Overloads**:
 ```csharp

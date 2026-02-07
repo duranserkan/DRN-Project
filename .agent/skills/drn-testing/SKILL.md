@@ -72,8 +72,29 @@ public void MyTest(DrnTestContext context, IMockable mock)
 | `ServiceCollection` | Add services before building |
 | `ContainerContext` | Postgres and RabbitMq testcontainer management |
 | `ApplicationContext` | Full application context (WebApplicationFactory) |
-| `FlurlHttpTest` | HTTP mocking for external calls |
+| `FlurlHttpTest` | HTTP mocking for external calls (see below) |
 | `Configuration` | Test configuration |
+
+### FlurlHttpTest Integration
+
+Mock external HTTP requests without hitting real endpoints:
+
+```csharp
+[Theory]
+[DataInline]
+public async Task External_API_Should_Be_Mocked(DrnTestContext context)
+{
+    context.FlurlHttpTest.RespondWith("{ \"status\": \"ok\" }", 200);
+    
+    context.ServiceCollection.AddSingleton<IApiClient, ApiClient>();
+    var client = context.GetRequiredService<IApiClient>();
+    
+    var result = await client.GetStatusAsync();
+    result.Status.Should().Be("ok");
+    
+    context.FlurlHttpTest.ShouldHaveCalled("https://api.example.com/*").Times(1);
+}
+```
 
 ### Key Methods
 

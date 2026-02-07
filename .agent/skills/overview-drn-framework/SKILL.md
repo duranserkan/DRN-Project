@@ -40,10 +40,10 @@ description: DRN.Framework architecture overview - Package hierarchy (SharedKern
 | Package | Purpose | Key Features |
 |---------|---------|--------------|
 | **SharedKernel** | Lightweight domain primitives | SourceKnownEntity, AggregateRoot, DomainEvent, Exceptions, JsonConventions |
-| **Utils** | Core utilities | Attribute DI, IAppSettings, Logging, Extensions |
+| **Utils** | Core utilities | Attribute DI, IAppSettings, HybridCache, Logging, Extensions |
 | **Hosting** | Web application hosting | DrnProgramBase, Security, Endpoints, Middlewares |
 | **EntityFramework** | Database access | DrnContext, Conventions, Auto-migrations |
-| **Testing** | Test infrastructure | DrnTestContext, Containers, DataAttributes |
+| **Testing** | Test infrastructure | DrnTestContext, Containers, DataAttributes, FlurlHttpTest |
 | **Jobs** | Background jobs | Job scheduling (Hangfire-like) |
 | **MassTransit** | Messaging | Message bus integration |
 

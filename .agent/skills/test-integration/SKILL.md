@@ -10,7 +10,7 @@ description: Integration testing overview - Orchestrates API testing (WebApplica
 ## Core Concepts
 - **DrnTestContext**: Primary test fixture.
 - **ContainerContext**: Manages docker containers (Postgres, RabbitMQ, etc.).
-- **ApplicationContext**: Manages `WebApplicationFactory` for E2E tests.
+- **ApplicationContext**: Manages `WebApplicationFactory` for E2E tests (automatically sets `DrnTestContextEnabled` and `TemporaryApplication` flags).
 
 ## Skill Selection
 
