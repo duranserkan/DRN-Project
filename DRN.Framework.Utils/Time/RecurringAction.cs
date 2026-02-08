@@ -1,3 +1,5 @@
+using DRN.Framework.Utils.Concurrency;
+
 namespace DRN.Framework.Utils.Time;
 
 public sealed class RecurringAction : IDisposable
@@ -69,9 +71,9 @@ public sealed class RecurringAction : IDisposable
 
     private async Task TimerCallbackAsync()
     {
-        //Lock free atomic implementation, if _isRunning is 1 return, if not, mark it as running
-        if (Interlocked.CompareExchange(ref _isRunning, 1, 0) == 1)
-            return;
+#pragma warning disable CS0420 // Interlocked provides full memory barrier
+        if (!LockUtils.TryClaimLock(ref _isRunning)) return;
+#pragma warning restore CS0420
 
         try
         {
@@ -90,8 +92,10 @@ public sealed class RecurringAction : IDisposable
         }
         finally
         {
-            //mark as not running
-            Interlocked.Exchange(ref _isRunning, 0);
+#pragma warning disable CS0420 // Interlocked provides full memory barrier
+            LockUtils.ReleaseLock(ref _isRunning);
+#pragma warning restore CS0420 
+            
             if (_disposed == 0) //if not disposed
                 try
                 {
@@ -107,9 +111,9 @@ public sealed class RecurringAction : IDisposable
 
     public void Dispose()
     {
-        //Lock free atomic implementation, if _disposed is 1 return, if not, mark it as disposed 
-        if (Interlocked.CompareExchange(ref _disposed, 1, 0) == 1)
-            return;
+#pragma warning disable CS0420 // Interlocked provides full memory barrier
+        if (!LockUtils.TryClaimLock(ref _disposed)) return;
+#pragma warning restore CS0420
 
         _timer.Dispose();
     }

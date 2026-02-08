@@ -108,7 +108,11 @@ public class StaticAssetPreWarmService(
         // spin up in the same process — no blocking, no wasted requests.
         if (!ViteManifest.TryClaimPreWarm())
         {
-            LogPreWarmSkipped();
+            var existingReport = ViteManifest.PreWarmReport;
+            if (existingReport != null)
+                logger.LogDebug("Static assets already pre-warmed (report created at {CreatedAt}), skipping", existingReport.CreatedAt);
+            else
+                logger.LogDebug("Static asset pre-warming already claimed by another instance, skipping");
             return false;
         }
 
@@ -229,18 +233,6 @@ public class StaticAssetPreWarmService(
             logger.LogDebug("Pre-warm report was already set by another instance, discarding duplicate");
     }
 
-    /// <summary>
-    /// Logs why pre-warming was skipped (already claimed or already completed).
-    /// Uses structured logging to avoid string interpolation when debug logging is disabled.
-    /// </summary>
-    private void LogPreWarmSkipped()
-    {
-        var existingReport = ViteManifest.PreWarmReport;
-        if (existingReport != null)
-            logger.LogDebug("Static assets already pre-warmed (report created at {CreatedAt}), skipping", existingReport.CreatedAt);
-        else
-            logger.LogDebug("Static asset pre-warming already claimed by another instance, skipping");
-    }
 
     /// <summary>
     /// Resolves the original (uncompressed) file size from disk.

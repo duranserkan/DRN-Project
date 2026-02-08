@@ -1,3 +1,4 @@
+using DRN.Framework.Utils.Concurrency;
 using DRN.Framework.Utils.Time;
 
 namespace DRN.Framework.Utils.Ids;
@@ -19,7 +20,7 @@ namespace DRN.Framework.Utils.Ids;
 public static class SequenceManager<TEntity> where TEntity : class
 {
     private static DateTimeOffset _epoch = EpochTimeUtils.DefaultEpoch;
-    private static SequenceTimeScope _timeScope = new(TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch));
+    private static volatile SequenceTimeScope _timeScope = new(TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch));
 
     /// <summary>
     /// Generates a new time-scoped identifier for the entity type.
@@ -92,10 +93,9 @@ public static class SequenceManager<TEntity> where TEntity : class
         var newScope = new SequenceTimeScope(newTimestamp);
         while (true)
         {
-            //todo benchmark lock vs compare exchange
-            Interlocked.CompareExchange(ref _timeScope, newScope, currentScope);
-            if (_timeScope == newScope)
-                break;
+#pragma warning disable CS0420 // Interlocked provides full memory barrier
+            if (LockUtils.TrySetIfEqual(ref _timeScope!, newScope, currentScope)) break;
+#pragma warning restore CS0420
 
             currentScope = _timeScope; // Another thread updated _timeScope; check if it matches our target
             if (currentScope.ScopeTimestamp == TimeStampManager.CurrentTimestamp(_epoch))

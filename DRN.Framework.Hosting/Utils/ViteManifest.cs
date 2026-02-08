@@ -3,15 +3,16 @@ using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.Data.Serialization;
+using DRN.Framework.Utils.Concurrency;
 
 namespace DRN.Framework.Hosting.Utils;
 
 public static class ViteManifest
 {
     private static readonly string ManifestRootPath = Path.Combine("wwwroot");
-    private static Dictionary<string, ViteManifestItem>? _manifestCache;
+    private static volatile Dictionary<string, ViteManifestItem>? _manifestCache;
     private static readonly Lock Lock = new();
-    private static ViteManifestPreWarmReport? _preWarmReport;
+    private static volatile ViteManifestPreWarmReport? _preWarmReport;
     private static int _preWarmClaimed;
 
     /// <summary>
@@ -26,16 +27,16 @@ public static class ViteManifest
     /// Returns <c>true</c> only for the first caller; all subsequent callers get <c>false</c> immediately
     /// without blocking — they should skip pre-warming entirely.
     /// </summary>
-    internal static bool TryClaimPreWarm()
-        => Interlocked.CompareExchange(ref _preWarmClaimed, 1, 0) == 0;
+    internal static bool TryClaimPreWarm() => LockUtils.TryClaimLock(ref _preWarmClaimed);
 
     /// <summary>
     /// Sets the pre-warm report exactly once (write-once singleton).
     /// Should only be called by the instance that successfully claimed via <see cref="TryClaimPreWarm"/>.
     /// Thread-safe via <see cref="Interlocked.CompareExchange{T}"/>.
     /// </summary>
-    internal static bool TrySetPreWarmReport(ViteManifestPreWarmReport report)
-        => Interlocked.CompareExchange(ref _preWarmReport, report, null) == null;
+#pragma warning disable CS0420 // Interlocked provides full memory barrier
+    internal static bool TrySetPreWarmReport(ViteManifestPreWarmReport report) => LockUtils.TrySetIfNull(ref _preWarmReport, report);
+#pragma warning restore CS0420
 
     public static ViteManifestItem? GetManifestItem(string entryName)
     {

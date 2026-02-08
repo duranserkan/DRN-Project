@@ -2,10 +2,9 @@ namespace DRN.Framework.Utils.Time;
 
 public static class TimeStampManager
 {
-    private static DateTimeOffset _cachedUtcNow;
     private static long _cachedUtcNowTicks;
     internal static readonly int UpdatePeriod = 10;
-    private static readonly RecurringAction RecurringAction = new RecurringAction(GetUpdateAction(), UpdatePeriod);
+    private static readonly RecurringAction RecurringAction = new(GetUpdateAction(), UpdatePeriod);
     
     private static Func<Task> GetUpdateAction()
     {
@@ -17,19 +16,18 @@ public static class TimeStampManager
     {
         var now = DateTimeProvider.UtcNow.Ticks;
         var secondResidue = now % TimeSpan.TicksPerSecond;
-        _cachedUtcNow = new DateTimeOffset(now - secondResidue, TimeSpan.Zero);
-        _cachedUtcNowTicks = _cachedUtcNow.Ticks;
+        Volatile.Write(ref _cachedUtcNowTicks, now - secondResidue);
         return Task.CompletedTask;
     }
-
+    
+    public static long UtcNowTicks => Volatile.Read(ref _cachedUtcNowTicks);
+    
     /// <summary>
     /// Cached UTC timestamp with precision up to the second.
     /// This value is updated periodically and does not include milliseconds or finer precision.
     /// </summary>
-    public static DateTimeOffset UtcNow => _cachedUtcNow;
-
-    public static long UtcNowTicks => _cachedUtcNowTicks;
-
+    public static DateTimeOffset UtcNow => new(UtcNowTicks, TimeSpan.Zero);
+    
     /// <summary>
     /// Computes the current timestamp as an integer, representing the number of seconds elapsed since the specified epoch.
     /// </summary>
