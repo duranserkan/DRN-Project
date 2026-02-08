@@ -1,18 +1,18 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using DRN.Framework.Hosting.Utils;
+using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Logging;
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
 
+[HostedService]
 public class StaticAssetPreWarmService(
-    IHostApplicationLifetime lifetime,
-    IServer server,
+    IAppStartupStatus startupStatus,
+    IServerAddressResolver server,
     IServiceProvider scopeFactory) : BackgroundService
 {
     private IScopedLog _scopedLog = null!;
@@ -28,7 +28,7 @@ public class StaticAssetPreWarmService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!await WaitForApplicationStartAsync(stoppingToken))
+        if (!await startupStatus.WaitForStartAsync(stoppingToken))
             return;
 
         using var scope = scopeFactory.CreateScope();
@@ -47,27 +47,6 @@ public class StaticAssetPreWarmService(
         {
             _scopedLog.AddException(ex, "Static asset pre-warming encountered an error");
             _logger.LogScoped(_scopedLog);
-        }
-    }
-
-    /// <summary>
-    /// Waits until the application is fully started and listening for requests.
-    /// Returns <c>false</c> if canceled before startup completes.
-    /// </summary>
-    private async Task<bool> WaitForApplicationStartAsync(CancellationToken stoppingToken)
-    {
-        var startedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        lifetime.ApplicationStarted.Register(() => startedTcs.TrySetResult());
-        stoppingToken.Register(() => startedTcs.TrySetCanceled(stoppingToken));
-
-        try
-        {
-            await startedTcs.Task;
-            return true;
-        }
-        catch (OperationCanceledException)
-        {
-            return false;
         }
     }
 
@@ -102,9 +81,6 @@ public class StaticAssetPreWarmService(
     /// </summary>
     private PreWarmContext? TryClaimAndValidate(IScopedLog scopedLog)
     {
-        // Non-blocking claim: only the first instance proceeds, others skip instantly.
-        // This prevents redundant work when multiple integration test instances
-        // spin up in the same process — no blocking, no wasted requests.
         if (!ViteManifest.TryClaimPreWarm())
         {
             var existingReport = ViteManifest.PreWarmReport;
@@ -123,27 +99,18 @@ public class StaticAssetPreWarmService(
             scopedLog.Add(PreWarmScopeLogKeys.SkipReason, "NoViteManifestItemsFound");
             return null;
         }
-
-        var baseAddress = GetLoopbackAddress();
-        if (baseAddress == null)
-        {
-            scopedLog.Add(PreWarmScopeLogKeys.SkipReason, "NoServerAddressAvailable");
-            return null;
-        }
-
-        return new PreWarmContext(items, baseAddress);
+        
+        var baseAddress = server.GetLoopbackAddress();
+        if (baseAddress != null) 
+            return new PreWarmContext(items, baseAddress);
+        
+        scopedLog.Add(PreWarmScopeLogKeys.SkipReason, "NoServerAddressAvailable");
+        return null;
     }
-
-    /// <summary>
-    /// Builds the cross-product of manifest items × encodings.
-    /// Each (asset, encoding) pair produces an independent cache entry.
-    /// </summary>
+    
     private static List<PreWarmWorkItem> BuildWorkItems(IReadOnlyCollection<ViteManifestItem> items)
         => items.SelectMany(item => AcceptEncodings.Select(enc => new PreWarmWorkItem(item, enc))).ToList();
-
-    /// <summary>
-    /// Builds and publishes the pre-warm report as a write-once singleton.
-    /// </summary>
+    
     private void PublishReport(int totalRequests, ConcurrentBag<ViteManifestPreWarmAssetReport> assetReports,
         long elapsedMs)
     {
@@ -163,39 +130,4 @@ public class StaticAssetPreWarmService(
 
         _logger.LogScoped(_scopedLog);
     }
-
-    /// <summary>
-    /// Resolves a loopback address from the server's bound addresses.
-    /// Converts wildcard hosts (0.0.0.0, [::], +, *) to localhost for self-requests.
-    /// Prefers HTTP over HTTPS to avoid TLS overhead for internal pre-warming.
-    /// </summary>
-    private string? GetLoopbackAddress()
-    {
-        var addressFeature = server.Features.Get<IServerAddressesFeature>();
-        if (addressFeature == null) return null;
-
-        string? httpsAddress = null;
-        foreach (var address in addressFeature.Addresses)
-        {
-            if (!Uri.TryCreate(address, UriKind.Absolute, out var uri))
-                continue;
-
-            var host = NormalizeHost(uri.Host);
-            var normalized = $"{uri.Scheme}://{host}:{uri.Port}";
-
-            // Prefer HTTP to avoid TLS handshake overhead for self-requests
-            if (uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase))
-                return normalized;
-
-            httpsAddress ??= normalized;
-        }
-
-        return httpsAddress;
-    }
-
-    private static string NormalizeHost(string host) => host switch
-    {
-        "0.0.0.0" or "[::]" or "+" or "*" => "localhost",
-        _ => host
-    };
 }

@@ -15,12 +15,7 @@ public static class ViteManifest
     private static readonly Lock Lock = new();
     private static volatile ViteManifestPreWarmReport? _preWarmReport;
     private static int _preWarmClaimed;
-
-    /// <summary>
-    /// Singleton pre-warm report. Null until pre-warming completes.
-    /// Once set, it is never overwritten — safe for integration test suites
-    /// that create multiple application instances in the same process.
-    /// </summary>
+    
     public static ViteManifestPreWarmReport? PreWarmReport => _preWarmReport;
 
     /// <summary>

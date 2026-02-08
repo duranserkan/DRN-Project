@@ -10,7 +10,7 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
     private readonly HttpClientHandler _handler;
     private readonly HttpClient _client;
     private readonly IScopedLog _scopedLog;
-    
+
     public StaticAssetPreWarmProxy(string baseAddress, IScopedLog scopedLog)
     {
         _scopedLog = scopedLog;
@@ -19,11 +19,11 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
         // pre-warm handler and disposed after completion — never exposed to external requests.
         _handler = new HttpClientHandler();
         _handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-        
+
         _client = new HttpClient(_handler);
         _client.BaseAddress = new Uri(baseAddress);
     }
-    
+
     public async Task<ConcurrentBag<ViteManifestPreWarmAssetReport>> ExecutePreWarmRequestsAsync(
         List<PreWarmWorkItem> workItems, int maxParallelism, CancellationToken stoppingToken)
     {
@@ -33,14 +33,11 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
         {
             MaxDegreeOfParallelism = maxParallelism,
             CancellationToken = stoppingToken
-        }, async (work, ct) =>
-        {
-            assetReports.Add(await PreWarmSingleAssetAsync(work, ct));
-        });
+        }, async (work, ct) => { assetReports.Add(await PreWarmSingleAssetAsync(work, ct)); });
 
         return assetReports;
     }
-    
+
     private async Task<ViteManifestPreWarmAssetReport> PreWarmSingleAssetAsync(PreWarmWorkItem work, CancellationToken ct)
     {
         var sw = Stopwatch.StartNew();
@@ -56,7 +53,7 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
             {
                 sw.Stop();
                 _scopedLog.AddToList(PreWarmScopeLogKeys.FailedRequests,
-                    new { work.Item.Path, Encoding = work.Encoding, StatusCode = statusCode });
+                    new { work.Item.Path, work.Encoding, StatusCode = statusCode });
                 return ViteManifestPreWarmAssetReport.Failed(work.Item.Path, statusCode, sw.ElapsedMilliseconds);
             }
 
@@ -80,8 +77,7 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             sw.Stop();
-            _scopedLog.AddToList(PreWarmScopeLogKeys.ErroredRequests,
-                new { Path = work.Item.Path, Encoding = work.Encoding, Error = ex.Message });
+            _scopedLog.AddToList(PreWarmScopeLogKeys.ErroredRequests, new { work.Item.Path, work.Encoding, Error = ex.Message });
             return ViteManifestPreWarmAssetReport.Errored(work.Item.Path, ex.Message, sw.ElapsedMilliseconds);
         }
     }
