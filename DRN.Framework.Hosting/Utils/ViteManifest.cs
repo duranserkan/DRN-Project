@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;

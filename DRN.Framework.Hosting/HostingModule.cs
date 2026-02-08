@@ -1,3 +1,4 @@
+using DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Utils;
 using DRN.Framework.SharedKernel.Json;
