@@ -1,4 +1,5 @@
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Hosting.Utils;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.DependencyInjection;
 using Microsoft.Extensions.Configuration;
@@ -17,6 +18,7 @@ public static class HostingModule
         sc.ConfigureHttpJsonOptions(jsonOptions => JsonConventions.SetJsonDefaults(jsonOptions.SerializerOptions));
         sc.AddLogging();
         sc.AddEndpointsApiExplorer();
+        sc.AddHostedService<StaticAssetPreWarmService>();
 
         sc.AddServicesWithAttributes();
         if (options.AddSwagger)
