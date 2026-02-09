@@ -10,7 +10,7 @@ namespace DRN.Framework.Hosting.Utils;
 
 public static class ViteManifest
 {
-    private const string ManifestRootPath = "wwwroot";
+    private static string _manifestRootPath = "";
     private const string ViteBuildOutputPrefix = "buildwww/";
     private const string NodeModulesPrefix = "node_modules/";
 
@@ -49,8 +49,11 @@ public static class ViteManifest
     /// Returns all parsed Vite manifest items across all discovered manifest.json files.
     /// Triggers lazy initialization if the manifest has not been loaded yet.
     /// </summary>
-    public static IReadOnlyCollection<ViteManifestItem> GetAllManifestItems()
+    public static IReadOnlyCollection<ViteManifestItem> GetAllManifestItems(string manifestRootPath = "")
     {
+        if (string.IsNullOrEmpty(_manifestRootPath))
+            _manifestRootPath = manifestRootPath;
+            
         if (_manifestCache == null)
             EnsureManifest();
 
@@ -72,7 +75,7 @@ public static class ViteManifest
                 return;
 
             var cache = new Dictionary<string, ViteManifestItem>();
-            var manifestFiles = Directory.GetFiles(ManifestRootPath, "manifest.json", SearchOption.AllDirectories);
+            var manifestFiles = Directory.GetFiles(_manifestRootPath, "manifest.json", SearchOption.AllDirectories);
             foreach (var manifestFile in manifestFiles)
                 try
                 {
@@ -84,7 +87,7 @@ public static class ViteManifest
 
                     var manifestDir = Path.GetDirectoryName(manifestFile)!;
                     var scriptDir = Path.GetDirectoryName(manifestDir)!;
-                    var relativeDir = Path.GetRelativePath(ManifestRootPath, scriptDir).Trim('/');
+                    var relativeDir = Path.GetRelativePath(_manifestRootPath, scriptDir).Trim('/');
 
                     foreach (var (key, value) in manifest)
                     {
@@ -150,7 +153,6 @@ public class ViteManifestPreWarmReport
     public long ElapsedMs { get; }
     public DateTimeOffset CreatedAt { get; }
 
-    // --- Size Totals ---
     public long TotalOriginalBytes { get; }
     public long TotalCompressedBytes { get; }
     public double TotalCompressionRatio { get; }

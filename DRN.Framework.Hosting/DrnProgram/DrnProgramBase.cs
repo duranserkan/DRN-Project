@@ -182,7 +182,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         var application = applicationBuilder.Build();
         program.ConfigureApplication(application, appSettings);
         await (actions?.ApplicationBuiltAsync(program, application, appSettings, scopeLog) ?? Task.CompletedTask);
-
+        
         var requestPipelineSummary = application.GetRequestPipelineSummary();
         if (appSettings.IsDevEnvironment) //todo send application summaries to nexus for auditing, implement application dependency summary as well
             scopeLog.Add(nameof(RequestPipelineSummary), requestPipelineSummary);
@@ -297,6 +297,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         ConfigureApplicationPostAuthorization(application, appSettings);
 
         MapApplicationEndpoints(application, appSettings);
+        
+        var webHostEnvironment = application.Services.GetRequiredService<IWebHostEnvironment>();
+        _ = ViteManifest.GetAllManifestItems(webHostEnvironment.WebRootPath);
     }
 
     /// <summary>
