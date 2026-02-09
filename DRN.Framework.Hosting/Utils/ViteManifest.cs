@@ -10,7 +10,10 @@ namespace DRN.Framework.Hosting.Utils;
 
 public static class ViteManifest
 {
-    private static readonly string ManifestRootPath = Path.Combine("wwwroot");
+    private const string ManifestRootPath = "wwwroot";
+    private const string ViteBuildOutputPrefix = "buildwww/";
+    private const string NodeModulesPrefix = "node_modules/";
+
     private static volatile Dictionary<string, ViteManifestItem>? _manifestCache;
     private static readonly Lock Lock = new();
     private static volatile ViteManifestPreWarmReport? _preWarmReport;
@@ -55,8 +58,8 @@ public static class ViteManifest
     }
 
     public static bool IsViteOrigin(string path) =>
-        path.StartsWith("buildwww/", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith("node_modules/", StringComparison.OrdinalIgnoreCase);
+        path.StartsWith(ViteBuildOutputPrefix, StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith(NodeModulesPrefix, StringComparison.OrdinalIgnoreCase);
 
     private static void EnsureManifest()
     {
@@ -107,6 +110,8 @@ public static class ViteManifest
 // Class to represent an entry in the manifest.json
 public class ViteManifestItem
 {
+    private const string HashNotFoundPlaceholder = "HashNotFound";
+
     [JsonConstructor]
     private ViteManifestItem(string file, string src, string outputDir = "/", string hash = "")
     {
@@ -118,7 +123,7 @@ public class ViteManifestItem
         Integrity = $"sha256-{hash}";
 
         var parts = file.Split('.');
-        ShortHash = parts.Length >= 3 ? parts[^2] : "HashNotFound";
+        ShortHash = parts.Length >= 3 ? parts[^2] : HashNotFoundPlaceholder;
     }
 
     internal ViteManifestItem FromCalculatedProperties(string outputDir, string hash) => new(File, Src, outputDir, hash);
@@ -153,11 +158,7 @@ public class ViteManifestPreWarmReport
     public string TotalCompressedFormatted { get; }
     public string TotalSavedFormatted { get; }
 
-    // --- Per-Algorithm Breakdown ---
-    public IReadOnlyList<ViteManifestCompressionSummary> CompressionBreakdown { get; }
-
-    // --- Per-Asset Details ---
-    public IReadOnlyList<ViteManifestPreWarmAssetReport> Assets { get; }
+    public IReadOnlyList<ViteManifestCompressionAlgorithmSummary> CompressionBreakdown { get; }
 
     public ViteManifestPreWarmReport(int totalAssets, int preWarmedAssets, long elapsedMs,
         IReadOnlyList<ViteManifestPreWarmAssetReport> assets)
@@ -167,7 +168,6 @@ public class ViteManifestPreWarmReport
         FailedAssets = totalAssets - preWarmedAssets;
         ElapsedMs = elapsedMs;
         CreatedAt = DateTimeOffset.UtcNow;
-        Assets = assets;
 
         var succeeded = assets.Where(a => a.Success).ToList();
         TotalOriginalBytes = succeeded.Sum(a => a.OriginalBytes);
@@ -179,15 +179,16 @@ public class ViteManifestPreWarmReport
         TotalCompressedFormatted = FormatBytes(TotalCompressedBytes);
         TotalSavedFormatted = FormatBytes(TotalOriginalBytes - TotalCompressedBytes);
 
+        // Group by algorithm; assets without encoding go under "identity"
         CompressionBreakdown = succeeded
-            .Where(a => a.ContentEncoding != null)
-            .GroupBy(a => a.ContentEncoding!)
-            .Select(g => new ViteManifestCompressionSummary(
+            .GroupBy(a => a.ContentEncoding ?? "identity")
+            .Select(g => new ViteManifestCompressionAlgorithmSummary(
                 g.Key,
                 g.Count(),
                 g.Sum(a => a.OriginalBytes),
-                g.Sum(a => a.CompressedBytes)))
-            .OrderByDescending(s => s.OriginalBytes - s.CompressedBytes)
+                g.Sum(a => a.CompressedBytes),
+                g.ToList()))
+            .OrderByDescending(s => s.SavedBytes)
             .ToList();
     }
 
@@ -208,9 +209,10 @@ public class ViteManifestPreWarmReport
 }
 
 /// <summary>
-/// Compression statistics grouped by algorithm (e.g. br, gzip, deflate).
+/// Compression statistics grouped by algorithm (e.g. br, gzip, deflate, identity).
+/// Contains the list of assets compressed with this algorithm.
 /// </summary>
-public class ViteManifestCompressionSummary
+public class ViteManifestCompressionAlgorithmSummary
 {
     public string Algorithm { get; }
     public int AssetCount { get; }
@@ -219,7 +221,10 @@ public class ViteManifestCompressionSummary
     public long SavedBytes { get; }
     public double CompressionRatio { get; }
 
-    public ViteManifestCompressionSummary(string algorithm, int assetCount, long originalBytes, long compressedBytes)
+    public IReadOnlyList<ViteManifestPreWarmAssetReport> Assets { get; }
+
+    public ViteManifestCompressionAlgorithmSummary(string algorithm, int assetCount, long originalBytes, long compressedBytes,
+        IReadOnlyList<ViteManifestPreWarmAssetReport> assets)
     {
         Algorithm = algorithm;
         AssetCount = assetCount;
@@ -227,15 +232,13 @@ public class ViteManifestCompressionSummary
         CompressedBytes = compressedBytes;
         SavedBytes = originalBytes - compressedBytes;
         CompressionRatio = originalBytes > 0 ? Math.Round(1.0 - (double)compressedBytes / originalBytes, 4) : 0;
+        Assets = assets;
     }
 
     public override string ToString() =>
         $"{Algorithm}: {AssetCount} assets, {ViteManifestPreWarmReport.FormatBytes(SavedBytes)} saved ({CompressionRatio:P1})";
 }
 
-/// <summary>
-/// Per-asset pre-warm result with size, duration, and compression details.
-/// </summary>
 public class ViteManifestPreWarmAssetReport
 {
     public string Path { get; }
@@ -243,14 +246,12 @@ public class ViteManifestPreWarmAssetReport
     public bool Success { get; }
     public string? Error { get; }
 
-    // --- Size & Compression ---
     public long OriginalBytes { get; }
     public long CompressedBytes { get; }
     public double CompressionRatio { get; }
     public string? ContentEncoding { get; }
     public string? ContentType { get; }
 
-    // --- Timing ---
     public long DurationMs { get; }
 
     private ViteManifestPreWarmAssetReport(string path, int statusCode, long originalBytes, long compressedBytes,
@@ -264,14 +265,6 @@ public class ViteManifestPreWarmAssetReport
         CompressionRatio = originalBytes > 0 ? Math.Round(1.0 - (double)compressedBytes / originalBytes, 4) : 0;
         ContentEncoding = contentEncoding;
         ContentType = contentType;
-        DurationMs = durationMs;
-    }
-
-    private ViteManifestPreWarmAssetReport(string path, int statusCode, long durationMs)
-    {
-        Path = path;
-        StatusCode = statusCode;
-        Success = false;
         DurationMs = durationMs;
     }
 
@@ -289,11 +282,11 @@ public class ViteManifestPreWarmAssetReport
         long originalBytes, long compressedBytes, string? contentEncoding, string? contentType, long durationMs)
         => new(path, statusCode, originalBytes, compressedBytes, contentEncoding, contentType, durationMs);
 
-    public static ViteManifestPreWarmAssetReport Failed(string path, int statusCode, long durationMs) 
-        => new(path, statusCode,  durationMs);
+    public static ViteManifestPreWarmAssetReport Failed(string path, int statusCode, long durationMs)
+        => new(path, statusCode, error: null, durationMs);
 
-    public static ViteManifestPreWarmAssetReport Errored(string path, string error, long durationMs) 
-        => new(path, 0, error, durationMs);
+    public static ViteManifestPreWarmAssetReport Errored(string path, string error, long durationMs)
+        => new(path, statusCode: 0, error, durationMs);
 
     public override string ToString() => Success
         ? $"{Path}: {ViteManifestPreWarmReport.FormatBytes(OriginalBytes)} → {ViteManifestPreWarmReport.FormatBytes(CompressedBytes)} ({CompressionRatio:P1}) [{ContentEncoding ?? "none"}] in {DurationMs}ms"
