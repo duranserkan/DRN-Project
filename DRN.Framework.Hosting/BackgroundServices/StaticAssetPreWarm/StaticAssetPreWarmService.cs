@@ -18,8 +18,6 @@ public class StaticAssetPreWarmService(
     private IScopedLog _scopedLog = null!;
     private ILogger _logger = null!;
     
-    private const int MaxParallelism = 4;
-
     /// <summary>
     /// Accept-Encoding values to pre-warm. ResponseCaching keys on Vary: Accept-Encoding,
     /// so each distinct value populates a separate cache entry. Order: most-preferred first.
@@ -62,14 +60,13 @@ public class StaticAssetPreWarmService(
         _scopedLog
             .Add(PreWarmScopeLogKeys.AssetCount, context.Items.Count)
             .Add(PreWarmScopeLogKeys.Encodings, AcceptEncodings.Length)
-            .Add(PreWarmScopeLogKeys.BaseAddress, context.BaseAddress)
-            .Add(PreWarmScopeLogKeys.MaxParallelism, MaxParallelism);
+            .Add(PreWarmScopeLogKeys.BaseAddress, context.BaseAddress);
 
         var sw = Stopwatch.StartNew();
         var workItems = BuildWorkItems(context.Items);
 
         using var proxy = new StaticAssetPreWarmProxy(context.BaseAddress, _scopedLog);
-        var assetReports = await proxy.ExecutePreWarmRequestsAsync(workItems, MaxParallelism, stoppingToken);
+        var assetReports = await proxy.ExecutePreWarmRequestsAsync(workItems, stoppingToken);
         sw.Stop();
 
         PublishReport(workItems.Count, assetReports, sw.ElapsedMilliseconds);
@@ -99,34 +96,28 @@ public class StaticAssetPreWarmService(
             scopedLog.Add(PreWarmScopeLogKeys.SkipReason, "NoViteManifestItemsFound");
             return null;
         }
-        
+
         var baseAddress = server.GetLoopbackAddress();
-        if (baseAddress != null) 
+        if (baseAddress != null)
             return new PreWarmContext(items, baseAddress);
-        
+
         scopedLog.Add(PreWarmScopeLogKeys.SkipReason, "NoServerAddressAvailable");
         return null;
     }
-    
+
     private static List<PreWarmWorkItem> BuildWorkItems(IReadOnlyCollection<ViteManifestItem> items)
         => items.SelectMany(item => AcceptEncodings.Select(enc => new PreWarmWorkItem(item, enc))).ToList();
-    
-    private void PublishReport(int totalRequests, ConcurrentBag<ViteManifestPreWarmAssetReport> assetReports,
-        long elapsedMs)
+
+    private void PublishReport(int totalRequests, ConcurrentBag<ViteManifestPreWarmAssetReport> assetReports, long elapsedMs)
     {
         var sortedReports = assetReports.OrderBy(r => r.Path).ThenBy(r => r.ContentEncoding).ToList();
         var preWarmed = sortedReports.Count(r => r.Success);
         var report = new ViteManifestPreWarmReport(totalRequests, preWarmed, elapsedMs, sortedReports);
 
         if (ViteManifest.TrySetPreWarmReport(report))
-        {
-            _scopedLog.Add(PreWarmScopeLogKeys.PreWarmReport, report);
             _scopedLog.AddToActions("PublishedPreWarmReport");
-        }
         else
-        {
             _scopedLog.Add(PreWarmScopeLogKeys.PreWarmReportStatus, "AlreadySetByAnotherInstance");
-        }
 
         _logger.LogScoped(_scopedLog);
     }

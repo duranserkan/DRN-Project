@@ -8,6 +8,7 @@ public static class TimeStampManager
     
     private static Func<Task> GetUpdateAction()
     {
+        _ = RecurringAction; //this action used to trigger updates
         Update();
         return Update;
     }

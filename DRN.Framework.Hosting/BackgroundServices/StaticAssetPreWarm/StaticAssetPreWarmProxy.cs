@@ -24,16 +24,17 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
         _client.BaseAddress = new Uri(baseAddress);
     }
 
-    public async Task<ConcurrentBag<ViteManifestPreWarmAssetReport>> ExecutePreWarmRequestsAsync(
-        List<PreWarmWorkItem> workItems, int maxParallelism, CancellationToken stoppingToken)
+    public async Task<ConcurrentBag<ViteManifestPreWarmAssetReport>> ExecutePreWarmRequestsAsync(List<PreWarmWorkItem> workItems, CancellationToken stoppingToken)
     {
         var assetReports = new ConcurrentBag<ViteManifestPreWarmAssetReport>();
-
-        await Parallel.ForEachAsync(workItems, new ParallelOptions
+        var options = new ParallelOptions
         {
-            MaxDegreeOfParallelism = maxParallelism,
+            MaxDegreeOfParallelism = 4,
             CancellationToken = stoppingToken
-        }, async (work, ct) => { assetReports.Add(await PreWarmSingleAssetAsync(work, ct)); });
+        };
+
+        await Parallel.ForEachAsync(workItems, options, async (work, ct)
+            => assetReports.Add(await PreWarmSingleAssetAsync(work, ct)));
 
         return assetReports;
     }
@@ -52,8 +53,13 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
             if (!response.IsSuccessStatusCode)
             {
                 sw.Stop();
-                _scopedLog.AddToList(PreWarmScopeLogKeys.FailedRequests,
-                    new { work.Item.Path, work.Encoding, StatusCode = statusCode });
+                _scopedLog.AddToList(PreWarmScopeLogKeys.FailedRequests, new
+                {
+                    work.Item.Path,
+                    work.Encoding,
+                    StatusCode = statusCode
+                });
+
                 return ViteManifestPreWarmAssetReport.Failed(work.Item.Path, statusCode, sw.ElapsedMilliseconds);
             }
 
@@ -77,7 +83,13 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             sw.Stop();
-            _scopedLog.AddToList(PreWarmScopeLogKeys.ErroredRequests, new { work.Item.Path, work.Encoding, Error = ex.Message });
+            _scopedLog.AddToList(PreWarmScopeLogKeys.ErroredRequests, new
+            {
+                work.Item.Path,
+                work.Encoding,
+                Error = ex.Message
+            });
+
             return ViteManifestPreWarmAssetReport.Errored(work.Item.Path, ex.Message, sw.ElapsedMilliseconds);
         }
     }
@@ -91,7 +103,10 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
         try
         {
             var filePath = Path.Combine("wwwroot", requestPath.TrimStart('/'));
-            return File.Exists(filePath) ? new FileInfo(filePath).Length : 0;
+
+            return File.Exists(filePath)
+                ? new FileInfo(filePath).Length
+                : 0;
         }
         catch
         {

@@ -15,7 +15,7 @@ public static class ViteManifest
     private static readonly Lock Lock = new();
     private static volatile ViteManifestPreWarmReport? _preWarmReport;
     private static int _preWarmClaimed;
-    
+
     public static ViteManifestPreWarmReport? PreWarmReport => _preWarmReport;
 
     /// <summary>
@@ -253,13 +253,12 @@ public class ViteManifestPreWarmAssetReport
     // --- Timing ---
     public long DurationMs { get; }
 
-    private ViteManifestPreWarmAssetReport(string path, int statusCode, bool success, string? error,
-        long originalBytes, long compressedBytes, string? contentEncoding, string? contentType, long durationMs)
+    private ViteManifestPreWarmAssetReport(string path, int statusCode, long originalBytes, long compressedBytes,
+        string? contentEncoding, string? contentType, long durationMs)
     {
         Path = path;
         StatusCode = statusCode;
-        Success = success;
-        Error = error;
+        Success = true;
         OriginalBytes = originalBytes;
         CompressedBytes = compressedBytes;
         CompressionRatio = originalBytes > 0 ? Math.Round(1.0 - (double)compressedBytes / originalBytes, 4) : 0;
@@ -268,15 +267,33 @@ public class ViteManifestPreWarmAssetReport
         DurationMs = durationMs;
     }
 
+    private ViteManifestPreWarmAssetReport(string path, int statusCode, long durationMs)
+    {
+        Path = path;
+        StatusCode = statusCode;
+        Success = false;
+        DurationMs = durationMs;
+    }
+
+    private ViteManifestPreWarmAssetReport(string path, int statusCode, string? error, long durationMs)
+    {
+        Path = path;
+        StatusCode = statusCode;
+        Success = false;
+        Error = error;
+        DurationMs = durationMs;
+    }
+
+
     public static ViteManifestPreWarmAssetReport Ok(string path, int statusCode,
         long originalBytes, long compressedBytes, string? contentEncoding, string? contentType, long durationMs)
-        => new(path, statusCode, true, null, originalBytes, compressedBytes, contentEncoding, contentType, durationMs);
+        => new(path, statusCode, originalBytes, compressedBytes, contentEncoding, contentType, durationMs);
 
-    public static ViteManifestPreWarmAssetReport Failed(string path, int statusCode, long durationMs)
-        => new(path, statusCode, false, null, 0, 0, null, null, durationMs);
+    public static ViteManifestPreWarmAssetReport Failed(string path, int statusCode, long durationMs) 
+        => new(path, statusCode,  durationMs);
 
-    public static ViteManifestPreWarmAssetReport Errored(string path, string error, long durationMs)
-        => new(path, 0, false, error, 0, 0, null, null, durationMs);
+    public static ViteManifestPreWarmAssetReport Errored(string path, string error, long durationMs) 
+        => new(path, 0, error, durationMs);
 
     public override string ToString() => Success
         ? $"{Path}: {ViteManifestPreWarmReport.FormatBytes(OriginalBytes)} → {ViteManifestPreWarmReport.FormatBytes(CompressedBytes)} ({CompressionRatio:P1}) [{ContentEncoding ?? "none"}] in {DurationMs}ms"
