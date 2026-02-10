@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using DRN.Framework.Hosting.Utils;
+using DRN.Framework.Hosting.Utils.Vite;
+using DRN.Framework.Hosting.Utils.Vite.Models;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Logging;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +13,7 @@ namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
 
 [HostedService]
 public class StaticAssetPreWarmService(
+    IViteManifest viteManifest,
     IAppStartupStatus startupStatus,
     IServerAddressResolver server,
     IServiceProvider scopeFactory) : BackgroundService
@@ -50,7 +53,7 @@ public class StaticAssetPreWarmService(
 
     private async Task PreWarmAsync(CancellationToken stoppingToken)
     {
-        var context = TryClaimAndValidate(_scopedLog);
+        var context = GetPreWarmContext(_scopedLog);
         if (context == null)
         {
             _logger.LogScoped(_scopedLog);
@@ -71,26 +74,10 @@ public class StaticAssetPreWarmService(
 
         PublishReport(workItems.Count, assetReports, sw.ElapsedMilliseconds);
     }
-
-    /// <summary>
-    /// Atomically claims pre-warm ownership and validates prerequisites.
-    /// Returns <c>null</c> (with appropriate logging) when pre-warming should be skipped.
-    /// </summary>
-    private PreWarmContext? TryClaimAndValidate(IScopedLog scopedLog)
+    
+    private PreWarmContext? GetPreWarmContext(IScopedLog scopedLog)
     {
-        if (!ViteManifest.TryClaimPreWarm())
-        {
-            var existingReport = ViteManifest.PreWarmReport;
-            if (existingReport != null)
-                scopedLog
-                    .Add(PreWarmScopeLogKeys.SkipReason, "AlreadyPreWarmed")
-                    .Add(PreWarmScopeLogKeys.ExistingReportCreatedAt, existingReport.CreatedAt);
-            else
-                scopedLog.Add(PreWarmScopeLogKeys.SkipReason, "AlreadyClaimedByAnotherInstance");
-            return null;
-        }
-
-        var items = ViteManifest.GetAllManifestItems();
+        var items = viteManifest.GetAllManifestItems();
         if (items.Count == 0)
         {
             scopedLog.Add(PreWarmScopeLogKeys.SkipReason, "NoViteManifestItemsFound");
@@ -114,10 +101,7 @@ public class StaticAssetPreWarmService(
         var preWarmed = sortedReports.Count(r => r.Success);
         var report = new ViteManifestPreWarmReport(totalRequests, preWarmed, elapsedMs, sortedReports);
 
-        if (ViteManifest.TrySetPreWarmReport(report))
-            _scopedLog.AddToActions("PublishedPreWarmReport");
-        else
-            _scopedLog.Add(PreWarmScopeLogKeys.PreWarmReportStatus, "AlreadySetByAnotherInstance");
+        ((ViteManifest)viteManifest).PreWarmReport = report;
 
         _logger.LogScoped(_scopedLog);
     }

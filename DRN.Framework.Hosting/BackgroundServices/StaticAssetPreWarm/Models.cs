@@ -1,4 +1,6 @@
 using DRN.Framework.Hosting.Utils;
+using DRN.Framework.Hosting.Utils.Vite;
+using DRN.Framework.Hosting.Utils.Vite.Models;
 
 namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
 

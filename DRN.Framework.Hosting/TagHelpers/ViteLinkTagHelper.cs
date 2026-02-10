@@ -1,10 +1,11 @@
 using DRN.Framework.Hosting.Utils;
+using DRN.Framework.Hosting.Utils.Vite;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 
 namespace DRN.Framework.Hosting.TagHelpers;
 
 [HtmlTargetElement("link")]
-public class ViteLinkTagHelper : TagHelper
+public class ViteLinkTagHelper(IViteManifest viteManifest) : TagHelper
 {
     private const string HrefAttributeName = "href";
     private const string IntegrityAttributeName = "integrity";
@@ -25,7 +26,7 @@ public class ViteLinkTagHelper : TagHelper
             return;
         }
 
-        var manifestItem = ViteManifest.GetManifestItem(Href);
+        var manifestItem = viteManifest.GetManifestItem(Href);
         if (manifestItem?.Path == null)
         {
             output.TagName = null;

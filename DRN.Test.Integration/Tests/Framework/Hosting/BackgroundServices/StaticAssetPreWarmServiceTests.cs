@@ -1,4 +1,6 @@
 using DRN.Framework.Hosting.Utils;
+using DRN.Framework.Hosting.Utils.Vite;
+using DRN.Framework.Hosting.Utils.Vite.Models;
 using Sample.Hosted;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting.BackgroundServices;
@@ -20,13 +22,15 @@ public class StaticAssetPreWarmServiceTests
         ViteManifest.IsViteOrigin("assets/image.png").Should().BeFalse();
         
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
-        var items = ViteManifest.GetAllManifestItems();
+        var viteManifest = context.GetRequiredService<IViteManifest>();
+        
+        var items = viteManifest.GetAllManifestItems();
         items.Should().NotBeNull();
         
-        var item = ViteManifest.GetManifestItem("non-existent-entry");
+        var item = viteManifest.GetManifestItem("non-existent-entry");
         item.Should().BeNull();
         
-        var report = ViteManifest.PreWarmReport;
+        var report = viteManifest.PreWarmReport;
         report.Should().Match<ViteManifestPreWarmReport?>(r => r == null || r.TotalAssets >= 0);
     }
 }

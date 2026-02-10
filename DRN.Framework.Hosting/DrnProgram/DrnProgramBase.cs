@@ -9,6 +9,7 @@ using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Utils;
+using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Configurations;
@@ -299,7 +300,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         MapApplicationEndpoints(application, appSettings);
         
         var webHostEnvironment = application.Services.GetRequiredService<IWebHostEnvironment>();
-        _ = ViteManifest.GetAllManifestItems(webHostEnvironment.WebRootPath);
+        _ = application.Services.GetRequiredService<IViteManifest>().GetAllManifestItems(webHostEnvironment.WebRootPath);
     }
 
     /// <summary>

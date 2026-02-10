@@ -1,10 +1,11 @@
 using DRN.Framework.Hosting.Utils;
+using DRN.Framework.Hosting.Utils.Vite;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 
 namespace DRN.Framework.Hosting.TagHelpers;
 
 [HtmlTargetElement("script")]
-public class ViteScriptTagHelper : TagHelper
+public class ViteScriptTagHelper(IViteManifest viteManifest) : TagHelper
 {
     private const string SrcAttributeName = "src";
     private const string IntegrityAttributeName = "integrity";
@@ -25,7 +26,7 @@ public class ViteScriptTagHelper : TagHelper
             return;
         }
 
-        var manifestItem = ViteManifest.GetManifestItem(Src);
+        var manifestItem = viteManifest.GetManifestItem(Src);
         if (manifestItem?.Path == null)
         {
             output.TagName = null;
