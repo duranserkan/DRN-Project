@@ -171,12 +171,11 @@ public async Task DbTest(DrnTestContext context)
 ```csharp
 [Theory]
 [DataInline]
-public async Task ApiTest(DrnTestContext context)
+public async Task ApiTest(DrnTestContext context, ITestOutputHelper outputHelper)
 {
-    var app = context.ApplicationContext.CreateApplication<Program>();
-    await context.ContainerContext.Postgres.ApplyMigrationsAsync();
+    // CreateClientAsync handles app startup, migrations, and authentication
+    var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
     
-    var client = app.CreateClient();
     var response = await client.GetAsync("/api/resource");
     response.Should().BeSuccessful();
 }

@@ -72,19 +72,40 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 
 ### Pipeline Hooks
 
+#### Configuration Hooks (Builder Phase)
+
 | Method | Purpose |
 |--------|---------|
-| `AddServicesAsync()` | [Required] Add services to DI container |
+| `AddServicesAsync()` | **[Required]** Add services to DI container |
 | `ConfigureSwaggerOptions()` | Customize Swagger/OpenAPI title and availability |
 | `ConfigureApplicationBuilder()` | Root application builder customization |
 | `ConfigureMvcOptions()` | MVC options configuration |
 | `ConfigureMvcBuilder()` | IMvcBuilder customization (JSON, Runtime compilation) |
 | `ConfigureDefaultSecurityHeaders()` | Main CSP and security header policy definitions |
 | `ConfigureDefaultCsp()` | Customize CSP directives |
-| `ConfigureSecurityHeaderPolicyBuilder()`| Advanced conditional security policies |
-| `ConfigureCookiePolicy()` | GDRP and consent cookie settings |
+| `ConfigureSecurityHeaderPolicyBuilder()`| Advanced route-specific security policies |
+| `ConfigureAuthorizationOptions()` | Authorization policy configuration |
+| `ConfigureCookiePolicy()` | GDPR and consent cookie settings |
+| `ConfigureCookieTempDataProvider()` | Cookie-based TempData settings |
+| `ConfigureSecurityStampValidatorOptions()` | Identity security stamp interval |
+| `ConfigureRequestLocalizationOptions()` | Localization / culture settings |
+| `ConfigureHostFilteringOptions()` | Allowed hosts validation |
+| `ConfigureBrotliCompressionLevel()` | Brotli compression level |
+| `ConfigureGzipCompressionLevel()` | Gzip compression level |
+| `ConfigureResponseCachingOptions()` | Response caching settings |
+| `ConfigureResponseCompressionOptions()` | Response compression settings |
+| `ConfigureCompressionProviders()` | Register compression providers |
+| `ConfigureForwardedHeadersOptions()` | Proxy/forwarded headers |
+| `ConfigureStaticFileOptions()` | Static file serving and caching |
+| `ConfigureRateLimiterOptions()` | Rate limiting policies |
+
+#### Pipeline Hooks (Application Phase)
+
+| Method | Purpose |
+|--------|---------|
 | `ConfigureApplicationPipelineStart()` | Earliest middleware (HSTS, Cookies, Security Headers) |
 | `ConfigureApplicationPreScopeStart()` | Pre-logger/scope (Static files) |
+| `ConfigureApplicationPostScopeStart()` | After HttpScopeMiddleware |
 | `ConfigureApplicationPreAuthentication()` | Before Auth (Localization) |
 | `ConfigureApplicationPostAuthentication()` | Post-Auth, Pre-AuthZ (MFA Redirection/Exemption) |
 | `ConfigureApplicationPostAuthorization()` | Post-AuthZ (Swagger UI) |
@@ -220,6 +241,7 @@ public override async Task ApplicationBuilderCreatedAsync<TProgram>(...)
 - **Cookie Policy** - SameSite=Strict, Secure, HttpOnly
 - **Host Filtering** - AllowedHosts validation
 - **Forwarded Headers** - Proxy support
+- **Modern HTTP Standards** - Automatic 303 redirect conversion and strict caching
 
 ### Startup Augmentations
 
@@ -250,6 +272,42 @@ public class PublicController : Controller { }
 public class MfaSetupController : Controller { }
 ```
 
+#### Disabling MFA Globally
+
+To disable MFA enforcement entirely (e.g., for apps that don't use Identity):
+
+```csharp
+protected override void ConfigureAuthorizationOptions(AuthorizationOptions options)
+{
+    // Override to remove MFA from default/fallback policies
+}
+```
+
+### GDPR & Consent Integration
+
+`DrnProgramBase` integrates GDPR consent management:
+
+- **`ConsentCookie`**: Manages user consent state via a secure, `HttpOnly` cookie.
+- **`ScopedUserMiddleware`**: Extracts and populates `IScopedLog` with `ConsentGranted` status.
+- **`ConfigureCookiePolicy()`**: Enforces `SameSiteMode.Strict`, `HttpOnly`, and integrates consent logic.
+
+### Per-Route Security Headers
+
+`ConfigureSecurityHeaderPolicyBuilder` allows route-specific CSP overrides:
+
+```csharp
+protected override void ConfigureSecurityHeaderPolicyBuilder(HeaderPolicyCollection policies, IAppSettings appSettings)
+{
+    policies.AddPolicy("AllowExternalScripts", builder =>
+    {
+        builder.AddContentSecurityPolicy(csp =>
+        {
+            csp.AddScriptSrc().Self().From("https://cdn.example.com");
+        });
+    });
+}
+```
+
 ### Configuration Properties
 
 `DrnProgramBase` provides several properties for high-level configuration:
@@ -276,12 +334,6 @@ DRN Hosting enforces several security invariants by default:
 - **Strict Headers**: `ConfigureDefaultSecurityHeaders` enforces `FrameOptionsDeny`, `ContentTypeOptionsNoSniff`, and strict `CSP` with nonces.
 - **GDPR Compliance**: `ConfigureCookiePolicy` enforces `SameSiteMode.Strict`, `HttpOnly`, and integrates with `ConsentCookie` logic.
 
-### Performance & Caching (Priority 5)
-
-Default optimizations included in the host:
-
-- **Static Asset Caching**: `ConfigureStaticFileOptions` sets `Cache-Control` to 1 year and enables `HttpsCompression`.
-- **Response Caching**: `AddResponseCaching()` is registered by default, configurable via `ConfigureResponseCachingOptions`.
 ### Service Validation
 - End-to-end service validation happens *before* the host starts listening (`ValidateServicesAsync`), preventing late-stage dependency errors.
 
@@ -356,13 +408,9 @@ public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRout
 ### Usage
 
 ```csharp
-### Usage
-
-```csharp
 // In code (Get ApiEndpoint object)
 ApiEndpoint endpoint = Get.Endpoint.Qa.Tag.GetAsync;
 string urlPattern = endpoint.Path();
-```
 ```
 
 ---
@@ -373,7 +421,9 @@ string urlPattern = endpoint.Path();
 |------------|---------|
 | `HttpScopeLogger` | Request/response logging with IScopedLog |
 | `HttpRequestLogger` | Detailed request logging |
-| `MfaEnforcementMiddleware` | Enforce MFA for protected routes |
+| `ScopedUserMiddleware` | Populates IScopedLog with user identity and consent |
+| `MfaRedirectionMiddleware` | Redirect users without MFA to setup page |
+| `MfaExemptionMiddleware` | Exempt specific routes/schemes from MFA |
 
 ### HttpScopeLogger
 
@@ -391,7 +441,7 @@ DRN.Framework.Hosting provides 8 tag helpers in `TagHelpers/`:
 
 ### ViteScriptTagHelper / ViteLinkTagHelper
 
-Auto-resolve Vite manifest entries when `src`/`href` starts with `buildwww/` or `node_modules/`:
+Auto-resolve Vite manifest entries when `src`/`href` starts with `buildwww/` or `node_modules/`. Also adds **Subresource Integrity (SRI)** hashes for security.
 
 ```razor
 <!-- Source in Razor (use buildwww/ path) -->
@@ -467,8 +517,8 @@ Auto-add `active` class and `aria-current="page"` to links matching current page
 
 | TagHelper | Target | Purpose |
 |-----------|--------|---------|
-| `ViteScriptTagHelper` | `<script>` | Resolve Vite manifest entry |
-| `ViteLinkTagHelper` | `<link>` | Resolve Vite manifest entry |
+| `ViteScriptTagHelper` | `<script>` | Resolve Vite manifest entry + SRI |
+| `ViteLinkTagHelper` | `<link>` | Resolve Vite manifest entry + SRI |
 | `NonceTagHelper` | `<script>`, `<style>`, `<link>`, `<iframe>` | Add CSP nonce |
 | `CsrfTokenTagHelper` | `hx-post`, `hx-put`, `hx-delete`, `hx-patch` | Add CSRF token |
 | `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Render only if MFA complete |
@@ -526,6 +576,19 @@ DRN.Framework.Hosting/wwwroot/
 ├── css/           # Framework CSS
 ├── js/            # Framework JS
 └── lib/           # Third-party libs
+```
+
+---
+
+## Global Usings
+
+```csharp
+global using DRN.Framework.SharedKernel;
+global using DRN.Framework.SharedKernel.Domain;
+global using DRN.Framework.Utils.DependencyInjection;
+global using DRN.Framework.Hosting.DrnProgram;
+global using DRN.Framework.Hosting.Endpoints;
+global using Microsoft.AspNetCore.Mvc.RazorPages;
 ```
 
 ---

@@ -21,7 +21,7 @@ description: DRN.Framework.Testing - Comprehensive testing infrastructure with D
 DRN.Framework.Testing makes testing **easy and encouraging** by providing:
 - Auto-mocking via NSubstitute
 - Auto-fixture data generation
-- PostgreSQL testcontainers
+- PostgreSQL and RabbitMQ testcontainers
 - WebApplicationFactory integration
 - Convention-based settings/data loading
 
@@ -32,16 +32,14 @@ DRN.Framework.Testing makes testing **easy and encouraging** by providing:
 ```
 DRN.Framework.Testing/
 ├── Contexts/        # DrnTestContext, ContainerContext, WebApplicationContext
-├── DataAttributes/  # DataInline, DataMember, DataSelf
+├── DataAttributes/  # DataInline, DataMember, DataSelf, DataSelfContext
 ├── TestAttributes/  # FactDebuggerOnly, TheoryDebuggerOnly
-├── Providers/       # SettingsProvider, DataProvider
+├── Providers/       # SettingsProvider, DataProvider, CredentialsProvider
 ├── Extensions/      # Test extensions
 └── Usings.cs
 ```
 
 ---
-
-## DrnTestContext
 
 ## DrnTestContext
 
@@ -67,10 +65,35 @@ public void MyTest(DrnTestContext context, IMockable mock)
 }
 ```
 
+### vs DrnTestContextUnit
+
+`DrnTestContextUnit` is a lightweight variant designed for pure unit tests — **no container or application context**. It provides the same DI, auto-mocking, and settings infrastructure but skips heavy integration dependencies.
+
+| Feature | `DrnTestContext` | `DrnTestContextUnit` |
+|---------|-------------------|----------------------|
+| DI & Auto-mocking | ✅ | ✅ |
+| ContainerContext | ✅ | ❌ |
+| ApplicationContext | ✅ | ❌ |
+| FlurlHttpTest | ✅ | ❌ |
+| Data Attributes | `DataInline`, `DataMember`, `DataSelf` | `DataInlineUnit`, `DataMemberUnit`, `DataSelfUnit` |
+
+```csharp
+[Theory]
+[DataInlineUnit(42)]
+public void Fast_Unit_Test(DrnTestContextUnit context, int value, IMyService mock)
+{
+    mock.GetValue().Returns(value);
+    var sut = context.GetRequiredService<MyConsumer>();
+    sut.Process().Should().Be(42);
+}
+```
+
 ### Key Properties
 
+| Property | Purpose |
+|----------|---------|
 | `ServiceCollection` | Add services before building |
-| `ContainerContext` | Postgres and RabbitMq testcontainer management |
+| `ContainerContext` | Postgres and RabbitMQ testcontainer management |
 | `ApplicationContext` | Full application context (WebApplicationFactory) |
 | `FlurlHttpTest` | HTTP mocking for external calls (see below) |
 | `Configuration` | Test configuration |
@@ -131,6 +154,61 @@ public async Task DbTest(DrnTestContext context)
 - Scans service collection for DrnContexts
 - Adds connection strings automatically
 - Applies migrations
+- Supports RabbitMQ containers
+
+### Isolated Containers
+
+Use `PostgresContextIsolated` when tests need exclusive containers (no sharing):
+
+```csharp
+await context.ContainerContext.PostgresIsolated.ApplyMigrationsAsync();
+```
+
+### Rapid Prototyping (EnsureDatabaseAsync)
+
+For quick prototyping without manual migrations:
+
+```csharp
+await context.ContainerContext.Postgres.EnsureDatabaseAsync();
+```
+
+### Advanced Container Configuration
+
+```csharp
+var settings = new PostgresContainerSettings
+{
+    Reuse = true,        // Keep container across test runs
+    HostPort = 6432,     // Specific host port
+};
+context.ContainerContext.Postgres.Configure(settings);
+```
+
+### PostgresContainerSettings Defaults
+
+| Property | Default | Notes |
+|----------|---------|-------|
+| `DefaultPassword` | `"drn"` | Container password |
+| `DefaultImage` | `"postgres"` | Docker image |
+| `DefaultVersion` | `"18.1-alpine3.23"` | Image tag |
+| `Database` | `"drn"` | From `DbContextConventions.DefaultDatabase` |
+| `Username` | `"drn"` | From `DbContextConventions.DefaultUsername` |
+
+### Connection String Resolution
+
+| Scenario | Connection Source |
+|----------|-------------------|
+| `ContainerContext.Postgres` | Auto-generated from Testcontainer |
+| `ContainerContext.PostgresIsolated` | Auto-generated from exclusive Testcontainer |
+| `ApplicationContext.CreateClientAsync` | Auto-generated from Testcontainer, injected into WebApp |
+
+### DrnDevelopmentSettings Test Flags
+
+Flags automatically managed during testing:
+
+| Flag | Auto-Set Value | Purpose |
+|------|----------------|---------|
+| `TemporaryApplication` | `true` | Prevents collision with local dev containers |
+| `DrnTestContextEnabled` | `true` | Signals test execution environment |
 
 ---
 
@@ -154,6 +232,8 @@ public async Task ApiTest(DrnTestContext context, ITestOutputHelper outputHelper
 
 ### Key Methods
 
+| Method | Purpose |
+|--------|---------|
 | `CreateClientAsync<TProgram>(outputHelper, clientOptions)` | Create authenticated HTTP client |
 | `CreateApplicationAndBindDependenciesAsync<TProgram>(outputHelper)` | Bind dependencies without HTTP client |
 | `LogToTestOutput(outputHelper, debuggerOnly)` | Direct logs to test output |
@@ -198,7 +278,9 @@ public static IEnumerable<object[]> TestData => new List<object[]>
 };
 ```
 
-### DataSelf
+### DataSelf / DataSelfContext
+
+`DataSelfAttribute` provides self-contained test data:
 
 ```csharp
 public class MyTestData : DataSelfAttribute
@@ -213,6 +295,22 @@ public class MyTestData : DataSelfAttribute
 [Theory]
 [MyTestData]
 public void Test(DrnTestContext context, int id, string name) { }
+```
+
+`DataSelfContextAttribute` is the variant for `DrnTestContextUnit`:
+
+```csharp
+public class MyUnitTestData : DataSelfContextAttribute
+{
+    public MyUnitTestData()
+    {
+        AddRow(1, "first");
+    }
+}
+
+[Theory]
+[MyUnitTestData]
+public void UnitTest(DrnTestContextUnit context, int id, string name) { }
 ```
 
 ---
@@ -247,6 +345,30 @@ var content = DataProvider.Get("test-data.json");
 
 Data loaded from `Data/` folder or test file folder.
 
+### CredentialsProvider
+
+Generates deterministic, unique test credentials:
+
+```csharp
+var credentials = CredentialsProvider.GenerateCredentials();
+// credentials.Username, credentials.Password, etc.
+```
+
+---
+
+## JSON Utilities
+
+### ValidateObjectSerialization
+
+Contract testing via JSON round-trip validation:
+
+```csharp
+var original = new MyDto { Name = "test", Value = 42 };
+var roundTripped = original.ValidateObjectSerialization();
+roundTripped.Name.Should().Be("test");
+roundTripped.Value.Should().Be(42);
+```
+
 ---
 
 ## Auto-Mocking
@@ -267,19 +389,49 @@ public void Test(DrnTestContext context, IMyService mock)
 
 ---
 
+## DTT Code Snippet
+
+A `dtt` snippet template is provided for rapid test scaffolding. Type `dtt` and expand to get a ready-to-fill test method.
+
+---
+
+## DTT Philosophy: The Pit of Success
+
+DTT is designed to minimize **cognitive cost** and **willpower depletion**. When testing requires high activation energy (manually wiring dependencies, managing container lifecycles, writing boilerplate), developers subconsciously avoid writing tests.
+
+**DTT flips this equation**: By wrapping all complex rigor (containers, migrations, DI, auto-mocking) into a single attribute (`[DataInline]`), it makes the **Right Thing** (high-quality test) accessible via the **Lowest Effort** action.
+
+You no longer need discipline to write great tests; you just follow the easiest path available. With DTT, software testing becomes a natural part of software development.
+
+---
+
 ## Global Usings
 
 ```csharp
 global using Xunit;
+global using Xunit.v3;
 global using AutoFixture;
 global using AutoFixture.AutoNSubstitute;
+global using AutoFixture.Xunit3;
+global using AwesomeAssertions;
+global using NSubstitute;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.DependencyInjection.Extensions;
+global using Microsoft.Extensions.Configuration;
 global using DRN.Framework.Testing;
+global using DRN.Framework.Testing.Contexts;
 global using DRN.Framework.Testing.DataAttributes;
 global using DRN.Framework.Testing.Providers;
 global using DRN.Framework.Testing.TestAttributes;
-global using DRN.Framework.Testing.Contexts;
-global using AwesomeAssertions;
-global using NSubstitute;
+global using DRN.Framework.Utils.Extensions;
+global using DRN.Framework.Utils.Settings;
+global using DRN.Framework.SharedKernel;
+global using DRN.Framework.Utils.DependencyInjection;
+global using System.Reflection;
+global using System.IO;
+global using System.Linq;
+global using System.Collections;
+global using Xunit.Abstractions;
 ```
 
 ---
@@ -289,12 +441,16 @@ global using NSubstitute;
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <OutputType>Exe</OutputType>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
+        <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
     </PropertyGroup>
     
     <ItemGroup>
         <PackageReference Include="DRN.Framework.Testing" />
+        <PackageReference Include="xunit.v3.mtp-v2" />
     </ItemGroup>
     
     <ItemGroup>
@@ -306,6 +462,17 @@ global using NSubstitute;
         </None>
     </ItemGroup>
 </Project>
+```
+
+### xUnit Runner Configuration
+
+```json
+// xunit.runner.json
+{
+  "$schema": "https://xunit.net/schema/current/xunit.runner.schema.json",
+  "diagnosticMessages": true,
+  "parallelizeTestCollections": true
+}
 ```
 
 ---

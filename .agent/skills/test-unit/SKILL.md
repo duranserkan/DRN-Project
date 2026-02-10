@@ -145,12 +145,12 @@ public void Test(DrnTestContextUnit context, IEventPublisher publisher)
 ```csharp
 [Theory]
 [DataInlineUnit]
-public void Validate_All_Dependencies(DrnTestContextUnit context)
+public async Task Validate_All_Dependencies(DrnTestContextUnit context)
 {
     context.ServiceCollection.AddSampleApplicationServices();
     context.ServiceCollection.AddSampleInfraServices();
     
-    context.ValidateServices(); // Validates all attribute-based services
+    await context.ValidateServicesAsync(); // Validates all attribute-based services
 }
 ```
 

@@ -86,8 +86,6 @@ ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = new MainContentLayoutOptio
         new(Get.Page.Profile.Security, "Security", "bi-shield-lock")
     ])
 };
-    ])
-};
 ```
 
 ### SubNavigationFor

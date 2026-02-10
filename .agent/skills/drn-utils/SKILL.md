@@ -33,13 +33,13 @@ DRN.Framework.Utils/
 ├── Extensions/           # ServiceCollection, String, Type extensions
 ├── Auth/                 # Authentication helpers
 ├── Data/                 # Data utilities
-├── Http/                 # HTTP helpers
+├── Http/                 # HTTP helpers (IExternalRequest, IInternalRequest)
 ├── Ids/                  # ID generation
-├── Numbers/              # Numeric utilities
+├── Numbers/              # NumberBuilder, NumberParser (bit packing)
 ├── Scope/                # ScopeContext
-├── Time/                 # Time utilities
-├── Entity/               # Entity utilities
-├── Cancellation/         # Cancellation utilities
+├── Time/                 # TimeStampManager, RecurringAction
+├── Entity/               # Entity utilities, IPaginationUtils
+├── Cancellation/         # ICancellationUtils
 ├── Models/               # Shared models
 └── UtilsModule.cs        # Module registration
 ```
@@ -49,7 +49,20 @@ DRN.Framework.Utils/
 ## Module Registration
 
 ```csharp
-services.AddDrnUtils(); // Registers all attribute-based services
+// Registers attribute-based services, HybridCache, and TimeProvider
+services.AddDrnUtils();
+```
+
+### HybridCache Registration
+
+`AddDrnUtils()` registers Microsoft's `HybridCache` with default in-memory caching. To configure distributed caching (e.g., Redis), add your `IDistributedCache` registration before calling `AddDrnUtils()`:
+
+```csharp
+builder.Services.AddStackExchangeRedisCache(options => 
+{
+    options.Configuration = "localhost:6379";
+});
+builder.Services.AddDrnUtils(); // HybridCache will use the distributed cache if available
 ```
 
 ---
@@ -88,9 +101,13 @@ public static IServiceCollection AddMyServices(this IServiceCollection sc)
 serviceProvider.ValidateServicesAddedByAttributesAsync(); // Validate registered services health
 ```
 
-### HasServiceCollectionModuleAttribute
+### Module Registration & Startup Actions
 
-For custom registration patterns (like DrnContext):
+Services can require complex registration logic or post-startup actions. Attributes inheriting from `ServiceRegistrationAttribute` handle this.
+
+**Example**: `DrnContext<T>` is decorated with `[DrnContextServiceRegistration]`, which:
+1. Registers the DbContext.
+2. Automatically triggers EF Core Migrations when the application starts in Development environments (via `PostStartupValidationAsync`).
 
 ```csharp
 [HasDrnContextServiceCollectionModule]
@@ -127,7 +144,7 @@ public interface IAppSettings
 
 ### Config Attribute
 
-Bind configuration sections to classes:
+Bind configuration sections to classes (registered as **Singletons**):
 
 ```csharp
 [Config("MySection")]      // Binds appsettings:MySection
@@ -173,6 +190,7 @@ public class MyOverride : IMountedSettingsConventionsOverride
 |---------|-------|----------|
 | `ConfigurationException` | Missing required key | Add to `appsettings.json` |
 | `GetRequiredConnectionString` throws | Key not found | Check `ConnectionStrings` section |
+| `IsDevEnvironment` always false | `ASPNETCORE_ENVIRONMENT` not set | Set env var or use `launchSettings.json` |
 | Env vars not binding | Wrong format | Use `__` for nested: `Section__Key` |
 | Mounted settings not loading | Wrong path | Check `/appconfig/` or override via `IMountedSettingsConventionsOverride` |
 
@@ -180,17 +198,18 @@ public class MyOverride : IMountedSettingsConventionsOverride
 
 ## Scoped Logging (IScopedLog)
 
-Request-scoped structured logging:
+Request-scoped structured logging. Aggregates operational data, metrics, and checkpoints during the request lifecycle, flushing them as a single entry.
 
-```csharp
-public class MyService(IScopedLog scopedLog)
-{
-    public void DoWork()
-    {
+### API
+
+| Method | Purpose |
+|--------|---------|
 | `Add(key, value)` | Add structured log entry |
+| `AddIfNotNullOrEmpty(key, value)` | Conditional structured log entry |
 | `AddToActions(msg)` | Add entry to execution trail |
-| `Measure(key)` | Capture execution duration |
-| `AddException(ex)` | Logs exception with inner details |
+| `AddProperties(key, object)` | Flatten and add complex objects |
+| `Measure(key)` | Capture execution duration and count |
+| `AddException(ex, msg)` | Logs exception with inner details |
 | `Increase(key, by)` | Atomically increment a counter |
 | `IncreaseTimeSpentOn(key, by)` | Accumulate time for a metric |
 
@@ -219,50 +238,190 @@ public interface IScopedLog
 
 ---
 
-## Extension Methods
+## HTTP Client Factories (`IExternalRequest`, `IInternalRequest`)
 
-### ServiceCollectionExtensions
+Wrappers around [Flurl](https://flurl.dev/) for resilient HTTP clients with standardized JSON conventions.
 
-```csharp
-services.ReplaceInstance<T>(instance);
-services.ReplaceTransient<TService, TImpl>();
-services.ReplaceScoped<TService, TImpl>();
-services.ReplaceSingleton<TService, TImpl>();
-services.GetAllAssignableTo<TService>();
-```
+### External Requests
 
-### StringExtensions
+Use `IExternalRequest` for standard external API calls. Pre-configures `DefaultJsonSerializer` and enforces HTTP version policies.
 
 ```csharp
-"hello world".ToStream();       // Convert to stream
-"camelCase".ToPascalCase();     // Convert to PascalCase
+public class PaymentService(IExternalRequest request)
+{
+    public async Task Process()
+    {
+        var response = await request.For("https://api.example.com", HttpVersion.Version11)
+            .AppendPathSegment("v1/charges")
+            .PostJsonAsync(new { Amount = 1000 })
+            .ToJsonAsync<ExternalApiResponse>();
+    }
+}
 ```
 
-### TypeExtensions
+### Internal Requests (Service Mesh)
+
+Use `IInternalRequest` for Service-to-Service communication in Kubernetes. Designed to work with Linkerd, supporting automatic protocol switching (HTTP/HTTPS).
+
+**Recommended Pattern: Request Wrappers**:
+```csharp
+public interface INexusRequest { IFlurlRequest For(string path); }
+
+[Singleton<INexusRequest>]
+public class NexusRequest(IInternalRequest request, IAppSettings settings) : INexusRequest
+{
+    private readonly string _nexusAddress = settings.NexusAppSettings.NexusAddress;
+    public IFlurlRequest For(string path) => request.For(_nexusAddress).AppendPathSegment(path);
+}
+```
+
+---
+
+## Scoped Cancellation (`ICancellationUtils`)
+
+Manage request-scoped cancellation tokens. Supports merging tokens from multiple sources (e.g., `HttpContext.RequestAborted` and application-level timeouts).
 
 ```csharp
-type.MakeGenericMethod(methodName, typeArgs);
+public class MyScopedService(ICancellationUtils cancellation)
+{
+    public async Task DoWorkAsync(CancellationToken externalToken)
+    {
+        cancellation.Merge(externalToken); // Merges with the scoped token
+        await SomeAsyncOp(cancellation.Token);
+        
+        if (cancellation.IsCancellationRequested)
+            return;
+    }
+}
 ```
 
-### AssemblyExtensions
+---
+
+## Data Utilities
+
+### Encodings (`EncodingExtensions`)
+Unified API for binary-to-text encodings and model serialization-encoding.
+- **Encodings**: Base64, Base64Url (safe for URLs), Hex, and Utf8.
+- **Integrated**: `model.Encode(ByteEncoding.Hex)` and `hexString.Decode<TModel>()`.
+
+### Hashing (`HashExtensions`)
+High-performance hashing extensions supporting modern and legacy algorithms.
+- **Blake3**: Default modern cryptographic hash (fast and secure).
+- **XxHash3**: Non-cryptographic hashing for performance-critical scenarios (IDs, cache keys).
+- **Security**: Keyed hashing support (`HashWithKey`) for integrity protection.
+
+### JSON & Document Utilities
+- **JSON Merge Patch**: `JsonMergePatch.SafeApplyMergePatch` follows RFC 7386 with recursion depth protection.
+- **Query String Serialization**: `QueryParameterSerializer` flattens complex nested objects/arrays into clean query strings.
+
+### Serialization & Streams
+- **Unified Extensions**: `model.Serialize(method)` supports JSON and Query String formats.
+- **Safe Stream Consumption**: `ToBinaryDataAsync` and `ToArrayAsync` with `MaxSizeGuard` to prevent memory exhaustion from untrusted streams.
+
+### Programmatic Validation
+Extensions for programmatic validation using `System.ComponentModel.DataAnnotations`.
+- **Contextual**: Integrates with `DRN.Framework.SharedKernel.ValidationException` for standardized error reporting.
+
+---
+
+## Pagination (`IPaginationUtils`)
+
+High-performance, monotonic cursor-based pagination leveraging temporal sequence of `SourceKnownEntityId`.
 
 ```csharp
-assembly.GetTypesAssignableTo<TInterface>();
+public class OrderService(IPaginationUtils pagination)
+{
+    public async Task<PaginationResult<Order>> GetRecentOrdersAsync(PaginationRequest request)
+    {
+        var query = dbContext.Orders.Where(x => x.Active);
+        return await pagination.GetResultAsync(query, request);
+    }
+}
 ```
+
+---
+
+## Bit Packing (`NumberBuilder` / `NumberParser`)
+
+Zero-allocation bit manipulation for custom ID generation or compact binary data structures.
+
+```csharp
+// Pack data into a long
+var builder = NumberBuilder.GetLong();
+builder.TryAddNibble(0x05);  // Add 4 bits
+builder.TryAddUShort(65535); // Add 16 bits
+long packedValue = builder.GetValue();
+
+// Unpack
+var parser = NumberParser.Get(packedValue);
+byte nibble = parser.ReadNibble();
+ushort value = parser.ReadUShort();
+```
+
+---
+
+## Diagnostics
+
+### Development Status
+
+Track database migration status and pending model changes in real-time during development.
+
+```csharp
+public class StartupService(DevelopmentStatus status, IScopedLog log)
+{
+    public void CheckStatus()
+    {
+        if (status.HasPendingChanges)
+        {
+            log.AddToActions("Warning: Pending database changes detected");
+            foreach (var model in status.Models)
+                 model.LogChanges(log, "Development");
+        }
+    }
+}
+```
+
+---
+
+## Time & Async
+
+### High-Performance Time (`TimeStampManager`)
+
+Cached UTC timestamp updated periodically (default 10ms) to reduce `DateTimeOffset.UtcNow` overhead for frequent timestamp lookups.
+
+```csharp
+long seconds = TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
+DateTimeOffset now = TimeStampManager.UtcNow; // Cached precision up to the second
+```
+
+### Async-Safe Timer (`RecurringAction`)
+
+Lock-free, atomic timer preventing overlapping executions.
+
+```csharp
+var worker = new RecurringAction(async () => {
+    await DoHeavyWork();
+}, period: 1000, start: true);
+worker.Stop();
+```
+
+### Time
+`TimeProvider` singleton is registered by default to `TimeProvider.System` for testable time entry.
 
 ---
 
 ## ScopeContext (Ambient Context)
 
-Access scoped data anywhere:
+Access scoped data anywhere. Simplifies cross-cutting concerns like auditing, multi-tenancy, and security by avoiding deep parameter passing, especially in Razor Pages (`.cshtml`).
 
 ```csharp
 ScopeContext.UserId;
+ScopeContext.TraceId;
+ScopeContext.Authenticated;
+ScopeContext.Settings;      // Static IAppSettings access
+ScopeContext.Log;           // Static IScopedLog access
 ScopeContext.IsUserInRole("Admin");
 ScopeContext.IsClaimFlagEnabled("FeatureX");
-ScopeContext.Log.Add("Key", "Value");
-ScopeContext.Settings;
-ScopeContext.TraceId;
 ```
 
 ---
@@ -294,6 +453,66 @@ public interface ISourceKnownEntityIdUtils
 // Usage
 var internalId = sourceKnownIdUtils.Next<User>();
 var externalId = sourceKnownEntityIdUtils.Generate<User>(internalId);
+```
+
+> [!NOTE]
+> ID generation is automatically handled by `DrnContext` when SourceKnownEntities are saved.
+
+---
+
+## Extension Methods
+
+### Reflection & `MethodUtils`
+Highly optimized reflection helpers with built-in caching.
+- **Invoke**: `instance.InvokeMethod("Name", args)` and `type.InvokeStaticMethod("Name", args)`.
+- **Generics**: `instance.InvokeGenericMethod("Name", typeArgs, args)` with static and uncached variations.
+- **Caching**: Uses `ConcurrentDictionary` and `record struct` keys for zero-allocation lookups.
+
+### ServiceCollectionExtensions
+
+```csharp
+services.ReplaceInstance<T>(instance);
+services.ReplaceTransient<TService, TImpl>();
+services.ReplaceScoped<TService, TImpl>();
+services.ReplaceSingleton<TService, TImpl>();
+services.GetAllAssignableTo<TService>();
+```
+
+### String & Binary Extensions
+
+```csharp
+"hello world".ToStream();            // Convert to stream
+"camelCase".ToPascalCase();          // Convert to PascalCase
+"MyPropertyName".ToSnakeCase();      // my_property_name
+"MyProperty".ToCamelCase();          // myProperty
+int value = "123".Parse<int>();      // Modern IParsable<T>
+bool ok = "abc".TryParse<int>(out _); // Safe attempt
+```
+
+### Type & Assembly Extensions
+
+```csharp
+assembly.GetTypesAssignableTo<TInterface>();
+assembly.GetSubTypes(typeof(T));
+assembly.CreateSubTypes<T>(); // Discover and instantiate with parameterless ctors
+type.GetAssemblyName();
+```
+
+### Flurl & HTTP Diagnostics
+- **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` captures exhaustive request/response metadata into `IScopedLog`.
+- **Status Codes**: `GetGatewayStatusCode()` maps API errors to standard gateway codes (502, 503, 504).
+
+### Object & Dictionary Extensions
+- **Deep Discovery**: `instance.GetGroupedPropertiesOfSubtype(type)` recursively finds matching properties.
+- **Bit Manipulation**: `GetBitPositions()` for `long` values and bitmask generators.
+
+---
+
+## Global Usings
+
+```csharp
+global using DRN.Framework.SharedKernel;
+global using DRN.Framework.Utils.DependencyInjection;
 ```
 
 ---

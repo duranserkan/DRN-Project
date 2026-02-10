@@ -112,14 +112,18 @@ public async Task EndPointFor_Should_Return_Endpoint_Address(DrnTestContext cont
     var endpoint = Get.Endpoint.User.Identity.RegisterController.ConfirmEmail;
     endpoint.RoutePattern.Should().NotBeNull();
 }
+```
 
 ### Test Isolation
+
 `ApplicationContext` automatically sets the following flags to ensure your tests run in isolation and do not attempt to launch external dependencies (which would collide with test containers):
-1. **Not in Test**: `TestEnvironment.DrnTestContextEnabled` is set to `true`.
-2. **Temporary**: `AppSettings.DevelopmentSettings.TemporaryApplication` is set to `true`.
+
+1. `TestEnvironment.DrnTestContextEnabled` is set to `true`.
+2. `AppSettings.DevelopmentSettings.TemporaryApplication` is set to `true`.
 
 This ensures that logic like `LaunchExternalDependenciesAsync` knows it is running in a test context and skips starting local development containers.
-```
+
+---
 
 ## Related
 - [test-integration.md](../test-integration/SKILL.md)

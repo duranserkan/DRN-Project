@@ -37,9 +37,6 @@ public static class Get
 
 ---
 
-
----
-
 ## Helper Collections (Dependency Construction)
 
 Collections are used to group accessors logicially (e.g., by feature or area).
