@@ -9,21 +9,23 @@ namespace DRN.Framework.Hosting.Utils.Vite;
 
 public interface IViteManifest
 {
+    string ManifestRootPath { get; }
     ViteManifestPreWarmReport? PreWarmReport { get; }
     ViteManifestItem? GetManifestItem(string entryName);
-    IReadOnlyCollection<ViteManifestItem> GetAllManifestItems(string manifestRootPath = "");
+    IReadOnlyCollection<ViteManifestItem> GetAllManifestItems();
 }
 
 [Singleton<IViteManifest>]
 public class ViteManifest : IViteManifest
 {
-    private string _manifestRootPath = "";
+    private const string ManifestRootDefault = "wwwroot";
     private const string ViteBuildOutputPrefix = "buildwww/";
     private const string NodeModulesPrefix = "node_modules/";
 
     private volatile Dictionary<string, ViteManifestItem>? _manifestCache;
     private readonly Lock _lock = new();
 
+    public string ManifestRootPath { get; internal set; } = ManifestRootDefault;
     public ViteManifestPreWarmReport? PreWarmReport { get; internal set; }
 
     public ViteManifestItem? GetManifestItem(string entryName)
@@ -38,10 +40,10 @@ public class ViteManifest : IViteManifest
     /// Returns all parsed Vite manifest items across all discovered manifest.json files.
     /// Triggers lazy initialization if the manifest has not been loaded yet.
     /// </summary>
-    public IReadOnlyCollection<ViteManifestItem> GetAllManifestItems(string manifestRootPath = "")
+    public IReadOnlyCollection<ViteManifestItem> GetAllManifestItems()
     {
-        if (string.IsNullOrEmpty(_manifestRootPath))
-            _manifestRootPath = manifestRootPath;
+        if (string.IsNullOrEmpty(ManifestRootPath))
+            ManifestRootPath = ManifestRootDefault;
 
         if (_manifestCache == null)
             EnsureManifest();
@@ -64,7 +66,16 @@ public class ViteManifest : IViteManifest
                 return;
 
             var cache = new Dictionary<string, ViteManifestItem>();
-            var manifestFiles = Directory.GetFiles(_manifestRootPath, "manifest.json", SearchOption.AllDirectories);
+            string[] manifestFiles=[];
+            try
+            {
+                manifestFiles = Directory.GetFiles(ManifestRootPath, "manifest.json", SearchOption.AllDirectories);
+            }
+            catch (Exception e)
+            {
+                _ = e;
+            }
+
             foreach (var manifestFile in manifestFiles)
                 try
                 {
@@ -76,7 +87,7 @@ public class ViteManifest : IViteManifest
 
                     var manifestDir = Path.GetDirectoryName(manifestFile)!;
                     var scriptDir = Path.GetDirectoryName(manifestDir)!;
-                    var relativeDir = Path.GetRelativePath(_manifestRootPath, scriptDir).Trim('/');
+                    var relativeDir = Path.GetRelativePath(ManifestRootPath, scriptDir).Trim('/');
 
                     foreach (var (key, value) in manifest)
                     {

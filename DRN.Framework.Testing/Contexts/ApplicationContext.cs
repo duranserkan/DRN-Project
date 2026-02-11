@@ -119,8 +119,11 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     public async Task<HttpClient> CreateClientAsync<TEntryPoint>(ITestOutputHelper? outputHelper = null,
         WebApplicationFactoryClientOptions? clientOptions = null) where TEntryPoint : class
     {
+        clientOptions ??= new WebApplicationFactoryClientOptions();
+        clientOptions.BaseAddress = new Uri(TestEnvironment.TestContextAddress);
+
         var application = await CreateApplicationAndBindDependenciesAsync<TEntryPoint>(outputHelper);
-        var client = application.CreateClient(clientOptions ?? new WebApplicationFactoryClientOptions());
+        var client = application.CreateClient(clientOptions);
 
         return client;
     }
@@ -155,7 +158,8 @@ public sealed class TestOutputTarget : TargetWithLayout
     {
         _testOutputHelper = testOutputHelper ?? throw new ArgumentNullException(nameof(testOutputHelper));
         Name = "testOutput";
-        Layout = "[BEGIN ${date:format=HH\\:mm\\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}]${newline}${message}${newline}[END ${date:format=HH\\:mm\\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}]${newline}";
+        Layout =
+            "[BEGIN ${date:format=HH\\:mm\\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}]${newline}${message}${newline}[END ${date:format=HH\\:mm\\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}]${newline}";
     }
 
     protected override void Write(LogEventInfo logEvent)

@@ -51,6 +51,14 @@
     </Target>
 
     <ItemGroup>
+
+        <InternalsVisibleTo Include="DRN.Test.Unit"/>
+        <InternalsVisibleTo Include="DRN.Test.Integration"/>
+        <InternalsVisibleTo Include="DRN.Test.Performance"/>
+        <InternalsVisibleTo Include="DRN.Framework.Testing"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj"/>
     </ItemGroup>
 
@@ -59,7 +67,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="10.0.2" />
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="10.0.3" />
         <PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" Version="1.3.1" />
         <PackageReference Include="NLog.Targets.Network" Version="6.0.3" />
         <PackageReference Include="NLog.Web.AspNetCore" Version="6.1.1" />

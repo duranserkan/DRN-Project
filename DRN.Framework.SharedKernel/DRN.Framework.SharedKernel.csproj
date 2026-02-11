@@ -43,10 +43,11 @@
     </Target>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="DRN.Test" />
         <InternalsVisibleTo Include="DRN.Test.Unit" />
+        <InternalsVisibleTo Include="DRN.Test.Integration"/>
         <InternalsVisibleTo Include="DRN.Framework.Utils" />
         <InternalsVisibleTo Include="DRN.Framework.EntityFramework" />
+        <InternalsVisibleTo Include="DRN.Framework.Testing"/>
     </ItemGroup>
 
 </Project>

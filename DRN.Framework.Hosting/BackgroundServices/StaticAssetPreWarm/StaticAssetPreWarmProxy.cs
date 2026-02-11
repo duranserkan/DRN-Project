@@ -1,30 +1,20 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using DRN.Framework.Hosting.Utils;
-using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.Hosting.Utils.Vite.Models;
 using DRN.Framework.Utils.Logging;
+using Microsoft.AspNetCore.Hosting;
 
 namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
 
-public sealed class StaticAssetPreWarmProxy : IDisposable
+public sealed class StaticAssetPreWarmProxy(string baseAddress,IScopedLog scopedLog,
+    IStaticAssetPreWarmProxyClientFactory clientFactory,  IWebHostEnvironment environment)
+    : IDisposable
 {
-    private readonly HttpClientHandler _handler;
-    private readonly HttpClient _client;
-    private readonly IScopedLog _scopedLog;
+    private readonly HttpClient _client = clientFactory.GetClient(baseAddress);
 
-    public StaticAssetPreWarmProxy(string baseAddress, IScopedLog scopedLog)
-    {
-        _scopedLog = scopedLog;
-
-        // Security: DangerousAcceptAnyServerCertificateValidator is scoped to this loopback-only
-        // pre-warm handler and disposed after completion — never exposed to external requests.
-        _handler = new HttpClientHandler();
-        _handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-
-        _client = new HttpClient(_handler);
-        _client.BaseAddress = new Uri(baseAddress);
-    }
+    private readonly string _contentRoot = string.IsNullOrEmpty(environment.WebRootPath)
+        ? environment.ContentRootPath
+        : environment.WebRootPath;
 
     public async Task<ConcurrentBag<ViteManifestPreWarmAssetReport>> ExecutePreWarmRequestsAsync(List<PreWarmWorkItem> workItems, CancellationToken stoppingToken)
     {
@@ -55,7 +45,7 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
             if (!response.IsSuccessStatusCode)
             {
                 sw.Stop();
-                _scopedLog.AddToList(PreWarmScopeLogKeys.FailedRequests, new
+                scopedLog.AddToList(PreWarmScopeLogKeys.FailedRequests, new
                 {
                     work.Item.Path,
                     work.Encoding,
@@ -72,7 +62,7 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
             var compressedBytes = (long)body.Length;
             var contentEncoding = response.Content.Headers.ContentEncoding.FirstOrDefault();
             var contentType = response.Content.Headers.ContentType?.MediaType;
-            var originalBytes = GetOriginalFileSize(work.Item.Path);
+            var originalBytes = GetOriginalFileSize(_contentRoot, work.Item.Path);
 
             // When no compression was applied, compressed and original sizes are identical
             if (string.IsNullOrEmpty(contentEncoding))
@@ -85,7 +75,7 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             sw.Stop();
-            _scopedLog.AddToList(PreWarmScopeLogKeys.ErroredRequests, new
+            scopedLog.AddToList(PreWarmScopeLogKeys.ErroredRequests, new
             {
                 work.Item.Path,
                 work.Encoding,
@@ -100,12 +90,11 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
     /// Resolves the original (uncompressed) file size from disk.
     /// Path is relative to wwwroot (e.g. "/app/app_preload.abc123.js").
     /// </summary>
-    private static long GetOriginalFileSize(string requestPath)
+    private static long GetOriginalFileSize(string contentRoot, string requestPath)
     {
+        var filePath = Path.Combine(contentRoot, requestPath.TrimStart('/'));
         try
         {
-            var filePath = Path.Combine("wwwroot", requestPath.TrimStart('/'));
-
             return File.Exists(filePath)
                 ? new FileInfo(filePath).Length
                 : 0;
@@ -116,9 +105,5 @@ public sealed class StaticAssetPreWarmProxy : IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        _client.Dispose();
-        _handler.Dispose();
-    }
+    public void Dispose() => clientFactory.Dispose();
 }

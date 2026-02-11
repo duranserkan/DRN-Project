@@ -1,4 +1,5 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 
@@ -7,7 +8,7 @@ namespace DRN.Framework.Hosting.Utils;
 /// <summary>
 /// Interface for resolving server addresses from <see cref="IServer"/>.
 /// </summary>
-public interface IServerAddressResolver
+public interface IServerSettings
 {
     /// <summary>
     /// Resolves a loopback address from the server's bound addresses.
@@ -31,16 +32,16 @@ public interface IServerAddressResolver
 /// Utility class for resolving server addresses from <see cref="IServer"/>.
 /// Provides methods to extract and normalize bound addresses for internal self-requests.
 /// </summary>
-[Singleton<IServerAddressResolver>]
-public sealed class ServerAddressResolver : IServerAddressResolver
+[Singleton<IServerSettings>]
+public sealed class ServerSettings : IServerSettings
 {
     private readonly IServer _server;
 
     /// <summary>
-    /// Creates a new instance of <see cref="ServerAddressResolver"/>.
+    /// Creates a new instance of <see cref="ServerSettings"/>.
     /// </summary>
     /// <param name="server">The server instance to resolve addresses from.</param>
-    public ServerAddressResolver(IServer server)
+    public ServerSettings(IServer server)
     {
         _server = server;
     }
@@ -66,6 +67,9 @@ public sealed class ServerAddressResolver : IServerAddressResolver
 
             httpsAddress ??= normalized;
         }
+
+        if (httpsAddress == null && TestEnvironment.DrnTestContextEnabled)
+            httpsAddress = TestEnvironment.TestContextAddress;
 
         return httpsAddress;
     }

@@ -43,8 +43,8 @@
     </Target>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="DRN.Test"/>
         <InternalsVisibleTo Include="DRN.Test.Unit"/>
+        <InternalsVisibleTo Include="DRN.Test.Integration"/>
         <InternalsVisibleTo Include="DRN.Test.Performance"/>
         <InternalsVisibleTo Include="DRN.Framework.EntityFramework"/>
         <InternalsVisibleTo Include="DRN.Framework.Hosting"/>
@@ -54,15 +54,15 @@
     <ItemGroup>
         <PackageReference Include="Blake3" Version="2.2.0" />
         <PackageReference Include="Flurl.Http" Version="4.0.2"/>
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.2" />
-        <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.2.0" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.2" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.2" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
-        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.2" />
-        <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="10.0.2" />
-        <PackageReference Include="System.IO.Hashing" Version="10.0.2" />
-        <PackageReference Include="System.Memory.Data" Version="10.0.2" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.3.0" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.3" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.3" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
+        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.3" />
+        <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="10.0.3" />
+        <PackageReference Include="System.IO.Hashing" Version="10.0.3" />
+        <PackageReference Include="System.Memory.Data" Version="10.0.3" />
 
     </ItemGroup>
 

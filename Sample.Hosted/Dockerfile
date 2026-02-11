@@ -9,7 +9,7 @@ ARG PROJECT=Sample.Hosted
 #https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/ enable buildkit to build multiplatform images
 #https://mcr.microsoft.com/en-us/artifact/mar/dotnet/aspnet/tags alternative registry for ubuntu/dotnet-aspnet
 #https://github.com/dotnet/dotnet-docker
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.1-noble-chiseled-extra AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.3-noble-chiseled-extra AS base
 ARG TARGETARCH
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -27,7 +27,7 @@ WORKDIR /app
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
 #https://mcr.microsoft.com/en-us/artifact/mar/dotnet/sdk/tags
 #build image should use same distro with base image to prevent mismatches such as Alpine (Musl) vs. Ubuntu (Glibc)
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.101-noble AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.103-noble AS build
 ARG PROJECT
 ARG TARGETARCH
 

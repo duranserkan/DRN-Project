@@ -961,6 +961,24 @@ global using System.Collections;
 global using Xunit.Abstractions;
 ```
 
+## Telemetry Opt-Out
+
+Add the following to your shell profile (e.g., `~/.zshrc` or `~/.bashrc`) to opt out of telemetry:
+
+```bash
+# Opt out of .NET CLI telemetry
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+
+# Opt out of .NET Testing Platform telemetry
+export TESTINGPLATFORM_TELEMETRY_OPTOUT=1
+```
+
+**References:**
+- [.NET SDK Telemetry](https://learn.microsoft.com/en-us/dotnet/core/tools/telemetry)
+- [Microsoft.Testing.Platform Telemetry](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-telemetry)
+
+---
+
 ## Related Packages
 
 - [DRN.Framework.SharedKernel](https://www.nuget.org/packages/DRN.Framework.SharedKernel/) - Domain primitives and exceptions

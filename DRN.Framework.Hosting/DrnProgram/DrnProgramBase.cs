@@ -51,6 +51,7 @@ public interface IDrnProgram
 {
     static abstract Task Main(string[] args);
 }
+
 //todo: add rate limit
 //todo: add cookie manager
 //todo: add csp manager
@@ -183,7 +184,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         var application = applicationBuilder.Build();
         program.ConfigureApplication(application, appSettings);
         await (actions?.ApplicationBuiltAsync(program, application, appSettings, scopeLog) ?? Task.CompletedTask);
-        
+
         var requestPipelineSummary = application.GetRequestPipelineSummary();
         if (appSettings.IsDevEnvironment) //todo send application summaries to nexus for auditing, implement application dependency summary as well
             scopeLog.Add(nameof(RequestPipelineSummary), requestPipelineSummary);
@@ -298,9 +299,13 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         ConfigureApplicationPostAuthorization(application, appSettings);
 
         MapApplicationEndpoints(application, appSettings);
-        
+
         var webHostEnvironment = application.Services.GetRequiredService<IWebHostEnvironment>();
-        _ = application.Services.GetRequiredService<IViteManifest>().GetAllManifestItems(webHostEnvironment.WebRootPath);
+        var viteManifest = (ViteManifest)application.Services.GetRequiredService<IViteManifest>();
+        viteManifest.ManifestRootPath = string.IsNullOrEmpty(webHostEnvironment.WebRootPath)
+            ? webHostEnvironment.ContentRootPath
+            : webHostEnvironment.WebRootPath;
+        _ = viteManifest.GetAllManifestItems();
     }
 
     /// <summary>

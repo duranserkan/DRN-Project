@@ -5,6 +5,8 @@ using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.Hosting.Utils.Vite.Models;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Settings;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,12 +17,16 @@ namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
 public class StaticAssetPreWarmService(
     IViteManifest viteManifest,
     IAppStartupStatus startupStatus,
-    IServerAddressResolver server,
-    IServiceProvider scopeFactory) : BackgroundService
+    IServerSettings server,
+    IStaticAssetPreWarmProxyClientFactory clientFactory,
+    IServiceProvider scopeFactory,
+    IWebHostEnvironment environment,
+    IAppSettings settings) : BackgroundService
 {
+    internal const string EnablePrewarmForTestKey = "EnablePrewarmForTest";
     private IScopedLog _scopedLog = null!;
     private ILogger _logger = null!;
-    
+
     /// <summary>
     /// Accept-Encoding values to pre-warm. ResponseCaching keys on Vary: Accept-Encoding,
     /// so each distinct value populates a separate cache entry. Order: most-preferred first.
@@ -29,6 +35,15 @@ public class StaticAssetPreWarmService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (TestEnvironment.DrnTestContextEnabled)
+        {
+            var prewarmEnabled = settings.GetValue(EnablePrewarmForTestKey, false);
+            if (!prewarmEnabled)
+                return;
+
+            await WaitForTestClientReadinessAsync(stoppingToken);
+        }
+
         if (!await startupStatus.WaitForStartAsync(stoppingToken))
             return;
 
@@ -36,6 +51,7 @@ public class StaticAssetPreWarmService(
         _scopedLog = scope.ServiceProvider.GetRequiredService<IScopedLog>().WithLoggerName(nameof(StaticAssetPreWarmService));
         _logger = scope.ServiceProvider.GetRequiredService<ILogger<StaticAssetPreWarmService>>();
 
+        _scopedLog.Add(PreWarmScopeLogKeys.ManifestRootPath, viteManifest.ManifestRootPath);
         try
         {
             await PreWarmAsync(stoppingToken);
@@ -48,6 +64,23 @@ public class StaticAssetPreWarmService(
         {
             _scopedLog.AddException(ex, "Static asset pre-warming encountered an error");
             _logger.LogScoped(_scopedLog);
+        }
+    }
+
+    private async Task WaitForTestClientReadinessAsync(CancellationToken stoppingToken)
+    {
+        var timeout = TimeSpan.FromSeconds(4);
+        var interval = TimeSpan.FromMilliseconds(10);
+        var elapsed = TimeSpan.Zero;
+        while (elapsed < timeout)
+        {
+            var client = clientFactory.GetClient(TestEnvironment.TestContextAddress);
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+            if (client != null)
+                break;
+
+            await Task.Delay(interval, stoppingToken);
+            elapsed += interval;
         }
     }
 
@@ -68,13 +101,13 @@ public class StaticAssetPreWarmService(
         var sw = Stopwatch.StartNew();
         var workItems = BuildWorkItems(context.Items);
 
-        using var proxy = new StaticAssetPreWarmProxy(context.BaseAddress, _scopedLog);
+        using var proxy = new StaticAssetPreWarmProxy(context.BaseAddress, _scopedLog, clientFactory, environment);
         var assetReports = await proxy.ExecutePreWarmRequestsAsync(workItems, stoppingToken);
         sw.Stop();
 
         PublishReport(workItems.Count, assetReports, sw.ElapsedMilliseconds);
     }
-    
+
     private PreWarmContext? GetPreWarmContext(IScopedLog scopedLog)
     {
         var items = viteManifest.GetAllManifestItems();
