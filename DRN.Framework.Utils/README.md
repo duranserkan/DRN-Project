@@ -148,7 +148,34 @@ Reduce configuration boilerplate by using attributes directly on services. The *
 | `[Singleton<T>]` | Singleton | `[Singleton<IMyService>] public class MyService : IMyService` |
 | `[Scoped<T>]` | Scoped | `[Scoped<IMyService>] public class MyService : IMyService` |
 | `[Transient<T>]` | Transient | `[Transient<IMyService>] public class MyService : IMyService` |
+| `[SingletonWithKey<T>]` | Singleton (Keyed) | `[SingletonWithKey<IMyService>("key")]` |
 | `[ScopedWithKey<T>]` | Scoped (Keyed) | `[ScopedWithKey<IMyService>("key")]` |
+| `[TransientWithKey<T>]` | Transient (Keyed) | `[TransientWithKey<IMyService>("key")]` |
+| `[HostedService]` | Singleton | `[HostedService] public class MyWorker : BackgroundService` |
+| `[Config]` | Singleton | `[Config("Section")] public class MySettings` |
+| `[ConfigRoot]` | Singleton | `[ConfigRoot] public class RootSettings` |
+
+> [!NOTE]
+> All lifetime attributes accept an optional `tryAdd` parameter (default: `true`). When `true`, `TryAdd` is used so existing registrations are not overwritten. Set to `false` to allow multiple implementations of the same service type.
+
+### Hosted Services
+
+Use `[HostedService]` to register `IHostedService`/`BackgroundService` implementations without manual `AddHostedService<T>()` calls. The class **must** implement `IHostedService`; otherwise the attribute is silently ignored.
+
+```csharp
+[HostedService]
+public class MyBackgroundWorker : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            // Do periodic work
+            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+        }
+    }
+}
+```
 
 ### Validation & Testing
 

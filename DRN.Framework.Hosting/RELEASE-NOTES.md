@@ -49,7 +49,12 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 *   **Identity & GDPR Consent**
     *   **Consent Integration**: Automatic extraction and propagation of `ConsentCookie` model via `ScopedUserMiddleware`.
     *   **Identity Helpers**: `IdentityApiHelper` for standardized validation problem reporting.
+*   **Static Asset Pre-Warming**
+    *   **`StaticAssetPreWarmService`**: `[HostedService]` that populates `ResponseCaching` with Brotli and Gzip compressed Vite manifest assets at startup — zero compression latency for end users.
+    *   **Compression**: `SmallestSize` (maximum) for both Brotli (Level 11) and Gzip by default, overrideable via `ConfigureBrotliCompressionLevel()` / `ConfigureGzipCompressionLevel()`.
 *   **Infrastructure & Development**
+    *   **`IAppStartupStatus`**: Singleton gate for background services to await full host startup before executing.
+    *   **`IServerSettings`**: Resolves bound Kestrel addresses with wildcard-to-localhost normalization for internal self-requests.
     *   **Local Provisioning**: `LaunchExternalDependenciesAsync` auto-starts Postgres/RabbitMQ Testcontainers in Debug mode.
     *   **Validation**: `ValidateEndpoints` and `ValidateServicesAddedByAttributesAsync` ensure system integrity at startup.
     *   **Identity Integration**: `IdentityControllerBase` and `ScopedUserMiddleware` for deep identity context propagation.

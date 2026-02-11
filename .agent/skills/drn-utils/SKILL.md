@@ -1,6 +1,6 @@
 ---
 name: drn-utils
-description: DRN.Framework.Utils - Attribute-based dependency injection ([Scoped], [Singleton], [Transient]), IAppSettings configuration pattern, logging infrastructure, extension methods, and core utilities. Foundational for service registration, configuration management, and cross-cutting concerns. Keywords: dependency-injection, di, service-registration, configuration, appsettings, logging, extensions, attributes, scoped, singleton, transient, skills, drn, domain, design, overview, framework, shared, kernel, hosting, entity, testing
+description: DRN.Framework.Utils - Attribute-based dependency injection ([Scoped], [Singleton], [Transient], [HostedService], [Config]), IAppSettings configuration pattern, logging infrastructure, extension methods, and core utilities. Foundational for service registration, configuration management, and cross-cutting concerns. Keywords: dependency-injection, di, service-registration, configuration, appsettings, logging, extensions, attributes, scoped, singleton, transient, hostedservice, backgroundservice, config, configroot, skills, drn, domain, design, overview, framework, shared, kernel, hosting, entity, testing
 ---
 
 # DRN.Framework.Utils
@@ -79,12 +79,36 @@ builder.Services.AddDrnUtils(); // HybridCache will use the distributed cache if
 | `[SingletonWithKey<TService>(key)]` | Keyed singleton | Keyed services |
 | `[ScopedWithKey<TService>(key)]` | Keyed scoped | Keyed services |
 | `[TransientWithKey<TService>(key)]` | Keyed transient | Keyed services |
+| `[HostedService]` | Singleton | Auto-registers `IHostedService` implementations |
+| `[Config("Section")]` | Singleton | Binds configuration section to class |
+| `[ConfigRoot]` | Singleton | Binds to configuration root |
+
+> [!NOTE]
+> All lifetime attributes accept an optional `tryAdd` parameter (default: `true`). When `true`, `TryAdd` is used so existing registrations are not overwritten. Set to `false` to allow multiple implementations of the same service type.
 
 ```csharp
 public interface IMyService { }
 
 [Scoped<IMyService>]
 public class MyService : IMyService { }
+```
+
+### Hosted Services
+
+Use `[HostedService]` to register `IHostedService`/`BackgroundService` implementations without manual `AddHostedService<T>()` calls. The class **must** implement `IHostedService`; otherwise the attribute is silently ignored.
+
+```csharp
+[HostedService]
+public class MyBackgroundWorker : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+        }
+    }
+}
 ```
 
 ### Registration

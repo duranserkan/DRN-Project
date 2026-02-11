@@ -10,7 +10,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 ### New Features
 
 *   **Attribute-Based Dependency Injection**
-    *   **Comprehensive Lifetimes**: `[Singleton]`, `[Scoped]`, `[Transient]` and Keyed variants (`[SingletonWithKey]`, `[ScopedWithKey]`, `[TransientWithKey]`).
+    *   **Comprehensive Lifetimes**: `[Singleton]`, `[Scoped]`, `[Transient]`, `[HostedService]`, `[Config]`, `[ConfigRoot]`, and Keyed variants (`[SingletonWithKey]`, `[ScopedWithKey]`, `[TransientWithKey]`).
     *   **Registration**: `AddServicesWithAttributes()` auto-scans assemblies. `ValidateServicesAddedByAttributesAsync()` verifies resolution at startup.
     *   **Module Pattern**: `HasServiceCollectionModuleAttribute` for custom registration logic.
     *   **Test Helpers**: `ReplaceInstance`, `ReplaceScoped`, `ReplaceTransient`, `ReplaceSingleton` overrides for integration tests.

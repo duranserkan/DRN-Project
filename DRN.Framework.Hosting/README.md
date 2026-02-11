@@ -527,6 +527,25 @@ The framework provides a structured way to handle user privacy choices:
         crossorigin="anonymous"></script>
 ```
 
+## Static Asset Pre-Warming
+
+`StaticAssetPreWarmService` is a `[HostedService]` that populates the `ResponseCaching` middleware cache with compressed static assets immediately after application startup.
+
+**How it works**:
+1. Waits for the host to fully start via `IAppStartupStatus`
+2. Reads all entries from the Vite manifest
+3. Requests each asset with `Accept-Encoding: br` and `Accept-Encoding: gzip` against the loopback address (via `IServerSettings`)
+4. `ResponseCaching` stores each compressed variant keyed on `Vary: Accept-Encoding`
+
+**Compression defaults** — both use `CompressionLevel.SmallestSize` (maximum compression) since only static files are compressed and the cost is paid once at startup:
+
+| Provider | Default Level | Override Hook |
+|----------|--------------|---------------|
+| Brotli | `SmallestSize` (Level 11) | `ConfigureBrotliCompressionLevel()` |
+| Gzip | `SmallestSize` | `ConfigureGzipCompressionLevel()` |
+
+> First request after startup returns pre-compressed content from cache — zero compression latency for end users.
+
 ## Local Development Infrastructure
 
 Use `DRN.Framework.Testing` to provision infrastructure (Postgres, RabbitMQ) during local development without manual Docker management.
@@ -565,6 +584,40 @@ public class SampleProgramActions : DrnProgramActions
     }
 }
 #endif
+```
+
+## Hosting Utilities
+
+### IAppStartupStatus
+
+Singleton gate for background services that need to wait until the host has fully started before executing.
+
+```csharp
+public class MyWorker(IAppStartupStatus startupStatus) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        if (!await startupStatus.WaitForStartAsync(stoppingToken))
+            return; // Cancelled before startup completed
+
+        // Application is fully started — safe to proceed
+    }
+}
+```
+
+### IServerSettings
+
+Resolves bound server addresses from Kestrel. Normalizes wildcard hosts (`0.0.0.0`, `[::]`, `+`, `*`) to `localhost` for internal self-requests. Prefers HTTP over HTTPS to avoid TLS overhead.
+
+```csharp
+public class MyService(IServerSettings server)
+{
+    public void LogAddresses()
+    {
+        var loopback = server.GetLoopbackAddress();   // e.g. "http://localhost:5988"
+        var all = server.GetAllAddresses();            // All normalized bound addresses
+    }
+}
 ```
 
 ## Global Usings

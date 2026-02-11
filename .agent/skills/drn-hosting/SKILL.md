@@ -26,6 +26,7 @@ Hosting provides the **application shell** for DRN web applications with built-i
 
 ```
 DRN.Framework.Hosting/
+├── BackgroundServices/ # [HostedService] attribute-registered background workers
 ├── DrnProgram/       # DrnProgramBase, options, conventions
 ├── Endpoints/        # EndpointCollectionBase, EndpointForBase, PageForBase
 ├── Auth/             # Policies, MFA configuration
@@ -432,6 +433,26 @@ Automatically logs:
 - Response status, content length
 - Exceptions with inner details
 - Scope duration and TraceId
+
+---
+
+## Background Services
+
+Use the `[HostedService]` attribute (from `DRN.Framework.Utils`) to auto-register `IHostedService`/`BackgroundService` implementations without manual `AddHostedService<T>()` calls. The class **must** implement `IHostedService`; otherwise the attribute is silently ignored.
+
+```csharp
+[HostedService]
+public class MyBackgroundWorker : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+        }
+    }
+}
+```
 
 ---
 
