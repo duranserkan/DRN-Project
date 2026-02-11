@@ -8,7 +8,7 @@ public interface IStaticAssetPreWarmProxyClientFactory : IDisposable
 }
 
 [Singleton<IStaticAssetPreWarmProxyClientFactory>]
-public class StaticAssetPreWarmProxyClientFactory : IStaticAssetPreWarmProxyClientFactory
+public sealed class StaticAssetPreWarmProxyClientFactory : IStaticAssetPreWarmProxyClientFactory
 {
     private HttpClientHandler? _handler;
     private HttpClient? _client;
