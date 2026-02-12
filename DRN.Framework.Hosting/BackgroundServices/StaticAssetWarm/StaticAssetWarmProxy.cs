@@ -4,10 +4,10 @@ using DRN.Framework.Hosting.Utils.Vite.Models;
 using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Hosting;
 
-namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
+namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetWarm;
 
-public sealed class StaticAssetPreWarmProxy(string baseAddress,IScopedLog scopedLog,
-    IStaticAssetPreWarmProxyClientFactory clientFactory,  IWebHostEnvironment environment)
+public sealed class StaticAssetWarmProxy(string baseAddress,IScopedLog scopedLog,
+    IStaticAssetWarmProxyClientFactory clientFactory,  IWebHostEnvironment environment)
     : IDisposable
 {
     private readonly HttpClient _client = clientFactory.GetClient(baseAddress);
@@ -16,9 +16,9 @@ public sealed class StaticAssetPreWarmProxy(string baseAddress,IScopedLog scoped
         ? environment.ContentRootPath
         : environment.WebRootPath;
 
-    public async Task<ConcurrentBag<ViteManifestPreWarmAssetReport>> ExecutePreWarmRequestsAsync(List<PreWarmWorkItem> workItems, CancellationToken stoppingToken)
+    public async Task<ConcurrentBag<ViteManifestWarmAssetReport>> ExecutePreWarmRequestsAsync(List<WarmWorkItem> workItems, CancellationToken stoppingToken)
     {
-        var assetReports = new ConcurrentBag<ViteManifestPreWarmAssetReport>();
+        var assetReports = new ConcurrentBag<ViteManifestWarmAssetReport>();
         var options = new ParallelOptions
         {
             MaxDegreeOfParallelism = 4,
@@ -31,7 +31,7 @@ public sealed class StaticAssetPreWarmProxy(string baseAddress,IScopedLog scoped
         return assetReports;
     }
 
-    private async Task<ViteManifestPreWarmAssetReport> PreWarmSingleAssetAsync(PreWarmWorkItem work, CancellationToken ct)
+    private async Task<ViteManifestWarmAssetReport> PreWarmSingleAssetAsync(WarmWorkItem work, CancellationToken ct)
     {
         var sw = Stopwatch.StartNew();
         try
@@ -45,14 +45,14 @@ public sealed class StaticAssetPreWarmProxy(string baseAddress,IScopedLog scoped
             if (!response.IsSuccessStatusCode)
             {
                 sw.Stop();
-                scopedLog.AddToList(PreWarmScopeLogKeys.FailedRequests, new
+                scopedLog.AddToList(WarmScopeLogKeys.FailedRequests, new
                 {
                     work.Item.Path,
                     work.Encoding,
                     StatusCode = statusCode
                 });
 
-                return ViteManifestPreWarmAssetReport.Failed(work.Item.Path, statusCode, sw.ElapsedMilliseconds);
+                return ViteManifestWarmAssetReport.Failed(work.Item.Path, statusCode, sw.ElapsedMilliseconds);
             }
 
             // Always read the full body to ensure ResponseCaching captures the complete response
@@ -68,21 +68,21 @@ public sealed class StaticAssetPreWarmProxy(string baseAddress,IScopedLog scoped
             if (string.IsNullOrEmpty(contentEncoding))
                 compressedBytes = originalBytes;
 
-            return ViteManifestPreWarmAssetReport.Ok(
+            return ViteManifestWarmAssetReport.Ok(
                 work.Item.Path, statusCode, originalBytes, compressedBytes,
                 contentEncoding, contentType, sw.ElapsedMilliseconds);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             sw.Stop();
-            scopedLog.AddToList(PreWarmScopeLogKeys.ErroredRequests, new
+            scopedLog.AddToList(WarmScopeLogKeys.ErroredRequests, new
             {
                 work.Item.Path,
                 work.Encoding,
                 Error = ex.Message
             });
 
-            return ViteManifestPreWarmAssetReport.Errored(work.Item.Path, ex.Message, sw.ElapsedMilliseconds);
+            return ViteManifestWarmAssetReport.Errored(work.Item.Path, ex.Message, sw.ElapsedMilliseconds);
         }
     }
 

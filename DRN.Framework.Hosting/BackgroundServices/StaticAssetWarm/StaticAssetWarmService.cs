@@ -11,19 +11,19 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
+namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetWarm;
 
 [HostedService]
-public class StaticAssetPreWarmService(
+public class StaticAssetWarmService(
     IViteManifest viteManifest,
     IAppStartupStatus startupStatus,
     IServerSettings server,
-    IStaticAssetPreWarmProxyClientFactory clientFactory,
+    IStaticAssetWarmProxyClientFactory clientFactory,
     IServiceProvider scopeFactory,
     IWebHostEnvironment environment,
     IAppSettings settings) : BackgroundService
 {
-    internal const string EnablePrewarmForTestKey = "EnablePrewarmForTest";
+    internal const string EnableWarmForTestKey = "EnableStaticAssetWarmForTest";
     private IScopedLog _scopedLog = null!;
     private ILogger _logger = null!;
 
@@ -37,8 +37,8 @@ public class StaticAssetPreWarmService(
     {
         if (TestEnvironment.DrnTestContextEnabled)
         {
-            var prewarmEnabled = settings.GetValue(EnablePrewarmForTestKey, false);
-            if (!prewarmEnabled)
+            var enabled = settings.GetValue(EnableWarmForTestKey, false);
+            if (!enabled)
                 return;
 
             await WaitForTestClientReadinessAsync(stoppingToken);
@@ -48,10 +48,10 @@ public class StaticAssetPreWarmService(
             return;
 
         using var scope = scopeFactory.CreateScope();
-        _scopedLog = scope.ServiceProvider.GetRequiredService<IScopedLog>().WithLoggerName(nameof(StaticAssetPreWarmService));
-        _logger = scope.ServiceProvider.GetRequiredService<ILogger<StaticAssetPreWarmService>>();
+        _scopedLog = scope.ServiceProvider.GetRequiredService<IScopedLog>().WithLoggerName(nameof(StaticAssetWarmService));
+        _logger = scope.ServiceProvider.GetRequiredService<ILogger<StaticAssetWarmService>>();
 
-        _scopedLog.Add(PreWarmScopeLogKeys.ManifestRootPath, viteManifest.ManifestRootPath);
+        _scopedLog.Add(WarmScopeLogKeys.ManifestRootPath, viteManifest.ManifestRootPath);
         try
         {
             await PreWarmAsync(stoppingToken);
@@ -94,45 +94,45 @@ public class StaticAssetPreWarmService(
         }
 
         _scopedLog
-            .Add(PreWarmScopeLogKeys.AssetCount, context.Items.Count)
-            .Add(PreWarmScopeLogKeys.Encodings, AcceptEncodings.Length)
-            .Add(PreWarmScopeLogKeys.BaseAddress, context.BaseAddress);
+            .Add(WarmScopeLogKeys.AssetCount, context.Items.Count)
+            .Add(WarmScopeLogKeys.Encodings, AcceptEncodings.Length)
+            .Add(WarmScopeLogKeys.BaseAddress, context.BaseAddress);
 
         var sw = Stopwatch.StartNew();
         var workItems = BuildWorkItems(context.Items);
 
-        using var proxy = new StaticAssetPreWarmProxy(context.BaseAddress, _scopedLog, clientFactory, environment);
+        using var proxy = new StaticAssetWarmProxy(context.BaseAddress, _scopedLog, clientFactory, environment);
         var assetReports = await proxy.ExecutePreWarmRequestsAsync(workItems, stoppingToken);
         sw.Stop();
 
         PublishReport(workItems.Count, assetReports, sw.ElapsedMilliseconds);
     }
 
-    private PreWarmContext? GetPreWarmContext(IScopedLog scopedLog)
+    private WarmContext? GetPreWarmContext(IScopedLog scopedLog)
     {
         var items = viteManifest.GetAllManifestItems();
         if (items.Count == 0)
         {
-            scopedLog.Add(PreWarmScopeLogKeys.SkipReason, "NoViteManifestItemsFound");
+            scopedLog.Add(WarmScopeLogKeys.SkipReason, "NoViteManifestItemsFound");
             return null;
         }
 
         var baseAddress = server.GetLoopbackAddress();
         if (baseAddress != null)
-            return new PreWarmContext(items, baseAddress);
+            return new WarmContext(items, baseAddress);
 
-        scopedLog.Add(PreWarmScopeLogKeys.SkipReason, "NoServerAddressAvailable");
+        scopedLog.Add(WarmScopeLogKeys.SkipReason, "NoServerAddressAvailable");
         return null;
     }
 
-    private static List<PreWarmWorkItem> BuildWorkItems(IReadOnlyCollection<ViteManifestItem> items)
-        => items.SelectMany(item => AcceptEncodings.Select(enc => new PreWarmWorkItem(item, enc))).ToList();
+    private static List<WarmWorkItem> BuildWorkItems(IReadOnlyCollection<ViteManifestItem> items)
+        => items.SelectMany(item => AcceptEncodings.Select(enc => new WarmWorkItem(item, enc))).ToList();
 
-    private void PublishReport(int totalRequests, ConcurrentBag<ViteManifestPreWarmAssetReport> assetReports, long elapsedMs)
+    private void PublishReport(int totalRequests, ConcurrentBag<ViteManifestWarmAssetReport> assetReports, long elapsedMs)
     {
         var sortedReports = assetReports.OrderBy(r => r.Path).ThenBy(r => r.ContentEncoding).ToList();
-        var preWarmed = sortedReports.Count(r => r.Success);
-        var report = new ViteManifestPreWarmReport(totalRequests, preWarmed, elapsedMs, sortedReports);
+        var warmed = sortedReports.Count(r => r.Success);
+        var report = new ViteManifestWarmReport(totalRequests, warmed, elapsedMs, sortedReports);
 
         ((ViteManifest)viteManifest).PreWarmReport = report;
 

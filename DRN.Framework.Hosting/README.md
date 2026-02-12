@@ -529,7 +529,7 @@ The framework provides a structured way to handle user privacy choices:
 
 ## Static Asset Pre-Warming
 
-`StaticAssetPreWarmService` is a `[HostedService]` that populates the `ResponseCaching` middleware cache with compressed static assets immediately after application startup.
+`StaticAssetWarmService` is a `[HostedService]` that populates the `ResponseCaching` middleware cache with compressed static assets immediately after application startup.
 
 **How it works**:
 1. Waits for the host to fully start via `IAppStartupStatus`

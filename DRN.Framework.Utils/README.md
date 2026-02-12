@@ -40,6 +40,7 @@
 - [Bit Packing](#bit-packing)
 - [Diagnostics](#diagnostics)
 - [Time & Async](#time--async)
+- [Concurrency](#concurrency)
 - [Extensions](#extensions)
 - [Global Usings](#global-usings)
 - [Related Packages](#related-packages)
@@ -540,6 +541,35 @@ var sourceKnownId = userInstance.GetEntityId<User>(externalGuidId);
 
 ### Time
 `TimeProvider` singleton is registered by default to `TimeProvider.System` for testable time entry. See [Time & Async](#time--async) for high-performance alternatives.
+
+## Concurrency
+
+### Lock-Free Atomic Utilities (`LockUtils`)
+
+`LockUtils` provides static helpers for lock-free atomic operations built on `Interlocked`. Use these primitives to coordinate concurrent access without OS-level locks.
+
+| Method | Purpose |
+|--------|---------|
+| `TryClaimLock(ref int)` | Atomically claims a lock (0 → 1). Returns `true` if successful. |
+| `TryClaimScope(ref int)` | Returns a disposable `LockScope` that auto-releases on dispose. |
+| `ReleaseLock(ref int)` | Unconditionally releases a lock (→ 0). |
+| `TrySetIfEqual<T>(ref T?, T, T?)` | Atomic CAS for reference types; sets value if current equals comparand. |
+| `TrySetIfNull<T>(ref T?, T)` | Sets value only if current is `null`. |
+| `TrySetIfNotEqual<T>(ref T?, T, T?)` | Sets value only if current does **not** equal comparand (retry loop). |
+| `TrySetIfNotNull<T>(ref T?, T)` | Sets value only if current is **not** `null`. |
+
+```csharp
+// Disposable lock scope (preferred) — auto-releases on dispose
+private int _lock;
+
+using var scope = LockUtils.TryClaimScope(ref _lock);
+if (scope.Acquired) { /* critical section */ }
+
+// One-time initialization guard
+private MyService? _instance;
+var service = new MyService();
+LockUtils.TrySetIfNull(ref _instance, service);
+```
 
 ## Extensions
 

@@ -1,14 +1,14 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
-namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
+namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetWarm;
 
-public interface IStaticAssetPreWarmProxyClientFactory : IDisposable
+public interface IStaticAssetWarmProxyClientFactory : IDisposable
 {
     HttpClient GetClient(string baseAddress);
 }
 
-[Singleton<IStaticAssetPreWarmProxyClientFactory>]
-public sealed class StaticAssetPreWarmProxyClientFactory : IStaticAssetPreWarmProxyClientFactory
+[Singleton<IStaticAssetWarmProxyClientFactory>]
+public sealed class StaticAssetWarmProxyClientFactory : IStaticAssetWarmProxyClientFactory
 {
     private HttpClientHandler? _handler;
     private HttpClient? _client;

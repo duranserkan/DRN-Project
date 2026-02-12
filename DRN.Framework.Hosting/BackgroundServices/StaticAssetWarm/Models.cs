@@ -2,9 +2,9 @@ using DRN.Framework.Hosting.Utils;
 using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.Hosting.Utils.Vite.Models;
 
-namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
+namespace DRN.Framework.Hosting.BackgroundServices.StaticAssetWarm;
 
-public static class PreWarmScopeLogKeys
+public static class WarmScopeLogKeys
 {
     public const string SkipReason = nameof(SkipReason);
     public const string AssetCount = nameof(AssetCount);
@@ -15,6 +15,6 @@ public static class PreWarmScopeLogKeys
     public const string ManifestRootPath = nameof(ManifestRootPath);
 }
 
-public sealed record PreWarmWorkItem(ViteManifestItem Item, string Encoding);
+public sealed record WarmWorkItem(ViteManifestItem Item, string Encoding);
 
-public sealed record PreWarmContext(IReadOnlyCollection<ViteManifestItem> Items, string BaseAddress);
+public sealed record WarmContext(IReadOnlyCollection<ViteManifestItem> Items, string BaseAddress);

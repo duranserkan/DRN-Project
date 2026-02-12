@@ -56,7 +56,7 @@ public interface IDrnProgram
 //todo: add cookie manager
 //todo: add csp manager
 //todo: review page for and endpoint for
-//todo: unify reports - startup, middleware, prewarm, endpoint list etc
+//todo: unify reports - startup, middleware, StaticAssetWarm, endpoint list etc
 /// <summary>
 /// <li><a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host">Generic host model</a></li>
 /// <li><a href="https://learn.microsoft.com/en-us/aspnet/core/migration/50-to-60">WebApplication - new hosting model</a></li>

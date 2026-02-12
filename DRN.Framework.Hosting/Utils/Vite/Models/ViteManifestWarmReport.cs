@@ -1,16 +1,16 @@
-using DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
+using DRN.Framework.Hosting.BackgroundServices.StaticAssetWarm;
 
 namespace DRN.Framework.Hosting.Utils.Vite.Models;
 
 /// <summary>
-/// Immutable singleton report produced by <see cref="StaticAssetPreWarmService"/>.
+/// Immutable singleton report produced by <see cref="StaticAssetWarmService"/>.
 /// Created once per process; subsequent application instances (e.g. integration test suites)
 /// reuse the existing report without re-executing pre-warming.
 /// </summary>
-public class ViteManifestPreWarmReport
+public class ViteManifestWarmReport
 {
     public int TotalAssets { get; }
-    public int PreWarmedAssets { get; }
+    public int WarmedAssets { get; }
     public int FailedAssets { get; }
     public long ElapsedMs { get; }
     public DateTimeOffset CreatedAt { get; }
@@ -24,12 +24,12 @@ public class ViteManifestPreWarmReport
 
     public IReadOnlyList<ViteManifestCompressionAlgorithmSummary> CompressionBreakdown { get; }
 
-    public ViteManifestPreWarmReport(int totalAssets, int preWarmedAssets, long elapsedMs,
-        IReadOnlyList<ViteManifestPreWarmAssetReport> assets)
+    public ViteManifestWarmReport(int totalAssets, int warmedAssets, long elapsedMs,
+        IReadOnlyList<ViteManifestWarmAssetReport> assets)
     {
         TotalAssets = totalAssets;
-        PreWarmedAssets = preWarmedAssets;
-        FailedAssets = totalAssets - preWarmedAssets;
+        WarmedAssets = warmedAssets;
+        FailedAssets = totalAssets - warmedAssets;
         ElapsedMs = elapsedMs;
         CreatedAt = DateTimeOffset.UtcNow;
 
@@ -59,7 +59,7 @@ public class ViteManifestPreWarmReport
     public override string ToString()
     {
         var breakdown = string.Join(", ", CompressionBreakdown.Select(b => b.ToString()));
-        return $"Pre-warmed {PreWarmedAssets}/{TotalAssets} assets in {ElapsedMs}ms " +
+        return $"Pre-warmed {WarmedAssets}/{TotalAssets} assets in {ElapsedMs}ms " +
                $"| {TotalOriginalFormatted} → {TotalCompressedFormatted} (saved {TotalSavedFormatted}, {TotalCompressionRatio:P1}) " +
                $"| [{breakdown}]";
     }

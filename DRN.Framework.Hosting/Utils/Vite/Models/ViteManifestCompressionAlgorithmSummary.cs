@@ -9,7 +9,7 @@ public class ViteManifestCompressionAlgorithmSummary(
     int assetCount,
     long originalBytes,
     long compressedBytes,
-    IReadOnlyList<ViteManifestPreWarmAssetReport> assets)
+    IReadOnlyList<ViteManifestWarmAssetReport> assets)
 {
     public string Algorithm { get; } = algorithm;
     public int AssetCount { get; } = assetCount;
@@ -18,8 +18,8 @@ public class ViteManifestCompressionAlgorithmSummary(
     public long SavedBytes { get; } = originalBytes - compressedBytes;
     public double CompressionRatio { get; } = originalBytes > 0 ? Math.Round(1.0 - (double)compressedBytes / originalBytes, 4) : 0;
 
-    public IReadOnlyList<ViteManifestPreWarmAssetReport> Assets { get; } = assets;
+    public IReadOnlyList<ViteManifestWarmAssetReport> Assets { get; } = assets;
 
     public override string ToString() =>
-        $"{Algorithm}: {AssetCount} assets, {ViteManifestPreWarmReport.FormatBytes(SavedBytes)} saved ({CompressionRatio:P1})";
+        $"{Algorithm}: {AssetCount} assets, {ViteManifestWarmReport.FormatBytes(SavedBytes)} saved ({CompressionRatio:P1})";
 }

@@ -137,4 +137,53 @@ public class LockUtilsTests
         successCount.Should().Be(threadCount, "all threads should succeed since comparand never matches");
         location.Should().StartWith("value-", "final value should be from one of the threads");
     }
+
+    [Fact]
+    public void TryClaimScope_Should_Claim_And_Release_On_Dispose()
+    {
+        var lockValue = 0;
+
+        using (var scope = LockUtils.TryClaimScope(ref lockValue))
+        {
+            scope.Acquired.Should().BeTrue();
+            lockValue.Should().Be(1);
+        }
+
+        lockValue.Should().Be(0, "lock should be released after dispose");
+    }
+
+    [Fact]
+    public void TryClaimScope_Should_Not_Release_When_Not_Acquired()
+    {
+        var lockValue = 0;
+        LockUtils.TryClaimLock(ref lockValue); // Pre-claim
+
+        using (var scope = LockUtils.TryClaimScope(ref lockValue))
+        {
+            scope.Acquired.Should().BeFalse();
+            lockValue.Should().Be(1, "original claim should remain");
+        }
+
+        lockValue.Should().Be(1, "dispose must not release a lock it did not acquire");
+        LockUtils.ReleaseLock(ref lockValue); // Cleanup
+    }
+
+    [Fact]
+    public void TryClaimScope_Should_Allow_Only_One_Thread()
+    {
+        var lockValue = 0;
+        var claimCount = 0;
+        const int threadCount = 100;
+
+        Parallel.For(0, threadCount, _ =>
+        {
+            // Intentionally not using 'using' — we want the lock to stay claimed
+            // so only one thread succeeds during the contention window
+            var scope = LockUtils.TryClaimScope(ref lockValue);
+            if (scope.Acquired)
+                Interlocked.Increment(ref claimCount);
+        });
+
+        claimCount.Should().Be(1, "only one thread should successfully claim the lock");
+    }
 }

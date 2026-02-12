@@ -1,16 +1,16 @@
-using DRN.Framework.Hosting.BackgroundServices.StaticAssetPreWarm;
+using DRN.Framework.Hosting.BackgroundServices.StaticAssetWarm;
 using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.Hosting.Utils.Vite.Models;
 using Sample.Hosted;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting.BackgroundServices;
 
-public class StaticAssetPreWarmServiceTests
+public class StaticAssetWarmServiceTests
 {
     [Theory]
     [DataInline]
     public async Task ViteManifest_GetAllManifestItems_Should_Return_Collection_When_Application_Started
-        (DrnTestContext context, IStaticAssetPreWarmProxyClientFactory factory)
+        (DrnTestContext context, IStaticAssetWarmProxyClientFactory factory)
     {
         ViteManifest.IsViteOrigin("buildwww/assets/main.js").Should().BeTrue();
         ViteManifest.IsViteOrigin("node_modules/vue/dist/vue.js").Should().BeTrue();
@@ -21,7 +21,7 @@ public class StaticAssetPreWarmServiceTests
         ViteManifest.IsViteOrigin("/app/static/main.js").Should().BeFalse();
         ViteManifest.IsViteOrigin("/assets/styles.css").Should().BeFalse();
         ViteManifest.IsViteOrigin("assets/image.png").Should().BeFalse();
-        context.AddToConfiguration(StaticAssetPreWarmService.EnablePrewarmForTestKey, "true");
+        context.AddToConfiguration(StaticAssetWarmService.EnableWarmForTestKey, "true");
 
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         factory.GetClient(TestEnvironment.TestContextAddress).Returns(client);
@@ -35,15 +35,15 @@ public class StaticAssetPreWarmServiceTests
         var item = viteManifest.GetManifestItem("non-existent-entry");
         item.Should().BeNull();
 
-        var report = await WaitForPrewarmReportAsync(viteManifest);
+        var report = await WaitForWarmReportAsync(viteManifest);
 
         report.Should().NotBeNull();
         report.TotalAssets.Should().BeGreaterThanOrEqualTo(0);
     }
 
-    private static async Task<ViteManifestPreWarmReport?> WaitForPrewarmReportAsync(IViteManifest viteManifest)
+    private static async Task<ViteManifestWarmReport?> WaitForWarmReportAsync(IViteManifest viteManifest)
     {
-        ViteManifestPreWarmReport? report = null;
+        ViteManifestWarmReport? report = null;
         var timeout = TimeSpan.FromSeconds(8);
         var interval = TimeSpan.FromMilliseconds(25);
         var elapsed = TimeSpan.Zero;

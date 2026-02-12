@@ -10,7 +10,7 @@ namespace DRN.Framework.Hosting.Utils.Vite;
 public interface IViteManifest
 {
     string ManifestRootPath { get; }
-    ViteManifestPreWarmReport? PreWarmReport { get; }
+    ViteManifestWarmReport? PreWarmReport { get; }
     ViteManifestItem? GetManifestItem(string entryName);
     IReadOnlyCollection<ViteManifestItem> GetAllManifestItems();
 }
@@ -26,7 +26,7 @@ public class ViteManifest : IViteManifest
     private readonly Lock _lock = new();
 
     public string ManifestRootPath { get; internal set; } = ManifestRootDefault;
-    public ViteManifestPreWarmReport? PreWarmReport { get; internal set; }
+    public ViteManifestWarmReport? PreWarmReport { get; internal set; }
 
     public ViteManifestItem? GetManifestItem(string entryName)
     {

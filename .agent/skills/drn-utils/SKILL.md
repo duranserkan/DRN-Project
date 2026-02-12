@@ -40,6 +40,7 @@ DRN.Framework.Utils/
 ├── Time/                 # TimeStampManager, RecurringAction
 ├── Entity/               # Entity utilities, IPaginationUtils
 ├── Cancellation/         # ICancellationUtils
+├── Concurrency/          # LockUtils (lock-free atomic primitives)
 ├── Models/               # Shared models
 └── UtilsModule.cs        # Module registration
 ```
@@ -431,6 +432,33 @@ worker.Stop();
 
 ### Time
 `TimeProvider` singleton is registered by default to `TimeProvider.System` for testable time entry.
+
+---
+
+## Concurrency (`LockUtils`)
+
+Static helpers for lock-free atomic operations built on `Interlocked`.
+
+| Method | Purpose |
+|--------|---------|
+| `TryClaimLock(ref int)` | Atomically claim a lock (0 → 1) |
+| `TryClaimScope(ref int)` | Returns disposable `LockScope` — auto-releases on dispose |
+| `ReleaseLock(ref int)` | Unconditionally release a lock (→ 0) |
+| `TrySetIfEqual<T>(ref T?, T, T?)` | CAS for reference types |
+| `TrySetIfNull<T>(ref T?, T)` | Set only if current is `null` |
+| `TrySetIfNotEqual<T>(ref T?, T, T?)` | Set only if current ≠ comparand (retry loop) |
+| `TrySetIfNotNull<T>(ref T?, T)` | Set only if current is not `null` |
+
+```csharp
+// Disposable lock scope (preferred)
+private int _lock;
+using var scope = LockUtils.TryClaimScope(ref _lock);
+if (scope.Acquired) { /* critical section */ }
+
+// One-time initialization
+private MyService? _instance;
+LockUtils.TrySetIfNull(ref _instance, new MyService());
+```
 
 ---
 

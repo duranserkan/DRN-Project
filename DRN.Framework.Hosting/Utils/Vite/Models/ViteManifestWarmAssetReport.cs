@@ -1,6 +1,6 @@
 namespace DRN.Framework.Hosting.Utils.Vite.Models;
 
-public class ViteManifestPreWarmAssetReport
+public class ViteManifestWarmAssetReport
 {
     public string Path { get; }
     public int StatusCode { get; }
@@ -15,7 +15,7 @@ public class ViteManifestPreWarmAssetReport
 
     public long DurationMs { get; }
 
-    private ViteManifestPreWarmAssetReport(string path, int statusCode, long originalBytes, long compressedBytes,
+    private ViteManifestWarmAssetReport(string path, int statusCode, long originalBytes, long compressedBytes,
         string? contentEncoding, string? contentType, long durationMs)
     {
         Path = path;
@@ -29,7 +29,7 @@ public class ViteManifestPreWarmAssetReport
         DurationMs = durationMs;
     }
 
-    private ViteManifestPreWarmAssetReport(string path, int statusCode, string? error, long durationMs)
+    private ViteManifestWarmAssetReport(string path, int statusCode, string? error, long durationMs)
     {
         Path = path;
         StatusCode = statusCode;
@@ -39,17 +39,17 @@ public class ViteManifestPreWarmAssetReport
     }
 
 
-    public static ViteManifestPreWarmAssetReport Ok(string path, int statusCode,
+    public static ViteManifestWarmAssetReport Ok(string path, int statusCode,
         long originalBytes, long compressedBytes, string? contentEncoding, string? contentType, long durationMs)
         => new(path, statusCode, originalBytes, compressedBytes, contentEncoding, contentType, durationMs);
 
-    public static ViteManifestPreWarmAssetReport Failed(string path, int statusCode, long durationMs)
+    public static ViteManifestWarmAssetReport Failed(string path, int statusCode, long durationMs)
         => new(path, statusCode, error: null, durationMs);
 
-    public static ViteManifestPreWarmAssetReport Errored(string path, string error, long durationMs)
+    public static ViteManifestWarmAssetReport Errored(string path, string error, long durationMs)
         => new(path, statusCode: 0, error, durationMs);
 
     public override string ToString() => Success
-        ? $"{Path}: {ViteManifestPreWarmReport.FormatBytes(OriginalBytes)} → {ViteManifestPreWarmReport.FormatBytes(CompressedBytes)} ({CompressionRatio:P1}) [{ContentEncoding ?? "none"}] in {DurationMs}ms"
+        ? $"{Path}: {ViteManifestWarmReport.FormatBytes(OriginalBytes)} → {ViteManifestWarmReport.FormatBytes(CompressedBytes)} ({CompressionRatio:P1}) [{ContentEncoding ?? "none"}] in {DurationMs}ms"
         : $"{Path}: FAILED ({Error ?? $"HTTP {StatusCode}"}) in {DurationMs}ms";
 }
