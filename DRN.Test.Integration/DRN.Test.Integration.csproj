@@ -12,12 +12,13 @@
     </PropertyGroup>
     
     <ItemGroup>
-        <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj"/>
-        <ProjectReference Include="..\DRN.Nexus.Hosted\DRN.Nexus.Hosted.csproj"/>
-        <ProjectReference Include="..\Sample.Hosted\Sample.Hosted.csproj"/>
+        <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
+        <ProjectReference Include="..\DRN.Nexus.Hosted\DRN.Nexus.Hosted.csproj" />
+        <ProjectReference Include="..\Sample.Hosted\Sample.Hosted.csproj" />
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="Otp.NET" Version="1.4.1" />
         <PackageReference Include="xunit.v3.mtp-v2" Version="3.2.2" />
     </ItemGroup>
 
