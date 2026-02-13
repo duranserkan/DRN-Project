@@ -2,7 +2,7 @@ name: drn-rabbit
 services:
   # https://hub.docker.com/_/rabbitmq
   rabbit:
-    image: drn-rabbitmq:4.2.2-management-alpine-drn
+    image: rabbitmq-drn:4.2.2-management-alpine
     build:
       context: ./image/
     container_name: drn-rabbit
