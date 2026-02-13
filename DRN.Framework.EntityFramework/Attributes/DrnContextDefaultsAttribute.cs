@@ -16,12 +16,27 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
 {
     public DrnContextDefaultsAttribute() => FrameworkDefined = true;
 
-    public override void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder, IServiceProvider? serviceProvider) => builder
+    /// <summary>
+        /// Configure Npgsql-specific EF Core options for the given DbContext type.
+        /// </summary>
+        /// <param name="builder">The Npgsql DbContext options builder to configure.</param>
+        /// <param name="serviceProvider">Optional service provider; may be null and is not used by this implementation.</param>
+        /// <remarks>
+        /// Sets query splitting behavior to SplitQuery, configures the migrations assembly to the assembly containing <typeparamref name="TContext"/>,
+        /// sets the migrations history table to "{contextName}_history" in the "__entity_migrations" schema (context name converted to snake_case),
+        /// and fixes the PostgreSQL version to 18.2.
+        /// </remarks>
+        public override void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder, IServiceProvider? serviceProvider) => builder
         .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
         .MigrationsAssembly(typeof(TContext).Assembly.FullName)
         .MigrationsHistoryTable($"{typeof(TContext).Name.ToSnakeCase()}_history", "__entity_migrations")
         .SetPostgresVersion(18,2);
 
+    /// <summary>
+    /// Configure the Npgsql data source builder: disable parameter logging, apply default JSON conventions, and ensure a sensible ApplicationName is set.
+    /// </summary>
+    /// <param name="builder">The NpgsqlDataSourceBuilder to configure.</param>
+    /// <param name="serviceProvider">Service provider used to resolve IAppSettings for computing the default application name.</param>
     public override void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider serviceProvider)
     {
         builder.EnableParameterLogging(false);
