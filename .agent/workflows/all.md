@@ -13,9 +13,8 @@ description: Load all project skills by calling other workflows
 3. Load DRN framework skills
    - `/drn`
 
-4. Load frontend skills
-   - `/frontend`
-
-5. Load testing skills
+4. Load testing skills
    - `/test`
 
+5. Load frontend skills
+   - `/frontend`

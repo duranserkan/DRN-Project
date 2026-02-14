@@ -12,7 +12,7 @@ Read and follow `DiSCOS/DiSCOS.md` — the Distinguished Secure Cognitive OS.
 | Aspect | Detail                                      |
 |--------|---------------------------------------------|
 | **Type** | .NET 10 framework + DDD reference application |
-| **Architecture** | Domain → Infrastructure/Application→ Hosted |
+| **Architecture** | Domain → Infrastructure/Application → Hosted |
 | **Frontend** | Razor Pages + htmx + Bootstrap 5 (Vite build) |
 | **Testing** | DTT — integration-first with Testcontainers |
 | **CI/CD** | GitHub Actions with composite actions       |
@@ -20,8 +20,8 @@ Read and follow `DiSCOS/DiSCOS.md` — the Distinguished Secure Cognitive OS.
 ## Skill Discovery
 
 - **Skill index**: `.agent/skills/overview-skill-index/SKILL.md` — task→skill & layer→skill lookup
-- **Load all skills**: `.agent/workflows/all.md` (cascades: basic → drn → frontend → test → overview)
-- **Individual workflows**: `.agent/workflows/{basic,drn,frontend,test,overview}.md`
+- **Load all skills**: `.agent/workflows/all.md` (cascades: basic → overview → drn → test→ frontend)
+- **Individual workflows**: `.agent/workflows/{basic,overview,drn,test,frontend}.md`
 
 ## Key Commands
 
