@@ -11,7 +11,7 @@ description: Type-safe static accessor pattern - 'Get' class for refactoring-saf
 - Creating a central entry point for application constants.
 - Finding paths to pages or endpoints (`Get.Page...`).
 - Checking permissions or feature flags in Views (`Get.Claim...`).
-- defining strongly-typed keys for extensive dictionaries like `ViewData`.
+- Defining strongly-typed keys for extensive dictionaries like `ViewData`.
 
 ---
 
@@ -39,7 +39,7 @@ public static class Get
 
 ## Helper Collections (Dependency Construction)
 
-Collections are used to group accessors logicially (e.g., by feature or area).
+Collections are used to group accessors logically (e.g., by feature or area).
 
 **Page Collection Pattern**:
 ```csharp

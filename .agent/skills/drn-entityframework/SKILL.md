@@ -71,14 +71,10 @@ public class QAContext : DrnContext<QAContext>
 Entities inheriting from `SourceKnownEntity` are automatically tracked:
 
 ```csharp
-// On Add
-entity.MarkAsCreated();   // Sets CreatedAt, ModifiedAt, adds event
 
-// On Update
-entity.MarkAsModified();  // Sets ModifiedAt, adds event
-
-// On Delete
-entity.MarkAsDeleted();   // Adds event
+entity.MarkAsCreated();   //On Add, sets CreatedAt, ModifiedAt, adds created event
+entity.MarkAsModified();  // On Update, sets ModifiedAt, adds modified event
+entity.MarkAsDeleted();   // On Delete, sets deleted event
 ```
 
 Domain events are collected and can be published after `SaveChangesAsync()`.
@@ -236,8 +232,8 @@ public async Task Integration_Test(DrnTestContext context)
     context.ServiceCollection.AddSampleInfraServices();
     await context.ContainerContext.Postgres.ApplyMigrationsAsync();
     
-    var dbContext = context.GetRequiredService<QAContext>();
-    // ... test code
+    var dbContext = context.GetRequiredService<QAContext>(); // ... test code
+
 }
 ```
 
@@ -378,10 +374,8 @@ public class RepositorySettings<TEntity>
 ```csharp
 public class UserRepository : SourceKnownRepository<QAContext, User>
 {
-    protected override IQueryable<User> EntitiesWithAppliedSettings =>
-        base.EntitiesWithAppliedSettings
-            .Include(u => u.Profile)
-            .ThenInclude(p => p.Address);
+    protected override IQueryable<User> EntitiesWithAppliedSettings => 
+        base.EntitiesWithAppliedSettings.Include(u => u.Profile).ThenInclude(p => p.Address);
 }
 ```
 
@@ -436,8 +430,7 @@ public async Task Test(DrnTestContext context)
     context.ServiceCollection.AddInfraServices();
     await context.ContainerContext.Postgres.ApplyMigrationsAsync();
     
-    var qaContext = context.GetRequiredService<QAContext>();
-    // Ready to test
+    var qaContext = context.GetRequiredService<QAContext>(); // Ready to test
 }
 ```
 
