@@ -34,7 +34,9 @@
   </Folder>
   <Folder Name="/Items/">
     <File Path=".gitignore" />
+    <File Path=".coderabbit.yaml" />
     <File Path=".dockerignore" />
+    <File Path="AGENTS.md" />
     <File Path="vive la republique.png" />
   </Folder>
   <Folder Name="/Items/.agent/" />

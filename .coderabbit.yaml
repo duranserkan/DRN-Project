@@ -1,5 +1,52 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+
 reviews:
   auto_review:
     enabled: true
     base_branches:
-      - ".*" # Reviews PRs targeting ANY branch
+      - ".*"
+  profile: assertive
+  path_instructions:
+    - path: "DRN.Framework.*/**"
+      instructions: >
+        Framework package — verify backward compatibility for public API changes.
+        Check attribute-based DI ([Scoped], [Singleton], [Transient]) on all services.
+        Validate dependency direction matches hierarchy: SharedKernel → Utils → Hosting/EntityFramework → Testing.
+    - path: "Sample.*/**"
+      instructions: >
+        DDD reference application — enforce layering rules:
+        Application orchestrates use cases with no direct DB access.
+        Infrastructure implements repository contracts from Domain.
+        Verify Source-Known ID pattern for entities (long internal + Guid external).
+    - path: "DRN.Nexus.*/**"
+      instructions: >
+        Nexus microservice hub — same DDD layering rules as Sample.
+        Verify service mesh patterns and internal request/response contracts.
+    - path: "DRN.Test.*/**"
+      instructions: >
+        Test projects — verify DTT patterns:
+        Integration tests should use [DataInline] with DrnTestContext.
+        Unit tests should use [DataInlineUnit] with DrnTestContextUnit.
+        Prefer integration tests with real containers over heavy mocking.
+        Check that test class names follow conventions.
+    - path: ".agent/skills/**"
+      instructions: >
+        Agent skill files — verify YAML frontmatter format (name, description with keywords).
+        Check that Related Skills links resolve to existing skill directories.
+    - path: "**/Dockerfile"
+      instructions: >
+        Docker images — verify multi-arch support (linux/amd64 + linux/arm64).
+        Check SBOM and provenance generation compliance.
+    - path: ".github/workflows/**"
+      instructions: >
+        CI/CD workflows — verify composite action references are correct.
+        Check that secrets are not hardcoded.
+        Validate workflow trigger conditions.
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  learnings:
+    scope: global
