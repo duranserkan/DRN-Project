@@ -1,6 +1,6 @@
 ---
 name: frontend-razor-accessors
-description: Type-safe static accessor pattern - 'Get' class for refactoring-safe routing (Get.Page, Get.Endpoint), permission checks (Get.Claim), and ViewData keys. Eliminates magic strings in Razor views and provides centralized navigation. Keywords: razor-pages, type-safety, navigation, routing, accessors, get-pattern, page-routing, endpoint-routing, view-helpers, refactoring-safety, skills, drn hosting, frontend, razor, pages, navigation
+description: Type-safe static accessor pattern - 'Get' class for refactoring-safe routing (Get.Page, Get.Endpoint), permission checks (Get.Claim), and ViewData keys. Eliminates magic strings in Razor views and provides centralized navigation. Keywords: razor-pages, type-safety, navigation, routing, accessors, get-pattern, page-routing, endpoint-routing, refactoring-safety
 ---
 
 # Static Accessor Pattern (The 'Get' Class)

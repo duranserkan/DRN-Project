@@ -1,6 +1,6 @@
 ---
 name: overview-skill-index
-description: Skill cross-reference index - Task-based skill lookup (add entity, create test, build frontend), layer-based mappings (Domain→Presentation), keyword index, and skill dependency graph. Fast discovery for the right skill combination. Keywords: index, lookup, cross-reference, skill-map, discovery, navigation, task-mapping, skills, overview, all
+description: Skill cross-reference index - Task-based skill lookup (add entity, create test, build frontend), layer-based mappings (Domain→Presentation), keyword index, and skill dependency graph. Fast discovery for the right skill combination. Keywords: index, lookup, cross-reference, skill-map, discovery, task-mapping
 ---
 
 # Skill Cross-Reference Index

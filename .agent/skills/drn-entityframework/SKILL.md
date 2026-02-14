@@ -1,6 +1,6 @@
 ---
 name: drn-entityframework
-description: DRN.Framework.EntityFramework - DrnContext base class, automatic migration application, entity tracking with domain events, NpgsqlDbContextOptions for database configuration, and repository implementations. Essential for database operations, migrations, and data persistence. Keywords: drncontext, ef-core, entity-framework, migrations, database, postgresql, npgsql, repository-implementation, entity-tracking, domain-events, dbcontext-configuration, skills, drn domain design, drn shared kernel, drn utils, drn testing, test integration, overview, ddd, architecture
+description: DRN.Framework.EntityFramework - DrnContext base class, automatic migration application, entity tracking with domain events, NpgsqlDbContextOptions for database configuration, and repository implementations. Essential for database operations, migrations, and data persistence. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, entity-tracking, domain-events, dbcontext-configuration, prototype-mode, testcontainers
 ---
 
 # DRN.Framework.EntityFramework
@@ -72,7 +72,7 @@ Entities inheriting from `SourceKnownEntity` are automatically tracked:
 
 ```csharp
 
-entity.MarkAsCreated();   //On Add, sets CreatedAt, ModifiedAt, adds created event
+entity.MarkAsCreated();   // On Add, sets CreatedAt, ModifiedAt, adds created event
 entity.MarkAsModified();  // On Update, sets ModifiedAt, adds modified event
 entity.MarkAsDeleted();   // On Delete, sets deleted event
 ```

@@ -1,6 +1,6 @@
 ---
 name: overview-drn-framework
-description: DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, drn-framework, package-dependencies, skills, drn, domain, design, shared, kernel, utils, hosting, entity, framework, testing
+description: DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, package-dependencies
 ---
 
 # DRN.Framework Overview
