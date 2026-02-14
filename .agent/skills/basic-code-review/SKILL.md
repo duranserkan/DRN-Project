@@ -1,6 +1,6 @@
 ---
 name: basic-code-review
-description: Code review standards - Priority Stack as review gate (Security→Correctness→Clarity→Simplicity→Performance), DDD boundary validation, attribute-based DI audit, naming conventions, test coverage expectations (DTT), breaking change detection, and security review triggers. Keywords: code-review, review-standards, priority-stack, ddd-boundaries, naming-conventions, breaking-changes, pull-request, pr-review, quality-gate, skills, basic, security, checklist
+description: Code review standards - Priority Stack as review gate (Security→Correctness→Clarity→Simplicity→Performance), DDD boundary validation, attribute-based DI audit, naming conventions, test coverage expectations (DTT), breaking change detection, and security review triggers. Keywords: code-review, review-standards, priority-stack, naming-conventions, breaking-changes, pull-request, quality-gate
 ---
 
 # Code Review Standards

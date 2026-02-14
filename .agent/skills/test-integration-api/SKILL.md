@@ -1,6 +1,6 @@
 ---
 name: test-integration-api
-description: End-to-end API testing - WebApplicationFactory for full request pipeline testing, authenticated client creation, HTTP dependency mocking (Flurl), typed client testing, and route validation. Use for testing controllers, endpoints, and API behavior. Keywords: api-testing, e2e-testing, webapplicationfactory, http-mocking, flurl, endpoint-testing, controller-testing, authentication, integration-testing, dtt, skills, test, integration
+description: End-to-end API testing - WebApplicationFactory for full request pipeline testing, authenticated client creation, HTTP dependency mocking (Flurl), typed client testing, and route validation. Use for testing controllers, endpoints, and API behavior. Keywords: api-testing, e2e-testing, webapplicationfactory, http-mocking, flurl, endpoint-testing, controller-testing, authentication, dtt
 ---
 
 # API Integration Testing
