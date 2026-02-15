@@ -1,6 +1,8 @@
 ---
 name: frontend-buildwww-vite
 description: Frontend build system - Vite multi-build configuration, TypeScript setup with path aliases, build output structure (wwwroot), and entry point management (appPreload, appPostload). Essential for frontend asset compilation and bundling. Keywords: vite, typescript, bundling, asset-compilation, npm, javascript, css, scss, build-pipeline, entry-points, manifest
+last-updated: 2026-02-15
+difficulty: intermediate
 ---
 
 # Sample.Hosted buildwww & Vite

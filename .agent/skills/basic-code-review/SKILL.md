@@ -1,6 +1,8 @@
 ---
 name: basic-code-review
 description: Code review standards - Priority Stack as review gate (Security→Correctness→Clarity→Simplicity→Performance), DDD boundary validation, attribute-based DI audit, naming conventions, test coverage expectations (DTT), breaking change detection, and security review triggers. Keywords: code-review, review-standards, priority-stack, naming-conventions, breaking-changes, pull-request, quality-gate
+last-updated: 2026-02-15
+difficulty: intermediate
 ---
 
 # Code Review Standards
@@ -33,22 +35,7 @@ Evaluate every change through the Priority Stack, in order:
 
 ## DDD Boundary Checks
 
-### Layer Dependency Rules
-```
-✅ Allowed:
-  Presentation → Application → Domain
-  Infrastructure → Domain
-  Application → Infrastructure (for abstractions such as IEmailSender)
-  
-❌ Forbidden:
-  Domain → Infrastructure (domain must not know persistence)
-  Domain → Presentation (domain must not know UI)
-  Application → Presentation (application must not know UI)
-  Any layer → skipping layers (e.g., Presentation → Domain directly)
-```
-
 ### Review Checklist
-- [ ] No `using Sample.Infra` in Domain project
 - [ ] No `DbContext` references in Domain or Application layers
 - [ ] Repository interfaces defined in Domain, implementations in Infrastructure
 - [ ] DTOs in Contract, never in Domain
@@ -74,25 +61,6 @@ Every service class should declare its lifetime:
 - [ ] `[Singleton]` services hold no mutable per-request state
 - [ ] `[Scoped]` services don't capture `[Singleton]` dependencies that hold state
 - [ ] No manual `services.AddScoped<>()` calls for classes that should use attributes
-
----
-
-## Naming Conventions
-
-| Element | Convention | Example |
-|---------|-----------|---------|
-| Entity | PascalCase noun | `Question`, `Category` |
-| Repository interface | `ISourceKnownRepository<T>` | `ISourceKnownRepository<Question>` |
-| Repository impl | `{Entity}Repository` | `QuestionRepository` |
-| DbContext | `{Bounded}Context` | `QAContext` |
-| Domain event | `{Entity}{Action}Event` | `QuestionCreatedEvent` |
-| API endpoint | `/Api/{Area}/[controller]` | `/Api/QA/Question` |
-| Page | PascalCase folder/page | `Pages/QA/Questions.cshtml` |
-
-### Source-Known ID Pattern
-- **Internal**: `long Id` (auto-increment, for DB joins)
-- **External**: `Guid EntityId` (exposed in APIs, URLs)
-- **Never expose `long Id`** in public APIs or URLs
 
 ---
 
@@ -146,6 +114,25 @@ Flag for additional security review when changes touch:
 - [ ] External HTTP calls
 - [ ] Cryptographic operations
 - [ ] User data storage or retrieval
+
+---
+
+## Pre-Mortem: What Could Go Wrong?
+
+Before approving, ask: *"If this change causes an incident in 6 months, what was the root cause?"*
+
+| Failure Mode | What to Look For |
+|-------------|-----------------|
+| **Silent security regression** | CSP weakened, auth bypassed, new endpoint without `[Authorize]` |
+| **Data leak via entity exposure** | API returning entity instead of DTO; `long Id` or `SourceKnownEntityId` in response |
+| **Unbounded query** | Missing pagination on collection endpoints; `GetAllAsync()` on large tables |
+| **DI lifetime mismatch** | `[Scoped]` service captured by `[Singleton]`; mutable state in singleton |
+| **Migration data loss** | Column removal/type change without data migration; non-additive schema change |
+| **Broken contract** | Removed public API member; changed method signature; renamed config key without fallback |
+| **Test false confidence** | Test passes but doesn't assert meaningful behavior; mock hides the actual bug |
+| **Dependency supply chain** | New NuGet/npm package not audited; transitive vulnerability introduced |
+
+> **DiSCOS Mental Model**: Inversion — avoid what must NOT happen, then verify the change doesn't introduce it.
 
 ---
 

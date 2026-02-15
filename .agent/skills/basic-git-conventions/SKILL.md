@@ -1,6 +1,8 @@
 ---
 name: basic-git-conventions
 description: Git workflow conventions - GitFlow-inspired branching (develop→master→tag), commit message format, PR workflow (draft→review→squash), branch naming (feature/fix/chore/docs), release tagging (v*.*.* and v*-preview*), and release notes management. Keywords: git, branching, commit-messages, pull-request, pr-workflow, release, tagging, versioning, gitflow, conventional-commits
+last-updated: 2026-02-15
+difficulty: basic
 ---
 
 # Git Conventions & Branching

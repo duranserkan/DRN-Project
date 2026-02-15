@@ -1,6 +1,8 @@
 ---
 name: frontend-buildwww-packages
 description: Frontend package dependencies - Standardized npm packages (Bootstrap, htmx, jQuery validation, onmount), version management, and dependency purposes. Reference for adding or updating frontend libraries. Keywords: npm, packages, dependencies, bootstrap, htmx, jquery, onmount, package-management, versioning
+last-updated: 2026-02-15
+difficulty: basic
 ---
 
 # Sample.Hosted npm Packages

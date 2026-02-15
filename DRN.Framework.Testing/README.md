@@ -508,7 +508,7 @@ public class DataSelfContextAttributeTests
     }
 }
 
-public class DataSelfContextTestData : DataSelfContextAttribute
+public class DataSelfContextTestData : DataSelfAttribute
 {
     public DataSelfContextTestData()
     {
