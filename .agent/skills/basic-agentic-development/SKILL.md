@@ -39,18 +39,21 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 ## Development Loop
 
 ### 1. Discovery
+
 - Read `AGENTS.md` → workflow → relevant skills
 - Use `view_file_outline` to understand structure before diving in
 - Search with `grep_search` (exact) or `find_by_name` (glob)
 - **Stop when sufficient** — don't read every file
 
 ### 2. Planning
+
 - Define scope and constraints
 - Identify affected files and dependencies
 - Consider security implications (Priority Stack)
 - For significant changes: write plan, seek approval
 
 ### 3. Execution
+
 - Work incrementally: smallest testable unit first
 - Validate after each change (build, lint, test)
 - Follow existing patterns in the codebase

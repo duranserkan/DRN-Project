@@ -39,12 +39,15 @@ Standards for creating and maintaining documentation within DRN-Project.
 ## 3. ROADMAP vs CHANGELOG
 
 ### ROADMAP.md
+
 Track planned features with `[ ]`/`[/]`/`[x]` markers, grouped by version.
 
 ### CHANGELOG.md
+
 Reverse chronological. Sections: Added, Changed, Fixed, Security, Breaking.
 
 ### SemVer
+
 - **Major (X.0.0)**: Breaking changes
 - **Minor (0.X.0)**: New features (backward compatible)
 - **Patch (0.0.X)**: Bug fixes and security patches

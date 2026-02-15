@@ -138,6 +138,7 @@ protected override void ConfigureAuthorizationOptions(AuthorizationOptions optio
 ```
 
 ### GDPR & Consent
+
 - `ConsentCookie`: Manages user consent state via secure HttpOnly cookie
 - `ScopedUserMiddleware`: Populates `IScopedLog` with `ConsentGranted` status
 

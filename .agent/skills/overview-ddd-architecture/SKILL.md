@@ -10,6 +10,7 @@ difficulty: intermediate
 > Domain-Driven Design layer architecture for DRN applications.
 
 ## When to Apply
+
 - Starting a new application or bounded context
 - Understanding layer responsibilities and dependencies
 - Deciding where to place new code
@@ -19,7 +20,7 @@ difficulty: intermediate
 
 ## Layer Structure
 
-```
+```text
 Presentation  →  Application  →  Domain  ←  Infrastructure
     (UI/API)      (Orchestration)  (Core)     (Data/External)
 ```
@@ -58,6 +59,7 @@ graph TD
 ## Layers
 
 ### Domain Layer (`*.Domain`)
+
 The core — entities, value objects, domain events, repository contracts, domain services.
 
 | Place Here | Never Place Here |
@@ -70,6 +72,7 @@ The core — entities, value objects, domain events, repository contracts, domai
 | `ToDto()` instance methods (entity → DTO mapping) | DTO definitions |
 
 ### Contract Layer (`*.Contract`)
+
 Shared boundary — DTOs, shared enums, value models consumed across all layers.
 
 | Place Here | Never Place Here |
@@ -82,6 +85,7 @@ Shared boundary — DTOs, shared enums, value models consumed across all layers.
 **Dependency rule**: Contract depends **only** on `DRN.Framework.SharedKernel`. Any project (including `*.Domain`) may reference `*.Contract`.
 
 ### Application Layer (`*.Application`)
+
 Orchestration — coordinates domain objects and infrastructure services.
 
 | Place Here | Never Place Here |
@@ -92,6 +96,7 @@ Orchestration — coordinates domain objects and infrastructure services.
 | `ISourceKnownRepository<T>` consumption | UI concerns / Framework config |
 
 ### Infrastructure Layer (`*.Infra`)
+
 Implementation — database, external services, file system.
 
 | Place Here | Never Place Here |
@@ -103,6 +108,7 @@ Implementation — database, external services, file system.
 | EF Core migrations | Application orchestration |
 
 ### Presentation Layer (`*.Hosted` / `*.Web`)
+
 UI and API — Razor Pages, Controllers, minimal APIs.
 
 | Place Here | Never Place Here |
@@ -117,7 +123,7 @@ UI and API — Razor Pages, Controllers, minimal APIs.
 
 ## DRN Project Naming Convention
 
-```
+```text
 Sample.Contract/       # Contract layer (DTOs, shared enums, value models)
 Sample.Domain/         # Domain layer
 Sample.Application/    # Application layer  

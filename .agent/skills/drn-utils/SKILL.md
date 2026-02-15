@@ -208,7 +208,7 @@ if (scope.Acquired) { /* critical section */ }
 ## Utilities Reference
 
 | Area | Key Types | Purpose |
-|------|-----------|---------| 
+|------|-----------|---------|
 | **Data Encoding** | `EncodingExtensions` | Base64, Base64Url, Hex, Utf8 |
 | **Hashing** | `HashExtensions` | Blake3 (crypto), XxHash3 (fast), keyed hashing |
 | **JSON** | `JsonMergePatch` | RFC 7386 merge patch with depth protection |

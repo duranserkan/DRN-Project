@@ -68,8 +68,8 @@
 - [ ] Endpoint topology
 - [ ] Service discovery
 - [ ] Remote settings
-- [ ] Self documenting microservices with unified topology
+- [ ] Self-documenting microservices with unified topology
 ## DRN.Nexus
 - [ ] Service discovery
 - [ ] Remote settings
-- [ ] Self documenting microservices with unified topology
+- [ ] Self-documenting microservices with unified topology

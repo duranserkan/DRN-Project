@@ -95,6 +95,12 @@ flowchart TD
 
 ---
 
+## Related Skills
+
+- [basic-documentation.md](../basic-documentation/SKILL.md) - Documentation standards and conventions
+
+---
+
 ## Checklist
 
 - [ ] All text ≥ 4.5:1 contrast
