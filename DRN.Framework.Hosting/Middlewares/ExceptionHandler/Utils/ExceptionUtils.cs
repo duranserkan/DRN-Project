@@ -110,8 +110,9 @@ public class ExceptionUtils(
         var appSettings = context.RequestServices.GetRequiredService<IAppSettings>();
         var scopedLog = context.RequestServices.GetRequiredService<IScopedLog>();
         var title = GetPageTitle(exception);
-        var body = await new StreamReader(request.Body).ReadToEndAsync();
-        request.Body.Seek(0, SeekOrigin.Begin);
+        var method = request.Method;
+        var hasBody = HttpMethods.IsPost(method) || HttpMethods.IsPut(method) || HttpMethods.IsPatch(method);
+        var body = hasBody ? await RequestBufferingState.ReadBodyAsync(context) : string.Empty;
 
         var model = new DrnExceptionModel
         {

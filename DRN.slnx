@@ -42,7 +42,6 @@
   <Folder Name="/Items/.agent/" />
   <Folder Name="/Items/.agent/rules/">
     <File Path=".agent\rules\discos.md" />
-    <File Path=".agent\rules\duran-serkan.md" />
   </Folder>
   <Folder Name="/Items/.github/" />
   <Folder Name="/Items/.github/workflows/">

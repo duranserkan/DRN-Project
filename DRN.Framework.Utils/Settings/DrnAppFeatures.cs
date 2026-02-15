@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
@@ -30,4 +29,10 @@ public class DrnAppFeatures
     /// Not used for production or development but kept around to collect MonotonicDateTime Behavior Data
     /// </summary>
     public bool UseMonotonicDateTimeProvider { get; init; } = false;
+
+    /// <summary>
+    /// When true, disables request body buffering entirely. Use for high-throughput services
+    /// (e.g., file upload endpoints) where even small buffering is undesirable.
+    /// </summary>
+    public bool DisableRequestBuffering { get; init; } = false;
 }

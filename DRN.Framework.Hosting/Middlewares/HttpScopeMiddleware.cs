@@ -23,9 +23,7 @@ public class HttpScopeMiddleware(RequestDelegate next)
     {
         try
         {
-            //todo manage request buffering it may not be desired in production
-            //It is currently required to obtain detailed exception report which reads request body
-            context.Request.EnableBuffering();
+            RequestBufferingState.TryEnableBuffering(context, appSettings.Features);
             ResponseControls(context);
             PrepareScopeLog(context, scopedLog);
             ScopeContext.Initialize(context.TraceIdentifier, scopedLog, scopedUser, appSettings, serviceProvider);
@@ -75,7 +73,7 @@ public class HttpScopeMiddleware(RequestDelegate next)
     {
         context.Response.OnStarting(() =>
         {
-            var headers = context.Request.Headers;
+            var headers = context.Response.Headers;
             if (headers.ContainsKey("Cache-Control"))
                 return Task.CompletedTask;
 

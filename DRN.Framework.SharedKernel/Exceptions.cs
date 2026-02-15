@@ -73,13 +73,13 @@ public static class ExceptionFor
     /// <summary>
     /// Scope handler returns 400 when thrown
     /// </summary>
-    public static ValidationException Validation(string message, Exception exception = null!, string? category = Default)
+    public static ValidationException Validation(string message, Exception? exception = null, string? category = Default)
         => new(message, exception, category);
 
     /// <summary>
     /// Scope handler returns 401 when thrown
     /// </summary>
-    public static UnauthorizedException Unauthorized(string message, Exception exception = null!, string? category = Default)
+    public static UnauthorizedException Unauthorized(string message, Exception? exception = null, string? category = Default)
         => new(message, exception, category);
 
     /// <summary>
@@ -91,19 +91,19 @@ public static class ExceptionFor
     /// <summary>
     /// Scope handler returns 404 when thrown
     /// </summary>
-    public static NotFoundException NotFound(string message, Exception exception = null!, string? category = Default)
+    public static NotFoundException NotFound(string message, Exception? exception = null, string? category = Default)
         => new(message, exception, category);
 
     /// <summary>
     /// Scope handler returns 409 when thrown
     /// </summary>
-    public static ConflictException Conflict(string message, Exception exception = null!, string? category = Default)
+    public static ConflictException Conflict(string message, Exception? exception = null, string? category = Default)
         => new(message, exception, category);
 
     /// <summary>
     /// Scope handler returns 410 when thrown
     /// </summary>
-    public static ExpiredException Expired(string message, Exception exception = null!, string? category = Default)
+    public static ExpiredException Expired(string message, Exception? exception = null, string? category = Default)
         => new(message, exception, category);
 
     /// <summary>
@@ -115,12 +115,12 @@ public static class ExceptionFor
     /// <summary>
     /// Scope handler returns 422 when thrown
     /// </summary>
-    public static UnprocessableEntityException UnprocessableEntity(string message, Exception exception = null!, string? category = Default)
+    public static UnprocessableEntityException UnprocessableEntity(string message, Exception? exception = null, string? category = Default)
         => new(message, exception, category);
 
     /// <summary>
     /// To abort requests that doesn't even deserve a result
     /// </summary>
-    public static MaliciousRequestException MaliciousRequest(string message, Exception exception = null!, string? category = Default)
+    public static MaliciousRequestException MaliciousRequest(string message, Exception? exception = null, string? category = Default)
         => new(message, exception, category);
 }
