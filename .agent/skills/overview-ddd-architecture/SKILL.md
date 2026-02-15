@@ -25,7 +25,7 @@ Presentation  →  Application  →  Domain  ←  Infrastructure
     (UI/API)      (Orchestration)  (Core)     (Data/External)
 ```
 
-**Dependency rule**: Dependencies flow **inward**. Domain has zero outward dependencies. Infrastructure depends on Domain (implements its contracts).
+**Dependency rule**: Dependencies flow **inward**. Domain depends only on internal foundational packages (Contract, Utils, SharedKernel) — never on Application, Infrastructure, or Presentation. Infrastructure depends on Domain (implements its contracts).
 
 ```mermaid
 graph TD
