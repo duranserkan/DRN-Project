@@ -2,6 +2,8 @@
 description: Load DRN framework specific skills
 ---
 
+> **Estimated context: ~18K tokens** (8 skills)
+
 Read the skills:
    - `view_file .agent/skills/overview-drn-framework/SKILL.md`
    - `view_file .agent/skills/overview-ddd-architecture/SKILL.md`
@@ -11,3 +13,4 @@ Read the skills:
    - `view_file .agent/skills/drn-utils/SKILL.md`
    - `view_file .agent/skills/drn-hosting/SKILL.md`
    - `view_file .agent/skills/drn-testing/SKILL.md`
+   

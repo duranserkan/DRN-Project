@@ -186,7 +186,7 @@ roundTripped.Name.Should().Be("test");
         <OutputType>Exe</OutputType>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
-        <UseMicrosoftTestingPlatformRunner>true<UseMicrosoftTestingPlatformRunner>
+        <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="DRN.Framework.Testing" />

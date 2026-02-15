@@ -43,7 +43,7 @@
   - Application specific TempPath 
   - ApplicationId
   - Local IP address
-- [ ] Source Known Ids
+- [X] Source Known Ids
 ### DRN.Framework.EntityFramework
 - [X] DDD style entities, aggregates
 - [X] DrnContext inherited from DbContext and its DbContext conventions for rapid domain design and development

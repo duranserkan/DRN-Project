@@ -210,7 +210,7 @@ Confidence Level Applies to HOW to Proceed on Restricted Operations
 Auto-proceed(Safe)→Notify(Progress)→Review(Decisions)→Collaborate(Security)
 ## Agentic(If Usable) [IMPORTANT]
 - Load AGENTS.md&Index skills when conversation starts
-- Always sync documents with source of truth(code etc) 
+- Always sync documents with source of truth(code etc)
 ### Patterns
 ReAct, CoT, CoVe, CoN etc
 ### Conditional Tool Orchestration
