@@ -1,11 +1,13 @@
 ---
 name: drn-utils
 description: DRN.Framework.Utils - Attribute-based dependency injection ([Scoped], [Singleton], [Transient], [HostedService], [Config]), IAppSettings configuration pattern, logging infrastructure, extension methods, and core utilities. Foundational for service registration, configuration management, and cross-cutting concerns. Keywords: dependency-injection, di, service-registration, configuration, appsettings, logging, scoped-log, attributes, scoped, singleton, transient, config, extensions, http-client
+last-updated: 2026-02-15
+difficulty: intermediate
 ---
 
 # DRN.Framework.Utils
 
-> Core utilities package providing attribute-based DI, configuration, logging, and extensions.
+> Core utilities: attribute-based DI, configuration, logging, and extensions.
 
 ## When to Apply
 - Setting up dependency injection with attributes
@@ -16,55 +18,13 @@ description: DRN.Framework.Utils - Attribute-based dependency injection ([Scoped
 
 ---
 
-## Package Purpose
-
-Utils is the **core infrastructure** package. Most other DRN packages depend on it.
-
----
-
-## Directory Structure
-
-```
-DRN.Framework.Utils/
-├── DependencyInjection/  # Lifetime attributes, assembly scanning
-├── Settings/             # IAppSettings, conventions
-├── Configurations/       # Configuration sources
-├── Logging/              # IScopedLog, ScopeLog
-├── Extensions/           # ServiceCollection, String, Type extensions
-├── Auth/                 # Authentication helpers
-├── Data/                 # Data utilities
-├── Http/                 # HTTP helpers (IExternalRequest, IInternalRequest)
-├── Ids/                  # ID generation
-├── Numbers/              # NumberBuilder, NumberParser (bit packing)
-├── Scope/                # ScopeContext
-├── Time/                 # TimeStampManager, RecurringAction
-├── Entity/               # Entity utilities, IPaginationUtils
-├── Cancellation/         # ICancellationUtils
-├── Concurrency/          # LockUtils (lock-free atomic primitives)
-├── Models/               # Shared models
-└── UtilsModule.cs        # Module registration
-```
-
----
-
 ## Module Registration
 
 ```csharp
-// Registers attribute-based services, HybridCache, and TimeProvider
-services.AddDrnUtils();
+services.AddDrnUtils(); // Registers attribute-based services, HybridCache, TimeProvider
 ```
 
-### HybridCache Registration
-
-`AddDrnUtils()` registers Microsoft's `HybridCache` with default in-memory caching. To configure distributed caching (e.g., Redis), add your `IDistributedCache` registration before calling `AddDrnUtils()`:
-
-```csharp
-builder.Services.AddStackExchangeRedisCache(options => 
-{
-    options.Configuration = "localhost:6379";
-});
-builder.Services.AddDrnUtils(); // HybridCache will use the distributed cache if available
-```
+`AddDrnUtils()` registers Microsoft's `HybridCache` with default in-memory caching. Register `IDistributedCache` (e.g., Redis) **before** calling `AddDrnUtils()` to enable distributed mode.
 
 ---
 
@@ -85,7 +45,7 @@ builder.Services.AddDrnUtils(); // HybridCache will use the distributed cache if
 | `[ConfigRoot]` | Singleton | Binds to configuration root |
 
 > [!NOTE]
-> All lifetime attributes accept an optional `tryAdd` parameter (default: `true`). When `true`, `TryAdd` is used so existing registrations are not overwritten. Set to `false` to allow multiple implementations of the same service type.
+> All lifetime attributes accept optional `tryAdd` parameter (default: `true`). When `true`, `TryAdd` is used so existing registrations are not overwritten. Set to `false` to allow multiple implementations of the same service type.
 
 ```csharp
 public interface IMyService { }
@@ -94,50 +54,16 @@ public interface IMyService { }
 public class MyService : IMyService { }
 ```
 
-### Hosted Services
-
-Use `[HostedService]` to register `IHostedService`/`BackgroundService` implementations without manual `AddHostedService<T>()` calls. The class **must** implement `IHostedService`; otherwise the attribute is silently ignored.
+### Registration & Validation
 
 ```csharp
-[HostedService]
-public class MyBackgroundWorker : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
-        }
-    }
-}
-```
-
-### Registration
-
-```csharp
-// In module:
-public static IServiceCollection AddMyServices(this IServiceCollection sc)
-{
-    sc.AddServicesWithAttributes(); // Scans calling assembly
-    return sc;
-}
-
-// Validation:
-serviceProvider.ValidateServicesAddedByAttributesAsync(); // Validate registered services health
+sc.AddServicesWithAttributes();                      // Scans calling assembly
+serviceProvider.ValidateServicesAddedByAttributesAsync(); // Health check
 ```
 
 ### Module Registration & Startup Actions
 
-Services can require complex registration logic or post-startup actions. Attributes inheriting from `ServiceRegistrationAttribute` handle this.
-
-**Example**: `DrnContext<T>` is decorated with `[DrnContextServiceRegistration]`, which:
-1. Registers the DbContext.
-2. Automatically triggers EF Core Migrations when the application starts in Development environments (via `PostStartupValidationAsync`).
-
-```csharp
-[HasDrnContextServiceCollectionModule]
-public class MyDbContext : DrnContext<MyDbContext> { }
-```
+Attributes inheriting from `ServiceRegistrationAttribute` handle complex registration and post-startup actions. Example: `DrnContext<T>` uses `[DrnContextServiceRegistration]` to auto-register the DbContext and trigger migrations in Development.
 
 ---
 
@@ -149,27 +75,19 @@ public interface IAppSettings
     AppEnvironment Environment { get; }
     IConfiguration Configuration { get; }
     DrnAppFeatures Features { get; }
-    DrnLocalizationSettings Localization { get; }
-    DrnDevelopmentSettings DevelopmentSettings { get; }
-    NexusAppSettings NexusAppSettings { get; }
     bool IsDevEnvironment { get; }
     string AppKey { get; }
     string ApplicationName { get; }
     
     bool TryGetConnectionString(string name, out string connectionString);
     string GetRequiredConnectionString(string name);
-    bool TryGetSection(string key, out IConfigurationSection section);
-    IConfigurationSection GetRequiredSection(string key);
     T? GetValue<T>(string key);
-    T? GetValue<T>(string key, T defaultValue);
-    T? Get<T>(string key, bool errorOnUnknownConfiguration = false, bool bindNonPublicProperties = true);
+    T? Get<T>(string key, bool errorOnUnknownConfiguration = false);
     ConfigurationDebugView GetDebugView();
 }
 ```
 
 ### Config Attribute
-
-Bind configuration sections to classes (registered as **Singletons**):
 
 ```csharp
 [Config("MySection")]      // Binds appsettings:MySection
@@ -182,329 +100,82 @@ public class FeatureFlags { }
 public class RootSettings { }
 ```
 
----
+### Configuration Sources (in order, later overrides earlier)
 
-## Configuration Sources
+1. `appsettings.json` → 2. `appsettings.{Environment}.json` → 3. User secrets → 4. Environment variables → 5. Mounted settings (`/appconfig/`) → 6. Command line arguments
 
-Configuration applied in order (later overrides earlier):
+Override mount directory via `IMountedSettingsConventionsOverride`.
 
-1. `appsettings.json`
-2. `appsettings.{Environment}.json`
-3. User secrets (development)
-4. Environment variables (`ASPNETCORE_`, `DOTNET_`, all)
-5. Mounted settings:
-   - `/appconfig/json-settings/*.json`
-   - `/appconfig/key-per-file-settings/*`
-6. Command line arguments
-
-### MountedSettingsConventions
-
-```csharp
-MountedSettingsConventions.DefaultMountDirectory; // "/appconfig"
-
-// Override mount directory:
-public class MyOverride : IMountedSettingsConventionsOverride
-{
-    public string? MountedSettingsDirectory => "/custom/config";
-}
-```
-
-### IAppSettings Troubleshooting
-
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| `ConfigurationException` | Missing required key | Add to `appsettings.json` |
-| `GetRequiredConnectionString` throws | Key not found | Check `ConnectionStrings` section |
-| `IsDevEnvironment` always false | `ASPNETCORE_ENVIRONMENT` not set | Set env var or use `launchSettings.json` |
-| Env vars not binding | Wrong format | Use `__` for nested: `Section__Key` |
-| Mounted settings not loading | Wrong path | Check `/appconfig/` or override via `IMountedSettingsConventionsOverride` |
+| Symptom | Solution |
+|---------|----------|
+| `ConfigurationException` | Add missing key to `appsettings.json` |
+| Env vars not binding | Use `__` for nested: `Section__Key` |
+| Mounted settings not loading | Check `/appconfig/` or override via `IMountedSettingsConventionsOverride` |
 
 ---
 
 ## Scoped Logging (IScopedLog)
 
-Request-scoped structured logging. Aggregates operational data, metrics, and checkpoints during the request lifecycle, flushing them as a single entry.
-
-### API
+Request-scoped structured logging. Aggregates data, metrics, and checkpoints, flushing as a single entry.
 
 | Method | Purpose |
 |--------|---------|
-| `Add(key, value)` | Add structured log entry |
-| `AddIfNotNullOrEmpty(key, value)` | Conditional structured log entry |
-| `AddToActions(msg)` | Add entry to execution trail |
-| `AddProperties(key, object)` | Flatten and add complex objects |
-| `Measure(key)` | Capture execution duration and count |
-| `AddException(ex, msg)` | Logs exception with inner details |
-| `Increase(key, by)` | Atomically increment a counter |
-| `IncreaseTimeSpentOn(key, by)` | Accumulate time for a metric |
+| `Add(key, value)` | Structured log entry |
+| `AddToActions(msg)` | Execution trail |
+| `AddProperties(key, object)` | Flatten complex objects |
+| `Measure(key)` | Capture duration & count |
+| `AddException(ex, msg)` | Log exception with details |
+| `Increase(key, by)` | Atomically increment counter |
 
-```csharp
-public interface IScopedLog
-{
-    TimeSpan ScopeDuration { get; }
-    IReadOnlyDictionary<string, object> Logs { get; }
-    bool HasException { get; }
-    bool HasWarning { get; }
-
-    IScopedLog Add(string key, object value);
-    void AddToActions(string action);
-    void AddException(Exception exception, string? message = null);
-    ScopeDuration Measure(string key);
-    long Increase(string key, long by = 1, string prefix = "Stats");
-}
-```
-
-**Automatically captured**:
-- TraceId
-- Request (path, method, host, IP)
-- Response (status, length)
-- Exceptions with inner details
-- Scope duration
+**Auto-captured**: TraceId, Request (path/method/host/IP), Response (status/length), Exceptions, Duration.
 
 ---
 
-## HTTP Client Factories (`IExternalRequest`, `IInternalRequest`)
+## HTTP Clients (`IExternalRequest`, `IInternalRequest`)
 
-Wrappers around [Flurl](https://flurl.dev/) for resilient HTTP clients with standardized JSON conventions.
-
-### External Requests
-
-Use `IExternalRequest` for standard external API calls. Pre-configures `DefaultJsonSerializer` and enforces HTTP version policies.
+Wrappers around [Flurl](https://flurl.dev/) with standardized JSON conventions.
 
 ```csharp
-public class PaymentService(IExternalRequest request)
-{
-    public async Task Process()
-    {
-        var response = await request.For("https://api.example.com", HttpVersion.Version11)
-            .AppendPathSegment("v1/charges")
-            .PostJsonAsync(new { Amount = 1000 })
-            .ToJsonAsync<ExternalApiResponse>();
-    }
-}
-```
+// External API
+var response = await request.For("https://api.example.com", HttpVersion.Version11)
+    .AppendPathSegment("v1/charges")
+    .PostJsonAsync(new { Amount = 1000 })
+    .ToJsonAsync<ExternalApiResponse>();
 
-### Internal Requests (Service Mesh)
-
-Use `IInternalRequest` for Service-to-Service communication in Kubernetes. Designed to work with Linkerd, supporting automatic protocol switching (HTTP/HTTPS).
-
-**Recommended Pattern: Request Wrappers**:
-```csharp
+// Internal Service Mesh (Kubernetes/Linkerd)
 public interface INexusRequest { IFlurlRequest For(string path); }
 
 [Singleton<INexusRequest>]
 public class NexusRequest(IInternalRequest request, IAppSettings settings) : INexusRequest
 {
-    private readonly string _nexusAddress = settings.NexusAppSettings.NexusAddress;
-    public IFlurlRequest For(string path) => request.For(_nexusAddress).AppendPathSegment(path);
+    public IFlurlRequest For(string path) => request.For(settings.NexusAppSettings.NexusAddress)
+        .AppendPathSegment(path);
 }
-```
-
----
-
-## Scoped Cancellation (`ICancellationUtils`)
-
-Manage request-scoped cancellation tokens. Supports merging tokens from multiple sources (e.g., `HttpContext.RequestAborted` and application-level timeouts).
-
-```csharp
-public class MyScopedService(ICancellationUtils cancellation)
-{
-    public async Task DoWorkAsync(CancellationToken externalToken)
-    {
-        cancellation.Merge(externalToken); // Merges with the scoped token
-        await SomeAsyncOp(cancellation.Token);
-        
-        if (cancellation.IsCancellationRequested)
-            return;
-    }
-}
-```
-
----
-
-## Data Utilities
-
-### Encodings (`EncodingExtensions`)
-Unified API for binary-to-text encodings and model serialization-encoding.
-- **Encodings**: Base64, Base64Url (safe for URLs), Hex, and Utf8.
-- **Integrated**: `model.Encode(ByteEncoding.Hex)` and `hexString.Decode<TModel>()`.
-
-### Hashing (`HashExtensions`)
-High-performance hashing extensions supporting modern and legacy algorithms.
-- **Blake3**: Default modern cryptographic hash (fast and secure).
-- **XxHash3**: Non-cryptographic hashing for performance-critical scenarios (IDs, cache keys).
-- **Security**: Keyed hashing support (`HashWithKey`) for integrity protection.
-
-### JSON & Document Utilities
-- **JSON Merge Patch**: `JsonMergePatch.SafeApplyMergePatch` follows RFC 7386 with recursion depth protection.
-- **Query String Serialization**: `QueryParameterSerializer` flattens complex nested objects/arrays into clean query strings.
-
-### Serialization & Streams
-- **Unified Extensions**: `model.Serialize(method)` supports JSON and Query String formats.
-- **Safe Stream Consumption**: `ToBinaryDataAsync` and `ToArrayAsync` with `MaxSizeGuard` to prevent memory exhaustion from untrusted streams.
-
-### Programmatic Validation
-Extensions for programmatic validation using `System.ComponentModel.DataAnnotations`.
-- **Contextual**: Integrates with `DRN.Framework.SharedKernel.ValidationException` for standardized error reporting.
-
----
-
-## Pagination (`IPaginationUtils`)
-
-High-performance, monotonic cursor-based pagination leveraging temporal sequence of `SourceKnownEntityId`.
-
-```csharp
-public class OrderService(IPaginationUtils pagination)
-{
-    public async Task<PaginationResult<Order>> GetRecentOrdersAsync(PaginationRequest request)
-    {
-        var query = dbContext.Orders.Where(x => x.Active);
-        return await pagination.GetResultAsync(query, request);
-    }
-}
-```
-
----
-
-## Bit Packing (`NumberBuilder` / `NumberParser`)
-
-Zero-allocation bit manipulation for custom ID generation or compact binary data structures.
-
-```csharp
-// Pack data into a long
-var builder = NumberBuilder.GetLong();
-builder.TryAddNibble(0x05);  // Add 4 bits
-builder.TryAddUShort(65535); // Add 16 bits
-long packedValue = builder.GetValue();
-
-// Unpack
-var parser = NumberParser.Get(packedValue);
-byte nibble = parser.ReadNibble();
-ushort value = parser.ReadUShort();
-```
-
----
-
-## Diagnostics
-
-### Development Status
-
-Track database migration status and pending model changes in real-time during development.
-
-```csharp
-public class StartupService(DevelopmentStatus status, IScopedLog log)
-{
-    public void CheckStatus()
-    {
-        if (status.HasPendingChanges)
-        {
-            log.AddToActions("Warning: Pending database changes detected");
-            foreach (var model in status.Models)
-                 model.LogChanges(log, "Development");
-        }
-    }
-}
-```
-
----
-
-## Time & Async
-
-### High-Performance Time (`TimeStampManager`)
-
-Cached UTC timestamp updated periodically (default 10ms) to reduce `DateTimeOffset.UtcNow` overhead for frequent timestamp lookups.
-
-```csharp
-long seconds = TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
-DateTimeOffset now = TimeStampManager.UtcNow; // Cached precision up to the second
-```
-
-### Async-Safe Timer (`RecurringAction`)
-
-Lock-free, atomic timer preventing overlapping executions.
-
-```csharp
-var worker = new RecurringAction(async () => {
-    await DoHeavyWork();
-}, period: 1000, start: true);
-worker.Stop();
-```
-
-### Time
-`TimeProvider` singleton is registered by default to `TimeProvider.System` for testable time entry.
-
----
-
-## Concurrency (`LockUtils`)
-
-Static helpers for lock-free atomic operations built on `Interlocked`.
-
-| Method | Purpose |
-|--------|---------|
-| `TryClaimLock(ref int)` | Atomically claim a lock (0 → 1) |
-| `TryClaimScope(ref int)` | Returns disposable `LockScope` — auto-releases on dispose |
-| `ReleaseLock(ref int)` | Unconditionally release a lock (→ 0) |
-| `TrySetIfEqual<T>(ref T?, T, T?)` | CAS for reference types |
-| `TrySetIfNull<T>(ref T?, T)` | Set only if current is `null` |
-| `TrySetIfNotEqual<T>(ref T?, T, T?)` | Set only if current ≠ comparand (retry loop) |
-| `TrySetIfNotNull<T>(ref T?, T)` | Set only if current is not `null` |
-
-```csharp
-// Disposable lock scope (preferred)
-private int _lock;
-using var scope = LockUtils.TryClaimScope(ref _lock);
-if (scope.Acquired) { /* critical section */ }
-
-// One-time initialization
-private MyService? _instance;
-LockUtils.TrySetIfNull(ref _instance, new MyService());
 ```
 
 ---
 
 ## ScopeContext (Ambient Context)
 
-Access scoped data anywhere. Simplifies cross-cutting concerns like auditing, multi-tenancy, and security by avoiding deep parameter passing, especially in Razor Pages (`.cshtml`).
+Access scoped data anywhere without parameter passing:
 
 ```csharp
-ScopeContext.UserId;
-ScopeContext.TraceId;
-ScopeContext.Authenticated;
-ScopeContext.Settings;      // Static IAppSettings access
-ScopeContext.Log;           // Static IScopedLog access
-ScopeContext.IsUserInRole("Admin");
-ScopeContext.IsClaimFlagEnabled("FeatureX");
+ScopeContext.UserId;                      // Current user
+ScopeContext.TraceId;                     // Request trace
+ScopeContext.Authenticated;               // Auth status
+ScopeContext.Settings;                    // Static IAppSettings
+ScopeContext.Log;                         // Static IScopedLog
+ScopeContext.IsUserInRole("Admin");       // Role check
+ScopeContext.IsClaimFlagEnabled("FeatureX"); // Feature flag
 ```
 
 ---
 
 ## ID Generation
 
-Source-known ID utilities:
-
 ```csharp
-// 1. Internal Long ID (Database PK)
-public interface ISourceKnownIdUtils
-{
-    long Next<TEntity>() where TEntity : class;
-}
-
-// 2. External Guid ID (Public API)
-public interface ISourceKnownEntityIdUtils
-{
-    // Generate new from internal ID
-    SourceKnownEntityId Generate<TEntity>(long id);
-    SourceKnownEntityId Generate(long id, byte entityType);
-
-    // Validate incoming GUID
-    SourceKnownEntityId Parse(Guid entityId); // Check format only
-    SourceKnownEntityId Validate(Guid entityId, byte entityType); // Check format + Type byte
-    SourceKnownEntityId Validate<TEntity>(Guid entityId);
-}
-
-// Usage
-var internalId = sourceKnownIdUtils.Next<User>();
-var externalId = sourceKnownEntityIdUtils.Generate<User>(internalId);
+long internalId = sourceKnownIdUtils.Next<User>();             // DB PK
+SourceKnownEntityId externalId = sourceKnownEntityIdUtils.Generate<User>(internalId); // Public GUID
 ```
 
 > [!NOTE]
@@ -512,51 +183,115 @@ var externalId = sourceKnownEntityIdUtils.Generate<User>(internalId);
 
 ---
 
-## Extension Methods
+## Concurrency (`LockUtils`)
 
-### Reflection & `MethodUtils`
-Highly optimized reflection helpers with built-in caching.
-- **Invoke**: `instance.InvokeMethod("Name", args)` and `type.InvokeStaticMethod("Name", args)`.
-- **Generics**: `instance.InvokeGenericMethod("Name", typeArgs, args)` with static and uncached variations.
-- **Caching**: Uses `ConcurrentDictionary` and `record struct` keys for zero-allocation lookups.
+Lock-free atomic operations via `Interlocked`:
 
-### ServiceCollectionExtensions
+| Method | Purpose |
+|--------|---------|
+| `TryClaimLock(ref int)` | Atomically claim (0→1) |
+| `TryClaimScope(ref int)` | Disposable auto-release scope |
+| `ReleaseLock(ref int)` | Unconditionally release (→0) |
+| `TrySetIfNull<T>(ref T?, T)` | CAS set-if-null |
+| `TrySetIfEqual<T>(ref T?, T, T?)` | CAS compare-and-swap |
+| `TrySetIfNotEqual<T>(ref T?, T, T?)` | Set if current ≠ comparand (retry loop) |
+| `TrySetIfNotNull<T>(ref T?, T)` | Set if current is not null |
 
 ```csharp
+private int _lock;
+using var scope = LockUtils.TryClaimScope(ref _lock);
+if (scope.Acquired) { /* critical section */ }
+```
+
+---
+
+## Utilities Reference
+
+| Area | Key Types | Purpose |
+|------|-----------|---------|
+| **Data Encoding** | `EncodingExtensions` | Base64, Base64Url, Hex, Utf8 |
+| **Hashing** | `HashExtensions` | Blake3 (crypto), XxHash3 (fast), keyed hashing |
+| **JSON** | `JsonMergePatch` | RFC 7386 merge patch with depth protection |
+| **Query Strings** | `QueryParameterSerializer` | Complex objects → query strings |
+| **Streams** | `ToBinaryDataAsync` | Safe consumption with `MaxSizeGuard` |
+| **Validation** | `ValidationExtensions` | DataAnnotations-based programmatic validation |
+| **Pagination** | `IPaginationUtils` | Cursor-based via `SourceKnownEntityId` |
+| **Cancellation** | `ICancellationUtils` | Merge tokens from multiple sources |
+| **Diagnostics** | `DevelopmentStatus` | Track pending DB model changes at startup |
+
+### Bit Packing (`NumberBuilder` / `NumberParser`)
+
+Zero-allocation bit manipulation for custom ID generation:
+
+```csharp
+var builder = NumberBuilder.GetLong();
+builder.TryAddNibble(0x05);  // Add 4 bits
+builder.TryAddUShort(65535); // Add 16 bits
+long packed = builder.GetValue();
+
+var parser = NumberParser.Get(packed);
+byte nibble = parser.ReadNibble();
+ushort value = parser.ReadUShort();
+```
+
+### Time & Async
+
+```csharp
+// Cached UTC timestamp (10ms precision) — avoids DateTimeOffset.UtcNow overhead
+long seconds = TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
+DateTimeOffset now = TimeStampManager.UtcNow;
+
+// Lock-free async timer — prevents overlapping executions
+var worker = new RecurringAction(async () => await DoWork(), period: 1000, start: true);
+worker.Stop();
+```
+
+`TimeProvider` singleton registered to `TimeProvider.System` by default for testable time.
+
+### Extension Methods
+
+```csharp
+// ServiceCollectionExtensions
 services.ReplaceInstance<T>(instance);
 services.ReplaceTransient<TService, TImpl>();
 services.ReplaceScoped<TService, TImpl>();
 services.ReplaceSingleton<TService, TImpl>();
 services.GetAllAssignableTo<TService>();
-```
 
-### String & Binary Extensions
+// String & Binary
+"hello world".ToStream();       "camelCase".ToPascalCase();
+"MyProp".ToSnakeCase();         "MyProp".ToCamelCase();
+int v = "123".Parse<int>();     bool ok = "abc".TryParse<int>(out _);
 
-```csharp
-"hello world".ToStream();            // Convert to stream
-"camelCase".ToPascalCase();          // Convert to PascalCase
-"MyPropertyName".ToSnakeCase();      // my_property_name
-"MyProperty".ToCamelCase();          // myProperty
-int value = "123".Parse<int>();      // Modern IParsable<T>
-bool ok = "abc".TryParse<int>(out _); // Safe attempt
-```
-
-### Type & Assembly Extensions
-
-```csharp
+// Type & Assembly
 assembly.GetTypesAssignableTo<TInterface>();
 assembly.GetSubTypes(typeof(T));
-assembly.CreateSubTypes<T>(); // Discover and instantiate with parameterless ctors
+assembly.CreateSubTypes<T>(); // Discover + instantiate parameterless ctors
 type.GetAssemblyName();
+
+// Reflection (cached invokers)
+instance.InvokeMethod("Name", args);
+type.InvokeStaticMethod("Name", args);
+instance.InvokeGenericMethod("Name", typeArgs, args);
+
+// Flurl & HTTP Diagnostics
+await PrepareScopeLogForFlurlExceptionAsync(); // Captures request/response into IScopedLog
+exception.GetGatewayStatusCode();              // Maps to 502/503/504
+
+// Object & Dictionary
+object.GetGroupedPropertiesOfSubtype<T>();      // Group properties by subtype
+number.GetBitPositions();                       // Get set bit positions
 ```
 
-### Flurl & HTTP Diagnostics
-- **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` captures exhaustive request/response metadata into `IScopedLog`.
-- **Status Codes**: `GetGatewayStatusCode()` maps API errors to standard gateway codes (502, 503, 504).
+---
 
-### Object & Dictionary Extensions
-- **Deep Discovery**: `instance.GetGroupedPropertiesOfSubtype(type)` recursively finds matching properties.
-- **Bit Manipulation**: `GetBitPositions()` for `long` values and bitmask generators.
+## Related Skills
+
+- [drn-domain-design.md](../drn-domain-design/SKILL.md) - Domain & Repository patterns
+- [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) - Domain primitives
+- [drn-hosting.md](../drn-hosting/SKILL.md) - Web hosting
+- [drn-entityframework.md](../drn-entityframework/SKILL.md) - Database access
+- [drn-testing.md](../drn-testing/SKILL.md) - Testing with contexts
 
 ---
 
@@ -566,16 +301,3 @@ type.GetAssemblyName();
 global using DRN.Framework.SharedKernel;
 global using DRN.Framework.Utils.DependencyInjection;
 ```
-
----
-
-## Related Skills
-
-- [drn-domain-design.md](../drn-domain-design/SKILL.md) - Domain & Repository patterns
-- [overview-drn-framework.md](../overview-drn-framework/SKILL.md) - Framework overview
-- [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) - Domain primitives
-- [drn-hosting.md](../drn-hosting/SKILL.md) - Web hosting
-- [drn-entityframework.md](../drn-entityframework/SKILL.md) - Database access
-- [drn-testing.md](../drn-testing/SKILL.md) - Testing with contexts
-
----

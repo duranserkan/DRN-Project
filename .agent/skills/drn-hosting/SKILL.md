@@ -1,6 +1,8 @@
 ---
 name: drn-hosting
 description: DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service
+last-updated: 2026-02-15
+difficulty: advanced
 ---
 
 # DRN.Framework.Hosting
@@ -13,34 +15,6 @@ description: DRN.Framework.Hosting - DrnProgramBase for web application bootstra
 - Working with endpoints and Razor Pages
 - Adding or customizing middlewares
 - Using TagHelpers for frontend rendering
-
----
-
-## Package Purpose
-
-Hosting provides the **application shell** for DRN web applications with built-in security, logging, and conventions.
-
----
-
-## Directory Structure
-
-```
-DRN.Framework.Hosting/
-├── BackgroundServices/ # [HostedService] attribute-registered background workers
-├── DrnProgram/       # DrnProgramBase, options, conventions
-├── Endpoints/        # EndpointCollectionBase, EndpointForBase, PageForBase
-├── Auth/             # Policies, MFA configuration
-├── Consent/          # Cookie consent management
-├── Identity/         # Identity integration
-├── Middlewares/      # HttpScopeLogger, security middlewares
-├── TagHelpers/       # Razor TagHelpers (Script, CSP, etc.)
-├── Areas/            # Razor Pages areas
-├── Extensions/       # Hosting extensions
-├── HealthCheck/      # Health check integration
-├── Nexus/            # Nexus service mesh integration
-├── Utils/            # Hosting utilities
-└── wwwroot/          # Static files
-```
 
 ---
 
@@ -71,105 +45,54 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 }
 ```
 
-### Pipeline Hooks
-
-#### Configuration Hooks (Builder Phase)
+### Builder Phase Hooks
 
 | Method | Purpose |
 |--------|---------|
-| `AddServicesAsync()` | **[Required]** Add services to DI container |
-| `ConfigureSwaggerOptions()` | Customize Swagger/OpenAPI title and availability |
-| `ConfigureApplicationBuilder()` | Root application builder customization |
-| `ConfigureMvcOptions()` | MVC options configuration |
-| `ConfigureMvcBuilder()` | IMvcBuilder customization (JSON, Runtime compilation) |
-| `ConfigureDefaultSecurityHeaders()` | Main CSP and security header policy definitions |
+| `AddServicesAsync()` | **[Required]** Add services to DI |
+| `ConfigureSwaggerOptions()` | Customize Swagger/OpenAPI |
+| `ConfigureApplicationBuilder()` | Root builder customization |
+| `ConfigureMvcBuilder()` | IMvcBuilder customization |
+| `ConfigureDefaultSecurityHeaders()` | CSP and security header policies |
 | `ConfigureDefaultCsp()` | Customize CSP directives |
-| `ConfigureSecurityHeaderPolicyBuilder()`| Advanced route-specific security policies |
-| `ConfigureAuthorizationOptions()` | Authorization policy configuration |
+| `ConfigureSecurityHeaderPolicyBuilder()` | Route-specific security policies |
+| `ConfigureAuthorizationOptions()` | Authorization policy config |
 | `ConfigureCookiePolicy()` | GDPR and consent cookie settings |
-| `ConfigureCookieTempDataProvider()` | Cookie-based TempData settings |
-| `ConfigureSecurityStampValidatorOptions()` | Identity security stamp interval |
-| `ConfigureRequestLocalizationOptions()` | Localization / culture settings |
-| `ConfigureHostFilteringOptions()` | Allowed hosts validation |
-| `ConfigureBrotliCompressionLevel()` | Brotli compression level |
-| `ConfigureGzipCompressionLevel()` | Gzip compression level |
-| `ConfigureResponseCachingOptions()` | Response caching settings |
-| `ConfigureResponseCompressionOptions()` | Response compression settings |
-| `ConfigureCompressionProviders()` | Register compression providers |
-| `ConfigureForwardedHeadersOptions()` | Proxy/forwarded headers |
 | `ConfigureStaticFileOptions()` | Static file serving and caching |
-| `ConfigureRateLimiterOptions()` | Rate limiting policies |
+| `ConfigureResponseCachingOptions()` | Response caching (16MB limit, case insensitive) |
+| `ConfigureResponseCompressionOptions()` | Compression MIME types, HTTPS=false (BREACH prevention) |
+| `ConfigureCompressionProviders()` | Brotli + Gzip provider setup |
+| `ConfigureBrotliCompressionLevel()` | Brotli level (default: SmallestSize) |
+| `ConfigureGzipCompressionLevel()` | Gzip level (default: SmallestSize) |
+| `ConfigureMvcOptions()` | MvcOptions configuration |
+| `ConfigureForwardedHeadersOptions()` | Forwarded headers (default: All) |
+| `ConfigureRequestLocalizationOptions()` | Localization cultures, cookie provider |
+| `ConfigureHostFilteringOptions()` | Allowed hosts from config |
+| `ConfigureSecurityStampValidatorOptions()` | Security stamp refresh with AMR claim preservation |
+| `ConfigureDefaultCspBase()` | Base CSP directives (base-uri, form-action, frame-ancestors) |
+| `ConfigureCookieTempDataProvider()` | TempData cookie settings |
 
-#### Pipeline Hooks (Application Phase)
+### Application Phase Hooks
 
 | Method | Purpose |
 |--------|---------|
-| `ConfigureApplicationPipelineStart()` | Earliest middleware (HSTS, Cookies, Security Headers) |
-| `ConfigureApplicationPreScopeStart()` | Pre-logger/scope (Static files) |
+| `ConfigureApplicationPipelineStart()` | Earliest middleware (HSTS, Security Headers) |
+| `ConfigureApplicationPreScopeStart()` | Pre-logger (Static files) |
 | `ConfigureApplicationPostScopeStart()` | After HttpScopeMiddleware |
 | `ConfigureApplicationPreAuthentication()` | Before Auth (Localization) |
-| `ConfigureApplicationPostAuthentication()` | Post-Auth, Pre-AuthZ (MFA Redirection/Exemption) |
+| `ConfigureApplicationPostAuthentication()` | Post-Auth (MFA Redirection) |
 | `ConfigureApplicationPostAuthorization()` | Post-AuthZ (Swagger UI) |
 | `MapApplicationEndpoints()` | Route mapping (Controllers, Razor Pages) |
 | `ValidateEndpoints()` | Post-mapping endpoint validation |
-| `ValidateServicesAsync()` | DI validation (Attributes/Conventions) |
+| `ValidateServicesAsync()` | DI validation |
 | `ConfigureMFARedirection()` | MFA page configuration |
-| `ConfigureMFAExemption()` | Exempt schemes from MFA |
+| `ConfigureMFAExemption()` | Route-specific MFA exemption config |
 
-### Life-cycle & Execution Flow
+**Execution order**: Builder Phase → `builder.Build()` → Pipeline Phase → ValidateEndpoints → ValidateServices → `application.RunAsync()`
 
-The following diagram illustrates the relationship and execution order of overrideable hooks during application startup.
+### Advanced Startup (`DrnProgramActions`)
 
-```mermaid
-graph TD
-    Start["RunAsync()"] --> CAB["CreateApplicationBuilder()"]
-    
-    subgraph "1. Builder Phase (Services & Configuration)"
-    CAB --> CSO["ConfigureSwaggerOptions()"]
-    CSO --> CAB_Internal["ConfigureApplicationBuilder()"]
-    CAB_Internal --> CAO["ConfigureAuthorizationOptions()"]
-    CAB_Internal --> CMVCB["ConfigureMvcBuilder()"]
-    CAB_Internal --> CDSH["ConfigureDefaultSecurityHeaders()"]
-    CDSH --> CDCSP["ConfigureDefaultCsp()"]
-    CAB_Internal --> CSHPB["ConfigureSecurityHeaderPolicyBuilder()"]
-    CAB_Internal --> CSFO["ConfigureStaticFileOptions()"]
-    CAB_Internal --> ASA["AddServicesAsync()"]
-    end
-
-    ASA --> ABC["ApplicationBuilderCreatedAsync (Actions Hook)"]
-    ABC --> Build["builder.Build()"]
-    
-    subgraph "2. Application Phase (Middleware Pipeline)"
-    Build --> CA["ConfigureApplication()"]
-    CA --> CAPS["ConfigureApplicationPipelineStart()"]
-    CAPS --> CAPR["ConfigureApplicationPreScopeStart() (Static Files)"]
-    CAPR --> HSM["HttpScopeMiddleware"]
-    HSM --> CPSS["ConfigureApplicationPostScopeStart()"]
-    CPSS --> UR["UseRouting()"]
-    UR --> CAPREA["ConfigureApplicationPreAuthentication()"]
-    CAPREA --> SUM["ScopedUserMiddleware"]
-    SUM --> CAPOSTA["ConfigureApplicationPostAuthentication() (MFA Hooks)"]
-    CAPOSTA --> UA["UseAuthorization()"]
-    UA --> CPSTAZ["ConfigureApplicationPostAuthorization() (Swagger UI)"]
-    CPSTAZ --> MAE["MapApplicationEndpoints()"]
-    end
-
-    MAE --> ABA["ApplicationBuiltAsync (Actions Hook)"]
-    ABA --> VE["ValidateEndpoints()"]
-    VE --> VSA["ValidateServicesAsync()"]
-    VSA --> AVA["ApplicationValidatedAsync (Actions Hook)"]
-    AVA --> Run["application.RunAsync()"]
-```
-
-#### Hierarchy Summary
-1.  **Bootstrapping**: The program instance is created, and `ConfigureSwaggerOptions` is invoked immediately to set early metadata (Title, Version) *before* the `WebApplicationBuilder` is initialized.
-2.  **Configuration (Builder Phase)**: `ConfigureApplicationBuilder` and its specialized sub-hooks (`ConfigureMvcBuilder`, `ConfigureDefaultSecurityHeaders`, etc.) prepare the DI container and system defaults, ending with the user's `AddServicesAsync`.
-3.  **Pipeline (Application Phase)**: `ConfigureApplication` defines the middleware sequence. It uses `Pre` and `Post` hooks to allow insertion of logic around critical stages (Static Files, Authentication, Authorization).
-4.  **Verification**: Final mapping of endpoints and end-to-end service validation occur *before* the application starts listening for requests.
-
-### Advanced Startup Customization (`DrnProgramActions`)
-
-Intercept application startup without modifying the main program class. Useful for assembly scanning patterns or environment-specific logic.
+Intercept startup without modifying main program class:
 
 ```csharp
 public class SampleProgramActions : DrnProgramActions
@@ -181,13 +104,6 @@ public class SampleProgramActions : DrnProgramActions
         // Hook into builder creation (e.g., launch containers)
     }
 
-    public override async Task ApplicationBuiltAsync<TProgram>(
-        TProgram program, WebApplication application,
-        IAppSettings appSettings, IScopedLog scopedLog)
-    {
-        // Hook after app is built
-    }
-
     public override async Task ApplicationValidatedAsync<TProgram>(
         TProgram program, WebApplication application,
         IAppSettings appSettings, IScopedLog scopedLog)
@@ -197,154 +113,51 @@ public class SampleProgramActions : DrnProgramActions
 }
 ```
 
-### Local Development Infrastructure
+### Configuration Properties
 
-Use `LaunchExternalDependenciesAsync` in `DEBUG` mode to automatically spin up infrastructure (Postgres, RabbitMQ) using Testcontainers.
-
-> [!IMPORTANT]
-> This extension method resides in `DRN.Framework.Testing`. To use it in a `Hosted` project, you must add a conditional reference to `DRN.Framework.Testing` for the `Debug` configuration.
-
-Add the following to your `.csproj` file:
-
-```xml
-<!-- CONDITIONAL TESTING REFERENCE (Development ONLY) -->
-<ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj"/>
-</ItemGroup>
-```
-
-```csharp
-#if DEBUG
-public override async Task ApplicationBuilderCreatedAsync<TProgram>(...)
-{
-    var launchOptions = new ExternalDependencyLaunchOptions
-    {
-        PostgresContainerSettings = new PostgresContainerSettings
-        {
-            Reuse = true, // Faster restarts
-            HostPort = 6432 // Avoid default port conflict
-        }
-    };
-    
-    // Auto-starts containers if not running
-    await builder.LaunchExternalDependenciesAsync(scopedLog, appSettings, launchOptions);
-}
-#endif
-```
+| Property | Description |
+|----------|-------------|
+| `AppBuilderType` | Controls builder creation (Empty, Slim, Default, DrnDefaults) |
+| `DrnProgramSwaggerOptions` | OpenAPI and Swagger UI config |
 
 ---
 
 ## Security Features
 
-### Built-in Security
-- **CSP (Content Security Policy)** - Nonce-based script protection
-- **Security Headers** - HSTS, X-Frame-Options, X-Content-Type-Options
-- **Cookie Policy** - SameSite=Strict, Secure, HttpOnly
-- **Host Filtering** - AllowedHosts validation
-- **Forwarded Headers** - Proxy support
-- **Modern HTTP Standards** - Automatic 303 redirect conversion and strict caching
-
-### Startup Augmentations
-
-`DrnProgramBase` augments the application startup with automatic configurations:
-
-| Feature | Description |
-|---------|-------------|
-| **Service Validation** | Automatically calls `ValidateServicesAddedByAttributesAsync` to ensure all dependencies are resolvable and valid. |
-| **Security Defaults** | Enforces "MFA by default" policy unless `[AllowAnonymous]` is used. Configures strict security headers (HSTS, CSP, etc.). |
-| **Logging Setup** | Bootstraps NLog with JSON structure and `HttpScopeLogger` for request tracing. |
-| **Infrastructure** | (Debug only) Can launch external dependencies (Postgres, RabbitMQ) via `LaunchExternalDependenciesAsync`. |
-
 ### MFA by Default
 
-MFA is enforced globally via `FallbackPolicy`. Any route not explicitly opted-out requires MFA. Custom policies are automatically combined with MFA requirements via the `MfaEnforcingAuthorizationPolicyProvider`.
-
-#### Opting-Out / Exemptions
-
-To bypass MFA for specific routes, use `AllowAnonymous` or the `MfaExempt` policy:
+MFA enforced globally via `FallbackPolicy`. Any route not opted-out requires MFA.
 
 ```csharp
-// 1. Fully anonymous (Public landing page)
-[AllowAnonymous]
-public class PublicController : Controller { }
+// Opt-out options:
+[AllowAnonymous]                            // Fully anonymous
+[Authorize(Policy = AuthPolicy.MfaExempt)]  // Single-factor only
 
-// 2. Single-Factor only (MFA Setup or Login pages)
-[Authorize(Policy = AuthPolicy.MfaExempt)]
-public class MfaSetupController : Controller { }
+// Disable MFA globally:
+protected override void ConfigureAuthorizationOptions(AuthorizationOptions options) { }
 ```
 
-#### Disabling MFA Globally
+### GDPR & Consent
 
-To disable MFA enforcement entirely (e.g., for apps that don't use Identity):
-
-```csharp
-protected override void ConfigureAuthorizationOptions(AuthorizationOptions options)
-{
-    // Override to remove MFA from default/fallback policies
-}
-```
-
-### GDPR & Consent Integration
-
-`DrnProgramBase` integrates GDPR consent management:
-
-- **`ConsentCookie`**: Manages user consent state via a secure, `HttpOnly` cookie.
-- **`ScopedUserMiddleware`**: Extracts and populates `IScopedLog` with `ConsentGranted` status.
-- **`ConfigureCookiePolicy()`**: Enforces `SameSiteMode.Strict`, `HttpOnly`, and integrates consent logic.
+- `ConsentCookie`: Manages user consent state via secure HttpOnly cookie
+- `ScopedUserMiddleware`: Populates `IScopedLog` with `ConsentGranted` status
 
 ### Per-Route Security Headers
-
-`ConfigureSecurityHeaderPolicyBuilder` allows route-specific CSP overrides:
 
 ```csharp
 protected override void ConfigureSecurityHeaderPolicyBuilder(HeaderPolicyCollection policies, IAppSettings appSettings)
 {
     policies.AddPolicy("AllowExternalScripts", builder =>
-    {
         builder.AddContentSecurityPolicy(csp =>
-        {
-            csp.AddScriptSrc().Self().From("https://cdn.example.com");
-        });
-    });
+            csp.AddScriptSrc().Self().From("https://cdn.example.com")));
 }
 ```
-
-### Configuration Properties
-
-`DrnProgramBase` provides several properties for high-level configuration:
-
-| Property | Description |
-|----------|-------------|
-| `AppBuilderType` | Controls `WebApplicationBuilder` creation (Empty, Slim, Default, or DrnDefaults) |
-| `DrnProgramSwaggerOptions`| OpenAPI and Swagger UI configuration |
-| `NLogOptions` | Static NLog bootstrap options |
-
-```csharp
-protected override void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
-{
-    options.AddSwagger = appSettings.IsDevEnvironment;
-}
-```
-
-### Security Invariants (Priority 1)
-
-DRN Hosting enforces several security invariants by default:
-
-- **MFA by Default**: The `ConfigureAuthorizationOptions` sets both `DefaultPolicy` and `FallbackPolicy` to the `MFA` policy. Unauthenticated or single-factor users are denied access unless explicitly opted-out via `[AllowAnonymous]` or `[Authorize(Policy = AuthPolicy.MfaExempt)]`.
-- **Identity Context**: `ScopedUserMiddleware` automatically populates `IScopedLog` with user identity for auditability and provides a secure `HttpScope` for transaction tracking.
-- **Strict Headers**: `ConfigureDefaultSecurityHeaders` enforces `FrameOptionsDeny`, `ContentTypeOptionsNoSniff`, and strict `CSP` with nonces.
-- **GDPR Compliance**: `ConfigureCookiePolicy` enforces `SameSiteMode.Strict`, `HttpOnly`, and integrates with `ConsentCookie` logic.
-
-### Service Validation
-- End-to-end service validation happens *before* the host starts listening (`ValidateServicesAsync`), preventing late-stage dependency errors.
 
 ---
 
-## Page Management
+## Page & Endpoint Management
 
 ### PageCollectionBase
-
-Type-safe Razor Page references:
 
 ```csharp
 public class SamplePageFor : PageCollectionBase<SamplePageFor>
@@ -355,63 +168,32 @@ public class SamplePageFor : PageCollectionBase<SamplePageFor>
 
 public class UserPageFor : PageForBase
 {
-    // Defined path segments: /User
     protected override string[] PathSegments { get; } = ["User"];
-
-    // Pages (Properties matching .cshtml file names)
-    public string Login { get; init; } = string.Empty; // Becomes "/User/Login"
-    public string Register { get; init; } = string.Empty; // Becomes "/User/Register"
-    
-    // Nested folders
+    public string Login { get; init; } = string.Empty;    // "/User/Login"
+    public string Register { get; init; } = string.Empty;  // "/User/Register"
     public UserProfilePageFor Profile { get; } = new();
 }
 ```
 
-### Usage
-
 ```razor
-<!-- In Razor -->
 <a asp-page="@Get.Page.User.Login">Log In</a>
-<a href="@Get.Page.Root.Home">Home</a>
 ```
 
----
-
-## Endpoint Management
-
 ### EndpointCollectionBase
-
-Type-safe endpoint references:
 
 ```csharp
 public class SampleEndpointFor : EndpointCollectionBase<SampleProgram>
 {
     public QaApiFor Qa { get; } = new();
-    public UserApiFor User { get; } = new();
-}
-
-public class QaApiFor
-{
-    public const string Prefix = "/Api/QA";
-    public const string ControllerRouteTemplate = $"{Prefix}/[controller]";
-
-    public TagFor Tag { get; } = new();
 }
 
 public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRouteTemplate)
 {
-    //By convention, Endpoint name should match Action name and property should have setter;
     public ApiEndpoint GetAsync { get; private set; } = null!;
     public ApiEndpoint PostAsync { get; private set; } = null!;
 }
-```
 
-### Usage
-
-```csharp
-// In code (Get ApiEndpoint object)
-ApiEndpoint endpoint = Get.Endpoint.Qa.Tag.GetAsync;
-string urlPattern = endpoint.Path();
+// Usage: Get.Endpoint.Qa.Tag.GetAsync.Path()
 ```
 
 ---
@@ -420,25 +202,16 @@ string urlPattern = endpoint.Path();
 
 | Middleware | Purpose |
 |------------|---------|
-| `HttpScopeLogger` | Request/response logging with IScopedLog |
-| `HttpRequestLogger` | Detailed request logging |
+| `HttpScopeMiddleware` | Request/response logging with IScopedLog, TraceId, duration |
 | `ScopedUserMiddleware` | Populates IScopedLog with user identity and consent |
 | `MfaRedirectionMiddleware` | Redirect users without MFA to setup page |
 | `MfaExemptionMiddleware` | Exempt specific routes/schemes from MFA |
-
-### HttpScopeLogger
-
-Automatically logs:
-- Request path, method, host
-- Response status, content length
-- Exceptions with inner details
-- Scope duration and TraceId
 
 ---
 
 ## Background Services
 
-Use the `[HostedService]` attribute (from `DRN.Framework.Utils`) to auto-register `IHostedService`/`BackgroundService` implementations without manual `AddHostedService<T>()` calls. The class **must** implement `IHostedService`; otherwise the attribute is silently ignored.
+Use `[HostedService]` attribute to auto-register `BackgroundService` implementations:
 
 ```csharp
 [HostedService]
@@ -447,9 +220,7 @@ public class MyBackgroundWorker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
-        {
             await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
-        }
     }
 }
 ```
@@ -458,94 +229,36 @@ public class MyBackgroundWorker : BackgroundService
 
 ## TagHelpers
 
-DRN.Framework.Hosting provides 8 tag helpers in `TagHelpers/`:
+| TagHelper | Target | Purpose |
+|-----------|--------|---------|
+| `ViteScriptTagHelper` | `<script>` | Resolve Vite manifest + SRI |
+| `ViteLinkTagHelper` | `<link>` | Resolve Vite manifest + SRI |
+| `NonceTagHelper` | `<script>`, `<style>`, `<link>`, `<iframe>` | Add CSP nonce |
+| `CsrfTokenTagHelper` | `hx-post/put/delete/patch` | Add CSRF token |
+| `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Render if MFA complete |
+| `AnonymousOnlyTagHelper` | `*[anonymous-only]` | Render if anonymous |
+| `PageAnchorAspPageTagHelper` | `<a asp-page>` | Mark active page |
+| `PageAnchorHrefTagHelper` | `<a href>` | Mark active page |
 
-### ViteScriptTagHelper / ViteLinkTagHelper
+**Vite**: `<script src="buildwww/app/js/appPostload.js">` → `<script src="/app/app_postload.abc123.js" integrity="sha256-xyz">`
 
-Auto-resolve Vite manifest entries when `src`/`href` starts with `buildwww/` or `node_modules/`. Also adds **Subresource Integrity (SRI)** hashes for security.
+**Nonce**: Auto-added to `<script>`, `<style>`, `<link>`, `<iframe>`. Opt-out: `<script disable-nonce="true">`
 
+**CSRF**: Auto-added to `hx-post/put/delete/patch`. Opt-out: `<button disable-csrf-token="true">`
+
+**Auth visibility**:
 ```razor
-<!-- Source in Razor (use buildwww/ path) -->
-<script src="buildwww/app/js/appPostload.js" crossorigin="anonymous"></script>
-<link href="buildwww/lib/bootstrap/bootstrap.scss" rel="stylesheet" />
-
-<!-- Rendered output (hash + integrity added) -->
-<script src="/app/app_postload.abc123.js" integrity="sha256-xyz" crossorigin="anonymous"></script>
-<link href="/lib/bootstrap/bootstrap.def456.css" integrity="sha256-xyz" rel="stylesheet" />
-```
-
-> The tag helper detects Vite entries by checking if path starts with `buildwww/` or `node_modules/`.
-
-### NonceTagHelper
-
-Auto-adds CSP nonce to `<script>`, `<style>`, `<link>`, `<iframe>` tags:
-
-```razor
-<!-- Nonce added automatically -->
-<script src="~/app/script.js"></script>
-
-<!-- Opt-out with disable-nonce -->
-<script src="external-cdn.js" disable-nonce="true"></script>
-```
-
-### CsrfTokenTagHelper
-
-Auto-adds CSRF token to htmx requests (`hx-post`, `hx-put`, `hx-delete`, `hx-patch`):
-
-```razor
-<!-- CSRF token auto-added to hx-headers -->
-<button hx-post="/api/action" hx-target="#result">Submit</button>
-
-<!-- Opt-out with disable-csrf-token -->
-<button hx-post="/api/action" disable-csrf-token="true">Send</button>
-```
-
-### AuthorizedOnlyTagHelper
-
-Show element only when user is authenticated with MFA:
-
-```razor
-<nav authorized-only>
-    <a asp-page="/User/Profile">Profile</a>
-</nav>
-```
-
-### AnonymousOnlyTagHelper
-
-Show element only when user is NOT authenticated:
-
-```razor
+<nav authorized-only>Profile links here</nav>
 <a asp-page="/User/Login" anonymous-only>Sign In</a>
 ```
 
-### PageAnchorAspPageTagHelper / PageAnchorHrefTagHelper
-
-Auto-add `active` class and `aria-current="page"` to links matching current page:
-
+**Active page marking**:
 ```razor
 <a asp-page="/Dashboard">Dashboard</a>
-<!-- If on /Dashboard, renders: -->
-<a asp-page="/Dashboard" class="active fw-bold" aria-current="page">Dashboard</a>
-
-<!-- Customize active class -->
+<!-- If on /Dashboard → class="active fw-bold" aria-current="page" -->
 <a asp-page="/Settings" ActiveClass="current">Settings</a>
-
-<!-- Disable active marking -->
 <a asp-page="/Help" MarkWhenActive="false">Help</a>
 ```
-
-### Tag Helper Summary
-
-| TagHelper | Target | Purpose |
-|-----------|--------|---------|
-| `ViteScriptTagHelper` | `<script>` | Resolve Vite manifest entry + SRI |
-| `ViteLinkTagHelper` | `<link>` | Resolve Vite manifest entry + SRI |
-| `NonceTagHelper` | `<script>`, `<style>`, `<link>`, `<iframe>` | Add CSP nonce |
-| `CsrfTokenTagHelper` | `hx-post`, `hx-put`, `hx-delete`, `hx-patch` | Add CSRF token |
-| `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Render only if MFA complete |
-| `AnonymousOnlyTagHelper` | `*[anonymous-only]` | Render only if anonymous |
-| `PageAnchorAspPageTagHelper` | `<a asp-page>` | Mark active page |
-| `PageAnchorHrefTagHelper` | `<a href>` | Mark active page |
 
 ---
 
@@ -557,9 +270,7 @@ Auto-add `active` class and `aria-current="page"` to links matching current page
 {
   "Kestrel": {
     "EndpointDefaults": { "Protocols": "Http1" },
-    "Endpoints": {
-      "All": { "Url": "http://*:5988" }
-    }
+    "Endpoints": { "All": { "Url": "http://*:5988" } }
   }
 }
 ```
@@ -569,35 +280,51 @@ Auto-add `active` class and `aria-current="page"` to links matching current page
 ```json
 {
   "NLog": {
-    "throwConfigExceptions": true,
     "targets": {
-      "async": true,
-      "console": {
-        "type": "ColoredConsole",
-        "layout": "${longdate}|${level:uppercase=true}|${logger}|${message}"
-      }
+      "console": { "type": "Console", "layout": "${longdate}|${level}|${logger}|${message}${onexception:|${exception:format=tostring}}" }
     },
     "rules": [
-      {
-        "logger": "*",
-        "minLevel": "Info",
-        "writeTo": "console"
-      }
+      { "logger": "*", "minLevel": "Info", "writeTo": "console" },
+      { "logger": "Microsoft.*", "maxLevel": "Info", "final": true },
+      { "logger": "Microsoft.Hosting.Lifetime", "minLevel": "Info", "writeTo": "console", "final": true }
     ]
   }
 }
 ```
 
+### wwwroot Structure
+
+**Application (`*.Hosted/wwwroot/`)** — Vite build output:
+```
+wwwroot/
+├── app/           # Vite-built JS (app_preload.[hash].js, app_postload.[hash].js)
+├── images/        # Static images
+└── lib/           # Third-party bundles (bootstrap, htmx, bootstrap-icons, onmount)
+```
+
+**Vite source (`*.Hosted/buildwww/`)** — unbundled source files:
+```
+buildwww/
+├── app/
+│   ├── css/       # App stylesheets
+│   └── js/        # App scripts (appPreload.js, appPostload.js)
+├── lib/           # Library sources (bootstrap scss, htmx bundle)
+├── plugins/       # Vite plugins
+└── types/         # TypeScript type definitions
+```
+
+> `vite.config.js` defines named builds (`app`, `htmx`, `bootstrap`) selected via `BUILD_TYPE` env var. Output goes to `wwwroot/` with content-hashed filenames and manifest for TagHelper resolution.
+
+> See [drn-entityframework](../drn-entityframework/SKILL.md) for `LaunchExternalDependenciesAsync` setup with Testcontainers.
+
 ---
 
-## wwwroot Structure
+## Related Skills
 
-```
-DRN.Framework.Hosting/wwwroot/
-├── css/           # Framework CSS
-├── js/            # Framework JS
-└── lib/           # Third-party libs
-```
+- [overview-drn-framework.md](../overview-drn-framework/SKILL.md) - Framework overview
+- [drn-utils.md](../drn-utils/SKILL.md) - Utils and DI
+- [frontend-razor-pages-shared.md](../frontend-razor-pages-shared/SKILL.md) - Layout system
+- [frontend-razor-accessors.md](../frontend-razor-accessors/SKILL.md) - Accessor patterns
 
 ---
 
@@ -611,15 +338,3 @@ global using DRN.Framework.Hosting.DrnProgram;
 global using DRN.Framework.Hosting.Endpoints;
 global using Microsoft.AspNetCore.Mvc.RazorPages;
 ```
-
----
-
-## Related Skills
-
-- [overview-drn-framework.md](../overview-drn-framework/SKILL.md) - Framework overview
-- [drn-utils.md](../drn-utils/SKILL.md) - Utils and DI
-- [overview-ddd-architecture.md](../overview-ddd-architecture/SKILL.md) - Sample architecture
-- [frontend-razor-pages-shared.md](../frontend-razor-pages-shared/SKILL.md) - Layout system
-- [frontend-razor-accessors.md](../frontend-razor-accessors/SKILL.md) - Accessor patterns
-
----

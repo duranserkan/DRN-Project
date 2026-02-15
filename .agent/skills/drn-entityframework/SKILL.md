@@ -1,42 +1,20 @@
 ---
 name: drn-entityframework
 description: DRN.Framework.EntityFramework - DrnContext base class, automatic migration application, entity tracking with domain events, NpgsqlDbContextOptions for database configuration, and repository implementations. Essential for database operations, migrations, and data persistence. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, entity-tracking, domain-events, dbcontext-configuration, prototype-mode, testcontainers
+last-updated: 2026-02-15
+difficulty: advanced
 ---
 
 # DRN.Framework.EntityFramework
 
-> Convention-based Entity Framework Core integration with automatic configuration and migrations.
+> Convention-based EF Core integration with automatic configuration and migrations.
 
 ## When to Apply
 - Creating new DbContexts
-- Understanding DrnContext conventions
 - Setting up database migrations
-- Working with entity tracking and domain events
 - Configuring development database connections
-
----
-
-## Package Purpose
-
-EntityFramework provides `DrnContext<T>` - a convention-based DbContext with automatic:
-- Service registration
-- Connection string resolution
-- Entity configuration discovery
-- Migration management
-- Entity status tracking
-
----
-
-## Directory Structure
-
-```
-DRN.Framework.EntityFramework/
-├── Context/          # DrnContext, conventions, interceptors
-├── Attributes/       # HasDrnContextServiceCollectionModule
-├── Domain/           # Entity extensions
-├── Extensions/       # EF extensions
-└── DbContextCollection.cs
-```
+- Understanding entity tracking and domain events
+- Working with Testcontainers for local development
 
 ---
 
@@ -50,104 +28,52 @@ public class QAContext : DrnContext<QAContext>
 
     public DbSet<User> Users { get; set; }
     public DbSet<Question> Questions { get; set; }
-    public DbSet<Answer> Answers { get; set; }
 }
 ```
-
-### Key Features
 
 | Feature | Description |
 |---------|-------------|
-| **Auto-registration** | Registered via `AddServicesWithAttributes()` |
+| **Auto-registration** | Via `AddServicesWithAttributes()` |
 | **Convention naming** | Connection string: `ConnectionStrings:QAContext` |
 | **Config discovery** | Auto-applies `IEntityTypeConfiguration` from context namespace |
-| **Entity tracking** | Auto-marks entities as Created/Modified/Deleted |
-| **Design-time support** | Implements `IDesignTimeDbContextFactory` |
+| **Entity tracking** | Auto-marks entities as Created/Modified/Deleted with timestamps |
+| **Design-time** | Implements `IDesignTimeDbContextFactory` |
 
----
+> Configurations are auto-discovered: place `IEntityTypeConfiguration<T>` in the same namespace as the `DrnContext` subclass.
 
-## Automatic Entity Tracking
+### Augmented Entity Behavior
 
-Entities inheriting from `SourceKnownEntity` are automatically tracked:
+DrnContext augments entities during `OnModelCreating` and runtime:
 
-```csharp
-
-entity.MarkAsCreated();   // On Add, sets CreatedAt, ModifiedAt, adds created event
-entity.MarkAsModified();  // On Update, sets ModifiedAt, adds modified event
-entity.MarkAsDeleted();   // On Delete, sets deleted event
-```
-
-Domain events are collected and can be published after `SaveChangesAsync()`.
-
-## Augmented Entity Behavior
-
-`DrnContext` augments entities during `OnModelCreating` and runtime:
-
-### 1. Interceptor-Based Identity
-Entities inheriting from `SourceKnownEntity` have their identity managed via specialized interceptors:
-- **ID Generation**: `IDrnSaveChangesInterceptor` assigns collision-free `long` IDs during `SaveChangesAsync` for new entities (`Id = 0`).
-- **Property Initialization**: `IDrnMaterializationInterceptor` initializes `EntityIdSource` and identity-related delegates (`IdFactory`, `Parser`) during entity materialization from the database.
-- **Mechanism**: Powered by `ISourceKnownIdUtils` and `ISourceKnownEntityIdUtils`.
-- **Note**: `EntityId` (Guid) and `EntityIdSource` are ignored by EF mapping as they are computed or runtime traits.
-
-### 2. JSON Models (`IEntityWithModel`)
-Entities implementing `IEntityWithModel<TModel>` (e.g. `AggregateRoot<TModel>`) have their `.Model` property automatically mapped to a `jsonb` column:
-```csharp
-// Automatic configuration applied by DrnContext:
-entityTypeBuilder.OwnsOne(ownedType, "Model", builder => builder.ToJson());
-```
-
-Usage:
-```csharp
-[EntityType(3)]
-public class SystemSettings : AggregateRoot<SettingsModel> { }
-
-public class SettingsModel
-{
-    public string Theme { get; set; }
-    public int MaxRetries { get; set; }
-}
-```
-
-### 3. Startup Validation
-`[DrnContextServiceRegistration]` attribute validates that all registered entities have a valid `[EntityType]` attribute, preventing startup if IDs are missing or duplicated.
-
-### 4. Identity Naming Conventions
-`DrnContextIdentity` snake_case table renaming convention is applied when ASP.NET Core Identity types are mapped. All Identity entity names and columns are converted to `snake_case` for PostgreSQL compatibility.
+| Feature | Mechanism |
+|---------|-----------|
+| **ID Generation** | `IDrnSaveChangesInterceptor` assigns collision-free `long` IDs for new entities |
+| **Property Init** | `IDrnMaterializationInterceptor` initializes `EntityIdSource` and identity delegates |
+| **JSON Models** | `IEntityWithModel<T>` auto-maps `.Model` to `jsonb` column |
+| **Identity Naming** | ASP.NET Core Identity tables/columns → `snake_case` for PostgreSQL |
+| **Startup Validation** | Validates all entities have valid, unique `[EntityType]` attributes |
 
 ---
 
 ## Connection String Conventions
 
-### Non-Development (Production/Staging)
-
-**Explicit connection strings are required.** The framework calls `appSettings.GetRequiredConnectionString(contextName)`.
-
+### Production/Staging
+Explicit connection strings required via `appSettings.GetRequiredConnectionString(contextName)`:
 ```json
-{
-  "ConnectionStrings": {
-    "QAContext": "Host=prod-db.example.com;Port=5432;Database=qa_prod;User ID=qa_user;Password=***;..."
-  }
-}
+{ "ConnectionStrings": { "QAContext": "Host=prod-db;Port=5432;Database=qa;..." } }
 ```
 
-> [!CAUTION]
-> `postgres-password` and all `DrnContext_Dev*` settings are **ignored** in non-Development environments. Missing connection strings will throw `ConfigurationException`.
+### Local Dev with Testcontainers (`LaunchExternalDependencies`)
 
-### Local Debug with LaunchExternalDependencies
+When `DrnDevelopmentSettings:LaunchExternalDependencies = true`, the framework auto-starts PostgreSQL via Testcontainers.
 
-When `DrnDevelopmentSettings:LaunchExternalDependencies = true`, the framework uses Testcontainers to automatically start PostgreSQL.
-
-**Setup** (requires `DRN.Framework.Testing` reference in Debug mode):
-
+**Setup** (Debug-only reference to `DRN.Framework.Testing`):
 ```xml
-<!-- In your .csproj -->
 <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
 </ItemGroup>
 ```
 
-**Implementation**:
 ```csharp
 #if DEBUG
 public class SampleProgramActions : DrnProgramActions
@@ -160,8 +86,8 @@ public class SampleProgramActions : DrnProgramActions
         {
             PostgresContainerSettings = new PostgresContainerSettings
             {
-                Reuse = true,      // Keep container across restarts
-                HostPort = 6432    // Avoid port conflicts
+                Reuse = true,   // Keep container across restarts
+                HostPort = 6432 // Avoid port conflicts
             }
         };
         await builder.LaunchExternalDependenciesAsync(scopedLog, appSettings, launchOptions);
@@ -170,136 +96,53 @@ public class SampleProgramActions : DrnProgramActions
 #endif
 ```
 
-**Key Points**:
-- `postgres-password` is **not used** — containers use `PostgresContainerSettings.DefaultPassword` (`"drn"`)
-- Connection strings are automatically injected into configuration
-- `Reuse = true` keeps the container running across application restarts
+### Containerized Development (Docker Compose)
 
-### Containerized Development (Docker Compose / Kubernetes)
-
-For development with external database containers, use `postgres-password` to trigger auto-connection string generation.
-
-**Docker Compose Example**:
-```yaml
-services:
-  app:
-    build: .
-    environment:
-      - Environment=Development
-      - postgres-password=dev-password  # Triggers auto-connection string
-      - DrnContext_DevHost=postgres      # Service name
-      - DrnDevelopmentSettings:AutoMigrate=true
-    depends_on:
-      - postgres
-      
-  postgres:
-    image: postgres:18
-    environment:
-      POSTGRES_USER: drn
-      POSTGRES_PASSWORD: dev-password
-      POSTGRES_DB: drn
-    ports:
-      - "5432:5432"
+Set `postgres-password` env var to trigger auto-connection string generation:
+```
+Environment=Development, postgres-password=dev-password, DrnContext_DevHost=postgres
 ```
 
-**Connection String Generation** (from `DrnContextDevelopmentConnection`):
+| Key | Default | Purpose |
+|-----|---------|---------|
+| `DrnContext_DevHost` | `drn` | Database host |
+| `DrnContext_DevPort` | `5432` | Database port |
+| `DrnContext_DevUsername` | `drn` | Database user |
+| `DrnContext_DevDatabase` | `drn` | Database name |
+| `postgres-password` | *(required)* | Triggers auto-connection string |
 
-When `postgres-password` is set, the framework auto-generates:
-```
-Host={DrnContext_DevHost};Port={DrnContext_DevPort};Database={DrnContext_DevDatabase};
-User ID={DrnContext_DevUsername};password={postgres-password};Multiplexing=true;...
-```
-
-### Development Configuration Keys
-
-| Key | Default | Source | Purpose |
-|-----|---------|--------|---------|
-| `DrnContext_DevHost` | `drn` | `DbContextConventions.DevHostKey` | Database host |
-| `DrnContext_DevPort` | `5432` | `DbContextConventions.DevPortKey` | Database port |
-| `DrnContext_DevUsername` | `drn` | `DbContextConventions.DevUsernameKey` | Database user |
-| `DrnContext_DevDatabase` | `drn` | `DbContextConventions.DefaultDatabaseKey` | Database name |
-| `postgres-password` | *(required)* | `DbContextConventions.DevPasswordKey` | Triggers auto-connection string |
-
-### DrnTestContext (Integration Tests)
-
-For integration tests, `ContainerContext` manages Postgres containers automatically.
-
-```csharp
-[Theory]
-[DataInline]
-public async Task Integration_Test(DrnTestContext context)
-{
-    context.ServiceCollection.AddSampleInfraServices();
-    await context.ContainerContext.Postgres.ApplyMigrationsAsync();
-    
-    var dbContext = context.GetRequiredService<QAContext>(); // ... test code
-
-}
-```
-
-**Key Points**:
-- `DrnContext_Dev*` settings are **NOT used** — containers use `PostgresContainerSettings` defaults
-- Connection strings from containers are automatically injected
-- `TemporaryApplication` and `DrnTestContextEnabled` are auto-set to prevent collision with local dev
+> [!CAUTION]
+> `postgres-password` and `DrnContext_Dev*` keys are **ignored** in non-Development environments.
 
 ---
 
 ## Migrations
 
-### Create Migration
-
 ```bash
 dotnet ef migrations add MigrationName --context QAContext --project Sample.Infra
-```
-
-### Update Database
-
-```bash
 dotnet ef database update --context QAContext
 ```
 
-### Design-Time Support
-
-DrnContext implements `IDesignTimeDbContextFactory<T>` and `IDesignTimeServices`:
-- Migrations generate in context-specific folders
-- Supports multi-context projects
-
 > [!TIP]
-> **Migration Startup Project**: When adding or applying migrations, the project containing the `DrnContext` should be used as the startup project (e.g., `--project Sample.Infra --startup-project Sample.Infra`). This is because the context already implements `IDesignTimeDbContextFactory`.
+> Use the project containing `DrnContext` as startup project — it implements `IDesignTimeDbContextFactory`.
 
 ---
 
 ## Prototype Mode
 
-Prototype mode automatically recreates the database when model changes are detected — ideal for rapid prototyping.
-
-**Three conditions must ALL be true**:
-
-1. `NpgsqlDbContextOptionsAttribute.UsePrototypeMode = true` on the context attribute
+Auto-recreates database on model changes. **All three conditions must be true**:
+1. `NpgsqlDbContextOptionsAttribute.UsePrototypeMode = true`
 2. `DrnDevelopmentSettings:Prototype = true`
 3. `DrnDevelopmentSettings:LaunchExternalDependencies = true`
 
-If any condition is false, the database is **never** recreated.
-
-**appsettings.Development.json**:
-```json
-{
-  "DrnDevelopmentSettings": {
-    "LaunchExternalDependencies": true,
-    "AutoMigrate": true,
-    "Prototype": true
-  }
-}
-```
-
 > [!WARNING]
-> Prototype mode **drops and recreates** the database. Never use in production!
+> Prototype mode **drops and recreates** the database. Never use in production.
 
 ---
 
 ## Entity Configuration
 
-Configurations are auto-discovered from the context's namespace:
+Configurations are auto-discovered from the context's assembly namespace:
 
 ```csharp
 // In Sample.Infra (same namespace as QAContext)
@@ -313,13 +156,15 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 }
 ```
 
-### DB Context Attributes
+---
+
+## DB Context Attributes
 
 | Attribute | Purpose |
 |-----------|---------|
-| `[NpgsqlDbContextOptions]` | Configure Postgres specific options (NpgsqlOptions, DataSource, DbContextOptions), UsePrototypeMode, SeedAsync |
-| `[DrnContextDefaults]` | Apply standard DRN conventions (Naming, Discovery) |
-| `[DrnContextPerformanceDefaults]` | Apply performance optimizations (see below) |
+| `[NpgsqlDbContextOptions]` | Postgres options, UsePrototypeMode, SeedAsync |
+| `[DrnContextDefaults]` | Standard DRN conventions (naming, discovery) |
+| `[DrnContextPerformanceDefaults]` | Performance optimizations (see below) |
 
 #### NpgsqlDbContextOptions Configuration Hooks
 
@@ -330,32 +175,17 @@ public virtual void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder 
 public virtual Task SeedAsync<TContext>(TContext context, IServiceProvider serviceProvider) where TContext : DbContext;
 ```
 
-#### DrnContextPerformanceDefaults
+### Performance Defaults
 
-Applies optimized PostgreSQL settings by default:
-
-| Setting | Default Value | Purpose |
-|---------|---------------|---------|
-| `UseNoTracking` | `true` | Disable change tracking globally |
-| `IgnoreAutoIncludes` | `true` | Prevent automatic eager loading |
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `UseNoTracking` | `true` | Disable change tracking |
+| `IgnoreAutoIncludes` | `true` | Prevent auto eager loading |
 | `Multiplexing` | `true` | Connection multiplexing |
-| `MinPoolSize` | `1` | Minimum connection pool |
-| `MaxPoolSize` | `10` | Maximum connection pool |
-| `ReadBufferSize` | `32768` | I/O buffer size |
-| `WriteBufferSize` | `32768` | I/O buffer size |
+| `MinPoolSize`/`MaxPoolSize` | `1`/`10` | Connection pool |
+| `Read/WriteBufferSize` | `32768` | I/O buffers |
 
-Custom performance attributes can inherit `NpgsqlPerformanceSettingsAttribute` and override these defaults.
-
----
-
-## SourceKnownRepository Implementation
-
-`SourceKnownRepository<TContext, TEntity>` implements `ISourceKnownRepository<TEntity>`:
-
-- Uses `IEntityUtils` for ID validation and parsing.
-- Implements `GetAsync`, `GetOrDefaultAsync` using `SourceKnownEntityId` validation.
-- Provides automatic `ScopedLog` measurements for operations.
-- Supports **Behavior Overrides**: Override `EntitiesWithAppliedSettings` to apply global query transformations (e.g., `Include`, nested `ThenInclude`) across all retrieval methods.
+Custom performance attributes can inherit `NpgsqlPerformanceSettingsAttribute` to override defaults.
 
 ### RepositorySettings
 
@@ -370,99 +200,24 @@ public class RepositorySettings<TEntity>
 }
 ```
 
-**Override Example** (includes with nested relationships):
-```csharp
-public class UserRepository : SourceKnownRepository<QAContext, User>
-{
-    protected override IQueryable<User> EntitiesWithAppliedSettings => 
-        base.EntitiesWithAppliedSettings.Include(u => u.Profile).ThenInclude(p => p.Address);
-}
-```
-
-### Pagination Overloads
-
-```csharp
-// Simple
-Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
-
-// Full control (Jump to, manual total count, etc.)
-Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null, long jumpTo = 1, int pageSize = -1, int maxSize = -1, PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false);
-```
-
-- See [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) for the interface definition.
+> Override `EntitiesWithAppliedSettings` in custom repositories for global includes/filters. See [drn-domain-design](../drn-domain-design/SKILL.md) for examples.
 
 ---
 
-## Service Registration
-
-### HasDrnContextServiceCollectionModuleAttribute
-
-```csharp
-[DrnContextServiceRegistration, DrnContextDefaults, DrnContextPerformanceDefaults]
-public abstract class DrnContext<TContext> : DbContext, 
-    IDesignTimeDbContextFactory<TContext>, 
-    IDesignTimeServices 
-    where TContext : DrnContext<TContext>, new()
-```
-
-### Post-Startup Validation
-
-After service validation, if `AutoMigrate` is enabled in Development:
-```csharp
-await context.Database.MigrateAsync();
-```
-
----
-
-## Testing Integration
-
-DrnTestContext's ContainerContext automatically:
-1. Starts PostgreSQL testcontainer
-2. Scans service collection for DrnContexts
-3. Adds connection strings for each context
-4. Applies migrations
-
-```csharp
-[Theory]
-[DataInline]
-public async Task Test(DrnTestContext context)
-{
-    context.ServiceCollection.AddInfraServices();
-    await context.ContainerContext.Postgres.ApplyMigrationsAsync();
-    
-    var qaContext = context.GetRequiredService<QAContext>(); // Ready to test
-}
-```
-
----
-
-## Configuration Settings Reference
-
-### Migration and Prototype Settings
-
-| Setting | Default | Source | Purpose |
-|---------|---------|--------|---------|
-| `AutoMigrate` | `false` | `DrnDevelopmentSettings.AutoMigrate` | Enables migration flow |
-| `Prototype` | `false` | `DrnDevelopmentSettings.Prototype` | Enables DB recreation on model changes |
-| `LaunchExternalDependencies` | `false` | `DrnDevelopmentSettings.LaunchExternalDependencies` | Launches Testcontainers |
-| `TemporaryApplication` | `false` | `DrnDevelopmentSettings.TemporaryApplication` | **Auto-set by tests** to prevent collision |
-
-### DrnDevelopmentSettings Class
+## DrnDevelopmentSettings
 
 ```csharp
 public class DrnDevelopmentSettings
 {
     public bool SkipValidation { get; init; }
-    public bool TemporaryApplication { get; init; }
+    public bool TemporaryApplication { get; init; }       // Auto-set by tests
     public bool LaunchExternalDependencies { get; init; }
     public bool AutoMigrate { get; init; }
     public bool Prototype { get; init; }
 }
 ```
 
-### Testcontainers Defaults
-
-When using `LaunchExternalDependencies` or `ContainerContext`, these values from `PostgresContainerSettings` are used:
+### Testcontainer Defaults (`PostgresContainerSettings`)
 
 | Property | Default | Notes |
 |----------|---------|-------|
@@ -474,12 +229,19 @@ When using `LaunchExternalDependencies` or `ContainerContext`, these values from
 
 ---
 
-## Global Usings
+## Testing Integration
+
+> See [drn-testing](../drn-testing/SKILL.md) for full `ContainerContext` details.
 
 ```csharp
-global using DRN.Framework.EntityFramework.Context;
-global using Microsoft.EntityFrameworkCore;
-global using DRN.Framework.Utils.DependencyInjection;
+[Theory]
+[DataInline]
+public async Task Test(DrnTestContext context)
+{
+    context.ServiceCollection.AddInfraServices();
+    await context.ContainerContext.Postgres.ApplyMigrationsAsync();
+    var qaContext = context.GetRequiredService<QAContext>(); // Ready to test
+}
 ```
 
 ---
@@ -490,7 +252,14 @@ global using DRN.Framework.Utils.DependencyInjection;
 - [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) - Entity base classes
 - [drn-utils.md](../drn-utils/SKILL.md) - DI and configuration
 - [drn-testing.md](../drn-testing/SKILL.md) - ContainerContext
-- [test-integration.md](../test-integration/SKILL.md) - Database testing
 - [overview-ddd-architecture.md](../overview-ddd-architecture/SKILL.md) - Domain modeling
 
 ---
+
+## Global Usings
+
+```csharp
+global using DRN.Framework.EntityFramework.Context;
+global using Microsoft.EntityFrameworkCore;
+global using DRN.Framework.Utils.DependencyInjection;
+```

@@ -1,6 +1,8 @@
 ---
 name: test-integration-db
 description: Database component testing - Isolated repository and EF Core testing with Testcontainers (PostgreSQL), manual migration application, concurrency testing, and SQL query validation. Use for testing data access without web overhead. Keywords: database-testing, repository-testing, testcontainers, postgresql, ef-core, concurrency-testing, migration-testing, dtt
+last-updated: 2026-02-15
+difficulty: intermediate
 ---
 
 # Database Component Testing
@@ -69,4 +71,3 @@ public async Task Test_Concurrency_Conflict(DrnTestContext context)
 
 ## Related
 - [test-integration.md](../test-integration/SKILL.md)
-

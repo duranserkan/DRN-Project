@@ -1,47 +1,31 @@
 ---
 name: test-unit
 description: Unit testing patterns and organization - Fast, isolated tests with auto-mocking (NSubstitute), service validation, test data management, and mocking strategies. Use for testing services, domain logic, and components in isolation. Keywords: unit-testing, mocking, nsubstitute, autofixture, test-patterns, service-testing, isolated-testing, dtt, xunit
+last-updated: 2026-02-15
+difficulty: basic
 ---
 
 # DRN.Test.Unit
 
-> Unit test patterns and organization for fast, isolated testing.
+> Unit test patterns for fast, isolated testing.
 
 ## When to Apply
 - Writing new unit tests
-- Understanding unit test organization
 - Mocking dependencies effectively
 - Testing services in isolation
 
 ---
 
-## Project Structure
-
-```
-DRN.Test.Unit/
-├── Tests/              # Test classes organized by target
-│   └── Framework/      # Framework package tests
-│       ├── Hosting/
-│       ├── Utils/
-│       └── EntityFramework/
-├── Data/               # Test data files
-├── Settings/           # Test configuration files
-├── Sketch.cs           # Experimental/scratch tests
-└── Usings.cs           # Global usings
-```
-
----
-
 ## Test Patterns
 
-### Basic Unit Test
+### Unit Test with Auto-Mocking
 
 ```csharp
 [Theory]
 [DataInlineUnit]
 public void Service_Should_DoExpectedBehavior(DrnTestContextUnit context, IDependency mock)
 {
-    // Arrange
+    // Arrange: mock is auto-created by NSubstitute
     mock.GetValue().Returns(42);
     context.ServiceCollection.AddScoped<IDependency>(_ => mock);
     context.ServiceCollection.AddScoped<MyService>();
@@ -55,87 +39,39 @@ public void Service_Should_DoExpectedBehavior(DrnTestContextUnit context, IDepen
 }
 ```
 
-### Testing with Inlined Data
+### Parameterized Tests
 
 ```csharp
 [Theory]
 [DataInlineUnit(1, "first")]
 [DataInlineUnit(2, "second")]
-public void Test_With_Multiple_Cases(DrnTestContextUnit context, int id, string name)
+public void Test_Multiple_Cases(DrnTestContextUnit context, int id, string name)
 {
     id.Should().BePositive();
     name.Should().NotBeEmpty();
 }
 ```
 
-### Testing Exceptions
+### Exception Testing
 
 ```csharp
 [Theory]
 [DataInlineUnit]
-public void Service_Should_Throw_OnInvalidInput(DrnTestContextUnit context)
+public void Should_Throw_OnInvalid(DrnTestContextUnit context)
 {
     context.ServiceCollection.AddScoped<MyService>();
     var service = context.GetRequiredService<MyService>();
     
     var act = () => service.Process(null!);
-    
-    act.Should().Throw<ValidationException>()
-       .WithMessage("*input*");
+    act.Should().Throw<ValidationException>().WithMessage("*input*");
 }
 ```
 
----
-
-## Mocking Strategies
-
-### Auto-Mocking (Preferred)
+### Verifying Mock Calls
 
 ```csharp
-[Theory]
-[DataInlineUnit]
-public void Test(DrnTestContextUnit context, IRepository mock)
-{
-    // mock is auto-created by NSubstitute
-    mock.FindById(1).Returns(new Entity());
-    
-    context.ServiceCollection.AddScoped<IRepository>(_ => mock);
-    context.ServiceCollection.AddScoped<MyService>();
-    
-    var service = context.GetRequiredService<MyService>();
-    // Test with mocked repository
-}
-```
-
-### Multiple Mocks
-
-```csharp
-[Theory]
-[DataInlineUnit]
-public void Test(DrnTestContextUnit context, IRepo repo, ILogger logger, ICache cache)
-{
-    // All three are auto-mocked
-    repo.Get().Returns(data);
-    
-    // Register all mocks
-    context.ServiceCollection.AddScoped<IRepo>(_ => repo);
-    context.ServiceCollection.AddScoped<ILogger>(_ => logger);
-    context.ServiceCollection.AddScoped<ICache>(_ => cache);
-}
-```
-
-### Verifying Calls
-
-```csharp
-[Theory]
-[DataInlineUnit]
-public void Test(DrnTestContextUnit context, IEventPublisher publisher)
-{
-    // ... setup and act ...
-    
-    publisher.Received(1).Publish(Arg.Any<DomainEvent>());
-    publisher.DidNotReceive().Publish(Arg.Is<DomainEvent>(e => e.Type == "Error"));
-}
+publisher.Received(1).Publish(Arg.Any<DomainEvent>());
+publisher.DidNotReceive().Publish(Arg.Is<DomainEvent>(e => e.Type == "Error"));
 ```
 
 ---
@@ -149,7 +85,6 @@ public async Task Validate_All_Dependencies(DrnTestContextUnit context)
 {
     context.ServiceCollection.AddSampleApplicationServices();
     context.ServiceCollection.AddSampleInfraServices();
-    
     await context.ValidateServicesAsync(); // Validates all attribute-based services
 }
 ```
@@ -158,58 +93,26 @@ public async Task Validate_All_Dependencies(DrnTestContextUnit context)
 
 ## Test Data
 
-### Settings Folder
+| Folder | Purpose | Access |
+|--------|---------|--------|
+| `Settings/` | Test configuration (appsettings.json) | Auto-loaded by DrnTestContextUnit |
+| `Data/` | Test data files | `context.GetData("file.json")` |
 
-```
-DRN.Test.Unit/
-└── Settings/
-    ├── appsettings.json       # Default test settings
-    └── mytest-settings.json   # Test-specific settings
-```
+### Sketch.cs
 
-### Data Folder
-
-```
-DRN.Test.Unit/
-└── Data/
-    ├── test-input.json
-    └── expected-output.json
-```
-
-### Accessing Data
-
-```csharp
-[Theory]
-[DataInlineUnit("user-data.json")]
-public void Test_With_Data(DrnTestContextUnit context, string dataFile)
-{
-    var content = context.GetData(dataFile);
-    var users = JsonSerializer.Deserialize<List<User>>(content);
-}
-```
+Use for experimental or debugging tests — not permanent, not CI-gated.
 
 ---
 
-## Sketch.cs Pattern
+## Related Skills
 
-Use `Sketch.cs` for experimental or debugging tests:
-
-```csharp
-public class Sketch
-{
-    [Theory]
-    [DataInlineUnit]
-    public void Experiment(DrnTestContextUnit context)
-    {
-        // Quick experiments here
-        // Not meant to be permanent tests
-    }
-}
-```
+- [drn-testing.md](../drn-testing/SKILL.md) - Framework.Testing package
+- [overview-drn-testing.md](../overview-drn-testing/SKILL.md) - Testing philosophy
+- [test-integration.md](../test-integration/SKILL.md) - Integration testing
 
 ---
 
-## Global Usings (Usings.cs)
+## Global Usings
 
 ```csharp
 global using Xunit;
@@ -228,13 +131,3 @@ global using AwesomeAssertions;
 global using Microsoft.Extensions.DependencyInjection;
 global using NSubstitute;
 ```
-
----
-
-## Related Skills
-
-- [overview-drn-testing.md](../overview-drn-testing/SKILL.md) - Testing philosophy
-- [drn-testing.md](../drn-testing/SKILL.md) - Framework.Testing package
-- [test-integration.md](../test-integration/SKILL.md) - Integration testing
-
----

@@ -1,6 +1,8 @@
 ---
 name: overview-drn-testing
 description: DTT (Duran's Testing Technique) philosophy - Testing approach, test organization principles, test type selection (unit vs integration vs performance), and testing best practices. Philosophical foundation for all testing work. Keywords: testing-philosophy, dtt, test-organization, test-strategy, unit-testing, integration-testing, performance-testing
+last-updated: 2026-02-15
+difficulty: intermediate
 ---
 
 # DRN.Testing Overview
@@ -12,6 +14,17 @@ description: DTT (Duran's Testing Technique) philosophy - Testing approach, test
 - Choosing between unit, integration, or performance tests
 - Setting up new test classes following DRN conventions
 - Debugging test failures
+
+---
+
+## DiSCOS Alignment
+
+| DiSCOS Principle | DTT Expression |
+|------------------|---------------|
+| Pit of Success / Guiding Structure | `[DataInline]` makes writing correct tests the lowest-effort action |
+| Correctness > Performance | Real containers over fast mocks — wrong fast is wrong |
+| TRIZ (Rejection of False Tradeoffs) | DTT rejects the unit-vs-integration dichotomy; each serves its purpose |
+| Feedback Loops | Build→Measure→Learn via tight test cycles with auto-mocking and Testcontainers |
 
 ---
 

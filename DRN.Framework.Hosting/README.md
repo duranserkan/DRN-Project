@@ -100,7 +100,7 @@ DRN.Framework.Hosting/
 ├── Consent/          # GDPR cookie consent management
 ├── Identity/         # Identity integration and scoped user middleware
 ├── Middlewares/      # HttpScopeLogger, exception handling, security middlewares
-├── TagHelpers/       # Razor TagHelpers (Vite, Nonce, CSRF, Auth-Only)
+├── TagHelpers/       # Razor TagHelpers (Vite, Nonce, CSRF, Auth-Only, Anon-Only)
 ├── Areas/            # Framework-provided Razor Pages (e.g., Error pages)
 ├── wwwroot/          # Framework style and script assets
 ```
@@ -483,9 +483,11 @@ string profileUrl = Get.User.ProfileDetail.Path(new() { ["id"] = userId.ToString
 | TagHelper | Target | Purpose |
 | :--- | :--- | :--- |
 | `ViteScriptTagHelper` | `<script src="buildwww/...">` | Resolves Vite manifest entries, adds subresource integrity (SRI), and automatic nonce. |
+| `ViteLinkTagHelper` | `<link href="buildwww/...">` | Resolves Vite manifest entries for CSS assets, adds SRI. |
 | `NonceTagHelper` | `<script>`, `<style>`, `<link>`, `<iframe>` | Automatically injects the request-specific CSP nonce. |
 | `CsrfTokenTagHelper` | `hx-post`, `hx-put`, etc. | Automatically adds `RequestVerificationToken` to HTMX headers for non-GET requests. |
 | `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Renders the element only if the user has an active MFA session. |
+| `AnonymousOnlyTagHelper` | `*[anonymous-only]` | Renders the element only if the user is **not** authenticated. |
 | `PageAnchorTagHelper` | `<a asp-page="...">` | Automatically adds `active` CSS class if the link matches current page. |
 
 ## Developer Diagnostics

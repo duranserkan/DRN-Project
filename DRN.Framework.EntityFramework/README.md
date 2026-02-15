@@ -273,7 +273,7 @@ public class QAContext : DrnContext<QAContext>
 
 ### IEntityUtils
 
-Repositories require `IEntityUtils` for core domain operations:
+Repositories require [`IEntityUtils`](../DRN.Framework.Utils/Entity/EntityUtils.cs) (defined in `DRN.Framework.Utils`) for core domain operations:
 
 ```csharp
 public class UserRepository(QAContext context, IEntityUtils utils) 

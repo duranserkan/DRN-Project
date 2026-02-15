@@ -43,7 +43,7 @@
   - Application specific TempPath 
   - ApplicationId
   - Local IP address
-- [ ] Source Known Ids
+- [X] Source Known Ids
 ### DRN.Framework.EntityFramework
 - [X] DDD style entities, aggregates
 - [X] DrnContext inherited from DbContext and its DbContext conventions for rapid domain design and development
@@ -68,8 +68,8 @@
 - [ ] Endpoint topology
 - [ ] Service discovery
 - [ ] Remote settings
-- [ ] Self documenting microservices with unified topology
+- [ ] Self-documenting microservices with unified topology
 ## DRN.Nexus
 - [ ] Service discovery
 - [ ] Remote settings
-- [ ] Self documenting microservices with unified topology
+- [ ] Self-documenting microservices with unified topology

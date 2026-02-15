@@ -1,6 +1,8 @@
 ---
 name: overview-drn-framework
 description: DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, package-dependencies
+last-updated: 2026-02-15
+difficulty: basic
 ---
 
 # DRN.Framework Overview
@@ -12,6 +14,17 @@ description: DRN.Framework architecture overview - Package hierarchy (SharedKern
 - Deciding which package to use for a specific need
 - Learning core conventions shared across all packages
 - Extending or contributing to framework packages
+
+---
+
+## DiSCOS Alignment
+
+| DiSCOS Principle | Framework Expression |
+|------------------|---------------------|
+| Security by Design | Security headers, CSP, host filtering baked into `DrnProgramBase` |
+| Excellence by Simplicity | Convention over configuration — attribute DI, auto-discovery |
+| Systems Thinking | Layered package hierarchy; optimize whole, not parts |
+| Margin of Safety | Distributed collision-free ID generation; startup validation |
 
 ---
 

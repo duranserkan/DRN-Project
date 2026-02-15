@@ -1,6 +1,8 @@
 ---
 name: basic-security-checklist
 description: Security development checklist - Input validation, authentication/MFA, CSP/XSS prevention with htmx nonces, CSRF anti-forgery, SQL injection prevention via EF Core, secrets management (IAppSettings), dependency scanning, and security headers. Development-time security guidance aligned with DiSCOS security-first principle. Keywords: security, checklist, input-validation, authentication, authorization, csp, xss, csrf, sql-injection, secrets, dependency-scanning, security-headers, mfa
+last-updated: 2026-02-15
+difficulty: intermediate
 ---
 
 # Security Development Checklist

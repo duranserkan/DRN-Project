@@ -1,167 +1,113 @@
 ---
 name: drn-sharedkernel
 description: DRN.Framework.SharedKernel - Foundational domain primitives (Entity, AggregateRoot, DomainEvent), exception hierarchy, repository contracts, pagination, and JSON conventions. Essential for domain modeling, entity design, and repository implementation. Keywords: entity, aggregate-root, domain-event, repository, pagination, exception, json, domain-modeling, source-known-id, entity-type
+last-updated: 2026-02-15
+difficulty: intermediate
 ---
 
 # DRN.Framework.SharedKernel
 
-> Lightweight package containing domain primitives, exceptions, and shared code suitable for Contract and Domain layers.
+> Lightweight domain primitives, exceptions, and shared code. No external DRN dependencies — safe for Contract and Domain layers.
 
 ## When to Apply
 - Defining domain entities and aggregates
 - Working with domain events
 - Using or extending DRN exceptions
-- Understanding JSON serialization conventions
-- Accessing application constants
+- Understanding repository contracts
+- Accessing JSON serialization conventions
 
 ---
 
-## Package Purpose
+## DiSCOS Alignment
 
-SharedKernel is the **lightest** DRN package with **no external DRN dependencies**. It can be safely referenced by:
-- Contract/API layers (DTOs)
-- Domain layers (Entities)
-- Any project needing DRN primitives
-
----
-
-## Directory Structure
-
-```
-DRN.Framework.SharedKernel/
-├── Domain/           # Entity, AggregateRoot, DomainEvent, IDomainEvent, EntityTypeAttribute
-├── Attributes/       # IgnoreLog, SecureKeyAttribute
-├── Enums/            # AppEnvironment
-├── Json/             # JsonConventions
-├── AppConstants.cs   # Global application constants
-└── Exceptions.cs     # DrnException hierarchy
-```
+| DiSCOS Principle | SharedKernel Expression |
+|------------------|------------------------|
+| Security First | Source-Known IDs hide internal `long` behind external `Guid`; `MaliciousRequestException` aborts connection |
+| Abstraction | Domain primitives (`SourceKnownEntity`, `AggregateRoot`, `DomainEvent`) encode patterns; implement specifics |
+| TRIZ (Separation in Space) | Dual-ID system resolves DB performance vs. external security without tradeoff |
 
 ---
 
-## Domain Primitives
-
-### Entity Base Class
-
-All entities inherit from `SourceKnownEntity`:
+## Entity Base Class
 
 ```csharp
-public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<SourceKnownEntity>, IComparable<SourceKnownEntity>
+public abstract class SourceKnownEntity(long id = 0)
 {
     public long Id { get; internal set; }
-    
     [ConcurrencyCheck]
     public DateTimeOffset ModifiedAt { get; protected internal set; }
     public DateTimeOffset CreatedAt { get; }
-    
     public SourceKnownEntityId EntityIdSource { get; internal set; }
     public Guid EntityId => EntityIdSource.EntityId;
 
-    // ID Generation & Validation
+    // ID validation
     public SourceKnownEntityId GetEntityId(Guid id, byte entityType);
-    public SourceKnownEntityId GetEntityId(Guid id, bool validate = true); // Validates ID format and type
-    public SourceKnownEntityId GetEntityId<TEntity>(Guid id) where TEntity : SourceKnownEntity;
+    public SourceKnownEntityId GetEntityId<TEntity>(Guid id);
     
-    internal void MarkAsCreated();
-    internal void MarkAsModified();
-    internal void MarkAsDeleted();
-    
-    protected virtual EntityCreated? GetCreatedEvent();
-    protected virtual EntityModified? GetModifiedEvent();
-    protected virtual EntityDeleted? GetDeletedEvent();
+    // Auto-called by DrnContext
+    internal void MarkAsCreated();   // Sets CreatedAt, adds created event
+    internal void MarkAsModified();  // Sets ModifiedAt, adds modified event
+    internal void MarkAsDeleted();   // Adds deleted event
 }
 ```
 
-**Key Features**:
-- Long ID (internal) and Guid EntityId (external)
-- DateTimeOffset timestamps with optimistic concurrency
-- Encapsulated domain events
-- Automatic status marking by DrnContext
-
 > [!WARNING]
-> Each entity requires unique `[EntityType(byte)]` attribute. DrnContext validates at startup and throws `ConfigurationException` on duplicates.
-> 
-> [!IMPORTANT]
-> **DTO Mapping & Exposure Rules**:
-> 1. **Inheritance**: All DTOs **must derive from the `Dto` base class**.
-> 2. **Primary Constructor**: DTOs must use a primary constructor accepting `SourceKnownEntity?` to auto-map `Id`, `CreatedAt`, and `ModifiedAt`.
-> 3. **No Entities in API**: Public APIs must never return or accept Entities. Always use DTOs/Response Models.
-> 4. **Guid IDs**: Public APIs must only expose `Guid` identifiers. DTOs should not include SourceKnownEntityIds or SourceKnownIds.
-> 5. **Consice**: DTOs should be concise and only include necessary properties. DTOs should not include pagination results etc.
+> Each entity requires unique `[EntityType(byte)]`. DrnContext validates at startup.
 
 ### AggregateRoot
 
 ```csharp
 public abstract class AggregateRoot(long id = 0) : SourceKnownEntity(id);
-
-public abstract class AggregateRoot<TModel>(long id = 0) : AggregateRoot(id), IEntityWithModel<TModel> where TModel : class
+public abstract class AggregateRoot<TModel>(long id = 0) : AggregateRoot(id), IEntityWithModel<TModel>
 {
-    public TModel Model { get; set; } = null!;
+    public TModel Model { get; set; } = null!;  // Auto-mapped to jsonb
 }
 ```
-
-- `AggregateRoot`: Marker class for DDD aggregate roots.
-- `AggregateRoot<TModel>`: Aggregate root with a JSON model property automatically mapped to `jsonb` by `DrnContext`.
 
 ### Domain Events
 
 ```csharp
-public interface IDomainEvent
-{
-    Guid Id { get; }
-    DateTimeOffset Date { get; }
-    Guid EntityId { get; }
-}
-
+public interface IDomainEvent { Guid Id { get; } DateTimeOffset Date { get; } Guid EntityId { get; } }
 public abstract class DomainEvent(SourceKnownEntity entity) : IDomainEvent;
 public abstract class EntityCreated(SourceKnownEntity entity) : DomainEvent(entity);
 public abstract class EntityModified(SourceKnownEntity entity) : DomainEvent(entity);
 public abstract class EntityDeleted(SourceKnownEntity entity) : DomainEvent(entity);
 ```
 
-### SourceKnownEntityId & SourceKnownId
+---
 
-The framework uses a Source Known identifier system to balance DB performance (`long`) with external security (`Guid`) and type safety.
+## Source-Known Identity System
+
+Balances DB performance (`long`) with external security (`Guid`) and type safety.
 
 ```csharp
 public readonly record struct SourceKnownId(
-    long Id,                  // Internal DB ID (primary key)
-    DateTimeOffset CreatedAt, // Timestamp of generation
-    uint InstanceId,          // Generator instance ID
-    byte AppId,               // Application ID
-    byte AppInstanceId        // Application Instance ID
-);
+    long Id, DateTimeOffset CreatedAt, uint InstanceId, byte AppId, byte AppInstanceId);
 
 public readonly record struct SourceKnownEntityId(
-    SourceKnownId Source,   // Decoded internal components
-    Guid EntityId,          // Opaque external GUID
-    byte EntityType,        // Entity type discriminator
-    bool Valid              // Structural validity flag
-);
+    SourceKnownId Source, Guid EntityId, byte EntityType, bool Valid);
 ```
 
-### ID Validation & Retrieval Strategies
+### Validation Approaches
 
-Three approaches for validating and retrieving typed identifiers:
-
-**1. Injectable Utility** (Recommended for service layer):
+**1. Injectable Utility** (service layer — recommended):
 ```csharp
 var id = sourceKnownEntityIdUtils.Validate<User>(externalGuid);
 ```
 
-**2. Repository** (At data entry point):
+**2. Repository** (data entry point):
 ```csharp
 var id = userRepository.GetEntityId(externalGuid);
 ```
 
-**3. Domain Entity** (Intra-domain operations):
+**3. Domain Entity** (intra-domain):
 ```csharp
 var id = userInstance.GetEntityId<User>(externalGuid);
 ```
 
-### SourceKnownRepository
+---
 
-`ISourceKnownRepository<TEntity>` provides a standard interface for retrieving and managing source-known entities.
+## Repository Contract
 
 ```csharp
 public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
@@ -173,7 +119,7 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
     SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;
     
-    // Retrieval by GUID (External ID) 
+    // Retrieval by GUID (External ID)
     Task<TEntity> GetAsync(Guid id);
     Task<TEntity> GetAsync(SourceKnownEntityId id);
     Task<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true);
@@ -182,9 +128,9 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     // Batch Retrieval
     Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);
     Task<TEntity[]> GetAsync(IReadOnlyCollection<SourceKnownEntityId> ids);
-    Task<TEntity[]> GetAllAsync(); // ⚠️ Use with caution - only for small/known result sets
+    Task<TEntity[]> GetAllAsync(); // ⚠️ Use with caution - only for small/known-size collections
     
-    // Batch & Counts
+    // Queries
     Task<bool> AnyAsync(Expression<Func<TEntity, bool>>? predicate = null);
     Task<bool> AllAsync(Expression<Func<TEntity, bool>> predicate);
     Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null);
@@ -197,31 +143,22 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids);
     Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids);
     Task<int> SaveChangesAsync();
-
+    
     // Pagination
     Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
+    Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null, long jumpTo = 1,
+        int pageSize = -1, int maxSize = -1, PageSortDirection direction = PageSortDirection.None,
+        long totalCount = -1, bool updateTotalCount = false);
     IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
 }
 ```
 
 **Key Behaviors**:
-- **Validation**: `Get(OrDefault)Async` methods with `Guid` automatically validate the ID format and EntityType byte before querying the database.
-- **SourceKnownEntityId**: Wraps the GUID and validation logic.
-- **Cancellation**: Supports `CancellationToken` via property or `MergeCancellationTokens`.
-- **Streaming**: `PaginateAllAsync` returns `IAsyncEnumerable` for efficient large dataset processing.
-
-### Filtering
-
-`EntityCreatedFilter` provides standardized date-based filtering:
-
-```csharp
-var filter = EntityCreatedFilter.After(DateTimeOffset.UtcNow.AddDays(-7));
-var result = await repository.PaginateAsync(request, filter);
-```
+- `Get(OrDefault)Async` with `Guid` auto-validates ID format and EntityType byte before querying
+- `PaginateAllAsync` returns `IAsyncEnumerable` for efficient large dataset streaming
+- `CancellationToken` supports merging via `MergeCancellationTokens`
 
 ### Pagination
-
-The framework uses a cursor-based pagination system that supports both offset and cursor navigation.
 
 ```csharp
 public class PaginationRequest
@@ -229,43 +166,42 @@ public class PaginationRequest
     public long PageNumber { get; init; }
     public PageSize PageSize { get; init; }
     public PageCursor PageCursor { get; init; } // Holds FirstId/LastId for stable paging
-    
-    // Factories
     public static PaginationRequest Default;
-    public static PaginationRequest From(PaginationResultInfo? info, long jumpTo, ...);
 }
 
 public class PaginationResultModel<TModel>
 {
     public IReadOnlyList<TModel> Items { get; }
     public PaginationResultInfo Info { get; } // Next/Prev page metadata
+    public PaginationResultModel<TMapped> ToModel<TMapped>(Func<TModel, TMapped> mapper);
 }
 ```
 
-**Key Features**:
-- **Stable Navigation**: Uses `PageCursor` with `FirstId` and `LastId` to prevent data inconsistencies when items are added/deleted during concurrent viewing.
-- **Bi-directional**: Supports `Next`, `Previous`, and `Refresh` navigation.
-- **Infinite Scroll**: `PaginateAllAsync` allows streaming valid pages sequentially.
-- **URL-Serializable**: `PaginationRequest` is natively URL-serializable. In Controllers, bind from query string with `[FromQuery]`.
+- **Stable Navigation**: `PageCursor` with `FirstId`/`LastId` prevents data inconsistencies during concurrent viewing
+- **Bi-directional**: `RequestNextPage()`, `RequestPreviousPage()`, `RequestPage(n)` on `PaginationResultInfo`
+- **URL-Serializable**: `PaginationRequest` natively works with `[FromQuery]`
+- **Filtering**: `EntityCreatedFilter.After(date)` for date-based filtering
 
-**API Integration**:
 ```csharp
-[HttpGet]
-public async Task<PaginationResultModel<UserDto>> GetAsync([FromQuery] PaginationRequest request)
-{
-    var result = await repository.PaginateAsync(request);
-    return result.ToModel(user => user.ToDto());
-}
+// API pagination pattern
+var filter = EntityCreatedFilter.After(DateTimeOffset.UtcNow.AddDays(-7));
+var result = await repository.PaginateAsync(request, filter);
+return result.ToModel(entity => entity.ToDto());
 ```
+
+### DTO Rules
+
+> [!IMPORTANT]
+> 1. DTOs **must** derive from `Dto` base class (primary constructor accepting `SourceKnownEntity?`)
+> 2. Public APIs must **never** return Entities — always DTOs
+> 3. Expose only `Guid` IDs, never `long Id` or `SourceKnownEntityId`
 
 ---
 
 ## Exceptions
 
-DRN exceptions map to HTTP status codes via `ExceptionFor` factory:
-
-| Factory Method | Exception | Status |
-|---------------|-----------|--------|
+| Factory | Exception | HTTP Status |
+|---------|-----------|-------------|
 | `ExceptionFor.Validation(msg)` | `ValidationException` | 400 |
 | `ExceptionFor.Unauthorized(msg)` | `UnauthorizedException` | 401 |
 | `ExceptionFor.Forbidden(msg)` | `ForbiddenException` | 403 |
@@ -276,91 +212,40 @@ DRN exceptions map to HTTP status codes via `ExceptionFor` factory:
 | `ExceptionFor.Configuration(msg)` | `ConfigurationException` | 500 |
 | `ExceptionFor.MaliciousRequest(msg)` | `MaliciousRequestException` | Abort |
 
-```csharp
-// Usage
-throw ExceptionFor.NotFound("User not found", category: "Users");
-```
-
-**Exception Properties**:
-- `Category` - Subcategory for classification
-- `Status` - HTTP status code
+All factories accept optional `category` parameter for sub-classification: `ExceptionFor.NotFound("User not found", category: "Users")`. Exceptions expose `Category` and `Status` properties.
 
 ---
 
 ## JSON Conventions
 
-`JsonConventions` globally overrides `System.Text.Json`:
-
-```csharp
-JsonConventions.DefaultOptions; // Access global options
-
-// Applied settings:
-// - JsonSerializerDefaults.Web
-// - JsonStringEnumConverter
-// - Int64ToStringConverter / Int64NullableToStringConverter
-// - AllowTrailingCommas = true
-// - PropertyNameCaseInsensitive = true
-// - PropertyNamingPolicy = CamelCase
-// - NumberHandling = AllowReadingFromString
-// - MaxDepth = 32
-```
-
-**Applied automatically by**:
-- `DrnTestContext` in tests
-- `DrnProgramBase` in hosted apps
+`JsonConventions.DefaultOptions` — globally applied: Web defaults, enum→string, long→string, camelCase, AllowTrailingCommas, MaxDepth=32. Auto-applied by `DrnTestContext` and `DrnProgramBase`.
 
 ---
 
 ## AppConstants
 
-Static application-wide constants:
-
 ```csharp
-AppConstants.ProcessId;          // Current process ID
-AppConstants.AppInstanceId;      // Unique Guid per app instance
-AppConstants.EntryAssemblyName;  // Entry assembly name
-AppConstants.TempPath;           // Cleaned temp directory at every startup
-AppConstants.LocalIpAddress;     // Machine IP address
+AppConstants.ProcessId;          AppConstants.AppInstanceId;
+AppConstants.EntryAssemblyName;  AppConstants.TempPath;  // Cleaned at startup
+AppConstants.LocalIpAddress;
 ```
-
----
 
 ## Attributes
 
-### IgnoreLogAttribute
+| Attribute | Purpose |
+|-----------|---------|
+| `[IgnoreLog]` | Exclude properties from scoped logging |
+| `[SecureKey]` | Validate string meets secure key requirements |
+| `[EntityType(byte)]` | Unique entity type ID for Source-Known IDs |
 
-Excludes properties/objects from scoped logging:
+---
 
-```csharp
-[IgnoreLog]
-public class SensitiveData { }
+## Related Skills
 
-public class User
-{
-    public string Name { get; set; }
-    
-    [IgnoreLog]
-    public string Password { get; set; }
-}
-```
-
-### SecureKeyAttribute
-
-Validates that a string meets secure key requirements (length, character classes).
-
-### EntityTypeAttribute
-
-Marks entities with unique type ID for Source-Known IDs:
-
-```csharp
-[EntityType(1)]
-public class User : SourceKnownEntity { }
-
-[EntityType(2)]
-public class Order : SourceKnownEntity { }
-```
-
-> See: [drn-entityframework.md](../drn-entityframework/SKILL.md)
+- [drn-domain-design.md](../drn-domain-design/SKILL.md) - Domain & Repository patterns
+- [drn-entityframework.md](../drn-entityframework/SKILL.md) - DrnContext usage
+- [drn-utils.md](../drn-utils/SKILL.md) - DI and settings
+- [overview-ddd-architecture.md](../overview-ddd-architecture/SKILL.md) - Domain modeling
 
 ---
 
@@ -371,15 +256,3 @@ global using DRN.Framework.SharedKernel.Domain;
 global using DRN.Framework.SharedKernel;
 global using DRN.Framework.SharedKernel.Json;
 ```
-
----
-
-## Related Skills
-
-- [drn-domain-design.md](../drn-domain-design/SKILL.md) - Domain & Repository patterns
-- [overview-drn-framework.md](../overview-drn-framework/SKILL.md) - Framework architecture
-- [drn-utils.md](../drn-utils/SKILL.md) - DI and settings
-- [drn-entityframework.md](../drn-entityframework/SKILL.md) - DrnContext usage
-- [overview-ddd-architecture.md](../overview-ddd-architecture/SKILL.md) - Domain modeling
-
----
