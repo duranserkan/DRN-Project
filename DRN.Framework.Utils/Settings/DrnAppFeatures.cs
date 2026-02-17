@@ -35,4 +35,6 @@ public class DrnAppFeatures
     /// (e.g., file upload endpoints) where even small buffering is undesirable.
     /// </summary>
     public bool DisableRequestBuffering { get; init; } = false;
+    
+    public int MaxRequestBufferingSize { get; init; } = 0;
 }

@@ -12,25 +12,34 @@ namespace DRN.Framework.Hosting.Middlewares;
 ///     <see cref="ExceptionHandler.Utils.ExceptionUtils.CreateErrorPageModelAsync"/></item>
 /// </list>
 /// Buffering is only enabled for methods that semantically carry a body (POST, PUT, PATCH).
-/// Requests with Content-Length exceeding the configured max buffer size (default 30 KB) are not buffered,
+/// Requests with Content-Length exceeding the configured max buffer size (default 30,000 bytes) are not buffered,
 /// and <see cref="ReadBodyAsync"/> returns a descriptive reason for unbuffered requests.
 /// </summary>
 public class RequestBufferingState
 {
+    private const int MinBufferSize = 10000;
+    private const int DefaultBufferSize = 30000;
     private const string Key = nameof(RequestBufferingState);
-    public bool IsBuffered { get; private init; }
+    private bool IsBuffered { get; init; }
     private bool IsDisabled { get; init; }
     private bool HasNoBody { get; init; }
-    private long BufferSizeLimit { get; init; }
+    private int BufferSizeLimit { get; init; }
 
     /// <summary>
     /// Enables request body buffering for body-carrying methods (POST, PUT, PATCH)
-    /// when Content-Length is known and within <paramref name="maxBufferSize"/>.
+    /// when Content-Length is known and within <paramref name="features"/> max buffer size.
     /// Bodyless methods and unknown Content-Length (e.g., chunked transfer) are skipped.
     /// Stores the state in <see cref="HttpContext.Items"/> for downstream consumers.
     /// </summary>
-    public static RequestBufferingState TryEnableBuffering(HttpContext context, DrnAppFeatures features, long maxBufferSize = 30 * 1024)
+    public static RequestBufferingState TryEnableBuffering(HttpContext context, DrnAppFeatures features)
     {
+        if (context.Items.TryGetValue(Key, out var existing) && existing is RequestBufferingState existingState)
+            return existingState;
+
+        var maxBufferSize = features.MaxRequestBufferingSize >= MinBufferSize
+            ? features.MaxRequestBufferingSize
+            : DefaultBufferSize;
+
         if (features.DisableRequestBuffering)
         {
             var state = new RequestBufferingState { IsBuffered = false, IsDisabled = true, BufferSizeLimit = maxBufferSize };
@@ -42,8 +51,8 @@ public class RequestBufferingState
         // POST, PUT, PATCH are the only methods where body capture is meaningful.
         // GET, HEAD, DELETE, OPTIONS, TRACE either have no body or the body has no defined semantics (RFC 9110 §9).
         var method = context.Request.Method;
-        var hasNoBody = !HttpMethods.IsPost(method) && !HttpMethods.IsPut(method) && !HttpMethods.IsPatch(method);
-        if (hasNoBody)
+        var hasBody = HttpMethods.IsPost(method) || HttpMethods.IsPatch(method) || HttpMethods.IsPut(method);
+        if (!hasBody)
         {
             var state = new RequestBufferingState { IsBuffered = false, HasNoBody = true, BufferSizeLimit = maxBufferSize };
             context.Items[Key] = state;
@@ -65,7 +74,7 @@ public class RequestBufferingState
         var contentLength = context.Request.ContentLength;
         var shouldBuffer = contentLength is not null && contentLength <= maxBufferSize;
         if (shouldBuffer)
-            context.Request.EnableBuffering();
+            context.Request.EnableBuffering(bufferLimit: maxBufferSize);
 
         var result = new RequestBufferingState { IsBuffered = shouldBuffer, BufferSizeLimit = maxBufferSize };
         context.Items[Key] = result;
@@ -74,11 +83,11 @@ public class RequestBufferingState
     }
 
     /// <summary>
-    /// Safely reads the request body if buffering was enabled, up to <paramref name="maxBufferSize"/> bytes.
+    /// Safely reads the request body if buffering was enabled, up to <see cref="BufferSizeLimit"/> bytes.
     /// Returns a descriptive reason when the request was not buffered.
     /// Resets the stream position after reading so subsequent reads remain possible.
     /// </summary>
-    public static async Task<string> ReadBodyAsync(HttpContext context, long maxBufferSize = 30 * 1024)
+    public static async Task<string> ReadBodyAsync(HttpContext context)
     {
         if (!context.Items.TryGetValue(Key, out var obj) || obj is not RequestBufferingState state)
             return "[Request body not captured: buffering state not initialized]";
@@ -98,13 +107,17 @@ public class RequestBufferingState
         }
 
         var stream = context.Request.Body;
+        if (!stream.CanSeek)
+            return "[Request body not captured: stream is not seekable]";
+
         stream.Seek(0, SeekOrigin.Begin);
 
-        var buffer = ArrayPool<char>.Shared.Rent((int)maxBufferSize);
+        var bufferSize = state.BufferSizeLimit;
+        var buffer = ArrayPool<char>.Shared.Rent(bufferSize);
         try
         {
             using var reader = new StreamReader(stream, leaveOpen: true);
-            var charsRead = await reader.ReadAsync(buffer.AsMemory(0, (int)maxBufferSize));
+            var charsRead = await reader.ReadAsync(buffer.AsMemory(0, bufferSize));
             stream.Seek(0, SeekOrigin.Begin);
             return new string(buffer, 0, charsRead);
         }
