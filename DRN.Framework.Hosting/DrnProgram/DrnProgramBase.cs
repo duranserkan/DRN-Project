@@ -42,6 +42,13 @@ using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace DRN.Framework.Hosting.DrnProgram;
 
+
+//todo: 
+// Extract composable classes such as:
+// - `DrnSecurityConfigurator` (CSP, security headers, cookie policies, MFA)
+// - `DrnCompressionConfigurator` (compression providers, response caching)
+// - `DrnPipelineConfigurator` (middleware pipeline ordering)
+
 public abstract class DrnProgram
 {
     static DrnProgram() => UtilsConventionBuilder.BuildConvention();
