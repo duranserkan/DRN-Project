@@ -109,8 +109,8 @@ public static class ExceptionFor
     /// <summary>
     /// Scope handler returns 500 when thrown
     /// </summary>
-    public static ConfigurationException Configuration(string message, Exception? ex = null, string? category = Default)
-        => new(message, ex, category);
+    public static ConfigurationException Configuration(string message, Exception? exception = null, string? category = Default)
+        => new(message, exception, category);
 
     /// <summary>
     /// Scope handler returns 422 when thrown

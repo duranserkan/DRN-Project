@@ -36,5 +36,8 @@ public class DrnAppFeatures
     /// </summary>
     public bool DisableRequestBuffering { get; init; } = false;
     
+    /// <summary>
+    /// Values below 10,000 bytes will be ignored
+    /// </summary>
     public int MaxRequestBufferingSize { get; init; } = 0;
 }
