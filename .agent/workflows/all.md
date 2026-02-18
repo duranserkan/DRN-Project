@@ -4,7 +4,7 @@ description: Load all project skills by calling other workflows
 
 // turbo-all
 
-> **Estimated context: ~42K tokens** (29 skills)
+> **Estimated context: ~43K tokens** (29 skills)
 
 Read all skills:
 
@@ -21,7 +21,7 @@ Read all skills:
    - `view_file .agent/skills/overview-ddd-architecture/SKILL.md`
    - `view_file .agent/skills/overview-drn-framework/SKILL.md`
    - `view_file .agent/skills/overview-drn-testing/SKILL.md`
-   - `view_file .agent/skills/github-actions/SKILL.md`
+   - `view_file .agent/skills/overview-github-actions/SKILL.md`
    - `view_file .agent/skills/overview-skill-index/SKILL.md`
 
 **DRN Framework:**

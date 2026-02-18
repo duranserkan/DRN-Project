@@ -183,6 +183,6 @@ DRN.Framework.{Package}/
 ---
 
 ## Related Skills
-- [github-actions.md](../github-actions/SKILL.md) - CI/CD pipeline details
+- [overview-github-actions.md](../overview-github-actions/SKILL.md) - CI/CD pipeline details
 - [basic-code-review.md](../basic-code-review/SKILL.md) - Review standards
 - [basic-documentation.md](../basic-documentation/SKILL.md) - Documentation standards

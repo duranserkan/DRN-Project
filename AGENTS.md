@@ -20,7 +20,7 @@ Read and follow `DiSCOS/DiSCOS.md` — the Distinguished Secure Cognitive OS.
 ## Skill Discovery
 
 - **Skill index**: `.agent/skills/overview-skill-index/SKILL.md` — task→skill & layer→skill lookup
-- **Load all skills**: `.agent/workflows/all.md` (cascades: basic → overview → drn → test→ frontend)
+- **Load all skills**: `.agent/workflows/all.md` (cascades: basic → overview → drn → test → frontend)
 - **Individual workflows**: `.agent/workflows/{basic,overview,drn,test,frontend}.md`
 
 ## Key Commands
@@ -33,7 +33,7 @@ dotnet run --project Sample.Hosted  # Run sample app
 
 ## Conventions
 
-- **DI**: Attribute-based (`[Scoped]`, `[Singleton]`, `[Transient], [Config], [ConfigRoot], [HostedService]`) — no manual registration
+- **DI**: Attribute-based (`[Scoped]`, `[Singleton]`, `[Transient]`, `[Config]`, `[ConfigRoot]`, `[HostedService]`) — no manual registration
 - **Entities**: Source-Known ID pattern (long internal + Guid external)
 - **Git**: GitFlow-inspired — `develop` → `master` → tag `v*.*.*`
 - **Security**: CSP nonces, CSRF anti-forgery, input validation — see `basic-security-checklist` skill
