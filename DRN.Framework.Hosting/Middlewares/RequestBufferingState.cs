@@ -20,10 +20,10 @@ public class RequestBufferingState
     private const int MinBufferSize = 10000;
     private const int DefaultBufferSize = 30000;
     private const string Key = nameof(RequestBufferingState);
-    private bool IsBuffered { get; init; }
-    private bool IsDisabled { get; init; }
-    private bool HasNoBody { get; init; }
-    private int BufferSizeLimit { get; init; }
+    public bool IsBuffered { get; init; }
+    public bool IsDisabled { get; init; }
+    public bool HasNoBody { get; init; }
+    public int BufferSizeLimit { get; init; }
 
     /// <summary>
     /// Enables request body buffering for body-carrying methods (POST, PUT, PATCH)
