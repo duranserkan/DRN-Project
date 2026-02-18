@@ -1,5 +1,6 @@
 using DRN.Framework.Hosting.Middlewares;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.Middlewares;
 
@@ -14,7 +15,7 @@ public class RequestBufferingStateTests
     ///   5. Oversized    — Content-Length exceeds the configured limit
     /// </summary>
     [Theory]
-    [DataInlineUnit("idempotent", false, "POST", 100L, false)]
+    [DataInlineUnit("idempotent", false, "POST", 100L, true)]
     [DataInlineUnit("disabled", true, "POST", 100L, false)]
     [DataInlineUnit("no-body-GET", false, "GET", 100L, false)]
     [DataInlineUnit("no-body-DEL", false, "DELETE", 100L, false)]
@@ -31,7 +32,7 @@ public class RequestBufferingStateTests
             {
                 Method = method,
                 ContentLength = contentLength,
-                Body = new MemoryStream()
+                Body = new NonSeekableStream(new MemoryStream())
             }
         };
 
@@ -47,12 +48,12 @@ public class RequestBufferingStateTests
         }
 
         if (expectedBuffered)
-            context.Request.Body.CanSeek.Should().BeTrue();
+            context.Request.Body.Should().BeOfType<FileBufferingReadStream>();
         else
-            context.Request.Body.Should().BeOfType<MemoryStream>();
+            context.Request.Body.Should().BeOfType<NonSeekableStream>();
 
         // The state object is stored in context.Items regardless of outcome
-        context.Items.Should().ContainKey("RequestBufferingState");
+        context.Items.Should().ContainKey(nameof(RequestBufferingState));
     }
 
     /// <summary>
@@ -66,6 +67,7 @@ public class RequestBufferingStateTests
     [DataInlineUnit(0, 30001, false)]
     [DataInlineUnit(10000, 9999, true)]
     [DataInlineUnit(10000, 10001, false)]
+    [DataInlineUnit(10000, 10000, true)]
     [DataInlineUnit(1, 9999, true)]
     public void TryEnableBuffering_MaxBufferSize_Should_Respect_MinimumFloor(
         int configuredMax,
@@ -162,4 +164,33 @@ public class RequestBufferingStateTests
         // Stream must be rewound so downstream middleware can still read it
         context.Request.Body.Position.Should().Be(0);
     }
+}
+
+public class NonSeekableStream(Stream innerStream) : Stream
+{
+    // This is the key: tell the caller seeking is not supported
+    public override bool CanSeek => false;
+    
+    public override bool CanRead => innerStream.CanRead;
+    public override bool CanWrite => innerStream.CanWrite;
+    public override long Length => throw new NotSupportedException();
+    public override long Position 
+    { 
+        get => innerStream.Position; 
+        set => throw new NotSupportedException(); 
+    }
+
+    public override void Flush() => innerStream.Flush();
+
+    public override int Read(byte[] buffer, int offset, int count) 
+        => innerStream.Read(buffer, offset, count);
+
+    public override long Seek(long offset, SeekOrigin origin) 
+        => throw new NotSupportedException("This stream does not support seeking.");
+
+    public override void SetLength(long value) 
+        => throw new NotSupportedException();
+
+    public override void Write(byte[] buffer, int offset, int count) 
+        => innerStream.Write(buffer, offset, count);
 }
