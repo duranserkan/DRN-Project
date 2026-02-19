@@ -110,21 +110,25 @@ Follow the Development Loop from `basic-agentic-development`:
    - Source-Known ID pattern for entities
    - Existing namespace conventions (verify with `grep_search`, never assume)
 4. **Validate after each change**:
+
    ```bash
    dotnet build DRN.slnx    # Must pass before proceeding
    ```
+
 5. **Write tests** — Apply DTT philosophy (load testing skills if not already loaded):
    - Pure logic → Unit tests
    - Persistence/queries → Integration tests with Testcontainers
    - API endpoints → API integration tests
 6. **Run tests**:
+
    ```bash
    dotnet test DRN.slnx     # Must pass before proceeding
    ```
 
+
 ### Self-Correction Loop
 
-- ✅ Build/test fails → Read error → Fix → Re-verify → Continue
+- ❌ Build/test fails → Read error → Fix → Re-verify → Continue
 - ⚠️ After **2 failed attempts** on the same issue → Stop. Report to user: what was tried, what failed, hypotheses, recommended next steps.
 
 ---

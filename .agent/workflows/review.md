@@ -1,5 +1,5 @@
 ---
-description: Review git staged changes or a specified task using Priority Stack and project review skills
+description: Review git staged changes, diff the current feature/fix branch against develop, or a specified task using Priority Stack and project review skills
 ---
 
 ## 1. Determine Scope
