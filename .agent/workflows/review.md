@@ -4,8 +4,10 @@ description: Review git staged changes or a specified task using Priority Stack 
 
 ## 1. Determine Scope
 
-- **No extra arguments** → Review **git staged changes** (`git diff --cached`).
-  - If nothing is staged, inform the user and stop.
+- **No extra arguments** → Determine scope dynamically based on git state:
+  1. Check if the current branch is a feature/fix branch (e.g., `feature/*`, `fix/*`). If so, review all changes on this branch against the integration branch (`git diff develop...HEAD`).
+  2. If on `develop` or no branch diff exists, fall back to reviewing **git staged changes** (`git diff --cached`).
+  3. If nothing is staged and not on a reviewable branch, inform the user and stop.
 - **Task/description provided** → Review the **described scope**.
   - Identify relevant files by keywords, recent git history, or user guidance.
   - Read only the minimal context needed.
@@ -25,7 +27,9 @@ Read to internalize review criteria (single source of truth — do not duplicate
 
 ## 3. Analyze
 
-- **Staged changes** — Run `git diff --cached --stat` for overview, then `git diff --cached` for full diff. Read surrounding context of changed files as needed.
+- **Branch or Staged changes** — Depending on the scope determined in Step 1:
+  - Run `git diff develop...HEAD --stat` or `git diff --cached --stat` for an overview.
+  - Run `git diff develop...HEAD` or `git diff --cached` for the full diff. Read surrounding context of changed files as needed.
 - **Specified task** — Read identified files and understand change scope.
 - If diff exceeds ~500 lines, break into logical file groups and evaluate each group independently before synthesizing the final verdict.
 
@@ -62,7 +66,7 @@ Write a structured review report (as an artifact when in task mode).
 ```markdown
 ## Review Summary
 
-**Scope**: [staged changes | task description]
+**Scope**: [branch changes | staged changes | task description]
 **Verdict**: ✅ Approve | ⚠️ Approve with Comments | ❌ Request Changes
 
 ## Findings

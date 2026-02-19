@@ -2,6 +2,18 @@
 description: Implement requirements from a clarified document using repository skills and AGENTS.md guidance
 ---
 
+## Table of Contents
+
+- [1. Resolve Input](#1-resolve-input)
+- [2. Validate Status](#2-validate-status)
+- [3. Load Context & Skills](#3-load-context--skills)
+- [4. Plan Implementation](#4-plan-implementation)
+- [5. Execute](#5-execute)
+- [6. Verify](#6-verify)
+- [7. Report & Update Status](#7-report--update-status)
+
+---
+
 ## 1. Resolve Input
 
 Determine what to implement:
@@ -67,12 +79,19 @@ For each PBI (in dependency and priority order):
 2. **Map to implementation tasks** — concrete code changes, not abstract descriptions.
 3. **Identify risks** — breaking changes, security implications, schema changes.
 4. **Estimate complexity** — trivial / standard / significant / critical (per Autonomy Ladder).
+5. **Assumption Check** — Scan the PBI for any `[ASSUMPTION - unverified]` tags. If found, explicitly ask the user for clarification on those specific points before proceeding to execution.
 
 Produce an implementation plan artifact and present to the user for approval:
 - **Trivial/Standard** PBIs → Summarize briefly, proceed after presenting.
 - **Significant/Critical** PBIs → Detailed plan, wait for explicit user approval.
 
 > **DiSCOS Autonomy Ladder**: Read the `basic-agentic-development` skill to understand when to act vs. ask.
+
+### 4a. Version Control Setup
+
+- Before writing code, explicitly branch off `develop` to create a dedicated feature branch using the format `feature/[task-name-or-id]`. For example: `git checkout -b feature/[task-name-or-id] develop`.
+- As you complete each PBI (or logical chunk), commit the changes locally using conventional commits (e.g., `feat(Scope): description`).
+- **Do not push** the branch. Local commits serve as checkpoints for safe rollbacks.
 
 ---
 
