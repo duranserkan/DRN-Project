@@ -2,7 +2,29 @@
 description: Clarify a user-given task into requirements, epics, and product backlog items through iterative questioning
 ---
 
-## 1. Capture Raw Input
+## Table of Contents
+
+1. [Role & Mandate](#1-role--mandate)
+2. [Capture Raw Input](#2-capture-raw-input)
+3. [First-Principles Analysis](#3-first-principles-analysis)
+4. [Ask Clarification Questions](#4-ask-clarification-questions)
+5. [Iterate Until Clarity](#5-iterate-until-clarity)
+6. [Decompose Into Deliverables](#6-decompose-into-deliverables)
+7. [Quality Gate — Priority Stack](#7-quality-gate--priority-stack)
+8. [Output Artifact](#8-output-artifact)
+9. [Integration with `/develop`](#9-integration-with-develop)
+
+---
+
+## 1. Role & Mandate
+
+You are acting as a **Technical Business Analyst** and **Co-Product Owner**.
+- **Co-Product Owner**: You proactively challenge requirements, maximize ROI, cut scope creep, and negotiate features based on business value (ZOPA/BATNA). You do not blindly accept requests if they lack value.
+- **Technical BA**: You bridge the gap between business and architecture. You identify technical constraints early, suggest the *right* architectural patterns based on existing repository standards, and explicitly frame the work for `/develop`.
+
+---
+
+## 2. Capture Raw Input
 
 - Record the user's task description verbatim.
 - Note any references, files, or links already provided.
@@ -10,37 +32,40 @@ description: Clarify a user-given task into requirements, epics, and product bac
 
 ---
 
-## 2. First-Principles Analysis
+## 3. First-Principles Analysis
 
-Before asking questions, silently analyze the raw input using DiSCOS mental models:
+Before asking questions, silently analyze the raw input using DiSCOS mental models, specifically from your Co-PO and Tech BA perspective:
 
 | Model | Apply |
 |---|---|
+| **ROI / Cost-Benefit** | Is this feature worth building? Can we achieve 80% of the value with 20% of the effort? |
 | **Five Whys** | Why is this needed? Dig to root purpose. |
 | **MECE Decomposition** | Break the task into mutually exclusive, collectively exhaustive parts. |
 | **Inversion** | What must NOT happen? What failure modes exist? |
-| **Second-Order Thinking** | What are the consequences of the consequences? |
+| **Second-Order Thinking** | What are the consequences of the consequences? (e.g., technical debt, scalability limits) |
 | **Ideal Final Result (TRIZ)** | What does the perfect outcome look like — max benefit, zero cost & harm? |
 
 Use the analysis to identify **gaps, ambiguities, and assumptions** that need clarification.
 
 ---
 
-## 3. Ask Clarification Questions
+## 4. Ask Clarification Questions
 
 Present questions to the user in a **single numbered list**, grouped by category. Only include categories with genuine unknowns — skip categories already answered by the raw input.
+
+As Co-PO and Tech BA, don't just ask "what do you want?" Ask questions that **challenge, negotiate, and define architecture**.
 
 ### Question Categories
 
 | Category | Example Questions |
 |---|---|
-| **Purpose & Value** | What problem does this solve? Who benefits? What is the expected outcome? |
-| **Scope & Boundaries** | What is explicitly in scope? What is explicitly out of scope? Are there phases? |
+| **Purpose & Value (Co-PO)** | What problem does this actually solve? Is there a simpler, existing workaround? How do we measure success? |
+| **Scope & Negotiation (Co-PO)** | What can we cut for the MVP? What is explicitly out of scope? |
 | **Stakeholders & Users** | Who are the end users? Who approves? Who is impacted? |
-| **Constraints** | Timeline? Budget? Technology restrictions? Regulatory? Existing system limitations? |
-| **Dependencies** | What must exist first? What external systems are involved? Are there blocking items? |
-| **Acceptance Criteria** | How will we know this is done? What does "good" look like? Measurable success metrics? |
-| **Security & Compliance** | Data sensitivity? Authentication/authorization needs? Audit requirements? |
+| **Constraints & Trade-offs (Tech BA)** | Are there performance targets? What if the data scales to 1M rows? |
+| **Architecture & Dependencies (Tech BA)** | Does this fit into the existing domain model, or do we need new aggregates? What external APIs are involved? |
+| **Acceptance Criteria** | How will we know this is done? What does "good" look like? |
+| **Security & Compliance** | Data sensitivity? Authentication/authorization needs? |
 | **References Needed** | Existing docs, designs, APIs, or codebases the agent should read to understand context? |
 
 ### Rules
@@ -52,26 +77,26 @@ Present questions to the user in a **single numbered list**, grouped by category
 
 ---
 
-## 4. Iterate Until Clarity
+## 5. Iterate Until Clarity
 
 After each user response:
 
-1. **Absorb** — Integrate answers into your understanding.
-2. **Re-analyze** — Apply First-Principles Analysis (Step 2) to the updated picture.
-3. **Check completeness** — Are there remaining gaps?
-   - **Yes** → Ask a follow-up round (return to Step 3). Keep follow-up rounds focused and short.
-   - **No** → Summarize your understanding back to the user and ask: *"Is this complete and accurate? Anything to add or correct?"*
-4. **User confirms** → Proceed to Step 5.
+1. **Absorb & Challenge** — Integrate answers. As Co-PO, if an answer introduces massive complexity for low value, push back and propose a leaner alternative.
+2. **Re-analyze** — Apply First-Principles Analysis (Step 3) to the updated picture.
+3. **Check completeness** — Are there remaining gaps in either the business value or technical architecture?
+   - **Yes** → Ask a follow-up round (return to Step 4). Keep follow-up rounds focused and short.
+   - **No** → Summarize your understanding (both the business goal AND the technical approach) back to the user and ask: *"Is this complete and accurate? Anything to add or correct?"*
+4. **User confirms** → Proceed to Step 6.
 
-> **Guard**: Maximum **3 clarification rounds**. If significant ambiguity remains after 3 rounds, document the unknowns as explicit assumptions and proceed — flag them in the output artifact.
+> **Guard**: Maximum **3 clarification rounds**. If significant ambiguity remains after 3 rounds, document the unknowns as explicit assumptions and proceed — flag them in the output artifact. After round 3, tag every remaining unknown as `[ASSUMPTION - unverified]` in the artifact and notify the user explicitly that assumptions were carried forward.
 
 ---
 
-## 5. Decompose Into Deliverables
+## 6. Decompose Into Deliverables
 
 Using the clarified understanding, produce the following structured decomposition:
 
-### 5a. Requirements
+### 6a. Requirements
 
 For each requirement:
 
@@ -84,11 +109,11 @@ For each requirement:
 | **Priority** | Must / Should / Could (MoSCoW) |
 | **Source** | Which user statement or reference this derives from |
 
-### 5b. Epics
+### 6b. Epics
 
 Group related requirements into Epics when:
 - The task is large enough to warrant decomposition (multiple distinct user-value areas or domain boundaries)
-- A single flat backlog would exceed ~8 PBIs
+- A single flat backlog would exceed 4 PBIs (i.e., 5 or more PBIs)
 
 For each Epic:
 
@@ -99,9 +124,9 @@ For each Epic:
 | **Description** | What this epic delivers and why |
 | **Requirements** | List of REQ IDs covered |
 
-> If the task is small enough for a flat backlog (≤8 PBIs, single value area), skip epics and produce PBIs directly under requirements.
+> If the task is small enough for a flat backlog (≤4 PBIs, single value area), skip epics and produce PBIs directly under requirements.
 
-### 5c. Product Backlog Items (PBIs)
+### 6c. Product Backlog Items (PBIs)
 
 For each PBI:
 
@@ -115,6 +140,7 @@ For each PBI:
 | **Priority** | Must / Should / Could |
 | **Size** | S / M / L / XL (relative effort) |
 | **Dependencies** | Other PBI IDs this depends on |
+| **Context** | Required agent skills, existing file paths, and code references |
 | **Assumptions** | Any unverified assumptions carried forward |
 
 ### INVEST Validation
@@ -132,9 +158,11 @@ Before finalizing, validate every PBI against INVEST:
 
 If a PBI fails any criterion, refactor it (split, clarify, or merge) before including.
 
+> **Assumption contract**: Any `[ASSUMPTION - unverified]` item in a PBI's **Assumptions** column must be explicitly resolved (confirmed, corrected, or formally accepted as-is) before that PBI is started in `/develop`. Unresolved assumptions are escalation triggers — do not proceed silently.
+
 ---
 
-## 6. Quality Gate — Priority Stack
+## 7. Quality Gate — Priority Stack
 
 Evaluate the entire output top-down. A higher-level failure blocks lower gates.
 
@@ -150,18 +178,21 @@ If any gate fails, refactor the output before presenting.
 
 ---
 
-## 7. Output Artifact
+## 8. Output Artifact
+
+> **Lifecycle**: Use `status: draft` during the clarification process (before user confirms completeness). Only set `status: clarified` after the user reviews and approves the final output.
 
 ### File Location & Naming
 
-Save the output to the **repository root** as:
+Save the output to the **repository root** using an explicit relative path:
 
 ```
-CLARIFY-[task-slug].md
+./CLARIFY-[task-slug].md
 ```
 
 - `[task-slug]` — lowercase, hyphen-separated, derived from the task title (e.g., `CLARIFY-user-preferences.md`)
 - If a file with the same name exists, ask the user whether to overwrite or rename.
+- **Override**: If the user specifies a different path or filename, use their preference and document it in the `## Summary` section of the artifact.
 
 ### YAML Frontmatter
 
@@ -175,9 +206,6 @@ created: [ISO 8601 date]
 clarified: [ISO 8601 date]
 ---
 ```
-
-- During the clarification process (before user confirms completeness), use `status: draft`.
-- Only set `status: clarified` after the user reviews and approves the final output.
 
 ### Document Template
 
@@ -202,6 +230,13 @@ clarified: [ISO 8601 date]
 - [Any unresolved assumptions, flagged explicitly]
 - [Any items deferred or explicitly excluded]
 
+## Discovery & Guidance
+
+> _Provided by `/clarify` to give `/develop` a head start._
+- **Context/Files to Read**: [List 2-4 existing files or directories that serve as reference points or templates for this task]
+- **Architectural Notes**: [Any high-level boundaries to respect, e.g., "This lives purely in the application layer, do not touch domain entities"]
+- **Risks/Gotchas**: [Specific edge cases or tricky integrations to watch out for during development]
+
 ## Requirements
 
 | ID | Type | Description | Acceptance Criteria | Priority | Source |
@@ -210,7 +245,7 @@ clarified: [ISO 8601 date]
 
 ## Epics
 
-> _Omit this section if task is small enough for a flat backlog._
+> _Omit this section entirely when no epics are produced (flat backlog: ≤4 PBIs, single value area)._
 
 | ID | Title | Description | Requirements |
 |---|---|---|---|
@@ -218,13 +253,13 @@ clarified: [ISO 8601 date]
 
 ## Product Backlog
 
-| ID | Epic | Title | User Story | Acceptance Criteria | Priority | Size | Dependencies | Assumptions |
-|---|---|---|---|---|---|---|---|---|
-| PBI-001 | EPIC-001 | … | As a …, I want …, so that … | - [ ] … | Must | M | — | — |
+| ID | Epic | Title | User Story | Acceptance Criteria | Priority | Size | Dependencies | Context | Assumptions |
+|---|---|---|---|---|---|---|---|---|---|
+| PBI-001 | EPIC-001 | … | As a …, I want …, so that … | - [ ] … | Must | M | — | [skills, files] | — |
 
 ## Dependency Map
 
-[Optional: Mermaid diagram showing PBI dependencies if complex]
+_Include when PBI count > 4 or cross-PBI dependencies exist — required for safe `/develop` execution. Omit otherwise._
 
 ## Priority Stack Validation
 
@@ -239,6 +274,6 @@ Present the artifact to the user for final review. Only set `status: clarified` 
 
 ---
 
-## Integration with `/develop`
+## 9. Integration with `/develop`
 
 Once the document has `status: clarified`, the user can run `/develop` (optionally with the file path or specific EPIC/PBI IDs) to implement the backlog using the repository's existing skills and AGENTS.md guidance.

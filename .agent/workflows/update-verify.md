@@ -50,7 +50,7 @@ _(populated during execution)_
 ---
 
 ## Stage 1: Non-Project Asset Verification
-> Status: pending | skipped | executing | pass | fail
+> Status: pending | skipped | executing | pass | fail | blocked
 
 ### Checks
 - [ ] All non-project assets referenced in skills exist on disk
@@ -82,7 +82,7 @@ For each distinct family prefix in the plan's Discovery Summary → Projects Man
 
 ```markdown
 ## Stage N: <FamilyPrefix>.* Verification
-> Status: pending | skipped | executing | pass | fail
+> Status: pending | skipped | executing | pass | fail | blocked
 > Projects: <list from manifest>
 > Last verified skill: *(updated after each skill — enables mid-stage resumption)*
 
@@ -301,7 +301,7 @@ All stages passed. Skill content is aligned with source code.
 ## Design Properties
 
 | Property | Guarantee |
-|----------|-----------| 
+|----------|-----------|
 | **Non-destructive** | Read-only — never modifies skill files or source |
 | **Fail-fast** | Stage 0 failure blocks all subsequent stages |
 | **Context-safe** | Each project stage fits one context window; `executing` persists for cross-window resumption |

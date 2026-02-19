@@ -18,7 +18,7 @@ The user must provide a **positive integer** commit count. Examples:
 
 If invalid, respond:
 
-```
+```text
 ⚠️ Usage: /update-last <N> — where N is a positive integer (number of recent commits to inspect).
 ```
 
@@ -27,7 +27,7 @@ If invalid, respond:
 ## 2. Collect Changed Files
 
 // turbo
-```
+```bash
 git log --name-only --pretty=format: -<N>
 ```
 
@@ -43,11 +43,11 @@ This produces a list of file paths (one per line) that were added, modified, or 
     > [!NOTE]
     > **Deleted files are included intentionally.** `git log --name-only` does not distinguish deleted files from modified or added ones. This is safe — `/update-plan` §0–§2 discovery resolves scope from the live filesystem (`list_dir`, `find_by_name`, `grep_search`), so deleted files fail to match any skill or project and are silently excluded during scope resolution.
 2. **Validate** — if no files changed, report and stop:
-   ```
+   ```text
    ℹ️ No files changed in the last <N> commit(s). Nothing to sync.
    ```
 3. **Format** the scope string:
-   ```
+   ```text
    files: <comma-separated file paths>
    ```
    Example: `files: .agent/skills/drn-hosting/SKILL.md, DRN.Framework/Hosting/Startup.cs`
@@ -74,7 +74,7 @@ Delegating to `/update files: <scope>` …
 
 Then **load and execute** the `/update` workflow:
 
-```
+```bash
 view_file .agent/workflows/update.md
 ```
 

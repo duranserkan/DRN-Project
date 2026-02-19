@@ -116,7 +116,6 @@ Populate from discovered projects:
 | **Architecture** | Detected layer structure |
 | **Frontend** | Detected from hosted project |
 | **Testing** | DTT — integration-first with Testcontainers |
-| **CI/CD** | Detected from `.github/workflows/` |
 
 ### 3.2 Key Commands
 
@@ -125,7 +124,6 @@ Update project names in build commands:
 ```bash
 dotnet build <solution-file>              # Build solution
 dotnet test <solution-file>               # Run all tests
-dotnet run --project <hosted-project>     # Run app
 ```
 
 ### 3.3 Skill Discovery
@@ -167,7 +165,10 @@ When the project prefix has changed (e.g., `Sample` → `MyApp`):
    Match: (?<=[ \t`'"\n\/]|^)<Prefix>\.
    ```
    The prefix must be immediately preceded by whitespace, BOL, a backtick, a quote (`'`, `"`), or `/` — never by another identifier character. This prevents partial-match corruption of identifiers like `SampleData`, `ExampleSample`, or `SampleTest`.
-   - Example: `SampleTest.Sample.Hosted` — `SampleTest.` does **not** match (preceded by BOL, but `SampleTest` itself contains `Sample` only as a substring, not at a boundary); `` `Sample.Hosted` `` **does** match (backtick precedes `Sample.`).
+   - Example: `SampleTest.Sample.Hosted` vs `` `Sample.Hosted` ``. In `SampleTest.Sample.Hosted`:
+     - At the start of the string, `SampleTest` fails because "Sample" is not followed by a dot.
+     - At the middle position, `Sample.` fails the lookbehind `(?<=[ \t`'"\n\/])` because the character before `Sample.` is a dot (from `SampleTest.`), which is not in the allowed set.
+   - Conversely, `` `Sample.Hosted` `` **does** match because a backtick precedes `Sample.`.
 6. **Verify**: Each substitution produces a valid path in the target repo
 
 > Skills with project-specific paths (e.g., `Sample.Hosted/vite.config.js`) will also have paths updated.
