@@ -75,12 +75,7 @@ All stages finished, self-reviewed, changes reviewed, content verified.
 ### 2.1 Read State
 
 // turbo
-```
-# Check if plan file exists
-view_file .agent/update-plan.md
-# If exists → extract Status: and Scope: from the header
-# If not found → state = "no-plan"
-```
+Run: `view_file .agent/update-plan.md` — if the file exists, extract `Status:` and `Scope:` from the header; if not found, set state to `no-plan`.
 
 ### 2.2 State Machine & Delegation
 

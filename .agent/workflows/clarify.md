@@ -36,14 +36,12 @@ You are acting as a **Technical Business Analyst** and **Co-Product Owner**.
 
 Before asking questions, silently analyze the raw input using DiSCOS mental models, specifically from your Co-PO and Tech BA perspective:
 
-| Model | Apply |
-|---|---|
-| **ROI / Cost-Benefit** | Is this feature worth building? Can we achieve 80% of the value with 20% of the effort? |
-| **Five Whys** | Why is this needed? Dig to root purpose. |
-| **MECE Decomposition** | Break the task into mutually exclusive, collectively exhaustive parts. |
-| **Inversion** | What must NOT happen? What failure modes exist? |
-| **Second-Order Thinking** | What are the consequences of the consequences? (e.g., technical debt, scalability limits) |
-| **Ideal Final Result (TRIZ)** | What does the perfect outcome look like — max benefit, zero cost & harm? |
+- **ROI / Cost-Benefit** — Worth building? 80% value at 20% effort?
+- **Five Whys** — Root purpose, not surface request.
+- **MECE** — Mutually exclusive, collectively exhaustive decomposition.
+- **Inversion** — What must NOT happen? What are the failure modes?
+- **Second-Order** — Consequences of consequences (debt, scale limits).
+- **TRIZ / IFR** — Max benefit, zero cost & harm.
 
 Use the analysis to identify **gaps, ambiguities, and assumptions** that need clarification.
 
@@ -180,7 +178,7 @@ If any gate fails, refactor the output before presenting.
 
 ## 8. Output Artifact
 
-> **Lifecycle**: Use `status: draft` during the clarification process (before user confirms completeness). Only set `status: clarified` after the user reviews and approves the final output.
+> **Lifecycle**: `draft` → `draft-self-reviewed` → `clarified`. Use `status: draft` while writing. Before presenting, run `/review` on the draft, apply all fixes, and set `status: draft-self-reviewed`. Only set `status: clarified` after the user explicitly approves.
 
 ### File Location & Naming
 
@@ -270,7 +268,7 @@ _Include when PBI count > 4 or cross-PBI dependencies exist — required for saf
 - **Performance**: ✅/❌ [brief note]
 ```
 
-Present the artifact to the user for final review. Only set `status: clarified` after user approval.
+Before presenting: run `/review` scoped to this file — **purpose: guarantee accuracy and eliminate unnecessary complexity** (scope creep, over-decomposed PBIs, redundant epics, untestable criteria). Apply every recommended fix in-place, then set `status: draft-self-reviewed`. Only then present the artifact to the user. Set `status: clarified` only after user approval.
 
 ---
 

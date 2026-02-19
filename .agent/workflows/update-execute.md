@@ -24,8 +24,8 @@ description: Execution phase of /update — read update-plan.md, execute sync st
    | `all` / *(omitted)* | `.agent/` |
    | `<group>` | `.agent/workflows/<group>.md` `.agent/skills/<group>-*/**` |
    | `<skill-dir>` | `.agent/skills/<skill-dir>/**` |
-   | `skills` | `.agent/skills/**` `.agent/workflows/{basic,overview,drn,frontend,test,review}.md` |
-   | `agents` | `AGENTS.md` + solution/csproj files + `.agent/workflows/{basic,overview,drn,frontend,test}.md` + `.agent/skills/overview-skill-index/**` |
+   | `skills` | `.agent/skills/**` `.agent/workflows/load-skills-{basic,overview,drn,frontend,test}.md` `.agent/workflows/review.md` |
+   | `agents` | `AGENTS.md` + solution/csproj files + `.agent/workflows/load-skills-{basic,overview,drn,frontend,test}.md` + `.agent/skills/overview-skill-index/**` |
    | `projects` | Solution/csproj files + project-referencing skill paths |
    | `infra` | Non-project asset paths (`Directory.Build.props`, CI/CD, Docker) |
    | `stage-<N>` | Files touched by that specific stage |
@@ -41,7 +41,7 @@ Follow Stage Resumption Protocol in `update.md` §Plan File Contract via `.agent
 
 ## 1. Sync Group Workflows (Stage 1)
 
-### 1.1 Group Loaders (`basic.md`, `overview.md`, `drn.md`, `frontend.md`)
+### 1.1 Group Loaders (`load-skills-basic.md`, `load-skills-overview.md`, `load-skills-drn.md`, `load-skills-frontend.md`)
 
 Per group loader:
 
@@ -89,9 +89,9 @@ If `custom.md` exists, update its skill list per the same pattern.
 
 ---
 
-## 2. Sync `all.md` (Stage 2)
+## 2. Sync `load-skills-all.md` (Stage 2)
 
-Regenerate `all.md` from all group workflows:
+Regenerate `load-skills-all.md` from all group workflows:
 
 1. **Preserve**: YAML frontmatter, `// turbo-all` annotation
 2. **Regenerate**: All group sections with skill lists
@@ -99,6 +99,7 @@ Regenerate `all.md` from all group workflows:
 4. **Include**: Custom group section if `custom.md` exists
 
 **Section order**: Follow the Standard Load Order in `update.md` §Standard Load Order (Basic → Overview → DRN Framework → Testing → Frontend → Custom).
+
 
 ---
 
@@ -131,10 +132,10 @@ dotnet test <solution-file>               # Run all tests
 Verify and update paths — skill index, load-all workflow, individual workflows. **Auto-discover** all `.md` files in `.agent/workflows/` and classify:
 
 ```markdown
-- **Skill-loading workflows**: `.agent/workflows/{basic,overview,drn,frontend}.md`
+- **Skill-loading workflows**: `.agent/workflows/load-skills-{basic,overview,drn,frontend}.md`
 - **Task workflows**: `.agent/workflows/{review,test,update}.md`
 - **Sub-workflows**: `.agent/workflows/{update-plan,update-execute,update-verify}.md`
-- **Meta workflow**: `.agent/workflows/all.md` (loads all skill groups)
+- **Meta workflow**: `.agent/workflows/load-skills-all.md` (loads all skill groups)
 ```
 
 > Exclude `custom.md` if nonexistent. Include any newly discovered workflow files.

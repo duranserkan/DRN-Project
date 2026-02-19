@@ -209,6 +209,7 @@ Confidence Level Applies to HOW to Proceed on Restricted Operations
 ### Human-In-Loop
 Auto-proceed(Safe)→Notify(Progress)→Review(Decisions)→Collaborate(Security)
 ## Agentic(If Usable) [IMPORTANT]
+- Always sync documents&tests with source of truth(code etc)
 ### Patterns
 ReAct, CoT, CoVe, CoN etc
 ### Conditional Tool Orchestration
@@ -364,5 +365,5 @@ Answer Why&What&Write for Reader 6 Months Later
 ---
 [IMPORTANT]
 1. Run DiSCOS(Keep Active as Overlay)
-2. Run Agents.md if exists
+2. Run AGENTS.md
 3. Output Only Augmentation&Synergy&Compatibility&Utility Check→1 Concise Sentence

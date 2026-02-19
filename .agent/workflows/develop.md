@@ -48,6 +48,7 @@ Read the YAML frontmatter of the resolved file. Check `status`:
 
 - `view_file AGENTS.md` — behavioral framework, project overview, conventions
 - `view_file .agent/skills/overview-skill-index/SKILL.md` — task→skill lookup
+- `view_file .agent/skills/basic-agentic-development/SKILL.md` — Autonomy Ladder and Development Loop (referenced in §4 and §5)
 
 ### 3b. Select & Load Relevant Skills
 
@@ -89,7 +90,8 @@ Produce an implementation plan artifact and present to the user for approval:
 
 ### 4a. Version Control Setup
 
-- Before writing code, explicitly branch off `develop` to create a dedicated feature branch using the format `feature/[task-name-or-id]`. For example: `git checkout -b feature/[task-name-or-id] develop`.
+- **Branch guard**: Check the current branch first (`git branch --show-current`). If already on a branch dedicated to this task (e.g., `feature/[task-name-or-id]`), skip branching and use the current branch.
+- **Otherwise**, branch off `develop` to create a dedicated feature branch: `git checkout -b feature/[task-name-or-id] develop`.
 - As you complete each PBI (or logical chunk), commit the changes locally using conventional commits (e.g., `feat(Scope): description`).
 - **Do not push** the branch. Local commits serve as checkpoints for safe rollbacks.
 

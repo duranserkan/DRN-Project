@@ -19,8 +19,8 @@
 ## Skill Discovery
 
 - **Skill index**: `.agent/skills/overview-skill-index/SKILL.md` — task→skill & layer→skill lookup
-- **Load all skills**: `.agent/workflows/all.md` (cascades: basic → overview → drn → test → frontend)
-- **Individual workflows**: `.agent/workflows/{basic,overview,drn,test,frontend}.md`
+- **Load all skills**: `.agent/workflows/load-skills-all.md` (cascades: basic → overview → drn → test → frontend)
+- **Individual workflows**: `.agent/workflows/load-skills-{basic,overview,drn,test,frontend}.md`
 
 ## Key Commands
 
