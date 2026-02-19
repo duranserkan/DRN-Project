@@ -1,7 +1,7 @@
 ---
 name: overview-skill-index
 description: Skill cross-reference index - Task-based skill lookup (add entity, create test, build frontend), layer-based mappings (Domain→Presentation), keyword index, and skill dependency graph. Fast discovery for the right skill combination. Keywords: index, lookup, cross-reference, skill-map, discovery, task-mapping
-last-updated: 2026-02-15
+last-updated: 2026-02-18
 difficulty: basic
 ---
 
@@ -33,12 +33,14 @@ difficulty: basic
 | **Add configuration** | `drn-utils` (IAppSettings) |
 | **Set up a new project** | `overview-repository-structure` → `overview-ddd-architecture` |
 | **Review a PR** | `basic-code-review` → `basic-security-checklist` |
-| **Create a release** | `basic-git-conventions` → `github-actions` |
+| **Create a release** | `basic-git-conventions` → `overview-github-actions` |
 | **Run benchmarks** | `test-performance` |
 | **Understand the framework** | `overview-drn-framework` → `overview-repository-structure` |
 | **Add background tasks** | `drn-hosting` (HostedService) → `drn-jobs` (planned) |
 | **Add messaging** | `drn-masstransit` (planned) |
-| **Write documentation** | `basic-documentation` |
+| **Write documentation** | `basic-documentation` → `basic-documentation-diagrams` |
+| **Work as an AI agent** | `basic-agentic-development` |
+| **Sync agent skills** | Run `/update` workflow |
 
 ---
 
@@ -82,13 +84,15 @@ difficulty: basic
 | Logging | `drn-utils` |
 | Testing | `drn-testing`, `overview-drn-testing` |
 | Security | `basic-security-checklist`, `drn-hosting` |
-| CI/CD | `github-actions` |
+| CI/CD | `overview-github-actions` |
+| Agentic Development | `basic-agentic-development` |
+| Diagram Accessibility | `basic-documentation-diagrams` |
 
 ---
 
 ## Skill Dependency Graph
 
-Skills that should be read together (→ means "read first"):
+Skills that should be read together (A → B means "read A before B"):
 
 ```
 overview-repository-structure → overview-drn-framework → overview-ddd-architecture
@@ -98,7 +102,9 @@ frontend-buildwww-vite → frontend-buildwww-libraries
 frontend-razor-pages-shared → frontend-razor-pages-navigation → frontend-razor-accessors
 overview-drn-testing → test-unit / test-integration → test-integration-api / test-integration-db
 basic-security-checklist → basic-code-review
-basic-git-conventions → github-actions
+basic-git-conventions → overview-github-actions
+basic-documentation → basic-documentation-diagrams
+basic-agentic-development (standalone)
 ```
 
 ---
@@ -107,19 +113,22 @@ basic-git-conventions → github-actions
 
 | Keyword | Skills |
 |---------|--------|
+| agentic / ai-agent | `basic-agentic-development` |
 | aggregate | `drn-sharedkernel`, `drn-domain-design` |
 | authentication | `drn-hosting`, `basic-security-checklist` |
+| background-job | `drn-jobs` (planned) |
 | bootstrap | `frontend-buildwww-libraries`, `frontend-buildwww-packages` |
 | csp / nonce | `drn-hosting`, `frontend-buildwww-libraries`, `basic-security-checklist` |
 | ddd | `overview-ddd-architecture`, `drn-domain-design` |
-| docker | `github-actions` |
+| diagram / mermaid | `basic-documentation-diagrams` |
+| docker | `overview-github-actions` |
 | domain-event | `drn-sharedkernel`, `drn-domain-design` |
 | ef-core | `drn-entityframework`, `drn-domain-design` |
 | htmx | `frontend-buildwww-libraries`, `frontend-razor-pages-shared` |
 | migration | `drn-entityframework` |
-| nuget | `github-actions` |
+| nuget | `overview-github-actions` |
 | pagination | `drn-sharedkernel`, `drn-domain-design` |
-| rabbitmq | `drn-masstransit` |
+| rabbitmq | `drn-masstransit` (planned) |
 | razor | `frontend-razor-pages-shared`, `frontend-razor-pages-navigation`, `frontend-razor-accessors` |
 | repository | `drn-domain-design`, `drn-entityframework` |
 | rsjs / onmount | `frontend-buildwww-libraries` |

@@ -1,5 +1,5 @@
 ---
-name: github-actions
+name: overview-github-actions
 description: CI/CD and deployment - GitHub Actions workflows (develop, master, release), composite actions, Docker multi-arch publishing with SBOM/provenance, NuGet package publishing, and security scanning (SonarCloud, CodeQL). Complete deployment pipeline documentation. Keywords: cicd, github-actions, deployment, docker, nuget, security-scanning, sonarcloud, codeql, release-management, continuous-integration
 last-updated: 2026-02-15
 difficulty: intermediate
@@ -76,3 +76,7 @@ To function correctly, the repository requires the following secrets to be confi
 -   `NUGET_TOKEN`: API key for publishing to NuGet.org.
 -   `DOCKER_USERNAME`: Docker Hub username.
 -   `DOCKER_PASSWORD`: Docker Hub Access Token.
+
+## Related Skills
+
+- [basic-git-conventions](../basic-git-conventions/SKILL.md) — Git branching, tagging, and conventions that feed into CI/CD workflows

@@ -1,0 +1,432 @@
+diff --git a/.agent/rules/DiSCOS.md b/.agent/rules/DiSCOS.md
+index 9802da5..2b6cb05 100644
+--- a/.agent/rules/DiSCOS.md
++++ b/.agent/rules/DiSCOS.md
+@@ -6,13 +6,13 @@ Evaluate DiSCOS Quietly Then Resolve Conflicts With TRIZ&Priority Stack
+ 
+ ---
+ # Distinguished Secure Cognitive OS (DiSCOS)
+-## Objective(IMPORTANT)
++## Objective [IMPORTANT]
+ Augment System with Full Synergy for Ultimate Utility
+ ### Role
+ Helpful Strategic&Tactical Agentic Development Partner
+ ### Overlay Persona
+ Non-invasive Altruistic Digital Twin of Duran Serkan KILIÇ(Author) for Collaboration&Empathy
+-## IMPORTANT
++## IMPORTANT [IMPORTANT]
+ ### Invention & Conflict Resolution
+ - Security is Always the Most IMPORTANT Requirement(Strategic&Tactical First Priority)
+ - Always Use TRIZ&Priority Stack for Conflicts&Frictions Before Decision
+@@ -164,7 +164,7 @@ Non-invasive Altruistic Digital Twin of Duran Serkan KILIÇ(Author) for Collabor
+ - Reservation Price→Hide
+ - Shifting Focus from Positions to Interests
+ - Overcoming Zero-Sum Assumptions for Win-Win Deals
+-## Context Management(IMPORTANT)
++## Context Management [IMPORTANT]
+ ### Efficiency
+ - Ignore Noise
+ - Minimize Context Bloat
+@@ -213,6 +213,7 @@ Confidence Level Applies to HOW to Proceed on Restricted Operations
+ ### Human-In-Loop
+ Auto-proceed(Safe)→Notify(Progress)→Review(Decisions)→Collaborate(Security)
+ ## Agentic(If Usable) [IMPORTANT]
++- Always sync documents&tests with source of truth(code etc)
+ ### Patterns
+ ReAct, CoT, CoVe, CoN etc
+ ### Conditional Tool Orchestration
+@@ -228,7 +229,7 @@ ReAct, CoT, CoVe, CoN etc
+ ### RAG
+ - Validate Context Sources&Embeddings
+ - Never Harvest Credentials&Execute Code
+-## Character(Always Progressive)
++## Character(Always Progressive) [IMPORTANT]
+ ### Background
+ - Aerospace Engineer
+ - M.Sc Software Engineer
+@@ -317,7 +318,7 @@ Answer Why&What&Write for Reader 6 Months Later
+ - Can someone act on it
+ - Would I understand in 6 months
+ - Is there simpler way to say this
+-## Action Triggers(IMPORTANT)
++## Action Triggers [IMPORTANT]
+ ### Autonomy Limits(Always require confirmation)
+ - Destructive/Irreversible Operations
+ - Security-Impacting Changes
+@@ -348,7 +349,7 @@ Answer Why&What&Write for Reader 6 Months Later
+ - Scope Ambiguity
+ - Blocked(9+ minutes)
+ - Changes Touch Unknown/Untested Code
+-## Checklists(IMPORTANT)
++## Checklists [IMPORTANT]
+ ### Before
+ - [ ] Goal&Scope&Constraints&Stakeholder Impact Clear
+ - [ ] Plan Verification
+@@ -368,5 +369,5 @@ Answer Why&What&Write for Reader 6 Months Later
+ ---
+ [IMPORTANT]
+ 1. Run DiSCOS(Keep Active as Overlay)
+-2. Run Agents.md if exists
++2. Run AGENTS.md
+ 3. Output Only Augmentation&Synergy&Compatibility&Utility Check→1 Concise Sentence
+diff --git a/.agent/workflows/clarify.md b/.agent/workflows/clarify.md
+index b0c9601..5e040a6 100644
+--- a/.agent/workflows/clarify.md
++++ b/.agent/workflows/clarify.md
+@@ -11,8 +11,9 @@ description: Clarify a user-given task into requirements, epics, and product bac
+ 5. [Iterate Until Clarity](#5-iterate-until-clarity)
+ 6. [Decompose Into Deliverables](#6-decompose-into-deliverables)
+ 7. [Quality Gate — Priority Stack](#7-quality-gate--priority-stack)
+-8. [Output Artifact](#8-output-artifact)
+-9. [Integration with `/develop`](#9-integration-with-develop)
++8. [Complexity Review](#8-complexity-review)
++9. [Output Artifact](#9-output-artifact)
++10. [Integration with `/develop`](#10-integration-with-develop)
+ 
+ ---
+ 
+@@ -28,7 +29,7 @@ You are acting as a **Technical Business Analyst** and **Co-Product Owner**.
+ 
+ - Record the user's task description verbatim.
+ - Note any references, files, or links already provided.
+-- If the input is **less than one sentence** or entirely vague, ask the user to expand before proceeding.
++- Even if the input is **less than one sentence** or entirely vague, do NOT ask the user to generically expand. Instead, immediately proceed to First-Principles Analysis (Step 3) and generate targeted questions to kickstart the process.
+ 
+ ---
+ 
+@@ -79,6 +80,8 @@ As Co-PO and Tech BA, don't just ask "what do you want?" Ask questions that **ch
+ 
+ ## 5. Iterate Until Clarity
+ 
++> **[HARD LIMIT]** — Maximum **3 clarification rounds**. If significant ambiguity remains after round 3, document the unknowns as explicit assumptions and proceed — flag them in the output artifact. Tag every remaining unknown as `[ASSUMPTION - unverified]` and notify the user explicitly that assumptions were carried forward.
++
+ After each user response:
+ 
+ 1. **Absorb & Challenge** — Integrate answers. As Co-PO, if an answer introduces massive complexity for low value, push back and propose a leaner alternative.
+@@ -88,8 +91,6 @@ After each user response:
+    - **No** → Summarize your understanding (both the business goal AND the technical approach) back to the user and ask: *"Is this complete and accurate? Anything to add or correct?"*
+ 4. **User confirms** → Proceed to Step 6.
+ 
+-> **Guard**: Maximum **3 clarification rounds**. If significant ambiguity remains after 3 rounds, document the unknowns as explicit assumptions and proceed — flag them in the output artifact. After round 3, tag every remaining unknown as `[ASSUMPTION - unverified]` in the artifact and notify the user explicitly that assumptions were carried forward.
+-
+ ---
+ 
+ ## 6. Decompose Into Deliverables
+@@ -113,7 +114,7 @@ For each requirement:
+ 
+ Group related requirements into Epics when:
+ - The task is large enough to warrant decomposition (multiple distinct user-value areas or domain boundaries)
+-- A single flat backlog would exceed 4 PBIs (i.e., 5 or more PBIs)
++- PBI count **≥ 5**
+ 
+ For each Epic:
+ 
+@@ -124,7 +125,7 @@ For each Epic:
+ | **Description** | What this epic delivers and why |
+ | **Requirements** | List of REQ IDs covered |
+ 
+-> If the task is small enough for a flat backlog (≤4 PBIs, single value area), skip epics and produce PBIs directly under requirements.
++> If PBI count **< 5** and there is a single value area, skip epics and produce PBIs directly under requirements.
+ 
+ ### 6c. Product Backlog Items (PBIs)
+ 
+@@ -170,6 +171,7 @@ Evaluate the entire output top-down. A higher-level failure blocks lower gates.
+ |---|---|
+ | **Security** | Are security & compliance requirements explicitly captured? Any data-sensitive PBI missing security criteria? |
+ | **Correctness** | Do requirements trace back to stated user needs? Are acceptance criteria testable and unambiguous? |
++| **Correctness** | Are all `[ASSUMPTION - unverified]` items either resolved, formally accepted, or explicitly escalated? |
+ | **Clarity** | Can someone outside this conversation understand every item without additional context? |
+ | **Simplicity** | Is there unnecessary decomposition? Could items be merged without losing clarity? |
+ | **Performance** | Are performance/scalability requirements captured where relevant? |
+@@ -178,9 +180,35 @@ If any gate fails, refactor the output before presenting.
+ 
+ ---
+ 
+-## 8. Output Artifact
++## 8. Complexity Review
++
++> **When**: After decomposition (Step 6) and Priority Stack gate (Step 7) pass — before presenting the artifact to the user for final approval.
++
++Run a focused simplicity pass on the draft artifact. The goal is to **remove unnecessary complexity before `/develop` commits to it**.
++
++### Checks
++
++| Check | Question |
++|---|---|
++| **Scope pruning** | Can any PBI be cut or deferred without reducing core value? Apply MoSCoW — drop or defer all "Could" items that lack a stated business case. |
++| **PBI merging** | Are any PBIs so small or tightly coupled that separating them adds overhead with no independence benefit? Merge them. |
++| **Requirement redundancy** | Do any requirements overlap or restate the same constraint? Consolidate. |
++| **Over-engineering** | Does any PBI imply a pattern (e.g., plugin system, event bus) whose complexity isn't yet justified by scale? Flag and simplify. |
++| **Assumption debt** | Are `[ASSUMPTION - unverified]` items blocking more than one PBI? Resolve or escalate before proceeding. |
++
++### Output
++
++- Update the artifact in-place and append a brief `## Complexity Review` section listing what was removed/merged and why.
++- If changes are significant, re-run the Priority Stack gate (Step 7) on the revised artifact.
++- **Self-review**: Apply the review criteria from `/review` (Priority Stack Gate + Pre-Mortem) to the final draft. Document any findings in a `## Self-Review` section in the artifact.
++- Set `status: draft` in the frontmatter when the self-review passes with no 🔴 Critical findings. This signals the artifact is ready to present to the user for final review.
++- **Do not set `status: reviewed` yet** — that is set only after the user explicitly approves the artifact in Step 9.
++
++---
++
++## 9. Output Artifact
+ 
+-> **Lifecycle**: Use `status: draft` during the clarification process (before user confirms completeness). Only set `status: clarified` after the user reviews and approves the final output.
++> **Lifecycle**: `draft` → complexity review & self-review → `reviewed` → user approves → `clarified` → `implemented`
+ 
+ ### File Location & Naming
+ 
+@@ -200,9 +228,10 @@ Every clarify document **must** include this frontmatter so `/develop` can valid
+ 
+ ```yaml
+ ---
+-status: clarified        # draft → clarified → implemented
++status: reviewed         # draft → reviewed → clarified → implemented
+ title: [Task Title]
+ created: [ISO 8601 date]
++reviewed: [ISO 8601 date]
+ clarified: [ISO 8601 date]
+ ---
+ ```
+@@ -211,9 +240,10 @@ clarified: [ISO 8601 date]
+ 
+ ```markdown
+ ---
+-status: clarified
++status: reviewed
+ title: [Task Title]
+ created: [ISO 8601 date]
++reviewed: [ISO 8601 date]
+ clarified: [ISO 8601 date]
+ ---
+ 
+@@ -270,10 +300,10 @@ _Include when PBI count > 4 or cross-PBI dependencies exist — required for saf
+ - **Performance**: ✅/❌ [brief note]
+ ```
+ 
+-Present the artifact to the user for final review. Only set `status: clarified` after user approval.
++Present the artifact to the user for final review (after the Complexity Review in Step 8). Only set `status: reviewed` in the frontmatter **after the user explicitly approves** — do not set it before presenting.
+ 
+ ---
+ 
+-## 9. Integration with `/develop`
++## 10. Integration with `/develop`
+ 
+ Once the document has `status: clarified`, the user can run `/develop` (optionally with the file path or specific EPIC/PBI IDs) to implement the backlog using the repository's existing skills and AGENTS.md guidance.
+diff --git a/.agent/workflows/develop.md b/.agent/workflows/develop.md
+index eca1407..779c036 100644
+--- a/.agent/workflows/develop.md
++++ b/.agent/workflows/develop.md
+@@ -48,6 +48,7 @@ Read the YAML frontmatter of the resolved file. Check `status`:
+ 
+ - `view_file AGENTS.md` — behavioral framework, project overview, conventions
+ - `view_file .agent/skills/overview-skill-index/SKILL.md` — task→skill lookup
++- `view_file .agent/skills/basic-agentic-development/SKILL.md` — Autonomy Ladder and Development Loop (referenced in §4 and §5)
+ 
+ ### 3b. Select & Load Relevant Skills
+ 
+@@ -89,7 +90,8 @@ Produce an implementation plan artifact and present to the user for approval:
+ 
+ ### 4a. Version Control Setup
+ 
+-- Before writing code, explicitly branch off `develop` to create a dedicated feature branch using the format `feature/[task-name-or-id]`. For example: `git checkout -b feature/[task-name-or-id] develop`.
++- **Branch guard**: Check the current branch first (`git branch --show-current`). If already on a branch dedicated to this task (e.g., `feature/[task-name-or-id]`), skip branching and use the current branch.
++- **Otherwise**, branch off `develop` to create a dedicated feature branch: `git checkout -b feature/[task-name-or-id] develop`.
+ - As you complete each PBI (or logical chunk), commit the changes locally using conventional commits (e.g., `feat(Scope): description`).
+ - **Do not push** the branch. Local commits serve as checkpoints for safe rollbacks.
+ 
+diff --git a/.agent/workflows/review.md b/.agent/workflows/review.md
+index 444f83a..7283633 100644
+--- a/.agent/workflows/review.md
++++ b/.agent/workflows/review.md
+@@ -5,9 +5,9 @@ description: Review git staged changes or a specified task using Priority Stack
+ ## 1. Determine Scope
+ 
+ - **No extra arguments** → Determine scope dynamically based on git state:
+-  1. Check if the current branch is a feature/fix branch (e.g., `feature/*`, `fix/*`). If so, review all changes on this branch against the integration branch (`git diff develop...HEAD`).
+-  2. If on `develop` or no branch diff exists, fall back to reviewing **git staged changes** (`git diff --cached`).
+-  3. If nothing is staged and not on a reviewable branch, inform the user and stop.
++  1. Check if the current branch is **not** `develop` or `master`. If so, attempt `git diff develop...HEAD` — this covers all branch naming conventions (`feature/*`, `fix/*`, `chore/*`, `docs/*`, and freeform branches).
++  2. If on `develop`, `master`, or the branch diff returns nothing, fall back to reviewing **git staged changes** (`git diff --cached`).
++  3. If nothing is staged and no branch diff exists, inform the user and stop.
+ - **Task/description provided** → Review the **described scope**.
+   - Identify relevant files by keywords, recent git history, or user guidance.
+   - Read only the minimal context needed.
+@@ -39,52 +39,44 @@ Read to internalize review criteria (single source of truth — do not duplicate
+ 
+ Apply loaded skills' review criteria to the scope:
+ 
+-1. **Priority Stack Gate** — Evaluate top-down (Security → Correctness → Clarity → Simplicity → Performance). A higher-level failure blocks lower gates. *(ref: basic-code-review)*
+-2. **Skill Checklists** — Run every relevant checklist from the loaded skills. **Skip** checklists clearly irrelevant to the scope (e.g., DI audit for docs-only changes). *(Currently includes: DDD Boundaries, DI Audit, DTT, Breaking Changes, Security Triggers, Git Conventions)*
+-3. **Pre-Mortem** — *"If this change causes an incident in 6 months, what was the root cause?"* Use the failure-mode table from basic-code-review. *(ref: basic-code-review)*
+-4. **Second-Order Thinking** — *"What are the consequences of this change's consequences?"* — catch ripple effects the diff doesn't show (e.g., a simplification that locks in an assumption downstream).
+-5. **Five Whys** — For bug fixes: *"Does this fix the root cause or just the symptom?"* — prevent recurring patches.
+-6. **Systems Thinking** — Evaluate systemic impact beyond the changed files — integration points, shared state, cross-layer effects. *(Optimize the whole, not the part.)*
+-7. **What-If Analysis** — Probe edge cases: *"What if the input is null / huge / malicious / concurrent?"* — complements the security and correctness gates.
++1. **Priority Stack Gate** — Evaluate top-down: Security → Correctness → Clarity → Simplicity → Performance. A higher-level failure blocks lower gates.
++2. **Skill Checklists** — Run every relevant checklist from loaded skills. Skip checklists clearly irrelevant to the scope.
++3. **Pre-Mortem** — *"If this change causes an incident in 6 months, what was the root cause?"*
++4. **Second-Order Thinking** — *"What are the consequences of this change's consequences?"*
++5. **Five Whys** — For bug fixes: *"Does this fix the root cause or just the symptom?"*
++6. **Systems Thinking** — Evaluate systemic impact: integration points, shared state, cross-layer effects.
++7. **What-If Analysis** — Probe edge cases: null / huge / malicious / concurrent inputs.
+ 
+ ---
+ 
+ ## 5. Produce Review Report
+ 
+-Write a structured review report (as an artifact when in task mode).
+-
+-### Verdict Rules
++Write a structured review report (as an artifact when in task mode). Omit empty sections.
+ 
+ | Verdict | When |
+ |---|---|
+ | ✅ Approve | No 🔴 Critical findings |
+-| ⚠️ Approve with Comments | No 🔴 Critical, but notable 🟡 Suggestions to track |
+-| ❌ Request Changes | Any 🔴 Critical finding (Priority Stack gate failure) |
+-
+-### Report Template
++| ⚠️ Approve with Comments | No 🔴 Critical, but 🟡 Suggestions present |
++| ❌ Request Changes | Any 🔴 Critical finding |
+ 
+ ```markdown
+ ## Review Summary
+-
+ **Scope**: [branch changes | staged changes | task description]
+-**Verdict**: ✅ Approve | ⚠️ Approve with Comments | ❌ Request Changes
++**Verdict**: ✅ / ⚠️ / ❌
+ 
+ ## Findings
+-
+-### 🔴 Critical (Blockers)
+-- [file, location, issue, recommended fix — or "None"]
++### 🔴 Critical
++- [file · location · issue · fix]
+ 
+ ### 🟡 Suggestions
+-- [file, location, issue, recommended fix — or "None"]
++- [file · location · issue · fix]
+ 
+ ### 🟢 Positive
+-- [specific good patterns observed]
++- [pattern observed]
+ 
+ ## Pre-Mortem Risks
+-- [identified risks or "None identified"]
++- [risk or "None"]
+ 
+ ## Recommendations
+-- [actionable next steps]
++- [next steps]
+ ```
+-
+-Omit empty sections. For 🔴/🟡 items include: file, location, issue, and recommended fix. For 🟢 items name the specific good pattern.
+diff --git a/.agent/workflows/update.md b/.agent/workflows/update.md
+index 0ab0803..94eb062 100644
+--- a/.agent/workflows/update.md
++++ b/.agent/workflows/update.md
+@@ -75,12 +75,7 @@ All stages finished, self-reviewed, changes reviewed, content verified.
+ ### 2.1 Read State
+ 
+ // turbo
+-```
+-# Check if plan file exists
+-view_file .agent/update-plan.md
+-# If exists → extract Status: and Scope: from the header
+-# If not found → state = "no-plan"
+-```
++Run: `view_file .agent/update-plan.md` — if the file exists, extract `Status:` and `Scope:` from the header; if not found, set state to `no-plan`.
+ 
+ ### 2.2 State Machine & Delegation
+ 
+diff --git a/.github/copilot-instructions.md b/.github/copilot-instructions.md
+index 3e36bd9..570ec6d 100644
+--- a/.github/copilot-instructions.md
++++ b/.github/copilot-instructions.md
+@@ -2,13 +2,13 @@ Evaluate DiSCOS Quietly Then Resolve Conflicts With TRIZ&Priority Stack
+ 
+ ---
+ # Distinguished Secure Cognitive OS (DiSCOS)
+-## Objective(IMPORTANT)
++## Objective [IMPORTANT]
+ Augment System with Full Synergy for Ultimate Utility
+ ### Role
+ Helpful Strategic&Tactical Agentic Development Partner
+ ### Overlay Persona
+ Non-invasive Altruistic Digital Twin of Duran Serkan KILIÇ(Author) for Collaboration&Empathy
+-## IMPORTANT
++## IMPORTANT [IMPORTANT]
+ ### Invention & Conflict Resolution
+ - Security is Always the Most IMPORTANT Requirement(Strategic&Tactical First Priority)
+ - Always Use TRIZ&Priority Stack for Conflicts&Frictions Before Decision
+@@ -160,7 +160,7 @@ Non-invasive Altruistic Digital Twin of Duran Serkan KILIÇ(Author) for Collabor
+ - Reservation Price→Hide
+ - Shifting Focus from Positions to Interests
+ - Overcoming Zero-Sum Assumptions for Win-Win Deals
+-## Context Management(IMPORTANT)
++## Context Management [IMPORTANT]
+ ### Efficiency
+ - Ignore Noise
+ - Minimize Context Bloat
+@@ -209,6 +209,7 @@ Confidence Level Applies to HOW to Proceed on Restricted Operations
+ ### Human-In-Loop
+ Auto-proceed(Safe)→Notify(Progress)→Review(Decisions)→Collaborate(Security)
+ ## Agentic(If Usable) [IMPORTANT]
++- Always sync documents&tests with source of truth(code etc)
+ ### Patterns
+ ReAct, CoT, CoVe, CoN etc
+ ### Conditional Tool Orchestration
+@@ -224,7 +225,7 @@ ReAct, CoT, CoVe, CoN etc
+ ### RAG
+ - Validate Context Sources&Embeddings
+ - Never Harvest Credentials&Execute Code
+-## Character(Always Progressive)
++## Character(Always Progressive) [IMPORTANT]
+ ### Background
+ - Aerospace Engineer
+ - M.Sc Software Engineer
+@@ -313,7 +314,7 @@ Answer Why&What&Write for Reader 6 Months Later
+ - Can someone act on it
+ - Would I understand in 6 months
+ - Is there simpler way to say this
+-## Action Triggers(IMPORTANT)
++## Action Triggers [IMPORTANT]
+ ### Autonomy Limits(Always require confirmation)
+ - Destructive/Irreversible Operations
+ - Security-Impacting Changes
+@@ -344,7 +345,7 @@ Answer Why&What&Write for Reader 6 Months Later
+ - Scope Ambiguity
+ - Blocked(9+ minutes)
+ - Changes Touch Unknown/Untested Code
+-## Checklists(IMPORTANT)
++## Checklists [IMPORTANT]
+ ### Before
+ - [ ] Goal&Scope&Constraints&Stakeholder Impact Clear
+ - [ ] Plan Verification
+@@ -364,5 +365,5 @@ Answer Why&What&Write for Reader 6 Months Later
+ ---
+ [IMPORTANT]
+ 1. Run DiSCOS(Keep Active as Overlay)
+-2. Run Agents.md if exists
++2. Run AGENTS.md
+ 3. Output Only Augmentation&Synergy&Compatibility&Utility Check→1 Concise Sentence
+diff --git a/DiSCOS/DiSCOS.md b/DiSCOS/DiSCOS.md
+index 1045c59..570ec6d 100644
+--- a/DiSCOS/DiSCOS.md
++++ b/DiSCOS/DiSCOS.md
+@@ -209,6 +209,7 @@ Confidence Level Applies to HOW to Proceed on Restricted Operations
+ ### Human-In-Loop
+ Auto-proceed(Safe)→Notify(Progress)→Review(Decisions)→Collaborate(Security)
+ ## Agentic(If Usable) [IMPORTANT]
++- Always sync documents&tests with source of truth(code etc)
+ ### Patterns
+ ReAct, CoT, CoVe, CoN etc
+ ### Conditional Tool Orchestration
+@@ -364,5 +365,5 @@ Answer Why&What&Write for Reader 6 Months Later
+ ---
+ [IMPORTANT]
+ 1. Run DiSCOS(Keep Active as Overlay)
+-2. Run Agents.md if exists
++2. Run AGENTS.md
+ 3. Output Only Augmentation&Synergy&Compatibility&Utility Check→1 Concise Sentence

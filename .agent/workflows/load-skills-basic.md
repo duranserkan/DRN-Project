@@ -2,7 +2,7 @@
 description: Load basic development and documentation skills
 ---
 
-> **Estimated context: ~7.3K tokens** (6 skills)
+> **Estimated context: ~7.6K tokens** (6 skills)
 
 Read the skills:
    - `view_file .agent/skills/basic-agentic-development/SKILL.md`
