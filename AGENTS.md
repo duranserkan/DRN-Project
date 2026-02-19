@@ -4,8 +4,8 @@
 
 ## Behavioral Framework
 
-Read and follow `DiSCOS/DiSCOS.md` — the Distinguished Secure Cognitive OS.
-**Security is always the first priority.** Use TRIZ & Priority Stack for all conflicts.
+1. Re-read `DiSCOS/DiSCOS.md` — the Distinguished Secure Cognitive OS.
+2. Always sync documents&tests with source of truth(code etc)
 
 ## Project Overview
 
@@ -15,7 +15,6 @@ Read and follow `DiSCOS/DiSCOS.md` — the Distinguished Secure Cognitive OS.
 | **Architecture** | Domain → Infrastructure/Application → Hosted |
 | **Frontend** | Razor Pages + htmx + Bootstrap 5 (Vite build) |
 | **Testing** | DTT — integration-first with Testcontainers |
-| **CI/CD** | GitHub Actions with composite actions       |
 
 ## Skill Discovery
 
@@ -28,7 +27,6 @@ Read and follow `DiSCOS/DiSCOS.md` — the Distinguished Secure Cognitive OS.
 ```bash
 dotnet build DRN.slnx          # Build solution
 dotnet test DRN.slnx           # Run all tests
-dotnet run --project Sample.Hosted  # Run sample app
 ```
 
 ## Conventions

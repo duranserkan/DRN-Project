@@ -76,3 +76,7 @@ To function correctly, the repository requires the following secrets to be confi
 -   `NUGET_TOKEN`: API key for publishing to NuGet.org.
 -   `DOCKER_USERNAME`: Docker Hub username.
 -   `DOCKER_PASSWORD`: Docker Hub Access Token.
+
+## Related Skills
+
+- [basic-git-conventions](../basic-git-conventions/SKILL.md) — Git branching, tagging, and conventions that feed into CI/CD workflows

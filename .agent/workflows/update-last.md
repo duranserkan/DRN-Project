@@ -40,9 +40,8 @@ This produces a list of file paths (one per line) that were added, modified, or 
 ## 3. Build Scope
 
 1. **Remove** blank lines and duplicates — produce a unique, sorted file list
-
-> [!NOTE]
-> **Deleted files are included intentionally.** `git log --name-only` does not distinguish deleted files from modified or added ones. This is safe — `/update-plan` §0–§2 discovery resolves scope from the live filesystem (`list_dir`, `find_by_name`, `grep_search`), so deleted files fail to match any skill or project and are silently excluded during scope resolution.
+    > [!NOTE]
+    > **Deleted files are included intentionally.** `git log --name-only` does not distinguish deleted files from modified or added ones. This is safe — `/update-plan` §0–§2 discovery resolves scope from the live filesystem (`list_dir`, `find_by_name`, `grep_search`), so deleted files fail to match any skill or project and are silently excluded during scope resolution.
 2. **Validate** — if no files changed, report and stop:
    ```
    ℹ️ No files changed in the last <N> commit(s). Nothing to sync.

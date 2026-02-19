@@ -16,7 +16,7 @@ Create `.agent/update-verify-progress.md` or resume from an existing one:
 ```
 view_file .agent/update-verify-progress.md
 # Not found → create from template (§0.1)
-# Found → resume from first non-done stage
+# Found → resume from first non-done stage (skip pass, fail, skipped, blocked)
 ```
 
 ### 0.1 Progress File Template
@@ -33,7 +33,7 @@ view_file .agent/update-verify-progress.md
 ---
 
 ## Stage 0: Structural Integrity
-> Status: pending | skipped | executing | pass | fail
+> Status: pending | skipped | executing | pass | fail | blocked
 
 ### Checks
 - [ ] Every `.agent/skills/` directory appears in its primary group workflow and vice-versa
@@ -185,7 +185,7 @@ Check off items in progress file. Set Stage 0 to `pass` or `fail`.
 
 > Stage 0 **failure blocks all subsequent stages** — structural integrity is prerequisite for content verification. Stop and report.
 >
-> Subsequent stages remain `pending` in the progress file. This is intentional — they are **inert** until Stage 0 is re-run and passes. Do not interpret `pending` stages as ready-to-proceed when Stage 0 is `fail`.
+> When Stage 0 fails, mark all subsequent stages as `blocked`. Blocked stages are terminal — the resume logic skips them and does not treat them as ready-to-proceed. Re-run Stage 0 after fixing issues; on pass, reset blocked stages to `pending`.
 
 ---
 
@@ -222,7 +222,7 @@ For each project-family stage from §0.1, verify skills accurately describe curr
 ### 3.1 Identify Relevant Skills
 
 ```
-grep_search "<FamilyPrefix>" .agent/skills/ --include "SKILL.md"
+grep_search "<FamilyPrefix>" .agent/skills/*/SKILL.md
 ```
 
 ### 3.2 Verify Code Identifiers
@@ -294,7 +294,7 @@ All stages passed. Skill content is aligned with source code.
 3. Clean up: delete `.agent/update-verify-progress.md` and `.agent/update-plan.md`
 ```
 
-> **Stage Resumption**: Follow the Stage Resumption Protocol from `update.md` §Plan File Contract, using `.agent/update-verify-progress.md` as coordination file. Terminal statuses: `pass`, `fail`, `skipped`.
+> **Stage Resumption**: Follow the Stage Resumption Protocol from `update.md` §Plan File Contract, using `.agent/update-verify-progress.md` as coordination file. Terminal statuses: `pass`, `fail`, `skipped`, `blocked`.
 
 ---
 

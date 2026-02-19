@@ -179,7 +179,7 @@ Non-invasive Altruistic Digital Twin of Duran Serkan KILIÇ(Author) for Collabor
 - Match Cognitive Depth to Decision Reversibility
 - Economize for Routine/Low-Risk Operations
 ### Output
-- Structured Data
+- Structured Data→JSON/YAML
 - Code→Complete Runnable Blocks
 - Explanations→Hierarchical&Scannable
 ### Research Budget
@@ -362,8 +362,7 @@ Answer Why&What&Write for Reader 6 Months Later
 - [ ] Criteria Met, Docs Updated
 - [ ] Priority Stack Used as Quality Gate
 ---
-
-1. IMPORTANT:Review DiSCOS then Run it as a Whole(Keep Active as Overlay)
-2. Run Agents.md after DiSCOS
-3. Always sync documents&tests with source of truth(code etc)
-4. Output Only Augmentation&Synergy&Compatibility&Utility Check→1 Concise Sentence
+[IMPORTANT]
+1. Run DiSCOS(Keep Active as Overlay)
+2. Run Agents.md if exists
+3. Output Only Augmentation&Synergy&Compatibility&Utility Check→1 Concise Sentence

@@ -24,7 +24,7 @@ description: Execution phase of /update — read update-plan.md, execute sync st
    | `all` / *(omitted)* | `.agent/` |
    | `<group>` | `.agent/workflows/<group>.md` `.agent/skills/<group>-*/**` |
    | `<skill-dir>` | `.agent/skills/<skill-dir>/**` |
-   | `skills` | `.agent/skills/**` `.agent/workflows/{basic,overview,drn,frontend,test}.md` |
+   | `skills` | `.agent/skills/**` `.agent/workflows/{basic,overview,drn,frontend,test,review}.md` |
    | `agents` | `AGENTS.md` + solution/csproj files + `.agent/workflows/{basic,overview,drn,frontend,test}.md` + `.agent/skills/overview-skill-index/**` |
    | `projects` | Solution/csproj files + project-referencing skill paths |
    | `infra` | Non-project asset paths (`Directory.Build.props`, CI/CD, Docker) |
@@ -152,7 +152,7 @@ When the project prefix has changed (e.g., `Sample` → `MyApp`):
 1. **Detect**: Scan skill files for **all** project prefixes (from `<Project>` entries in solution file). Framework prefixes (`DRN.Framework.*`) are **never** substituted
 2. **Scan**: `grep_search` for old prefix across `.agent/skills/*/SKILL.md`
 3. **Present mapping** — show **all** prefix families separately:
-   ```
+   ```text
    Family 1: Sample.* → MyApp.*
      Sample.Hosted      → MyApp.Hosted
      Sample.Application  → MyApp.Application
@@ -163,7 +163,7 @@ When the project prefix has changed (e.g., `Sample` → `MyApp`):
    ```
 4. **Wait for user approval** — modifies hand-authored content (DiSCOS Autonomy Ladder level 4)
 5. **Apply**: Find-and-replace approved mappings only; use a boundary-aware match:
-   ```
+   ```regex
    Match: (?<=[ \t`'"\n\/]|^)<Prefix>\.
    ```
    The prefix must be immediately preceded by whitespace, BOL, a backtick, a quote (`'`, `"`), or `/` — never by another identifier character. This prevents partial-match corruption of identifiers like `SampleData`, `ExampleSample`, or `SampleTest`.

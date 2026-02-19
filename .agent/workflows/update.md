@@ -29,7 +29,7 @@ flowchart LR
 
 ### Standard Load Order
 
-Automated sync operations (Stage 1, Stage 2, Stage 0) follow a consistent group order to ensure dependency-aware loading:
+Automated sync operations follow a consistent group order to ensure dependency-aware loading. This order governs Stage 1 (group loader skill lists), Stage 2 (`all.md` section ordering), and Stage 5 (Skill Index By Layer tables). §0 (Pre-Execution Validation) is a gate, not a sync stage.
 
 `Basic` → `Overview` → `DRN Framework` → `Testing` → `Frontend` → `Custom`
 
