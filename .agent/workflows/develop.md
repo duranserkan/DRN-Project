@@ -89,7 +89,7 @@ For each PBI (in dependency and priority order):
 2. **Map to implementation tasks** — concrete code changes
 3. **Identify risks** — breaking changes, security, schema changes
 4. **Estimate complexity** — trivial / standard / significant / critical (per Autonomy Ladder)
-5. **Assumption Check** — If `[ASSUMPTION - unverified]` found → return to `/answer` (preferred) or `/clarify` (scope change)
+5. **Assumption Check** — If `[ASSUMPTION - unverified]` found → return to `/answer` (preferred) or `/clarify` (scope change). If assumption cannot be resolved before development, **halt and escalate** — do not implement the PBI under an unresolved assumption.
 6. **Conflict Resolution** — Competing constraints → **TRIZ** first, then **Priority Stack**
 
 Present implementation plan:

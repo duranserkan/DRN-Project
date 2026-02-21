@@ -8,7 +8,9 @@ difficulty: intermediate
 # Razor Page Navigation
 
 > Standardized navigation data structures, sidebar configuration, and dynamic menu generation for DRN hosted applications.
-> **Note**: `Sample.Hosted` serves as the reference implementation for these patterns.
+
+> [!NOTE]
+> `Sample.Hosted` is the reference implementation for these patterns.
 
 ## When to Apply
 - Adding items to the Sidebar
@@ -63,6 +65,8 @@ Defines the fixed bottom settings menu in the sidebar, typically used for user p
 var sidebarSettingsCollection = ViewData[Get.ViewDataKeys.SidebarSettingsCollection] as SidebarSettingsCollection 
                                 ?? new SidebarSettingsCollection();
 ```
+
+---
 
 ## SubNavigation
 
@@ -123,6 +127,9 @@ Key responsibilities include:
     </a>
 }
 ```
+
+
+---
 
 ## Related Skills
 - [frontend-razor-pages-shared.md](../frontend-razor-pages-shared/SKILL.md) - Layout System

@@ -130,7 +130,15 @@ If any gate fails → refactor before presenting.
 
 **Lifecycle**: `/clarify` owns `draft` → `clarifying` → `draft-self-reviewed`. It **never** sets `clarified` (that is `/answer`'s responsibility). Verify all §8 gates and §7d INVEST pass before presenting. Apply fixes in-place, then set `status: draft-self-reviewed`.
 
-**Pre-presentation checklist** (run in order): [ ] §8 Priority Stack gates pass · [ ] INVEST valid · [ ] No unresolved `[ASSUMPTION - unverified]` · [ ] No scope creep · [ ] `/review` passed (no 🔴 Critical) → then set `status: draft-self-reviewed`.
+**Pre-presentation checklist** (run in order, fix in-place before presenting):
+
+- [ ] §8 Priority Stack gates pass
+- [ ] INVEST valid for all PBIs
+- [ ] No unresolved `[ASSUMPTION - unverified]`
+- [ ] No scope creep
+- [ ] `/review` passed (no 🔴 Critical)
+
+Then set `status: draft-self-reviewed`.
 
 ### Document Skeleton
 

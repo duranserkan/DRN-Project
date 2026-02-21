@@ -99,7 +99,7 @@ public class UserIdentityLoginFor : ControllerForBase<SampleIdentityLoginControl
 <form hx-post="@Get.Endpoint.User.LoginController.Login.Path()">
 ```
 
-### logical Accessors (`ClaimFor` / `FeatureFor`)
+### Logical Accessors (`ClaimFor` / `FeatureFor`)
 
 Wrap complex logic (like `ScopeContext` checks) into readable properties.
 

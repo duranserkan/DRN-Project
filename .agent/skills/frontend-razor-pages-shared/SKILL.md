@@ -8,7 +8,9 @@ difficulty: intermediate
 # Razor Pages Layout System
 
 > Core layout system and shared Razor structure for DRN hosted applications.
-> **Note**: `Sample.Hosted` serves as the reference implementation for these patterns.
+
+> [!NOTE]
+> `Sample.Hosted` is the reference implementation for these patterns.
 
 ## When to Apply
 - Modifying `_Layout.cshtml` structure
