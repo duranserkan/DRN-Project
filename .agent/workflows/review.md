@@ -4,56 +4,55 @@ description: Review git staged changes, diff the current feature/fix branch agai
 
 ## 1. Determine Scope
 
-- **No extra arguments** → Determine scope dynamically based on git state:
-  1. Check if the current branch is **not** `develop` or `master`. If so, attempt `git diff develop...HEAD` — this covers all branch naming conventions (`feature/*`, `fix/*`, `chore/*`, `docs/*`, and freeform branches).
-  2. If on `develop`, `master`, or the branch diff returns nothing, fall back to reviewing **git staged changes** (`git diff --cached`).
-  3. If nothing is staged and no branch diff exists, inform the user and stop.
-- **Task/description provided** → Review the **described scope**.
-  - Identify relevant files by keywords, recent git history, or user guidance.
-  - Read only the minimal context needed.
+- **File path(s) provided** → Read the specified files directly; skip git analysis.
+- **No arguments** → Determine dynamically:
+  1. Not on `develop`/`master` → run `git diff develop...HEAD`. Works for all branch naming conventions.
+  2. On `develop`/`master`, or branch diff is empty → fall back to `git diff --cached` (staged changes).
+  3. Nothing staged and no branch diff → inform user and stop.
+- **Task/description provided** → Identify relevant files via keywords, recent git history, or user guidance. Read minimal context only.
 
 ---
 
 ## 2. Load Review Skills
 
-Read to internalize review criteria (single source of truth — do not duplicate content here):
+```text
+view_file .agent/skills/basic-code-review/SKILL.md
+view_file .agent/skills/basic-security-checklist/SKILL.md
+view_file .agent/skills/basic-documentation/SKILL.md
+view_file .agent/skills/basic-git-conventions/SKILL.md
+```
 
-- `view_file .agent/skills/basic-code-review/SKILL.md`
-- `view_file .agent/skills/basic-security-checklist/SKILL.md`
-- `view_file .agent/skills/basic-documentation/SKILL.md`
-- `view_file .agent/skills/basic-git-conventions/SKILL.md`
+Single source of truth — do not duplicate criteria here.
 
 ---
 
 ## 3. Analyze
 
-- **Branch or Staged changes** — Depending on the scope determined in Step 1:
-  - Run `git diff develop...HEAD --stat` or `git diff --cached --stat` for an overview.
-  - Run `git diff develop...HEAD` or `git diff --cached` for the full diff. Read surrounding context of changed files as needed.
-- **Specified task** — Read identified files and understand change scope.
-- If diff exceeds ~500 lines, break into logical file groups and evaluate each group independently before synthesizing the final verdict.
+- **Branch/Staged**: Run `--stat` first for overview, then full diff. Read surrounding file context as needed. Note: deleted files appear as pure removals — confirm no dangling references remain.
+- **Specified task**: Read identified files; understand change scope.
+- If diff exceeds ~500 lines, split into logical file groups, evaluate each, then synthesize.
 
 ---
 
 ## 4. Evaluate
 
-Apply loaded skills' review criteria to the scope:
+Apply loaded skills' criteria top-down:
 
-1. **Priority Stack Gate** — Evaluate top-down: Security → Correctness → Clarity → Simplicity → Performance. A higher-level failure blocks lower gates.
-2. **Skill Checklists** — Run every relevant checklist from loaded skills. Skip checklists clearly irrelevant to the scope.
-3. **Pre-Mortem** — *"If this change causes an incident in 6 months, what was the root cause?"*
+1. **Priority Stack Gate** — Security → Correctness → Clarity → Simplicity → Performance. Higher failure blocks lower gates.
+2. **Skill Checklists** — Run every relevant checklist; skip clearly irrelevant ones.
+3. **Pre-Mortem** — *"If this causes an incident in 6 months, what was the root cause?"*
 4. **Second-Order Thinking** — *"What are the consequences of this change's consequences?"*
-5. **Five Whys** — For bug fixes: *"Does this fix the root cause or just the symptom?"*
-6. **Systems Thinking** — Evaluate systemic impact: integration points, shared state, cross-layer effects.
-7. **What-If Analysis** — Probe edge cases: null / huge / malicious / concurrent inputs.
+5. **Five Whys** — Bug fixes only: *"Does this fix the root cause or the symptom?"*
+6. **Systems Thinking** — Integration points, shared state, cross-layer effects.
+7. **What-If Analysis** — Null / huge / malicious / concurrent inputs.
 
 ---
 
 ## 5. Produce Review Report
 
-Write a structured review report (as an artifact when in task mode). Omit empty sections.
+Write as an artifact in task mode. Omit empty sections.
 
-| Verdict | When |
+| Verdict | Condition |
 |---|---|
 | ✅ Approve | No 🔴 Critical findings |
 | ⚠️ Approve with Comments | No 🔴 Critical, but 🟡 Suggestions present |
@@ -73,6 +72,9 @@ Write a structured review report (as an artifact when in task mode). Omit empty 
 
 ### 🟢 Positive
 - [pattern observed]
+
+### 🔵 Notes
+- [informational observation · no action required]
 
 ## Pre-Mortem Risks
 - [risk or "None"]
