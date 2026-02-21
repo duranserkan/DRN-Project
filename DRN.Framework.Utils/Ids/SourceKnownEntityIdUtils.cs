@@ -71,9 +71,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     private const byte SourceKnownMarkerVariantByte = 0x8D; //8 | Variant RFC 4122
 
     //9, 10 and 11 are reserved for hash
-
     private const byte EntityIdSecondHalfOffset = 12;
-
     private const byte EntityIdSecondHalfLength = 4; // 12-15
 
     // Key separation: KeyAsBinary and AlternativeKeyAsBinary are cryptographically independent keys from the same keyring entry.
@@ -83,6 +81,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
 
     // Singleton — DI container disposes at shutdown. EncryptEcb/DecryptEcb are stateless single-block ops safe for concurrent use.
     // Stress tested with SourceKnownEntityIdUtilsTests
+    // Post-quantum readiness: AES-256 retains 128-bit security under Grover's algorithm — NIST recommended for post-quantum symmetric encryption.
     private readonly Aes _aes = CreateAes(appSettings.NexusAppSettings.GetDefaultMacKey().AlternativeKeyAsBinary);
 
     public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity => Generate(id, SourceKnownEntity.GetEntityType<TEntity>());
@@ -101,7 +100,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         guidBytes.Clear();
 
         WriteIdAndMarkers(guidBytes, id, entityType, SourceKnownMarkerVariantByte);
-        ComputeMac(guidBytes, hashBytes);
+        ComputeMac(guidBytes, hashBytes, _defaultMacKey);
         WriteMacToGuid(guidBytes, hashBytes);
 
         var entityId = new Guid(guidBytes);
@@ -121,11 +120,11 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
 
         // Build guid identically to non-secure (same layout, same markers)
         WriteIdAndMarkers(guidBytes, id, entityType, SourceKnownMarkerVariantByte);
-        ComputeMac(guidBytes, hashBytes);
+        ComputeMac(guidBytes, hashBytes, _defaultMacKey);
         WriteMacToGuid(guidBytes, hashBytes);
 
         // Encrypt entire 16-byte block with AES-ECB (true PRP — no nonce needed)
-        EncryptGuidBlock(guidBytes);
+        EncryptGuidBlock(guidBytes, _aes);
 
         var entityId = new Guid(guidBytes);
         var sourceKnownId = sourceKnownIdUtils.Parse(id);
@@ -154,7 +153,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         }
 
         // Try secure path: AES-ECB decrypt full block, then check for markers
-        DecryptGuidBlock(guidBytes);
+        DecryptGuidBlock(guidBytes, _aes);
 
         if (HasValidMarkers(guidBytes))
             return VerifyAndParse(guidBytes, entityId);
@@ -210,7 +209,7 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
         var id = (long)idBuilder.GetValue();
 
         ClearMacSlots(guidBytes);
-        ComputeMac(guidBytes, expectedHashBytes);
+        ComputeMac(guidBytes, expectedHashBytes, _defaultMacKey);
 
         if (expectedHashBytes.SequenceEqual(actualHashBytes))
             return new SourceKnownEntityId(sourceKnownIdUtils.Parse(id), entityId, entityType, true);
@@ -239,9 +238,9 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     /// <summary>
     /// Computes BLAKE3 keyed MAC over the guid bytes (MAC slots must be zeroed before calling).
     /// </summary>
-    private void ComputeMac(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes)
+    private static void ComputeMac(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes, BinaryData defaultMacKey)
     {
-        using var hasher = Hasher.NewKeyed(_defaultMacKey);
+        using var hasher = Hasher.NewKeyed(defaultMacKey);
         hasher.Update(guidBytes);
         hasher.Finalize(hashBytes);
     }
@@ -289,10 +288,10 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     /// ECB's known weakness (identical blocks → identical ciphertexts) does not apply here
     /// because there is only one block per encryption call.
     /// </summary>
-    private void EncryptGuidBlock(Span<byte> guidBytes)
+    private static void EncryptGuidBlock(Span<byte> guidBytes, Aes aes)
     {
         Span<byte> output = stackalloc byte[16];
-        _aes.EncryptEcb(guidBytes, output, PaddingMode.None);
+        aes.EncryptEcb(guidBytes, output, PaddingMode.None);
         output.CopyTo(guidBytes);
     }
 
@@ -300,19 +299,26 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     /// Decrypts all 16 guid bytes in-place using AES-256-ECB (single-block PRP inverse).
     /// See <see cref="EncryptGuidBlock"/> for rationale on ECB vs CBC for single-block operations.
     /// </summary>
-    private void DecryptGuidBlock(Span<byte> guidBytes)
+    private static void DecryptGuidBlock(Span<byte> guidBytes, Aes aes)
     {
         Span<byte> output = stackalloc byte[16];
-        _aes.DecryptEcb(guidBytes, output, PaddingMode.None);
+        aes.DecryptEcb(guidBytes, output, PaddingMode.None);
         output.CopyTo(guidBytes);
     }
 
     private static Aes CreateAes(BinaryData key)
     {
+        var keyBytes = key.ToArray();
+        if (keyBytes.Length != 32)
+            throw new ArgumentException(
+                $"AES-256-ECB requires a 32-byte key but received {keyBytes.Length} bytes. " +
+                $"Verify that AlternativeKeyAsBinary produces a 256-bit key.",
+                nameof(key));
+
         var aes = Aes.Create();
         aes.Mode = CipherMode.ECB;
         aes.Padding = PaddingMode.None;
-        aes.Key = key.ToArray();
+        aes.Key = keyBytes;
 
         return aes;
     }

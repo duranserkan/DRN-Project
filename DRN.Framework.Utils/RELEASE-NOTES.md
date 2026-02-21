@@ -31,6 +31,9 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 *   **HTTP & Temporal IDs**
     *   **Resilient HTTP**: `IInternalRequest`/`IExternalRequest` with enriched `HttpResponse<T>` diagnostics and Flurl integration.
     *   **Temporal IDs**: `ISourceKnownIdUtils` and `ISourceKnownEntityIdUtils` providing globally sortable identifiers.
+    *   **Secure Entity IDs**: AES-256-ECB single-block encrypted `SourceKnownEntityId` variants with flag-based dispatch via `UseSecureSourceKnownIds` (defaults to `true`).
+        *   `GenerateSecure` / `GenerateUnsecure` explicit methods; `Parse` auto-detects encrypted and plaintext IDs.
+        *   Post-quantum ready — AES-256 retains 128-bit security under Grover's algorithm.
 *   **Concurrency**
     *   **Lock-Free Atomics**: `LockUtils` static helpers (`TryClaimLock`, `TryClaimScope`, `ReleaseLock`, `TrySetIfEqual`, `TrySetIfNull`, `TrySetIfNotEqual`, `TrySetIfNotNull`) for lock-free coordination using `Interlocked`. Includes disposable `LockScope` ref struct for automatic lock release via `using`.
 *   **Core Extensions & Time**
