@@ -16,14 +16,15 @@
 
 ## TL;DR
 
-- **Attribute DI** - `[Scoped<T>]`, `[Singleton<T>]`, `[Transient<T>]` for zero-config service registration
-- **Configuration** - `IAppSettings` with typed access, `[Config("Section")]` bindings
-- **Scoped Logging** - `IScopedLog` aggregates structured logs per request
-- **Scoped Cancellation** - Scoped `ICancellationUtils` for request lifecycle control
-- **Monotonic Pagination** - Cursor-based pagination leveraging entity ID temporal ordering
-- **Bit Packing** - High-performance `NumberBuilder` for custom data structures
-- **Ambient Context** - `ScopeContext.UserId`, `ScopeContext.Settings` anywhere
-- **Auto-Registration** - `AddServicesWithAttributes()` scans and registers all attributed services
+- **Attribute DI** — `[Scoped<T>]`, `[Singleton<T>]`, `[Transient<T>]` for zero-config service registration
+- **Configuration** — `IAppSettings` with typed access, `[Config("Section")]` bindings
+- **Scoped Logging** — `IScopedLog` aggregates structured logs per request
+- **Scoped Cancellation** — Scoped `ICancellationUtils` for request lifecycle control
+- **Monotonic Pagination** — Cursor-based pagination leveraging entity ID temporal ordering
+- **Bit Packing** — High-performance `NumberBuilder` for custom data structures
+- **Ambient Context** — `ScopeContext.UserId`, `ScopeContext.Settings` anywhere
+- **Auto-Registration** — `AddServicesWithAttributes()` scans and registers all attributed services
+- **Secure Entity IDs** — AES-256-ECB single-block encrypted, post-quantum secure SourceKnownEntityIds with auto-detecting `Parse`
 
 ## Table of Contents
 
@@ -293,6 +294,35 @@ Override the mount directory by registering `IMountedSettingsConventionsOverride
 | Mounted settings not loading | Wrong mount path | Verify files exist at `/appconfig/json-settings/` or override via `IMountedSettingsConventionsOverride` |
 | Environment variables not binding | Wrong naming format | Use `__` (double underscore) for nested keys: `MySection__MyKey` |
 
+### DrnAppFeatures
+
+Feature flags and runtime knobs bound from the `DrnAppFeatures` configuration section via `[Config]`.
+
+```json
+{
+  "DrnAppFeatures": {
+    "SeedData": false,
+    "SeedKey": "Peace at home! Peace in the world! - Mustafa Kemal Atatürk (1931)",
+    "DisableRequestBuffering": false,
+    "MaxRequestBufferingSize": 0
+  }
+}
+```
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ApplicationStartedBy` | `string?` | `null` | Identifies which test started the application (set automatically by `DrnTestContext`). |
+| `SeedData` | `bool` | `false` | Enables data seeding on startup. |
+| `SeedKey` | `string` | `"Peace at home!…"` | Secret key for seed operations. Enforced `[SecureKey(MinLength = 58)]`. |
+| `InternalRequestHttpVersion` | `string` | `"1.1"` | HTTP version used by `IInternalRequest`. |
+| `InternalRequestProtocol` | `string` | `"http"` | Protocol scheme used by `IInternalRequest` (e.g., `http`, `https`). |
+| `UseMonotonicDateTimeProvider` | `bool` | `false` | Experimental — switches to monotonic time provider for behavioral data collection. |
+| `DisableRequestBuffering` | `bool` | `false` | Disables request body buffering entirely. Use for high-throughput services (e.g., file upload endpoints). |
+| `MaxRequestBufferingSize` | `int` | `0` (→ 30,000) | Maximum request body size to buffer in bytes. Values below 10,000 are ignored; 0 uses the 30,000-byte default. |
+
+> [!TIP]
+> `DisableRequestBuffering` and `MaxRequestBufferingSize` are consumed by `RequestBufferingState` in `DRN.Framework.Hosting`. See the [Hosting README](../DRN.Framework.Hosting/README.md) for middleware details.
+
 ## Logging (`IScopedLog`)
 
 `IScopedLog` provides request-scoped structured logging. It aggregates operational data, metrics, and checkpoints during the request lifecycle, flushing them as a single entry for efficient monitoring.
@@ -519,6 +549,39 @@ worker.Stop();
 **SourceKnownEntity ID's** provide reversible, type-safe, and integrity-checked identifiers.
 > [!NOTE]
 > ID generation is automatically handled by `DrnContext` when SourceKnownEntities are saved.
+
+#### Generation Modes
+
+The `Generate` method dispatches to secure or unsecure generation based on the `UseSecureSourceKnownIds` flag in `NexusAppSettings` (defaults to `true`). Explicit `GenerateSecure` and `GenerateUnsecure` methods are also available to bypass the flag.
+
+| Method | Behavior |
+|--------|----------|
+| `Generate` | Dispatches to secure or unsecure based on `UseSecureSourceKnownIds` |
+| `GenerateSecure` | AES-256-ECB encrypted — full 16-byte GUID is a ciphertext block |
+| `GenerateUnsecure` | Plaintext with visible `4D8D` version/variant markers |
+
+**Secure variant** encrypts the entire 16-byte GUID using AES-256-ECB as a pseudo-random permutation (PRP). For a single 128-bit block, ECB is mathematically identical to CBC with a zero IV — no nonce required, no nonce-reuse vulnerability. Key separation ensures BLAKE3 keyed MAC (integrity) and AES-256 (confidentiality) use cryptographically independent keys from the same keyring entry.
+
+> [!NOTE]
+> **Post-quantum readiness**: AES-256 retains 128-bit security under Grover's algorithm — NIST recommended for post-quantum symmetric encryption.
+
+```csharp
+// Generate with flag-based dispatch (secure by default)
+var entityId = sourceKnownEntityIdUtils.Generate<User>(id);
+
+// Explicitly secure
+var secureId = sourceKnownEntityIdUtils.GenerateSecure<User>(id);
+
+// Explicitly unsecure (visible markers for debugging/development)
+var unsecureId = sourceKnownEntityIdUtils.GenerateUnsecure<User>(id);
+```
+
+#### Parse & Validation
+
+`Parse` auto-detects encrypted and plaintext IDs — it first checks for plaintext markers, then attempts AES-ECB decryption if markers are absent. Both paths verify MAC integrity.
+
+> [!IMPORTANT]
+> Add rate limiting to endpoints that accept `SourceKnownEntityId` from untrusted sources to prevent brute-force attacks.
 
 Users can validate incoming IDs (e.g., from APIs) using multiple approaches depending on the context:
 

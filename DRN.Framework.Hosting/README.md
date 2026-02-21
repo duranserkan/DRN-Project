@@ -94,15 +94,20 @@ public async Task WeatherForecast_Should_Return_Data(DrnTestContext context, ITe
 ## Directory Structure
 ```
 DRN.Framework.Hosting/
-├── DrnProgram/       # DrnProgramBase, options, actions, conventions
-├── Endpoints/        # EndpointCollectionBase, PageForBase, type-safe accessors
-├── Auth/             # Policies, MFA configuration, requirements
-├── Consent/          # GDPR cookie consent management
-├── Identity/         # Identity integration and scoped user middleware
-├── Middlewares/      # HttpScopeLogger, exception handling, security middlewares
-├── TagHelpers/       # Razor TagHelpers (Vite, Nonce, CSRF, Auth-Only, Anon-Only)
-├── Areas/            # Framework-provided Razor Pages (e.g., Error pages)
-├── wwwroot/          # Framework style and script assets
+├── DrnProgram/          # DrnProgramBase, options, actions, conventions
+├── Endpoints/           # EndpointCollectionBase, PageForBase, type-safe accessors
+├── Auth/                # Policies, MFA configuration, requirements
+├── BackgroundServices/  # StaticAssetWarmService (pre-warm compressed assets)
+├── Consent/             # GDPR cookie consent management
+├── Extensions/          # Configuration, controller context, endpoint helpers
+├── HealthCheck/         # WeatherForecastControllerBase for quick health checks
+├── Identity/            # Identity integration and scoped user middleware
+├── Middlewares/         # HttpScopeLogger, exception handling, security middlewares
+├── Nexus/               # NexusClient for inter-service HTTP communication
+├── TagHelpers/          # Razor TagHelpers (Vite, Nonce, CSRF, Auth-Only, Anon-Only)
+├── Utils/               # AppStartupStatus, ServerSettings, Vite manifest, ResourceExtractor
+├── Areas/               # Framework-provided Razor Pages (e.g., Error pages)
+├── wwwroot/             # Framework style and script assets
 ```
 
 ## Lifecycle & Execution Flow
@@ -504,6 +509,38 @@ If the application fails to start during `RunAsync`, it generates a `StartupExce
 The framework includes built-in Razor Pages for developer-time exception handling:
 -   **RuntimeExceptionPage**: Detailed breakdown of unhandled exceptions with request state and logs.
 -   **CompilationExceptionPage**: Visualizes Razor or code compilation errors with line-specific highlighting.
+
+### Request Body Buffering
+
+`RequestBufferingState` provides size-gated request body capture for diagnostic error pages. It follows a producer/consumer pattern:
+
+1. **Producer** — `TryEnableBuffering` runs in `HttpScopeMiddleware` early in the pipeline. For POST, PUT, and PATCH requests with a known `Content-Length` within the configured limit, it enables `Request.EnableBuffering()` so the body stream becomes seekable.
+2. **Consumer** — `ReadBodyAsync` is called by the error page model builder (`ExceptionUtils.CreateErrorPageModelAsync`) to include the request body in diagnostic reports.
+
+**Security design**:
+-   **Size gate** — requests exceeding the buffer limit are silently skipped (no buffering, no memory risk)
+-   **Method filter** — only POST/PUT/PATCH are buffered; GET/HEAD/DELETE/OPTIONS carry no semantic body
+-   **Chunked transfer** — requests without `Content-Length` (chunked encoding) are skipped to prevent unbounded DoS
+-   **Kestrel enforcement** — Content-Length is validated per-protocol (HTTP/1.1 slicing, HTTP/2 PROTOCOL_ERROR, HTTP/3 QUIC framing)
+
+**Configuration** via `DrnAppFeatures` (in `appsettings.json`):
+
+| Key | Type | Default | Effect |
+|-----|------|---------|--------|
+| `DisableRequestBuffering` | `bool` | `false` | Kill switch — disables all body buffering |
+| `MaxRequestBufferingSize` | `int` | `0` (→ 30,000) | Max bytes to buffer. Values below 10,000 are ignored |
+
+```json
+{
+  "DrnAppFeatures": {
+    "DisableRequestBuffering": false,
+    "MaxRequestBufferingSize": 50000
+  }
+}
+```
+
+> [!NOTE]
+> When buffering is skipped, `ReadBodyAsync` returns a descriptive reason string (e.g., `"Content-Length exceeded limit"`) instead of the body, so error pages always display useful context.
 
 ## Modern HTTP Standards
 
