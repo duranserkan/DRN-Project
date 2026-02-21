@@ -2,7 +2,7 @@
 description: Load project overview skills
 ---
 
-> **Estimated context: ~8.9K tokens** (6 skills)
+> **Estimated context: ~8.3K tokens** (6 skills)
 
 Read the skills:
    - `view_file .agent/skills/overview-repository-structure/SKILL.md`

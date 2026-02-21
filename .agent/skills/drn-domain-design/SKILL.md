@@ -3,6 +3,7 @@ name: drn-domain-design
 description: Domain-Driven Design implementation patterns - Entity design with Source-Known IDs (SourceKnownEntity, AggregateRoot), repository contracts (ISourceKnownRepository), domain events, EF Core configuration, DTO mapping rules, and implementation templates. Essential for domain modeling and data access. Keywords: ddd, entity-design, aggregate-root, source-known-id, repository, domain-events, ef-core-configuration, dto-mapping, entity-type, identity
 last-updated: 2026-02-15
 difficulty: advanced
+tokens: ~3K
 ---
 
 # Domain Design Patterns

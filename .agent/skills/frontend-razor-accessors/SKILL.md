@@ -3,6 +3,7 @@ name: frontend-razor-accessors
 description: Type-safe static accessor pattern - 'Get' class for refactoring-safe routing (Get.Page, Get.Endpoint), permission checks (Get.Claim), and ViewData keys. Eliminates magic strings in Razor views and provides centralized navigation. Keywords: razor-pages, type-safety, navigation, routing, accessors, get-pattern, page-routing, endpoint-routing, refactoring-safety
 last-updated: 2026-02-15
 difficulty: intermediate
+tokens: ~1K
 ---
 
 # Static Accessor Pattern (The 'Get' Class)
@@ -99,7 +100,7 @@ public class UserIdentityLoginFor : ControllerForBase<SampleIdentityLoginControl
 <form hx-post="@Get.Endpoint.User.LoginController.Login.Path()">
 ```
 
-### logical Accessors (`ClaimFor` / `FeatureFor`)
+### Logical Accessors (`ClaimFor` / `FeatureFor`)
 
 Wrap complex logic (like `ScopeContext` checks) into readable properties.
 

@@ -3,6 +3,7 @@ name: basic-agentic-development
 description: Agentic development standards - Silent Partner Protocol, context economy, development loop (discovery, planning, execution, verification), and anti-patterns for efficient autonomous development. Keywords: agentic, ai-agent, development-loop, context-economy, autonomous, discovery, planning, execution, verification, anti-patterns, silent-partner
 last-updated: 2026-02-15
 difficulty: basic
+tokens: ~1.5K
 ---
 
 # Agentic Development

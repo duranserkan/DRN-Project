@@ -2,9 +2,9 @@
 description: Execution phase of /update — read update-plan.md, execute sync stages
 ---
 
-> **Sub-workflow of `/update`** — called by the orchestrator, not invoked directly.
+> **Sub-workflow of `/update`** — not invoked directly. Reads `Scope` from plan header; skipped stages follow Stage Resumption Protocol (`update.md` §Plan File Contract).
 >
-> Reads `Scope` from the plan header. Skipped stages follow the Stage Resumption Protocol in `update.md` §Plan File Contract.
+> **Estimated context: ~2.8K tokens** (this workflow)
 
 ---
 
@@ -36,22 +36,19 @@ description: Execution phase of /update — read update-plan.md, execute sync st
 
 Follow Stage Resumption Protocol in `update.md` §Plan File Contract via `.agent/update-plan.md`.
 
-> **VCS assumption**: The user owns Git state (commit, stash, checkout). The agent never manipulates VCS. Read-only git commands (`git log`, `git diff --cached`) are permitted for staleness detection; the agent never writes to VCS (no commit, stash, checkout, or push).
+> **VCS assumption**: Read-only git commands only — no commit, stash, checkout, or push.
 
 ---
 
 ## 1. Sync Group Workflows (Stage 1)
 
-### 1.1 Group Loaders (`load-skills-basic.md`, `load-skills-overview.md`, `load-skills-drn.md`, `load-skills-frontend.md`)
+### 1.1 Group Loaders (`load-skills-basic.md`, `load-skills-overview.md`, `load-skills-drn.md`, `load-skills-frontend.md`, `load-skills-test.md`)
 
 Per group loader:
 
-1. **Preserve**: YAML frontmatter, `description`, `// turbo` annotations, existing skill order (dependency-first — intentional)
-2. **Regenerate**: Skill list — one `view_file` per skill; append new skills at end, never reorder
-3. **Update**: Token estimate in the `> **Estimated context:` line
-   - Formula: Σ(skill file sizes in workflow, primary + cross-referenced) ÷ 4, rounded to nearest 0.1K
-   - *Note*: This is a conservative approximation for LLM context safety; it does not account for protocol overhead or metadata.
-   - Cross-referenced skills contribute independently to each workflow's estimate
+1. **Preserve**: YAML frontmatter, `description`, `// turbo` annotations, existing skill order (dependency-first)
+2. **Regenerate**: Skill list — one `view_file` per skill; append new at end, never reorder
+3. **Update**: Token estimate — Σ(skill sizes, primary + cross-referenced) ÷ 4, rounded to 0.1K
 
 #### Skill list template
 
@@ -64,10 +61,10 @@ Read the skills:
 
 ### 1.2 Task Workflows (`test.md`, `review.md`, `develop.md`)
 
-Task workflows have procedural structure — sync **only** `view_file` entries within their skill-loading section:
+Sync **only** `view_file` entries within skill-loading sections:
 
-1. **Identify** the skill-loading section (e.g., `test.md` §2, `review.md` §2)
-2. **Update** `view_file` lines only — add missing, remove nonexistent
+1. **Identify** skill-loading section (e.g., `test.md` §2, `review.md` §2)
+2. **Update** `view_file` lines — add missing, remove nonexistent
 3. **Preserve** all surrounding prose, numbering, headings, procedural instructions
 4. **Do not** apply the group loader template
 
@@ -133,7 +130,7 @@ dotnet test <solution-file>               # Run all tests
 Verify and update paths — skill index, load-all workflow, individual workflows. **Auto-discover** all `.md` files in `.agent/workflows/` and classify:
 
 ```markdown
-- **Skill-loading workflows**: `.agent/workflows/load-skills-{basic,overview,drn,frontend}.md`
+- **Skill-loading workflows**: `.agent/workflows/load-skills-{basic,overview,drn,frontend,test}.md`
 - **Task workflows**: `.agent/workflows/{clarify,develop,review,test,update}.md`
 - **Sub-workflows**: `.agent/workflows/{update-plan,update-execute,update-verify}.md`
 - **Meta workflow**: `.agent/workflows/load-skills-all.md` (loads all skill groups)
@@ -149,36 +146,31 @@ Verify and update paths — skill index, load-all workflow, individual workflows
 
 When the project prefix has changed (e.g., `Sample` → `MyApp`):
 
-1. **Detect**: Scan skill files for **all** project prefixes (from `<Project>` entries in solution file). Framework prefixes (`DRN.Framework.*`) are **never** substituted
+1. **Detect**: Scan skill files for **all** project prefixes (from `<Project>` entries in solution file). `DRN.Framework.*` prefixes are **never** substituted
 2. **Scan**: `grep_search` for old prefix across `.agent/skills/*/SKILL.md`
 3. **Present mapping** — show **all** prefix families separately:
    ```text
    Family 1: Sample.* → MyApp.*
      Sample.Hosted      → MyApp.Hosted
      Sample.Application  → MyApp.Application
-     ...
 
    Family 2: DRN.Nexus.* → (no match — flag for removal or manual mapping)
      DRN.Nexus.Hosted    → ???
    ```
-4. **Wait for user approval** — modifies hand-authored content (DiSCOS Autonomy Ladder level 4)
-5. **Apply**: Find-and-replace approved mappings only; use a boundary-aware match:
+4. **Wait for user approval** (DiSCOS Autonomy Ladder level 4)
+5. **Apply**: Boundary-aware find-and-replace — approved mappings only:
    ```regex
    Match: (?<=[ \t`'"\n\/]|^)<Prefix>\.
    ```
-   The prefix must be immediately preceded by whitespace, BOL, a backtick, a quote (`'`, `"`), or `/` — never by another identifier character. This prevents partial-match corruption of identifiers like `SampleData`, `ExampleSample`, or `SampleTest`.
-   - Example: `SampleTest.Sample.Hosted` vs `` `Sample.Hosted` ``. In `SampleTest.Sample.Hosted`:
-     - At the start of the string, `SampleTest` fails because "Sample" is not followed by a dot.
-     - At the middle position, `Sample.` fails the lookbehind `(?<=[ \t`'"\n\/])` because the character before `Sample.` is a dot (from `SampleTest.`), which is not in the allowed set.
-   - Conversely, `` `Sample.Hosted` `` **does** match because a backtick precedes `Sample.`.
+   Prefix must follow whitespace, BOL, backtick, quote, or `/` — prevents partial-match corruption (e.g., `SampleData`, `ExampleSample`).
 6. **Verify**: Each substitution produces a valid path in the target repo
 
-> Skills with project-specific paths (e.g., `Sample.Hosted/vite.config.js`) will also have paths updated.
+> Project-specific paths (e.g., `Sample.Hosted/vite.config.js`) are also updated.
 
-> **⚠️ Manual attention**: Overview/architecture skills (`overview-repository-structure`, `overview-ddd-architecture`) contain structural documentation (ASCII trees, mermaid diagrams, layer tables) reflecting the **original** repo layout. Name substitution cannot fix structural differences — **flag for manual regeneration** and present the list.
+> **⚠️ Manual attention**: Overview/architecture skills contain structural docs (ASCII trees, mermaid diagrams) reflecting the **original** layout — **flag for manual regeneration**.
 
 > [!IMPORTANT]
-> Business repos ported from DRN-Project typically need **two** independent substitution sets: sample/reference app + DRN.Nexus (if present). Always present all detected families.
+> Business repos ported from DRN-Project typically need **two** substitution sets: sample/reference app + DRN.Nexus (if present). Always present all detected families.
 
 ---
 
@@ -243,27 +235,24 @@ Set `last-updated` to today's date.
 
 > **Flag-only stage** — never auto-modifies project documentation content.
 
-Applies only when a project rename (`Prefix mapping` in Discovery Summary) or structural change (projects added/removed) occurred. Otherwise: mark stage `skipped`.
+Uses the plan's `### Documentation Drift` data and `Prefix mapping` (if any). If no drift and no rename: mark stage `skipped`.
 
-### 6.1 Identify Candidate Files
+### 6.1 Read Plan Drift Data
+
+From plan Discovery Summary, extract:
+
+- **`### Documentation Drift`** table — modules with STALE > 0, MISSING > 0, or RENAMED > 0
+- **`### Drift Report` → `Prefix mapping`** — old → new prefix (if rename occurred)
+
+Process only modules with detected drift or prefix mapping hits. `[STUB]` modules → report as deferred.
+
+### 6.2 Scan for Stale References (project rename only)
+
+If `Prefix mapping` exists, scan per-module `README.md` and `RELEASE-NOTES.md` for old prefix:
 
 ```text
-find_by_name README.md      # repo root and project subdirectories
-find_by_name RELEASE-NOTES.md
-find_by_name ROADMAP.md
-find_by_name CHANGELOG.md
-list_dir docs/              # if exists
-```
-
-### 6.2 Scan for Stale References
-
-For each candidate file, `grep_search` for the **old** project prefix(es) from the Discovery Summary `Prefix mapping`:
-
-```text
-grep_search "<OldPrefix>" README.md
-grep_search "<OldPrefix>" RELEASE-NOTES.md
-grep_search "<OldPrefix>" ROADMAP.md
-grep_search "<OldPrefix>" CHANGELOG.md
+grep_search "<OldPrefix>" <Module>/README.md
+grep_search "<OldPrefix>" <Module>/RELEASE-NOTES.md
 # Repeat for each old prefix family
 ```
 
@@ -271,26 +260,47 @@ Also flag any file paths or project names that no longer resolve (removed projec
 
 ### 6.3 Report Findings
 
-Present a flag-only report — do **not** modify files:
+Present a unified flag-only report — do **not** modify files:
 
 ```markdown
 ## Stage 6: Project Docs Flags
 
+### Content Drift *(from §2.2 pre-scan)*
+
+| Module | STALE | MISSING | RENAMED | Details |
+|--------|-------|---------|---------|---------|
+| DRN.Framework.X | 2 | 1 | 0 | `[STALE] OldType`, `[MISSING] NewFeature` |
+
+### Stale Project References *(from prefix mapping — omit if no rename)*
+
 | File | Stale Reference | Recommended Action |
-|------|----------------|--------------------|
+|------|----------------|--------------------| 
 | README.md:L42 | `OldPrefix.Hosted` | Replace with `NewPrefix.Hosted` |
-| RELEASE-NOTES.md:L10 | `OldPrefix.Utils` | Replace with `NewPrefix.Utils` |
-| ROADMAP.md:L18 | `OldPrefix.Api` | Replace with `NewPrefix.Api` |
+
+### Stub Modules *(deferred)*
+- DRN.Framework.Jobs — stub, no content to drift-scan
 ```
 
-If no stale references found: *"Stage 6: No stale project doc references detected."*
+If no drift detected and no stale references: *"Stage 6: No documentation drift detected."*
+
+### 6.4 Delegation Offer (if flags exist)
+
+After presenting the flag report, offer delegation to `/documentation`:
+
+```text
+Stage 6 flagged content drift in: DRN.Framework.X, DRN.Framework.Y
+Delegate content update to /documentation for each module? (Y/N)
+```
+
+- **Y** → invoke `/documentation <module>` for each flagged module in turn. `/documentation` §8 confirmation gate applies — content is never written without explicit user sign-off.
+- **N** → flag report complete; author makes edits manually.
 
 ---
 
 ## 7. Plan Completion
 
-1. Verify all plan stages have status `done` with no unchecked action items
-2. Update plan overall status to `done`
-3. Report completion — orchestrator routes to `review.md` next
+1. Verify all plan stages `done` with no unchecked action items
+2. Update plan status to `done`
+3. Report completion — orchestrator routes to `review.md`
 
-> Structural integrity, cross-reference, token estimate, and source-code alignment checks are handled by `update-verify.md` — specifically §1, §2, and §3.
+> Verification checks (structural integrity, cross-references, token estimates, source-code alignment) are handled by `update-verify.md` §1–§3.

@@ -3,6 +3,7 @@ name: overview-skill-index
 description: Skill cross-reference index - Task-based skill lookup (add entity, create test, build frontend), layer-based mappings (Domain→Presentation), keyword index, and skill dependency graph. Fast discovery for the right skill combination. Keywords: index, lookup, cross-reference, skill-map, discovery, task-mapping
 last-updated: 2026-02-18
 difficulty: basic
+tokens: ~1.5K
 ---
 
 # Skill Cross-Reference Index
@@ -41,6 +42,8 @@ difficulty: basic
 | **Write documentation** | `basic-documentation` → `basic-documentation-diagrams` |
 | **Work as an AI agent** | `basic-agentic-development` |
 | **Sync agent skills** | Run `/update` workflow |
+| **Pre-clarify research** | Run `/search` workflow |
+| **Update module docs** | Run `/documentation` workflow |
 
 ---
 
@@ -122,6 +125,7 @@ basic-agentic-development (standalone)
 | ddd | `overview-ddd-architecture`, `drn-domain-design` |
 | diagram / mermaid | `basic-documentation-diagrams` |
 | docker | `overview-github-actions` |
+| documentation / readme / release-notes | `/documentation` workflow, `basic-documentation` |
 | domain-event | `drn-sharedkernel`, `drn-domain-design` |
 | ef-core | `drn-entityframework`, `drn-domain-design` |
 | htmx | `frontend-buildwww-libraries`, `frontend-razor-pages-shared` |

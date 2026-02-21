@@ -3,12 +3,15 @@ name: frontend-razor-pages-navigation
 description: Razor Pages navigation system - SidebarNavigationCollection for main navigation, SidebarSettingsCollection for user menu, SubNavigationCollection for tabs, and navigation data structures. Use for implementing and customizing application navigation UI. Keywords: razor-pages, navigation, sidebar, menu, sub-navigation, tabs, ui-components, navigation-collections, layout
 last-updated: 2026-02-15
 difficulty: intermediate
+tokens: ~1K
 ---
 
 # Razor Page Navigation
 
 > Standardized navigation data structures, sidebar configuration, and dynamic menu generation for DRN hosted applications.
-> **Note**: `Sample.Hosted` serves as the reference implementation for these patterns.
+
+> [!NOTE]
+> `Sample.Hosted` is the reference implementation for these patterns.
 
 ## When to Apply
 - Adding items to the Sidebar
@@ -63,6 +66,8 @@ Defines the fixed bottom settings menu in the sidebar, typically used for user p
 var sidebarSettingsCollection = ViewData[Get.ViewDataKeys.SidebarSettingsCollection] as SidebarSettingsCollection 
                                 ?? new SidebarSettingsCollection();
 ```
+
+---
 
 ## SubNavigation
 
@@ -123,6 +128,9 @@ Key responsibilities include:
     </a>
 }
 ```
+
+
+---
 
 ## Related Skills
 - [frontend-razor-pages-shared.md](../frontend-razor-pages-shared/SKILL.md) - Layout System

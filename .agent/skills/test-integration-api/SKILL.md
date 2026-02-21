@@ -3,6 +3,7 @@ name: test-integration-api
 description: End-to-end API testing - WebApplicationFactory for full request pipeline testing, authenticated client creation, HTTP dependency mocking (Flurl), typed client testing, and route validation. Use for testing controllers, endpoints, and API behavior. Keywords: api-testing, e2e-testing, webapplicationfactory, http-mocking, flurl, endpoint-testing, controller-testing, authentication, dtt
 last-updated: 2026-02-15
 difficulty: intermediate
+tokens: ~1K
 ---
 
 # API Integration Testing
@@ -129,4 +130,3 @@ This ensures that logic like `LaunchExternalDependenciesAsync` knows it is runni
 
 ## Related
 - [test-integration.md](../test-integration/SKILL.md)
-

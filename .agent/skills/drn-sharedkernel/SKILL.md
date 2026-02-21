@@ -3,6 +3,7 @@ name: drn-sharedkernel
 description: DRN.Framework.SharedKernel - Foundational domain primitives (Entity, AggregateRoot, DomainEvent), exception hierarchy, repository contracts, pagination, and JSON conventions. Essential for domain modeling, entity design, and repository implementation. Keywords: entity, aggregate-root, domain-event, repository, pagination, exception, json, domain-modeling, source-known-id, entity-type
 last-updated: 2026-02-15
 difficulty: intermediate
+tokens: ~2.5K
 ---
 
 # DRN.Framework.SharedKernel

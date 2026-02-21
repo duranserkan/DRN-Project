@@ -4,7 +4,7 @@ description: Load all project skills by calling other workflows
 
 // turbo-all
 
-> **Estimated context: ~43K tokens** (29 skills)
+> **Estimated context: ~42K tokens** (29 skills)
 
 Read all skills:
 

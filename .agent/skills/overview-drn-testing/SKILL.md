@@ -3,6 +3,7 @@ name: overview-drn-testing
 description: DTT (Duran's Testing Technique) philosophy - Testing approach, test organization principles, test type selection (unit vs integration vs performance), and testing best practices. Philosophical foundation for all testing work. Keywords: testing-philosophy, dtt, test-organization, test-strategy, unit-testing, integration-testing, performance-testing
 last-updated: 2026-02-15
 difficulty: intermediate
+tokens: ~1.5K
 ---
 
 # DRN.Testing Overview
@@ -150,62 +151,7 @@ public void Test(DrnTestContext context, int value, IMockable mock)
 
 ---
 
-## Common Test Patterns
-
-### Testing Services
-```csharp
-[Theory]
-[DataInline]
-public void ServiceTest(DrnTestContext context, IMockable dep)
-{
-    context.ServiceCollection.AddMyServices();
-    dep.Method().Returns(expected);
-    
-    var sut = context.GetRequiredService<MyService>();
-    sut.Execute().Should().Be(expected);
-}
-```
-
-### Testing with Database
-```csharp
-[Theory]
-[DataInline]
-public async Task DbTest(DrnTestContext context)
-{
-    context.ServiceCollection.AddInfraServices();
-    await context.ContainerContext.Postgres.ApplyMigrationsAsync();
-    
-    var dbContext = context.GetRequiredService<MyDbContext>();
-    // Test with real database
-}
-```
-
-### Testing API Endpoints
-```csharp
-[Theory]
-[DataInline]
-public async Task ApiTest(DrnTestContext context, ITestOutputHelper outputHelper)
-{
-    // CreateClientAsync handles app startup, migrations, and authentication
-    var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
-    
-    var response = await client.GetAsync("/api/resource");
-    response.Should().BeSuccessful();
-}
-```
-
----
-
-## Test Data Conventions
-
-- **Settings files**: `Settings/` folder or same folder as test
-- **Data files**: `Data/` folder or same folder as test
-- Files must be marked as "Copy to Output Directory: Always"
-
-```csharp
-context.GetData("mydata.txt"); // Reads from Data/ or test folder
-context.GetRequiredService<IAppSettings>(); // Uses Settings/appsettings.json
-```
+> See [drn-testing.md](../drn-testing/SKILL.md) for implementation patterns (DrnTestContext, ContainerContext, ApplicationContext, Data Attributes).
 
 ---
 

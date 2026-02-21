@@ -3,6 +3,7 @@ name: frontend-buildwww-libraries
 description: Frontend JavaScript architecture - DRN utilities (drnUtils, drnApp, drnCookieManager, drnOnmount), RSJS pattern for component mounting, htmx integration with CSP nonce security, and Bootstrap customization. Essential for client-side interactivity and component lifecycle. Keywords: javascript, rsjs, onmount, htmx, csp, nonce, bootstrap, cookie-management, component-mounting, client-side
 last-updated: 2026-02-15
 difficulty: intermediate
+tokens: ~1.5K
 ---
 
 # buildwww Libraries
@@ -21,13 +22,11 @@ difficulty: intermediate
 
 ## RSJS Architecture & DrnOnmount
 
-DRN follows the [RSJS (Reasonable System for JavaScript Structure)](https://github.com/rstacruz/rsjs) philosophy. The core idea is to treat standard HTML with `data-` attributes or specific classes as the source of truth for behavior. Instead of initializing components imperatively in a main script, we register "behaviors" that automatically attach to elements when they appear in the DOM.
-
-This is critical for applications using **htmx**, where content is swapped dynamically without a full page reload.
+DRN follows [RSJS](https://github.com/rstacruz/rsjs): register behaviors that auto-attach to DOM elements via `data-` attributes or classes, instead of imperative initialization. Required for **htmx** — content swaps without full page reload.
 
 ### drnOnmount.js
 
-`drnOnmount.js` is the implementation of the RSJS pattern in DRN. It wraps the `onmount` library to provide a robust registration system with **idempotency** support.
+`drnOnmount.js` — RSJS implementation. Wraps `onmount` with **idempotency** — prevents duplicate registration across htmx swaps.
 
 #### API
 
@@ -36,37 +35,11 @@ This is critical for applications using **htmx**, where content is swapped dynam
 DRN.Onmount.register(selector, callback, idempotencyKey?);
 ```
 
-- **selector**: CSS selector to match elements (e.g., `[data-bs-toggle="tooltip"]` or `#myComponent`).
-- **callback**: Function executed for each matching element. `this` refers to the element.
-- **idempotencyKey** (Optional): A string key to ensure a specific behavior is registered only once for a given selector. This is useful when scripts are included in partial views or Razor pages that might be re-loaded.
+- **selector**: CSS selector (e.g., `[data-bs-toggle="tooltip"]`, `#myComponent`).
+- **callback**: Executed per matching element; `this` = element.
+- **idempotencyKey** (optional): Prevents re-registration when scripts reload in partials.
 
-#### Internal Structure
 
-`drnOnmount` maintains a `_registry` of `selector + '_' + idempotencyKey` to prevent duplicate registration logic from running, which avoids memory leaks and double-binding events.
-
-```javascript
-// Sample.Hosted/buildwww/app/js/drn/drnOnmount.js
-const drnOnmount = {
-    _registry: new Set(),
-    
-    // ... unregister logic ...
-
-    registerFull: (selector, registerCallback, unregisterCallback = undefined, idempotencyKey = '') => {
-        const selectorKey = selector + '_' + idempotencyKey;
-
-        // Check for idempotency to avoid re-registering existing behaviors
-        if (drnOnmount._registry.has(selectorKey)) {
-            window.onmount(); // Just re-run onmount to catch new elements
-            return;
-        }
-
-        drnOnmount._registry.add(selectorKey);
-        
-        // Execute registration using the underlying onmount library
-        // ...
-    }
-};
-```
 
 ---
 
@@ -74,7 +47,7 @@ const drnOnmount = {
 
 ### 1. Global Components (Standard RSJS)
 
-For behaviors that apply globally (like Tooltips), register them in `appPostload.js` or a dedicated module.
+Register global behaviors (e.g., Tooltips) in `appPostload.js` or a dedicated module.
 
 ```javascript
 // buildwww/app/js/appPostload.js
@@ -86,7 +59,7 @@ DRN.Onmount.register('[data-bs-toggle="tooltip"]', function (options) {
 
 ### 2. Page-Specific Logic (Augmented usage)
 
-You can define behaviors directly inside Razor Pages using `<script>` tags. Use the `idempotencyKey` to safely re-execute the script when HTMX swaps the page, without duplicating the registration.
+Define behaviors directly in Razor Pages `<script>` tags. Use `idempotencyKey` to safely re-execute on htmx swap without duplicate registration.
 
 **Example: `Sample.Hosted/Pages/Test/Htmx.cshtml`**
 
@@ -158,10 +131,9 @@ if (DRN.Cookie.hasConsent('Analytics')) {
 
 ### Security with CSP Nonces
 
-DRN integrates htmx with a strict Content Security Policy (CSP) using nonces.
+DRN integrates htmx with a strict CSP using nonces.
 
-**`htmxSafeNonce.js`**:
-Intercepts htmx requests to ensure that `htmx.config.inlineScriptNonce` matches the current page's nonce. This allows htmx to safely execute inline scripts returned in partials (like the Razor examples above) while blocking unauthorized scripts.
+**`htmxSafeNonce.js`**: Intercepts htmx requests to sync `htmx.config.inlineScriptNonce` with the current page nonce — allows inline scripts in partials, blocks unauthorized scripts.
 
 ```javascript
 // buildwww/lib/htmx/htmxSafeNonce.js
@@ -182,7 +154,7 @@ htmx.config.inlineScriptNonce = document.currentScript?.nonce;
 
 ## Bootstrap Customization
 
-Bootstraps styles are customized via SCSS and then compiled by Vite.
+Bootstrap styles are customized via SCSS and compiled by Vite.
 
 ### Structure
 

@@ -3,80 +3,73 @@ name: overview-github-actions
 description: CI/CD and deployment - GitHub Actions workflows (develop, master, release), composite actions, Docker multi-arch publishing with SBOM/provenance, NuGet package publishing, and security scanning (SonarCloud, CodeQL). Complete deployment pipeline documentation. Keywords: cicd, github-actions, deployment, docker, nuget, security-scanning, sonarcloud, codeql, release-management, continuous-integration
 last-updated: 2026-02-15
 difficulty: intermediate
+tokens: ~0.5K
 ---
 
 # Deployment
 
-This skill documents the standardized deployment workflows and practices for the `DRN-Project`. It covers the CI/CD pipeline strategy, GitHub Actions structure, and Docker containerization standards.
+CI/CD pipeline, GitHub Actions structure, and Docker containerization for `DRN-Project`.
 
 ## 1. Workflow Strategy
 
-The project follows a GitFlow-inspired workflow adapted for continuous delivery:
-
 | Branch / Tag | Workflow | Purpose | Triggers |
 | :--- | :--- | :--- | :--- |
-| `develop` | `develop.yml` | **Fast CI**: Quick feedback loop. Builds and tests the code. | Push/PR to `develop` |
-| `master` | `master.yml` | **Quality Gate**: Comprehensive analysis. Includes SonarCloud scans, CodeQL security analysis, and stricter gates. | Push/PR to `master`, Schedule (Sunday) |
-| `v*.*.*` | `release.yml` | **Release CD**: automated deployment. Publishes NuGet packages and Docker images to production registries. | Push of tag `v*` |
-| `v*-preview*` | `release-preview.yml` | **Preview CD**: Similar to release but for pre-release versions. | Push of tag `v*-preview*` |
+| `develop` | `develop.yml` | **Fast CI**: Build and test | Push/PR to `develop` |
+| `master` | `master.yml` | **Quality Gate**: SonarCloud, CodeQL, strict gates | Push/PR to `master`, Schedule (Sunday) |
+| `v*.*.*` | `release.yml` | **Release CD**: NuGet + Docker publish | Push of tag `v*` |
+| `v*-preview*` | `release-preview.yml` | **Preview CD**: Pre-release NuGet publish | Push of tag `v*-preview*` |
 
 ## 2. GitHub Actions Architecture
 
-The repository uses **Composite Actions** to encapsulate logic and reduce duplication across workflows. These are located in `.github/workflows/actions/`.
+**Composite Actions** in `.github/workflows/actions/` reduce duplication:
 
-### Core Composite Actions
+### Core Actions
 
--   **`setup-sdk-and-tools`**: Standardizes the .NET SDK setup, tool restoration, and caching.
--   **`dotnet-build` / `dotnet-build-release`**: centralized build logic.
--   **`dotnet-test` / `dotnet-test-release`**: Centralized testing logic.
--   **`docker-publish-all`**: Orchestrates the publishing of all Docker images in the solution.
--   **`nuget-publish-all`**: Orchestrates the publishing of all NuGet packages.
+- **`setup-sdk-and-tools`**: .NET SDK setup, tool restoration, caching
+- **`dotnet-build` / `dotnet-build-release`**: Centralized build logic
+- **`dotnet-test` / `dotnet-test-release`**: Centralized testing logic
+- **`docker-publish-all`**: Orchestrates all Docker image publishing
+- **`nuget-publish-all`**: Orchestrates all NuGet package publishing
 
 ### Security & Analysis Actions
 
--   **`sonar-begin` / `sonar-end`**: Wraps SonarCloud static analysis.
--   **`scan-file-system-vulnerabilities`**: Scans the filesystem for known vulnerabilities.
--   **`scan-nuget-vulnerabilities`**: Checks dependencies against vulnerability databases.
+- **`sonar-begin` / `sonar-end`**: SonarCloud static analysis
+- **`scan-file-system-vulnerabilities`**: Filesystem vulnerability scanning
+- **`scan-nuget-vulnerabilities`**: Dependency vulnerability checking
 
 ## 3. Docker Standards
 
-Docker images are built and published using the `docker/build-push-action`.
+Built via `docker/build-push-action`.
 
-### Key Configuration
+| Config | Value |
+|--------|-------|
+| **Architectures** | `linux/amd64`, `linux/arm64` |
+| **SBOM** | Generated (`sbom: true`) |
+| **Provenance** | SLSA (`provenance: true`) |
+| **Scanner** | Docker Scout (`quickview,cves,recommendations`) |
+| **Registry** | Docker Hub `duranserkan` namespace |
+| **Tags** | `semver`, `major.minor`, `branch`, `pr` |
 
--   **Multi-Architecture Support**: Images are built for both `linux/amd64` and `linux/arm64`.
--   **Security**:
-    -   **OMNI (SBOM)**: Software Bill of Materials is generated (`sbom: true`).
-    -   **Provenance**: SLSA provenance is generated (`provenance: true`).
-    -   **Docker Scout**: Integrated for vulnerability scanning (`quickview,cves,recommendations`).
--   **Registry**: Images are published to Docker Hub under the `duranserkan` namespace.
--   **Versioning**:
-    -   `semver`: Matches the git tag (e.g., `1.2.3`).
-    -   `major.minor`: Floating tag for stability (e.g., `1.2`).
-    -   `branch`, `pr`: Context-aware tagging for non-release builds.
+### Dockerfile Locations
 
-### Standard Dockerfile Locations
-
--   `DRN.Nexus.Hosted/Dockerfile` -> `drn-project-nexus`
--   `Sample.Hosted/Dockerfile` -> `drn-project-sample`
+- `DRN.Nexus.Hosted/Dockerfile` → `drn-project-nexus`
+- `Sample.Hosted/Dockerfile` → `drn-project-sample`
 
 ## 4. NuGet Publishing
 
-NuGet package publishing is automated via the `release` workflows.
-
--   **Versioning**: extracted directly from the Git tag.
--   **Attestation**: Uses `actions/attest-build-provenance` to generate build provenance for packages.
--   **Artifacts**: Packages are uploaded as workflow artifacts (`packages`) for traceability.
+- **Versioning**: Extracted from Git tag
+- **Attestation**: `actions/attest-build-provenance`
+- **Artifacts**: Uploaded as `packages` workflow artifacts
 
 ## 5. Required Secrets
 
-To function correctly, the repository requires the following secrets to be configured in GitHub:
-
--   `SONAR_TOKEN`: Token for SonarCloud analysis.
--   `NUGET_TOKEN`: API key for publishing to NuGet.org.
--   `DOCKER_USERNAME`: Docker Hub username.
--   `DOCKER_PASSWORD`: Docker Hub Access Token.
+| Secret | Purpose |
+|--------|---------|
+| `SONAR_TOKEN` | SonarCloud analysis |
+| `NUGET_TOKEN` | NuGet.org publishing |
+| `DOCKER_USERNAME` | Docker Hub username |
+| `DOCKER_PASSWORD` | Docker Hub access token |
 
 ## Related Skills
 
-- [basic-git-conventions](../basic-git-conventions/SKILL.md) — Git branching, tagging, and conventions that feed into CI/CD workflows
+- [basic-git-conventions](../basic-git-conventions/SKILL.md) — Branching, tagging, conventions

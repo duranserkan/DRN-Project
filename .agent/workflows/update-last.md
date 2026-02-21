@@ -5,6 +5,8 @@ description: Detect changed files from the last N commits and delegate to /updat
 > **Trigger**: `/update-last <N>` where `<N>` is the number of recent commits to inspect.
 >
 > **Purpose**: Automatically derives an `/update` scope from git history — no manual scope needed.
+>
+> **Estimated context: ~0.7K tokens** (this workflow)
 
 ---
 

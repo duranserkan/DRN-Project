@@ -420,7 +420,7 @@ High-performance hashing extensions supporting modern and legacy algorithms.
 *   **Unified Extensions**: `model.Serialize(method)` supports both JSON and Query String formats.
 *   **Safe Stream Consumption**: `ToBinaryDataAsync` and `ToArrayAsync` extensions with `MaxSizeGuard` to prevent memory exhaustion from untrusted streams.
 
-### programatic Validation
+### Programmatic Validation
 Extensions for programmatic validation using `System.ComponentModel.DataAnnotations`.
 *   **Contextual**: Integrates with `DRN.Framework.SharedKernel.ValidationException` for standardized error reporting across layers.
 
@@ -640,7 +640,7 @@ For complete examples, see [Sample.Hosted](https://github.com/duranserkan/DRN-Pr
 
 ---
 
-Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/DiSCOS/DiSCOS.md)
+Documented with the assistance of [DiSCOS](https://github.com/duranserkan/DRN-Project/blob/develop/DiSCOS/DiSCOS.md)
 
 ---
 **Semper Progressivus: Always Progressive**
