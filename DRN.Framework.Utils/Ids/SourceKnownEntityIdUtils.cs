@@ -15,7 +15,7 @@ namespace DRN.Framework.Utils.Ids;
 /// </summary>
 public interface ISourceKnownEntityIdUtils
 {
-    /// <summary>Dispatches to <c>GenerateSecure</c> or <c>GenerateUnsecure</c> based on <c>UseSecureSourceKnownIds</c>.</summary>
+    /// <summary>Dispatches to <c>GenerateSecure</c> or <c>GenerateUnsecure</c> based on <c>AppSettings.NexusAppSettings.UseSecureSourceKnownIds</c>.</summary>
     SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity;
 
     /// <inheritdoc cref="Generate{TEntity}(long)"/>
