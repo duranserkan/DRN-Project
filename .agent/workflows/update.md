@@ -1,5 +1,5 @@
 ---
-description: Sync AGENTS.md, skill index, group workflows, and all.md from the filesystem — prevents drift and adapts to new repositories
+description: Sync AGENTS.md, skill index, group workflows, and all.md from the filesystem — prevents drift and adapts to new repositories. Use DiSCOS, AGENTS.md and repository skills guidance
 ---
 
 > **Trigger**: After adding, removing, or renaming skills, or after copying `.agent` to a new repository.

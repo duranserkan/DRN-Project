@@ -1,5 +1,5 @@
 ---
-description: Implement requirements from a clarified document using repository skills and AGENTS.md guidance
+description: Implement requirements from a clarified document using DiSCOS, AGENTS.md and repository skills guidance
 ---
 
 > **Pipeline**: `/clarify` → `/answer` → `/develop` (3/3) · [Status Lifecycle](./_shared/status-lifecycle.md)

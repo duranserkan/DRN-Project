@@ -1,5 +1,5 @@
 ---
-description: Answer clarification questions as Technical Product Owner, approve documents, and produce clean development-ready documents
+description: Answer clarification questions as Technical Product Owner, approve documents, and produce clean development-ready documents. Use DiSCOS, AGENTS.md and repository skills guidance
 ---
 
 > **Pipeline**: `/clarify` → `/answer` (2/3) → `/develop` · [Status Lifecycle](./_shared/status-lifecycle.md)
@@ -123,7 +123,7 @@ Transform `CLARIFY-*.md` into `DEVELOP-*.md` — strip conversation artifacts, p
 - **Traceable** — `source` field links back to `CLARIFY-*.md` for audit
 - **Decisive** — "The system will…" not "The system should…"
 
-```
+```text
 ./DEVELOP-[task-slug].md
 ```
 

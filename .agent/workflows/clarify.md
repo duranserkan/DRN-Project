@@ -1,5 +1,5 @@
 ---
-description: Clarify a user-given task into requirements, epics, and product backlog items through iterative questioning
+description: Clarify a user-given task into requirements as Technical Business Analyst, epics, and product backlog items through iterative questioning. Use DiSCOS, AGENTS.md and repository skills guidance
 ---
 
 > **Pipeline**: `/clarify` (1/3) → `/answer` → `/develop` · [Status Lifecycle](./_shared/status-lifecycle.md)

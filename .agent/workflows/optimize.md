@@ -1,5 +1,5 @@
 ---
-description: Optimize agent-consumed content (skills, workflows, docs, reports, todos) — reduce waste, enhance effectiveness, maximize context efficiency
+description: Optimize agent-consumed content using DiSCOS and AGENTS.md (skills, workflows, docs, reports, todos) — reduce waste, enhance effectiveness, maximize context efficiency
 ---
 
 > **Trigger**: `/optimize <scope>` or `/optimize` (prompts for scope).
@@ -26,7 +26,7 @@ description: Optimize agent-consumed content (skills, workflows, docs, reports, 
 | *(freeform)* | Keyword match against file names/content — confirm with user |
 
 - **No arguments** → Ask: *"What should I optimize? (file path, directory, or keyword: `skills` | `workflows` | `docs` | `all`)"*
-- **Exclusions**: Never optimize `AGENTS.md`, `DiSCOS.md`, or `CLARIFY-*/DEVELOP-*` files with status `draft`, `clarifying`, `in-progress`, or `in-review`.
+- **Exclusions**: Never optimize `AGENTS.md`, `DiSCOS.md`, or `CLARIFY-*/DEVELOP-*` files with status `draft`, `draft-self-reviewed`, `clarifying`, or `clarifying?`.
 - **Skill loading**: Track loaded skills per session. Never reload already-loaded skills.
 
 ---
@@ -35,13 +35,7 @@ description: Optimize agent-consumed content (skills, workflows, docs, reports, 
 
 Analyze all targets **before applying changes**.
 
-For each target file:
-
-1. **Read** full content.
-2. **Measure baseline** — character count, estimated tokens (chars ÷ 4), readability (§5).
-3. **Classify** content type → select strategy (§3f).
-4. **Identify candidates** using §3 rules + content-type strategy.
-5. **Classify severity**:
+**Severity classification** (used in steps below and in §4):
 
 | Severity | Examples | Approval |
 |----------|----------|----------|
@@ -49,6 +43,13 @@ For each target file:
 | **Moderate** | Condensing examples, restructuring, merging sections | Preview diff → apply |
 | **Significant** | Removing sections, changing structure, altering meaning | Explicit approval |
 
+For each target file:
+
+1. **Read** full content.
+2. **Measure baseline** — character count, estimated tokens (chars ÷ 4), readability (§5).
+3. **Classify** content type → select strategy (§3f).
+4. **Identify candidates** using §3 rules + content-type strategy.
+5. **Classify severity** — assign each candidate a severity level using the table above.
 6. **Cross-file scan** (multi-file only) — detect duplicate/near-duplicate content across targets (§3g).
 7. **Dependency check** — verify all cross-references (`/review`, `/update`, skill names, file paths) resolve after proposed changes.
 

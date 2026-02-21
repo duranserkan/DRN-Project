@@ -1,5 +1,5 @@
 ---
-description: Add tests for staged changes or a described task using DTT philosophy
+description: Add tests for staged changes or a described task using DTT philosophy. Use DiSCOS, AGENTS.md and repository skills guidance
 ---
 
 ## 1. Determine Scope

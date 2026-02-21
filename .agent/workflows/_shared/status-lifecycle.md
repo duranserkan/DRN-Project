@@ -4,7 +4,7 @@ description: Shared status lifecycle for the /clarify → /answer → /develop p
 
 ## Status Lifecycle
 
-```
+```text
 draft → clarifying → draft-self-reviewed → clarified → ready-to-develop → implemented
  └─ /clarify ──────────────────────────────┘  └─ /answer ──────────────┘  └─ /develop ─┘
 ```
