@@ -3,6 +3,7 @@ name: drn-entityframework
 description: DRN.Framework.EntityFramework - DrnContext base class, automatic migration application, entity tracking with domain events, NpgsqlDbContextOptions for database configuration, and repository implementations. Essential for database operations, migrations, and data persistence. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, entity-tracking, domain-events, dbcontext-configuration, prototype-mode, testcontainers
 last-updated: 2026-02-15
 difficulty: advanced
+tokens: ~2.5K
 ---
 
 # DRN.Framework.EntityFramework

@@ -67,15 +67,15 @@ Present dry-run summary before proceeding to §4:
 
 Apply in order.
 
-### 3a. Eliminate _(§Documentation: Anti-patterns)_
+### 3a. Eliminate *(§Documentation: Anti-patterns)*
 
-- Filler phrases: "in order to" → "to", "it is important to note that" → _(delete)_
+- Filler phrases: "in order to" → "to", "it is important to note that" → *(delete)*
 - Redundant statements → keep clearest version
 - Obvious comments restating structure → remove
 - Empty/placeholder sections → remove
 - Excessive hedging → definitive language or delete
 
-### 3b. Condense _(§Documentation: Conciseness + §Context Management: Compression)_
+### 3b. Condense *(§Documentation: Conciseness + §Context Management: Compression)*
 
 - Verbose explanations → concise equivalents preserving key info
 - Long examples → minimal representative; one per pattern
@@ -84,26 +84,26 @@ Apply in order.
 - Descriptive comparisons → tables
 - Multi-sentence definitions → single-sentence
 
-### 3c. Restructure _(§Documentation: Structure + Clarity)_
+### 3c. Restructure *(§Documentation: Structure + Clarity)*
 
 - **Inverted pyramid**: Key info first, detail after
 - **Front-load**: Lead with actionable/important word
 - **Visual hierarchy**: Headers, bold, code blocks
 - **Parallel structure**: Consistent grammar across list items
 
-### 3d. Enhance _(§DiSCOS: Excellence by Simplicity — Full Solution, Not Minimum Effort)_
+### 3d. Enhance *(§DiSCOS: Excellence by Simplicity — Full Solution, Not Minimum Effort)*
 
 Add content when absence reduces effectiveness or causes agent errors:
 
 - Missing context that would prevent agent errors → add concisely
 - Ambiguous instructions → clarify with precise wording
-- Non-obvious patterns without examples → add minimal representative example _(skip for workflow files unless the example prevents consistent misexecution)_
+- Non-obvious patterns without examples → add minimal representative example *(skip for workflow files unless the example prevents consistent misexecution)*
 - Incomplete cross-references → add missing links
 - Edge cases that repeatedly cause failures → document explicitly
 
 > **Gate**: Each addition must pass the test — *"Does removing this force a compensating action (extra tool call, follow-up question, or retry)?"* If yes, it stays. Additions follow tiered approval same as reductions.
 
-### 3e. Preserve _(Never Optimize Away)_
+### 3e. Preserve *(Never Optimize Away)*
 
 - YAML frontmatter (all fields/values)
 - Structural anchors (headings, IDs, cross-references used by workflows)
@@ -126,7 +126,7 @@ Apply after general rules (§3a–§3e):
 | **Report** (analytical) | Data density | Tables for data. Executive summary first. Minimize prose around findings. |
 | **Todo** (ephemeral) | Brevity | Strip context older than current sprint. Compress completed items to one-line summaries. |
 
-### 3g. Cross-File Deduplication _(multi-file scopes only)_
+### 3g. Cross-File Deduplication *(multi-file scopes only)*
 
 1. **Detect**: Flag blocks duplicated or near-duplicated (>70% similarity) across files.
 2. **Report**: List duplicate pairs with file paths and similarity %.

@@ -3,6 +3,7 @@ name: overview-drn-testing
 description: DTT (Duran's Testing Technique) philosophy - Testing approach, test organization principles, test type selection (unit vs integration vs performance), and testing best practices. Philosophical foundation for all testing work. Keywords: testing-philosophy, dtt, test-organization, test-strategy, unit-testing, integration-testing, performance-testing
 last-updated: 2026-02-15
 difficulty: intermediate
+tokens: ~1.5K
 ---
 
 # DRN.Testing Overview

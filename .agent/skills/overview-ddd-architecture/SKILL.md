@@ -3,6 +3,7 @@ name: overview-ddd-architecture
 description: Domain-Driven Design architecture guide - Tiered DDD structure (Domain, Application, Infrastructure, Presentation), layer responsibilities, dependency rules, and DDD pattern application within DRN applications. Keywords: ddd, domain-driven-design, architecture, layers, domain-layer, application-layer, infrastructure-layer, presentation-layer, dependency-rules, bounded-context
 last-updated: 2026-02-15
 difficulty: intermediate
+tokens: ~1.5K
 ---
 
 # DDD Architecture

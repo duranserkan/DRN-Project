@@ -3,6 +3,7 @@ name: basic-documentation-diagrams
 description: WCAG-compliant Mermaid diagram standards - Color palettes, contrast ratios, accessibility checklist, color blindness considerations, subgraph styling, decision node patterns, and anti-patterns. Load when creating or reviewing diagrams. Keywords: wcag, accessibility, mermaid, diagrams, color-contrast, color-blindness, material-design, styling, a11y
 last-updated: 2026-02-15
 difficulty: intermediate
+tokens: ~1K
 ---
 
 # Diagram Accessibility & WCAG Compliance

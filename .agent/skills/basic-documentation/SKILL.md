@@ -3,6 +3,7 @@ name: basic-documentation
 description: Documentation standards - README structure, ROADMAP patterns, skill documentation format (YAML frontmatter), markdown conventions, security documentation, API docs, and best practices. Guidelines for creating and maintaining all project documentation. Keywords: documentation, readme, roadmap, markdown, documentation-standards, yaml-frontmatter, technical-writing, api-documentation, changelog
 last-updated: 2026-02-15
 difficulty: basic
+tokens: ~1K
 ---
 
 # Documentation

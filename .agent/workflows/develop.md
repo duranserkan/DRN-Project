@@ -4,7 +4,7 @@ description: Implement requirements from a clarified document using DiSCOS, AGEN
 
 > **Pipeline**: `/clarify` → `/answer` → `/develop` (3/3) · [Status Lifecycle](./_shared/status-lifecycle.md)
 >
-> **Estimated context: ~1.7K tokens** (this workflow)
+> **Estimated context: ~2.0K tokens** (this workflow)
 
 ---
 
@@ -103,8 +103,9 @@ Present implementation plan:
 ### 4a. Version Control Setup
 
 - Check current branch (`git branch --show-current`). If already on task branch → use it.
-- Otherwise → `git checkout -b feature/[task-name-or-id] develop`
+- Otherwise → attempt `git checkout -b feature/[task-name-or-id] develop`
   - **Hotfix on master**: use `fix/[id] master` instead — see `basic-git-conventions` for merge rules.
+  - **Permission failure**: if branch creation fails (permission denied, protected branch, read-only repo) → inform user, then **continue on current branch**. Do not block.
 - Commit per PBI/logical chunk using conventional commits (`feat(Scope): description`)
 - **Do not push.** Local commits serve as rollback checkpoints.
 
@@ -119,18 +120,31 @@ Follow Development Loop from `basic-agentic-development`:
 1. **Discovery** — Read existing code (`view_file_outline` first, then targeted reads)
 2. **Implement** — Incrementally, smallest testable unit first
 3. **Follow conventions** — Use patterns from loaded skills (verify with `grep_search`)
-4. **Validate**:
+4. **Clean Code Gate** — enforce before proceeding to next PBI:
+   - **Separation of concerns** — no business logic in controllers/handlers; no persistence logic leaking into domain
+   - **Method extraction** — methods > 20 lines or doing > 1 thing → extract
+   - **Cyclomatic complexity** — no method with CC > 5 without explicit justification
+   - **Naming** — names reveal intent; no abbreviations, no generic identifiers (`data`, `result`, `obj`)
+   - **No dead code** — no commented-out blocks, unused parameters, or unreachable branches
+
+   > **Override**: Any rule may be overridden when necessary complexity genuinely requires it. Document the justification inline (code comment + commit message). Silently skipping is not an override.
+
+5. **Validate**:
    ```bash
-   dotnet build DRN.slnx    # Must pass before proceeding
+   dotnet build DRN.slnx
    ```
-5. **Write tests** (DTT philosophy):
+   - **Build fails (code error)** → Self-Correction Loop applies.
+   - **Cannot execute** (toolchain missing, permission denied) → inform user, skip build validation, continue.
+6. **Write tests** (DTT philosophy):
    - Pure logic → Unit tests
    - Persistence/queries → Integration tests (Testcontainers)
    - API endpoints → API integration tests
-6. **Run tests**:
+7. **Run tests**:
    ```bash
-   dotnet test DRN.slnx     # Must pass before proceeding
+   dotnet test DRN.slnx
    ```
+   - **Tests fail (code error)** → Self-Correction Loop applies.
+   - **Cannot execute** (toolchain missing, permission denied) → inform user, skip test run, continue.
 
 ### Self-Correction Loop
 
@@ -156,6 +170,7 @@ All must pass. If not → return to §5.
 
 - Run `/review` on implemented changes
 - Run Priority Stack gate (Security → Correctness → Clarity → Simplicity → Performance); TRIZ for constraint conflicts
+- **Clean Code Check** — verify each changed file passes the Clean Code Gate (§5 step 4): SoC, method size, CC ≤ 5, naming, no dead code; confirm any overrides are documented
 - Update documentation if needed (`basic-documentation` skill)
 
 ---

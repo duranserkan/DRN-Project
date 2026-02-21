@@ -3,6 +3,7 @@ name: test-unit
 description: Unit testing patterns and organization - Fast, isolated tests with auto-mocking (NSubstitute), service validation, test data management, and mocking strategies. Use for testing services, domain logic, and components in isolation. Keywords: unit-testing, mocking, nsubstitute, autofixture, test-patterns, service-testing, isolated-testing, dtt, xunit
 last-updated: 2026-02-15
 difficulty: basic
+tokens: ~1K
 ---
 
 # DRN.Test.Unit
