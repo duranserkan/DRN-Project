@@ -24,19 +24,20 @@ Read YAML frontmatter `status`:
 | Status | Action |
 |---|---|
 | `ready-to-develop` / `clarified` | ✅ Proceed to §3 |
-| `draft` / `clarifying` / `draft-self-reviewed` | ❌ Not ready → direct to `/clarify` + `/answer` |
+| `draft-self-reviewed` | ⚠️ Only via §2a gate (CLARIFY-*.md skip-`/answer` path) |
+| `draft` / `clarifying` | ❌ Not ready → direct to `/clarify` + `/answer` |
 | `implemented` | ⚠️ Warn already implemented. Continue only on user confirmation. |
 | Missing/other | ❌ Invalid → direct to `/clarify` + `/answer` |
 
 ### 2a. CLARIFY-*.md Lightweight Gate
 
-When input is `CLARIFY-*.md` (skipping `/answer`), verify before proceeding:
+When input is `CLARIFY-*.md` with `status: draft-self-reviewed` (skipping `/answer`), verify before proceeding:
 
 - [ ] No `[ASSUMPTION - unverified]` tags in PBIs
 - [ ] Every PBI has acceptance criteria
 - [ ] Security implications addressed where relevant
 
-Any failure → direct to `/answer`.
+All pass → proceed to §3. Any failure → direct to `/answer`.
 
 ### 2b. Staleness Check
 

@@ -990,7 +990,7 @@ For complete examples, see [Sample.Hosted](https://github.com/duranserkan/DRN-Pr
 
 ---
 
-Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/DiSCOS/DiSCOS.md)
+Documented with the assistance of [DiSCOS](https://github.com/duranserkan/DRN-Project/blob/develop/DiSCOS/DiSCOS.md)
 
 ---
 **Semper Progressivus: Always Progressive**

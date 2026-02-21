@@ -6,9 +6,9 @@ description: Sync AGENTS.md, skill index, group workflows, and all.md from the f
 >
 > **Scope** *(optional)*: `/update <scope>` — limits sync to affected stages. Default: `all`. See §Scope Resolution.
 > [!IMPORTANT]
-> **Executive Presence governs every stage**: Decorum (structured, professional reporting) × Competency (rigorous, evidence-based checks) × Integrity (honest findings — never suppress failures) × Situational Awareness (scope-adaptive, context-budget-aware, fail-fast on structural issues).
+> **Executive Presence governs every stage**: structured reporting, evidence-based checks, honest findings, scope-adaptive execution.
 >
-> **Estimated context: ~3.1K tokens** (this workflow)
+> **Estimated context: ~2.6K tokens** (this workflow)
 
 ---
 
@@ -31,7 +31,7 @@ flowchart LR
 
 ### Standard Load Order
 
-Automated sync operations follow a consistent group order to ensure dependency-aware loading. This order governs Stage 1 (group loader skill lists), Stage 2 (`all.md` section ordering), and Stage 5 (Skill Index By Layer tables). §0 (Pre-Execution Validation) is a gate, not a sync stage.
+Group order for Stage 1 (loaders), Stage 2 (`all.md`), and Stage 5 (Skill Index). §0 is a gate, not a sync stage.
 
 `Basic` → `Overview` → `DRN Framework` → `Testing` → `Frontend` → `Custom`
 
@@ -99,12 +99,12 @@ Load the target sub-workflow via `view_file` and execute its instructions.
 
 ### Review Scope for `done` State
 
-When status is `done`, pass the following file set to `review.md`:
-
-- All files listed in plan Stage 1–5 action items
-- **Always include** `AGENTS.md` if Stage 3 executed — it is always touched by Stage 3 regardless of action item wording
-- **Always include** `.agent/skills/overview-skill-index/SKILL.md` if Stage 5 executed — it is always touched by Stage 5 regardless of action item wording
-- **Exclude** Stage 6 — it is flag-only and produces no file modifications
+| Include | Condition |
+|---------|----------|
+| Stage 1–5 action item files | Always |
+| `AGENTS.md` | If Stage 3 executed |
+| `.agent/skills/overview-skill-index/SKILL.md` | If Stage 5 executed |
+| Stage 6 files | **Exclude** — flag-only, no modifications |
 
 ---
 
@@ -119,16 +119,15 @@ When status is `done`, pass the following file set to `review.md`:
 | Section | Purpose |
 |---------|---------|
 | **Header** | Timestamp, Status, Scope, Repo path |
-| **Discovery Summary** | Skills Manifest, Projects Manifest, Non-Project Assets, Drift Report |
+| **Discovery Summary** | Skills Manifest, Projects Manifest, Non-Project Assets, Drift Report, Documentation Drift |
 | **Stage 1** | Sync Group Workflows — update group loaders and task workflow skill sections |
 | **Stage 2** | Sync `all.md` — regenerate all sections from group workflows |
 | **Stage 3** | Sync `AGENTS.md` — update project table, commands, skill paths, workflow listing |
 | **Stage 4** | Sync Non-Project References — validate build config, CI/CD, Docker references |
 | **Stage 5** | Sync Skill Index — update task table, layer tables, dependency graph, keyword index |
-| **Stage 6** | Sync Project Docs — flag stale `README.md`, `RELEASE-NOTES.md`, `ROADMAP.md`, `CHANGELOG.md`, `docs/` sections after project rename or structural change (flag only — never auto-modify) |
+| **Stage 6** | Sync Project Docs — flag code drift in per-module docs; offer delegation to `/documentation` (flag only — never auto-modify) |
 
-> [!NOTE]
-> **Out of scope**: `/update` does not rewrite project documentation content. Stage 6 flags sections that reference renamed projects or removed paths — the author makes the actual edits. If no project rename or structural change occurred, Stage 6 is skipped.
+> `/update` never rewrites project documentation — Stage 6 flags drift only; `/documentation` handles content updates.
 
 ### Scope Resolution
 
@@ -151,24 +150,11 @@ The orchestrator resolves scopes into affected stage sets. Sub-workflows interpr
 
 #### Scope-Widening Rule
 
-If a scoped update discovers cross-group dependencies (e.g., a skill in `basic` cross-referenced in `drn.md`): **report** the wider impact, **ask** whether to widen or defer, **never auto-widen** (DiSCOS Autonomy Limits). Downstream references may be temporarily out of sync until a wider-scoped run.
+If a scoped update discovers cross-group dependencies: **report** wider impact, **ask** whether to widen or defer, **never auto-widen** (DiSCOS Autonomy Limits).
 
 #### Freeform Scope Resolution
 
-When the scope string matches no known value, the planner interprets it during `update-plan.md` §0:
-
-1. **Interpret** — scan skill names, descriptions, keywords, project names, file paths, and workflow areas for relevance
-2. **Resolve** — map to the closest known scope combination and determine affected stages
-3. **Confirm** — present resolution to user and wait for approval (DiSCOS Confidence Signaling: Low):
-
-   ```text
-   Scope Resolution: "<freeform>" → <interpretation>. Skills: <list>. Projects: <list>. Stages: <N, N>. Proceed?
-   ```
-
-4. On **rejection** — ask for clarification or accept a corrected scope
-
-> [!NOTE]
-> Freeform resolution runs once during planning. The confirmed result persists in the plan header (`Resolved Stages:`), so execution and verification never re-interpret freeform strings.
+When the scope string matches no known value, the planner resolves it during `update-plan.md` §0 (interpret → resolve to known scope combination → confirm with user → persist in plan header). See `update-plan.md` §0 for detailed steps.
 
 ### Plan File Template
 
@@ -206,6 +192,11 @@ When the scope string matches no known value, the planner interprets it during `
 - ⚠️ Stale references: <list>
 - 🔀 Prefix mapping: <old> → <new>
 
+### Documentation Drift
+| Module | State | STALE | MISSING | RENAMED | Action |
+|--------|-------|-------|---------|---------|--------|
+| <Module> | rich/stub | N | N | N | flag / skip |
+
 ---
 
 ## Stage <N>: <Title>
@@ -228,13 +219,7 @@ When the scope string matches no known value, the planner interprets it during `
 
 ### Stage Resumption Protocol
 
-Used by `update-execute.md` and `update-verify.md`:
-
-1. Read the coordination file (plan or progress file)
-2. Find first stage with non-terminal status (not `done` / `pass` / `fail` / `skipped`)
-3. Mark it `executing`, check off each action on completion
-4. If `Requires Approval` exists, pause and ask user (execution only; verification has no approval gates)
-5. Mark stage terminal, continue to next until all complete
+Used by `update-execute.md` and `update-verify.md`: read coordination file → find first non-terminal stage → mark `executing` → check off actions → pause at `Requires Approval` (execution only) → mark terminal → continue until all complete.
 
 ---
 
@@ -243,11 +228,11 @@ Used by `update-execute.md` and `update-verify.md`:
 | Property | Guarantee |
 |----------|-----------|
 | **Stateful** | Progress persists in `.agent/update-plan.md` — survives context boundaries, resumes automatically |
-| **Idempotent** | No file content changes on an already-synced repo; re-verification re-checks (reset only on explicit request). Plan file and progress file are ephemeral and may be re-read or updated on each run. |
-| **Warning persistence** | `⚠️ Verified with warnings` sets plan status to `verified` — warnings are **ephemeral** (recorded in `.agent/update-verify-progress.md` only). Review and act on all warnings before committing; they are not re-surfaced on subsequent runs. |
-| **Scope-aware** | Optional scope limits discovery and execution; unaffected stages `skipped`; defaults to `all` |
+| **Idempotent** | No file changes on already-synced repo; plan/progress files are ephemeral, re-read/updated on each run |
+| **Warning persistence** | `⚠️ Verified with warnings` → `verified`; warnings recorded in `.agent/update-verify-progress.md` only — review before committing |
+| **Scope-aware** | Optional scope limits discovery and execution; unaffected stages `skipped`; default `all` |
 | **Safe by default** | Skill body modified only via project name substitution (requires approval); stale refs flagged, never auto-removed; scope never auto-widened |
 | **Portable** | Adapts to any project via prefix detection; `update-verify.md` validates content post-execution |
 | **Dynamic stages** | Verification stages generated from Projects Manifest, not hardcoded |
 | **Workflow-type aware** | Distinguishes group loaders from task workflows — syncs each appropriately (see `update-execute.md` §1.2) |
-| **Observable** | Every invocation emits the Situation Report — Before and After (§1) |
+| **Observable** | Every invocation emits Situation Report — Before and After (§1) |

@@ -52,11 +52,13 @@ dotnet test DRN.slnx           # Run all tests
 | `/review` | Review staged changes or branch diff via Priority Stack (~1K tokens) |
 | `/test` | Add tests for staged changes or a task (~1K tokens) |
 | `/optimize` | Optimize agent-consumed content (skills, workflows, docs) (~3K tokens) |
+| `/search` | Gather structured knowledge context — codebase, knowledge items, skills, web — before running /clarify enrichment (~1K tokens) |
+| `/documentation` | Generate and update per-module README.md and RELEASE-NOTES.md for DRN.Framework.* packages (~1.5K tokens) |
 | `/update` | Sync AGENTS.md, skill index, workflows from filesystem (~3K tokens + 3 sub-workflows ~9K) |
 | `/update-last` | Detect changed files from last N commits → delegate to `/update` (~1K tokens) |
-| `/load-skills-basic` | Load: `basic-agentic-development`, `basic-documentation`, `basic-documentation-diagrams`, `basic-security-checklist`, `basic-code-review`, `basic-git-conventions` (~8K tokens) |
-| `/load-skills-overview` | Load: `overview-repository-structure`, `overview-ddd-architecture`, `overview-drn-framework`, `overview-drn-testing`, `overview-github-actions`, `overview-skill-index` (~8K tokens) |
-| `/load-skills-drn` | Load: `drn-sharedkernel`, `drn-entityframework`, `drn-domain-design`, `drn-utils`, `drn-hosting`, `drn-testing` (~15K tokens) |
-| `/load-skills-test` | Load: `overview-drn-testing`, `test-integration`, `test-integration-api`, `test-integration-db`, `test-performance`, `test-unit` (~5K tokens) |
-| `/load-skills-frontend` | Load: `frontend-buildwww-libraries`, `frontend-buildwww-packages`, `frontend-buildwww-vite`, `frontend-razor-accessors`, `frontend-razor-pages-navigation`, `frontend-razor-pages-shared` (~7K tokens) |
-| `/load-skills-all` | Cascade: basic → overview → drn → test → frontend (~43K tokens) |
+| `/load-skills-basic` | Load: `basic-agentic-development`, `basic-documentation`, `basic-documentation-diagrams`, `basic-security-checklist`, `basic-code-review`, `basic-git-conventions` (~7.6K tokens) |
+| `/load-skills-overview` | Load: `overview-repository-structure`, `overview-ddd-architecture`, `overview-drn-framework`, `overview-drn-testing`, `overview-github-actions`, `overview-skill-index` (~8.3K tokens) |
+| `/load-skills-drn` | Load: `drn-sharedkernel`, `drn-entityframework`, `drn-domain-design`, `drn-utils`, `drn-hosting`, `drn-testing` (~18.5K tokens) |
+| `/load-skills-test` | Load: `overview-drn-testing`, `test-integration`, `test-integration-api`, `test-integration-db`, `test-performance`, `test-unit` (~5.3K tokens) |
+| `/load-skills-frontend` | Load: `frontend-buildwww-libraries`, `frontend-buildwww-packages`, `frontend-buildwww-vite`, `frontend-razor-accessors`, `frontend-razor-pages-navigation`, `frontend-razor-pages-shared` (~6.9K tokens) |
+| `/load-skills-all` | Cascade: basic → overview → drn → test → frontend (~42K tokens) |

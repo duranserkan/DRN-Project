@@ -36,7 +36,9 @@ description: Clarify a user-given task into requirements as Technical Business A
 
 **Before asking questions**, conduct autonomous research to sharpen clarification questions and reduce round-trips.
 
-Research sources: codebase · knowledge items · skills (`view_file .agent/skills/overview-skill-index/SKILL.md`) · external references.
+**Recommended**: Run `/search` to gather structured context across all source types (codebase, knowledge items, skills, web) within the 20% budget. The `/search` output appends directly to `## Enrichment Context` below.
+
+**Fallback (no `/search`)**: Research sources manually — codebase · knowledge items · skills (`view_file .agent/skills/overview-skill-index/SKILL.md`) · external references.
 
 Write findings into `## Enrichment Context` with subheadings: Codebase Findings, Knowledge Items, Relevant Skills, External References, Initial Observations.
 
