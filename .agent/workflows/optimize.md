@@ -26,7 +26,7 @@ description: Optimize agent-consumed content using DiSCOS and AGENTS.md (skills,
 | *(freeform)* | Keyword match against file names/content — confirm with user |
 
 - **No arguments** → Ask: *"What should I optimize? (file path, directory, or keyword: `skills` | `workflows` | `docs` | `all`)"*
-- **Exclusions**: Never optimize `AGENTS.md`, `DiSCOS.md`, or `CLARIFY-*/DEVELOP-*` files with status `draft`, `draft-self-reviewed`, `clarifying`, or `clarifying?`.
+- **Exclusions**: Never optimize `AGENTS.md`, `DiSCOS.md`, or `CLARIFY-*/DEVELOP-*` files with status `draft`, `draft-self-reviewed`, or `clarifying`.
 - **Skill loading**: Track loaded skills per session. Never reload already-loaded skills.
 
 ---

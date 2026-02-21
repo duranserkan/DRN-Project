@@ -209,6 +209,13 @@ Run `/review` on `DEVELOP-*.md` before presenting. Must pass with ✅ or ⚠️ 
 Present `DEVELOP-*.md` and **stop**. Await user instruction.
 
 - **Default** — User manually runs `/develop DEVELOP-[task-slug].md` to begin implementation.
-- **`/answer auto`** — Automatically invoke `/develop` after presentation without waiting for user input.
+- **`/answer auto`** — After presenting `DEVELOP-*.md`, **pause and require explicit user confirmation** before invoking `/develop`. Display the prompt below and wait for the user to respond `yes` (or equivalent) before proceeding:
+
+  > ⚠️ **Confirmation required** — `/answer auto` is about to invoke `/develop DEVELOP-[task-slug].md`.
+  > Review the document above. Type **yes** to proceed or **no** to stop here.
+
+  Only invoke `/develop` after explicit affirmative response. If the user does not confirm, stop and await manual instruction.
+
+> **⚠️ Warning — `/clarify auto` chain**: Running `/clarify auto` triggers `/answer auto`, which triggers `/develop` after confirmation. This end-to-end chain is only safe for **low-risk, well-understood tasks**. The confirmation gate above is mandatory and cannot be skipped.
 
 If user wants changes: update `DEVELOP-*.md` directly (minor edits) or return to `/clarify` (significant scope changes).

@@ -18,7 +18,7 @@ description: Clarify a user-given task into requirements as Technical Business A
 2. If input is < one sentence or entirely vague → ask user to expand before proceeding.
 3. Create document with `status: draft`:
 
-```
+```text
 ./CLARIFY-[task-slug].md
 ```
 
