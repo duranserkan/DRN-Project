@@ -3,6 +3,8 @@ description: Answer clarification questions as Technical Product Owner, approve 
 ---
 
 > **Pipeline**: `/clarify` → `/answer` (2/3) → `/develop` · [Status Lifecycle](./_shared/status-lifecycle.md)
+>
+> **Estimated context: ~2.0K tokens** (this workflow)
 
 ---
 

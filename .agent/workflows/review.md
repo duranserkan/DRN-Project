@@ -2,6 +2,8 @@
 description: Review git staged changes, diff the current feature/fix branch against develop, or a specified task using Priority Stack and project review skills. Use DiSCOS, AGENTS.md and repository skills guidance
 ---
 
+> **Estimated context: ~0.7K tokens** (this workflow) + ~5.1K when skills load
+
 ## 1. Determine Scope
 
 - **File path(s) provided** → Read the specified files directly; skip git analysis.

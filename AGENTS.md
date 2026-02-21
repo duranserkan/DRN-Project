@@ -1,6 +1,6 @@
 # AGENTS.md — DRN-Project Agent Instructions
 
-> Universal entry point for any AI coding agent working on this repository.
+> Universal entry point for any AI coding agent working on this repository. (~1K tokens)
 
 ## Behavioral Framework
 
@@ -18,7 +18,7 @@
 
 ## Skill Discovery
 
-- **Skill index**: `.agent/skills/overview-skill-index/SKILL.md` — task→skill & layer→skill lookup
+- **Skill index**: `.agent/skills/overview-skill-index/SKILL.md` — task→skill & layer→skill lookup (~2K tokens)
 - **Load all skills**: `.agent/workflows/load-skills-all.md` (cascades: basic → overview → drn → test → frontend)
 - **Individual workflows**: `.agent/workflows/load-skills-{basic,overview,drn,test,frontend}.md`
 
@@ -46,16 +46,17 @@ dotnet test DRN.slnx           # Run all tests
 
 | Slash Command | Purpose |
 |---------------|---------|
-| `/clarify` | Clarify task → requirements, epics, backlog |
-| `/answer` | Answer clarification questions, approve documents |
-| `/develop` | Implement from clarified requirements |
-| `/review` | Review staged changes or branch diff via Priority Stack |
-| `/test` | Add tests for staged changes or a task |
-| `/optimize` | Optimize agent-consumed content (skills, workflows, docs) |
-| `/update` | Sync AGENTS.md, skill index, workflows from filesystem |
-| `/update-last` | Detect changed files from last N commits → delegate to `/update` |
-| `/load-skills-basic` | Load: `basic-agentic-development`, `basic-documentation`, `basic-documentation-diagrams`, `basic-security-checklist`, `basic-code-review`, `basic-git-conventions` |
-| `/load-skills-overview` | Load: `overview-repository-structure`, `overview-ddd-architecture`, `overview-drn-framework`, `overview-drn-testing`, `overview-github-actions`, `overview-skill-index` |
-| `/load-skills-drn` | Load: `drn-sharedkernel`, `drn-entityframework`, `drn-domain-design`, `drn-utils`, `drn-hosting`, `drn-testing` |
-| `/load-skills-frontend` | Load: `frontend-buildwww-libraries`, `frontend-buildwww-packages`, `frontend-buildwww-vite`, `frontend-razor-accessors`, `frontend-razor-pages-navigation`, `frontend-razor-pages-shared` |
+| `/clarify` | Clarify task → requirements, epics, backlog (~2K tokens) |
+| `/answer` | Answer clarification questions, approve documents (~2K tokens) |
+| `/develop` | Implement from clarified requirements (~2K tokens) |
+| `/review` | Review staged changes or branch diff via Priority Stack (~1K tokens) |
+| `/test` | Add tests for staged changes or a task (~1K tokens) |
+| `/optimize` | Optimize agent-consumed content (skills, workflows, docs) (~3K tokens) |
+| `/update` | Sync AGENTS.md, skill index, workflows from filesystem (~3K tokens + 3 sub-workflows ~9K) |
+| `/update-last` | Detect changed files from last N commits → delegate to `/update` (~1K tokens) |
+| `/load-skills-basic` | Load: `basic-agentic-development`, `basic-documentation`, `basic-documentation-diagrams`, `basic-security-checklist`, `basic-code-review`, `basic-git-conventions` (~8K tokens) |
+| `/load-skills-overview` | Load: `overview-repository-structure`, `overview-ddd-architecture`, `overview-drn-framework`, `overview-drn-testing`, `overview-github-actions`, `overview-skill-index` (~8K tokens) |
+| `/load-skills-drn` | Load: `drn-sharedkernel`, `drn-entityframework`, `drn-domain-design`, `drn-utils`, `drn-hosting`, `drn-testing` (~15K tokens) |
+| `/load-skills-test` | Load: `overview-drn-testing`, `test-integration`, `test-integration-api`, `test-integration-db`, `test-performance`, `test-unit` (~5K tokens) |
+| `/load-skills-frontend` | Load: `frontend-buildwww-libraries`, `frontend-buildwww-packages`, `frontend-buildwww-vite`, `frontend-razor-accessors`, `frontend-razor-pages-navigation`, `frontend-razor-pages-shared` (~7K tokens) |
 | `/load-skills-all` | Cascade: basic → overview → drn → test → frontend (~43K tokens) |

@@ -2,6 +2,8 @@
 description: Shared status lifecycle for the /clarify → /answer → /develop pipeline
 ---
 
+> **Estimated context: ~0.3K tokens** (this workflow)
+
 ## Status Lifecycle
 
 ```text

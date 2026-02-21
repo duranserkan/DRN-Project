@@ -5,6 +5,8 @@ description: Planning phase of /update — discover skills/projects, detect drif
 > **Sub-workflow of `/update`** — called by the orchestrator, not invoked directly.
 >
 > Receives `Scope` from the orchestrator (default: `all`). Known scopes resolve immediately; freeform scopes are interpreted in §0 and confirmed before discovery begins.
+>
+> **Estimated context: ~3.0K tokens** (this workflow)
 
 > [!IMPORTANT]
 > **Safety Principle** — All drift items, cross-references, stale references, and scope-widening are **flagged for user decision only** — never auto-modified, auto-removed, or auto-widened.
@@ -52,7 +54,7 @@ Build an in-memory **skills manifest**:
 | `basic-*` | basic | `basic.md` |
 | `overview-*` | overview | `overview.md` |
 | `drn-*` | drn | `drn.md` |
-| `test-*` | test | `test.md` §2 |
+| `test-*` | test | `load-skills-test.md` |
 | `frontend-*` | frontend | `frontend.md` |
 | *(no match)* | custom | `custom.md` |
 
@@ -60,7 +62,7 @@ Build an in-memory **skills manifest**:
 
 | Type | Examples | Structure | Sync Rule |
 |------|----------|-----------|-----------|
-| **Group loader** | `basic.md`, `overview.md`, `drn.md`, `frontend.md` | `view_file` skill lists + YAML frontmatter + token estimate | §4 template regeneration applies fully |
+| **Group loader** | `basic.md`, `overview.md`, `drn.md`, `frontend.md`, `test.md` | `view_file` skill lists + YAML frontmatter + token estimate | §4 template regeneration applies fully |
 | **Task workflow** | `test.md`, `review.md`, `update.md` | Procedural steps with embedded `view_file` lines | Sync **only** `view_file` entries in the skill-loading section; preserve all surrounding prose |
 
 ### Cross-Group Inclusions

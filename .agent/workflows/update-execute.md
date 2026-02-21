@@ -5,6 +5,8 @@ description: Execution phase of /update — read update-plan.md, execute sync st
 > **Sub-workflow of `/update`** — called by the orchestrator, not invoked directly.
 >
 > Reads `Scope` from the plan header. Skipped stages follow the Stage Resumption Protocol in `update.md` §Plan File Contract.
+>
+> **Estimated context: ~2.9K tokens** (this workflow)
 
 ---
 
@@ -42,7 +44,7 @@ Follow Stage Resumption Protocol in `update.md` §Plan File Contract via `.agent
 
 ## 1. Sync Group Workflows (Stage 1)
 
-### 1.1 Group Loaders (`load-skills-basic.md`, `load-skills-overview.md`, `load-skills-drn.md`, `load-skills-frontend.md`)
+### 1.1 Group Loaders (`load-skills-basic.md`, `load-skills-overview.md`, `load-skills-drn.md`, `load-skills-frontend.md`, `load-skills-test.md`)
 
 Per group loader:
 
@@ -133,7 +135,7 @@ dotnet test <solution-file>               # Run all tests
 Verify and update paths — skill index, load-all workflow, individual workflows. **Auto-discover** all `.md` files in `.agent/workflows/` and classify:
 
 ```markdown
-- **Skill-loading workflows**: `.agent/workflows/load-skills-{basic,overview,drn,frontend}.md`
+- **Skill-loading workflows**: `.agent/workflows/load-skills-{basic,overview,drn,frontend,test}.md`
 - **Task workflows**: `.agent/workflows/{clarify,develop,review,test,update}.md`
 - **Sub-workflows**: `.agent/workflows/{update-plan,update-execute,update-verify}.md`
 - **Meta workflow**: `.agent/workflows/load-skills-all.md` (loads all skill groups)

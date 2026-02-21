@@ -5,6 +5,8 @@ description: Verification phase of /update — validate skill-body content again
 > **Sub-workflow of `/update`** — invoked by the orchestrator after execution and review, never directly.
 >
 > Reads `Scope` from the plan header. Generates verification stages only for executed stages; skipped stages carry over as `skipped` in the progress file.
+>
+> **Estimated context: ~2.8K tokens** (this workflow)
 
 ---
 

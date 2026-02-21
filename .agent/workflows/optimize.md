@@ -9,6 +9,8 @@ description: Optimize agent-consumed content using DiSCOS and AGENTS.md (skills,
 > **Principle**: DiSCOS Context Management — Preserve: Conclusions > Decisions > Patterns > Instances.
 >
 > **TRIZ Contradiction**: Brevity vs. Completeness. Resolution: optimize for **correct output per token**, not token count alone. When reducing content forces compensating actions (extra tool calls, follow-up questions, agent errors), the reduction is counter-productive. Reject false tradeoffs — satisfy both constraints.
+>
+> **Estimated context: ~2.6K tokens** (this workflow)
 
 ---
 

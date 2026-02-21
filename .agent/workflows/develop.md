@@ -3,6 +3,8 @@ description: Implement requirements from a clarified document using DiSCOS, AGEN
 ---
 
 > **Pipeline**: `/clarify` → `/answer` → `/develop` (3/3) · [Status Lifecycle](./_shared/status-lifecycle.md)
+>
+> **Estimated context: ~1.7K tokens** (this workflow)
 
 ---
 

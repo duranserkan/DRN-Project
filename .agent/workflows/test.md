@@ -2,6 +2,8 @@
 description: Add tests for staged changes or a described task using DTT philosophy. Use DiSCOS, AGENTS.md and repository skills guidance
 ---
 
+> **Estimated context: ~1.3K tokens** (this workflow) + ~5.3K when skills load (via `load-skills-test.md`)
+
 ## 1. Determine Scope
 
 - **No extra arguments** → Test **git staged changes** (`git diff --cached`).

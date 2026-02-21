@@ -3,6 +3,8 @@ description: Clarify a user-given task into requirements as Technical Business A
 ---
 
 > **Pipeline**: `/clarify` (1/3) → `/answer` → `/develop` · [Status Lifecycle](./_shared/status-lifecycle.md)
+>
+> **Estimated context: ~2.0K tokens** (this workflow)
 
 ---
 

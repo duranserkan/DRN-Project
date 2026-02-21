@@ -7,6 +7,8 @@ description: Sync AGENTS.md, skill index, group workflows, and all.md from the f
 > **Scope** *(optional)*: `/update <scope>` — limits sync to affected stages. Default: `all`. See §Scope Resolution.
 > [!IMPORTANT]
 > **Executive Presence governs every stage**: Decorum (structured, professional reporting) × Competency (rigorous, evidence-based checks) × Integrity (honest findings — never suppress failures) × Situational Awareness (scope-adaptive, context-budget-aware, fail-fast on structural issues).
+>
+> **Estimated context: ~3.1K tokens** (this workflow)
 
 ---
 
