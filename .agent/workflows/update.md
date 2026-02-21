@@ -158,9 +158,11 @@ When the scope string matches no known value, the planner interprets it during `
 1. **Interpret** — scan skill names, descriptions, keywords, project names, file paths, and workflow areas for relevance
 2. **Resolve** — map to the closest known scope combination and determine affected stages
 3. **Confirm** — present resolution to user and wait for approval (DiSCOS Confidence Signaling: Low):
-   ```
+
+   ```text
    Scope Resolution: "<freeform>" → <interpretation>. Skills: <list>. Projects: <list>. Stages: <N, N>. Proceed?
    ```
+
 4. On **rejection** — ask for clarification or accept a corrected scope
 
 > [!NOTE]

@@ -14,6 +14,7 @@ description: Execution phase of /update — read update-plan.md, execute sync st
 
 1. **Warn** if `Generated` timestamp > 24 hours old
 2. **Abort** if in-scope files changed (unstaged **or** staged) since plan generation:
+
    ```bash
    # Both checks required — either indicates potential staleness
    git diff -- <scope-paths>          # unstaged changes
@@ -61,7 +62,7 @@ Read the skills:
    ...
 ```
 
-### 1.2 Task Workflows (`test.md`, `review.md`)
+### 1.2 Task Workflows (`test.md`, `review.md`, `develop.md`)
 
 Task workflows have procedural structure — sync **only** `view_file` entries within their skill-loading section:
 
@@ -133,7 +134,7 @@ Verify and update paths — skill index, load-all workflow, individual workflows
 
 ```markdown
 - **Skill-loading workflows**: `.agent/workflows/load-skills-{basic,overview,drn,frontend}.md`
-- **Task workflows**: `.agent/workflows/{review,test,update}.md`
+- **Task workflows**: `.agent/workflows/{clarify,develop,review,test,update}.md`
 - **Sub-workflows**: `.agent/workflows/{update-plan,update-execute,update-verify}.md`
 - **Meta workflow**: `.agent/workflows/load-skills-all.md` (loads all skill groups)
 ```
@@ -246,7 +247,7 @@ Applies only when a project rename (`Prefix mapping` in Discovery Summary) or st
 
 ### 6.1 Identify Candidate Files
 
-```
+```text
 find_by_name README.md      # repo root and project subdirectories
 find_by_name RELEASE-NOTES.md
 find_by_name ROADMAP.md
@@ -258,7 +259,7 @@ list_dir docs/              # if exists
 
 For each candidate file, `grep_search` for the **old** project prefix(es) from the Discovery Summary `Prefix mapping`:
 
-```
+```text
 grep_search "<OldPrefix>" README.md
 grep_search "<OldPrefix>" RELEASE-NOTES.md
 grep_search "<OldPrefix>" ROADMAP.md
