@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Security.Cryptography;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
 using DRN.Framework.SharedKernel.Domain;
@@ -42,17 +43,35 @@ public class SourceKnownIdUtilsPerformanceTests(ITestOutputHelper output)
 
 [Outliers(OutlierMode.RemoveUpper)]
 [MemoryDiagnoser]
+[WarmupCount(1)]
+[IterationCount(1)]
+[InvocationCount(1_000_000)] // 1M ops per iteration, under 2.1M/sec sequence cap
 public class SourceKnownIdUtilsBenchmark
 {
+    [IterationSetup]
+    public void IterationWait() => Thread.Sleep(2000); // Let SequenceTimeScope reset between iterations
     static SourceKnownIdUtilsBenchmark()
     {
         Utils = new(AppSettings.Development(), new EpochTimeUtils());
-        EntityIdUtils = new(AppSettings.Development(), Utils);
+
+        var appSettings = AppSettings.Development();
+        SecureEntityIdUtils = new(appSettings, Utils);
+        UnsecureEntityIdUtils = new(appSettings, Utils);
+
+        // Pre-generate GUIDs for Parse benchmarks — avoids measuring ID generation in parse benchmarks
+        var id = Utils.Next<SourceKnownIdUtilsBenchmark>();
+        SecureEntityId = SecureEntityIdUtils.GenerateSecure<YEntity>(id);
+        UnsecureEntityId = UnsecureEntityIdUtils.GenerateUnsecure<YEntity>(id);
     }
 
     private static SourceKnownIdUtils Utils { get; }
-    private static SourceKnownEntityIdUtils EntityIdUtils { get; }
+    private static SourceKnownEntityIdUtils SecureEntityIdUtils { get; }
+    private static SourceKnownEntityIdUtils UnsecureEntityIdUtils { get; }
+    private static SourceKnownEntityId SecureEntityId { get; }
+    private static SourceKnownEntityId UnsecureEntityId { get; }
     private static YEntity Entity { get; } = new(5);
+
+    // --- Baseline benchmarks ---
 
     [Benchmark]
     public long RandomLong() => BinaryPrimitives.ReadInt64LittleEndian(RandomNumberGenerator.GetBytes(8));
@@ -69,21 +88,48 @@ public class SourceKnownIdUtilsBenchmark
     [Benchmark] //todo TimeScopedId look like a bottleneck, review it for possible improvements
     public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<YEntity>.GetTimeScopedId();
 
+    // --- SourceKnownId (raw long) ---
+
     [Benchmark]
     public long SourceKnownId() => Utils.Next<SourceKnownIdUtilsBenchmark>();
-    
-    [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityId()
-        => EntityIdUtils.Generate<YEntity>(Utils.Next<SourceKnownIdUtilsBenchmark>());
+
+    // --- Non-secure SourceKnownEntityId: BLAKE3 MAC only (explicit call variants) ---
 
     [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityIdWithEntity()
-        => EntityIdUtils.Generate(new YEntity(Utils.Next<SourceKnownIdUtilsBenchmark>()));
+    public SourceKnownEntityId SourceKnownEntityIdUnsecureWithId()
+        => UnsecureEntityIdUtils.GenerateUnsecure<YEntity>(Utils.Next<SourceKnownIdUtilsBenchmark>());
 
     [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityIdWithProvidedLongValue()
-        => EntityIdUtils.Generate(Entity);
+    public SourceKnownEntityId SourceKnownEntityIdUnsecureWithEntity()
+        => UnsecureEntityIdUtils.GenerateUnsecure(new YEntity(Utils.Next<SourceKnownIdUtilsBenchmark>()));
+
+    [Benchmark]
+    public SourceKnownEntityId SourceKnownEntityIdUnsecureWithProvidedLongValue()
+        => UnsecureEntityIdUtils.GenerateUnsecure(Entity);
+
+    // --- Secure SourceKnownEntityId: BLAKE3 MAC + AES-256-ECB encryption ---
+
+    [Benchmark]
+    public SourceKnownEntityId SourceKnownEntityIdSecure()
+        => SecureEntityIdUtils.GenerateSecure<YEntity>(Utils.Next<SourceKnownIdUtilsBenchmark>());
+
+    // --- Parse: secure GUID (AES-ECB decrypt + MAC verify) ---
+
+    [Benchmark]
+    public SourceKnownEntityId ParseSecureSourceKnownEntityId()
+        => SecureEntityIdUtils.Parse(SecureEntityId.EntityId);
+
+    // --- Parse: non-secure GUID (MAC verify only) ---
+
+    [Benchmark]
+    public SourceKnownEntityId ParseUnsecureSourceKnownEntityId()
+        => UnsecureEntityIdUtils.Parse(UnsecureEntityId.EntityId);
 }
 
 [EntityType(92)]
 public class YEntity(long id) : SourceKnownEntity(id);
+
+public class UnrollConfig : ManualConfig
+{
+    public UnrollConfig() => AddJob(Job.Default.WithUnrollFactor(16));
+}

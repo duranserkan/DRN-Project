@@ -134,7 +134,7 @@ public class StaticAssetWarmService(
         var warmed = sortedReports.Count(r => r.Success);
         var report = new ViteManifestWarmReport(totalRequests, warmed, elapsedMs, sortedReports);
 
-        ((ViteManifest)viteManifest).PreWarmReport = report;
+        ((ViteManifest)viteManifest).WarmReport = report;
 
         _logger.LogScoped(_scopedLog);
     }

@@ -498,6 +498,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
                 // Note: This 'public' header triggers the ResponseCaching middleware placed before UseStaticFiles in the pipeline.
                 // This allows the server to cache the compressed bytes of static assets in memory.
                 context.Context.Response.Headers.CacheControl = "public,max-age=31536000"; // 1 year
+                context.Context.Response.Headers.Vary = "Accept-Encoding"; //prevents static file cache poisoning
             };
         };
 

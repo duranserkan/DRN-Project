@@ -49,7 +49,7 @@ public class StaticAssetWarmServiceTests
         var elapsed = TimeSpan.Zero;
         while (elapsed < timeout)
         {
-            report = viteManifest.PreWarmReport;
+            report = viteManifest.WarmReport;
             if (report != null)
                 break;
 
