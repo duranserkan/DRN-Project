@@ -4,7 +4,7 @@ description: Execution phase of /update — read update-plan.md, execute sync st
 
 > **Sub-workflow of `/update`** — not invoked directly. Reads `Scope` from plan header; skipped stages follow Stage Resumption Protocol (`update.md` §Plan File Contract).
 >
-> **Estimated context: ~2.8K tokens** (this workflow)
+> **Estimated context: ~3.0K tokens** (this workflow)
 
 ---
 
@@ -271,6 +271,15 @@ Present a unified flag-only report — do **not** modify files:
 |--------|-------|---------|---------|---------|
 | DRN.Framework.X | 2 | 1 | 0 | `[STALE] OldType`, `[MISSING] NewFeature` |
 
+### Skill Content Drift *(from §3.5 stale code references — omit if none)*
+
+| Module | Skill | Stale References | Details |
+|--------|-------|-----------------|----------|
+| DRN.Framework.X | `drn-x/SKILL.md` | 2 | `OldMethod` not found, `RemovedType` not found |
+
+> Skill content drift = §3.5 flagged stale code references in a module-associated skill (`drn-<suffix>/SKILL.md`).
+> `/documentation` §3 step 5 handles skill content updates alongside README updates.
+
 ### Stale Project References *(from prefix mapping — omit if no rename)*
 
 | File | Stale Reference | Recommended Action |
@@ -281,19 +290,24 @@ Present a unified flag-only report — do **not** modify files:
 - DRN.Framework.Jobs — stub, no content to drift-scan
 ```
 
-If no drift detected and no stale references: *"Stage 6: No documentation drift detected."*
+If no drift detected, no skill drift, and no stale references: *"Stage 6: No documentation drift detected."*
 
 ### 6.4 Delegation Offer (if flags exist)
 
 After presenting the flag report, offer delegation to `/documentation`:
 
 ```text
-Stage 6 flagged content drift in: DRN.Framework.X, DRN.Framework.Y
-Delegate content update to /documentation for each module? (Y/N)
+Stage 6 flagged drift in: DRN.Framework.X, DRN.Framework.Y
+  Content drift: DRN.Framework.X (README), DRN.Framework.Y (README)
+  Skill content drift: DRN.Framework.X (drn-x/SKILL.md)
+Delegate updates to /documentation for each module? (Y/N)
 ```
 
-- **Y** → invoke `/documentation <module>` for each flagged module in turn. `/documentation` §8 confirmation gate applies — content is never written without explicit user sign-off.
+- **Y** → invoke `/documentation <module>` for each flagged module in turn. `/documentation` handles both README/RELEASE-NOTES updates and skill content updates (§3 step 5 + §8 skill drift section). All confirmation gates apply — content is never written without explicit user sign-off.
 - **N** → flag report complete; author makes edits manually.
+
+> [!NOTE]
+> When delegating, `/documentation` will re-run its own drift scan (§3) which includes the skill drift check (step 5). This is intentional — `/documentation`'s scan may be more granular than `/update`'s §3.5 sampling. The `/update` flags serve as a trigger, not a replacement for `/documentation`'s analysis.
 
 ---
 

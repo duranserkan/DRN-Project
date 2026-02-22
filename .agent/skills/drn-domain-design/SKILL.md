@@ -1,9 +1,9 @@
 ---
 name: drn-domain-design
 description: Domain-Driven Design implementation patterns - Entity design with Source-Known IDs (SourceKnownEntity, AggregateRoot), repository contracts (ISourceKnownRepository), domain events, EF Core configuration, DTO mapping rules, and implementation templates. Essential for domain modeling and data access. Keywords: ddd, entity-design, aggregate-root, source-known-id, repository, domain-events, ef-core-configuration, dto-mapping, entity-type, identity
-last-updated: 2026-02-15
+last-updated: 2026-02-22
 difficulty: advanced
-tokens: ~3K
+tokens: ~2.9K
 ---
 
 # Domain Design Patterns
@@ -88,6 +88,19 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 }
 ```
 
+> [!CAUTION]
+> **Navigation Configuration Ordering**: Navigation-level configurations (e.g., `AutoInclude()`) must be placed **after** relationship definitions in Fluent API. Placing them before silently fails. See [dotnet/efcore#31380](https://github.com/dotnet/efcore/issues/31380).
+>
+> ```csharp
+> // ✗ WRONG — AutoInclude silently ignored
+> builder.Navigation(x => x.Books).AutoInclude();
+> builder.HasMany(x => x.Books).WithMany();
+>
+> // ✓ CORRECT — define relationship first, then configure navigation
+> builder.HasMany(x => x.Books).WithMany();
+> builder.Navigation(x => x.Books).AutoInclude();
+> ```
+
 ### Conventions Applied by DrnContext
 - Auto ID generation via `IDrnSaveChangesInterceptor`
 - `EntityIdSource` initialization via `IDrnMaterializationInterceptor`
@@ -95,7 +108,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 - `IEntityWithModel<T>` auto-maps `.Model` to `jsonb`
 
 > [!TIP]
-> **Prototype Mode**: Set `UsePrototypeMode = true` on your configuration attribute to enable ephemeral, testcontainer-based local development. This auto-handles database creation and migrations without requiring manual PostgreSQL installation. See [drn-entityframework](../drn-entityframework/SKILL.md).
+> **Prototype Mode**: Set `UsePrototypeMode = true` on configuration attribute for ephemeral testcontainer-based development — auto-handles DB creation and migrations. See [drn-entityframework](../drn-entityframework/SKILL.md).
 
 ---
 
@@ -196,7 +209,7 @@ public class CategoryDto(SourceKnownEntity? entity = null) : Dto(entity)
 // Id, CreatedAt, ModifiedAt are auto-mapped by Dto base class
 ```
 
-> The constructor takes `SourceKnownEntity?` — **not** the concrete entity type. This keeps the Contract layer independent of Domain. Entity-specific property mapping happens in the Domain layer via `ToDto()` instance methods.
+> Constructor takes `SourceKnownEntity?` (not concrete entity) to keep Contract independent of Domain. Entity-specific mapping uses `ToDto()` in Domain layer.
 
 ### Entity-to-DTO Mapping (in `*.Domain`)
 
@@ -218,7 +231,7 @@ public class Category : AggregateRoot
 }
 ```
 
-The `new(this)` call passes the entity as `SourceKnownEntity?` to the base `Dto` constructor (maps `Id`, `CreatedAt`, `ModifiedAt`). The object initializer sets entity-specific `required` properties.
+`new(this)` passes entity → base `Dto` constructor (maps `Id`, `CreatedAt`, `ModifiedAt`). Object initializer sets entity-specific `required` properties.
 
 ### DTO-to-Entity Mapping (in `*.Domain`)
 
@@ -246,7 +259,7 @@ public static class CategoryMappingExtensions
 | Entity → DTO | Instance method `ToDto()` on entity | Extract to extension method |
 | DTO → Entity | Extension method `dto.ToEntity()` in Domain | Same |
 
-> When the entity grows crowded with mapping logic, extract `ToDto()` into the same extension class (e.g., `CategoryMappingExtensions`) to keep the entity focused on domain behavior.
+> Extract `ToDto()` to the extension class (e.g., `CategoryMappingExtensions`) when the entity grows crowded with mapping logic.
 
 ---
 
@@ -260,7 +273,6 @@ public static class CategoryMappingExtensions
 Implement these three endpoints for comprehensive pagination support:
 
 ```csharp
-// 1. Main entry point (URL-serializable)
 [HttpGet]
 public async Task<PaginationResultModel<UserDto>> GetAsync([FromQuery] PaginationRequest request)
 {
@@ -268,15 +280,8 @@ public async Task<PaginationResultModel<UserDto>> GetAsync([FromQuery] Paginatio
     return result.ToModel(user => user.ToDto());
 }
 
-// 2. Navigation via query string
-[HttpGet("paginate")]
-public async Task<PaginationResultModel<UserDto>> PaginateWithQueryAsync(
-    [FromQuery] PaginationResultInfo? resultInfo, ...) { ... }
-
-// 3. Navigation via request body (POST)
-[HttpPost("paginate")]
-public async Task<PaginationResultModel<UserDto>> PaginateWithBodyAsync(
-    [FromBody] PaginationResultInfo? resultInfo, ...) { ... }
+// Also implement: GET "paginate" ([FromQuery] PaginationResultInfo?)
+//                 POST "paginate" ([FromBody] PaginationResultInfo?)
 
 [HttpGet("{id:guid}")]
 public async Task<UserDto> GetByIdAsync(Guid id)

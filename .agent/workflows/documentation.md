@@ -4,7 +4,7 @@ description: Generate and update per-module README.md and RELEASE-NOTES.md for D
 
 > **Standalone documentation workflow**
 >
-> **Estimated context: ~2.4K tokens** (this workflow)
+> **Estimated context: ~2.9K tokens** (this workflow)
 
 ---
 
@@ -74,9 +74,16 @@ For existing-rich modules, after loading README and source outline, compare them
    - Source has a public type/key not mentioned in README → `[MISSING]`
    - Section heading no longer matches its source counterpart → `[RENAMED]`
 4. **Record findings** — populate the "Detected drift" list in §8 Change Plan.
+5. **Skill drift check** — if step 3 found any `[MISSING]` or `[STALE]` items, check the module's corresponding skill:
+   - **Resolve skill file**: `drn-<module-suffix>/SKILL.md` (e.g., `DRN.Framework.Utils` → `.agent/skills/drn-utils/SKILL.md`). Skip if no matching skill exists.
+   - **Compare skill topics** against the source elements already extracted in step 2.
+   - **Flag skill-level drift**: `[SKILL-STALE]` (skill references removed/renamed source element), `[SKILL-MISSING]` (source element not covered in skill).
+   - **Record findings** — populate the "Skill drift" list in §8 Change Plan.
 
 > [!NOTE]
-> Drift scan is read-only. Findings are presented to the user in §8 before any write. The user decides which drift items to fix in this run.
+> Drift scan is read-only. Findings (including skill drift) are presented to the user in §8 before any write. The user decides which drift items to fix in this run.
+>
+> Skill drift check is scoped to the module's own skill only — never scan unrelated skills. Only load the skill file when the README drift scan already found divergence.
 
 ---
 
@@ -228,6 +235,11 @@ Present a **change summary** before writing:
 - [MISSING] `NewFeature` — in source, not documented
 - [RENAMED] `OldSection` → `NewSection`
 
+**Skill drift** *(from §3 step 5 — omit if no corresponding skill or no drift found)*
+- [SKILL-STALE] `OldUtility` in `drn-<suffix>/SKILL.md` — removed from source
+- [SKILL-MISSING] `NewCapability` — in source, not covered by skill
+- **Action**: (a) update skill inline during this run, or (b) defer to `/update`
+
 **Structural changes proposed** *(requires explicit confirmation — omit if none)*
 - Add `## <NewSection>` — source gained `<NewCapability>`, no heading exists
 - Remove `## <OldSection>` — `<OldAPI>` no longer exists in source
@@ -248,6 +260,9 @@ Present a **change summary** before writing:
 
 Wait for explicit user confirmation before writing. Accept clear affirmatives. A question or qualifier is not confirmation.
 
+> [!NOTE]
+> If skill drift is found and user chooses **(a) inline update**, apply the same existing-first rule from §5 to the skill file — targeted content changes only, never restructure. If user chooses **(b) defer**, record the findings and recommend running `/update` scoped to that skill.
+
 ---
 
 ## 9. Write & Verify
@@ -267,3 +282,6 @@ If writing fails → report error, stop, ask user for guidance.
 - `basic-documentation` skill — general documentation principles
 - `/review` — run after generation to validate output quality
 - `/update` Stage 6 — flags documentation drift and offers delegation here
+- `drn-*` skills — module-specific skill files; mapped by convention: `DRN.Framework.<Suffix>` → `.agent/skills/drn-<suffix>/SKILL.md`
+
+> **Symmetry**: `/update` Stage 6 flags README drift → delegates to `/documentation`. This workflow flags skill drift → optionally delegates back to `/update` or handles inline with approval.

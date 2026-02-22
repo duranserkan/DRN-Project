@@ -53,7 +53,7 @@ public interface ISourceKnownEntityIdUtils
 /// If still not enough, don't use source known ids, consider using a different id generation strategy such as true guid v4.
 /// </summary>
 [Singleton<ISourceKnownEntityIdUtils>]
-public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUtils sourceKnownIdUtils) : ISourceKnownEntityIdUtils, IDisposable
+public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUtils sourceKnownIdUtils) : ISourceKnownEntityIdUtils, IDisposable
 {
     private const byte EntityIdFirstHalfOffset = 0;
     private const byte EntityIdFirstHalfLength = 4; // 0-3
@@ -79,8 +79,9 @@ public class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUt
     private readonly BinaryData _defaultMacKey = appSettings.NexusAppSettings.GetDefaultMacKey().KeyAsBinary; // todo add keyring rotation
     private readonly bool _useSecure = appSettings.NexusAppSettings.UseSecureSourceKnownIds;
 
-    // Singleton — DI container disposes at shutdown. EncryptEcb/DecryptEcb are stateless single-block ops safe for concurrent use.
+    // Singleton — DI container disposes at shutdown.
     // Stress tested with SourceKnownEntityIdUtilsTests
+    // EncryptEcb/DecryptEcb are stateless single-block ops safe for concurrent use.
     // Post-quantum readiness: AES-256 retains 128-bit security under Grover's algorithm — NIST recommended for post-quantum symmetric encryption.
     private readonly Aes _aes = CreateAes(appSettings.NexusAppSettings.GetDefaultMacKey().AlternativeKeyAsBinary);
 

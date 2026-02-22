@@ -36,7 +36,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// <summary>
     /// Settings for default public members of SourceKnownRepositories
     /// </summary>
-    public RepositorySettings<TEntity> Settings { get; set; } = new();
+    public virtual RepositorySettings<TEntity> Settings { get; set; } = new();
 
     protected virtual IQueryable<TEntity> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null)
     {

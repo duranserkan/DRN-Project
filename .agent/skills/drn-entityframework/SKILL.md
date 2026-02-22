@@ -157,6 +157,19 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 }
 ```
 
+> [!CAUTION]
+> **Navigation Configuration Ordering**: Navigation-level configurations (e.g., `AutoInclude()`) must be placed **after** relationship definitions in Fluent API. Placing them before silently fails. See [dotnet/efcore#31380](https://github.com/dotnet/efcore/issues/31380).
+>
+> ```csharp
+> // ✗ WRONG — AutoInclude silently ignored
+> builder.Navigation(x => x.Books).AutoInclude();
+> builder.HasMany(x => x.Books).WithMany();
+>
+> // ✓ CORRECT — define relationship first, then configure navigation
+> builder.HasMany(x => x.Books).WithMany();
+> builder.Navigation(x => x.Books).AutoInclude();
+> ```
+
 ---
 
 ## DB Context Attributes
