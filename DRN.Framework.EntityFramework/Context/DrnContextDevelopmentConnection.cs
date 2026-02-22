@@ -21,7 +21,7 @@ public static class DrnContextDevelopmentConnection
 
             if (password != null)
                 connectionString =
-                    $"Host={host};Port={port};Database={database};User ID={username};password={password};Multiplexing=true;Max Auto Prepare=10;Maximum Pool Size=2;Application Name={AppConstants.EntryAssemblyName};";
+                    $"Host={host};Port={port};Database={database};User ID={username};password={password};Multiplexing=true;Max Auto Prepare=10;Maximum Pool Size=20;Application Name={AppConstants.EntryAssemblyName};";
         }
 
         if (!string.IsNullOrWhiteSpace(connectionString))

@@ -4,13 +4,16 @@ description: Optimize agent-consumed content using DiSCOS and AGENTS.md (skills,
 
 > **Trigger**: `/optimize <scope>` or `/optimize` (prompts for scope).
 >
-> **Mission**: Maximize context efficiency — two equal vectors: (1) **Reduce** waste (filler, redundancy, verbosity), (2) **Enhance** effectiveness (clarity, completeness, correctness of instructions). Token count may increase when enhancement yields better outcomes.
+> **Mission**: Maximize context efficiency. Two vectors, equal weight: (1) **Reduce** waste, (2) **Enhance** effectiveness. Token count may rise when enhancement earns it.
 >
 > **Principle**: DiSCOS Context Management — Preserve: Conclusions > Decisions > Patterns > Instances.
 >
-> **TRIZ Contradiction**: Brevity vs. Completeness. Resolution: optimize for **correct output per token**, not token count alone. When reducing content forces compensating actions (extra tool calls, follow-up questions, agent errors), the reduction is counter-productive. Reject false tradeoffs — satisfy both constraints.
+> **TRIZ Contradiction**: Brevity vs. Completeness → optimize for **correct output per token**. If a cut forces compensating actions (extra tool calls, follow-ups, retries), it's counter-productive. Satisfy both constraints.
 >
-> **Estimated context: ~2.6K tokens** (this workflow)
+> [!IMPORTANT]
+> **Executive Presence governs every stage**: structured analysis, evidence-based optimization, honest metrics, decisive reporting.
+>
+> **Estimated context: ~3.0K tokens** (this workflow)
 
 ---
 
@@ -37,7 +40,7 @@ description: Optimize agent-consumed content using DiSCOS and AGENTS.md (skills,
 
 Analyze all targets **before applying changes**.
 
-**Severity classification** (used in steps below and in §4):
+**Severity classification** (governs §4 approval):
 
 | Severity | Examples | Approval |
 |----------|----------|----------|
@@ -51,9 +54,15 @@ For each target file:
 2. **Measure baseline** — character count, estimated tokens (chars ÷ 4), readability (§5).
 3. **Classify** content type → select strategy (§3f).
 4. **Identify candidates** using §3 rules + content-type strategy.
-5. **Classify severity** — assign each candidate a severity level using the table above.
-6. **Cross-file scan** (multi-file only) — detect duplicate/near-duplicate content across targets (§3g).
-7. **Dependency check** — verify all cross-references (`/review`, `/update`, skill names, file paths) resolve after proposed changes.
+5. **Classify severity** per table above.
+6. **Net-impact check** (Moderate/Significant) — if the optimization adds more complexity than it removes → tag `[COMPLEXITY WARNING]` and drop. Safe items exempt.
+7. **Alternative-comparison** (Moderate/Significant) — is a structurally different approach more context-efficient?
+   - Current structure vs. best known alternative (established pattern, simpler representation).
+   - TRIZ test: alternative satisfies both brevity and completeness? → prefer it.
+   - No better alternative? → proceed with original.
+   - Alternative scores higher on §5 Quality Score? → replace candidate.
+8. **Cross-file scan** (multi-file) — detect duplicates across targets (§3g).
+9. **Dependency check** — verify all cross-references resolve post-change.
 
 Present dry-run summary before proceeding to §4:
 
@@ -77,8 +86,8 @@ Apply in order.
 
 ### 3b. Condense *(§Documentation: Conciseness + §Context Management: Compression)*
 
-- Verbose explanations → concise equivalents preserving key info
-- Long examples → minimal representative; one per pattern
+- Verbose explanations → concise equivalents, key info intact
+- Long examples → one minimal representative per pattern
 - Repeated patterns → one instance + "Same pattern for X, Y, Z"
 - Paragraph lists → bullets (3+ items)
 - Descriptive comparisons → tables
@@ -93,15 +102,15 @@ Apply in order.
 
 ### 3d. Enhance *(§DiSCOS: Excellence by Simplicity — Full Solution, Not Minimum Effort)*
 
-Add content when absence reduces effectiveness or causes agent errors:
+Add content when its absence causes agent errors or degrades outcomes:
 
 - Missing context that would prevent agent errors → add concisely
 - Ambiguous instructions → clarify with precise wording
-- Non-obvious patterns without examples → add minimal representative example *(skip for workflow files unless the example prevents consistent misexecution)*
-- Incomplete cross-references → add missing links
+- Non-obvious patterns → minimal example *(workflows: only if it prevents misexecution)*
+- Incomplete cross-references → add links
 - Edge cases that repeatedly cause failures → document explicitly
 
-> **Gate**: Each addition must pass the test — *"Does removing this force a compensating action (extra tool call, follow-up question, or retry)?"* If yes, it stays. Additions follow tiered approval same as reductions.
+> **Gate**: *"Does removing this force a compensating action?"* If yes → keep. Additions follow same tiered approval as reductions.
 
 ### 3e. Preserve *(Never Optimize Away)*
 
@@ -132,6 +141,20 @@ Apply after general rules (§3a–§3e):
 2. **Report**: List duplicate pairs with file paths and similarity %.
 3. **Recommend**: Suggest shared reference file or consolidation with cross-link. Never auto-apply.
 
+### 3h. Accidental Complexity Removal *(proactive, not just defensive)*
+
+Actively seek and remove structure that adds cost without earning it:
+
+1. **Unnecessary indirection** — valueless reference chains, wrappers, pass-throughs → inline or flatten.
+2. **Over-engineered structure** — deep nesting where flat lists suffice → simplify to minimum nesting preserving clarity.
+3. **Redundant guards** — duplicates of existing mechanisms → remove, cross-reference original.
+
+> For verbose-to-concise transformations (prose → tables, multi-sentence → single-sentence), see §3b.
+
+**Pattern**: Identify → compare simpler alternative → verify essentials preserved → apply per §4.
+
+**Gate**: Simpler version must pass all §6 gates. If Simplicity gains but Correctness or Clarity degrades → keep original, document why.
+
 ---
 
 ## 4. Apply Changes
@@ -146,8 +169,8 @@ Apply after general rules (§3a–§3e):
 | **Mixed** | Group by severity; apply safe immediately, present rest together |
 
 Post-apply:
-1. Verify all cross-references from §2.7 resolve. Report broken references.
-2. **Idempotency check** — re-run §2 analysis on changed files. If new candidates surface, flag as non-idempotent and report before stopping.
+1. Verify all cross-references resolve. Report any broken.
+2. **Idempotency check** — re-run §2 on changed files. New candidates? → flag non-idempotent, report, stop.
 
 > **Rollback**: Changes are uncommitted. `git diff` to inspect, `git checkout -- <file>` to revert.
 
@@ -160,7 +183,7 @@ Post-apply:
 | *target file* | X | Y | −Z% or +Z% | score/100 | level |
 | **Total** | **X** | **Y** | **net Δ** | **avg** | — |
 
-> Δ Change may be **positive** (token increase) when Enhancement Rules (§3d) improve effectiveness. This is a valid optimization outcome.
+> Positive Δ (token increase) is valid when §3d enhancements improve effectiveness.
 
 **Quality Score** (0–100) — weighted composite:
 - Scannable structure ratio: % in tables/lists/code blocks (30%)
@@ -181,7 +204,7 @@ Already-optimal files: note as `— (already optimal)` and skip.
 
 ## 6. Quality Gate
 
-Apply Priority Stack to every optimized file — evaluate top-down, higher gate failure blocks lower:
+Priority Stack per file — top-down, higher failure blocks lower:
 
 | Gate | Question | Failure Action |
 |------|----------|----------------|
@@ -189,9 +212,10 @@ Apply Priority Stack to every optimized file — evaluate top-down, higher gate 
 | **Correctness** | Will the optimized content produce correct agent behavior? | Revert or restore missing context |
 | **Clarity** | Is the content more understandable after optimization? | Iterate — don't apply if no clarity gain |
 | **Simplicity** | Was accidental complexity removed without losing essential complexity? | Iterate |
+| **Alternatives** | Was §2.7 alternative-comparison analysis completed for all Moderate/Significant candidates? | Complete analysis before proceeding |
 | **Performance** | Was context efficiency improved (better outcomes per token)? | Accept as-is if upper gates pass |
 
-For **moderate or significant** changes that alter workflow steps or skill lookup tables: additionally run full `/review` on modified files.
+**Moderate/Significant** changes altering workflow steps or skill tables → run `/review` on modified files.
 
 | Outcome | Action |
 |---------|--------|
