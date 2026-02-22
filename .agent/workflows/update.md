@@ -166,6 +166,7 @@ When the scope string matches no known value, the planner resolves it during `up
 > Scope: all | skills | agents | projects | infra | <group> | <skill-dir> | stage-<N> | <freeform>
 > Resolved Stages: 1, 2, 3, 4, 5, 6 *(always populated — full set for known scopes, subset for freeform/scoped runs)*
 > Repo: <repository root path>
+> Custom Groups: <prefix> → <loader-workflow> *(optional — omit if none; e.g., `acme → load-skills-acme.md`)*
 
 ---
 
@@ -231,7 +232,7 @@ Used by `update-execute.md` and `update-verify.md`: read coordination file → f
 | **Idempotent** | No file changes on already-synced repo; plan/progress files are ephemeral, re-read/updated on each run |
 | **Warning persistence** | `⚠️ Verified with warnings` → `verified`; warnings recorded in `.agent/update-verify-progress.md` only — review before committing |
 | **Scope-aware** | Optional scope limits discovery and execution; unaffected stages `skipped`; default `all` |
-| **Safe by default** | Skill body modified only via project name substitution (requires approval); stale refs flagged, never auto-removed; scope never auto-widened |
+| **Safe by default** | Skill body modified only via project name substitution (requires approval); irrelevant skill removal requires explicit approval; stale refs flagged, never auto-removed; scope never auto-widened |
 | **Portable** | Adapts to any project via prefix detection; `update-verify.md` validates content post-execution |
 | **Dynamic stages** | Verification stages generated from Projects Manifest, not hardcoded |
 | **Workflow-type aware** | Distinguishes group loaders from task workflows — syncs each appropriately (see `update-execute.md` §1.2) |

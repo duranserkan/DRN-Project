@@ -4,7 +4,7 @@ description: Execution phase of /update — read update-plan.md, execute sync st
 
 > **Sub-workflow of `/update`** — not invoked directly. Reads `Scope` from plan header; skipped stages follow Stage Resumption Protocol (`update.md` §Plan File Contract).
 >
-> **Estimated context: ~3.0K tokens** (this workflow)
+> **Estimated context: ~2.8K tokens** (this workflow)
 
 ---
 
@@ -13,10 +13,9 @@ description: Execution phase of /update — read update-plan.md, execute sync st
 ### Staleness Guard
 
 1. **Warn** if `Generated` timestamp > 24 hours old
-2. **Abort** if in-scope files changed (unstaged **or** staged) since plan generation:
+2. **Abort** if in-scope files changed since plan generation:
 
    ```bash
-   # Both checks required — either indicates potential staleness
    git diff -- <scope-paths>          # unstaged changes
    git diff --cached -- <scope-paths>  # staged changes
    ```
@@ -42,15 +41,13 @@ Follow Stage Resumption Protocol in `update.md` §Plan File Contract via `.agent
 
 ## 1. Sync Group Workflows (Stage 1)
 
-### 1.1 Group Loaders (`load-skills-basic.md`, `load-skills-overview.md`, `load-skills-drn.md`, `load-skills-frontend.md`, `load-skills-test.md`)
+### 1.1 Group Loaders (`load-skills-{basic,overview,drn,frontend,test}.md`)
 
 Per group loader:
 
 1. **Preserve**: YAML frontmatter, `description`, `// turbo` annotations, existing skill order (dependency-first)
 2. **Regenerate**: Skill list — one `view_file` per skill; append new at end, never reorder
 3. **Update**: Token estimate — Σ(skill sizes, primary + cross-referenced) ÷ 4, rounded to 0.1K
-
-#### Skill list template
 
 ```markdown
 Read the skills:
@@ -65,12 +62,11 @@ Sync **only** `view_file` entries within skill-loading sections:
 
 1. **Identify** skill-loading section (e.g., `test.md` §2, `review.md` §2)
 2. **Update** `view_file` lines — add missing, remove nonexistent
-3. **Preserve** all surrounding prose, numbering, headings, procedural instructions
-4. **Do not** apply the group loader template
+3. **Preserve** all surrounding prose, numbering, headings, procedural instructions — do **not** apply group loader template
 
 ### 1.3 Custom Group (if applicable)
 
-Create `custom.md` if custom skills exist without it:
+Create `custom.md` if custom skills exist without it. If it exists, update its skill list.
 
 ```markdown
 ---
@@ -83,21 +79,33 @@ Read the skills:
    - `view_file .agent/skills/<custom-skill>/SKILL.md`
 ```
 
-If `custom.md` exists, update its skill list per the same pattern.
+### 1.4 Irrelevance Removal (if applicable)
+
+When plan §3.4 flags `⚠️ Possibly irrelevant` skills **and user approved** removal:
+
+| Action | Scope |
+|--------|-------|
+| Remove `view_file` entries | Primary group loader |
+| Remove from `load-skills-all.md` | Deferred to Stage 2 regeneration |
+| Remove from task workflows | `review.md`, `test.md`, `develop.md` if referenced |
+| Flag for removal | `AGENTS.md` (Stage 3), `overview-skill-index` (Stage 5) |
+| Report skill directories | For manual deletion — **never** auto-deleted |
+
+> [!IMPORTANT]
+> Removal requires explicit user approval during planning (§3.4 `Requires Approval`). Never auto-remove.
 
 ---
 
 ## 2. Sync `load-skills-all.md` (Stage 2)
 
-Regenerate `load-skills-all.md` from all group workflows:
+Regenerate from all group workflows:
 
 1. **Preserve**: YAML frontmatter, `// turbo-all` annotation
 2. **Regenerate**: All group sections with skill lists
 3. **Update**: Total token estimate (Σ group estimates)
 4. **Include**: Custom group section if `custom.md` exists
 
-**Section order**: Follow the Standard Load Order in `update.md` §Standard Load Order (Basic → Overview → DRN Framework → Testing → Frontend → Custom).
-
+**Section order**: Standard Load Order per `update.md` §Standard Load Order (Basic → Overview → DRN Framework → Testing → Frontend → Custom).
 
 ---
 
@@ -127,16 +135,16 @@ dotnet test <solution-file>               # Run all tests
 
 ### 3.3 Skill Discovery
 
-Verify and update paths — skill index, load-all workflow, individual workflows. **Auto-discover** all `.md` files in `.agent/workflows/` and classify:
+Verify and update paths — skill index, load-all workflow, individual workflows. Auto-discover all `.md` files in `.agent/workflows/` and classify:
 
-```markdown
-- **Skill-loading workflows**: `.agent/workflows/load-skills-{basic,overview,drn,frontend,test}.md`
-- **Task workflows**: `.agent/workflows/{clarify,develop,review,test,update}.md`
-- **Sub-workflows**: `.agent/workflows/{update-plan,update-execute,update-verify}.md`
-- **Meta workflow**: `.agent/workflows/load-skills-all.md` (loads all skill groups)
-```
+| Category | Pattern |
+|----------|---------|
+| Skill-loading | `load-skills-{basic,overview,drn,frontend,test}.md` |
+| Task | `{clarify,develop,review,test,update}.md` |
+| Sub-workflows | `{update-plan,update-execute,update-verify}.md` |
+| Meta | `load-skills-all.md` |
 
-> Exclude `custom.md` if nonexistent. Include any newly discovered workflow files.
+Exclude `custom.md` if nonexistent. Include newly discovered workflow files.
 
 ### 3.4 Conventions
 
@@ -146,62 +154,44 @@ Verify and update paths — skill index, load-all workflow, individual workflows
 
 When the project prefix has changed (e.g., `Sample` → `MyApp`):
 
-1. **Detect**: Scan skill files for **all** project prefixes (from `<Project>` entries in solution file). `DRN.Framework.*` prefixes are **never** substituted
+1. **Detect**: Scan skill files for all project prefixes (from `<Project>` entries in solution file). Prefixes not matching any current project are **never** substituted — flag as external references
 2. **Scan**: `grep_search` for old prefix across `.agent/skills/*/SKILL.md`
-3. **Present mapping** — show **all** prefix families separately:
+3. **Present mapping** — show all prefix families separately:
    ```text
    Family 1: Sample.* → MyApp.*
      Sample.Hosted      → MyApp.Hosted
      Sample.Application  → MyApp.Application
 
-   Family 2: DRN.Nexus.* → (no match — flag for removal or manual mapping)
-     DRN.Nexus.Hosted    → ???
+   Family 2: OldLib.* → (no match — flag for removal or manual mapping)
+      OldLib.Core    → ???
    ```
 4. **Wait for user approval** (DiSCOS Autonomy Ladder level 4)
 5. **Apply**: Boundary-aware find-and-replace — approved mappings only:
    ```regex
    Match: (?<=[ \t`'"\n\/]|^)<Prefix>\.
    ```
-   Prefix must follow whitespace, BOL, backtick, quote, or `/` — prevents partial-match corruption (e.g., `SampleData`, `ExampleSample`).
+   Prefix must follow whitespace, BOL, backtick, quote, or `/` — prevents partial-match corruption.
 6. **Verify**: Each substitution produces a valid path in the target repo
 
 > Project-specific paths (e.g., `Sample.Hosted/vite.config.js`) are also updated.
 
-> **⚠️ Manual attention**: Overview/architecture skills contain structural docs (ASCII trees, mermaid diagrams) reflecting the **original** layout — **flag for manual regeneration**.
+> **⚠️ Manual attention**: Overview/architecture skills contain structural docs (ASCII trees, mermaid diagrams) reflecting the **original** layout — flag for manual regeneration.
 
 > [!IMPORTANT]
-> Business repos ported from DRN-Project typically need **two** substitution sets: sample/reference app + DRN.Nexus (if present). Always present all detected families.
+> Business repos ported from a reference project typically need multiple substitution sets — one per project-family prefix. Always present all detected families.
 
 ---
 
 ## 4. Sync Non-Project References (Stage 4)
 
-Validate and update references to non-project assets across skills and AGENTS.md.
+Validate and update references to non-project assets across skills and AGENTS.md. **Flag-only** — no modifications without user approval.
 
-### 4.1 Build Infrastructure
-
-For skills referencing `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `nuget.config`:
-
-1. Verify file exists → if missing: `⚠️ Stale non-project reference`
-2. If exists but content changed significantly (e.g., target framework) → flag for user review
-
-### 4.2 CI/CD
-
-For `overview-github-actions` and skills referencing `.github/workflows/`:
-
-1. Verify referenced workflow files + composite action paths exist
-2. Flag missing or renamed workflows
-
-### 4.3 Containers
-
-For skills referencing Dockerfiles or docker-compose: verify files exist, flag stale references.
-
-### 4.4 AGENTS.md Infrastructure
-
-Verify referenced commands still work (e.g., solution file name in `dotnet build`). Update paths if renamed.
-
-> [!NOTE]
-> Non-project asset sync is read-and-flag only — no modifications without user approval, consistent with "flags, never auto-removes" principle.
+| Category | Assets | Action |
+|----------|--------|--------|
+| **Build infrastructure** | `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `nuget.config` | Verify exists → if missing: `⚠️ Stale`; if content changed significantly → flag for review |
+| **CI/CD** | `.github/workflows/`, composite actions | Verify referenced files exist → flag missing/renamed |
+| **Containers** | Dockerfiles, docker-compose | Verify exists → flag stale references |
+| **AGENTS.md infrastructure** | Solution file name in `dotnet build` etc. | Verify commands resolve → update paths if renamed |
 
 ---
 
@@ -213,21 +203,16 @@ Update `overview-skill-index/SKILL.md`:
 
 Set `last-updated` to today's date.
 
-### 5.2 "I want to…" Task Table
+### 5.2–5.5 Index Sections
 
-**Add** rows for new skills (derive task mappings from `description`) · **Remove** rows for deleted skills · **Preserve** hand-tuned rows
+All sections follow the same pattern: **Add** new · **Remove** deleted · **Preserve** hand-tuned content.
 
-### 5.3 By Layer Tables
-
-**Add** new skills under appropriate layer (infer from name/description) · **Remove** deleted · **Preserve** existing
-
-### 5.4 Skill Dependency Graph
-
-**Add** new nodes (standalone unless dependency is obvious) · **Remove** deleted nodes · **Preserve** existing arrows (hand-maintained)
-
-### 5.5 Keyword Index
-
-**Add** keywords from new skills' `description` frontmatter · **Remove** keywords only associated with deleted skills · **Preserve** existing mappings
+| Section | Content | Add Source |
+|---------|---------|------------|
+| **"I want to…" Task Table** | Task→skill mappings | Derive from `description` frontmatter |
+| **By Layer Tables** | Skills under layers | Infer layer from name/description |
+| **Dependency Graph** | Mermaid nodes+arrows | New skills standalone unless dependency obvious |
+| **Keyword Index** | Keyword→skill mappings | Extract from `description` frontmatter |
 
 ---
 
@@ -248,19 +233,11 @@ Process only modules with detected drift or prefix mapping hits. `[STUB]` module
 
 ### 6.2 Scan for Stale References (project rename only)
 
-If `Prefix mapping` exists, scan per-module `README.md` and `RELEASE-NOTES.md` for old prefix:
-
-```text
-grep_search "<OldPrefix>" <Module>/README.md
-grep_search "<OldPrefix>" <Module>/RELEASE-NOTES.md
-# Repeat for each old prefix family
-```
-
-Also flag any file paths or project names that no longer resolve (removed projects).
+If `Prefix mapping` exists, scan per-module `README.md` and `RELEASE-NOTES.md` for old prefix. Also flag file paths or project names that no longer resolve.
 
 ### 6.3 Report Findings
 
-Present a unified flag-only report — do **not** modify files:
+Present a unified flag-only report:
 
 ```markdown
 ## Stage 6: Project Docs Flags
@@ -268,46 +245,43 @@ Present a unified flag-only report — do **not** modify files:
 ### Content Drift *(from §2.2 pre-scan)*
 
 | Module | STALE | MISSING | RENAMED | Details |
-|--------|-------|---------|---------|---------|
-| DRN.Framework.X | 2 | 1 | 0 | `[STALE] OldType`, `[MISSING] NewFeature` |
+|--------|-------|---------|---------|---------| 
+| <Family>.<Module> | 2 | 1 | 0 | `[STALE] OldType`, `[MISSING] NewFeature` |
 
-### Skill Content Drift *(from §3.5 stale code references — omit if none)*
+### Skill Content Drift *(omit if none)*
 
 | Module | Skill | Stale References | Details |
 |--------|-------|-----------------|----------|
-| DRN.Framework.X | `drn-x/SKILL.md` | 2 | `OldMethod` not found, `RemovedType` not found |
+| <Family>.<Module> | `<prefix>-<suffix>/SKILL.md` | 2 | `OldMethod` not found |
 
-> Skill content drift = §3.5 flagged stale code references in a module-associated skill (`drn-<suffix>/SKILL.md`).
 > `/documentation` §3 step 5 handles skill content updates alongside README updates.
 
-### Stale Project References *(from prefix mapping — omit if no rename)*
+### Stale Project References *(omit if no rename)*
 
 | File | Stale Reference | Recommended Action |
 |------|----------------|--------------------| 
 | README.md:L42 | `OldPrefix.Hosted` | Replace with `NewPrefix.Hosted` |
 
 ### Stub Modules *(deferred)*
-- DRN.Framework.Jobs — stub, no content to drift-scan
+- <Family>.<Module> — stub, no content to drift-scan
 ```
 
-If no drift detected, no skill drift, and no stale references: *"Stage 6: No documentation drift detected."*
+If no drift detected: *"Stage 6: No documentation drift detected."*
 
 ### 6.4 Delegation Offer (if flags exist)
 
-After presenting the flag report, offer delegation to `/documentation`:
-
 ```text
-Stage 6 flagged drift in: DRN.Framework.X, DRN.Framework.Y
-  Content drift: DRN.Framework.X (README), DRN.Framework.Y (README)
-  Skill content drift: DRN.Framework.X (drn-x/SKILL.md)
+Stage 6 flagged drift in: <Family>.<ModuleA>, <Family>.<ModuleB>
+  Content drift: <Family>.<ModuleA> (README), <Family>.<ModuleB> (README)
+  Skill content drift: <Family>.<ModuleA> (<prefix>-<suffix>/SKILL.md)
 Delegate updates to /documentation for each module? (Y/N)
 ```
 
-- **Y** → invoke `/documentation <module>` for each flagged module in turn. `/documentation` handles both README/RELEASE-NOTES updates and skill content updates (§3 step 5 + §8 skill drift section). All confirmation gates apply — content is never written without explicit user sign-off.
-- **N** → flag report complete; author makes edits manually.
+- **Y** → Invoke `/documentation <module>` for each flagged module. All confirmation gates apply.
+- **N** → Flag report complete; author makes edits manually.
 
 > [!NOTE]
-> When delegating, `/documentation` will re-run its own drift scan (§3) which includes the skill drift check (step 5). This is intentional — `/documentation`'s scan may be more granular than `/update`'s §3.5 sampling. The `/update` flags serve as a trigger, not a replacement for `/documentation`'s analysis.
+> `/documentation` re-runs its own drift scan (§3) which may be more granular. The `/update` flags serve as a trigger, not a replacement.
 
 ---
 

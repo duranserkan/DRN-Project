@@ -2,22 +2,22 @@
 description: Planning phase of /update — discover skills/projects, detect drift, generate update-plan.md
 ---
 
-> **Sub-workflow of `/update`** — receives `Scope` from orchestrator (default: `all`). **~2.8K tokens**
+> **Sub-workflow of `/update`** — receives `Scope` from orchestrator (default: `all`).
 
 > [!IMPORTANT]
-> **Safety** — Drift items, cross-references, stale references, and scope-widening are **flagged for user decision only** — never auto-modified or auto-widened.
+> **Safety** — Drift, cross-references, stale references, and scope-widening are **flagged only** — never auto-modified.
 
 ---
 
 ## 0. Resolve Scope
 
-If scope matches a **known value** (`all`, `skills`, `agents`, `projects`, `infra`, `<group>`, `<skill-dir>`, `stage-<N>`), skip to §1.
+Known values (`all`, `skills`, `agents`, `projects`, `infra`, `<group>`, `<skill-dir>`, `stage-<N>`) → skip to §1.
 
-If **freeform** (e.g., `login feature`, `update hosting skills`):
+**Freeform** (e.g., `login feature`, `update hosting skills`):
 
 1. **Interpret** — scan skills manifest, project names, file paths; map to closest known scope + affected stages
 2. **Present** resolution — ask: *Proceed / adjust / clarify?*
-3. **Wait** for explicit approval (DiSCOS Confidence Signaling: Low)
+3. **Wait** for explicit approval (DiSCOS Confidence: Low)
 4. **Persist** `Scope: <original>` and `Resolved Stages: <concrete set>` in plan header
 
 Subsequent sections use the **resolved stage set**.
@@ -26,14 +26,14 @@ Subsequent sections use the **resolved stage set**.
 
 ## 1. Discover Skills
 
-List every skill directory; read each `SKILL.md` frontmatter.
+List skill directories; read each `SKILL.md` frontmatter.
 
 ```
 list_dir .agent/skills
 # Per subdirectory: read SKILL.md → extract name, description, last-updated, difficulty
 ```
 
-Build an in-memory **skills manifest**:
+Build in-memory **skills manifest**:
 
 | Field | Source |
 |-------|--------|
@@ -52,18 +52,21 @@ Build an in-memory **skills manifest**:
 | `drn-*` | drn | `drn.md` |
 | `test-*` | test | `load-skills-test.md` |
 | `frontend-*` | frontend | `frontend.md` |
+| `<custom-prefix>-*` | *per mapping* | `load-skills-<custom-prefix>.md` |
 | *(no match)* | custom | `custom.md` |
+
+> **Custom prefix→group**: Read from `Custom Groups:` in existing `update-plan.md` header (resume) or from `update.md` §Plan File Contract (first run). Planner creates the group loader if absent. Matching skills classify into that group instead of `custom`.
 
 ### Workflow Types
 
 | Type | Sync Rule |
 |------|-----------|
-| **Group loader** (`load-skills-*.md`) | Full §4 template regeneration |
+| **Group loader** (`load-skills-*.md`) | Regenerate full §4 template |
 | **Task workflow** (`test.md`, `review.md`, `update.md`) | Sync `view_file` entries in skill-loading section only; preserve surrounding prose |
 
 ### Cross-Group Inclusions
 
-Skills whose directory prefix ≠ the workflow's primary group are **cross-references**:
+Skills with directory prefix ≠ the workflow's primary group are **cross-references**:
 
 - Preserve existing cross-references unconditionally
 - Report new ones for user confirmation — never auto-add
@@ -75,11 +78,11 @@ Skills whose directory prefix ≠ the workflow's primary group are **cross-refer
 
 ## 2. Discover Projects
 
-Scan repository for project structure:
+Scan repository for projects:
 
 ```
 find_by_name *.slnx  (or *.sln)
-grep_search for <Project entries in solution file  # Or: find_by_name *.csproj
+grep_search <Project entries in solution file  # Or: find_by_name *.csproj
 
 # Classify by signals (priority order):
 #   Hosted/runnable: <OutputType>Exe</OutputType> | Program.cs | launchSettings.json
@@ -88,9 +91,9 @@ grep_search for <Project entries in solution file  # Or: find_by_name *.csproj
 ```
 
 > [!NOTE]
-> Business repos may use different conventions (e.g., `*.Api` for hosted). Prefer `.csproj` content analysis over name-only heuristics.
+> Business repos may use different conventions (e.g., `*.Api` for hosted). Prefer `.csproj` content over name-only heuristics.
 
-Build a **projects manifest**: project name, family prefix, layer, runnable (bool), test (bool).
+Build **projects manifest**: name, family prefix, layer, runnable (bool), test (bool).
 
 ### 2.1 Discover Non-Project Assets
 
@@ -104,27 +107,25 @@ find_by_name Dockerfile* / docker-compose*                                      
 find_by_name README.md / RELEASE-NOTES.md / LICENSE                                         # Docs
 ```
 
-Build a **non-project assets manifest** (file, category, exists ✅/❌). Categories: Build config, Editor, CI/CD, Container, Docs.
+Build **non-project assets manifest** (file, category, exists ✅/❌). Categories: Build config, Editor, CI/CD, Container, Docs.
 
 > [!IMPORTANT]
 > Non-project assets need validation coverage equal to project references.
 
 ### 2.2 Documentation Drift Pre-Scan
 
-For each module (`DRN.Framework.SharedKernel`, `Utils`, `EntityFramework`, `Hosting`, `Testing`, `Jobs`, `MassTransit`):
+For each project with a `README.md`:
 
-1. **Determine state** — read first 5 lines of `<Module>/README.md`:
-   - **Rich** (content beyond `# Module Name` + footer) → drift scan
-   - **Stub** (`# Module Name` + footer only) → flag `[STUB]`, skip scan
-2. **Extract README topics** — list `##`/`###` headings; note types, methods, config keys
-3. **Extract source elements** — `view_file_outline <Module>/<Module>.csproj` → list public types, key methods
+1. **Read** first 5 lines → classify **Rich** (has content) or **Stub** (`# Name` + footer only → flag `[STUB]`, skip)
+2. **Extract** README `##`/`###` headings; note types, methods, config keys
+3. **Extract** source elements via `view_file_outline <Module>/<Module>.csproj` → public types, key methods
 4. **Compare** — flag divergence:
-   - `[STALE]` — README references type/method not in source
-   - `[MISSING]` — source has public type not in README
+   - `[STALE]` — README references type/method absent from source
+   - `[MISSING]` — source public type absent from README
    - `[RENAMED]` — heading/type name mismatch suggesting rename
-5. **Record** — populate `### Documentation Drift` table in Discovery Summary
+5. **Record** in `### Documentation Drift` table in Discovery Summary
 
-> **Budget**: ~2 tool calls per module (README heading scan + source outline). Total ≤15 for 7 modules.
+> **Budget**: ~2 tool calls per module. Total ≤ 2 × |Projects Manifest|.
 
 ### Scope Filtering (§1, §2, §2.2)
 
@@ -143,21 +144,21 @@ For each module (`DRN.Framework.SharedKernel`, `Utils`, `EntityFramework`, `Host
 
 ## 3. Diff & Report
 
-Compare discovered state against existing manifests.
+Compare discovered against existing manifests.
 
 ### 3.1–3.3 Drift Detection
 
-| Drift Type | How |
-|------------|-----|
-| **Skill added** | Directory exists, not listed in workflow |
-| **Skill removed** | Listed in workflow, directory missing |
+| Drift Type | Detection |
+|------------|-----------|
+| **Skill added** | Directory exists, not in workflow |
+| **Skill removed** | In workflow, directory missing |
 | **Skill reclassified** | Prefix changed (rare) |
-| **Custom skill** | No standard prefix → flag as `custom`; check if `custom.md` exists |
-| **Project drift** | Compare `AGENTS.md` project references against discovered projects — flag renamed, missing, new |
+| **Custom skill** | No standard prefix → flag `custom`; check `custom.md` exists |
+| **Project drift** | `AGENTS.md` references vs discovered projects — flag renamed, missing, new |
 
 ### 3.4 Possibly Irrelevant Skills
 
-Extract each skill's referenced project families and non-project assets. Flag as `⚠️ Possibly irrelevant` when **none** resolve:
+Extract each skill's referenced project families and non-project assets. Flag `⚠️ Possibly irrelevant` when **none** resolve:
 
 | Condition | Flagged Skills |
 |-----------|----------------|
@@ -170,29 +171,33 @@ Extract each skill's referenced project families and non-project assets. Flag as
 
 > **General rule**: Extract references → check existence → flag if none resolve.
 
+#### On User-Approved Removal
+
+On approval, execute removal per `update-execute.md` §1.4. Run §3.6 validation before committing removals to catch dangling refs.
+
 ### 3.5 Skill-Body ↔ Source-Code Drift (Sampling)
 
-Spot-check a representative subset of each skill's code references (backtick-quoted identifiers, file paths, namespaces, config keys) via `grep_search` / `find_by_name`:
+Spot-check representative code references (backtick-quoted identifiers, file paths, namespaces, config keys) via `grep_search` / `find_by_name`:
 
 - **Sampling**: ≥1 reference per type (class, file path, namespace, config key), or all if ≤5 total
-- **Flag** stale references as `⚠️ Stale reference in <skill>: <identifier> not found`
+- **Flag** stale references: `⚠️ Stale reference in <skill>: <identifier> not found`
 - **Do not auto-fix** — flag for user decision only
 
 > [!NOTE]
-> Detects drift that project-name substitution cannot (renamed methods, deleted files, changed config keys). Exhaustive verification deferred to `update-verify.md` §3. Module-associated skill drift (e.g., `drn-utils/SKILL.md`) is flagged in Stage 6 and can trigger `/documentation` delegation.
+> Detects drift that project-name substitution cannot (renamed methods, deleted files, changed config keys). Exhaustive verification deferred to `update-verify.md` §3. Module-associated skill drift flagged in Stage 6 and can trigger `/documentation` delegation.
 
 ### 3.6 Cross-Reference & Scope-Widening Validation
 
-**Cross-references** — per workflow, detect prefix ≠ group entries; compare against previous sync. Flag new/removed for user confirmation.
+**Cross-references** — per workflow, detect prefix ≠ group entries; compare against previous sync. Flag changes for user confirmation.
 
 **Scope-widening** (scoped runs only; `all` skips):
-1. Scan affected group's cross-references for skills referencing the changed skill(s)
+1. Scan affected group's cross-references for skills referencing changed skill(s)
 2. Check whether the change would stale those references
 3. Report wider impact per `update.md` §Scope-Widening Rule — list affected stages/groups, ask to widen or defer (never auto-widen)
 
 ### 3.7 Report
 
-Present to user:
+Present to user using these sections (omit sections with no findings):
 
 ```markdown
 ## Sync Report
@@ -229,18 +234,19 @@ Present to user:
 - [ ] Substitute project names in skill bodies (if prefix changed)
 - [ ] Create custom.md (if needed)
 - [ ] Flag skills with stale code references for regeneration
+- [ ] Remove user-approved irrelevant skills from group loaders / all.md / AGENTS.md / skill index (if any)
 - [ ] Flag documentation drift for <N> modules (delegate to `/documentation` on request)
 - [ ] Flag skill content drift for <N> modules (delegate to `/documentation` on request)
 ```
 
-Wait for explicit user confirmation (DiSCOS Autonomy Ladder level 3). Accept clear affirmative intent (case-insensitive: `proceed`, `ok`, `yes`, `go ahead`, `looks good`, `confirmed`, `approved`). Ambiguous or qualified responses → re-prompt once.
+Wait for explicit user confirmation (DiSCOS Autonomy Ladder level 3). Accept clear affirmative (case-insensitive: `proceed`, `ok`, `yes`, `go ahead`, `looks good`, `confirmed`, `approved`). Ambiguous/qualified → re-prompt once.
 
 > [!IMPORTANT]
 > **Two mandatory gates:**
 > - **Gate 1 (Preview)** — user confirms drift report and planned actions before plan file is written.
 > - **Gate 2 (Formal approval)** — after plan reaches `ready`, orchestrator (`update.md §2.2`) calls `review.md` before execution.
 >
-> Confirm-and-modify response (e.g., *"yes but skip Stage 4"*) is a scope-change — update planned actions and re-present for clean confirmation.
+> Confirm-and-modify response (e.g., *"yes but skip Stage 4"*) is a scope-change — update actions and re-present for confirmation.
 
 ---
 
@@ -258,7 +264,7 @@ Serialize results to `.agent/update-plan.md`.
 | All `pending`/`skipped` | Set overall to `ready`, stop |
 | `ready` | Report "Plan already complete", stop |
 
-Write `Scope:` and `Resolved Stages:` in plan header. Affected stages → `pending`; unaffected → `skipped` with `_(skipped — out of scope)_`.
+Write `Scope:` and `Resolved Stages:` in plan header. Affected → `pending`; unaffected → `skipped` with `_(skipped — out of scope)_`.
 
 ### Staged Planning
 
