@@ -8,7 +8,7 @@ namespace DRN.Framework.EntityFramework.Attributes;
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public class DrnContextPerformanceDefaultsAttribute : NpgsqlPerformanceSettingsAttribute
 {
-    public DrnContextPerformanceDefaultsAttribute(bool multiplexing = true,
+    public DrnContextPerformanceDefaultsAttribute(bool multiplexing = false,
         int maxAutoPrepare = 200,
         int autoPrepareMinUsages = 5,
         int minPoolSize = 1,
