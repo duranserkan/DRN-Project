@@ -570,6 +570,7 @@ public void Unit_Test_Example(DrnTestContextUnit context, int value, IMockable m
 When multiple test cases share identical test bodies and differ only in input/expected-output, consolidate them into a single `[Theory]` with multiple data attribute rows instead of writing separate methods.
 
 **Anti-pattern** — separate methods for each case:
+
 ```csharp
 [Theory]
 [DataInlineUnit]
@@ -597,6 +598,7 @@ public void Add_Should_Handle_Zero(DrnTestContextUnit context)
 ```
 
 **Preferred** — one parameterized method covering all permutations:
+
 ```csharp
 [Theory]
 [DataInlineUnit(2, 3, 5)]     // positive + positive

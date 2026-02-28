@@ -28,6 +28,7 @@ All DTT data attributes (`DataInline`, `DataMember`, `DataSelf` and their `Unit`
 **When**: Logic has discrete input→output permutations and the test body is identical across cases — consolidate into one `[Theory]` with multiple `[DataInline(...)]` / `[DataInlineUnit(...)]` rows.
 
 **Anti-pattern** (5 methods, ~65 lines):
+
 ```csharp
 [Theory]
 [DataInlineUnit]
@@ -40,6 +41,7 @@ public void Migrate_Should_Be_False_In_Dev_When_Disabled(DrnTestContextUnit cont
 ```
 
 **Preferred** (1 method, ~17 lines):
+
 ```csharp
 [Theory]
 [DataInlineUnit(AppEnvironment.Development, true, false, true)]   // Dev + AutoMigrateDev=on  → migrate

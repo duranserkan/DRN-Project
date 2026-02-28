@@ -37,7 +37,7 @@ public class DrnContextDevelopmentConnectionTests
 
         var appSettings = testContext.GetRequiredService<IAppSettings>();
         appSettings.GetValue<string>(DbContextConventions.DevPasswordKey).Should().Be(password);
-        appSettings.DevelopmentSettings.AutoMigrateDevelopment.Should().BeTrue();
+        appSettings.DevelopmentSettings.AutoMigrateDevelopment.Should().Be(migrate);
 
         var connectionString = DrnContextDevelopmentConnection.GetConnectionString(appSettings, nameof(QAContext));
         connectionString.Should().NotBeNull();

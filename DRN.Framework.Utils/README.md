@@ -247,7 +247,8 @@ public class MyService(IAppSettings settings)
 {
     public void DoWork()
     {
-        if (settings.IsDevelopmentEnvironment) { ... }
+        if (settings.IsDevelopmentEnvironment) { /* dev-only logic */ }
+        if (settings.IsStagingEnvironment) { /* staging-only logic */ }
         
         var conn = settings.GetRequiredConnectionString("Default");
         var value = settings.GetValue<int>("MySettings:Timeout", 30);
