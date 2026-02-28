@@ -43,7 +43,7 @@ public class DrnExceptionHandler(
             scopedLog.Add("ExceptionPageErrorType", e2.GetType().FullName ?? e2.GetType().Name);
             scopedLog.Add("ExceptionPageErrorMessage", e2.Message);
             scopedLog.Add("ExceptionPageErrorStackTrace", e2.StackTrace ?? string.Empty);
-            await context.Response.WriteAsJsonAsync(scopedLog.Logs);
+            await context.Response.WriteAsJsonAsync(scopedLog.GetLogs());
         }
 
         const string eventName = "Microsoft.AspNetCore.Diagnostics.UnhandledException";

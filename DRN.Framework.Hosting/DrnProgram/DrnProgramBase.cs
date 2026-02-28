@@ -122,7 +122,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.AutoMigrateStaging)}", appSettings.DevelopmentSettings.AutoMigrateStaging);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.LaunchExternalDependencies)}", appSettings.DevelopmentSettings.LaunchExternalDependencies);
             scopedLog.AddToActions("Running Application");
-            logger.LogWarning("{@Logs}", scopedLog.Logs);
+            logger.LogWarning("{@Logs}", scopedLog.GetLogs());
 
             if (appSettings.DevelopmentSettings.TemporaryApplication)
                 return;
@@ -140,9 +140,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         finally
         {
             if (scopedLog.HasException)
-                logger.LogError("{@Logs}", scopedLog.Logs);
+                logger.LogError("{@Logs}", scopedLog.GetLogs());
             else
-                logger.LogWarning("{@Logs}", scopedLog.Logs);
+                logger.LogWarning("{@Logs}", scopedLog.GetLogs());
 
             loggerProvider.Dispose();
         }

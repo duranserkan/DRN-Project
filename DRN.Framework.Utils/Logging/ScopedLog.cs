@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -14,6 +15,8 @@ public class ScopedLog : IScopedLog
     private static string GetSafeString(string text) => text[..(text.Length > ScopedLogConventions.StringLimit
         ? ScopedLogConventions.StringLimit
         : text.Length)];
+
+    private static readonly ConcurrentDictionary<Type, PropertyInfo[]> _propertiesCache = new();
 
     private readonly Lock _timeUpdater = new();
     private readonly Lock _counter = new();
@@ -35,14 +38,16 @@ public class ScopedLog : IScopedLog
 
     public TimeSpan ScopeDuration => DateTimeProvider.UtcNow - (DateTimeOffset)LogData[ScopedLogConventions.KeyOfScopeCreatedAt];
 
-    public IReadOnlyDictionary<string, object> Logs
+    public IReadOnlyDictionary<string, object> GetLogs()
     {
-        get
-        {
-            Add(ScopedLogConventions.KeyOfScopeDuration, ScopeDuration);
-
-            return new SortedDictionary<string, object>(LogData);
-        }
+            // Build a read-only snapshot without mutating LogData.
+            // ScopeDuration is written directly to the snapshot using the same
+            // *_Seconds key convention that Add() uses for TimeSpan values.
+            var snapshot = new SortedDictionary<string, object>(LogData)
+            {
+                [ScopedLogConventions.TimeSpanKey(ScopedLogConventions.KeyOfScopeDuration)] = ScopeDuration.TotalSeconds
+            };
+        return snapshot;
     }
 
     public bool HasException { get; private set; }
@@ -115,7 +120,8 @@ public class ScopedLog : IScopedLog
 
     public IScopedLog AddProperties<TValue>(string prefix, TValue classObject, params string[] ignoredPropertyNames) where TValue : class
     {
-        foreach (var propertyInfo in typeof(TValue).GetProperties())
+        var properties = _propertiesCache.GetOrAdd(typeof(TValue), static t => t.GetProperties());
+        foreach (var propertyInfo in properties)
         {
             var ignored = propertyInfo.IgnoredLog() || ignoredPropertyNames.Contains(propertyInfo.Name);
             var logValue = ignored ? ScopedLogConventions.IgnoredLogValue : propertyInfo.GetValue(classObject);
@@ -180,5 +186,5 @@ public class ScopedLog : IScopedLog
     public ScopeDuration Measure(string key) => new(key, this);
     public ScopeDuration Measure(object callerObject, string? caller = null) => Measure($"{callerObject.GetType().FullName}.{caller}");
 
-    public override string ToString() => JsonSerializer.Serialize(Logs);
+    public override string ToString() => JsonSerializer.Serialize(GetLogs());
 }

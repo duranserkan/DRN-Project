@@ -5,7 +5,7 @@ namespace DRN.Framework.Utils.Logging;
 public interface IScopedLog
 {
     TimeSpan ScopeDuration { get; }
-    IReadOnlyDictionary<string, object> Logs { get; }
+    IReadOnlyDictionary<string, object> GetLogs();
 
     IScopedLog WithLoggerName(string name);
     IScopedLog WithTraceIdentifier(string traceIdentifier);

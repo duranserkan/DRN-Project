@@ -123,7 +123,7 @@ public class ExceptionUtils(
             RouteValues = request.RouteValues.ToDictionary(pair => pair.Key, pair => pair.Value),
             Endpoint = EndpointUtils.GetEndpointModel(context.GetEndpoint()),
             ConfigurationDebugViewSummary = appSettings.GetDebugView().ToSummary(),
-            Logs = scopedLog.Logs,
+            Logs = scopedLog.GetLogs(),
             RequestMethod = request.Method,
             RequestPath = request.Path,
             RequestBody = body,
