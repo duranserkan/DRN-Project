@@ -12,7 +12,13 @@ public class DevelopmentStatus(IAppSettings appSettings)
 
     internal void AddChangeModel(DbContextChangeModel contextModel)
     {
-        contextModel.Flags.Migrate = appSettings is { IsDevEnvironment: true, DevelopmentSettings.AutoMigrate: true };
+        if (appSettings.IsDevelopmentEnvironment)
+            contextModel.Flags.Migrate = appSettings.DevelopmentSettings.AutoMigrateDevelopment;
+        else if (appSettings.IsStagingEnvironment)
+            contextModel.Flags.Migrate = appSettings.DevelopmentSettings.AutoMigrateStaging;
+        else
+            contextModel.Flags.Migrate = false; // Production: never auto-migrate
+
         contextModel.Flags.DevelopmentSettingsPrototypeFlag = appSettings.DevelopmentSettings.Prototype;
         _contextModels.Add(contextModel);
     }
@@ -34,7 +40,7 @@ public record DbContextChangeModelFlags(bool HasPendingModelChanges, bool Npgsql
         HasPendingMigrations = pendingMigrationCount > 0;
         HasPendingChanges = HasPendingMigrations || HasPendingModelChanges;
         HasPendingChangesForPrototype = (migrationCount == 0 && HasPendingModelChanges) ||
-                                             (migrationCount > 0 && UsePrototypeModeWhenMigrationExists && HasPendingModelChanges);
+                                        (migrationCount > 0 && UsePrototypeModeWhenMigrationExists && HasPendingModelChanges);
 
         HasPendingMigrationsWithoutPendingModelChanges = pendingMigrationCount > 0 && !HasPendingModelChanges;
     }

@@ -24,7 +24,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
     *   **ApplicationContext**: Deep integration with `WebApplicationFactory`.
     *   **Helpers**: `CreateClientAsync` (starts app + migrations + auth client), `CreateApplicationAndBindDependenciesAsync`, `LogToTestOutput`.
 *   **Local Development Experience**
-    *   **Infrastructure Management**: `LaunchExternalDependenciesAsync` for `WebApplicationBuilder` to automatically start containers (Postgres, RabbitMQ) during development, ensuring zero-configuration onboarding for new developers.
+    *   **Infrastructure Management**: `LaunchExternalDependenciesAsync` for `WebApplicationBuilder` to automatically start containers (Postgres, RabbitMQ) when `IsDevelopmentEnvironment` is true, ensuring zero-configuration onboarding for new developers.
 *   **Data Attributes (Auto-Mocking)**
     *   **DataInline**: Replaces `[InlineData]`. Auto-mocks interfaces (NSubstitute), fills missing params (AutoFixture), provides `DrnTestContext`.
     *   **DataMember**: Replaces `[MemberData]`. Source data from properties with auto-mocking support.

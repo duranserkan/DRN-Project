@@ -22,7 +22,8 @@ public interface IAppSettings
     DrnDevelopmentSettings DevelopmentSettings { get; }
     NexusAppSettings NexusAppSettings { get; }
     AppEnvironment Environment { get; }
-    bool IsDevEnvironment { get; }
+    bool IsDevelopmentEnvironment { get; }
+    bool IsStagingEnvironment { get; }
 
     /// <summary>
     ///  Default app key, can be used publicly. For example, to separate development and production data.
@@ -112,7 +113,8 @@ public class AppSettings : IAppSettings
     public NexusAppSettings NexusAppSettings { get; }
     public AppEnvironment Environment { get; }
 
-    public bool IsDevEnvironment => Environment == AppEnvironment.Development;
+    public bool IsDevelopmentEnvironment => Environment == AppEnvironment.Development;
+    public bool IsStagingEnvironment => Environment == AppEnvironment.Staging;
 
     /// <summary>
     ///  Default app key, can be used publicly. For example, to separate development and production data.

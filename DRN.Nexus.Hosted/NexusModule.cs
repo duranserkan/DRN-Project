@@ -17,7 +17,7 @@ public static class NexusModule
             .AddNexusApplicationServices()
             .Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024) // size limit
             //.ConfigureCookieAuthenticationOptions(settings) //todo: update with nexus implementation
-            .AddIdentityApiEndpoints<NexusUser>(ConfigureIdentity(settings.IsDevEnvironment));
+            .AddIdentityApiEndpoints<NexusUser>(ConfigureIdentity(settings.IsDevelopmentEnvironment));
         //.AddPersonalDataProtection<>() //todo: enable personal data protection
 
         services.AddServicesWithAttributes();

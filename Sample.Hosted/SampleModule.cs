@@ -22,7 +22,7 @@ public static class SampleModule
             .AddSampleApplicationServices()
             .Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024) // size limit
             .ConfigureCookieAuthenticationOptions(settings)
-            .AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings.IsDevEnvironment));
+            .AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings.IsDevelopmentEnvironment));
 
         //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
         //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/

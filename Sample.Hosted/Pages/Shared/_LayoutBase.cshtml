@@ -36,7 +36,7 @@ They automatically resolve the correct script and stylesheet paths for both deve
     <script src="buildwww/app/js/appPreload.js" crossorigin="anonymous"></script>
     <script>
         DRN.App.Environment =  @Json.Serialize(ScopeContext.Settings.Environment.ToString());
-        DRN.App.IsDev = @Json.Serialize(ScopeContext.Settings.IsDevEnvironment);
+        DRN.App.IsDev = @Json.Serialize(ScopeContext.Settings.IsDevelopmentEnvironment);
         DRN.App.CsrfToken = @Json.Serialize(Context.GetCsrfToken());
         DRN.App.DefaultCulture = @Json.Serialize(ScopeContext.Settings.Localization.DefaultCulture);
         DRN.App.SupportedCultures = @Json.Serialize(ScopeContext.Settings.Localization.SupportedCultures);

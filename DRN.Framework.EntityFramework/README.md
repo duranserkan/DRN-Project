@@ -250,7 +250,7 @@ public class User : SourceKnownEntity
 *   **Scope Check**: Validates that 50+ service scopes can be created rapidly (catches singleton/scoped mismatches early).
 *   **Entity Type Check**: Scans all `SourceKnownEntity` types in the model to ensure they have unique `[EntityType]` attributes.
 *   **Auto-Migration & Seeding**:
-    *   Detects pending migrations and applies them if configured (`DrnDevelopmentSettings:AutoMigrate`).
+    *   Detects pending migrations and applies them if configured (`DrnDevelopmentSettings:AutoMigrateDevelopment`).
     *   Runs `SeedAsync` implementations from registered `NpgsqlDbContextOptionsAttribute`s after migration.
 
 ### Example
@@ -696,7 +696,7 @@ public class MyDbContext : DrnContext<MyDbContext> { }
 {
   "DrnDevelopmentSettings": {
     "LaunchExternalDependencies": true,  // Uses testcontainer instead of connection string
-    "AutoMigrate": true,                 // Required for schema initialization
+    "AutoMigrateDevelopment": true,      // Required for schema initialization
     "Prototype": true                    // Enables database recreation on model changes
   }
 }
@@ -850,6 +850,32 @@ flowchart TD
 > [!CAUTION]
 > `postgres-password` and all `DrnContext_Dev*` settings are **ignored** in non-Development environments. Missing connection strings will throw `ConfigurationException`.
 
+#### Staging
+
+Staging uses the same `GetRequiredConnectionString` flow as Production — explicit connection strings are required.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `IsStagingEnvironment` | `false` | `true` when `Environment=Staging` |
+| `AutoMigrateStaging` | `false` | Enables automatic migrations in staging |
+
+**Example** `appsettings.Staging.json`:
+
+```json
+{
+  "Environment": "Staging",
+  "ConnectionStrings": {
+    "QAContext": "Host=staging-db;Port=5432;Database=qa_staging;User ID=qa_user;Password=***;..."
+  },
+  "DrnDevelopmentSettings": {
+    "AutoMigrateStaging": true
+  }
+}
+```
+
+> [!IMPORTANT]
+> **AutoMigrateDevelopment vs AutoMigrateStaging**: `AutoMigrateDevelopment` defaults to `true` for frictionless local development. `AutoMigrateStaging` defaults to `false` for safe deployments — enable it explicitly for controlled staging migrations. For production-like staging, prefer CI/CD-managed migrations with rollback support.
+
 ---
 
 ### Local Debug with LaunchExternalDependencies
@@ -896,7 +922,7 @@ public class SampleProgramActions : DrnProgramActions
   "Environment": "Development",
   "DrnDevelopmentSettings": {
     "LaunchExternalDependencies": true,
-    "AutoMigrate": true,
+    "AutoMigrateDevelopment": true,
     "Prototype": true
   }
 }
@@ -923,7 +949,7 @@ services:
       - Environment=Development
       - postgres-password=dev-password # Source: DbContextConventions
       - DrnContext_DevHost=postgres    # Source: DbContextConventions
-      - DrnDevelopmentSettings:AutoMigrate=true
+      - DrnDevelopmentSettings:AutoMigrateDevelopment=true
     depends_on:
       - postgres
       
@@ -952,7 +978,7 @@ metadata:
 data:
   Environment: "Development"
   DrnContext_DevHost: "postgres-service" # Source: DbContextConventions
-  DrnDevelopmentSettings:AutoMigrate: "true"
+  DrnDevelopmentSettings:AutoMigrateDevelopment: "true"
 ---
 apiVersion: v1
 kind: Secret
@@ -1014,7 +1040,8 @@ These settings are used **only** by [DrnContextDevelopmentConnection](Context/Dr
 
 | Setting | Default | Source | Purpose |
 |---------|---------|--------|---------|
-| `AutoMigrate` | `false` | DrnDevelopmentSettings.AutoMigrate | Enables migration flow |
+| `AutoMigrateDevelopment` | `true` | DrnDevelopmentSettings.AutoMigrateDevelopment | Auto-migrate in Development |
+| `AutoMigrateStaging` | `false` | DrnDevelopmentSettings.AutoMigrateStaging | Auto-migrate in Staging |
 | `Prototype` | `false` | DrnDevelopmentSettings.Prototype | Enables DB recreation on model changes |
 | `LaunchExternalDependencies` | `false` | DrnDevelopmentSettings.LaunchExternalDependencies | Launches Testcontainers |
 | `TemporaryApplication` | `false` | DrnDevelopmentSettings.TemporaryApplication | **Auto-set by tests** to prevent collision |
@@ -1027,7 +1054,7 @@ When using `LaunchExternalDependencies` or `ContainerContext`, these values from
 |----------|---------|-------|
 | `DefaultPassword` | `"drn"` | Container password |
 | `DefaultImage` | `"postgres"` | Docker image |
-| `DefaultVersion` | `"18.1-alpine3.23"` | Image tag |
+| `DefaultVersion` | `"18.3-alpine3.23"` | Image tag |
 | `Database` | `"drn"` | From `DbContextConventions.DefaultDatabase` |
 | `Username` | `"drn"` | From `DbContextConventions.DefaultUsername` |
 
@@ -1049,7 +1076,8 @@ public class DrnDevelopmentSettings
     public bool SkipValidation { get; init; }
     public bool TemporaryApplication { get; init; }
     public bool LaunchExternalDependencies { get; init; }
-    public bool AutoMigrate { get; init; }
+    public bool AutoMigrateDevelopment { get; init; } = true;
+    public bool AutoMigrateStaging { get; init; } = false;
     public bool Prototype { get; init; }
 }
 ```

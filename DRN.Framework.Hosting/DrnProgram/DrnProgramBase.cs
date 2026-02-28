@@ -118,7 +118,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.SkipValidation)}", appSettings.DevelopmentSettings.SkipValidation);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.TemporaryApplication)}", appSettings.DevelopmentSettings.TemporaryApplication);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.Prototype)}", appSettings.DevelopmentSettings.Prototype);
-            scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.AutoMigrate)}", appSettings.DevelopmentSettings.AutoMigrate);
+            scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.AutoMigrateDevelopment)}", appSettings.DevelopmentSettings.AutoMigrateDevelopment);
+            scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.AutoMigrateStaging)}", appSettings.DevelopmentSettings.AutoMigrateStaging);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.LaunchExternalDependencies)}", appSettings.DevelopmentSettings.LaunchExternalDependencies);
             scopedLog.AddToActions("Running Application");
             logger.LogWarning("{@Logs}", scopedLog.Logs);
@@ -153,7 +154,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         {
             var (_, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopedLog);
             var services = applicationBuilder.Services.BuildServiceProvider();
-            var isDevelopment = services.GetService<IAppSettings>()?.IsDevEnvironment ?? false;
+            var isDevelopment = appSettings?.IsDevelopmentEnvironment ?? false;
             var handler = services.GetService<IDrnExceptionHandler>();
             if (handler != null && isDevelopment)
             {
@@ -193,7 +194,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         await (actions?.ApplicationBuiltAsync(program, application, appSettings, scopeLog) ?? Task.CompletedTask);
 
         var requestPipelineSummary = application.GetRequestPipelineSummary();
-        if (appSettings.IsDevEnvironment) //todo send application summaries to nexus for auditing, implement application dependency summary as well
+        if (appSettings.IsDevelopmentEnvironment) //todo send application summaries to nexus for auditing, implement application dependency summary as well
             scopeLog.Add(nameof(RequestPipelineSummary), requestPipelineSummary);
 
         program.ValidateEndpoints(application, appSettings);
@@ -342,7 +343,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
                 builder.AddFullscreen().Self();
             });
 
-        if (!appSettings.IsDevEnvironment)
+        if (!appSettings.IsDevelopmentEnvironment)
         {
             //https://hstspreload.org/ preload can be risky
             //What to Do When Your Certificate Fails
@@ -436,7 +437,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         //https://learn.microsoft.com/en-us/aspnet/core/security/gdpr
         options.HttpOnly = HttpOnlyPolicy.None; //Ensures cookies are accessible via JavaScript, use with strict csp
         options.MinimumSameSitePolicy = SameSiteMode.Strict;
-        options.Secure = appSettings.IsDevEnvironment ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+        options.Secure = appSettings.IsDevelopmentEnvironment ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 
         options.ConsentCookieValue = ConsentCookie.DefaultValue.Encode();
         // default cookie name(.AspNet.Consent) exposes server
@@ -754,14 +755,14 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         mvcBuilder.AddControllersAsServices();
         mvcBuilder.AddJsonOptions(options => JsonConventions.SetHtmlSafeWebJsonDefaults(options.JsonSerializerOptions));
 
-        if (appSettings.IsDevEnvironment)
+        if (appSettings.IsDevelopmentEnvironment)
             mvcBuilder.AddRazorRuntimeCompilation();
     }
 
     protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
     {
         options.OpenApiInfo.Title = appSettings.ApplicationName;
-        options.AddSwagger = appSettings.IsDevEnvironment;
+        options.AddSwagger = appSettings.IsDevelopmentEnvironment;
     }
 
     protected virtual void ValidateEndpoints(WebApplication application, IAppSettings appSettings)

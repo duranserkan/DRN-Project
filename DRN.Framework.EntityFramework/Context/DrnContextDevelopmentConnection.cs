@@ -28,7 +28,7 @@ public static class DrnContextDevelopmentConnection
             return connectionString;
 
         var exceptionMessage = $"Connection string for '{name}' not found.";
-        if (appSettings.IsDevEnvironment)
+        if (appSettings.IsDevelopmentEnvironment)
             exceptionMessage += " Ensure the app is compiled in debug mode when using Postgres in Dev Environment with Test Containers.";
 
         throw ExceptionFor.Configuration(exceptionMessage);

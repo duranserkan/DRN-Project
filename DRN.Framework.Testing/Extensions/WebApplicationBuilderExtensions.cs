@@ -68,7 +68,7 @@ public class ExternalDependencyLaunchResult(IAppSettings appSettings)
     /// </list>
     /// </summary>
     public bool Launch { get; } = !TestEnvironment.DrnTestContextEnabled
-                                  && appSettings.IsDevEnvironment
+                                  && appSettings.IsDevelopmentEnvironment
                                   && appSettings.DevelopmentSettings.LaunchExternalDependencies
                                   && !appSettings.DevelopmentSettings.TemporaryApplication;
 }
