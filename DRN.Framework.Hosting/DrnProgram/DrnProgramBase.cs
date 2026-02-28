@@ -154,7 +154,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         {
             var (_, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopedLog);
             var services = applicationBuilder.Services.BuildServiceProvider();
-            var isDevelopment = services.GetService<IAppSettings>()?.IsDevelopmentEnvironment ?? false;
+            var isDevelopment = appSettings?.IsDevelopmentEnvironment ?? false;
             var handler = services.GetService<IDrnExceptionHandler>();
             if (handler != null && isDevelopment)
             {

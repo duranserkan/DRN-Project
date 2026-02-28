@@ -1027,7 +1027,7 @@ When using `LaunchExternalDependencies` or `ContainerContext`, these values from
 |----------|---------|-------|
 | `DefaultPassword` | `"drn"` | Container password |
 | `DefaultImage` | `"postgres"` | Docker image |
-| `DefaultVersion` | `"18.1-alpine3.23"` | Image tag |
+| `DefaultVersion` | `"18.3-alpine3.23"` | Image tag |
 | `Database` | `"drn"` | From `DbContextConventions.DefaultDatabase` |
 | `Username` | `"drn"` | From `DbContextConventions.DefaultUsername` |
 
