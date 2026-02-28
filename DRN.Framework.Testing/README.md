@@ -565,7 +565,11 @@ public void Unit_Test_Example(DrnTestContextUnit context, int value, IMockable m
 }
 ```
 
-### Test Consolidation Pattern
+### Test Consolidation
+
+If tests share the same setup and their consolidation creates no semantic or performance issue, they should be unified. Apply when consolidation requires only minimal essential change.
+
+#### Parameterized
 
 When multiple test cases share identical test bodies and differ only in input/expected-output, consolidate them into a single `[Theory]` with multiple data attribute rows instead of writing separate methods.
 
@@ -612,7 +616,13 @@ public void Add_Should_Return_Correct_Sum(DrnTestContextUnit context, int a, int
 }
 ```
 
-**Guidelines**:
+#### Flow
+
+When tests share identical setup (container init, migrations, service registration) and additional assertions can be applied by continuing the existing test flow, unify into a single test. Prevents code duplication, maintenance burden, and redundant setup/teardown cost. Most valuable in integration tests where setup is expensive.
+
+**Reference**: `QAContextTagTests.cs` — single test flow validating entity IDs, JSON model queries, date filters, and materialization interceptor with one shared setup.
+
+#### Guidelines
 - **Last parameter = expected result** — each attribute row is a self-contained specification
 - **Name covers the dimension** — describes *what* is tested, not a specific case
 - **Comment inline data** — add trailing comments when values aren't self-explanatory

@@ -168,6 +168,10 @@ roundTripped.Name.Should().Be("test");
 
 ### Test Consolidation
 
+If tests share the same setup and their consolidation creates no semantic or performance issue, they should be unified. Apply when consolidation requires only minimal essential change.
+
+#### Parameterized
+
 When multiple cases share identical test bodies, prefer one `[Theory]` with multiple data rows over separate methods:
 
 ```csharp
@@ -182,6 +186,10 @@ public void Add_Should_Return_Correct_Sum(DrnTestContextUnit context, int a, int
 ```
 
 Last param = expected result · Name covers the dimension · Comment non-obvious rows · Don't consolidate when test bodies differ.
+
+#### Flow
+
+When tests share identical setup (container init, migrations, service registration) and additional assertions can be applied by continuing the existing test flow, unify into a single test. Prevents code duplication, maintenance burden, and redundant setup/teardown cost. Most valuable in integration tests where setup is expensive.
 
 ---
 

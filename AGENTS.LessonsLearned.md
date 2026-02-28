@@ -1,10 +1,10 @@
 # Lessons Learned
 
-## 1. DTT Data Attributes — Parameterized Testing with `DataInline` / `DataInlineUnit`
+## DTT Data Attributes
 
-### How DTT Data Attributes Work
+### Parameter Resolution
 
-All DTT data attributes (`DataInline`, `DataMember`, `DataSelf` and their `Unit` variants) share identical parameter-resolution behavior:
+All DTT data attributes (`DataInline`, `DataMember`, `DataSelf` and `Unit` variants) resolve parameters identically:
 
 | Step | What Happens |
 |------|-------------|
@@ -15,30 +15,23 @@ All DTT data attributes (`DataInline`, `DataMember`, `DataSelf` and their `Unit`
 
 ### Attribute Variants
 
-| Integration Test | Unit Test | Context Provided |
-|-----------------|-----------|-----------------|
-| `[DataInline]` | `[DataInlineUnit]` | `DrnTestContext` / `DrnTestContextUnit` |
-| `[DataMember]` | `[DataMemberUnit]` | Same as above |
-| `[DataSelf]` | `[DataSelfUnit]` | Same as above |
+| Integration Test | Unit Test |
+|-----------------|----------|
+| `[DataInline]` | `[DataInlineUnit]` |
+| `[DataMember]` | `[DataMemberUnit]` |
+| `[DataSelf]` | `[DataSelfUnit]` |
 
-`DrnTestContextUnit` is lightweight (no `ContainerContext`, `ApplicationContext`, or `FlurlHttpTest`).
+Integration variants provide `DrnTestContext`; Unit variants provide `DrnTestContextUnit` (lightweight — no `ContainerContext`, `ApplicationContext`, or `FlurlHttpTest`).
 
-### Consolidation Pattern
+### Test Consolidation
 
-**When**: Logic has discrete input→output permutations and the test body is identical across cases — consolidate into one `[Theory]` with multiple `[DataInline(...)]` / `[DataInlineUnit(...)]` rows.
+If tests share the same setup and their consolidation creates no semantic or performance issue, they should be unified. Apply when consolidation requires only minimal essential change.
 
-**Anti-pattern** (5 methods, ~65 lines):
+#### Parameterized
 
-```csharp
-[Theory]
-[DataInlineUnit]
-public void Migrate_Should_Be_True_In_Dev_When_Enabled(DrnTestContextUnit context) { /* identical body with different config */ }
+**When**: Logic has discrete input→output permutations and test body is identical across cases — consolidate into one `[Theory]` with multiple `[DataInline(...)]` / `[DataInlineUnit(...)]` rows.
 
-[Theory]
-[DataInlineUnit]
-public void Migrate_Should_Be_False_In_Dev_When_Disabled(DrnTestContextUnit context) { /* identical body with different config */ }
-// ... 3 more methods
-```
+**Anti-pattern**: Separate `[Theory]` methods per input permutation with identical bodies (e.g., 5 methods, ~65 lines).
 
 **Preferred** (1 method, ~17 lines):
 
@@ -60,7 +53,13 @@ public void Migrate_Flag_Should_Reflect_Environment_And_AutoMigrate_Settings(Drn
 }
 ```
 
-### Rules
+#### Flow
+
+**When**: Tests share identical setup (container init, migrations, service registration) and assertions can continue in the same flow — unify into a single test.
+
+**Reference**: `QAContextTagTests.cs` — single flow validating entity IDs, JSON queries, date filters, and materialization interceptor.
+
+#### Rules
 
 1. **Last parameter = expected result** — each `[DataInlineUnit]` row is a self-contained specification
 2. **Name covers the dimension** — e.g., `..._Should_Reflect_Environment_And_AutoMigrate_Settings`, not a name tied to one specific case

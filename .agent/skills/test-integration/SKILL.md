@@ -28,6 +28,35 @@ tokens: ~0.5K
 - **Manual Setup Required**: Must call `AddServices` and `ApplyMigrationsAsync`.
 - Best for checking complex SQL, transactions, or concurrency logic without web overhead.
 
+## Test Consolidation
+
+If tests share the same setup and their consolidation creates no semantic or performance issue, they should be unified. Apply when consolidation requires only minimal essential change. Integration tests benefit most — container startup, migrations, and service registration are expensive to repeat.
+
+### Parameterized
+
+When multiple cases share identical test bodies, consolidate into one `[Theory]` with multiple `[DataInline]` rows:
+
+```csharp
+[Theory]
+[DataInline(AppEnvironment.Development, "ViveLaRépublique", true)]
+[DataInline(AppEnvironment.Production, "ViveLaRépublique", true)]
+public async Task ConnectionString_Should_Be_Set(DrnTestContext context,
+    AppEnvironment environment, string connectionString, bool expected)
+{
+    context.ServiceCollection.AddSampleInfraServices();
+    await context.ContainerContext.Postgres.ApplyMigrationsAsync();
+    // Act & Assert using environment + connectionString params
+}
+```
+
+**Rules**: Last param = expected result · Name covers the dimension, not one case · Comment rows when values aren't obvious · Don't consolidate when test bodies differ structurally.
+
+### Flow
+
+When tests share identical setup (container init, migrations, service registration) and additional assertions can be applied by continuing the existing test flow, unify into a single test. This prevents code duplication, maintenance burden, and redundant setup/teardown cost.
+
+**Reference**: [QAContextTagTests.cs](file:///Users/duranserkankilic/Work/Drn-Project/DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTagTests.cs) — single test flow that validates entity IDs, JSON model queries, date filters, and materialization interceptor with one shared setup.
+
 ## Project Structure
 ```text
 DRN.Test.Integration/

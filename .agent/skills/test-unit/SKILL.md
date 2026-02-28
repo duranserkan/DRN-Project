@@ -40,25 +40,30 @@ public void Service_Should_DoExpectedBehavior(DrnTestContextUnit context, IDepen
 }
 ```
 
-### Parameterized Test Consolidation
+### Test Consolidation
+
+If tests share the same setup and their consolidation creates no semantic or performance issue, they should be unified. Apply when consolidation requires only minimal essential change.
+
+#### Parameterized
 
 When multiple cases share identical test bodies, consolidate into one `[Theory]` with multiple `[DataInlineUnit]` rows:
 
 ```csharp
-// Anti-pattern: separate methods for each case with identical bodies
-// Preferred: single parameterized method
 [Theory]
 [DataInlineUnit(2, 3, 5)]     // positive + positive
 [DataInlineUnit(-1, -2, -3)]  // negative + negative
 [DataInlineUnit(0, 0, 0)]     // zeros
 public void Add_Should_Return_Correct_Sum(DrnTestContextUnit context, int a, int b, int expected)
 {
-    var calc = new Calculator();
-    calc.Add(a, b).Should().Be(expected);
+    new Calculator().Add(a, b).Should().Be(expected);
 }
 ```
 
 **Rules**: Last param = expected result · Name covers the dimension, not one case · Comment rows when values aren't obvious · Don't consolidate when test bodies differ structurally.
+
+#### Flow
+
+When tests share identical setup and additional assertions can be applied by continuing the existing test flow, unify into a single test to prevent code duplication and maintenance burden. Less common in unit tests (setup is cheap) but applies when multiple verifications share the same mock/service wiring.
 
 ### Exception Testing
 
