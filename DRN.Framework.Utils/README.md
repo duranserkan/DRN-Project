@@ -247,7 +247,7 @@ public class MyService(IAppSettings settings)
 {
     public void DoWork()
     {
-        if (settings.IsDevEnvironment) { ... }
+        if (settings.IsDevelopmentEnvironment) { ... }
         
         var conn = settings.GetRequiredConnectionString("Default");
         var value = settings.GetValue<int>("MySettings:Timeout", 30);
@@ -290,7 +290,7 @@ Override the mount directory by registering `IMountedSettingsConventionsOverride
 |---------|-------|----------|
 | `ConfigurationException` on startup | Missing required configuration key | Add the key to `appsettings.json` or environment variables |
 | `GetRequiredConnectionString` throws | Connection string not found | Verify key exists under `ConnectionStrings` section |
-| `IsDevEnvironment` always false | `ASPNETCORE_ENVIRONMENT` not set | Set environment variable or use `launchSettings.json` |
+| `IsDevelopmentEnvironment` always false | `ASPNETCORE_ENVIRONMENT` not set | Set environment variable or use `launchSettings.json` |
 | Mounted settings not loading | Wrong mount path | Verify files exist at `/appconfig/json-settings/` or override via `IMountedSettingsConventionsOverride` |
 | Environment variables not binding | Wrong naming format | Use `__` (double underscore) for nested keys: `MySection__MyKey` |
 

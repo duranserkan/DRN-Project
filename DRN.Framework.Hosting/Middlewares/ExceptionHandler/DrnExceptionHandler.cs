@@ -91,7 +91,7 @@ public class DrnExceptionHandler(
         var model = await ExecuteExceptionPageModel(context, exception);
         var result = await GetExceptionContentResult(context, exception, model);
 
-        if (appSettings.IsDevEnvironment && result != null)
+        if (appSettings.IsDevelopmentEnvironment && result != null)
         {
             context.Response.ContentType = result.ContentType;
             await context.Response.WriteAsync(result.Content);
@@ -107,7 +107,7 @@ public class DrnExceptionHandler(
 
     private async Task<ExceptionContentResult?> GetExceptionContentResult(HttpContext context, Exception exception, DrnExceptionModel? model)
     {
-        if (!appSettings.IsDevEnvironment || model == null) return null;
+        if (!appSettings.IsDevelopmentEnvironment || model == null) return null;
 
         //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-9.0#database-error-page
         var result = await contentProvider.CreateErrorContentResult(context, exception, model);

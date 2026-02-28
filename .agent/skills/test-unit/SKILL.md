@@ -40,18 +40,25 @@ public void Service_Should_DoExpectedBehavior(DrnTestContextUnit context, IDepen
 }
 ```
 
-### Parameterized Tests
+### Parameterized Test Consolidation
+
+When multiple cases share identical test bodies, consolidate into one `[Theory]` with multiple `[DataInlineUnit]` rows:
 
 ```csharp
+// Anti-pattern: separate methods for each case with identical bodies
+// Preferred: single parameterized method
 [Theory]
-[DataInlineUnit(1, "first")]
-[DataInlineUnit(2, "second")]
-public void Test_Multiple_Cases(DrnTestContextUnit context, int id, string name)
+[DataInlineUnit(2, 3, 5)]     // positive + positive
+[DataInlineUnit(-1, -2, -3)]  // negative + negative
+[DataInlineUnit(0, 0, 0)]     // zeros
+public void Add_Should_Return_Correct_Sum(DrnTestContextUnit context, int a, int b, int expected)
 {
-    id.Should().BePositive();
-    name.Should().NotBeEmpty();
+    var calc = new Calculator();
+    calc.Add(a, b).Should().Be(expected);
 }
 ```
+
+**Rules**: Last param = expected result · Name covers the dimension, not one case · Comment rows when values aren't obvious · Don't consolidate when test bodies differ structurally.
 
 ### Exception Testing
 

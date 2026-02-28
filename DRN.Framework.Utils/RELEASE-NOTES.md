@@ -16,14 +16,16 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
     *   **Test Helpers**: `ReplaceInstance`, `ReplaceScoped`, `ReplaceTransient`, `ReplaceSingleton` overrides for integration tests.
 *   **Configuration System**
     *   **IAppSettings**: Strong-typed access to config with support for Connection Strings and Sections.
+    *   **Environment Helpers**: `IsDevelopmentEnvironment` and `IsStagingEnvironment` properties for explicit environment checks.
     *   **[Config] Attribute**: Bind classes directly to config sections (e.g., `[Config("Payment")]`). Support for `[ConfigRoot]`.
     *   **Layered Sources**: Loads `appsettings`, `appsettings.{Env}`, User Secrets, Env Vars, and **Mounted Settings** (`/appconfig/json-settings/*.json`, `/appconfig/key-per-file-settings`).
+    *   **Environment-Aware Auto-Migration**: `DrnDevelopmentSettings.AutoMigrateDevelopment` (default `true`) and `AutoMigrateStaging` (default `false`) replace the previous single `AutoMigrate` flag, enabling per-environment migration control.
 *   **Ambient Context & Scoped Cancellation**
     *   **ScopeContext**: Centralized access to `UserId`, `TraceId`, `Authenticated` status, and ambient `IAppSettings`/`IScopedLog`. Built-in RBAC helpers.
     *   **ICancellationUtils**: Scoped cancellation management supporting token merging and lifecycle control.
 *   **Scoped Logging & Diagnostics**
     *   **IScopedLog**: Request aggregation of actions, properties, and exceptions. `Measure()` for performance tracking and counting.
-    *   **DevelopmentStatus**: Runtime tracking of DB model changes and migration status (Dev only).
+    *   **DevelopmentStatus**: Runtime tracking of DB model changes and migration status with environment-aware migration decisions (Development and Staging).
 *   **Advanced Data & Bit Packing**
     *   **Bit Packing**: `NumberBuilder` and `NumberParser` (ref structs) for high-performance custom data structures and bit manipulation.
     *   **Monotonic Pagination**: `IPaginationUtils` for temporal cursor-based pagination leveraging entity IDs.

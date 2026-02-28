@@ -166,6 +166,23 @@ roundTripped.Name.Should().Be("test");
 | `[FactDebuggerOnly]` | - | Run only when debugger attached |
 | `[TheoryDebuggerOnly]` | - | Theory only when debugger attached |
 
+### Test Consolidation
+
+When multiple cases share identical test bodies, prefer one `[Theory]` with multiple data rows over separate methods:
+
+```csharp
+[Theory]
+[DataInlineUnit(2, 3, 5)]     // positive
+[DataInlineUnit(-1, -2, -3)]  // negative
+[DataInlineUnit(0, 0, 0)]     // zeros
+public void Add_Should_Return_Correct_Sum(DrnTestContextUnit context, int a, int b, int expected)
+{
+    new Calculator().Add(a, b).Should().Be(expected);
+}
+```
+
+Last param = expected result · Name covers the dimension · Comment non-obvious rows · Don't consolidate when test bodies differ.
+
 ---
 
 ## Providers

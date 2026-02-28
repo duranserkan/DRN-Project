@@ -21,7 +21,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
         *   `ConfigureMvcBuilder` / `ConfigureMvcOptions`: Customize MVC conventions and runtime compilation.
         *   `ConfigureStaticFileOptions` / `ConfigureResponseCachingOptions`: Optimize asset delivery with server-side response caching (16MB max, case-insensitive) and automatic static asset caching.
         *   `ConfigureResponseCompressionOptions` / `ConfigureCompressionProviders`: Brotli and Gzip compression for static assets with built-in BREACH/CRIME protection.
-        *   `ConfigureCookiePolicy`: Centralized security settings for cookies (HttpOnly, Secure, SameSite) with environment-aware defaults.
+        *   `ConfigureCookiePolicy`: Centralized security settings for cookies (HttpOnly, Secure, SameSite) with environment-aware defaults via `IsDevelopmentEnvironment`.
     *   **Pipeline Phase**:
         *   `ConfigureApplicationPipelineStart`: HSTS, Forwarded Headers.
         *   `ConfigureApplicationPreScopeStart`: Static files, caching, and compression.

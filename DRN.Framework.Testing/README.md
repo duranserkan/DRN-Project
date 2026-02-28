@@ -427,7 +427,8 @@ Usually set by appsettings.Development.json, environment variables, config maps.
 
 | Setting | Default | Source | Purpose |
 |---------|---------|--------|---------|
-| `DrnDevelopmentSettings:AutoMigrate` | `false` | DrnDevelopmentSettings.AutoMigrate | Enables migration flow |
+| `DrnDevelopmentSettings:AutoMigrateDevelopment` | `true` | DrnDevelopmentSettings.AutoMigrateDevelopment | Auto-migrate in Development |
+| `DrnDevelopmentSettings:AutoMigrateStaging` | `false` | DrnDevelopmentSettings.AutoMigrateStaging | Auto-migrate in Staging |
 | `DrnDevelopmentSettings:Prototype` | `false` | DrnDevelopmentSettings.Prototype | Enable DB recreation on model changes |
 | `DrnDevelopmentSettings:LaunchExternalDependencies` | `false` | DrnDevelopmentSettings.LaunchExternalDependencies | Launch Testcontainers |
 | `DrnDevelopmentSettings:TemporaryApplication` | `false` | DrnDevelopmentSettings.TemporaryApplication | **Auto-set by tests** to prevent collision |
@@ -563,6 +564,60 @@ public void Unit_Test_Example(DrnTestContextUnit context, int value, IMockable m
     service.Max.Should().Be(99);
 }
 ```
+
+### Test Consolidation Pattern
+
+When multiple test cases share identical test bodies and differ only in input/expected-output, consolidate them into a single `[Theory]` with multiple data attribute rows instead of writing separate methods.
+
+**Anti-pattern** — separate methods for each case:
+```csharp
+[Theory]
+[DataInlineUnit]
+public void Add_Should_Return_Positive_Sum(DrnTestContextUnit context)
+{
+    var calc = new Calculator();
+    calc.Add(2, 3).Should().Be(5);
+}
+
+[Theory]
+[DataInlineUnit]
+public void Add_Should_Handle_Negatives(DrnTestContextUnit context)
+{
+    var calc = new Calculator();
+    calc.Add(-1, -2).Should().Be(-3);
+}
+
+[Theory]
+[DataInlineUnit]
+public void Add_Should_Handle_Zero(DrnTestContextUnit context)
+{
+    var calc = new Calculator();
+    calc.Add(0, 0).Should().Be(0);
+}
+```
+
+**Preferred** — one parameterized method covering all permutations:
+```csharp
+[Theory]
+[DataInlineUnit(2, 3, 5)]     // positive + positive
+[DataInlineUnit(-1, -2, -3)]  // negative + negative
+[DataInlineUnit(0, 0, 0)]     // zeros
+[DataInlineUnit(-1, 1, 0)]    // cancellation
+public void Add_Should_Return_Correct_Sum(DrnTestContextUnit context, int a, int b, int expected)
+{
+    var calc = new Calculator();
+    calc.Add(a, b).Should().Be(expected);
+}
+```
+
+**Guidelines**:
+- **Last parameter = expected result** — each attribute row is a self-contained specification
+- **Name covers the dimension** — describes *what* is tested, not a specific case
+- **Comment inline data** — add trailing comments when values aren't self-explanatory
+- **Extract shared setup** — use private helpers to keep the test body focused on act + assert
+- **Omit values for auto-generated params** — let AutoFixture/NSubstitute handle params you don't control
+- **Don't consolidate when** test bodies differ structurally or separate failure messages aid debugging more than parameterization
+
 
 ## DebugOnly Tests
 Following attributes can be used to run test only when the debugger is attached. These attributes does respect the attached debugger, not debug or release configuration.

@@ -49,7 +49,7 @@
         </li>
     }
 
-    @if (ScopeContext.Settings.DevelopmentSettings.AutoMigrate)
+    @if (ScopeContext.Settings.DevelopmentSettings.AutoMigrateDevelopment || ScopeContext.Settings.DevelopmentSettings.AutoMigrateStaging)
     {
         <li class="nav-item">
             <div title="Auto Migration Enabled" data-bs-toggle="tooltip" data-bs-placement="left">

@@ -250,7 +250,7 @@ public class User : SourceKnownEntity
 *   **Scope Check**: Validates that 50+ service scopes can be created rapidly (catches singleton/scoped mismatches early).
 *   **Entity Type Check**: Scans all `SourceKnownEntity` types in the model to ensure they have unique `[EntityType]` attributes.
 *   **Auto-Migration & Seeding**:
-    *   Detects pending migrations and applies them if configured (`DrnDevelopmentSettings:AutoMigrate`).
+    *   Detects pending migrations and applies them if configured (`DrnDevelopmentSettings:AutoMigrateDevelopment`).
     *   Runs `SeedAsync` implementations from registered `NpgsqlDbContextOptionsAttribute`s after migration.
 
 ### Example
@@ -696,7 +696,7 @@ public class MyDbContext : DrnContext<MyDbContext> { }
 {
   "DrnDevelopmentSettings": {
     "LaunchExternalDependencies": true,  // Uses testcontainer instead of connection string
-    "AutoMigrate": true,                 // Required for schema initialization
+    "AutoMigrateDevelopment": true,      // Required for schema initialization
     "Prototype": true                    // Enables database recreation on model changes
   }
 }
@@ -896,7 +896,7 @@ public class SampleProgramActions : DrnProgramActions
   "Environment": "Development",
   "DrnDevelopmentSettings": {
     "LaunchExternalDependencies": true,
-    "AutoMigrate": true,
+    "AutoMigrateDevelopment": true,
     "Prototype": true
   }
 }

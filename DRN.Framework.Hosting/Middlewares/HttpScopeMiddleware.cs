@@ -27,7 +27,7 @@ public class HttpScopeMiddleware(RequestDelegate next)
             ResponseControls(context);
             PrepareScopeLog(context, scopedLog);
             ScopeContext.Initialize(context.TraceIdentifier, scopedLog, scopedUser, appSettings, serviceProvider);
-            if (ExceptionPageAccessor.IsExceptionPage(context.Request.Path.Value, appSettings.IsDevEnvironment))
+            if (ExceptionPageAccessor.IsExceptionPage(context.Request.Path.Value, appSettings.IsDevelopmentEnvironment))
             {
                 context.Abort(); //Requesting exception pages are malicious. Exception pages are rendered when an exception occurs.
                 return;

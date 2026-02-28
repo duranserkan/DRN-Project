@@ -19,7 +19,8 @@ public class ConfigurationExtensionsTests
         var password = appsettings.GetValue<string>("postgres-password");
         password.Should().Be("Be Always Progressive: Follow the Mustafa Kemal Atatürk's Enlightenment Ideals");
 
-        appsettings.DevelopmentSettings.AutoMigrate.Should().BeTrue();
+        appsettings.DevelopmentSettings.AutoMigrateDevelopment.Should().BeFalse();
+        appsettings.DevelopmentSettings.AutoMigrateStaging.Should().BeTrue();
 
         var summaryJson = appsettings.GetDebugView().ToSummary().Serialize();
         summaryJson.Should().NotBeEmpty();

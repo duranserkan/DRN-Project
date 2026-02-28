@@ -23,12 +23,17 @@ public class DrnDevelopmentSettings
     public bool LaunchExternalDependencies { get; init; }
 
     /// <summary>
-    /// When true in dev-environment, after registered services validated, database migrations will be applied automatically for rapid application development
+    /// It is true by default, When true in development-environment, after registered services validated, database migrations will be applied automatically for rapid application development
     /// </summary>
-    public bool AutoMigrate { get; init; }
+    public bool AutoMigrateDevelopment { get; init; } = true;
+    
+    /// <summary>
+    /// It is false by default, When true in staging-environment, after registered services validated, database migrations will be applied automatically.
+    /// </summary>
+    public bool AutoMigrateStaging { get; init; } = false;
 
     /// <summary>
-    /// Turns on fast prototyping for database development when <see cref="AutoMigrate"/> is on.
+    /// Turns on fast prototyping for database development when <see cref="AutoMigrateDevelopment"/> is on.
     /// <para>
     /// When true, any DbContext that has <c>NpgsqlDbContextOptionsAttribute.UsePrototypeMode = true</c> will be recreated if there is pending model changes.
     /// </para>
