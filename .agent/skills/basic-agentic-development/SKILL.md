@@ -72,6 +72,16 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 - ✅ Fail → Read error → Fix → Re-verify → Success
 - ⚠️ After **2 failed attempts** → Stop. Report to user: what you tried, what failed, hypotheses, recommended next steps
 
+### 5. Lessons Learned
+
+Capture non-obvious insights discovered during the task into `AGENTS.LessonsLearned.md` (repo root — create if missing).
+
+**When**: mistake, anti-pattern, non-obvious insight, correction, or reusable pattern discovered.
+
+**Entry format**: `## N. Descriptive Title` → concise subsections adapted to the lesson (e.g. Context, Anti-Pattern, Preferred Approach, Rules). Keep entries dense and scannable — not every lesson needs all subsections.
+
+**Before adding**: read existing entries — update rather than duplicate.
+
 ---
 
 ## Anti-Patterns
@@ -114,6 +124,7 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 - [ ] Follows existing codebase patterns
 - [ ] Security implications considered
 - [ ] Documentation updated (if needed)
+- [ ] Lessons captured (if a non-obvious insight was discovered)
 
 ---
 

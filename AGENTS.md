@@ -6,6 +6,7 @@
 
 1. Re-read `.agent/rules/DiSCOS.md` — the Distinguished Secure Cognitive OS.
 2. Always sync `AGENTS.md`, skill files, and tests with the source code
+3. Never limit yourself with given examples. Actively seek supporting and counter examples.
 
 ## Project Overview
 
@@ -41,6 +42,13 @@ dotnet test DRN.slnx           # Run all tests
 - **Frontend**: Razor Pages + htmx + Bootstrap 5; Vite-built assets in `buildwww/`; CSP nonces auto-injected via `NonceTagHelper`; CSRF auto-added on `hx-post/put/delete/patch`
 - **Git**: GitFlow-inspired — `develop` → `master` → tag `v*.*.*`; squash merge to develop, merge commit to master
 - **Security**: CSP nonces, CSRF anti-forgery, input validation — see `basic-security-checklist` skill
+
+## Lessons Learned
+
+- **File**: `AGENTS.LessonsLearned.md` (repo root — create if missing)
+- **When**: Mistake, anti-pattern, non-obvious insight, or correction discovered during any workflow
+- **How**: Append `## N. Title` with concise subsections adapted to the lesson; keep entries dense and scannable
+- **Dedup**: Read existing entries first — update rather than duplicate
 
 ## Workflows
 
