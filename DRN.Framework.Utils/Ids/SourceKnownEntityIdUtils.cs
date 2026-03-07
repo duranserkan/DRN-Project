@@ -55,14 +55,34 @@ public interface ISourceKnownEntityIdUtils
 [Singleton<ISourceKnownEntityIdUtils>]
 public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUtils sourceKnownIdUtils) : ISourceKnownEntityIdUtils, IDisposable
 {
+    //0-3 Source Known Id first half
+    //4 entity type
+    //5 epoch
+    //6 is reserved for MAC hash along with 9, 10, 11
+    //7-8 Source Known Id version & variant marker todo: reevaluate the necessity
+    //9, 10 and 11 are reserved for MAC hashing along with 6
+    //12-15 Source Known Id second half
+    private const byte GuidLength = 16;
+    
     private const byte EntityIdFirstHalfOffset = 0;
     private const byte EntityIdFirstHalfLength = 4; // 0-3
 
     private const byte EntityTypeIndex = 4; //4
     private const byte InvalidEntityType = byte.MaxValue;
 
-    //5 and 6 are reserved for hash
-
+    //5th index is reserved for epoch, first epoch starts at 2025-01-01.
+    //Each epoch is approximately 136 years long with 2 half separated with sign bit
+    //2^31 seconds * 2^1 epoch half flag in source known id timestamp.
+    //5th index was initially reserved for MAC hash but with Secure Source Known id's this byte is repurposed for epoch usage
+    //With epoch support, source known ids can address 34,842 monotonic time years starting from 2025-01-01
+    //todo handle epoch management (not urgent for next 60 years)
+    
+    private const byte MacHashLength = 4;
+    private const byte MacHashFirstIndex = 6;
+    private const byte MacHashSecondIndex = 9;
+    private const byte MacHashThirdIndex = 10;
+    private const byte MacHashFourthIndex = 11;
+    
     //4D8D mark — plaintext markers used for non-secure variant and inside the encrypted block for secure variant
     //Ensures that the source-known entityId is easily identifiable by humans and UUID V4 compatible
     private const byte SourceKnownMarkerVersionIndex = 7;
@@ -70,7 +90,6 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     private const byte SourceKnownMarkerVersionByte = 0x4D; //7 | V4 => V4 is used as a cover to prevent detection and ensure compatibility
     private const byte SourceKnownMarkerVariantByte = 0x8D; //8 | Variant RFC 4122
 
-    //9, 10 and 11 are reserved for hash
     private const byte EntityIdSecondHalfOffset = 12;
     private const byte EntityIdSecondHalfLength = 4; // 12-15
 
@@ -96,8 +115,8 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
 
     public SourceKnownEntityId GenerateUnsecure(long id, byte entityType)
     {
-        Span<byte> hashBytes = stackalloc byte[5];
-        Span<byte> guidBytes = stackalloc byte[16]; // Allocate 16 bytes on the stack for the GUID
+        Span<byte> hashBytes = stackalloc byte[MacHashLength];
+        Span<byte> guidBytes = stackalloc byte[GuidLength]; // Allocate 16 bytes on the stack for the GUID
         guidBytes.Clear();
 
         WriteIdAndMarkers(guidBytes, id, entityType, SourceKnownMarkerVariantByte);
@@ -115,8 +134,8 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
 
     public SourceKnownEntityId GenerateSecure(long id, byte entityType)
     {
-        Span<byte> hashBytes = stackalloc byte[5];
-        Span<byte> guidBytes = stackalloc byte[16];
+        Span<byte> hashBytes = stackalloc byte[MacHashLength];
+        Span<byte> guidBytes = stackalloc byte[GuidLength];
         guidBytes.Clear();
 
         // Build guid identically to non-secure (same layout, same markers)
@@ -137,7 +156,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
 
     public SourceKnownEntityId Parse(Guid entityId)
     {
-        Span<byte> guidBytes = stackalloc byte[16];
+        Span<byte> guidBytes = stackalloc byte[GuidLength];
         entityId.TryWriteBytes(guidBytes);
 
         // Try non-secure path first (plaintext 4D8D markers visible)
@@ -195,8 +214,8 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     /// </summary>
     private SourceKnownEntityId VerifyAndParse(Span<byte> guidBytes, Guid entityId)
     {
-        Span<byte> actualHashBytes = stackalloc byte[5];
-        Span<byte> expectedHashBytes = stackalloc byte[5];
+        Span<byte> actualHashBytes = stackalloc byte[MacHashLength];
+        Span<byte> expectedHashBytes = stackalloc byte[MacHashLength];
 
         ReadMacFromGuid(guidBytes, actualHashBytes);
 
@@ -214,7 +233,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
 
         if (expectedHashBytes.SequenceEqual(actualHashBytes))
             return new SourceKnownEntityId(sourceKnownIdUtils.Parse(id), entityId, entityType, true);
-        
+
         return CreateInvalid(entityId);
     }
 
@@ -229,10 +248,10 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
 
         BinaryPrimitives.WriteUInt32LittleEndian(guidBytes.Slice(EntityIdFirstHalfOffset, EntityIdFirstHalfLength), firstHalf); //0-3
         guidBytes[EntityTypeIndex] = entityType; //4
-        //5 and 6 are reserved for hash
+        //5 is reserved for epoch, 6 is reserved for MAC hash
         guidBytes[SourceKnownMarkerVersionIndex] = SourceKnownMarkerVersionByte; //7
         guidBytes[SourceKnownMarkerVariantIndex] = variantByte; //8
-        //9, 10 and 11 are reserved for hash
+        //9, 10 and 11 are reserved for MAC hash along with 6
         BinaryPrimitives.WriteUInt32LittleEndian(guidBytes.Slice(EntityIdSecondHalfOffset, EntityIdSecondHalfLength), secondHalf); //12-15
     }
 
@@ -247,39 +266,36 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     }
 
     /// <summary>
-    /// Writes 5-byte MAC hash into guid byte positions 5-6 and 9-11.
+    /// Writes 4-byte MAC hash into guid byte positions 6, 9, 10, 11.
     /// </summary>
     private static void WriteMacToGuid(Span<byte> guidBytes, ReadOnlySpan<byte> hashBytes)
     {
-        guidBytes[5] = hashBytes[3];
-        guidBytes[6] = hashBytes[4];
-        guidBytes[9] = hashBytes[0];
-        guidBytes[10] = hashBytes[1];
-        guidBytes[11] = hashBytes[2];
+        guidBytes[MacHashFirstIndex] = hashBytes[3];
+        guidBytes[MacHashSecondIndex] = hashBytes[0];
+        guidBytes[MacHashThirdIndex] = hashBytes[1];
+        guidBytes[MacHashFourthIndex] = hashBytes[2];
     }
 
     /// <summary>
-    /// Reads 5-byte MAC hash from guid byte positions 5-6 and 9-11.
+    /// Reads 4-byte MAC hash from guid byte positions 6, 9, 10, 11.
     /// </summary>
     private static void ReadMacFromGuid(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes)
     {
-        hashBytes[3] = guidBytes[5];
-        hashBytes[4] = guidBytes[6];
-        hashBytes[0] = guidBytes[9];
-        hashBytes[1] = guidBytes[10];
-        hashBytes[2] = guidBytes[11];
+        hashBytes[3] = guidBytes[MacHashFirstIndex];
+        hashBytes[0] = guidBytes[MacHashSecondIndex];
+        hashBytes[1] = guidBytes[MacHashThirdIndex];
+        hashBytes[2] = guidBytes[MacHashFourthIndex];
     }
 
     /// <summary>
-    /// Zeros the MAC slots (5-6 and 9-11) in the guid bytes for MAC re-computation.
+    /// Zeros the MAC slots (6 and 9-11) in the guid bytes for MAC re-computation.
     /// </summary>
     private static void ClearMacSlots(Span<byte> guidBytes)
     {
-        guidBytes[5] = 0;
-        guidBytes[6] = 0;
-        guidBytes[9] = 0;
-        guidBytes[10] = 0;
-        guidBytes[11] = 0;
+        guidBytes[MacHashFirstIndex] = 0;
+        guidBytes[MacHashSecondIndex] = 0;
+        guidBytes[MacHashThirdIndex] = 0;
+        guidBytes[MacHashFourthIndex] = 0;
     }
 
     /// <summary>
@@ -291,7 +307,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     /// </summary>
     private static void EncryptGuidBlock(Span<byte> guidBytes, Aes aes)
     {
-        Span<byte> output = stackalloc byte[16];
+        Span<byte> output = stackalloc byte[GuidLength];
         aes.EncryptEcb(guidBytes, output, PaddingMode.None);
         output.CopyTo(guidBytes);
     }
@@ -302,7 +318,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     /// </summary>
     private static void DecryptGuidBlock(Span<byte> guidBytes, Aes aes)
     {
-        Span<byte> output = stackalloc byte[16];
+        Span<byte> output = stackalloc byte[GuidLength];
         aes.DecryptEcb(guidBytes, output, PaddingMode.None);
         output.CopyTo(guidBytes);
     }
