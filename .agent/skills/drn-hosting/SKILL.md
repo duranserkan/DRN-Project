@@ -240,6 +240,7 @@ public class MyBackgroundWorker : BackgroundService
 | `AnonymousOnlyTagHelper` | `*[anonymous-only]` | Render if anonymous |
 | `PageAnchorAspPageTagHelper` | `<a asp-page>` | Mark active page |
 | `PageAnchorHrefTagHelper` | `<a href>` | Mark active page |
+| `ScriptDefaultsTagHelper` | `<script>` | Modern defaults: `defer` (external), `type="module"` (inline) |
 
 **Vite**: `<script src="buildwww/app/js/appPostload.js">` → `<script src="/app/app_postload.abc123.js" integrity="sha256-xyz">`
 

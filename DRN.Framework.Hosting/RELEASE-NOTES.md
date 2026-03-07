@@ -37,6 +37,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
     *   **Security**: `NonceTagHelper` (auto-injects CSP nonce) and `CsrfTokenTagHelper` (auto-injects token for HTMX).
     *   **Conditional Rendering**: `AuthorizedOnlyTagHelper` (MFA-aware) and `AnonymousOnlyTagHelper`.
     *   **Navigation**: `PageAnchorAspPageTagHelper` and `PageAnchorHrefTagHelper` automatically mark active links.
+    *   **Modern Defaults**: `ScriptDefaultsTagHelper` applies `defer` for external scripts and `type="module"` for inline scripts by default, with explicit opt-out support.
 *   **Advanced Middleware & HTTP Standards**
     *   **Standardized Redirects**: Automatically converts 302 (Found) to 303 (See Other) for modern HTTP/1.1 POST response compliance.
     *   **Security-First Headers**: Default `Cache-Control: no-store` and strictly configured HSTS/CSP/Nonce headers.
