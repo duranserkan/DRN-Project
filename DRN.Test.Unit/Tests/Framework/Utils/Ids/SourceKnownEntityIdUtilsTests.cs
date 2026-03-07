@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
@@ -252,6 +253,48 @@ public class SourceKnownEntityIdUtilsTests
         actSecure.Should().Throw<ValidationException>();
         var actUnsecure = () => entityIdUtils.ToUnsecure(invalidId);
         actUnsecure.Should().Throw<ValidationException>();
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public async Task Parse_Should_Reject_Tampered_Variant_Byte(DrnTestContextUnit context)
+    {
+        var nexusSettings = new NexusAppSettings { AppId = 5, AppInstanceId = 12 };
+        context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
+        var idUtils = context.GetRequiredService<ISourceKnownIdUtils>();
+        var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
+
+        await Task.Delay(1100);
+        var longId = idUtils.Next<XEntity>();
+        var secureId = entityIdUtils.GenerateSecure(new XEntity(longId));
+
+        // Decrypt the secure SKEID to access plaintext
+        var cipherBytes = secureId.EntityId.ToByteArray();
+        var aesKey = context.GetRequiredService<IAppSettings>()
+            .NexusAppSettings.GetDefaultMacKey().AlternativeKeyAsBinary.ToArray();
+
+        using var aes = Aes.Create();
+        aes.Mode = CipherMode.ECB;
+        aes.Padding = PaddingMode.None;
+        aes.Key = aesKey;
+
+        var plainBytes = new byte[16];
+        aes.DecryptEcb(cipherBytes, plainBytes, PaddingMode.None);
+
+        // The default variant should be 0x8D — tamper it to 0x8F
+        // (0x8F implies two successive collisions at 0x8D and 0x8E, which didn't actually happen)
+        plainBytes[8].Should().Be(0x8D, "default variant byte should be 0x8D");
+        plainBytes[8] = 0x8F; // tampered — no genuine collision at 0x8E
+
+        // Re-encrypt with tampered plaintext
+        var tamperedCipher = new byte[16];
+        aes.EncryptEcb(plainBytes, tamperedCipher, PaddingMode.None);
+        var tamperedGuid = new Guid(tamperedCipher);
+
+        // Parse must reject: backward verification will reconstruct variant=0x8E,
+        // encrypt it, and find that its ciphertext does NOT have marker+MAC coincidence
+        var result = entityIdUtils.Parse(tamperedGuid);
+        result.Valid.Should().BeFalse("tampered variant byte must be rejected by backward verification");
     }
 
     private static void AssertValidEntityId(SourceKnownEntityId entityId, long expectedId,

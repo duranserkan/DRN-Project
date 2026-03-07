@@ -94,6 +94,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     private const byte SourceKnownMarkerVariantIndex = 8;
     private const byte SourceKnownMarkerVersionByte = 0x4D; //7 | V4 => V4 is used as a cover to prevent detection and ensure compatibility
     private const byte SourceKnownMarkerVariantByte = 0x8D; //8 | Variant RFC 4122
+    private const byte SourceKnownMarkerVariantMaxByte = 0xBF; //8 | Variant RFC 4122 upper bound (collision guard)
 
     private const byte EntityIdSecondHalfOffset = 12;
     private const byte EntityIdSecondHalfLength = 4; // 12-15
@@ -144,12 +145,42 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         guidBytes.Clear();
 
         // Build guid identically to non-secure (same layout, same markers)
-        WriteIdAndMarkers(guidBytes, id, entityType, SourceKnownMarkerVariantByte);
+        var variantByte = SourceKnownMarkerVariantByte;
+        WriteIdAndMarkers(guidBytes, id, entityType, variantByte);
         ComputeMac(guidBytes, hashBytes, _defaultMacKey);
         WriteMacToGuid(guidBytes, hashBytes);
 
         // Encrypt entire 16-byte block with AES-ECB (true PRP — no nonce needed)
         EncryptGuidBlock(guidBytes, _aes);
+
+        // Collision guard: if ciphertext coincidentally has unsecure markers (0x4D8D, ~1/65536)
+        // AND the MAC extracted from ciphertext matches a recomputed MAC (~1/2^32),
+        // the parse path would misclassify this Secure SKEID as Unsecure.
+        // Fix: iterate variant bytes 0x8E→0xBF — AES avalanche guarantees distinct ciphertext per variant.
+        // Deterministic termination: at most 51 iterations. Exhaustion throws JackpotException.
+        if (HasValidMarkers(guidBytes) && HasCoincidentalMacMatch(guidBytes))
+        {
+            for (variantByte = SourceKnownMarkerVariantByte + 1;
+                 variantByte <= SourceKnownMarkerVariantMaxByte;
+                 variantByte++)
+            {
+                guidBytes.Clear();
+                hashBytes.Clear();
+                WriteIdAndMarkers(guidBytes, id, entityType, variantByte);
+                ComputeMac(guidBytes, hashBytes, _defaultMacKey);
+                WriteMacToGuid(guidBytes, hashBytes);
+                EncryptGuidBlock(guidBytes, _aes);
+
+                if (!HasValidMarkers(guidBytes) || !HasCoincidentalMacMatch(guidBytes))
+                    break;
+            }
+
+            if (variantByte > SourceKnownMarkerVariantMaxByte)
+                throw ExceptionFor.Jackpot(
+                    $"All 50 alternative variant bytes " +
+                    $"(0x{SourceKnownMarkerVariantByte + 1:X2}–0x{SourceKnownMarkerVariantMaxByte:X2}) exhausted " +
+                    $"for id={id}, entityType={entityType}. Probability: ~1/2^(48×51).");
+        }
 
         var entityId = new Guid(guidBytes);
         var sourceKnownId = sourceKnownIdUtils.Parse(id);
@@ -178,11 +209,29 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         }
 
         // Try secure path: AES-ECB decrypt full block, then check for markers
+        // HasValidMarkersSecure accepts RFC 4122 variant range 0x80–0xBF (collision guard uses 0x8D–0xBF)
         DecryptGuidBlock(guidBytes, _aes);
 
-        return HasValidMarkers(guidBytes)
-            ? VerifyAndParse(guidBytes, entityId, secure: true)
-            : CreateInvalid(entityId);
+        if (HasValidMarkersSecure(guidBytes))
+        {
+            var recoveredVariant = guidBytes[SourceKnownMarkerVariantIndex];
+
+            // Non-default variant → backward collision-guard verification
+            if (recoveredVariant > SourceKnownMarkerVariantByte
+                && recoveredVariant <= SourceKnownMarkerVariantMaxByte)
+            {
+                if (!VerifyCollisionGuardProof(guidBytes, (byte)(recoveredVariant - 1)))
+                    return CreateInvalid(entityId);
+            }
+            else if (recoveredVariant != SourceKnownMarkerVariantByte)
+            {
+                return CreateInvalid(entityId);
+            }
+
+            return VerifyAndParse(guidBytes, entityId, secure: true);
+        }
+
+        return CreateInvalid(entityId);
     }
 
     public SourceKnownEntityId? Validate(Guid? entityId, byte entityType)
@@ -232,6 +281,34 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
            && guidBytes[SourceKnownMarkerVariantIndex] == SourceKnownMarkerVariantByte;
 
     /// <summary>
+    /// Accepts the primary variant (0x8D) and any RFC 4122 variant byte (0x80–0xBF).
+    /// Used only on the post-decryption (secure) path — non-default variant bytes are
+    /// produced by the collision guard in <see cref="GenerateSecure(long, byte)"/>.
+    /// </summary>
+    private static bool HasValidMarkersSecure(ReadOnlySpan<byte> guidBytes)
+        => guidBytes[SourceKnownMarkerVersionIndex] == SourceKnownMarkerVersionByte
+           && (guidBytes[SourceKnownMarkerVariantIndex] & 0xC0) == 0x80;
+
+    /// <summary>
+    /// Checks whether ciphertext bytes, when interpreted as an unsecure SKEID,
+    /// produce a coincidental MAC match. Used by the collision guard in
+    /// <see cref="GenerateSecure(long, byte)"/> to detect the ~1/2^48 edge case.
+    /// </summary>
+    private bool HasCoincidentalMacMatch(ReadOnlySpan<byte> ciphertextBytes)
+    {
+        Span<byte> actualHash = stackalloc byte[MacHashLength];
+        Span<byte> expectedHash = stackalloc byte[MacHashLength];
+        Span<byte> workingCopy = stackalloc byte[GuidLength];
+        ciphertextBytes.CopyTo(workingCopy);
+
+        ReadMacFromGuid(workingCopy, actualHash);
+        ClearMacSlots(workingCopy);
+        ComputeMac(workingCopy, expectedHash, _defaultMacKey);
+
+        return expectedHash.SequenceEqual(actualHash);
+    }
+
+    /// <summary>
     /// Verifies MAC integrity and extracts ID/entityType from a plaintext (or decrypted) guid byte span.
     /// </summary>
     private SourceKnownEntityId VerifyAndParse(Span<byte> guidBytes, Guid entityId, bool secure)
@@ -253,9 +330,42 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         ClearMacSlots(guidBytes);
         ComputeMac(guidBytes, expectedHashBytes, _defaultMacKey);
 
-        return expectedHashBytes.SequenceEqual(actualHashBytes) 
+        return expectedHashBytes.SequenceEqual(actualHashBytes)
             ? new SourceKnownEntityId(sourceKnownIdUtils.Parse(id), entityId, entityType, true, secure)
             : CreateInvalid(entityId);
+    }
+
+    /// <summary>
+    /// Backward collision verification: reconstructs the SKEID with (variant−1),
+    /// encrypts, and checks whether ciphertext would have triggered the collision guard.
+    /// Returns true if the previous variant genuinely collided (legitimate escalation).
+    /// Called only for non-default variant bytes (recoveredVariant > 0x8D) during Parse.
+    /// </summary>
+    private bool VerifyCollisionGuardProof(ReadOnlySpan<byte> decryptedBytes, byte previousVariant)
+    {
+        var idFirstHalf = BinaryPrimitives.ReadUInt32LittleEndian(
+            decryptedBytes.Slice(EntityIdFirstHalfOffset, EntityIdFirstHalfLength));
+        var idSecondHalf = BinaryPrimitives.ReadUInt32LittleEndian(
+            decryptedBytes.Slice(EntityIdSecondHalfOffset, EntityIdSecondHalfLength));
+        var entityType = decryptedBytes[EntityTypeIndex];
+
+        var idBuilder = NumberBuilder.GetLongUnsigned();
+        idBuilder.TryAddUInt(idFirstHalf);
+        idBuilder.TryAddUInt(idSecondHalf);
+        var id = (long)idBuilder.GetValue();
+
+        // Reconstruct with previous variant
+        Span<byte> hashBytes = stackalloc byte[MacHashLength];
+        Span<byte> reconstructed = stackalloc byte[GuidLength];
+        reconstructed.Clear();
+
+        WriteIdAndMarkers(reconstructed, id, entityType, previousVariant);
+        ComputeMac(reconstructed, hashBytes, _defaultMacKey);
+        WriteMacToGuid(reconstructed, hashBytes);
+        EncryptGuidBlock(reconstructed, _aes);
+
+        // Previous variant's ciphertext must have collided (markers + MAC match)
+        return HasValidMarkers(reconstructed) && HasCoincidentalMacMatch(reconstructed);
     }
 
     /// <summary>
@@ -291,10 +401,10 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     /// </summary>
     private static void WriteMacToGuid(Span<byte> guidBytes, ReadOnlySpan<byte> hashBytes)
     {
-        guidBytes[MacHashFirstIndex] = hashBytes[3];
-        guidBytes[MacHashSecondIndex] = hashBytes[0];
-        guidBytes[MacHashThirdIndex] = hashBytes[1];
-        guidBytes[MacHashFourthIndex] = hashBytes[2];
+        guidBytes[MacHashFirstIndex] = hashBytes[0];
+        guidBytes[MacHashSecondIndex] = hashBytes[1];
+        guidBytes[MacHashThirdIndex] = hashBytes[2];
+        guidBytes[MacHashFourthIndex] = hashBytes[3];
     }
 
     /// <summary>
@@ -302,10 +412,10 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     /// </summary>
     private static void ReadMacFromGuid(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes)
     {
-        hashBytes[3] = guidBytes[MacHashFirstIndex];
-        hashBytes[0] = guidBytes[MacHashSecondIndex];
-        hashBytes[1] = guidBytes[MacHashThirdIndex];
-        hashBytes[2] = guidBytes[MacHashFourthIndex];
+        hashBytes[0] = guidBytes[MacHashFirstIndex];
+        hashBytes[1] = guidBytes[MacHashSecondIndex];
+        hashBytes[2] = guidBytes[MacHashThirdIndex];
+        hashBytes[3] = guidBytes[MacHashFourthIndex];
     }
 
     /// <summary>

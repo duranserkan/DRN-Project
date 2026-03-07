@@ -66,6 +66,14 @@ public class UnprocessableEntityException(string message, Exception? exception =
 public class MaliciousRequestException(string message, Exception? exception = null, string? category = null)
     : DrnException(message, exception, category, short.MaxValue);
 
+/// <summary>
+/// Thrown when an astronomically improbable event occurs (e.g., variant-space exhaustion
+/// during Secure SKEID collision guard — probability ~1/2^(48×51)).
+/// Scope handler returns 500 when thrown.
+/// </summary>
+public class JackpotException(string message, Exception? exception = null, string? category = null)
+    : DrnException(message, exception, category, 500);
+
 public static class ExceptionFor
 {
     private const string Default = DrnException.DefaultCategory;
@@ -122,5 +130,12 @@ public static class ExceptionFor
     /// To abort requests that doesn't even deserve a result
     /// </summary>
     public static MaliciousRequestException MaliciousRequest(string message, Exception? exception = null, string? category = Default)
+        => new(message, exception, category);
+
+    /// <summary>
+    /// Thrown when an astronomically improbable event occurs.
+    /// Scope handler returns 500 when thrown.
+    /// </summary>
+    public static JackpotException Jackpot(string message, Exception? exception = null, string? category = Default)
         => new(message, exception, category);
 }

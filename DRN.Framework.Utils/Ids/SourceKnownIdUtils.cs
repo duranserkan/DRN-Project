@@ -40,10 +40,10 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         //Given measurement uncertainty because of the eventual consistency, who can claim precision finer than seconds?
 
         //Works for next 68 years since 2025
-        //Sign-bit is by default positive that makes the long value negative
-        //When an additional interval needed sign-bit should be 0
-        //That makes generated value, positive keeps ordering and provides another 68 years.
-        //todo: update sign bit for other half of the epoch 
+        //Sign bit set to 1 (default) makes the long value negative, covering the first ~68 years of the epoch.
+        //Sign bit set to 0 makes the long value positive, extending coverage for the second ~68 years.
+        //Negative values sort before positive values, preserving monotonic ordering across the full ~136-year epoch.
+        //todo: update sign bit for other half of the epoch
         builder.SetResidueValue((uint)timeScopedId.TimeStamp);
 
         //Initially 256 apps were allowed.

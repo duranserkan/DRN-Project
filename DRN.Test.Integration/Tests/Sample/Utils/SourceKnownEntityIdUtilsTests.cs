@@ -34,6 +34,7 @@ public class SourceKnownEntityIdUtilsTests
         await Task.Delay(1001);
 
         entityIds.All(x => x.Valid).Should().BeTrue();
+        entityIds.All(x => x.Secure).Should().BeTrue("all generated ids must be Secure");
         entityIds.All(x => x.EntityId != Guid.Empty).Should().BeTrue();
 
         // Parse every generated entity ID and validate round-trip
@@ -55,6 +56,7 @@ public class SourceKnownEntityIdUtilsTests
         {
             pair.entityId.Should().Be(pair.parsed);
             pair.entityId.Source.Should().Be(pair.parsed.Source);
+            pair.parsed.Secure.Should().BeTrue("collision guard must prevent Secure→Unsecure misclassification");
         }
         
         // Coincidental marker stats: encrypted GUIDs that happen to have 4D at byte[7] and 8D at byte[8]
@@ -65,6 +67,10 @@ public class SourceKnownEntityIdUtilsTests
             return bytes[7] == 0x4D && bytes[8] == 0x8D;
         });
         coincidentalMarkerCount.Should().BeGreaterThanOrEqualTo(0);
+
+        // Collision guard: no Secure SKEID should have been misclassified as Unsecure
+        var misclassifiedCount = parsedIds.Count(p => !p.parsed.Secure);
+        misclassifiedCount.Should().Be(0, "collision guard must eliminate all Secure→Unsecure misclassification");
 
         invalidIds.Length.Should().Be(0);
         validIds.Length.Should().Be(entityIds.Length);
