@@ -33,14 +33,9 @@ public class SourceKnownEntityIdUtilsTests
         var afterIdGenerated = DateTimeOffset.UtcNow;
 
         // Assert both are valid with correct properties
-        AssertValidEntityId(unsecureId1, longId1, nexusSettings, xEntityType);
-        AssertValidEntityId(secureId1, longId1, nexusSettings, xEntityType);
-
-        // Markers: unsecure has them, secure doesn't
-        AssertPlaintextMarkers(unsecureId1, true, "unsecure should have plaintext markers");
-        AssertPlaintextMarkers(secureId1, false, "secure should not expose plaintext markers");
-        IsVersion4Rfc4122(unsecureId1.EntityId).Should().BeTrue();
-
+        AssertValidEntityId(unsecureId1, longId1, nexusSettings, xEntityType, expectedSecure: false);
+        AssertValidEntityId(secureId1, longId1, nexusSettings, xEntityType, expectedSecure: true);
+        
         // Parse roundtrip — both variants
         entityIdUtils.Parse(null).Should().BeNull();
         AssertParseRoundTrip(entityIdUtils, unsecureId1);
@@ -59,8 +54,12 @@ public class SourceKnownEntityIdUtilsTests
         idInfo.CreatedAt.Should().BeAfter(beforeIdGenerated);
         epoch.Should().BeBefore(beforeIdGenerated);
 
-        // Secure and unsecure parse to same source but different GUIDs
+        // Secure parse — parsed result carries the encrypted EntityId Guid
         var parsedSecure = entityIdUtils.Parse(secureId1.EntityId);
+        parsedSecure.Should().Be(secureId1);
+        parsedSecure.EntityId.Should().Be(secureId1.EntityId);
+
+        // Secure and unsecure parse to same source but different GUIDs
         parsedUnsecure.Source.Should().Be(parsedSecure.Source);
         parsedUnsecure.EntityType.Should().Be(parsedSecure.EntityType);
         unsecureId1.EntityId.Should().NotBe(secureId1.EntityId);
@@ -88,12 +87,10 @@ public class SourceKnownEntityIdUtilsTests
 
         // Generic overloads
         var secureGeneric = entityIdUtils.GenerateSecure<XEntity>(longId1);
-        AssertValidEntityId(secureGeneric, longId1, nexusSettings, xEntityType);
-        AssertPlaintextMarkers(secureGeneric, false, "GenerateSecure<T> should encrypt");
+        AssertValidEntityId(secureGeneric, longId1, nexusSettings, xEntityType, expectedSecure: true);
 
         var unsecureGeneric = entityIdUtils.GenerateUnsecure<XEntity>(longId1);
-        AssertValidEntityId(unsecureGeneric, longId1, nexusSettings, xEntityType);
-        AssertPlaintextMarkers(unsecureGeneric, true, "GenerateUnsecure<T> should be plaintext");
+        AssertValidEntityId(unsecureGeneric, longId1, nexusSettings, xEntityType, expectedSecure: false);
     }
 
     [Theory]
@@ -116,17 +113,17 @@ public class SourceKnownEntityIdUtilsTests
 
         // Generate() should dispatch to secure/unsecure path based on flag
         var entityId = entityIdUtils.Generate(new XEntity(longId));
-        AssertValidEntityId(entityId, longId, nexusSettings, SourceKnownEntity.GetEntityType<XEntity>());
-        AssertPlaintextMarkers(entityId, !secure, $"Generate with UseSecureSourceKnownIds={secure} should {(secure ? "encrypt" : "preserve plaintext markers in")} the GUID");
+        AssertValidEntityId(entityId, longId, nexusSettings, SourceKnownEntity.GetEntityType<XEntity>(), expectedSecure: secure);
         AssertParseRoundTrip(entityIdUtils, entityId);
 
         // Explicit methods should always bypass the flag
         var explicitUnsecure = entityIdUtils.GenerateUnsecure(new XEntity(longId));
+        explicitUnsecure.Secure.Should().BeFalse("GenerateUnsecure should always set Secure=false");
         AssertPlaintextMarkers(explicitUnsecure, true, "GenerateUnsecure should always produce plaintext markers");
         AssertParseRoundTrip(entityIdUtils, explicitUnsecure);
 
         var explicitSecure = entityIdUtils.GenerateSecure(new XEntity(longId));
-        AssertPlaintextMarkers(explicitSecure, false, "GenerateSecure should always encrypt regardless of flag");
+        explicitSecure.Secure.Should().BeTrue("GenerateSecure should always set Secure=true");
         AssertParseRoundTrip(entityIdUtils, explicitSecure);
     }
 
@@ -146,14 +143,16 @@ public class SourceKnownEntityIdUtilsTests
         // Tamper with first byte — AES-ECB decryption produces garbage, markers won't match
         var tamperedBytes = secureEntityId.EntityId.ToByteArray();
         tamperedBytes[0] ^= 0xFF;
-        entityIdUtils.Parse(new Guid(tamperedBytes)).Valid.Should()
-            .BeFalse("tampered secure guid should be detected as invalid");
+        var tamperedResult1 = entityIdUtils.Parse(new Guid(tamperedBytes));
+        tamperedResult1.Valid.Should().BeFalse("tampered secure guid should be detected as invalid");
+        tamperedResult1.Secure.Should().BeFalse("invalid result should have Secure=false");
 
         // Tamper with a different byte position
         var tamperedBytes2 = secureEntityId.EntityId.ToByteArray();
         tamperedBytes2[4] ^= 0x01;
-        entityIdUtils.Parse(new Guid(tamperedBytes2)).Valid.Should()
-            .BeFalse("any tampered byte should be detected as invalid");
+        var tamperedResult2 = entityIdUtils.Parse(new Guid(tamperedBytes2));
+        tamperedResult2.Valid.Should().BeFalse("any tampered byte should be detected as invalid");
+        tamperedResult2.Secure.Should().BeFalse("invalid result should have Secure=false");
     }
 
     [Theory]
@@ -178,15 +177,19 @@ public class SourceKnownEntityIdUtilsTests
         // Validate should work correctly for matching types
         var validatedX = entityIdUtils.Validate<XEntity>(secureX.EntityId);
         validatedX.Valid.Should().BeTrue();
+        validatedX.Secure.Should().BeTrue("validated secure id should preserve Secure=true");
         validatedX.EntityType.Should().Be(SourceKnownEntity.GetEntityType<XEntity>());
 
         var validatedY = entityIdUtils.Validate<YEntity>(secureY.EntityId);
         validatedY.Valid.Should().BeTrue();
+        validatedY.Secure.Should().BeTrue("validated secure id should preserve Secure=true");
         validatedY.EntityType.Should().Be(SourceKnownEntity.GetEntityType<YEntity>());
 
         // HasSameEntityType should work correctly after parsing
         var parsedX = entityIdUtils.Parse(secureX.EntityId);
         var parsedY = entityIdUtils.Parse(secureY.EntityId);
+        parsedX.Secure.Should().BeTrue("parsed secure id should have Secure=true");
+        parsedY.Secure.Should().BeTrue("parsed secure id should have Secure=true");
         parsedX.HasSameEntityType(parsedY).Should().BeFalse();
         parsedX.HasSameEntityType<XEntity>().Should().BeTrue();
         parsedY.HasSameEntityType<YEntity>().Should().BeTrue();
@@ -197,13 +200,23 @@ public class SourceKnownEntityIdUtilsTests
     }
 
     private static void AssertValidEntityId(SourceKnownEntityId entityId, long expectedId,
-        NexusAppSettings nexusSettings, byte expectedEntityType)
+        NexusAppSettings nexusSettings, byte expectedEntityType, bool expectedSecure)
     {
         entityId.Valid.Should().BeTrue();
         entityId.Source.Id.Should().Be(expectedId);
         entityId.Source.AppId.Should().Be(nexusSettings.AppId);
         entityId.Source.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
         entityId.EntityType.Should().Be(expectedEntityType);
+        entityId.Secure.Should().Be(expectedSecure);
+
+        // Secure flag ↔ EntityId GUID content invariant:
+        // Unsecure: plaintext GUID — deterministic markers (4D8D) and RFC 4122 V4 compliance
+        // Secure:   AES-encrypted GUID — markers/V4 assertions skipped because ciphertext can
+        //           coincidentally produce 4D8D marker bytes (~1/65536, see SourceKnownEntityIdUtils L169)
+        if (expectedSecure) return;
+        
+        AssertPlaintextMarkers(entityId, true, "Unsecure EntityId must contain plaintext 4D8D markers");
+        IsVersion4Rfc4122(entityId.EntityId).Should().BeTrue("Unsecure EntityId should be RFC 4122 V4 compliant");
     }
 
     private static void AssertParseRoundTrip(ISourceKnownEntityIdUtils entityIdUtils, SourceKnownEntityId original)
@@ -213,6 +226,7 @@ public class SourceKnownEntityIdUtilsTests
         parsed.Source.Id.Should().Be(original.Source.Id);
         parsed.Source.Should().Be(original.Source);
         parsed.EntityType.Should().Be(original.EntityType);
+        parsed.Secure.Should().Be(original.Secure);
     }
 
     private static void AssertPlaintextMarkers(SourceKnownEntityId entityId, bool shouldHaveMarkers, string because)

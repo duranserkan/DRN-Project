@@ -126,7 +126,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         var entityId = new Guid(guidBytes);
         var sourceKnownId = sourceKnownIdUtils.Parse(id);
 
-        return new SourceKnownEntityId(sourceKnownId, entityId, entityType, true);
+        return new SourceKnownEntityId(sourceKnownId, entityId, entityType, true, Secure: false);
     }
 
     public SourceKnownEntityId GenerateSecure<TEntity>(long id) where TEntity : SourceKnownEntity => GenerateSecure(id, SourceKnownEntity.GetEntityType<TEntity>());
@@ -149,7 +149,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         var entityId = new Guid(guidBytes);
         var sourceKnownId = sourceKnownIdUtils.Parse(id);
 
-        return new SourceKnownEntityId(sourceKnownId, entityId, entityType, true);
+        return new SourceKnownEntityId(sourceKnownId, entityId, entityType, true, Secure: true);
     }
 
     public SourceKnownEntityId? Parse(Guid? entityId) => entityId.HasValue ? Parse(entityId.Value) : null;
@@ -162,7 +162,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         // Try non-secure path first (plaintext 4D8D markers visible)
         if (HasValidMarkers(guidBytes))
         {
-            var result = VerifyAndParse(guidBytes, entityId);
+            var result = VerifyAndParse(guidBytes, entityId, secure: false);
             if (result.Valid)
                 return result;
 
@@ -176,7 +176,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         DecryptGuidBlock(guidBytes, _aes);
 
         return HasValidMarkers(guidBytes)
-            ? VerifyAndParse(guidBytes, entityId)
+            ? VerifyAndParse(guidBytes, entityId, secure: true)
             : CreateInvalid(entityId);
     }
 
@@ -202,7 +202,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         return sourceKnownId;
     }
 
-    private static SourceKnownEntityId CreateInvalid(Guid entityId) => new(default, entityId, InvalidEntityType, false);
+    private static SourceKnownEntityId CreateInvalid(Guid entityId) => new(default, entityId, InvalidEntityType, false, Secure: false);
 
     private static bool HasValidMarkers(ReadOnlySpan<byte> guidBytes)
         => guidBytes[SourceKnownMarkerVersionIndex] == SourceKnownMarkerVersionByte
@@ -211,7 +211,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     /// <summary>
     /// Verifies MAC integrity and extracts ID/entityType from a plaintext (or decrypted) guid byte span.
     /// </summary>
-    private SourceKnownEntityId VerifyAndParse(Span<byte> guidBytes, Guid entityId)
+    private SourceKnownEntityId VerifyAndParse(Span<byte> guidBytes, Guid entityId, bool secure)
     {
         Span<byte> actualHashBytes = stackalloc byte[MacHashLength];
         Span<byte> expectedHashBytes = stackalloc byte[MacHashLength];
@@ -230,10 +230,9 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         ClearMacSlots(guidBytes);
         ComputeMac(guidBytes, expectedHashBytes, _defaultMacKey);
 
-        if (expectedHashBytes.SequenceEqual(actualHashBytes))
-            return new SourceKnownEntityId(sourceKnownIdUtils.Parse(id), entityId, entityType, true);
-
-        return CreateInvalid(entityId);
+        return expectedHashBytes.SequenceEqual(actualHashBytes) 
+            ? new SourceKnownEntityId(sourceKnownIdUtils.Parse(id), entityId, entityType, true, secure)
+            : CreateInvalid(entityId);
     }
 
     /// <summary>

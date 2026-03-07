@@ -458,3 +458,7 @@ cmake*.*
 *.njsproj
 *.sln
 *.sw?
+
+# Agent-generated process artifacts (should never be committed)
+CLARIFY-*.md
+DEVELOP-*.md

@@ -12,7 +12,7 @@ public readonly record struct SourceKnownId(long Id, DateTimeOffset CreatedAt, u
     public static bool operator <=(SourceKnownId left, SourceKnownId right) => left.Id <= right.Id;
 }
 
-public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid EntityId, byte EntityType, bool Valid) : IComparable<SourceKnownEntityId>
+public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid EntityId, byte EntityType, bool Valid, bool Secure) : IComparable<SourceKnownEntityId>
 {
     public bool HasSameEntityType(byte other) => EntityType == other;
     public bool HasSameEntityType(SourceKnownEntityId other) => HasSameEntityType(other.EntityType);
