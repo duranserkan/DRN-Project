@@ -603,6 +603,34 @@ var sourceKnownId = userRepository.GetEntityId(externalGuidId);
 var sourceKnownId = userInstance.GetEntityId<User>(externalGuidId);
 ```
 
+#### GUID Byte Layout
+
+Each `SourceKnownEntityId` packs identity, integrity, time-addressing, and UUID V4 compatibility into a single 128-bit GUID:
+
+| Byte(s) | Purpose |
+|---------|---------|
+| 0–3 | Entity ID (first half, 32 bits) |
+| 4 | Entity type (8 bits — up to 256 entity types) |
+| 5 | Epoch index (8 bits — up to 256 epochs) |
+| 6, 9–11 | BLAKE3 keyed MAC (4 bytes — integrity verification) |
+| 7 | Version marker (`0x4D` — UUID V4 compatible) |
+| 8 | Variant marker (`0x8D` — RFC 4122 compatible) |
+| 12–15 | Entity ID (second half, 32 bits) |
+
+#### Epoch & Time Addressing
+
+SourceKnownEntityIds use epoch-based time addressing for monotonic ordering. Each epoch spans approximately **136 years** (2³¹ seconds × 2 epoch halves), starting from **2025-01-01**.
+
+| Property | Value |
+|----------|-------|
+| Epoch start | 2025-01-01 |
+| Single epoch duration | ~136 years |
+| Maximum epochs | 256 (byte 5) |
+| Total address space | ~34,842 monotonic years |
+
+> [!NOTE]
+> The first epoch requires no configuration and covers approximately 136 years from 2025-01-01. Epoch transitions are handled automatically.
+
 ### Time
 `TimeProvider` singleton is registered by default to `TimeProvider.System` for testable time entry. See [Time & Async](#time--async) for high-performance alternatives.
 

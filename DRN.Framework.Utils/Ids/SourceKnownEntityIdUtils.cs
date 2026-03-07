@@ -59,11 +59,11 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     //4 entity type
     //5 epoch
     //6 is reserved for MAC hash along with 9, 10, 11
-    //7-8 Source Known Id version & variant marker todo: reevaluate the necessity
+    //7-8 Source Known Id version & variant marker. todo: reevaluate the necessity; currently markers contribute to the integrity check
     //9, 10 and 11 are reserved for MAC hashing along with 6
     //12-15 Source Known Id second half
     private const byte GuidLength = 16;
-    
+
     private const byte EntityIdFirstHalfOffset = 0;
     private const byte EntityIdFirstHalfLength = 4; // 0-3
 
@@ -76,13 +76,13 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     //5th index was initially reserved for MAC hash but with Secure Source Known id's this byte is repurposed for epoch usage
     //With epoch support, source known ids can address 34,842 monotonic time years starting from 2025-01-01
     //todo handle epoch management (not urgent for next 60 years)
-    
+
     private const byte MacHashLength = 4;
     private const byte MacHashFirstIndex = 6;
     private const byte MacHashSecondIndex = 9;
     private const byte MacHashThirdIndex = 10;
     private const byte MacHashFourthIndex = 11;
-    
+
     //4D8D mark — plaintext markers used for non-secure variant and inside the encrypted block for secure variant
     //Ensures that the source-known entityId is easily identifiable by humans and UUID V4 compatible
     private const byte SourceKnownMarkerVersionIndex = 7;
@@ -175,10 +175,9 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         // Try secure path: AES-ECB decrypt full block, then check for markers
         DecryptGuidBlock(guidBytes, _aes);
 
-        if (HasValidMarkers(guidBytes))
-            return VerifyAndParse(guidBytes, entityId);
-
-        return CreateInvalid(entityId);
+        return HasValidMarkers(guidBytes)
+            ? VerifyAndParse(guidBytes, entityId)
+            : CreateInvalid(entityId);
     }
 
     public SourceKnownEntityId? Validate(Guid? entityId, byte entityType)
