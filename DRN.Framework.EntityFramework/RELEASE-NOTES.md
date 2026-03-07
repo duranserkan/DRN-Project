@@ -18,12 +18,13 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 *   **Augmented Entity Behavior**
     *   **Auto-Tracking & Lifecycle**:
         - Automatic `CreatedAt`/`ModifiedAt` management.
-        - Initialization of `IdFactory` and `Parser` during materialization/save for type-safe ID operations.
+        - Injection of `ISourceKnownEntityIdOperations` (`EntityIdOps`) during materialization/save for type-safe ID operations.
     *   **Domain Events**: Events are collected and automatically published after `SaveChangesAsync`.
 *   **SourceKnownRepository**
     *   **Complete Implementation**: `SourceKnownRepository<TContext, TEntity>` providing standard CRUD, identity validation, and logging.
     *   **Repository Settings**: `AsNoTracking`, `IgnoreAutoIncludes`, and custom `Filters` support via `RepositorySettings`.
     *   **Advanced Pagination**: Cursor-based pagination (`PaginateAsync`) and infinite scrolling (`PaginateAllAsync`) with `EntityCreatedFilter`.
+    *   **Secure ↔ Unsecure Conversion**: `ToSecure` / `ToUnsecure` methods for converting between encrypted and plaintext entity IDs at the repository level.
 *   **Database Configuration**
     *   **Npgsql Optimization**: `[DrnContextPerformanceDefaults]` enables connection multiplexing, pooling, batching, and query splitting.
     *   **Extensive Defaults**: `[DrnContextDefaults]` configures snake_case naming, JSON options, and places migration history in `__entity_migrations` schema.

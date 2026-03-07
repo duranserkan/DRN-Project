@@ -229,7 +229,7 @@ This ensures that your identity schema feels at home with the rest of your `snak
 Entities inheriting from `SourceKnownEntity` have their IDs automatically generated before being persisted to the database:
 
 *   **Generation**: Handled by `IDrnSaveChangesInterceptor` which assigns a unique Source-Known ID when `Id = 0` during `SaveChangesAsync`.
-*   **Initialization**: `IDrnMaterializationInterceptor` ensures external identity properties are initialized when entities are loaded from the database.
+*   **Initialization**: `IDrnMaterializationInterceptor` injects `ISourceKnownEntityIdOperations` (`EntityIdOps`) and initializes external identity properties when entities are loaded from the database.
 *   **Mechanism**: Uses `ISourceKnownIdUtils.Next<TEntity>()` to generate collision-free `long` IDs.
 *   **Requirement**: Every entity must have a unique `[EntityType(n)]` attribute.
 *   **Note**: `EntityId` (Guid) and `EntityIdSource` are computed properties, initialized by interceptors and ignored by EF Core mapping.
@@ -285,7 +285,7 @@ public class UserRepository(QAContext context, IEntityUtils utils)
 
 **IEntityUtils provides:**
 - **Id**: Identity generation and validation utilities
-- **EntityId**: GUID ↔ SourceKnownEntityId conversion
+- **EntityId**: GUID ↔ SourceKnownEntityId conversion (including `ToSecure` / `ToUnsecure`)
 - **Cancellation**: Token management and merging
 - **Pagination**: Pagination logic helpers
 - **DateTime**: Time-aware operations
@@ -434,6 +434,14 @@ var userIds = repository.GetEntityIds(guidList, validate: true);
 var users = await repository.GetAsync(userIds);
 ```
 
+### Secure ↔ Unsecure Conversion
+
+Repositories expose idempotent conversion between encrypted and plaintext entity IDs:
+
+```csharp
+var secureId = repository.ToSecure(entityId);
+var unsecureId = repository.ToUnsecure(entityId);
+```
 
 ---
 

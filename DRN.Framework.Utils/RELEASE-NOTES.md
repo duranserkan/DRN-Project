@@ -37,16 +37,15 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
         *   `GenerateSecure` / `GenerateUnsecure` explicit methods; `Parse` auto-detects encrypted and plaintext IDs.
         *   Post-quantum ready — AES-256 retains 128-bit security under Grover's algorithm.
     *   **Epoch-Based Time Addressing**: `SourceKnownEntityId` byte 5 reserved for epoch indexing, enabling ~34,842 monotonic time years starting from 2025-01-01. Each epoch spans ~136 years (2³¹ seconds × 2 epoch halves). The first epoch requires no configuration.
+    *   **ISourceKnownEntityIdOperations Inheritance**: `ISourceKnownEntityIdUtils` now inherits `ISourceKnownEntityIdOperations` (SharedKernel), formalizing the core contract (`Generate`, `Parse`, `ToSecure`, `ToUnsecure`) for cross-layer use without Utils dependency.
+    *   **Secure ↔ Unsecure Conversion**: `ToSecure` / `ToUnsecure` methods (with nullable overloads) on `SourceKnownEntityIdUtils` for idempotent conversion between encrypted and plaintext `SourceKnownEntityId` forms.
+    *   **Named Constants for GUID Layout**: Replaced magic numbers in `SourceKnownEntityIdUtils` with named constants (`GuidLength`, `MacHashLength`, `MacHashFirstIndex`–`MacHashFourthIndex`) for improved readability and maintainability.
 *   **Concurrency**
     *   **Lock-Free Atomics**: `LockUtils` static helpers (`TryClaimLock`, `TryClaimScope`, `ReleaseLock`, `TrySetIfEqual`, `TrySetIfNull`, `TrySetIfNotEqual`, `TrySetIfNotNull`) for lock-free coordination using `Interlocked`. Includes disposable `LockScope` ref struct for automatic lock release via `using`.
 *   **Core Extensions & Time**
     *   **Reflection**: Optimized `MethodUtils` with caching, `CreateSubTypes`, and deep discovery (`GetGroupedPropertiesOfSubtype`).
     *   **Extensions**: Robust set of `string` (Casing, Parsing), `FileInfo` (Efficient line reading), `Stream` (Size guards), and `Dictionary` utilities.
     *   **High-Perf Time**: `TimeStampManager` (cached UTC seconds) and `RecurringAction` (async-safe timers).
-
-### Improvements
-
-*   **Named Constants for GUID Layout**: Replaced magic numbers in `SourceKnownEntityIdUtils` with named constants (`GuidLength`, `MacHashLength`, `MacHashFirstIndex`–`MacHashFourthIndex`) for improved readability and maintainability.
 
 ---
 

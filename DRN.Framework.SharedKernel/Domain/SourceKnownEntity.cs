@@ -122,8 +122,15 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public void SetExtendedProperties<TModel>(TModel? extendedProperty) where TModel : class
         => ExtendedProperties = extendedProperty != null ? JsonSerializer.Serialize(extendedProperty) : null;
 
-    internal Func<long, byte, SourceKnownEntityId>? IdFactory;
-    internal Func<Guid, SourceKnownEntityId>? Parser;
+    internal ISourceKnownEntityIdOperations? EntityIdOps;
+
+    private ISourceKnownEntityIdOperations Ops =>
+        EntityIdOps ?? throw ExceptionFor.Configuration("EntityId operations are not set");
+
+    public SourceKnownEntityId ToSecure(SourceKnownEntityId id) => Ops.ToSecure(id);
+    public SourceKnownEntityId? ToSecure(SourceKnownEntityId? id) => id.HasValue ? Ops.ToSecure(id.Value) : null;
+    public SourceKnownEntityId ToUnsecure(SourceKnownEntityId id) => Ops.ToUnsecure(id);
+    public SourceKnownEntityId? ToUnsecure(SourceKnownEntityId? id) => id.HasValue ? Ops.ToUnsecure(id.Value) : null;
 
     public SourceKnownEntityId GetEntityId<TEntity>(Guid id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
     public SourceKnownEntityId? GetEntityId<TEntity>(Guid? id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
@@ -145,7 +152,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
 
-        var entityId = Parser?.Invoke(id) ?? throw ExceptionFor.Configuration("Parser is not set");
+        var entityId = Ops.Parse(id);
         if (validate) entityId.ValidateId();
 
         return entityId;
@@ -161,7 +168,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
 
-        return IdFactory?.Invoke(id, entityType) ?? throw ExceptionFor.Configuration("Id Factory is not set");
+        return Ops.Generate(id, entityType);
     }
 
     // ReSharper disable once MemberCanBePrivate.Global

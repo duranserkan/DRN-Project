@@ -199,6 +199,61 @@ public class SourceKnownEntityIdUtilsTests
         act.Should().Throw<ValidationException>();
     }
 
+    [Theory]
+    [DataInlineUnit]
+    public async Task ToSecure_And_ToUnsecure_Should_Convert_And_Be_Idempotent(DrnTestContextUnit context)
+    {
+        var nexusSettings = new NexusAppSettings { AppId = 5, AppInstanceId = 12 };
+        context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
+        var idUtils = context.GetRequiredService<ISourceKnownIdUtils>();
+        var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
+
+        await Task.Delay(1100); // buffer to compensate id-generator caching effect
+        var longId = idUtils.Next<XEntity>();
+
+        var unsecureId = entityIdUtils.GenerateUnsecure(new XEntity(longId));
+        var secureId = entityIdUtils.GenerateSecure(new XEntity(longId));
+
+        // Unsecure → Secure conversion
+        var convertedToSecure = entityIdUtils.ToSecure(unsecureId);
+        convertedToSecure.Secure.Should().BeTrue("converted id should be secure");
+        convertedToSecure.Source.Should().Be(unsecureId.Source, "Source must be preserved");
+        convertedToSecure.EntityType.Should().Be(unsecureId.EntityType, "EntityType must be preserved");
+        convertedToSecure.Valid.Should().BeTrue("converted id must be valid");
+        convertedToSecure.EntityId.Should().Be(secureId.EntityId, "converted GUID must match directly-generated secure GUID");
+        AssertParseRoundTrip(entityIdUtils, convertedToSecure);
+
+        // Secure → Unsecure conversion
+        var convertedToUnsecure = entityIdUtils.ToUnsecure(secureId);
+        convertedToUnsecure.Secure.Should().BeFalse("converted id should be unsecure");
+        convertedToUnsecure.Source.Should().Be(secureId.Source, "Source must be preserved");
+        convertedToUnsecure.EntityType.Should().Be(secureId.EntityType, "EntityType must be preserved");
+        convertedToUnsecure.Valid.Should().BeTrue("converted id must be valid");
+        convertedToUnsecure.EntityId.Should().Be(unsecureId.EntityId, "converted GUID must match directly-generated unsecure GUID");
+        AssertParseRoundTrip(entityIdUtils, convertedToUnsecure);
+
+        // Idempotency — ToSecure on already-secure returns same
+        var secureAgain = entityIdUtils.ToSecure(secureId);
+        secureAgain.Should().Be(secureId, "ToSecure on secure id should return same id");
+
+        // Idempotency — ToUnsecure on already-unsecure returns same
+        var unsecureAgain = entityIdUtils.ToUnsecure(unsecureId);
+        unsecureAgain.Should().Be(unsecureId, "ToUnsecure on unsecure id should return same id");
+
+        // Nullable overloads
+        entityIdUtils.ToSecure((SourceKnownEntityId?)null).Should().BeNull();
+        entityIdUtils.ToUnsecure((SourceKnownEntityId?)null).Should().BeNull();
+        entityIdUtils.ToSecure((SourceKnownEntityId?)unsecureId).Should().Be(convertedToSecure);
+        entityIdUtils.ToUnsecure((SourceKnownEntityId?)secureId).Should().Be(convertedToUnsecure);
+
+        // Invalid id should throw
+        var invalidId = new SourceKnownEntityId(default, Guid.NewGuid(), byte.MaxValue, false, Secure: false);
+        var actSecure = () => entityIdUtils.ToSecure(invalidId);
+        actSecure.Should().Throw<ValidationException>();
+        var actUnsecure = () => entityIdUtils.ToUnsecure(invalidId);
+        actUnsecure.Should().Throw<ValidationException>();
+    }
+
     private static void AssertValidEntityId(SourceKnownEntityId entityId, long expectedId,
         NexusAppSettings nexusSettings, byte expectedEntityType, bool expectedSecure)
     {

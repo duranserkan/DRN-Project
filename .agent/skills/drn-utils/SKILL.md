@@ -177,7 +177,13 @@ ScopeContext.IsClaimFlagEnabled("FeatureX"); // Feature flag
 ```csharp
 long internalId = sourceKnownIdUtils.Next<User>();             // DB PK
 SourceKnownEntityId externalId = sourceKnownEntityIdUtils.Generate<User>(internalId); // Public GUID
+
+// Secure ↔ Unsecure conversion (idempotent)
+var secureId = sourceKnownEntityIdUtils.ToSecure(entityId);
+var unsecureId = sourceKnownEntityIdUtils.ToUnsecure(entityId);
 ```
+
+`ISourceKnownEntityIdUtils` inherits `ISourceKnownEntityIdOperations` (SharedKernel), which defines `Generate`, `Parse`, `ToSecure`, `ToUnsecure`. This interface is injected into entities by EF interceptors.
 
 > [!NOTE]
 > ID generation is automatically handled by `DrnContext` when SourceKnownEntities are saved.

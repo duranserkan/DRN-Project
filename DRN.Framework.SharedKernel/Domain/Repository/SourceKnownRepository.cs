@@ -69,6 +69,9 @@ public interface ISourceKnownRepository<TEntity>
     IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids) where TOtherEntity : SourceKnownEntity;
     IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid?> ids) where TOtherEntity : SourceKnownEntity;
 
+    SourceKnownEntityId ToSecure(SourceKnownEntityId id);
+    SourceKnownEntityId ToUnsecure(SourceKnownEntityId id);
+
     Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
 
     /// <summary>

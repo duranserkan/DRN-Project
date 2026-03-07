@@ -16,8 +16,7 @@ public class DrnMaterializationInterceptor(ISourceKnownEntityIdUtils idUtils) : 
             return entity;
 
         e.EntityIdSource = idUtils.Generate(e);
-        e.IdFactory = idUtils.Generate;
-        e.Parser = idUtils.Parse;
+        e.EntityIdOps = idUtils;
 
         return entity;
     }

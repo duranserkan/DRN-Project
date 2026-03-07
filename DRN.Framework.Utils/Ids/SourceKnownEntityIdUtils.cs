@@ -13,7 +13,7 @@ namespace DRN.Framework.Utils.Ids;
 /// 128‑bit GUID, providing a reversible mapping with integrity checking.
 /// Secure variants encrypt the entire 16-byte GUID using AES-256-ECB (true PRP) for confidentiality.
 /// </summary>
-public interface ISourceKnownEntityIdUtils
+public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
 {
     /// <summary>Dispatches to <c>GenerateSecure</c> or <c>GenerateUnsecure</c> based on <c>AppSettings.NexusAppSettings.UseSecureSourceKnownIds</c>.</summary>
     SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity;
@@ -22,7 +22,7 @@ public interface ISourceKnownEntityIdUtils
     SourceKnownEntityId Generate(SourceKnownEntity entity);
 
     /// <inheritdoc cref="Generate{TEntity}(long)"/>
-    SourceKnownEntityId Generate(long id, byte entityType);
+    new SourceKnownEntityId Generate(long id, byte entityType);
 
     SourceKnownEntityId GenerateSecure<TEntity>(long id) where TEntity : SourceKnownEntity;
     SourceKnownEntityId GenerateSecure(SourceKnownEntity entity);
@@ -33,13 +33,18 @@ public interface ISourceKnownEntityIdUtils
     SourceKnownEntityId GenerateUnsecure(long id, byte entityType);
 
     SourceKnownEntityId? Parse(Guid? entityId);
-    SourceKnownEntityId Parse(Guid entityId);
+    new SourceKnownEntityId Parse(Guid entityId);
 
     SourceKnownEntityId? Validate(Guid? entityId, byte entityType);
     SourceKnownEntityId Validate(Guid entityId, byte entityType);
 
     SourceKnownEntityId? Validate<TEntity>(Guid? entityId) where TEntity : SourceKnownEntity;
     SourceKnownEntityId Validate<TEntity>(Guid entityId) where TEntity : SourceKnownEntity;
+
+    new SourceKnownEntityId ToSecure(SourceKnownEntityId id);
+    SourceKnownEntityId? ToSecure(SourceKnownEntityId? id);
+    new SourceKnownEntityId ToUnsecure(SourceKnownEntityId id);
+    SourceKnownEntityId? ToUnsecure(SourceKnownEntityId? id);
 }
 
 /// <summary>
@@ -201,6 +206,24 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
 
         return sourceKnownId;
     }
+
+    public SourceKnownEntityId ToSecure(SourceKnownEntityId id)
+    {
+        id.ValidateId();
+        return id.Secure ? id : GenerateSecure(id.Source.Id, id.EntityType);
+    }
+
+    public SourceKnownEntityId? ToSecure(SourceKnownEntityId? id)
+        => id.HasValue ? ToSecure(id.Value) : null;
+
+    public SourceKnownEntityId ToUnsecure(SourceKnownEntityId id)
+    {
+        id.ValidateId();
+        return id.Secure ? GenerateUnsecure(id.Source.Id, id.EntityType) : id;
+    }
+
+    public SourceKnownEntityId? ToUnsecure(SourceKnownEntityId? id)
+        => id.HasValue ? ToUnsecure(id.Value) : null;
 
     private static SourceKnownEntityId CreateInvalid(Guid entityId) => new(default, entityId, InvalidEntityType, false, Secure: false);
 
