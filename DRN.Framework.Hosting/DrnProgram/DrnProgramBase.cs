@@ -18,11 +18,13 @@ using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
+using DRN.Framework.Utils.Time;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -126,6 +128,10 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
             if (appSettings.DevelopmentSettings.TemporaryApplication)
                 return;
+
+            var lifetime = application.Services.GetRequiredService<IHostApplicationLifetime>();
+            ApplicationLifetime.ShutdownAction = lifetime.StopApplication;
+
             //todo create startup report for dev environment
             await application.RunAsync();
             scopedLog.AddToActions("Application Shutdown Gracefully");
