@@ -111,7 +111,7 @@ public class IetfTestVectorGeneratorTests
         Console.WriteLine();
 
         // Verify markers
-        unsecureBytes[7].Should().Be(0x4D, "marker version");
+        unsecureBytes[7].Should().Be(0x8D, "marker version");
         unsecureBytes[8].Should().Be(0x8D, "marker variant");
 
         // --- A.4: Secure SKEID Generation ---
@@ -165,7 +165,7 @@ public class IetfTestVectorGeneratorTests
         4 => "Entity Type",
         5 => "Epoch",
         6 => "MAC byte 0",
-        7 => "Marker Version (0x4D)",
+        7 => "Marker Version (0x8D)",
         8 => "Marker Variant (0x8D)",
         9 => "MAC byte 1",
         10 => "MAC byte 2",

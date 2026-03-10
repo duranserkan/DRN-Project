@@ -7,21 +7,11 @@ namespace DRN.Framework.Utils.Time;
 /// </summary>
 public static class ApplicationLifetime
 {
-    internal static Action? ShutdownAction;
+    internal static Action? ShutdownAction; // Hosting accesses via InternalsVisibleTo
 
     /// <summary>
     /// Requests graceful application shutdown by invoking the registered <see cref="ShutdownAction"/>.
     /// No-op if no action has been registered.
     /// </summary>
-    internal static void RequestShutdown()
-    {
-        try
-        {
-            ShutdownAction?.Invoke();
-        }
-        catch (ObjectDisposedException)
-        {
-            // Host already disposed during shutdown — safe to ignore
-        }
-    }
+    internal static void RequestShutdown() => ShutdownAction?.Invoke();
 }

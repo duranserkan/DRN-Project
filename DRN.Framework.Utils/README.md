@@ -559,7 +559,7 @@ The `Generate` method dispatches to secure or unsecure generation based on the `
 |--------|----------|
 | `Generate` | Dispatches to secure or unsecure based on `UseSecureSourceKnownIds` |
 | `GenerateSecure` | AES-256-ECB encrypted — full 16-byte GUID is a ciphertext block |
-| `GenerateUnsecure` | Plaintext with visible `4D8D` version/variant markers |
+| `GenerateUnsecure` | Plaintext with visible `8D8D` version/variant markers |
 | `ToSecure` | Converts an unsecure ID to its secure form (idempotent) |
 | `ToUnsecure` | Converts a secure ID to its unsecure form (idempotent) |
 
@@ -611,7 +611,7 @@ var sourceKnownId = userInstance.GetEntityId<User>(externalGuidId);
 
 #### GUID Byte Layout
 
-Each `SourceKnownEntityId` packs identity, integrity, time-addressing, and UUID V4 compatibility into a single 128-bit GUID:
+Each `SourceKnownEntityId` packs identity, integrity, time-addressing, and UUID V8 compatibility (RFC 9562 §5.8) into a single 128-bit GUID:
 
 | Byte(s) | Purpose |
 |---------|---------|
@@ -619,7 +619,7 @@ Each `SourceKnownEntityId` packs identity, integrity, time-addressing, and UUID 
 | 4 | Entity type (8 bits — up to 256 entity types) |
 | 5 | Epoch index (8 bits — up to 256 epochs) |
 | 6, 9–11 | BLAKE3 keyed MAC (4 bytes — integrity verification) |
-| 7 | Version marker (`0x4D` — UUID V4 compatible) |
+| 7 | Version marker (`0x8D` — UUID V8, RFC 9562 §5.8) |
 | 8 | Variant marker (`0x8D` — RFC 4122 compatible) |
 | 12–15 | Entity ID (second half, 32 bits) |
 

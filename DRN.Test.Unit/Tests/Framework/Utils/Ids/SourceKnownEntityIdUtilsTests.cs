@@ -308,13 +308,12 @@ public class SourceKnownEntityIdUtilsTests
         entityId.Secure.Should().Be(expectedSecure);
 
         // Secure flag ↔ EntityId GUID content invariant:
-        // Unsecure: plaintext GUID — deterministic markers (4D8D) and RFC 4122 V4 compliance
-        // Secure:   AES-encrypted GUID — markers/V4 assertions skipped because ciphertext can
-        //           coincidentally produce 4D8D marker bytes (~1/65536, see SourceKnownEntityIdUtils L169)
+        // Unsecure: plaintext GUID — deterministic markers (8D8D) and RFC 9562 V8 compliance
+        // Secure:   AES-encrypted GUID — markers/V8 assertions skipped because ciphertext can
+        //           coincidentally produce 8D8D marker bytes (~1/65536, see SourceKnownEntityIdUtils L169)
         if (expectedSecure) return;
         
-        AssertPlaintextMarkers(entityId, true, "Unsecure EntityId must contain plaintext 4D8D markers");
-        IsVersion4Rfc4122(entityId.EntityId).Should().BeTrue("Unsecure EntityId should be RFC 4122 V4 compliant");
+        AssertPlaintextMarkers(entityId, true, "Unsecure EntityId must contain plaintext 8D8D markers");
     }
 
     private static void AssertParseRoundTrip(ISourceKnownEntityIdUtils entityIdUtils, SourceKnownEntityId original)
@@ -329,17 +328,16 @@ public class SourceKnownEntityIdUtilsTests
 
     private static void AssertPlaintextMarkers(SourceKnownEntityId entityId, bool shouldHaveMarkers, string because)
     {
-        var bytes = entityId.EntityId.ToByteArray();
-        var hasMarkers = bytes[7] == 0x4D && bytes[8] == 0x8D;
+        var hasMarkers = IsVersion8Rfc9562(entityId.EntityId);
         hasMarkers.Should().Be(shouldHaveMarkers, because);
     }
 
-    private static bool IsVersion4Rfc4122(Guid guid)
+    private static bool IsVersion8Rfc9562(Guid guid)
     {
         var bytes = guid.ToByteArray();
-        var isVersion4 = (bytes[7] >> 4) == 4;
-        var isRfc4122Variant = (bytes[8] & 0xC0) == 0x80;
-        return isVersion4 && isRfc4122Variant;
+        var isVersion8 = (bytes[7] >> 4) == 8;
+        var isRfc9562Variant = (bytes[8] & 0xC0) == 0x80;
+        return isVersion8 && isRfc9562Variant;
     }
 
     [EntityType(200)]

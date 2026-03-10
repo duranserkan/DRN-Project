@@ -64,7 +64,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     //4 entity type
     //5 epoch
     //6 is reserved for MAC hash along with 9, 10, 11
-    //7-8 Source Known Id version & variant marker. todo: reevaluate the necessity; currently markers contribute to the integrity check
+    //7-8 Source Known Id version & variant marker — required for UUID V8 RFC 9562 §5.8 compliance; also contributes to the integrity check
     //9, 10 and 11 are reserved for MAC hashing along with 6
     //12-15 Source Known Id second half
     private const byte GuidLength = 16;
@@ -88,11 +88,11 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     private const byte MacHashThirdIndex = 10;
     private const byte MacHashFourthIndex = 11;
 
-    //4D8D mark — plaintext markers used for non-secure variant and inside the encrypted block for secure variant
-    //Ensures that the source-known entityId is easily identifiable by humans and UUID V4 compatible
+    //8D8D mark — plaintext markers used for non-secure variant and inside the encrypted block for secure variant
+    //Ensures that the source-known entityId is easily identifiable by humans and UUID V8 compatible (RFC 9562 §5.8)
     private const byte SourceKnownMarkerVersionIndex = 7;
     private const byte SourceKnownMarkerVariantIndex = 8;
-    private const byte SourceKnownMarkerVersionByte = 0x4D; //7 | V4 => V4 is used as a cover to prevent detection and ensure compatibility
+    private const byte SourceKnownMarkerVersionByte = 0x8D; //7 | V8 => UUID V8 per RFC 9562 §5.8
     private const byte SourceKnownMarkerVariantByte = 0x8D; //8 | Variant RFC 4122
     private const byte SourceKnownMarkerVariantMaxByte = 0xBF; //8 | Variant RFC 4122 upper bound (collision guard)
 
@@ -153,7 +153,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         // Encrypt entire 16-byte block with AES-ECB (true PRP — no nonce needed)
         EncryptGuidBlock(guidBytes, _aes);
 
-        // Collision guard: if ciphertext coincidentally has unsecure markers (0x4D8D, ~1/65536)
+        // Collision guard: if ciphertext coincidentally has unsecure markers (0x8D8D, ~1/65536)
         // AND the MAC extracted from ciphertext matches a recomputed MAC (~1/2^32),
         // the parse path would misclassify this Secure SKEID as Unsecure.
         // Fix: iterate variant bytes 0x8E→0xBF — AES avalanche guarantees distinct ciphertext per variant.
@@ -195,7 +195,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         Span<byte> guidBytes = stackalloc byte[GuidLength];
         entityId.TryWriteBytes(guidBytes);
 
-        // Try non-secure path first (plaintext 4D8D markers visible)
+        // Try non-secure path first (plaintext 8D8D markers visible)
         if (HasValidMarkers(guidBytes))
         {
             var result = VerifyAndParse(guidBytes, entityId, secure: false);
@@ -212,26 +212,23 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         // HasValidMarkersSecure accepts RFC 4122 variant range 0x80–0xBF (collision guard uses 0x8D–0xBF)
         DecryptGuidBlock(guidBytes, _aes);
 
-        if (HasValidMarkersSecure(guidBytes))
+        if (!HasValidMarkersSecure(guidBytes)) 
+            return CreateInvalid(entityId);
+        
+        var recoveredVariant = guidBytes[SourceKnownMarkerVariantIndex];
+
+        // Non-default variant → backward collision-guard verification
+        if (recoveredVariant is > SourceKnownMarkerVariantByte and <= SourceKnownMarkerVariantMaxByte)
         {
-            var recoveredVariant = guidBytes[SourceKnownMarkerVariantIndex];
-
-            // Non-default variant → backward collision-guard verification
-            if (recoveredVariant > SourceKnownMarkerVariantByte
-                && recoveredVariant <= SourceKnownMarkerVariantMaxByte)
-            {
-                if (!VerifyCollisionGuardProof(guidBytes, (byte)(recoveredVariant - 1)))
-                    return CreateInvalid(entityId);
-            }
-            else if (recoveredVariant != SourceKnownMarkerVariantByte)
-            {
+            if (!VerifyCollisionGuardProof(guidBytes, (byte)(recoveredVariant - 1)))
                 return CreateInvalid(entityId);
-            }
-
-            return VerifyAndParse(guidBytes, entityId, secure: true);
+        }
+        else if (recoveredVariant != SourceKnownMarkerVariantByte)
+        {
+            return CreateInvalid(entityId);
         }
 
-        return CreateInvalid(entityId);
+        return VerifyAndParse(guidBytes, entityId, secure: true);
     }
 
     public SourceKnownEntityId? Validate(Guid? entityId, byte entityType)

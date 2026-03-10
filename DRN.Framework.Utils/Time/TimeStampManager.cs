@@ -25,14 +25,15 @@ namespace DRN.Framework.Utils.Time;
 public static class TimeStampManager
 {
     private static long _cachedUtcNowTicks;
+
     /// <summary>Timer period in milliseconds between the end of one update and the start of the next.</summary>
     internal static readonly int UpdatePeriod = 10;
+
     internal static readonly int MaxAllowedDriftSeconds = 3;
     private static int _driftDetected; // 0 = normal, 1 = drift detected
-    private static long _driftPreviousTicks;
-    private static long _driftNewTicks;
+    private static ClockDriftException? _driftException;
     private static readonly RecurringAction RecurringAction = new(GetUpdateAction(), UpdatePeriod);
-    
+
     private static Func<Task> GetUpdateAction()
     {
         _ = RecurringAction; //this action used to trigger updates
@@ -54,9 +55,8 @@ public static class TimeStampManager
 
             if (driftSeconds >= MaxAllowedDriftSeconds)
             {
-                // Critical drift: record details, set flag, request shutdown
-                Volatile.Write(ref _driftPreviousTicks, previousTicks);
-                Volatile.Write(ref _driftNewTicks, truncatedNow);
+                // Critical drift: cache exception, set flag, request shutdown
+                _driftException = new ClockDriftException(previousTicks, truncatedNow);
                 Volatile.Write(ref _driftDetected, 1);
                 ApplicationLifetime.RequestShutdown();
                 return Task.CompletedTask;
@@ -74,26 +74,17 @@ public static class TimeStampManager
         return Task.CompletedTask;
     }
 
-    public static long UtcNowTicks
-    {
-        get
-        {
-            if (Volatile.Read(ref _driftDetected) == 1)
-                throw new ClockDriftException(
-                    Volatile.Read(ref _driftPreviousTicks),
-                    Volatile.Read(ref _driftNewTicks));
+    public static long UtcNowTicks => Volatile.Read(ref _driftDetected) != 1
+        ? Volatile.Read(ref _cachedUtcNowTicks)
+        : throw _driftException!;
 
-            return Volatile.Read(ref _cachedUtcNowTicks);
-        }
-    }
-    
     /// <summary>
     /// Cached UTC timestamp with precision up to the second.
     /// This value is updated periodically and does not include milliseconds or finer precision.
     /// </summary>
     /// <exception cref="ClockDriftException">Thrown when a critical clock drift has been detected.</exception>
     public static DateTimeOffset UtcNow => new(UtcNowTicks, TimeSpan.Zero);
-    
+
     /// <summary>
     /// Computes the current timestamp as an integer, representing the number of seconds elapsed since the specified epoch.
     /// </summary>
