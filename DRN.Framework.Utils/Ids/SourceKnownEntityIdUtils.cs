@@ -93,8 +93,8 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     private const byte SourceKnownMarkerVersionIndex = 7;
     private const byte SourceKnownMarkerVariantIndex = 8;
     private const byte SourceKnownMarkerVersionByte = 0x8D; //7 | V8 => UUID V8 per RFC 9562 §5.8
-    private const byte SourceKnownMarkerVariantByte = 0x8D; //8 | Variant RFC 4122
-    private const byte SourceKnownMarkerVariantMaxByte = 0xBF; //8 | Variant RFC 4122 upper bound (collision guard)
+    private const byte SourceKnownMarkerVariantByte = 0x8D; //8 | Variant RFC 9562 §4.1
+    private const byte SourceKnownMarkerVariantMaxByte = 0xBF; //8 | Variant RFC 9562 §4.1 upper bound (collision guard)
 
     private const byte EntityIdSecondHalfOffset = 12;
     private const byte EntityIdSecondHalfLength = 4; // 12-15
@@ -209,7 +209,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         }
 
         // Try secure path: AES-ECB decrypt full block, then check for markers
-        // HasValidMarkersSecure accepts RFC 4122 variant range 0x80–0xBF (collision guard uses 0x8D–0xBF)
+        // HasValidMarkersSecure accepts RFC 9562 §4.1 variant range 0x80–0xBF (collision guard uses 0x8D–0xBF)
         DecryptGuidBlock(guidBytes, _aes);
 
         if (!HasValidMarkersSecure(guidBytes)) 
@@ -278,7 +278,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
            && guidBytes[SourceKnownMarkerVariantIndex] == SourceKnownMarkerVariantByte;
 
     /// <summary>
-    /// Accepts the primary variant (0x8D) and any RFC 4122 variant byte (0x80–0xBF).
+    /// Accepts the primary variant (0x8D) and any RFC 9562 §4.1 variant byte (0x80–0xBF).
     /// Used only on the post-decryption (secure) path — non-default variant bytes are
     /// produced by the collision guard in <see cref="GenerateSecure(long, byte)"/>.
     /// </summary>
