@@ -45,7 +45,131 @@ TL;DR: You can
 
 **Please contact me via LinkedIn for information on obtaining a more flexible commercial license**
 
-[About Project](#about-project) | [Solution Structure](#solution-structure) | [About Design and Architecture](#about-design-and-architecture) | [About Management](#about-management) | [Engineering Manifest](#durans-engineering-manifest)
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [About Project](#about-project)
+- [Solution Structure](#solution-structure)
+- [About Design and Architecture](#about-design-and-architecture)
+- [About Management](#about-management)
+- [Engineering Manifest](#durans-engineering-manifest)
+
+## Quick Start
+
+### Prerequisites
+
+- [.NET 10 SDK](https://dotnet.microsoft.com/download)
+- [Docker](https://www.docker.com/) (for integration tests with Testcontainers)
+
+> **Nice to have**: [JetBrains Rider](https://www.jetbrains.com/rider/) (recommended), [Visual Studio](https://visualstudio.microsoft.com/), or [VS Code](https://code.visualstudio.com/) with [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit). All operations can also be performed from the terminal.
+
+### Build, Run & Test
+
+```bash
+dotnet build DRN.slnx                                  # Build the entire solution
+dotnet run --project Sample.Hosted                      # Run the sample web application (requires Docker)
+dotnet run --project DRN.Test.Unit                      # Run unit tests
+dotnet run --project DRN.Test.Integration               # Run integration tests (requires Docker)
+dotnet test DRN.Test.Performance -c Release             # Run all performance benchmarks (requires Release build)
+dotnet test DRN.Test.Performance -c Release --filter SourceKnownIdUtils  # Run SKID/SKEID benchmark only
+```
+
+> Unit and integration test projects use [Microsoft Testing Platform (MTP) 2.0](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-intro) with xUnit v3 and are built as standalone executables. Use `dotnet run --project` to execute them. Performance tests use the classic test SDK with `dotnet test`.
+
+> **Debugging tip:** If the application fails to start in `Development` mode, `DrnProgramBase` automatically generates a `StartupExceptionReport.html` in the output directory with a detailed, browsable error report.
+
+### Installation
+
+For web applications (see [Sample.Hosted.csproj](Sample.Hosted/Sample.Hosted.csproj)):
+```bash
+dotnet add package DRN.Framework.Hosting
+```
+
+For test projects (see [DRN.Test.Integration.csproj](DRN.Test.Integration/DRN.Test.Integration.csproj), [DRN.Test.Unit.csproj](DRN.Test.Unit/DRN.Test.Unit.csproj)):
+```bash
+dotnet add package DRN.Framework.Testing
+```
+
+> `Hosting` pulls `Utils` and `SharedKernel` transitively. `Testing` pulls `Hosting`, `EntityFramework`, `Utils`, and `SharedKernel` transitively.
+
+To create a new project from scratch:
+```bash
+dotnet new web -n MyApp && cd MyApp && dotnet add package DRN.Framework.Hosting
+dotnet new xunit -n MyApp.Tests && cd MyApp.Tests && dotnet add package DRN.Framework.Testing
+```
+
+After scaffolding, compare your `.csproj` files with the reference projects and apply the adjustments (see [Sample.Hosted.csproj](Sample.Hosted/Sample.Hosted.csproj), [DRN.Test.Integration.csproj](DRN.Test.Integration/DRN.Test.Integration.csproj), [DRN.Test.Unit.csproj](DRN.Test.Unit/DRN.Test.Unit.csproj)).
+
+Update your configuration files (see [appsettings.json](Sample.Hosted/appsettings.json), [appsettings.Development.json](Sample.Hosted/appsettings.Development.json)):
+
+**appsettings.json** — base configuration for all environments:
+```json
+{
+  "Kestrel": {
+    "EndpointDefaults": { "Protocols": "Http1" },
+    "Endpoints": { "All": { "Url": "http://*:5998" } }
+  }
+}
+```
+
+**appsettings.Development.json** — development-only settings:
+```json
+{
+  "DrnDevelopmentSettings": {
+    "LaunchExternalDependencies": true
+  }
+}
+```
+
+> Use the Drn.Framework Nuget badges for detailed documentation such as configuration options, features, and examples.
+
+For performance benchmarks, see [DRN.Test.Performance](DRN.Test.Performance) and its [benchmark reports](DRN.Test.Performance/Reports).
+
+### Create an Application
+
+```csharp
+// Minimal example — see SampleProgram.cs for a full implementation
+public class Program : DrnProgramBase<Program>, IDrnProgram
+{
+    public static async Task Main(string[] args) => await RunAsync(args);
+
+    protected override Task AddServicesAsync(WebApplicationBuilder builder,
+        IAppSettings appSettings, IScopedLog scopedLog)
+    {
+        builder.Services.AddServicesWithAttributes();
+        return Task.CompletedTask;
+    }
+}
+```
+
+### Integration Tests
+
+Integration tests use `[DataInline]` with `DrnTestContext` and [Testcontainers](https://testcontainers.com/) for real database testing:
+
+- [QAContextTagTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTagTests.cs) — Entity ID generation, type-safe entity type checking, date-time filtering
+- [QAContextTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTests.cs) — CRUD operations, concurrency conflict detection, extended properties
+- [TagRepositoryTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/Repositories/TagRepositoryTests.cs) — Source-Known Repository pattern, pagination, filtering
+
+> Entities use `[EntityType]` with `AggregateRoot<TModel>` — see [Tag.cs](Sample.Domain/QA/Tags/Tag.cs) for an example.
+
+### Unit Tests
+
+Unit tests use `[DataInlineUnit]` with `DrnTestContextUnit` for fast, isolated testing without external dependencies:
+
+- [SourceKnownEntityIdUtilsTests.cs](DRN.Test.Unit/Tests/Framework/Utils/Ids/SourceKnownEntityIdUtilsTests.cs) — SKID/SKEID generation, parsing, secure/unsecure conversion, tamper detection
+- [SourceKnownIdUtilsTests.cs](DRN.Test.Unit/Tests/Framework/Utils/Ids/SourceKnownIdUtilsTests.cs) — Source-Known ID bit layout, timestamp extraction, ordering
+
+### Developer Environment
+
+Add the following to your shell profile (e.g. `~/.zshrc`) to opt out of telemetry:
+
+```bash
+# Opt out of .NET CLI telemetry
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+
+# Opt out of .NET Testing Platform telemetry
+export TESTINGPLATFORM_TELEMETRY_OPTOUT=1
+```
 
 ## About Project
 
@@ -64,7 +188,7 @@ In DRN-Project context, reliability is defined with following characteristics:
 * Self-documenting
 
 DRN Project is not another framework that will `bite the dust.` It is more than a simple framework. It is a distilled knowledge that contains:
-- [X] A beautiful framework to work with (v0.6.0)
+- [X] A beautiful framework to work with (v0.7.0)
 - [X] Management best practices
 - [X] Engineering manifest
 - [X] Reference documents for design, architecture and microservices
@@ -91,18 +215,6 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
    * **Sample:** Nexus connectable sample app demonstrates **DRN.Framework** usage. It is used for testing, presentation and documentation purposes.
 5. **Test:** It contains all the unit, integration and performance tests.
 6. **docker-compose:** Global docker-compose file that binds Nexus, Sample microservice and their dependencies.
-
-### Developer Environment
-
-Add the following to your shell profile (e.g. `~/.zshrc`) to opt out of telemetry:
-
-```bash
-# Opt out of .NET CLI telemetry
-export DOTNET_CLI_TELEMETRY_OPTOUT=1
-
-# Opt out of .NET Testing Platform telemetry
-export TESTINGPLATFORM_TELEMETRY_OPTOUT=1
-```
 
 ## About Design and Architecture
 * [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)
@@ -172,5 +284,5 @@ Today, I hereby declare that as an engineer,
 ## Celebrating Republic of Türkiye and Mustafa Kemal Atatürk's Enlightenment Ideals
 In honor of the Republic of Türkiye's centenary, my family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals. While these ideals have illuminated Türkiye's path for a century, we recognize that the journey towards their full realization continues. This dedication is a reminder of the profound impact of Atatürk's vision and a call to continue striving for the ideals of enlightenment, progress, and unity that have guided Türkiye's remarkable journey.
 
-![alt text](https://github.com/duranserkan/DRN-Project/blob/master/vive%20la%20republique.png?raw=true)
+![Republic of Türkiye centenary celebration banner](https://github.com/duranserkan/DRN-Project/blob/master/vive%20la%20republique.png?raw=true)
 Since 1923 To Forever ∞ Semper Progressivus: Always Progressive

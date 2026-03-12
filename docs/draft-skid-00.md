@@ -114,7 +114,7 @@ with three trust boundaries commonly found in distributed architectures:
 
 2. **Trusted Environment Tier**.  A 128-bit Source Known Entity ID
    (SKEID) encodes the SKID, the entity type, epoch metadata, a keyed
-   MAC for integrity, and RFC 4122 V4-compatible markers.  Services can
+   MAC for integrity, and RFC 9562 V8-compatible markers.  Services can
    validate an identifier's origin, entity type, and integrity without
    a database lookup.
 
@@ -205,9 +205,9 @@ Key Separation:
   AES-256-ECB (confidentiality).
 
 Marker Bytes:
-: The two-byte sequence 0x4D at byte offset 7 (version nibble) and
+: The two-byte sequence 0x8D at byte offset 7 (version nibble) and
   0x8D at byte offset 8 (variant nibble) in the plaintext SKEID.
-  These values ensure RFC 4122 UUID V4 visual compatibility in the
+  These values ensure RFC 9562 UUID V8 compatibility in the
   non-secure form and serve as a detection signal during parsing.
 
 
@@ -339,7 +339,7 @@ Byte   5:    Epoch (EP)       - 8-bit epoch selector (reserved,
                                 currently 0x00 for epoch starting
                                 2025-01-01)
 Byte   6:    MAC byte 0 (M0)  - 1st byte of computed MAC hash (hashBytes[0])
-Byte   7:    Marker Version (MV) - fixed 0x4D (UUID V4 cover)
+Byte   7:    Marker Version (MV) - fixed 0x8D (UUID V8, RFC 9562 §5.8)
 Byte   8:    Marker Variant (MR) - fixed 0x8D (RFC 4122 variant)
 Byte   9:    MAC byte 1 (M1)  - 2nd byte of computed MAC hash (hashBytes[1])
 Byte  10:    MAC byte 2 (M2)  - 3rd byte of computed MAC hash (hashBytes[2])
@@ -361,12 +361,12 @@ hash[0], M1 = hash[1], M2 = hash[2], M3 = hash[3].  See
 
 The marker bytes at positions 7 and 8 serve dual purposes:
 
-1. **UUID V4 Compatibility**: The value 0x4D at byte 7 places the hex
-   digit `4` in the UUID version nibble position, and 0x8D at byte 8
+1. **UUID V8 Compatibility**: The value 0x8D at byte 7 places the hex
+   digit `8` in the UUID version nibble position, and 0x8D at byte 8
    places `8` in the variant nibble position, making the SKEID appear
-   as a valid RFC 4122 Version 4 UUID when formatted as a string.
+   as a valid RFC 9562 Version 8 UUID when formatted as a string.
 
-2. **Detection Signal**: During parsing, the presence of 0x4D and 0x8D
+2. **Detection Signal**: During parsing, the presence of 0x8D and 0x8D
    at the expected positions identifies a plaintext (non-encrypted)
    SKEID.  Absence of these markers triggers the secure (decryption)
    parse path.
@@ -395,7 +395,7 @@ HTTP 500 status) rather than loop indefinitely.
 
 | Byte | Value | Usage |
 |------|-------|-------|
-| Marker Version (byte 7) | 0x4D | All SKEIDs (unsecure and secure) |
+| Marker Version (byte 7) | 0x8D | All SKEIDs (unsecure and secure) |
 | Marker Variant (byte 8) | 0x8D | Primary variant - used by default |
 | Marker Variant (byte 8) | 0x8E-0xBF | Alternative variants - collision guard escalation |
 
@@ -467,7 +467,7 @@ skeid-parsed = {
   entity-type:      uint .size 1,     ; byte 4
   epoch:            uint .size 1,     ; byte 5
   mac:              bytes .size 4,    ; bytes 6, 9, 10, 11
-  marker-version:   0x4D,             ; byte 7
+  marker-version:   0x8D,             ; byte 7
   marker-variant:   uint .size 1,     ; byte 8 (0x8D default; 0x8E-0xBF collision guard)
   id-second-half:   uint .size 4,     ; bytes 12-15
 }
@@ -486,7 +486,7 @@ procedure GenerateSKEID(id, entityType, macKey, epochByte=0x00, variantByte=0x8D
   3. Write firstHalf to guidBytes[0..3] (little-endian)
   4. guidBytes[4] ← entityType
   5. guidBytes[5] ← epochByte        -- epoch selector
-  6. guidBytes[7] ← 0x4D             -- marker version
+  6. guidBytes[7] ← 0x8D             -- marker version
   7. guidBytes[8] ← variantByte      -- marker variant
   8. Write secondHalf to guidBytes[12..15] (little-endian)
   9. hashBytes ← ComputeMAC(guidBytes, macKey)
@@ -511,7 +511,7 @@ default key; key-ring iteration is planned as future work.
 ~~~
 procedure ParseSKEID(entityId, macKey, aesKey):
   1. guidBytes ← entityId as byte array [0..15]
-  2. If guidBytes[7] == 0x4D AND guidBytes[8] == 0x8D:
+  2. If guidBytes[7] == 0x8D AND guidBytes[8] == 0x8D:
        -- Primary markers present: try unsecure parse
        result ← VerifyAndExtract(guidBytes, macKey, secure=false)
        If result.valid:
@@ -520,7 +520,7 @@ procedure ParseSKEID(entityId, macKey, aesKey):
        guidBytes ← entityId as byte array (restore)
   3. -- Try secure path ("Secure SKEID Specification" above)
      DecryptGUIDBlock(guidBytes, aesKey)
-     If guidBytes[7] == 0x4D AND
+     If guidBytes[7] == 0x8D AND
         (guidBytes[8] AND 0xC0) == 0x80:
        -- RFC 4122 variant bit pattern check (accepts 0x80-0xBF)
        recoveredVariant ← guidBytes[8]
@@ -568,7 +568,7 @@ procedure GenerateSecureSKEID(id, entityType, macKey, aesKey):
      -- produces the same plaintext layout as non-secure
   3. EncryptGUIDBlock(guidBytes, aesKey)
   4. -- Collision guard: detect marker+MAC coincidence
-     If guidBytes[7] == 0x4D AND guidBytes[8] == 0x8D
+     If guidBytes[7] == 0x8D AND guidBytes[8] == 0x8D
            AND HasCoincidentalMACMatch(guidBytes, macKey):
        -- Ciphertext has unsecure markers (~1/65536) AND MAC
        -- matches (~1/2^32 given markers).
@@ -578,7 +578,7 @@ procedure GenerateSecureSKEID(id, entityType, macKey, aesKey):
          guidBytes ← GenerateSKEID(id, entityType, macKey,
                                     variantByte=variantByte)
          EncryptGUIDBlock(guidBytes, aesKey)
-         If NOT (guidBytes[7] == 0x4D AND guidBytes[8] == 0x8D
+         If NOT (guidBytes[7] == 0x8D AND guidBytes[8] == 0x8D
                  AND HasCoincidentalMACMatch(guidBytes, macKey)):
            Break    -- collision resolved
        If variantByte > 0xBF:
@@ -664,14 +664,14 @@ The parse algorithm ("Parsing Algorithm" above) automatically
 determines whether a UUID is an unsecure SKEID, a Secure SKEID, or
 an unrecognized value:
 
-1. Check for primary marker bytes (0x4D at position 7, 0x8D at
+1. Check for primary marker bytes (0x8D at position 7, 0x8D at
    position 8) in the raw UUID bytes.
 2. If primary markers are present: attempt unsecure verification.
    If MAC verification succeeds → unsecure SKEID.
 3. If primary markers are absent OR unsecure verification fails:
    decrypt the 16-byte block with the AES key.
 4. Check for marker bytes in the decrypted plaintext using the
-   RFC 4122 variant bit-mask: `guidBytes[7] == 0x4D AND
+   RFC 4122 variant bit-mask: `guidBytes[7] == 0x8D AND
    (guidBytes[8] & 0xC0) == 0x80`.  This accepts the full variant
    range 0x80-0xBF.
 5. If the recovered variant byte is non-default (> 0x8D and ≤ 0xBF):
@@ -682,7 +682,7 @@ an unrecognized value:
 7. Otherwise → INVALID (not a recognized SKEID).
 
 The probability of a random or encrypted byte sequence coincidentally
-containing the marker bytes 0x4D8D at the exact positions is
+containing the marker bytes 0x8D8D at the exact positions is
 approximately 1/65,536.  When this occurs, the algorithm gracefully
 falls back to the decryption path with no data corruption.
 
@@ -719,7 +719,7 @@ procedure VerifyCollisionGuardProof(decryptedBytes, macKey, aesKey,
                                     epochByte=epochByte,
                                     variantByte=previousVariant)
   4. EncryptGUIDBlock(reconstructed, aesKey)
-  5. Return reconstructed[7] == 0x4D AND reconstructed[8] == 0x8D
+  5. Return reconstructed[7] == 0x8D AND reconstructed[8] == 0x8D
          AND HasCoincidentalMACMatch(reconstructed, macKey)
      -- True: previous variant genuinely collided → legitimate escalation
      -- False: variant was tampered → INVALID
@@ -1051,7 +1051,7 @@ block operations, both of which execute in constant time.
 | **Zero-lookup validation** | ✓ | ✗ | ✗ | ✗ | ✗ |
 | **DB primary key size** | 8 B | 16 B | 16 B | 8 B | 4-8 B |
 | **External ID size** | 16 B | 16 B | 16 B | 8 B | N/A |
-| **UUID compatible** | ✓ (V4 markers) | ✓ | ✓ | ✗ | ✗ |
+| **UUID compatible** | ✓ (V8 markers) | ✓ | ✓ | ✗ | ✗ |
 | **Key rotation** | ✓ (key-ring) | N/A | N/A | N/A | N/A |
 
 SKID 64-bit values are unique within an (entity-type, deployment)
@@ -1199,7 +1199,7 @@ applicable layers simultaneously:
 |-------|-----------|--------------------------|
 | 1. AES-256 Encryption | PRP over 128 bits | 2^(-128) without the key |
 | 2. BLAKE3 Keyed MAC | 32-bit truncated | 2^(-32) per attempt |
-| 3. Marker Detection | 0x4D8D at fixed positions | 2^(-16) |
+| 3. Marker Detection | 0x8D8D at fixed positions | 2^(-16) |
 | 4. Entity Type Match | Must match expected type | 2^(-8) to 1/N (N = number of types) |
 | 5. Topology Validity | App ID and Instance ID must refer to existing nodes | 1/2048 (worst case) |
 | 6. Existence Probability | Forged SKID must reference an actual database record | Variable - depends on entity count vs key space |
@@ -1352,33 +1352,33 @@ Expected byte layout:
   Byte  3: 0x84  (ID first half, little-endian byte 3)
   Byte  4: 0x01  (entity type)
   Byte  5: 0x00  (epoch 0)
-  Byte  6: 0x1F  (MAC byte 0)
-  Byte  7: 0x4D  (marker version)
+  Byte  6: 0x32  (MAC byte 0)
+  Byte  7: 0x8D  (marker version)
   Byte  8: 0x8D  (marker variant)
-  Byte  9: 0x8F  (MAC byte 1)
-  Byte 10: 0x6F  (MAC byte 2)
-  Byte 11: 0x65  (MAC byte 3)
+  Byte  9: 0x3B  (MAC byte 1)
+  Byte 10: 0xCC  (MAC byte 2)
+  Byte 11: 0x8C  (MAC byte 3)
   Byte 12: 0x2A  (ID second half, little-endian byte 0)
   Byte 13: 0x00  (ID second half, little-endian byte 1)
   Byte 14: 0x60  (ID second half, little-endian byte 2)
   Byte 15: 0x14  (ID second half, little-endian byte 3)
 
-Expected GUID:  840d9900-0001-4d1f-8d8f-6f652a006014
-Expected hex:   00990D8401001F4D8D8F6F652A006014
+Expected GUID:  840d9900-0001-8d32-8d3b-cc8c2a006014
+Expected hex:   00990D840100328D8D3BCC8C2A006014
 ~~~
 
 ## Secure SKEID Generation
 
 ~~~
 Input:
-  SKEID plaintext from A.3 (hex: 00990D8401001F4D8D8F6F652A006014)
+  SKEID plaintext from A.3 (hex: 00990D840100328D8D3BCC8C2A006014)
   aesKey = [from A.1]
 
 Operation:
   ciphertext = AES-256-ECB-Encrypt(key=aesKey, plaintext=SKEID)
 
-Expected Secure GUID:  bf8f2e1f-ccce-2ba7-e685-d4876c9fdbe7
-Expected hex:          1F2E8FBFCECCA72BE685D4876C9FDBE7
+Expected Secure GUID:  90e8581d-5279-dd6a-bf5b-c1e5be4273ee
+Expected hex:          1D58E89079526ADDBF5BC1E5BE4273EE
 ~~~
 
 ## Round-Trip Verification
@@ -1387,17 +1387,17 @@ Expected hex:          1F2E8FBFCECCA72BE685D4876C9FDBE7
 1. Generate SKID with inputs from A.2
    → SKID = -8931314260384939990          ✓
 2. Generate SKEID from SKID (A.3)
-   → GUID = 840d9900-0001-4d1f-8d8f-6f652a006014  ✓
+   → GUID = 840d9900-0001-8d32-8d3b-cc8c2a006014  ✓
 3. Parse SKEID → extracted SKID matches original
    → Valid=true, SKID=-8931314260384939990  ✓
 4. Generate Secure SKEID from SKID (A.4)
-   → GUID = bf8f2e1f-ccce-2ba7-e685-d4876c9fdbe7  ✓
+   → GUID = 90e8581d-5279-dd6a-bf5b-c1e5be4273ee  ✓
 5. Parse Secure SKEID → extracted SKID matches original
    → Valid=true, SKID=-8931314260384939990  ✓
 6. ToSecure(SKEID) → matches Secure SKEID from step 4
-   → GUID = bf8f2e1f-ccce-2ba7-e685-d4876c9fdbe7  ✓
+   → GUID = 90e8581d-5279-dd6a-bf5b-c1e5be4273ee  ✓
 7. ToUnsecure(Secure SKEID) → matches SKEID from step 2
-   → GUID = 840d9900-0001-4d1f-8d8f-6f652a006014  ✓
+   → GUID = 840d9900-0001-8d32-8d3b-cc8c2a006014  ✓
 ~~~
 
 
