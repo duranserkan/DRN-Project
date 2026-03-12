@@ -25,12 +25,12 @@ bibliography: paper.bib
 Source Known Identifiers (SKIDs) are 64/128-bit unique identifiers designed for distributed applications that require the **ideal identifier properties**.
 Standard UUID schemes carry limited or no origin context.
 SKIDs instead embed contextual metadata (entity type, application Id, application instance Id, timestamp, and sequence number) directly into the identifier.
-The embedded metadata supports runtime diagnostics and origin tracing without external lookups.
+This design supports runtime diagnostics and origin tracing without external lookups.
 
 The DRN.Framework [@drn-project] provides a reference implementation in C#/.NET, organized as a three-tier identity model:
 
 1. **Source Known Identifier (SKID)**: a 64-bit (`long`) sortable identifier embedding entity type, timestamp, instance identity, and sequence counter.
-2. **Source Known Entity ID (SKEID)**: a SKID that adds an entity type discriminator and a BLAKE3 keyed MAC, enabling tamper-evident integrity verification at trust boundaries.
+2. **Source Known Entity ID (SKEID)**: a SKID augmented with an entity type discriminator and a BLAKE3 keyed MAC for tamper-evident integrity verification at trust boundaries.
 3. **Secure SKEID**: a SKEID encrypted with AES-256 (single-block PRP) for confidential external exposure.
 
 Each tier aligns with a trust boundary: database (SKID), trusted internal environment (SKEID), and external consumers (Secure SKEID).
@@ -108,11 +108,11 @@ The entire SKEID layout is encrypted as a single AES block; no internal structur
 
 The 31-bit timestamp field provides ~68 years per half; the sign bit doubles this to ~136 years per epoch while preserving monotonic sort order in signed 64-bit representation.
 SKEID byte 5 carries an 8-bit epoch index, where each value selects a 136-year window from 2025-01-01, giving 256 epochs and roughly 34,842 years of total coverage.
-The two levels of time addressing give the identity system a multi-century lifespan without ID collisions or sorting degradation.
+This two-level time addressing gives the identity system a multi-century lifespan without ID collisions or sorting degradation.
 Clock-drift protection handles backward time jumps at two levels.
 Minor drifts (under 3 seconds) freeze the timestamp until the wall clock catches up.
 Critical drifts force the application instance to shut down and restart with a new instance ID.
-Both guards prevent duplicate or out-of-order identifiers.
+This prevents duplicate or out-of-order identifiers.
 
 ## Cryptographic Choices
 
@@ -122,7 +122,7 @@ Both guards prevent duplicate or out-of-order identifiers.
   ECB mode is secure for single-block encryption, avoiding the complexity and nonce-management overhead of modes like GCM or CTR.
   AES-256 provides 128-bit post-quantum security [@nistir8413].
 - **Collision Guard**: When AES-256 encryption produces ciphertext that coincidentally contains the unsecure SKEID marker bytes (`0x8D` at positions 7-8), the system iterates the variant byte within the RFC 9562 variant range (`0x8E`-`0xBF`), re-encrypting until the collision is resolved.
-  Because the iteration is deterministic, secure and unsecure SKEIDs remain distinguishable without ambiguity.
+  This deterministic resolution preserves the ability to distinguish secure from unsecure SKEIDs without ambiguity.
 
 The reference implementation currently uses a single key pair (BLAKE3 MAC key + AES-256 key).
 Key-ring rotation with multiple active key versions and graceful rollover is planned as future work.
@@ -182,9 +182,9 @@ SKIDs were added to the DRN-Project roadmap on 19 November 2023; the subsequent 
 - **Paper authoring**: Claude Opus 4.6 and Gemini 3.1 Pro were used to draft, structure, and refine sections of this paper.
   All technical claims were verified against the implementation, and final editorial decisions were made by the author.
 - **AI governance**: DiSC OS [@discos] (Distinguished Secure Cognitive OS), an author-designed behavioral framework, was used to guide all AI-assisted workflows.
-  DiSC OS enforces security-first principles and TRIZ-based conflict resolution across code generation, review, and documentation.
+  With DiSC OS, security-first principles, TRIZ-based conflict resolution, and structured decision-making across code generation, review, and documentation tasks are enforced.
 
-All AI-assisted outputs were reviewed and validated by the author.
+All AI-assisted outputs were reviewed, validated, and refined by the author.
 The architectural design, cryptographic choices, three-tier trust model, and all technical decisions are solely the work of the author.
 The author takes full responsibility for the correctness and originality of the work.
 
