@@ -59,14 +59,15 @@ public class SourceKnownEntityIdUtilsTests
             pair.parsed.Secure.Should().BeTrue("collision guard must prevent Secure→Unsecure misclassification");
         }
         
-        // Coincidental marker stats: encrypted GUIDs that happen to have 8D at byte[7] and 8D at byte[8]
-        // Probability: 1/256 × 1/256 = 1/65536 ≈ 0.00153% — Parse handles these by falling through to decrypt path
+        // Collision guard verification: the collision guard iterates the variant byte and re-encrypts
+        // when ciphertext coincidentally has 0x8D at byte[7] and 0x8D at byte[8] (~1/65536 probability).
+        // After the guard, no Secure SKEID should contain the unsecure marker pattern.
         var coincidentalMarkerCount = entityIds.Count(e =>
         {
             var bytes = e.EntityId.ToByteArray();
             return bytes[7] == 0x8D && bytes[8] == 0x8D;
         });
-        coincidentalMarkerCount.Should().BeGreaterThanOrEqualTo(0);
+        coincidentalMarkerCount.Should().Be(0, "collision guard must prevent 0x8D8D markers in Secure SKEIDs");
 
         // Collision guard: no Secure SKEID should have been misclassified as Unsecure
         var misclassifiedCount = parsedIds.Count(p => !p.parsed.Secure);

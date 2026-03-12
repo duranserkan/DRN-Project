@@ -149,6 +149,8 @@ Integration tests use `[DataInline]` with `DrnTestContext` and [Testcontainers](
 - [QAContextTagTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTagTests.cs) — Entity ID generation, type-safe entity type checking, date-time filtering
 - [QAContextTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTests.cs) — CRUD operations, concurrency conflict detection, extended properties
 - [TagRepositoryTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/Repositories/TagRepositoryTests.cs) — Source-Known Repository pattern, pagination, filtering
+- [SourceKnownEntityIdUtilsTests.cs](DRN.Test.Integration/Tests/Sample/Utils/SourceKnownEntityIdUtilsTests.cs) — SKID/SKEID stress test: ~6.3M concurrent IDs across 8 threads, uniqueness
+- [SourceKnownIdUtilsTests.cs](DRN.Test.Integration/Tests/Sample/Utils/SourceKnownIdUtilsTests.cs) — SKID stress test: ~6.3M concurrent IDs, sequence ordering, time-bucket distribution and cap validation
 
 > Entities use `[EntityType]` with `AggregateRoot<TModel>` — see [Tag.cs](Sample.Domain/QA/Tags/Tag.cs) for an example.
 
