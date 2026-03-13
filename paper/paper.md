@@ -16,14 +16,14 @@ authors:
 affiliations:
   - name: Independent Researcher
     index: 1
-date: 11 March 2026
+date: 13 March 2026
 bibliography: paper.bib
 ---
 
 # Summary
 
 Source Known Identifiers (SKIDs) are 64/128-bit unique identifiers designed for distributed applications that require the **ideal identifier properties**.
-Standard UUID schemes carry limited or no origin context.
+Standard UUID (GUID) schemes carry limited or no origin context.
 SKIDs instead embed contextual metadata (entity type, application Id, application instance Id, timestamp, and sequence number) directly into the identifier.
 This design supports runtime diagnostics and origin tracing without external lookups.
 
@@ -40,14 +40,30 @@ The reference implementation integrates with Domain-Driven Design [@evans2003] p
 
 Distributed applications need unique identifiers that satisfy the **ideal identifier properties**:
 
-- storage-efficiency
+- storage efficiency
 - chronological sortability
-- origin-metadata-embedding
+- origin metadata embedding
 - zero-lookup verifiability
 - confidentiality to external consumers
 - multi-century addressability
 
-No current scheme combines all of these constraints except SKIDs.
+No current scheme combines all of these constraints simultaneously. In particular, chronological sortability and confidentiality are inherently contradictory and dual-ID alternatives (e.g., integer primary key + UUID foreign-facing ID) lose storage efficiency.
+
+Large-scale scientific projects need identifier infrastructure that satisfies these properties simultaneously.
+Particle physics experiments such as the Large Hadron Collider produce petabytes of collision event data across distributed computing grids [@wlcg2025].
+Heliophysics missions like the Parker Solar Probe stream telemetry continuously over multi-year campaigns [@fox2016].
+Multi-station observation networks, including gravitational-wave observatories [@gwosc2021] and seismic arrays [@trabant2012], collect data independently at geographically dispersed sites and merge it for joint analysis.
+Some of these projects handle sensitive or confidential data, some generate data in periodic bulk campaigns, and some may operate on multi-decade to multi-century timescales.
+All of these datasets would benefit from compact, sortable identifiers that encode their origin without external lookups without compromising confidentiality or storage efficiency.
+
+SKIDs address these requirements with measurable advantages.
+At 8 bytes per SKID (vs. 16 bytes for UUID), storage cost halves at petabyte scale, directly reducing archival and indexing overhead.
+SKEID generation (155.9 ns) is faster than UUID v7 (292.6 ns) despite embedding metadata and a BLAKE3 MAC in the same 128-bit footprint.
+Origin-metadata embedding enables filtering and partitioning by source application, instance, and time range without joins, accelerating analytic queries on time-series and event databases.
+Zero-lookup verifiability simplifies cross-site data merging. Receiving systems can validate record provenance from the identifier alone.
+Secure SKEIDs add AES-256 encryption to deliver all six ideal identifier properties at reasonable computational cost.
+
+Future SKID variants with domain-tailored bit layouts (e.g., nanosecond or picosecond timestamp precision, single-year epoch windows for mission-scoped campaigns) would enable research workflows that are currently impossible, limited, or cost-inefficient with existing identifier schemes.
 
 SKIDs target platform engineers, software architects, distributed systems developers and researchers who need identifiers that have **ideal identifier properties**. The reference implementation is in C#/.NET, but the SKID design is language-agnostic and portable to any runtime.
 
@@ -97,9 +113,9 @@ The SKEID layout adds an explicit entity type discriminator and a BLAKE3 keyed M
 
 **Secure SKEID (128-bit `Guid`, external tier)**:
 
-| Field           | Byte(s) | Width   | Purpose                                            |
-|-----------------|---------|---------|--------------------------------------------------  |
-| Ciphertext      | 0–15    | 128 bit | AES-256 encrypted SKEID (pseudorandom bytes)   |
+| Field           | Byte(s) | Width   | Purpose                                       |
+|-----------------|---------|---------|-----------------------------------------------|
+| Ciphertext      | 0–15    | 128 bit | AES-256 encrypted SKEID (pseudorandom bytes)  |
 
 The entire SKEID layout is encrypted as a single AES block; no internal structure is visible to external consumers.
 
@@ -120,8 +136,8 @@ This prevents duplicate or out-of-order identifiers.
 - **AES-256-ECB (Single Block)** [@fips197]: For Secure SKEIDs, the entire 128-bit identifier is encrypted as a single AES block.
   ECB mode is secure for single-block encryption, avoiding the complexity and nonce-management overhead of modes like GCM or CTR.
   AES-256 provides 128-bit post-quantum security [@nistir8413].
-- **Collision Guard**: When AES-256 encryption produces ciphertext that coincidentally contains the unsecure SKEID marker bytes (`0x8D` at positions 7-8), the system iterates the variant byte within the RFC 9562 variant range (`0x8E`-`0xBF`), re-encrypting until the collision is resolved.
-  This deterministic resolution preserves the ability to distinguish secure from unsecure SKEIDs without ambiguity.
+- **Collision Guard**: When AES-256 encryption produces ciphertext that coincidentally contains the SKEID marker bytes (`0x8D` at positions 7-8), the system iterates the variant byte within the RFC 9562 variant range (`0x8E`-`0xBF`), re-encrypting until the collision is resolved.
+  This deterministic resolution preserves the ability to distinguish Secure SKEIDs from SKEIDs without ambiguity.
 
 The reference implementation currently uses a single key pair (BLAKE3 MAC key + AES-256 key).
 Key-ring rotation with multiple active key versions and graceful rollover is planned as future work.
@@ -142,7 +158,7 @@ All four operations are defined in `ISourceKnownEntityIdOperations` and implemen
 - **`Generate(long id, byte entityType)`**: packs SKID bits, entity type, epoch, and version/variant markers into a 128-bit `Guid`, then computes and embeds the BLAKE3 keyed MAC to produce a SKEID.
 - **`Parse(Guid entityId)`**: auto-detects the tier (checks for plaintext version/variant markers first, falls back to AES-256 decryption), verifies the MAC, and reconstructs the `SourceKnownEntityId`.
 - **`ToSecure(SourceKnownEntityId id)`**: encrypts the SKEID with AES-256-ECB (idempotent; returns unchanged if already secure).
-- **`ToUnsecure(SourceKnownEntityId id)`**: decrypts a Secure SKEID back to its plaintext SKEID form (idempotent; returns unchanged if already unsecure).
+- **`ToUnsecure(SourceKnownEntityId id)`**: decrypts a Secure SKEID back to its SKEID form (idempotent; returns unchanged if already a SKEID).
 
 These operations produce two structs defined in `DRN.Framework.SharedKernel`:
 
@@ -167,7 +183,7 @@ Key integration points:
 No existing identifier scheme simultaneously satisfies the **ideal identifier properties**.
 SKIDs provide these properties in a single protocol, replacing separate schemes or operations.
 An Internet-Draft [@draft-skid], prepared for independent submission, provides reproducible test vectors and pseudocode for cross-platform implementation.
-BenchmarkDotNet measurements on .NET 10 (Apple M2) show SKID generation at 24.5 ns (~12x faster than UUID v7 at 292.6 ns) and unsecure SKEID generation at 155.9 ns (~1.9x faster) despite embedding metadata and a BLAKE3 MAC, while Secure SKEID with AES-256 encryption completes in 439.1 ns.
+BenchmarkDotNet measurements on .NET 10 (Apple M2) show SKID generation at 24.5 ns (~12x faster than UUID v7 at 292.6 ns) and SKEID generation at 155.9 ns (~1.9x faster) despite embedding metadata and a BLAKE3 MAC, while Secure SKEID with AES-256 encryption completes in 439.1 ns.
 The 21-bit sequence field caps generation at 2,097,152 IDs per second per instance; full-throttle benchmarks confirm that the sequence manager applies backpressure when this limit is reached, preserving uniqueness under sustained load.
 The open-source implementation, CI/CD pipeline, NuGet packages, unit and integration tests provide materials for independent evaluation and reproducibility.
 
