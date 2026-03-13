@@ -29,19 +29,19 @@ This design supports runtime diagnostics and origin tracing without external loo
 
 The DRN.Framework [@drn-project] provides a reference implementation in C#/.NET, organized as a three-tier identity model:
 
-1. **Source Known Identifier (SKID)**: a 64-bit (`long`) sortable identifier embedding entity type, timestamp, instance identity, and sequence counter.
+1. **Source Known Identifier (SKID)**: a 64-bit (`long`) sortable identifier embedding timestamp, application identity, application instance identity, and sequence counter.
 2. **Source Known Entity ID (SKEID)**: a SKID augmented with an entity type discriminator and a BLAKE3 keyed MAC for tamper-evident integrity verification at trust boundaries.
 3. **Secure SKEID**: a SKEID encrypted with AES-256 (single-block PRP) for confidential external exposure.
 
 Each tier aligns with a trust boundary: database (SKID), trusted internal environment (SKEID), and external consumers (Secure SKEID).
-The implementation integrates with Domain-Driven Design [@evans2003] patterns through the `SourceKnownEntity` abstract base class, with `SourceKnownId` and `SourceKnownEntityId` structs providing parsed identity representation.
+The reference implementation integrates with Domain-Driven Design [@evans2003] patterns through the `SourceKnownEntity` abstract base class, with `SourceKnownId` and `SourceKnownEntityId` structs providing parsed identity representation.
 
 # Statement of Need
 
 Distributed applications need unique identifiers that satisfy the **ideal identifier properties**:
 
 - storage-efficiency
-- chronological sortability for indexing
+- chronological sortability
 - origin-metadata-embedding
 - zero-lookup verifiability
 - confidentiality to external consumers
@@ -49,8 +49,7 @@ Distributed applications need unique identifiers that satisfy the **ideal identi
 
 No current scheme combines all of these constraints except SKIDs.
 
-SKIDs target platform engineers, software architects, distributed systems developers and researchers who need identifiers that support runtime diagnostics, origin tracing, and auditing with cryptographic integrity and confidentiality.
-The reference implementation is in C#/.NET, but the SKID design is language-agnostic and portable to any runtime.
+SKIDs target platform engineers, software architects, distributed systems developers and researchers who need identifiers that have **ideal identifier properties**. The reference implementation is in C#/.NET, but the SKID design is language-agnostic and portable to any runtime.
 
 # State of the Field
 
@@ -166,7 +165,7 @@ Key integration points:
 # Research Impact Statement
 
 No existing identifier scheme simultaneously satisfies the **ideal identifier properties**.
-SKIDs provide these properties in a single protocol, replacing separate layered schemes or operations.
+SKIDs provide these properties in a single protocol, replacing separate schemes or operations.
 An Internet-Draft [@draft-skid], prepared for independent submission, provides reproducible test vectors and pseudocode for cross-platform implementation.
 BenchmarkDotNet measurements on .NET 10 (Apple M2) show SKID generation at 24.5 ns (~12x faster than UUID v7 at 292.6 ns) and unsecure SKEID generation at 155.9 ns (~1.9x faster) despite embedding metadata and a BLAKE3 MAC, while Secure SKEID with AES-256 encryption completes in 439.1 ns.
 The 21-bit sequence field caps generation at 2,097,152 IDs per second per instance; full-throttle benchmarks confirm that the sequence manager applies backpressure when this limit is reached, preserving uniqueness under sustained load.
