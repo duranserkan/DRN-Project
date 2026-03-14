@@ -18,10 +18,6 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
     *   Critical drift (>=3 seconds): `ClockDriftException` is set and `ApplicationLifetime.RequestShutdown()` is called to initiate graceful shutdown. All subsequent `UtcNowTicks` / `UtcNow` calls throw `ClockDriftException`.
     *   New types: `ClockDriftException`, `ApplicationLifetime`.
 
-### Bug Fixes
-
-*   **Collision Guard Validation**: Test assertion corrected from `Be(0)` to `BeGreaterThanOrEqualTo(0)`. The collision guard count represents prevented collisions (successful catches), not failures.
-
 ## Version 0.7.0
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals and honors 8 March, International Women's Day, a cause inseparable from his vision of equality. This release is dedicated to freedom of speech, democracy, women's rights, and Prof. Dr. Ümit Özdağ, a defender of Mustafa Kemal Atatürk’s enlightenment ideals.
