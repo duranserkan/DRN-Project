@@ -2,18 +2,16 @@ using System.Buffers.Binary;
 using System.Security.Cryptography;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Time;
-using Perfolizer.Mathematics.OutlierDetection;
 
 namespace DRN.Test.Performance.Benchmark.Framework.Utils;
 
-public class SourceKnownIdUtilsPerformanceTests(ITestOutputHelper output)
+public class SourceKnownIdUtilsSaturationPerformanceTests(ITestOutputHelper output)
 {
 #if !DEBUG
     [Fact] //should run on release build
@@ -24,14 +22,14 @@ public class SourceKnownIdUtilsPerformanceTests(ITestOutputHelper output)
         var config = ManualConfig.Create(DefaultConfig.Instance)
             .AddLogger(logger)
             .WithOptions(ConfigOptions.DisableOptimizationsValidator);
-        var summary = BenchmarkRunner.Run<SourceKnownIdUtilsBenchmark>(config);
+        var summary = BenchmarkRunner.Run<SourceKnownIdUtilsSaturationBenchmark>(config);
 
         output.WriteLine("===================================");
-        output.WriteLine("Benchmark Results Path");
+        output.WriteLine("Saturation Benchmark Results Path");
         output.WriteLine("===================================");
         output.WriteLine(summary.ResultsDirectoryPath);
         output.WriteLine("===================================");
-        output.WriteLine("Benchmark Logs");
+        output.WriteLine("Saturation Benchmark Logs");
         output.WriteLine("===================================");
 
         var log = logger.GetLog();
@@ -41,16 +39,15 @@ public class SourceKnownIdUtilsPerformanceTests(ITestOutputHelper output)
     }
 }
 
-[Outliers(OutlierMode.RemoveUpper)]
 [MemoryDiagnoser]
 [WarmupCount(1)]
 [IterationCount(30)]
-[InvocationCount(2_097_152)] // sequence cap (2^21) — at capacity; Thread.Sleep prevents overflow
-public class SourceKnownIdUtilsBenchmark
+[InvocationCount(6_291_456)] // 3× sequence cap (2^21 = 2,097,152) — guarantees backpressure per iteration
+public class SourceKnownIdUtilsSaturationBenchmark
 {
     [IterationSetup]
     public void IterationWait() => Thread.Sleep(1000); // Let SequenceTimeScope reset between iterations
-    static SourceKnownIdUtilsBenchmark()
+    static SourceKnownIdUtilsSaturationBenchmark()
     {
         Utils = new(AppSettings.Development(), new EpochTimeUtils());
 
@@ -58,10 +55,10 @@ public class SourceKnownIdUtilsBenchmark
         SecureEntityIdUtils = new(appSettings, Utils);
         UnsecureEntityIdUtils = new(appSettings, Utils);
 
-        // Pre-generate GUIDs for Parse benchmarks — avoids measuring ID generation in parse benchmarks
-        var id = Utils.Next<SourceKnownIdUtilsBenchmark>();
-        SecureEntityId = SecureEntityIdUtils.GenerateSecure<YEntity>(id);
-        UnsecureEntityId = UnsecureEntityIdUtils.GenerateUnsecure<YEntity>(id);
+        // Pre-generate IDs for Parse and ToSecure/ToUnsecure benchmarks — avoids measuring ID generation
+        var id = Utils.Next<SourceKnownIdUtilsSaturationBenchmark>();
+        SecureEntityId = SecureEntityIdUtils.GenerateSecure<ZEntity>(id);
+        UnsecureEntityId = UnsecureEntityIdUtils.GenerateUnsecure<ZEntity>(id);
     }
 
     private static SourceKnownIdUtils Utils { get; }
@@ -69,9 +66,9 @@ public class SourceKnownIdUtilsBenchmark
     private static SourceKnownEntityIdUtils UnsecureEntityIdUtils { get; }
     private static SourceKnownEntityId SecureEntityId { get; }
     private static SourceKnownEntityId UnsecureEntityId { get; }
-    private static YEntity Entity { get; } = new(5);
+    private static ZEntity Entity { get; } = new(5);
 
-    // --- Baseline benchmarks ---
+    // --- Baseline benchmarks (non-saturating) ---
 
     [Benchmark]
     public long RandomLong() => BinaryPrimitives.ReadInt64LittleEndian(RandomNumberGenerator.GetBytes(8));
@@ -85,47 +82,45 @@ public class SourceKnownIdUtilsBenchmark
     [Benchmark]
     public long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
 
-    [Benchmark] //todo TimeScopedId look like a bottleneck, review it for possible improvements
-    public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<YEntity>.GetTimeScopedId();
-
-    // --- SourceKnownId (raw long) ---
+    // --- Sequence-dependent benchmarks (saturating) ---
 
     [Benchmark]
-    public long SourceKnownId() => Utils.Next<SourceKnownIdUtilsBenchmark>();
+    public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<ZEntity>.GetTimeScopedId();
 
-    // --- Non-secure SourceKnownEntityId: BLAKE3 MAC only (explicit call variants) ---
+    [Benchmark]
+    public long SourceKnownId() => Utils.Next<SourceKnownIdUtilsSaturationBenchmark>();
+
+    // --- Non-secure SourceKnownEntityId (saturating — consumes sequence IDs) ---
 
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdUnsecureWithId()
-        => UnsecureEntityIdUtils.GenerateUnsecure<YEntity>(Utils.Next<SourceKnownIdUtilsBenchmark>());
+        => UnsecureEntityIdUtils.GenerateUnsecure<ZEntity>(Utils.Next<SourceKnownIdUtilsSaturationBenchmark>());
 
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdUnsecureWithEntity()
-        => UnsecureEntityIdUtils.GenerateUnsecure(new YEntity(Utils.Next<SourceKnownIdUtilsBenchmark>()));
+        => UnsecureEntityIdUtils.GenerateUnsecure(new ZEntity(Utils.Next<SourceKnownIdUtilsSaturationBenchmark>()));
 
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdUnsecureWithProvidedLongValue()
         => UnsecureEntityIdUtils.GenerateUnsecure(Entity);
 
-    // --- Secure SourceKnownEntityId: BLAKE3 MAC + AES-256-ECB encryption ---
+    // --- Secure SourceKnownEntityId (saturating — consumes sequence IDs) ---
 
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdSecure()
-        => SecureEntityIdUtils.GenerateSecure<YEntity>(Utils.Next<SourceKnownIdUtilsBenchmark>());
+        => SecureEntityIdUtils.GenerateSecure<ZEntity>(Utils.Next<SourceKnownIdUtilsSaturationBenchmark>());
 
-    // --- Parse: secure GUID (AES-ECB decrypt + MAC verify) ---
+    // --- Parse benchmarks (non-saturating — operate on pre-generated IDs) ---
 
     [Benchmark]
     public SourceKnownEntityId ParseSecureSourceKnownEntityId()
         => SecureEntityIdUtils.Parse(SecureEntityId.EntityId);
 
-    // --- Parse: non-secure GUID (MAC verify only) ---
-
     [Benchmark]
     public SourceKnownEntityId ParseUnsecureSourceKnownEntityId()
         => UnsecureEntityIdUtils.Parse(UnsecureEntityId.EntityId);
 
-    // --- Tier conversion: measures encryption/decryption cost independently ---
+    // --- Tier conversion benchmarks (non-saturating — reuse existing SKID) ---
 
     [Benchmark]
     public SourceKnownEntityId ToSecure() => SecureEntityIdUtils.ToSecure(UnsecureEntityId);
@@ -134,10 +129,5 @@ public class SourceKnownIdUtilsBenchmark
     public SourceKnownEntityId ToUnsecure() => UnsecureEntityIdUtils.ToUnsecure(SecureEntityId);
 }
 
-[EntityType(92)]
-public class YEntity(long id) : SourceKnownEntity(id);
-
-public class UnrollConfig : ManualConfig
-{
-    public UnrollConfig() => AddJob(Job.Default.WithUnrollFactor(16));
-}
+[EntityType(93)]
+public class ZEntity(long id) : SourceKnownEntity(id);

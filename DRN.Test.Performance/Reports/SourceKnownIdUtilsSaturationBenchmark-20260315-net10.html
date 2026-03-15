@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdUtilsSaturationBenchmark-20260315-191953</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.8, macOS Tahoe 26.3.1 (25D2128) [Darwin 25.3.0]
+Apple M2, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 10.0.201
+  [Host]     : .NET 10.0.5 (10.0.5, 10.0.526.15411), Arm64 RyuJIT armv8.0-a
+  Job-MFHBXH : .NET 10.0.5 (10.0.5, 10.0.526.15411), Arm64 RyuJIT armv8.0-a
+</code></pre>
+<pre><code>InvocationCount=6291456  IterationCount=30  UnrollFactor=1  
+WarmupCount=1  
+</code></pre>
+
+<table>
+<thead><tr><th>Method                                    </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Allocated</th>
+</tr>
+</thead><tbody><tr><td>RandomLong</td><td>90.682 ns</td><td>0.4395 ns</td><td>0.5867 ns</td><td>0.0038</td><td>32 B</td>
+</tr><tr><td>RandomGuidV4</td><td>245.290 ns</td><td>1.2636 ns</td><td>1.6869 ns</td><td>-</td><td>-</td>
+</tr><tr><td>RandomGuidV7</td><td>273.078 ns</td><td>2.0416 ns</td><td>2.8620 ns</td><td>-</td><td>-</td>
+</tr><tr><td>TimeStampManager_TimeStamp</td><td>3.304 ns</td><td>0.2758 ns</td><td>0.4128 ns</td><td>-</td><td>-</td>
+</tr><tr><td>SequenceManager_TimeScopedId</td><td>314.518 ns</td><td>0.7780 ns</td><td>1.1645 ns</td><td>-</td><td>-</td>
+</tr><tr><td>SourceKnownId</td><td>314.674 ns</td><td>0.7323 ns</td><td>1.0961 ns</td><td>-</td><td>-</td>
+</tr><tr><td>SourceKnownEntityIdUnsecureWithId</td><td>314.609 ns</td><td>0.6918 ns</td><td>1.0355 ns</td><td>-</td><td>-</td>
+</tr><tr><td>SourceKnownEntityIdUnsecureWithEntity</td><td>314.045 ns</td><td>0.8211 ns</td><td>1.2035 ns</td><td>0.0229</td><td>192 B</td>
+</tr><tr><td>SourceKnownEntityIdUnsecureWithProvidedLongValue</td><td>123.790 ns</td><td>0.8584 ns</td><td>1.2848 ns</td><td>-</td><td>-</td>
+</tr><tr><td>SourceKnownEntityIdSecure</td><td>464.964 ns</td><td>2.5717 ns</td><td>3.8491 ns</td><td>0.0086</td><td>72 B</td>
+</tr><tr><td>ParseSecureSourceKnownEntityId</td><td>414.113 ns</td><td>0.5806 ns</td><td>0.8326 ns</td><td>0.0086</td><td>72 B</td>
+</tr><tr><td>ParseUnsecureSourceKnownEntityId</td><td>143.069 ns</td><td>0.2843 ns</td><td>0.4077 ns</td><td>-</td><td>-</td>
+</tr><tr><td>ToSecure</td><td>432.042 ns</td><td>0.4414 ns</td><td>0.6471 ns</td><td>0.0086</td><td>72 B</td>
+</tr><tr><td>ToUnsecure</td><td>124.917 ns</td><td>0.3212 ns</td><td>0.4397 ns</td><td>-</td><td>-</td>
+</tr></tbody></table>
+</body>
+</html>

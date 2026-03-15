@@ -6,11 +6,11 @@ using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
 using Blake3;
+using Perfolizer.Mathematics.OutlierDetection;
 
 namespace DRN.Test.Performance.Benchmark.Other.Hash;
 
-[MemoryDiagnoser]
-public class HmacPerformanceTests(ITestOutputHelper output)
+public class HmacPerformanceSmallPayloadTests(ITestOutputHelper output)
 {
 #if !DEBUG
     [Fact] //should run on release build
@@ -21,7 +21,7 @@ public class HmacPerformanceTests(ITestOutputHelper output)
         var config = ManualConfig.Create(DefaultConfig.Instance)
             .AddLogger(logger)
             .WithOptions(ConfigOptions.DisableOptimizationsValidator);
-        var summary = BenchmarkRunner.Run<HashBenchmark>(config);
+        var summary = BenchmarkRunner.Run<HashBenchmarkSmallPayload>(config);
 
         if (summary.ValidationErrors.Length > 0)
         {
@@ -47,28 +47,21 @@ public class HmacPerformanceTests(ITestOutputHelper output)
     }
 }
 
-public class HashBenchmark
+[Outliers(OutlierMode.RemoveUpper)]
+[MemoryDiagnoser]
+[WarmupCount(1)]
+[IterationCount(30)]
+[InvocationCount(2_097_152)]
+public class HashBenchmarkSmallPayload
 {
-    private byte[] _data4B = new byte[4];
     private byte[] _data8B = new byte[8];
     private byte[] _data12B = new byte[12];
     private byte[] _data16B = new byte[16];
-    private byte[] _data32B = new byte[32];
-    private byte[] _data64B = new byte[64];
-    private byte[] _data128B = new byte[128];
-    private byte[] _data256B = new byte[256];
-    private byte[] _data512B = new byte[512];
-    private byte[] _data1KB = new byte[1024];
-    private byte[] _data2KB = new byte[2048];
-    private byte[] _data4KB = new byte[4096];
-    private byte[] _data8KB = new byte[8192];
-    private byte[] _data16KB = new byte[16384];
-    private byte[] _data32KB = new byte[32768];
-    private byte[] _data1MB = new byte[1048576];
-    private byte[] _data10MB = new byte[10485760];
+
+
     private byte[] _key = new byte[32];
 
-    [Params(4, 8, 12, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 1048576, 10485760)]
+    [Params(8, 12, 16)]
     public int Size { get; set; }
 
     private static Hasher Blake3Hasher { get; set; }
@@ -77,23 +70,9 @@ public class HashBenchmark
     [GlobalSetup]
     public void Setup()
     {
-        RandomNumberGenerator.Fill(_data4B);
         RandomNumberGenerator.Fill(_data8B);
         RandomNumberGenerator.Fill(_data12B);
         RandomNumberGenerator.Fill(_data16B);
-        RandomNumberGenerator.Fill(_data32B);
-        RandomNumberGenerator.Fill(_data64B);
-        RandomNumberGenerator.Fill(_data128B);
-        RandomNumberGenerator.Fill(_data256B);
-        RandomNumberGenerator.Fill(_data512B);
-        RandomNumberGenerator.Fill(_data1KB);
-        RandomNumberGenerator.Fill(_data2KB);
-        RandomNumberGenerator.Fill(_data4KB);
-        RandomNumberGenerator.Fill(_data8KB);
-        RandomNumberGenerator.Fill(_data16KB);
-        RandomNumberGenerator.Fill(_data32KB);
-        RandomNumberGenerator.Fill(_data1MB);
-        RandomNumberGenerator.Fill(_data10MB);
         RandomNumberGenerator.Fill(_key);
         Blake3Hasher = Hasher.NewKeyed(_key);
         Blake3HasherForUpdateJoin = Hasher.NewKeyed(_key);
@@ -179,23 +158,9 @@ public class HashBenchmark
 
     private byte[] GetData() => Size switch
     {
-        4 => _data4B,
         8 => _data8B,
         12 => _data12B,
         16 => _data16B,
-        32 => _data32B,
-        64 => _data64B,
-        128 => _data128B,
-        256 => _data256B,
-        512 => _data512B,
-        1024 => _data1KB,
-        2048 => _data2KB,
-        4096 => _data4KB,
-        8192 => _data8KB,
-        16384 => _data16KB,
-        32768 => _data32KB,
-        1048576 => _data1MB,
-        10485760 => _data10MB,
         _ => throw new ArgumentException("Invalid size")
     };
 }
