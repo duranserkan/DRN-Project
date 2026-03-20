@@ -1,0 +1,17 @@
+% PeerJ CS preview PDF — LaTeX preamble
+\usepackage{etoolbox}
+\usepackage{array}
+
+% Line numbers (PeerJ requires for review submissions)
+\usepackage{lineno}
+\linenumbers
+
+% Reduce font size inside all longtables to prevent overflow
+\AtBeginEnvironment{longtable}{%
+  \scriptsize%
+  \setlength{\tabcolsep}{2pt}%
+}
+
+% Prevent orphan/widow lines (single lines stranded on a page)
+\widowpenalties 3 10000 10000 150
+\clubpenalties  3 10000 10000 150

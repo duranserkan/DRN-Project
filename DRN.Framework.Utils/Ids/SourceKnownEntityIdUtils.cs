@@ -9,7 +9,7 @@ using DRN.Framework.Utils.Settings;
 namespace DRN.Framework.Utils.Ids;
 
 /// <summary>
-/// Embeds a keyed hash, a 16‑bit entity‑type, 16‑bit GUID markers, and a 64‑bit ID into a
+/// Embeds a keyed hash, an 8‑bit entity‑type, 16‑bit GUID markers, and a 64‑bit ID into a
 /// 128‑bit GUID, providing a reversible mapping with integrity checking.
 /// Secure variants encrypt the entire 16-byte GUID using AES-256-ECB (true PRP) for confidentiality.
 /// </summary>
@@ -48,7 +48,7 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
 }
 
 /// <summary>
-/// Embeds a keyed hash, a 16‑bit entity‑type, 16‑bit GUID markers, and a 64‑bit ID into a
+/// Embeds a keyed hash, an 8‑bit entity‑type, 16‑bit GUID markers, and a 64‑bit ID into a
 /// 128‑bit GUID, providing a reversible mapping with integrity checking.
 /// Secure variants encrypt the entire 16-byte GUID using AES-256-ECB as a pseudo-random permutation (PRP).
 /// AES-ECB on a single 128-bit block is a conjectured PRP (NIST FIPS 197) — no nonce required, no nonce-reuse vulnerability.
@@ -79,7 +79,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     //Each epoch is approximately 136 years long with 2 half separated with sign bit
     //2^31 seconds * 2^1 epoch half flag in source known id timestamp.
     //5th index was initially reserved for MAC hash but with Secure Source Known id's this byte is repurposed for epoch usage
-    //With epoch support, source known ids can address 34,842 monotonic time years starting from 2025-01-01
+    //With epoch support, source known ids can address ~34,841 monotonic time years starting from 2025-01-01
     //todo handle epoch management (not urgent for next 60 years)
 
     private const byte MacHashLength = 4;

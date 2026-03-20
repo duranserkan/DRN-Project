@@ -1,19 +1,16 @@
 using System.Buffers.Text;
-using System.Security.Cryptography;
-using Blake3;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Data.Encodings;
-using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Numbers;
-using DRN.Framework.Utils.Settings;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
 /// <summary>
-/// Generates concrete test vectors for the IETF SKID Internet Draft (docs/draft-skid-00.md, Appendix A).
+/// Generates and asserts concrete test vectors for the IETF SKID Internet Draft (docs/draft-skid-00.md, Appendix A).
 /// Uses well-known IETF-standard test keys (sequential bytes 0x00..0x1F) for reproducibility.
-/// Run this test and copy console output into the draft.
+/// Any change to key derivation, BLAKE3 MAC, or AES encryption that would invalidate the document's
+/// Appendix A hex values will cause these assertions to fail.
 /// </summary>
 public class IetfTestVectorGeneratorTests
 {
@@ -42,6 +39,14 @@ public class IetfTestVectorGeneratorTests
         var macKeyBinary = nexusMacKey.KeyAsBinary;
         var aesKeyBinary = nexusMacKey.AlternativeKeyAsBinary;
 
+        // Assert key derivation matches draft-skid-00.md Appendix A.1
+        Convert.ToHexString(macKeyBinary.ToArray()).Should().Be(
+            "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F",
+            "MAC key hex must match Appendix A.1");
+        Convert.ToHexString(aesKeyBinary.ToArray()).Should().Be(
+            "64EB58C637B051F1F3BF93A40C669E46F2DB5DCDFDEAFF05592782EEB485643C",
+            "AES key hex must match Appendix A.1 (derived from MAC key via hash chain)");
+
         Console.WriteLine("=== A.1. Test Key Material ===");
         Console.WriteLine();
         Console.WriteLine($"MAC Key (32 bytes, hex):   {Convert.ToHexString(macKeyBinary.ToArray())}");
@@ -58,12 +63,16 @@ public class IetfTestVectorGeneratorTests
 
         // Sign bit = 1 (default, first half epoch) → set timestamp as unsigned 32-bit residue
         // Timestamp: 68000000 decimal
-        builder.SetResidueValue((uint)68000000);
+        builder.SetResidueValue(68000000);
         builder.TryAdd(5, 6);   // appId
         builder.TryAdd(3, 5);   // appInstanceId
         builder.TryAdd(42, 21); // sequenceId
 
         var skid = builder.GetValue();
+
+        // Assert SKID matches draft-skid-00.md Appendix A.2
+        skid.Should().Be(unchecked((long)0x840D99001460002A),
+            "SKID hex must match Appendix A.2 (0x840D99001460002A)");
 
         Console.WriteLine("=== A.2. SKID Generation ===");
         Console.WriteLine();
@@ -96,6 +105,15 @@ public class IetfTestVectorGeneratorTests
         var unsecureId = entityIdUtils.GenerateUnsecure(skid, entityType);
 
         var unsecureBytes = unsecureId.EntityId.ToByteArray();
+
+        // Assert exact byte layout matches draft-skid-00.md Appendix A.3
+        Convert.ToHexString(unsecureBytes).Should().Be(
+            "00990D840100328D8D3BCC8C2A006014",
+            "SKEID hex bytes must match Appendix A.3");
+        unsecureId.EntityId.ToString().Should().Be(
+            "840d9900-0001-8d32-8d3b-cc8c2a006014",
+            "SKEID GUID string must match Appendix A.3");
+
         Console.WriteLine("=== A.3. SKEID Generation (Unsecure) ===");
         Console.WriteLine();
         Console.WriteLine($"Input:");
@@ -118,6 +136,15 @@ public class IetfTestVectorGeneratorTests
         var secureId = entityIdUtils.GenerateSecure(skid, entityType);
 
         var secureBytes = secureId.EntityId.ToByteArray();
+
+        // Assert exact ciphertext matches draft-skid-00.md Appendix A.4
+        secureId.EntityId.ToString().Should().Be(
+            "90e8581d-5279-dd6a-bf5b-c1e5be4273ee",
+            "Secure SKEID GUID string must match Appendix A.4");
+        Convert.ToHexString(secureBytes).Should().Be(
+            "1D58E89079526ADDBF5BC1E5BE4273EE",
+            "Secure SKEID hex bytes must match Appendix A.4");
+
         Console.WriteLine("=== A.4. Secure SKEID Generation ===");
         Console.WriteLine();
         Console.WriteLine($"Input:");

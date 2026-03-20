@@ -29,29 +29,23 @@
   author       = {D. S. K{\i}l{\i}\c{c}},
   title        = {{DRN-Project: Distributed Reliable .Net}},
   year         = {2023},
-  url          = {https://github.com/duranserkan/DRN-Project}
+  url          = {https://github.com/duranserkan/DRN-Project},
+  note         = {Repository containing the DRN.Framework packages}
 }
 
 @misc{draft-skid,
   author       = {D. S. K{\i}l{\i}\c{c}},
   title        = {{Source Known Identifiers (SKIDs)}},
   year         = {2026},
-  note         = {Internet-Draft, draft-kilic-skid-00},
+  note         = {Draft specification prepared in Internet-Draft format},
   url          = {https://github.com/duranserkan/DRN-Project/blob/master/docs/draft-skid-00.md}
-}
-
-@misc{discos,
-  author       = {D. S. K{\i}l{\i}\c{c}},
-  title        = {{DiSC OS (Distinguished Secure Cognitive OS)}},
-  year         = {2026},
-  url          = {https://github.com/duranserkan/DRN-Project/blob/master/.agent/rules/DiSCOS.md}
 }
 
 @misc{snowflake,
   author       = {{Twitter Engineering}},
   title        = {{Announcing Snowflake}},
   year         = {2010},
-  url          = {https://blog.twitter.com/engineering/en_us/a/2010/announcing-snowflake}
+  url          = {https://github.com/twitter-archive/snowflake}
 }
 
 @misc{ulid,
@@ -61,7 +55,15 @@
   url          = {https://github.com/ulid/spec}
 }
 
-@misc{cuid,
+@misc{cuid-deprecated,
+  author       = {E. Elliott},
+  title        = {{CUID: Collision-resistant ids (deprecated)}},
+  year         = {2012},
+  note         = {Deprecated due to security. Successor: CUID2},
+  url          = {https://github.com/paralleldrive/cuid}
+}
+
+@misc{cuid2,
   author       = {E. Elliott},
   title        = {{CUID2: Secure, collision-resistant ids}},
   year         = {2022},
@@ -73,61 +75,117 @@
   title        = {{Domain-Driven Design: Tackling Complexity in the Heart of Software}},
   publisher    = {Addison-Wesley},
   year         = {2003},
-  isbn         = {0321125215}
+  isbn         = {0321125215},
+  url          = {https://www.oreilly.com/library/view/domain-driven-design-tackling/0321125215/}
 }
 
-@techreport{nistir8413,
-  author       = {D. Apon and D. Moody and A. Perlner and R. Paquin and D. Smith-Tone},
-  title        = {{Status Report on the Third Round of the NIST Post-Quantum Cryptography Standardization Process}},
+@misc{ksuid,
+  author       = {{Segment}},
+  title        = {{KSUID: K-Sortable Globally Unique IDs}},
+  year         = {2017},
+  url          = {https://github.com/segmentio/ksuid}
+}
+
+@book{shostack2014,
+  author       = {A. Shostack},
+  title        = {{Threat Modeling: Designing for Security}},
+  publisher    = {Wiley},
+  year         = {2014},
+  isbn         = {9781118809990},
+  url          = {https://www.wiley.com/en-us/Threat+Modeling%3A+Designing+for+Security-p-9781118809990}
+}
+
+@techreport{nistir8319,
+  author       = {N. Mouha},
+  title        = {{Review of the Advanced Encryption Standard}},
   institution  = {NIST},
-  number       = {NIST IR 8413-upd1},
-  year         = {2022},
-  url          = {https://csrc.nist.gov/publications/detail/nistir/8413/final},
-  doi          = {10.6028/NIST.IR.8413-upd1}
-}
-
-@inproceedings{wlcg2025,
-  author       = {M. Giordano and J. Ellenbaum and others},
-  title        = {{WLCG Operations: Evolution and Challenges on the Way to HL-LHC}},
-  booktitle    = {EPJ Web of Conferences},
-  volume       = {337},
-  pages        = {01335},
-  year         = {2025},
-  doi          = {10.1051/epjconf/202533701335}
-}
-
-@article{gwosc2021,
-  author       = {R. Abbott and others},
-  title        = {{Open Data from the First and Second Observing Runs of Advanced LIGO and Advanced Virgo}},
-  journal      = {SoftwareX},
-  volume       = {13},
-  pages        = {100658},
+  number       = {NIST IR 8319},
   year         = {2021},
-  doi          = {10.1016/j.softx.2021.100658}
+  url          = {https://csrc.nist.gov/pubs/ir/8319/final},
+  doi          = {10.6028/NIST.IR.8319}
 }
 
-@article{fox2016,
-  author       = {N. J. Fox and M. C. Velli and S. D. Bale and R. Decker and A. Driesman
-                  and R. A. Howard and J. C. Kasper and J. Kinnison and M. Kusterer
-                  and D. Lario and M. K. Lockwood and D. J. McComas and N. E. Raouafi
-                  and A. Szabo},
-  title        = {{The Solar Probe Plus Mission: Humanity's First Visit to Our Star}},
-  journal      = {Space Science Reviews},
-  volume       = {204},
-  pages        = {7--48},
-  year         = {2016},
-  doi          = {10.1007/s11214-015-0211-6},
-  note         = {Mission renamed Parker Solar Probe in 2017}
+@inproceedings{bellare1998,
+  author    = {M. Bellare and T. Krovetz and P. Rogaway},
+  title     = {{Luby-Rackoff Backwards: Increasing Security by Making Block Ciphers Non-Invertible}},
+  booktitle = {Advances in Cryptology -- EUROCRYPT '98},
+  series    = {LNCS},
+  volume    = {1403},
+  pages     = {266--280},
+  year      = {1998},
+  doi       = {10.1007/BFb0054132},
+  url       = {https://www.cs.ucdavis.edu/~rogaway/papers/p2f.pdf}
 }
 
-@article{trabant2012,
-  author       = {C. Trabant and A. R. Hutko and M. Bahavar and R. Karstens
-                  and T. Ahern and R. Aster},
-  title        = {{Data Products at the IRIS DMC: Stepping Stones for Research and Other Applications}},
-  journal      = {Seismological Research Letters},
-  volume       = {83},
-  number       = {5},
-  pages        = {846--854},
+@techreport{nistsp800107,
+  author       = {Q. Dang},
+  title        = {{Recommendation for Applications Using Approved Hash Algorithms}},
+  institution  = {NIST},
+  number       = {SP 800-107 Rev. 1},
   year         = {2012},
-  doi          = {10.1785/0220120032}
+  url          = {https://csrc.nist.gov/pubs/sp/800/107/r1/final},
+  doi          = {10.6028/NIST.SP.800-107r1}
+}
+
+@techreport{nistsp800224,
+  author       = {M. S. Turan and L. T. A. N. Brand\~{a}o},
+  title        = {{Keyed-Hash Message Authentication Code (HMAC): Specification of HMAC and Recommendations for Message Authentication}},
+  institution  = {NIST},
+  number       = {SP 800-224 (Initial Public Draft)},
+  year         = {2024},
+  url          = {https://csrc.nist.gov/pubs/sp/800/224/ipd},
+  doi          = {10.6028/NIST.SP.800-224.ipd}
+}
+
+@misc{nistsp800107withdrawal,
+  author       = {{NIST}},
+  title        = {{Withdrawal of NIST Special Publication 800-107 Revision 1}},
+  year         = {2022},
+  month        = dec,
+  url          = {https://csrc.nist.gov/news/2022/withdrawal-of-nist-sp-800-107-revision-1}
+}
+
+@misc{benchmarkdotnet,
+  author       = {A. Akinshin and others},
+  title        = {{BenchmarkDotNet: Powerful .NET library for benchmarking}},
+  year         = {2013},
+  url          = {https://github.com/dotnet/BenchmarkDotNet}
+}
+
+@article{bonnetain2019,
+  author       = {Xavier Bonnetain and María Naya-Plasencia and André Schrottenloher},
+  title        = {Quantum Security Analysis of {AES}},
+  journal      = {IACR Transactions on Symmetric Cryptology},
+  volume       = {2019},
+  number       = {2},
+  pages        = {55--93},
+  year         = {2019},
+  doi          = {10.13154/tosc.v2019.i2.55-93},
+  url          = {https://inria.hal.science/hal-02397049/document}
+}
+
+@book{brooks1995,
+  author       = {F. P. Brooks Jr.},
+  title        = {{The Mythical Man-Month: Essays on Software Engineering}},
+  edition      = {Anniversary},
+  publisher    = {Addison-Wesley},
+  year         = {1995},
+  isbn         = {9780201835953},
+  url          = {https://www.oreilly.com/library/view/mythical-man-month-the/0201835959/}
+}
+
+@misc{cwe639,
+  author       = {{MITRE Corporation}},
+  title        = {{CWE-639: Authorization Bypass Through User-Controlled Key}},
+  year         = {2025},
+  url          = {https://cwe.mitre.org/data/definitions/639.html},
+  note         = {Common Weakness Enumeration, version 4.19.1}
+}
+
+@misc{cwe345,
+  author       = {{MITRE Corporation}},
+  title        = {{CWE-345: Insufficient Verification of Data Authenticity}},
+  year         = {2025},
+  url          = {https://cwe.mitre.org/data/definitions/345.html},
+  note         = {Common Weakness Enumeration, version 4.19.1}
 }
