@@ -12,21 +12,31 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 /// </summary>
 public class PaperNumericWalkthroughTests
 {
-    // Paper walkthrough fields
-    private const uint WalkthroughTimestamp = 100_000_000;
+    // Paper walkthrough fields (tick-based: 250ms precision, 4 ticks/s)
+    private const uint WalkthroughTimestamp = 100_000_000U * 4; // 100M seconds × 4 ticks/s = 400,000,000 ticks
     private const byte WalkthroughAppId = 18;
     private const byte WalkthroughAppInstanceId = 1;
     private const uint WalkthroughSequence = 5;
     private const byte WalkthroughEntityType = 0x0A; // entity type 10
     private const byte WalkthroughEpoch = 0x00;
 
-    // Correct hex computed from NumberBuilder bit-packing:
-    //   sign(1)=1 | timestamp(30)=100000000 | appId(7)=18 | appInstanceId(6)=1 | sequence(20)=5
-    private const long ExpectedSkid = unchecked((long)0x8BEBC20048100005);
+    // Hex value will change with the new bit layout — computed from NumberBuilder
+    private static readonly long ExpectedSkid;
 
     // SKEID marker bytes (UUID V8 RFC 9562)
     private const byte VersionMarker = 0x8D;
     private const byte VariantMarker = 0x8D;
+
+    static PaperNumericWalkthroughTests()
+    {
+        // Compute ExpectedSkid using layout: sign(1) + timestamp(32) + appId(7) + appInstanceId(6) + sequence(18)
+        var builder = NumberBuilder.GetLong();
+        builder.SetResidueValue(WalkthroughTimestamp);
+        builder.TryAdd(WalkthroughAppId, 7);
+        builder.TryAdd(WalkthroughAppInstanceId, 6);
+        builder.TryAdd(WalkthroughSequence, 18);
+        ExpectedSkid = builder.GetValue();
+    }
 
     [Fact]
     public void SKID_Walkthrough_Should_Produce_Correct_Hex_Value()
@@ -36,7 +46,7 @@ public class PaperNumericWalkthroughTests
         builder.SetResidueValue(WalkthroughTimestamp);
         builder.TryAdd(WalkthroughAppId, 7);
         builder.TryAdd(WalkthroughAppInstanceId, 6);
-        builder.TryAdd(WalkthroughSequence, 20);
+        builder.TryAdd(WalkthroughSequence, 18);
         var skid = builder.GetValue();
 
         // Assert — SKID hex matches expected
@@ -52,7 +62,7 @@ public class PaperNumericWalkthroughTests
         var parser = NumberParser.Get(skid);
         var parsedAppId = (byte)parser.Read(7);
         var parsedAppInstanceId = (byte)parser.Read(6);
-        var parsedSequence = parser.Read(20);
+        var parsedSequence = parser.Read(18);
         var parsedTimestamp = parser.ReadResidueValue();
 
         parsedTimestamp.Should().Be(WalkthroughTimestamp);

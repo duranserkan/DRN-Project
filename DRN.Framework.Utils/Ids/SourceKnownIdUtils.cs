@@ -32,14 +32,14 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         var builder = NumberBuilder.GetLong();
 
         var timeScopedId = SequenceManager<TEntity>.GetTimeScopedId();
-        if (timeScopedId.TimeStamp is < 0 or > int.MaxValue)
-            throw new InvalidOperationException($"Timestamp: {timeScopedId.TimeStamp} must be between 0 and {int.MaxValue}");
+        if (timeScopedId.TimeStamp is < 0 or > uint.MaxValue)
+            throw new InvalidOperationException($"Timestamp: {timeScopedId.TimeStamp} must be between 0 and {uint.MaxValue}");
 
-        //Timestamp with precision up to the second, precision more than that does not make sense
-        //No one should expect resolution of an atomic clock.
-        //Given measurement uncertainty because of the eventual consistency, who can claim precision finer than seconds?
+        //Timestamp with 250ms precision (4 ticks per second)
+        //Sub-second ordering eliminates coarse-grained temporal ambiguity while preserving throughput.
 
-        //Works for next 34 years per half since 2025 (30-bit timestamp)
+        //Works for next 34 years per half since 2025 (32-bit timestamp in 250ms ticks)
+        //2^32 ticks / 4 ticks/s = 2^30 seconds ≈ 34 years per epoch half
         //Sign bit set to 1 (default) makes the long value negative, covering the first ~34 years of the epoch.
         //Sign bit set to 0 makes the long value positive, extending coverage for the second ~34 years.
         //Negative values sort before positive values, preserving monotonic ordering across the full ~68-year epoch.
@@ -52,9 +52,10 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         //64 app instances per microservice (6 bits) — sufficient for horizontal scaling
         builder.TryAdd(appInstanceId, 6);
 
-        //1,048,576 sequences per second (20 bits) — sufficient for high-performance scenarios
+        //262,144 sequences per 250ms tick (18 bits) — sufficient for high-performance scenarios
+        //Per-second throughput: 262,144 × 4 = 1,048,576 IDs/s per generator
         //System-wide throughput: 8,192 generators × ~1M/s = ~8.6B IDs/s
-        builder.TryAdd(timeScopedId.SequenceId, 20);
+        builder.TryAdd(timeScopedId.SequenceId, 18);
 
         return builder.GetValue();
     }
@@ -76,7 +77,7 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         var parser = NumberParser.Get(id);
         var appId = (byte)parser.Read(7);
         var appInstanceId = (byte)parser.Read(6);
-        var instanceId = parser.Read(20);
+        var instanceId = parser.Read(18);
 
         var dateTime = EpochTimeUtils.ConvertToDateTime(parser.ReadResidueValue(), epoch);
         return new SourceKnownId(id, dateTime, instanceId, appId, appInstanceId);

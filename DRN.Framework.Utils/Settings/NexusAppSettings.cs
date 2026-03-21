@@ -10,6 +10,17 @@ namespace DRN.Framework.Utils.Settings;
 public class NexusAppSettings
 {
     private IReadOnlyList<NexusMacKey> _macKeys = [];
+
+    public NexusAppSettings()
+    {
+    }
+
+    public NexusAppSettings(byte appId, byte appInstanceId)
+    {
+        AppId = appId;
+        AppInstanceId = appInstanceId;
+    }
+
     public static string GetKey(string shortKey) => $"{nameof(NexusAppSettings)}:{shortKey}";
 
     public string NexusAddress { get; init; } = "nexus";

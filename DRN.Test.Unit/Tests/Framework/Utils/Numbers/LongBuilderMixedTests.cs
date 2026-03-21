@@ -87,14 +87,14 @@ public class LongBuilderMixedTests
     public void LongBuilder_Should_Build_From_Mixed_Numbers(
         uint expectedResidue, byte expectedByte1, byte expectedByte2, ushort expectedUShort)
     {
-        var longBuilder = NumberBuilder.GetLong();
+        var longBuilder = NumberBuilder.GetLong(residueBitLength: 31);
         longBuilder.SetResidueValue(expectedResidue);
         longBuilder.TryAddByte(expectedByte1);
         longBuilder.TryAddByte(expectedByte2);
         longBuilder.TryAddUShort(expectedUShort);
         var longValue = longBuilder.GetValue();
 
-        var longParser = NumberParser.Get(longValue);
+        var longParser = NumberParser.Get(longValue, residueBitLength: 31);
         var actualResidue = longParser.ReadResidueValue();
         actualResidue.Should().Be(expectedResidue);
 

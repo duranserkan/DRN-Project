@@ -29,7 +29,7 @@ public class SourceKnownIdUtilsTests
         var epoch = EpochTimeUtils.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
-        await Task.Delay(1001);
+        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay); // wait for at least one tick
         _ = ids
             .AsParallel()
             .WithDegreeOfParallelism(8)
@@ -39,7 +39,7 @@ public class SourceKnownIdUtilsTests
                 ids[index] = generator.Next<ISourceKnownIdUtils>();
                 return index;
             }).ToArray();
-        await Task.Delay(1001);
+        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay); // wait for tick boundary
 
         var afterIdGenerated = DateTimeOffset.UtcNow;
 
@@ -65,10 +65,10 @@ public class SourceKnownIdUtilsTests
 
         var buckets = idInfoGroups.Select(x => x.Key).ToArray();
         buckets.Length.Should().BeGreaterThanOrEqualTo(bucketCount); //during generation initial and last buckets may be halflings
-        buckets.Length.Should().BeLessThanOrEqualTo(bucketCount + 2); //we should also consider bucket creep testing overhead by adding another 1 bucket
+        buckets.Length.Should().BeLessThanOrEqualTo(bucketCount + 4); //with 250ms ticks, fewer buckets per second; overhead may add ticks
 
-        var duration = afterIdGenerated - beforeIdGenerated; // it is expected to be complete in bucket count + 1 second.
-        duration.TotalSeconds.Should().BeGreaterThanOrEqualTo(bucketCount); //tests can be slower, restricted upper limit may not work every time
+        var duration = afterIdGenerated - beforeIdGenerated;
+        duration.TotalMilliseconds.Should().BeGreaterThanOrEqualTo(bucketCount * TimeStampManager.PrecisionUnitInMsSafeDelay); //at least bucketCount ticks
 
         var actualCount = 0;
         foreach (var group in idInfoGroups)

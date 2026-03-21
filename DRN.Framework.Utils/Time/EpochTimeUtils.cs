@@ -6,8 +6,8 @@ namespace DRN.Framework.Utils.Time;
 public interface IEpochTimeUtils
 {
     DateTimeOffset Epoch { get; }
-    DateTimeOffset ConvertToDatetime(long totalSeconds);
-    long ConvertToSeconds(DateTimeOffset dateTime);
+    DateTimeOffset ConvertToDatetime(long totalTicks);
+    long ConvertToTicks(DateTimeOffset dateTime);
     long ConvertToSourceKnownIdTimeStamp(DateTimeOffset dateTime);
 }
 
@@ -15,20 +15,20 @@ public interface IEpochTimeUtils
 public class EpochTimeUtils : IEpochTimeUtils
 {
     /// <summary>
-    /// Converts total seconds since a custom epoch to DateTimeOffset
+    /// Converts total 250ms ticks since a custom epoch to DateTimeOffset
     /// </summary>
-    /// <param name="totalSeconds">Number of seconds since the epoch (can be negative)</param>
+    /// <param name="totalTicks">Number of 250ms ticks since the epoch (can be negative)</param>
     /// <param name="epoch">Reference epoch DateTimeOffset.</param>
-    public static DateTimeOffset ConvertToDateTime(long totalSeconds, DateTimeOffset epoch)
-        => epoch.Add(TimeSpan.FromSeconds(totalSeconds));
+    public static DateTimeOffset ConvertToDateTime(long totalTicks, DateTimeOffset epoch)
+        => epoch.Add(TimeSpan.FromTicks(totalTicks * TimeStampManager.TicksPerPrecisionUnit));
 
     /// <summary>
-    /// Calculates total seconds between a given DateTimeOffset and a specified epoch
+    /// Calculates total 250ms ticks between a given DateTimeOffset and a specified epoch
     /// </summary>
     /// <param name="dateTime">Target DateTimeOffset</param>
     /// <param name="epoch">Reference epoch DateTimeOffset</param>
-    public static long ConvertToSeconds(DateTimeOffset dateTime, DateTimeOffset epoch)
-        => (long)(dateTime - epoch).TotalSeconds;
+    public static long ConvertToTicks(DateTimeOffset dateTime, DateTimeOffset epoch)
+        => (dateTime - epoch).Ticks / TimeStampManager.TicksPerPrecisionUnit;
 
     /// <summary>
     /// Converts a DateTimeOffset to a SourceKnownId timestamp according to the application epoch
@@ -36,7 +36,7 @@ public class EpochTimeUtils : IEpochTimeUtils
     public static long ConvertToSourceKnownIdTimeStamp(DateTimeOffset dateTime, DateTimeOffset epoch)
     {
         var builder = NumberBuilder.GetLong();
-        var duration = (uint)ConvertToSeconds(dateTime, epoch);
+        var duration = (uint)ConvertToTicks(dateTime, epoch);
         builder.SetResidueValue(duration);
 
         return builder.GetValue();
@@ -50,16 +50,16 @@ public class EpochTimeUtils : IEpochTimeUtils
     public DateTimeOffset Epoch { get; } = DefaultEpoch;
 
     /// <summary>
-    /// Converts total seconds since the application epoch to DateTimeOffset
+    /// Converts total 250ms ticks since the application epoch to DateTimeOffset
     /// </summary>
-    /// <param name="totalSeconds">Number of seconds since the epoch (can be negative)</param>
-    public DateTimeOffset ConvertToDatetime(long totalSeconds) => ConvertToDateTime(totalSeconds, Epoch);
+    /// <param name="totalTicks">Number of 250ms ticks since the epoch (can be negative)</param>
+    public DateTimeOffset ConvertToDatetime(long totalTicks) => ConvertToDateTime(totalTicks, Epoch);
 
     /// <summary>
-    /// Calculates total seconds between a given DateTimeOffset and the application epoch
+    /// Calculates total 250ms ticks between a given DateTimeOffset and the application epoch
     /// </summary>
     /// <param name="dateTime">Target DateTimeOffset</param>
-    public long ConvertToSeconds(DateTimeOffset dateTime) => ConvertToSeconds(dateTime, Epoch);
+    public long ConvertToTicks(DateTimeOffset dateTime) => ConvertToTicks(dateTime, Epoch);
 
     /// <summary>
     /// Converts a DateTimeOffset to a SourceKnownId timestamp according to the application epoch

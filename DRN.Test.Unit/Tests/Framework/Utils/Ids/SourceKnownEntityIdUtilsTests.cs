@@ -21,7 +21,7 @@ public class SourceKnownEntityIdUtilsTests
         var epoch = EpochTimeUtils.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
-        await Task.Delay(1100); // buffer to compensate id-generator caching effect
+        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay); // buffer for TimeStampManager to populate a valid tick
         var longId1 = idUtils.Next<XEntity>();
         var entity1 = new XEntity(longId1);
         var entity1Dup = new XEntity(longId1);
@@ -30,7 +30,7 @@ public class SourceKnownEntityIdUtilsTests
         var unsecureId1 = entityIdUtils.GenerateUnsecure(entity1);
         var secureId1 = entityIdUtils.GenerateSecure(entity1Dup);
         entity1.EntityIdSource = unsecureId1;
-        await Task.Delay(1000);
+        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay);
         var afterIdGenerated = DateTimeOffset.UtcNow;
 
         // Assert both are valid with correct properties
@@ -109,7 +109,7 @@ public class SourceKnownEntityIdUtilsTests
         var idUtils = context.GetRequiredService<ISourceKnownIdUtils>();
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
 
-        await Task.Delay(1100); // buffer to compensate id-generator caching effect
+        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay); // buffer for TimeStampManager to populate a valid tick
         var longId = idUtils.Next<XEntity>();
 
         // Generate() should dispatch to secure/unsecure path based on flag
@@ -137,7 +137,7 @@ public class SourceKnownEntityIdUtilsTests
         var idUtils = context.GetRequiredService<ISourceKnownIdUtils>();
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
 
-        await Task.Delay(1100); // buffer to compensate id-generator caching effect
+        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay); // buffer for TimeStampManager to populate a valid tick
         var longId = idUtils.Next<XEntity>();
         var secureEntityId = entityIdUtils.GenerateSecure(new XEntity(longId));
 
@@ -165,7 +165,7 @@ public class SourceKnownEntityIdUtilsTests
         var idUtils = context.GetRequiredService<ISourceKnownIdUtils>();
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
 
-        await Task.Delay(1100); // buffer to compensate id-generator caching effect
+        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay); // buffer for TimeStampManager to populate a valid tick
         var longId = idUtils.Next<XEntity>();
 
         var secureX = entityIdUtils.GenerateSecure<XEntity>(longId);
@@ -209,7 +209,7 @@ public class SourceKnownEntityIdUtilsTests
         var idUtils = context.GetRequiredService<ISourceKnownIdUtils>();
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
 
-        await Task.Delay(1100); // buffer to compensate id-generator caching effect
+        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay); // buffer for TimeStampManager to populate a valid tick
         var longId = idUtils.Next<XEntity>();
 
         var unsecureId = entityIdUtils.GenerateUnsecure(new XEntity(longId));
@@ -264,7 +264,7 @@ public class SourceKnownEntityIdUtilsTests
         var idUtils = context.GetRequiredService<ISourceKnownIdUtils>();
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
 
-        await Task.Delay(1100);
+        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay);
         var longId = idUtils.Next<XEntity>();
         var secureId = entityIdUtils.GenerateSecure(new XEntity(longId));
 

@@ -1,4 +1,5 @@
 using DRN.Framework.Utils.Ids;
+using DRN.Framework.Utils.Time;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
@@ -14,16 +15,25 @@ public class PaperThroughputAnalysisTests
     // Capacities derived from source constants (0-based max → count)
     private static readonly int MaxApplications = SourceKnownIdUtils.MaxAppId + 1; // 127 + 1 = 128
     private static readonly int MaxInstancesPerApp = SourceKnownIdUtils.MaxAppInstanceId + 1; // 63 + 1 = 64
-    private static readonly long SequenceCapPerSecond = SequenceTimeScope.MaxValue + 1L; // 1,048,575 + 1 = 1,048,576
+    private static readonly long SequenceCapPerTick = SequenceTimeScope.MaxValue + 1L; // 262,143 + 1 = 262,144
+    private static readonly long SequenceCapPerSecond = SequenceCapPerTick * TimeStampManager.TicksPerSecondMultiplier; // 262,144 × 4 = 1,048,576
     private static readonly int TotalGenerators = MaxApplications * MaxInstancesPerApp; // 8,192
     private static readonly long SystemWideThroughput = SequenceCapPerSecond * TotalGenerators; // 8,589,934,592
 
     [Fact]
-    public void Sequence_Field_Should_Cap_At_1048576_Per_Second_Per_Instance()
+    public void Sequence_Field_Should_Cap_At_262144_Per_Tick_Per_Instance()
     {
-        // Paper: "The 20-bit sequence field caps generation at 1,048,576 identifiers per second per instance."
+        // 18-bit sequence caps at 262,144 per 250ms tick per instance.
+        SequenceCapPerTick.Should().Be(262_144,
+            $"SequenceTimeScope.MaxValue ({SequenceTimeScope.MaxValue:N0}) + 1 = {SequenceCapPerTick:N0} identifiers per 250ms tick per instance");
+    }
+
+    [Fact]
+    public void Per_Second_Throughput_Should_Be_1048576()
+    {
+        // 262,144 per tick × 4 ticks/s = 1,048,576 per second per instance.
         SequenceCapPerSecond.Should().Be(1_048_576,
-            $"SequenceTimeScope.MaxValue ({SequenceTimeScope.MaxValue:N0}) + 1 = {SequenceCapPerSecond:N0} identifiers per second per instance");
+            $"{SequenceCapPerTick:N0} × {TimeStampManager.TicksPerSecondMultiplier} = {SequenceCapPerSecond:N0} identifiers per second per instance");
     }
 
     [Fact]

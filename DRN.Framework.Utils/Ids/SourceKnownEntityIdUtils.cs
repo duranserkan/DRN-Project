@@ -77,9 +77,9 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
 
     //5th index is reserved for epoch, first epoch starts at 2025-01-01.
     //Each epoch is approximately 68 years long with 2 halves separated with sign bit
-    //2^30 seconds * 2^1 epoch half flag in source known id timestamp.
+    //2^32 ticks / 4 ticks/s = 2^30 seconds * 2^1 epoch half flag in source known id timestamp.
     //5th index was initially reserved for MAC hash but with Secure Source Known id's this byte is repurposed for epoch usage
-    //With epoch support, source known ids can address ~17,420 monotonic time years starting from 2025-01-01
+    //With epoch support, source known ids can address ~17,421 monotonic time years starting from 2025-01-01
     //todo handle epoch management (not urgent for next 60 years)
 
     private const byte MacHashLength = 4;

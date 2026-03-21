@@ -5,7 +5,7 @@ public struct NumberParser
     public static NumberParser Get(int value, NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst, byte residueBitLength = 15)
         => new(direction, 32, residueBitLength, true, value);
 
-    public static NumberParser Get(long value, NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst, byte residueBitLength = 30)
+    public static NumberParser Get(long value, NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst, byte residueBitLength = 32)
         => new(direction, 64, residueBitLength, true, value);
 
     public static NumberParser Get(uint value, NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst)

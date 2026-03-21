@@ -1,7 +1,7 @@
 namespace DRN.Framework.Utils.Time;
 
 /// <summary>
-/// Provides cached UTC timestamps with second-level precision, updated periodically.
+/// Provides cached UTC timestamps with 250ms precision (4 ticks per second), updated periodically.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -13,7 +13,7 @@ namespace DRN.Framework.Utils.Time;
 /// </para>
 /// <para>
 /// This is safe because downstream consumers such as <c>SequenceManager&lt;TEntity&gt;</c> tolerate repeated
-/// timestamps: they use per-second atomic sequence counters (up to 1,048,575 IDs per second) and only
+/// timestamps: they use per-tick atomic sequence counters (up to 262,143 IDs per 250ms tick) and only
 /// require the timestamp to <i>not go backward</i>, which the freeze guarantees.
 /// </para>
 /// <para>
@@ -25,11 +25,21 @@ namespace DRN.Framework.Utils.Time;
 public static class TimeStampManager
 {
     private static long _cachedUtcNowTicks;
+    
+    public const int PrecisionUnitInMsSafeDelay = 260;
+    public const int PrecisionUnitInMs = 250;
+
+    /// <summary>Number of precision ticks per second (4 ticks/s for 250ms precision).</summary>
+    public const int TicksPerSecondMultiplier = 1000 / PrecisionUnitInMs;
+
+    /// <summary>Number of .NET ticks per precision unit (250ms = 2,500,000 ticks).</summary>
+    public const long TicksPerPrecisionUnit = TimeSpan.TicksPerSecond / TicksPerSecondMultiplier;
+
 
     /// <summary>Timer period in milliseconds between the end of one update and the start of the next.</summary>
-    internal static readonly int UpdatePeriod = 10;
+    internal const int UpdatePeriod = 10;
+    internal const int MaxAllowedDriftSeconds = 3;
 
-    internal static readonly int MaxAllowedDriftSeconds = 3;
     private static int _driftDetected; // 0 = normal, 1 = drift detected
     private static ClockDriftException? _driftException;
     private static readonly RecurringAction RecurringAction = new(GetUpdateAction(), UpdatePeriod);
@@ -44,8 +54,8 @@ public static class TimeStampManager
     private static Task Update()
     {
         var now = DateTimeProvider.UtcNow.Ticks;
-        var secondResidue = now % TimeSpan.TicksPerSecond;
-        var truncatedNow = now - secondResidue;
+        var precisionResidue = now % TicksPerPrecisionUnit;
+        var truncatedNow = now - precisionResidue;
         var previousTicks = Volatile.Read(ref _cachedUtcNowTicks);
 
         if (truncatedNow < previousTicks)
@@ -65,7 +75,7 @@ public static class TimeStampManager
             // Minor drift (< MaxAllowedDriftSeconds): freeze the cached value.
             // UtcNowTicks will continue serving the previous (higher) timestamp until
             // the real clock catches up. This is safe because downstream consumers
-            // (e.g. SequenceManager) use per-second sequence counters and only require
+            // (e.g. SequenceManager) use per-tick sequence counters and only require
             // timestamps to never go backward — which the freeze guarantees.
             return Task.CompletedTask;
         }
@@ -79,17 +89,17 @@ public static class TimeStampManager
         : throw _driftException!;
 
     /// <summary>
-    /// Cached UTC timestamp with precision up to the second.
-    /// This value is updated periodically and does not include milliseconds or finer precision.
+    /// Cached UTC timestamp with 250ms precision.
+    /// This value is updated periodically and is truncated to the nearest 250ms boundary.
     /// </summary>
     /// <exception cref="ClockDriftException">Thrown when a critical clock drift has been detected.</exception>
     public static DateTimeOffset UtcNow => new(UtcNowTicks, TimeSpan.Zero);
 
     /// <summary>
-    /// Computes the current timestamp as an integer, representing the number of seconds elapsed since the specified epoch.
+    /// Computes the current timestamp as an integer, representing the number of 250ms ticks elapsed since the specified epoch.
     /// </summary>
-    /// <param name="epoch">The reference time (epoch) from which the elapsed seconds are calculated.</param>
-    /// <returns>The number of seconds elapsed since the given epoch.</returns>
+    /// <param name="epoch">The reference time (epoch) from which the elapsed ticks are calculated.</param>
+    /// <returns>The number of 250ms ticks elapsed since the given epoch.</returns>
     /// <exception cref="ClockDriftException">Thrown when a critical clock drift has been detected.</exception>
-    public static long CurrentTimestamp(DateTimeOffset epoch) => (UtcNowTicks - epoch.Ticks) / TimeSpan.TicksPerSecond;
+    public static long CurrentTimestamp(DateTimeOffset epoch) => (UtcNowTicks - epoch.Ticks) / TicksPerPrecisionUnit;
 }

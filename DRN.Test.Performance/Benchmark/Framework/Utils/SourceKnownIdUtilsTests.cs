@@ -45,11 +45,11 @@ public class SourceKnownIdUtilsPerformanceTests(ITestOutputHelper output)
 [MemoryDiagnoser]
 [WarmupCount(1)]
 [IterationCount(30)]
-[InvocationCount(1_048_576)] // sequence cap (2^20) — at capacity; Thread.Sleep prevents overflow
+[InvocationCount(262_144)] // sequence cap (2^18) — at capacity per 250ms tick; Thread.Sleep prevents overflow
 public class SourceKnownIdUtilsBenchmark
 {
     [IterationSetup]
-    public void IterationWait() => Thread.Sleep(1000); // Let SequenceTimeScope reset between iterations
+    public void IterationWait() => Thread.Sleep(TimeStampManager.PrecisionUnitInMsSafeDelay); // Let SequenceTimeScope reset between iterations (one tick)
     static SourceKnownIdUtilsBenchmark()
     {
         Utils = new(AppSettings.Development(), new EpochTimeUtils());

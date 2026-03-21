@@ -1,5 +1,6 @@
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
+using DRN.Framework.Utils.Time;
 
 namespace DRN.Test.Integration.Tests.Sample.Utils;
 
@@ -20,7 +21,7 @@ public class SourceKnownEntityIdUtilsTests
         var ids = new long[idCount];
         var entityIds = new SourceKnownEntityId[idCount];
 
-        await Task.Delay(1001);
+        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay);
         _ = ids
             .AsParallel()
             .WithDegreeOfParallelism(8)
@@ -31,7 +32,7 @@ public class SourceKnownEntityIdUtilsTests
                 entityIds[index] = entityIdUtils.GenerateSecure(new XEntity(ids[index]));
                 return index;
             }).ToArray();
-        await Task.Delay(1001);
+        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay);
 
         entityIds.All(x => x.Valid).Should().BeTrue();
         entityIds.All(x => x.Secure).Should().BeTrue("all generated ids must be Secure");

@@ -42,11 +42,11 @@ public class SourceKnownIdUtilsSaturationPerformanceTests(ITestOutputHelper outp
 [MemoryDiagnoser]
 [WarmupCount(1)]
 [IterationCount(30)]
-[InvocationCount(3_145_728)] // 3× sequence cap (2^20 = 1,048,576) — guarantees backpressure per iteration
+[InvocationCount(786_432)] // 3× sequence cap (2^18 = 262,144) — guarantees backpressure per iteration
 public class SourceKnownIdUtilsSaturationBenchmark
 {
     [IterationSetup]
-    public void IterationWait() => Thread.Sleep(1000); // Let SequenceTimeScope reset between iterations
+    public void IterationWait() => Thread.Sleep(TimeStampManager.PrecisionUnitInMsSafeDelay); // Let SequenceTimeScope reset between iterations (one tick)
     static SourceKnownIdUtilsSaturationBenchmark()
     {
         Utils = new(AppSettings.Development(), new EpochTimeUtils());
