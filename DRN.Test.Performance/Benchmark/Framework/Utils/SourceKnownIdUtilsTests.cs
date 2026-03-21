@@ -45,7 +45,7 @@ public class SourceKnownIdUtilsPerformanceTests(ITestOutputHelper output)
 [MemoryDiagnoser]
 [WarmupCount(1)]
 [IterationCount(30)]
-[InvocationCount(2_097_152)] // sequence cap (2^21) — at capacity; Thread.Sleep prevents overflow
+[InvocationCount(1_048_576)] // sequence cap (2^20) — at capacity; Thread.Sleep prevents overflow
 public class SourceKnownIdUtilsBenchmark
 {
     [IterationSetup]

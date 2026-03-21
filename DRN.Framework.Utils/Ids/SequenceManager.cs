@@ -111,7 +111,7 @@ public readonly record struct SequenceTimeScopedId(long TimeStamp, uint Sequence
 //todo include to SourceKnownIdUtilsPerformanceTests
 public class SequenceTimeScope(long scopeTimeStamp)
 {
-    public const uint MaxValue = 2097151;
+    public const uint MaxValue = 1048575;
     public const uint MinValue = 0;
 
     private int _lastId = -1;

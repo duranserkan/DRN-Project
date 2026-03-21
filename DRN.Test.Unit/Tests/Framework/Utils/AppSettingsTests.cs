@@ -21,7 +21,7 @@ public class AppSettingsTests
     [Fact]
     public void AppSettings_Should_Thrown_Configuration_Exception_For_Invalid_NexusAppId()
     {
-        byte appId = 64;
+        byte appId = 128;
         byte appInstanceId = 21;
 
         var custom = GetCustomSettings(appId, appInstanceId);
@@ -33,7 +33,7 @@ public class AppSettingsTests
     public void AppSettings_Should_Thrown_Configuration_Exception_For_Invalid_NexusAppInstanceId()
     {
         byte appId = 61;
-        byte appInstanceId = 32;
+        byte appInstanceId = 64;
 
         var custom = GetCustomSettings(appId, appInstanceId);
         var action = () => AppSettings.Development(custom);

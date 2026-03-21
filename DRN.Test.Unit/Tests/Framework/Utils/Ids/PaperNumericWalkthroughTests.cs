@@ -12,8 +12,8 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 /// </summary>
 public class PaperNumericWalkthroughTests
 {
-    // Paper walkthrough fields (kept as-is from the paper)
-    private const uint WalkthroughTimestamp = 1_512_267_264;
+    // Paper walkthrough fields
+    private const uint WalkthroughTimestamp = 100_000_000;
     private const byte WalkthroughAppId = 18;
     private const byte WalkthroughAppInstanceId = 1;
     private const uint WalkthroughSequence = 5;
@@ -21,8 +21,8 @@ public class PaperNumericWalkthroughTests
     private const byte WalkthroughEpoch = 0x00;
 
     // Correct hex computed from NumberBuilder bit-packing:
-    //   sign(1)=1 | timestamp(31)=1512267264 | appId(6)=18 | appInstanceId(5)=1 | sequence(21)=5
-    private const long ExpectedSkid = unchecked((long)0xDA235E0048200005);
+    //   sign(1)=1 | timestamp(30)=100000000 | appId(7)=18 | appInstanceId(6)=1 | sequence(20)=5
+    private const long ExpectedSkid = unchecked((long)0x8BEBC20048100005);
 
     // SKEID marker bytes (UUID V8 RFC 9562)
     private const byte VersionMarker = 0x8D;
@@ -34,9 +34,9 @@ public class PaperNumericWalkthroughTests
         // Arrange — construct SKID using the same NumberBuilder path as SourceKnownIdUtils.Generate
         var builder = NumberBuilder.GetLong();
         builder.SetResidueValue(WalkthroughTimestamp);
-        builder.TryAdd(WalkthroughAppId, 6);
-        builder.TryAdd(WalkthroughAppInstanceId, 5);
-        builder.TryAdd(WalkthroughSequence, 21);
+        builder.TryAdd(WalkthroughAppId, 7);
+        builder.TryAdd(WalkthroughAppInstanceId, 6);
+        builder.TryAdd(WalkthroughSequence, 20);
         var skid = builder.GetValue();
 
         // Assert — SKID hex matches expected
@@ -46,13 +46,13 @@ public class PaperNumericWalkthroughTests
             $"should be 0x{unchecked((ulong)ExpectedSkid):X16}");
 
         // Assert — sign bit is 1 (negative, first epoch half)
-        skid.Should().BeNegative("first ~68 years of epoch produce negative SKIDs (sign bit = 1)");
+        skid.Should().BeNegative("first ~34 years of epoch produce negative SKIDs (sign bit = 1)");
 
         // Assert — round-trip via NumberParser recovers all fields
         var parser = NumberParser.Get(skid);
-        var parsedAppId = (byte)parser.Read(6);
-        var parsedAppInstanceId = (byte)parser.Read(5);
-        var parsedSequence = parser.Read(21);
+        var parsedAppId = (byte)parser.Read(7);
+        var parsedAppInstanceId = (byte)parser.Read(6);
+        var parsedSequence = parser.Read(20);
         var parsedTimestamp = parser.ReadResidueValue();
 
         parsedTimestamp.Should().Be(WalkthroughTimestamp);

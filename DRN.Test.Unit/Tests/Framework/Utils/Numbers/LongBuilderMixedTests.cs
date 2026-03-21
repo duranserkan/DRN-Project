@@ -80,10 +80,10 @@ public class LongBuilderMixedTests
     }
 
     [Theory]
-    [InlineData(7756421, 5, 130, 60001)]
+    [InlineData(7_756_421, 5, 130, 60_001)]
     [InlineData(0, 0, 0, 0)]
     [InlineData(1, 1, 1, 1)]
-    [InlineData(int.MaxValue, byte.MaxValue, byte.MaxValue, ushort.MaxValue)]
+    [InlineData(1_073_741_823, byte.MaxValue, byte.MaxValue, ushort.MaxValue)]
     public void LongBuilder_Should_Build_From_Mixed_Numbers(
         uint expectedResidue, byte expectedByte1, byte expectedByte2, ushort expectedUShort)
     {

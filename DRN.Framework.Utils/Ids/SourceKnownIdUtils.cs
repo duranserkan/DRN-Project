@@ -24,8 +24,8 @@ public interface ISourceKnownIdUtils
 [Singleton<ISourceKnownIdUtils>]
 public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochTimeUtils) : ISourceKnownIdUtils
 {
-    public static byte MaxAppId => 63;
-    public static byte MaxAppInstanceId => 31;
+    public static byte MaxAppId => 127;
+    public static byte MaxAppInstanceId => 63;
 
     public static long Generate<TEntity>(byte appId, byte appInstanceId) where TEntity : class
     {
@@ -39,27 +39,22 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         //No one should expect resolution of an atomic clock.
         //Given measurement uncertainty because of the eventual consistency, who can claim precision finer than seconds?
 
-        //Works for next 68 years since 2025
-        //Sign bit set to 1 (default) makes the long value negative, covering the first ~68 years of the epoch.
-        //Sign bit set to 0 makes the long value positive, extending coverage for the second ~68 years.
-        //Negative values sort before positive values, preserving monotonic ordering across the full ~136-year epoch.
+        //Works for next 34 years per half since 2025 (30-bit timestamp)
+        //Sign bit set to 1 (default) makes the long value negative, covering the first ~34 years of the epoch.
+        //Sign bit set to 0 makes the long value positive, extending coverage for the second ~34 years.
+        //Negative values sort before positive values, preserving monotonic ordering across the full ~68-year epoch.
         //todo: update sign bit for other half of the epoch
         builder.SetResidueValue((uint)timeScopedId.TimeStamp);
 
-        //Initially 256 apps were allowed.
-        //However, that many microservices are hard to maintain and sign of bad design
-        //64 considered to be safe for any application
-        builder.TryAdd(appId, 6);
+        //128 apps (7 bits) — sufficient for any application topology
+        builder.TryAdd(appId, 7);
 
-        //Initially, 256 app instances per microservice were allowed.
-        //However, that many instances may create unnecessary connections and create performance problems at elsewhere
-        //10-20 app instances should be sufficient for horizontal scaling
-        builder.TryAdd(appInstanceId, 5);
+        //64 app instances per microservice (6 bits) — sufficient for horizontal scaling
+        builder.TryAdd(appInstanceId, 6);
 
-        //Initially max sequence length set as 65,536 (16bit) however, it may not be enough for high-performance scenarios
-        //Since spared 5 bit from appId and appInstanceId we can invest them into sequenceId to support 2,097,152 long sequences per second
-        //It can generate full positive integer range in less than 20 minutes
-        builder.TryAdd(timeScopedId.SequenceId, 21);
+        //1,048,576 sequences per second (20 bits) — sufficient for high-performance scenarios
+        //System-wide throughput: 8,192 generators × ~1M/s = ~8.6B IDs/s
+        builder.TryAdd(timeScopedId.SequenceId, 20);
 
         return builder.GetValue();
     }
@@ -79,9 +74,9 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     public static SourceKnownId ParseId(long id, DateTimeOffset epoch)
     {
         var parser = NumberParser.Get(id);
-        var appId = (byte)parser.Read(6);
-        var appInstanceId = (byte)parser.Read(5);
-        var instanceId = parser.Read(21);
+        var appId = (byte)parser.Read(7);
+        var appInstanceId = (byte)parser.Read(6);
+        var instanceId = parser.Read(20);
 
         var dateTime = EpochTimeUtils.ConvertToDateTime(parser.ReadResidueValue(), epoch);
         return new SourceKnownId(id, dateTime, instanceId, appId, appInstanceId);

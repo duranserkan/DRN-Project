@@ -7,7 +7,7 @@ public static class NumberBuilder
     public static NumberBuilder<int> GetInt(NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst, byte residueBitLength = 15) =>
         new(direction, 32, residueBitLength, true);
 
-    public static NumberBuilder<long> GetLong(NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst, byte residueBitLength = 31) =>
+    public static NumberBuilder<long> GetLong(NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst, byte residueBitLength = 30) =>
         new(direction, 64, residueBitLength, true);
     
     public static NumberBuilder<ulong> GetLongUnsigned(NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst) =>

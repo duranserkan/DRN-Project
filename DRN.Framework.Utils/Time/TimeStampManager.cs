@@ -13,7 +13,7 @@ namespace DRN.Framework.Utils.Time;
 /// </para>
 /// <para>
 /// This is safe because downstream consumers such as <c>SequenceManager&lt;TEntity&gt;</c> tolerate repeated
-/// timestamps: they use per-second atomic sequence counters (up to 2,097,151 IDs per second) and only
+/// timestamps: they use per-second atomic sequence counters (up to 1,048,575 IDs per second) and only
 /// require the timestamp to <i>not go backward</i>, which the freeze guarantees.
 /// </para>
 /// <para>
