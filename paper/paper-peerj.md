@@ -16,7 +16,7 @@ csl: peerj.csl
 
 # Abstract
 
-Distributed applications need identifiers that satisfy storage efficiency, chronological sortability, origin metadata embedding, zero-lookup verifiability, confidentiality for external consumers, and multi-century addressability. Based on our literature survey, no existing scheme provides all six of these identifier properties within a unified protocol.
+Distributed applications need identifiers that satisfy storage efficiency, chronological sortability, origin metadata embedding, zero-lookup verifiability, confidentiality for external consumers, and multi-century addressability. Based on our literature survey, no existing scheme provides all six of these identifier properties within a unified system.
 
 This paper introduces Source Known Identifiers (SKIDs), a three-tier identity system that addresses all six properties through a layered architecture aligned with trust boundaries. The first tier, Source Known ID (SKID), is a 64-bit signed integer embedding a second-precision timestamp, application topology (application identifier and instance identifier), and a per-entity-type sequence counter. It serves as the database primary key, providing compact storage (8 bytes) and natural B-tree ordering for optimized database indexing. The second tier, Source Known Entity ID (SKEID), extends the SKID into a 128-bit Universally Unique Identifier (UUID) compatible value by adding an entity type discriminator, an epoch selector, and a BLAKE3 keyed message authentication code (MAC). SKEIDs enable zero-lookup verification of identifier origin, integrity, and entity type within trusted environments. The third tier, Secure SKEID, encrypts the entire SKEID using AES-256 symmetric encryption as a single-block pseudorandom permutation, producing ciphertext indistinguishable from random bytes while remaining compatible with standard UUID data-type parsers in string representation. Deterministic bidirectional transformations connect all three tiers.
 
@@ -64,7 +64,7 @@ Table 2 provides a detailed feature comparison of these and additional identifie
 
 ## Motivation
 
-The necessity for a unified, multi-tier identifier protocol arises from the conflicting architectural requirements of modern distributed applications where data continuously flows across persistence, internal and external trust tiers. Each tier imposes different constraints on identifier design. Existing schemes and dual-identifier patterns force systems to compromise at least one.
+The necessity for a unified, multi-tier identifier system arises from the conflicting architectural requirements of modern distributed applications where data continuously flows across persistence, internal and external trust tiers. Each tier imposes different constraints on identifier design. Existing schemes and dual-identifier patterns force systems to compromise at least one.
 
 At the persistence tier, optimal B-tree index performance and compact foreign keys demand sequential integer primary keys [@rfc9562, Sections 2.1 and 6.13], but exposing sequential identifiers through external APIs creates Insecure Direct Object Reference (IDOR) vulnerabilities [@cwe639]. Exposure also enables adversarial inference of generation velocity and record volume (the German Tank Problem [@ruggles1947]). The dual-identifier pattern (an integer primary key alongside a random UUID column for external exposure) doubles the per-record index footprint.
 
@@ -72,7 +72,7 @@ A downstream application that receives an identifier needs to verify it [@cwe345
 
 Decentralized identifier generation across globally distributed networks demands chronologically sortable [@rfc9562] identifiers. When data from independent generators must be merged years or decades after creation, the identifier scheme must guarantee sort-order consistency past the operational lifespan of individual system components. This is especially critical for any system requiring long-term data retention and historical analysis.
 
-These conflicting trust-boundary constraints motivate a multi-tier identifier protocol in which each tier addresses a different trust boundary.
+These conflicting trust-boundary constraints motivate a multi-tier identifier system in which each tier addresses a different trust boundary.
 
 ## Contributions
 
@@ -622,7 +622,7 @@ Several extensions are planned or under consideration.
 
 # Conclusions
 
-This paper presented Source Known Identifiers (SKIDs), a three-tier identity system that simultaneously satisfies the proposed desired identifier properties. Based on our literature survey, no existing identifier scheme combines all six properties within a unified protocol.
+This paper presented Source Known Identifiers (SKIDs), a three-tier identity system that simultaneously satisfies the proposed desired identifier properties. Based on our literature survey, no existing identifier scheme combines all six properties within a unified system.
 
 The three-tier architecture aligns SKID (64-bit, database), SKEID (128-bit, trusted internal), and Secure SKEID (128-bit, external) with the trust boundaries commonly found in distributed applications. Deterministic bidirectional transformations enable direct conversion between tiers. The defense-in-depth security architecture combines multiple independent verification layers to provide security far exceeding any individual mechanism.
 
