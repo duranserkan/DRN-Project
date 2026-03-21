@@ -32,7 +32,7 @@ public class NexusAppSettings
     /// <summary>
     /// When true (default), <see cref="Ids.SourceKnownEntityIdUtils.Generate(long, byte)"/> produces AES-256-ECB encrypted entity IDs.
     /// When false, it produces plaintext entity IDs with visible 8D8D markers.
-    /// Explicit <c>GenerateSecure</c>/<c>GenerateUnsecure</c> methods bypass this flag.
+    /// Explicit <c>GenerateSecure</c>/<c>GeneratePlain</c> methods bypass this flag.
     /// </summary>
     public bool UseSecureSourceKnownIds { get; init; } = true;
 

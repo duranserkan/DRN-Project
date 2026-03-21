@@ -545,7 +545,7 @@ The marker variant position (byte 8) uses the primary value 0x8D plus
 50 alternative values 0x8E through 0xBF for the Secure SKEID collision
 guard ("Encryption" below), giving 51 total attempts.  The primary variant
 byte is 0x8D; alternative variant bytes are used when the AES-256-ECB
-ciphertext would otherwise be indistinguishable from an unsecure
+ciphertext would otherwise be indistinguishable from an plain
 (plaintext) SKEID.
 
 All values in the range 0x80-0xBF share the RFC 4122 variant bit
@@ -553,7 +553,7 @@ pattern: the two high bits are `10` (binary).  The post-decryption
 (secure) path uses the bit-mask check `(byte & 0xC0) == 0x80` to
 accept any RFC 4122 variant byte.
 
-The unsecure (plaintext) path MUST only accept the primary variant
+The plain (plaintext) path MUST only accept the primary variant
 byte 0x8D.  The post-decryption (secure) path MUST accept the full
 RFC 4122 variant range (0x80-0xBF) via the bit-mask check.
 
@@ -564,7 +564,7 @@ HTTP 500 status) rather than loop indefinitely.
 
 | Byte | Value | Usage |
 |------|-------|-------|
-| Marker Version (byte 7) | 0x8D | All SKEIDs (unsecure and secure) |
+| Marker Version (byte 7) | 0x8D | All SKEIDs (plain and secure) |
 | Marker Variant (byte 8) | 0x8D | Primary variant - used by default |
 | Marker Variant (byte 8) | 0x8E-0xBF | Alternative variants - collision guard escalation |
 
@@ -681,7 +681,7 @@ default key; key-ring iteration is planned as future work.
 procedure ParseSKEID(entityId, macKey, aesKey):
   1. guidBytes ← entityId as byte array [0..15]
   2. If guidBytes[7] == 0x8D AND guidBytes[8] == 0x8D:
-       -- Primary markers present: try unsecure parse
+       -- Primary markers present: try plain parse
        result ← VerifyAndExtract(guidBytes, macKey, secure=false)
        If result.valid:
          Return result
@@ -739,7 +739,7 @@ procedure GenerateSecureSKEID(id, entityType, macKey, aesKey):
   4. -- Collision guard: detect marker+MAC coincidence
      If guidBytes[7] == 0x8D AND guidBytes[8] == 0x8D
            AND HasCoincidentalMACMatch(guidBytes, macKey):
-       -- Ciphertext has unsecure markers (~1/65536) AND MAC
+       -- Ciphertext has plain markers (~1/65536) AND MAC
        -- matches (~1/2^32 given markers).
        -- Combined probability per iteration: ~1/2^48
        -- Iterate through variant space for deterministic termination
@@ -841,14 +841,14 @@ independent outputs.
 ## Auto-Detection Parse Logic
 
 The parse algorithm ("Parsing Algorithm" above) automatically
-determines whether a UUID is an unsecure SKEID, a Secure SKEID, or
+determines whether a UUID is an plain SKEID, a Secure SKEID, or
 an unrecognized value:
 
 1. Check for primary marker bytes (0x8D at position 7, 0x8D at
    position 8) in the raw UUID bytes.
-2. If primary markers are present: attempt unsecure verification.
-   If MAC verification succeeds → unsecure SKEID.
-3. If primary markers are absent OR unsecure verification fails:
+2. If primary markers are present: attempt plain verification.
+   If MAC verification succeeds → plain SKEID.
+3. If primary markers are absent OR plain verification fails:
    decrypt the 16-byte block with the AES key.
 4. Check for marker bytes in the decrypted plaintext using the
    RFC 4122 variant bit-mask: `guidBytes[7] == 0x8D AND
@@ -869,9 +869,9 @@ falls back to the decryption path with no data corruption.
 ### Collision Guard Guarantee
 
 Without the collision guard, there exists a combined ~1/2^48 probability
-that ciphertext coincidentally matches both the unsecure marker bytes
+that ciphertext coincidentally matches both the plain marker bytes
 AND produces a valid MAC when interpreted as a plaintext SKEID.  This
-would cause a Secure SKEID to be misclassified as an unsecure SKEID
+would cause a Secure SKEID to be misclassified as an plain SKEID
 with incorrect (garbage) data.
 
 The collision guard in GenerateSecureSKEID ("Encryption" above) eliminates
@@ -911,7 +911,7 @@ is either V−1 = 0x8D (base case, always legitimate) or proved by V−2
 having collided (which was already verified at generation time).
 
 This provides a deterministic guarantee: no Secure SKEID produced by a
-compliant implementation can ever pass the unsecure parse path with a
+compliant implementation can ever pass the plain parse path with a
 valid result.
 
 ### Numeric Walkthrough
@@ -981,10 +981,10 @@ walkthrough are verified by the PaperNumericWalkthroughTests unit test
 suite in the reference implementation [DRN-PROJECT].  Any code change
 that would invalidate these values produces a test failure.
 
-## Secure ↔ Unsecure Conversion
+## Secure ↔ Plain Conversion
 
 Given a valid (parsed) SKEID, implementations MAY convert between
-secure and unsecure representations:
+secure and plain representations:
 
 ~~~
 procedure ToSecure(skeid):
@@ -992,13 +992,13 @@ procedure ToSecure(skeid):
   Return GenerateSecureSKEID(skeid.source.id, skeid.entityType,
                               macKey, aesKey)
 
-procedure ToUnsecure(skeid):
+procedure ToPlain(skeid):
   If NOT skeid.secure: Return skeid (already plaintext)
   Return GenerateSKEID(skeid.source.id, skeid.entityType, macKey)
 ~~~
 
 The underlying SKID is unchanged; only the 128-bit GUID
-representation changes.  ToSecure and ToUnsecure MUST validate the
+representation changes.  ToSecure and ToPlain MUST validate the
 input SKEID before conversion.
 
 
@@ -1105,7 +1105,7 @@ derived values, need re-generation.
 | SKEID → SKID | `ParseSKEID(skeid).source.id` |
 | SKEID → Secure SKEID | `ToSecure(parsedSKEID)` |
 | Secure SKEID → SKID | `ParseSKEID(secureSkeid).source.id` |
-| Secure SKEID → SKEID | `ToUnsecure(parsedSecureSKEID)` |
+| Secure SKEID → SKEID | `ToPlain(parsedSecureSKEID)` |
 
 All transformations are deterministic given the same inputs and keys.
 The SKID is always recoverable from any SKEID representation.
@@ -1116,14 +1116,14 @@ Implementations MAY support per-context security configuration:
 
 - **External-facing endpoints**: SHOULD always use Secure SKEID to
   prevent information leakage.
-- **Trusted environment communication**: MAY use unsecure SKEID for
+- **Trusted environment communication**: MAY use plain SKEID for
   reduced computational overhead when the network is trusted.
 - **Database storage**: MUST store the 64-bit SKID as the primary key
   for optimal indexing and storage efficiency.
 
 A global configuration flag (e.g., `UseSecureSourceKnownIds`) MAY
 control the default behavior of the `Generate` operation, while
-explicit `GenerateSecure` and `GenerateUnsecure` methods bypass this
+explicit `GenerateSecure` and `GeneratePlain` methods bypass this
 flag.
 
 
@@ -1264,7 +1264,7 @@ without accessing a database:
 
 A support engineer receiving a GUID from an end-user can:
 
-1. Parse the GUID as an SKEID (auto-detecting secure vs unsecure).
+1. Parse the GUID as an SKEID (auto-detecting secure vs plain).
 2. Extract creation time → "Created on 2026-03-07 at 14:30:00 UTC."
 3. Extract app ID → "Generated by order-service (app ID 5)."
 4. Extract entity type → "This is an Order entity (type 12)."
@@ -1311,12 +1311,12 @@ compared to 128-bit UUIDs:
 | Operation | Computational Cost |
 |-----------|--------------------|
 | SKID generation | ~25 ns (bit packing + atomic counter) |
-| SKEID generation (unsecure) | ~145 ns (BLAKE3 MAC + bit packing) |
+| SKEID generation (plain) | ~145 ns (BLAKE3 MAC + bit packing) |
 | Secure SKEID generation | ~455 ns (BLAKE3 MAC + AES-256 encrypt) |
-| Unsecure SKEID parsing | ~155 ns (marker check + BLAKE3 verify) |
+| Plain SKEID parsing | ~155 ns (marker check + BLAKE3 verify) |
 | Secure SKEID parsing | ~447 ns (AES decrypt + marker check + BLAKE3 verify) |
 | ToSecure (encryption only) | ~435 ns |
-| ToUnsecure (decryption only) | ~135 ns |
+| ToPlain (decryption only) | ~135 ns |
 
 The overhead is dominated by the BLAKE3 keyed MAC and AES-256 single-
 block operations, both of which execute in constant time.  Approximate
@@ -1702,9 +1702,9 @@ sustained high-rate SKEID validation failures.
 - Key compromise recovery MUST follow the procedure in
   "Key Compromise Recovery" above.
 
-## Information Leakage (Unsecure SKEID)
+## Information Leakage (Plain SKEID)
 
-The unsecure SKEID exposes the creation timestamp, app topology,
+The plain SKEID exposes the creation timestamp, app topology,
 entity type, and sequence in plaintext (though interleaved with MAC
 bytes).  This is acceptable for communication within trusted
 environments but MUST NOT be used for external-facing identifiers in
@@ -1764,7 +1764,7 @@ Expected SKID (decimal):  -8931314260384939990
 Expected SKID (hex):       0x840D99001460002A
 ~~~
 
-## SKEID Generation (Unsecure)
+## SKEID Generation (Plain)
 
 ~~~
 Input:
@@ -1823,7 +1823,7 @@ Expected hex:          1D58E89079526ADDBF5BC1E5BE4273EE
    → Valid=true, SKID=-8931314260384939990  ✓
 6. ToSecure(SKEID) → matches Secure SKEID from step 4
    → GUID = 90e8581d-5279-dd6a-bf5b-c1e5be4273ee  ✓
-7. ToUnsecure(Secure SKEID) → matches SKEID from step 2
+7. ToPlain(Secure SKEID) → matches SKEID from step 2
    → GUID = 840d9900-0001-8d32-8d3b-cc8c2a006014  ✓
 ~~~
 
@@ -1873,12 +1873,12 @@ IterationCount=30, WarmupCount=1):
 | Random UUID V4 generation | 257.5 | 0.73 | 1.09 | 0 B |
 | Random UUID V7 generation | 280.7 | 0.72 | 1.00 | 0 B |
 | SKID generation | 25.1 | 0.71 | 1.06 | 0 B |
-| SKEID generation (unsecure) | 145.1 | 1.00 | 1.44 | 0 B |
+| SKEID generation (plain) | 145.1 | 1.00 | 1.44 | 0 B |
 | Secure SKEID generation | 455.1 | 1.54 | 2.05 | 72 B |
 | Secure SKEID parsing | 446.5 | 7.72 | 11.07 | 72 B |
-| Unsecure SKEID parsing | 155.8 | 1.19 | 1.78 | 0 B |
+| Plain SKEID parsing | 155.8 | 1.19 | 1.78 | 0 B |
 | ToSecure (encryption only) | 434.8 | 0.81 | 1.16 | 72 B |
-| ToUnsecure (decryption only) | 134.6 | 0.88 | 1.28 | 0 B |
+| ToPlain (decryption only) | 134.6 | 0.88 | 1.28 | 0 B |
 
 Error values represent the 99.9% confidence interval margin
 computed by BenchmarkDotNet over iterations remaining after upper
@@ -1923,9 +1923,9 @@ Common utility operations:
 
 | Operation | Input | Output |
 |-----------|-------|--------|
-| `Parse(guid)` | UUID | SKEID record (auto-detects secure/unsecure) |
+| `Parse(guid)` | UUID | SKEID record (auto-detects secure/plain) |
 | `Validate<TEntity>(guid)` | UUID | SKEID record or throws if type mismatch |
 | `ToSecure(skeid)` | Parsed SKEID | Secure SKEID (no-op if already secure) |
-| `ToUnsecure(skeid)` | Parsed SKEID | Unsecure SKEID (no-op if already unsecure) |
+| `ToPlain(skeid)` | Parsed SKEID | Plain SKEID (no-op if already plain) |
 
 

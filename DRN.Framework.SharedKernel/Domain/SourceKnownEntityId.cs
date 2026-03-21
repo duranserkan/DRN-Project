@@ -21,7 +21,7 @@ public interface ISourceKnownEntityIdOperations
     SourceKnownEntityId Generate(long id, byte entityType);
     SourceKnownEntityId Parse(Guid entityId);
     SourceKnownEntityId ToSecure(SourceKnownEntityId id);
-    SourceKnownEntityId ToUnsecure(SourceKnownEntityId id);
+    SourceKnownEntityId ToPlain(SourceKnownEntityId id);
 }
 
 public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid EntityId, byte EntityType, bool Valid, bool Secure) : IComparable<SourceKnownEntityId>

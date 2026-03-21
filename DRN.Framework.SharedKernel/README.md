@@ -163,7 +163,7 @@ public abstract class EntityDeleted(SourceKnownEntity sourceKnownEntity) : Domai
 
 The framework uses a Source Known identifier system (`SourceKnownEntityId`) to balance database performance (long) with external security (Guid) and type safety.
 
-`ISourceKnownEntityIdOperations` defines the core contract for entity ID operations (`Generate`, `Parse`, `ToSecure`, `ToUnsecure`). It lives in SharedKernel so domain entities can use it without referencing Utils. `ISourceKnownEntityIdUtils` in Utils inherits this interface and provides the full implementation, which EF interceptors inject into entities automatically.
+`ISourceKnownEntityIdOperations` defines the core contract for entity ID operations (`Generate`, `Parse`, `ToSecure`, `ToPlain`). It lives in SharedKernel so domain entities can use it without referencing Utils. `ISourceKnownEntityIdUtils` in Utils inherits this interface and provides the full implementation, which EF interceptors inject into entities automatically.
 
 ```csharp
 // entityId.Valid will be true only if the GUID structure is correct AND matches the User entity type.
@@ -195,22 +195,22 @@ Helper methods on the `SourceKnownEntity` base class, optimized for intra-domain
 var id = userInstance.GetEntityId<User>(externalGuid);
 ```
 
-### Secure ↔ Unsecure Conversion
+### Secure ↔ Plain Conversion
 
-Entities, repositories, and the injectable utility all expose `ToSecure` / `ToUnsecure` to convert between encrypted and plaintext `SourceKnownEntityId` forms. Conversion is idempotent — calling `ToSecure` on an already-secure ID returns the same ID.
+Entities, repositories, and the injectable utility all expose `ToSecure` / `ToPlain` to convert between encrypted and plaintext `SourceKnownEntityId` forms. Conversion is idempotent — calling `ToSecure` on an already-secure ID returns the same ID.
 
 ```csharp
 // On entity (after interceptor wiring)
-var secureId = userInstance.ToSecure(unsecureEntityId);
-var unsecureId = userInstance.ToUnsecure(secureEntityId);
+var secureId = userInstance.ToSecure(plainEntityId);
+var plainId = userInstance.ToPlain(secureEntityId);
 
 // On repository
 var secureId = userRepository.ToSecure(entityId);
-var unsecureId = userRepository.ToUnsecure(entityId);
+var plainId = userRepository.ToPlain(entityId);
 
 // Via injectable utility
 var secureId = sourceKnownEntityIdUtils.ToSecure(entityId);
-var unsecureId = sourceKnownEntityIdUtils.ToUnsecure(entityId);
+var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 ```
 
 ```csharp
@@ -297,7 +297,7 @@ public readonly record struct SourceKnownEntityId(
 
 - **Standardized Access**: Common CRUD operations (`CreateAsync`, `GetAsync`, `DeleteAsync`).
 - **Identity Conversion**: Specialized methods for mapping external `Guid` to internal `SourceKnownEntityId`.
-- **Secure ↔ Unsecure Conversion**: `ToSecure` / `ToUnsecure` for converting between encrypted and plaintext entity IDs.
+- **Secure ↔ Plain Conversion**: `ToSecure` / `ToPlain` for converting between encrypted and plaintext entity IDs.
 - **Cancellation**: Native support for `CancellationToken` merging and propagation.
 - **Streaming**: Supports `IAsyncEnumerable` for efficient large dataset processing.
 

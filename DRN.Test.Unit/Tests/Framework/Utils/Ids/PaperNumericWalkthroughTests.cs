@@ -79,7 +79,7 @@ public class PaperNumericWalkthroughTests
         context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
 
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
-        var skeid = entityIdUtils.GenerateUnsecure(ExpectedSkid, WalkthroughEntityType);
+        var skeid = entityIdUtils.GeneratePlain(ExpectedSkid, WalkthroughEntityType);
 
         // Assert — SKEID is valid and carries the correct source SKID
         skeid.Valid.Should().BeTrue();
@@ -149,9 +149,9 @@ public class PaperNumericWalkthroughTests
         secureSkeid.Source.Id.Should().Be(ExpectedSkid);
         secureSkeid.EntityType.Should().Be(WalkthroughEntityType);
 
-        // Encrypted GUID should differ from unsecure GUID
-        var unsecureSkeid = entityIdUtils.GenerateUnsecure(ExpectedSkid, WalkthroughEntityType);
-        secureSkeid.EntityId.Should().NotBe(unsecureSkeid.EntityId,
+        // Encrypted GUID should differ from plain GUID
+        var plainSkeid = entityIdUtils.GeneratePlain(ExpectedSkid, WalkthroughEntityType);
+        secureSkeid.EntityId.Should().NotBe(plainSkeid.EntityId,
             "encrypted Secure SKEID must differ from plaintext SKEID");
 
         // Parse round-trip: decrypt → verify markers → verify MAC → recover SKID
@@ -161,11 +161,11 @@ public class PaperNumericWalkthroughTests
         parsed.Source.Id.Should().Be(ExpectedSkid, "decrypted SKID should match original");
         parsed.EntityType.Should().Be(WalkthroughEntityType, "decrypted entity type should match");
 
-        // Bidirectional conversion: Secure → Unsecure → Secure
-        var convertedToUnsecure = entityIdUtils.ToUnsecure(secureSkeid);
-        convertedToUnsecure.EntityId.Should().Be(unsecureSkeid.EntityId);
+        // Bidirectional conversion: Secure → Plain → Secure
+        var convertedToPlain = entityIdUtils.ToPlain(secureSkeid);
+        convertedToPlain.EntityId.Should().Be(plainSkeid.EntityId);
 
-        var convertedToSecure = entityIdUtils.ToSecure(unsecureSkeid);
+        var convertedToSecure = entityIdUtils.ToSecure(plainSkeid);
         convertedToSecure.EntityId.Should().Be(secureSkeid.EntityId);
     }
 

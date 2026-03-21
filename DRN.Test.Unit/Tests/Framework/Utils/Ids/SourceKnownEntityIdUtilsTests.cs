@@ -9,7 +9,7 @@ public class SourceKnownEntityIdUtilsTests
 {
     [Theory]
     [DataInlineUnit]
-    public async Task ExplicitMethods_Should_Generate_Valid_Secure_And_Unsecure_Ids(DrnTestContextUnit context)
+    public async Task ExplicitMethods_Should_Generate_Valid_Secure_And_Plain_Ids(DrnTestContextUnit context)
     {
         var nexusSettings = new NexusAppSettings { AppId = 5, AppInstanceId = 12 };
         context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
@@ -27,28 +27,28 @@ public class SourceKnownEntityIdUtilsTests
         var entity1Dup = new XEntity(longId1);
 
         // Generate both variants from same source ID
-        var unsecureId1 = entityIdUtils.GenerateUnsecure(entity1);
+        var plainId1 = entityIdUtils.GeneratePlain(entity1);
         var secureId1 = entityIdUtils.GenerateSecure(entity1Dup);
-        entity1.EntityIdSource = unsecureId1;
+        entity1.EntityIdSource = plainId1;
         await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay);
         var afterIdGenerated = DateTimeOffset.UtcNow;
 
         // Assert both are valid with correct properties
-        AssertValidEntityId(unsecureId1, longId1, nexusSettings, xEntityType, expectedSecure: false);
+        AssertValidEntityId(plainId1, longId1, nexusSettings, xEntityType, expectedSecure: false);
         AssertValidEntityId(secureId1, longId1, nexusSettings, xEntityType, expectedSecure: true);
         
         // Parse roundtrip — both variants
         entityIdUtils.Parse(null).Should().BeNull();
-        AssertParseRoundTrip(entityIdUtils, unsecureId1);
+        AssertParseRoundTrip(entityIdUtils, plainId1);
         AssertParseRoundTrip(entityIdUtils, secureId1);
 
         // Detailed parse equality assertions
-        var parsedUnsecure = entityIdUtils.Parse(unsecureId1.EntityId);
-        parsedUnsecure.Should().Be(unsecureId1);
-        parsedUnsecure.EntityId.Should().Be(unsecureId1.EntityId);
+        var parsedPlain = entityIdUtils.Parse(plainId1.EntityId);
+        parsedPlain.Should().Be(plainId1);
+        parsedPlain.EntityId.Should().Be(plainId1.EntityId);
 
         // Timestamp assertions via parsed source id
-        var idInfo = idUtils.Parse(unsecureId1.Source.Id);
+        var idInfo = idUtils.Parse(plainId1.Source.Id);
         idInfo.AppId.Should().Be(nexusSettings.AppId);
         idInfo.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
         idInfo.CreatedAt.Should().BeBefore(afterIdGenerated);
@@ -60,38 +60,38 @@ public class SourceKnownEntityIdUtilsTests
         parsedSecure.Should().Be(secureId1);
         parsedSecure.EntityId.Should().Be(secureId1.EntityId);
 
-        // Secure and unsecure parse to same source but different GUIDs
-        parsedUnsecure.Source.Should().Be(parsedSecure.Source);
-        parsedUnsecure.EntityType.Should().Be(parsedSecure.EntityType);
-        unsecureId1.EntityId.Should().NotBe(secureId1.EntityId);
+        // Secure and plain parse to same source but different GUIDs
+        parsedPlain.Source.Should().Be(parsedSecure.Source);
+        parsedPlain.EntityType.Should().Be(parsedSecure.EntityType);
+        plainId1.EntityId.Should().NotBe(secureId1.EntityId);
 
         // Ordering and comparison operators
         var longId2 = idUtils.Next<XEntity>();
-        var unsecureId2 = entityIdUtils.GenerateUnsecure(new XEntity(longId2));
-        var unsecureId1Again = entityIdUtils.GenerateUnsecure(new XEntity(longId1));
-        (unsecureId2 > unsecureId1).Should().BeTrue();
-        (unsecureId2 >= unsecureId1).Should().BeTrue();
+        var plainId2 = entityIdUtils.GeneratePlain(new XEntity(longId2));
+        var plainId1Again = entityIdUtils.GeneratePlain(new XEntity(longId1));
+        (plainId2 > plainId1).Should().BeTrue();
+        (plainId2 >= plainId1).Should().BeTrue();
 
-        var unsecureId2Dup = entityIdUtils.GenerateUnsecure(new XEntity(longId2));
-        (unsecureId2 >= unsecureId2Dup).Should().BeTrue();
-        (unsecureId1 < unsecureId2).Should().BeTrue();
-        (unsecureId1 <= unsecureId2).Should().BeTrue();
-        (unsecureId1 <= unsecureId1Again).Should().BeTrue();
+        var plainId2Dup = entityIdUtils.GeneratePlain(new XEntity(longId2));
+        (plainId2 >= plainId2Dup).Should().BeTrue();
+        (plainId1 < plainId2).Should().BeTrue();
+        (plainId1 <= plainId2).Should().BeTrue();
+        (plainId1 <= plainId1Again).Should().BeTrue();
 
         // Same entity type check
-        unsecureId1.HasSameEntityType(unsecureId2).Should().BeTrue();
+        plainId1.HasSameEntityType(plainId2).Should().BeTrue();
         secureId1.HasSameEntityType(entityIdUtils.GenerateSecure(new XEntity(longId2))).Should().BeTrue();
 
         // Cross entity type
-        var unsecureY = entityIdUtils.GenerateUnsecure(new YEntity(longId2));
-        unsecureId2.HasSameEntityType(unsecureY).Should().BeFalse();
+        var plainY = entityIdUtils.GeneratePlain(new YEntity(longId2));
+        plainId2.HasSameEntityType(plainY).Should().BeFalse();
 
         // Generic overloads
         var secureGeneric = entityIdUtils.GenerateSecure<XEntity>(longId1);
         AssertValidEntityId(secureGeneric, longId1, nexusSettings, xEntityType, expectedSecure: true);
 
-        var unsecureGeneric = entityIdUtils.GenerateUnsecure<XEntity>(longId1);
-        AssertValidEntityId(unsecureGeneric, longId1, nexusSettings, xEntityType, expectedSecure: false);
+        var plainGeneric = entityIdUtils.GeneratePlain<XEntity>(longId1);
+        AssertValidEntityId(plainGeneric, longId1, nexusSettings, xEntityType, expectedSecure: false);
     }
 
     [Theory]
@@ -112,16 +112,16 @@ public class SourceKnownEntityIdUtilsTests
         await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay); // buffer for TimeStampManager to populate a valid tick
         var longId = idUtils.Next<XEntity>();
 
-        // Generate() should dispatch to secure/unsecure path based on flag
+        // Generate() should dispatch to secure/plain path based on flag
         var entityId = entityIdUtils.Generate(new XEntity(longId));
         AssertValidEntityId(entityId, longId, nexusSettings, SourceKnownEntity.GetEntityType<XEntity>(), expectedSecure: secure);
         AssertParseRoundTrip(entityIdUtils, entityId);
 
         // Explicit methods should always bypass the flag
-        var explicitUnsecure = entityIdUtils.GenerateUnsecure(new XEntity(longId));
-        explicitUnsecure.Secure.Should().BeFalse("GenerateUnsecure should always set Secure=false");
-        AssertPlaintextMarkers(explicitUnsecure, true, "GenerateUnsecure should always produce plaintext markers");
-        AssertParseRoundTrip(entityIdUtils, explicitUnsecure);
+        var explicitPlain = entityIdUtils.GeneratePlain(new XEntity(longId));
+        explicitPlain.Secure.Should().BeFalse("GeneratePlain should always set Secure=false");
+        AssertPlaintextMarkers(explicitPlain, true, "GeneratePlain should always produce plaintext markers");
+        AssertParseRoundTrip(entityIdUtils, explicitPlain);
 
         var explicitSecure = entityIdUtils.GenerateSecure(new XEntity(longId));
         explicitSecure.Secure.Should().BeTrue("GenerateSecure should always set Secure=true");
@@ -202,7 +202,7 @@ public class SourceKnownEntityIdUtilsTests
 
     [Theory]
     [DataInlineUnit]
-    public async Task ToSecure_And_ToUnsecure_Should_Convert_And_Be_Idempotent(DrnTestContextUnit context)
+    public async Task ToSecure_And_ToPlain_Should_Convert_And_Be_Idempotent(DrnTestContextUnit context)
     {
         var nexusSettings = new NexusAppSettings { AppId = 5, AppInstanceId = 12 };
         context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
@@ -212,47 +212,47 @@ public class SourceKnownEntityIdUtilsTests
         await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay); // buffer for TimeStampManager to populate a valid tick
         var longId = idUtils.Next<XEntity>();
 
-        var unsecureId = entityIdUtils.GenerateUnsecure(new XEntity(longId));
+        var plainId = entityIdUtils.GeneratePlain(new XEntity(longId));
         var secureId = entityIdUtils.GenerateSecure(new XEntity(longId));
 
-        // Unsecure → Secure conversion
-        var convertedToSecure = entityIdUtils.ToSecure(unsecureId);
+        // Plain → Secure conversion
+        var convertedToSecure = entityIdUtils.ToSecure(plainId);
         convertedToSecure.Secure.Should().BeTrue("converted id should be secure");
-        convertedToSecure.Source.Should().Be(unsecureId.Source, "Source must be preserved");
-        convertedToSecure.EntityType.Should().Be(unsecureId.EntityType, "EntityType must be preserved");
+        convertedToSecure.Source.Should().Be(plainId.Source, "Source must be preserved");
+        convertedToSecure.EntityType.Should().Be(plainId.EntityType, "EntityType must be preserved");
         convertedToSecure.Valid.Should().BeTrue("converted id must be valid");
         convertedToSecure.EntityId.Should().Be(secureId.EntityId, "converted GUID must match directly-generated secure GUID");
         AssertParseRoundTrip(entityIdUtils, convertedToSecure);
 
-        // Secure → Unsecure conversion
-        var convertedToUnsecure = entityIdUtils.ToUnsecure(secureId);
-        convertedToUnsecure.Secure.Should().BeFalse("converted id should be unsecure");
-        convertedToUnsecure.Source.Should().Be(secureId.Source, "Source must be preserved");
-        convertedToUnsecure.EntityType.Should().Be(secureId.EntityType, "EntityType must be preserved");
-        convertedToUnsecure.Valid.Should().BeTrue("converted id must be valid");
-        convertedToUnsecure.EntityId.Should().Be(unsecureId.EntityId, "converted GUID must match directly-generated unsecure GUID");
-        AssertParseRoundTrip(entityIdUtils, convertedToUnsecure);
+        // Secure → Plain conversion
+        var convertedToPlain = entityIdUtils.ToPlain(secureId);
+        convertedToPlain.Secure.Should().BeFalse("converted id should be plain");
+        convertedToPlain.Source.Should().Be(secureId.Source, "Source must be preserved");
+        convertedToPlain.EntityType.Should().Be(secureId.EntityType, "EntityType must be preserved");
+        convertedToPlain.Valid.Should().BeTrue("converted id must be valid");
+        convertedToPlain.EntityId.Should().Be(plainId.EntityId, "converted GUID must match directly-generated plain GUID");
+        AssertParseRoundTrip(entityIdUtils, convertedToPlain);
 
         // Idempotency — ToSecure on already-secure returns same
         var secureAgain = entityIdUtils.ToSecure(secureId);
         secureAgain.Should().Be(secureId, "ToSecure on secure id should return same id");
 
-        // Idempotency — ToUnsecure on already-unsecure returns same
-        var unsecureAgain = entityIdUtils.ToUnsecure(unsecureId);
-        unsecureAgain.Should().Be(unsecureId, "ToUnsecure on unsecure id should return same id");
+        // Idempotency — ToPlain on already-plain returns same
+        var plainAgain = entityIdUtils.ToPlain(plainId);
+        plainAgain.Should().Be(plainId, "ToPlain on plain id should return same id");
 
         // Nullable overloads
         entityIdUtils.ToSecure((SourceKnownEntityId?)null).Should().BeNull();
-        entityIdUtils.ToUnsecure((SourceKnownEntityId?)null).Should().BeNull();
-        entityIdUtils.ToSecure((SourceKnownEntityId?)unsecureId).Should().Be(convertedToSecure);
-        entityIdUtils.ToUnsecure((SourceKnownEntityId?)secureId).Should().Be(convertedToUnsecure);
+        entityIdUtils.ToPlain((SourceKnownEntityId?)null).Should().BeNull();
+        entityIdUtils.ToSecure((SourceKnownEntityId?)plainId).Should().Be(convertedToSecure);
+        entityIdUtils.ToPlain((SourceKnownEntityId?)secureId).Should().Be(convertedToPlain);
 
         // Invalid id should throw
         var invalidId = new SourceKnownEntityId(default, Guid.NewGuid(), byte.MaxValue, false, Secure: false);
         var actSecure = () => entityIdUtils.ToSecure(invalidId);
         actSecure.Should().Throw<ValidationException>();
-        var actUnsecure = () => entityIdUtils.ToUnsecure(invalidId);
-        actUnsecure.Should().Throw<ValidationException>();
+        var actPlain = () => entityIdUtils.ToPlain(invalidId);
+        actPlain.Should().Throw<ValidationException>();
     }
 
     [Theory]
@@ -308,12 +308,12 @@ public class SourceKnownEntityIdUtilsTests
         entityId.Secure.Should().Be(expectedSecure);
 
         // Secure flag ↔ EntityId GUID content invariant:
-        // Unsecure: plaintext GUID — deterministic markers (8D8D) and RFC 9562 V8 compliance
+        // Plain: plaintext GUID — deterministic markers (8D8D) and RFC 9562 V8 compliance
         // Secure:   AES-encrypted GUID — markers/V8 assertions skipped because ciphertext can
         //           coincidentally produce 8D8D marker bytes (~1/65536, see SourceKnownEntityIdUtils L169)
         if (expectedSecure) return;
         
-        AssertPlaintextMarkers(entityId, true, "Unsecure EntityId must contain plaintext 8D8D markers");
+        AssertPlaintextMarkers(entityId, true, "Plain EntityId must contain plaintext 8D8D markers");
     }
 
     private static void AssertParseRoundTrip(ISourceKnownEntityIdUtils entityIdUtils, SourceKnownEntityId original)

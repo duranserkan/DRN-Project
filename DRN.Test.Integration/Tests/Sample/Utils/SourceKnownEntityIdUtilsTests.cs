@@ -57,12 +57,12 @@ public class SourceKnownEntityIdUtilsTests
         {
             pair.entityId.Should().Be(pair.parsed);
             pair.entityId.Source.Should().Be(pair.parsed.Source);
-            pair.parsed.Secure.Should().BeTrue("collision guard must prevent Secure→Unsecure misclassification");
+            pair.parsed.Secure.Should().BeTrue("collision guard must prevent Secure→Plain misclassification");
         }
         
         // Collision guard verification: the collision guard iterates the variant byte and re-encrypts
         // when ciphertext coincidentally has 0x8D at byte[7] and 0x8D at byte[8] (~1/65536 probability).
-        // After the guard, no Secure SKEID should contain the unsecure marker pattern.
+        // After the guard, no Secure SKEID should contain the plain marker pattern.
         var coincidentalMarkerCount = entityIds.Count(e =>
         {
             var bytes = e.EntityId.ToByteArray();
@@ -73,9 +73,9 @@ public class SourceKnownEntityIdUtilsTests
         //coincidentalMarkerCount shows collision count that is prevented
         coincidentalMarkerCount.Should().BeGreaterThanOrEqualTo(0);
 
-        // Collision guard: no Secure SKEID should have been misclassified as Unsecure
+        // Collision guard: no Secure SKEID should have been misclassified as Plain
         var misclassifiedCount = parsedIds.Count(p => !p.parsed.Secure);
-        misclassifiedCount.Should().Be(0, "collision guard must eliminate all Secure→Unsecure misclassification");
+        misclassifiedCount.Should().Be(0, "collision guard must eliminate all Secure→Plain misclassification");
 
         invalidIds.Length.Should().Be(0);
         validIds.Length.Should().Be(entityIds.Length);

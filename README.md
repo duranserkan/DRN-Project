@@ -158,7 +158,7 @@ Integration tests use `[DataInline]` with `DrnTestContext` and [Testcontainers](
 
 Unit tests use `[DataInlineUnit]` with `DrnTestContextUnit` for fast, isolated testing without external dependencies:
 
-- [SourceKnownEntityIdUtilsTests.cs](DRN.Test.Unit/Tests/Framework/Utils/Ids/SourceKnownEntityIdUtilsTests.cs) — SKID/SKEID generation, parsing, secure/unsecure conversion, tamper detection
+- [SourceKnownEntityIdUtilsTests.cs](DRN.Test.Unit/Tests/Framework/Utils/Ids/SourceKnownEntityIdUtilsTests.cs) — SKID/SKEID generation, parsing, secure/plain conversion, tamper detection
 - [SourceKnownIdUtilsTests.cs](DRN.Test.Unit/Tests/Framework/Utils/Ids/SourceKnownIdUtilsTests.cs) — Source-Known ID bit layout, timestamp extraction, ordering
 
 ### Developer Environment

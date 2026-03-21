@@ -136,7 +136,7 @@ The three tiers are not three separate identifiers but one entity identity proje
   │ SKID     │ Generate │ SKEID         │ ToSecure │ Secure SKEID   │
   │ Sortable │─────────▶│ BLAKE3 MAC    │─────────▶│ AES Encrypted  │
   │ 64-bit   │◀─────────│ 128-bit       │◀─────────│ 128-bit        │
-  └──────────┘  Parse   └───────────────┘ToUnsecure└────────────────┘
+  └──────────┘  Parse   └───────────────┘ ToPlain  └────────────────┘
 ```
 
 **Figure 1:** Three-tier identity model: bidirectional data transformations.
@@ -452,7 +452,7 @@ Table 8 presents the BenchmarkDotNet performance measurements for all SKID syste
 | SKEID parsing                               | 155.8      | 1.19       | 1.78        | 0 B              |
 | Secure SKEID parsing                        | 446.5      | 7.72       | 11.07       | 72 B             |
 | ToSecure (encryption only)                  | 434.8      | 0.81       | 1.16        | 72 B             |
-| ToUnsecure (decryption only)                | 134.6      | 0.88       | 1.28        | 0 B              |
+| ToPlain (decryption only)                    | 134.6      | 0.88       | 1.28        | 0 B             |
 
 ## Performance Comparison with UUID
 
@@ -490,7 +490,7 @@ Table 9 compares storage requirements across identifier schemes.
 
 At 8 bytes per SKID versus 16 bytes for UUID, storage cost halves, directly reducing archival and indexing overhead. Compared to KSUIDs at 20 bytes, storage cost is reduced to 2.5x per primary key. SKIDs as 64-bit integers provide superior B-tree index performance because smaller keys mean more keys per B-tree page, fewer page splits, and better cache utilization. The timestamp-leading layout means new records append to the end of the index, optimizing for append-heavy workloads. Cursor-based pagination is natively supported through the SKID's monotonic nature (`WHERE id > :lastId ORDER BY id LIMIT :pageSize`), eliminating offset-based pagination overhead. The dual-identifier pattern (integer primary key plus UUID external identifier) requires maintaining two separate columns with 24 bytes total per record. SKIDs eliminate this redundancy. The 8-byte SKID serves as the primary key, and the 16-byte SKEID or Secure SKEID is computed deterministically on demand without additional storage.
 
-The computational cost of tier transformations is negligible. Converting between representations requires only sub-microsecond CPU operations. ToSecure (encryption) completes in 434.8 ns and ToUnsecure (decryption) in 134.6 ns (Table 8), with no I/O, no network round-trip, and no external dependency. Any alternative that relies on a secondary lookup, whether a database join for the dual-identifier pattern, a cache query, or a remote service call, incurs latency orders of magnitude higher. This makes the transformation cost effectively zero relative to any I/O-bound identifier resolution strategy.
+The computational cost of tier transformations is negligible. Converting between representations requires only sub-microsecond CPU operations. ToSecure (encryption) completes in 434.8 ns and ToPlain (decryption) in 134.6 ns (Table 8), with no I/O, no network round-trip, and no external dependency. Any alternative that relies on a secondary lookup, whether a database join for the dual-identifier pattern, a cache query, or a remote service call, incurs latency orders of magnitude higher. This makes the transformation cost effectively zero relative to any I/O-bound identifier resolution strategy.
 
 # Discussion
 

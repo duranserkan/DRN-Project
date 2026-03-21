@@ -53,19 +53,19 @@ public class SourceKnownIdUtilsSaturationBenchmark
 
         var appSettings = AppSettings.Development();
         SecureEntityIdUtils = new(appSettings, Utils);
-        UnsecureEntityIdUtils = new(appSettings, Utils);
+        PlainEntityIdUtils = new(appSettings, Utils);
 
-        // Pre-generate IDs for Parse and ToSecure/ToUnsecure benchmarks — avoids measuring ID generation
+        // Pre-generate IDs for Parse and ToSecure/ToPlain benchmarks — avoids measuring ID generation
         var id = Utils.Next<SourceKnownIdUtilsSaturationBenchmark>();
         SecureEntityId = SecureEntityIdUtils.GenerateSecure<ZEntity>(id);
-        UnsecureEntityId = UnsecureEntityIdUtils.GenerateUnsecure<ZEntity>(id);
+        PlainEntityId = PlainEntityIdUtils.GeneratePlain<ZEntity>(id);
     }
 
     private static SourceKnownIdUtils Utils { get; }
     private static SourceKnownEntityIdUtils SecureEntityIdUtils { get; }
-    private static SourceKnownEntityIdUtils UnsecureEntityIdUtils { get; }
+    private static SourceKnownEntityIdUtils PlainEntityIdUtils { get; }
     private static SourceKnownEntityId SecureEntityId { get; }
-    private static SourceKnownEntityId UnsecureEntityId { get; }
+    private static SourceKnownEntityId PlainEntityId { get; }
     private static ZEntity Entity { get; } = new(5);
 
     // --- Baseline benchmarks (non-saturating) ---
@@ -93,16 +93,16 @@ public class SourceKnownIdUtilsSaturationBenchmark
     // --- Non-secure SourceKnownEntityId (saturating — consumes sequence IDs) ---
 
     [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityIdUnsecureWithId()
-        => UnsecureEntityIdUtils.GenerateUnsecure<ZEntity>(Utils.Next<SourceKnownIdUtilsSaturationBenchmark>());
+    public SourceKnownEntityId SourceKnownEntityIdPlainWithId()
+        => PlainEntityIdUtils.GeneratePlain<ZEntity>(Utils.Next<SourceKnownIdUtilsSaturationBenchmark>());
 
     [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityIdUnsecureWithEntity()
-        => UnsecureEntityIdUtils.GenerateUnsecure(new ZEntity(Utils.Next<SourceKnownIdUtilsSaturationBenchmark>()));
+    public SourceKnownEntityId SourceKnownEntityIdPlainWithEntity()
+        => PlainEntityIdUtils.GeneratePlain(new ZEntity(Utils.Next<SourceKnownIdUtilsSaturationBenchmark>()));
 
     [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityIdUnsecureWithProvidedLongValue()
-        => UnsecureEntityIdUtils.GenerateUnsecure(Entity);
+    public SourceKnownEntityId SourceKnownEntityIdPlainWithProvidedLongValue()
+        => PlainEntityIdUtils.GeneratePlain(Entity);
 
     // --- Secure SourceKnownEntityId (saturating — consumes sequence IDs) ---
 
@@ -117,16 +117,16 @@ public class SourceKnownIdUtilsSaturationBenchmark
         => SecureEntityIdUtils.Parse(SecureEntityId.EntityId);
 
     [Benchmark]
-    public SourceKnownEntityId ParseUnsecureSourceKnownEntityId()
-        => UnsecureEntityIdUtils.Parse(UnsecureEntityId.EntityId);
+    public SourceKnownEntityId ParsePlainSourceKnownEntityId()
+        => PlainEntityIdUtils.Parse(PlainEntityId.EntityId);
 
     // --- Tier conversion benchmarks (non-saturating — reuse existing SKID) ---
 
     [Benchmark]
-    public SourceKnownEntityId ToSecure() => SecureEntityIdUtils.ToSecure(UnsecureEntityId);
+    public SourceKnownEntityId ToSecure() => SecureEntityIdUtils.ToSecure(PlainEntityId);
 
     [Benchmark]
-    public SourceKnownEntityId ToUnsecure() => UnsecureEntityIdUtils.ToUnsecure(SecureEntityId);
+    public SourceKnownEntityId ToPlain() => PlainEntityIdUtils.ToPlain(SecureEntityId);
 }
 
 [EntityType(93)]

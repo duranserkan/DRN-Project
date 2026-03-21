@@ -553,15 +553,15 @@ worker.Stop();
 
 #### Generation Modes
 
-The `Generate` method dispatches to secure or unsecure generation based on the `UseSecureSourceKnownIds` flag in `NexusAppSettings` (defaults to `true`). Explicit `GenerateSecure` and `GenerateUnsecure` methods are also available to bypass the flag.
+The `Generate` method dispatches to secure or plain generation based on the `UseSecureSourceKnownIds` flag in `NexusAppSettings` (defaults to `true`). Explicit `GenerateSecure` and `GeneratePlain` methods are also available to bypass the flag.
 
 | Method | Behavior |
 |--------|----------|
-| `Generate` | Dispatches to secure or unsecure based on `UseSecureSourceKnownIds` |
+| `Generate` | Dispatches to secure or plain based on `UseSecureSourceKnownIds` |
 | `GenerateSecure` | AES-256-ECB encrypted — full 16-byte GUID is a ciphertext block |
-| `GenerateUnsecure` | Plaintext with visible `8D8D` version/variant markers |
-| `ToSecure` | Converts an unsecure ID to its secure form (idempotent) |
-| `ToUnsecure` | Converts a secure ID to its unsecure form (idempotent) |
+| `GeneratePlain` | Plaintext with visible `8D8D` version/variant markers |
+| `ToSecure` | Converts an plain ID to its secure form (idempotent) |
+| `ToPlain` | Converts a secure ID to its plain form (idempotent) |
 
 **Secure variant** encrypts the entire 16-byte GUID using AES-256-ECB as a pseudo-random permutation (PRP). For a single 128-bit block, ECB is mathematically identical to CBC with a zero IV — no nonce required, no nonce-reuse vulnerability. Key separation ensures BLAKE3 keyed MAC (integrity) and AES-256 (confidentiality) use cryptographically independent keys from the same keyring entry.
 
@@ -575,12 +575,12 @@ var entityId = sourceKnownEntityIdUtils.Generate<User>(id);
 // Explicitly secure
 var secureId = sourceKnownEntityIdUtils.GenerateSecure<User>(id);
 
-// Explicitly unsecure (visible markers for debugging/development)
-var unsecureId = sourceKnownEntityIdUtils.GenerateUnsecure<User>(id);
+// Explicitly plain (visible markers for debugging/development)
+var plainId = sourceKnownEntityIdUtils.GeneratePlain<User>(id);
 
-// Convert between secure and unsecure forms (idempotent)
-var secureId = sourceKnownEntityIdUtils.ToSecure(unsecureEntityId);
-var unsecureId = sourceKnownEntityIdUtils.ToUnsecure(secureEntityId);
+// Convert between secure and plain forms (idempotent)
+var secureId = sourceKnownEntityIdUtils.ToSecure(plainEntityId);
+var plainId = sourceKnownEntityIdUtils.ToPlain(secureEntityId);
 ```
 
 #### Parse & Validation

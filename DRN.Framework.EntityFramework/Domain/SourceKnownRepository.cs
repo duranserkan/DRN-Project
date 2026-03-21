@@ -311,7 +311,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         => ids.Select(GetEntityId<TOtherEntity>);
 
     public SourceKnownEntityId ToSecure(SourceKnownEntityId id) => Utils.EntityId.ToSecure(id);
-    public SourceKnownEntityId ToUnsecure(SourceKnownEntityId id) => Utils.EntityId.ToUnsecure(id);
+    public SourceKnownEntityId ToPlain(SourceKnownEntityId id) => Utils.EntityId.ToPlain(id);
 
     public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
         => await PaginateAsync(EntitiesWithAppliedSettings(), request, filter);

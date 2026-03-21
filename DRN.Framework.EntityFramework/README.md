@@ -285,7 +285,7 @@ public class UserRepository(QAContext context, IEntityUtils utils)
 
 **IEntityUtils provides:**
 - **Id**: Identity generation and validation utilities
-- **EntityId**: GUID ↔ SourceKnownEntityId conversion (including `ToSecure` / `ToUnsecure`)
+- **EntityId**: GUID ↔ SourceKnownEntityId conversion (including `ToSecure` / `ToPlain`)
 - **Cancellation**: Token management and merging
 - **Pagination**: Pagination logic helpers
 - **DateTime**: Time-aware operations
@@ -434,13 +434,13 @@ var userIds = repository.GetEntityIds(guidList, validate: true);
 var users = await repository.GetAsync(userIds);
 ```
 
-### Secure ↔ Unsecure Conversion
+### Secure ↔ Plain Conversion
 
 Repositories expose idempotent conversion between encrypted and plaintext entity IDs:
 
 ```csharp
 var secureId = repository.ToSecure(entityId);
-var unsecureId = repository.ToUnsecure(entityId);
+var plainId = repository.ToPlain(entityId);
 ```
 
 ---

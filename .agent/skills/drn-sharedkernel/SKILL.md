@@ -45,9 +45,9 @@ public abstract class SourceKnownEntity(long id = 0)
     public SourceKnownEntityId GetEntityId(Guid id, byte entityType);
     public SourceKnownEntityId GetEntityId<TEntity>(Guid id);
 
-    // Secure ↔ Unsecure conversion (idempotent, injected via ISourceKnownEntityIdOperations)
+    // Secure ↔ Plain conversion (idempotent, injected via ISourceKnownEntityIdOperations)
     public SourceKnownEntityId ToSecure(SourceKnownEntityId id);
-    public SourceKnownEntityId ToUnsecure(SourceKnownEntityId id);
+    public SourceKnownEntityId ToPlain(SourceKnownEntityId id);
     
     // Auto-called by DrnContext
     internal void MarkAsCreated();   // Sets CreatedAt, adds created event
@@ -83,7 +83,7 @@ public abstract class EntityDeleted(SourceKnownEntity entity) : DomainEvent(enti
 
 ## Source-Known Identity System
 
-Balances DB performance (`long`) with external security (`Guid`) and type safety. `ISourceKnownEntityIdOperations` defines the core contract (`Generate`, `Parse`, `ToSecure`, `ToUnsecure`) in SharedKernel; implemented by `SourceKnownEntityIdUtils` in Utils and injected into entities by EF interceptors.
+Balances DB performance (`long`) with external security (`Guid`) and type safety. `ISourceKnownEntityIdOperations` defines the core contract (`Generate`, `Parse`, `ToSecure`, `ToPlain`) in SharedKernel; implemented by `SourceKnownEntityIdUtils` in Utils and injected into entities by EF interceptors.
 
 ```csharp
 public readonly record struct SourceKnownId(
@@ -110,12 +110,12 @@ var id = userRepository.GetEntityId(externalGuid);
 var id = userInstance.GetEntityId<User>(externalGuid);
 ```
 
-### Secure ↔ Unsecure Conversion
+### Secure ↔ Plain Conversion
 
 Available on entity, repository, and injectable utility — idempotent:
 ```csharp
 var secureId = entity.ToSecure(entityId);      // or repository.ToSecure(entityId)
-var unsecureId = entity.ToUnsecure(entityId);  // or sourceKnownEntityIdUtils.ToUnsecure(entityId)
+var plainId = entity.ToPlain(entityId);  // or sourceKnownEntityIdUtils.ToPlain(entityId)
 ```
 
 ---

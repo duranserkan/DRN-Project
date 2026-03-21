@@ -100,29 +100,29 @@ public class IetfTestVectorGeneratorTests
         parsed.AppInstanceId.Should().Be(3);
         parsed.InstanceId.Should().Be(42);
 
-        // --- A.3: SKEID Generation (Unsecure) ---
+        // --- A.3: SKEID Generation (Plain) ---
         byte entityType = 1;
-        var unsecureId = entityIdUtils.GenerateUnsecure(skid, entityType);
+        var plainId = entityIdUtils.GeneratePlain(skid, entityType);
 
-        var unsecureBytes = unsecureId.EntityId.ToByteArray();
+        var plainBytes = plainId.EntityId.ToByteArray();
 
         // Assert exact byte layout matches draft-skid-00.md Appendix A.3
         // Note: exact hex depends on BLAKE3 MAC computation with the test key and the new SKID value
-        var unsecureHex = Convert.ToHexString(unsecureBytes);
-        var unsecureGuidStr = unsecureId.EntityId.ToString();
-        Console.WriteLine($"Unsecure SKEID hex: {unsecureHex}");
-        Console.WriteLine($"Unsecure SKEID GUID: {unsecureGuidStr}");
+        var plainHex = Convert.ToHexString(plainBytes);
+        var plainGuidStr = plainId.EntityId.ToString();
+        Console.WriteLine($"Plain SKEID hex: {plainHex}");
+        Console.WriteLine($"Plain SKEID GUID: {plainGuidStr}");
 
         // Structural assertions — SKEID byte layout is unchanged
         // Bytes 0-3: SKID upper half, Byte 4: entity type, Byte 5: epoch,
         // Byte 6: MAC byte 0, Byte 7: version marker, Byte 8: variant marker,
         // Bytes 9-11: MAC bytes 1-3, Bytes 12-15: SKID lower half
-        unsecureBytes[4].Should().Be(entityType, "byte 4 = entity type");
-        unsecureBytes[5].Should().Be(0x00, "byte 5 = epoch 0x00");
-        unsecureBytes[7].Should().Be(0x8D, "byte 7 = version marker");
-        unsecureBytes[8].Should().Be(0x8D, "byte 8 = variant marker");
+        plainBytes[4].Should().Be(entityType, "byte 4 = entity type");
+        plainBytes[5].Should().Be(0x00, "byte 5 = epoch 0x00");
+        plainBytes[7].Should().Be(0x8D, "byte 7 = version marker");
+        plainBytes[8].Should().Be(0x8D, "byte 8 = variant marker");
 
-        Console.WriteLine("=== A.3. SKEID Generation (Unsecure) ===");
+        Console.WriteLine("=== A.3. SKEID Generation (Plain) ===");
         Console.WriteLine();
         Console.WriteLine($"Input:");
         Console.WriteLine($"  SKID = {skid}");
@@ -130,15 +130,15 @@ public class IetfTestVectorGeneratorTests
         Console.WriteLine();
         Console.WriteLine($"Byte layout:");
         for (var i = 0; i < 16; i++)
-            Console.WriteLine($"  Byte {i,2}: 0x{unsecureBytes[i]:X2}  ({DescribeByte(i)})");
+            Console.WriteLine($"  Byte {i,2}: 0x{plainBytes[i]:X2}  ({DescribeByte(i)})");
         Console.WriteLine();
-        Console.WriteLine($"GUID:              {unsecureId.EntityId}");
-        Console.WriteLine($"Hex (all bytes):   {Convert.ToHexString(unsecureBytes)}");
+        Console.WriteLine($"GUID:              {plainId.EntityId}");
+        Console.WriteLine($"Hex (all bytes):   {Convert.ToHexString(plainBytes)}");
         Console.WriteLine();
 
         // Verify markers
-        unsecureBytes[7].Should().Be(0x8D, "marker version");
-        unsecureBytes[8].Should().Be(0x8D, "marker variant");
+        plainBytes[7].Should().Be(0x8D, "marker version");
+        plainBytes[8].Should().Be(0x8D, "marker variant");
 
         // --- A.4: Secure SKEID Generation ---
         var secureId = entityIdUtils.GenerateSecure(skid, entityType);
@@ -166,11 +166,11 @@ public class IetfTestVectorGeneratorTests
         Console.WriteLine();
 
         // 1. Parse SKEID → verify SKID matches
-        var parsedUnsecure = entityIdUtils.Parse(unsecureId.EntityId);
-        parsedUnsecure.Valid.Should().BeTrue();
-        parsedUnsecure.Source.Id.Should().Be(skid);
-        parsedUnsecure.Secure.Should().BeFalse();
-        Console.WriteLine($"1. Parse SKEID:          Valid={parsedUnsecure.Valid}, SKID={parsedUnsecure.Source.Id} ✓");
+        var parsedPlain = entityIdUtils.Parse(plainId.EntityId);
+        parsedPlain.Valid.Should().BeTrue();
+        parsedPlain.Source.Id.Should().Be(skid);
+        parsedPlain.Secure.Should().BeFalse();
+        Console.WriteLine($"1. Parse SKEID:          Valid={parsedPlain.Valid}, SKID={parsedPlain.Source.Id} ✓");
 
         // 2. Parse Secure SKEID → verify SKID matches
         var parsedSecure = entityIdUtils.Parse(secureId.EntityId);
@@ -180,14 +180,14 @@ public class IetfTestVectorGeneratorTests
         Console.WriteLine($"2. Parse Secure SKEID:   Valid={parsedSecure.Valid}, SKID={parsedSecure.Source.Id} ✓");
 
         // 3. ToSecure(SKEID) → matches Secure SKEID
-        var converted = entityIdUtils.ToSecure(parsedUnsecure);
+        var converted = entityIdUtils.ToSecure(parsedPlain);
         converted.EntityId.Should().Be(secureId.EntityId);
         Console.WriteLine($"3. ToSecure(SKEID):      GUID={converted.EntityId} == Secure ✓");
 
-        // 4. ToUnsecure(Secure) → matches SKEID
-        var backToUnsecure = entityIdUtils.ToUnsecure(parsedSecure);
-        backToUnsecure.EntityId.Should().Be(unsecureId.EntityId);
-        Console.WriteLine($"4. ToUnsecure(Secure):   GUID={backToUnsecure.EntityId} == Unsecure ✓");
+        // 4. ToPlain(Secure) → matches SKEID
+        var backToPlain = entityIdUtils.ToPlain(parsedSecure);
+        backToPlain.EntityId.Should().Be(plainId.EntityId);
+        Console.WriteLine($"4. ToPlain(Secure):   GUID={backToPlain.EntityId} == Plain ✓");
         Console.WriteLine();
         Console.WriteLine("All round-trip verifications passed.");
     }

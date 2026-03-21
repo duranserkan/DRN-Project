@@ -129,8 +129,8 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
 
     public SourceKnownEntityId ToSecure(SourceKnownEntityId id) => Ops.ToSecure(id);
     public SourceKnownEntityId? ToSecure(SourceKnownEntityId? id) => id.HasValue ? Ops.ToSecure(id.Value) : null;
-    public SourceKnownEntityId ToUnsecure(SourceKnownEntityId id) => Ops.ToUnsecure(id);
-    public SourceKnownEntityId? ToUnsecure(SourceKnownEntityId? id) => id.HasValue ? Ops.ToUnsecure(id.Value) : null;
+    public SourceKnownEntityId ToPlain(SourceKnownEntityId id) => Ops.ToPlain(id);
+    public SourceKnownEntityId? ToPlain(SourceKnownEntityId? id) => id.HasValue ? Ops.ToPlain(id.Value) : null;
 
     public SourceKnownEntityId GetEntityId<TEntity>(Guid id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
     public SourceKnownEntityId? GetEntityId<TEntity>(Guid? id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());

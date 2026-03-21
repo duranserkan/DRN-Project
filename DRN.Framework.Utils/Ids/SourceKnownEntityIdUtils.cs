@@ -15,7 +15,7 @@ namespace DRN.Framework.Utils.Ids;
 /// </summary>
 public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
 {
-    /// <summary>Dispatches to <c>GenerateSecure</c> or <c>GenerateUnsecure</c> based on <c>AppSettings.NexusAppSettings.UseSecureSourceKnownIds</c>.</summary>
+    /// <summary>Dispatches to <c>GenerateSecure</c> or <c>GeneratePlain</c> based on <c>AppSettings.NexusAppSettings.UseSecureSourceKnownIds</c>.</summary>
     SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity;
 
     /// <inheritdoc cref="Generate{TEntity}(long)"/>
@@ -28,9 +28,9 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
     SourceKnownEntityId GenerateSecure(SourceKnownEntity entity);
     SourceKnownEntityId GenerateSecure(long id, byte entityType);
 
-    SourceKnownEntityId GenerateUnsecure<TEntity>(long id) where TEntity : SourceKnownEntity;
-    SourceKnownEntityId GenerateUnsecure(SourceKnownEntity entity);
-    SourceKnownEntityId GenerateUnsecure(long id, byte entityType);
+    SourceKnownEntityId GeneratePlain<TEntity>(long id) where TEntity : SourceKnownEntity;
+    SourceKnownEntityId GeneratePlain(SourceKnownEntity entity);
+    SourceKnownEntityId GeneratePlain(long id, byte entityType);
 
     SourceKnownEntityId? Parse(Guid? entityId);
     new SourceKnownEntityId Parse(Guid entityId);
@@ -43,8 +43,8 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
 
     new SourceKnownEntityId ToSecure(SourceKnownEntityId id);
     SourceKnownEntityId? ToSecure(SourceKnownEntityId? id);
-    new SourceKnownEntityId ToUnsecure(SourceKnownEntityId id);
-    SourceKnownEntityId? ToUnsecure(SourceKnownEntityId? id);
+    new SourceKnownEntityId ToPlain(SourceKnownEntityId id);
+    SourceKnownEntityId? ToPlain(SourceKnownEntityId? id);
 }
 
 /// <summary>
@@ -114,12 +114,12 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     public SourceKnownEntityId Generate(SourceKnownEntity entity) => Generate(entity.Id, SourceKnownEntity.GetEntityType(entity));
 
     public SourceKnownEntityId Generate(long id, byte entityType)
-        => _useSecure ? GenerateSecure(id, entityType) : GenerateUnsecure(id, entityType);
+        => _useSecure ? GenerateSecure(id, entityType) : GeneratePlain(id, entityType);
 
-    public SourceKnownEntityId GenerateUnsecure<TEntity>(long id) where TEntity : SourceKnownEntity => GenerateUnsecure(id, SourceKnownEntity.GetEntityType<TEntity>());
-    public SourceKnownEntityId GenerateUnsecure(SourceKnownEntity entity) => GenerateUnsecure(entity.Id, SourceKnownEntity.GetEntityType(entity));
+    public SourceKnownEntityId GeneratePlain<TEntity>(long id) where TEntity : SourceKnownEntity => GeneratePlain(id, SourceKnownEntity.GetEntityType<TEntity>());
+    public SourceKnownEntityId GeneratePlain(SourceKnownEntity entity) => GeneratePlain(entity.Id, SourceKnownEntity.GetEntityType(entity));
 
-    public SourceKnownEntityId GenerateUnsecure(long id, byte entityType)
+    public SourceKnownEntityId GeneratePlain(long id, byte entityType)
     {
         Span<byte> hashBytes = stackalloc byte[MacHashLength];
         Span<byte> guidBytes = stackalloc byte[GuidLength]; // Allocate 16 bytes on the stack for the GUID
@@ -153,9 +153,9 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         // Encrypt entire 16-byte block with AES-ECB (true PRP — no nonce needed)
         EncryptGuidBlock(guidBytes, _aes);
 
-        // Collision guard: if ciphertext coincidentally has unsecure markers (0x8D8D, ~1/65536)
+        // Collision guard: if ciphertext coincidentally has plain markers (0x8D8D, ~1/65536)
         // AND the MAC extracted from ciphertext matches a recomputed MAC (~1/2^32),
-        // the parse path would misclassify this Secure SKEID as Unsecure.
+        // the parse path would misclassify this Secure SKEID as Plain.
         // Fix: iterate variant bytes 0x8E→0xBF — AES avalanche guarantees distinct ciphertext per variant.
         // Deterministic termination: at most 51 iterations. Exhaustion throws JackpotException.
         if (HasValidMarkers(guidBytes) && HasCoincidentalMacMatch(guidBytes))
@@ -262,14 +262,14 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     public SourceKnownEntityId? ToSecure(SourceKnownEntityId? id)
         => id.HasValue ? ToSecure(id.Value) : null;
 
-    public SourceKnownEntityId ToUnsecure(SourceKnownEntityId id)
+    public SourceKnownEntityId ToPlain(SourceKnownEntityId id)
     {
         id.ValidateId();
-        return id.Secure ? GenerateUnsecure(id.Source.Id, id.EntityType) : id;
+        return id.Secure ? GeneratePlain(id.Source.Id, id.EntityType) : id;
     }
 
-    public SourceKnownEntityId? ToUnsecure(SourceKnownEntityId? id)
-        => id.HasValue ? ToUnsecure(id.Value) : null;
+    public SourceKnownEntityId? ToPlain(SourceKnownEntityId? id)
+        => id.HasValue ? ToPlain(id.Value) : null;
 
     private static SourceKnownEntityId CreateInvalid(Guid entityId) => new(default, entityId, InvalidEntityType, false, Secure: false);
 
@@ -287,7 +287,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
            && (guidBytes[SourceKnownMarkerVariantIndex] & 0xC0) == 0x80;
 
     /// <summary>
-    /// Checks whether ciphertext bytes, when interpreted as an unsecure SKEID,
+    /// Checks whether ciphertext bytes, when interpreted as an plain SKEID,
     /// produce a coincidental MAC match. Used by the collision guard in
     /// <see cref="GenerateSecure(long, byte)"/> to detect the ~1/2^48 edge case.
     /// </summary>

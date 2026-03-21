@@ -50,7 +50,7 @@ DrnContext augments entities during `OnModelCreating` and runtime:
 |---------|-----------|
 | **ID Generation** | `IDrnSaveChangesInterceptor` assigns collision-free `long` IDs for new entities |
 | **Property Init** | `IDrnMaterializationInterceptor` initializes `EntityIdSource` and injects `ISourceKnownEntityIdOperations` (`EntityIdOps`) |
-| **Secure ↔ Unsecure** | `ToSecure` / `ToUnsecure` on entity and repository for idempotent ID form conversion |
+| **Secure ↔ Plain** | `ToSecure` / `ToPlain` on entity and repository for idempotent ID form conversion |
 | **JSON Models** | `IEntityWithModel<T>` auto-maps `.Model` to `jsonb` column |
 | **Identity Naming** | ASP.NET Core Identity tables/columns → `snake_case` for PostgreSQL |
 | **Startup Validation** | Validates all entities have valid, unique `[EntityType]` attributes |
