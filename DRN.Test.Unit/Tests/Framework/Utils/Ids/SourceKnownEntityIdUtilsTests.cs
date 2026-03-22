@@ -142,16 +142,16 @@ public class SourceKnownEntityIdUtilsTests
         var secureEntityId = entityIdUtils.GenerateSecure(new XEntity(longId));
 
         // Tamper with first byte — AES-ECB decryption produces garbage, markers won't match
-        var tamperedBytes = secureEntityId.EntityId.ToByteArray();
+        var tamperedBytes = secureEntityId.EntityId.ToByteArray(bigEndian: true);
         tamperedBytes[0] ^= 0xFF;
-        var tamperedResult1 = entityIdUtils.Parse(new Guid(tamperedBytes));
+        var tamperedResult1 = entityIdUtils.Parse(new Guid(tamperedBytes, bigEndian: true));
         tamperedResult1.Valid.Should().BeFalse("tampered secure guid should be detected as invalid");
         tamperedResult1.Secure.Should().BeFalse("invalid result should have Secure=false");
 
         // Tamper with a different byte position
-        var tamperedBytes2 = secureEntityId.EntityId.ToByteArray();
+        var tamperedBytes2 = secureEntityId.EntityId.ToByteArray(bigEndian: true);
         tamperedBytes2[4] ^= 0x01;
-        var tamperedResult2 = entityIdUtils.Parse(new Guid(tamperedBytes2));
+        var tamperedResult2 = entityIdUtils.Parse(new Guid(tamperedBytes2, bigEndian: true));
         tamperedResult2.Valid.Should().BeFalse("any tampered byte should be detected as invalid");
         tamperedResult2.Secure.Should().BeFalse("invalid result should have Secure=false");
     }
@@ -269,7 +269,7 @@ public class SourceKnownEntityIdUtilsTests
         var secureId = entityIdUtils.GenerateSecure(new XEntity(longId));
 
         // Decrypt the secure SKEID to access plaintext
-        var cipherBytes = secureId.EntityId.ToByteArray();
+        var cipherBytes = secureId.EntityId.ToByteArray(bigEndian: true);
         var aesKey = context.GetRequiredService<IAppSettings>()
             .NexusAppSettings.GetDefaultMacKey().AlternativeKeyAsBinary.ToArray();
 
@@ -281,7 +281,7 @@ public class SourceKnownEntityIdUtilsTests
         var plainBytes = new byte[16];
         aes.DecryptEcb(cipherBytes, plainBytes, PaddingMode.None);
 
-        // The default variant should be 0x8D — tamper it to 0x8F
+        // The default variant should be 0x8D at byte 8 (RFC 9562 octet 8) — tamper it to 0x8F
         // (0x8F implies two successive collisions at 0x8D and 0x8E, which didn't actually happen)
         plainBytes[8].Should().Be(0x8D, "default variant byte should be 0x8D");
         plainBytes[8] = 0x8F; // tampered — no genuine collision at 0x8E
@@ -289,7 +289,7 @@ public class SourceKnownEntityIdUtilsTests
         // Re-encrypt with tampered plaintext
         var tamperedCipher = new byte[16];
         aes.EncryptEcb(plainBytes, tamperedCipher, PaddingMode.None);
-        var tamperedGuid = new Guid(tamperedCipher);
+        var tamperedGuid = new Guid(tamperedCipher, bigEndian: true);
 
         // Parse must reject: backward verification will reconstruct variant=0x8E,
         // encrypt it, and find that its ciphertext does NOT have marker+MAC coincidence
@@ -334,9 +334,10 @@ public class SourceKnownEntityIdUtilsTests
 
     private static bool IsVersion8Rfc9562(Guid guid)
     {
-        var bytes = guid.ToByteArray();
-        var isVersion8 = (bytes[7] >> 4) == 8;
-        var isRfc9562Variant = (bytes[8] & 0xC0) == 0x80;
+        // Use big-endian byte array for RFC 9562 standard octet positions
+        var bytes = guid.ToByteArray(bigEndian: true);
+        var isVersion8 = (bytes[6] >> 4) == 8; // RFC 9562 octet 6: version nibble
+        var isRfc9562Variant = (bytes[8] & 0xC0) == 0x80; // RFC 9562 octet 8: variant bits
         return isVersion8 && isRfc9562Variant;
     }
 

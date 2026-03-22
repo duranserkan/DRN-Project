@@ -60,44 +60,59 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
 [Singleton<ISourceKnownEntityIdUtils>]
 public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUtils sourceKnownIdUtils) : ISourceKnownEntityIdUtils, IDisposable
 {
-    //0-3 Source Known Id first half
-    //4 entity type
-    //5 epoch
-    //6 is reserved for MAC hash along with 9, 10, 11
-    //7-8 Source Known Id version & variant marker — required for UUID V8 RFC 9562 §5.8 compliance; also contributes to the integrity check
-    //9, 10 and 11 are reserved for MAC hashing along with 6
-    //12-15 Source Known Id second half
+    // RFC 9562 V8 big-endian byte layout (network byte order):
+    // 0    epoch
+    // 1-4  SKID upper half (sign-toggled, big-endian) — epoch half + timestamp
+    // 5    entity type
+    // 6    version marker 0x8D — RFC 9562 §5.8 octet 6 (UUID V8)
+    // 7    SKID lower half byte 0 (MSB) — timestamp LSB + appId MSBs
+    // 8    variant marker 0x8D — RFC 9562 §4.1 octet 8
+    // 9-11 SKID lower half bytes 1-3 — appId/appInstanceId/sequence
+    // 12-15 BLAKE3 keyed MAC (contiguous)
+    //
+    // Sign-bit toggle: SKID uses signed comparison (negative < positive), but UUID byte comparison
+    // is unsigned (0x00 < 0x80). XOR the MSB of the upper half with 0x80000000 on write/read to
+    // convert between signed sort order and unsigned lexicographic order.
+    // First half (negative SKIDs, 0x80..→0xFF..) → 0x00..→0x7F.. (sorts first)
+    // Second half (positive SKIDs, 0x00..→0x7F..) → 0x80..→0xFF.. (sorts second)
+    //
+    // .NET Guid uses mixed endianness internally (Data1/Data2/Data3 little-endian, Data4 sequential),
+    // but Guid(ReadOnlySpan<byte>, bigEndian: true) and ToByteArray(bigEndian: true) provide consistent
+    // big-endian byte order for cross-platform RFC 9562 compliance.
     private const byte GuidLength = 16;
+    private const uint SignBitToggle = 0x80000000; // XOR mask for signed↔unsigned sort-order conversion
 
-    private const byte EntityIdFirstHalfOffset = 0;
-    private const byte EntityIdFirstHalfLength = 4; // 0-3
+    private const byte EpochIndex = 0; // 0
 
-    private const byte EntityTypeIndex = 4; //4
+    private const byte EntityIdUpperHalfOffset = 1;
+    private const byte EntityIdUpperHalfLength = 4; // 1-4
+
+    private const byte EntityTypeIndex = 5; // 5
     private const byte InvalidEntityType = byte.MaxValue;
 
-    //5th index is reserved for epoch, first epoch starts at 2025-01-01.
-    //Each epoch is approximately 68 years long with 2 halves separated with sign bit
-    //2^32 ticks / 4 ticks/s = 2^30 seconds * 2^1 epoch half flag in source known id timestamp.
-    //5th index was initially reserved for MAC hash but with Secure Source Known id's this byte is repurposed for epoch usage
-    //With epoch support, source known ids can address ~17,421 monotonic time years starting from 2025-01-01
+    // Epoch at byte 0, first epoch starts at 2025-01-01.
+    // Each epoch is approximately 68 years long with 2 halves separated with sign bit
+    // 2^32 ticks / 4 ticks/s = 2^30 seconds * 2^1 epoch half flag in source known id timestamp.
+    // With epoch support, source known ids can address ~17,421 monotonic time years starting from 2025-01-01
     //todo handle epoch management (not urgent for next 60 years)
 
     private const byte MacHashLength = 4;
-    private const byte MacHashFirstIndex = 6;
-    private const byte MacHashSecondIndex = 9;
-    private const byte MacHashThirdIndex = 10;
-    private const byte MacHashFourthIndex = 11;
+    private const byte MacHashOffset = 12; // 12-15 (contiguous)
 
-    //8D8D mark — plaintext markers used for non-secure variant and inside the encrypted block for secure variant
-    //Ensures that the source-known entityId is easily identifiable by humans and UUID V8 compatible (RFC 9562 §5.8)
-    private const byte SourceKnownMarkerVersionIndex = 7;
+    // 8D8D mark — plaintext markers used for non-secure variant and inside the encrypted block for secure variant
+    // Ensures that the source-known entityId is easily identifiable by humans and UUID V8 compatible (RFC 9562 §5.8)
+    // Version at RFC 9562 octet 6, variant at RFC 9562 octet 8 — standard positions in big-endian layout
+    private const byte SourceKnownMarkerVersionIndex = 6;
     private const byte SourceKnownMarkerVariantIndex = 8;
-    private const byte SourceKnownMarkerVersionByte = 0x8D; //7 | V8 => UUID V8 per RFC 9562 §5.8
+    private const byte SourceKnownMarkerVersionByte = 0x8D; //6 | V8 => UUID V8 per RFC 9562 §5.8
     private const byte SourceKnownMarkerVariantByte = 0x8D; //8 | Variant RFC 9562 §4.1
     private const byte SourceKnownMarkerVariantMaxByte = 0xBF; //8 | Variant RFC 9562 §4.1 upper bound (collision guard)
 
-    private const byte EntityIdSecondHalfOffset = 12;
-    private const byte EntityIdSecondHalfLength = 4; // 12-15
+    // SKID lower half is split around the variant marker:
+    // byte 7 = MSB of lower half, bytes 9-11 = remaining 3 bytes
+    private const byte EntityIdLowerByte0Index = 7;
+    private const byte EntityIdLowerBytes123Offset = 9;
+    private const byte EntityIdLowerBytes123Length = 3; // 9-11
 
     // Key separation: KeyAsBinary and AlternativeKeyAsBinary are cryptographically independent keys from the same keyring entry.
     // KeyAsBinary → BLAKE3 keyed MAC (integrity). AlternativeKeyAsBinary → AES-256-ECB (confidentiality).
@@ -129,7 +144,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         ComputeMac(guidBytes, hashBytes, _defaultMacKey);
         WriteMacToGuid(guidBytes, hashBytes);
 
-        var entityId = new Guid(guidBytes);
+        var entityId = new Guid(guidBytes, bigEndian: true);
         var sourceKnownId = sourceKnownIdUtils.Parse(id);
 
         return new SourceKnownEntityId(sourceKnownId, entityId, entityType, true, Secure: false);
@@ -182,7 +197,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
                     $"for id={id}, entityType={entityType}. Probability: ~1/2^(48×51).");
         }
 
-        var entityId = new Guid(guidBytes);
+        var entityId = new Guid(guidBytes, bigEndian: true);
         var sourceKnownId = sourceKnownIdUtils.Parse(id);
 
         return new SourceKnownEntityId(sourceKnownId, entityId, entityType, true, Secure: true);
@@ -193,7 +208,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     public SourceKnownEntityId Parse(Guid entityId)
     {
         Span<byte> guidBytes = stackalloc byte[GuidLength];
-        entityId.TryWriteBytes(guidBytes);
+        entityId.TryWriteBytes(guidBytes, bigEndian: true, out _);
 
         // Try non-secure path first (plaintext 8D8D markers visible)
         if (HasValidMarkers(guidBytes))
@@ -204,8 +219,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
 
             // Markers were coincidental in ciphertext (~1/65536) — restore and try decrypt path
             // Interestingly, when 6,291,453 ids generated around 96 entities (92, 101 etc.) had coincidental markers
-            // Tested with DRN.Test.Unit/Tests/Framework/Utils/Ids/SourceKnownEntityIdUtilsTests.cs
-            entityId.TryWriteBytes(guidBytes);
+            entityId.TryWriteBytes(guidBytes, bigEndian: true, out _);
         }
 
         // Try secure path: AES-ECB decrypt full block, then check for markers
@@ -307,6 +321,8 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
 
     /// <summary>
     /// Verifies MAC integrity and extracts ID/entityType from a plaintext (or decrypted) guid byte span.
+    /// Reads the SKID upper half from bytes 1–4 (big-endian, sign-toggled) and the split lower half
+    /// from byte 7 + bytes 9–11 (big-endian). XOR untoggle restores the original signed representation.
     /// </summary>
     private SourceKnownEntityId VerifyAndParse(Span<byte> guidBytes, Guid entityId, bool secure)
     {
@@ -315,13 +331,22 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
 
         ReadMacFromGuid(guidBytes, actualHashBytes);
 
-        var idFirstHalf = BinaryPrimitives.ReadUInt32LittleEndian(guidBytes.Slice(EntityIdFirstHalfOffset, EntityIdFirstHalfLength));
-        var idSecondHalf = BinaryPrimitives.ReadUInt32LittleEndian(guidBytes.Slice(EntityIdSecondHalfOffset, EntityIdSecondHalfLength));
+        // Epoch at byte 0 — covered by MAC; todo: consume in multi-epoch parsing
+
+        // Read upper half (big-endian) and untoggle sign bit for signed sort-order restoration
+        var idUpperHalf = BinaryPrimitives.ReadUInt32BigEndian(guidBytes.Slice(EntityIdUpperHalfOffset, EntityIdUpperHalfLength)) ^ SignBitToggle;
+
+        // Read split lower half: byte 7 (MSB) + bytes 9-11
+        var idLowerHalf = ((uint)guidBytes[EntityIdLowerByte0Index] << 24)
+                        | ((uint)guidBytes[EntityIdLowerBytes123Offset] << 16)
+                        | ((uint)guidBytes[EntityIdLowerBytes123Offset + 1] << 8)
+                        | guidBytes[EntityIdLowerBytes123Offset + 2];
+
         var entityType = guidBytes[EntityTypeIndex];
 
         var idBuilder = NumberBuilder.GetLongUnsigned();
-        idBuilder.TryAddUInt(idFirstHalf);
-        idBuilder.TryAddUInt(idSecondHalf);
+        idBuilder.TryAddUInt(idUpperHalf);
+        idBuilder.TryAddUInt(idLowerHalf);
         var id = (long)idBuilder.GetValue();
 
         ClearMacSlots(guidBytes);
@@ -340,15 +365,21 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     /// </summary>
     private bool VerifyCollisionGuardProof(ReadOnlySpan<byte> decryptedBytes, byte previousVariant)
     {
-        var idFirstHalf = BinaryPrimitives.ReadUInt32LittleEndian(
-            decryptedBytes.Slice(EntityIdFirstHalfOffset, EntityIdFirstHalfLength));
-        var idSecondHalf = BinaryPrimitives.ReadUInt32LittleEndian(
-            decryptedBytes.Slice(EntityIdSecondHalfOffset, EntityIdSecondHalfLength));
+        // Read upper half (big-endian) and untoggle sign bit
+        var idUpperHalf = BinaryPrimitives.ReadUInt32BigEndian(
+            decryptedBytes.Slice(EntityIdUpperHalfOffset, EntityIdUpperHalfLength)) ^ SignBitToggle;
+
+        // Read split lower half: byte 7 (MSB) + bytes 9-11
+        var idLowerHalf = ((uint)decryptedBytes[EntityIdLowerByte0Index] << 24)
+                        | ((uint)decryptedBytes[EntityIdLowerBytes123Offset] << 16)
+                        | ((uint)decryptedBytes[EntityIdLowerBytes123Offset + 1] << 8)
+                        | decryptedBytes[EntityIdLowerBytes123Offset + 2];
+
         var entityType = decryptedBytes[EntityTypeIndex];
 
         var idBuilder = NumberBuilder.GetLongUnsigned();
-        idBuilder.TryAddUInt(idFirstHalf);
-        idBuilder.TryAddUInt(idSecondHalf);
+        idBuilder.TryAddUInt(idUpperHalf);
+        idBuilder.TryAddUInt(idLowerHalf);
         var id = (long)idBuilder.GetValue();
 
         // Reconstruct with previous variant
@@ -366,21 +397,29 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     }
 
     /// <summary>
-    /// Writes ID halves, entity type, version marker, and variant marker into the guid byte span.
+    /// Writes epoch, ID halves, entity type, version marker, and variant marker into the guid byte span
+    /// using RFC 9562 big-endian layout. The upper half MSB is toggled (XOR 0x80000000) so that
+    /// the signed SKID chronological order maps to unsigned lexicographic byte order.
+    /// The lower half is split: byte 7 (MSB) + bytes 9-11 (remaining), around the variant marker at byte 8.
     /// </summary>
     private static void WriteIdAndMarkers(Span<byte> guidBytes, long id, byte entityType, byte variantByte)
     {
         var idParser = NumberParser.Get((ulong)id);
-        var firstHalf = idParser.ReadUInt();
-        var secondHalf = idParser.ReadUInt();
+        var upperHalf = idParser.ReadUInt();
+        var lowerHalf = idParser.ReadUInt();
 
-        BinaryPrimitives.WriteUInt32LittleEndian(guidBytes.Slice(EntityIdFirstHalfOffset, EntityIdFirstHalfLength), firstHalf); //0-3
-        guidBytes[EntityTypeIndex] = entityType; //4
-        //5 is reserved for epoch, 6 is reserved for MAC hash
-        guidBytes[SourceKnownMarkerVersionIndex] = SourceKnownMarkerVersionByte; //7
-        guidBytes[SourceKnownMarkerVariantIndex] = variantByte; //8
-        //9, 10 and 11 are reserved for MAC hash along with 6
-        BinaryPrimitives.WriteUInt32LittleEndian(guidBytes.Slice(EntityIdSecondHalfOffset, EntityIdSecondHalfLength), secondHalf); //12-15
+        guidBytes[EpochIndex] = 0; // Epoch 0 (todo: parameterize for epoch management)
+        BinaryPrimitives.WriteUInt32BigEndian(guidBytes.Slice(EntityIdUpperHalfOffset, EntityIdUpperHalfLength), upperHalf ^ SignBitToggle); // 1-4 sign-toggled
+        guidBytes[EntityTypeIndex] = entityType; // 5
+        guidBytes[SourceKnownMarkerVersionIndex] = SourceKnownMarkerVersionByte; // 6
+
+        // Split lower half (big-endian): byte 7 = MSB, bytes 9-11 = remaining
+        guidBytes[EntityIdLowerByte0Index] = (byte)(lowerHalf >> 24); // 7
+        guidBytes[SourceKnownMarkerVariantIndex] = variantByte; // 8
+        guidBytes[EntityIdLowerBytes123Offset] = (byte)(lowerHalf >> 16); // 9
+        guidBytes[EntityIdLowerBytes123Offset + 1] = (byte)(lowerHalf >> 8); // 10
+        guidBytes[EntityIdLowerBytes123Offset + 2] = (byte)lowerHalf; // 11
+        // 12-15 reserved for MAC
     }
 
     /// <summary>
@@ -394,36 +433,27 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     }
 
     /// <summary>
-    /// Writes 4-byte MAC hash into guid byte positions 6, 9, 10, 11.
+    /// Writes 4-byte MAC hash into guid byte positions 12-15 (contiguous).
     /// </summary>
     private static void WriteMacToGuid(Span<byte> guidBytes, ReadOnlySpan<byte> hashBytes)
     {
-        guidBytes[MacHashFirstIndex] = hashBytes[0];
-        guidBytes[MacHashSecondIndex] = hashBytes[1];
-        guidBytes[MacHashThirdIndex] = hashBytes[2];
-        guidBytes[MacHashFourthIndex] = hashBytes[3];
+        hashBytes[..MacHashLength].CopyTo(guidBytes[MacHashOffset..]);
     }
 
     /// <summary>
-    /// Reads 4-byte MAC hash from guid byte positions 6, 9, 10, 11.
+    /// Reads 4-byte MAC hash from guid byte positions 12-15 (contiguous).
     /// </summary>
     private static void ReadMacFromGuid(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes)
     {
-        hashBytes[0] = guidBytes[MacHashFirstIndex];
-        hashBytes[1] = guidBytes[MacHashSecondIndex];
-        hashBytes[2] = guidBytes[MacHashThirdIndex];
-        hashBytes[3] = guidBytes[MacHashFourthIndex];
+        guidBytes[MacHashOffset..(MacHashOffset + MacHashLength)].CopyTo(hashBytes);
     }
 
     /// <summary>
-    /// Zeros the MAC slots (6 and 9-11) in the guid bytes for MAC re-computation.
+    /// Zeros the MAC slots (bytes 12-15) in the guid bytes for MAC re-computation.
     /// </summary>
     private static void ClearMacSlots(Span<byte> guidBytes)
     {
-        guidBytes[MacHashFirstIndex] = 0;
-        guidBytes[MacHashSecondIndex] = 0;
-        guidBytes[MacHashThirdIndex] = 0;
-        guidBytes[MacHashFourthIndex] = 0;
+        guidBytes[MacHashOffset..(MacHashOffset + MacHashLength)].Clear();
     }
 
     /// <summary>

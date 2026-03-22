@@ -9,6 +9,7 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 /// <summary>
 /// Verifies the numeric walkthrough example in paper/paper-peerj.md § Numeric Walkthrough.
 /// These tests establish the correct hex values that the paper must reference.
+/// Uses big-endian byte layout per RFC 9562 V8.
 /// </summary>
 public class PaperNumericWalkthroughTests
 {
@@ -26,6 +27,9 @@ public class PaperNumericWalkthroughTests
     // SKEID marker bytes (UUID V8 RFC 9562)
     private const byte VersionMarker = 0x8D;
     private const byte VariantMarker = 0x8D;
+
+    // Sign-bit toggle mask for unsigned↔signed sort-order conversion (RFC 9562 big-endian layout)
+    private const uint SignBitToggle = 0x80000000;
 
     static PaperNumericWalkthroughTests()
     {
@@ -87,44 +91,47 @@ public class PaperNumericWalkthroughTests
         skeid.EntityType.Should().Be(WalkthroughEntityType);
         skeid.Secure.Should().BeFalse();
 
-        // Extract raw bytes from the GUID
-        var guidBytes = skeid.EntityId.ToByteArray();
+        // Extract raw bytes from the GUID in big-endian (RFC 9562 network byte order)
+        var guidBytes = skeid.EntityId.ToByteArray(bigEndian: true);
 
-        // Assert — SKID upper half at bytes 0–3 (little-endian)
-        // Upper half = bits 63–32 of the SKID
-        var upperHalf = BinaryPrimitives.ReadUInt32LittleEndian(guidBytes.AsSpan(0, 4));
+        // Assert — epoch at byte 0
+        guidBytes[0].Should().Be(WalkthroughEpoch, "byte 0 should contain epoch");
+
+        // Assert — SKID upper half at bytes 1–4 (big-endian, sign-toggled)
+        // Upper half = bits 63–32 of the SKID, XOR'd with 0x80000000 for lexicographic ordering
+        var storedUpperHalf = BinaryPrimitives.ReadUInt32BigEndian(guidBytes.AsSpan(1, 4));
         var expectedUpperHalf = (uint)(unchecked((ulong)ExpectedSkid) >> 32);
-        upperHalf.Should().Be(expectedUpperHalf,
-            $"bytes 0–3 should contain SKID upper half 0x{expectedUpperHalf:X8}");
+        var expectedToggled = expectedUpperHalf ^ SignBitToggle;
+        storedUpperHalf.Should().Be(expectedToggled,
+            $"bytes 1–4 should contain sign-toggled SKID upper half 0x{expectedToggled:X8}");
 
-        // Assert — entity type at byte 4
-        guidBytes[4].Should().Be(WalkthroughEntityType, "byte 4 should contain entity type");
+        // Assert — entity type at byte 5
+        guidBytes[5].Should().Be(WalkthroughEntityType, "byte 5 should contain entity type");
 
-        // Assert — epoch at byte 5
-        guidBytes[5].Should().Be(WalkthroughEpoch, "byte 5 should contain epoch");
+        // Assert — version marker at byte 6 (RFC 9562 octet 6)
+        guidBytes[6].Should().Be(VersionMarker, "byte 6 should contain version marker 0x8D (UUID V8)");
 
-        // Assert — version marker at byte 7
-        guidBytes[7].Should().Be(VersionMarker, "byte 7 should contain version marker 0x8D (UUID V8)");
+        // Assert — SKID lower half byte 0 at byte 7
+        var expectedLowerHalf = (uint)(ExpectedSkid & 0xFFFFFFFF);
+        guidBytes[7].Should().Be((byte)(expectedLowerHalf >> 24),
+            "byte 7 should contain SKID lower half MSB");
 
-        // Assert — variant marker at byte 8
+        // Assert — variant marker at byte 8 (RFC 9562 octet 8)
         guidBytes[8].Should().Be(VariantMarker, "byte 8 should contain variant marker 0x8D (RFC 9562 §4.1)");
 
-        // Assert — MAC bytes at non-contiguous positions 6, 9, 10, 11
-        // We verify they are non-zero (MAC was computed); exact values depend on the key
-        var macByte0 = guidBytes[6];
-        var macByte1 = guidBytes[9];
-        var macByte2 = guidBytes[10];
-        var macByte3 = guidBytes[11];
+        // Assert — SKID lower half bytes 1-3 at bytes 9-11
+        guidBytes[9].Should().Be((byte)(expectedLowerHalf >> 16), "byte 9 should contain SKID lower half byte 1");
+        guidBytes[10].Should().Be((byte)(expectedLowerHalf >> 8), "byte 10 should contain SKID lower half byte 2");
+        guidBytes[11].Should().Be((byte)expectedLowerHalf, "byte 11 should contain SKID lower half byte 3");
+
+        // Assert — MAC bytes at positions 12-15 (contiguous)
+        var macByte0 = guidBytes[12];
+        var macByte1 = guidBytes[13];
+        var macByte2 = guidBytes[14];
+        var macByte3 = guidBytes[15];
         // At least one MAC byte should be non-zero (probability of all-zero MAC is ~1/2^32)
         (macByte0 | macByte1 | macByte2 | macByte3).Should().NotBe(0,
-            "MAC bytes at positions 6, 9, 10, 11 should contain a BLAKE3 keyed MAC");
-
-        // Assert — SKID lower half at bytes 12–15 (little-endian)
-        // Lower half = bits 31–0 of the SKID
-        var lowerHalf = BinaryPrimitives.ReadUInt32LittleEndian(guidBytes.AsSpan(12, 4));
-        var expectedLowerHalf = (uint)(ExpectedSkid & 0xFFFFFFFF);
-        lowerHalf.Should().Be(expectedLowerHalf,
-            $"bytes 12–15 should contain SKID lower half 0x{expectedLowerHalf:X8}");
+            "MAC bytes at positions 12-15 should contain a BLAKE3 keyed MAC");
 
         // Assert — parse round-trip recovers the same SKEID
         var parsed = entityIdUtils.Parse(skeid.EntityId);
@@ -167,6 +174,149 @@ public class PaperNumericWalkthroughTests
 
         var convertedToSecure = entityIdUtils.ToSecure(plainSkeid);
         convertedToSecure.EntityId.Should().Be(secureSkeid.EntityId);
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void SKEID_Should_Sort_Lexicographically_In_Chronological_Order(DrnTestContextUnit context)
+    {
+        var nexusSettings = new NexusAppSettings { AppId = WalkthroughAppId, AppInstanceId = WalkthroughAppInstanceId };
+        context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
+
+        var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
+
+        // Generate SKIDs at different timestamps within the first epoch half
+        var earlyBuilder = NumberBuilder.GetLong();
+        earlyBuilder.SetResidueValue(1000U); // early timestamp
+        earlyBuilder.TryAdd(WalkthroughAppId, 7);
+        earlyBuilder.TryAdd(WalkthroughAppInstanceId, 6);
+        earlyBuilder.TryAdd(1u, 18);
+        var earlySkid = earlyBuilder.GetValue();
+
+        var lateBuilder = NumberBuilder.GetLong();
+        lateBuilder.SetResidueValue(2000U); // later timestamp
+        lateBuilder.TryAdd(WalkthroughAppId, 7);
+        lateBuilder.TryAdd(WalkthroughAppInstanceId, 6);
+        lateBuilder.TryAdd(1u, 18);
+        var lateSkid = lateBuilder.GetValue();
+
+        // Both first half (negative)
+        earlySkid.Should().BeNegative();
+        lateSkid.Should().BeNegative();
+        earlySkid.Should().BeLessThan(lateSkid, "SKID chronological order");
+
+        var earlySkeid = entityIdUtils.GeneratePlain(earlySkid, WalkthroughEntityType);
+        var lateSkeid = entityIdUtils.GeneratePlain(lateSkid, WalkthroughEntityType);
+
+        // SKEID string comparison should match SKID chronological order
+        var comparison = string.Compare(earlySkeid.EntityId.ToString(), lateSkeid.EntityId.ToString(), StringComparison.Ordinal);
+        comparison.Should().BeNegative("earlier SKEID should sort before later SKEID lexicographically");
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void SKEID_Should_Sort_Lexicographically_Across_Epoch_Halves(DrnTestContextUnit context)
+    {
+        var nexusSettings = new NexusAppSettings { AppId = WalkthroughAppId, AppInstanceId = WalkthroughAppInstanceId };
+        context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
+
+        var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
+
+        // First half SKID (negative, sign=1) — latest timestamp in first half
+        var firstHalfBuilder = NumberBuilder.GetLong();
+        firstHalfBuilder.SetResidueValue(uint.MaxValue); // max timestamp in first half
+        firstHalfBuilder.TryAdd(WalkthroughAppId, 7);
+        firstHalfBuilder.TryAdd(WalkthroughAppInstanceId, 6);
+        firstHalfBuilder.TryAdd(1u, 18);
+        var firstHalfSkid = firstHalfBuilder.GetValue();
+
+        // Second half SKID (positive, sign=0) — earliest timestamp in second half
+        var secondHalfBuilder = NumberBuilder.GetLong();
+        secondHalfBuilder.MakePositive();
+        secondHalfBuilder.SetResidueValue(0U); // earliest timestamp in second half
+        secondHalfBuilder.TryAdd(WalkthroughAppId, 7);
+        secondHalfBuilder.TryAdd(WalkthroughAppInstanceId, 6);
+        secondHalfBuilder.TryAdd(1u, 18);
+        var secondHalfSkid = secondHalfBuilder.GetValue();
+
+        firstHalfSkid.Should().BeNegative("first half SKIDs are negative");
+        secondHalfSkid.Should().BePositive("second half SKIDs are positive");
+        firstHalfSkid.Should().BeLessThan(secondHalfSkid, "signed SKID order: negative < positive");
+
+        var firstHalfSkeid = entityIdUtils.GeneratePlain(firstHalfSkid, WalkthroughEntityType);
+        var secondHalfSkeid = entityIdUtils.GeneratePlain(secondHalfSkid, WalkthroughEntityType);
+
+        // Lexicographic comparison of SKEID strings should match signed SKID comparison
+        var comparison = string.Compare(firstHalfSkeid.EntityId.ToString(), secondHalfSkeid.EntityId.ToString(), StringComparison.Ordinal);
+        comparison.Should().BeNegative(
+            "first-half SKEID (earlier epoch half) should sort before second-half SKEID lexicographically, " +
+            "matching the signed SKID chronological order");
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void SKEID_Batch_Should_Maintain_Lexicographic_Monotonic_Order(DrnTestContextUnit context)
+    {
+        var nexusSettings = new NexusAppSettings { AppId = WalkthroughAppId, AppInstanceId = WalkthroughAppInstanceId };
+        context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
+        var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
+
+        // Generate SKEIDs across both epoch halves with increasing timestamps
+        uint[] timestamps = [0U, 100U, 10_000U, 1_000_000U, 100_000_000U, uint.MaxValue - 1, uint.MaxValue];
+        var skeidStrings = new List<string>();
+
+        // First half (negative SKIDs, sign=1)
+        foreach (var ts in timestamps)
+        {
+            var builder = NumberBuilder.GetLong();
+            builder.SetResidueValue(ts);
+            builder.TryAdd(WalkthroughAppId, 7);
+            builder.TryAdd(WalkthroughAppInstanceId, 6);
+            builder.TryAdd(1u, 18);
+            var skeid = entityIdUtils.GeneratePlain(builder.GetValue(), WalkthroughEntityType);
+            skeidStrings.Add(skeid.EntityId.ToString());
+        }
+
+        // Second half (positive SKIDs, sign=0)
+        foreach (var ts in timestamps)
+        {
+            var builder = NumberBuilder.GetLong();
+            builder.MakePositive();
+            builder.SetResidueValue(ts);
+            builder.TryAdd(WalkthroughAppId, 7);
+            builder.TryAdd(WalkthroughAppInstanceId, 6);
+            builder.TryAdd(1u, 18);
+            var skeid = entityIdUtils.GeneratePlain(builder.GetValue(), WalkthroughEntityType);
+            skeidStrings.Add(skeid.EntityId.ToString());
+        }
+
+        var sorted = skeidStrings.OrderBy(s => s, StringComparer.Ordinal).ToList();
+        sorted.Should().Equal(skeidStrings, "SKEIDs generated in chronological order should already be in lexicographic order");
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void SKEID_Should_Preserve_SubTick_Lexicographic_Order(DrnTestContextUnit context)
+    {
+        var nexusSettings = new NexusAppSettings { AppId = WalkthroughAppId, AppInstanceId = WalkthroughAppInstanceId };
+        context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
+        var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
+
+        // Same timestamp, increasing sequence numbers — tests lower-half split ordering
+        var skeidStrings = new List<string>();
+        for (uint seq = 1; seq <= 10; seq++)
+        {
+            var builder = NumberBuilder.GetLong();
+            builder.SetResidueValue(WalkthroughTimestamp);
+            builder.TryAdd(WalkthroughAppId, 7);
+            builder.TryAdd(WalkthroughAppInstanceId, 6);
+            builder.TryAdd(seq, 18);
+            var skeid = entityIdUtils.GeneratePlain(builder.GetValue(), WalkthroughEntityType);
+            skeidStrings.Add(skeid.EntityId.ToString());
+        }
+
+        var sorted = skeidStrings.OrderBy(s => s, StringComparer.Ordinal).ToList();
+        sorted.Should().Equal(skeidStrings, "SKEIDs with same timestamp but increasing sequence should sort lexicographically in sequence order");
     }
 
     [EntityType(WalkthroughEntityType)]

@@ -28,7 +28,7 @@ public class PaperEpochAddressabilityTests
     // 2^32 ticks / 4 ticks/s = 2^30 seconds per half-epoch; sign bit doubles to 2^31 seconds per epoch
     private const long SecondsPerHalf = (1L << TimestampBits) / TicksPerSecond;  // 2^30 = 1,073,741,824
     private const long SecondsPerEpoch = SecondsPerHalf * 2;                     // 2^31 = 2,147,483,648
-    private const int TotalEpochs = 256; // 8-bit epoch index (SKEID byte 5)
+    private const int TotalEpochs = 256; // 8-bit epoch index (SKEID byte 0)
 
     // Gregorian used by DateTimeOffset
     private const double SecondsPerGregorianYear = 365.2425 * 24 * 3600; // 31,556,952

@@ -104,7 +104,7 @@ public class IetfTestVectorGeneratorTests
         byte entityType = 1;
         var plainId = entityIdUtils.GeneratePlain(skid, entityType);
 
-        var plainBytes = plainId.EntityId.ToByteArray();
+        var plainBytes = plainId.EntityId.ToByteArray(bigEndian: true);
 
         // Assert exact byte layout matches draft-skid-00.md Appendix A.3
         // Note: exact hex depends on BLAKE3 MAC computation with the test key and the new SKID value
@@ -113,13 +113,13 @@ public class IetfTestVectorGeneratorTests
         Console.WriteLine($"Plain SKEID hex: {plainHex}");
         Console.WriteLine($"Plain SKEID GUID: {plainGuidStr}");
 
-        // Structural assertions — SKEID byte layout is unchanged
-        // Bytes 0-3: SKID upper half, Byte 4: entity type, Byte 5: epoch,
-        // Byte 6: MAC byte 0, Byte 7: version marker, Byte 8: variant marker,
-        // Bytes 9-11: MAC bytes 1-3, Bytes 12-15: SKID lower half
-        plainBytes[4].Should().Be(entityType, "byte 4 = entity type");
-        plainBytes[5].Should().Be(0x00, "byte 5 = epoch 0x00");
-        plainBytes[7].Should().Be(0x8D, "byte 7 = version marker");
+        // Structural assertions — SKEID big-endian byte layout (RFC 9562)
+        // Byte 0: epoch, Bytes 1-4: SKID upper half (sign-toggled, big-endian),
+        // Byte 5: entity type, Byte 6: version marker, Byte 7: SKID lower byte 0,
+        // Byte 8: variant marker, Bytes 9-11: SKID lower bytes 1-3, Bytes 12-15: MAC
+        plainBytes[0].Should().Be(0x00, "byte 0 = epoch 0x00");
+        plainBytes[5].Should().Be(entityType, "byte 5 = entity type");
+        plainBytes[6].Should().Be(0x8D, "byte 6 = version marker");
         plainBytes[8].Should().Be(0x8D, "byte 8 = variant marker");
 
         Console.WriteLine("=== A.3. SKEID Generation (Plain) ===");
@@ -136,14 +136,14 @@ public class IetfTestVectorGeneratorTests
         Console.WriteLine($"Hex (all bytes):   {Convert.ToHexString(plainBytes)}");
         Console.WriteLine();
 
-        // Verify markers
-        plainBytes[7].Should().Be(0x8D, "marker version");
-        plainBytes[8].Should().Be(0x8D, "marker variant");
+        // Verify markers (RFC 9562 big-endian positions)
+        plainBytes[6].Should().Be(0x8D, "marker version at RFC octet 6");
+        plainBytes[8].Should().Be(0x8D, "marker variant at RFC octet 8");
 
         // --- A.4: Secure SKEID Generation ---
         var secureId = entityIdUtils.GenerateSecure(skid, entityType);
 
-        var secureBytes = secureId.EntityId.ToByteArray();
+        var secureBytes = secureId.EntityId.ToByteArray(bigEndian: true);
 
         // Assert exact ciphertext — depends on AES-ECB encryption with the derived key and the new SKEID plaintext
         var secureGuidStr = secureId.EntityId.ToString();
@@ -194,16 +194,14 @@ public class IetfTestVectorGeneratorTests
 
     private static string DescribeByte(int index) => index switch
     {
-        0 or 1 or 2 or 3 => "ID first half",
-        4 => "Entity Type",
-        5 => "Epoch",
-        6 => "MAC byte 0",
-        7 => "Marker Version (0x8D)",
-        8 => "Marker Variant (0x8D)",
-        9 => "MAC byte 1",
-        10 => "MAC byte 2",
-        11 => "MAC byte 3",
-        12 or 13 or 14 or 15 => "ID second half",
+        0 => "Epoch",
+        1 or 2 or 3 or 4 => "ID upper half (sign-toggled, big-endian)",
+        5 => "Entity Type",
+        6 => "Marker Version (0x8D) — RFC 9562 octet 6",
+        7 => "ID lower byte 0 (MSB)",
+        8 => "Marker Variant (0x8D) — RFC 9562 octet 8",
+        9 or 10 or 11 => "ID lower bytes 1-3",
+        12 or 13 or 14 or 15 => "MAC (BLAKE3 keyed)",
         _ => "unknown"
     };
 
