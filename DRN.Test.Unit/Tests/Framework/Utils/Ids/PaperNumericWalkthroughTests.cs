@@ -53,7 +53,10 @@ public class PaperNumericWalkthroughTests
         builder.TryAdd(WalkthroughSequence, 18);
         var skid = builder.GetValue();
 
-        // Assert — SKID hex matches expected
+        // Assert — SKID hex matches paper walkthrough value exactly
+        const long paperSkidHex = unchecked((long)0x8BEB_C200_1204_0005UL);
+        skid.Should().Be(paperSkidHex,
+            "SKID hex must match value stated in paper-peerj.md § Numeric Walkthrough (0x8BEBC20012040005)");
         skid.Should().Be(ExpectedSkid,
             $"SKID for (ts={WalkthroughTimestamp}, appId={WalkthroughAppId}, " +
             $"instId={WalkthroughAppInstanceId}, seq={WalkthroughSequence}) " +
@@ -105,16 +108,16 @@ public class PaperNumericWalkthroughTests
         storedUpperHalf.Should().Be(expectedToggled,
             $"bytes 1–4 should contain sign-toggled SKID upper half 0x{expectedToggled:X8}");
 
-        // Assert — entity type at byte 5
-        guidBytes[5].Should().Be(WalkthroughEntityType, "byte 5 should contain entity type");
+        // Assert — SKID lower half byte 0 at byte 5
+        var expectedLowerHalf = (uint)(ExpectedSkid & 0xFFFFFFFF);
+        guidBytes[5].Should().Be((byte)(expectedLowerHalf >> 24),
+            "byte 5 should contain SKID lower half MSB");
 
         // Assert — version marker at byte 6 (RFC 9562 octet 6)
         guidBytes[6].Should().Be(VersionMarker, "byte 6 should contain version marker 0x8D (UUID V8)");
 
-        // Assert — SKID lower half byte 0 at byte 7
-        var expectedLowerHalf = (uint)(ExpectedSkid & 0xFFFFFFFF);
-        guidBytes[7].Should().Be((byte)(expectedLowerHalf >> 24),
-            "byte 7 should contain SKID lower half MSB");
+        // Assert — entity type at byte 7
+        guidBytes[7].Should().Be(WalkthroughEntityType, "byte 7 should contain entity type");
 
         // Assert — variant marker at byte 8 (RFC 9562 octet 8)
         guidBytes[8].Should().Be(VariantMarker, "byte 8 should contain variant marker 0x8D (RFC 9562 §4.1)");

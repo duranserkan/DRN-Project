@@ -115,10 +115,10 @@ public class IetfTestVectorGeneratorTests
 
         // Structural assertions — SKEID big-endian byte layout (RFC 9562)
         // Byte 0: epoch, Bytes 1-4: SKID upper half (sign-toggled, big-endian),
-        // Byte 5: entity type, Byte 6: version marker, Byte 7: SKID lower byte 0,
+        // Byte 5: SKID lower byte 0, Byte 6: version marker, Byte 7: entity type,
         // Byte 8: variant marker, Bytes 9-11: SKID lower bytes 1-3, Bytes 12-15: MAC
         plainBytes[0].Should().Be(0x00, "byte 0 = epoch 0x00");
-        plainBytes[5].Should().Be(entityType, "byte 5 = entity type");
+        plainBytes[7].Should().Be(entityType, "byte 7 = entity type");
         plainBytes[6].Should().Be(0x8D, "byte 6 = version marker");
         plainBytes[8].Should().Be(0x8D, "byte 8 = variant marker");
 
@@ -196,9 +196,9 @@ public class IetfTestVectorGeneratorTests
     {
         0 => "Epoch",
         1 or 2 or 3 or 4 => "ID upper half (sign-toggled, big-endian)",
-        5 => "Entity Type",
+        5 => "ID lower byte 0 (MSB)",
         6 => "Marker Version (0x8D) — RFC 9562 octet 6",
-        7 => "ID lower byte 0 (MSB)",
+        7 => "Entity Type",
         8 => "Marker Variant (0x8D) — RFC 9562 octet 8",
         9 or 10 or 11 => "ID lower bytes 1-3",
         12 or 13 or 14 or 15 => "MAC (BLAKE3 keyed)",

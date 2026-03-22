@@ -63,9 +63,9 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     // RFC 9562 V8 big-endian byte layout (network byte order):
     // 0    epoch
     // 1-4  SKID upper half (sign-toggled, big-endian) — epoch half + timestamp
-    // 5    entity type
+    // 5    SKID lower half byte 0 (MSB) — timestamp LSB + appId MSBs
     // 6    version marker 0x8D — RFC 9562 §5.8 octet 6 (UUID V8)
-    // 7    SKID lower half byte 0 (MSB) — timestamp LSB + appId MSBs
+    // 7    entity type
     // 8    variant marker 0x8D — RFC 9562 §4.1 octet 8
     // 9-11 SKID lower half bytes 1-3 — appId/appInstanceId/sequence
     // 12-15 BLAKE3 keyed MAC (contiguous)
@@ -87,7 +87,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     private const byte EntityIdUpperHalfOffset = 1;
     private const byte EntityIdUpperHalfLength = 4; // 1-4
 
-    private const byte EntityTypeIndex = 5; // 5
+    private const byte EntityTypeIndex = 7; // 7
     private const byte InvalidEntityType = byte.MaxValue;
 
     // Epoch at byte 0, first epoch starts at 2025-01-01.
@@ -109,10 +109,9 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     private const byte SourceKnownMarkerVariantMaxByte = 0xBF; //8 | Variant RFC 9562 §4.1 upper bound (collision guard)
 
     // SKID lower half is split around the variant marker:
-    // byte 7 = MSB of lower half, bytes 9-11 = remaining 3 bytes
-    private const byte EntityIdLowerByte0Index = 7;
-    private const byte EntityIdLowerBytes123Offset = 9;
-    private const byte EntityIdLowerBytes123Length = 3; // 9-11
+    // byte 5 = MSB of lower half, bytes 9-11 = remaining 3 bytes
+    private const byte EntityIdLowerByte0Index = 5;
+    private const byte EntityIdLowerBytes123Offset = 9; // 9-11
 
     // Key separation: KeyAsBinary and AlternativeKeyAsBinary are cryptographically independent keys from the same keyring entry.
     // KeyAsBinary → BLAKE3 keyed MAC (integrity). AlternativeKeyAsBinary → AES-256-ECB (confidentiality).
@@ -322,7 +321,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     /// <summary>
     /// Verifies MAC integrity and extracts ID/entityType from a plaintext (or decrypted) guid byte span.
     /// Reads the SKID upper half from bytes 1–4 (big-endian, sign-toggled) and the split lower half
-    /// from byte 7 + bytes 9–11 (big-endian). XOR untoggle restores the original signed representation.
+    /// from byte 5 + bytes 9–11 (big-endian). XOR untoggle restores the original signed representation.
     /// </summary>
     private SourceKnownEntityId VerifyAndParse(Span<byte> guidBytes, Guid entityId, bool secure)
     {
@@ -336,7 +335,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         // Read upper half (big-endian) and untoggle sign bit for signed sort-order restoration
         var idUpperHalf = BinaryPrimitives.ReadUInt32BigEndian(guidBytes.Slice(EntityIdUpperHalfOffset, EntityIdUpperHalfLength)) ^ SignBitToggle;
 
-        // Read split lower half: byte 7 (MSB) + bytes 9-11
+        // Read split lower half: byte 5 (MSB) + bytes 9-11
         var idLowerHalf = ((uint)guidBytes[EntityIdLowerByte0Index] << 24)
                         | ((uint)guidBytes[EntityIdLowerBytes123Offset] << 16)
                         | ((uint)guidBytes[EntityIdLowerBytes123Offset + 1] << 8)
@@ -369,7 +368,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
         var idUpperHalf = BinaryPrimitives.ReadUInt32BigEndian(
             decryptedBytes.Slice(EntityIdUpperHalfOffset, EntityIdUpperHalfLength)) ^ SignBitToggle;
 
-        // Read split lower half: byte 7 (MSB) + bytes 9-11
+        // Read split lower half: byte 5 (MSB) + bytes 9-11
         var idLowerHalf = ((uint)decryptedBytes[EntityIdLowerByte0Index] << 24)
                         | ((uint)decryptedBytes[EntityIdLowerBytes123Offset] << 16)
                         | ((uint)decryptedBytes[EntityIdLowerBytes123Offset + 1] << 8)
@@ -400,7 +399,7 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
     /// Writes epoch, ID halves, entity type, version marker, and variant marker into the guid byte span
     /// using RFC 9562 big-endian layout. The upper half MSB is toggled (XOR 0x80000000) so that
     /// the signed SKID chronological order maps to unsigned lexicographic byte order.
-    /// The lower half is split: byte 7 (MSB) + bytes 9-11 (remaining), around the variant marker at byte 8.
+    /// The lower half is split: byte 5 (MSB) + bytes 9-11 (remaining), around the markers at bytes 6-8.
     /// </summary>
     private static void WriteIdAndMarkers(Span<byte> guidBytes, long id, byte entityType, byte variantByte)
     {
@@ -410,11 +409,11 @@ public sealed class SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKn
 
         guidBytes[EpochIndex] = 0; // Epoch 0 (todo: parameterize for epoch management)
         BinaryPrimitives.WriteUInt32BigEndian(guidBytes.Slice(EntityIdUpperHalfOffset, EntityIdUpperHalfLength), upperHalf ^ SignBitToggle); // 1-4 sign-toggled
-        guidBytes[EntityTypeIndex] = entityType; // 5
+        guidBytes[EntityIdLowerByte0Index] = (byte)(lowerHalf >> 24); // 5 — SKID lower half MSB (timestamp LSB + appId MSBs)
         guidBytes[SourceKnownMarkerVersionIndex] = SourceKnownMarkerVersionByte; // 6
+        guidBytes[EntityTypeIndex] = entityType; // 7
 
-        // Split lower half (big-endian): byte 7 = MSB, bytes 9-11 = remaining
-        guidBytes[EntityIdLowerByte0Index] = (byte)(lowerHalf >> 24); // 7
+        // Split lower half (big-endian): byte 5 = MSB, bytes 9-11 = remaining
         guidBytes[SourceKnownMarkerVariantIndex] = variantByte; // 8
         guidBytes[EntityIdLowerBytes123Offset] = (byte)(lowerHalf >> 16); // 9
         guidBytes[EntityIdLowerBytes123Offset + 1] = (byte)(lowerHalf >> 8); // 10
