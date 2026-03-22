@@ -1,4 +1,5 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Numbers;
 
 namespace DRN.Framework.Utils.Time;
@@ -35,9 +36,15 @@ public class EpochTimeUtils : IEpochTimeUtils
     /// </summary>
     public static long ConvertToSourceKnownIdTimeStamp(DateTimeOffset dateTime, DateTimeOffset epoch)
     {
+        var elapsedTicks = ConvertToTicks(dateTime, epoch);
+        if (elapsedTicks is < 0 or > SourceKnownIdUtils.MaxEpochTicks)
+            throw new InvalidOperationException($"Elapsed ticks: {elapsedTicks} must be between 0 and {SourceKnownIdUtils.MaxEpochTicks}");
+
         var builder = NumberBuilder.GetLong();
-        var duration = (uint)ConvertToTicks(dateTime, epoch);
-        builder.SetResidueValue(duration);
+        var storedTimestamp = (uint)(elapsedTicks & uint.MaxValue); // Mask to 32 bits
+        builder.SetResidueValue(storedTimestamp);
+        if (elapsedTicks >= SourceKnownIdUtils.TicksPerHalf) // Second epoch half → positive SKID
+            builder.MakePositive();
 
         return builder.GetValue();
     }

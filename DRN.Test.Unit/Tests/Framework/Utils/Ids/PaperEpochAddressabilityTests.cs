@@ -1,3 +1,4 @@
+using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Numbers;
 using DRN.Framework.Utils.Time;
 
@@ -14,7 +15,14 @@ public class PaperEpochAddressabilityTests
 
     // Bit layout constants — actual SKID layout: 1 (sign) + 32 (timestamp) + 7 (appId) + 6 (instanceId) + 18 (sequence) = 64
     private const int TimestampBits = 32;
+    private const int AppIdBits = 7;
+    private const int InstanceIdBits = 6;
+    private const int SequenceBits = 18;
     private const int TicksPerSecond = 4; // 250ms precision → 4 ticks per second
+
+    // Derived tick boundaries
+    private const long TicksPerHalf = 1L << TimestampBits;         // 2^32 ticks per half-epoch
+    private const uint MaxTimestamp = (uint)(TicksPerHalf - 1);    // 2^32 - 1: max 32-bit timestamp value
 
     // Absolute duration constants (seconds)
     // 2^32 ticks / 4 ticks/s = 2^30 seconds per half-epoch; sign bit doubles to 2^31 seconds per epoch
@@ -24,7 +32,7 @@ public class PaperEpochAddressabilityTests
 
     // Gregorian used by DateTimeOffset
     private const double SecondsPerGregorianYear = 365.2425 * 24 * 3600; // 31,556,952
-    // Actual year
+    // Actual year use for long term epoch calculations
     private const double SecondsPerSunYear = 365.2422 * 24 * 3600; // 31,556,926
 
     // Absolute boundary years (computed from DateTimeOffset arithmetic)
@@ -113,17 +121,17 @@ public class PaperEpochAddressabilityTests
 
         var builderEarly = NumberBuilder.GetLong();
         builderEarly.SetResidueValue(earlyTimestamp);
-        builderEarly.TryAdd(1u, 7);
-        builderEarly.TryAdd(1u, 6);
-        builderEarly.TryAdd(1u, 18);
+        builderEarly.TryAdd(1u, AppIdBits);
+        builderEarly.TryAdd(1u, InstanceIdBits);
+        builderEarly.TryAdd(1u, SequenceBits);
         var earlySkid = builderEarly.GetValue();
 
         var builderLate = NumberBuilder.GetLong();
         builderLate.MakePositive();
         builderLate.SetResidueValue(earlyTimestamp);
-        builderLate.TryAdd(1u, 7);
-        builderLate.TryAdd(1u, 6);
-        builderLate.TryAdd(1u, 18);
+        builderLate.TryAdd(1u, AppIdBits);
+        builderLate.TryAdd(1u, InstanceIdBits);
+        builderLate.TryAdd(1u, SequenceBits);
         var lateSkid = builderLate.GetValue();
 
         earlySkid.Should().BeNegative("first epoch half produces negative SKIDs");
@@ -134,15 +142,82 @@ public class PaperEpochAddressabilityTests
     [Fact]
     public void Max_Timestamp_Should_Fit_In_32_Bits()
     {
-        var maxTimestamp = (uint)((1L << 32) - 1); // 4,294,967,295 ticks
-        maxTimestamp.Should().Be(4_294_967_295U);
+        MaxTimestamp.Should().Be(4_294_967_295U);
 
         var builder = NumberBuilder.GetLong();
-        builder.SetResidueValue(maxTimestamp);
+        builder.SetResidueValue(MaxTimestamp);
         var skid = builder.GetValue();
 
         var parser = NumberParser.Get(skid);
         var recovered = parser.ReadResidueValue();
-        recovered.Should().Be(maxTimestamp, "max 32-bit timestamp must round-trip through NumberBuilder/NumberParser");
+        recovered.Should().Be(MaxTimestamp, "max 32-bit timestamp must round-trip through NumberBuilder/NumberParser");
+    }
+
+    [Fact]
+    public void Max_Epoch_Ticks_Should_Be_2_33_Minus_1()
+    {
+        // Validates the guard constant used in SourceKnownIdUtils.Generate()
+        var maxEpochSeconds = (SourceKnownIdUtils.MaxEpochTicks + 1) / TicksPerSecond; // 2^31 seconds
+
+        SourceKnownIdUtils.MaxEpochTicks.Should().Be(8_589_934_591L, "2^33 - 1 covers the full ~68-year epoch");
+        maxEpochSeconds.Should().Be(SecondsPerEpoch, "max epoch ticks / 4 ticks/s = 2^31 seconds = SecondsPerEpoch");
+    }
+
+    [Fact]
+    public void Epoch_Half_Masking_Should_Produce_Correct_Sign_And_Monotonic_Order()
+    {
+        // Exercises the exact masking and sign-bit logic from SourceKnownIdUtils.Generate():
+        //   isSecondHalf = elapsedTicks >= TicksPerHalf
+        //   storedTimestamp = (uint)(elapsedTicks & MaxTimestamp)
+        //   if (isSecondHalf) builder.MakePositive()
+
+        const byte appId = 1;
+        const byte appInstanceId = 1;
+        const uint sequenceId = 1;
+
+        // Boundary timestamps: first tick, last tick of first half, first tick of second half, last tick of second half
+        long[] boundaryTicks = [0L, MaxTimestamp, TicksPerHalf, SourceKnownIdUtils.MaxEpochTicks];
+
+        var skids = new long[boundaryTicks.Length];
+        for (var i = 0; i < boundaryTicks.Length; i++)
+        {
+            var elapsedTicks = boundaryTicks[i];
+            var isSecondHalf = elapsedTicks >= TicksPerHalf;
+            var storedTimestamp = (uint)(elapsedTicks & MaxTimestamp);
+
+            var builder = NumberBuilder.GetLong();
+            builder.SetResidueValue(storedTimestamp);
+            if (isSecondHalf)
+                builder.MakePositive();
+            builder.TryAdd(appId, AppIdBits);
+            builder.TryAdd(appInstanceId, InstanceIdBits);
+            builder.TryAdd(sequenceId, SequenceBits);
+            skids[i] = builder.GetValue();
+        }
+
+        // First half SKIDs are negative
+        skids[0].Should().BeNegative("tick 0 is in the first half → negative SKID");
+        skids[1].Should().BeNegative("tick 2^32-1 is the last tick of the first half → negative SKID");
+
+        // Second half SKIDs are positive
+        skids[2].Should().BePositive("tick 2^32 is the first tick of the second half → positive SKID");
+        skids[3].Should().BePositive("tick 2^33-1 is the last tick of the second half → positive SKID");
+
+        // Monotonic sort order across all boundary timestamps
+        for (var i = 1; i < skids.Length; i++)
+            skids[i].Should().BeGreaterThan(skids[i - 1],  $"SKID at tick {boundaryTicks[i]} must sort after SKID at tick {boundaryTicks[i - 1]}");
+
+        // Round-trip: stored timestamp must be recoverable from all SKIDs
+        for (var i = 0; i < skids.Length; i++)
+        {
+            var parser = NumberParser.Get(skids[i]);
+            _ = parser.Read(AppIdBits);
+            _ = parser.Read(InstanceIdBits);
+            _ = parser.Read(SequenceBits);
+            var recoveredTimestamp = parser.ReadResidueValue();
+
+            var expectedStoredTimestamp = (uint)(boundaryTicks[i] & MaxTimestamp);
+            recoveredTimestamp.Should().Be(expectedStoredTimestamp, $"stored timestamp for tick {boundaryTicks[i]} must round-trip");
+        }
     }
 }

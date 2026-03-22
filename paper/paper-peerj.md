@@ -182,11 +182,14 @@ The 32-bit timestamp field stores unsigned 250-millisecond ticks elapsed since t
 
 The SKID generation procedure operates as follows. Given `entityType`, `appId`, `appInstanceId`, and a configured `epoch`:
 
-1. Compute `timestamp` as the floor of 250-millisecond ticks elapsed since the epoch (four ticks per second).
-2. Assert that the timestamp is within the 32-bit range (0 to 4,294,967,295 ticks).
-3. Obtain the next sequence value from the per-entity-type atomic counter (resetting on timestamp change).
-4. Pack fields into a 64-bit signed integer: sign bit at position 63, timestamp at positions 62--31, App ID at positions 30--24, App Instance ID at positions 23--18, and Sequence ID at positions 17--0.
-5. Return the packed value.
+1. Compute `elapsedTicks` as the floor of 250-millisecond ticks elapsed since the epoch (four ticks per second).
+2. Assert that the elapsed ticks are within the epoch range (0 to $2^{33} - 1$ ticks, covering both epoch halves).
+3. Determine the epoch half:
+   1. If `elapsedTicks` $< 2^{32}$, the current half is the first half (sign bit = 1, producing a negative SKID). Otherwise, the current half is the second half (sign bit = 0, producing a positive SKID).
+   2. Compute `timestamp` = `elapsedTicks` mod $2^{32}$ (equivalently, `elapsedTicks` AND $2^{32} - 1$).
+4. Obtain the next sequence value from the per-entity-type atomic counter (resetting on timestamp change).
+5. Pack fields into a 64-bit signed integer: sign bit at position 63, timestamp at positions 62--31, App ID at positions 30--24, App Instance ID at positions 23--18, and Sequence ID at positions 17--0.
+6. Return the packed value.
 
 ### Clock Drift Protection
 
