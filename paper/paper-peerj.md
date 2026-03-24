@@ -265,7 +265,7 @@ The parse algorithm automatically determines whether a UUID is a plaintext SKEID
 5. Check the decrypted plaintext for markers using a wider acceptance rule: `guidBytes[6] == 0x8D` (exact version match) AND `(guidBytes[8] & 0xC0) == 0x80` (RFC 9562 §4.1 variant range `0x80`--`0xBF`). The wider variant acceptance is necessary because the collision guard may have incremented the variant byte beyond `0x8D` during generation.
 6. If the recovered variant byte is within the RFC 9562 variant range but less than `0x8D`, return INVALID. The generator never produces variant bytes below `0x8D`; such a value indicates tampering or an unrelated UUID.
 7. If the recovered variant byte exceeds `0x8D`, perform backward collision-guard verification as specified in the Backward Verification Algorithm section. If verification fails, return INVALID.
-8. If primary marker bytes are present and MAC verifies, return the parsed SKEID with a secure-origin flag.
+8. If MAC verifies the decrypted plaintext, return the parsed SKEID with a secure-origin flag.
 9. Otherwise, return INVALID.
 
 The probability of a random or encrypted byte sequence coincidentally containing the marker bytes `0x8D8D` at the exact positions is approximately $1/65{,}536$. When this occurs, the algorithm gracefully falls back to the decryption path with no data corruption.
@@ -460,8 +460,8 @@ Table 8 presents the BenchmarkDotNet performance measurements for all SKID syste
 | **Secure SKEID generation**                 | **455.1**  | **1.54**   | **2.05**    | **72 B**         |
 | SKEID parsing                               | 155.8      | 1.19       | 1.78        | 0 B              |
 | Secure SKEID parsing                        | 446.5      | 7.72       | 11.07       | 72 B             |
-| ToSecure (encryption only)                  | 434.8      | 0.81       | 1.16        | 72 B             |
 | ToPlain (decryption only)                   | 134.6      | 0.88       | 1.28        | 0 B              |
+| ToSecure (encryption only)                  | 434.8      | 0.81       | 1.16        | 72 B             |
 
 ## Performance Comparison with UUID
 
