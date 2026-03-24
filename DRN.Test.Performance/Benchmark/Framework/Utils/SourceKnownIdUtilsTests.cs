@@ -2,7 +2,6 @@ using System.Buffers.Binary;
 using System.Security.Cryptography;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
 using DRN.Framework.SharedKernel.Domain;
@@ -43,30 +42,29 @@ public class SourceKnownIdUtilsPerformanceTests(ITestOutputHelper output)
 
 [Outliers(OutlierMode.RemoveUpper)]
 [MemoryDiagnoser]
-[WarmupCount(1)]
-[IterationCount(30)]
+[WarmupCount(10)]
+[IterationCount(40)]
 [InvocationCount(262_144)] // sequence cap (2^18) — at capacity per 250ms tick; Thread.Sleep prevents overflow
 public class SourceKnownIdUtilsBenchmark
 {
     [IterationSetup]
     public void IterationWait() => Thread.Sleep(TimeStampManager.PrecisionUnitInMsSafeDelay); // Let SequenceTimeScope reset between iterations (one tick)
+
     static SourceKnownIdUtilsBenchmark()
     {
-        Utils = new(AppSettings.Development(), new EpochTimeUtils());
+        IdUtils = new(AppSettings.Development(), new EpochTimeUtils());
 
         var appSettings = AppSettings.Development();
-        SecureEntityIdUtils = new(appSettings, Utils);
-        PlainEntityIdUtils = new(appSettings, Utils);
+        EntityIdUtils = new(appSettings, IdUtils);
 
         // Pre-generate GUIDs for Parse benchmarks — avoids measuring ID generation in parse benchmarks
-        var id = Utils.Next<SourceKnownIdUtilsBenchmark>();
-        SecureEntityId = SecureEntityIdUtils.GenerateSecure<YEntity>(id);
-        PlainEntityId = PlainEntityIdUtils.GeneratePlain<YEntity>(id);
+        var id = IdUtils.Next<SourceKnownIdUtilsBenchmark>();
+        SecureEntityId = EntityIdUtils.GenerateSecure<YEntity>(id);
+        PlainEntityId = EntityIdUtils.GeneratePlain<YEntity>(id);
     }
 
-    private static SourceKnownIdUtils Utils { get; }
-    private static SourceKnownEntityIdUtils SecureEntityIdUtils { get; }
-    private static SourceKnownEntityIdUtils PlainEntityIdUtils { get; }
+    private static SourceKnownIdUtils IdUtils { get; }
+    private static SourceKnownEntityIdUtils EntityIdUtils { get; }
     private static SourceKnownEntityId SecureEntityId { get; }
     private static SourceKnownEntityId PlainEntityId { get; }
     private static YEntity Entity { get; } = new(5);
@@ -91,53 +89,48 @@ public class SourceKnownIdUtilsBenchmark
     // --- SourceKnownId (raw long) ---
 
     [Benchmark]
-    public long SourceKnownId() => Utils.Next<SourceKnownIdUtilsBenchmark>();
+    public long SourceKnownId() => IdUtils.Next<SourceKnownIdUtilsBenchmark>();
 
     // --- Non-secure SourceKnownEntityId: BLAKE3 MAC only (explicit call variants) ---
 
     [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityIdPlainWithId()
-        => PlainEntityIdUtils.GeneratePlain<YEntity>(Utils.Next<SourceKnownIdUtilsBenchmark>());
+    public SourceKnownEntityId SourceKnownEntityIdWithProvidedSkid()
+        => EntityIdUtils.GeneratePlain(Entity);
 
     [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityIdPlainWithEntity()
-        => PlainEntityIdUtils.GeneratePlain(new YEntity(Utils.Next<SourceKnownIdUtilsBenchmark>()));
+    public SourceKnownEntityId SourceKnownEntityIdWithSkidGeneration()
+        => EntityIdUtils.GeneratePlain<YEntity>(IdUtils.Next<SourceKnownIdUtilsBenchmark>());
 
     [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityIdPlainWithProvidedLongValue()
-        => PlainEntityIdUtils.GeneratePlain(Entity);
+    public SourceKnownEntityId SourceKnownEntityIdWithEntityAllocation()
+        => EntityIdUtils.GeneratePlain(new YEntity(IdUtils.Next<SourceKnownIdUtilsBenchmark>()));
 
     // --- Secure SourceKnownEntityId: BLAKE3 MAC + AES-256-ECB encryption ---
 
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdSecure()
-        => SecureEntityIdUtils.GenerateSecure<YEntity>(Utils.Next<SourceKnownIdUtilsBenchmark>());
+        => EntityIdUtils.GenerateSecure<YEntity>(IdUtils.Next<SourceKnownIdUtilsBenchmark>());
+
+    // --- Parse: non-secure GUID (MAC verify only) ---
+
+    [Benchmark]
+    public SourceKnownEntityId ParseSourceKnownEntityId()
+        => EntityIdUtils.Parse(PlainEntityId.EntityId);
 
     // --- Parse: secure GUID (AES-ECB decrypt + MAC verify) ---
 
     [Benchmark]
     public SourceKnownEntityId ParseSecureSourceKnownEntityId()
-        => SecureEntityIdUtils.Parse(SecureEntityId.EntityId);
-
-    // --- Parse: non-secure GUID (MAC verify only) ---
-
-    [Benchmark]
-    public SourceKnownEntityId ParsePlainSourceKnownEntityId()
-        => PlainEntityIdUtils.Parse(PlainEntityId.EntityId);
+        => EntityIdUtils.Parse(SecureEntityId.EntityId);
 
     // --- Tier conversion: measures encryption/decryption cost independently ---
 
     [Benchmark]
-    public SourceKnownEntityId ToSecure() => SecureEntityIdUtils.ToSecure(PlainEntityId);
-
+    public SourceKnownEntityId ToPlain() => EntityIdUtils.ToPlain(SecureEntityId);
+    
     [Benchmark]
-    public SourceKnownEntityId ToPlain() => PlainEntityIdUtils.ToPlain(SecureEntityId);
+    public SourceKnownEntityId ToSecure() => EntityIdUtils.ToSecure(PlainEntityId);
 }
 
 [EntityType(92)]
 public class YEntity(long id) : SourceKnownEntity(id);
-
-public class UnrollConfig : ManualConfig
-{
-    public UnrollConfig() => AddJob(Job.Default.WithUnrollFactor(16));
-}
