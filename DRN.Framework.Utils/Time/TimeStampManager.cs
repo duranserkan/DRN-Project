@@ -38,7 +38,7 @@ public static class TimeStampManager
 
     /// <summary>Timer period in milliseconds between the end of one update and the start of the next.</summary>
     internal const int UpdatePeriod = 10;
-    internal const int MaxAllowedDriftSeconds = 3;
+    internal const int MaxAllowedDriftSeconds = 5;
 
     private static int _driftDetected; // 0 = normal, 1 = drift detected
     private static ClockDriftException? _driftException;

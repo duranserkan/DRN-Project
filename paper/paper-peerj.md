@@ -193,7 +193,7 @@ The SKID generation procedure operates as follows. Given `entityType`, `appId`, 
 
 ### Clock Drift Protection
 
-The system handles backward time jumps at two levels. Minor drifts freeze the timestamp until the wall clock catches up, allowing the sequence counter to continue advancing within the frozen tick. The reference implementation uses 3 seconds as freeze threshold. Drifts beyond freeze threshold are considered as critical and force the application instance to shut down and restart with a new instance ID. This dual-threshold mechanism prevents duplicate or out-of-order identifiers without requiring external coordination.
+The system handles backward time jumps at two levels. Minor drifts freeze the timestamp until the wall clock catches up, allowing the sequence counter to continue advancing within the frozen tick. The reference implementation uses 5 seconds as freeze threshold. Drifts beyond freeze threshold are considered as critical and force the application instance to shut down and restart with a new instance ID. This dual-threshold mechanism prevents duplicate or out-of-order identifiers without requiring external coordination.
 
 ## Source Known Entity ID (SKEID) 128-bit Specification
 
@@ -263,9 +263,10 @@ The parse algorithm automatically determines whether a UUID is a plaintext SKEID
 3. If both exact markers are present: attempt plaintext verification. If MAC verification succeeds, return as plaintext SKEID.
 4. If exact markers are absent or plaintext verification fails: decrypt the 16-byte block with the AES key.
 5. Check the decrypted plaintext for markers using a wider acceptance rule: `guidBytes[6] == 0x8D` (exact version match) AND `(guidBytes[8] & 0xC0) == 0x80` (RFC 9562 §4.1 variant range `0x80`--`0xBF`). The wider variant acceptance is necessary because the collision guard may have incremented the variant byte beyond `0x8D` during generation.
-6. If the recovered variant byte exceeds `0x8D`, perform backward collision-guard verification as specified in the Backward Verification Algorithm section. If verification fails, return INVALID.
-7. If markers are present and MAC verifies, return the parsed SKEID with a secure-origin flag.
-8. Otherwise, return INVALID.
+6. If the recovered variant byte is within the RFC 9562 variant range but less than `0x8D`, return INVALID. The generator never produces variant bytes below `0x8D`; such a value indicates tampering or an unrelated UUID.
+7. If the recovered variant byte exceeds `0x8D`, perform backward collision-guard verification as specified in the Backward Verification Algorithm section. If verification fails, return INVALID.
+8. If primary marker bytes are present and MAC verifies, return the parsed SKEID with a secure-origin flag.
+9. Otherwise, return INVALID.
 
 The probability of a random or encrypted byte sequence coincidentally containing the marker bytes `0x8D8D` at the exact positions is approximately $1/65{,}536$. When this occurs, the algorithm gracefully falls back to the decryption path with no data corruption.
 
@@ -460,7 +461,7 @@ Table 8 presents the BenchmarkDotNet performance measurements for all SKID syste
 | SKEID parsing                               | 155.8      | 1.19       | 1.78        | 0 B              |
 | Secure SKEID parsing                        | 446.5      | 7.72       | 11.07       | 72 B             |
 | ToSecure (encryption only)                  | 434.8      | 0.81       | 1.16        | 72 B             |
-| ToPlain (decryption only)                    | 134.6      | 0.88       | 1.28        | 0 B             |
+| ToPlain (decryption only)                   | 134.6      | 0.88       | 1.28        | 0 B              |
 
 ## Performance Comparison with UUID
 

@@ -476,11 +476,11 @@ procedure ParseSKID(value, epoch):
 
 The system handles backward time jumps at two levels:
 
-- **Minor drifts (under 3 seconds)**: The generator freezes the
+- **Minor drifts (under 5 seconds)**: The generator freezes the
   timestamp until the wall clock catches up, allowing the sequence
   counter to continue advancing within the frozen second.
 
-- **Critical drifts (3 seconds or more)**: The application instance
+- **Critical drifts (5 seconds or more)**: The application instance
   MUST initiate a graceful shutdown.  Upon restart, the instance
   SHOULD be assigned a new instance ID to avoid identifier collisions
   with the pre-drift period.  This dual-threshold mechanism prevents
