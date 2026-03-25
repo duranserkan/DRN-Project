@@ -42,8 +42,8 @@ public class SourceKnownIdUtilsPerformanceTests(ITestOutputHelper output)
 
 [Outliers(OutlierMode.RemoveUpper)]
 [MemoryDiagnoser]
-[WarmupCount(10)]
-[IterationCount(40)]
+[WarmupCount(120)]
+[IterationCount(120)]
 [InvocationCount(262_144)] // sequence cap (2^18) — at capacity per 250ms tick; Thread.Sleep prevents overflow
 public class SourceKnownIdUtilsBenchmark
 {

@@ -40,7 +40,7 @@ public class SourceKnownIdUtilsSaturationPerformanceTests(ITestOutputHelper outp
 }
 
 [MemoryDiagnoser]
-[WarmupCount(10)]
+[WarmupCount(40)]
 [IterationCount(40)]
 [InvocationCount(786_432)] // 3× sequence cap (2^18 = 262,144) — guarantees backpressure per iteration
 public class SourceKnownIdUtilsSaturationBenchmark

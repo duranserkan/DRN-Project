@@ -22,7 +22,7 @@ This paper introduces Source Known Identifiers (SKIDs), a three-tier identity sy
 
 The design employs a defense-in-depth security architecture with multiple independent verification layers: AES-256 encryption, BLAKE3 keyed MAC, marker byte detection, entity type matching, and record existence probability. A collision guard mechanism using variant byte iteration with cryptographic backward verification prevents misclassification between encrypted and unencrypted forms. An epoch addressing system spans approximately 17,421 years of total coverage across 256 configurable epochs.
 
-A reference implementation in C#/.NET 10 is provided in the open-source DRN.Framework. BenchmarkDotNet measurements of the reference implementation (30 iterations, 262,144 invocations per iteration) on Apple M2 hardware show three performance tiers. Secure SKEID generation at 455.1 ± 1.5 ns takes approximately 1.6 times as long as UUID Version 7 at 280.7 ± 0.7 ns (a trade-off for providing AES-256 encryption). SKEID generation at 145.1 ± 1.0 ns is approximately 1.9 times as fast as UUID Version 7 despite embedding metadata and a BLAKE3 MAC in the same 128-bit footprint. SKID generation at 25.1 ± 0.7 ns is approximately 11 times as fast as UUID Version 7 due to deterministic bit-packing without cryptographic random number generation. All ± values denote 99.9% Confidence Interval (CI) error margins.
+A reference implementation in C#/.NET 10 is provided in the open-source DRN.Framework. BenchmarkDotNet measurements of the reference implementation (120 iterations, 262,144 invocations per iteration) on Apple M2 hardware show three performance tiers. Secure SKEID generation at 544.0 ± 5.7 ns takes approximately 1.4 times as long as UUID Version 7 at 377.5 ± 3.2 ns (a trade-off for providing AES-256 encryption). SKEID generation at 230.3 ± 3.5 ns is approximately 1.6 times as fast as UUID Version 7 despite embedding metadata and a BLAKE3 MAC in the same 128-bit footprint. SKID generation at 35.3 ± 1.2 ns is more than 10 times as fast as UUID Version 7 due to deterministic bit-packing without cryptographic random number generation. All ± values denote 99.9% Confidence Interval (CI) error margins.
 
 \newpage
 
@@ -51,12 +51,12 @@ Table 1 summarizes identifier property satisfaction across existing schemes and 
 
 | Property                      | SKID System | UUID V4   | UUID V7   | Snowflake | ULID      | CUID2    | KSUID     | DB Sequence  |
 |-------------------------------|-------------|-----------|-----------|-----------|-----------|----------|-----------|--------------|
-| Storage efficiency            | 8 B         | 16 B      | 16 B      | 8 B       | 16 B      | 24 chars | 20 B      | 4/8 B        |
+| Storage efficiency            | 8/16 B      | 16 B      | 16 B      | 8 B       | 16 B      | 24 chars | 20 B      | 4/8 B        |
 | Chronological sortability     | Yes         | No        | Yes       | Yes       | Yes       | No       | Yes       | Yes          |
 | Origin metadata embedding     | Yes         | No        | No        | Partial   | No        | No       | No        | No           |
 | Zero-lookup verifiability     | Yes (MAC)   | No        | No        | No        | No        | No       | No        | No           |
 | Confidentiality (external)    | Encryption  | Randomness| No        | No        | No        | Hashing  | No        | No           |
-| Multi-century addressability  | Yes         | N/A       | Yes       | No        | Yes       | N/A      | Partial   | N/A          |
+| Multi-century addressability  | Yes (SKEID) | N/A       | Yes       | No        | Yes       | N/A      | Partial   | N/A          |
 
 Table 2 provides a detailed feature comparison of these and additional identifier schemes.
 
@@ -64,13 +64,15 @@ Table 2 provides a detailed feature comparison of these and additional identifie
 
 ## Motivation
 
-The necessity for a unified, multi-tier identifier system arises from the conflicting architectural requirements of modern distributed applications where data continuously flows across persistence, internal and external trust tiers. Each tier imposes different constraints on identifier design. Existing schemes and dual-identifier patterns force systems to compromise at least one.
+The necessity for a unified, multi-tier identifier system arises from the conflicting architectural requirements of modern distributed applications. Data in these systems continuously flows across persistence, internal, and external trust tiers. Each tier imposes different constraints on identifier design. Existing schemes and dual-identifier patterns force systems to compromise at least one of these requirements.
 
-At the persistence tier, optimal B-tree index performance and compact foreign keys demand sequential integer primary keys [@rfc9562, Sections 2.1 and 6.13], but exposing sequential identifiers through external APIs creates Insecure Direct Object Reference (IDOR) vulnerabilities [@cwe639]. Exposure also enables adversarial inference of generation velocity and record volume (the German Tank Problem [@ruggles1947]). The dual-identifier pattern (an integer primary key alongside a random UUID column for external exposure) doubles the per-record index footprint.
+At the persistence tier, B-tree index performance demands sequential or time-ordered primary keys [@rfc9562, Sections 2.1 and 6.13]. However, exposing these identifiers through external APIs creates an attack surface for Insecure Direct Object Reference (IDOR) vulnerabilities [@cwe639]. Exposure also enables adversarial inference of generation velocity and record volume (the German Tank Problem [@ruggles1947]). As a workaround, the dual-identifier pattern with an integer primary key alongside a random UUID alternate key compromises storage efficiency.
 
-A downstream application that receives an identifier needs to verify it [@cwe345]. Without embedded verification metadata, this validation requires a query or cache lookup per identifier. An identifier carrying a MAC would eliminate I/O-bound validation overhead and enable zero-lookup verification.
+The full cost of such workarounds extends beyond the identifier columns themselves. For instance, a conventional schema using an auto-increment primary key (8 bytes), a UUID external identifier (16 bytes), and a `created_at` timestamp (8 bytes) requires 32 bytes of column data per record. In a fully indexed schema, each column demands a separate B-tree index, resulting in three indexes and their associated maintenance operations such as vacuum, reindex, and statistics collection. An identifier that embeds a timestamp and derives a UUID-compatible external representation deterministically at application runtime consolidates all three concerns into a single 8-byte primary key column with a single index. Under this fully indexed baseline, this is a 75% reduction in per-record column overhead and a reduction from three single-column indexes to one. This calculation accounts only for the single-column indexes on each field. Additional composite indexes involving these fields would amplify the savings further.
 
-Decentralized identifier generation across globally distributed networks demands chronologically sortable [@rfc9562] identifiers. When data from independent generators must be merged years or decades after creation, the identifier scheme must guarantee sort-order consistency past the operational lifespan of individual system components. This is especially critical for any system requiring long-term data retention and historical analysis.
+A downstream application receiving an identifier must verify its authenticity [@cwe345]. Without embedded verification metadata, this validation requires a query or cache lookup per identifier. An identifier carrying a MAC would eliminate I/O-bound validation overhead and enable zero-lookup verification.
+
+Decentralized identifier generation across globally distributed networks demands chronologically sortable [@rfc9562] identifiers. When data from independent generators must be merged years or decades after creation, the identifier scheme must guarantee sort-order consistency beyond the operational lifespan of individual system components. This is especially critical for any system requiring long-term data retention and historical analysis.
 
 These conflicting trust-boundary constraints motivate a multi-tier identifier system where a single entity identity is projected to satisfy each trust boundary.
 
@@ -82,7 +84,6 @@ This paper makes the following contributions.
 2. **A defense-in-depth security architecture** combining AES-256 encryption, BLAKE3 keyed MAC, marker byte detection, entity type matching, and a novel collision guard mechanism with cryptographic backward verification.
 3. **An epoch addressing system** spanning approximately 17,421 years of total coverage through 256 configurable epochs of $2^{31}$ seconds each.
 4. **A reference implementation** in C#/.NET 10 with open-source code, integration and unit test coverage, and BenchmarkDotNet performance data demonstrating competitive or superior performance compared to standard UUID generation.
-5. **A draft specification prepared in Internet-Draft format** [@draft-skid] authored for independent review, containing complete algorithms, CDDL definitions, and reproducible test vectors for cross-platform implementation.
 
 ## Related Work
 
@@ -106,14 +107,14 @@ None of these approaches offers integrity verification. Table 2 presents a detai
 |--------------------------|----------------------|------------|---------|-----------|----------|----------|----------|-------------|
 | Chronological ordering   | 250ms                | No         | ms      | ms        | ms       | No       | second   | Numeric     |
 | Embedded timestamp       | Yes                  | No         | Yes     | Yes       | Yes      | No       | Yes      | No          |
-| Multi-century addressing | Yes                  | N/A        | Yes     | No        | Yes      | N/A      | Partial  | N/A         |
+| Multi-century addressing | Yes  (SKEID)         | N/A        | Yes     | No        | Yes      | N/A      | Partial  | N/A         |
 | Entity type              | Yes (8-bit)          | No         | No      | No        | No       | No       | No       | No          |
 | Integrity check          | Yes (BLAKE3 MAC)     | No         | No      | No        | No       | No       | No       | No          |
 | Confidentiality          | Encryption (AES-256) | Randomness | No      | No        | No       | Hashing  | No       | No          |
 | Zero-lookup validation   | Yes                  | No         | No      | No        | No       | No       | No       | No          |
-| DB primary key size      | 8 B                  | 16 B       | 16 B    | 8 B       | 16 B     | 24 chars | 20 B     | 4/8 B       |
-| External ID size         | 16 B                 | 16 B       | 16 B    | 8 B       | 26 chars | 24 chars | 27 chars | 4/8 B       |
-| UUID compatible          | Yes (V8)             | Yes        | Yes     | No        | No       | No       | No       | No          |
+| DB primary key size      | 8 B (SKID)           | 16 B       | 16 B    | 8 B       | 16 B     | 24 chars | 20 B     | 4/8 B       |
+| External ID size         | 16 B (SKEID)         | 16 B       | 16 B    | 8 B       | 26 chars | 24 chars | 27 chars | 4/8 B       |
+| UUID compatible          | Yes (SKEID, UUID V8) | Yes        | Yes     | No        | No       | No       | No       | No          |
 | Key rotation             | Yes (key-ring)       | N/A        | N/A     | N/A       | N/A      | N/A      | N/A      | N/A         |
 
 # Methods
@@ -128,7 +129,7 @@ SKIDs address the identifier gap through a three-tier identity model aligned wit
 
 3. **External Tier:** A 128-bit Secure Source Known Entity ID (Secure SKEID) encrypts the entire SKEID block using AES-256, preventing information leakage to untrusted consumers while remaining compatible with standard UUID data-type parsers in string representation (see Limitation 6).
 
-The three tiers are not three separate identifiers but one entity identity projected for different trust boundaries. The database stores the compact SKID, trusted applications derive the SKEID on demand, and external consumers receive the Secure SKEID. Deterministic bidirectional transformations between tiers allow any representation to be converted to any other, given the appropriate cryptographic keys. These transformations are sub-microsecond CPU operations (135--435 ns, Table 8) requiring no I/O or external lookup. Figure 1 illustrates the data transformations between the three tiers.
+The three tiers are not three separate identifiers but one entity identity projected for different trust boundaries. The database stores the compact SKID, trusted applications derive the SKEID on demand, and external consumers receive the Secure SKEID. Deterministic bidirectional transformations between tiers allow any representation to be converted to any other, given the appropriate cryptographic keys. These transformations are sub-microsecond CPU operations (217--544 ns, Table 8) requiring no I/O or external lookup. Figure 1 illustrates the data transformations between the three tiers.
 
 ```
    Database              Trusted Internal          External / Public
@@ -236,15 +237,15 @@ The marker bytes at positions 6 and 8 serve dual purposes.
 
 Integrity verification relies on BLAKE3 keyed MAC [@blake3]. The computation procedure clears the four MAC bytes (positions 12--15) to zero, then computes a 4-byte BLAKE3 keyed MAC over the full 16-byte buffer. The resulting 4 bytes are written into the contiguous MAC positions (bytes 12--15).
 
-BLAKE3 was selected for performance and security margin. Our BenchmarkDotNet measurements show BLAKE3 keyed hashing is approximately 3.5 times faster than HMAC-SHA-256 on small inputs (see supplementary file `HashBenchmarkSmallPayload.html`).
+BLAKE3 was selected for performance and security margin. Our BenchmarkDotNet measurements show BLAKE3 keyed hashing is approximately 3.5 times faster than HMAC-SHA-256 on small inputs (see supplementary file `supplementary-hash-benchmark-report.html`).
 
-Generated MAC is truncated to 32 bits, offering a $1/2^{32}$ false-positive rate. This truncation is acceptable within the defense-in-depth architecture where the MAC is one of multiple independent verification layers, not the sole security mechanism.
+Generated MAC is truncated to 32 bits, offering a $1/2^{32}$ false-positive rate. This truncation is acceptable within the defense-in-depth architecture where the MAC is one of multiple verification layers, not the sole security mechanism.
 
 The epoch byte (byte 0) is not cleared before MAC computation. It participates in the MAC input, adding tamper-resistance for the epoch field.
 
 ### Generation Algorithm
 
-Given a 64-bit SKID, entity type, and MAC key, the SKEID generation procedure:
+Given a 64-bit SKID, epoch, entity type, and MAC key, the SKEID generation procedure:
 
 1. Allocate a 16-byte buffer initialized to zero.
 2. Split the SKID into upper and lower 32-bit halves. Toggle the most significant bit of the upper half (XOR with `0x80000000`) and write it in big-endian to bytes 1--4.
@@ -350,7 +351,7 @@ This two-level time addressing gives the identity system a multi-century lifespa
 
 ## Defense-in-Depth Security Architecture
 
-The SKEID system employs multiple independent verification layers. An attacker attempting to forge a valid identifier must defeat all applicable layers simultaneously.
+The SKEID system employs multiple verification layers. An attacker attempting to forge a valid identifier must defeat all applicable layers. Each layer is assumed to be independent of the others.
 
 Table 7 enumerates the defense-in-depth security layers and their individual bypass probabilities.
 
@@ -366,11 +367,11 @@ Table 7 enumerates the defense-in-depth security layers and their individual byp
 | 6. Existence Probability | Forged SKID must reference a record    | Variable                    |
 | 7. Rate Limiting         | Restricts attempts per time period     | Implementation defined      |
 
-Even if an attacker guesses a ciphertext that, when decrypted, has valid markers, a valid MAC, a valid entity type, and valid topology, the resulting SKID must still correspond to an actual record in the database. The multiplicative combination of these independent barriers offers security far exceeding any individual layer. The layers are assumed to be operationally independent under secure key derivation. Each layer uses a different cryptographic primitive or validation mechanism. A formal proof of probabilistic independence is outside the scope of this paper (see Limitation 4).
+Even if an attacker guesses a ciphertext that, when decrypted, has valid markers, a valid MAC, a valid entity type, and valid topology, the resulting SKID must still correspond to an actual record in the database. The multiplicative combination of these barriers offers security far exceeding any individual layer. The layers are assumed to be operationally independent under secure key derivation. Each layer uses a different cryptographic primitive or validation mechanism. A formal proof of probabilistic independence is outside the scope of this paper (see Limitation 4).
 
 ### MAC Truncation Analysis
 
-The 32-bit truncation satisfies the minimum MacTag length specified in NIST SP 800-107 [@nistsp800107]. The document notes that MacTags shorter than 64 bits are discouraged in Section 5.3.5. The 128-bit SKEID format constrains the available space for the MAC field, as the remaining bits carry the SKID, entity type, epoch, and marker bytes. This constraint is acceptable because the MAC is not the sole security mechanism. It operates within the defense-in-depth architecture described in Table 7, where AES-256 encryption, marker detection, entity type matching, and record existence probability provide independent verification layers. 
+The 32-bit truncation satisfies the minimum MacTag length specified in NIST SP 800-107 [@nistsp800107]. The document notes that MacTags shorter than 64 bits are discouraged in Section 5.3.5. The 128-bit SKEID format constrains the available space for the MAC field, as the remaining bits carry the SKID, entity type, epoch, and marker bytes. This constraint is acceptable because the MAC is not the sole security mechanism. It operates within the defense-in-depth architecture described in Table 7, where AES-256 encryption, marker detection, entity type matching, and record existence probability provide additional verification layers. 
 
 Section 5.3.5 of the same document provides the general framework for assessing truncated MAC forgery risk. For a $\lambda$-bit MacTag with $2^t$ failed verifications allowed, the likelihood of accepting forged data is $(1/2)^{(\lambda - t)}$. Applying this to the 32-bit SKEID MAC ($\lambda = 32$): if a system permits $2^{12}$ (4,096) failed verification attempts before rotating the MAC key, the forgery likelihood is $(1/2)^{20}$, approximately one in a million. At 100 rate-limited attempts per second, this $2^{12}$ budget is exhausted in roughly 41 seconds. 
 
@@ -431,49 +432,49 @@ The implementation uses attribute-based dependency injection (`[Singleton<Type>]
 All benchmarks were conducted using BenchmarkDotNet [@benchmarkdotnet] v0.15.8 on the following hardware and software configuration.
 
 - **Hardware:** Apple M2, 1 CPU, 8 logical and 8 physical cores
-- **Operating System:** macOS Tahoe 26.3.1 (Darwin 25.3.0)
+- **Operating System:** macOS Tahoe 26.4 (25E246) [Darwin 25.4.0]
 - **Runtime:** .NET 10.0.5 (10.0.526.15411), Arm64 RyuJIT armv8.0-a
 - **SDK:** .NET SDK 10.0.201
-- **Configuration:** OutlierMode=RemoveUpper, InvocationCount=262,144, IterationCount=30, WarmupCount=1
+- **Configuration:** OutlierMode=RemoveUpper, InvocationCount=262,144, IterationCount=120, WarmupCount=120
 
 OutlierMode is set to RemoveUpper, a standard BenchmarkDotNet configuration that removes upper statistical outliers caused by garbage collector (GC) pauses and operating system (OS) scheduling jitter before computing summary statistics. This isolates measurements to the intrinsic operation cost.
 
-The benchmark configuration uses 30 iterations with 262,144 invocations per iteration, enabling BenchmarkDotNet to compute error margins and standard deviations that approximate normal distribution. The invocation count of 262,144 matches the SKID system's 18-bit sequence counter cap ($2^{18}$ identifiers per 250ms tick per instance). All invocations within a single iteration complete within the 250-millisecond sequence time scope, isolating the intrinsic computational cost of each operation without triggering the backpressure mechanism. A 250-millisecond `IterationSetup` delay between iterations allows the sequence time scope to reset, so each iteration starts from a clean state. Separate saturation benchmarks with `InvocationCount=786,432` (3 times the sequence cap) confirm the backpressure behavior. SKID generation under saturation shows elevated mean times, reflecting the intermittent wait-for-next-tick pauses rather than the true per-operation cost. This validates the design. The sequence counter applies backpressure to preserve uniqueness guarantees under sustained load.
+The benchmark configuration uses 120 iterations with 262,144 invocations per iteration, enabling BenchmarkDotNet to compute error margins and standard deviations that approximate normal distribution. The invocation count of 262,144 matches the SKID system's 18-bit sequence counter cap ($2^{18}$ identifiers per 250ms tick per instance). All invocations within a single iteration complete within the 250-millisecond sequence time scope, isolating the intrinsic computational cost of each operation without triggering the backpressure mechanism. A 250-millisecond `IterationSetup` delay between iterations allows the sequence time scope to reset, so each iteration starts from a clean state. Separate saturation benchmarks with `InvocationCount=786,432` (3 times the sequence cap), `IterationCount=40`, and `WarmupCount=40` (matching the iteration count) confirm the backpressure behavior. The saturation benchmark uses BenchmarkDotNet's default OutlierMode, retaining all measurements including upper outliers to capture the full backpressure distribution. Both configurations produce the same total invocation count ($120 \times 262{,}144 = 40 \times 786{,}432 = 31{,}457{,}280$). The saturation benchmark is configured to observe backpressure behavior rather than to produce directly comparable absolute timings. SKID generation under saturation shows elevated mean times, reflecting the intermittent wait-for-next-tick pauses rather than the true per-operation cost. This validates the design. The sequence counter applies backpressure to preserve uniqueness guarantees under sustained load.
 
 ## Performance Results
 
-Table 8 presents the BenchmarkDotNet performance measurements for all SKID system operations. Error values represent the 99.9% CI margin computed by BenchmarkDotNet over iterations remaining after upper outlier removal.
+Table 8 presents the BenchmarkDotNet performance measurements for all SKID system operations. Mean, Error, and Standard Deviation values are reported in nanoseconds (ns) and rounded to a maximum of two decimal places. Error values represent the 99.9% CI margin computed by BenchmarkDotNet over iterations remaining after upper outlier removal.
 
-**Table 8:** BenchmarkDotNet performance measurements (30 configured iterations, 262,144 invocations per iteration). 
+**Table 8:** BenchmarkDotNet performance measurements (120 configured iterations, 262,144 invocations per iteration). 
 
 | Operation                                   | Mean (ns)  | Error (ns) | StdDev (ns) | Allocated Memory |
 |---------------------------------------------|------------|------------|-------------|------------------|
-| Random 64-bit integer generation            | 104.3      | 2.26       | 3.38        | 32 B             |
-| Random UUID V4 generation                   | 257.5      | 0.73       | 1.09        | 0 B              |
-| Random UUID V7 generation                   | 280.7      | 0.72       | 1.00        | 0 B              |
-| Timestamp manager current time generation   | 4.9        | 0.85       | 1.25        | 0 B              |
-| Sequence manager time-scoped ID generation  | 15.25      | 0.62       | 0.93        | 0 B              |
-| **SKID generation**                         | **25.1**   | **0.71**   | **1.06**    | **0 B**          |
-| SKEID generation (with provided SKID)       | 134.3      | 2.25       | 3.37        | 0 B              |
-| **SKEID generation (with SKID generation)** | **145.1**  | **1.00**   | **1.44**    | **0 B**          |
-| SKEID generation (with entity allocation)   | 158.9      | 1.39       | 2.04        | 192 B            |
-| **Secure SKEID generation**                 | **455.1**  | **1.54**   | **2.05**    | **72 B**         |
-| SKEID parsing                               | 155.8      | 1.19       | 1.78        | 0 B              |
-| Secure SKEID parsing                        | 446.5      | 7.72       | 11.07       | 72 B             |
-| ToPlain (decryption only)                   | 134.6      | 0.88       | 1.28        | 0 B              |
-| ToSecure (encryption only)                  | 434.8      | 0.81       | 1.16        | 72 B             |
+| Random 64-bit integer generation            | 171.3      | 2.36       | 7.66        | 32 B             |
+| Random UUID V4 generation                   | 354.1      | 3.64       | 11.81       | 0 B              |
+| Random UUID V7 generation                   | 377.5      | 3.24       | 10.53       | 0 B              |
+| Timestamp manager current time generation   | 4.1        | 0.46       | 1.43        | 0 B              |
+| Sequence manager time-scoped ID generation  | 15.4       | 0.69       | 2.19        | 0 B              |
+| **SKID generation**                         | **35.3**   | **1.21**   | **3.92**    | **0 B**          |
+| SKEID generation (with provided SKID)       | 219.0      | 3.25       | 10.56       | 0 B              |
+| **SKEID generation (with SKID generation)** | **230.3**  | **3.45**   | **11.20**   | **0 B**          |
+| SKEID generation (with entity allocation)   | 248.3      | 3.87       | 12.58       | 192 B            |
+| **Secure SKEID generation**                 | **544.0**  | **5.67**   | **18.42**   | **72 B**         |
+| SKEID parsing                               | 223.6      | 2.87       | 9.31        | 0 B              |
+| Secure SKEID parsing                        | 540.7      | 3.15       | 10.22       | 72 B             |
+| ToPlain (decryption only)                   | 217.3      | 2.40       | 7.76        | 0 B              |
+| ToSecure (encryption only)                  | 524.2      | 5.56       | 17.98       | 72 B             |
 
 ## Performance Comparison with UUID
 
-Secure SKEID generation at 455.1 ns takes approximately 1.6 times as long as UUID V7 at 280.7 ns. This overhead adds AES-256 encryption, BLAKE3 MAC integrity, entity type discrimination, and zero-lookup verification, none of which are provided by UUID V7. Secure SKEID can be converted to SKEID or SKID for the other desired identifier properties. The additional cost reflects approximately 310 ns of AES-256 single-block encryption beyond plaintext SKEID generation.
+Secure SKEID generation at 544.0 ns takes approximately 1.4 times as long as UUID V7 at 377.5 ns. This overhead adds AES-256 encryption, BLAKE3 MAC integrity, entity type discrimination, and zero-lookup verification, none of which are provided by UUID V7. Secure SKEID can be converted to SKEID or SKID for the other desired identifier properties. The additional cost reflects approximately 314 ns of AES-256 single-block encryption beyond plaintext SKEID generation.
 
-SKEID generation at 145.1 ns is approximately 1.9 times as fast as UUID V7 (280.7 ns) despite embedding additional metadata (entity type, epoch) and computing a BLAKE3 keyed MAC within the same 128-bit footprint. In the reference implementation, SKEID generation operates entirely on the stack (0 bytes allocated), avoiding garbage collection pressure. Implementations in other managed runtimes may exhibit different allocation profiles depending on stack allocation support.
+SKEID generation at 230.3 ns is approximately 1.6 times as fast as UUID V7 (377.5 ns) despite embedding additional metadata (entity type, epoch) and computing a BLAKE3 keyed MAC within the same 128-bit footprint. In the reference implementation, SKEID generation operates entirely on the stack (0 bytes allocated), avoiding garbage collection pressure. Implementations in other managed runtimes may exhibit different allocation profiles depending on stack allocation support.
 
-SKID generation at 25.1 ns is approximately 11 times as fast as UUID V7 generation at 280.7 ns and approximately 10 times as fast as UUID V4 at 257.5 ns. This performance advantage stems from the deterministic bit-packing approach. SKID generation requires only an atomic counter increment, a cached timestamp read, and bitwise operations, with no cryptographic random number generation.
+SKID generation at 35.3 ns is more than 10 times as fast as UUID V7 generation at 377.5 ns and more than 10 times as fast as UUID V4 at 354.1 ns. This performance advantage stems from the deterministic bit-packing approach. SKID generation requires only an atomic counter increment, a cached timestamp read, and bitwise operations, with no cryptographic random number generation.
 
 ## Throughput Analysis
 
-The 18-bit sequence field caps generation at 262,144 identifiers per 250ms tick (1,048,576 per second) per instance. With 128 applications and 64 instances per application (8,192 total generators), the theoretical maximum system-wide throughput is approximately 8.6 billion identifiers per second. Full-throttle benchmarks confirm that the sequence manager applies backpressure when the per-instance limit is reached, preserving uniqueness under sustained load.
+The 18-bit sequence field caps generation at 262,144 identifiers per 250ms tick (1,048,576 per second) per instance. With 128 applications and 64 instances per application (8,192 total generators), the theoretical maximum system-wide throughput is approximately 8.6 billion identifiers per second. Full-throttle benchmarks confirm that the sequence manager applies backpressure when the per-instance limit is reached, preserving uniqueness under sustained load. Under saturation conditions (786,432 invocations per iteration), SKID generation mean rises from 35.3 ns to 610.0 ns because two-thirds of invocations exceed the per-tick sequence cap and must wait for the next 250-millisecond tick boundary. The saturation benchmark confirms that backpressure is precisely scoped to the sequence manager. All operations that internally generate a SKID (SKEID generation, Secure SKEID generation) show elevated means consistent with tick-boundary waiting, while operations that do not generate a SKID (parsing, tier conversion with a provided identifier) remain unaffected. This isolation validates the architectural separation between identifier generation and identifier processing (see supplementary file `supplementary-saturation-report.html`).
 
 Throughput limits, generator topology, and system-wide capacity in this section are verified by the `PaperThroughputAnalysisTests` unit test suite in the reference implementation.
 
@@ -499,13 +500,13 @@ Table 9 compares storage requirements across identifier schemes.
 
 At 8 bytes per SKID versus 16 bytes for UUID, storage cost halves, directly reducing archival and indexing overhead. Compared to KSUIDs at 20 bytes, storage cost is reduced by a factor of 2.5 per primary key. SKIDs as 64-bit integers provide superior B-tree index performance because smaller keys mean more keys per B-tree page, fewer page splits, and better cache utilization. The timestamp-leading layout means new records append to the end of the index, optimizing for append-heavy workloads. Cursor-based pagination is natively supported through the SKID's monotonic nature (`WHERE id > :lastId ORDER BY id LIMIT :pageSize`), eliminating offset-based pagination overhead. The dual-identifier pattern (integer primary key plus UUID external identifier) requires maintaining two separate columns with 24 bytes total per record. SKIDs eliminate this redundancy. The 8-byte SKID serves as the primary key, and the 16-byte SKEID or Secure SKEID is computed deterministically on demand without additional storage.
 
-The computational cost of tier transformations is negligible. Converting between representations requires only sub-microsecond CPU operations. ToSecure (encryption) completes in 434.8 ns and ToPlain (decryption) in 134.6 ns (Table 8), with no I/O, no network round-trip, and no external dependency. Any alternative that relies on a secondary lookup, whether a database join for the dual-identifier pattern, a cache query, or a remote service call, incurs latency orders of magnitude higher. This makes the transformation cost effectively zero relative to any I/O-bound identifier resolution strategy.
+The computational cost of tier transformations is negligible. Converting between representations requires only sub-microsecond CPU operations. ToSecure (encryption) completes in 524.2 ns and ToPlain (decryption) in 217.3 ns (Table 8), with no I/O, no network round-trip, and no external dependency. Any alternative that relies on a secondary lookup, whether a database join for the dual-identifier pattern, a cache query, or a remote service call, incurs latency orders of magnitude higher. This makes the transformation cost effectively zero relative to any I/O-bound identifier resolution strategy.
 
 # Discussion
 
 ## Interpretation of Results
 
-Benchmark results of reference implementation demonstrate that the SKID system achieves competitive or superior performance compared to standard identifier generation while delivering substantially more functionality. The 11x speed advantage of SKID over UUID V7 stems from the deterministic generation approach. Bit packing from cached values is fundamentally less expensive than the cryptographic random number generation required by UUID schemes. Even the most expensive operation (Secure SKEID at 455.1 ns) completes in under half a microsecond, making it practical for high-throughput production systems.
+Benchmark results of reference implementation demonstrate that the SKID system achieves competitive or superior performance compared to standard identifier generation while delivering substantially more functionality. The more than 10× speed advantage of SKID over UUID V7 stems from the deterministic generation approach. Bit packing from cached values is fundamentally less expensive than the cryptographic random number generation required by UUID schemes. Even the most expensive operation (Secure SKEID at 544.0 ns) completes in well under a microsecond, making it practical for high-throughput production systems.
 
 Zero-allocation behavior in core SKID and SKEID operations is important for managed runtime environments (e.g., .NET, JVM) where garbage collection pauses can impact tail latency. By operating entirely on the stack, SKID generation avoids contributing to GC pressure even under sustained high-throughput scenarios.
 
@@ -603,7 +604,7 @@ The four NuGet packages have been published on NuGet.org since the initial frame
 
 3. **Key dependency:** SKEIDs and Secure SKEIDs require key material for generation and parsing. Loss of key material makes existing SKEIDs unparseable, though the underlying 64-bit SKIDs in the database remain valid and recoverable.
 
-4. **Security analysis scope:** The security analysis in this paper uses STRIDE-based threat modeling and quantitative probability analysis within the defense-in-depth architecture. It does not provide formal cryptographic reductions (e.g., proving that the composition of AES-PRP encryption, BLAKE3 MAC, and the collision guard mechanism achieves the intended security goals under standard assumptions). The Secure SKEID scheme inherits PRP security from the AES block cipher, and the uniqueness of SKEID plaintexts prevents ciphertext equality leakage. A formal compositional security proof is left as future work. The IETF Internet-Draft [@draft-skid] provides test vectors enabling independent verification of the implementation.
+4. **Security analysis scope:** The security analysis in this paper uses STRIDE-based threat modeling and quantitative probability analysis within the defense-in-depth architecture. It does not provide formal cryptographic reductions (e.g., proving that the composition of AES-PRP encryption, BLAKE3 MAC, and the collision guard mechanism achieves the intended security goals under standard assumptions). The Secure SKEID scheme inherits PRP security from the AES block cipher, and the uniqueness of SKEID plaintexts prevents ciphertext equality leakage. A formal compositional security proof is left as future work. The reference implementation provides test vectors in its test suites enabling independent verification.
 
 5. **Epoch-scoped storage efficiency:** The 8-byte SKID storage efficiency claim applies within a single epoch (~68 years). The 64-bit SKID encodes a 32-bit timestamp relative to the configured epoch but does not carry the epoch index itself. A database spanning multiple epochs has the following options.
 
@@ -639,11 +640,11 @@ Several extensions are planned or under consideration.
 
 This paper presented Source Known Identifiers (SKIDs), a three-tier identity system that simultaneously satisfies the proposed desired identifier properties. Based on our literature survey, no existing identifier scheme combines all six properties within a unified system.
 
-The three-tier architecture aligns SKID (64-bit, database), SKEID (128-bit, trusted internal), and Secure SKEID (128-bit, external) with the trust boundaries commonly found in distributed applications. Deterministic bidirectional transformations enable direct conversion between tiers. The defense-in-depth security architecture combines multiple independent verification layers to provide security far exceeding any individual mechanism.
+The three-tier architecture aligns SKID (64-bit, database), SKEID (128-bit, trusted internal), and Secure SKEID (128-bit, external) with the trust boundaries commonly found in distributed applications. Deterministic bidirectional transformations enable direct conversion between tiers. The defense-in-depth security architecture combines multiple verification layers to provide security far exceeding any individual mechanism.
 
-Benchmark results show that SKID and SKEID achieve superior performance compared to UUID generation in the reference implementation. Secure SKEID remains competitive while encapsulating desired identifier properties with AES-256 encryption at approximately 1.6 times the generation cost of UUID V7.
+Benchmark results show that SKID and SKEID achieve superior performance compared to UUID generation in the reference implementation. Secure SKEID remains competitive while encapsulating desired identifier properties with AES-256 encryption at approximately 1.4 times the generation cost of UUID V7.
 
-A draft specification prepared in Internet-Draft format has been authored and is available for independent review, containing complete algorithms, CDDL definitions, and test vectors for cross-platform implementation, enabling independent verification and multi-language adoption.
+The open-source reference implementation, published as NuGet packages with integration and unit test coverage, is available for community review and adoption. A draft specification prepared in Internet-Draft format is planned as future work to enable cross-platform implementation and interoperability testing.
 
 # Acknowledgments
 
@@ -651,7 +652,7 @@ This work received no external financial support. GitHub CodeQL and SonarCloud p
 
 # Data Availability
 
-The source code for DRN-Project is available at https://github.com/duranserkan/DRN-Project and archived on Zenodo (DOI: to be assigned upon acceptance). Raw benchmark data (BenchmarkDotNet CSV and HTML reports, including `supplementary-benchmark-report.html`, `supplementary-saturation-report.html`, and `supplementary-hash-benchmark-report.html`) are included as supplementary files.
+The source code for DRN-Project is available at https://github.com/duranserkan/DRN-Project and will be archived on Zenodo (DOI: to be assigned upon acceptance). Raw benchmark data (BenchmarkDotNet CSV and HTML reports, including `supplementary-benchmark-report.html`, `supplementary-saturation-report.html`, and `supplementary-hash-benchmark-report.html`) are included as supplementary files.
 
 # Competing Interests
 

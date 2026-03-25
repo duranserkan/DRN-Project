@@ -161,7 +161,11 @@ public abstract class EntityDeleted(SourceKnownEntity sourceKnownEntity) : Domai
 
 ### SourceKnownEntityId & SourceKnownId
 
-The framework uses a Source Known identifier system (`SourceKnownEntityId`) to balance database performance (long) with external security (Guid) and type safety.
+The framework uses a three-tier Source Known identifier system (`SKID`, `SKEID`, and `Secure SKEID`) to balance database performance (long) with internal routing validation and external security (Guid) and type safety.
+
+- **Source Known ID (SKID)**: Core 64-bit integer acting as the database primary key. Extremely fast, sortable, and compact (8 bytes).
+- **Source Known Entity ID (SKEID)**: Internal 128-bit UUID-compatible value extending SKID with an entity type, epoch byte, and BLAKE3 keyed MAC for zero-lookup validation.
+- **Secure Source Known Entity ID (Secure SKEID)**: External 128-bit value encrypting the entire SKEID via single-block AES-256-ECB. Indistinguishable from random bytes.
 
 `ISourceKnownEntityIdOperations` defines the core contract for entity ID operations (`Generate`, `Parse`, `ToSecure`, `ToPlain`). It lives in SharedKernel so domain entities can use it without referencing Utils. `ISourceKnownEntityIdUtils` in Utils inherits this interface and provides the full implementation, which EF interceptors inject into entities automatically.
 
@@ -266,11 +270,11 @@ public abstract class AggregateRoot<TModel>(long id = 0) : AggregateRoot(id), IE
 
 ```csharp
 public readonly record struct SourceKnownId(
-    long Id,                // The internal database ID (64-bit integer)
-    DateTimeOffset CreatedAt, // Timestamp when the ID was generated
-    uint InstanceId,        // Generator instance ID (for distributed uniqueness)
-    byte AppId,             // Application ID
-    byte AppInstanceId      // Application Instance ID
+    long Id,                  // The internal database ID (64-bit integer)
+    DateTimeOffset CreatedAt, // Timestamp with 250ms tick precision
+    uint InstanceId,          // Derived 13-bit topology (7-bit App ID + 6-bit App Instance ID)
+    byte AppId,               // Application ID (max 127)
+    byte AppInstanceId        // Application Instance ID (max 63)
 );
 
 public readonly record struct SourceKnownEntityId(

@@ -611,31 +611,32 @@ var sourceKnownId = userInstance.GetEntityId<User>(externalGuidId);
 
 #### GUID Byte Layout
 
-Each `SourceKnownEntityId` packs identity, integrity, time-addressing, and UUID V8 compatibility (RFC 9562 §5.8) into a single 128-bit GUID:
+Each `SourceKnownEntityId` (SKEID) packs identity, integrity, time-addressing, and UUID V8 compatibility (RFC 9562 §5.8) into a single 128-bit GUID:
 
 | Byte(s) | Purpose |
 |---------|---------|
-| 0–3 | Entity ID (first half, 32 bits) |
-| 4 | Entity type (8 bits — up to 256 entity types) |
-| 5 | Epoch index (8 bits — up to 256 epochs) |
-| 6, 9–11 | BLAKE3 keyed MAC (4 bytes — integrity verification) |
-| 7 | Version marker (`0x8D` — UUID V8, RFC 9562 §5.8) |
+| 0 | Epoch index (8 bits — up to 256 epochs) |
+| 1–4 | SKID upper half (32 bits, sign-toggled) |
+| 5 | SKID low byte 0 (MSB of SKID lower half / timestamp LSB) |
+| 6 | Version marker (`0x8D` — UUID V8, RFC 9562 §5.8) |
+| 7 | Entity type (8 bits — up to 256 entity types) |
 | 8 | Variant marker (`0x8D` — RFC 4122 compatible) |
-| 12–15 | Entity ID (second half, 32 bits) |
+| 9–11 | SKID low bytes (remaining 24 bits) |
+| 12–15 | BLAKE3 keyed MAC (32 bits — integrity verification) |
 
 #### Epoch & Time Addressing
 
-SourceKnownEntityIds use epoch-based time addressing for monotonic ordering. Each epoch spans approximately **136 years** (2³¹ seconds × 2 epoch halves), starting from **2025-01-01**.
+SourceKnownEntityIds use epoch-based time addressing for monotonic ordering. Each epoch spans approximately **68 years** ($2^{31}$ seconds total coverage, split across two halves), starting from **2025-01-01**.
 
 | Property | Value |
 |----------|-------|
 | Epoch start | 2025-01-01 |
-| Single epoch duration | ~136 years |
-| Maximum epochs | 256 (byte 5) |
-| Total address space | ~34,842 monotonic years |
+| Single epoch duration | ~68 years ($2^{31}$ seconds) |
+| Maximum epochs | 256 (byte 0) |
+| Total address space | ~17,421 monotonic years |
 
 > [!NOTE]
-> The first epoch requires no configuration and covers approximately 136 years from 2025-01-01. Epoch transitions are handled automatically.
+> The first epoch requires no configuration and covers approximately 68 years from 2025-01-01. Epoch transitions are handled automatically.
 
 ### Time
 `TimeProvider` singleton is registered by default to `TimeProvider.System` for testable time entry. See [Time & Async](#time--async) for high-performance alternatives.
