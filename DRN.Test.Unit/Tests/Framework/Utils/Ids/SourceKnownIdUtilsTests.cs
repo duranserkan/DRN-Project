@@ -14,9 +14,9 @@ public class SourceKnownIdUtilsTests
         var epoch = EpochTimeUtils.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
-        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay); // buffer for TimeStampManager to populate a valid tick
+        await Task.Delay(1200);
         var id = SourceKnownIdUtils.Generate<object>(appId, appInstanceId);
-        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay);
+        await Task.Delay(1200);
 
         var afterIdGenerated = DateTimeOffset.UtcNow;
         var idInfo = SourceKnownIdUtils.ParseId(id, EpochTimeUtils.DefaultEpoch);
@@ -34,7 +34,12 @@ public class SourceKnownIdUtilsTests
     [DataInlineUnit]
     public async Task SourceKnownIdUtils_Should_Generate_Next_Valid_Id(DrnTestContextUnit context)
     {
-        var nexusSettings = new NexusAppSettings(appId: 5, appInstanceId: 12);
+        var nexusSettings = new NexusAppSettings
+        {
+            AppId = 5,
+            AppInstanceId = 12
+        };
+        
         var customSettings = new
         {
             NexusAppSettings = nexusSettings
@@ -46,9 +51,9 @@ public class SourceKnownIdUtilsTests
         var epoch = EpochTimeUtils.Epoch2025;
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
-        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay); // buffer for TimeStampManager to populate a valid tick
+        await Task.Delay(1100); // 100ms buffer added to compensate caching effect
         var id1 = generator.Next<SourceKnownIdUtilsTests>();
-        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay);
+        await Task.Delay(1100);
 
         var afterIdGenerated = DateTimeOffset.UtcNow;
 

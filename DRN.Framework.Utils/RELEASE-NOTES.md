@@ -4,6 +4,23 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals and stands behind his remarkable words: 'Peace at home, peace in the world.'
 
+### Breaking Changes
+
+*   **Binary-Incompatible SKEID byte layout** (`SourceKnownEntityIdUtils`): UUID layout migrated to RFC 9562 big-endian; MAC relocated to contiguous bytes 12–15; epoch at byte 0; upper-half MSB sign-toggled for lexicographic sort correctness; lower half split across byte 5 and bytes 9–11.
+*   **Timestamp precision: seconds → 250ms ticks** (`EpochTimeUtils`, `TimeStampManager`, `SourceKnownIdUtils`): `ConvertToSeconds` renamed to `ConvertToTicks` (250ms units). `TimeStampManager.UtcNow` truncates to nearest 250ms boundary. Epoch-range guard uses `MaxEpochTicks` (2³³ − 1).
+*   **`ToUnsecure` → `ToPlain`** / **`GenerateUnsecure` → `GeneratePlain`** (`SourceKnownEntityIdUtils`).
+*   **`NumberBuilder.GetLong` / `NumberParser.Get(long)` residue default**: 31 → 32 bits.
+*   **Capacity rebalanced** (`SourceKnownIdUtils`): AppId 6→7 bits (max 127), AppInstanceId 5→6 bits (max 63), Sequence 21→18 bits (262,143/tick). `MaxAllowedDriftSeconds` const: 3s → 5s.
+
+> [!WARNING]
+> This is a binary-incompatible change. Entity IDs generated with v0.8.0 will not parse correctly in v0.9.0 — IDs must be regenerated. No migration tooling is provided; there are no expected production consumers with persisted v0.8.x entity IDs.
+
+### New Features
+
+*   **250ms timestamp precision**: New `TimeStampManager` constants: `PrecisionUnitInMs = 250`, `TicksPerPrecisionUnit = 2,500,000`. Epoch-half constants in `SourceKnownIdUtils`: `TicksPerHalf`, `MaxEpochTicks`. Correct sign-bit logic: first half → negative SKID, second half → positive SKID; monotonic ordering preserved.
+*   **`NexusAppSettings` constructors**: Added `(byte appId, byte appInstanceId)` overload for programmatic instantiation.
+*   **Throughput**: ~1,048,576 IDs/s per generator (262,143 × 4 ticks/s); up to ~8.6B IDs/s with 8,192 generators.
+
 ## Version 0.8.0
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals, rooted in his timeless words that 'science is the truest guide in life.' In that spirit, and to honor the 14 March Scientists Day, this release is dedicated to the researchers working for the benefit of humanity, and to the rejection of my first academic paper :) ([JOSS #10176](https://github.com/openjournals/joss-reviews/issues/10176)).
