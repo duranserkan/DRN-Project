@@ -1,19 +1,28 @@
 name: Nuget Publish
+description: Packs and publishes a single NuGet package to nuget.org.
 inputs:
   project-name:
+    description: The project directory and csproj base name (e.g. DRN.Framework.Utils).
     required: true
 runs:
   using: "composite"
   steps:
     - name: Pack
       shell: bash
+      env:
+        # Assigned to an env var to avoid direct expression interpolation in the
+        # shell script — prevents script injection (GitHub Actions security advisory).
+        PROJECT_NAME: ${{ inputs.project-name }}
       run: |
-        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${{ inputs.project-name }}/PACKAGE-DESCRIPTION
-        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${{ inputs.project-name }}/README.md
-        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${{ inputs.project-name }}/RELEASE-NOTES.md
-        dotnet pack ${{ inputs.project-name }}/${{ inputs.project-name }}.csproj --configuration Release /p:Version=${VERSION} --no-build --output artifacts/packages
+        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${PROJECT_NAME}/PACKAGE-DESCRIPTION
+        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${PROJECT_NAME}/README.md
+        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${PROJECT_NAME}/RELEASE-NOTES.md
+        dotnet pack ${PROJECT_NAME}/${PROJECT_NAME}.csproj --configuration Release /p:Version=${VERSION} --no-build --output artifacts/packages
     - name: Push
       shell: bash
+      env:
+        # Same rationale as the Pack step above — env var indirection for injection safety.
+        PROJECT_NAME: ${{ inputs.project-name }}
       run: |
-        dotnet nuget push artifacts/packages/${{ inputs.project-name }}.${VERSION}.nupkg --skip-duplicate --api-key ${NUGET_TOKEN} --source https://api.nuget.org/v3/index.json
-        dotnet nuget push artifacts/packages/${{ inputs.project-name }}.${VERSION}.snupkg --skip-duplicate --api-key ${NUGET_TOKEN} --source https://api.nuget.org/v3/index.json
+        dotnet nuget push artifacts/packages/${PROJECT_NAME}.${VERSION}.nupkg --skip-duplicate --api-key ${NUGET_TOKEN} --source https://api.nuget.org/v3/index.json
+        dotnet nuget push artifacts/packages/${PROJECT_NAME}.${VERSION}.snupkg --skip-duplicate --api-key ${NUGET_TOKEN} --source https://api.nuget.org/v3/index.json
