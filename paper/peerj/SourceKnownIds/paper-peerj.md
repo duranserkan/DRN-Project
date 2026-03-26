@@ -163,6 +163,8 @@ A SKID is a 64-bit signed integer with the following field layout (Figure 2), pa
 
 Total: 1 (Sign) + 32 (Timestamp) + 7 (App ID) + 6 (App Instance Id) + 18 (Sequence Id) = 64 bits.
 
+\newpage
+
 Table 3 defines the corresponding field definitions.
 
 **Table 3:** SKID field definitions.
@@ -195,6 +197,8 @@ The SKID generation procedure operates as follows. Given `entityType`, `appId`, 
 ### Clock Drift Protection
 
 The system handles backward time jumps at two levels. Minor drifts freeze the timestamp until the wall clock catches up, allowing the sequence counter to continue advancing within the frozen tick. The reference implementation uses 5 seconds as freeze threshold. Drifts beyond freeze threshold are considered as critical and force the application instance to shut down and restart with a new instance ID. This dual-threshold mechanism prevents duplicate or out-of-order identifiers without requiring external coordination.
+
+\newpage
 
 ## Source Known Entity ID (SKEID) 128-bit Specification
 
@@ -242,6 +246,8 @@ BLAKE3 was selected for performance and security margin. Our BenchmarkDotNet mea
 Generated MAC is truncated to 32 bits, offering a $1/2^{32}$ false-positive rate. This truncation is acceptable within the defense-in-depth architecture where the MAC is one of multiple verification layers, not the sole security mechanism.
 
 The epoch byte (byte 0) is not cleared before MAC computation. It participates in the MAC input, adding tamper-resistance for the epoch field.
+
+\newpage
 
 ### Generation Algorithm
 
@@ -306,6 +312,8 @@ The collision guard eliminates this edge case by construction. During Secure SKE
 During parsing, when a non-default variant byte $V$ is recovered from the decrypted plaintext ($V > \text{0x8D}$), the parse algorithm must verify that the previous variant ($V-1$) genuinely triggered the collision guard. This is achieved by reconstructing the SKEID with variant $V-1$, encrypting it, and checking whether the ciphertext exhibits the SKEID Marker and MAC collision. This single-step backward proof is sufficient by induction. If variant $V$ is legitimate, then $V-1$ must have collided, and $V-1$'s legitimacy is either the base case ($V-1 = \text{0x8D}$, always legitimate) or proved by $V-2$ having collided (which was already verified at generation time).
 
 The result is a deterministic guarantee. No Secure SKEID produced by a compliant implementation can ever pass the plaintext parse path with a valid result.
+
+\newpage
 
 ### Numeric Walkthrough
 
@@ -478,7 +486,6 @@ The 18-bit sequence field caps generation at 262,144 identifiers per 250ms tick 
 
 Throughput limits, generator topology, and system-wide capacity in this section are verified by the `PaperThroughputAnalysisTests` unit test suite in the reference implementation.
 
-\newpage
 
 ## Storage Comparison
 
@@ -501,6 +508,8 @@ Table 9 compares storage requirements across identifier schemes.
 At 8 bytes per SKID versus 16 bytes for UUID, storage cost halves, directly reducing archival and indexing overhead. Compared to KSUIDs at 20 bytes, storage cost is reduced by a factor of 2.5 per primary key. SKIDs as 64-bit integers provide superior B-tree index performance because smaller keys mean more keys per B-tree page, fewer page splits, and better cache utilization. The timestamp-leading layout means new records append to the end of the index, optimizing for append-heavy workloads. Cursor-based pagination is natively supported through the SKID's monotonic nature (`WHERE id > :lastId ORDER BY id LIMIT :pageSize`), eliminating offset-based pagination overhead. The dual-identifier pattern (integer primary key plus UUID external identifier) requires maintaining two separate columns with 24 bytes total per record. SKIDs eliminate this redundancy. The 8-byte SKID serves as the primary key, and the 16-byte SKEID or Secure SKEID is computed deterministically on demand without additional storage.
 
 The computational cost of tier transformations is negligible. Converting between representations requires only sub-microsecond CPU operations. ToSecure (encryption) completes in 524.2 ns and ToPlain (decryption) in 217.3 ns (Table 8), with no I/O, no network round-trip, and no external dependency. Any alternative that relies on a secondary lookup, whether a database join for the dual-identifier pattern, a cache query, or a remote service call, incurs latency orders of magnitude higher. This makes the transformation cost effectively zero relative to any I/O-bound identifier resolution strategy.
+
+\newpage
 
 # Discussion
 
@@ -665,5 +674,7 @@ This work received no external financial support.
 # Author Contributions
 
 Duran Serkan Kılıç conducted the research, conceived the design, implemented the software, conducted the benchmarks, and wrote the manuscript.
+
+\newpage
 
 # References
