@@ -34,7 +34,6 @@ CI/CD pipeline, GitHub Actions structure, and Docker containerization for `DRN-P
 ### Security & Analysis Actions
 
 - **`sonar-begin` / `sonar-end`**: SonarCloud static analysis
-- **`scan-file-system-vulnerabilities`**: Filesystem vulnerability scanning
 - **`scan-nuget-vulnerabilities`**: Dependency vulnerability checking
 
 ## 3. Docker Standards
