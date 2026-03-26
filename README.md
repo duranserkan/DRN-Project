@@ -25,11 +25,13 @@
 [![GitHub Stars](https://img.shields.io/github/stars/duranserkan/DRN-Project?label=github%20stars)](https://github.com/duranserkan/DRN-Project/stargazers/)
 [![Activity](https://img.shields.io/github/commit-activity/m/duranserkan/DRN-Project)](https://github.com/duranserkan/DRN-Project/graphs/commit-activity)
 
+[![DOI](https://zenodo.org/badge/678002380.svg)](https://doi.org/10.5281/zenodo.19240396)
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Testing?logo=Nuget&label=DRN.Framework.Testing)](https://nuget.org/packages/DRN.Framework.Testing/#readme-body-tab)
-[![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Utils?logo=Nuget&label=DRN.Framework.Utils)](https://nuget.org/packages/DRN.Framework.Utils/#readme-body-tab)
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.SharedKernel?logo=Nuget&label=DRN.Framework.SharedKernel)](https://nuget.org/packages/DRN.Framework.SharedKernel/#readme-body-tab)
+[![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Utils?logo=Nuget&label=DRN.Framework.Utils)](https://nuget.org/packages/DRN.Framework.Utils/#readme-body-tab)
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.EntityFramework?logo=Nuget&label=DRN.Framework.EntityFramework)](https://nuget.org/packages/DRN.Framework.EntityFramework/#readme-body-tab)
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Hosting?logo=Nuget&label=DRN.Framework.Hosting)](https://nuget.org/packages/DRN.Framework.Hosting/#readme-body-tab)
+
 
 [![General badge](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white.svg)](https://www.linkedin.com/in/duranserkan/)
 [![General badge](https://img.shields.io/badge/Medium-12100E?style=for-the-badge&logo=medium&logoColor=white)](https://duranserkan.medium.com)
