@@ -661,7 +661,7 @@ This work received no external financial support. GitHub CodeQL and SonarCloud p
 
 # Data Availability
 
-The source code for DRN-Project is available at https://github.com/duranserkan/DRN-Project and will be archived on Zenodo (DOI: to be assigned upon acceptance). Raw benchmark data (BenchmarkDotNet CSV and HTML reports, including `supplementary-benchmark-report.html`, `supplementary-saturation-report.html`, and `supplementary-hash-benchmark-report.html`) are included as supplementary files.
+The source code for DRN-Project is available at https://github.com/duranserkan/DRN-Project and archived on Zenodo (DOI: [10.5281/zenodo.19240397](https://doi.org/10.5281/zenodo.19240397)). The archived release (v0.9.1) is available at https://github.com/duranserkan/DRN-Project/tree/v0.9.1. Raw benchmark data (CSV) and rendered reports (HTML) are included as six supplementary files covering the primary benchmark, saturation benchmark, and hash comparison benchmark.
 
 # Competing Interests
 
