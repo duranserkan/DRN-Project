@@ -1,5 +1,13 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.1
+
+My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals and is proud to inherit his spiritual legacy: 'I am not leaving behind any definitive text, any dogma, any frozen, rigid rule as my spiritual legacy. My spiritual wealth is science and reason. Those who wish to embrace me after my death will become my spiritual heirs if they accept the guidance of reason and science on this fundamental axis.'
+
+### New Features
+
+*   **Composable Builder Configuration**: Extracted `ConfigureLoggingBuilder` and `ConfigureWebHostBuilder` as `protected virtual` methods from `ConfigureApplicationBuilder` for independent subclass customization.
+
 ## Version 0.9.0
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals and stands behind his remarkable words: 'Peace at home, peace in the world.'

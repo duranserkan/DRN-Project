@@ -44,7 +44,6 @@ using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace DRN.Framework.Hosting.DrnProgram;
 
-
 //todo: 
 // Extract composable classes such as:
 // - `DrnSecurityConfigurator` (CSP, security headers, cookie policies, MFA)
@@ -233,18 +232,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
     protected virtual void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder, IAppSettings appSettings)
     {
-        applicationBuilder.Logging.ClearProviders();
-        if (appSettings.TryGetSection("Logging", out var loggingSection))
-            applicationBuilder.Logging.AddConfiguration(loggingSection);
-        applicationBuilder.Logging.AddNLogWeb(CreateLogFactory(appSettings), NLogOptions);
-
-        applicationBuilder.WebHost.UseKestrelCore().ConfigureKestrel(kestrelServerOptions =>
-        {
-            kestrelServerOptions.AddServerHeader = false;
-            kestrelServerOptions.Configure(applicationBuilder.Configuration.GetSection("Kestrel"));
-        });
-
-        applicationBuilder.WebHost.UseStaticWebAssets();
+        ConfigureLoggingBuilder(appSettings, applicationBuilder.Logging);
+        ConfigureWebHostBuilder(appSettings, applicationBuilder.WebHost);
 
         var services = applicationBuilder.Services;
         services.AddDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
@@ -292,6 +281,23 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             ConfigureSecurityHeaderPolicyBuilder(builder, provider, appSettings);
         });
     }
+
+    protected virtual void ConfigureLoggingBuilder(IAppSettings appSettings, ILoggingBuilder loggingBuilder)
+    {
+        if (appSettings.TryGetSection("Logging", out var loggingSection))
+            loggingBuilder.AddConfiguration(loggingSection);
+
+        loggingBuilder.ClearProviders();
+        loggingBuilder.AddNLogWeb(CreateLogFactory(appSettings), NLogOptions);
+    }
+
+    protected virtual IWebHostBuilder ConfigureWebHostBuilder(IAppSettings appSettings, ConfigureWebHostBuilder webHostBuilder) =>
+        webHostBuilder.UseKestrel().ConfigureKestrel(kestrelServerOptions =>
+        {
+            kestrelServerOptions.AddServerHeader = false;
+            if (appSettings.TryGetSection("Kestrel", out var kestrelSection))
+                kestrelServerOptions.Configure(kestrelSection);
+        }).UseStaticWebAssets();
 
     protected virtual void ConfigureApplication(WebApplication application, IAppSettings appSettings)
     {

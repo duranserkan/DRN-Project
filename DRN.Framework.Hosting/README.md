@@ -123,6 +123,8 @@ flowchart TD
         subgraph BUILDER ["1. Builder Phase"]
             direction TB
             B_NOTE["Note: Handles Services & Config"]
+            CAB --> CLB["ConfigureLoggingBuilder()"]
+            CAB --> CWHB["ConfigureWebHostBuilder()"]
             CAB --> CSO["ConfigureSwaggerOptions()"]
             CAB --> CDSH["ConfigureDefaultSecurityHeaders()"]
             CDSH --> CDCSP["ConfigureDefaultCsp()"]
@@ -186,7 +188,7 @@ flowchart TD
     classDef decision fill:#FFE0B2,stroke:#E65100,stroke-width:3px,color:#E65100
 
     %% Apply Styles
-    class CAB,CSO,CDSH,CDCSP,CSHPB,CCP,CSFO,CRCO,CRCMO,CCP2,CFHO,CMVCB,CAO,ASA builderNode
+    class CAB,CLB,CWHB,CSO,CDSH,CDCSP,CSHPB,CCP,CSFO,CRCO,CRCMO,CCP2,CFHO,CMVCB,CAO,ASA builderNode
     class CA,CAPS,CAPR,HSM,CPSS,UR,CAPREA,AUTH,SUM,CAPOSTA,MFAE,MFAR,UA,CPSTAZ,MAE appNode
     class ABC,ABA,AVA action
     class Start,Build,VE,VSA,Run core
@@ -206,6 +208,8 @@ These hooks run while the `WebApplicationBuilder` is active, allowing you to con
 
 | Category | Method | Purpose |
 | :--- | :--- | :--- |
+| **Logging** | `ConfigureLoggingBuilder` | Configure logging providers (clears defaults, applies config section, registers NLog). |
+| **WebHost** | `ConfigureWebHostBuilder` | Configure Kestrel options (suppresses Server header, applies optional Kestrel section, registers static web assets). |
 | **OpenAPI** | `ConfigureSwaggerOptions` | Customize Swagger UI title, version, and visibility settings. |
 | **MVC** | `ConfigureMvcBuilder` | Add `ApplicationParts`, custom formatters, or enable Razor Runtime Compilation. |
 | **MVC** | `ConfigureMvcOptions` | Add global filters, conventions, or customize model binding. |
