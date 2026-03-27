@@ -1,0 +1,166 @@
+%% Custom Pandoc template for PeerJ CS using wlpeerj.cls
+%% Usage: pandoc --template=template-peerj.tex paper-peerj.md ...
+%%
+%% This template maps YAML frontmatter to wlpeerj.cls macros and includes
+%% all Pandoc-required LaTeX support (CSL citations, longtable, tight lists,
+%% code highlighting, graphics). It absorbs the former preamble.tex formatting.
+%%
+\PassOptionsToPackage{numbers}{natbib} % citeproc handles citation formatting; prevent natbib author-year conflict
+\documentclass[fleqn,10pt,lineno]{wlpeerj}
+
+%% ============================================================================
+%% Additional packages for Pandoc output (not included by wlpeerj.cls)
+%% ============================================================================
+
+%% Unicode font support via fontspec (XeLaTeX) — fixes Turkish chars and box-drawing glyphs
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Menlo}[Scale=0.85]
+%% Override wlpeerj.cls author fonts — cls hardcodes \usefont{OT1}{phv}{b}{n} which lacks Turkish chars
+\renewcommand\Authfont{\fontsize{12}{14}\selectfont\sffamily\bfseries}
+\renewcommand\Affilfont{\fontsize{10}{12}\selectfont\sffamily\bfseries}
+
+%% Tables — Pandoc converts Markdown tables to longtable
+\usepackage{longtable}
+\usepackage{array}
+\newcounter{none} % Pandoc uses \def\LTcaptype{none} for unnumbered tables
+
+%% etoolbox — needed for \AtBeginEnvironment hook
+\usepackage{etoolbox}
+
+%% Correct order of tables after \paragraph or \subparagraph
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+
+%% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+
+%% Graphics — Pandoc image scaling support
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi%
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+\def\fps@figure{htbp}
+\makeatother
+
+%% Tight lists — Pandoc uses this for compact lists
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+%% Code highlighting support
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+
+%% CSL citation support (for --citeproc)
+$if(csl-refs)$
+\NewDocumentCommand\citeproctext{}{}
+\NewDocumentCommand\citeproc{mm}{%
+  \begingroup\def\citeproctext{#2}\cite{#1}\endgroup}
+\makeatletter
+ \let\@cite@ofmt\@firstofone
+ \def\@biblabel#1{}
+ \def\@cite#1#2{{#1\if@tempswa , #2\fi}}
+\makeatother
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newenvironment{CSLReferences}[2]
+ {\begin{list}{}{%
+  \setlength{\itemindent}{0pt}
+  \setlength{\leftmargin}{0pt}
+  \setlength{\parsep}{0pt}
+  \ifodd #1
+   \setlength{\leftmargin}{\cslhangindent}
+   \setlength{\itemindent}{-1\cslhangindent}
+  \fi
+  \setlength{\itemsep}{#2\baselineskip}}}
+ {\end{list}}
+\newcommand{\CSLBlock}[1]{\hfill\break\parbox[t]{\linewidth}{\strut\ignorespaces#1\strut}}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+$endif$
+
+%% ============================================================================
+%% Formatting (absorbed from preamble.tex)
+%% ============================================================================
+
+%% Reduce font size inside all longtables to prevent overflow
+\AtBeginEnvironment{longtable}{%
+  \scriptsize%
+  \setlength{\tabcolsep}{2pt}%
+}
+
+%% Prevent orphan/widow lines (single lines stranded on a page)
+\widowpenalties 3 10000 10000 150
+\clubpenalties  3 10000 10000 150
+
+%% PeerJ requires left-justified text (not full-width justified)
+\raggedright
+\setlength{\parindent}{1.5em} % Restore first-line indent zeroed by \raggedright
+
+%% Prevent overfull lines
+\setlength{\emergencystretch}{3em}
+
+%% Remove section numbering (Pandoc Markdown uses unnumbered sections)
+\setcounter{secnumdepth}{-\maxdimen}
+
+%% ============================================================================
+%% Hyperlinks (must be loaded after other packages)
+%% ============================================================================
+\usepackage{hyperref}
+\hypersetup{
+$if(title-meta)$
+  pdftitle={$title-meta$},
+$endif$
+$if(author-meta)$
+  pdfauthor={$author-meta$},
+$endif$
+  hidelinks,
+  pdfcreator={LaTeX via Pandoc}}
+
+%% ============================================================================
+%% Extra header includes from YAML (if any)
+%% ============================================================================
+$for(header-includes)$
+$header-includes$
+$endfor$
+
+%% ============================================================================
+%% PeerJ metadata from YAML frontmatter
+%% ============================================================================
+\title{$title$}
+\author[1]{$author$}
+\affil[1]{$affiliation$}
+\corrauthor[1]{$author$}{$email$}
+
+$if(abstract)$
+\begin{abstract}
+$abstract$
+\end{abstract}
+$endif$
+
+%% ============================================================================
+%% Document body
+%% ============================================================================
+\begin{document}
+
+\flushbottom
+\maketitle
+\thispagestyle{empty}
+
+$body$
+
+\end{document}

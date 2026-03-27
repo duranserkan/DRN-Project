@@ -1,1 +1,0 @@
-pandoc ./paper-peerj.md --citeproc --bibliography=./paper.bib --csl=./peerj.csl -t latex -o manuscript.tex

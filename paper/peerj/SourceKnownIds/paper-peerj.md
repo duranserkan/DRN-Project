@@ -7,22 +7,20 @@ email: duran.serkan@outlook.com
 date: March 2026
 bibliography: paper.bib
 csl: peerj.csl
+abstract: |
+  Distributed applications need identifiers that satisfy storage efficiency, chronological sortability, origin metadata embedding, zero-lookup verifiability, confidentiality for external consumers, and multi-century addressability. Based on our literature survey, no existing scheme provides all six of these identifier properties within a unified system.
+
+  This paper introduces Source Known Identifiers (SKIDs), a three-tier identity system that projects a single entity identity across trust boundaries, addressing all six properties. The first tier, Source Known ID (SKID), is a 64-bit signed integer embedding a timestamp with a 250-millisecond precision, application topology, and a per-entity-type sequence counter. It serves as the database primary key, providing compact storage (8 bytes) and natural B-tree ordering for optimized database indexing. The second tier, Source Known Entity ID (SKEID), extends the SKID into a 128-bit Universally Unique Identifier (UUID) compatible value by adding an entity type discriminator, an epoch selector, and a BLAKE3 keyed message authentication code (MAC). SKEIDs enable zero-lookup verification of identifier origin, integrity, and entity type within trusted environments, with a big-endian byte layout that preserves chronological ordering in lexicographic UUID string comparisons. The third tier, Secure SKEID, encrypts the entire SKEID using AES-256 symmetric encryption as a single-block pseudorandom permutation, producing ciphertext indistinguishable from random bytes while remaining compatible with standard UUID data-type parsers in string representation. Deterministic bidirectional transformations connect all three tiers.
+
+  The design employs a defense-in-depth security architecture with multiple independent verification layers: AES-256 encryption, BLAKE3 keyed MAC, marker byte detection, entity type matching, and record existence probability. A collision guard mechanism using variant byte iteration with cryptographic backward verification prevents misclassification between encrypted and unencrypted forms. An epoch addressing system spans approximately 17,421 years of total coverage across 256 configurable epochs.
+
+  A reference implementation in C\#/.NET 10 is provided in the open-source DRN.Framework. BenchmarkDotNet measurements of the reference implementation (120 iterations, 262,144 invocations per iteration) on Apple M2 hardware show three performance tiers. Secure SKEID generation at 544.0 ± 5.7 ns takes approximately 1.4 times as long as UUID Version 7 at 377.5 ± 3.2 ns (a trade-off for providing AES-256 encryption). SKEID generation at 230.3 ± 3.5 ns is approximately 1.6 times as fast as UUID Version 7 despite embedding metadata and a BLAKE3 MAC in the same 128-bit footprint. SKID generation at 35.3 ± 1.2 ns is more than 10 times as fast as UUID Version 7 due to deterministic bit-packing without cryptographic random number generation. All ± values denote 99.9% Confidence Interval (CI) error margins.
 ---
 
 <!-- PeerJ Computer Science Research Article -->
-<!-- Structured for direct transfer to PeerJ CS Overleaf LaTeX template (wlpeerj.cls) -->
+<!-- Pipeline: paper-peerj.md → Pandoc + template-peerj.tex (wlpeerj.cls) → PDF/LaTeX -->
 <!-- Primary Subject Area: "Distributed and Parallel Computing" -->
 <!-- KEYWORDS: Distributed systems, Information security, Universally unique identifier, Primary key, Identity management, Software performance, Symmetric encryption, Message authentication code, Database indexing, Chronological sortability -->
-
-# Abstract
-
-Distributed applications need identifiers that satisfy storage efficiency, chronological sortability, origin metadata embedding, zero-lookup verifiability, confidentiality for external consumers, and multi-century addressability. Based on our literature survey, no existing scheme provides all six of these identifier properties within a unified system.
-
-This paper introduces Source Known Identifiers (SKIDs), a three-tier identity system that projects a single entity identity across trust boundaries, addressing all six properties. The first tier, Source Known ID (SKID), is a 64-bit signed integer embedding a timestamp with a 250-millisecond precision, application topology, and a per-entity-type sequence counter. It serves as the database primary key, providing compact storage (8 bytes) and natural B-tree ordering for optimized database indexing. The second tier, Source Known Entity ID (SKEID), extends the SKID into a 128-bit Universally Unique Identifier (UUID) compatible value by adding an entity type discriminator, an epoch selector, and a BLAKE3 keyed message authentication code (MAC). SKEIDs enable zero-lookup verification of identifier origin, integrity, and entity type within trusted environments, with a big-endian byte layout that preserves chronological ordering in lexicographic UUID string comparisons. The third tier, Secure SKEID, encrypts the entire SKEID using AES-256 symmetric encryption as a single-block pseudorandom permutation, producing ciphertext indistinguishable from random bytes while remaining compatible with standard UUID data-type parsers in string representation. Deterministic bidirectional transformations connect all three tiers.
-
-The design employs a defense-in-depth security architecture with multiple independent verification layers: AES-256 encryption, BLAKE3 keyed MAC, marker byte detection, entity type matching, and record existence probability. A collision guard mechanism using variant byte iteration with cryptographic backward verification prevents misclassification between encrypted and unencrypted forms. An epoch addressing system spans approximately 17,421 years of total coverage across 256 configurable epochs.
-
-A reference implementation in C#/.NET 10 is provided in the open-source DRN.Framework. BenchmarkDotNet measurements of the reference implementation (120 iterations, 262,144 invocations per iteration) on Apple M2 hardware show three performance tiers. Secure SKEID generation at 544.0 ± 5.7 ns takes approximately 1.4 times as long as UUID Version 7 at 377.5 ± 3.2 ns (a trade-off for providing AES-256 encryption). SKEID generation at 230.3 ± 3.5 ns is approximately 1.6 times as fast as UUID Version 7 despite embedding metadata and a BLAKE3 MAC in the same 128-bit footprint. SKID generation at 35.3 ± 1.2 ns is more than 10 times as fast as UUID Version 7 due to deterministic bit-packing without cryptographic random number generation. All ± values denote 99.9% Confidence Interval (CI) error margins.
 
 \newpage
 
@@ -129,7 +127,7 @@ SKIDs address the identifier gap through a three-tier identity model aligned wit
 
 3. **External Tier:** A 128-bit Secure Source Known Entity ID (Secure SKEID) encrypts the entire SKEID block using AES-256, preventing information leakage to untrusted consumers while remaining compatible with standard UUID data-type parsers in string representation (see Limitation 6).
 
-The three tiers are not three separate identifiers but one entity identity projected for different trust boundaries. The database stores the compact SKID, trusted applications derive the SKEID on demand, and external consumers receive the Secure SKEID. Deterministic bidirectional transformations between tiers allow any representation to be converted to any other, given the appropriate cryptographic keys. These transformations are sub-microsecond CPU operations (217--544 ns, Table 8) requiring no I/O or external lookup. Figure 1 illustrates the data transformations between the three tiers.
+The three tiers are not three separate identifiers but one entity identity projected for different trust boundaries. The database stores the compact SKID, trusted applications derive the SKEID on demand, and external consumers receive the Secure SKEID. Deterministic bidirectional transformations between tiers allow any representation to be converted to any other, given the appropriate cryptographic keys. These transformations are sub-microsecond CPU operations (217--544 ns, see Performance Results) requiring no I/O or external lookup. Figure 1 illustrates the data transformations between the three tiers.
 
 ```
    Database              Trusted Internal          External / Public
@@ -155,7 +153,7 @@ A SKID is a 64-bit signed integer with the following field layout (Figure 2), pa
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |S|                    Timestamp (T - 32 bits)                   
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- T| App ID (7)  | Inst (6)  |    SequenceId (18 bits)           |
+ T| App ID (7)  | Inst (6)  |        SequenceId (18 bits)       |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
@@ -165,7 +163,7 @@ Total: 1 (Sign) + 32 (Timestamp) + 7 (App ID) + 6 (App Instance Id) + 18 (Sequen
 
 \newpage
 
-Table 3 defines the corresponding field definitions.
+Table 3 details the corresponding fields.
 
 **Table 3:** SKID field definitions.
 
@@ -209,7 +207,7 @@ An SKEID occupies 16 bytes (128 bits), structured as shown in Figure 3.
 ```
 Byte:  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
      +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-     |EP| SKID Upper|S0|VE|ET|VA|S1|S2|S3| MAC       |
+     |EP| SKID Upper|S0|VE|ET|VA|S1|S2|S3|    MAC    |
      +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
 ```
 
@@ -291,7 +289,7 @@ Table 5 shows the Secure SKEID byte layout after AES-256 encryption.
 
 As a single AES block, the entire SKEID is encrypted. No internal structure is visible to external consumers.
 
-A Secure SKEID is produced by encrypting the entire 16-byte SKEID plaintext using AES-256 [@fips197] as a single-block cipher. Under the standard PRP assumption [@nistir8319], AES-256 applied to a single 128-bit block functions as a pseudorandom permutation (PRP), meaning every distinct plaintext maps to a distinct ciphertext and vice versa. The PRP/PRF switching lemma establishes a $2^{n/2}$ distinguishing bound for $n$-bit block ciphers [@bellare1998]. For AES with $n = 128$, a single-block PRP encryption is therefore indistinguishable from a random function up to approximately $2^{64}$ queries. This is beyond any practical identifier generation volume. 
+A Secure SKEID is produced by encrypting the entire 16-byte SKEID plaintext using AES-256 [@fips197] as a single-block cipher. Under the standard PRP assumption [@nistir8319], AES-256 applied to a single 128-bit block functions as a pseudorandom permutation (PRP), meaning every distinct plaintext maps to a distinct ciphertext and vice versa. A pseudorandom function (PRF) similarly produces outputs indistinguishable from random. The PRP/PRF switching lemma establishes a $2^{n/2}$ distinguishing bound for $n$-bit block ciphers [@bellare1998]. For AES with $n = 128$, a single-block PRP encryption is therefore indistinguishable from a random function up to approximately $2^{64}$ queries. This is beyond any practical identifier generation volume. 
 
 SKEID encryption always operates on exactly one block, the multi-block weakness of ECB mode does not apply. For a single block, ECB is mathematically identical to Cipher Block Chaining (CBC) with a zero initialization vector: $C = \text{AES}(Key, P \oplus 0) = \text{AES}(Key, P)$. No nonce is required, and there is no nonce-reuse vulnerability. ECB avoids the allocation and XOR overhead of a CBC initialization vector that would provide no additional security for single-block operations.
 
@@ -515,7 +513,7 @@ The computational cost of tier transformations is negligible. Converting between
 
 ## Interpretation of Results
 
-Benchmark results of reference implementation demonstrate that the SKID system achieves competitive or superior performance compared to standard identifier generation while delivering substantially more functionality. The more than 10× speed advantage of SKID over UUID V7 stems from the deterministic generation approach. Bit packing from cached values is fundamentally less expensive than the cryptographic random number generation required by UUID schemes. Even the most expensive operation (Secure SKEID at 544.0 ns) completes in well under a microsecond, making it practical for high-throughput production systems.
+Benchmark results of the reference implementation demonstrate that the SKID system achieves competitive or superior performance compared to standard identifier generation while delivering substantially more functionality. The more than 10× speed advantage of SKID over UUID V7 stems from the deterministic generation approach. Bit packing from cached values is fundamentally less expensive than the cryptographic random number generation required by UUID schemes. Even the most expensive operation (Secure SKEID at 544.0 ns) completes in well under a microsecond, making it practical for high-throughput production systems.
 
 Zero-allocation behavior in core SKID and SKEID operations is important for managed runtime environments (e.g., .NET, JVM) where garbage collection pauses can impact tail latency. By operating entirely on the stack, SKID generation avoids contributing to GC pressure even under sustained high-throughput scenarios.
 

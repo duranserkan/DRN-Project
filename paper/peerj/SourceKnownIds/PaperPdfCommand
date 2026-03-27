@@ -1,1 +1,0 @@
-TMPDIR=/tmp pandoc ./paper-peerj.md --citeproc --bibliography=./paper.bib --csl=./peerj.csl --pdf-engine=/Library/TeX/texbin/xelatex -V geometry:margin=1in -V mainfont:"Helvetica" -V monofont:"Menlo" -H ./preamble.tex -o ./paper-peerj.pdf
