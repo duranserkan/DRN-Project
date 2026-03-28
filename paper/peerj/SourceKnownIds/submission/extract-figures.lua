@@ -27,14 +27,14 @@ function CodeBlock(el)
 ]=])
     f_tex:close()
     
-    -- 4. PDF compilation via lualatex (allows UTF8 without errors)
+    -- 2. PDF compilation via lualatex (allows UTF8 without errors)
     os.execute("export TEXMFVAR=/tmp/texmfvar && lualatex -interaction=batchmode -output-directory=figures " .. tex_filename)
     
-    -- 4. PNG extraction via sips (native vector scaling) to avoid ghostscript, followed by magick trim
+    -- 3. PNG extraction via sips (native vector scaling) to avoid ghostscript, followed by magick trim
     os.execute("sips -Z 6000 -s format png " .. pdf_filename .. " --out " .. png_filename .. " > /dev/null")
-    os.execute("magick " .. png_filename .. " -trim +repage -resize 3000x3000 " .. png_filename)
+    os.execute("magick " .. png_filename .. " -trim +repage -resize 3000x3000 -background white -gravity center -extent '%[fx:w<900?900:w]x%[fx:h<900?900:h]' " .. png_filename)
     
-    -- 3. Cleanup intermediary files
+    -- 4. Cleanup intermediary files
     os.remove(pdf_filename)
     os.remove("figures/Figure-" .. fig_count .. ".log")
     os.remove("figures/Figure-" .. fig_count .. ".aux")
