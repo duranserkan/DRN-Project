@@ -4,17 +4,13 @@ Both commands use `template-peerj.tex` (custom Pandoc template with `wlpeerj.cls
 
 ## Prerequisites
 
-**Pandoc** (with citeproc):
+**Required Toolchain** (Pandoc for document conversions, ImageMagick and Diagram engines for extraction, and BasicTeX for PDF rendering):
 
 ```bash
-brew install pandoc
+brew install pandoc imagemagick ditaa plantuml basictex
 ```
 
-**BasicTeX** (XeLaTeX PDF engine):
-
-```bash
-brew install --cask basictex
-```
+*(Note: Depending on your Homebrew setup, `basictex` may alternatively require `brew install --cask basictex`)*
 
 **TeX packages** required by `wlpeerj.cls` (not included in BasicTeX):
 

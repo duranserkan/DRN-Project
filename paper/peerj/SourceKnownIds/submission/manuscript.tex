@@ -268,55 +268,7 @@ schemes and the SKID system.
 
 \textbf{Table 1:} Identifier property satisfaction across schemes.
 
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.2520}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1057}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0894}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0894}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0894}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0894}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0813}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0894}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1138}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Property
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-SKID System
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-UUID V4
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-UUID V7
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Snowflake
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-ULID
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-CUID2
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-KSUID
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-DB Sequence
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-Storage efficiency & 8/16 B & 16 B & 16 B & 8 B & 16 B & 24 chars & 20 B
-& 4/8 B \\
-Chronological sortability & Yes & No & Yes & Yes & Yes & No & Yes &
-Yes \\
-Origin metadata embedding & Yes & No & No & Partial & No & No & No &
-No \\
-Zero-lookup verifiability & Yes (MAC) & No & No & No & No & No & No &
-No \\
-Confidentiality (external) & Encryption & Randomness & No & No & No &
-Hashing & No & No \\
-Multi-century addressability & Yes (SKEID) & N/A & Yes & No & Yes & N/A
-& Partial & N/A \\
-\end{longtable}
-}
+\textbf{{[}Table 1 should be inserted here{]}}
 
 Table 2 provides a detailed feature comparison of these and additional
 identifier schemes.
@@ -465,61 +417,7 @@ a detailed feature comparison.
 
 \textbf{Table 2:} Feature comparison of distributed identifier schemes.
 
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.2114}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1789}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0976}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0732}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0894}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0813}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0813}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0813}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1057}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Feature
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-SKID System
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-UUID V4
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-UUID V7
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Snowflake
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-ULID
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-CUID2
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-KSUID
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-DB Sequence
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-Chronological ordering & 250ms & No & ms & ms & ms & No & second &
-Numeric \\
-Embedded timestamp & Yes & No & Yes & Yes & Yes & No & Yes & No \\
-Multi-century addressing & Yes (SKEID) & N/A & Yes & No & Yes & N/A &
-Partial & N/A \\
-Entity type & Yes (8-bit) & No & No & No & No & No & No & No \\
-Integrity check & Yes (BLAKE3 MAC) & No & No & No & No & No & No & No \\
-Confidentiality & Encryption (AES-256) & Randomness & No & No & No &
-Hashing & No & No \\
-Zero-lookup validation & Yes & No & No & No & No & No & No & No \\
-DB primary key size & 8 B (SKID) & 16 B & 16 B & 8 B & 16 B & 24 chars &
-20 B & 4/8 B \\
-External ID size & 16 B (SKEID) & 16 B & 16 B & 8 B & 26 chars & 24
-chars & 27 chars & 4/8 B \\
-UUID compatible & Yes (SKEID, UUID V8) & Yes & Yes & No & No & No & No &
-No \\
-Key rotation & Yes (key-ring) & N/A & N/A & N/A & N/A & N/A & N/A &
-N/A \\
-\end{longtable}
-}
+\textbf{{[}Table 2 should be inserted here{]}}
 
 \newpage
 
@@ -563,14 +461,7 @@ transformations are sub-microsecond CPU operations (217--544 ns, see
 Performance Results) requiring no I/O or external lookup. Figure 1
 illustrates the data transformations between the three tiers.
 
-\begin{verbatim}
-   Database              Trusted Internal          External / Public
-  ┌──────────┐          ┌───────────────┐          ┌────────────────┐
-  │ SKID     │ Generate │ SKEID         │ ToSecure │ Secure SKEID   │
-  │ Sortable │─────────▶│ BLAKE3 MAC    │─────────▶│ AES Encrypted  │
-  │ 64-bit   │◀─────────│ 128-bit       │◀─────────│ 128-bit        │
-  └──────────┘  Parse   └───────────────┘ ToPlain  └────────────────┘
-\end{verbatim}
+\textbf{{[}Figure 1 should be inserted here{]}}
 
 \textbf{Figure 1:} Three-tier identity model: bidirectional data
 transformations.
@@ -583,15 +474,7 @@ Specification}\label{source-known-id-skid-64-bit-specification}
 A SKID is a 64-bit signed integer with the following field layout
 (Figure 2), packed most-significant bit first.
 
-\begin{verbatim}
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|S|                    Timestamp (T - 32 bits)                   
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- T| App ID (7)  | Inst (6)  |        SequenceId (18 bits)       |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-\end{verbatim}
+\textbf{{[}Figure 2 should be inserted here{]}}
 
 \textbf{Figure 2:} SKID 64-bit field layout (IETF RFC diagram
 convention).
@@ -605,37 +488,7 @@ Table 3 details the corresponding fields.
 
 \textbf{Table 3:} SKID field definitions.
 
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1597}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0672}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0756}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6975}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Field
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Bit(s)
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Width
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Purpose
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-Sign / Epoch half & 63 & 1 bit & Epoch half indicator for smooth epoch
-transitions \\
-Timestamp & 62--31 & 32 bits & 250ms tick precision, epoch-relative
-(approximately 68 years per epoch) \\
-App Id & 30--24 & 7 bits & Application identifier (maximum 127) \\
-App Instance Id & 23--18 & 6 bits & Instance discriminator (maximum
-63) \\
-Sequence & 17--0 & 18 bits & Per-instance monotonic counter (262,144 per
-250ms tick; 1,048,576 per second) \\
-\end{longtable}
-}
+\textbf{{[}Table 3 should be inserted here{]}}
 
 The sign bit controls epoch half selection. When set to 1, the resulting
 value is negative, covering the first approximately 34 years of the
@@ -719,12 +572,7 @@ Specification}\label{source-known-entity-id-skeid-128-bit-specification}
 
 An SKEID occupies 16 bytes (128 bits), structured as shown in Figure 3.
 
-\begin{verbatim}
-Byte:  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
-     +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-     |EP| SKID Upper|S0|VE|ET|VA|S1|S2|S3|    MAC    |
-     +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-\end{verbatim}
+\textbf{{[}Figure 3 should be inserted here{]}}
 
 \textbf{Figure 3:} SKEID 16-byte field layout (big-endian, RFC 9562
 network byte order).
@@ -733,40 +581,7 @@ Table 4 details the byte-level layout of the SKEID fields.
 
 \textbf{Table 4:} SKEID byte layout.
 
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1889}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6111}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Field
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Byte(s)
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Width
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Purpose
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-Epoch & 0 & 8 bits & Epoch index (highest lexicographic priority) \\
-SKID upper half & 1--4 & 32 bits & SKID bits 63--32, sign-toggled for
-lexicographic order \\
-SKID low byte 0 & 5 & 8 bits & MSB of SKID lower half (timestamp LSB,
-App ID) \\
-Version marker & 6 & 8 bits & \texttt{0x8D} (UUID V8, RFC 9562 Section
-5.8 octet 6) \\
-Entity Type & 7 & 8 bits & Domain entity classification \\
-Variant marker & 8 & 8 bits & \texttt{0x8D} (RFC 9562 Section 4.1 octet
-8 variant) \\
-SKID low bytes & 9--11 & 24 bits & Remaining SKID lower half \\
-MAC & 12--15 & 32 bits & BLAKE3 keyed MAC (contiguous) \\
-\end{longtable}
-}
+\textbf{{[}Table 4 should be inserted here{]}}
 
 All fields are encoded in big-endian (network byte order) per RFC 9562.
 The epoch byte occupies byte 0 to ensure that higher epoch values sort
@@ -909,30 +724,7 @@ Table 5 shows the Secure SKEID byte layout after AES-256 encryption.
 
 \textbf{Table 5:} Secure SKEID byte layout.
 
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1889}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1111}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6000}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Field
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Byte(s)
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Width
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Purpose
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-Ciphertext & 0--15 & 128 bits & AES-256 encrypted SKEID (pseudorandom
-bytes) \\
-\end{longtable}
-}
+\textbf{{[}Table 5 should be inserted here{]}}
 
 As a single AES block, the entire SKEID is encrypted. No internal
 structure is visible to external consumers.
@@ -1112,20 +904,7 @@ Table 6 illustrates epoch addressing across the full epoch range.
 
 \textbf{Table 6:} Epoch addressing.
 
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}lll@{}}
-\toprule\noalign{}
-Epoch Value & Start & End \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\texttt{0x00} & January 1, 2025 & January 19, 2093 \\
-\texttt{0x01} & January 19, 2093 & February 7, 2161 \\
-\(\vdots\) & \(\vdots\) & \(\vdots\) \\
-\texttt{0xFF} & 19378 & 19446 \\
-\end{longtable}
-}
+\textbf{{[}Table 6 should be inserted here{]}}
 
 This two-level time addressing gives the identity system a multi-century
 lifespan without identifier collisions or sorting degradation. Epoch
@@ -1146,36 +925,7 @@ individual bypass probabilities.
 
 \textbf{Table 7:} Defense-in-depth security layers.
 
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2737}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.4211}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3053}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Layer
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Mechanism
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Bypass Probability
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-1. AES-256 Encryption & PRP over 128 bits & \(2^{-128}\) without the
-key \\
-2. BLAKE3 Keyed MAC & 32-bit truncated & \(2^{-32}\) per attempt \\
-3. Marker Detection & \texttt{0x8D8D} at fixed positions &
-\(2^{-16}\) \\
-4. Entity Type Match & Must match the expected type & \(2^{-8}\) \\
-5. Topology Validity & App ID and Instance ID must exist & Variable \\
-6. Existence Probability & Forged SKID must reference a record &
-Variable \\
-7. Rate Limiting & Restricts attempts per time period & Implementation
-defined \\
-\end{longtable}
-}
+\textbf{{[}Table 7 should be inserted here{]}}
 
 Even if an attacker guesses a ciphertext that, when decrypted, has valid
 markers, a valid MAC, a valid entity type, and valid topology, the
@@ -1429,49 +1179,7 @@ BenchmarkDotNet over iterations remaining after upper outlier removal.
 \textbf{Table 8:} BenchmarkDotNet performance measurements (120
 configured iterations, 262,144 invocations per iteration).
 
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.4500}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1200}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1200}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1300}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1800}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Operation
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Mean (ns)
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Error (ns)
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-StdDev (ns)
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Allocated Memory
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-Random 64-bit integer generation & 171.3 & 2.36 & 7.66 & 32 B \\
-Random UUID V4 generation & 354.1 & 3.64 & 11.81 & 0 B \\
-Random UUID V7 generation & 377.5 & 3.24 & 10.53 & 0 B \\
-Timestamp manager current time generation & 4.1 & 0.46 & 1.43 & 0 B \\
-Sequence manager time-scoped ID generation & 15.4 & 0.69 & 2.19 & 0 B \\
-\textbf{SKID generation} & \textbf{35.3} & \textbf{1.21} & \textbf{3.92}
-& \textbf{0 B} \\
-SKEID generation (with provided SKID) & 219.0 & 3.25 & 10.56 & 0 B \\
-\textbf{SKEID generation (with SKID generation)} & \textbf{230.3} &
-\textbf{3.45} & \textbf{11.20} & \textbf{0 B} \\
-SKEID generation (with entity allocation) & 248.3 & 3.87 & 12.58 & 192
-B \\
-\textbf{Secure SKEID generation} & \textbf{544.0} & \textbf{5.67} &
-\textbf{18.42} & \textbf{72 B} \\
-SKEID parsing & 223.6 & 2.87 & 9.31 & 0 B \\
-Secure SKEID parsing & 540.7 & 3.15 & 10.22 & 72 B \\
-ToPlain (decryption only) & 217.3 & 2.40 & 7.76 & 0 B \\
-ToSecure (encryption only) & 524.2 & 5.56 & 17.98 & 72 B \\
-\end{longtable}
-}
+\textbf{{[}Table 8 should be inserted here{]}}
 
 \subsection{Performance Comparison with
 UUID}\label{performance-comparison-with-uuid}
@@ -1531,37 +1239,7 @@ Table 9 compares storage requirements across identifier schemes.
 
 \textbf{Table 9:} Storage requirements comparison.
 
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2895}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2632}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2632}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1842}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Scheme
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Primary Key Size
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-External ID Size
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Ordered
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-SKID/SKEID & 8 B & 16 B & Yes \\
-UUID V4 & 16 B & 16 B & No \\
-UUID V7 & 16 B & 16 B & Yes \\
-Snowflake & 8 B & 8 B & Yes \\
-ULID & 16 B & 26 chars (Base32) & Yes \\
-CUID2 & 24 chars & 24 chars & No \\
-KSUID & 20 B & 27 chars (Base62) & Yes \\
-DB Sequence & 4/8 B & 4/8 B & Yes \\
-Dual ID (int + UUID) & 8 B + 16 B = 24 B & 16 B & Integer only \\
-\end{longtable}
-}
+\textbf{{[}Table 9 should be inserted here{]}}
 
 At 8 bytes per SKID versus 16 bytes for UUID, storage cost halves,
 directly reducing archival and indexing overhead. Compared to KSUIDs at
@@ -1716,76 +1394,12 @@ against standard and alternative identifier schemes.
 
 \textbf{Table 10:} Security comparison of standard identifier schemes.
 
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2178}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2178}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1683}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1881}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2079}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Threat
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-SKEID / Secure SKEID
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-UUID V4
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-UUID V7
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Snowflake
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-Enumeration & MAC + optional AES & 122-bit random & Timestamp-ordered &
-Timestamp-ordered \\
-Forgery & MAC verification & No detection & No detection & No
-detection \\
-Info leakage & AES-256 encrypted & None (random) & Timestamp visible &
-TS + worker visible \\
-Cross-type confusion & Entity type check & Possible & Possible &
-Possible \\
-\end{longtable}
-}
+\textbf{{[}Table 10 should be inserted here{]}}
 
 \textbf{Table 11:} Security comparison of alternative identifier
 schemes.
 
-{\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2178}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2178}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1980}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1584}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2079}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Threat
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-SKEID / Secure SKEID
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-ULID
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-CUID2
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-KSUID
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-Enumeration & MAC + optional AES & TS + 80-bit random & Hash-based & TS
-+ 128-bit random \\
-Forgery & MAC verification & No detection & No detection & No
-detection \\
-Info leakage & AES-256 encrypted & Timestamp visible & None (hashed) &
-Timestamp visible \\
-Cross-type confusion & Entity type check & Possible & Possible &
-Possible \\
-\end{longtable}
-}
+\textbf{{[}Table 11 should be inserted here{]}}
 
 \subsection{Threat Analysis}\label{threat-analysis}
 
