@@ -1,0 +1,72 @@
+\documentclass[fleqn,10pt,lineno]{wlpeerj}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Menlo}[Scale=0.85]
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{calc}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{%
+  \scriptsize%
+  \setlength{\tabcolsep}{2pt}%
+}
+\raggedright
+\pagestyle{empty}
+\begin{document}
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.2114}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1789}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0976}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0732}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0894}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0813}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0813}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0813}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1057}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Feature
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+SKID System
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+UUID V4
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+UUID V7
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Snowflake
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+ULID
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+CUID2
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+KSUID
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+DB Sequence
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Chronological ordering & 250ms & No & ms & ms & ms & No & second &
+Numeric \\
+Embedded timestamp & Yes & No & Yes & Yes & Yes & No & Yes & No \\
+Multi-century addressing & Yes (SKEID) & N/A & Yes & No & Yes & N/A &
+Partial & N/A \\
+Entity type & Yes (8-bit) & No & No & No & No & No & No & No \\
+Integrity check & Yes (BLAKE3 MAC) & No & No & No & No & No & No & No \\
+Confidentiality & Encryption (AES-256) & Randomness & No & No & No &
+Hashing & No & No \\
+Zero-lookup validation & Yes & No & No & No & No & No & No & No \\
+DB primary key size & 8 B (SKID) & 16 B & 16 B & 8 B & 16 B & 24 chars &
+20 B & 4/8 B \\
+External ID size & 16 B (SKEID) & 16 B & 16 B & 8 B & 26 chars & 24
+chars & 27 chars & 4/8 B \\
+UUID compatible & Yes (SKEID, UUID V8) & Yes & Yes & No & No & No & No &
+No \\
+Key rotation & Yes (key-ring) & N/A & N/A & N/A & N/A & N/A & N/A &
+N/A \\
+\end{longtable}
+}
+\end{document}

@@ -1,0 +1,48 @@
+\documentclass[fleqn,10pt,lineno]{wlpeerj}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Menlo}[Scale=0.85]
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{calc}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{%
+  \scriptsize%
+  \setlength{\tabcolsep}{2pt}%
+}
+\raggedright
+\pagestyle{empty}
+\begin{document}
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1597}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0672}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.0756}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6975}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Field
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Bit(s)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Width
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Purpose
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Sign / Epoch half & 63 & 1 bit & Epoch half indicator for smooth epoch
+transitions \\
+Timestamp & 62--31 & 32 bits & 250ms tick precision, epoch-relative
+(approximately 68 years per epoch) \\
+App Id & 30--24 & 7 bits & Application identifier (maximum 127) \\
+App Instance Id & 23--18 & 6 bits & Instance discriminator (maximum
+63) \\
+Sequence & 17--0 & 18 bits & Per-instance monotonic counter (262,144 per
+250ms tick; 1,048,576 per second) \\
+\end{longtable}
+}
+\end{document}

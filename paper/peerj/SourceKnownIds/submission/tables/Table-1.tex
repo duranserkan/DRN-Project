@@ -1,0 +1,66 @@
+\documentclass[fleqn,10pt,lineno]{wlpeerj}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Menlo}[Scale=0.85]
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{calc}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{%
+  \scriptsize%
+  \setlength{\tabcolsep}{2pt}%
+}
+\raggedright
+\pagestyle{empty}
+\begin{document}
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.2520}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1057}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0894}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0894}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0894}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0894}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0813}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0894}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1138}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Property
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+SKID System
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+UUID V4
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+UUID V7
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Snowflake
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+ULID
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+CUID2
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+KSUID
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+DB Sequence
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Storage efficiency & 8/16 B & 16 B & 16 B & 8 B & 16 B & 24 chars & 20 B
+& 4/8 B \\
+Chronological sortability & Yes & No & Yes & Yes & Yes & No & Yes &
+Yes \\
+Origin metadata embedding & Yes & No & No & Partial & No & No & No &
+No \\
+Zero-lookup verifiability & Yes (MAC) & No & No & No & No & No & No &
+No \\
+Confidentiality (external) & Encryption & Randomness & No & No & No &
+Hashing & No & No \\
+Multi-century addressability & Yes (SKEID) & N/A & Yes & No & Yes & N/A
+& Partial & N/A \\
+\end{longtable}
+}
+\end{document}

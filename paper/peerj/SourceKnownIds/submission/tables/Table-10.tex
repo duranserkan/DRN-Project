@@ -1,0 +1,50 @@
+\documentclass[fleqn,10pt,lineno]{wlpeerj}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Menlo}[Scale=0.85]
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{calc}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{%
+  \scriptsize%
+  \setlength{\tabcolsep}{2pt}%
+}
+\raggedright
+\pagestyle{empty}
+\begin{document}
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2178}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2178}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1683}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1881}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2079}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Threat
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+SKEID / Secure SKEID
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+UUID V4
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+UUID V7
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Snowflake
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Enumeration & MAC + optional AES & 122-bit random & Timestamp-ordered &
+Timestamp-ordered \\
+Forgery & MAC verification & No detection & No detection & No
+detection \\
+Info leakage & AES-256 encrypted & None (random) & Timestamp visible &
+TS + worker visible \\
+Cross-type confusion & Entity type check & Possible & Possible &
+Possible \\
+\end{longtable}
+}
+\end{document}

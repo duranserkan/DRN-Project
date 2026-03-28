@@ -36,8 +36,13 @@ function Table(el)
     f_tex:close()
     
     os.execute("export TEXMFVAR=/tmp/texmfvar && lualatex -interaction=batchmode -output-directory=tables " .. tex_filename)
-    os.execute("sips -Z 3000 -s format png " .. pdf_filename .. " --out " .. png_filename .. " > /dev/null")
-    os.execute("magick " .. png_filename .. " -trim +repage " .. png_filename)
+    os.execute("sips -Z 6000 -s format png " .. pdf_filename .. " --out " .. png_filename .. " > /dev/null")
+    os.execute("magick " .. png_filename .. " -trim +repage -resize 3000x3000 " .. png_filename)
+    
+    -- Cleanup intermediary files
+    os.remove(pdf_filename)
+    os.remove("tables/Table-" .. tab_count .. ".log")
+    os.remove("tables/Table-" .. tab_count .. ".aux")
     
     return pandoc.Para({ pandoc.Strong(pandoc.Str("[Table " .. tab_count .. " should be inserted here]")) })
 end

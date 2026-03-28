@@ -1,0 +1,48 @@
+\documentclass[fleqn,10pt,lineno]{wlpeerj}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Menlo}[Scale=0.85]
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{calc}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{%
+  \scriptsize%
+  \setlength{\tabcolsep}{2pt}%
+}
+\raggedright
+\pagestyle{empty}
+\begin{document}
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2895}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2632}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2632}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1842}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Scheme
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Primary Key Size
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+External ID Size
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Ordered
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+SKID/SKEID & 8 B & 16 B & Yes \\
+UUID V4 & 16 B & 16 B & No \\
+UUID V7 & 16 B & 16 B & Yes \\
+Snowflake & 8 B & 8 B & Yes \\
+ULID & 16 B & 26 chars (Base32) & Yes \\
+CUID2 & 24 chars & 24 chars & No \\
+KSUID & 20 B & 27 chars (Base62) & Yes \\
+DB Sequence & 4/8 B & 4/8 B & Yes \\
+Dual ID (int + UUID) & 8 B + 16 B = 24 B & 16 B & Integer only \\
+\end{longtable}
+}
+\end{document}

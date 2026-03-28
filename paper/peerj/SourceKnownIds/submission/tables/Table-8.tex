@@ -1,0 +1,60 @@
+\documentclass[fleqn,10pt,lineno]{wlpeerj}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Menlo}[Scale=0.85]
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{calc}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{%
+  \scriptsize%
+  \setlength{\tabcolsep}{2pt}%
+}
+\raggedright
+\pagestyle{empty}
+\begin{document}
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.4500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1200}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1200}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1300}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1800}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Operation
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Mean (ns)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Error (ns)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+StdDev (ns)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Allocated Memory
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Random 64-bit integer generation & 171.3 & 2.36 & 7.66 & 32 B \\
+Random UUID V4 generation & 354.1 & 3.64 & 11.81 & 0 B \\
+Random UUID V7 generation & 377.5 & 3.24 & 10.53 & 0 B \\
+Timestamp manager current time generation & 4.1 & 0.46 & 1.43 & 0 B \\
+Sequence manager time-scoped ID generation & 15.4 & 0.69 & 2.19 & 0 B \\
+\textbf{SKID generation} & \textbf{35.3} & \textbf{1.21} & \textbf{3.92}
+& \textbf{0 B} \\
+SKEID generation (with provided SKID) & 219.0 & 3.25 & 10.56 & 0 B \\
+\textbf{SKEID generation (with SKID generation)} & \textbf{230.3} &
+\textbf{3.45} & \textbf{11.20} & \textbf{0 B} \\
+SKEID generation (with entity allocation) & 248.3 & 3.87 & 12.58 & 192
+B \\
+\textbf{Secure SKEID generation} & \textbf{544.0} & \textbf{5.67} &
+\textbf{18.42} & \textbf{72 B} \\
+SKEID parsing & 223.6 & 2.87 & 9.31 & 0 B \\
+Secure SKEID parsing & 540.7 & 3.15 & 10.22 & 72 B \\
+ToPlain (decryption only) & 217.3 & 2.40 & 7.76 & 0 B \\
+ToSecure (encryption only) & 524.2 & 5.56 & 17.98 & 72 B \\
+\end{longtable}
+}
+\end{document}

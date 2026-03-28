@@ -1,0 +1,17 @@
+\documentclass[fleqn,10pt,lineno]{wlpeerj}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Menlo}[Scale=0.85]
+\raggedright
+\pagestyle{empty}
+\begin{document}
+\begin{verbatim}
+   Database              Trusted Internal          External / Public
+  ┌──────────┐          ┌───────────────┐          ┌────────────────┐
+  │ SKID     │ Generate │ SKEID         │ ToSecure │ Secure SKEID   │
+  │ Sortable │─────────▶│ BLAKE3 MAC    │─────────▶│ AES Encrypted  │
+  │ 64-bit   │◀─────────│ 128-bit       │◀─────────│ 128-bit        │
+  └──────────┘  Parse   └───────────────┘ ToPlain  └────────────────┘
+\end{verbatim}
+\end{document}

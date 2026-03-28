@@ -1,0 +1,31 @@
+\documentclass[fleqn,10pt,lineno]{wlpeerj}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Menlo}[Scale=0.85]
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{calc}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{%
+  \scriptsize%
+  \setlength{\tabcolsep}{2pt}%
+}
+\raggedright
+\pagestyle{empty}
+\begin{document}
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Epoch Value & Start & End \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{0x00} & January 1, 2025 & January 19, 2093 \\
+\texttt{0x01} & January 19, 2093 & February 7, 2161 \\
+\(\vdots\) & \(\vdots\) & \(\vdots\) \\
+\texttt{0xFF} & 19378 & 19446 \\
+\end{longtable}
+}
+\end{document}

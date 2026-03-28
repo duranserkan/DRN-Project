@@ -1,0 +1,47 @@
+\documentclass[fleqn,10pt,lineno]{wlpeerj}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Menlo}[Scale=0.85]
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{calc}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{%
+  \scriptsize%
+  \setlength{\tabcolsep}{2pt}%
+}
+\raggedright
+\pagestyle{empty}
+\begin{document}
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2737}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.4211}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3053}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Layer
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Mechanism
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Bypass Probability
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1. AES-256 Encryption & PRP over 128 bits & \(2^{-128}\) without the
+key \\
+2. BLAKE3 Keyed MAC & 32-bit truncated & \(2^{-32}\) per attempt \\
+3. Marker Detection & \texttt{0x8D8D} at fixed positions &
+\(2^{-16}\) \\
+4. Entity Type Match & Must match the expected type & \(2^{-8}\) \\
+5. Topology Validity & App ID and Instance ID must exist & Variable \\
+6. Existence Probability & Forged SKID must reference a record &
+Variable \\
+7. Rate Limiting & Restricts attempts per time period & Implementation
+defined \\
+\end{longtable}
+}
+\end{document}

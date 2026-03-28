@@ -1,0 +1,50 @@
+\documentclass[fleqn,10pt,lineno]{wlpeerj}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Menlo}[Scale=0.85]
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{calc}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{%
+  \scriptsize%
+  \setlength{\tabcolsep}{2pt}%
+}
+\raggedright
+\pagestyle{empty}
+\begin{document}
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2178}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2178}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1980}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1584}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2079}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Threat
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+SKEID / Secure SKEID
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+ULID
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+CUID2
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+KSUID
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Enumeration & MAC + optional AES & TS + 80-bit random & Hash-based & TS
++ 128-bit random \\
+Forgery & MAC verification & No detection & No detection & No
+detection \\
+Info leakage & AES-256 encrypted & Timestamp visible & None (hashed) &
+Timestamp visible \\
+Cross-type confusion & Entity type check & Possible & Possible &
+Possible \\
+\end{longtable}
+}
+\end{document}

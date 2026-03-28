@@ -1,0 +1,51 @@
+\documentclass[fleqn,10pt,lineno]{wlpeerj}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\setsansfont{Helvetica}
+\setmonofont{Menlo}[Scale=0.85]
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{calc}
+\usepackage{etoolbox}
+\AtBeginEnvironment{longtable}{%
+  \scriptsize%
+  \setlength{\tabcolsep}{2pt}%
+}
+\raggedright
+\pagestyle{empty}
+\begin{document}
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1889}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.6111}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Field
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Byte(s)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Width
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Purpose
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Epoch & 0 & 8 bits & Epoch index (highest lexicographic priority) \\
+SKID upper half & 1--4 & 32 bits & SKID bits 63--32, sign-toggled for
+lexicographic order \\
+SKID low byte 0 & 5 & 8 bits & MSB of SKID lower half (timestamp LSB,
+App ID) \\
+Version marker & 6 & 8 bits & \texttt{0x8D} (UUID V8, RFC 9562 Section
+5.8 octet 6) \\
+Entity Type & 7 & 8 bits & Domain entity classification \\
+Variant marker & 8 & 8 bits & \texttt{0x8D} (RFC 9562 Section 4.1 octet
+8 variant) \\
+SKID low bytes & 9--11 & 24 bits & Remaining SKID lower half \\
+MAC & 12--15 & 32 bits & BLAKE3 keyed MAC (contiguous) \\
+\end{longtable}
+}
+\end{document}
