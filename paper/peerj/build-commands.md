@@ -49,12 +49,35 @@ Compiles the previously generated `manuscript.tex` to PDF. Produces the same out
 
 > XeLaTeX is run twice to resolve cross-references (page numbers, table of contents). Both paths produce identical PDFs because the template specifies fonts by TeX filename (e.g., `texgyretermes-regular.otf`) rather than system font name, eliminating platform-dependent font resolution.
 
+## arXiv Submission
+
+arXiv rejects PDFs with line numbers. The `submission/template-arxiv.tex` template removes the `lineno` option and uses TeX filename fonts (arXiv has no macOS system fonts). All commands below run from the `submission/` directory.
+
+### Generate arXiv LaTeX
+
+```bash
+pandoc ./paper-peerj.md --template=template-arxiv.tex --citeproc --bibliography=./paper.bib --csl=./peerj.csl -t latex -o manuscript-arxiv.tex
+```
+
+### Generate arXiv PDF (direct)
+
+```bash
+TMPDIR=/tmp pandoc ./paper-peerj.md --template=template-arxiv.tex --citeproc --bibliography=./paper.bib --csl=./peerj.csl --pdf-engine=/Library/TeX/texbin/xelatex -o ./manuscript-arxiv.pdf
+```
+
+### Generate arXiv PDF (from LaTeX)
+
+```bash
+/Library/TeX/texbin/xelatex ./manuscript-arxiv.tex && /Library/TeX/texbin/xelatex ./manuscript-arxiv.tex
+```
+
 ## File Inventory
 
 | File | Purpose |
 |------|---------|
 | `paper-peerj.md` | Single source of truth (content + metadata in YAML frontmatter) |
-| `template-peerj.tex` | Custom Pandoc template — maps YAML to `wlpeerj.cls` macros |
+| `template-peerj.tex` | Custom Pandoc template — maps YAML to `wlpeerj.cls` macros (with line numbers) |
+| `template-arxiv.tex` | arXiv Pandoc template — no line numbers, TeX filename fonts |
 | `wlpeerj.cls` | PeerJ document class (page layout, fonts, title page) |
 | `peerj.csl` | Citation Style Language — formats `[@ref]` citations |
 | `paper.bib` | BibTeX bibliography database |
