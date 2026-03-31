@@ -14,9 +14,28 @@
 
 %% Unicode font support via fontspec (XeLaTeX) — fixes Turkish chars and box-drawing glyphs
 \usepackage{fontspec}
-\setmainfont{Times New Roman}
-\setsansfont{Helvetica}
-\setmonofont{Menlo}[Scale=0.85]
+
+% Load TeX Gyre Termes by filename (Times New Roman metric-compatible clone)
+\setmainfont{texgyretermes-regular.otf}[
+  BoldFont       = texgyretermes-bold.otf,
+  ItalicFont     = texgyretermes-italic.otf,
+  BoldItalicFont = texgyretermes-bolditalic.otf
+]
+
+% Load TeX Gyre Heros by filename (Helvetica metric-compatible clone)
+\setsansfont{texgyreheros-regular.otf}[
+  BoldFont       = texgyreheros-bold.otf,
+  ItalicFont     = texgyreheros-italic.otf,
+  BoldItalicFont = texgyreheros-bolditalic.otf
+]
+
+% Load DejaVu Sans Mono by filename (monospace with full Unicode coverage)
+\setmonofont{DejaVuSansMono.ttf}[
+  Scale          = 0.85,
+  BoldFont       = DejaVuSansMono-Bold.ttf,
+  ItalicFont     = DejaVuSansMono-Oblique.ttf,
+  BoldItalicFont = DejaVuSansMono-BoldOblique.ttf
+]
 %% Override wlpeerj.cls author fonts — cls hardcodes \usefont{OT1}{phv}{b}{n} which lacks Turkish chars
 \renewcommand\Authfont{\fontsize{12}{14}\selectfont\sffamily\bfseries}
 \renewcommand\Affilfont{\fontsize{10}{12}\selectfont\sffamily\bfseries}

@@ -16,10 +16,10 @@ brew install pandoc imagemagick ditaa plantuml basictex
 
 ```bash
 sudo tlmgr update --self
-sudo tlmgr install collection-fontsrecommended preprint titlesec lastpage enumitem lipsum
+sudo tlmgr install collection-fontsrecommended dejavu preprint titlesec lastpage enumitem lipsum
 ```
 
-> `collection-fontsrecommended` provides Times, Helvetica, math fonts (~200MB). `preprint` provides `authblk.sty`; `titlesec` includes `titletoc.sty`.
+> `collection-fontsrecommended` provides TeX Gyre Termes/Heros (Times/Helvetica metric-compatible clones) and math fonts (~200MB). `dejavu` provides DejaVu Sans Mono (monospace with full Unicode coverage). `preprint` provides `authblk.sty`; `titlesec` includes `titletoc.sty`.
 >
 > **Note**: If you already have the full MacTeX distribution installed (`mactex` instead of `basictex`), you can skip this `tlmgr` section entirely as all packages are pre-installed.
 
@@ -31,13 +31,23 @@ Converts the Markdown paper to a standalone `.tex` file. The output uses `wlpeer
 pandoc ./paper-peerj.md --template=template-peerj.tex --citeproc --bibliography=./paper.bib --csl=./peerj.csl -t latex -o manuscript.tex
 ```
 
-## Generate PDF
+## Generate PDF (direct)
 
 Converts the Markdown paper directly to PDF using XeLaTeX with the PeerJ layout (wlpeerj.cls title page, colored abstract box, line numbers, 5cm left margin).
 
 ```bash
 TMPDIR=/tmp pandoc ./paper-peerj.md --template=template-peerj.tex --citeproc --bibliography=./paper.bib --csl=./peerj.csl --pdf-engine=/Library/TeX/texbin/xelatex -o ./paper-peerj.pdf
 ```
+
+## Generate PDF (from LaTeX)
+
+Compiles the previously generated `manuscript.tex` to PDF. Produces the same output as the direct path since both use identical TeX Gyre / DejaVu fonts resolved by filename.
+
+```bash
+/Library/TeX/texbin/xelatex ./manuscript.tex && /Library/TeX/texbin/xelatex ./manuscript.tex
+```
+
+> XeLaTeX is run twice to resolve cross-references (page numbers, table of contents). Both paths produce identical PDFs because the template specifies fonts by TeX filename (e.g., `texgyretermes-regular.otf`) rather than system font name, eliminating platform-dependent font resolution.
 
 ## File Inventory
 
