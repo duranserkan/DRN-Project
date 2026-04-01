@@ -297,6 +297,36 @@ public class SourceKnownEntityIdUtilsTests
         result.Valid.Should().BeFalse("tampered variant byte must be rejected by backward verification");
     }
 
+    [Theory]
+    [DataInlineUnit]
+    public async Task PlainParse_Should_Fail_On_Any_Tampered_Payload_Byte(DrnTestContextUnit context)
+    {
+        var nexusSettings = new NexusAppSettings { AppId = 5, AppInstanceId = 12 };
+        context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
+        var idUtils = context.GetRequiredService<ISourceKnownIdUtils>();
+        var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
+
+        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay);
+        var longId = idUtils.Next<XEntity>();
+        
+        // Generate a Plain SKEID so we can directly modify the byte layout and test MAC verification.
+        var plainId = entityIdUtils.GeneratePlain(new XEntity(longId));
+        var originalBytes = plainId.EntityId.ToByteArray(bigEndian: true);
+
+        // Bytes 0-11 are the SKEID payload (timestamp, id, entityType, markers, etc.).
+        // Bytes 12-15 are the MAC. We test that tampering any byte in 0-11 triggers MAC rejection.
+        for (var i = 0; i < 12; i++)
+        {
+            var tamperedBytes = originalBytes.ToArray();
+            tamperedBytes[i] ^= 0xFF; // Flip bits
+
+            var tamperedGuid = new Guid(tamperedBytes, bigEndian: true);
+            var tamperedResult = entityIdUtils.Parse(tamperedGuid);
+
+            tamperedResult.Valid.Should().BeFalse($"tampering payload byte at index {i} must be rejected by MAC verification");
+        }
+    }
+
     private static void AssertValidEntityId(SourceKnownEntityId entityId, long expectedId,
         NexusAppSettings nexusSettings, byte expectedEntityType, bool expectedSecure)
     {
