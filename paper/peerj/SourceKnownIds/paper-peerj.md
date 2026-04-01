@@ -56,7 +56,7 @@ Table 1 summarizes identifier property satisfaction across existing schemes and 
 | Confidentiality (external)    | Encryption  | Randomness| No        | No        | No        | Hashing  | No        | No           |
 | Multi-century addressability  | Yes (SKEID) | N/A       | Yes       | No        | Yes       | N/A      | Partial   | N/A          |
 
-Table 2 provides a detailed feature comparison of these and additional identifier schemes.
+Table 2 provides a detailed feature comparison of identifier schemes.
 
 \newpage
 
@@ -101,13 +101,13 @@ KSUIDs [@ksuid] (K-Sortable Unique Identifier) provides a 160-bit (20-byte) valu
 
 None of these approaches offers integrity verification. Table 2 presents a detailed feature comparison.
 
-**Table 2:** Feature comparison of distributed identifier schemes.
+**Table 2:** Feature comparison of identifier schemes.
 
 | Feature                  | SKID System          | UUID V4    | UUID V7 | Snowflake | ULID     | CUID2    | KSUID    | DB Sequence |
 |--------------------------|----------------------|------------|---------|-----------|----------|----------|----------|-------------|
 | Chronological ordering   | 250ms                | No         | ms      | ms        | ms       | No       | second   | Numeric     |
 | Embedded timestamp       | Yes                  | No         | Yes     | Yes       | Yes      | No       | Yes      | No          |
-| Multi-century addressing | Yes  (SKEID)         | N/A        | Yes     | No        | Yes      | N/A      | Partial  | N/A         |
+| Multi-century addressing | Yes (SKEID)          | N/A        | Yes     | No        | Yes      | N/A      | Partial  | N/A         |
 | Entity type              | Yes (8-bit)          | No         | No      | No        | No       | No       | No       | No          |
 | Integrity check          | Yes (BLAKE3 MAC)     | No         | No      | No        | No       | No       | No       | No          |
 | Confidentiality          | Encryption (AES-256) | Randomness | No      | No        | No       | Hashing  | No       | No          |
@@ -295,7 +295,7 @@ As a single AES block, the entire SKEID is encrypted. No internal structure is v
 
 A Secure SKEID is produced by encrypting the entire 16-byte SKEID plaintext using AES-256 [@fips197] as a single-block cipher. Under the standard PRP assumption [@nistir8319], AES-256 applied to a single 128-bit block functions as a pseudorandom permutation (PRP), meaning every distinct plaintext maps to a distinct ciphertext and vice versa. A pseudorandom function (PRF) similarly produces outputs indistinguishable from random. The PRP/PRF switching lemma establishes a $2^{n/2}$ distinguishing bound for $n$-bit block ciphers [@bellare1998]. For AES with $n = 128$, a single-block PRP encryption is therefore indistinguishable from a random function up to approximately $2^{64}$ queries. This is beyond any practical identifier generation volume. 
 
-SKEID encryption always operates on exactly one block, the multi-block weakness of ECB mode does not apply. For a single block, ECB is mathematically identical to Cipher Block Chaining (CBC) with a zero initialization vector: $C = \text{AES}(Key, P \oplus 0) = \text{AES}(Key, P)$. No nonce is required, and there is no nonce-reuse vulnerability. ECB avoids the allocation and XOR overhead of a CBC initialization vector that would provide no additional security for single-block operations.
+Because SKEID encryption always operates on exactly one block, the multi-block weakness of ECB mode does not apply. For a single block, ECB is mathematically identical to Cipher Block Chaining (CBC) with a zero initialization vector: $C = \text{AES}(Key, P \oplus 0) = \text{AES}(Key, P)$. No nonce is required, and there is no nonce-reuse vulnerability. ECB avoids the allocation and XOR overhead of a CBC initialization vector that would provide no additional security for single-block operations.
 
 Quantum attacks on AES via Grover's algorithm reduce the effective security of AES-256 to 128 bits, which still remains computationally infeasible [@bonnetain2019].
 
