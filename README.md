@@ -25,7 +25,6 @@
 [![wiki](https://img.shields.io/badge/Doc-Security-gold)](https://github.com/duranserkan/DRN-Project/blob/master/SECURITY.md)
 [![GitHub Stars](https://img.shields.io/github/stars/duranserkan/DRN-Project?label=github%20stars)](https://github.com/duranserkan/DRN-Project/stargazers/)
 
-[![DOI](https://zenodo.org/badge/678002380.svg)](https://doi.org/10.5281/zenodo.19240397)
 [![arXiv](https://img.shields.io/badge/arXiv-2604.00151-b31b1b.svg)](https://doi.org/10.48550/arXiv.2604.00151)
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Testing?logo=Nuget&label=DRN.Framework.Testing)](https://nuget.org/packages/DRN.Framework.Testing/#readme-body-tab)
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.SharedKernel?logo=Nuget&label=DRN.Framework.SharedKernel)](https://nuget.org/packages/DRN.Framework.SharedKernel/#readme-body-tab)
