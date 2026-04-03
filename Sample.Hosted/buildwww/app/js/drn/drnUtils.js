@@ -1,3 +1,5 @@
+//drnUtils.js
+
 /**
  * Provides common helper functions
  */
@@ -105,9 +107,11 @@ const drnUtils = {
         if (!overrides) return base;
         if (!base) return overrides;
 
-        const output = {...base};
+        const output = { ...base };
 
         for (const key in overrides) {
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype')
+                continue;
             if (Object.prototype.hasOwnProperty.call(overrides, key)) {
                 const overrideValue = overrides[key];
                 const baseValue = output[key];
@@ -120,6 +124,18 @@ const drnUtils = {
         }
 
         return output;
+    },
+
+    /**
+     * Escapes HTML special characters to prevent XSS.
+     * Uses DOM-based escaping via createTextNode for safety.
+     * @param {string} str - The string to escape.
+     * @returns {string} The escaped HTML string.
+     */
+    escapeHtml: (str) => {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
     }
 };
 

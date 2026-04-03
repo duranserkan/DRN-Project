@@ -1,9 +1,23 @@
+//drnOnmount.js
 /**
  * Provides helper functions for registering components with the onmount library.
  * Assumes `onmount` global is available when register functions are *called*.
  */
 const drnOnmount = {
     _registry: new Set(),
+
+    /**
+     * Returns true when document.body is mid-htmx swap.
+     *
+     * htmx's swapInnerHTML inserts new content before old children, then removes
+     * all old children — including any elements appended to document.body by
+     * component initializers (e.g. Syncfusion popups). Detecting this state lets
+     * us skip premature onmount() trigger calls; the existing htmx:load handler
+     * in appPostload.js will call onmount() after the swap completes.
+     */
+    _isHtmxSwapping() {
+        return document.body !== null && document.body.classList.contains('htmx-swapping');
+    },
     /**
      * Default unregister function for onmount.
      * Cleans up event listeners and calls dispose/destroy if present.
@@ -21,12 +35,9 @@ const drnOnmount = {
             options.disposable.destroy();
         }
 
-        // Assumes jQuery ($) is available when onmount runs
-        if (typeof $ !== 'undefined') {
-            $(this).off(); // Remove all event handlers attached via jQuery on this element
-        } else {
-            console.warn("jQuery ($) is not available in unregister function.");
-        }
+        // Event handler cleanup:
+        // - Component-level cleanup is handled by dispose()/destroy() above
+        // - For vanilla JS listeners, use AbortController or register cleanup in options.disposable
     },
 
     /**
@@ -72,7 +83,7 @@ const drnOnmount = {
 
         // Check for idempotency
         if (drnOnmount._registry.has(selectorKey)) {
-            window.onmount();
+            if (!drnOnmount._isHtmxSwapping()) { window.onmount(); }
             return;
         }
 
@@ -88,9 +99,9 @@ const drnOnmount = {
         if (readyState === 'interactive' || readyState === 'complete')
             executeRegistration();
         else
-            document.addEventListener('DOMContentLoaded', executeRegistration, {once: true});
+            document.addEventListener('DOMContentLoaded', executeRegistration, { once: true });
 
-        onmount();
+        if (!drnOnmount._isHtmxSwapping()) { onmount(); }
     }
 };
 

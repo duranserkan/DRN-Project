@@ -1,3 +1,4 @@
+//drnOnmount.d.ts
 // Declare the minimal structure of onmount for typing purposes
 // This assumes onmount is available globally (e.g., loaded before this script)
 export interface OnMountStatic {

@@ -1,3 +1,4 @@
+//drnCookieManager.js
 import drnUtils from './drnUtils';
 
 /**

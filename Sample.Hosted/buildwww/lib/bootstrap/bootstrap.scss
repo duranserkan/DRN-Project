@@ -1,5 +1,6 @@
 // Color Palette
-$primary: #3d5f6c; // Example: Change primary color to green pastel
+$primary: #0750bc;
+$info: #2c5785;
 
 // Design Preferences
 $enable-shadows: false;
@@ -72,4 +73,9 @@ $min-contrast-ratio: 4.5;
 
 
 // 5. Include any custom CSS or additional component imports
-// @import "custom-styles"; // Your own custom styles
+
+// Bootstrap Icons — merged into bootstrap bundle for single CSS load
+// woff2-only (98%+ browser support); Vite content-hashes the filename for cache-busting
+$bootstrap-icons-font-dir: "../../../node_modules/bootstrap-icons/font/fonts";
+$bootstrap-icons-font-src: url("#{$bootstrap-icons-font-dir}/bootstrap-icons.woff2") format("woff2");
+@import "../../../node_modules/bootstrap-icons/font/bootstrap-icons";

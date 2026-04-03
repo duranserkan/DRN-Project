@@ -1,4 +1,3 @@
-using DRN.Framework.Utils.Scope;
 using Sample.Domain.Identity;
 
 namespace Sample.Hosted.Helpers;

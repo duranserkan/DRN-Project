@@ -1,8 +1,5 @@
-/**
- * Options for setting a cookie.
- */
+//drnCookieManager.d.ts
 export interface DrnCookieOptions {
-
     /**
      * Expiration in seconds (takes precedence over days)
      * If omitted, creates a session cookie.
@@ -80,7 +77,7 @@ export interface IDrnCookieManager {
      * @param name - The key of the cookie.
      * @param options - Path and Domain configuration.
      */
-    remove(name: string, options?: CookieOptions): void;
+    remove(name: string, options?: DrnCookieOptions): void;
 
     /**
      * Boolean check for cookie existence.

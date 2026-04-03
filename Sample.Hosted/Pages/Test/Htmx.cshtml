@@ -245,26 +245,27 @@
         console.log("Htmx scripts loaded pre");
 
         DRN.Onmount.register('#divJsTestOutput1', function () {
-            $("#divJsTestOutput1").text('ready to test');
+            document.querySelector("#divJsTestOutput1").textContent = 'ready to test';
         });
         DRN.Onmount.register('#divJsTestOutput2', function () {
-            $("#divJsTestOutput2").text('ready to test');
+            document.querySelector("#divJsTestOutput2").textContent = 'ready to test';
         });
 
         DRN.Onmount.register('#btnJqueryTest', function (options) {
             console.log("#btnJqueryTest on click handler 1 registered with " + options.id)
 
-            $(this).click(function () {
-                $("#divJsTestOutput1").text("#btnJqueryTest works: Handler 1 " + options.id);
+            this.addEventListener("click", function () {
+                document.querySelector("#divJsTestOutput1").textContent = "#btnJqueryTest works: Handler 1 " + options.id;
             });
         }, "handler1")
 
         DRN.Onmount.register('#btnJqueryTestClean', function (options) {
             console.log("#btnJqueryTestClean on click handler registered with " + options.id)
 
-            $(this).click(function () {
-                $("#divJsTestOutput1").text("");
-                $("#divJsTestOutput2").text("");
+
+            this.addEventListener("click", function () {
+                document.querySelector("#divJsTestOutput1").textContent = "";
+                document.querySelector("#divJsTestOutput2").textContent = "";
             });
         })
 
@@ -275,8 +276,8 @@
         DRN.Onmount.register('#btnJqueryTest', function (options) {
             console.log("#btnJqueryTest on click handler 2 registered with " + options.id)
 
-            $(this).click(function () {
-                $("#divJsTestOutput2").text("#btnJqueryTest works: Handler 2 with " + options.id);
+            this.addEventListener("click", function () {
+                document.querySelector("#divJsTestOutput2").textContent = "#btnJqueryTest works: Handler 2 with " + options.id;
             });
         }, "handler2");
     </script>

@@ -15,13 +15,11 @@
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "htmx.org": "^2.0.8",
-    "jquery": "^3.7.1",
-    "jquery-validation": "^1.21.0",
-    "jquery-validation-unobtrusive": "^4.0.0"
+    "aspnet-client-validation": "^0.11.1"
   },
   "devDependencies": {
     "globals": "^17.4.0",
-    "sass": "1.98.0",
+    "sass": "1.99.0",
     "vite": "^7.3.1",
     "typescript": "^6.0.2"
   }

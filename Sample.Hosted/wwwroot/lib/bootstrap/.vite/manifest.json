@@ -1,17 +1,21 @@
 {
-  "buildwww/lib/bootstrap/bootstrap.js": {
-    "file": "bootstrap_bundle.C4RZvpbHDIQ8-ywy.js",
-    "name": "bootstrap_bundle",
-    "src": "buildwww/lib/bootstrap/bootstrap.js",
-    "isEntry": true
-  },
   "buildwww/lib/bootstrap/bootstrap.scss": {
-    "file": "bootstrap.DzWjI4OC7jfY6x_f.css",
+    "file": "bootstrap.tcCKiLzPrAjxkSrh.css",
     "src": "buildwww/lib/bootstrap/bootstrap.scss",
     "isEntry": true,
     "name": "bootstrap",
     "names": [
       "bootstrap.css"
     ]
+  },
+  "buildwww/lib/bootstrap/bootstrapBundle.js": {
+    "file": "bootstrapBundle.CeRGtP9AsPCX-kPf.js",
+    "name": "bootstrapBundle",
+    "src": "buildwww/lib/bootstrap/bootstrapBundle.js",
+    "isEntry": true
+  },
+  "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2": {
+    "file": "bootstrap-icons.mSm7cUeBf97kh3Wp.woff2",
+    "src": "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2"
   }
 }

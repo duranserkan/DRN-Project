@@ -1,3 +1,4 @@
+//drnUtils.d.ts
 export interface IDrnUtils {
     urlSafeBase64Encode(str: string): string;
     urlSafeBase64Decode(str: string): string;

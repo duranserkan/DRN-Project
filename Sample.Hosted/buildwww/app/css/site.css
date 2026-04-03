@@ -1,92 +1,53 @@
-body {
+/* Global Badge Overrides */
+.badge {
+    /* Enforce vertical center alignment for text and icons. 
+       Overrides Bootstrap's default 'display: inline-block'. */
+    display: inline-flex;
+    align-items: center;
 
+    /* Slightly lighter weight for better legibility (Bootstrap uses 700) */
+    font-weight: 500;
 }
 
+/* Global Icon Alignment */
+.bi {
+    /* Optically center icons with text. 
+       Bootstrap defaults to -.125em, but 'middle' often 
+       provides a more balanced feel for mixed content. */
+    vertical-align: middle;
+}
+
+/* Card Hover Lift — subtle shadow increase on hover.
+   Compound selector `.card.shadow` matches Bootstrap's `.shadow` specificity
+   so no !important is needed. */
 .card {
-    margin-top: 20px;
+    transition: box-shadow 0.2s ease;
 }
 
-.text-center {
-    text-align: center;
+.card.shadow:hover {
+    box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .1);
 }
 
-.btn-block {
-    width: 100%;
+/* Consistent Panel Header Height — fixed height ensures headers with/without
+   action buttons align when panels sit side-by-side in a grid row. */
+.card>.card-header {
+    height: 3.5rem;
 }
 
-.bd-placeholder-img {
-    font-size: 1.125rem;
-    text-anchor: middle;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    user-select: none;
+/* Nav-link Smooth Transition — background and color */
+.nav-link {
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-@media (min-width: 768px) {
-    .bd-placeholder-img-lg {
-        font-size: 3.5rem;
+/* HTMX Spin Indicator — spin any .htmx-spin-indicator icon when an
+   ancestor receives the htmx-request class during an HTMX request.
+   Usage: add .htmx-spin-indicator to any icon inside an hx-indicator target. */
+@keyframes drn-spin {
+    to {
+        transform: rotate(360deg);
     }
 }
 
-.b-example-divider {
-    width: 100%;
-    height: 3rem;
-    background-color: rgba(0, 0, 0, .1);
-    border: solid rgba(0, 0, 0, .15);
-    border-width: 1px 0;
-    box-shadow: inset 0 .5em 1.5em rgba(0, 0, 0, .1), inset 0 .125em .5em rgba(0, 0, 0, .15);
-}
-
-.b-example-vr {
-    flex-shrink: 0;
-    width: 1.5rem;
-    height: 100vh;
-}
-
-.bi {
-    vertical-align: -.125em;
-    fill: currentColor;
-}
-
-.nav-scroller {
-    position: relative;
-    z-index: 2;
-    height: 2.75rem;
-    overflow-y: hidden;
-}
-
-.nav-scroller .nav {
-    display: flex;
-    flex-wrap: nowrap;
-    padding-bottom: 1rem;
-    margin-top: -1px;
-    overflow-x: auto;
-    text-align: center;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
-}
-
-.btn-bd-primary {
-    --bd-violet-bg: #712cf9;
-    --bd-violet-rgb: 112.520718, 44.062154, 249.437846;
-
-    --bs-btn-font-weight: 600;
-    --bs-btn-color: var(--bs-white);
-    --bs-btn-bg: var(--bd-violet-bg);
-    --bs-btn-border-color: var(--bd-violet-bg);
-    --bs-btn-hover-color: var(--bs-white);
-    --bs-btn-hover-bg: #6528e0;
-    --bs-btn-hover-border-color: #6528e0;
-    --bs-btn-focus-shadow-rgb: var(--bd-violet-rgb);
-    --bs-btn-active-color: var(--bs-btn-hover-color);
-    --bs-btn-active-bg: #5a23c8;
-    --bs-btn-active-border-color: #5a23c8;
-}
-
-.bd-mode-toggle {
-    z-index: 1500;
-}
-
-.bd-mode-toggle .dropdown-menu .active .bi {
-    display: block !important;
+.htmx-request .htmx-spin-indicator {
+    animation: drn-spin 0.75s linear infinite;
 }

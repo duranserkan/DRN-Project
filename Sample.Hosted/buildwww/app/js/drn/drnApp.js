@@ -1,3 +1,4 @@
+//drnApp.js
 /**
  * Core application object for managing state
  */
