@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DRN.Framework.Utils.Logging;
 
 namespace Sample.Hosted.Controllers.Sample;
 
@@ -8,7 +9,7 @@ namespace Sample.Hosted.Controllers.Sample;
 /// </summary>
 [ApiController]
 [Route(SampleApiFor.ControllerRouteTemplate)]
-public class ClientErrorController(ILogger<ClientErrorController> logger) : ControllerBase
+public class ClientErrorController(IScopedLog scopedLog) : ControllerBase
 {
     [HttpPost("Report")]
     [RequestSizeLimit(3600)]
@@ -17,14 +18,8 @@ public class ClientErrorController(ILogger<ClientErrorController> logger) : Cont
         if (payload is null || string.IsNullOrWhiteSpace(payload.Message))
             return BadRequest();
 
-        logger.LogWarning(
-            "Client-side error: {Message} at {Source}:{Line}:{Column} | URL: {Url} | Stack: {Stack}",
-            payload.Message,
-            payload.Source,
-            payload.Line,
-            payload.Column,
-            payload.Url,
-            payload.Stack);
+        scopedLog.AddProperties("ClientError", payload);
+        scopedLog.AddWarning($"Client-side error: {payload.Message}");
 
         return Ok();
     }
