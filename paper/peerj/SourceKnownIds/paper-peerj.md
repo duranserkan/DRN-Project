@@ -657,7 +657,7 @@ The open-source reference implementation, published as NuGet packages with integ
 
 # Acknowledgments
 
-This work received no external financial support. GitHub CodeQL and SonarCloud provided static analysis and code quality scanning that strengthened the security posture of the implementation. CodeRabbit provided AI code review that contributed to the overall code quality.
+This work received no external financial support. GitHub CodeQL and SonarCloud provided static analysis and code quality scanning that strengthened the security posture of the implementation. CodeRabbit provided AI code review that contributed to the overall code quality. Claude Opus 4.6 and Gemini 3.1 Pro were used to assist with grammar correction and editorial refinement of the manuscript.
 
 # Data Availability
 
