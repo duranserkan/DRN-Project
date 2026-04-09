@@ -121,6 +121,8 @@ None of these approaches offers integrity verification. Table 2 presents a detai
 
 # Methods
 
+Portions of this text were previously published as part of a preprint (https://doi.org/10.48550/arXiv.2604.00151).
+
 ## Three-Tier Identity Model
 
 SKIDs address the identifier gap through a three-tier identity model aligned with three trust boundaries commonly found in distributed architectures.
