@@ -337,8 +337,7 @@ Multi-century addressability & Yes (SKEID) & N/A & Yes & No & Yes & N/A
 \end{longtable}
 }
 
-Table 2 provides a detailed feature comparison of these and additional
-identifier schemes.
+Table 2 provides a detailed feature comparison of identifier schemes.
 
 \newpage
 
@@ -482,7 +481,7 @@ compact binary representation is critical for B-tree performance.
 None of these approaches offers integrity verification. Table 2 presents
 a detailed feature comparison.
 
-\textbf{Table 2:} Feature comparison of distributed identifier schemes.
+\textbf{Table 2:} Feature comparison of identifier schemes.
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
@@ -543,6 +542,9 @@ N/A \\
 \newpage
 
 \section{Methods}\label{methods}
+
+Portions of this text were previously published as part of a preprint
+(https://doi.org/10.48550/arXiv.2604.00151).
 
 \subsection{Three-Tier Identity Model}\label{three-tier-identity-model}
 
@@ -969,9 +971,9 @@ with \(n = 128\), a single-block PRP encryption is therefore
 indistinguishable from a random function up to approximately \(2^{64}\)
 queries. This is beyond any practical identifier generation volume.
 
-SKEID encryption always operates on exactly one block, the multi-block
-weakness of ECB mode does not apply. For a single block, ECB is
-mathematically identical to Cipher Block Chaining (CBC) with a zero
+Because SKEID encryption always operates on exactly one block, the
+multi-block weakness of ECB mode does not apply. For a single block, ECB
+is mathematically identical to Cipher Block Chaining (CBC) with a zero
 initialization vector:
 \(C = \text{AES}(Key, P \oplus 0) = \text{AES}(Key, P)\). No nonce is
 required, and there is no nonce-reuse vulnerability. ECB avoids the
@@ -2156,6 +2158,8 @@ This work received no external financial support. GitHub CodeQL and
 SonarCloud provided static analysis and code quality scanning that
 strengthened the security posture of the implementation. CodeRabbit
 provided AI code review that contributed to the overall code quality.
+Claude Opus 4.6 and Gemini 3.1 Pro were used to assist with grammar
+correction and editorial refinement of the manuscript.
 
 \section{Data Availability}\label{data-availability}
 
