@@ -2,12 +2,10 @@
 @model Sample.Hosted.Pages.Test.Htmx
 
 @{
-    var title = "CSRF Token Test Page";
-    var options = Get.LayoutOptions.Full(string.Empty);
+    var options = Get.LayoutOptions.Full("CSRF Token Test Page");
     options.Type = MainContentType.None;
     options.ColumnSize = BootstrapColumnSize.None;
 
-    ViewData[Get.ViewDataKeys.Title] = title;
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 
     var headers = HttpContext.Request.Headers;

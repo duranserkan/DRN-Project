@@ -2,9 +2,7 @@
 @model Sample.Hosted.Pages.User.LoginModel
 
 @{
-    var title = "Log in";
-    var options = Get.LayoutOptions.Centered(title);
-    ViewData[Get.ViewDataKeys.Title] = title;
+    var options = Get.LayoutOptions.Centered("Log in");
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 }
 

@@ -2,9 +2,7 @@
 @model Sample.Hosted.Pages.User.LogoutModel
 
 @{
-    var title = "Log out";
-    var options = Get.LayoutOptions.Centered(title);
-    ViewData[Get.ViewDataKeys.Title] = title;
+    var options = Get.LayoutOptions.Centered("Log out");
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 }
 

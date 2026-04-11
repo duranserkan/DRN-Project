@@ -2,9 +2,7 @@
 @model Sample.Hosted.Pages.User.LoginWith2Fa
 
 @{
-    var title = "Two-Factor Authentication";
-    var options = Get.LayoutOptions.Centered(title);
-    ViewData[Get.ViewDataKeys.Title] = title;
+    var options = Get.LayoutOptions.Centered("Two-Factor Authentication");
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 }
 

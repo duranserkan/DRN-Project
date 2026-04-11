@@ -2,9 +2,7 @@
 @model Sample.Hosted.Pages.User.Management.EnableAuthenticator
 
 @{
-    var title = "Enable Authenticator";
-    var options = Get.LayoutOptions.Centered(title);
-    ViewData[Get.ViewDataKeys.Title] = title;
+    var options = Get.LayoutOptions.Centered("Enable Authenticator");
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 }
 

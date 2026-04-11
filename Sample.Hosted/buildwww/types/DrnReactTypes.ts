@@ -12,6 +12,7 @@ export type RootData = {
     root: Root;
     name: string;
     isShadow: boolean;
+    currentProps?: any;
 };
 
 export interface Disposable {

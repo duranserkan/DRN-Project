@@ -115,12 +115,13 @@ window.DRN.React.mount = (name, domElement, initialProps, options = {}) => {
     // -----------------------------------------------------------
     if (record) {
         root = record.root;
+        record.currentProps = initialProps;
     } else {
         root = createRoot(mountNode); // createRoot takes the container (either shadowRoot or the element itself)
-        rootMap.set(domElement, { root, name, isShadow: useShadow });
+        record = { root, name, isShadow: useShadow, currentProps: initialProps };
+        rootMap.set(domElement, record);
     }
 
-    let currentProps = initialProps;
     // React.createElement on the line below avoids TS2769 from JSX spreading
     // generic indexed-access component types; the outer JSX wrappers are fine.
     const renderApp = (props: React.ComponentProps<ReactComponentRegistry[typeof name]>) => (
@@ -131,22 +132,23 @@ window.DRN.React.mount = (name, domElement, initialProps, options = {}) => {
         </React.StrictMode>
     );
 
-    root.render(renderApp(currentProps));
+    root.render(renderApp(record.currentProps));
 
     return {
-        update: (newProps: Partial<typeof currentProps>) => {
-            if (!rootMap.has(domElement)) return; // guard against post-dispose calls
-            currentProps = { ...currentProps, ...newProps };
-            root.render(renderApp(currentProps));
+        update: (newProps: Partial<typeof initialProps>) => {
+            const current = rootMap.get(domElement);
+            if (!current) return; // guard against post-dispose calls
+            current.currentProps = { ...current.currentProps, ...newProps };
+            root.render(renderApp(current.currentProps));
         },
         getProps: () => {
-            if (!rootMap.has(domElement)) return null;
-            return { ...currentProps };
+            const current = rootMap.get(domElement);
+            if (!current) return null;
+            return { ...current.currentProps };
         },
         dispose: () => {
             const current = rootMap.get(domElement);
-            if (!current)
-                return;
+            if (!current) return;
 
             current.root.unmount();
             rootMap.delete(domElement);

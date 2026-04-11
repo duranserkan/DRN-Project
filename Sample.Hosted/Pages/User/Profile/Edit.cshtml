@@ -1,13 +1,10 @@
 @page
 @model Sample.Hosted.Pages.User.Profile.ProfileEditModel
 @{
-    var title = "Edit User Profile";
-    var options = Get.LayoutOptions.Full(title);
+    var options = Get.LayoutOptions.Full("Edit User Profile");
     options.SubNavigation = Get.SubNavigation.ProfileSubNavigationCollection;
     options.Type = MainContentType.Card;
 
-
-    ViewData[Get.ViewDataKeys.Title] = title;
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 }
 

@@ -1,9 +1,7 @@
 @page
 @model Sample.Hosted.Pages.User.LockoutModel
 @{
-    var title = "Account Locked Out";
-    var options = Get.LayoutOptions.Centered(title);
-    ViewData[Get.ViewDataKeys.Title] = title;
+    var options = Get.LayoutOptions.Centered("Account Locked Out");
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
     
     var lockOutMinutes = IdentitySettings.LockoutOptions.DefaultLockoutTimeSpan.Minutes;

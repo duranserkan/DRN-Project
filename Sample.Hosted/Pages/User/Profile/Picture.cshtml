@@ -2,12 +2,10 @@
 @using Sample.Hosted.TagHelpers
 @model Sample.Hosted.Pages.User.Profile.ProfilePictureModel
 @{
-    var title = "Profile Picture";
-    var options = Get.LayoutOptions.Full(title);
+    var options = Get.LayoutOptions.Full("Profile Picture");
     options.SubNavigation = Get.SubNavigation.ProfileSubNavigationCollection;
     options.Type = MainContentType.Card;
 
-    ViewData[Get.ViewDataKeys.Title] = title;
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 }
 
