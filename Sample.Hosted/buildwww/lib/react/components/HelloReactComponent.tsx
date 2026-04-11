@@ -8,6 +8,18 @@ export const DEFAULT_VERSIONS = {
 
 export type AppVersions = Partial<typeof DEFAULT_VERSIONS>;
 
+/**
+ * Props for the HelloReact island component.
+ *
+ * **Callback Convention** — Components may accept function-typed props for
+ * island→host event notification. Convention rules:
+ * - Name callbacks with the `on` prefix: `onReady`, `onSelectionChange`, `onSubmit`
+ * - Callbacks execute in host page JavaScript scope (outside Shadow DOM)
+ * - Replaceable via `island.update({ onXxx: newHandler })`
+ * - Removable via `island.update({ onXxx: undefined })`
+ * - Included in `island.getProps()` return (no filtering)
+ * - Callbacks must pass plain data only — no React internals
+ */
 export interface HelloReactProps {
     title: string;
     versions?: AppVersions;
