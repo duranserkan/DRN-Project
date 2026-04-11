@@ -1,0 +1,105 @@
+/* Scoped under .drn-react-root to isolate Tailwind styles from Bootstrap.
+   Every React island mounts inside a .drn-react-root container
+   (Shadow DOM: portal host, Light DOM: mount element). */
+
+/* ── Base Container ── */
+.drn-react-root .hello-react {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    color: #212529;
+}
+
+/* ── Hero Section ── */
+.drn-react-root .hello-react-hero {
+    @apply text-center pb-8;
+}
+
+.drn-react-root .hello-react-badge {
+    @apply inline-block rounded-full px-4 py-1.5 text-xs font-semibold tracking-wider uppercase;
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    color: #3730a3;
+}
+
+.drn-react-root .hello-react-title {
+    @apply text-3xl font-bold tracking-tight mt-4 mb-3;
+    color: #1e293b;
+}
+
+.drn-react-root .hello-react-subtitle {
+    @apply text-base leading-relaxed mx-auto;
+    max-width: 38rem;
+    color: #64748b;
+}
+
+.drn-react-root .hello-react-subtitle strong {
+    @apply font-semibold;
+    color: #334155;
+}
+
+.drn-react-root .hello-react-stack {
+    @apply list-none p-0 m-0 mx-auto text-sm leading-relaxed;
+    max-width: 38rem;
+    color: #64748b;
+    text-align: left;
+    display: inline-block;
+}
+
+.drn-react-root .hello-react-stack li {
+    @apply py-0.5;
+}
+
+.drn-react-root .hello-react-stack li::before {
+    content: '·';
+    @apply font-bold mr-2;
+    color: #818cf8;
+}
+
+.drn-react-root .hello-react-stack strong {
+    @apply font-semibold;
+    color: #334155;
+}
+
+/* ── Feature Cards Grid ── */
+.drn-react-root .hello-react-grid {
+    @apply grid gap-5 pb-6;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.drn-react-root .hello-react-card {
+    @apply rounded-xl p-5;
+    background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.drn-react-root .hello-react-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.08), 0 4px 10px -6px rgba(0, 0, 0, 0.04);
+}
+
+.drn-react-root .hello-react-card-icon {
+    @apply text-2xl mb-3;
+}
+
+.drn-react-root .hello-react-card-title {
+    @apply text-sm font-semibold uppercase tracking-wide mb-2;
+    color: #1e293b;
+    margin: 0 0 0.5rem 0;
+}
+
+.drn-react-root .hello-react-card-text {
+    @apply text-sm leading-relaxed;
+    color: #64748b;
+    margin: 0;
+}
+
+/* ── CTA Section ── */
+.drn-react-root .hello-react-cta {
+    @apply text-center pt-2 pb-2;
+    border-top: 1px solid #e2e8f0;
+}
+
+.drn-react-root .hello-react-cta-text {
+    @apply text-sm;
+    color: #94a3b8;
+    margin: 0.75rem 0 0 0;
+}

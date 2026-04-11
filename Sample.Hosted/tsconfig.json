@@ -44,11 +44,12 @@
     "typeRoots": [
       "./buildwww/types",  // Add your custom types directory
       "./node_modules/@types" // Default location for DefinitelyTyped packages
-    ]
+    ],
+    "jsx": "react-jsx"
   },
   "include": [
-    "buildwww/app/**/*",
-    "buildwww/lib/**/*",
+    "buildwww/app/ts/**/*",
+    "buildwww/lib/react/**/*",
     "buildwww/types/**/*"
   ],
   // Exclude node_modules and build outputs

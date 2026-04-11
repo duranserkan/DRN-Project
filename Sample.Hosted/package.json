@@ -7,21 +7,32 @@
     "build:app": "BUILD_TYPE=app vite build",
     "build:appPostload": "BUILD_TYPE=appPostload vite build",
     "build:htmx": "BUILD_TYPE=htmx vite build",
-    "build:bootstrap": "BUILD_TYPE=bootstrap vite build"
+    "build:bootstrap": "BUILD_TYPE=bootstrap vite build",
+    "build:react": "BUILD_TYPE=react vite build"
   },
   "type": "module",
+  "overrides": {
+    "dompurify": "^3.3.3"
+  },
   "dependencies": {
     "@popperjs/core": "^2.11.8",
     "onmount": "^2.0.0",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "htmx.org": "^2.0.8",
-    "aspnet-client-validation": "^0.11.1"
+    "aspnet-client-validation": "^0.11.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
     "globals": "^17.4.0",
     "sass": "1.99.0",
     "typescript": "^6.0.2",
-    "vite": "^8.0.8"
+    "vite": "^8.0.8",
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1"
   }
 }

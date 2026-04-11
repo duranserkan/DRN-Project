@@ -1,0 +1,8 @@
+/* @reference loads Tailwind theme for @apply resolution without emitting
+   :root CSS custom properties — all values compile inline, no global leaks.
+   Preflight is omitted to avoid conflicts with Bootstrap's base reset. */
+@reference "tailwindcss/theme";
+@reference "tailwindcss/utilities";
+
+/* Component styles — all scoped under .drn-react-root */
+@import "./components/HelloReactComponent.css";

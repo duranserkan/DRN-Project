@@ -2,6 +2,8 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'path'; // Import resolve for path management
 import drnUtils from './buildwww/app/js/drn/drnUtils.js';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 // Rolldown plugin: wraps every JS chunk in an IIFE for scope isolation.
 // This avoids minified-name collisions between independently bundled libraries
@@ -12,7 +14,7 @@ function iifeWrap() {
         name: 'iife-wrap',
         renderChunk(code, chunk) {
             if (chunk.fileName.endsWith('.js')) {
-                return { code: `(function(){"use strict";\n${code}\n})();`, map: null };
+                return {code: `(function(){"use strict";\n${code}\n})();`, map: null};
             }
             return null;
         }
@@ -138,6 +140,31 @@ const builds = {
                         'global-builtin',
                         'if-function',
                     ]
+                }
+            }
+        }
+    },
+    react: {
+        plugins: [
+            react(), // Enable JSX support specifically for this bundle
+            tailwindcss()
+        ],
+        build: {
+            outDir: 'wwwroot/lib/react',
+            rolldownOptions: {
+                input: {
+                    // This outputs reactBundle.[hash].js and reactBundle.[hash].css
+                    reactBundle: resolve(__dirname, 'buildwww/lib/react/reactBundle.tsx'),
+                },
+                output: {
+                    format: 'iife',
+                    name: 'DrnReactMicroFrontend'
+                },
+                // IIFE format does not support import.meta; React/ReactDOM internals may
+                // reference it for environment detection. Vite resolves these at build time,
+                // so the residual import.meta in IIFE output is inert. Suppress the warning.
+                transform: {
+                    define: {'import.meta': '{}'}
                 }
             }
         }
