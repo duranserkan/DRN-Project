@@ -54,7 +54,7 @@ export const HelloReactComponent = ({ title, versions, onReady, onCardClick }: H
             </div>
 
             <div className="hello-react-grid">
-                <div className="hello-react-card" onClick={onCardClick} style={{cursor: 'pointer'}}>
+                <div className="hello-react-card" onClick={onCardClick}>
                     <div className="hello-react-card-icon">⚡</div>
                     <h3 className="hello-react-card-title">Blazing Performance</h3>
                     <p className="hello-react-card-text">
@@ -62,7 +62,7 @@ export const HelloReactComponent = ({ title, versions, onReady, onCardClick }: H
                     </p>
                 </div>
 
-                <div className="hello-react-card" onClick={onCardClick} style={{cursor: 'pointer'}}>
+                <div className="hello-react-card" onClick={onCardClick}>
                     <div className="hello-react-card-icon">🎨</div>
                     <h3 className="hello-react-card-title">Dual Styling</h3>
                     <p className="hello-react-card-text">
@@ -71,7 +71,7 @@ export const HelloReactComponent = ({ title, versions, onReady, onCardClick }: H
                     </p>
                 </div>
 
-                <div className="hello-react-card" onClick={onCardClick} style={{cursor: 'pointer'}}>
+                <div className="hello-react-card" onClick={onCardClick}>
                     <div className="hello-react-card-icon">🔒</div>
                     <h3 className="hello-react-card-title">Secure by Default</h3>
                     <p className="hello-react-card-text">
@@ -79,7 +79,7 @@ export const HelloReactComponent = ({ title, versions, onReady, onCardClick }: H
                     </p>
                 </div>
 
-                <div className="hello-react-card" onClick={onCardClick} style={{cursor: 'pointer'}}>
+                <div className="hello-react-card" onClick={onCardClick}>
                     <div className="hello-react-card-icon">🧩</div>
                     <h3 className="hello-react-card-title">Micro-Frontends</h3>
                     <p className="hello-react-card-text">
