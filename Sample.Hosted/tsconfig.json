@@ -45,7 +45,7 @@
       "./buildwww/types",  // Add your custom types directory
       "./node_modules/@types" // Default location for DefinitelyTyped packages
     ],
-    "jsx": "react"
+    "jsx": "react-jsx"
   },
   "include": [
     "buildwww/app/ts/**/*",

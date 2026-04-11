@@ -1,7 +1,7 @@
 //DrnReactTypes.ts
 import React from 'react';
 import {type Root} from 'react-dom/client';
-import type {HelloReactProps} from "@/lib/react/wrappers/HelloReactComponent.tsx";
+import type {HelloReactProps} from "@/lib/react/components/HelloReactComponent.tsx";
 
 // The registry matches string keys to Component Types
 export type ReactComponentRegistry = {
@@ -23,7 +23,7 @@ export interface ReactMountedIsland<P> extends Disposable {
 }
 
 export interface ReactMountOptions {
-    /** * If true, creates a Shadow DOM and mounts inside it.
+    /** If true, creates a Shadow DOM and mounts inside it.
      * If false, mounts directly to the provided element (Light DOM).
      * @default true
      */

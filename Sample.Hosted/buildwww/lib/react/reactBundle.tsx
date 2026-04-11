@@ -5,7 +5,7 @@ import bundleStyles from './reactBundle.css?inline';
 import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { ReactComponentRegistry, RootData } from "@/types/DrnReactTypes.ts";
-import { HelloReactComponent } from './wrappers/HelloReactComponent';
+import { HelloReactComponent } from './components/HelloReactComponent';
 
 const rootMap = new WeakMap<HTMLElement, RootData>();
 const COMPONENT_REGISTRY: ReactComponentRegistry = {
@@ -35,8 +35,9 @@ class IslandErrorBoundary extends React.Component<{ children: React.ReactNode },
     }
 }
 
-if (!window.DRN || !window.DRN.React)
+if (!window.DRN || !window.DRN.React) {
     console.error("Critical Error: 'appPreload.js' has not been loaded. DRN namespace is missing.");
+}
 
 // --- Initialize Stylesheet Once ---
 let drnSharedSheet: CSSStyleSheet | null = null;
@@ -97,7 +98,7 @@ window.DRN.React.mount = (name, domElement, initialProps, options = {}) => {
             portalHost = document.createElement('div');
             portalHost.id = 'drn-portal-root';
             portalHost.className = 'drn-react-root';
-            portalHost.style.display = 'contents'
+            portalHost.style.display = 'contents';
             shadow.appendChild(portalHost);
         }
         mountNode = portalHost;
@@ -115,10 +116,12 @@ window.DRN.React.mount = (name, domElement, initialProps, options = {}) => {
     }
 
     let currentProps = initialProps;
-    const renderApp = (props: any) => (
+    // React.createElement on the line below avoids TS2769 from JSX spreading
+    // generic indexed-access component types; the outer JSX wrappers are fine.
+    const renderApp = (props: React.ComponentProps<ReactComponentRegistry[typeof name]>) => (
         <React.StrictMode>
             <IslandErrorBoundary>
-                <Component {...props} />
+                {React.createElement(Component, props)}
             </IslandErrorBoundary>
         </React.StrictMode>
     );
@@ -126,19 +129,18 @@ window.DRN.React.mount = (name, domElement, initialProps, options = {}) => {
     root.render(renderApp(currentProps));
 
     return {
-        update: (newProps) => {
+        update: (newProps: Partial<typeof currentProps>) => {
+            if (!rootMap.has(domElement)) return; // guard against post-dispose calls
             currentProps = { ...currentProps, ...newProps };
             root.render(renderApp(currentProps));
         },
         dispose: () => {
-            // Check if root exists before unmounting to avoid errors
             const current = rootMap.get(domElement);
             if (!current)
                 return;
 
             current.root.unmount();
             rootMap.delete(domElement);
-            (root as any) = null;
         }
     };
 };

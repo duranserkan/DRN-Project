@@ -5,4 +5,4 @@
 @reference "tailwindcss/utilities";
 
 /* Component styles — all scoped under .drn-react-root */
-@import "./wrappers/HelloReactComponent.css";
+@import "./components/HelloReactComponent.css";

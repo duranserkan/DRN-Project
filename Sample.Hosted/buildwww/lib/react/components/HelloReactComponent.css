@@ -22,8 +22,6 @@
 .drn-react-root .hello-react-title {
     @apply text-3xl font-bold tracking-tight mt-4 mb-3;
     color: #1e293b;
-    margin-top: 1rem;
-    margin-bottom: 0.75rem;
 }
 
 .drn-react-root .hello-react-subtitle {
