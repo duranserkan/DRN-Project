@@ -72,6 +72,11 @@ window.DRN.React.mount = (name, domElement, initialProps, options = {}) => {
     }
 
     let root: Root;
+    if (!record) {
+        // Clear pre-rendered/fallback content from the Light DOM before mounting React
+        domElement.innerHTML = '';
+    }
+
     let mountNode: HTMLElement | ShadowRoot = domElement;
     let portalHost: HTMLDivElement | null = null;
     // -----------------------------------------------------------

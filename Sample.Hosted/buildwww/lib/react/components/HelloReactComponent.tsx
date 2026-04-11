@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 export const DEFAULT_VERSIONS = {
     dotnet: '10',
     react: '19',
@@ -23,10 +25,20 @@ export type AppVersions = Partial<typeof DEFAULT_VERSIONS>;
 export interface HelloReactProps {
     title: string;
     versions?: AppVersions;
+    onReady?: () => void;
+    onCardClick?: () => void;
 }
 
-export const HelloReactComponent = ({ title, versions }: HelloReactProps) => {
+export const HelloReactComponent = ({ title, versions, onReady, onCardClick }: HelloReactProps) => {
     const v = { ...DEFAULT_VERSIONS, ...versions };
+    
+    // Notify the host environment that the React Island is fully mounted and painted.
+    // Using useEffect guarantees this callback fires only *after* the initial render 
+    // cycle completes safely. It will also re-fire if the host dynamic-swaps the 
+    // onReady payload handler via island.update()
+    useEffect(() => {
+        if (onReady) onReady();
+    }, [onReady]);
     
     return (
         <div className="hello-react">
@@ -42,7 +54,7 @@ export const HelloReactComponent = ({ title, versions }: HelloReactProps) => {
             </div>
 
             <div className="hello-react-grid">
-                <div className="hello-react-card">
+                <div className="hello-react-card" onClick={onCardClick} style={{cursor: 'pointer'}}>
                     <div className="hello-react-card-icon">⚡</div>
                     <h3 className="hello-react-card-title">Blazing Performance</h3>
                     <p className="hello-react-card-text">
@@ -50,7 +62,7 @@ export const HelloReactComponent = ({ title, versions }: HelloReactProps) => {
                     </p>
                 </div>
 
-                <div className="hello-react-card">
+                <div className="hello-react-card" onClick={onCardClick} style={{cursor: 'pointer'}}>
                     <div className="hello-react-card-icon">🎨</div>
                     <h3 className="hello-react-card-title">Dual Styling</h3>
                     <p className="hello-react-card-text">
@@ -59,7 +71,7 @@ export const HelloReactComponent = ({ title, versions }: HelloReactProps) => {
                     </p>
                 </div>
 
-                <div className="hello-react-card">
+                <div className="hello-react-card" onClick={onCardClick} style={{cursor: 'pointer'}}>
                     <div className="hello-react-card-icon">🔒</div>
                     <h3 className="hello-react-card-title">Secure by Default</h3>
                     <p className="hello-react-card-text">
@@ -67,7 +79,7 @@ export const HelloReactComponent = ({ title, versions }: HelloReactProps) => {
                     </p>
                 </div>
 
-                <div className="hello-react-card">
+                <div className="hello-react-card" onClick={onCardClick} style={{cursor: 'pointer'}}>
                     <div className="hello-react-card-icon">🧩</div>
                     <h3 className="hello-react-card-title">Micro-Frontends</h3>
                     <p className="hello-react-card-text">

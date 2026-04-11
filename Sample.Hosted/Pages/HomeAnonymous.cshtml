@@ -43,19 +43,67 @@
     <p class="lead text-muted mb-4">A modern full-stack .NET framework with DDD architecture and React micro-frontends.</p>
 </div>
 
-<div id="hello-react-island"></div>
+<div data-js-hello-react-island></div>
 
 @section Scripts {
     <script>
-        DRN.React.mount('HelloReact', document.getElementById('hello-react-island'), {
-            title: 'DRN Micro-Frontends',
-            versions: {
-                dotnet: @Json.Serialize(Environment.Version.ToString()),
-                react: @Json.Serialize(reactVersion),
-                bootstrap: @Json.Serialize(bootstrapVersion),
-                tailwind: @Json.Serialize(tailwindVersion),
-                vite: @Json.Serialize(viteVersion)
-            }
+        let clickCount = 0;
+
+        DRN.Onmount.registerFull('[data-js-hello-react-island]', function (options) {
+            const island = DRN.React.mount('HelloReact', this, {
+                title: 'DRN Micro-Frontends',
+                versions: {
+                    dotnet: @Json.Serialize(Environment.Version.ToString()),
+                    react: @Json.Serialize(reactVersion),
+                    bootstrap: @Json.Serialize(bootstrapVersion),
+                    tailwind: @Json.Serialize(tailwindVersion),
+                    vite: @Json.Serialize(viteVersion)
+                },
+                onReady: () => {
+                    console.log('HelloReact component is ready');
+                },
+                onCardClick: () => {
+                    clickCount++;
+                    console.log(`Card clicked! Total clicks outside the component: ${clickCount}`);
+                }
+            });
+
+            // Read back the merged props from the mounted island via getProps()
+            console.log('[DRN] HelloReact island mounted props:', island?.getProps());
+
+            // Cycle through titles with a smooth fade transition
+            const titles = ['DRN Micro-Frontends', 'Build with Confidence', 'Islands Architecture', 'Full-Stack .NET'];
+            let titleIndex = 0;
+            const CYCLE_INTERVAL_MS = 4000;  // time between title changes
+            const FADE_DURATION_MS = 500;    // matches CSS transition duration
+
+            // Lexical 'this' captured via arrow function (replaces previous .bind(this))
+            const cycleTitles = () => {
+                if (!island || !island.getProps()) return;
+
+                const shadow = this.shadowRoot;
+                const badge = shadow?.querySelector('.hello-react-badge');
+
+                // Phase 1: Fade out
+                if (badge) badge.classList.add('is-transitioning');
+
+                // Phase 2: Update title while faded out, then fade back in
+                setTimeout(() => {
+                    titleIndex = (titleIndex + 1) % titles.length;
+                    island.update({ title: titles[titleIndex] });
+                    if (badge) badge.classList.remove('is-transitioning');
+                }, FADE_DURATION_MS);
+            };
+
+            // Store island as disposable for automatic cleanup on unmount
+            options.disposable = island;
+            this._drnIntervalId = setInterval(cycleTitles, CYCLE_INTERVAL_MS);
+        }, function (options) {
+            // Unregister: clean up interval on htmx swap / navigation
+            if (this._drnIntervalId) clearInterval(this._drnIntervalId);
+            
+            // Call default unregister to dispose 'options.disposable'
+            DRN.Onmount.unregister.call(this, options);
         });
     </script>
 }
