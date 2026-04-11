@@ -3,8 +3,10 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path'; // Import resolve for path management
 import drnUtils from './buildwww/app/js/drn/drnUtils.js';
 
-// Rollup plugin: wraps every JS chunk in an IIFE for scope isolation.
+// Rolldown plugin: wraps every JS chunk in an IIFE for scope isolation.
 // This avoids minified-name collisions between independently bundled libraries
+// (e.g. Bootstrap vs Syncfusion) without requiring format:'iife' (which
+// doesn't support multiple entry points).
 function iifeWrap() {
     return {
         name: 'iife-wrap',
@@ -17,17 +19,37 @@ function iifeWrap() {
     };
 }
 
+// Strips direct eval from htmx.org's internalEval function during bundling.
+// htmx uses eval for hx-vars, hx-on:*, and trigger conditions — none of which
+// this project uses. config.allowEval is already false at runtime; this plugin
+// physically removes the eval token for defense-in-depth and CSP auditability.
+function stripHtmxEval() {
+    return {
+        name: 'strip-htmx-eval',
+        transform(code, id) {
+            if (!id.includes('htmx.org')) return null;
+            const target = 'return eval(str)';
+            if (!code.includes(target)) return null;
+            return {
+                code: code.replace(target, 'return undefined'),
+                map: null
+            };
+        }
+    };
+}
+
 const sharedConfig = {
     // Set the base public path for assets (important for ASP.NET)
     // This should match the virtual path where your dist folder is served from
     // E.g., if served from ~/dist/, set to '/dist/'
     base: '/',
     build: {
+        chunkSizeWarningLimit: 6000,
         // Ensure the output directory is cleaned before each build
         emptyOutDir: true,
         // Generate manifest for asset references in .NET
         manifest: true,
-        rollupOptions: {
+        rolldownOptions: {
             // Control output file naming
             output: {
                 // Add hashes for cache busting
@@ -53,29 +75,36 @@ const builds = {
         build: {
             // Output directory relative to the project root
             outDir: 'wwwroot/app',
-            rollupOptions: {
+            rolldownOptions: {
                 // Define entry points. These are the files Vite will bundle.
                 input: {
                     // Key is the output name (e.g., app_css), value is the input file path
-                    app: resolve(__dirname, 'buildwww/app/css/app.css'), // This will output app.[hash].css, app.css is not used yet.
-                    appPreload: resolve(__dirname, 'buildwww/app/js/appPreload.js'),
+                    app: resolve(__dirname, 'buildwww/app/css/app.css'),
+                    appPreload: resolve(__dirname, 'buildwww/app/js/appPreload.js')
+                }
+            },
+        },
+    },
+    appPostload: {
+        build: {
+            // Output directory relative to the project root
+            outDir: 'wwwroot/appPostload',
+            rolldownOptions: {
+                // Define entry points. These are the files Vite will bundle.
+                input: {
                     appPostload: resolve(__dirname, 'buildwww/app/js/appPostload.js')
                 }
             },
         },
-        esbuild: {
-            keepNames: true
-        },
     },
     htmx: {
+        plugins: [stripHtmxEval()],
         build: {
             // Output directory relative to the project root
             outDir: 'wwwroot/lib/htmx',
-            rollupOptions: {
-                // Define entry points. These are the files Vite will bundle.
+            rolldownOptions: {
                 input: {
-                    // Key is the output name (e.g., app_css), value is the input file path
-                    htmxBundle: resolve(__dirname, 'buildwww/lib/htmx/htmxBundle.js'), // This will output htmx_bundle.[hash].css
+                    htmxBundle: resolve(__dirname, 'buildwww/lib/htmx/htmxBundle.js'),
                 }
             },
         },
@@ -86,8 +115,8 @@ const builds = {
         base: './',
         build: {
             outDir: 'wwwroot/lib/bootstrap',
-            preserveEntrySignatures: 'strict',
-            rollupOptions: {
+            rolldownOptions: {
+                preserveEntrySignatures: 'strict',
                 input: {
                     bootstrap: resolve(__dirname, 'buildwww/lib/bootstrap/bootstrap.scss'),
                     bootstrapBundle: resolve(__dirname, 'buildwww/lib/bootstrap/bootstrapBundle.js'),
@@ -99,14 +128,14 @@ const builds = {
             preprocessorOptions: {
                 scss: {
                     api: 'modern-compiler',
+                    // TODO: revisit when Bootstrap 6 removes legacy Sass APIs
+                    // These are triggered by Bootstrap 5 source, not our custom SCSS
                     silenceDeprecations: [
                         'import',
                         'color-functions',
                         'global-builtin',
                         'if-function',
-                    ],
-                    additionalData: `
-                `
+                    ]
                 }
             }
         }

@@ -45,7 +45,7 @@
     </nav>
     <nav style="overflow-y:auto; overflow-x: hidden">
         <ul id="ActionBarBadgeList" class="nav nav-pills nav-flush flex-column mt-1 mb-auto">
-            @if (AppSettings.Environment != AppEnvironment.Production)
+            @if (AppSettings.Environment == AppEnvironment.Development)
             {
                 <partial name="_SidebarActionbarBadges" model="DevelopmentStatus"/>
             }

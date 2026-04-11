@@ -1,15 +1,18 @@
 {
   "buildwww/lib/bootstrap/bootstrap.scss": {
-    "file": "bootstrap.tcCKiLzPrAjxkSrh.css",
-    "src": "buildwww/lib/bootstrap/bootstrap.scss",
-    "isEntry": true,
+    "file": "bootstrap.CZ90w3cXqH1JQ64p.css",
     "name": "bootstrap",
     "names": [
       "bootstrap.css"
+    ],
+    "src": "buildwww/lib/bootstrap/bootstrap.scss",
+    "isEntry": true,
+    "assets": [
+      "bootstrap-icons.mSm7cUeBf97kh3Wp.woff2"
     ]
   },
   "buildwww/lib/bootstrap/bootstrapBundle.js": {
-    "file": "bootstrapBundle.CeRGtP9AsPCX-kPf.js",
+    "file": "bootstrapBundle.BJjs-ycUWhDRCexV.js",
     "name": "bootstrapBundle",
     "src": "buildwww/lib/bootstrap/bootstrapBundle.js",
     "isEntry": true

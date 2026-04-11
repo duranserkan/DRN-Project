@@ -1,21 +1,15 @@
 {
   "buildwww/app/css/app.css": {
-    "file": "app.DBot9cqLuXQ743Dg.css",
-    "src": "buildwww/app/css/app.css",
-    "isEntry": true,
+    "file": "app.vvfPy4RuiSqlcbPz.css",
     "name": "app",
     "names": [
       "app.css"
-    ]
-  },
-  "buildwww/app/js/appPostload.js": {
-    "file": "appPostload.DQisQzZgqeSn5a6g.js",
-    "name": "appPostload",
-    "src": "buildwww/app/js/appPostload.js",
+    ],
+    "src": "buildwww/app/css/app.css",
     "isEntry": true
   },
   "buildwww/app/js/appPreload.js": {
-    "file": "appPreload.CcbvF3Y82KSooPZI.js",
+    "file": "appPreload.Bzv3RXhgxplrSuED.js",
     "name": "appPreload",
     "src": "buildwww/app/js/appPreload.js",
     "isEntry": true

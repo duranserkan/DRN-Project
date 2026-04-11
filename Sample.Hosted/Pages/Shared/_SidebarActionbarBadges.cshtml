@@ -1,5 +1,4 @@
 @model DevelopmentStatus
-@using DRN.Framework.SharedKernel.Enums
 @using DRN.Framework.Utils.Models
 
 @inject IAppSettings AppSettings
@@ -14,67 +13,64 @@
     var prototypeTitle = $"Prototyping Enabled: {prototypeModelInfoJoin}";
 }
 
-@if (ScopeContext.Settings.Environment == AppEnvironment.Development)
+@if (Get.Role.System.Admin)
 {
-    @if (Get.Role.System.Admin)
-    {
-        <li class="nav-item">
-            <div title="@nameof(Get.Role.System.Admin)" data-bs-toggle="tooltip" data-bs-placement="left">
+    <li class="nav-item">
+        <div title="@nameof(Get.Role.System.Admin)" role="status" data-bs-toggle="tooltip" data-bs-placement="left">
                 <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
                     <i class="bi bi-person-workspace text-primary" style="font-size: 1.25em;" role="img"></i>
                 </span>
-            </div>
-        </li>
-    }
-    
-    @if (Model.HasPendingChanges)
-    {
-        <li class="nav-item">
-            <div title="Has Pending Changes" data-bs-toggle="tooltip" data-bs-placement="left">
+        </div>
+    </li>
+}
+
+@if (Model.HasPendingChanges)
+{
+    <li class="nav-item">
+        <div title="Has Pending Changes" role="status" data-bs-toggle="tooltip" data-bs-placement="left">
                 <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
                     <i class="bi bi-plus-circle-dotted text-primary" style="font-size: 1.25em;" role="img"></i>
                 </span>
-            </div>
-        </li>
-    }
+        </div>
+    </li>
+}
 
-    @if (ScopeContext.Settings.DevelopmentSettings.Prototype)
-    {
-        <li class="nav-item">
-            <div title="@prototypeTitle" data-bs-toggle="tooltip" data-bs-placement="left">
+@if (ScopeContext.Settings.DevelopmentSettings.Prototype)
+{
+    <li class="nav-item">
+        <div title="@prototypeTitle" role="status" data-bs-toggle="tooltip" data-bs-placement="left">
                 <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
                     <i class="bi bi-wrench-adjustable text-primary" style="font-size: 1.25em;" role="img"></i>
                 </span>
-            </div>
-        </li>
-    }
+        </div>
+    </li>
+}
 
-    @if (ScopeContext.Settings.DevelopmentSettings.AutoMigrateDevelopment)
-    {
-        <li class="nav-item">
-            <div title="Auto Migration Enabled" data-bs-toggle="tooltip" data-bs-placement="left">
+@if (ScopeContext.Settings.DevelopmentSettings.AutoMigrateDevelopment)
+{
+    <li class="nav-item">
+        <div title="Auto Migration Enabled" role="status" data-bs-toggle="tooltip" data-bs-placement="left">
                 <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
                     <i class="bi bi-robot text-primary" style="font-size: 1.25em;" role="img"></i>
                 </span>
-            </div>
-        </li>
-    }
+        </div>
+    </li>
+}
 
-    @if (ScopeContext.Settings.DevelopmentSettings.LaunchExternalDependencies)
-    {
-        <li class="nav-item">
-            <div title="External Dependencies Launched" data-bs-toggle="tooltip" data-bs-placement="left">
+@if (ScopeContext.Settings.DevelopmentSettings.LaunchExternalDependencies)
+{
+    <li class="nav-item">
+        <div title="External Dependencies Launched" role="status" data-bs-toggle="tooltip" data-bs-placement="left">
                 
                 <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
                     <i class="bi bi-plugin text-primary" style="font-size: 1.25em;" role="img"></i>
                 </span>
-            </div>
-        </li>
-    }
+        </div>
+    </li>
 }
 
 <li class="nav-item">
-    <div title="@environment" data-bs-toggle="tooltip" data-bs-placement="left">
+    <div title="@environment" role="status" data-bs-toggle="tooltip" data-bs-placement="left">
         <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0">
             <i class="bi bi-exclamation-triangle text-primary" style="font-size: 1.25em;" role="img"></i>
         </span>

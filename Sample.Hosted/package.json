@@ -5,6 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:app": "BUILD_TYPE=app vite build",
+    "build:appPostload": "BUILD_TYPE=appPostload vite build",
     "build:htmx": "BUILD_TYPE=htmx vite build",
     "build:bootstrap": "BUILD_TYPE=bootstrap vite build"
   },
@@ -20,7 +21,7 @@
   "devDependencies": {
     "globals": "^17.4.0",
     "sass": "1.99.0",
-    "vite": "^7.3.1",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8"
   }
 }
