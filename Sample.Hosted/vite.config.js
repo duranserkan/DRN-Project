@@ -24,10 +24,12 @@ function iifeWrap() {
 // this project uses. config.allowEval is already false at runtime; this plugin
 // physically removes the eval token for defense-in-depth and CSP auditability.
 function stripHtmxEval() {
+    const htmxPathRegex = /(?:^|[/\\])htmx\.org(?:[/\\]|$)/;
     return {
         name: 'strip-htmx-eval',
         transform(code, id) {
-            if (!id.includes('htmx.org')) return null;
+            // Precise path matching resolves CodeQL "Incomplete URL substring sanitization" warning
+            if (!htmxPathRegex.test(id)) return null;
             const target = 'return eval(str)';
             if (!code.includes(target)) return null;
             return {
