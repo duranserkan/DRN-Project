@@ -1,0 +1,8 @@
+{
+  "buildwww/lib/react/reactBundle.tsx": {
+    "file": "reactBundle.-XWN7Uo3JWmz7Kiv.js",
+    "name": "reactBundle",
+    "src": "buildwww/lib/react/reactBundle.tsx",
+    "isEntry": true
+  }
+}

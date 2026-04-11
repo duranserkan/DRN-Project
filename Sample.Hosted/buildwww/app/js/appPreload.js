@@ -19,6 +19,7 @@ if (typeof window !== 'undefined') {
     window.DRN.Cookie = drnCookieManager;
     window.DRN.Toast = drnToast;
     window.DRN.ErrorHandler = drnErrorHandler;
+    window.DRN.React = window.DRN.React || {}; //react will be mounted lazily in reactBundle.tsx
 
     // Install global error handler as early as possible
     drnErrorHandler.install();

@@ -8,6 +8,7 @@
 /// <reference types="vite/client" />
 
 import type {IDrnApp} from './drnApp';
+import type {IDrnReact} from './DrnReact';
 import type {IDrnOnmount} from './DrnOnmount';
 import type {IDrnUtils} from './DrnUtils';
 import type {IDrnCookieManager} from './DrnCookieManager';
@@ -31,6 +32,7 @@ declare global {
         Onmount: IDrnOnmount;
         Utils: IDrnUtils;
         Cookie: IDrnCookieManager;
+        React: IDrnReact;
         Toast: any;
         ErrorHandler: any;
         Validation: any;
