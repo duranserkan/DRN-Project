@@ -3,16 +3,43 @@
 
 @{
     var title = "Welcome";
-    var options = Get.LayoutOptions.Centered(string.Empty);
+    var options = Get.LayoutOptions.Full(string.Empty);
+    options.CenterHorizontally = true;
+    options.TextAlignment = BootstrapTextAlignment.TextCenter;
     options.Type = MainContentType.None;
     options.ColumnSize = BootstrapColumnSize.None;
     
     ViewData[Get.ViewDataKeys.Title] = title;
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
+
+    var reactVersion = "19";
+    var bootstrapVersion = "5.3";
+    var tailwindVersion = "4.2";
+    var viteVersion = "8";
+
+    try 
+    {
+        var packageJsonPath = System.IO.Path.Combine(System.Environment.CurrentDirectory, "package.json");
+        if (System.IO.File.Exists(packageJsonPath))
+        {
+            var json = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(packageJsonPath));
+            if (json.RootElement.TryGetProperty("dependencies", out var deps))
+            {
+                if (deps.TryGetProperty("react", out var r)) reactVersion = r.GetString()?.Replace("^", "")?.Replace("~", "") ?? reactVersion;
+                if (deps.TryGetProperty("bootstrap", out var b)) bootstrapVersion = b.GetString()?.Replace("^", "")?.Replace("~", "") ?? bootstrapVersion;
+                if (deps.TryGetProperty("tailwindcss", out var t)) tailwindVersion = t.GetString()?.Replace("^", "")?.Replace("~", "") ?? tailwindVersion;
+            }
+            if (json.RootElement.TryGetProperty("devDependencies", out var devDeps))
+            {
+                if (devDeps.TryGetProperty("vite", out var v)) viteVersion = v.GetString()?.Replace("^", "")?.Replace("~", "") ?? viteVersion;
+            }
+        }
+    }
+    catch { /* Ignore missing file/parsing errors and safely use defaults */ }
 }
 
 <div class="text-center py-2">
-    <h2 class="fw-bold mb-2">Welcome to @ScopeContext.Settings.ApplicationName!</h2>
+    <h2 class="fw-bold mb-2">Welcome to DRN Framework</h2>
     <p class="lead text-muted mb-4">A modern full-stack .NET framework with DDD architecture and React micro-frontends.</p>
 </div>
 
@@ -21,8 +48,14 @@
 @section Scripts {
     <script>
         DRN.React.mount('HelloReact', document.getElementById('hello-react-island'), {
-            title: 'DRN Micro-Frontend',
-            appName: @Json.Serialize(ScopeContext.Settings.ApplicationName)
+            title: 'DRN Micro-Frontends',
+            versions: {
+                dotnet: @Json.Serialize(Environment.Version.ToString()),
+                react: @Json.Serialize(reactVersion),
+                bootstrap: @Json.Serialize(bootstrapVersion),
+                tailwind: @Json.Serialize(tailwindVersion),
+                vite: @Json.Serialize(viteVersion)
+            }
         });
     </script>
 }
