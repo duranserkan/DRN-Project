@@ -20,6 +20,8 @@ export interface Disposable {
 
 export interface ReactMountedIsland<P> extends Disposable {
     update: (newProps: Partial<P>) => void;
+    /** Returns a shallow copy of the current merged props, or `null` after `dispose()`. */
+    getProps: () => P | null;
 }
 
 export interface ReactMountOptions {

@@ -134,6 +134,10 @@ window.DRN.React.mount = (name, domElement, initialProps, options = {}) => {
             currentProps = { ...currentProps, ...newProps };
             root.render(renderApp(currentProps));
         },
+        getProps: () => {
+            if (!rootMap.has(domElement)) return null;
+            return { ...currentProps };
+        },
         dispose: () => {
             const current = rootMap.get(domElement);
             if (!current)
