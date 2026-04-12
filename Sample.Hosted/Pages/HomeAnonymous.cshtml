@@ -2,17 +2,18 @@
 @model Sample.Hosted.Pages.HomeAnonymous
 
 @* ────────────────────────────────────────────────────────────────
-   TODO: React Mounted Islands Architecture Roadmap
+   TODO: Mounted Islands Architecture Roadmap
    ────────────────────────────────────────────────────────────────
 
    Boundaries (do NOT do until the trigger is met):
    [ ] Don't split into independent builds/remote modules until a second team or framework exists
-   [ ] Don't load React for pages that only need a toggle or counter, use htmx + vanilla JS
+   [ ] Don't load heavy frameworks for pages that only need a toggle or counter, use htmx + vanilla JS
 
    Evolution triggers:
    [ ] Mounted islands grow beyond ~5-6 components with shared state → add a lightweight cross-island state bus
    [ ] Bundle size becomes a concern → lazy-load registry entries with dynamic import()
-   [ ] A second framework appears (e.g., Vue component) → invest in full micro-frontend separation
+   [ ] High-performance isolated islands required → Implement Svelte 5 or Vue Vapor mode mount registries
+   [ ] Multiple frameworks need to coexist (React + Vue + Svelte) → invest in full micro-frontend separation
 
    ────────────────────────────────────────────────────────────────  *@
 

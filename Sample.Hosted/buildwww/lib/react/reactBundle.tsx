@@ -134,23 +134,21 @@ window.DRN.React.mount = (name, domElement, initialProps, options = {}) => {
 
     root.render(renderApp(record.currentProps));
 
+    const capturedRecord = record;
+
     return {
         update: (newProps: Partial<typeof initialProps>) => {
-            const current = rootMap.get(domElement);
-            if (!current) return; // guard against post-dispose calls
-            current.currentProps = { ...current.currentProps, ...newProps };
-            root.render(renderApp(current.currentProps));
+            if (rootMap.get(domElement) !== capturedRecord) return;
+            capturedRecord.currentProps = { ...capturedRecord.currentProps, ...newProps };
+            capturedRecord.root.render(renderApp(capturedRecord.currentProps));
         },
         getProps: () => {
-            const current = rootMap.get(domElement);
-            if (!current) return null;
-            return { ...current.currentProps };
+            if (rootMap.get(domElement) !== capturedRecord) return null;
+            return { ...capturedRecord.currentProps };
         },
         dispose: () => {
-            const current = rootMap.get(domElement);
-            if (!current) return;
-
-            current.root.unmount();
+            if (rootMap.get(domElement) !== capturedRecord) return;
+            capturedRecord.root.unmount();
             rootMap.delete(domElement);
         }
     };
