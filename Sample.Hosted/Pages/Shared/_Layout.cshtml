@@ -8,6 +8,8 @@
 
     var statusMessage = TempData[Get.TempDataKeys.StatusMessage] as string;
     var layoutOptions = ViewData[Get.ViewDataKeys.MainContentLayoutOptions] as MainContentLayoutOptions ?? new MainContentLayoutOptions();
+    ViewData[Get.ViewDataKeys.Title] = layoutOptions.Title;
+    
     // Main content card should stretch if not centered.
     var shouldExpandCard = layoutOptions is { CenterVertically: false, CenterHorizontally: false, Type: MainContentType.Card or MainContentType.CardBody };
     //todo: add toolbar

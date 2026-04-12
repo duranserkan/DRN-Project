@@ -1,61 +1,107 @@
 @page "/"
 @model Sample.Hosted.Pages.HomeAnonymous
 
+@* ────────────────────────────────────────────────────────────────
+   TODO: Mounted Islands Architecture Roadmap
+   ────────────────────────────────────────────────────────────────
+
+   Boundaries (do NOT do until the trigger is met):
+   [ ] Don't split into independent builds/remote modules until a second team or framework exists
+   [ ] Don't load heavy frameworks for pages that only need a toggle or counter, use htmx + vanilla JS
+
+   Evolution triggers:
+   [ ] Mounted islands grow beyond ~5-6 components with shared state → add a lightweight cross-island state bus
+   [ ] Bundle size becomes a concern → lazy-load registry entries with dynamic import()
+   [ ] High-performance isolated islands required → Implement Svelte 5 or Vue Vapor mode mount registries
+   [ ] Multiple frameworks need to coexist (React + Vue + Svelte) → invest in full micro-frontend separation
+
+   ────────────────────────────────────────────────────────────────  *@
+
 @{
-    var title = "Welcome";
-    var options = Get.LayoutOptions.Full(string.Empty);
-    options.CenterHorizontally = true;
-    options.TextAlignment = BootstrapTextAlignment.TextCenter;
-    options.Type = MainContentType.None;
-    options.ColumnSize = BootstrapColumnSize.None;
+    var pkg = PackageVersions.Instance;
+    var options = Get.LayoutOptions.Centered("Welcome");
     
-    ViewData[Get.ViewDataKeys.Title] = title;
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
-
-    var reactVersion = "19";
-    var bootstrapVersion = "5.3";
-    var tailwindVersion = "4.2";
-    var viteVersion = "8";
-
-    try 
-    {
-        var packageJsonPath = System.IO.Path.Combine(System.Environment.CurrentDirectory, "package.json");
-        if (System.IO.File.Exists(packageJsonPath))
-        {
-            var json = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(packageJsonPath));
-            if (json.RootElement.TryGetProperty("dependencies", out var deps))
-            {
-                if (deps.TryGetProperty("react", out var r)) reactVersion = r.GetString()?.Replace("^", "")?.Replace("~", "") ?? reactVersion;
-                if (deps.TryGetProperty("bootstrap", out var b)) bootstrapVersion = b.GetString()?.Replace("^", "")?.Replace("~", "") ?? bootstrapVersion;
-                if (deps.TryGetProperty("tailwindcss", out var t)) tailwindVersion = t.GetString()?.Replace("^", "")?.Replace("~", "") ?? tailwindVersion;
-            }
-            if (json.RootElement.TryGetProperty("devDependencies", out var devDeps))
-            {
-                if (devDeps.TryGetProperty("vite", out var v)) viteVersion = v.GetString()?.Replace("^", "")?.Replace("~", "") ?? viteVersion;
-            }
-        }
-    }
-    catch { /* Ignore missing file/parsing errors and safely use defaults */ }
+    options.CenterVertically = false;
+    options.ColumnSize = BootstrapColumnSize.None;
+    options.Type = MainContentType.None;
 }
 
 <div class="text-center py-2">
     <h2 class="fw-bold mb-2">Welcome to DRN Framework</h2>
-    <p class="lead text-muted mb-4">A modern full-stack .NET framework with DDD architecture and React micro-frontends.</p>
+    <p class="lead text-muted mb-4">A modern full-stack .NET framework with DDD architecture, React mounted islands, and a micro-frontends-ready foundation.</p>
 </div>
 
-<div id="hello-react-island"></div>
+<div data-js-hello-react-island></div>
 
 @section Scripts {
     <script>
-        DRN.React.mount('HelloReact', document.getElementById('hello-react-island'), {
-            title: 'DRN Micro-Frontends',
-            versions: {
-                dotnet: @Json.Serialize(Environment.Version.ToString()),
-                react: @Json.Serialize(reactVersion),
-                bootstrap: @Json.Serialize(bootstrapVersion),
-                tailwind: @Json.Serialize(tailwindVersion),
-                vite: @Json.Serialize(viteVersion)
-            }
+        DRN.Onmount.registerFull('[data-js-hello-react-island]', function (options) {
+            let clickCount = 0;
+            let titleIndex = 0;
+            const titles = ['Build with Confidence', 'DDD & Mounted Islands Architecture', 'Micro-Frontends Planned'];
+            const island = DRN.React.mount('HelloReact', this, {
+                title: titles[titleIndex],
+                versions: {
+                    dotnet: @Json.Serialize(pkg.Dotnet),
+                    react: @Json.Serialize(pkg.React),
+                    bootstrap: @Json.Serialize(pkg.Bootstrap),
+                    tailwind: @Json.Serialize(pkg.Tailwind),
+                    vite: @Json.Serialize(pkg.Vite)
+                },
+                // TODO: Consider publishing island readiness via DRN.EventBus so other page components
+                //       can react to island lifecycle events without tight coupling.
+                onReady: () => {
+                    console.log('HelloReact component is ready');
+                },
+                // TODO: Replace console.log demo with meaningful host-page interaction
+                //       (e.g., update a Bootstrap toast/counter element to demonstrate bidirectional API).
+                onCardClick: () => {
+                    clickCount++;
+                    console.log(`Card clicked! Total clicks outside the component: ${clickCount}`);
+                }
+            });
+
+            // Read back the merged props from the mounted island via getProps()
+            console.log('[DRN] HelloReact island mounted props:', island?.getProps());
+
+            // Cycle through titles with a smooth fade transition
+            // Timing tokens defined in HelloReactComponent.css (--badge-fade-ms, --title-cycle-ms)
+            // and read here via getComputedStyle. CSS is the single source of truth.
+
+            const helloRoot = (this.shadowRoot ?? this).querySelector('.hello-react');
+            const styles = helloRoot ? getComputedStyle(helloRoot) : null;
+            const FADE_DURATION_MS = parseInt(styles?.getPropertyValue('--badge-fade-ms') || '400', 10);
+            const CYCLE_INTERVAL_MS = parseInt(styles?.getPropertyValue('--title-cycle-ms') || '4000', 10);
+
+            // Lexical 'this' captured via arrow function (replaces previous .bind(this))
+            const cycleTitles = () => {
+                if (!island || !island.getProps()) return;
+
+                const shadow = this.shadowRoot;
+                const badge = shadow?.querySelector('.hello-react-badge');
+
+                // Phase 1: Fade out
+                if (badge) badge.classList.add('is-transitioning');
+
+                // Phase 2: Update title while faded out, then fade back in
+                setTimeout(() => {
+                    titleIndex = (titleIndex + 1) % titles.length;
+                    island.update({ title: titles[titleIndex] });
+                    if (badge) badge.classList.remove('is-transitioning');
+                }, FADE_DURATION_MS);
+            };
+
+            // Store island as disposable for automatic cleanup on unmount
+            options.disposable = island;
+            this._drnIntervalId = setInterval(cycleTitles, CYCLE_INTERVAL_MS);
+        }, function (options) {
+            // Unregister: clean up interval on htmx swap / navigation
+            if (this._drnIntervalId) 
+                clearInterval(this._drnIntervalId);
+            
+            // Call default unregister to dispose 'options.disposable'
+            DRN.Onmount.unregister.call(this, options);
         });
     </script>
 }

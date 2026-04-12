@@ -2,12 +2,10 @@
 @model Sample.Hosted.Pages.Home
 
 @{
-    var title = "Home Page";
-    var options = Get.LayoutOptions.Full(string.Empty);
+    var options = Get.LayoutOptions.Full("Home Page");
     options.Type = MainContentType.None;
     options.ColumnSize = BootstrapColumnSize.None;
 
-    ViewData[Get.ViewDataKeys.Title] = title;
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 }
 

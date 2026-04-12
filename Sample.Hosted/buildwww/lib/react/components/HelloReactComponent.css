@@ -1,11 +1,15 @@
 /* Scoped under .drn-react-root to isolate Tailwind styles from Bootstrap.
-   Every React island mounts inside a .drn-react-root container
+   Every React mounted island renders inside a .drn-react-root container
    (Shadow DOM: portal host, Light DOM: mount element). */
 
 /* ── Base Container ── */
 .drn-react-root .hello-react {
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     color: #212529;
+
+    /* Timing tokens: JS reads these via getComputedStyle (single source of truth) */
+    --badge-fade-ms: 400;
+    --title-cycle-ms: 4000;
 }
 
 /* ── Hero Section ── */
@@ -17,6 +21,12 @@
     @apply inline-block rounded-full px-4 py-1.5 text-xs font-semibold tracking-wider uppercase;
     background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
     color: #3730a3;
+    transition: opacity calc(var(--badge-fade-ms) * 1ms) ease, transform calc(var(--badge-fade-ms) * 1ms) ease;
+}
+
+.drn-react-root .hello-react-badge.is-transitioning {
+    opacity: 0;
+    transform: translateY(-6px);
 }
 
 .drn-react-root .hello-react-title {
@@ -69,6 +79,7 @@
     background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
     border: 1px solid #e2e8f0;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
 }
 
 .drn-react-root .hello-react-card:hover {

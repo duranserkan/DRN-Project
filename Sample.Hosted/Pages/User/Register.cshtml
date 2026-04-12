@@ -2,9 +2,7 @@
 @model Sample.Hosted.Pages.User.RegisterModel
 
 @{
-    var title = "Register";
-    var options = Get.LayoutOptions.Centered(title);
-    ViewData[Get.ViewDataKeys.Title] = title;
+    var options = Get.LayoutOptions.Centered("Register");
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 }
 

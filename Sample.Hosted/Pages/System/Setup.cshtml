@@ -2,9 +2,7 @@
 @model Sample.Hosted.Pages.System.SetupModel
 
 @{
-    var title = "Initial Setup";
-    var options = Get.LayoutOptions.Centered(title);
-    ViewData[Get.ViewDataKeys.Title] = title;
+    var options = Get.LayoutOptions.Centered("Initial Setup");
     ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
 }
 
