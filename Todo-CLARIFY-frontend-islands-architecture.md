@@ -37,49 +37,60 @@ Use `drnOnmount` to scan the DOM for data attributes and auto-mount. Instead of 
 </div>
 ```
 
-2. Introduce a Framework-Agnostic Global Event Bus (Native EventTarget)
+1. Introduce a Framework-Agnostic Global Event Bus (Native EventTarget)
 Inject a typed Publisher/Subscriber bus powered by native `EventTarget` into all islands, agnostic to React/Vue/Svelte.
 
 ## Enrichment Context
 
 ### Codebase Findings
+
 - **Current Mount Strategy**: `Sample.Hosted/buildwww/app/js/drn/drnOnmount.js` provides `drnOnmount.registerFull('[data-drn-island]')` to cleanly attach behavior to elements and automatically clean up when elements are removed (which integrates natively with HTMX).
 - **Native / Event Bus**: A native `EventTarget` wrapper is perfect for a global framework-agnostic messaging platform with zero bundle size overhead.
 
 ### Knowledge Items
+
 - Island architecture isolates components. By using a framework-agnostic bus, multiple frameworks (React, Vue, Svelte) can safely co-exist and exchange events on the same `.cshtml` host page.
 
 ### Relevant Skills
+
 - `overview-drn-framework`
 - `frontend-buildwww-vite`
 - `frontend-razor-pages-shared`
 
 ### External References
+
 - Astro Islands Architecture concepts.
 
 ### Initial Observations
+
 - Using `drnOnmount` drastically reduces the complexity of handling `htmx` swaps or DOM mutations, removing the need for a custom MutationObserver for lifecycle.
 - The Event Bus must be pure TypeScript/JS (native `EventTarget`) without any React-specific bindings at its core.
 
 ## Clarification Q&A
 
 ### Round 1
+
 **Questions:**
+
 1. **Framework Agnostic Implementation**: To support React, Vue, Svelte, etc., the auto-mounter needs to know which framework to invoke. Should the `data-drn-island` attribute specify the framework prefix (e.g., `react/HelloReact`, `vue/HelloVue`) so it can delegate to the correct framework adapter?
-2. **Prop Updates**: Since we use a `<script type="application/json">` block, do we need a `MutationObserver` to watch for prop changes on existing islands?
-3. **Event Bus**: Since we are using standard `EventTarget`, do we dynamically cache the last emitted event internally to simulate a `BehaviorSubject` for late-mounting islands?
+1. **Prop Updates**: Since we use a `<script type="application/json">` block, do we need a `MutationObserver` to watch for prop changes on existing islands?
+1. **Event Bus**: Since we are using standard `EventTarget`, do we dynamically cache the last emitted event internally to simulate a `BehaviorSubject` for late-mounting islands?
 
 **Answers** _(by: /answer)_:
+
 1. **Framework Agnostic Implementation**: Yes, use a `{framework}/{component}` naming convention in the attribute (e.g., `react/HelloReact`). The core `drnOnmount` integration splits this value to identify the framework adapter from a registry (`window.DRN.registerIslandAdapter('react', adapterFn)`). The adapter function signature should be `(componentId, element, initialProps) => teardownFn`.
-2. **Prop Updates**: No specific `MutationObserver` for props is required. Propagating updates should be done either via full HTMX node replacement (which seamlessly unmounts/remounts via `drnOnmount`) or by explicitly calling the imperative `.drnIsland.updateProps()` API. This avoids unnecessary client-side observation complexity.
-3. **Event Bus**: Utilize native `EventTarget` strictly. A lightweight wrapper mapping to events ensures zero bundle overhead while providing full cross-framework compatibility. Event names should follow a standardized prefix domain pattern (e.g., `drn:{domain}:{action}`) to avoid global name collisions across different interactive areas.
-4. **Bidirectional Communication DX**: Yes. Preserve bidirectional communication by mapping framework callback props to native DOM `CustomEvent`s dispatched from the island's mount element (e.g., `element.addEventListener('drn:onCardClick')`). For host-to-component, extend the DOM element with a `drnIsland` property exposing `.updateProps()`. This gives native HTML DX while keeping the framework completely decoupled.
+1. **Prop Updates**: No specific `MutationObserver` for props is required. Propagating updates should be done either via full HTMX node replacement (which seamlessly unmounts/remounts via `drnOnmount`) or by explicitly calling the imperative `.drnIsland.updateProps()` API. This avoids unnecessary client-side observation complexity.
+1. **Event Bus**: Utilize native `EventTarget` strictly. A lightweight wrapper mapping to events ensures zero bundle overhead while providing full cross-framework compatibility. Event names should follow a standardized prefix domain pattern (e.g., `drn:{domain}:{action}`) to avoid global name collisions across different interactive areas.
+1. **Bidirectional Communication DX**: Yes. Preserve bidirectional communication by mapping framework callback props to native DOM `CustomEvent`s dispatched from the island's mount element (e.g., `element.addEventListener('drn:onCardClick')`). For host-to-component, extend the DOM element with a `drnIsland` property exposing `.updateProps()`. This gives native HTML DX while keeping the framework completely decoupled.
 
 ### Round 2
+
 **Questions:**
+
 1. **Dynamic Loading & Code Splitting**: How do we prevent monolithic bundle compilation? Should components be loaded upfront, or on-demand to ensure lightweight bundles and isolated recompilation?
 
 **Answers** _(by: /answer)_:
+
 1. **Dynamic Loading & Code Splitting**: Components must be registered via dynamic async imports. Consider utilizing Vite's `import.meta.glob` (e.g., `const components = import.meta.glob('./components/**/*.tsx')`) to automatically build the component registry rather than manually maintaining a map of all components. The island mounter should inherently await these chunks before mounting. This leverages Vite's chunking algorithm natively: (A) only the necessary components are initialized on demand minimizing page payload, and (B) changing a specific component only triggers a localized recompilation and cache invalidation as opposed to regenerating the primary shared registry bundle. *(Note: This necessitates transitioning Vite's React module to output ESM chunks to support code-splitting, removing the strict IIFE constraint).*
 
 ## Summary
