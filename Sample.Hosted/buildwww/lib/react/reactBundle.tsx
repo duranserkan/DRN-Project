@@ -4,7 +4,7 @@ import bundleStyles from './reactBundle.css?inline';
 
 import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { ReactComponentRegistry, RootData } from "@/types/DrnReactTypes.ts";
+import type { ReactComponentRegistry, RootData, ReactMountOptions } from "@/types/DrnReactTypes.ts";
 import { HelloReactComponent } from './components/HelloReactComponent';
 
 const rootMap = new WeakMap<HTMLElement, RootData>();
@@ -49,7 +49,12 @@ if (window.CSSStyleSheet)
         console.warn("[DRN] Constructable stylesheets not supported, falling back to <style> tags");
     }
 
-window.DRN.React.mount = (name, domElement, initialProps, options = {}) => {
+window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
+    name: K,
+    domElement: HTMLElement | null,
+    initialProps: React.ComponentProps<ReactComponentRegistry[K]>,
+    options: ReactMountOptions = {}
+) => {
     //  Safety Checks
     if (!domElement) {
         console.warn(`DRN.React: DOM element is null for component '${name}'`);
@@ -62,8 +67,10 @@ window.DRN.React.mount = (name, domElement, initialProps, options = {}) => {
         return null;
     }
 
+    type Props = React.ComponentProps<ReactComponentRegistry[K]>;
+
     const { useShadow = true } = options; // Default to TRUE — Shadow DOM provides style isolation from Bootstrap
-    let record = rootMap.get(domElement);
+    let record = rootMap.get(domElement) as RootData<Props> | undefined;
     // Clean up existing roots if re-mounting different component
     if (record && (record.name !== name || record.isShadow !== useShadow)) {
         record.root.unmount();
@@ -124,27 +131,27 @@ window.DRN.React.mount = (name, domElement, initialProps, options = {}) => {
 
     // React.createElement on the line below avoids TS2769 from JSX spreading
     // generic indexed-access component types; the outer JSX wrappers are fine.
-    const renderApp = (props: React.ComponentProps<ReactComponentRegistry[typeof name]>) => (
+    const renderApp = (props: Props) => (
         <React.StrictMode>
             <IslandErrorBoundary>
-                {React.createElement(Component, props)}
+                {React.createElement(Component as React.ElementType, props)}
             </IslandErrorBoundary>
         </React.StrictMode>
     );
 
-    root.render(renderApp(record.currentProps));
+    root.render(renderApp(record.currentProps as Props));
 
     const capturedRecord = record;
 
     return {
-        update: (newProps: Partial<typeof initialProps>) => {
+        update: (newProps: Partial<Props>) => {
             if (rootMap.get(domElement) !== capturedRecord) return;
-            capturedRecord.currentProps = { ...capturedRecord.currentProps, ...newProps };
+            capturedRecord.currentProps = { ...capturedRecord.currentProps, ...newProps } as Props;
             capturedRecord.root.render(renderApp(capturedRecord.currentProps));
         },
         getProps: () => {
             if (rootMap.get(domElement) !== capturedRecord) return null;
-            return { ...capturedRecord.currentProps };
+            return { ...capturedRecord.currentProps } as Props;
         },
         dispose: () => {
             if (rootMap.get(domElement) !== capturedRecord) return;

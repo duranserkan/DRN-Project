@@ -8,11 +8,11 @@ export type ReactComponentRegistry = {
     'HelloReact': React.ComponentType<HelloReactProps>;
 };
 
-export type RootData = {
+export type RootData<P = unknown> = {
     root: Root;
     name: string;
     isShadow: boolean;
-    currentProps?: any;
+    currentProps?: P;
 };
 
 export interface Disposable {
