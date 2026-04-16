@@ -1,9 +1,9 @@
 ---
 name: frontend-buildwww-libraries
 description: Frontend JavaScript architecture - DRN utilities (drnUtils, drnApp, drnCookieManager, drnOnmount), RSJS pattern for component mounting, htmx integration with CSP nonce security, and Bootstrap customization. Essential for client-side interactivity and component lifecycle. Keywords: javascript, rsjs, onmount, htmx, csp, nonce, bootstrap, cookie-management, component-mounting, client-side
-last-updated: 2026-02-15
+last-updated: 2026-04-16
 difficulty: intermediate
-tokens: ~1.5K
+tokens: ~1.8K
 ---
 
 # buildwww Libraries
@@ -31,15 +31,20 @@ DRN follows [RSJS](https://github.com/rstacruz/rsjs): register behaviors that au
 #### API
 
 ```javascript
-// Register a behavior for a selector
+// Simple registration — uses default unregister (calls options.disposable.dispose())
 DRN.Onmount.register(selector, callback, idempotencyKey?);
+
+// Full registration — custom mount and unmount callbacks
+DRN.Onmount.registerFull(selector, registerCallback, unregisterCallback, idempotencyKey?);
 ```
 
-- **selector**: CSS selector (e.g., `[data-bs-toggle="tooltip"]`, `#myComponent`).
-- **callback**: Executed per matching element; `this` = element.
+- **selector**: CSS selector (e.g., `[data-bs-toggle="tooltip"]`, `[data-js-my-island]`).
+- **callback / registerCallback**: Executed per matching element; `this` = the DOM element.
+- **unregisterCallback** (registerFull only): Custom cleanup on unmount; `this` = the DOM element. Call `DRN.Onmount.unregister.call(this, options)` at the end to invoke default disposal.
 - **idempotencyKey** (optional): Prevents re-registration when scripts reload in partials.
+- **options.disposable**: Set in register callback; default `unregister` calls `.dispose()` and `.destroy()` on it automatically.
 
-
+> `register()` delegates to `registerFull()` with the default `unregister`. Use `registerFull()` when you need custom cleanup (e.g., clearing intervals, removing DOM listeners) — see [frontend-buildwww-react](../frontend-buildwww-react/SKILL.md) for the canonical example.
 
 ---
 
@@ -127,6 +132,30 @@ if (DRN.Cookie.hasConsent('Analytics')) {
 
 ---
 
+## Script Loading Order
+
+All scripts load in a specific order defined in `_LayoutBase.cshtml`. This order is critical — each layer depends on the previous:
+
+```
+appPreload.js          → DRN.App, DRN.Utils, DRN.Onmount, DRN.React = {} namespace
+  ↓
+<inline script>        → DRN.App config (Environment, CsrfToken, Cultures)
+  ↓
+htmxBundle.js          → htmx + CSP nonce sync
+  ↓
+bootstrapBundle.js     → Bootstrap JS plugins
+  ↓
+appPostload.js         → Global DRN.Onmount registrations (tooltips, etc.)
+  ↓
+reactBundle.tsx         → DRN.React.mount() + component registry
+  ↓
+@section Scripts { }   → Page-specific registrations (DRN.Onmount.register/registerFull)
+```
+
+> **Dependency rule**: `appPreload.js` must execute first — it initializes the `window.DRN` namespace that all subsequent scripts attach to. If a bundle loads before its namespace is ready, it logs a critical error.
+
+---
+
 ## htmx Integration
 
 ### Security with CSP Nonces
@@ -191,4 +220,5 @@ import 'bootstrap/js/dist/modal';
 ## Related Skills
 
 - [frontend-buildwww-vite.md](../frontend-buildwww-vite/SKILL.md) - Vite configuration
+- [frontend-buildwww-react.md](../frontend-buildwww-react/SKILL.md) - React mounted islands (primary consumer of `registerFull`)
 - [drn-hosting.md](../drn-hosting/SKILL.md) - Security and TagHelpers

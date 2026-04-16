@@ -1,9 +1,9 @@
 ---
 name: frontend-buildwww-vite
 description: Frontend build system - Vite multi-build configuration, TypeScript setup with path aliases, build output structure (wwwroot), and entry point management (appPreload, appPostload). Essential for frontend asset compilation and bundling. Keywords: vite, typescript, bundling, asset-compilation, npm, javascript, css, scss, build-pipeline, entry-points, manifest
-last-updated: 2026-02-15
+last-updated: 2026-04-16
 difficulty: intermediate
-tokens: ~1.5K
+tokens: ~2K
 ---
 
 # Sample.Hosted buildwww & Vite
@@ -32,7 +32,8 @@ Sample.Hosted/
 │   │   └── css/             # Application CSS
 │   ├── lib/                 # Library code
 │   │   ├── htmx/            # htmx bundle
-│   │   └── bootstrap/       # Bootstrap customization
+│   │   ├── bootstrap/       # Bootstrap customization
+│   │   └── react/           # React mounted islands (Shadow DOM + Tailwind)
 │   ├── plugins/             # Vite plugins
 │   └── types/               # TypeScript declarations
 ├── wwwroot/                 # Built output (served)
@@ -51,25 +52,36 @@ Sample.Hosted/
 ### Multi-Build Setup
 
 ```javascript
-// vite.config.js
+// vite.config.js — uses rolldownOptions (Vite 6+ with Rolldown)
 const builds = {
     app: {
         build: {
             outDir: 'wwwroot/app',
-            rollupOptions: {
+            rolldownOptions: {
                 input: {
-                    app_preload: resolve(__dirname, 'buildwww/app/js/appPreload.js'),
-                    app_postload: resolve(__dirname, 'buildwww/app/js/appPostload.js')
+                    app: resolve(__dirname, 'buildwww/app/css/app.css'),
+                    appPreload: resolve(__dirname, 'buildwww/app/js/appPreload.js')
+                }
+            }
+        }
+    },
+    appPostload: {
+        build: {
+            outDir: 'wwwroot/appPostload',
+            rolldownOptions: {
+                input: {
+                    appPostload: resolve(__dirname, 'buildwww/app/js/appPostload.js')
                 }
             }
         }
     },
     htmx: {
+        plugins: [stripHtmxEval()],
         build: {
             outDir: 'wwwroot/lib/htmx',
-            rollupOptions: {
+            rolldownOptions: {
                 input: {
-                    htmx_bundle: resolve(__dirname, 'buildwww/lib/htmx/htmxBundle.js')
+                    htmxBundle: resolve(__dirname, 'buildwww/lib/htmx/htmxBundle.js')
                 }
             }
         }
@@ -77,11 +89,23 @@ const builds = {
     bootstrap: {
         build: {
             outDir: 'wwwroot/lib/bootstrap',
-            rollupOptions: {
+            rolldownOptions: {
                 input: {
                     bootstrap: resolve(__dirname, 'buildwww/lib/bootstrap/bootstrap.scss'),
-                    bootstrap_bundle: resolve(__dirname, 'buildwww/lib/bootstrap/bootstrap.js')
+                    bootstrapBundle: resolve(__dirname, 'buildwww/lib/bootstrap/bootstrapBundle.js')
                 }
+            }
+        }
+    },
+    react: {
+        plugins: [react(), tailwindcss()],
+        build: {
+            outDir: 'wwwroot/lib/react',
+            rolldownOptions: {
+                input: {
+                    reactBundle: resolve(__dirname, 'buildwww/lib/react/reactBundle.tsx')
+                },
+                output: { format: 'iife', name: 'DrnReactMicroFrontend' }
             }
         }
     }
@@ -91,15 +115,17 @@ const builds = {
 const buildType = process.env.BUILD_TYPE || 'app';
 ```
 
+> See [frontend-buildwww-react](../frontend-buildwww-react/SKILL.md) for the full React build architecture (Shadow DOM, Tailwind 4, IIFE format rationale).
+
 ### Build Commands
 
 ```bash
-# Build app
+# Build all targets
 npm run build:app
-
-# Build specific targets
+npm run build:appPostload
 npm run build:htmx
 npm run build:bootstrap
+npm run build:react
 ```
 
 ### Shared Configuration
@@ -110,7 +136,7 @@ const sharedConfig = {
     build: {
         emptyOutDir: true,
         manifest: true,
-        rollupOptions: {
+        rolldownOptions: {
             output: {
                 entryFileNames: `[name].[hash:16].js`,
                 chunkFileNames: `[name].[hash:16].js`,
@@ -128,7 +154,11 @@ const sharedConfig = {
         }
     }
 };
+// Per-build configs are deep-merged with sharedConfig
+export default defineConfig(drnUtils.deepMerge(sharedConfig, builds[buildType]));
 ```
+
+> **Note**: TypeScript path alias `@/*` → `buildwww/*` is configured in `tsconfig.json` and resolved by `moduleResolution: "bundler"`. The Vite `resolve.alias` entries above are for non-TypeScript (JS/CSS/SCSS) imports.
 
 ---
 
@@ -194,16 +224,23 @@ Loaded after page content:
 ```
 wwwroot/
 ├── app/
-│   ├── app_preload.[hash].js
-│   ├── app_postload.[hash].js
+│   ├── appPreload.[hash].js
+│   ├── app.[hash].css
+│   └── .vite/manifest.json
+├── appPostload/
+│   ├── appPostload.[hash].js
 │   └── .vite/manifest.json
 ├── lib/
 │   ├── htmx/
-│   │   ├── htmx_bundle.[hash].js
+│   │   ├── htmxBundle.[hash].js
 │   │   └── .vite/manifest.json
-│   └── bootstrap/
-│       ├── bootstrap.[hash].css
-│       ├── bootstrap_bundle.[hash].js
+│   ├── bootstrap/
+│   │   ├── bootstrap.[hash].css
+│   │   ├── bootstrapBundle.[hash].js
+│   │   └── .vite/manifest.json
+│   └── react/
+│       ├── reactBundle.[hash].js
+│       ├── reactBundle.[hash].css
 │       └── .vite/manifest.json
 ```
 
@@ -223,6 +260,8 @@ wwwroot/
 
 - [overview-ddd-architecture.md](../overview-ddd-architecture/SKILL.md) - Sample architecture
 - [frontend-buildwww-libraries.md](../frontend-buildwww-libraries/SKILL.md) - Library usage
+- [frontend-buildwww-react.md](../frontend-buildwww-react/SKILL.md) - React build architecture
+- [frontend-buildwww-packages.md](../frontend-buildwww-packages/SKILL.md) - Package dependencies
 - [frontend-razor-pages-shared.md](../frontend-razor-pages-shared/SKILL.md) - Layout integration
 
 ---

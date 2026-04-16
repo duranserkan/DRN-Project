@@ -4,7 +4,7 @@ description: Load all project skills by calling other workflows
 
 // turbo-all
 
-> **Estimated context: ~42K tokens** (29 skills)
+> **Estimated context: ~48.5K tokens** (30 skills)
 
 Read all skills:
 
@@ -46,3 +46,4 @@ Read all skills:
    - `view_file .agent/skills/frontend-razor-accessors/SKILL.md`
    - `view_file .agent/skills/frontend-razor-pages-navigation/SKILL.md`
    - `view_file .agent/skills/frontend-razor-pages-shared/SKILL.md`
+   - `view_file .agent/skills/frontend-buildwww-react/SKILL.md`

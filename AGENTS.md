@@ -68,5 +68,5 @@ dotnet test DRN.slnx           # Run all tests
 | `/load-skills-overview` | Load: `overview-repository-structure`, `overview-ddd-architecture`, `overview-drn-framework`, `overview-drn-testing`, `overview-github-actions`, `overview-skill-index` (~8.3K tokens) |
 | `/load-skills-drn` | Load: `drn-sharedkernel`, `drn-entityframework`, `drn-domain-design`, `drn-utils`, `drn-hosting`, `drn-testing` (~18.5K tokens) |
 | `/load-skills-test` | Load: `overview-drn-testing`, `test-integration`, `test-integration-api`, `test-integration-db`, `test-performance`, `test-unit` (~5.3K tokens) |
-| `/load-skills-frontend` | Load: `frontend-buildwww-libraries`, `frontend-buildwww-packages`, `frontend-buildwww-vite`, `frontend-razor-accessors`, `frontend-razor-pages-navigation`, `frontend-razor-pages-shared` (~6.9K tokens) |
-| `/load-skills-all` | Cascade: basic → overview → drn → test → frontend (~42K tokens) |
+| `/load-skills-frontend` | Load: `frontend-buildwww-libraries`, `frontend-buildwww-packages`, `frontend-buildwww-vite`, `frontend-razor-accessors`, `frontend-razor-pages-navigation`, `frontend-razor-pages-shared`, `frontend-buildwww-react` (~11.6K tokens) |
+| `/load-skills-all` | Cascade: basic → overview → drn → test → frontend (~48.5K tokens) |

@@ -1,9 +1,9 @@
 ---
 name: overview-skill-index
-description: Skill cross-reference index - Task-based skill lookup (add entity, create test, build frontend), layer-based mappings (Domain→Presentation), keyword index, and skill dependency graph. Fast discovery for the right skill combination. Keywords: index, lookup, cross-reference, skill-map, discovery, task-mapping
-last-updated: 2026-02-18
+description: Skill cross-reference index - Task-based skill lookup (add entity, create test, build frontend), layer-based mappings (Domain→Presentation), keyword index, and skill dependency Graph. Fast discovery for the right skill combination. Keywords: index, lookup, cross-reference, skill-map, discovery, task-mapping
+last-updated: 2026-04-16
 difficulty: basic
-tokens: ~1.5K
+tokens: ~1.6K
 ---
 
 # Skill Cross-Reference Index
@@ -29,6 +29,7 @@ tokens: ~1.5K
 | **Write unit tests** | `overview-drn-testing` → `test-unit` |
 | **Add a Razor page** | `frontend-razor-pages-shared` → `frontend-razor-pages-navigation` → `frontend-razor-accessors` |
 | **Add JavaScript behavior** | `frontend-buildwww-libraries` → `frontend-buildwww-vite` |
+| **Add a React component** | `frontend-buildwww-libraries` → `frontend-buildwww-react` |
 | **Add an npm package** | `frontend-buildwww-packages` → `frontend-buildwww-vite` |
 | **Register a service** | `drn-utils` (attribute-based DI) |
 | **Add configuration** | `drn-utils` (IAppSettings) |
@@ -77,6 +78,7 @@ tokens: ~1.5K
 | Navigation | `frontend-razor-pages-navigation` |
 | Type-Safe Routing | `frontend-razor-accessors` |
 | JavaScript/CSS | `frontend-buildwww-libraries`, `frontend-buildwww-vite` |
+| React Components | `frontend-buildwww-react` |
 | Security Middleware | `drn-hosting` |
 
 ### Cross-Cutting
@@ -102,6 +104,7 @@ overview-repository-structure → overview-drn-framework → overview-ddd-archit
 drn-sharedkernel → drn-domain-design → drn-entityframework
 drn-utils → drn-hosting → drn-testing
 frontend-buildwww-vite → frontend-buildwww-libraries
+frontend-buildwww-libraries → frontend-buildwww-react
 frontend-razor-pages-shared → frontend-razor-pages-navigation → frontend-razor-accessors
 overview-drn-testing → test-unit / test-integration → test-integration-api / test-integration-db
 basic-security-checklist → basic-code-review
@@ -134,11 +137,14 @@ basic-agentic-development (standalone)
 | pagination | `drn-sharedkernel`, `drn-domain-design` |
 | rabbitmq | `drn-masstransit` (planned) |
 | razor | `frontend-razor-pages-shared`, `frontend-razor-pages-navigation`, `frontend-razor-accessors` |
+| react / islands-architecture | `frontend-buildwww-react` |
 | repository | `drn-domain-design`, `drn-entityframework` |
-| rsjs / onmount | `frontend-buildwww-libraries` |
+| rsjs / onmount | `frontend-buildwww-libraries`, `frontend-buildwww-react` |
+| shadow-dom / mount-api | `frontend-buildwww-react` |
 | security | `basic-security-checklist`, `drn-hosting` |
 | source-known-id | `drn-domain-design`, `drn-sharedkernel` |
 | testcontainers | `drn-testing`, `test-integration-db` |
+| tailwind | `frontend-buildwww-react`, `frontend-buildwww-packages` |
 | vite | `frontend-buildwww-vite` |
 
 ---

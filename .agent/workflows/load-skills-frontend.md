@@ -2,7 +2,7 @@
 description: Load Frontend development skills
 ---
 
-> **Estimated context: ~6.9K tokens** (6 skills)
+> **Estimated context: ~11.6K tokens** (7 skills)
 
 Read the skills:
    - `view_file .agent/skills/frontend-buildwww-libraries/SKILL.md`
@@ -11,3 +11,4 @@ Read the skills:
    - `view_file .agent/skills/frontend-razor-accessors/SKILL.md`
    - `view_file .agent/skills/frontend-razor-pages-navigation/SKILL.md`
    - `view_file .agent/skills/frontend-razor-pages-shared/SKILL.md`
+   - `view_file .agent/skills/frontend-buildwww-react/SKILL.md`
