@@ -19,18 +19,18 @@
     "onmount": "^2.0.0",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
-    "htmx.org": "^2.0.8",
+    "htmx.org": "^2.0.10",
     "aspnet-client-validation": "^0.11.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "tailwindcss": "^4.2.2"
+    "tailwindcss": "^4.2.4"
   },
   "devDependencies": {
     "globals": "^17.5.0",
     "sass": "1.99.0",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.8",
-    "@tailwindcss/vite": "^4.2.2",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10",
+    "@tailwindcss/vite": "^4.2.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1"
