@@ -11,9 +11,6 @@
     "build:react": "BUILD_TYPE=react vite build"
   },
   "type": "module",
-  "overrides": {
-    "dompurify": "^3.3.3"
-  },
   "dependencies": {
     "@popperjs/core": "^2.11.8",
     "onmount": "^2.0.0",
@@ -21,15 +18,15 @@
     "bootstrap-icons": "^1.13.1",
     "htmx.org": "^2.0.10",
     "aspnet-client-validation": "^0.11.1",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "tailwindcss": "^4.2.4"
   },
   "devDependencies": {
-    "globals": "^17.5.0",
+    "globals": "^17.6.0",
     "sass": "1.99.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.10",
+    "vite": "^8.0.11",
     "@tailwindcss/vite": "^4.2.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

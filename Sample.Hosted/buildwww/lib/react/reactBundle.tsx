@@ -3,9 +3,9 @@ import './reactBundle.css'
 import bundleStyles from './reactBundle.css?inline';
 
 import React from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-import type { ReactComponentRegistry, RootData, ReactMountOptions } from "@/types/DrnReactTypes.ts";
-import { HelloReactComponent } from './components/HelloReactComponent';
+import {createRoot, type Root} from 'react-dom/client';
+import type {ReactComponentRegistry, RootData, ReactMountOptions} from "@/types/DrnReactTypes.ts";
+import {HelloReactComponent} from './components/HelloReactComponent';
 
 const rootMap = new WeakMap<HTMLElement, RootData>();
 const COMPONENT_REGISTRY: ReactComponentRegistry = {
@@ -15,11 +15,11 @@ const COMPONENT_REGISTRY: ReactComponentRegistry = {
 class IslandErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
     constructor(props: { children: React.ReactNode }) {
         super(props);
-        this.state = { hasError: false };
+        this.state = {hasError: false};
     }
 
     static getDerivedStateFromError() {
-        return { hasError: true };
+        return {hasError: true};
     }
 
     override componentDidCatch(error: Error, info: React.ErrorInfo) {
@@ -69,7 +69,7 @@ window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
 
     type Props = React.ComponentProps<ReactComponentRegistry[K]>;
 
-    const { useShadow = true } = options; // Default to TRUE — Shadow DOM provides style isolation from Bootstrap
+    const {useShadow = true} = options; // Default to TRUE — Shadow DOM provides style isolation from Bootstrap
     let record = rootMap.get(domElement) as RootData<Props> | undefined;
     // Clean up existing roots if re-mounting different component
     if (record && (record.name !== name || record.isShadow !== useShadow)) {
@@ -90,7 +90,7 @@ window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
     // SHADOW DOM SETUP
     // -----------------------------------------------------------
     if (useShadow) {
-        const shadow = domElement.shadowRoot || domElement.attachShadow({ mode: 'open' });
+        const shadow = domElement.shadowRoot || domElement.attachShadow({mode: 'open'});
         if (drnSharedSheet && shadow.adoptedStyleSheets) {
             if (!shadow.adoptedStyleSheets.includes(drnSharedSheet)) // Avoid adding it duplicate times
                 shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, drnSharedSheet];
@@ -125,7 +125,7 @@ window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
         record.currentProps = initialProps;
     } else {
         root = createRoot(mountNode); // createRoot takes the container (either shadowRoot or the element itself)
-        record = { root, name, isShadow: useShadow, currentProps: initialProps };
+        record = {root, name, isShadow: useShadow, currentProps: initialProps};
         rootMap.set(domElement, record);
     }
 
@@ -146,12 +146,12 @@ window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
     return {
         update: (newProps: Partial<Props>) => {
             if (rootMap.get(domElement) !== capturedRecord) return;
-            capturedRecord.currentProps = { ...capturedRecord.currentProps, ...newProps } as Props;
+            capturedRecord.currentProps = {...capturedRecord.currentProps, ...newProps} as Props;
             capturedRecord.root.render(renderApp(capturedRecord.currentProps));
         },
         getProps: () => {
             if (rootMap.get(domElement) !== capturedRecord) return null;
-            return { ...capturedRecord.currentProps } as Props;
+            return {...capturedRecord.currentProps} as Props;
         },
         dispose: () => {
             if (rootMap.get(domElement) !== capturedRecord) return;

@@ -6,13 +6,13 @@ if (typeof window.onmount === 'function') {
 }
 
 // Initialize onmount.js globally
-document.addEventListener('DOMContentLoaded', onmount, { once: true });
+document.addEventListener('DOMContentLoaded', onmount, {once: true});
 
 // Reinitialize onmount after HTMX partial updates
 document.addEventListener('htmx:load', onmount);
 
 DRN.Onmount.register('[data-bs-toggle="tooltip"]', function (options) {
-    options.disposable = new bootstrap.Tooltip(this, { animation: false }); // Initialize Bootstrap Tooltip for the current element
+    options.disposable = new bootstrap.Tooltip(this, {animation: false}); // Initialize Bootstrap Tooltip for the current element
 })
 
 if (DRN.App.IsDev) {

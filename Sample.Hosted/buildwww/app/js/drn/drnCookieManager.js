@@ -33,8 +33,8 @@ class DrnCookieManager {
             .map(raw => {
                 const eqIndex = raw.indexOf('=');
                 return eqIndex > 0
-                    ? { name: raw.slice(0, eqIndex), value: raw.slice(eqIndex + 1), raw }
-                    : { name: raw, value: '', raw }; // malformed
+                    ? {name: raw.slice(0, eqIndex), value: raw.slice(eqIndex + 1), raw}
+                    : {name: raw, value: '', raw}; // malformed
             });
     }
 
@@ -156,10 +156,9 @@ class DrnCookieManager {
         if (!this.exists(name))
             console.warn(`DrnCookieManager: Attempted to remove non-existent cookie '${name}'`);
         // Proceed anyway (idempotent)
-        this.set(name, "", { ...options, maxAge: 0 });
+        this.set(name, "", {...options, maxAge: 0});
     }
-
-
+    
     /**
      * Checks if a specific cookie exists.
      * @param {string} name
