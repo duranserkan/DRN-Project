@@ -515,7 +515,7 @@ public class AccountRateLimitRule(DrnAppFeatures features) : ScopedRateLimitRule
 
 DRN rate limit rules namespace every partition key with the phase and the rule type full name:
 
-```
+```text
 {phase}:{rule type full name}:{your partition key}
 ```
 

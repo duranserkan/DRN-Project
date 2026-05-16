@@ -15,7 +15,7 @@ using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Configurations;
-using DRN.Framework.Utils.Data.Encodings;
+using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
@@ -270,6 +270,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         if (!appSettings.Features.RateLimit.Disabled)
         {
             services.AddRateLimiter();
+            // Intentionally manual: preserves the virtual CreatePreAuthRateLimiter extension point.
             services.AddSingleton(sp => new DrnPreAuthRateLimiter(CreatePreAuthRateLimiter(sp, appSettings)));
         }
 
@@ -721,15 +722,19 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
                 context.HttpContext.Response.StatusCode = options.RejectionStatusCode;
 
             if (!context.HttpContext.Response.HasStarted && context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
-                context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+            {
+                var seconds = (int)Math.Max(1, Math.Ceiling(retryAfter.TotalSeconds));
+                context.HttpContext.Response.Headers.RetryAfter = seconds.ToString();
+            }
 
             var scopedLog = context.HttpContext.RequestServices.GetRequiredService<IScopedLog>();
             var telemetry = context.HttpContext.RequestServices.GetRequiredService<RateLimitTelemetry>();
             var match = context.HttpContext.GetRateLimitRuleMatch();
+            var partitionKey = match?.Result.PartitionKey ?? RateLimitPartitionKeys.GetPostAuthPartitionKey(context.HttpContext);
             telemetry.RecordRejection(context.HttpContext, RateLimitRulePhase.PostAuth, match);
             scopedLog.Add("PostAuthRateLimitRejected", true);
             scopedLog.Add("PostAuthRateLimitRejectedRule", match?.Rule.GetType().FullName ?? string.Empty);
-            scopedLog.Add("PostAuthRateLimitRejectedPartition", match?.Result.PartitionKey ?? RateLimitPartitionKeys.GetPostAuthPartitionKey(context.HttpContext));
+            scopedLog.Add("PostAuthRateLimitRejectedPartition", RedactRateLimitPartitionKey(partitionKey));
 
             var matchedRule = match?.Rule;
             if (matchedRule != null)
@@ -738,6 +743,14 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             if (configuredOnRejected != null)
                 await configuredOnRejected(context, cancellationToken);
         };
+    }
+
+    private static string RedactRateLimitPartitionKey(string partitionKey)
+    {
+        if (string.IsNullOrWhiteSpace(partitionKey))
+            return string.Empty;
+
+        return $"blake3:{partitionKey.Hash()}";
     }
 
     /// <summary>

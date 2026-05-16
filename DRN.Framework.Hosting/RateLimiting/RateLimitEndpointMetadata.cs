@@ -18,9 +18,18 @@ internal static class RateLimitEndpointMetadata
             : policyName;
     }
 
-    internal static bool IsPolicyMatch(HttpContext context, string? policyName) =>
-        policyName == null ||
-        string.Equals(GetEnabledPolicyName(context), policyName, StringComparison.Ordinal);
+    internal static bool IsPolicyMatch(HttpContext context, string? policyName)
+    {
+        if (policyName == null)
+            return true;
+
+        var endpointPolicy = GetPolicyName(context);
+        var requestedPolicy = string.IsNullOrWhiteSpace(policyName)
+            ? GlobalPolicyName
+            : policyName;
+
+        return string.Equals(endpointPolicy, requestedPolicy, StringComparison.Ordinal);
+    }
 
     private static string? GetEnabledPolicyName(HttpContext context) =>
         context.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName;

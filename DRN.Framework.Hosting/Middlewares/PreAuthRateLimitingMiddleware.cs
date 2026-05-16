@@ -71,7 +71,10 @@ public class PreAuthRateLimitingMiddleware(
 
         context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         if (lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
-            context.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+        {
+            var seconds = (int)Math.Max(1, Math.Ceiling(retryAfter.TotalSeconds));
+            context.Response.Headers.RetryAfter = seconds.ToString();
+        }
 
         var matchedRule = match?.Rule;
         if (matchedRule != null)

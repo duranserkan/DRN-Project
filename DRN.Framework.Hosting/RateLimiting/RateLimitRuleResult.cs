@@ -128,6 +128,7 @@ public sealed class RateLimitRuleResult
         bool stopRemainingRules = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(partitionKey);
+        ArgumentNullException.ThrowIfNull(partition.Factory, nameof(partition));
 
         return new RateLimitRuleResult
         {
