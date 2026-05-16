@@ -305,10 +305,24 @@ Feature flags and runtime knobs bound from the `DrnAppFeatures` configuration se
     "SeedData": false,
     "SeedKey": "Peace at home! Peace in the world! - Mustafa Kemal Atatürk (1931)",
     "DisableRequestBuffering": false,
-    "MaxRequestBufferingSize": 0
+    "MaxRequestBufferingSize": 0,
+    "DrnRateLimit": {
+      "Disabled": false,
+      "TokenLimit": 100,
+      "ReplenishmentSeconds": 60,
+      "TokensPerPeriod": 100,
+      "PreAuthTokenLimit": 1000,
+      "PreAuthReplenishmentSeconds": 60,
+      "PreAuthTokensPerPeriod": 1000,
+      "PostAuthTokenLimit": 0,
+      "PostAuthReplenishmentSeconds": 0,
+      "PostAuthTokensPerPeriod": 0
+    }
   }
 }
 ```
+
+`DrnRateLimit` is the configuration key; application code reads the same settings through `IAppSettings.Features.RateLimit`.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -320,9 +334,19 @@ Feature flags and runtime knobs bound from the `DrnAppFeatures` configuration se
 | `UseMonotonicDateTimeProvider` | `bool` | `false` | Experimental — switches to monotonic time provider for behavioral data collection. |
 | `DisableRequestBuffering` | `bool` | `false` | Disables request body buffering entirely. Use for high-throughput services (e.g., file upload endpoints). |
 | `MaxRequestBufferingSize` | `int` | `0` (→ 30,000) | Maximum request body size to buffer in bytes. Values below 10,000 are ignored; 0 uses the 30,000-byte default. |
+| `DrnRateLimit.Disabled` | `bool` | `false` | Disables both pre-auth and post-auth DRN Hosting rate limiting layers. |
+| `DrnRateLimit.TokenLimit` | `int` | `100` | Token bucket burst capacity. Must be positive. |
+| `DrnRateLimit.ReplenishmentSeconds` | `int` | `60` | Token replenishment period in seconds. Must be positive. |
+| `DrnRateLimit.TokensPerPeriod` | `int` | `100` | Tokens added per replenishment period. Must be positive. |
+| `DrnRateLimit.PreAuthTokenLimit` | `int` | `1000` | Coarse pre-auth burst capacity for shared B2B NAT/VPN/CDN egress addresses. 0 inherits `TokenLimit`. |
+| `DrnRateLimit.PreAuthReplenishmentSeconds` | `int` | `60` | Pre-auth replenishment period. 0 inherits `ReplenishmentSeconds`. |
+| `DrnRateLimit.PreAuthTokensPerPeriod` | `int` | `1000` | Pre-auth tokens per period. 0 inherits `TokensPerPeriod`. |
+| `DrnRateLimit.PostAuthTokenLimit` | `int` | `0` | Optional post-auth burst capacity. 0 inherits `TokenLimit`. |
+| `DrnRateLimit.PostAuthReplenishmentSeconds` | `int` | `0` | Optional post-auth replenishment period. 0 inherits `ReplenishmentSeconds`. |
+| `DrnRateLimit.PostAuthTokensPerPeriod` | `int` | `0` | Optional post-auth tokens per period. 0 inherits `TokensPerPeriod`. |
 
 > [!TIP]
-> `DisableRequestBuffering` and `MaxRequestBufferingSize` are consumed by `RequestBufferingState` in `DRN.Framework.Hosting`. See the [Hosting README](../DRN.Framework.Hosting/README.md) for middleware details.
+> Request buffering and rate limiting settings are consumed by `DRN.Framework.Hosting`. See the [Hosting README](../DRN.Framework.Hosting/README.md) for middleware details.
 
 ## Logging (`IScopedLog`)
 

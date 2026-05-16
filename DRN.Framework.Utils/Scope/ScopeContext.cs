@@ -2,6 +2,7 @@ using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Utils.Scope;
 
@@ -102,6 +103,21 @@ public class ScopeContext
         context.ScopedUser = scopedUser;
         context.ServiceProvider = serviceProvider;
         context.AppSettings = settings;
+        context._initialized = true;
+    }
+
+    internal static void InitializeForTest(IServiceProvider serviceProvider, string? traceId = null, IScopedLog? scopedLog = null, IScopedUser? scopedUser = null)
+    {
+        var context = Value;
+        if (context._initialized)
+            return;
+
+        context.Trace = traceId ?? string.Empty;
+        context.AppSettings = serviceProvider.GetRequiredService<IAppSettings>();
+        context.ScopedLog = scopedLog ?? new ScopedLog(context.AppSettings);
+        context.ScopedUser = scopedUser ?? new ScopedUser();
+        context.ServiceProvider = serviceProvider;
+
         context._initialized = true;
     }
 }
