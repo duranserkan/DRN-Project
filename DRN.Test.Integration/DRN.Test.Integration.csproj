@@ -15,6 +15,7 @@
         <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
         <ProjectReference Include="..\DRN.Nexus.Hosted\DRN.Nexus.Hosted.csproj" />
         <ProjectReference Include="..\Sample.Hosted\Sample.Hosted.csproj" />
+        <ProjectReference Include="..\DRN.Test.Utils\DRN.Test.Utils.csproj" />
     </ItemGroup>
 
     <ItemGroup>

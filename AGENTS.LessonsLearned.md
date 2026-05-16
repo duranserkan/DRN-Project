@@ -192,3 +192,21 @@ Keep app-specific claim vocabulary in hosted applications, such as `Sample.Hoste
 Use `ScopeContext` through `Get.*` for Razor, tag helpers, and view/page convenience. Use `IScopedUser` for services and rate-limit rules. For claim partitions, read and validate the same claim that is formatted into the key; return `null` when the rule does not apply instead of producing empty or mixed-claim partition keys.
 
 When unit tests exercise `Get.*` helpers, mock the ambient context through `DrnTestContextUnit` and `ScopedUser.FromClaimsPrincipal(...)`, then call `ScopeContext.InitializeForTest(...)` inside each test.
+
+## 8. WebApplicationFactory Entry Points Must Stay Out of MTP Test Assemblies
+
+### Context
+
+`WebApplicationFactory<TEntryPoint>` resolves and executes the entry point for the assembly containing `TEntryPoint`. In `DRN.Test.Integration`, Microsoft Testing Platform also generates an xUnit entry point for the test executable.
+
+### Problem
+
+Defining a custom hosted `Program` inside the integration test assembly can make `WebApplicationFactory` execute the test runner entry point instead of the intended hosted app. With MTP/xUnit this can surface as `System.IndexOutOfRangeException` in `Microsoft.Testing.Platform.CommandLine.CommandLineParser.Parse(...)` because the host factory path invokes the generated test main with web host arguments.
+
+### Fix Applied
+
+Put custom integration-test host programs in a non-test support assembly such as `DRN.Test.Utils` using `Microsoft.NET.Sdk.Web`, `IsTestProject=false`, and a real `Main` that delegates to `DrnProgramBase.RunAsync`. The integration test project references that support assembly and calls `CreateClientAsync<TProgram>()` with the support assembly's program type.
+
+### Decision Checkpoint
+
+Keep test assertions in `DRN.Test.Integration`; keep reusable disposable app entry points in `DRN.Test.Utils`. Add new scenarios under focused namespaces in the utility assembly instead of embedding hosted program types in the MTP test executable.

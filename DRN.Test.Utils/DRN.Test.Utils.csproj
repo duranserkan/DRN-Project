@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>false</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DRN.Framework.Hosting\DRN.Framework.Hosting.csproj" />
+        <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj" />
+    </ItemGroup>
+
+</Project>
