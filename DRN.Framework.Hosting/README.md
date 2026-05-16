@@ -415,38 +415,182 @@ protected override void ConfigureSecurityHeaderPolicyBuilder(
 
 ### 7. Rate Limiting
 
-Configure rate limiting by overriding `AddServicesAsync`:
+DRN Hosting provides first-class, dual-layer rate limiting with a pluggable rule engine.
+
+- **Pre-Auth Layer**: Lightweight middleware placed before authentication. Rejects abusive requests (IP-based by default) early to save expensive auth/MFA checks. It evaluates singleton rules only. Endpoints with ASP.NET Core `[DisableRateLimiting]` metadata bypass this DRN pre-auth layer as well as the built-in post-auth layer; `[EnableRateLimiting]` does not bypass the global pre-auth limiter, matching ASP.NET Core global-limiter semantics.
+- **Post-Auth Layer**: Placed after `ScopedUserMiddleware` to allow user-aware and tenant-based partitioning. The default authenticated partition uses stable user id claims (`NameIdentifier`/`sub`) with the authentication scheme, falling back to IP only for anonymous requests.
+
+Post-auth defaults to Token Bucket (100 tokens/minute per authenticated user or anonymous IP). Pre-auth defaults to a coarser B2B-friendly IP bucket (1,000 tokens/minute) so shared corporate NAT/VPN/CDN egress addresses are not punished like one user. Both layers return `429 Too Many Requests` with a `Retry-After` header.
+
+> [!IMPORTANT]
+> DRN's default limiter state is process-local. In horizontally scaled production deployments, enforce coarse limits at the edge (WAF/CDN/API gateway/load balancer) or add a distributed limiter for limits that must hold across every application instance.
+
+```mermaid
+flowchart LR
+    request["Request"] --> routing["UseRouting"]
+    routing --> pre["Pre-auth singleton rule chain"]
+    pre --> auth["Authentication + ScopedUserMiddleware"]
+    auth --> post["Post-auth singleton + scoped rule chain"]
+    post --> endpoint["Endpoint"]
+    endpoint -. "[EnableRateLimiting(policy)]" .-> post
+    endpoint -. "[DisableRateLimiting]" .-> pre
+```
+
+#### Why DRN Rate Limiting
+
+ASP.NET Core `UseRateLimiter()` has a single `GlobalLimiter` property and named policies per endpoint. A second limiter overwrites the first. Named policies do not compose on the same endpoint. There is no pre-auth layer. DRN solves these problems:
+
+| Capability | ASP.NET Core Native | DRN |
+|---|---|---|
+| Multiple rules per request | Manual `CreateChained(...)` wiring | ✅ Automatic. Register rules to chain them |
+| Pre-auth and post-auth layers | Single layer only | ✅ Two layers with lifetime separation |
+| Tenant, User, and IP together | Manual plumbing in one `GlobalLimiter` | ✅ Separate rules that chain automatically |
+| Add a rule without touching existing config | Risk overwriting `GlobalLimiter` | ✅ Derive from base class |
+| Policy-scoped rules that compose | One named policy per endpoint | ✅ Multiple rules with same `PolicyName` chain |
+| Named policies from `AddRateLimiter(...)` | ✅ Supported | ✅ Preserved. DRN enriches them |
+| Multi-dimensional partitioning | Single key per limiter. Combine dimensions manually | ✅ Each rule owns its partition key. Dimensions compose via chaining |
+| Partition key isolation | Each `Create(...)` instance has own cache | ✅ Same. Auto-namespaced keys for diagnostics and defense |
+| Identity-aware partitioning | Write `HttpContext.User` parsing inline | ✅ Scoped rules inject `IScopedUser`. Defaults use stable `NameIdentifier` or `sub` claims |
+| Pre-auth partition defaults | No pre-auth layer | ✅ IP-based with coarse limits |
+| Post-auth partition defaults | Must implement from scratch | ✅ User ID (auth) or IP (anonymous) out of the box |
+
+> **Register a class to chain automatically.** No manual `CreateChained(...)`. No single-property overwrite risk. No touching `Program.cs`.
+
+#### Extensibility via Rate Limit Rules
+
+You can customize rules by implementing `ISingletonRateLimitRule` / `IScopedRateLimitRule`, or by extending `SingletonRateLimitRule` / `ScopedRateLimitRule`.
+Rules are evaluated in ascending `Order`. Matching rules compose with .NET's native chained limiter, so tenant + user + IP policies can all apply to the same request. Framework defaults run last.
+Prefer the base classes for automatic attribute-based DI registration. If you implement the interfaces directly, add `[Singleton<ISingletonRateLimitRule>(tryAdd: false)]` or `[Scoped<IScopedRateLimitRule>(tryAdd: false)]` so multiple rules compose in the lifetime-specific rule chains.
+
+Keep application-specific claim names in the hosted app, and compose them from claim-access primitives:
 
 ```csharp
-protected override Task AddServicesAsync(
-    WebApplicationBuilder builder, 
-    IAppSettings appSettings, 
-    IScopedLog scopedLog)
+// Sample.Hosted/Helpers/RateLimitFor.cs
+public class RateLimitFor
 {
-    builder.Services.AddRateLimiter(options =>
-    {
-        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
-            context => RateLimitPartition.GetFixedWindowLimiter(
-                partitionKey: context.User?.Identity?.Name ?? context.Request.Headers.Host.ToString(),
-                factory: _ => new FixedWindowRateLimiterOptions
-                {
-                    AutoReplenishment = true,
-                    PermitLimit = 100,
-                    Window = TimeSpan.FromMinutes(1)
-                }));
-        
-        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    });
-    
-    return Task.CompletedTask;
+    public string? AccountPartition => Get.Claim.Account.Id == null ? null : $"account:{Get.Claim.Account.Id:N}";
+    public string? TenantPartition => Get.Claim.Tenant.Id == null ? null : $"tenant:{Get.Claim.Tenant.Id:N}";
 }
 
-protected override void ConfigureApplicationPostAuthorization(WebApplication application)
+// Sample.Hosted rate limit rule using the helper
+public class AccountRateLimitRule(DrnAppFeatures features) : ScopedRateLimitRule
 {
-    base.ConfigureApplicationPostAuthorization(application);
-    application.UseRateLimiter();
+    public override RateLimitRuleResult? EvaluatePostAuth(HttpContext context)
+    {
+        var partitionKey = Get.RateLimit.AccountPartition;
+        if (partitionKey == null)
+            return null;
+
+        return RateLimitRuleResult.TokenBucket(partitionKey, _ => new TokenBucketRateLimiterOptions
+        {
+            TokenLimit = features.RateLimit.TokenLimit,
+            ReplenishmentPeriod = TimeSpan.FromSeconds(features.RateLimit.ReplenishmentSeconds),
+            TokensPerPeriod = features.RateLimit.TokensPerPeriod,
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
+    }
 }
 ```
+
+#### Rule Behavior Quick Reference
+
+| Return Value | Effect |
+|---|---|
+| `null` | Rule does not apply — skip to next rule |
+| `RateLimitRuleResult.TokenBucket(key, ...)` | Apply token bucket limiter on this partition key |
+| `RateLimitRuleResult.AllowRequest("health")` | Whitelist — no limiting, stop remaining rules |
+| Any result with `stopRemainingRules: true` | Apply this limiter, then skip remaining rules |
+
+**Partition helpers**: `TokenBucket`, `FixedWindow`, `SlidingWindow`, `ConcurrencyLimiter`, `CustomPartition`.
+
+#### Rule Ordering and Composition
+
+- Rules execute in ascending `Order`. Framework defaults use `int.MaxValue`. Your rules run first.
+- Multiple matching rules **compose** via .NET's native chained limiter (e.g., tenant + user + IP all enforce together).
+- `ShortCircuitOnMatch = true`. Rule runs before normal same-order rules. A non-null match stops remaining rules. Use for allow/deny rules that must take precedence.
+- Use a lower `Order` when an allow/deny rule must bypass earlier quotas entirely.
+
+#### Partition Key Isolation
+
+DRN rate limit rules namespace every partition key with the phase and the rule type full name:
+
+```
+{phase}:{rule type full name}:{your partition key}
+```
+
+This namespacing provides:
+- **Diagnostics**: Partition keys in metrics and logs identify the rule and phase.
+- **Defense in depth**: Protects against future refactoring that might consolidate limiter instances.
+
+**Example**: A request from IP `192.168.1.1` by tenant `acme-corp` hits three rules:
+
+| Rule | Your partition key | DRN internal key |
+|---|---|---|
+| `DefaultPreAuthRateLimitRule` | `ip:192.168.1.1` | `PreAuth:DRN...DefaultPreAuthRateLimitRule:ip:192.168.1.1` |
+| `CustomIpRule` | `ip:192.168.1.1` | `PostAuth:MyApp...CustomIpRule:ip:192.168.1.1` |
+| `TenantRateLimitRule` | `tenant:acme-corp` | `PostAuth:MyApp...TenantRateLimitRule:tenant:acme-corp` |
+
+The namespacing is internal. Your `EvaluatePreAuth` or `EvaluatePostAuth` method returns a partition key like `"ip:192.168.1.1"`. The framework handles the namespacing.
+
+#### Scoped Rules
+
+- Scoped rules are **post-auth only**. They are not evaluated by the pre-auth limiter.
+- DRN detects scoped rule registrations at startup, resolves them from the request scope, and preserves global `Order` across singleton and scoped rules.
+
+#### Claim-Based Partitions
+
+- Use app-specific `RateLimitFor` wrappers (e.g., `Sample.Hosted.Helpers.RateLimitFor`) with claim-access primitives from `Get.Claim.*`.
+- This reads claims from the cached scoped user model instead of repeatedly parsing `HttpContext.User`.
+
+> [!WARNING]
+> **Factory capture safety**: Partition option factories are cached by .NET per partition key. Do **not** capture `HttpContext` or scoped services inside the factory lambda — use only value-based parameters.
+
+#### Named Policies
+
+- Set `PolicyName` on a rule to scope it to endpoints marked with `[EnableRateLimiting("policy-name")]`.
+- `null` policy = global rule. Non-null policy names must be non-empty.
+- Native policies configured via `builder.Services.AddRateLimiter(options => ...)` remain available and run alongside DRN rule policies.
+
+#### Telemetry
+
+DRN emits OpenTelemetry-friendly metrics through the `DRN.Framework.Hosting.RateLimiting` meter:
+
+| Metric | Tags |
+|--------|------|
+| `drn.rate_limiting.requests` | `phase`, `policy`, `result`, `rule` |
+| `drn.rate_limiting.rejections` | `phase`, `policy`, `rule` |
+| `drn.rate_limiting.active_request_leases` | `phase`, `policy`, `rule` |
+| `drn.rate_limiting.request_lease.duration` | `phase`, `policy`, `rule` |
+
+ASP.NET Core's native rate limiting middleware continues to provide its built-in post-auth metrics.
+
+#### Overriding Defaults
+
+Override `CreatePreAuthRateLimiter` or `ConfigurePostAuthRateLimiterOptions` in your `DrnProgramBase` to change limits, add named policies, or swap algorithms. DRN starts from the DI-configured `RateLimiterOptions`, so endpoint policies and existing rejection callbacks are preserved.
+
+```csharp
+protected override void ConfigurePostAuthRateLimiterOptions(
+    RateLimiterOptions options,
+    IServiceProvider serviceProvider,
+    IAppSettings appSettings)
+{
+    base.ConfigurePostAuthRateLimiterOptions(options, serviceProvider, appSettings);
+    options.AddTokenBucketLimiter("strict", opt =>
+    {
+        opt.TokenLimit = 10;
+        opt.ReplenishmentPeriod = TimeSpan.FromSeconds(60);
+        opt.TokensPerPeriod = 10;
+        opt.QueueLimit = 0;
+    });
+}
+```
+
+> [!NOTE]
+> Static files served by `UseStaticFiles()` run before routing and are automatically exempt from rate limiting.
+> Use `[DisableRateLimiting]` for trusted health checks or operational endpoints that must not consume pre-auth or post-auth quota. Use `[EnableRateLimiting]` for ASP.NET Core endpoint-specific post-auth policies; DRN pre-auth remains the global early-abuse limiter.
+> Configure defaults under `DrnAppFeatures:DrnRateLimit`. Shared `TokenLimit`, `ReplenishmentSeconds`, and `TokensPerPeriod` must be positive values. Phase-specific overrides can be `0` to inherit the shared value.
+
 
 
 ## Endpoint Management

@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Reflection;
 using System.Security.Claims;
+using System.Threading.RateLimiting;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Consent;
@@ -8,6 +9,7 @@ using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
+using DRN.Framework.Hosting.RateLimiting;
 using DRN.Framework.Hosting.Utils;
 using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.SharedKernel.Json;
@@ -31,11 +33,13 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCaching;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NetEscapades.AspNetCore.SecurityHeaders.Infrastructure;
 using NLog;
 using NLog.Extensions.Logging;
@@ -60,7 +64,7 @@ public interface IDrnProgram
     static abstract Task Main(string[] args);
 }
 
-//todo: add rate limit
+
 //todo: add cookie manager
 //todo: add csp manager
 //todo: review page for and endpoint for
@@ -263,6 +267,12 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         services.AddAuthorization(ConfigureAuthorizationOptions);
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
+        if (!appSettings.Features.RateLimit.Disabled)
+        {
+            services.AddRateLimiter();
+            services.AddSingleton(sp => new DrnPreAuthRateLimiter(CreatePreAuthRateLimiter(sp, appSettings)));
+        }
+
         services.Configure(GetConfigureCookiePolicy(appSettings));
         services.Configure(ConfigureSecurityStampValidatorOptions(appSettings));
         services.Configure(GetConfigureCookieTempDataProvider(appSettings));
@@ -311,9 +321,16 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
         application.UseRouting();
 
+        if (!appSettings.Features.RateLimit.Disabled)
+            application.UseMiddleware<PreAuthRateLimitingMiddleware>();
+
         ConfigureApplicationPreAuthentication(application, appSettings);
         application.UseAuthentication();
         application.UseMiddleware<ScopedUserMiddleware>();
+
+        if (!appSettings.Features.RateLimit.Disabled)
+            application.UseRateLimiter(CreatePostAuthRateLimiterOptions(application.Services, appSettings));
+
         ConfigureApplicationPostAuthentication(application, appSettings);
         application.UseAuthorization();
         ConfigureApplicationPostAuthorization(application, appSettings);
@@ -622,6 +639,105 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     {
         application.MapControllers();
         application.MapRazorPages();
+    }
+
+    /// <summary>
+    /// Creates the <see cref="PartitionedRateLimiter{TResource}"/> used by
+    /// <see cref="PreAuthRateLimitingMiddleware"/>. Only singleton rules are evaluated at this phase;
+    /// matching rule partitions are composed with the native <c>PartitionedRateLimiter.CreateChained</c> API.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>NAT/CDN WARNING:</b> If your application is behind a NAT or CDN, multiple legitimate users
+    /// may share the same <c>RemoteIpAddress</c>. The pre-auth layer uses IP-based partitioning by default,
+    /// with B2B-friendly coarse limits. In such deployments, consider configuring higher limits for the
+    /// pre-auth layer or creating custom <see cref="ISingletonRateLimitRule"/> implementations that partition by a
+    /// trusted header (e.g., <c>CF-Connecting-IP</c>, <c>X-Forwarded-For</c>) if securely provided.</para>
+    /// <para>Override to change the fallback algorithm, limits, or partitioning strategy.</para>
+    /// </remarks>
+    protected virtual PartitionedRateLimiter<HttpContext> CreatePreAuthRateLimiter(IServiceProvider serviceProvider, IAppSettings appSettings)
+        => RateLimitRuleChainFactory.Create(serviceProvider.GetRequiredService<RateLimitRuleRegistry>(), RateLimitRulePhase.PreAuth,
+            static (rule, context) => rule.EvaluatePreAuth(context), includeScopedRules: false);
+
+    /// <summary>
+    /// Creates the standard .NET <see cref="RateLimiterOptions"/> used by the post-auth rate limiter
+    /// (<c>UseRateLimiter()</c>). Placed after <c>ScopedUserMiddleware</c> — user identity is available
+    /// for partitioning.
+    /// <para>
+    /// The default configuration composes all matching singleton and scoped rules into a native chained limiter,
+    /// enabling B2B dimensions such as tenant + user + IP without custom acquisition logic. Scoped rules run
+    /// only in this post-auth phase after <c>ScopedUserMiddleware</c>.
+    /// </para>
+    /// </summary>
+    /// <remarks>
+    /// <para>Override to customize the <c>GlobalLimiter</c>, <c>OnRejected</c>, or add named policies.</para>
+    /// <para>Starts from the DI-configured <see cref="RateLimiterOptions"/>, so policies added with
+    /// <c>builder.Services.AddRateLimiter(options =&gt; ...)</c> remain available to endpoint metadata such as
+    /// <c>[EnableRateLimiting("strict")]</c>.</para>
+    /// <para><b>Example — tenant-based rate limiting with named policies:</b></para>
+    /// <code>
+    /// protected override void ConfigurePostAuthRateLimiterOptions(
+    ///     RateLimiterOptions options,
+    ///     IServiceProvider serviceProvider,
+    ///     IAppSettings appSettings)
+    /// {
+    ///     base.ConfigurePostAuthRateLimiterOptions(options, serviceProvider, appSettings);
+    ///     options.AddTokenBucketLimiter("strict", opt =&gt;
+    ///     {
+    ///         opt.TokenLimit = 10;
+    ///         opt.ReplenishmentPeriod = TimeSpan.FromSeconds(60);
+    ///         opt.TokensPerPeriod = 10;
+    ///         opt.QueueLimit = 0;
+    ///     });
+    /// }
+    /// </code>
+    /// <para>Static files are served by <c>UseStaticFiles()</c> before routing and are automatically
+    /// exempt from rate limiting.</para>
+    /// <para>Config changes (<c>DrnRateLimit.TokenLimit</c>, etc.) require application restart —
+    /// <see cref="DrnAppFeatures"/> is bound as a singleton snapshot via <c>[Config]</c>.</para>
+    /// </remarks>
+    protected virtual RateLimiterOptions CreatePostAuthRateLimiterOptions(IServiceProvider serviceProvider, IAppSettings appSettings)
+    {
+        var options = serviceProvider.GetRequiredService<IOptions<RateLimiterOptions>>().Value;
+        ConfigurePostAuthRateLimiterOptions(options, serviceProvider, appSettings);
+        return options;
+    }
+
+    protected virtual void ConfigurePostAuthRateLimiterOptions(RateLimiterOptions options, IServiceProvider serviceProvider, IAppSettings appSettings)
+    {
+        var configuredOnRejected = options.OnRejected;
+        // ASP.NET Core defaults rate-limiter rejection to 503; DRN's security-first default is 429.
+        // Set 503 after calling base from ConfigurePostAuthRateLimiterOptions when an app intentionally needs it.
+        options.RejectionStatusCode = options.RejectionStatusCode == StatusCodes.Status503ServiceUnavailable
+            ? StatusCodes.Status429TooManyRequests
+            : options.RejectionStatusCode;
+        options.GlobalLimiter = RateLimitRuleChainFactory.Create(
+            serviceProvider.GetRequiredService<RateLimitRuleRegistry>(),
+            RateLimitRulePhase.PostAuth,
+            static (rule, context) => rule.EvaluatePostAuth(context));
+
+        options.OnRejected = async (context, cancellationToken) =>
+        {
+            if (!context.HttpContext.Response.HasStarted)
+                context.HttpContext.Response.StatusCode = options.RejectionStatusCode;
+
+            if (!context.HttpContext.Response.HasStarted && context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+
+            var scopedLog = context.HttpContext.RequestServices.GetRequiredService<IScopedLog>();
+            var telemetry = context.HttpContext.RequestServices.GetRequiredService<RateLimitTelemetry>();
+            var match = context.HttpContext.GetRateLimitRuleMatch();
+            telemetry.RecordRejection(context.HttpContext, RateLimitRulePhase.PostAuth, match);
+            scopedLog.Add("PostAuthRateLimitRejected", true);
+            scopedLog.Add("PostAuthRateLimitRejectedRule", match?.Rule.GetType().FullName ?? string.Empty);
+            scopedLog.Add("PostAuthRateLimitRejectedPartition", match?.Result.PartitionKey ?? RateLimitPartitionKeys.GetPostAuthPartitionKey(context.HttpContext));
+
+            var matchedRule = match?.Rule;
+            if (matchedRule != null)
+                await matchedRule.OnRejectedAsync(context.HttpContext, context.Lease, cancellationToken);
+
+            if (configuredOnRejected != null)
+                await configuredOnRejected(context, cancellationToken);
+        };
     }
 
     /// <summary>
