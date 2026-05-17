@@ -204,7 +204,7 @@ It is not about coding. It is about process of creating and enhancing good thing
 
 ### Solution Structure
 This solution consists of 6 parts that are being developed with Jetbrains Rider on macOS with arm-based M2 chip. However, I expect it to work on any modern machine since it is a cross-platform solution
-1. **Docker Folder:** It contains dockerfile and compose definitions for dependencies. They just works and can be used for other solutions.
+1. **Docker Folder:** It contains Dockerfile and compose definitions for dependencies. `Docker/docker-compose.yml` is the combined infra compose for PostgreSQL, RabbitMQ, and Graylog.
 2. **Docs:** It contains project documents. This docs will be supported with articles and a YouTube playlist.
 3. **Items:** It contains file that does not belong anywhere else such as .gitignore, .dockerignore and .github workflows
 4. **Src:** It contains 3 folders that define 3 different **DRN** domain.
@@ -219,7 +219,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
    * **Framework:** DRN.Framework source codes belongs to generalized solutions that can be used within any dotnet project as nuget packages. 
    * **Sample:** Nexus connectable sample app demonstrates **DRN.Framework** usage. It is used for testing, presentation and documentation purposes.
 5. **Test:** It contains all the unit, integration and performance tests.
-6. **docker-compose:** Global docker-compose file that binds Nexus, Sample microservice and their dependencies.
+6. **docker-compose:** Root application compose for hosted services; infrastructure dependencies are managed from the combined compose under `Docker/`.
 
 ## About Design and Architecture
 * [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)

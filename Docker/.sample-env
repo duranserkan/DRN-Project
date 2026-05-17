@@ -1,5 +1,11 @@
-# copy .sample-env as .env then modify it for your needs.
-#.gitignore file will prevent .env file to be committed. 
+# PostgreSQL Configuration for drn-postgres
+# Replace 'drn' with a strong password before using in production or any exposed environment.
+
+POSTGRES_USER=drn
+POSTGRES_PASSWORD=drn
+POSTGRES_DB=drn
+PGDATA=/data/postgres
+
 # You MUST set a secret to secure/pepper the stored user passwords here. Use at least 64 characters.
 # Generate one by using for example: pwgen -N 1 -s 96
 # ATTENTION: This value must be the same on all Graylog nodes in the cluster.
@@ -12,10 +18,9 @@ GRAYLOG_PASSWORD_SECRET="kXgSJ3898pP9x4ddYnNPXIpmkYSeENcQMRmHcT3v4BdGQ4sBTzhMOS1
 # modify it in this file.
 # Create one by using for example: echo -n yourpassword | shasum -a 256
 # and put the resulting hash value into the following line
-# CHANGE THIS! Default username and password is admin
-GRAYLOG_ROOT_PASSWORD_SHA2="8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"
+# CHANGE THIS! Default username and password is drn
+GRAYLOG_ROOT_PASSWORD_SHA2="0b0f409cd36ec892ddd8db5dcd95453d0c1c7f7667894d3e4adcd138549a222c"
 
-POSTGRES_USER: drn
-POSTGRES_PASSWORD: drn
-POSTGRES_DB: drn
-PGDATA: /data/postgres
+# You can optionally specify the image versions
+GRAYLOG_IMAGE="graylog/graylog:7.1.1"
+DATANODE_IMAGE="graylog/graylog-datanode:7.1.1"

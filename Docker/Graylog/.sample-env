@@ -12,3 +12,7 @@ GRAYLOG_PASSWORD_SECRET="kXgSJ3898pP9x4ddYnNPXIpmkYSeENcQMRmHcT3v4BdGQ4sBTzhMOS1
 # and put the resulting hash value into the following line
 # CHANGE THIS! Default username and password is drn
 GRAYLOG_ROOT_PASSWORD_SHA2="0b0f409cd36ec892ddd8db5dcd95453d0c1c7f7667894d3e4adcd138549a222c"
+
+# You can optionally specify the image versions
+GRAYLOG_IMAGE="graylog/graylog:7.1.1"
+DATANODE_IMAGE="graylog/graylog-datanode:7.1.1"

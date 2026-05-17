@@ -1,1 +1,16 @@
-﻿
+# ==============================================================================
+# NOTICE: RabbitMQ Credentials Configuration
+# ==============================================================================
+# In this specific drn-rabbit setup, setting RABBITMQ_DEFAULT_USER or 
+# RABBITMQ_DEFAULT_PASS in this file will have NO EFFECT.
+#
+# Why?
+# The custom rabbitmq-drn image uses `load_definitions = /etc/rabbitmq/definitions.json`.
+# This instructs RabbitMQ to provision users, vhosts, and permissions directly 
+# from the `image/definitions.json` file.
+#
+# How to change the password:
+# The `drn` user and its password are hardcoded as a PBKDF2-SHA256 hash inside 
+# `image/definitions.json`. To change the password, you must generate a new 
+# hash and update it directly in that JSON file.
+# ==============================================================================

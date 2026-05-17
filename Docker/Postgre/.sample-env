@@ -1,4 +1,7 @@
-﻿POSTGRES_USER: drn
-POSTGRES_PASSWORD: drn
-POSTGRES_DB: drn
-PGDATA: /data/postgres
+﻿# PostgreSQL Configuration for drn-postgres
+# Replace 'drn' with a strong password before using in production or any exposed environment.
+
+POSTGRES_USER=drn
+POSTGRES_PASSWORD=drn
+POSTGRES_DB=drn
+PGDATA=/data/postgres

@@ -1,7 +1,7 @@
 ---
 name: overview-repository-structure
 description: Repository structure overview - Solution organization (Src, Test, Docker, Docs), project dependencies, folder conventions, and codebase navigation. Start here for understanding the repository layout. Keywords: repository-structure, solution-organization, project-organization, codebase-navigation, folder-structure, project-dependencies
-last-updated: 2026-02-15
+last-updated: 2026-05-17
 difficulty: basic
 tokens: ~1.5K
 ---
@@ -29,7 +29,7 @@ DRN-Project/
 │   └── skills/                # Expert skills (this directory)
 ├── .github/workflows/         # CI/CD workflows
 ├── DiSCOS/                    # Distinguished Secure Cognitive OS documentation
-├── Docker/                    # Container definitions (Postgre, Graylog, RabbitMQ)
+├── Docker/                    # Infrastructure compose definitions (PostgreSQL, Graylog, RabbitMQ)
 │
 ├── DRN.Framework.*/           # Framework packages (Physical folders in root)
 ├── DRN.Nexus.*/               # Nexus microservice hub (Physical folders in root)
@@ -37,7 +37,7 @@ DRN-Project/
 ├── DRN.Test.*/                # Test projects (Physical folders in root)
 │
 ├── DRN.slnx                   # Solution file (defines logical structure)
-├── docker-compose.yml         # Global compose for all services
+├── docker-compose.yml         # Application compose for Sample.Hosted
 └── README.md                  # Project documentation
 ```
 
@@ -53,7 +53,7 @@ The `.slnx` solution file organizes the flat physical project list into logical 
 | `/Src/Nexus/` | Service mesh hub | `DRN.Nexus.*` (Application, Domain, Hosted, etc.) |
 | `/Src/Sample/` | Reference implementation | `Sample.*` (Application, Domain, Hosted, etc.) |
 | `/Test/` | All test projects | `DRN.Test.*` (Unit, Integration, Performance) |
-| `/Docker/` | Infrastructure | Compose files for Postgre, Graylog, RabbitMQ |
+| `/Docker/` | Infrastructure | Combined infra compose plus service-specific compose files for PostgreSQL, Graylog, RabbitMQ |
 | `/Docs/` | Documentation | LICENSE, README, ROADMAP, SECURITY |
 | `/Items/` | Configuration | .gitignore, .agent rules, GitHub workflows |
 
@@ -123,7 +123,7 @@ Sample.Hosted
 | `appsettings.json` | Runtime configuration | `*/appsettings.json` |
 | `vite.config.js` | Frontend build | `Sample.Hosted/` |
 | `tsconfig.json` | TypeScript config | `Sample.Hosted/` |
-| `docker-compose.yml` | Local dependencies | Root + `Docker/*/` |
+| `docker-compose.yml` | App and infra compose entry points | Root app compose + `Docker/docker-compose.yml` |
 | `DRN.slnx` | Solution definition | Root |
 
 ---
@@ -151,8 +151,8 @@ dotnet test DRN.slnx
 # Run Sample.Hosted
 dotnet run --project Sample.Hosted
 
-# Start dependencies
-docker compose -f Docker/Postgre/docker-compose.yml up -d
+# Start infrastructure dependencies
+docker compose -f Docker/docker-compose.yml up -d
 
 # Frontend build (Sample.Hosted)
 cd Sample.Hosted && npm run build

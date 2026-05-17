@@ -1,11 +1,11 @@
 name: drn-graylog
 services:
-  # https://graylog.org/post/announcing-graylog-6-3-1
+  # https://graylog.org/post/announcing-graylog-7-1-1
   # https://hub.docker.com/_/mongo/
   # Source codes under this folder is obtained/derived from https://github.com/Graylog2/docker-compose/blob/main/open-core/docker-compose.yml 
   # and have same license restrictions with original source codes. 
   mongodb:
-    image: "mongo:6.0.26"
+    image: "mongo:7.0.34"
     restart: "on-failure"
     container_name: drn-graylog-mongo
     networks:
@@ -17,12 +17,17 @@ services:
       resources:
         limits:
           memory: 1g
-          
+    healthcheck:
+      test: [ "CMD-SHELL", "mongosh --quiet --eval 'quit(db.adminCommand({ ping: 1 }).ok ? 0 : 1)'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # For DataNode setup, graylog starts with a preflight UI, this is a change from just using OpenSearch/Elasticsearch.
   # Please take a look at the README at the top of this repo or the regular docs for more info.
   # Graylog Data Node: https://hub.docker.com/r/graylog/graylog-datanode
   datanode:
-    image: "${DATANODE_IMAGE:-graylog/graylog-datanode:6.3.6}"
+    image: "${DATANODE_IMAGE:-graylog/graylog-datanode:7.1.1}"
     container_name: drn-graylog-datanode
     hostname: "datanode"
     environment:
@@ -48,6 +53,12 @@ services:
       - graylog
     volumes:
       - graylog-datanode:/var/lib/graylog-datanode
+    healthcheck:
+      test: [ "CMD-SHELL", "bash -ec ': > /dev/tcp/127.0.0.1/8999'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     restart: "on-failure"
 
   # https://hub.docker.com/r/graylog/graylog/
@@ -62,14 +73,14 @@ services:
   # drn-graylog           | Try clicking on http://admin:vwtxJbPxqM@0.0.0.0:9000
 
   graylog:
-    image: "${GRAYLOG_IMAGE:-graylog/graylog:6.3.6}"
+    image: "${GRAYLOG_IMAGE:-graylog/graylog:7.1.1}"
     container_name: drn-graylog
     hostname: "server"
     depends_on:
       mongodb:
-        condition: "service_started"
+        condition: "service_healthy"
       datanode:
-        condition: "service_started"
+        condition: "service_healthy"
     entrypoint: "/usr/bin/tini --  /docker-entrypoint.sh"
     environment:
       GRAYLOG_NODE_ID_FILE: /usr/share/graylog/data/data/node-id
