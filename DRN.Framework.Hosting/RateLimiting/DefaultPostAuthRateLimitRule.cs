@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Http;
 
@@ -13,12 +14,15 @@ namespace DRN.Framework.Hosting.RateLimiting;
 /// </summary>
 public class DefaultPostAuthRateLimitRule(DrnAppFeatures features) : SingletonRateLimitRule
 {
+    private readonly Func<string, TokenBucketRateLimiterOptions> _optionsFactory =
+        _ => RateLimitTokenBucketOptions.CreatePostAuth(features.RateLimit);
+
     /// <inheritdoc />
     public override int Order => int.MaxValue;
 
     /// <inheritdoc />
     public override RateLimitRuleResult? EvaluatePostAuth(HttpContext context)
-        => RateLimitRuleResult.TokenBucket(GetPartitionKey(context), _ => RateLimitTokenBucketOptions.CreatePostAuth(features.RateLimit));
+        => RateLimitRuleResult.TokenBucket(GetPartitionKey(context), _optionsFactory);
 
     private static string GetPartitionKey(HttpContext context)
         => RateLimitPartitionKeys.GetPostAuthPartitionKey(context);

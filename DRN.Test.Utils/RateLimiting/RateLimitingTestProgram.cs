@@ -369,12 +369,28 @@ public sealed class PostAuthRejectedHeaderRateLimitRule : SingletonRateLimitRule
     }
 }
 
+public sealed class NativePolicyMatchedPostAuthRateLimitRule : SingletonRateLimitRule
+{
+    public override int Order => -100;
+
+    public override RateLimitRuleResult? EvaluatePostAuth(HttpContext context) =>
+        context.Request.Path.StartsWithSegments(TestPaths.NativePolicy)
+            ? RateLimitRuleResult.AllowRequest("native-policy-drn-match")
+            : null;
+
+    public override Task OnRejectedAsync(HttpContext context, RateLimitLease lease, CancellationToken cancellationToken = default)
+    {
+        context.Response.Headers[TestHeaders.RuleOnRejected] = TestHeaderValues.PostAuth;
+        return Task.CompletedTask;
+    }
+}
+
 public sealed class DrnPolicyPostAuthRateLimitRule : SingletonRateLimitRule
 {
     public override int Order => -100;
     public override string PolicyName => TestPolicies.DrnRuleStrict;
 
-    public override RateLimitRuleResult EvaluatePostAuth(HttpContext context) =>
+    public override RateLimitRuleResult? EvaluatePostAuth(HttpContext context) =>
         RateLimitRuleResult.TokenBucket("drn-policy-rule", _ => TestRateLimitBuckets.Create(tokenLimit: 1));
 }
 

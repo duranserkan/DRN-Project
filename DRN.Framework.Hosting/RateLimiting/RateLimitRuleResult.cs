@@ -27,35 +27,43 @@ public enum RateLimitRuleAction
 /// Evaluation result returned by <see cref="IRateLimitRule.EvaluatePreAuth"/> or <see cref="IRateLimitRule.EvaluatePostAuth"/>.
 /// Carries the selected limiter partition without capturing request state in cached limiter instances.
 /// </summary>
-public sealed class RateLimitRuleResult
+public readonly record struct RateLimitRuleResult
 {
-    private RateLimitRuleResult()
+    private RateLimitRuleResult(
+        string partitionKey,
+        RateLimitPartition<string> partition,
+        RateLimitRuleAction action = RateLimitRuleAction.Limit,
+        bool stopRemainingRules = false)
     {
+        PartitionKey = partitionKey;
+        Partition = partition;
+        Action = action;
+        StopRemainingRules = stopRemainingRules;
     }
 
     /// <summary>
     /// Partition key for rate limiter lease acquisition (for example IP address, user id, or tenant id).
     /// </summary>
-    public required string PartitionKey { get; init; }
+    public string PartitionKey { get; } = string.Empty;
 
     /// <summary>
     /// Partition selected by the rule. The framework owns acquisition and rejection handling.
     /// </summary>
-    public required RateLimitPartition<string> Partition { get; init; }
+    public RateLimitPartition<string> Partition { get; }
 
     /// <summary>
     /// Selected action for this result. Quota helpers use <see cref="RateLimitRuleAction.Limit"/>,
     /// <see cref="AllowRequest"/> uses <see cref="RateLimitRuleAction.Allow"/>, and
     /// <see cref="DenyRequest"/> uses <see cref="RateLimitRuleAction.Deny"/>.
     /// </summary>
-    public RateLimitRuleAction Action { get; init; } = RateLimitRuleAction.Limit;
+    public RateLimitRuleAction Action { get; } = RateLimitRuleAction.Limit;
 
     /// <summary>
     /// When true, skip remaining rules after this result is selected. Defaults to false so
     /// quota results can compose as a native chained limiter (for example tenant + user + IP).
     /// <see cref="AllowRequest"/> and <see cref="DenyRequest"/> set this to true.
     /// </summary>
-    public bool StopRemainingRules { get; init; }
+    public bool StopRemainingRules { get; }
 
     /// <summary>
     /// Creates a result from a custom partition. Prefer the algorithm-specific helpers when possible.
@@ -73,13 +81,11 @@ public sealed class RateLimitRuleResult
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(partitionKey);
 
-        return new RateLimitRuleResult
-        {
-            PartitionKey = partitionKey,
-            Partition = RateLimitPartition.GetNoLimiter(partitionKey),
-            Action = RateLimitRuleAction.Allow,
-            StopRemainingRules = true
-        };
+        return new RateLimitRuleResult(
+            partitionKey,
+            RateLimitPartition.GetNoLimiter(partitionKey),
+            RateLimitRuleAction.Allow,
+            stopRemainingRules: true);
     }
 
     /// <summary>
@@ -89,13 +95,11 @@ public sealed class RateLimitRuleResult
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(partitionKey);
 
-        return new RateLimitRuleResult
-        {
-            PartitionKey = partitionKey,
-            Partition = RateLimitPartition.Get(partitionKey, _ => new DenyRateLimiter(retryAfter)),
-            Action = RateLimitRuleAction.Deny,
-            StopRemainingRules = true
-        };
+        return new RateLimitRuleResult(
+            partitionKey,
+            RateLimitPartition.Get(partitionKey, _ => new DenyRateLimiter(retryAfter)),
+            RateLimitRuleAction.Deny,
+            stopRemainingRules: true);
     }
 
     /// <summary>
@@ -166,11 +170,6 @@ public sealed class RateLimitRuleResult
         ArgumentException.ThrowIfNullOrWhiteSpace(partitionKey);
         ArgumentNullException.ThrowIfNull(partition.Factory, nameof(partition));
 
-        return new RateLimitRuleResult
-        {
-            PartitionKey = partitionKey,
-            Partition = partition,
-            StopRemainingRules = stopRemainingRules
-        };
+        return new RateLimitRuleResult(partitionKey, partition, stopRemainingRules: stopRemainingRules);
     }
 }

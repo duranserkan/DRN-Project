@@ -448,6 +448,7 @@ public class NexusClient(INexusRequest request) : INexusClient
 *   **Contextual Identity**: Access `UserId`, `TraceId`, and `Authenticated` status anywhere.
 *   **Static Accessors**: Provides direct access to `IAppSettings`, `IScopedLog`, and `IServiceProvider`.
 *   **RBAC Helpers**: Built-in support for role and claim checks.
+*   **Test Initialization**: `ScopeContext.InitializeForTest(...)` resets the async-local scope before seeding test services, user, log, and trace data.
 
 ```csharp
 var currentUserId = ScopeContext.UserId;

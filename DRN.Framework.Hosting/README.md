@@ -547,10 +547,10 @@ public class AccountRateLimitRule(DrnAppFeatures features) : ScopedRateLimitRule
 
 #### Partition Key Isolation
 
-DRN rate limit rules namespace every partition key with the phase and the rule type full name:
+DRN rate limit rules namespace every partition identity with the phase and the rule type:
 
 ```text
-{phase}:{rule type full name}:{your partition key}
+({phase}, {rule type}, {your partition key})
 ```
 
 This namespacing provides:
@@ -559,11 +559,11 @@ This namespacing provides:
 
 **Example**: A request from IP `192.168.1.1` by tenant `acme-corp` hits three rules:
 
-| Rule | Your partition key | DRN internal key |
+| Rule | Your partition key | DRN internal identity |
 |---|---|---|
-| `DefaultPreAuthRateLimitRule` | `ip:192.168.1.1` | `PreAuth:DRN...DefaultPreAuthRateLimitRule:ip:192.168.1.1` |
-| `CustomIpRule` | `ip:192.168.1.1` | `PostAuth:MyApp...CustomIpRule:ip:192.168.1.1` |
-| `TenantRateLimitRule` | `tenant:acme-corp` | `PostAuth:MyApp...TenantRateLimitRule:tenant:acme-corp` |
+| `DefaultPreAuthRateLimitRule` | `ip:192.168.1.1` | `(PreAuth, DefaultPreAuthRateLimitRule, ip:192.168.1.1)` |
+| `CustomIpRule` | `ip:192.168.1.1` | `(PostAuth, CustomIpRule, ip:192.168.1.1)` |
+| `TenantRateLimitRule` | `tenant:acme-corp` | `(PostAuth, TenantRateLimitRule, tenant:acme-corp)` |
 
 The namespacing is internal. Your `EvaluatePreAuth` or `EvaluatePostAuth` method returns a partition key like `"ip:192.168.1.1"`. The framework handles the namespacing.
 
@@ -585,6 +585,7 @@ The namespacing is internal. Your `EvaluatePreAuth` or `EvaluatePostAuth` method
 - Set `PolicyName` on a rule to scope it to endpoints marked with `[EnableRateLimiting("policy-name")]`.
 - `null` policy = global rule. Non-null policy names must be non-empty.
 - Native policies configured via `builder.Services.AddRateLimiter(options => ...)` remain available and run alongside DRN rule policies.
+- DRN invokes rule-specific `OnRejectedAsync` only when that DRN rule's limiter rejects; native named-policy rejections still flow through the configured ASP.NET Core `OnRejected` callback.
 
 #### Telemetry
 
@@ -599,6 +600,7 @@ DRN emits OpenTelemetry-friendly metrics through the `DRN.Framework.Hosting.Rate
 
 ASP.NET Core's native rate limiting middleware continues to provide its built-in post-auth metrics.
 The `action` tag is `limit`, `allow`, `deny`, or `unknown`; this makes whitelist, blocklist, and quota decisions visible without inspecting rule names.
+When a native ASP.NET Core named policy rejects after DRN's global limiter succeeds, DRN records the rejection without a DRN rule tag because no DRN rule caused the failed lease.
 By default, pre-auth and post-auth rejection logs write IP and partition values as deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation for audits without exposing raw API-key, tenant-hint, service-identifier, user, or IP values. Set `DrnAppFeatures:DrnRateLimit:PartitionLogMode` to `PlainText` only for controlled development or a dedicated encrypted audit sink.
 
 #### Overriding Defaults

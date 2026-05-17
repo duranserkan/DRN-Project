@@ -65,12 +65,13 @@ public class PreAuthRateLimitingMiddleware(
 
         // Rejection
         var ipAddress = context.Connection.RemoteIpAddress?.ToString();
-        var partitionKey = match?.Result.PartitionKey ?? ipAddress;
-        telemetry.RecordRequest(context, RateLimitRulePhase.PreAuth, "rejected", match);
-        telemetry.RecordRejection(context, RateLimitRulePhase.PreAuth, match);
+        var rejectedMatch = context.GetRejectedRateLimitRuleMatch() ?? match;
+        var partitionKey = rejectedMatch?.Result.PartitionKey ?? ipAddress;
+        telemetry.RecordRequest(context, RateLimitRulePhase.PreAuth, "rejected", rejectedMatch);
+        telemetry.RecordRejection(context, RateLimitRulePhase.PreAuth, rejectedMatch);
         scopedLog.Add("PreAuthRateLimitRejected", true);
         scopedLog.Add("PreAuthRateLimitRejectedIp", RateLimitPartitionRedactor.Format(ipAddress, features.RateLimit, securitySettings));
-        scopedLog.Add("PreAuthRateLimitRejectedRule", match?.Rule.GetType().FullName ?? string.Empty);
+        scopedLog.Add("PreAuthRateLimitRejectedRule", rejectedMatch?.Rule.GetType().FullName ?? string.Empty);
         scopedLog.Add("PreAuthRateLimitRejectedPartition", RateLimitPartitionRedactor.Format(partitionKey, features.RateLimit, securitySettings));
 
         context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -80,7 +81,7 @@ public class PreAuthRateLimitingMiddleware(
             context.Response.Headers.RetryAfter = seconds.ToString();
         }
 
-        var matchedRule = match?.Rule;
+        var matchedRule = rejectedMatch?.Rule;
         if (matchedRule != null)
             await matchedRule.OnRejectedAsync(context, lease, context.RequestAborted);
     }

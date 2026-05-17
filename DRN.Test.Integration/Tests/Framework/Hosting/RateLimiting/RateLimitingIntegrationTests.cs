@@ -219,6 +219,20 @@ public class RateLimitingIntegrationTests(ITestOutputHelper outputHelper)
 
     [Theory]
     [DataInline]
+    public async Task Native_Policy_Rejection_Should_Not_Run_Drn_Rule_OnRejected(DrnTestContext context)
+    {
+        var client = await CreateClientAsync(context, preAuthTokenLimit: 100, postAuthTokenLimit: 100);
+
+        await AssertStatusAsync(client, TestPaths.NativePolicy, HttpStatusCode.OK);
+        using var response = await SendAsync(client, TestPaths.NativePolicy);
+
+        response.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+        response.Headers.Contains(TestHeaders.ConfiguredOnRejected).Should().BeTrue();
+        response.Headers.Contains(TestHeaders.RuleOnRejected).Should().BeFalse();
+    }
+
+    [Theory]
+    [DataInline]
     public async Task EnableRateLimiting_Metadata_Should_Not_Bypass_PreAuth_Global_Limiter(DrnTestContext context)
     {
         var client = await CreateClientAsync(context, preAuthTokenLimit: 1, postAuthTokenLimit: 100);

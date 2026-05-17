@@ -130,9 +130,12 @@ Creating a new `RateLimiterOptions` instance in the hosting pipeline discards DI
 
 Rule-level `PolicyName` now filters DRN rules by the same `[EnableRateLimiting("policy-name")]` endpoint metadata. This keeps named endpoint behavior compatible with ASP.NET Core while avoiding a separate DRN policy engine.
 
+DRN tracks the rule that actually rejected separately from the last rule that matched. Native named policies can reject after the DRN global limiter succeeds, so rejection callbacks and logs must use the rejected-rule marker, not the last selected match.
+
 ### Decision Checkpoint
 
 When extending framework options, mutate/enrich the DI-configured options object unless there is a documented reason to isolate from user configuration.
+When composing global DRN rules with native named policies, distinguish rule selection from rejection attribution before invoking rule-specific `OnRejectedAsync` behavior.
 
 ## 5. Configuration — Nested Option Objects Need Explicit Validation
 
@@ -191,7 +194,7 @@ Keep app-specific claim vocabulary in hosted applications, such as `Sample.Hoste
 
 Use `ScopeContext` through `Get.*` for Razor, tag helpers, and view/page convenience. Use `IScopedUser` for services and rate-limit rules. For claim partitions, read and validate the same claim that is formatted into the key; return `null` when the rule does not apply instead of producing empty or mixed-claim partition keys.
 
-When unit tests exercise `Get.*` helpers, mock the ambient context through `DrnTestContextUnit` and `ScopedUser.FromClaimsPrincipal(...)`, then call `ScopeContext.InitializeForTest(...)` inside each test.
+When unit tests exercise `Get.*` helpers, mock the ambient context through `DrnTestContextUnit` and `ScopedUser.FromClaimsPrincipal(...)`, then call `ScopeContext.InitializeForTest(...)` inside each test. `InitializeForTest(...)` resets the async-local scope first, so tests can safely call it more than once without carrying stale `ScopeData`, users, or services forward.
 
 ## 8. WebApplicationFactory Entry Points Must Stay Out of MTP Test Assemblies
 

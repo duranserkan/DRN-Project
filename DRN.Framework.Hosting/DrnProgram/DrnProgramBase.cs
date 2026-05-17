@@ -744,14 +744,14 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             var telemetry = context.HttpContext.RequestServices.GetRequiredService<RateLimitTelemetry>();
             var features = context.HttpContext.RequestServices.GetRequiredService<DrnAppFeatures>();
             var securitySettings = context.HttpContext.RequestServices.GetRequiredService<IAppSecuritySettings>();
-            var match = context.HttpContext.GetRateLimitRuleMatch();
-            var partitionKey = match?.Result.PartitionKey ?? RateLimitPartitionKeys.GetPostAuthPartitionKey(context.HttpContext);
-            telemetry.RecordRejection(context.HttpContext, RateLimitRulePhase.PostAuth, match);
+            var rejectedMatch = context.HttpContext.GetRejectedRateLimitRuleMatch();
+            var partitionKey = rejectedMatch?.Result.PartitionKey ?? RateLimitPartitionKeys.GetPostAuthPartitionKey(context.HttpContext);
+            telemetry.RecordRejection(context.HttpContext, RateLimitRulePhase.PostAuth, rejectedMatch);
             scopedLog.Add("PostAuthRateLimitRejected", true);
-            scopedLog.Add("PostAuthRateLimitRejectedRule", match?.Rule.GetType().FullName ?? string.Empty);
+            scopedLog.Add("PostAuthRateLimitRejectedRule", rejectedMatch?.Rule.GetType().FullName ?? string.Empty);
             scopedLog.Add("PostAuthRateLimitRejectedPartition", RateLimitPartitionRedactor.Format(partitionKey, features.RateLimit, securitySettings));
 
-            var matchedRule = match?.Rule;
+            var matchedRule = rejectedMatch?.Rule;
             if (matchedRule != null)
                 await matchedRule.OnRejectedAsync(context.HttpContext, context.Lease, cancellationToken);
 

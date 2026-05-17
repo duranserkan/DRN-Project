@@ -106,11 +106,13 @@ public class ScopeContext
         context._initialized = true;
     }
 
-    internal static void InitializeForTest(IServiceProvider serviceProvider, string? traceId = null, IScopedLog? scopedLog = null, IScopedUser? scopedUser = null)
+    /// <summary>
+    /// Resets and initializes the ambient async-local scope for tests.
+    /// </summary>
+    public static void InitializeForTest(IServiceProvider serviceProvider, string? traceId = null, IScopedLog? scopedLog = null, IScopedUser? scopedUser = null)
     {
-        var context = Value;
-        if (context._initialized)
-            return;
+        var context = new ScopeContext();
+        Local.Value = context;
 
         context.Trace = traceId ?? string.Empty;
         context.AppSettings = serviceProvider.GetRequiredService<IAppSettings>();

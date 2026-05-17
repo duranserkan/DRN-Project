@@ -97,7 +97,7 @@ public class RateLimitRuleTests
         var result = new DefaultPostAuthRateLimitRule(new DrnAppFeatures()).EvaluatePostAuth(context);
 
         result.Should().NotBeNull();
-        result!.PartitionKey.Should().Be("user:Test:user-1");
+        result.Value.PartitionKey.Should().Be("user:Test:user-1");
     }
 
     [Theory]
@@ -115,7 +115,7 @@ public class RateLimitRuleTests
         var result = new DefaultPostAuthRateLimitRule(new DrnAppFeatures()).EvaluatePostAuth(context);
 
         result.Should().NotBeNull();
-        result!.PartitionKey.Should().Be("ip:127.0.0.1");
+        result.Value.PartitionKey.Should().Be("ip:127.0.0.1");
     }
 
     [Theory]
@@ -133,7 +133,27 @@ public class RateLimitRuleTests
         
         var result = new AccountRateLimitRule(new DrnAppFeatures()).EvaluatePostAuth(new DefaultHttpContext());
         result.Should().NotBeNull();
-        result.PartitionKey.Should().Be(Get.RateLimit.AccountPartition);
+        result.Value.PartitionKey.Should().Be(Get.RateLimit.AccountPartition);
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void ScopeContext_InitializeForTest_Should_Reset_AsyncLocal_State(DrnTestContextUnit context)
+    {
+        var firstUser = ScopedUser.FromClaimsPrincipal(new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "first-user")],
+            authenticationType: "Test")));
+        var secondUser = ScopedUser.FromClaimsPrincipal(new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimTypes.NameIdentifier, "second-user")],
+            authenticationType: "Test")));
+
+        ScopeContext.InitializeForTest(context, traceId: "first-trace", scopedUser: firstUser);
+        ScopeContext.Data.SetParameter("leaked", "value");
+        ScopeContext.InitializeForTest(context, traceId: "second-trace", scopedUser: secondUser);
+
+        ScopeContext.TraceId.Should().Be("second-trace");
+        ScopeContext.User.Id.Should().Be("second-user");
+        ScopeContext.Data.Parameters.Should().NotContainKey("leaked");
     }
 
     [Theory]
@@ -146,7 +166,7 @@ public class RateLimitRuleTests
         var result = new DefaultPreAuthRateLimitRule(new DrnAppFeatures()).EvaluatePreAuth(context);
 
         result.Should().NotBeNull();
-        result!.PartitionKey.Should().Be("ip:127.0.0.1");
+        result.Value.PartitionKey.Should().Be("ip:127.0.0.1");
     }
 
     [Theory]
@@ -491,7 +511,8 @@ public class RateLimitRuleTests
 
         lease.IsAcquired.Should().BeFalse();
         GetRuleHits(context).Should().Equal("singleton-deny");
-        context.GetRateLimitRuleMatch()!.Result.Action.Should().Be(RateLimitRuleAction.Deny);
+        context.GetRateLimitRuleMatch().Value.Result.Action.Should().Be(RateLimitRuleAction.Deny);
+        context.GetRejectedRateLimitRuleMatch().Value.Result.Action.Should().Be(RateLimitRuleAction.Deny);
     }
 
     [Theory]
