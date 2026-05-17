@@ -315,8 +315,12 @@ public class RateLimitingIntegrationTests(ITestOutputHelper outputHelper)
         using var response = await SendAsync(client, path, userId, tenantId, preAuthPartition);
 
         response.StatusCode.Should().Be(expectedStatus);
-        if (expectedStatus == HttpStatusCode.TooManyRequests && expectRetryAfter)
-            response.Headers.Contains("Retry-After").Should().BeTrue();
+        if (expectedStatus == HttpStatusCode.TooManyRequests)
+            if (expectRetryAfter)
+                response.Headers.Contains("Retry-After").Should().BeTrue();
+            else
+                response.Headers.Contains("Retry-After").Should().BeFalse();
+        
         if (!string.IsNullOrWhiteSpace(expectedHeaderName))
         {
             response.Headers.TryGetValues(expectedHeaderName, out var values).Should().BeTrue();
