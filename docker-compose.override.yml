@@ -1,4 +1,5 @@
 services:
   sample:
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      ASPNETCORE_ENVIRONMENT: Staging
+      Environment: Staging

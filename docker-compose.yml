@@ -1,4 +1,7 @@
 name: drn-app
+
+x-sample-postgres-connection: &sample-postgres-connection "Host=postgres;Port=5432;Database=${POSTGRES_DB:-drn};Username=${POSTGRES_USER:?configure in the .env file};Password=${POSTGRES_PASSWORD:?configure in the .env file};Max Auto Prepare=10;Maximum Pool Size=20;Application Name=Sample.Hosted;"
+
 services:
   sample:
     container_name: drn-sample
@@ -6,14 +9,198 @@ services:
     build:
       context: .
       dockerfile: Sample.Hosted/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbit:
+        condition: service_healthy
+      graylog:
+        condition: service_started
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=https://+:5999
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Staging}
+      ASPNETCORE_URLS: https://+:5999
+      Environment: ${Environment:-Staging}
+      DrnDevelopmentSettings__AutoMigrateStaging: ${DrnDevelopmentSettings__AutoMigrateStaging:-true}
+      NexusAppSettings__MacKeys__0__Key: ${NexusAppSettings__MacKeys__0__Key:?configure in the .env file}
+      NexusAppSettings__MacKeys__0__Default: ${NexusAppSettings__MacKeys__0__Default:-true}
+      ConnectionStrings__DrnDataProtectionContext: *sample-postgres-connection
+      ConnectionStrings__QAContext: *sample-postgres-connection
+      ConnectionStrings__QBContext: *sample-postgres-connection
+      ConnectionStrings__SampleIdentityContext: *sample-postgres-connection
+      NLog__targets__graylog-udp__address: ${NLog__targets__graylog-udp__address:-udp://graylog:12201}
+      NLog__targets__graylog-http__address: ${NLog__targets__graylog-http__address:-http://graylog:12201/gelf}
+      NLog__rules__0__writeTo: ${NLog__rules__0__writeTo:-console,graylog-udp}
     ports:
+      - "5998:5998/tcp"
       - "5999:5999/udp"
       - "5999:5999/tcp"
+    networks:
+      - default
+      - graylog
     volumes:
       - ~/.aspnet/https:/https #map certificates
       #- %USERPROFILE%\.aspnet\https:/https  #map certificates for windows
       - ~/.microsoft/usersecrets:/home/app/.microsoft/usersecrets #map secrets for linux & macos
       #- %APPDATA%\Microsoft\UserSecrets:/home/app/.microsoft/usersecrets  #map secrets for windows
+
+  # https://hub.docker.com/_/postgres
+  postgres:
+    image: postgres:18.4-alpine3.23
+    container_name: drn-infra-postgres
+    restart: unless-stopped
+    volumes:
+      - drn-postgres-data:/data/postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:? configure in the .env file}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:? configure in the .env file}
+      POSTGRES_DB: ${POSTGRES_DB:-drn}
+      PGDATA: ${PGDATA:-/data/postgres}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # https://hub.docker.com/_/rabbitmq
+  rabbit:
+    image: rabbitmq-drn:4.3.0-management-alpine
+    build:
+      context: ./Docker/Rabbitmq/image/
+    container_name: drn-infra-rabbit
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - drn-rabbit-log:/var/log/rabbitmq/
+      - drn-rabbit-lib:/var/lib/rabbitmq/
+      # Keep /etc/rabbitmq image-owned so rebuilt definitions.json, rabbitmq.conf,
+      # and enabled_plugins are not masked by a stale named volume.
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # https://graylog.org/post/announcing-graylog-7-1-1
+  # https://hub.docker.com/_/mongo/
+  # Source codes under this folder is obtained/derived from https://github.com/Graylog2/docker-compose/blob/main/open-core/docker-compose.yml
+  # and have same license restrictions with original source codes.
+  mongodb:
+    image: "mongo:7.0.34"
+    restart: "on-failure"
+    container_name: drn-infra-graylog-mongo
+    networks:
+      - graylog
+    volumes:
+      - graylog-mongodb_data:/data/db
+      - graylog-mongodb_config:/data/configdb
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    healthcheck:
+      test: [ "CMD-SHELL", "mongosh --quiet --eval 'quit(db.adminCommand({ ping: 1 }).ok ? 0 : 1)'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # For DataNode setup, graylog starts with a preflight UI, this is a change from just using OpenSearch/Elasticsearch.
+  # Please take a look at the README at the top of this repo or the regular docs for more info.
+  # Graylog Data Node: https://hub.docker.com/r/graylog/graylog-datanode
+  datanode:
+    image: "${DATANODE_IMAGE:-graylog/graylog-datanode:7.1.1}"
+    container_name: drn-infra-graylog-datanode
+    hostname: "datanode"
+    environment:
+      # https://hub.docker.com/r/graylog/graylog-datanode#configuration
+      # https://go2docs.graylog.org/current/setting_up_graylog/data_node_configuration_file.htm
+      GRAYLOG_DATANODE_OPENSEARCH_HEAP: 2g
+      GRAYLOG_DATANODE_NODE_ID_FILE: "/var/lib/graylog-datanode/node-id"
+      # GRAYLOG_DATANODE_PASSWORD_SECRET and GRAYLOG_PASSWORD_SECRET MUST be the same value
+      GRAYLOG_DATANODE_PASSWORD_SECRET: "${GRAYLOG_PASSWORD_SECRET:?Please configure GRAYLOG_PASSWORD_SECRET in the .env file}"
+      GRAYLOG_DATANODE_MONGODB_URI: "mongodb://mongodb:27017/graylog"
+    ulimits:
+      memlock:
+        hard: -1
+        soft: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "8999:8999/tcp"   # DataNode API
+      - "9200:9200/tcp"
+      - "9300:9300/tcp"
+    networks:
+      - graylog
+    volumes:
+      - graylog-datanode:/var/lib/graylog-datanode
+    healthcheck:
+      test: [ "CMD-SHELL", "bash -ec ': > /dev/tcp/127.0.0.1/8999'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: "on-failure"
+
+  # https://hub.docker.com/r/graylog/graylog/
+  # For initial configuration password will be generated by system. Check console out put for it
+  # Later on use password defined in your .env file
+  # An example output is as below:
+  #
+  # It seems you are starting Graylog for the first time. To set up a fresh install, a setup interface has
+  # drn-infra-graylog     | been started. You must log in to it to perform the initial configuration and continue.
+  # drn-infra-graylog     |
+  # drn-infra-graylog     | Initial configuration is accessible at 0.0.0.0:9000, with username 'admin' and password 'vwtxJbPxqM'.
+  # drn-infra-graylog     | Try clicking on http://admin:vwtxJbPxqM@0.0.0.0:9000
+  graylog:
+    image: "${GRAYLOG_IMAGE:-graylog/graylog:7.1.1}"
+    container_name: drn-infra-graylog
+    hostname: "server"
+    depends_on:
+      mongodb:
+        condition: "service_healthy"
+      datanode:
+        condition: "service_healthy"
+    entrypoint: "/usr/bin/tini --  /docker-entrypoint.sh"
+    environment:
+      GRAYLOG_NODE_ID_FILE: /usr/share/graylog/data/data/node-id
+      # GRAYLOG_DATANODE_PASSWORD_SECRET and GRAYLOG_PASSWORD_SECRET MUST be the same value
+      GRAYLOG_PASSWORD_SECRET: "${GRAYLOG_PASSWORD_SECRET:?Please configure GRAYLOG_PASSWORD_SECRET in the .env file}"
+      GRAYLOG_ROOT_PASSWORD_SHA2: "${GRAYLOG_ROOT_PASSWORD_SHA2:?Please configure GRAYLOG_ROOT_PASSWORD_SHA2 in the .env file}"
+      GRAYLOG_HTTP_BIND_ADDRESS: 0.0.0.0:9000
+      GRAYLOG_HTTP_EXTERNAL_URI: http://localhost:9000/
+      GRAYLOG_MONGODB_URI: mongodb://mongodb:27017/graylog
+    ports:
+      - "5044:5044/tcp"   # Beats
+      - "5140:5140/udp"   # Syslog
+      - "5140:5140/tcp"   # Syslog
+      - "5555:5555/tcp"   # RAW TCP
+      - "5555:5555/udp"   # RAW UDP
+      - "9000:9000/tcp"   # Server API
+      - "12201:12201/tcp" # GELF TCP
+      - "12201:12201/udp" # GELF UDP
+      #- "10000:10000/tcp" # Custom TCP port
+      #- "10000:10000/udp" # Custom UDP port
+      - "13301:13301/tcp" # Forwarder data
+      - "13302:13302/tcp" # Forwarder config
+    networks:
+      - graylog
+    volumes:
+      - graylog_data:/usr/share/graylog/data/data
+    restart: "on-failure"
+
+networks:
+  graylog:
+    driver: "bridge"
+
+volumes:
+  drn-postgres-data:
+  drn-rabbit-log:
+  drn-rabbit-lib:
+  graylog-mongodb_data:
+  graylog-mongodb_config:
+  graylog-datanode:
+  graylog_data:

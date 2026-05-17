@@ -1,0 +1,32 @@
+# Root Docker Compose configuration for Sample.Hosted plus local dependencies.
+# Replace these values before using any exposed or production-like environment.
+
+ASPNETCORE_ENVIRONMENT=Staging
+Environment=Staging
+DrnDevelopmentSettings__AutoMigrateStaging=true
+
+POSTGRES_USER=drn
+POSTGRES_PASSWORD=drn
+POSTGRES_DB=drn
+PGDATA=/data/postgres
+
+NexusAppSettings__MacKeys__0__Key=1019464a0c19475693c155fcb0f7b3e8
+NexusAppSettings__MacKeys__0__Default=true
+
+NLog__targets__graylog-udp__address=udp://graylog:12201
+NLog__targets__graylog-http__address=http://graylog:12201/gelf
+NLog__rules__0__writeTo=console,graylog-udp
+
+# You MUST set a secret to secure/pepper the stored user passwords here. Use at least 64 characters.
+# Generate one by using for example: pwgen -N 1 -s 96
+# ATTENTION: This value must be the same on all Graylog nodes in the cluster.
+# Changing this value after installation will render all user sessions and encrypted values in the database invalid. (e.g. encrypted access tokens)
+GRAYLOG_PASSWORD_SECRET=kXgSJ3898pP9x4ddYnNPXIpmkYSeENcQMRmHcT3v4BdGQ4sBTzhMOS1mWZ40xMxnN3fkll0EZaAWEySvlD3hsR5vPajUSgm6
+
+# You MUST specify a hash password for the Graylog root user.
+# Create one by using for example: echo -n yourpassword | shasum -a 256
+# CHANGE THIS! Default username and password is drn.
+GRAYLOG_ROOT_PASSWORD_SHA2=0b0f409cd36ec892ddd8db5dcd95453d0c1c7f7667894d3e4adcd138549a222c
+
+GRAYLOG_IMAGE=graylog/graylog:7.1.1
+DATANODE_IMAGE=graylog/graylog-datanode:7.1.1
