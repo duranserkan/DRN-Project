@@ -31,7 +31,7 @@ public class RateLimitRuleRegistry
 
     internal ScopedRateLimitRuleRegistration[] ScopedRuleRegistrations { get; }
 
-    internal IScopedRateLimitRule? GetScopedRule(HttpContext context, ScopedRateLimitRuleRegistration registration)
+    internal static IScopedRateLimitRule? GetScopedRule(HttpContext context, ScopedRateLimitRuleRegistration registration)
     {
         var rules = GetScopedRules(context);
         return registration.Index < rules.Length ? rules[registration.Index] : null;
@@ -51,12 +51,11 @@ public class RateLimitRuleRegistry
     private static T[] SortRules<T>(IEnumerable<T> rules)
         where T : IRateLimitRule
     {
-        var index = 0;
         var sortedRules = rules
-            .Select(rule =>
+            .Select((rule, index) =>
             {
                 ValidatePolicyName(rule);
-                return (Rule: rule, Index: index++);
+                return (Rule: rule, Index: index);
             })
             .OrderBy(entry => entry.Rule.Order)
             .ThenByDescending(entry => entry.Rule.ShortCircuitOnMatch)

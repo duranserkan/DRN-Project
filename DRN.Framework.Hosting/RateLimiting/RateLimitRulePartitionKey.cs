@@ -37,7 +37,7 @@ internal readonly struct RateLimitRulePartitionKey : IEquatable<RateLimitRulePar
     {
         ArgumentNullException.ThrowIfNull(ruleType);
         ArgumentException.ThrowIfNullOrWhiteSpace(result.PartitionKey);
-        ArgumentNullException.ThrowIfNull(result.Partition.Factory, nameof(result));
+        ArgumentNullException.ThrowIfNull(result.Partition.Factory);
 
         return new RateLimitRulePartitionKey(
             phase,

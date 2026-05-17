@@ -511,8 +511,8 @@ public class RateLimitRuleTests
 
         lease.IsAcquired.Should().BeFalse();
         GetRuleHits(context).Should().Equal("singleton-deny");
-        context.GetRateLimitRuleMatch().Value.Result.Action.Should().Be(RateLimitRuleAction.Deny);
-        context.GetRejectedRateLimitRuleMatch().Value.Result.Action.Should().Be(RateLimitRuleAction.Deny);
+        context.GetRateLimitRuleMatch()!.Value.Result.Action.Should().Be(RateLimitRuleAction.Deny);
+        context.GetRejectedRateLimitRuleMatch()!.Value.Result.Action.Should().Be(RateLimitRuleAction.Deny);
     }
 
     [Theory]
@@ -674,7 +674,7 @@ public class RateLimitRuleTests
         return new RateLimitTelemetry(provider);
     }
 
-    private static IAppSecuritySettings CreateSecuritySettings() => new AppSecuritySettings(new DrnAppFeatures());
+    private static AppSecuritySettings CreateSecuritySettings() => new(new DrnAppFeatures());
 
     private static DefaultHttpContext CreateScopedRuleContext(IServiceProvider serviceProvider)
     {

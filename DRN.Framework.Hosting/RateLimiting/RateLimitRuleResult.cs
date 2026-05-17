@@ -168,7 +168,7 @@ public readonly record struct RateLimitRuleResult
         bool stopRemainingRules = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(partitionKey);
-        ArgumentNullException.ThrowIfNull(partition.Factory, nameof(partition));
+        ArgumentNullException.ThrowIfNull(partition.Factory);
 
         return new RateLimitRuleResult(partitionKey, partition, stopRemainingRules: stopRemainingRules);
     }

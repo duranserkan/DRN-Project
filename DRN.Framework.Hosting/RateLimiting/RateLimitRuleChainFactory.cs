@@ -25,7 +25,7 @@ internal static class RateLimitRuleChainFactory
         if (includeScopedRules && registry.HasScopedRules)
             foreach (var registration in registry.ScopedRuleRegistrations)
                 limiters.Add(new RateLimiterEntry(registration.Order, registration.ShortCircuitOnMatch, index++,
-                    CreateScopedRuleLimiter(registry, registration, phase, evaluate)));
+                    CreateScopedRuleLimiter(registration, phase, evaluate)));
 
         var orderedLimiters = limiters
             .OrderBy(entry => entry.Order)
@@ -57,7 +57,6 @@ internal static class RateLimitRuleChainFactory
             TrySelectRulePartition(context, rule, phase, evaluate) ?? GetNoLimiter(phase, rule, RateLimitRulePartitionKeyKind.Skip)));
 
     private static PartitionedRateLimiter<HttpContext> CreateScopedRuleLimiter(
-        RateLimitRuleRegistry registry,
         RateLimitRuleRegistry.ScopedRateLimitRuleRegistration registration,
         RateLimitRulePhase phase,
         Func<IRateLimitRule, HttpContext, RateLimitRuleResult?> evaluate) =>
@@ -69,7 +68,7 @@ internal static class RateLimitRuleChainFactory
                     RateLimitRulePartitionKeyKind.ScopedStopped,
                     registration.Index));
 
-            var rule = registry.GetScopedRule(context, registration);
+            var rule = RateLimitRuleRegistry.GetScopedRule(context, registration);
             if (rule == null)
                 return RateLimitPartition.GetNoLimiter(RateLimitRulePartitionKey.NoLimiter(
                     phase,
