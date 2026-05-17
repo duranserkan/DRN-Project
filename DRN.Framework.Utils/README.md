@@ -323,6 +323,7 @@ Feature flags and runtime knobs bound from the `DrnAppFeatures` configuration se
 ```
 
 `DrnRateLimit` is the configuration key; application code reads the same settings through `IAppSettings.Features.RateLimit`.
+Shared values apply to both DRN Hosting rate limiting phases. Phase-specific values set to `0` inherit the shared value; positive phase-specific values override it. See the [Hosting README rate limiting settings](../DRN.Framework.Hosting/README.md#settings-quick-reference) for operational guidance, endpoint metadata behavior, and production scaling notes.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|

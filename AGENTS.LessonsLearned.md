@@ -210,3 +210,21 @@ Put custom integration-test host programs in a non-test support assembly such as
 ### Decision Checkpoint
 
 Keep test assertions in `DRN.Test.Integration`; keep reusable disposable app entry points in `DRN.Test.Utils`. Add new scenarios under focused namespaces in the utility assembly instead of embedding hosted program types in the MTP test executable.
+
+## 9. Rate Limiting — Model Deny as a First-Class Result
+
+### Context
+
+Rate limit rules already had `AllowRequest(...)`, quota partitions, `stopRemainingRules`, and `ShortCircuitOnMatch`. Deny behavior was implied by exhausting a limiter, which made allow/deny/short-circuit semantics easy to confuse.
+
+### Problem
+
+Using zero-capacity or already-exhausted limiter options to represent deny mixes policy decisions with quota mechanics and can depend on algorithm-specific option validation.
+
+### Fix Applied
+
+`RateLimitRuleResult.DenyRequest(...)` creates an explicit failed lease via a small rejecting limiter. `RateLimitRuleAction` carries the selected action (`Limit`, `Allow`, or `Deny`) instead of exposing separate allow/deny booleans. This keeps deny semantics independent from token bucket, fixed window, sliding window, and concurrency limiter settings while still flowing through DRN's normal 429, telemetry, and rule `OnRejectedAsync` path.
+
+### Decision Checkpoint
+
+Use `AllowRequest(...)` for trusted bypass, `DenyRequest(...)` for immediate policy rejection, quota helpers for measurable throttling, and `ShortCircuitOnMatch` only to control same-order precedence and remaining-rule evaluation.

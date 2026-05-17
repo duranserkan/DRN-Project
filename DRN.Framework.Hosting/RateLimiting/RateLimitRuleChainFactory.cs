@@ -87,10 +87,10 @@ internal static class RateLimitRuleChainFactory
             return null;
 
         context.SetRateLimitRuleMatch(rule, result);
-        if (rule.ShortCircuitOnMatch || result.ShouldStopRemainingRules)
+        if (rule.ShortCircuitOnMatch || result.StopRemainingRules)
             context.StopRemainingRateLimitRules();
 
-        return result.Allow
+        return result.Action == RateLimitRuleAction.Allow
             ? GetNoLimiter(phase, rule, "allow")
             : CreateRulePartition(rule, phase, result);
     }

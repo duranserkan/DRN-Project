@@ -116,6 +116,28 @@ public class RateLimitingIntegrationTests(ITestOutputHelper outputHelper)
 
     [Theory]
     [DataInline]
+    public async Task Deny_Rule_Should_Reject_Immediately_Without_Consuming_Default_Quota(DrnTestContext context)
+    {
+        var client = await CreateClientAsync(context, preAuthTokenLimit: 100, postAuthTokenLimit: 100);
+
+        await AssertStatusAsync(client, TestPaths.DenyRule, HttpStatusCode.TooManyRequests, expectRetryAfter: false);
+        await AssertStatusAsync(client, TestPaths.Anonymous, HttpStatusCode.OK);
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task Scoped_PostAuth_Allow_Rule_Should_Use_Current_Request_Claims(DrnTestContext context)
+    {
+        var client = await CreateClientAsync(context, preAuthTokenLimit: 100, postAuthTokenLimit: 1);
+
+        await AssertStatusAsync(client, TestPaths.ScopedAllowRule, HttpStatusCode.OK, userId: "alpha", tenantId: "ordinary");
+        await AssertStatusAsync(client, TestPaths.ScopedAllowRule, HttpStatusCode.TooManyRequests, userId: "alpha", tenantId: "ordinary");
+        await AssertStatusAsync(client, TestPaths.ScopedAllowRule, HttpStatusCode.OK, userId: "alpha", tenantId: TestTenantValues.Trusted);
+        await AssertStatusAsync(client, TestPaths.ScopedAllowRule, HttpStatusCode.OK, userId: "alpha", tenantId: TestTenantValues.Trusted);
+    }
+
+    [Theory]
+    [DataInline]
     public async Task StopRemaining_Result_Should_Bypass_Exhausted_Default_Limiter_Without_Allowing(DrnTestContext context)
     {
         var client = await CreateClientAsync(context, preAuthTokenLimit: 1, postAuthTokenLimit: 1);
@@ -231,12 +253,12 @@ public class RateLimitingIntegrationTests(ITestOutputHelper outputHelper)
     [DataInline(TestPaths.FixedWindow)]
     [DataInline(TestPaths.SlidingWindow)]
     [DataInline(TestPaths.CustomPartition)]
-    public async Task Non_TokenBucket_Rule_Results_Should_Reject_When_Partition_Is_Exhausted(DrnTestContext context, string path)
+    public async Task Partitioned_Rule_Results_Should_Reject_When_Partition_Is_Exhausted(DrnTestContext context, string path)
     {
         var client = await CreateClientAsync(context, preAuthTokenLimit: 100, postAuthTokenLimit: 100);
 
         await AssertStatusAsync(client, path, HttpStatusCode.OK);
-        await AssertStatusAsync(client, path, HttpStatusCode.TooManyRequests, expectRetryAfter: false);
+        await AssertStatusAsync(client, path, HttpStatusCode.TooManyRequests, expectRetryAfter: null);
     }
 
     [Theory]
@@ -308,15 +330,15 @@ public class RateLimitingIntegrationTests(ITestOutputHelper outputHelper)
         string? userId = null,
         string? tenantId = null,
         string? preAuthPartition = null,
-        bool expectRetryAfter = true,
+        bool? expectRetryAfter = true,
         string? expectedHeaderName = null,
         string? expectedHeaderValue = null)
     {
         using var response = await SendAsync(client, path, userId, tenantId, preAuthPartition);
 
         response.StatusCode.Should().Be(expectedStatus);
-        if (expectedStatus == HttpStatusCode.TooManyRequests)
-            if (expectRetryAfter)
+        if (expectedStatus == HttpStatusCode.TooManyRequests && expectRetryAfter.HasValue)
+            if (expectRetryAfter.Value)
                 response.Headers.Contains("Retry-After").Should().BeTrue();
             else
                 response.Headers.Contains("Retry-After").Should().BeFalse();

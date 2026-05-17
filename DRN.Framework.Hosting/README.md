@@ -456,6 +456,27 @@ ASP.NET Core `UseRateLimiter()` has a single `GlobalLimiter` property and named 
 
 > **Register a class to chain automatically.** No manual `CreateChained(...)`. No single-property overwrite risk. No touching `Program.cs`.
 
+#### Settings Quick Reference
+
+Configure DRN defaults under `DrnAppFeatures:DrnRateLimit`. Application code reads the same values through `IAppSettings.Features.RateLimit`. Settings are a startup snapshot, so changing them requires an application restart.
+
+| Setting group | Default | Used by | Meaning |
+|---|---:|---|---|
+| `Disabled` | `false` | Both phases | Disables DRN pre-auth and post-auth rate limiting entirely. |
+| `TokenLimit`, `ReplenishmentSeconds`, `TokensPerPeriod` | `100`, `60`, `100` | Shared fallback | Base token bucket values for both phases. |
+| `PreAuthTokenLimit`, `PreAuthReplenishmentSeconds`, `PreAuthTokensPerPeriod` | `1000`, `60`, `1000` | Pre-auth | Coarse IP/header limits before authentication. Keep these higher behind NAT, VPN, or CDN egress. `0` inherits the shared value. |
+| `PostAuthTokenLimit`, `PostAuthReplenishmentSeconds`, `PostAuthTokensPerPeriod` | `0`, `0`, `0` | Post-auth | Authenticated user or anonymous IP limits after `ScopedUserMiddleware`. `0` inherits the shared value. |
+
+Usage guidance:
+
+- Use the default post-auth rule for ordinary per-user throttling.
+- Raise pre-auth limits or add a singleton trusted-header rule when many legitimate users share one edge IP.
+- Add scoped post-auth rules for tenant, account, or user-claim partitions that need `IScopedUser` or other scoped collaborators.
+- Use `[DisableRateLimiting]` for trusted health and operational endpoints that must not consume any quota.
+- Use `[EnableRateLimiting("policy-name")]` for ASP.NET Core named post-auth policies. DRN pre-auth remains global; DRN rule `PolicyName` values compose with matching endpoint metadata.
+- DRN's built-in token bucket queues are disabled (`QueueLimit = 0`) so rejected requests fail fast with 429. Custom rules can choose different algorithms or queue behavior.
+- Process-local limits are not a distributed enforcement boundary. In horizontally scaled production, pair DRN app-local limits with edge or distributed rate limiting.
+
 #### Extensibility via Rate Limit Rules
 
 You can customize rules by implementing `ISingletonRateLimitRule` / `IScopedRateLimitRule`, or by extending `SingletonRateLimitRule` / `ScopedRateLimitRule`.
@@ -500,15 +521,18 @@ public class AccountRateLimitRule(DrnAppFeatures features) : ScopedRateLimitRule
 | `null` | Rule does not apply — skip to next rule |
 | `RateLimitRuleResult.TokenBucket(key, ...)` | Apply token bucket limiter on this partition key |
 | `RateLimitRuleResult.AllowRequest("health")` | Whitelist — no limiting, stop remaining rules |
+| `RateLimitRuleResult.DenyRequest("blocked")` | Reject immediately with 429, stop remaining rules, optionally emit `Retry-After` |
 | Any result with `stopRemainingRules: true` | Apply this limiter, then skip remaining rules |
 
 **Partition helpers**: `TokenBucket`, `FixedWindow`, `SlidingWindow`, `ConcurrencyLimiter`, `CustomPartition`.
+`RateLimitRuleResult.Action` is `Limit`, `Allow`, or `Deny`; `StopRemainingRules` only controls whether later rules compose after this result.
 
 #### Rule Ordering and Composition
 
 - Rules execute in ascending `Order`. Framework defaults use `int.MaxValue`. Your rules run first.
 - Multiple matching rules **compose** via .NET's native chained limiter (e.g., tenant + user + IP all enforce together).
-- `ShortCircuitOnMatch = true`. Rule runs before normal same-order rules. A non-null match stops remaining rules. Use for allow/deny rules that must take precedence.
+- `ShortCircuitOnMatch = true`: the rule runs before normal same-order rules. If it returns `null`, later rules still evaluate. If it returns a result, that result decides the action and remaining rules are skipped.
+- `AllowRequest` succeeds without a limiter. `DenyRequest` fails immediately. Quota results such as `TokenBucket` still acquire their limiter, then skip remaining rules when `ShortCircuitOnMatch` or `stopRemainingRules` applies.
 - Use a lower `Order` when an allow/deny rule must bypass earlier quotas entirely.
 
 #### Partition Key Isolation
@@ -592,6 +616,14 @@ protected override void ConfigurePostAuthRateLimiterOptions(
 > Configure defaults under `DrnAppFeatures:DrnRateLimit`. Shared `TokenLimit`, `ReplenishmentSeconds`, and `TokensPerPeriod` must be positive values. Phase-specific overrides can be `0` to inherit the shared value.
 
 
+
+#### References
+
+- [ASP.NET Core rate limiting middleware](https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit?view=aspnetcore-10.0)
+- [RateLimiterOptions API](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.ratelimiting.ratelimiteroptions)
+- [RateLimitPartition API](https://learn.microsoft.com/en-us/dotnet/api/system.threading.ratelimiting.ratelimitpartition?view=aspnetcore-10.0)
+- [RFC 6585 Section 4: 429 Too Many Requests](https://www.rfc-editor.org/rfc/rfc6585#section-4)
+- [RFC 9110: Retry-After header](https://www.rfc-editor.org/rfc/rfc9110#field.retry-after)
 
 ## Endpoint Management
 

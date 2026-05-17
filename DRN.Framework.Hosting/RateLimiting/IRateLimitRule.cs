@@ -32,8 +32,8 @@ public interface IRateLimitRule
 
     /// <summary>
     /// When true, this rule is evaluated before other rules with the same <see cref="Order"/>,
-    /// and a non-null match stops remaining rules for the current phase. Use for allow/deny rules that must short-circuit
-    /// normal quota composition.
+    /// and a non-null match stops remaining rules for the current phase. Use for allow/deny rules that must take
+    /// precedence over normal quota composition.
     /// </summary>
     bool ShortCircuitOnMatch => false;
 

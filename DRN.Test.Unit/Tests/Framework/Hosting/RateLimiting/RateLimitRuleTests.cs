@@ -53,8 +53,8 @@ public class RateLimitRuleTests
         });
 
         result.PartitionKey.Should().Be("tenant:alpha");
+        result.Action.Should().Be(RateLimitRuleAction.Limit);
         result.StopRemainingRules.Should().BeFalse();
-        result.Allow.Should().BeFalse();
     }
 
     [Theory]
@@ -63,8 +63,24 @@ public class RateLimitRuleTests
     {
         var result = RateLimitRuleResult.AllowRequest("health");
 
-        result.Allow.Should().BeTrue();
-        result.ShouldStopRemainingRules.Should().BeTrue();
+        result.Action.Should().Be(RateLimitRuleAction.Allow);
+        result.StopRemainingRules.Should().BeTrue();
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public async Task Deny_Result_Should_Reject_And_Stop_Remaining_Rules(DrnTestContextUnit _)
+    {
+        var result = RateLimitRuleResult.DenyRequest("blocked", TimeSpan.FromSeconds(10));
+        await using var limiter = result.Partition.Factory(result.Partition.PartitionKey);
+
+        using var lease = await limiter.AcquireAsync();
+
+        result.Action.Should().Be(RateLimitRuleAction.Deny);
+        result.StopRemainingRules.Should().BeTrue();
+        lease.IsAcquired.Should().BeFalse();
+        lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter).Should().BeTrue();
+        retryAfter.Should().Be(TimeSpan.FromSeconds(10));
     }
 
     [Theory]
@@ -410,6 +426,30 @@ public class RateLimitRuleTests
 
     [Theory]
     [DataInlineUnit]
+    public async Task PostAuth_Deny_Rule_Should_Reject_And_Stop_Remaining_Rules(DrnTestContextUnit _)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ISingletonRateLimitRule, NormalSingletonRule>();
+        services.AddSingleton<ISingletonRateLimitRule, SameOrderDenySingletonRule>();
+        services.AddSingleton<RateLimitRuleRegistry>();
+        await using var provider = services.BuildServiceProvider();
+        var registry = provider.GetRequiredService<RateLimitRuleRegistry>();
+        var limiter = RateLimitRuleChainFactory.Create(
+            registry,
+            RateLimitRulePhase.PostAuth,
+            static (rule, httpContext) => rule.EvaluatePostAuth(httpContext));
+        using var scope = provider.CreateScope();
+        var context = CreateScopedRuleContext(scope.ServiceProvider);
+
+        using var lease = await limiter.AcquireAsync(context);
+
+        lease.IsAcquired.Should().BeFalse();
+        GetRuleHits(context).Should().Equal("singleton-deny");
+        context.GetRateLimitRuleMatch()!.Result.Action.Should().Be(RateLimitRuleAction.Deny);
+    }
+
+    [Theory]
+    [DataInlineUnit]
     public async Task PostAuth_Same_Order_Scoped_ShortCircuit_Rule_Should_Run_Before_Singleton_Normal_Rule(DrnTestContextUnit _)
     {
         var services = new ServiceCollection();
@@ -698,6 +738,17 @@ public class RateLimitRuleTests
         {
             AddRuleHit(context, "singleton-short");
             return RateLimitRuleResult.AllowRequest("singleton-short");
+        }
+    }
+
+    private sealed class SameOrderDenySingletonRule : SingletonRateLimitRule
+    {
+        public override bool ShortCircuitOnMatch => true;
+
+        public override RateLimitRuleResult? EvaluatePostAuth(HttpContext context)
+        {
+            AddRuleHit(context, "singleton-deny");
+            return RateLimitRuleResult.DenyRequest("singleton-deny");
         }
     }
 

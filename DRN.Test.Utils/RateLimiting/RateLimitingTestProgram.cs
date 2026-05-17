@@ -91,6 +91,12 @@ public sealed class RateLimitingTestProgram : DrnProgramBase<RateLimitingTestPro
         application.MapGet(TestPaths.AllowRule, () => Results.Ok("allow-rule"))
             .AllowAnonymous();
 
+        application.MapGet(TestPaths.DenyRule, () => Results.Ok("deny-rule"))
+            .AllowAnonymous();
+
+        application.MapGet(TestPaths.ScopedAllowRule, () => Results.Ok("scoped-allow-rule"))
+            .RequireAuthorization();
+
         application.MapGet(TestPaths.StopRemainingRule, () => Results.Ok("stop-remaining-rule"))
             .AllowAnonymous();
 
@@ -179,9 +185,6 @@ internal sealed class RateLimitingTestAuthHandler(
     }
 }
 
-//Todo test scoped rules
-//Todo improve allow, deny and ShortCircuitOnMatch semantics
-
 public sealed class HeaderPartitionPreAuthRateLimitRule : SingletonRateLimitRule
 {
     public override int Order => -100;
@@ -251,6 +254,39 @@ public sealed class AllowRouteRateLimitRule : SingletonRateLimitRule
 
     private static bool IsAllowRoute(HttpContext context) =>
         context.Request.Path.StartsWithSegments(TestPaths.AllowRule);
+}
+
+public sealed class DenyRouteRateLimitRule : SingletonRateLimitRule
+{
+    public override int Order => -200;
+    public override bool ShortCircuitOnMatch => true;
+
+    public override RateLimitRuleResult? EvaluatePreAuth(HttpContext context) => IsDenyRoute(context)
+        ? RateLimitRuleResult.DenyRequest("deny-route")
+        : null;
+
+    public override RateLimitRuleResult? EvaluatePostAuth(HttpContext context) => IsDenyRoute(context)
+        ? RateLimitRuleResult.DenyRequest("deny-route")
+        : null;
+
+    private static bool IsDenyRoute(HttpContext context) =>
+        context.Request.Path.StartsWithSegments(TestPaths.DenyRule);
+}
+
+public sealed class ScopedTrustedTenantAllowRateLimitRule(IScopedUser scopedUser) : ScopedRateLimitRule
+{
+    public override int Order => -200;
+    public override bool ShortCircuitOnMatch => true;
+
+    public override RateLimitRuleResult? EvaluatePostAuth(HttpContext context)
+    {
+        if (!context.Request.Path.StartsWithSegments(TestPaths.ScopedAllowRule))
+            return null;
+
+        return scopedUser.GetClaimValue(TestClaims.TenantId) == TestTenantValues.Trusted
+            ? RateLimitRuleResult.AllowRequest($"tenant:{TestTenantValues.Trusted}")
+            : null;
+    }
 }
 
 public sealed class StopRemainingPreAuthRateLimitRule : SingletonRateLimitRule
@@ -452,6 +488,8 @@ public static class TestPaths
     public const string PreAuthChain = "/rate-limit/pre-auth-chain";
     public const string Disabled = "/rate-limit/disabled";
     public const string AllowRule = "/rate-limit/allow-rule";
+    public const string DenyRule = "/rate-limit/deny-rule";
+    public const string ScopedAllowRule = "/rate-limit/scoped-allow-rule";
     public const string StopRemainingRule = "/rate-limit/stop-remaining-rule";
     public const string ShortCircuitRule = "/rate-limit/short-circuit-rule";
     public const string PreAuthRejected = "/rate-limit/pre-auth-rejected";
@@ -522,6 +560,11 @@ public static class RateLimitConcurrencyCoordinator
 internal static class TestClaims
 {
     public const string TenantId = "tenant_id";
+}
+
+public static class TestTenantValues
+{
+    public const string Trusted = "trusted";
 }
 
 internal static class TestPolicies

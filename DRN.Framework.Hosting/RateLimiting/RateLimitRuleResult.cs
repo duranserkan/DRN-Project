@@ -3,6 +3,27 @@ using System.Threading.RateLimiting;
 namespace DRN.Framework.Hosting.RateLimiting;
 
 /// <summary>
+/// Action selected by a matching rate limit rule result.
+/// </summary>
+public enum RateLimitRuleAction
+{
+    /// <summary>
+    /// Acquire the selected limiter partition.
+    /// </summary>
+    Limit,
+
+    /// <summary>
+    /// Allow the request without acquiring a limiter.
+    /// </summary>
+    Allow,
+
+    /// <summary>
+    /// Reject the request immediately.
+    /// </summary>
+    Deny
+}
+
+/// <summary>
 /// Evaluation result returned by <see cref="IRateLimitRule.EvaluatePreAuth"/> or <see cref="IRateLimitRule.EvaluatePostAuth"/>.
 /// Carries the selected limiter partition without capturing request state in cached limiter instances.
 /// </summary>
@@ -23,20 +44,18 @@ public sealed class RateLimitRuleResult
     public required RateLimitPartition<string> Partition { get; init; }
 
     /// <summary>
-    /// When true, skip remaining rules after this rule is applied. Defaults to false so multiple
-    /// matching rules can compose as a native chained limiter (for example tenant + user + IP).
-    /// Auto-set when <see cref="Allow"/> is true.
+    /// Selected action for this result. Quota helpers use <see cref="RateLimitRuleAction.Limit"/>,
+    /// <see cref="AllowRequest"/> uses <see cref="RateLimitRuleAction.Allow"/>, and
+    /// <see cref="DenyRequest"/> uses <see cref="RateLimitRuleAction.Deny"/>.
     /// </summary>
-    public bool StopRemainingRules { get; init; }
+    public RateLimitRuleAction Action { get; init; } = RateLimitRuleAction.Limit;
 
     /// <summary>
-    /// When true, allow the request without rate limiting (whitelist).
-    /// Implies <see cref="StopRemainingRules"/>.
-    /// Use case: internal health checks, trusted IPs, service-to-service calls.
+    /// When true, skip remaining rules after this result is selected. Defaults to false so
+    /// quota results can compose as a native chained limiter (for example tenant + user + IP).
+    /// <see cref="AllowRequest"/> and <see cref="DenyRequest"/> set this to true.
     /// </summary>
-    public bool Allow { get; init; }
-
-    internal bool ShouldStopRemainingRules => StopRemainingRules || Allow;
+    public bool StopRemainingRules { get; init; }
 
     /// <summary>
     /// Creates a result from a custom partition. Prefer the algorithm-specific helpers when possible.
@@ -58,7 +77,24 @@ public sealed class RateLimitRuleResult
         {
             PartitionKey = partitionKey,
             Partition = RateLimitPartition.GetNoLimiter(partitionKey),
-            Allow = true
+            Action = RateLimitRuleAction.Allow,
+            StopRemainingRules = true
+        };
+    }
+
+    /// <summary>
+    /// Rejects the request immediately without evaluating remaining rules.
+    /// </summary>
+    public static RateLimitRuleResult DenyRequest(string partitionKey, TimeSpan? retryAfter = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(partitionKey);
+
+        return new RateLimitRuleResult
+        {
+            PartitionKey = partitionKey,
+            Partition = RateLimitPartition.Get(partitionKey, _ => new DenyRateLimiter(retryAfter)),
+            Action = RateLimitRuleAction.Deny,
+            StopRemainingRules = true
         };
     }
 
