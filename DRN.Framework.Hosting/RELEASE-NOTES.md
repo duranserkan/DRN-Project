@@ -1,5 +1,30 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.5
+
+### New Features
+
+*   **Dual-Layer Rate Limiting**: Added pre-auth and post-auth rate limiting with lifetime-specific `ISingletonRateLimitRule` / `IScopedRateLimitRule` support, safe partition-based rule results, and extensibility for tenant/user/IP policies.
+    *   `SingletonRateLimitRule` and `ScopedRateLimitRule` now provide automatic attribute-based DI registration for derived rules; direct interface implementations can still opt into explicit DI attributes.
+    *   Pre-auth rate limiting honors ASP.NET Core `[DisableRateLimiting]` endpoint metadata and keeps `[EnableRateLimiting]` aligned with ASP.NET Core global-limiter semantics.
+    *   Default post-auth partitioning now uses stable user id claims (`NameIdentifier`/`sub`) with auth scheme instead of mutable display names.
+    *   Matching rules compose through .NET's native chained limiter so tenant + user + IP policies can be enforced together.
+    *   Scoped rules are post-auth only, preserve global ordering with singleton rules, compose together, and same-order rules can opt into `ShortCircuitOnMatch` for allow/deny precedence.
+    *   Rule-level `PolicyName` filters DRN rules by ASP.NET Core `[EnableRateLimiting("policy-name")]` endpoint metadata without replacing native named policies.
+    *   Added app-specific `RateLimitFor` pattern (e.g., `Sample.Hosted.Helpers.RateLimitFor`) for claim-based scoped partitions composed from `Get.Claim.*` primitives backed by cached `IScopedUser` claims.
+    *   Post-auth rate limiting now preserves named policies and rejection callbacks configured through `AddRateLimiter(options => ...)`, so `[EnableRateLimiting("policy-name")]` works alongside DRN's global rule chain.
+    *   DRN rule rejection attribution now tracks the rule that actually failed, so native named-policy rejections do not trigger unrelated DRN rule `OnRejectedAsync` callbacks.
+    *   Hot-path rule selection uses value-based rule results/matches and cached default-rule option factories to reduce avoidable per-request allocation pressure.
+    *   Added `RateLimitRuleResult.DenyRequest(...)` and explicit `RateLimitRuleAction` values for immediate 429 denials, keeping allow, deny, quota, and short-circuit semantics separate and testable.
+    *   Added `DRN.Framework.Hosting.RateLimiting` metrics for OpenTelemetry exports, including pre-auth lease metrics, DRN rule-level rejection counters, and an `action` tag for `limit` / `allow` / `deny` visibility.
+    *   Pre-auth and post-auth rejection logging now use `DrnRateLimit.PartitionLogMode`, defaulting to deterministic keyed hashes for correlation without raw API-key, tenant-hint, service-id, user-id, or IP leakage. `PlainText` can be enabled explicitly for controlled development or dedicated audit sinks.
+    *   Pre-auth and post-auth token bucket settings can now diverge via phase-specific `DrnAppFeatures` overrides; pre-auth defaults are intentionally coarser for B2B NAT/VPN/CDN egress addresses.
+    *   Production docs clarify rate limit settings, endpoint metadata usage, reference links, dynamic tenant-plan guidance, and that built-in limiter state is process-local and should be paired with edge or Redis-backed distributed limiting for horizontally scaled enforcement.
+
+## Version 0.9.4
+
+Dependencies upgraded to dotnet 10.0.8
+
 ## Version 0.9.3
 
 Dependencies upgraded to dotnet 10.0.7

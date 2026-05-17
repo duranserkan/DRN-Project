@@ -16,16 +16,22 @@ public abstract class LifetimeAttribute(ServiceLifetime serviceLifetime, Type se
     //todo: add replace
 
     public static bool HasLifetime(Type type) =>
-        type is { IsAbstract: false, IsClass: true, IsVisible: true } &&
-        type.GetCustomAttributes().Any(a => a.GetType().IsAssignableTo(typeof(LifetimeAttribute)));
+        type is { IsAbstract: false, IsClass: true, IsVisible: true } && GetLifetimeAttributes(type, true).Any();
 
     public static LifetimeAttribute GetLifetime(Type type)
     {
-        var attribute = (LifetimeAttribute)type.GetCustomAttributes().Single(a => a.GetType().IsAssignableTo(typeof(LifetimeAttribute)));
+        var attributes = GetLifetimeAttributes(type, false).ToArray();
+        if (attributes.Length == 0)
+            attributes = GetLifetimeAttributes(type, true).ToArray();
+
+        var attribute = attributes.Single();
         attribute.ImplementationType = type;
 
         return attribute;
     }
+
+    private static IEnumerable<LifetimeAttribute> GetLifetimeAttributes(Type type, bool inherit) =>
+        type.GetCustomAttributes(inherit).OfType<LifetimeAttribute>();
 }
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]

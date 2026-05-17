@@ -123,5 +123,6 @@
     <Project Path="DRN.Test.Integration\DRN.Test.Integration.csproj" />
     <Project Path="DRN.Test.Performance\DRN.Test.Performance.csproj" />
     <Project Path="DRN.Test.Unit\DRN.Test.Unit.csproj" />
+    <Project Path="DRN.Test.Utils\DRN.Test.Utils.csproj" />
   </Folder>
 </Solution>

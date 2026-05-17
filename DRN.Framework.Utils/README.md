@@ -139,6 +139,8 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddDrnUtils();
 ```
 
+For DRN Hosting rate limiting, use `HybridCache` to cache tenant plan, feature flag, or quota policy data. Do not treat `HybridCache` / `IDistributedCache` as an atomic distributed rate-limit counter by itself; hard multi-instance quotas need a backend designed for atomic operations, such as Redis with server-side Lua scripts, or enforcement at an API gateway/CDN/WAF layer.
+
 ## Dependency Injection
 
 ### Attribute-Based Registration
@@ -305,10 +307,25 @@ Feature flags and runtime knobs bound from the `DrnAppFeatures` configuration se
     "SeedData": false,
     "SeedKey": "Peace at home! Peace in the world! - Mustafa Kemal Atatürk (1931)",
     "DisableRequestBuffering": false,
-    "MaxRequestBufferingSize": 0
+    "MaxRequestBufferingSize": 0,
+    "DrnRateLimit": {
+      "Disabled": false,
+      "TokenLimit": 100,
+      "ReplenishmentSeconds": 60,
+      "TokensPerPeriod": 100,
+      "PreAuthTokenLimit": 1000,
+      "PreAuthReplenishmentSeconds": 60,
+      "PreAuthTokensPerPeriod": 1000,
+      "PostAuthTokenLimit": 0,
+      "PostAuthReplenishmentSeconds": 0,
+      "PostAuthTokensPerPeriod": 0
+    }
   }
 }
 ```
+
+`DrnRateLimit` is the configuration key; application code reads the same settings through `IAppSettings.Features.RateLimit`.
+Shared values apply to both DRN Hosting rate limiting phases. Phase-specific values set to `0` inherit the shared value; positive phase-specific values override it. Treat these values as global defaults; tenant plan, feature-flag, and account-specific quotas belong in DRN Hosting rate-limit rules. See the [Hosting README rate limiting settings](../DRN.Framework.Hosting/README.md#settings-quick-reference) for operational guidance, endpoint metadata behavior, and production scaling notes.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -320,9 +337,20 @@ Feature flags and runtime knobs bound from the `DrnAppFeatures` configuration se
 | `UseMonotonicDateTimeProvider` | `bool` | `false` | Experimental — switches to monotonic time provider for behavioral data collection. |
 | `DisableRequestBuffering` | `bool` | `false` | Disables request body buffering entirely. Use for high-throughput services (e.g., file upload endpoints). |
 | `MaxRequestBufferingSize` | `int` | `0` (→ 30,000) | Maximum request body size to buffer in bytes. Values below 10,000 are ignored; 0 uses the 30,000-byte default. |
+| `DrnRateLimit.Disabled` | `bool` | `false` | Disables both pre-auth and post-auth DRN Hosting rate limiting layers. |
+| `DrnRateLimit.PartitionLogMode` | `RateLimitPartitionLogMode` | `KeyedHash` | Controls rejected IP/partition logging. `KeyedHash` logs deterministic keyed hashes for correlation; `PlainText` logs raw values and should be limited to controlled development or dedicated audit sinks. |
+| `DrnRateLimit.TokenLimit` | `int` | `100` | Token bucket burst capacity. Must be positive. |
+| `DrnRateLimit.ReplenishmentSeconds` | `int` | `60` | Token replenishment period in seconds. Must be positive. |
+| `DrnRateLimit.TokensPerPeriod` | `int` | `100` | Tokens added per replenishment period. Must be positive. |
+| `DrnRateLimit.PreAuthTokenLimit` | `int` | `1000` | Coarse pre-auth burst capacity for shared B2B NAT/VPN/CDN egress addresses. 0 inherits `TokenLimit`. |
+| `DrnRateLimit.PreAuthReplenishmentSeconds` | `int` | `60` | Pre-auth replenishment period. 0 inherits `ReplenishmentSeconds`. |
+| `DrnRateLimit.PreAuthTokensPerPeriod` | `int` | `1000` | Pre-auth tokens per period. 0 inherits `TokensPerPeriod`. |
+| `DrnRateLimit.PostAuthTokenLimit` | `int` | `0` | Optional post-auth burst capacity. 0 inherits `TokenLimit`. |
+| `DrnRateLimit.PostAuthReplenishmentSeconds` | `int` | `0` | Optional post-auth replenishment period. 0 inherits `ReplenishmentSeconds`. |
+| `DrnRateLimit.PostAuthTokensPerPeriod` | `int` | `0` | Optional post-auth tokens per period. 0 inherits `TokensPerPeriod`. |
 
 > [!TIP]
-> `DisableRequestBuffering` and `MaxRequestBufferingSize` are consumed by `RequestBufferingState` in `DRN.Framework.Hosting`. See the [Hosting README](../DRN.Framework.Hosting/README.md) for middleware details.
+> Request buffering and rate limiting settings are consumed by `DRN.Framework.Hosting`. See the [Hosting README](../DRN.Framework.Hosting/README.md) for middleware details.
 
 ## Logging (`IScopedLog`)
 
@@ -420,6 +448,7 @@ public class NexusClient(INexusRequest request) : INexusClient
 *   **Contextual Identity**: Access `UserId`, `TraceId`, and `Authenticated` status anywhere.
 *   **Static Accessors**: Provides direct access to `IAppSettings`, `IScopedLog`, and `IServiceProvider`.
 *   **RBAC Helpers**: Built-in support for role and claim checks.
+*   **Test Initialization**: `ScopeContext.InitializeForTest(...)` resets the async-local scope before seeding test services, user, log, and trace data.
 
 ```csharp
 var currentUserId = ScopeContext.UserId;

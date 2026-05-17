@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service
-last-updated: 2026-02-15
+last-updated: 2026-05-17
 difficulty: advanced
 tokens: ~3K
 ---
@@ -72,6 +72,8 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 | `ConfigureSecurityStampValidatorOptions()` | Security stamp refresh with AMR claim preservation |
 | `ConfigureDefaultCspBase()` | Base CSP directives (base-uri, form-action, frame-ancestors) |
 | `ConfigureCookieTempDataProvider()` | TempData cookie settings |
+| `CreatePreAuthRateLimiter()` | Pre-auth rate limiter orchestration |
+| `ConfigurePostAuthRateLimiterOptions()` | Post-auth rate limiter orchestration and policies |
 
 ### Application Phase Hooks
 
@@ -204,9 +206,29 @@ public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRout
 | Middleware | Purpose |
 |------------|---------|
 | `HttpScopeMiddleware` | Request/response logging with IScopedLog, TraceId, duration |
+| `PreAuthRateLimitingMiddleware` | Early abuse throttling before authentication |
 | `ScopedUserMiddleware` | Populates IScopedLog with user identity and consent |
 | `MfaRedirectionMiddleware` | Redirect users without MFA to setup page |
 | `MfaExemptionMiddleware` | Exempt specific routes/schemes from MFA |
+
+### Rate Limiting Rules
+
+- Derive from `SingletonRateLimitRule` / `ScopedRateLimitRule` for automatic attribute-based DI registration.
+- Return `null` when the rule does not apply; return `RateLimitRuleResult.TokenBucket(...)`, `FixedWindow(...)`, `SlidingWindow(...)`, `ConcurrencyLimiter(...)`, `CustomPartition(...)`, `AllowRequest(...)`, or `DenyRequest(...)` when it applies.
+- `RateLimitRuleResult.Action` is `Limit`, `Allow`, or `Deny`; `StopRemainingRules` only controls whether later rules compose after this result.
+- Lower `Order` runs first. Matching rules compose through .NET's native chained limiter, so tenant + user + IP can all apply; framework defaults use `int.MaxValue`.
+- Override `ShortCircuitOnMatch` for same-order allow/deny rules that must run before normal same-order quota rules; use lower `Order` when they must bypass earlier singleton or scoped quotas. If they return `null`, later rules still evaluate. If they return a result, that result decides the action and remaining rules are skipped.
+- The pre-auth middleware honors ASP.NET Core `[DisableRateLimiting]` endpoint metadata; use it for trusted health checks or operational endpoints that must never consume quota. `[EnableRateLimiting]` does not bypass the global pre-auth limiter.
+- Default post-auth partitioning uses stable user id claims (`NameIdentifier`/`sub`) with auth scheme, not mutable display names.
+- Use scoped rules plus `IScopedUser` for post-auth claim-aware partitions. Prefer `RateLimitFor` (or app-owned wrappers around `RateLimitFor`) over repeated `HttpContext.User` parsing.
+- Set `PolicyName` on a rule only when it should run for endpoints marked with matching ASP.NET Core `[EnableRateLimiting("policy-name")]` metadata. `null` means global DRN rule; blank names are invalid.
+- Post-auth defaults to 100/minute; pre-auth defaults to a coarser 1,000/minute IP bucket for B2B NAT/VPN/CDN egress addresses. Configure settings under `DrnAppFeatures:DrnRateLimit`; phase override values of 0 inherit the shared settings. Settings are a startup snapshot exposed through `IAppSettings.Features.RateLimit`.
+- Treat `DrnRateLimitOptions` as global defaults. Tenant plan, feature-flag, account, or endpoint-specific quotas belong in app-owned rules; because rule evaluation is synchronous, load plan data into the request scope or a refreshed in-memory snapshot before evaluating the rule.
+- Singleton rules are sorted once. Pre-auth uses singleton rules only. Scoped rule existence/order is detected at startup, then scoped rules are resolved from the request provider only for post-auth. Global `Order` is preserved across singleton and scoped rules; same-order `ShortCircuitOnMatch` rules run first, and every matching rule composes. Limiter partition factories must not capture `HttpContext` or scoped services because limiter instances are cached per partition.
+- Post-auth uses DI-configured `RateLimiterOptions`, so named policies and rejection callbacks registered through `AddRateLimiter(options => ...)` remain available to `[EnableRateLimiting("policy-name")]`.
+- DRN emits metrics through the `DRN.Framework.Hosting.RateLimiting` meter; add this meter to OpenTelemetry exports when pre-auth metrics or DRN rule-level rejection metrics are needed. The action tag distinguishes `limit`, `allow`, `deny`, and `unknown`.
+- Pre-auth and post-auth rejection logs default to deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation without exposing raw API keys, tenant hints, service identifiers, user identifiers, or IPs. Use `DrnRateLimit.PartitionLogMode = PlainText` only for controlled development or dedicated encrypted audit sinks.
+- Built-in limiter state is process-local. `HybridCache` can cache policy data, but hard multi-replica quotas need edge enforcement or a Redis-backed custom `RateLimiter` returned through `RateLimitRuleResult.CustomPartition(...)`.
 
 ---
 

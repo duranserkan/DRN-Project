@@ -8,7 +8,7 @@
         <IsTestProject>true</IsTestProject>
         <OutputType>Exe</OutputType>
         <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
-        <NoWarn>$(NoWarn);xUnit1051</NoWarn>
+        <NoWarn>$(NoWarn);xUnit1051;CS8892</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>

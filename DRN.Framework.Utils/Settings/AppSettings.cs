@@ -49,7 +49,7 @@ public class AppSettings : IAppSettings
 {
     public static IAppSettings Development(params object[] settings)
     {
-        var configurationBuilder = new ConfigurationManager()
+        var configurationBuilder = new ConfigurationManager() 
             .AddObjectToJsonConfiguration(new { Environment = "Development" });
 
         foreach (var setting in settings)

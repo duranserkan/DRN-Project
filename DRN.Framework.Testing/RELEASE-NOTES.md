@@ -1,5 +1,9 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.4
+
+Dependencies upgraded to dotnet 10.0.8
+
 ## Version 0.9.3
 
 Dependencies upgraded to dotnet 10.0.7

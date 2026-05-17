@@ -2,6 +2,7 @@ using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Utils.Scope;
 
@@ -102,6 +103,23 @@ public class ScopeContext
         context.ScopedUser = scopedUser;
         context.ServiceProvider = serviceProvider;
         context.AppSettings = settings;
+        context._initialized = true;
+    }
+
+    /// <summary>
+    /// Resets and initializes the ambient async-local scope for tests.
+    /// </summary>
+    public static void InitializeForTest(IServiceProvider serviceProvider, string? traceId = null, IScopedLog? scopedLog = null, IScopedUser? scopedUser = null)
+    {
+        var context = new ScopeContext();
+        Local.Value = context;
+
+        context.Trace = traceId ?? string.Empty;
+        context.AppSettings = serviceProvider.GetRequiredService<IAppSettings>();
+        context.ScopedLog = scopedLog ?? new ScopedLog(context.AppSettings);
+        context.ScopedUser = scopedUser ?? new ScopedUser();
+        context.ServiceProvider = serviceProvider;
+
         context._initialized = true;
     }
 }

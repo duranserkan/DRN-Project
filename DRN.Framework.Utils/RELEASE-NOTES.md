@@ -1,5 +1,16 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.5
+
+### New Features
+
+*   **Rate Limiting Settings**: Added validated `DrnAppFeatures:DrnRateLimit` knobs for DRN Hosting rate limiting (`Disabled`, partition log mode, shared token limit, replenishment period, tokens per period, B2B-friendly pre-auth defaults, and optional pre-auth/post-auth overrides), exposed in code as `IAppSettings.Features.RateLimit`.
+*   **Test Scope Initialization**: `ScopeContext.InitializeForTest(...)` is now public and resets the current async-local scope before initialization, preventing stale test scope data from leaking between helper calls.
+
+## Version 0.9.4
+
+Dependencies upgraded to dotnet 10.0.8
+
 ## Version 0.9.3
 
 Dependencies upgraded to dotnet 10.0.7
