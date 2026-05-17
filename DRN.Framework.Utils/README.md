@@ -139,6 +139,8 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddDrnUtils();
 ```
 
+For DRN Hosting rate limiting, use `HybridCache` to cache tenant plan, feature flag, or quota policy data. Do not treat `HybridCache` / `IDistributedCache` as an atomic distributed rate-limit counter by itself; hard multi-instance quotas need a backend designed for atomic operations, such as Redis with server-side Lua scripts, or enforcement at an API gateway/CDN/WAF layer.
+
 ## Dependency Injection
 
 ### Attribute-Based Registration
@@ -323,7 +325,7 @@ Feature flags and runtime knobs bound from the `DrnAppFeatures` configuration se
 ```
 
 `DrnRateLimit` is the configuration key; application code reads the same settings through `IAppSettings.Features.RateLimit`.
-Shared values apply to both DRN Hosting rate limiting phases. Phase-specific values set to `0` inherit the shared value; positive phase-specific values override it. See the [Hosting README rate limiting settings](../DRN.Framework.Hosting/README.md#settings-quick-reference) for operational guidance, endpoint metadata behavior, and production scaling notes.
+Shared values apply to both DRN Hosting rate limiting phases. Phase-specific values set to `0` inherit the shared value; positive phase-specific values override it. Treat these values as global defaults; tenant plan, feature-flag, and account-specific quotas belong in DRN Hosting rate-limit rules. See the [Hosting README rate limiting settings](../DRN.Framework.Hosting/README.md#settings-quick-reference) for operational guidance, endpoint metadata behavior, and production scaling notes.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -336,6 +338,7 @@ Shared values apply to both DRN Hosting rate limiting phases. Phase-specific val
 | `DisableRequestBuffering` | `bool` | `false` | Disables request body buffering entirely. Use for high-throughput services (e.g., file upload endpoints). |
 | `MaxRequestBufferingSize` | `int` | `0` (→ 30,000) | Maximum request body size to buffer in bytes. Values below 10,000 are ignored; 0 uses the 30,000-byte default. |
 | `DrnRateLimit.Disabled` | `bool` | `false` | Disables both pre-auth and post-auth DRN Hosting rate limiting layers. |
+| `DrnRateLimit.PartitionLogMode` | `RateLimitPartitionLogMode` | `KeyedHash` | Controls rejected IP/partition logging. `KeyedHash` logs deterministic keyed hashes for correlation; `PlainText` logs raw values and should be limited to controlled development or dedicated audit sinks. |
 | `DrnRateLimit.TokenLimit` | `int` | `100` | Token bucket burst capacity. Must be positive. |
 | `DrnRateLimit.ReplenishmentSeconds` | `int` | `60` | Token replenishment period in seconds. Must be positive. |
 | `DrnRateLimit.TokensPerPeriod` | `int` | `100` | Tokens added per replenishment period. Must be positive. |

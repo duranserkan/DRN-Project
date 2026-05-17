@@ -76,6 +76,13 @@ public sealed class DrnRateLimitOptions
     public bool Disabled { get; init; } = false;
 
     /// <summary>
+    /// Controls how rate-limit partition values are written to structured logs.
+    /// Defaults to keyed hashing so logs can be correlated without exposing raw IPs,
+    /// API keys, tenant hints, or service identifiers.
+    /// </summary>
+    public RateLimitPartitionLogMode PartitionLogMode { get; init; } = RateLimitPartitionLogMode.KeyedHash;
+
+    /// <summary>
     /// Maximum number of tokens in the token bucket. Represents the burst capacity.
     /// Shared by both pre-auth (IP) and post-auth (user) rate limiters.
     /// </summary>
@@ -132,4 +139,20 @@ public sealed class DrnRateLimitOptions
     /// </summary>
     [Range(0, int.MaxValue)]
     public int PostAuthTokensPerPeriod { get; init; } = 0;
+}
+
+/// <summary>
+/// Structured logging mode for rate-limit partition values.
+/// </summary>
+public enum RateLimitPartitionLogMode
+{
+    /// <summary>
+    /// Log a deterministic keyed hash. Recommended default for production.
+    /// </summary>
+    KeyedHash,
+
+    /// <summary>
+    /// Log the raw partition value. Use only for controlled development or dedicated audit sinks.
+    /// </summary>
+    PlainText
 }

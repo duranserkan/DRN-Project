@@ -4,7 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
-*   **Rate Limiting Settings**: Added validated `DrnAppFeatures:DrnRateLimit` knobs for DRN Hosting rate limiting (`Disabled`, shared token limit, replenishment period, tokens per period, B2B-friendly pre-auth defaults, and optional pre-auth/post-auth overrides), exposed in code as `IAppSettings.Features.RateLimit`.
+*   **Rate Limiting Settings**: Added validated `DrnAppFeatures:DrnRateLimit` knobs for DRN Hosting rate limiting (`Disabled`, partition log mode, shared token limit, replenishment period, tokens per period, B2B-friendly pre-auth defaults, and optional pre-auth/post-auth overrides), exposed in code as `IAppSettings.Features.RateLimit`.
 
 ## Version 0.9.4
 

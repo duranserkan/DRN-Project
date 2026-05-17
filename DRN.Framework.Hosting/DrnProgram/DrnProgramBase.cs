@@ -16,7 +16,6 @@ using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Data.Encodings;
-using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
@@ -49,11 +48,24 @@ using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace DRN.Framework.Hosting.DrnProgram;
 
+//todo: evaluate Redis integration boundaries for distributed cache vs distributed rate limiting.
+// HybridCache + Redis IDistributedCache is useful for tenant plan, feature flag, and quota policy snapshots,
+// but it is not an atomic distributed quota engine. Hard cross-replica limits should use edge enforcement
+// and/or a direct Redis implementation with StackExchange.Redis + Lua/atomic commands, exposed through
+// RateLimitRuleResult.CustomPartition(...) or an optional DRN.Framework.Hosting.Redis companion package.
+// Keep DRN.Framework.Hosting core Redis-free unless a concrete cross-cutting dependency is justified.
+
 //todo: 
 // Extract composable classes such as:
 // - `DrnSecurityConfigurator` (CSP, security headers, cookie policies, MFA)
 // - `DrnCompressionConfigurator` (compression providers, response caching)
 // - `DrnPipelineConfigurator` (middleware pipeline ordering)
+
+//todo: evaluate optional OpenTelemetry exporter wiring for DRN metrics.
+// DRN currently emits Meter data only; host apps must subscribe to RateLimitTelemetry.MeterName
+// and choose exporters such as OTLP, Prometheus, or Azure Monitor. Keep core exporter-agnostic;
+// consider an optional AddDrnOpenTelemetry(...) extension/companion package that adds DRN meters,
+// ASP.NET Core/runtime meters, safe histogram views, and no high-cardinality partition/user/IP tags.
 
 public abstract class DrnProgram
 {
@@ -730,12 +742,14 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
             var scopedLog = context.HttpContext.RequestServices.GetRequiredService<IScopedLog>();
             var telemetry = context.HttpContext.RequestServices.GetRequiredService<RateLimitTelemetry>();
+            var features = context.HttpContext.RequestServices.GetRequiredService<DrnAppFeatures>();
+            var securitySettings = context.HttpContext.RequestServices.GetRequiredService<IAppSecuritySettings>();
             var match = context.HttpContext.GetRateLimitRuleMatch();
             var partitionKey = match?.Result.PartitionKey ?? RateLimitPartitionKeys.GetPostAuthPartitionKey(context.HttpContext);
             telemetry.RecordRejection(context.HttpContext, RateLimitRulePhase.PostAuth, match);
             scopedLog.Add("PostAuthRateLimitRejected", true);
             scopedLog.Add("PostAuthRateLimitRejectedRule", match?.Rule.GetType().FullName ?? string.Empty);
-            scopedLog.Add("PostAuthRateLimitRejectedPartition", RedactRateLimitPartitionKey(partitionKey));
+            scopedLog.Add("PostAuthRateLimitRejectedPartition", RateLimitPartitionRedactor.Format(partitionKey, features.RateLimit, securitySettings));
 
             var matchedRule = match?.Rule;
             if (matchedRule != null)
@@ -744,14 +758,6 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             if (configuredOnRejected != null)
                 await configuredOnRejected(context, cancellationToken);
         };
-    }
-
-    private static string RedactRateLimitPartitionKey(string partitionKey)
-    {
-        if (string.IsNullOrWhiteSpace(partitionKey))
-            return string.Empty;
-
-        return $"blake3:{partitionKey.Hash()}";
     }
 
     /// <summary>

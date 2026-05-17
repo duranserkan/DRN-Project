@@ -223,10 +223,12 @@ public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRout
 - Use scoped rules plus `IScopedUser` for post-auth claim-aware partitions. Prefer `RateLimitFor` (or app-owned wrappers around `RateLimitFor`) over repeated `HttpContext.User` parsing.
 - Set `PolicyName` on a rule only when it should run for endpoints marked with matching ASP.NET Core `[EnableRateLimiting("policy-name")]` metadata. `null` means global DRN rule; blank names are invalid.
 - Post-auth defaults to 100/minute; pre-auth defaults to a coarser 1,000/minute IP bucket for B2B NAT/VPN/CDN egress addresses. Configure settings under `DrnAppFeatures:DrnRateLimit`; phase override values of 0 inherit the shared settings. Settings are a startup snapshot exposed through `IAppSettings.Features.RateLimit`.
+- Treat `DrnRateLimitOptions` as global defaults. Tenant plan, feature-flag, account, or endpoint-specific quotas belong in app-owned rules; because rule evaluation is synchronous, load plan data into the request scope or a refreshed in-memory snapshot before evaluating the rule.
 - Singleton rules are sorted once. Pre-auth uses singleton rules only. Scoped rule existence/order is detected at startup, then scoped rules are resolved from the request provider only for post-auth. Global `Order` is preserved across singleton and scoped rules; same-order `ShortCircuitOnMatch` rules run first, and every matching rule composes. Limiter partition factories must not capture `HttpContext` or scoped services because limiter instances are cached per partition.
 - Post-auth uses DI-configured `RateLimiterOptions`, so named policies and rejection callbacks registered through `AddRateLimiter(options => ...)` remain available to `[EnableRateLimiting("policy-name")]`.
-- DRN emits metrics through the `DRN.Framework.Hosting.RateLimiting` meter; add this meter to OpenTelemetry exports when pre-auth metrics or DRN rule-level rejection metrics are needed.
-- Default limiter state is process-local. For horizontally scaled production enforcement, pair DRN app-local limits with edge or distributed rate limiting.
+- DRN emits metrics through the `DRN.Framework.Hosting.RateLimiting` meter; add this meter to OpenTelemetry exports when pre-auth metrics or DRN rule-level rejection metrics are needed. The action tag distinguishes `limit`, `allow`, `deny`, and `unknown`.
+- Pre-auth and post-auth rejection logs default to deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation without exposing raw API keys, tenant hints, service identifiers, user identifiers, or IPs. Use `DrnRateLimit.PartitionLogMode = PlainText` only for controlled development or dedicated encrypted audit sinks.
+- Built-in limiter state is process-local. `HybridCache` can cache policy data, but hard multi-replica quotas need edge enforcement or a Redis-backed custom `RateLimiter` returned through `RateLimitRuleResult.CustomPartition(...)`.
 
 ---
 

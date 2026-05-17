@@ -194,7 +194,8 @@ public class RateLimitRuleTests
                     TokenLimit = 7,
                     ReplenishmentSeconds = 11,
                     TokensPerPeriod = 13,
-                    PreAuthTokenLimit = 17
+                    PreAuthTokenLimit = 17,
+                    PartitionLogMode = "PlainText"
                 }
             }
         });
@@ -204,6 +205,7 @@ public class RateLimitRuleTests
         appSettings.Features.RateLimit.ReplenishmentSeconds.Should().Be(11);
         appSettings.Features.RateLimit.TokensPerPeriod.Should().Be(13);
         appSettings.Features.RateLimit.PreAuthTokenLimit.Should().Be(17);
+        appSettings.Features.RateLimit.PartitionLogMode.Should().Be(RateLimitPartitionLogMode.PlainText);
     }
 
     [Theory]
@@ -270,7 +272,7 @@ public class RateLimitRuleTests
         {
             nextCalled = true;
             return Task.CompletedTask;
-        }, new DrnPreAuthRateLimiter(limiter), CreateTelemetry());
+        }, new DrnPreAuthRateLimiter(limiter), CreateTelemetry(), new DrnAppFeatures(), CreateSecuritySettings());
         var context = new DefaultHttpContext();
         context.SetEndpoint(new Endpoint(
             httpContext => Task.CompletedTask,
@@ -297,7 +299,7 @@ public class RateLimitRuleTests
         {
             nextCalled = true;
             return Task.CompletedTask;
-        }, new DrnPreAuthRateLimiter(limiter), CreateTelemetry());
+        }, new DrnPreAuthRateLimiter(limiter), CreateTelemetry(), new DrnAppFeatures(), CreateSecuritySettings());
         var context = new DefaultHttpContext();
         context.SetEndpoint(new Endpoint(
             httpContext => Task.CompletedTask,
@@ -308,6 +310,50 @@ public class RateLimitRuleTests
 
         limiterCalled.Should().BeTrue();
         nextCalled.Should().BeTrue();
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public async Task PreAuth_Rejection_Log_Should_Redact_Ip_And_Partition(DrnTestContextUnit _)
+    {
+        const string rawPartition = "api-key:secret-value";
+        const string rawIp = "203.0.113.10";
+        var rule = new SensitivePreAuthRule();
+        var result = RateLimitRuleResult.DenyRequest(rawPartition);
+        var limiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        {
+            httpContext.SetRateLimitRuleMatch(rule, result);
+            return result.Partition;
+        });
+        var middleware = new PreAuthRateLimitingMiddleware(
+            _ => throw new InvalidOperationException("Rejected request should not reach next middleware."),
+            new DrnPreAuthRateLimiter(limiter),
+            CreateTelemetry(),
+            new DrnAppFeatures(),
+            CreateSecuritySettings());
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Parse(rawIp);
+        var scopedLog = Substitute.For<IScopedLog>();
+
+        await middleware.InvokeAsync(context, scopedLog);
+
+        context.Response.StatusCode.Should().Be(StatusCodes.Status429TooManyRequests);
+        scopedLog.Received().Add("PreAuthRateLimitRejectedIp", Arg.Is<object>(value => IsRedacted(value, rawIp)));
+        scopedLog.Received().Add("PreAuthRateLimitRejectedPartition", Arg.Is<object>(value => IsRedacted(value, rawPartition)));
+        scopedLog.DidNotReceive().Add("PreAuthRateLimitRejectedIp", rawIp);
+        scopedLog.DidNotReceive().Add("PreAuthRateLimitRejectedPartition", rawPartition);
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void Partition_Log_Format_Should_Allow_Explicit_PlainText_Audit_Mode(DrnTestContextUnit _)
+    {
+        const string rawPartition = "tenant:known-customer";
+        var options = new DrnRateLimitOptions { PartitionLogMode = RateLimitPartitionLogMode.PlainText };
+
+        var formatted = RateLimitPartitionRedactor.Format(rawPartition, options, CreateSecuritySettings());
+
+        formatted.Should().Be(rawPartition);
     }
 
     [Theory]
@@ -564,6 +610,19 @@ public class RateLimitRuleTests
         options.GlobalLimiter.Should().NotBeNull();
     }
 
+    [Theory]
+    [DataInlineUnit]
+    public void Telemetry_Should_Expose_Rule_Action_Tag(DrnTestContextUnit _)
+    {
+        var context = new DefaultHttpContext();
+        var result = RateLimitRuleResult.AllowRequest("health");
+        context.SetRateLimitRuleMatch(new TelemetryAllowRule(), result);
+
+        var tags = RateLimitTelemetry.CreateTags(context, RateLimitRulePhase.PostAuth, "acquired", context.GetRateLimitRuleMatch());
+
+        tags.Should().Contain(tag => tag.Key == "drn.rate_limiting.action" && tag.Value != null && tag.Value.ToString() == "allow");
+    }
+
     private sealed class AccountRateLimitRule(DrnAppFeatures features) : ScopedRateLimitRule
     {
         public override RateLimitRuleResult? EvaluatePostAuth(HttpContext context)
@@ -594,6 +653,8 @@ public class RateLimitRuleTests
         return new RateLimitTelemetry(provider);
     }
 
+    private static IAppSecuritySettings CreateSecuritySettings() => new AppSecuritySettings(new DrnAppFeatures());
+
     private static DefaultHttpContext CreateScopedRuleContext(IServiceProvider serviceProvider)
     {
         var context = new DefaultHttpContext { RequestServices = serviceProvider };
@@ -611,6 +672,11 @@ public class RateLimitRuleTests
     private static List<string> GetRuleHits(HttpContext context) => (List<string>)context.Items[RuleHitsKey]!;
 
     private static void AddRuleHit(HttpContext context, string hit) => GetRuleHits(context).Add(hit);
+
+    private static bool IsRedacted(object? value, string rawValue) =>
+        value is string text
+        && text.StartsWith("blake3-keyed:", StringComparison.Ordinal)
+        && !text.Contains(rawValue, StringComparison.Ordinal);
 
     private static IDictionary GetPolicyMap(RateLimiterOptions options)
     {
@@ -634,6 +700,14 @@ public class RateLimitRuleTests
     {
         public override RateLimitRuleResult? EvaluatePreAuth(HttpContext context) =>
             throw new InvalidOperationException("Pre-auth limiter must not evaluate scoped rules.");
+    }
+
+    private sealed class SensitivePreAuthRule : SingletonRateLimitRule
+    {
+    }
+
+    private sealed class TelemetryAllowRule : SingletonRateLimitRule
+    {
     }
 
     private sealed class FirstComposedScopedRule : ScopedRateLimitRule

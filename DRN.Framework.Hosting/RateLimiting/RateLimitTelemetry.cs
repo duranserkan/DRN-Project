@@ -53,13 +53,14 @@ public sealed class RateLimitTelemetry
     internal void RecordRequestLeaseDuration(HttpContext context, RateLimitRulePhase phase, TimeSpan duration, RateLimitRuleMatch? match) =>
         _requestLeaseDuration.Record(duration.TotalSeconds, CreateTags(context, phase, "acquired", match));
 
-    private static TagList CreateTags(HttpContext context, RateLimitRulePhase phase, string result, RateLimitRuleMatch? match)
+    internal static TagList CreateTags(HttpContext context, RateLimitRulePhase phase, string result, RateLimitRuleMatch? match)
     {
         var tags = new TagList
         {
             { "drn.rate_limiting.phase", phase.ToString() },
             { "aspnetcore.rate_limiting.policy", RateLimitEndpointMetadata.GetPolicyName(context) },
-            { "aspnetcore.rate_limiting.result", result }
+            { "aspnetcore.rate_limiting.result", result },
+            { "drn.rate_limiting.action", GetActionTag(match) }
         };
 
         var ruleType = match?.Rule.GetType().FullName;
@@ -68,4 +69,13 @@ public sealed class RateLimitTelemetry
 
         return tags;
     }
+
+    private static string GetActionTag(RateLimitRuleMatch? match) =>
+        match?.Result.Action switch
+        {
+            RateLimitRuleAction.Allow => "allow",
+            RateLimitRuleAction.Deny => "deny",
+            RateLimitRuleAction.Limit => "limit",
+            _ => "unknown"
+        };
 }

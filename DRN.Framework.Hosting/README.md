@@ -423,7 +423,7 @@ DRN Hosting provides first-class, dual-layer rate limiting with a pluggable rule
 Post-auth defaults to Token Bucket (100 tokens/minute per authenticated user or anonymous IP). Pre-auth defaults to a coarser B2B-friendly IP bucket (1,000 tokens/minute) so shared corporate NAT/VPN/CDN egress addresses are not punished like one user. Both layers return `429 Too Many Requests` with a `Retry-After` header.
 
 > [!IMPORTANT]
-> DRN's default limiter state is process-local. In horizontally scaled production deployments, enforce coarse limits at the edge (WAF/CDN/API gateway/load balancer) or add a distributed limiter for limits that must hold across every application instance.
+> DRN's built-in limiter state is process-local. In horizontally scaled production deployments, enforce coarse limits at the edge (WAF/CDN/API gateway/load balancer) or add a distributed limiter for limits that must hold across every application instance.
 
 ```mermaid
 flowchart LR
@@ -463,6 +463,7 @@ Configure DRN defaults under `DrnAppFeatures:DrnRateLimit`. Application code rea
 | Setting group | Default | Used by | Meaning |
 |---|---:|---|---|
 | `Disabled` | `false` | Both phases | Disables DRN pre-auth and post-auth rate limiting entirely. |
+| `PartitionLogMode` | `KeyedHash` | Both phases | Controls structured log values for rejected IP/partition keys. `KeyedHash` logs deterministic keyed hashes for correlation; `PlainText` logs raw values and should be limited to controlled development or dedicated audit sinks. |
 | `TokenLimit`, `ReplenishmentSeconds`, `TokensPerPeriod` | `100`, `60`, `100` | Shared fallback | Base token bucket values for both phases. |
 | `PreAuthTokenLimit`, `PreAuthReplenishmentSeconds`, `PreAuthTokensPerPeriod` | `1000`, `60`, `1000` | Pre-auth | Coarse IP/header limits before authentication. Keep these higher behind NAT, VPN, or CDN egress. `0` inherits the shared value. |
 | `PostAuthTokenLimit`, `PostAuthReplenishmentSeconds`, `PostAuthTokensPerPeriod` | `0`, `0`, `0` | Post-auth | Authenticated user or anonymous IP limits after `ScopedUserMiddleware`. `0` inherits the shared value. |
@@ -475,7 +476,16 @@ Usage guidance:
 - Use `[DisableRateLimiting]` for trusted health and operational endpoints that must not consume any quota.
 - Use `[EnableRateLimiting("policy-name")]` for ASP.NET Core named post-auth policies. DRN pre-auth remains global; DRN rule `PolicyName` values compose with matching endpoint metadata.
 - DRN's built-in token bucket queues are disabled (`QueueLimit = 0`) so rejected requests fail fast with 429. Custom rules can choose different algorithms or queue behavior.
+- Treat `DrnRateLimitOptions` as global default policy. Put tenant plan, feature-flag, account, or endpoint-specific quota decisions in app-owned rules.
 - Process-local limits are not a distributed enforcement boundary. In horizontally scaled production, pair DRN app-local limits with edge or distributed rate limiting.
+
+#### Dynamic Tenant Policies and Distributed Enforcement
+
+`DrnRateLimitOptions` is a startup snapshot for global defaults. Enterprise tenant plans should be modeled in rules, not in the global settings object. A scoped post-auth rule can read `IScopedUser`, request-scoped feature flags, or tenant plan data already loaded for the request and return a partition with the correct limit values.
+
+Rule evaluation is synchronous because ASP.NET Core partition selection is synchronous. Do not perform database, Redis, or `HybridCache` I/O inside `EvaluatePreAuth` / `EvaluatePostAuth`. Load dynamic plan data earlier in the request, or maintain an in-memory snapshot refreshed by a background service.
+
+`HybridCache` and `IDistributedCache` are useful for sharing and refreshing rate-limit policy data across app instances. They are not, by themselves, a hard distributed quota counter because DRN's built-in token/fixed/sliding/concurrency limiters keep counters inside each process. For strict multi-replica quotas, use an API gateway, CDN/WAF, service mesh policy, or a Redis-backed custom `RateLimiter` returned via `RateLimitRuleResult.CustomPartition(...)`. Redis-backed counters should use atomic server-side operations such as Lua scripts with TTL.
 
 #### Extensibility via Rate Limit Rules
 
@@ -582,12 +592,14 @@ DRN emits OpenTelemetry-friendly metrics through the `DRN.Framework.Hosting.Rate
 
 | Metric | Tags |
 |--------|------|
-| `drn.rate_limiting.requests` | `phase`, `policy`, `result`, `rule` |
-| `drn.rate_limiting.rejections` | `phase`, `policy`, `rule` |
-| `drn.rate_limiting.active_request_leases` | `phase`, `policy`, `rule` |
-| `drn.rate_limiting.request_lease.duration` | `phase`, `policy`, `rule` |
+| `drn.rate_limiting.requests` | `phase`, `policy`, `result`, `action`, `rule` |
+| `drn.rate_limiting.rejections` | `phase`, `policy`, `result`, `action`, `rule` |
+| `drn.rate_limiting.active_request_leases` | `phase`, `policy`, `result`, `action`, `rule` |
+| `drn.rate_limiting.request_lease.duration` | `phase`, `policy`, `result`, `action`, `rule` |
 
 ASP.NET Core's native rate limiting middleware continues to provide its built-in post-auth metrics.
+The `action` tag is `limit`, `allow`, `deny`, or `unknown`; this makes whitelist, blocklist, and quota decisions visible without inspecting rule names.
+By default, pre-auth and post-auth rejection logs write IP and partition values as deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation for audits without exposing raw API-key, tenant-hint, service-identifier, user, or IP values. Set `DrnAppFeatures:DrnRateLimit:PartitionLogMode` to `PlainText` only for controlled development or a dedicated encrypted audit sink.
 
 #### Overriding Defaults
 
@@ -622,6 +634,9 @@ protected override void ConfigurePostAuthRateLimiterOptions(
 - [ASP.NET Core rate limiting middleware](https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit?view=aspnetcore-10.0)
 - [RateLimiterOptions API](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.ratelimiting.ratelimiteroptions)
 - [RateLimitPartition API](https://learn.microsoft.com/en-us/dotnet/api/system.threading.ratelimiting.ratelimitpartition?view=aspnetcore-10.0)
+- [HybridCache library in ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/performance/caching/hybrid?view=aspnetcore-10.0)
+- [Distributed caching in ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/performance/caching/distributed?view=aspnetcore-10.0)
+- [Redis token bucket rate limiter with .NET](https://redis.io/docs/latest/develop/use-cases/rate-limiter/dotnet/)
 - [RFC 6585 Section 4: 429 Too Many Requests](https://www.rfc-editor.org/rfc/rfc6585#section-4)
 - [RFC 9110: Retry-After header](https://www.rfc-editor.org/rfc/rfc9110#field.retry-after)
 

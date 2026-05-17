@@ -228,3 +228,23 @@ Using zero-capacity or already-exhausted limiter options to represent deny mixes
 ### Decision Checkpoint
 
 Use `AllowRequest(...)` for trusted bypass, `DenyRequest(...)` for immediate policy rejection, quota helpers for measurable throttling, and `ShortCircuitOnMatch` only to control same-order precedence and remaining-rule evaluation.
+
+## 10. Rate Limiting — Separate Policy Caching from Quota Enforcement
+
+### Context
+
+`DrnRateLimitOptions` provides global defaults, while enterprise B2B SaaS often needs tenant plans, feature flags, custom endpoint limits, and hard quotas across many app replicas.
+
+### Problem
+
+It is tempting to treat `HybridCache` / `IDistributedCache` as enough to make rate limiting distributed. They are useful for sharing policy data, but DRN's built-in token/fixed/sliding/concurrency limiters still keep quota counters in each process. Rule evaluation is also synchronous because ASP.NET Core partition selection is synchronous.
+
+### Fix Applied
+
+Document `DrnRateLimitOptions` as global defaults, push tenant-specific decisions into rules, expose `RateLimitRuleAction` as telemetry, use deterministic keyed hashes for rejected partition logs by default, and document that hard multi-replica quotas need edge enforcement or a custom Redis-backed `RateLimiter` returned by `RateLimitRuleResult.CustomPartition(...)`.
+
+### Decision Checkpoint
+
+Use `HybridCache` for tenant-plan and feature-flag snapshots, preferably loaded before rule evaluation or refreshed into memory. Use Redis Lua/atomic operations, API gateway, CDN/WAF, or service mesh policy for hard distributed quota enforcement.
+
+For rejected partition logging, prefer keyed hashes over plain redaction or reversible encryption in ordinary logs. Use `PlainText` only for controlled development or a dedicated encrypted audit sink with retention and access controls.

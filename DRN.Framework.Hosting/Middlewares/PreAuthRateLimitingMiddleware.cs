@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Threading.RateLimiting;
 using DRN.Framework.Hosting.RateLimiting;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Middlewares;
@@ -22,7 +23,9 @@ namespace DRN.Framework.Hosting.Middlewares;
 public class PreAuthRateLimitingMiddleware(
     RequestDelegate next,
     DrnPreAuthRateLimiter limiter,
-    RateLimitTelemetry telemetry)
+    RateLimitTelemetry telemetry,
+    DrnAppFeatures features,
+    IAppSecuritySettings securitySettings)
 {
     public async Task InvokeAsync(HttpContext context, IScopedLog scopedLog)
     {
@@ -61,13 +64,14 @@ public class PreAuthRateLimitingMiddleware(
         }
 
         // Rejection
-        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var ipAddress = context.Connection.RemoteIpAddress?.ToString();
+        var partitionKey = match?.Result.PartitionKey ?? ipAddress;
         telemetry.RecordRequest(context, RateLimitRulePhase.PreAuth, "rejected", match);
         telemetry.RecordRejection(context, RateLimitRulePhase.PreAuth, match);
         scopedLog.Add("PreAuthRateLimitRejected", true);
-        scopedLog.Add("PreAuthRateLimitRejectedIp", ipAddress);
+        scopedLog.Add("PreAuthRateLimitRejectedIp", RateLimitPartitionRedactor.Format(ipAddress, features.RateLimit, securitySettings));
         scopedLog.Add("PreAuthRateLimitRejectedRule", match?.Rule.GetType().FullName ?? string.Empty);
-        scopedLog.Add("PreAuthRateLimitRejectedPartition", match?.Result.PartitionKey ?? ipAddress);
+        scopedLog.Add("PreAuthRateLimitRejectedPartition", RateLimitPartitionRedactor.Format(partitionKey, features.RateLimit, securitySettings));
 
         context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         if (lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
