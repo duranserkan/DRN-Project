@@ -1,7 +1,7 @@
 ---
 name: basic-code-review
 description: Code review standards - Priority Stack as review gate (Security→Correctness→Clarity→Simplicity→Performance), DDD boundary validation, attribute-based DI audit, naming conventions, test coverage expectations (DTT), breaking change detection, and security review triggers. Keywords: code-review, review-standards, priority-stack, naming-conventions, breaking-changes, pull-request, quality-gate
-last-updated: 2026-02-15
+last-updated: 2026-05-30
 difficulty: intermediate
 tokens: ~1.5K
 ---
@@ -49,18 +49,18 @@ Every service class should declare its lifetime:
 
 ```csharp
 // Verify these exist on all service classes
-[Scoped]      // Per-request (default for most services)
-[Singleton]   // Application lifetime (caches, configurations)
-[Transient]   // Per-resolution (lightweight, stateless)
-[Config]   // Settings objects mapped from config
-[ConfigRoot]   // Settings objects mapped from configroot
-[HostedService] // Background services
+[Scoped<TService>]      // Per-request (default for most services)
+[Singleton<TService>]   // Application lifetime (caches, configurations)
+[Transient<TService>]   // Per-resolution (lightweight, stateless)
+[Config]                // Settings objects mapped from config
+[ConfigRoot]            // Settings objects mapped from configroot
+[HostedService]         // Background services
 ```
 
 ### Review Checklist
 - [ ] All service classes have a lifetime attribute
-- [ ] `[Singleton]` services hold no mutable per-request state
-- [ ] `[Scoped]` services don't capture `[Singleton]` dependencies that hold state
+- [ ] `[Singleton<T>]` services hold no mutable per-request state
+- [ ] `[Scoped<T>]` services don't capture `[Singleton<T>]` dependencies that hold state
 - [ ] No manual `services.AddScoped<>()` calls for classes that should use attributes
 
 ---
@@ -127,7 +127,7 @@ Before approving, ask: *"If this change causes an incident in 6 months, what was
 | **Silent security regression** | CSP weakened, auth bypassed, new endpoint without `[Authorize]` |
 | **Data leak via entity exposure** | API returning entity instead of DTO; `long Id` or `SourceKnownEntityId` in response |
 | **Unbounded query** | Missing pagination on collection endpoints; `GetAllAsync()` on large tables |
-| **DI lifetime mismatch** | `[Scoped]` service captured by `[Singleton]`; mutable state in singleton |
+| **DI lifetime mismatch** | `[Scoped<T>]` service captured by `[Singleton<T>]`; mutable state in singleton |
 | **Migration data loss** | Column removal/type change without data migration; non-additive schema change |
 | **Broken contract** | Removed public API member; changed method signature; renamed config key without fallback |
 | **Test false confidence** | Test passes but doesn't assert meaningful behavior; mock hides the actual bug |

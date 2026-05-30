@@ -27,8 +27,12 @@
 
 ```bash
 dotnet build DRN.slnx          # Build solution
-dotnet test DRN.slnx           # Run all tests
+# Run unit tests directly (avoids long-running performance tests)
+dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
+# Run integration tests only after unit tests pass
+dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 ```
+
 
 ## Conventions
 
@@ -38,7 +42,7 @@ dotnet test DRN.slnx           # Run all tests
   - `[HostedService]` — background services
 - **Entities**: Source-Known ID pattern (long internal + Guid external); `[EntityType(byte)]` required on every entity
 - **DTOs**: Derive from `Dto`; live in `*.Contract`; APIs return DTOs only — never entities; expose `Guid` IDs only (Source-Known EntityId: `Guid` externally, never `long Id`)
-- **Testing**: DTT (Duran's Testing Technique) — integration-first; `[DataInline]` + `DrnTestContext` for integration, `[DataInlineUnit]` + `DrnTestContextUnit` for unit
+- **Testing**: DTT (Duran's Testing Technique) — integration-first; `[DataInline]` + `DrnTestContext` for integration, `[DataInlineUnit]` + `DrnTestContextUnit` for unit. Always run unit tests first, and only run integration tests after unit tests pass. Never use/reference `.slnx` in test commands.
 - **Frontend**: Razor Pages + htmx + Bootstrap 5; Vite-built assets in `buildwww/`; CSP nonces auto-injected via `NonceTagHelper`; CSRF auto-added on `hx-post/put/delete/patch`
 - **Git**: GitFlow-inspired — `develop` → `master` → tag `v*.*.*`; squash merge to develop, merge commit to master
 - **Security**: CSP nonces, CSRF anti-forgery, input validation — see `basic-security-checklist` skill
@@ -58,11 +62,12 @@ dotnet test DRN.slnx           # Run all tests
 | `/answer` | Answer clarification questions, approve documents (~2K tokens) |
 | `/develop` | Implement from clarified requirements (~2K tokens) |
 | `/review` | Review staged changes or branch diff via Priority Stack (~1K tokens) |
+| `/commit-polish` | Commit staged changes and polish non-pushed commit messages to comply with git conventions (~1.5K tokens) |
 | `/test` | Add tests for staged changes or a task (~1K tokens) |
 | `/optimize` | Optimize agent-consumed content (skills, workflows, docs) (~3K tokens) |
 | `/search` | Gather structured knowledge context — codebase, knowledge items, skills, web — before running /clarify enrichment (~1K tokens) |
 | `/documentation` | Generate and update per-module README.md and RELEASE-NOTES.md for DRN.Framework.* packages (~1.5K tokens) |
-| `/update` | Sync AGENTS.md, skill index, workflows from filesystem (~3K tokens + 3 sub-workflows ~9K) |
+| `/update` | Sync AGENTS.md, skill index, workflows from filesystem (runs update-plan, update-execute, update-verify; ~3K tokens + 3 sub-workflows ~9K) |
 | `/update-last` | Detect changed files from last N commits → delegate to `/update` (~1K tokens) |
 | `/load-skills-basic` | Load: `basic-agentic-development`, `basic-documentation`, `basic-documentation-diagrams`, `basic-security-checklist`, `basic-code-review`, `basic-git-conventions` (~7.6K tokens) |
 | `/load-skills-overview` | Load: `overview-repository-structure`, `overview-ddd-architecture`, `overview-drn-framework`, `overview-drn-testing`, `overview-github-actions`, `overview-skill-index` (~8.3K tokens) |
