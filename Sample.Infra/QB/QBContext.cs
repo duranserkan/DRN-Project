@@ -38,7 +38,7 @@ public enum TestEntityTypes : byte
     TestEntity = 255
 }
 
-[EntityType((int)TestEntityTypes.TestEntity)]
+[EntityType((byte)TestEntityTypes.TestEntity)]
 public class TestEntity : AggregateRoot
 {
     public long TestValue { get; init; }

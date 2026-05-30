@@ -3,7 +3,7 @@ using Sample.Domain.QA.Questions;
 
 namespace Sample.Domain.QA.Tags;
 
-[EntityType((int)SampleEntityTypes.Tag)]
+[EntityType((byte)SampleEntityTypes.Tag)]
 public class Tag : AggregateRoot<TagValueModel>
 {
     private Tag()

@@ -3,7 +3,7 @@ using Sample.Domain.QA.Questions;
 
 namespace Sample.Domain.QA.Categories;
 
-[EntityType((int)SampleEntityTypes.Category)]
+[EntityType((byte)SampleEntityTypes.Category)]
 public class Category : AggregateRoot
 {
     private Category()

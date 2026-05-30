@@ -2,7 +2,7 @@ using Sample.Domain.Users;
 
 namespace Sample.Domain.QA.Questions;
 
-[EntityType((int)SampleEntityTypes.QuestionComment)]
+[EntityType((byte)SampleEntityTypes.QuestionComment)]
 public class QuestionComment : AggregateRoot
 {
     private QuestionComment()
