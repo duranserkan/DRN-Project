@@ -7,6 +7,9 @@ reviews:
     base_branches:
       - ".*"
   profile: assertive
+  path_filters:
+    - "!buildwww/**"
+    - "!**/*.lock"
   path_instructions:
     - path: "DRN.Framework.*/**"
       instructions: >
