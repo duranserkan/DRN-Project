@@ -5,7 +5,11 @@ runs:
     - name: Scan vulnerabilities
       shell: bash
       run: |
+        # Temporarily remove docker-compose.dcproj as dotnet list package does not support it
+        dotnet sln DRN.slnx remove docker-compose.dcproj || true
         packages=$(dotnet list package --include-transitive --vulnerable)
+        # Restore DRN.slnx to keep the repository state clean
+        git checkout DRN.slnx
         if [[ "$packages" == *"has the following vulnerable packages"* ]]; then
           echo "$packages"
           exit 1
