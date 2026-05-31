@@ -455,6 +455,7 @@ FodyWeavers.xsd
 .idea
 .DS_Store
 .*_home/
+.dotnet/
 
 cmake*.*
 
