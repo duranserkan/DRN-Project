@@ -22,7 +22,7 @@ public static class SampleModule
             .AddSampleApplicationServices()
             .Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024) // size limit
             .ConfigureCookieAuthenticationOptions(settings)
-            .AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings.IsDevelopmentEnvironment));
+            .AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings));
 
         //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
         //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/
@@ -55,7 +55,7 @@ public static class SampleModule
         return services;
     }
 
-    private static Action<IdentityOptions> ConfigureIdentity(bool development) => options =>
+    private static Action<IdentityOptions> ConfigureIdentity(IAppSettings settings) => options =>
     {
         options.User = IdentitySettings.UserOptions;
         options.Password = IdentitySettings.PasswordOptions;
@@ -63,8 +63,10 @@ public static class SampleModule
         options.Tokens = IdentitySettings.TokenOptions;
         options.Stores = IdentitySettings.StoreOptions;
         options.ClaimsIdentity = IdentitySettings.ClaimsIdentityOptions;
-        if (development) return;
 
-        options.SignIn = IdentitySettings.SignInOptions;
+        var config = settings.Get<SampleIdentityConfig>("Identity") ?? new SampleIdentityConfig();
+        options.SignIn.RequireConfirmedAccount = config.RequireConfirmedAccount;
+        options.SignIn.RequireConfirmedEmail = config.RequireConfirmedEmail;
+        options.SignIn.RequireConfirmedPhoneNumber = config.RequireConfirmedPhoneNumber;
     };
 }
