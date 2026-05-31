@@ -351,11 +351,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
         MapApplicationEndpoints(application, appSettings);
 
-        var webHostEnvironment = application.Services.GetRequiredService<IWebHostEnvironment>();
-        var viteManifest = (ViteManifest)application.Services.GetRequiredService<IViteManifest>();
-        viteManifest.ManifestRootPath = string.IsNullOrEmpty(webHostEnvironment.WebRootPath)
-            ? webHostEnvironment.ContentRootPath
-            : webHostEnvironment.WebRootPath;
+        var viteManifest = application.Services.GetRequiredService<IViteManifest>();
         _ = viteManifest.GetAllManifestItems();
     }
 

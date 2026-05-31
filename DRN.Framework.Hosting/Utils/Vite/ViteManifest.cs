@@ -5,6 +5,8 @@ using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Extensions;
+using Microsoft.AspNetCore.Hosting;
 
 namespace DRN.Framework.Hosting.Utils.Vite;
 
@@ -17,7 +19,7 @@ public interface IViteManifest
 }
 
 [Singleton<IViteManifest>]
-public class ViteManifest : IViteManifest
+public class ViteManifest(IWebHostEnvironment environment) : IViteManifest
 {
     private const string ManifestRootDefault = "wwwroot";
     private const string ViteManifestDirectoryName = ".vite";
@@ -27,25 +29,7 @@ public class ViteManifest : IViteManifest
     private FrozenDictionary<string, ViteManifestItem>? _manifestCache;
     private readonly Lock _lock = new();
 
-    public string ManifestRootPath
-    {
-        get;
-        internal set
-        {
-            var manifestRootPath = string.IsNullOrWhiteSpace(value) ? ManifestRootDefault : value;
-            if (string.Equals(field, manifestRootPath, StringComparison.Ordinal))
-                return;
-
-            lock (_lock)
-            {
-                if (string.Equals(field, manifestRootPath, StringComparison.Ordinal))
-                    return;
-
-                field = manifestRootPath;
-                Volatile.Write(ref _manifestCache, null);
-            }
-        }
-    } = ManifestRootDefault;
+    public string ManifestRootPath => ResolveManifestRootPath();
 
     public ViteManifestWarmReport? WarmReport { get; internal set; }
 
@@ -53,7 +37,7 @@ public class ViteManifest : IViteManifest
     {
         ViteManifestItem? entry;
         var cache = _manifestCache;
-        if (cache != null) 
+        if (cache != null)
             return cache.TryGetValue(entryName, out entry) ? entry : null;
 
         EnsureManifest();
@@ -70,7 +54,7 @@ public class ViteManifest : IViteManifest
     {
         var cache = _manifestCache;
         if (cache != null) return cache.Values;
-        
+
         EnsureManifest();
         cache = Volatile.Read(ref _manifestCache);
 
@@ -92,149 +76,82 @@ public class ViteManifest : IViteManifest
                 return;
 
             var cache = new Dictionary<string, ViteManifestItem>();
-            var manifestRoots = GetManifestRootCandidates(ManifestRootPath);
+            var manifestRoot = ManifestRootPath;
+            var manifestFiles = GetManifestFiles(manifestRoot);
 
-            foreach (var manifestRoot in manifestRoots)
-            {
-                var manifestFiles = GetManifestFiles(manifestRoot);
-                foreach (var manifestFile in manifestFiles)
-                    try
-                    {
-                        AddManifestFile(cache, manifestRoot, manifestFile);
-                    }
-                    catch (ConfigurationException)
-                    {
-                        throw;
-                    }
-                    catch (Exception e)
-                    {
-                        throw new ConfigurationException($"Failed to parse Vite manifest at {manifestFile}", e);
-                    }
-            }
+            foreach (var manifestFile in manifestFiles)
+                try
+                {
+                    AddManifestFile(cache, manifestRoot, manifestFile);
+                }
+                catch (ConfigurationException)
+                {
+                    throw;
+                }
+                catch (Exception e)
+                {
+                    throw new ConfigurationException($"Failed to parse Vite manifest at {manifestFile}", e);
+                }
 
             Volatile.Write(ref _manifestCache, cache.ToFrozenDictionary());
         }
     }
 
-    private static IReadOnlyCollection<string> GetManifestRootCandidates(string manifestRootPath)
+    private string ResolveManifestRootPath()
     {
-        var candidates = new List<string>();
-        AddCandidate(candidates, manifestRootPath);
-        AddCandidate(candidates, Path.Combine(manifestRootPath, ManifestRootDefault));
-        AddCandidate(candidates, Path.Combine(AppContext.BaseDirectory, ManifestRootDefault));
+        var manifestRoot = string.IsNullOrWhiteSpace(environment.WebRootPath)
+            ? Path.Combine(environment.ContentRootPath, ManifestRootDefault)
+            : environment.WebRootPath;
 
-        foreach (var contentRoot in GetStaticWebAssetContentRoots())
-            AddCandidate(candidates, contentRoot);
-
-        return candidates
-            .Select(NormalizeDirectory)
-            .Where(Directory.Exists)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
-
-    private static void AddCandidate(List<string> candidates, string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return;
-
-        candidates.Add(path);
-    }
-
-    private static IReadOnlyCollection<string> GetStaticWebAssetContentRoots()
-    {
-        // Staging can run from build output while static assets are served from source roots.
-        var roots = new List<string>();
-        string[] runtimeManifestFiles;
-        try
-        {
-            runtimeManifestFiles = Directory.GetFiles(AppContext.BaseDirectory, "*.staticwebassets.runtime.json", SearchOption.TopDirectoryOnly);
-        }
-        catch (Exception e)
-        {
-            _ = e;
-            return roots;
-        }
-
-        foreach (var runtimeManifestFile in runtimeManifestFiles)
-        {
-            try
-            {
-                using var document = JsonDocument.Parse(File.ReadAllText(runtimeManifestFile));
-                if (!document.RootElement.TryGetProperty("ContentRoots", out var contentRoots))
-                    continue;
-
-                foreach (var contentRoot in contentRoots.EnumerateArray())
-                {
-                    var path = contentRoot.GetString();
-                    if (!string.IsNullOrWhiteSpace(path))
-                        roots.Add(path);
-                }
-            }
-            catch (Exception e)
-            {
-                _ = e;
-            }
-        }
-
-        return roots;
-    }
-
-    private static string NormalizeDirectory(string path)
-    {
-        var fullPath = Path.GetFullPath(path);
-        var root = Path.GetPathRoot(fullPath);
-        return string.Equals(fullPath, root, StringComparison.OrdinalIgnoreCase)
-            ? fullPath
-            : fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return manifestRoot.NormalizeDirectoryPath();
     }
 
     private static string[] GetManifestFiles(string manifestRoot)
     {
-        try
-        {
-            var options = new EnumerationOptions
-            {
-                RecurseSubdirectories = true,
-                AttributesToSkip = FileAttributes.None,
-                IgnoreInaccessible = true
-            };
-
-            return Directory.GetDirectories(manifestRoot, ViteManifestDirectoryName, options)
-                .Select(manifestDir => Path.Combine(manifestDir, "manifest.json"))
-                .Where(File.Exists)
-                .ToArray();
-        }
-        catch (Exception e)
-        {
-            _ = e;
+        if (!Directory.Exists(manifestRoot))
             return [];
-        }
+
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.None,
+            IgnoreInaccessible = true
+        };
+
+        return Directory.GetDirectories(manifestRoot, ViteManifestDirectoryName, options)
+            .Select(manifestDir => Path.Combine(manifestDir, "manifest.json"))
+            .Where(File.Exists)
+            .ToArray();
     }
 
     private static void AddManifestFile(Dictionary<string, ViteManifestItem> cache, string manifestRoot, string manifestFile)
     {
-        using var stream = File.OpenRead(manifestFile);
+        var canonicalManifestRoot = Path.GetFullPath(manifestRoot);
+        var canonicalManifestFile = Path.GetFullPath(manifestFile);
+
+        if (!canonicalManifestRoot.IsPathWithinDirectory(canonicalManifestFile))
+            throw new ConfigurationException($"Vite manifest file is outside manifest root: {canonicalManifestFile}");
+
+        using var stream = File.OpenRead(canonicalManifestFile);
         var manifest = JsonSerializer.Deserialize<Dictionary<string, ViteManifestItem>>(stream);
 
         if (manifest == null)
             return;
 
-        var manifestDir = Path.GetDirectoryName(manifestFile)!;
+        var manifestDir = Path.GetDirectoryName(canonicalManifestFile)!;
         var scriptDir = Path.GetDirectoryName(manifestDir)!;
         var relativeDir = Path.GetRelativePath(manifestRoot, scriptDir)
             .Replace(Path.DirectorySeparatorChar, '/')
             .Replace(Path.AltDirectorySeparatorChar, '/')
             .Trim('/');
         var outputDir = string.IsNullOrWhiteSpace(relativeDir) || relativeDir == "." ? "/" : $"/{relativeDir}/";
-
         var canonicalScriptDir = Path.GetFullPath(scriptDir);
 
         foreach (var (key, value) in manifest)
         {
             var fullFilePath = Path.GetFullPath(Path.Combine(scriptDir, value.File));
 
-            if (!IsPathWithinDirectory(canonicalScriptDir, fullFilePath))
+            if (!canonicalScriptDir.IsPathWithinDirectory(fullFilePath))
                 throw new ConfigurationException($"Vite manifest at {manifestFile} references file outside its output directory: {value.File}");
 
             if (!File.Exists(fullFilePath))
@@ -244,14 +161,5 @@ public class ViteManifest : IViteManifest
 
             cache[key] = value.FromCalculatedProperties(outputDir, hash);
         }
-    }
-
-    private static bool IsPathWithinDirectory(string directoryPath, string filePath)
-    {
-        var relativePath = Path.GetRelativePath(directoryPath, filePath);
-        return relativePath is not "." and not ".." &&
-               !Path.IsPathRooted(relativePath) &&
-               !relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) &&
-               !relativePath.StartsWith($"..{Path.AltDirectorySeparatorChar}", StringComparison.Ordinal);
     }
 }
