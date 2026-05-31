@@ -1,8 +1,14 @@
-﻿<Solution>
+<Solution>
   <Folder Name="/Docker/">
-    <File Path="Docker\.dockerignore" />
-    <File Path="Docker\.env" />
-    <File Path="Docker\docker-compose.yml" />
+    <Project Path="docker-compose.dcproj">
+      <Build Solution="*|*" Project="false" />
+    </Project>
+  </Folder>
+  <Folder Name="/Docker/Infra/">
+    <File Path="Docker\Infra\.dockerignore" />
+    <File Path="Docker\Infra\.env" />
+    <File Path="Docker\Infra\.sample-env" />
+    <File Path="Docker\Infra\docker-compose.yml" />
   </Folder>
   <Folder Name="/Docker/Graylog/">
     <File Path="Docker\Graylog\docker-compose.yml" />
@@ -19,10 +25,10 @@
     <File Path="Docker\Rabbitmq\.env" />
     <File Path="Docker\Rabbitmq\.dockerignore" />
   </Folder>
-  <Folder Name="/Docker/Rabbitmq/image/">
-    <File Path="Docker\Rabbitmq\image\definitions.json" />
-    <File Path="Docker\Rabbitmq\image\Dockerfile" />
-    <File Path="Docker\Rabbitmq\image\rabbitmq.conf" />
+  <Folder Name="/Docker/Rabbitmq/Image/">
+    <File Path="Docker\Rabbitmq\Image\definitions.json" />
+    <File Path="Docker\Rabbitmq\Image\Dockerfile" />
+    <File Path="Docker\Rabbitmq\Image\rabbitmq.conf" />
   </Folder>
   <Folder Name="/Docs/">
     <File Path="LICENSE" />

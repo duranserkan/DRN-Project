@@ -4,7 +4,7 @@ services:
   rabbit:
     image: rabbitmq-drn:4.3.0-management-alpine
     build:
-      context: ./image/
+      context: ./Image/
     container_name: drn-rabbit
     restart: unless-stopped
     ports:

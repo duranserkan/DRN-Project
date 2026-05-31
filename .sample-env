@@ -5,6 +5,13 @@ ASPNETCORE_ENVIRONMENT=Staging
 Environment=Staging
 DrnDevelopmentSettings__AutoMigrateStaging=true
 
+Identity__RequireConfirmedAccount=false
+Identity__RequireConfirmedEmail=false
+Identity__RequireConfirmedPhoneNumber=false
+
+# Optional Docker registry prefix (e.g. registry.hub.docker.com/ or local registry)
+DOCKER_REGISTRY=
+
 POSTGRES_USER=drn
 POSTGRES_PASSWORD=drn
 POSTGRES_DB=drn
