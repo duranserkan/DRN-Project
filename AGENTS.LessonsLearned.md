@@ -251,3 +251,39 @@ Document `DrnRateLimitOptions` as global defaults, push tenant-specific decision
 Use `HybridCache` for tenant-plan and feature-flag snapshots, preferably loaded before rule evaluation or refreshed into memory. Use Redis Lua/atomic operations, API gateway, CDN/WAF, or service mesh policy for hard distributed quota enforcement.
 
 For rejected partition logging, prefer keyed hashes over plain redaction or reversible encryption in ordinary logs. Use `PlainText` only for controlled development or a dedicated encrypted audit sink with retention and access controls.
+
+## 11. Vite Manifest Discovery in Staging
+
+### Context
+
+`Sample.Hosted` can run with `Environment=Staging` locally while ASP.NET Core static web assets still point to source `wwwroot` content roots through `*.staticwebassets.runtime.json`.
+
+### Problem
+
+`ViteManifest` scanned only `IWebHostEnvironment.WebRootPath`. In Staging-from-build-output scenarios, that path can be the build output `wwwroot` while the Vite manifest files are served from static-web-asset content roots. Razor tag helpers then emit `<!-- Vite entry ... not found -->`, leaving the page without CSS/JS.
+
+### Fix Applied
+
+Manifest discovery now includes the configured manifest root, adjacent `wwwroot`, app-base `wwwroot`, and content roots from `*.staticwebassets.runtime.json`. It only loads Vite's `.vite/manifest.json` files, because `build.manifest: true` writes there by default and ordinary `wwwroot/manifest.json` files can be PWA/import-map/app metadata. The manifest cache is cleared if the root changes. All scripts (including preload and inline configuration scripts) are deferred or run as ES modules by default, executing in order of appearance in the document.
+
+### Decision Checkpoint
+
+When changing environment defaults from Development to Staging, verify static asset discovery as well as server startup. A page that renders can still be missing Vite assets if manifest lookup silently returns an empty cache. Make sure all scripts are designed to execute correctly in deferred/module contexts.
+
+## 12. CodeRabbit Custom Guidelines Sync
+
+### Context
+
+CodeRabbit AI reviews pull requests but defaults to standard language practices. Custom architecture constraints (like DTT tests, attribute-based DI, and source-known IDs) are easily missed.
+
+### Problem
+
+Manually duplicating the repository rules (e.g. from `AGENTS.md` and `DiSCOS.md`) inside the `.coderabbit.yaml` file is redundant, prone to drift, and hitting path instruction length limits.
+
+### Fix Applied
+
+Explicitly enabled `knowledge_base.code_guidelines` in `.coderabbit.yaml` and set `filePatterns` to feed `AGENTS.md` and `.agent/rules/DiSCOS.md` as standard rules. CodeRabbit dynamically scans these files to align reviews with the project’s specific architectural rules.
+
+### Decision Checkpoint
+
+Instead of bloating path instructions with generic text, use `reviews.path_instructions` only for path-specific overrides (like framework vs sample layers). Feed global project guidelines (like `AGENTS.md`) directly via `knowledge_base.code_guidelines.filePatterns`.

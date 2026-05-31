@@ -89,9 +89,6 @@
   <Folder Name="/Items/.github/workflows/actions/sonar-tools/">
     <File Path=".github\workflows\actions\sonar-tools\action.yml" />
   </Folder>
-  <Folder Name="/Items/DiSCOS/">
-    <File Path="DiSCOS\DiSCOS.md" />
-  </Folder>
   <Folder Name="/Src/" />
   <Folder Name="/Src/Framework/">
     <Project Path="DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" />
