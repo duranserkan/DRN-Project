@@ -37,7 +37,7 @@
         </None>
         <None Update="buildTransitive\DRN.Framework.Hosting.targets">
             <Pack>True</Pack>
-            <PackagePath>buildTransitive\</PackagePath>
+            <PackagePath>buildTransitive/</PackagePath>
         </None>
         <None Include="wwwroot\jsoneditor\Notes" />
     </ItemGroup>
