@@ -7,6 +7,7 @@
 1. Re-read `.agent/rules/DiSCOS.md` — the Distinguished Secure Cognitive OS.
 2. Always sync `AGENTS.md`, skill files, and tests with the source code
 3. Never limit yourself with given examples. Actively seek supporting and counter examples.
+4. Do not build or run tests unless you are explicitly allowed.
 
 ## Project Overview
 
@@ -26,8 +27,9 @@
 ## Key Commands
 
 ```bash
-dotnet build DRN.slnx          # Build solution
-# Run unit tests directly (avoids long-running performance tests)
+# Build solution
+dotnet build DRN.slnx
+# Run unit tests (avoids long-running performance tests)
 dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
 # Run integration tests only after unit tests pass
 dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj

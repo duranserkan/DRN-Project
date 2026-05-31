@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <DrnHostingViteManifestPublishItemsEnabled Condition="'$(DrnHostingViteManifestPublishItemsEnabled)' == ''">true</DrnHostingViteManifestPublishItemsEnabled>
+  </PropertyGroup>
+
+  <Target Name="DrnHostingIncludeViteManifestPublishItems"
+          BeforeTargets="AssignTargetPaths;GetCopyToPublishDirectoryItems;ComputeFilesToPublish"
+          Condition="'$(UsingMicrosoftNETSdkWeb)' == 'true' and '$(DrnHostingViteManifestPublishItemsEnabled)' == 'true'">
+    <ItemGroup>
+      <_DrnHostingViteManifestPublishFile Include="$(MSBuildProjectDirectory)/wwwroot/**/.vite/manifest.json"
+                                           Exclude="@(Content->'%(FullPath)')" />
+      <!-- Leave Link/TargetPath unset so the Web SDK assigns the project-relative path and preserves .vite once. -->
+      <Content Include="@(_DrnHostingViteManifestPublishFile)"
+               CopyToOutputDirectory="PreserveNewest"
+               CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+</Project>

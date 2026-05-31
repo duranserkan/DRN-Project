@@ -1,0 +1,4 @@
+<Project>
+  <Import Project="$(MSBuildThisFileDirectory)DRN.Framework.Hosting/buildTransitive/DRN.Framework.Hosting.targets"
+          Condition="Exists('$(MSBuildThisFileDirectory)DRN.Framework.Hosting/buildTransitive/DRN.Framework.Hosting.targets')" />
+</Project>

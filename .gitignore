@@ -10,6 +10,8 @@
 *.userosscache
 *.sln.docstates
 *.env
+.*env
+!.sample-env
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -452,6 +454,8 @@ FodyWeavers.xsd
 .idea/
 .idea
 .DS_Store
+.*_home/
+.dotnet/
 
 cmake*.*
 

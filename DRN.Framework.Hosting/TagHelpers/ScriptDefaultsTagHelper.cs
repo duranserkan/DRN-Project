@@ -58,9 +58,15 @@ public class ScriptDefaultsTagHelper : TagHelper
             return;
         }
 
+        if (hasSrc)
+        {
+            output.Attributes.RemoveAll("defer");
+            return;
+        }
+
         // Inline script without explicit type → module (strict + scoped + deferred)
         var needsType = string.IsNullOrEmpty(Type);
-        if (needsType && !hasSrc)
+        if (needsType)
             output.Attributes.SetAttribute("type", "module");
     }
 }

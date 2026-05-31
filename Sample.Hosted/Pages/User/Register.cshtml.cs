@@ -8,7 +8,7 @@ using Sample.Hosted.Settings;
 namespace Sample.Hosted.Pages.User;
 
 [AllowAnonymous]
-public class RegisterModel(UserManager<SampleUser> userManager, SignInManager<SampleUser> signInManager)
+public class RegisterModel(UserManager<SampleUser> userManager, SignInManager<SampleUser> signInManager, SampleIdentityConfig identityConfig)
     : PageModel
 {
     [BindProperty] public RegisterInput Input { get; set; } = null!;
@@ -25,7 +25,25 @@ public class RegisterModel(UserManager<SampleUser> userManager, SignInManager<Sa
         var result = await userManager.CreateAsync(user, Input.Password);
 
         if (result.Succeeded)
+        {
+            var requiredConfirmations = new List<string>();
+
+            var isEmailConfirmationRequired = identityConfig.RequireConfirmedAccount || identityConfig.RequireConfirmedEmail; // DefaultUserConfirmation only checks email for RequireConfirmedAccount
+            if (isEmailConfirmationRequired)
+                requiredConfirmations.Add("email");
+
+            var isPhoneConfirmationRequired = identityConfig.RequireConfirmedPhoneNumber;
+            if (isPhoneConfirmationRequired)
+                requiredConfirmations.Add("phone number");
+
+            if (requiredConfirmations.Count > 0)
+            {
+                var requiredText = string.Join(" and ", requiredConfirmations);
+                TempData[Get.TempDataKeys.StatusMessage] = $"Registration successful. Account confirmation is required. Please check your {requiredText} to confirm your account.";
+                return RedirectToPage(Get.Page.User.Login);
+            }
             return await this.RedirectToEnableAuthenticator(signInManager, user);
+        }
 
         return this.ReturnPageWithUserRegisterErrors(result);
     }

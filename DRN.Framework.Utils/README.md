@@ -714,9 +714,10 @@ Advanced DI container manipulation for testing and modularity.
 *   **Querying**: `sc.GetAllAssignableTo<TService>()` retrieves all descriptors matching a type.
 *   **Replacement**: `ReplaceScoped`, `ReplaceSingleton`, and `ReplaceInstance` for mocking/overriding dependencies in integration tests.
 
-### String & Binary Extensions
+### String, Path & Binary Extensions
 *   **Casing**: `ToSnakeCase`, `ToCamelCase`, and `ToPascalCase` for clean code-to-external system mapping.
 *   **Parsing**: `string.Parse<T>()` and `string.TryParse<T>(out result)` using the modern `IParsable<T>` interface.
+*   **Path**: `NormalizeDirectoryPath()` resolves a directory path to a full path and trims trailing separators without trimming filesystem roots. `IsPathWithinDirectory()` performs full-path containment checks.
 *   **Binary**: `ToStream()` and `ToByteArray()` shortcuts with UTF8 default.
 *   **FileSystem**: `GetLines()` for `IFileInfo` with efficient physical path reading.
 

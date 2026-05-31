@@ -17,7 +17,7 @@ public static class NexusModule
             .AddNexusApplicationServices()
             .Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024) // size limit
             //.ConfigureCookieAuthenticationOptions(settings) //todo: update with nexus implementation
-            .AddIdentityApiEndpoints<NexusUser>(ConfigureIdentity(settings.IsDevelopmentEnvironment));
+            .AddIdentityApiEndpoints<NexusUser>(ConfigureIdentity(settings));
         //.AddPersonalDataProtection<>() //todo: enable personal data protection
 
         services.AddServicesWithAttributes();
@@ -26,7 +26,7 @@ public static class NexusModule
     }
 
 
-    private static Action<IdentityOptions> ConfigureIdentity(bool development) => options =>
+    private static Action<IdentityOptions> ConfigureIdentity(IAppSettings settings) => options =>
     {
         options.User = IdentitySettings.UserOptions;
         options.Password = IdentitySettings.PasswordOptions;
@@ -34,8 +34,10 @@ public static class NexusModule
         options.Tokens = IdentitySettings.TokenOptions;
         options.Stores = IdentitySettings.StoreOptions;
         options.ClaimsIdentity = IdentitySettings.ClaimsIdentityOptions;
-        if (development) return;
 
-        options.SignIn = IdentitySettings.SignInOptions;
+        var config = settings.Get<NexusIdentityConfig>("Identity") ?? new NexusIdentityConfig();
+        options.SignIn.RequireConfirmedAccount = config.RequireConfirmedAccount;
+        options.SignIn.RequireConfirmedEmail = config.RequireConfirmedEmail;
+        options.SignIn.RequireConfirmedPhoneNumber = config.RequireConfirmedPhoneNumber;
     };
 }

@@ -20,6 +20,7 @@ Not every version includes changes, features or bug fixes. This project can incr
     *   Pre-auth and post-auth rejection logging now use `DrnRateLimit.PartitionLogMode`, defaulting to deterministic keyed hashes for correlation without raw API-key, tenant-hint, service-id, user-id, or IP leakage. `PlainText` can be enabled explicitly for controlled development or dedicated audit sinks.
     *   Pre-auth and post-auth token bucket settings can now diverge via phase-specific `DrnAppFeatures` overrides; pre-auth defaults are intentionally coarser for B2B NAT/VPN/CDN egress addresses.
     *   Production docs clarify rate limit settings, endpoint metadata usage, reference links, dynamic tenant-plan guidance, and that built-in limiter state is process-local and should be paired with edge or Redis-backed distributed limiting for horizontally scaled enforcement.
+*   **Vite Manifest Publish Support**: Added a transitive MSBuild target that includes `wwwroot/**/.vite/manifest.json` in Web SDK publish output so published applications preserve Vite manifest lookup, SRI generation, and static asset pre-warming. Set `DrnHostingViteManifestPublishItemsEnabled=false` to opt out.
 
 ## Version 0.9.4
 

@@ -6,11 +6,12 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Users;
 using Sample.Hosted.Extensions;
 using Sample.Hosted.Helpers;
+using Sample.Hosted.Settings;
 
 namespace Sample.Hosted.Pages.User;
 
 [AllowAnonymous]
-public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<SampleUser> userManager) : PageModel
+public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<SampleUser> userManager, SampleIdentityConfig identityConfig) : PageModel
 {
     [BindProperty]
     public LoginInput Input { get; set; } = null!;
@@ -39,6 +40,27 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
             return RedirectToPage(Get.Page.User.Lockout);
         if (!userLoginValidation.PasswordValid)
             return ReturnInvalidAttempt();
+
+        var missingConfirmations = new List<string>();
+
+        // DefaultUserConfirmation only checks email for RequireConfirmedAccount
+        var isEmailConfirmationRequired = identityConfig.RequireConfirmedAccount || identityConfig.RequireConfirmedEmail;
+        var isEmailUnconfirmed = !await userManager.IsEmailConfirmedAsync(user);
+        if (isEmailConfirmationRequired && isEmailUnconfirmed)
+            missingConfirmations.Add("email");
+
+        var isPhoneConfirmationRequired = identityConfig.RequireConfirmedPhoneNumber;
+        var isPhoneUnconfirmed = !await userManager.IsPhoneNumberConfirmedAsync(user);
+        if (isPhoneConfirmationRequired && isPhoneUnconfirmed)
+            missingConfirmations.Add("phone number");
+
+        if (missingConfirmations.Count > 0)
+        {
+            var missingText = string.Join(" and ", missingConfirmations);
+            ModelState.AddModelError(string.Empty, $"Confirmation is required to log in. Please confirm your {missingText}.");
+            return Page();
+        }
+
         if (!userLoginValidation.TwoFactorEnabled) //enforce Mfa
             return await this.RedirectToEnableAuthenticator(signInManager, user);
 

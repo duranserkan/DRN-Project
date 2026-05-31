@@ -693,6 +693,18 @@ string profileUrl = Get.User.ProfileDetail.Path(new() { ["id"] = userId.ToString
 | `PageAnchorTagHelper` | `<a asp-page="...">` | Automatically adds `active` CSS class if the link matches current page. |
 | `ScriptDefaultsTagHelper` | `<script>` | Modern defaults: `defer` for external scripts, `type="module"` for inline scripts. Opt-out via `defer="false"` or explicit `type`. |
 
+### Vite Manifest Publish Support
+
+`DRN.Framework.Hosting` ships a transitive MSBuild target that adds `wwwroot/**/.vite/manifest.json` files to Web SDK publish output. This keeps Vite manifest lookup, SRI generation, and static asset pre-warming working after publish, including Vite's default dot-directory manifest location.
+
+Disable the publish item injection when an application owns this behavior itself:
+
+```xml
+<PropertyGroup>
+  <DrnHostingViteManifestPublishItemsEnabled>false</DrnHostingViteManifestPublishItemsEnabled>
+</PropertyGroup>
+```
+
 ## Developer Diagnostics
 
 DRN Hosting provides deep observability into application failures, especially during the critical startup phase.
