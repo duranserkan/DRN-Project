@@ -20,9 +20,9 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Staging}
       ASPNETCORE_URLS: https://+:5999
       Environment: ${Environment:-Staging}
-      Identity__RequireConfirmedAccount: "false"
-      Identity__RequireConfirmedEmail: "false"
-      Identity__RequireConfirmedPhoneNumber: "false"
+      Identity__RequireConfirmedAccount: ${Identity__RequireConfirmedAccount:-false}
+      Identity__RequireConfirmedEmail: ${Identity__RequireConfirmedEmail:-false}
+      Identity__RequireConfirmedPhoneNumber: ${Identity__RequireConfirmedPhoneNumber:-false}
       DrnDevelopmentSettings__AutoMigrateStaging: ${DrnDevelopmentSettings__AutoMigrateStaging:-true}
       NexusAppSettings__MacKeys__0__Key: ${NexusAppSettings__MacKeys__0__Key:?configure in the .env file}
       NexusAppSettings__MacKeys__0__Default: ${NexusAppSettings__MacKeys__0__Default:-true}
@@ -70,7 +70,7 @@ services:
   rabbit:
     image: rabbitmq-drn:4.3.0-management-alpine
     build:
-      context: ./Docker/Rabbitmq/image/
+      context: ./Docker/Rabbitmq/Image/
     container_name: drn-infra-rabbit
     restart: unless-stopped
     ports:

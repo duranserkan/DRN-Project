@@ -6,7 +6,7 @@
     <ProjectGuid>{4D309D5E-EF0D-48E8-A141-3077D94E5D7B}</ProjectGuid>
     <DockerLaunchBrowser>True</DockerLaunchBrowser>
     <DockerServiceUrl>{Scheme}://localhost:{ServicePort}/swagger</DockerServiceUrl>
-    <DockerServiceName>sample.hosted</DockerServiceName>
+    <DockerServiceName>sample</DockerServiceName>
   </PropertyGroup>
   <ItemGroup>
     <None Include="docker-compose.override.yml">
@@ -14,5 +14,6 @@
     </None>
     <None Include="docker-compose.yml" />
     <None Include=".dockerignore" />
+    <None Include=".sample-env" />
   </ItemGroup>
 </Project>

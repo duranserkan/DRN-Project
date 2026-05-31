@@ -204,7 +204,7 @@ It is not about coding. It is about process of creating and enhancing good thing
 
 ### Solution Structure
 This solution consists of 6 parts that are being developed with Jetbrains Rider on macOS with arm-based M2 chip. However, I expect it to work on any modern machine since it is a cross-platform solution
-1. **Docker Folder:** It contains Dockerfile and standalone compose definitions for dependencies. `Docker/docker-compose.yml` remains the combined infra compose for PostgreSQL, RabbitMQ, and Graylog.
+1. **Docker Folder:** It contains Dockerfile and standalone compose definitions for dependencies. `Docker/Infra/docker-compose.yml` remains the combined infra compose for PostgreSQL, RabbitMQ, and Graylog.
 2. **Docs:** It contains project documents. This docs will be supported with articles and a YouTube playlist.
 3. **Items:** It contains file that does not belong anywhere else such as .gitignore, .dockerignore and .github workflows
 4. **Src:** It contains 3 folders that define 3 different **DRN** domain.
