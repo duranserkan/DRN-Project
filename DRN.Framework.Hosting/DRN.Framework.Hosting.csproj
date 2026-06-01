@@ -37,7 +37,8 @@
         </None>
         <None Update="buildTransitive/DRN.Framework.Hosting.targets">
             <Pack>True</Pack>
-            <PackagePath>buildTransitive/</PackagePath>
+            <!-- NuGet expects buildTransitive/{PackageId}.targets exactly; folder-only paths can preserve RecursiveDir. -->
+            <PackagePath>buildTransitive/$(PackageId).targets</PackagePath>
         </None>
         <None Include="wwwroot\jsoneditor\Notes" />
     </ItemGroup>

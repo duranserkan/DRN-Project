@@ -287,3 +287,21 @@ Explicitly enabled `knowledge_base.code_guidelines` in `.coderabbit.yaml` and se
 ### Decision Checkpoint
 
 Instead of bloating path instructions with generic text, use `reviews.path_instructions` only for path-specific overrides (like framework vs sample layers). Feed global project guidelines (like `AGENTS.md`) directly via `knowledge_base.code_guidelines.filePatterns`.
+
+## 13. NuGet buildTransitive Targets Need Exact Package Paths
+
+### Context
+
+`DRN.Framework.Hosting` ships a custom `buildTransitive` target so consuming web SDK projects include Vite manifests during publish.
+
+### Problem
+
+Using a folder-only `PackagePath` such as `buildTransitive/` can combine with item metadata like `RecursiveDir=buildTransitive/`, placing the file under a nested package path. NuGet then sees a `.targets` file somewhere under `buildTransitive/` but not the convention file `buildTransitive/{PackageId}.targets`, raising `NU5129` when warnings are treated as errors.
+
+### Fix Applied
+
+Set the package metadata to the full target file path, `buildTransitive/$(PackageId).targets`, and guard it with a unit test that reads the project file.
+
+### Decision Checkpoint
+
+For package `build`, `buildMultiTargeting`, and `buildTransitive` `.props` / `.targets` files, use the exact convention package path instead of relying on folder-only `PackagePath` behavior.

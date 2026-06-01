@@ -6,6 +6,24 @@ public class ViteManifestPublishTargetsTests
 {
     [Theory]
     [DataInlineUnit]
+    public void HostingProject_Should_Pack_Targets_File_At_NuGet_Expected_BuildTransitive_Path(
+        DrnTestContextUnit context)
+    {
+        _ = context;
+        var document = XDocument.Load(FindHostingProjectFile());
+
+        var projectPackageId = document.Descendants("PackageId").Single().Value;
+        var packagedTargets = document.Descendants("None")
+            .Single(element => element.Attribute("Update")?.Value == "buildTransitive/DRN.Framework.Hosting.targets");
+
+        var evaluatedPackagePath = packagedTargets.Element("PackagePath")?.Value.Replace("$(PackageId)", projectPackageId);
+
+        packagedTargets.Element("Pack")?.Value.Should().Be("True");
+        evaluatedPackagePath.Should().Be($"buildTransitive/{projectPackageId}.targets");
+    }
+
+    [Theory]
+    [DataInlineUnit]
     public void HostingTargets_Should_Define_Vite_Manifest_Publish_Items_For_Web_Sdk_Projects(DrnTestContextUnit context)
     {
         _ = context;
@@ -34,24 +52,26 @@ public class ViteManifestPublishTargetsTests
         content.Attribute("CopyToPublishDirectory")?.Value.Should().Be("PreserveNewest");
     }
 
+    private static string FindHostingProjectFile()
+        => FindHostingFile("DRN.Framework.Hosting.csproj");
+
     private static string FindHostingTargetsFile()
+        => FindHostingFile("buildTransitive", "DRN.Framework.Hosting.targets");
+
+    private static string FindHostingFile(params string[] pathSegments)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
 
         while (directory != null)
         {
-            var targetsFile = Path.Combine(
-                directory.FullName,
-                "DRN.Framework.Hosting",
-                "buildTransitive",
-                "DRN.Framework.Hosting.targets");
+            var path = Path.Combine([directory.FullName, "DRN.Framework.Hosting", .. pathSegments]);
 
-            if (File.Exists(targetsFile))
-                return targetsFile;
+            if (File.Exists(path))
+                return path;
 
             directory = directory.Parent;
         }
 
-        throw new FileNotFoundException("Could not find DRN.Framework.Hosting.targets from the test output directory.");
+        throw new FileNotFoundException($"Could not find {Path.Combine(pathSegments)} from the test output directory.");
     }
 }
