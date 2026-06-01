@@ -471,6 +471,7 @@ High-performance hashing extensions supporting modern and legacy algorithms.
 *   **Blake3**: Default modern cryptographic hash (fast and secure).
 *   **XxHash3**: Non-cryptographic hashing for performance-critical scenarios (IDs, Cache keys).
 *   **Security**: Keyed hashing support (`HashWithKey`) for integrity protection.
+*   **Streams**: Stream overloads hash files and large payloads without first materializing them as `BinaryData`.
 
 ### JSON & Document Utilities
 *   **JSON Merge Patch**: `JsonMergePatch.SafeApplyMergePatch` follows RFC 7386 for partial updates with built-in recursion depth protection.
@@ -523,6 +524,7 @@ var query = model.Serialize(SerializationMethod.QueryString);
 
 // Data Integrity
 var hash = data.Hash(HashAlgorithm.Blake3);
+var fileHash = fileStream.Hash(HashAlgorithm.Sha256);
 
 // Secure stream conversion
 var bytes = await requestStream.ToBinaryDataAsync(maxSize: 1024 * 1024);

@@ -217,7 +217,7 @@ if (scope.Acquired) { /* critical section */ }
 | Area | Key Types | Purpose |
 |------|-----------|---------|
 | **Data Encoding** | `EncodingExtensions` | Base64, Base64Url, Hex, Utf8 |
-| **Hashing** | `HashExtensions` | Blake3 (crypto), XxHash3 (fast), keyed hashing |
+| **Hashing** | `HashExtensions` | Blake3 (crypto), XxHash3 (fast), keyed and stream/file hashing |
 | **JSON** | `JsonMergePatch` | RFC 7386 merge patch with depth protection |
 | **Query Strings** | `QueryParameterSerializer` | Complex objects → query strings |
 | **Streams** | `ToBinaryDataAsync` | Safe consumption with `MaxSizeGuard` |

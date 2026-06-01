@@ -288,7 +288,25 @@ Explicitly enabled `knowledge_base.code_guidelines` in `.coderabbit.yaml` and se
 
 Instead of bloating path instructions with generic text, use `reviews.path_instructions` only for path-specific overrides (like framework vs sample layers). Feed global project guidelines (like `AGENTS.md`) directly via `knowledge_base.code_guidelines.filePatterns`.
 
-## 13. NuGet buildTransitive Targets Need Exact Package Paths
+## 13. File Hashing Should Stream Large Inputs
+
+### Context
+
+`HashExtensions.HashOfFile` and `HashOfFileWithKey` originally loaded the entire file with `File.ReadAllBytes` before hashing.
+
+### Problem
+
+Whole-file reads create avoidable large allocations and duplicate memory pressure for file and payload hashing. This is especially costly for asset manifests, uploads, and other hot paths where the hash algorithm can already process incremental chunks.
+
+### Fix Applied
+
+Add `Stream` overloads for `Hash`, `HashToBinary`, `Hash64Bit`, and `HashWithKey`, then route file hashing through `File.OpenRead`. BLAKE3 stream hashing uses a pooled 16 KiB chunk buffer aligned with BLAKE3's SIMD guidance and clears it before returning it to the pool. The string-returning `Hash(Stream, ...)` overload encodes directly instead of routing through `BinaryData`.
+
+### Decision Checkpoint
+
+For files and large payloads, prefer stream overloads over `BinaryData` or byte arrays. Keep byte-array and `BinaryData` overloads for already-materialized data.
+
+## 14. NuGet buildTransitive Targets Need Exact Package Paths
 
 ### Context
 

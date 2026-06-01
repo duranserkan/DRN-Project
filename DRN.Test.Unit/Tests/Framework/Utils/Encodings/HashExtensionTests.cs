@@ -30,6 +30,8 @@ public class HashExtensionTests
         new BinaryData(HelloWorld).Hash(algorithm, ByteEncoding.Hex).Should().Be(expectedHashHex);
         new BinaryData(HelloWorld).ToArray().Hash(algorithm, ByteEncoding.Hex).Should().Be(expectedHashHex);
         new BinaryData(HelloWorld).ToMemory().Hash(algorithm, ByteEncoding.Hex).Should().Be(expectedHashHex);
+        using var stream = new MemoryStream(new BinaryData(HelloWorld).ToArray());
+        stream.Hash(algorithm, ByteEncoding.Hex).Should().Be(expectedHashHex);
 
         var expectedBase64Hash = hashHex.Decode(ByteEncoding.Hex).Encode(ByteEncoding.Base64);
         var base64Hash = HelloWorld.Hash(algorithm, ByteEncoding.Base64);
@@ -51,6 +53,8 @@ public class HashExtensionTests
         new BinaryData(HelloWorld).HashToBinary().ToArray().Encode(ByteEncoding.Hex).Should().Be(HelloWorldBlake3Hash);
         new BinaryData(HelloWorld).ToArray().HashToBinary().ToArray().Encode(ByteEncoding.Hex).Should().Be(HelloWorldBlake3Hash);
         new BinaryData(HelloWorld).ToMemory().HashToBinary().ToArray().Encode(ByteEncoding.Hex).Should().Be(HelloWorldBlake3Hash);
+        using var stream = new MemoryStream(new BinaryData(HelloWorld).ToArray());
+        stream.HashToBinary().ToArray().Encode(ByteEncoding.Hex).Should().Be(HelloWorldBlake3Hash);
     }
 
     [Fact]
@@ -67,6 +71,8 @@ public class HashExtensionTests
         new BinaryData(HelloWorld).ToMemory().Hash64Bit().Should().Be(expectedHash64Bit);
         new BinaryData(HelloWorld).ToMemory().Span.Hash64Bit().Should().Be(expectedHash64Bit);
         new BinaryData(HelloWorld).ToArray().AsSpan().Hash64Bit().Should().Be(expectedHash64Bit);
+        using var stream = new MemoryStream(new BinaryData(HelloWorld).ToArray());
+        stream.Hash64Bit().Should().Be(expectedHash64Bit);
     }
 
     [Fact]
@@ -86,6 +92,10 @@ public class HashExtensionTests
         hashHex = helloWorldBinary.ToMemory().HashWithKey(helloWorldKeyBinary, HashAlgorithmSecure.Blake3With32CharKey, ByteEncoding.Hex);
         hashHex.Should().Be(HelloWorldBlake3HashWithKey);
 
+        using var stream = new MemoryStream(helloWorldBinary.ToArray());
+        hashHex = stream.HashWithKey(helloWorldKeyBinary, HashAlgorithmSecure.Blake3With32CharKey, ByteEncoding.Hex);
+        hashHex.Should().Be(HelloWorldBlake3HashWithKey);
+
         HelloWorld.GenerateSeedFromInputHash().Should().Be(4938522919252271305);
     }
 
@@ -98,5 +108,11 @@ public class HashExtensionTests
 
         path.HashOfFile(encoding: ByteEncoding.Hex).Should().Be(HelloWorldBlake3Hash);
         path.HashOfFileWithKey(new BinaryData(HelloWorldKey), encoding: ByteEncoding.Hex).Should().Be(HelloWorldBlake3HashWithKey);
+
+        using var stream = File.OpenRead(path);
+        stream.Hash(encoding: ByteEncoding.Hex).Should().Be(HelloWorldBlake3Hash);
+
+        using var keyedStream = File.OpenRead(path);
+        keyedStream.HashWithKey(new BinaryData(HelloWorldKey), encoding: ByteEncoding.Hex).Should().Be(HelloWorldBlake3HashWithKey);
     }
 }
