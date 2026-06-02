@@ -17,22 +17,38 @@ public static class HashExtensions
         HashAlgorithmSecure algorithm = HashAlgorithmSecure.Blake3With32CharKey,
         ByteEncoding encoding = ByteEncoding.Base64UrlEncoded)
     {
-        if (!File.Exists(filePath))
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            return stream.HashWithKey(key, algorithm, encoding);
+        }
+        catch (FileNotFoundException)
+        {
             return string.Empty;
-
-        using var stream = File.OpenRead(filePath);
-        return stream.HashWithKey(key, algorithm, encoding);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return string.Empty;
+        }
     }
 
     public static string HashOfFile(this string filePath,
         HashAlgorithm algorithm = HashAlgorithm.Blake3,
         ByteEncoding encoding = ByteEncoding.Base64UrlEncoded)
     {
-        if (!File.Exists(filePath))
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            return stream.Hash(algorithm, encoding);
+        }
+        catch (FileNotFoundException)
+        {
             return string.Empty;
-
-        using var stream = File.OpenRead(filePath);
-        return stream.Hash(algorithm, encoding);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return string.Empty;
+        }
     }
 
     public static string Hash(this string value,
