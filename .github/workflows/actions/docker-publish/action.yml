@@ -15,8 +15,8 @@ runs:
         tags: |
           type=ref,event=branch
           type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{version}},match=^release/v(\d+\.\d+\.\d+(?:-preview[0-9]*)?)$
+          type=semver,pattern={{major}}.{{minor}},match=^release/v(\d+\.\d+\.\d+(?:-preview[0-9]*)?)$
     - name: Build and push Docker image
       id: container-build-push
       uses: docker/build-push-action@v6
