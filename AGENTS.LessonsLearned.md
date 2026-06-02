@@ -323,3 +323,21 @@ Set the package metadata to the full target file path, `buildTransitive/$(Packag
 ### Decision Checkpoint
 
 For package `build`, `buildMultiTargeting`, and `buildTransitive` `.props` / `.targets` files, use the exact convention package path instead of relying on folder-only `PackagePath` behavior.
+
+## 15. Docker Scout Reads .NET Shared-Framework Metadata from deps.json
+
+### Context
+
+RID-specific, framework-dependent Docker publishes can emit `.deps.json` entries for shared frameworks such as `Microsoft.NETCore.App` and `Microsoft.AspNetCore.App`. Vulnerability scanners may treat those metadata entries as installed packages even when the final image supplies a patched shared runtime.
+
+### Problem
+
+For framework-dependent apps, `TargetLatestRuntimePatch` defaults to `false`. A Dockerfile can therefore run on a patched base image while generated `.deps.json` files still reference the target framework's default or previously restored runtime patch, producing Docker Scout false positives.
+
+### Fix Applied
+
+Keep the final ASP.NET runtime image patch and the restore/build/publish metadata aligned. Docker builds pin the runtime version once and pass `RuntimeFrameworkVersion`, `TargetLatestRuntimePatch=true`, `SelfContained=false`, and `UseAppHost=false` consistently through restore, build, and publish.
+
+### Decision Checkpoint
+
+When upgrading .NET Docker runtime patches, update the Docker runtime image tag and the publish metadata together. If a scanner still reports a non-applicable CVE after metadata is aligned, attach a Docker Scout exception or VEX statement rather than deleting required `.deps.json` files.

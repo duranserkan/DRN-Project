@@ -11,12 +11,12 @@ runs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-          images: duranserkan/${{ inputs.image-repository-name }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+        images: duranserkan/${{ inputs.image-repository-name }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}},match=^release/v(\d+\.\d+\.\d+(?:-preview[0-9]*)?)$
+          type=semver,pattern={{major}}.{{minor}},match=^release/v(\d+\.\d+\.\d+(?:-preview[0-9]*)?)$
     - name: Build and push Docker image
       id: container-build-push
       uses: docker/build-push-action@v6
@@ -37,6 +37,8 @@ runs:
         command: quickview,cves,recommendations
         sarif-file: sarif.${{ inputs.project-name }}.output.json
         summary: true
+        only-severities: critical,high,medium
+        ignore-base: true
     - name: Upload SARIF result
       id: upload-container-sarif
       if: ${{ github.event_name != 'pull_request' }}
