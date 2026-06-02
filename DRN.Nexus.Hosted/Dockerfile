@@ -3,11 +3,14 @@
 #https://www.jetbrains.com/help/rider/Docker_fast_mode.html
 #from solution root: docker build -f DRN.Nexus.Hosted/Dockerfile -t drn/nexus.hosted:localbuild .
 ARG PROJECT=DRN.Nexus.Hosted
+ARG DOTNET_RUNTIME_VERSION=10.0.8
+ARG DOTNET_SDK_VERSION=10.0.300
+ARG DOTNET_DISTRO=resolute
 
 #https://www.mytechramblings.com/posts/testing-chiseled-ubuntu-containers-with-dotnet/
 #https://hub.docker.com/r/ubuntu/dotnet-aspnet use this dotnet deps with self contained apps are not supported with dockerfastmode
 #https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/ enable buildkit to build multiplatform images
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.8-resolute-chiseled-extra AS base
+FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_RUNTIME_VERSION}-${DOTNET_DISTRO}-chiseled-extra AS base
 ARG TARGETARCH
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -25,17 +28,31 @@ WORKDIR /app
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
 #https://mcr.microsoft.com/en-us/artifact/mar/dotnet/sdk/tags
 #build image should use same distro with base image to prevent mismatches such as Alpine (Musl) vs. Ubuntu (Glibc)
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.300-resolute   AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${DOTNET_SDK_VERSION}-${DOTNET_DISTRO} AS build
 ARG PROJECT
 ARG TARGETARCH
+ARG DOTNET_RUNTIME_VERSION
 
 WORKDIR /app
 COPY . ./
 
 #https://learn.microsoft.com/en-us/dotnet/core/rid-catalog
-RUN dotnet restore "./${PROJECT}/${PROJECT}.csproj"  -a "$TARGETARCH"
-RUN dotnet build "./${PROJECT}/${PROJECT}.csproj" -c Release  --no-restore -a "$TARGETARCH"
-RUN dotnet publish "./${PROJECT}/${PROJECT}.csproj" -c Release -o /app/publish --no-restore --no-build -a "$TARGETARCH"
+# Keep generated .deps.json framework metadata aligned with the runtime image patch level.
+RUN dotnet restore "./${PROJECT}/${PROJECT}.csproj" -a "$TARGETARCH" \
+    -p:RuntimeFrameworkVersion="$DOTNET_RUNTIME_VERSION" \
+    -p:TargetLatestRuntimePatch=true \
+    -p:SelfContained=false \
+    -p:UseAppHost=false
+RUN dotnet build "./${PROJECT}/${PROJECT}.csproj" -c Release --no-restore -a "$TARGETARCH" \
+    -p:RuntimeFrameworkVersion="$DOTNET_RUNTIME_VERSION" \
+    -p:TargetLatestRuntimePatch=true \
+    -p:SelfContained=false \
+    -p:UseAppHost=false
+RUN dotnet publish "./${PROJECT}/${PROJECT}.csproj" -c Release -o /app/publish --no-restore --no-build -a "$TARGETARCH" \
+    -p:RuntimeFrameworkVersion="$DOTNET_RUNTIME_VERSION" \
+    -p:TargetLatestRuntimePatch=true \
+    -p:SelfContained=false \
+    -p:UseAppHost=false
 
 # Build runtime image
 FROM base AS final
