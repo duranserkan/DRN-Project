@@ -12,6 +12,7 @@ using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.RateLimiting;
 using DRN.Framework.Hosting.Utils;
 using DRN.Framework.Hosting.Utils.Vite;
+using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Configurations;
@@ -578,14 +579,41 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     {
         return options =>
         {
-            if (options.AllowedHosts.Count != 0) return;
+            if (options.AllowedHosts.Count != 0)
+            {
+                EnsureAllowedHostsSafe(options.AllowedHosts, appSettings);
+                return;
+            }
 
             // "AllowedHosts": "localhost;127.0.0.1;[::1]"
-            var hosts = appSettings.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries);
-            // Fall back to "*" to disable.
-            options.AllowedHosts = hosts?.Length > 0 ? hosts : ["*"];
+            var hosts = appSettings.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (hosts?.Length > 0)
+            {
+                EnsureAllowedHostsSafe(hosts, appSettings);
+                options.AllowedHosts = hosts;
+                return;
+            }
+
+            if (appSettings.IsDevelopmentEnvironment)
+            {
+                // Fall back to "*" only for local development convenience.
+                options.AllowedHosts = ["*"];
+                return;
+            }
+
+            throw new ConfigurationException("AllowedHosts must be configured outside Development.");
         };
     }
+
+    private static void EnsureAllowedHostsSafe(IEnumerable<string> hosts, IAppSettings appSettings)
+    {
+        if (appSettings.IsDevelopmentEnvironment) return;
+
+        if (hosts.Any(IsWildcardAllowedHost))
+            throw new ConfigurationException("AllowedHosts cannot contain '*' outside Development.");
+    }
+
+    private static bool IsWildcardAllowedHost(string host) => host.Trim() == "*";
 
     /// <summary>
     /// Commonly used for improving behavior not returning a response

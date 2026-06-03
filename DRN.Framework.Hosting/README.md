@@ -287,6 +287,10 @@ These hooks define the request processing middleware sequence.
 5.  **Mounted Directories** (e.g. `/app/config`)
 6.  **Command Line Arguments**
 
+### Host Filtering
+
+`AllowedHosts` must be configured outside Development and cannot be `*`. Development may fall back to `*` for local convenience; production and staging should use explicit host names such as `example.com;api.example.com`.
+
 ### Reference Configurations
 
 #### NLog (Logging)
