@@ -378,7 +378,8 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
 
 ### 3. Content Security Policy (Nonce-based)
 DRN automatically generates a unique cryptographic nonce for every request.
-*   **Automatic Protection**: Scripts and styles without a matching nonce are blocked by the browser, stopping most XSS attacks.
+*   **Baseline**: `default-src 'none'` with explicit same-origin allowlists for styles, images, fonts, connections, media, manifests, and workers.
+*   **Automatic Protection**: Inline scripts and inline style elements without a matching nonce are blocked by the browser, stopping most XSS attacks.
 *   **Usage**: Use the `NonceTagHelper` (see below) to automatically inject these nonces.
 
 ### 4. Transparent Security Headers

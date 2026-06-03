@@ -410,12 +410,21 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
     protected virtual void ConfigureDefaultCspBase(CspBuilder builder)
     {
+        builder.AddDefaultSrc().None();
         builder.AddBaseUri().Self();
         builder.AddFormAction().Self();
 
         builder.AddObjectSrc().None();
         builder.AddFrameAncestors().None();
         builder.AddScriptSrcAttr().None();
+        builder.AddStyleSrc().Self().WithNonce();
+        builder.AddStyleSrcAttr().UnsafeInline();
+        builder.AddImgSrc().Self().Data();
+        builder.AddConnectSrc().Self();
+        builder.AddFontSrc().Self().Data();
+        builder.AddMediaSrc().Self();
+        builder.AddManifestSrc().Self();
+        builder.AddWorkerSrc().Self().Blob();
     }
 
     protected virtual void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings)
