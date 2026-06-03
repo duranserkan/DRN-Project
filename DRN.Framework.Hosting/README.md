@@ -731,6 +731,7 @@ The framework includes built-in Razor Pages for developer-time exception handlin
 -   **Size gate** — requests exceeding the buffer limit are silently skipped (no buffering, no memory risk)
 -   **Method filter** — only POST/PUT/PATCH are buffered; GET/HEAD/DELETE/OPTIONS carry no semantic body
 -   **Chunked transfer** — requests without `Content-Length` (chunked encoding) are skipped to prevent unbounded DoS
+-   **Pool hygiene** — temporary character buffers are cleared before returning to the shared pool
 -   **Kestrel enforcement** — Content-Length is validated per-protocol (HTTP/1.1 slicing, HTTP/2 PROTOCOL_ERROR, HTTP/3 QUIC framing)
 
 **Configuration** via `DrnAppFeatures` (in `appsettings.json`):
