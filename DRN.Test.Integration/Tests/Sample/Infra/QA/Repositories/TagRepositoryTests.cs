@@ -1,6 +1,7 @@
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Test.Integration.Tests.Sample.Infra.QA.Repositories.Data;
+using Sample.Domain.QA.Categories;
 using Sample.Domain.QA.Tags;
 using Sample.Infra;
 using Sample.Infra.QA;
@@ -60,7 +61,7 @@ public class TagRepositoryTests
         var afterTagCreation = DateTimeOffset.UtcNow;
 
         AssertValidations(firstTag, repository);
-        await AssertCrud(repository, firstTag, secondTag, thirdTag, tagPrefix);
+        await AssertCrud(context, repository, firstTag, secondTag, thirdTag, tagPrefix);
         await AssertPagination(beforeTagCreation, afterTagCreation, repository, firstTag, secondTag);
 
         var firstPageResult = await repository.PaginateAsync(pageSize: 1, direction: PageSortDirection.Descending, updateTotalCount: true);
@@ -95,7 +96,7 @@ public class TagRepositoryTests
     }
 
 
-    private static async Task AssertCrud(ITagRepository repository, Tag firstTag, Tag secondTag, Tag thirdTag, string tagPrefix)
+    private static async Task AssertCrud(DrnTestContext context, ITagRepository repository, Tag firstTag, Tag secondTag, Tag thirdTag, string tagPrefix)
     {
         var tagFromDb = await repository.GetAsync(firstTag.EntityId);
         tagFromDb.Should().Be(firstTag);
@@ -183,6 +184,25 @@ public class TagRepositoryTests
         await repository.DeleteAsync(sixthTag, seventhTag);
         count = await repository.CountAsync(t => t.Model.StringValue == stringValue);
         count.Should().Be(0);
+
+        await AssertCrossEntityIdCollectionValidation(context, repository, tagPrefix);
+    }
+
+    private static async Task AssertCrossEntityIdCollectionValidation(DrnTestContext context, ITagRepository repository, string tagPrefix)
+    {
+        using var scope = context.CreateScope();
+        var qaContext = scope.ServiceProvider.GetRequiredService<QAContext>();
+        var category = new Category($"{tagPrefix}_wrong_type_category");
+        qaContext.Categories.Add(category);
+        await qaContext.SaveChangesAsync();
+
+        var wrongTypeIds = new[] { category.EntityIdSource };
+
+        var readAction = async () => await repository.GetAsync(wrongTypeIds);
+        await readAction.Should().ThrowAsync<ValidationException>();
+
+        var deleteAction = async () => await repository.DeleteAsync(wrongTypeIds);
+        await deleteAction.Should().ThrowAsync<ValidationException>();
     }
 
     private static void AssertValidations(Tag firstTag, ITagRepository repository)

@@ -450,6 +450,9 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     protected static IQueryable<TEntity> Filter(IQueryable<TEntity> query, params IReadOnlyCollection<SourceKnownEntityId> ids)
     {
+        foreach (var id in ids)
+            id.Validate<TEntity>();
+
         var sourceKnownIds = ids.Select(sourceKnownEntityId => sourceKnownEntityId.Source.Id).ToArray();
 
         return Filter(query, sourceKnownIds);
