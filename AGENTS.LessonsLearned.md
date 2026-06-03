@@ -341,3 +341,21 @@ Keep the final ASP.NET runtime image patch and the restore/build/publish metadat
 ### Decision Checkpoint
 
 When upgrading .NET Docker runtime patches, update the Docker runtime image tag and the publish metadata together. If a scanner still reports a non-applicable CVE after metadata is aligned, attach a Docker Scout exception or VEX statement rather than deleting required `.deps.json` files.
+
+## 16. Interface Substitutes Do Not Exercise Concrete Convenience Methods
+
+### Context
+
+`IAppSettings.GetDebugView(...)` is implemented by `AppSettings`, but unit tests may use `Substitute.For<IAppSettings>()` to control only the configuration/environment surface.
+
+### Problem
+
+Calling a convenience method on an interface substitute returns NSubstitute's configured/default value; it does not execute the concrete `AppSettings` method. This can silently turn a redaction or mapping test into a null/default-value test unless the method is explicitly configured.
+
+### Fix Applied
+
+Use the real concrete implementation when testing the public convenience method. When testing a collaborator that only needs the interface data, construct that collaborator directly with the substitute.
+
+### Decision Checkpoint
+
+If the behavior under test lives in a concrete class, instantiate that class. Use interface substitutes for dependencies, not for methods whose implementation is the subject of the assertion.
