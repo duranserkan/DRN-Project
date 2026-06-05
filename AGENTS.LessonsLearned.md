@@ -332,11 +332,11 @@ RID-specific, framework-dependent Docker publishes can emit `.deps.json` entries
 
 ### Problem
 
-For framework-dependent apps, `TargetLatestRuntimePatch` defaults to `false`. A Dockerfile can therefore run on a patched base image while generated `.deps.json` files still reference the target framework's default or previously restored runtime patch, producing Docker Scout false positives.
+For framework-dependent apps, shared-framework metadata in `.deps.json` must stay deterministic and match the runtime image patch. Mixing an exact `RuntimeFrameworkVersion` with legacy patch-floating flags can obscure which patch the artifact was built against and make scanner evidence harder to reason about.
 
 ### Fix Applied
 
-Keep the final ASP.NET runtime image patch and the restore/build/publish metadata aligned. Docker builds pin the runtime version once and pass `RuntimeFrameworkVersion`, `TargetLatestRuntimePatch=true`, `SelfContained=false`, and `UseAppHost=false` consistently through restore, build, and publish.
+Keep the final ASP.NET runtime image patch and the restore/build/publish metadata aligned. Docker builds pin the runtime version once and pass `RuntimeFrameworkVersion`, `SelfContained=false`, and `UseAppHost=false` consistently through restore, build, and publish. Do not add `TargetLatestRuntimePatch` when the exact runtime patch is already supplied.
 
 ### Decision Checkpoint
 
