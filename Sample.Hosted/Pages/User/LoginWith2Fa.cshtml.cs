@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Utils.Auth.MFA;
@@ -67,15 +68,29 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager, MfaRedirectio
 
     public int TrackInvalidCodeAttempt(HttpContext context)
     {
-        var count = int.Parse(context.Request.Cookies[InvalidCodeAttempts] ?? "0");
+        var count = ReadInvalidCodeAttempts(context);
         var updatedCount = count + 1;
 
-        context.Response.Cookies.Append(InvalidCodeAttempts, updatedCount.ToString());
+        context.Response.Cookies.Append(InvalidCodeAttempts, updatedCount.ToString(CultureInfo.InvariantCulture), new CookieOptions
+        {
+            HttpOnly = true,
+            SameSite = SameSiteMode.Strict,
+            Secure = context.Request.IsHttps
+        });
 
         return updatedCount;
     }
 
     public void ResetInvalidCodeAttempts(HttpContext context) => context.Response.Cookies.Delete(InvalidCodeAttempts);
+
+    private static int ReadInvalidCodeAttempts(HttpContext context)
+    {
+        var cookieValue = context.Request.Cookies[InvalidCodeAttempts];
+        return int.TryParse(cookieValue, NumberStyles.None, CultureInfo.InvariantCulture, out var count) &&
+               count < int.MaxValue
+            ? count
+            : 0;
+    }
 }
 
 public class Login2FaModel

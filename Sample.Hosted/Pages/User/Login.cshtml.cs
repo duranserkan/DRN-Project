@@ -64,7 +64,7 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
         if (!userLoginValidation.TwoFactorEnabled) //enforce Mfa
             return await this.RedirectToEnableAuthenticator(signInManager, user);
 
-        var result = await signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+        var result = await signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: true);
         if (!result.RequiresTwoFactor)
             return ReturnInvalidAttempt();
 
@@ -78,12 +78,30 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
 
     private async Task<UserLoginValidation> ValidateUserLoginAsync(SampleUser user)
     {
-        var lockOutValidationTask = userManager.IsLockedOutAsync(user);
-        var passwordCheckTask = userManager.CheckPasswordAsync(user, Input.Password);
-        var twoFactorEnabledTask = userManager.GetTwoFactorEnabledAsync(user);
-        await Task.WhenAll(lockOutValidationTask, passwordCheckTask, twoFactorEnabledTask);
+        if (await userManager.IsLockedOutAsync(user))
+            return new UserLoginValidation(true, false, false);
 
-        return new UserLoginValidation(lockOutValidationTask.Result, passwordCheckTask.Result, twoFactorEnabledTask.Result);
+        var passwordValid = await userManager.CheckPasswordAsync(user, Input.Password);
+        if (!passwordValid)
+        {
+            if (userManager.SupportsUserLockout)
+            {
+                var accessFailedResult = await userManager.AccessFailedAsync(user);
+                if (!accessFailedResult.Succeeded)
+                    return new UserLoginValidation(false, false, false);
+
+                if (await userManager.IsLockedOutAsync(user))
+                    return new UserLoginValidation(true, false, false);
+            }
+
+            return new UserLoginValidation(false, false, false);
+        }
+
+        if (userManager.SupportsUserLockout)
+            await userManager.ResetAccessFailedCountAsync(user);
+
+        var twoFactorEnabled = await userManager.GetTwoFactorEnabledAsync(user);
+        return new UserLoginValidation(false, true, twoFactorEnabled);
     }
 
     private PageResult ReturnInvalidAttempt()
