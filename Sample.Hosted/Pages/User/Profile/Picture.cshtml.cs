@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Application.Services;
 using Sample.Domain.Users;
-using Sample.Hosted.Helpers;
+using ValidationException = DRN.Framework.SharedKernel.ValidationException;
 
 namespace Sample.Hosted.Pages.User.Profile;
 
@@ -25,8 +25,8 @@ public class ProfilePictureModel(
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if (!ModelState.IsValid) return Page();
-        if (Input.ProfilePicture == null) return Page();
+        if (!ModelState.IsValid || Input.ProfilePicture == null) 
+            return Page();
         if (Input.ProfilePicture.Length > MaxFileSize)
         {
             ModelState.AddModelError(nameof(Input.ProfilePicture), "The uploaded file is too large. Maximum allowed size is 100KB.");
@@ -34,10 +34,19 @@ public class ProfilePictureModel(
         }
 
         var user = await userManager.GetUserAsync(User);
-        if (user == null) throw ExceptionFor.NotFound("User not found");
+        if (user == null) 
+            throw ExceptionFor.NotFound("User not found");
 
         await using var stream = Input.ProfilePicture.OpenReadStream();
-        await service.CreateProfilePictureAsync(user, stream, MaxFileSize);
+        try
+        {
+            await service.CreateProfilePictureAsync(user, stream, MaxFileSize);
+        }
+        catch (ValidationException exception)
+        {
+            ModelState.AddModelError(nameof(Input.ProfilePicture), exception.Message);
+            return Page();
+        }
 
         // Sign in the user to update the claims
         await signInManager.RefreshSignInAsync(user);

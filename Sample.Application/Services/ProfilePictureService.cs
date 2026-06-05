@@ -16,8 +16,19 @@ public class ProfilePictureService(IProfilePictureRepository repository) : IProf
     public async Task CreateProfilePictureAsync(SampleUser user, Stream pictureStream, long maxSize)
     {
         var pictureBytes = await pictureStream.ToArrayAsync(maxSize);
+        if (!IsJpeg(pictureBytes))
+            throw ExceptionFor.Validation("Profile picture must be a valid JPEG image.");
+
         var profilePicture = new ProfilePicture(user, pictureBytes);
 
         await repository.UpdateProfilePictureAsync(profilePicture, user);
     }
+
+    private static bool IsJpeg(ReadOnlySpan<byte> imageData)
+        => imageData.Length >= 4
+           && imageData[0] == 0xFF
+           && imageData[1] == 0xD8
+           && imageData[2] == 0xFF
+           && imageData[^2] == 0xFF
+           && imageData[^1] == 0xD9;
 }

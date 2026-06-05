@@ -85,6 +85,6 @@ public static class StreamExtensions
     private static void MaxSizeGuard(long length, long maxSize)
     {
         if (length > maxSize)
-            throw new InvalidOperationException($"The stream exceeds the maximum allowed size of {maxSize:N0} bytes.");
+            throw new ValidationException($"The stream exceeds the maximum allowed size of {maxSize:N0} bytes.");
     }
 }
