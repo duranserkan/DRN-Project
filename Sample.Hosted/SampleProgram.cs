@@ -22,6 +22,8 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
         => new(Get.Page.User.Management.EnableAuthenticator, Get.Page.User.LoginWith2Fa,
             Get.Page.User.Login, Get.Page.User.Logout, Get.Page.All);
 
+    //todo: Re-evaluate Identity bearer MFA semantics in isolation. Decide whether bearer should stay
+    // as an MFA exemption or satisfy MFA only through ambient ScopeContext.User.Amr.
     protected override MfaExemptionConfig ConfigureMFAExemption()
         => new() { ExemptAuthSchemes = [IdentityConstants.BearerScheme] };
 }

@@ -359,3 +359,17 @@ Use the real concrete implementation when testing the public convenience method.
 ### Decision Checkpoint
 
 If the behavior under test lives in a concrete class, instantiate that class. Use interface substitutes for dependencies, not for methods whose implementation is the subject of the assertion.
+
+## 17. TODO: Re-evaluate Identity Bearer MFA Semantics
+
+### Context
+
+Bearer/MFA hardening was explored and then removed because it became confusing among broader security fixes. The discussion mixed ambient MFA state (`ScopeContext.User.Amr`), bearer token issuance, refresh token principal handling, and configured MFA exemption schemes.
+
+### Current Understanding
+
+`MfaFor.MfaCompleted` is the simple ambient request check and should remain the default mental model. `MfaExemptionMiddleware` currently represents configured scheme exemptions, not a fully named "MFA-satisfying scheme" abstraction.
+
+### Future TODO
+
+Re-evaluate Identity bearer authentication in an isolated change. Decide whether Identity bearer should be treated as a true MFA-exempt scheme, should satisfy MFA only through ambient `ScopeContext` when `amr=mfa` is present, or needs a separately named request-level concept. If revisited, keep the design small, document the chosen contract, and add focused tests for password-only bearer, MFA bearer, refresh, and mixed authentication schemes.
