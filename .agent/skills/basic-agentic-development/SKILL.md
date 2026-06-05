@@ -63,7 +63,7 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 ### 4. Verification
 
 **Mandatory order**: Build → Test → Lint → Self-Correct
-- .NET: `dotnet build` → `dotnet test`
+- .NET: `dotnet build` → `dotnet run --project` (for test projects)
 - Node: `npm run build` / `npm run typecheck` → `npm test`
 - Fix warnings introduced by your changes (Boy Scout Rule)
 - Use relative paths in code/configs, not absolute paths

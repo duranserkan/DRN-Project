@@ -30,9 +30,10 @@ Open an issue with the `enhancement` label. Describe:
    ```
 3. **Make your changes** following the conventions below
 4. **Write or update tests** — integration-first (DTT philosophy)
-5. **Run the full test suite**:
+5. **Run the test suite**:
    ```bash
-   dotnet test DRN.slnx
+   dotnet run --project DRN.Test.Unit
+   dotnet run --project DRN.Test.Integration
    ```
 6. **Commit** with a clear message following [Conventional Commits](https://www.conventionalcommits.org/):
    ```
@@ -66,7 +67,8 @@ dotnet build DRN.slnx
 ### Testing
 
 ```bash
-dotnet test DRN.slnx
+dotnet run --project DRN.Test.Unit
+dotnet run --project DRN.Test.Integration
 ```
 
 Tests use **Testcontainers** — Docker must be running for integration tests.

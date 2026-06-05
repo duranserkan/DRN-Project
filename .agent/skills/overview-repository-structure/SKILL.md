@@ -146,7 +146,8 @@ Sample.Hosted
 dotnet build DRN.slnx
 
 # Run tests
-dotnet test DRN.slnx
+dotnet run --project DRN.Test.Unit
+dotnet run --project DRN.Test.Integration
 
 # Run Sample.Hosted
 dotnet run --project Sample.Hosted

@@ -130,7 +130,8 @@ Update project names in build commands:
 
 ```bash
 dotnet build <solution-file>              # Build solution
-dotnet test <solution-file>               # Run all tests
+dotnet run --project <unit-test-csproj>   # Run unit tests
+dotnet run --project <integration-test-csproj> # Run integration tests
 ```
 
 ### 3.3 Skill Discovery

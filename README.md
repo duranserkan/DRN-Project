@@ -73,11 +73,11 @@ dotnet build DRN.slnx                                  # Build the entire soluti
 dotnet run --project Sample.Hosted                      # Run the sample web application (requires Docker)
 dotnet run --project DRN.Test.Unit                      # Run unit tests
 dotnet run --project DRN.Test.Integration               # Run integration tests (requires Docker)
-dotnet test DRN.Test.Performance -c Release             # Run all performance benchmarks (requires Release build)
-dotnet test DRN.Test.Performance -c Release --filter SourceKnownIdUtils  # Run SKID/SKEID benchmark only
+dotnet run --project DRN.Test.Performance -c Release     # Run all performance benchmarks (requires Release build)
+dotnet run --project DRN.Test.Performance -c Release -- --filter SourceKnownIdUtils  # Run SKID/SKEID benchmark only
 ```
 
-> Unit and integration test projects use [Microsoft Testing Platform (MTP) 2.0](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-intro) with xUnit v3 and are built as standalone executables. Use `dotnet run --project` to execute them. Performance tests use the classic test SDK with `dotnet test`.
+> All test projects (unit, integration, and performance) use [Microsoft Testing Platform (MTP) 2.0](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-intro) with xUnit v3 and are built as standalone executables. Use `dotnet run --project` to execute them.
 
 > **Debugging tip:** If the application fails to start in `Development` mode, `DrnProgramBase` automatically generates a `StartupExceptionReport.html` in the output directory with a detailed, browsable error report.
 
