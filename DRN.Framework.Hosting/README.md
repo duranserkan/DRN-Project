@@ -786,6 +786,8 @@ The framework provides a structured way to handle user privacy choices:
 3. Requests each asset with `Accept-Encoding: br` and `Accept-Encoding: gzip` against the loopback address (via `IServerSettings`)
 4. `ResponseCaching` stores each compressed variant keyed on `Vary: Accept-Encoding`
 
+The warm-up client only accepts loopback base addresses before installing its certificate-bypass handler. Wildcard server bindings are normalized to localhost; non-loopback bindings are ignored for warm-up.
+
 **Compression defaults** — both use `CompressionLevel.SmallestSize` (maximum compression) since only static files are compressed and the cost is paid once at startup:
 
 | Provider | Default Level | Override Hook |

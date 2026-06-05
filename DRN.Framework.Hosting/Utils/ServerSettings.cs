@@ -58,11 +58,14 @@ public sealed class ServerSettings : IServerSettings
             if (!Uri.TryCreate(address, UriKind.Absolute, out var uri))
                 continue;
 
-            var host = NormalizeHost(uri.Host);
-            var normalized = $"{uri.Scheme}://{host}:{uri.Port}";
+            var normalizedUri = CreateNormalizedLoopbackUri(uri);
+            if (normalizedUri == null)
+                continue;
+
+            var normalized = normalizedUri.GetLeftPart(UriPartial.Authority);
 
             // Prefer HTTP to avoid TLS handshake overhead for self-requests
-            if (uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase))
+            if (normalizedUri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase))
                 return normalized;
 
             httpsAddress ??= normalized;
@@ -100,7 +103,15 @@ public sealed class ServerSettings : IServerSettings
     /// <returns>The normalized host, with wildcards replaced by "localhost".</returns>
     public static string NormalizeHost(string host) => host switch
     {
-        "0.0.0.0" or "[::]" or "+" or "*" => "localhost",
+        "0.0.0.0" or "::" or "[::]" or "+" or "*" => "localhost",
         _ => host
     };
+
+    private static Uri? CreateNormalizedLoopbackUri(Uri uri)
+    {
+        var host = NormalizeHost(uri.Host);
+        var normalizedUri = new UriBuilder(uri.Scheme, host, uri.Port).Uri;
+
+        return normalizedUri.IsLoopback ? normalizedUri : null;
+    }
 }
