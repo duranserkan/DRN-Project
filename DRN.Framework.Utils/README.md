@@ -254,9 +254,12 @@ public class MyService(IAppSettings settings)
         
         var conn = settings.GetRequiredConnectionString("Default");
         var value = settings.GetValue<int>("MySettings:Timeout", 30);
+        var debugSummary = settings.GetDebugView().ToSummary(); // redacts secret-looking values by default
     }
 }
 ```
+
+`GetDebugView(includeRawValues: true)` only includes raw values in Development. Secret-looking keys and sections are redacted by default in summaries.
 
 ### Configuration Attributes (`[Config]`)
 
