@@ -8,8 +8,12 @@ public class StatusController(IAppSettings appSettings) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(200)]
+    [ProducesResponseType(404)]
     public ActionResult Status()
     {
+        if (!appSettings.IsDevelopmentEnvironment)
+            return NotFound();
+
         return Ok(appSettings.GetDebugView().ToSummary());
     }
 }

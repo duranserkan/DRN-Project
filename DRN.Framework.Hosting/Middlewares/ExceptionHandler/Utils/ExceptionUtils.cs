@@ -39,12 +39,19 @@ public class ExceptionUtils(
 
     public ProblemDetails CreateProblemDetails(HttpContext context, Exception exception)
     {
+        var appSettings = context.RequestServices.GetService<IAppSettings>();
+        var includeExceptionDetails = appSettings?.IsDevelopmentEnvironment == true;
         var problemDetails = new ProblemDetails
         {
-            Title = TypeNameHelper.GetTypeDisplayName(exception.GetType()),
-            Detail = exception.Message,
+            Title = includeExceptionDetails
+                ? TypeNameHelper.GetTypeDisplayName(exception.GetType())
+                : "An error occurred while processing the request.",
+            Detail = includeExceptionDetails ? exception.Message : null,
             Status = context.Response.StatusCode
         };
+
+        if (!includeExceptionDetails)
+            return problemDetails;
 
         // Problem details source gen serialization doesn't know about IHeaderDictionary or RouteValueDictionary.
         // Serialize payload to a JsonElement here. Problem details serialization can write JsonElement in extensions dictionary.
@@ -62,6 +69,10 @@ public class ExceptionUtils(
 
     public CompilationErrorModel CreateCompilationErrorModel(HttpContext context, Exception exception, ICompilationException compilationException)
     {
+        var appSettings = context.RequestServices.GetService<IAppSettings>();
+        if (appSettings?.IsDevelopmentEnvironment != true)
+            throw new InvalidOperationException("Developer compilation exception page models are only available in Development.");
+
         var model = new CompilationErrorModel(ExceptionPageOptions);
 
         if (compilationException.CompilationFailures == null)
@@ -108,6 +119,9 @@ public class ExceptionUtils(
     {
         var request = context.Request;
         var appSettings = context.RequestServices.GetRequiredService<IAppSettings>();
+        if (!appSettings.IsDevelopmentEnvironment)
+            throw new InvalidOperationException("Developer exception page models are only available in Development.");
+
         var scopedLog = context.RequestServices.GetRequiredService<IScopedLog>();
         var title = GetPageTitle(exception);
         var body = await RequestBufferingState.ReadBodyAsync(context);

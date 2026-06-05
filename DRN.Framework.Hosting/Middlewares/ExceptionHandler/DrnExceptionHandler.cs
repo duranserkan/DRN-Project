@@ -43,7 +43,13 @@ public class DrnExceptionHandler(
             scopedLog.Add("ExceptionPageErrorType", e2.GetType().FullName ?? e2.GetType().Name);
             scopedLog.Add("ExceptionPageErrorMessage", e2.Message);
             scopedLog.Add("ExceptionPageErrorStackTrace", e2.StackTrace ?? string.Empty);
-            await context.Response.WriteAsJsonAsync(scopedLog.GetLogs());
+
+            if (!context.Response.HasStarted && appSettings.IsDevelopmentEnvironment)
+            {
+                await context.Response.WriteAsJsonAsync(scopedLog.GetLogs());
+            }
+            else if (!context.Response.HasStarted)
+                await WriteProductionErrorResponseAsync(context);
         }
 
         const string eventName = "Microsoft.AspNetCore.Diagnostics.UnhandledException";
@@ -53,6 +59,8 @@ public class DrnExceptionHandler(
 
     public async Task<ExceptionContentResult?> GetExceptionContentAsync(IServiceProvider serviceProvider, Exception exception, IScopedLog scopedLog)
     {
+        if (!appSettings.IsDevelopmentEnvironment) return null;
+
         using var requestServices = serviceProvider.CreateScope();
         var context = new DefaultHttpContext
         {
@@ -88,10 +96,16 @@ public class DrnExceptionHandler(
     {
         context.Response.StatusCode = context.Response.StatusCode < 1 ? 500 : context.Response.StatusCode;
 
+        if (!appSettings.IsDevelopmentEnvironment)
+        {
+            await WriteProductionErrorResponseAsync(context);
+            return;
+        }
+
         var model = await ExecuteExceptionPageModel(context, exception);
         var result = await GetExceptionContentResult(context, exception, model);
 
-        if (appSettings.IsDevelopmentEnvironment && result != null)
+        if (result != null)
         {
             context.Response.ContentType = result.ContentType;
             await context.Response.WriteAsync(result.Content);
@@ -101,6 +115,13 @@ public class DrnExceptionHandler(
         //todo: prod exception page
         //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-9.0#exception-handler-page
 
+        var statusCode = ((HttpStatusCode)context.Response.StatusCode).ToString();
+        await context.Response.WriteAsync($"{statusCode} {context.Response.StatusCode} TraceId: {context.TraceIdentifier}");
+    }
+
+    private static async Task WriteProductionErrorResponseAsync(HttpContext context)
+    {
+        context.Response.ContentType = "text/plain; charset=utf-8";
         var statusCode = ((HttpStatusCode)context.Response.StatusCode).ToString();
         await context.Response.WriteAsync($"{statusCode} {context.Response.StatusCode} TraceId: {context.TraceIdentifier}");
     }
