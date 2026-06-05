@@ -1,4 +1,5 @@
 using DRN.Framework.Hosting.Auth;
+using DRN.Framework.Utils.Scope;
 using DRN.Framework.Utils.Time;
 using Sample.Domain.Identity.ProfilePictures;
 
@@ -9,12 +10,17 @@ namespace Sample.Hosted.Controllers.User.Profile;
 [Authorize(AuthPolicy.MfaExempt)]
 public class ProfilePictureController(IProfilePictureRepository ppRepository, IWebHostEnvironment hostingEnvironment) : ControllerBase
 {
-    [HttpGet("{userId:required}")]
+    [HttpGet]
     [Produces("image/jpeg")] // Adjust MIME type if needed
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
-    public async Task<FileStreamResult> Get(string userId)
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> Get()
     {
-        var ppData = await ppRepository.GetProfilePictureAsync(userId);
+        var currentUserId = ScopeContext.UserId;
+        if (string.IsNullOrWhiteSpace(currentUserId))
+            return Forbid();
+
+        var ppData = await ppRepository.GetProfilePictureAsync(currentUserId);
 
         Stream stream;
         if (ppData == null)

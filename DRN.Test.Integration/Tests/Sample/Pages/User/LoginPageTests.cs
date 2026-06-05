@@ -59,6 +59,9 @@ public class LoginPageTests(ITestOutputHelper outputHelper)
         var valueEndIndex = loginPage.IndexOf('"', valueIndex);
         valueEndIndex.Should().BeGreaterThan(valueIndex);
 
-        return loginPage[valueIndex..valueEndIndex];
+        var token = loginPage[valueIndex..valueEndIndex];
+        token.Should().NotBeNullOrWhiteSpace();
+
+        return token;
     }
 }
