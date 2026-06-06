@@ -1,5 +1,5 @@
-using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Validators;
 using Sample.Domain.Identity.ProfilePictures;
 using Sample.Domain.Users;
 
@@ -13,22 +13,19 @@ public interface IProfilePictureService
 [Transient<IProfilePictureService>]
 public class ProfilePictureService(IProfilePictureRepository repository) : IProfilePictureService
 {
+    private const string InvalidJpegMessage = "Profile picture must be a valid JPEG image.";
+    private const string MaxSizeExceededMessage = "Profile picture exceeds the maximum allowed size.";
+
     public async Task CreateProfilePictureAsync(SampleUser user, Stream pictureStream, long maxSize)
     {
-        var pictureBytes = await pictureStream.ToArrayAsync(maxSize);
-        if (!IsJpeg(pictureBytes))
-            throw ExceptionFor.Validation("Profile picture must be a valid JPEG image.");
+        var validation = await JpegValidator.ValidateAsync(pictureStream, maxSize);
+        if (!validation.IsValid)
+            throw ExceptionFor.Validation(validation.ErrorReason == JpegValidationErrorReason.MaxLengthExceeded
+                ? MaxSizeExceededMessage
+                : InvalidJpegMessage);
 
-        var profilePicture = new ProfilePicture(user, pictureBytes);
+        var profilePicture = new ProfilePicture(user, validation.ImageData);
 
         await repository.UpdateProfilePictureAsync(profilePicture, user);
     }
-
-    private static bool IsJpeg(ReadOnlySpan<byte> imageData)
-        => imageData.Length >= 4
-           && imageData[0] == 0xFF
-           && imageData[1] == 0xD8
-           && imageData[2] == 0xFF
-           && imageData[^2] == 0xFF
-           && imageData[^1] == 0xD9;
 }

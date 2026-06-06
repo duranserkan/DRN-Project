@@ -7,6 +7,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Rate Limiting Settings**: Added validated `DrnAppFeatures:DrnRateLimit` knobs for DRN Hosting rate limiting (`Disabled`, partition log mode, shared token limit, replenishment period, tokens per period, B2B-friendly pre-auth defaults, and optional pre-auth/post-auth overrides), exposed in code as `IAppSettings.Features.RateLimit`.
 *   **Test Scope Initialization**: `ScopeContext.InitializeForTest(...)` is now public and resets the current async-local scope before initialization, preventing stale test scope data from leaking between helper calls.
 *   **Stream Hashing Support**: Added stream and file hashing overloads in `HashExtensions` (supporting Blake3, XxHash3, Sha256, Sha512, and keyed Blake3/XxHash3 algorithms) to hash files and large payloads without first materializing them as `BinaryData`.
+*   **JPEG Payload Validation**: Added public `DRN.Framework.Utils.Validators.JpegValidator` with explicit `JpegValidationResult` and `JpegValidationErrorReason` support for structural, stream-based, and size-bounded JPEG byte validation before persisting uploaded image payloads.
 
 ## Version 0.9.4
 

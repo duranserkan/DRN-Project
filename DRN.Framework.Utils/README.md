@@ -20,6 +20,7 @@
 - **Configuration** — `IAppSettings` with typed access, `[Config("Section")]` bindings
 - **Scoped Logging** — `IScopedLog` aggregates structured logs per request
 - **Scoped Cancellation** — Scoped `ICancellationUtils` for request lifecycle control
+- **Validators** — Reusable payload validators such as `JpegValidator`
 - **Monotonic Pagination** — Cursor-based pagination leveraging entity ID temporal ordering
 - **Bit Packing** — High-performance `NumberBuilder` for custom data structures
 - **Ambient Context** — `ScopeContext.UserId`, `ScopeContext.Settings` anywhere
@@ -37,6 +38,7 @@
 - [HTTP Client Factories (IExternalRequest, IInternalRequest)](#http-client-factories-iexternalrequest-iinternalrequest)
 - [Scope & Ambient Context (ScopeContext)](#scope--ambient-context-scopecontext)
 - [Data Utilities](#data-utilities)
+- [Validators](#validators)
 - [Pagination](#pagination)
 - [Bit Packing](#bit-packing)
 - [Diagnostics](#diagnostics)
@@ -532,6 +534,27 @@ var fileHash = fileStream.Hash(HashAlgorithm.Sha256);
 // Secure stream conversion
 var bytes = await requestStream.ToBinaryDataAsync(maxSize: 1024 * 1024);
 ```
+
+## Validators
+
+Reusable validators live under `DRN.Framework.Utils.Validators`.
+
+```csharp
+using DRN.Framework.Utils.Validators;
+
+var validation = await JpegValidator.ValidateAsync(requestStream, maxLength: 1024 * 1024);
+if (!validation.IsValid)
+{
+    var message = validation.ErrorReason == JpegValidationErrorReason.MaxLengthExceeded
+        ? "Profile picture exceeds the maximum allowed size."
+        : "Profile picture must be a valid JPEG image.";
+    throw ExceptionFor.Validation(message);
+}
+
+var imageBytes = validation.ImageData;
+```
+
+`JpegValidator` performs structural JPEG checks for markers, segment bounds, frame metadata, scan metadata, scan data presence, and optional maximum byte length. `JpegValidationResult.ErrorReason` distinguishes `MaxLengthExceeded`, `InvalidMaxLength`, and `InvalidJpeg` failures. Use `ValidateAsync` when validating an upload stream and keeping the validated bytes for persistence.
 
 ## Diagnostics
 

@@ -6,15 +6,14 @@ namespace DRN.Test.Unit.Tests.Sample.Application;
 
 public class ProfilePictureServiceTests
 {
-    [Theory]
-    [DataInlineUnit]
-    public async Task CreateProfilePictureAsync_Should_Store_Valid_Jpeg(DrnTestContextUnit _)
+    [Fact]
+    public async Task CreateProfilePictureAsync_Should_Store_Valid_Jpeg()
     {
         var repository = Substitute.For<IProfilePictureRepository>();
         repository.UpdateProfilePictureAsync(Arg.Any<ProfilePicture>(), Arg.Any<SampleUser>()).Returns(Task.CompletedTask);
         var service = new ProfilePictureService(repository);
         var user = new SampleUser { Id = Guid.NewGuid().ToString("N") };
-        var jpeg = CreateJpegPayload();
+        var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
         using var stream = new MemoryStream(jpeg);
 
         await service.CreateProfilePictureAsync(user, stream, jpeg.Length);
@@ -24,9 +23,8 @@ public class ProfilePictureServiceTests
             user);
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task CreateProfilePictureAsync_Should_Reject_NonJpeg_Payload(DrnTestContextUnit _)
+    [Fact]
+    public async Task CreateProfilePictureAsync_Should_Reject_NonJpeg_Payload()
     {
         var repository = Substitute.For<IProfilePictureRepository>();
         repository.UpdateProfilePictureAsync(Arg.Any<ProfilePicture>(), Arg.Any<SampleUser>()).Returns(Task.CompletedTask);
@@ -42,9 +40,25 @@ public class ProfilePictureServiceTests
         await repository.DidNotReceive().UpdateProfilePictureAsync(Arg.Any<ProfilePicture>(), Arg.Any<SampleUser>());
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task CreateProfilePictureAsync_Should_Reject_Truncated_Jpeg_Payload(DrnTestContextUnit _)
+    [Fact]
+    public async Task CreateProfilePictureAsync_Should_Reject_Payload_Over_MaxSize()
+    {
+        var repository = Substitute.For<IProfilePictureRepository>();
+        repository.UpdateProfilePictureAsync(Arg.Any<ProfilePicture>(), Arg.Any<SampleUser>()).Returns(Task.CompletedTask);
+        var service = new ProfilePictureService(repository);
+        var user = new SampleUser { Id = Guid.NewGuid().ToString("N") };
+        var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
+        using var stream = new MemoryStream(jpeg);
+
+        var upload = async () => await service.CreateProfilePictureAsync(user, stream, jpeg.Length - 1);
+
+        await upload.Should().ThrowExactlyAsync<ValidationException>()
+            .WithMessage("Profile picture exceeds the maximum allowed size.");
+        await repository.DidNotReceive().UpdateProfilePictureAsync(Arg.Any<ProfilePicture>(), Arg.Any<SampleUser>());
+    }
+
+    [Fact]
+    public async Task CreateProfilePictureAsync_Should_Reject_Truncated_Jpeg_Payload()
     {
         var repository = Substitute.For<IProfilePictureRepository>();
         repository.UpdateProfilePictureAsync(Arg.Any<ProfilePicture>(), Arg.Any<SampleUser>()).Returns(Task.CompletedTask);
@@ -60,13 +74,20 @@ public class ProfilePictureServiceTests
         await repository.DidNotReceive().UpdateProfilePictureAsync(Arg.Any<ProfilePicture>(), Arg.Any<SampleUser>());
     }
 
-    private static byte[] CreateJpegPayload()
-        =>
-        [
-            0xFF, 0xD8, 0xFF, 0xE0,
-            0x00, 0x10,
-            0x4A, 0x46, 0x49, 0x46, 0x00,
-            0x01, 0x02, 0x03,
-            0xFF, 0xD9
-        ];
+    [Fact]
+    public async Task CreateProfilePictureAsync_Should_Reject_MarkerOnly_Jpeg_Payload()
+    {
+        var repository = Substitute.For<IProfilePictureRepository>();
+        repository.UpdateProfilePictureAsync(Arg.Any<ProfilePicture>(), Arg.Any<SampleUser>()).Returns(Task.CompletedTask);
+        var service = new ProfilePictureService(repository);
+        var user = new SampleUser { Id = Guid.NewGuid().ToString("N") };
+        var markerOnlyJpeg = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0xFF, 0xD9 };
+        using var stream = new MemoryStream(markerOnlyJpeg);
+
+        var upload = async () => await service.CreateProfilePictureAsync(user, stream, markerOnlyJpeg.Length);
+
+        await upload.Should().ThrowExactlyAsync<ValidationException>()
+            .WithMessage("Profile picture must be a valid JPEG image.");
+        await repository.DidNotReceive().UpdateProfilePictureAsync(Arg.Any<ProfilePicture>(), Arg.Any<SampleUser>());
+    }
 }
