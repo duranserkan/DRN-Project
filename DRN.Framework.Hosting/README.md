@@ -287,6 +287,10 @@ These hooks define the request processing middleware sequence.
 5.  **Mounted Directories** (e.g. `/app/config`)
 6.  **Command Line Arguments**
 
+### Host Filtering
+
+`AllowedHosts` must be configured outside Development and cannot be `*`. Development may fall back to `*` for local convenience; production and staging should use explicit host names such as `example.com;api.example.com`.
+
 ### Reference Configurations
 
 #### NLog (Logging)
@@ -378,7 +382,8 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
 
 ### 3. Content Security Policy (Nonce-based)
 DRN automatically generates a unique cryptographic nonce for every request.
-*   **Automatic Protection**: Scripts and styles without a matching nonce are blocked by the browser, stopping most XSS attacks.
+*   **Baseline**: `default-src 'none'` with explicit same-origin allowlists for styles, images, fonts, connections, media, manifests, and workers.
+*   **Automatic Protection**: Inline scripts and inline style elements without a matching nonce are blocked by the browser, stopping most XSS attacks.
 *   **Usage**: Use the `NonceTagHelper` (see below) to automatically inject these nonces.
 
 ### 4. Transparent Security Headers
@@ -710,7 +715,7 @@ Disable the publish item injection when an application owns this behavior itself
 DRN Hosting provides deep observability into application failures, especially during the critical startup phase.
 
 ### Startup Exception Reports
-If the application fails to start during `RunAsync`, it generates a `StartupExceptionReport.html` in the execution directory. This report includes:
+In Development, if the application fails to start during `RunAsync`, it generates a `StartupExceptionReport.html` in the execution directory. Production and staging fail with normal logs only. Development reports include:
 -   Full stack traces with source code highlighting (if symbols available).
 -   Environment details and configuration snapshots.
 -   Scoped logs leading up to the crash.
@@ -735,10 +740,10 @@ The framework includes built-in Razor Pages for developer-time exception handlin
 
 **Configuration** via `DrnAppFeatures` (in `appsettings.json`):
 
-| Key | Type | Default | Effect |
-|-----|------|---------|--------|
-| `DisableRequestBuffering` | `bool` | `false` | Kill switch — disables all body buffering |
-| `MaxRequestBufferingSize` | `int` | `0` (→ 30,000) | Max bytes to buffer. Values below 10,000 are ignored |
+| Key                       | Type   | Default        | Effect                                               |
+|---------------------------|--------|----------------|------------------------------------------------------|
+| `DisableRequestBuffering` | `bool` | `false`        | Kill switch — disables all body buffering            |
+| `MaxRequestBufferingSize` | `int`  | `0` (→ 30,000) | Max bytes to buffer. Values below 10,000 are ignored |
 
 ```json
 {
@@ -785,6 +790,8 @@ The framework provides a structured way to handle user privacy choices:
 2. Reads all entries from the Vite manifest
 3. Requests each asset with `Accept-Encoding: br` and `Accept-Encoding: gzip` against the loopback address (via `IServerSettings`)
 4. `ResponseCaching` stores each compressed variant keyed on `Vary: Accept-Encoding`
+
+The warm-up client only accepts loopback base addresses before installing its certificate-bypass handler. Wildcard server bindings are normalized to localhost; non-loopback bindings are ignored for warm-up.
 
 **Compression defaults** — both use `CompressionLevel.SmallestSize` (maximum compression) since only static files are compressed and the cost is paid once at startup:
 

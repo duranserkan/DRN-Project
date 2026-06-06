@@ -1,7 +1,7 @@
 ---
 name: drn-testing
 description: DRN.Framework.Testing - Comprehensive testing infrastructure with DrnTestContext (auto-mocking, DI), ContainerContext (Testcontainers for PostgreSQL), WebApplicationContext (WebApplicationFactory), DataAttributes (DataInline, DataMember), and test providers. Foundation for all DTT (Duran's Testing Technique) test types. Keywords: testing, drntest-context, testcontainers, webapplicationfactory, auto-mocking, nsubstitute, autofixture, data-attributes, integration-testing, unit-testing, dtt
-last-updated: 2026-02-15
+last-updated: 2026-06-06
 difficulty: intermediate
 tokens: ~2K
 ---
@@ -45,6 +45,8 @@ public void MyTest(DrnTestContext context, IMockable mock)
 | ApplicationContext | ✅ | ❌ |
 | FlurlHttpTest | ✅ | ❌ |
 | Data Attributes | `DataInline`, `DataMember`, `DataSelf` | `DataInlineUnit`, `DataMemberUnit`, `DataSelfUnit` |
+
+Data attributes provide the matching context only when the method signature requests it. Use `[Fact]` for tests without inline data, generated parameters, or context access.
 
 ### Key Methods
 
@@ -129,13 +131,43 @@ context.FlurlHttpTest.ShouldHaveCalled("https://api.example.com/*").Times(1);
 ## Data Attributes
 
 ```csharp
+// No inline data, generated parameters, or context
+[Fact]
+public void Trim_Should_Remove_Outer_Whitespace()
+{
+    "  Duran  ".Trim().Should().Be("Duran");
+}
+
 // Inline data + auto-fixture
+[Theory]
 [DataInline(99, "test")]
-public void Test(DrnTestContext ctx, int value, string name, Guid auto) { }
+public void Test(DrnTestContext context, int value, string name, Guid auto) { }
+
+// Unit inline data without DrnTestContextUnit when context is not needed
+[Theory]
+[DataInlineUnit(2, 3, 5)]
+public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
+{
+    (a + b).Should().Be(expected);
+}
+
+// Unit inline data + DrnTestContextUnit when context is needed
+[Theory]
+[DataInlineUnit("SafeSection", "Visible", "safe-value")]
+public void UnitConfiguration_Should_Be_Available(
+    DrnTestContextUnit context, string section, string key, string value)
+{
+    context.AddToConfiguration(section, key, value);
+    var debugView = context.GetConfigurationDebugView();
+
+    debugView.SettingsByProvider.Values.SelectMany(settings => settings)
+        .Should().Contain($"{section}:{key}={value}");
+}
 
 // Member data
+[Theory]
 [DataMember(nameof(TestData))]
-public void Test(DrnTestContext ctx, int value) { }
+public void Test(DrnTestContext context, int value) { }
 public static IEnumerable<object[]> TestData => new[] { new object[] { 1 }, new object[] { 2 } };
 
 // Self-contained (DrnTestContext variant)
@@ -179,9 +211,9 @@ When multiple cases share identical test bodies, prefer one `[Theory]` with mult
 [DataInlineUnit(2, 3, 5)]     // positive
 [DataInlineUnit(-1, -2, -3)]  // negative
 [DataInlineUnit(0, 0, 0)]     // zeros
-public void Add_Should_Return_Correct_Sum(DrnTestContextUnit context, int a, int b, int expected)
+public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
 {
-    new Calculator().Add(a, b).Should().Be(expected);
+    (a + b).Should().Be(expected);
 }
 ```
 

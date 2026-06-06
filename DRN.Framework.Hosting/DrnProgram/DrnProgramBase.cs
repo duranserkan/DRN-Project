@@ -12,6 +12,7 @@ using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.RateLimiting;
 using DRN.Framework.Hosting.Utils;
 using DRN.Framework.Hosting.Utils.Vite;
+using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Configurations;
@@ -178,9 +179,10 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             var services = applicationBuilder.Services.BuildServiceProvider();
             var isDevelopment = appSettings.IsDevelopmentEnvironment;
             var handler = services.GetService<IDrnExceptionHandler>();
+            //todo send startup exception report to nexus in non-develop
             if (handler != null && isDevelopment)
             {
-                var exceptionContentResult = await handler.GetExceptionContentAsync(services, exception, scopedLog);
+                var exceptionContentResult = await handler.GetStartupExceptionContentAsync(services, exception, scopedLog);
                 if (exceptionContentResult != null)
                 {
                     var directory = Path.GetDirectoryName(typeof(TProgram).Assembly.Location)!;
@@ -410,12 +412,21 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
     protected virtual void ConfigureDefaultCspBase(CspBuilder builder)
     {
+        builder.AddDefaultSrc().None();
         builder.AddBaseUri().Self();
         builder.AddFormAction().Self();
 
         builder.AddObjectSrc().None();
         builder.AddFrameAncestors().None();
         builder.AddScriptSrcAttr().None();
+        builder.AddStyleSrc().Self().WithNonce();
+        builder.AddStyleSrcAttr().UnsafeInline();
+        builder.AddImgSrc().Self().Data();
+        builder.AddConnectSrc().Self();
+        builder.AddFontSrc().Self().Data();
+        builder.AddMediaSrc().Self();
+        builder.AddManifestSrc().Self();
+        builder.AddWorkerSrc().Self().Blob();
     }
 
     protected virtual void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings)
@@ -569,14 +580,41 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     {
         return options =>
         {
-            if (options.AllowedHosts.Count != 0) return;
+            if (options.AllowedHosts.Count != 0)
+            {
+                EnsureAllowedHostsSafe(options.AllowedHosts, appSettings);
+                return;
+            }
 
             // "AllowedHosts": "localhost;127.0.0.1;[::1]"
-            var hosts = appSettings.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries);
-            // Fall back to "*" to disable.
-            options.AllowedHosts = hosts?.Length > 0 ? hosts : ["*"];
+            var hosts = appSettings.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (hosts?.Length > 0)
+            {
+                EnsureAllowedHostsSafe(hosts, appSettings);
+                options.AllowedHosts = hosts;
+                return;
+            }
+
+            if (appSettings.IsDevelopmentEnvironment)
+            {
+                // Fall back to "*" only for local development convenience.
+                options.AllowedHosts = ["*"];
+                return;
+            }
+
+            throw new ConfigurationException("AllowedHosts must be configured outside Development.");
         };
     }
+
+    private static void EnsureAllowedHostsSafe(IEnumerable<string> hosts, IAppSettings appSettings)
+    {
+        if (appSettings.IsDevelopmentEnvironment) return;
+
+        if (hosts.Any(IsWildcardAllowedHost))
+            throw new ConfigurationException("AllowedHosts cannot contain '*' outside Development.");
+    }
+
+    private static bool IsWildcardAllowedHost(string host) => host.Trim() == "*";
 
     /// <summary>
     /// Commonly used for improving behavior not returning a response

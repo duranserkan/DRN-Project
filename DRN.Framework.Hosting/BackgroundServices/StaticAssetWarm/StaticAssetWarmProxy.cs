@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using DRN.Framework.Hosting.Utils.Vite.Models;
+using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Hosting;
 
@@ -90,11 +91,20 @@ public sealed class StaticAssetWarmProxy(string baseAddress,IScopedLog scopedLog
     /// Resolves the original (uncompressed) file size from disk.
     /// Path is relative to wwwroot (e.g. "/app/app_preload.abc123.js").
     /// </summary>
-    private static long GetOriginalFileSize(string contentRoot, string requestPath)
+    internal static long GetOriginalFileSize(string contentRoot, string requestPath)
     {
-        var filePath = Path.Combine(contentRoot, requestPath.TrimStart('/'));
         try
         {
+            if (string.IsNullOrWhiteSpace(contentRoot) || string.IsNullOrWhiteSpace(requestPath))
+                return 0;
+
+            var canonicalContentRoot = contentRoot.NormalizeDirectoryPath();
+            var relativeRequestPath = requestPath.TrimStart('/', '\\');
+            var filePath = Path.GetFullPath(Path.Combine(canonicalContentRoot, relativeRequestPath));
+
+            if (!canonicalContentRoot.IsPathWithinDirectory(filePath))
+                return 0;
+
             return File.Exists(filePath)
                 ? new FileInfo(filePath).Length
                 : 0;

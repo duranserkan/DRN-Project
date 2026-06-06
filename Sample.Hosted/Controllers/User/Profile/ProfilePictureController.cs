@@ -9,27 +9,23 @@ namespace Sample.Hosted.Controllers.User.Profile;
 [Authorize(AuthPolicy.MfaExempt)]
 public class ProfilePictureController(IProfilePictureRepository ppRepository, IWebHostEnvironment hostingEnvironment) : ControllerBase
 {
+    private const string JpegContentType = "image/jpeg";
+    
     [HttpGet("{userId:required}")]
-    [Produces("image/jpeg")] // Adjust MIME type if needed
+    [Produces(JpegContentType)] // Adjust MIME type if needed
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
     public async Task<FileStreamResult> Get(string userId)
     {
+        //todo evaluate ppID usage instead of userId
         var ppData = await ppRepository.GetProfilePictureAsync(userId);
-
-        Stream stream;
-        if (ppData == null)
-        {
-            //from Lorem Picsum
-            var path = Path.Combine(hostingEnvironment.WebRootPath, "images", "mountain.jpg");
-            stream = System.IO.File.OpenRead(path);
-        }
-        else
-            stream = new MemoryStream(ppData.ImageData);
-
+        Stream stream = ppData != null
+            ? new MemoryStream(ppData.ImageData)
+            : System.IO.File.OpenRead(Path.Combine(hostingEnvironment.WebRootPath, "images", "mountain.jpg")); //from Lorem Picsum
+        
         // Set caching headers
         Response.Headers.CacheControl = "private, max-age=31536000"; // Cache for 1 year
         Response.Headers.Expires = DateTimeProvider.UtcNow.AddYears(1).ToString("R");
 
-        return new FileStreamResult(stream, "image/jpeg");
+        return new FileStreamResult(stream, JpegContentType);
     }
 }

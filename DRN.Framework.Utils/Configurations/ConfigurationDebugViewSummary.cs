@@ -16,6 +16,7 @@ public class ConfigurationDebugViewSummary
         AppEnvironment = configurationDebugView.Environment;
         ApplicationName = configurationDebugView.ApplicationName;
         ConfigMountedDirectory = configurationDebugView.ConfigMountedDirectory;
+        RawValuesIncluded = configurationDebugView.RawValuesIncluded;
 
         var collectionByProvider = new SortedDictionary<string, string[]>();
         SettingsByProvider = collectionByProvider;
@@ -32,6 +33,7 @@ public class ConfigurationDebugViewSummary
     public string ApplicationName { get; init; } = default!;
     public AppEnvironment AppEnvironment { get; init; }
     public string? ConfigMountedDirectory { get; init; }
+    public bool RawValuesIncluded { get; init; }
     public string[] ConfigMountedDirectoryJsonFiles { get; init; } = default!;
     public string[] ConfigMountedDirectoryKeyPerFiles { get; init; } = default!;
     public IReadOnlyDictionary<string, string[]> SettingsByProvider { get; init; } = default!;

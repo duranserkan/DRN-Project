@@ -44,7 +44,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
   - `[HostedService]` — background services
 - **Entities**: Source-Known ID pattern (long internal + Guid external); `[EntityType(byte)]` required on every entity
 - **DTOs**: Derive from `Dto`; live in `*.Contract`; APIs return DTOs only — never entities; expose `Guid` IDs only (Source-Known EntityId: `Guid` externally, never `long Id`)
-- **Testing**: DTT (Duran's Testing Technique) — integration-first; `[DataInline]` + `DrnTestContext` for integration, `[DataInlineUnit]` + `DrnTestContextUnit` for unit. Always run unit tests first, and only run integration tests after unit tests pass. Never use/reference `.slnx` in test commands.
+- **Testing**: DTT (Duran's Testing Technique) — integration-first; use `[Fact]` for tests without inline data or generated parameters. Use `[DataInline]` / `[DataInlineUnit]` for data-driven tests; request `DrnTestContext` / `DrnTestContextUnit` only when the test needs the context. Always run unit tests first, and only run integration tests after unit tests pass. Never use/reference `.slnx` in test commands.
 - **Frontend**: Razor Pages + htmx + Bootstrap 5; Vite-built assets in `buildwww/`; CSP nonces auto-injected via `NonceTagHelper`; CSRF auto-added on `hx-post/put/delete/patch`
 - **Git**: GitFlow-inspired — `develop` → `master` → tag `v*.*.*`; squash merge to develop, merge commit to master
 - **Security**: CSP nonces, CSRF anti-forgery, input validation — see `basic-security-checklist` skill

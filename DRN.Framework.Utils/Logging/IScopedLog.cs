@@ -11,6 +11,7 @@ public interface IScopedLog
     IScopedLog WithTraceIdentifier(string traceIdentifier);
     IScopedLog Add(string key, object value);
     IScopedLog AddIfNotNullOrEmpty(string key, string value);
+    IScopedLog CopyFrom(IScopedLog source);
 
     IScopedLog AddProperties<TValue>(string prefix, TValue classObject, params string[] ignoredPropertyNames)
         where TValue : class;

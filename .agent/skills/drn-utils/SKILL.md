@@ -1,7 +1,7 @@
 ---
 name: drn-utils
-description: DRN.Framework.Utils - Attribute-based dependency injection ([Scoped<T>], [Singleton<T>], [Transient<T>], [HostedService], [Config]), IAppSettings configuration pattern, logging infrastructure, extension methods, and core utilities. Foundational for service registration, configuration management, and cross-cutting concerns. Keywords: dependency-injection, di, service-registration, configuration, appsettings, logging, scoped-log, attributes, scoped, singleton, transient, config, extensions, http-client
-last-updated: 2026-05-30
+description: DRN.Framework.Utils - Attribute-based dependency injection ([Scoped<T>], [Singleton<T>], [Transient<T>], [HostedService], [Config]), IAppSettings configuration pattern, logging infrastructure, validators, extension methods, and core utilities. Foundational for service registration, configuration management, and cross-cutting concerns. Keywords: dependency-injection, di, service-registration, configuration, appsettings, logging, scoped-log, validators, attributes, scoped, singleton, transient, config, extensions, http-client
+last-updated: 2026-06-06
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -87,6 +87,8 @@ public interface IAppSettings
     ConfigurationDebugView GetDebugView();
 }
 ```
+
+`ConfigurationDebugView` redacts secret-looking values by default, lists child keys even when a provider also defines a scalar value for the parent section, and renders summary paths using the value provider's key casing.
 
 ### Config Attribute
 
@@ -222,6 +224,7 @@ if (scope.Acquired) { /* critical section */ }
 | **Query Strings** | `QueryParameterSerializer` | Complex objects → query strings |
 | **Streams** | `ToBinaryDataAsync` | Safe consumption with `MaxSizeGuard` |
 | **Validation** | `ValidationExtensions` | DataAnnotations-based programmatic validation |
+| **Validators** | `JpegValidator`, `JpegValidationResult`, `JpegValidationErrorReason` | Structural, stream-based, size-bounded JPEG validation with typed error reasons |
 | **Pagination** | `IPaginationUtils` | Cursor-based via `SourceKnownEntityId` |
 | **Cancellation** | `ICancellationUtils` | Merge tokens from multiple sources |
 | **Diagnostics** | `DevelopmentStatus` | Track pending DB model changes at startup |

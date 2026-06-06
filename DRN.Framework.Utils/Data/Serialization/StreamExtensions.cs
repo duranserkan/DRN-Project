@@ -50,8 +50,19 @@ public static class StreamExtensions
 
             do
             {
-                var remainingSpace = Math.Min(pooledBuffer.Length, (int)Math.Max(0, maxSize - totalRead));
-                if (remainingSpace == 0) break;
+                var remaining = maxSize - totalRead;
+                if (remaining <= 0)
+                {
+                    var overflowRead = await inputStream.ReadAsync(pooledBuffer.AsMemory(0, 1), cancellationToken);
+                    if (overflowRead > 0)
+                        MaxSizeGuard(maxSize + overflowRead, maxSize);
+
+                    break;
+                }
+
+                var remainingSpace = remaining >= pooledBuffer.Length
+                    ? pooledBuffer.Length
+                    : (int)remaining;
 
                 var readBuffer = pooledBuffer.AsMemory(0, remainingSpace);
                 bytesRead = await inputStream.ReadAsync(readBuffer, cancellationToken);
@@ -67,13 +78,13 @@ public static class StreamExtensions
         }
         finally
         {
-            pool.Return(pooledBuffer);
+            pool.Return(pooledBuffer, clearArray: true);
         }
     }
 
     private static void MaxSizeGuard(long length, long maxSize)
     {
         if (length > maxSize)
-            throw new InvalidOperationException($"The stream exceeds the maximum allowed size of {maxSize:N0} bytes.");
+            throw new ValidationException($"The stream exceeds the maximum allowed size of {maxSize:N0} bytes.");
     }
 }

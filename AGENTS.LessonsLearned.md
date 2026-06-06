@@ -8,7 +8,7 @@ All DTT data attributes (`DataInline`, `DataMember`, `DataSelf` and `Unit` varia
 
 | Step | What Happens |
 |------|-------------|
-| 1. Context | `DrnTestContext` or `DrnTestContextUnit` auto-provided as first parameter when the method signature requests it |
+| 1. Context | `DrnTestContext` or `DrnTestContextUnit` auto-provided when the method signature requests it |
 | 2. Inline values | Attribute arguments mapped to subsequent method parameters in order |
 | 3. AutoFixture | Remaining parameters without inline values auto-generated (primitives, `Guid`, POCOs, etc.) |
 | 4. NSubstitute | Interface/abstract-class parameters auto-mocked; mocks auto-replace matching registrations in `ServiceCollection` |
@@ -21,7 +21,45 @@ All DTT data attributes (`DataInline`, `DataMember`, `DataSelf` and `Unit` varia
 | `[DataMember]` | `[DataMemberUnit]` |
 | `[DataSelf]` | `[DataSelfUnit]` |
 
-Integration variants provide `DrnTestContext`; Unit variants provide `DrnTestContextUnit` (lightweight — no `ContainerContext`, `ApplicationContext`, or `FlurlHttpTest`).
+Integration variants provide `DrnTestContext` when requested; Unit variants provide `DrnTestContextUnit` when requested (lightweight — no `ContainerContext`, `ApplicationContext`, or `FlurlHttpTest`). Use `[Fact]` when a test has no inline data, generated parameters, or context dependency.
+
+### Attribute Examples
+
+```csharp
+[Fact]
+public void Trim_Should_Remove_Outer_Whitespace()
+{
+    "  Duran  ".Trim().Should().Be("Duran");
+}
+
+[Theory]
+[DataInline(AppEnvironment.Development, true)]
+public void Integration_DataInline_Should_Request_Context_When_Needed(
+    DrnTestContext context, AppEnvironment environment, bool expected)
+{
+    context.AddToConfiguration(new { Environment = environment.ToString() });
+    (environment == AppEnvironment.Development).Should().Be(expected);
+}
+
+[Theory]
+[DataInlineUnit(2, 3, 5)]
+public void Unit_DataInlineUnit_Should_Omit_Context_When_Unused(int a, int b, int expected)
+{
+    (a + b).Should().Be(expected);
+}
+
+[Theory]
+[DataInlineUnit("SafeSection", "Visible", "safe-value")]
+public void Unit_DataInlineUnit_Should_Request_Context_When_Needed(
+    DrnTestContextUnit context, string section, string key, string value)
+{
+    context.AddToConfiguration(section, key, value);
+    var debugView = context.GetConfigurationDebugView();
+
+    debugView.SettingsByProvider.Values.SelectMany(settings => settings)
+        .Should().Contain($"{section}:{key}={value}");
+}
+```
 
 ### Test Consolidation
 
@@ -66,7 +104,9 @@ public void Migrate_Flag_Should_Reflect_Environment_And_AutoMigrate_Settings(Drn
 3. **Comment inline data** — trailing comment on each attribute row when values aren't self-explanatory
 4. **Extract shared setup** — private helper keeps the test body focused on act + assert
 5. **Omit inline values for auto-generated params** — let AutoFixture/NSubstitute handle params you don't need to control
-6. **Don't consolidate when** — test bodies differ structurally, require different setup/teardown, or separate failure messages aid debugging more than parameterization
+6. **Omit context when unused** — `[DataInlineUnit]` and `[DataInline]` do not require `DrnTestContextUnit` / `DrnTestContext` parameters unless the test uses the context
+7. **Use `[Fact]` for no-parameter tests** — do not add a DTT context just to satisfy an attribute convention
+8. **Don't consolidate when** — test bodies differ structurally, require different setup/teardown, or separate failure messages aid debugging more than parameterization
 
 ## 2. Per-Request Allocation 
 
@@ -332,12 +372,94 @@ RID-specific, framework-dependent Docker publishes can emit `.deps.json` entries
 
 ### Problem
 
-For framework-dependent apps, `TargetLatestRuntimePatch` defaults to `false`. A Dockerfile can therefore run on a patched base image while generated `.deps.json` files still reference the target framework's default or previously restored runtime patch, producing Docker Scout false positives.
+For framework-dependent apps, shared-framework metadata in `.deps.json` must stay deterministic and match the runtime image patch. Mixing an exact `RuntimeFrameworkVersion` with legacy patch-floating flags can obscure which patch the artifact was built against and make scanner evidence harder to reason about.
 
 ### Fix Applied
 
-Keep the final ASP.NET runtime image patch and the restore/build/publish metadata aligned. Docker builds pin the runtime version once and pass `RuntimeFrameworkVersion`, `TargetLatestRuntimePatch=true`, `SelfContained=false`, and `UseAppHost=false` consistently through restore, build, and publish.
+Keep the final ASP.NET runtime image patch and the restore/build/publish metadata aligned. Docker builds pin the runtime version once and pass `RuntimeFrameworkVersion`, `SelfContained=false`, and `UseAppHost=false` consistently through restore, build, and publish. Do not add `TargetLatestRuntimePatch` when the exact runtime patch is already supplied.
 
 ### Decision Checkpoint
 
 When upgrading .NET Docker runtime patches, update the Docker runtime image tag and the publish metadata together. If a scanner still reports a non-applicable CVE after metadata is aligned, attach a Docker Scout exception or VEX statement rather than deleting required `.deps.json` files.
+
+## 16. Interface Substitutes Do Not Exercise Concrete Convenience Methods
+
+### Context
+
+`IAppSettings.GetDebugView(...)` is implemented by `AppSettings`, but unit tests may use `Substitute.For<IAppSettings>()` to control only the configuration/environment surface.
+
+### Problem
+
+Calling a convenience method on an interface substitute returns NSubstitute's configured/default value; it does not execute the concrete `AppSettings` method. This can silently turn a redaction or mapping test into a null/default-value test unless the method is explicitly configured.
+
+### Fix Applied
+
+Use the real concrete implementation when testing the public convenience method. When testing a collaborator that only needs the interface data, construct that collaborator directly with the substitute.
+
+### Decision Checkpoint
+
+If the behavior under test lives in a concrete class, instantiate that class. Use interface substitutes for dependencies, not for methods whose implementation is the subject of the assertion.
+
+## 17. TODO: Re-evaluate Identity Bearer MFA Semantics
+
+### Context
+
+Bearer/MFA hardening was explored and then removed because it became confusing among broader security fixes. The discussion mixed ambient MFA state (`ScopeContext.User.Amr`), bearer token issuance, refresh token principal handling, and configured MFA exemption schemes.
+
+### Current Understanding
+
+`MfaFor.MfaCompleted` is the simple ambient request check and should remain the default mental model. `MfaExemptionMiddleware` currently represents configured scheme exemptions, not a fully named "MFA-satisfying scheme" abstraction.
+
+### Future TODO
+
+Re-evaluate Identity bearer authentication in an isolated change. Decide whether Identity bearer should be treated as a true MFA-exempt scheme, should satisfy MFA only through ambient `ScopeContext` when `amr=mfa` is present, or needs a separately named request-level concept. If revisited, keep the design small, document the chosen contract, and add focused tests for password-only bearer, MFA bearer, refresh, and mixed authentication schemes.
+
+## 18. Object-to-JSON Configuration Uses CamelCase Keys
+
+### Context
+
+`AddObjectToJsonConfiguration(...)`, `DrnTestContext.AddToConfiguration(object)`, and `AppSettings.Development(object...)` serialize option objects with the framework's global `System.Text.Json` defaults before loading them through `JsonStreamConfigurationProvider`.
+
+### Problem
+
+Those JSON defaults use camelCase property names. Tests that add a `ConnectionStringsCollection` object should expect keys like `connectionStrings:testDb`, while tests that explicitly add an in-memory key such as `ConnectionStrings:testDb` should expect the exact caller-provided casing.
+
+### Decision Checkpoint
+
+When asserting `ConfigurationDebugView` output, match the configuration source. Object-based configuration follows JSON naming policy; explicit key/value configuration preserves the key text supplied by the test.
+
+## 19. Configuration Sections Can Have Both Values and Children
+
+### Context
+
+`ConfigurationDebugView` walks `IConfigurationRoot.GetChildren()` and resolves each path back to the provider that supplies the visible value.
+
+### Problem
+
+.NET configuration sections are not strictly containers or leaves. One provider can define a scalar parent such as `ConnectionStrings`, while another provider defines `connectionStrings:testDb`. Treating the scalar parent as terminal hides child keys. Reusing the merged traversal path for rendered entries can also leak the parent provider's casing into a child value from another provider, which can surface only in CI where environment variables add extra parent values.
+
+### Fix Applied
+
+Record the parent value when present, then continue recursing into `child.GetChildren()` so sibling providers' child keys remain visible and redacted. For each entry, render the path using the provider that supplied the value, not the merged section path inherited during traversal.
+
+### Decision Checkpoint
+
+When traversing configuration, never assume `IConfigurationSection.Value != null` means the section has no children. Always inspect children independently if the view must be complete. When asserting `ConfigurationDebugView` paths, simulate mixed-provider casing (`ConnectionStrings` parent plus `connectionStrings:testDb` child) so local tests cover CI-like environment-provider interactions.
+
+## 20. MTP Test Projects Run Through `dotnet run`
+
+### Context
+
+`DRN.Test.Unit` and `DRN.Test.Integration` are executable Microsoft Testing Platform/xUnit v3 test projects.
+
+### Problem
+
+`dotnet test` invokes the legacy VSTest target and is rejected on .NET 10 MTP projects. Standard `--filter` syntax is also not accepted by the generated xUnit v3 test executable.
+
+### Fix Applied
+
+Run test projects with `dotnet run --project <test-csproj>`. For focused xUnit v3 runs, pass runner filters after `--`, such as `--filter-class Fully.Qualified.TestClass` or `--filter-method Fully.Qualified.TestMethod`.
+
+### Decision Checkpoint
+
+Use `dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj` for unit validation and only run integration after unit tests pass. Do not use `.slnx` in test commands.

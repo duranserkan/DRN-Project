@@ -1,7 +1,7 @@
 ---
 name: overview-drn-testing
 description: DTT (Duran's Testing Technique) philosophy - Testing approach, test organization principles, test type selection (unit vs integration vs performance), and testing best practices. Philosophical foundation for all testing work. Keywords: testing-philosophy, dtt, test-organization, test-strategy, unit-testing, integration-testing, performance-testing
-last-updated: 2026-02-15
+last-updated: 2026-06-06
 difficulty: intermediate
 tokens: ~1.5K
 ---
@@ -110,21 +110,49 @@ While the traditional pyramid suggests a massive base of unit tests, **DTT favor
 
 | Attribute | Behavior |
 |-----------|----------|
-| `[DataInline]` | Auto-provides DrnTestContext + inlined values (Integration) |
-| `[DataInlineUnit]` | Auto-provides DrnTestContextUnit (Unit) |
+| `[Fact]` | Test has no inline data, generated parameters, or test context |
+| `[DataInline]` | Integration data/generation attribute; request DrnTestContext only when needed |
+| `[DataInlineUnit]` | Unit data/generation attribute; request DrnTestContextUnit only when needed |
 | `[DataMember(nameof(Method))]` | Member data + auto-generation |
 | `[DataSelf]` | Class-based data source |
 | `[FactDebuggerOnly]` | Runs only when debugger attached |
 | `[TheoryDebuggerOnly]` | Theory that runs only with debugger |
 
 ```csharp
+[Fact]
+public void Trim_Should_Remove_Outer_Whitespace()
+{
+    "  Duran  ".Trim().Should().Be("Duran");
+}
+
 [Theory]
 [DataInline(99)]
-public void Test(DrnTestContext context, int value, IMockable mock)
+public void Integration_DataInline_Should_Combine_Context_Inline_Data_And_Mocks(
+    DrnTestContext context, int value, IMockable mock)
 {
     // value = 99 (inlined)
     // mock = NSubstitute mock (auto-generated)
     mock.Max.Returns(42);
+    context.ServiceCollection.AddScoped<IMockable>(_ => mock);
+}
+
+[Theory]
+[DataInlineUnit(2, 3, 5)]
+public void Unit_DataInlineUnit_Should_Map_Inline_Values(int a, int b, int expected)
+{
+    (a + b).Should().Be(expected);
+}
+
+[Theory]
+[DataInlineUnit("SafeSection", "Visible", "safe-value")]
+public void Unit_DataInlineUnit_Should_Request_Context_When_Needed(
+    DrnTestContextUnit context, string section, string key, string value)
+{
+    context.AddToConfiguration(section, key, value);
+    var debugView = context.GetConfigurationDebugView();
+
+    debugView.SettingsByProvider.Values.SelectMany(settings => settings)
+        .Should().Contain($"{section}:{key}={value}");
 }
 ```
 

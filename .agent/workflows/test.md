@@ -69,8 +69,8 @@ Read to internalize DTT patterns and conventions (single source of truth — do 
 
 - Write tests following the patterns from the loaded skills (DTT, `DrnTestContext`, `DataInline` attributes).
 - **Run and verify** (verify project names match the current solution structure):
-  - Unit: `dotnet test DRN.Test.Unit`
-  - Integration: `dotnet test DRN.Test.Integration`
+  - Unit: `dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj`
+  - Integration: `dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj`
 - **If container startup fails**: verify Docker is running and retry. If tests fail, diagnose before writing more tests — avoid compounding failures.
 - Report results to the user: pass/fail, execution time, any failures with diagnostics.
 

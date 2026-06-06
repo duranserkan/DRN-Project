@@ -30,9 +30,11 @@ Open an issue with the `enhancement` label. Describe:
    ```
 3. **Make your changes** following the conventions below
 4. **Write or update tests** — integration-first (DTT philosophy)
-5. **Run the full test suite**:
+5. **Run the test suite**:
+
    ```bash
-   dotnet test DRN.slnx
+   dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
+   dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
    ```
 6. **Commit** with a clear message following [Conventional Commits](https://www.conventionalcommits.org/):
    ```
@@ -66,7 +68,8 @@ dotnet build DRN.slnx
 ### Testing
 
 ```bash
-dotnet test DRN.slnx
+dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
+dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 ```
 
 Tests use **Testcontainers** — Docker must be running for integration tests.
@@ -78,8 +81,46 @@ Tests use **Testcontainers** — Docker must be running for integration tests.
 | **DI** | Attribute-based: `[Scoped<T>]`, `[Singleton<T>]`, `[Transient<T>]` |
 | **Entities** | Source-Known ID pattern; `[EntityType(byte)]` required |
 | **DTOs** | Derive from `Dto`; live in `*.Contract` projects |
-| **Testing** | DTT — integration-first with `[DataInline]` + `DrnTestContext` |
+| **Testing** | DTT — integration-first; `[Fact]` for no-data tests, data attributes request context only when needed |
 | **Git** | GitFlow-inspired: `develop` → `master` → tag `v*.*.*` |
+
+### Testing Attribute Examples
+
+```csharp
+[Fact]
+public void Trim_Should_Remove_Outer_Whitespace()
+{
+    "  Duran  ".Trim().Should().Be("Duran");
+}
+
+[Theory]
+[DataInline(AppEnvironment.Development, true)]
+public void Feature_Should_Follow_Environment(DrnTestContext context,
+    AppEnvironment environment, bool expected)
+{
+    context.AddToConfiguration(new { Environment = environment.ToString() });
+    (environment == AppEnvironment.Development).Should().Be(expected);
+}
+
+[Theory]
+[DataInlineUnit(2, 3, 5)]
+public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
+{
+    (a + b).Should().Be(expected);
+}
+
+[Theory]
+[DataInlineUnit("SafeSection", "Visible", "safe-value")]
+public void Unit_Configuration_Should_Be_Available(
+    DrnTestContextUnit context, string section, string key, string value)
+{
+    context.AddToConfiguration(section, key, value);
+    var debugView = context.GetConfigurationDebugView();
+
+    debugView.SettingsByProvider.Values.SelectMany(settings => settings)
+        .Should().Contain($"{section}:{key}={value}");
+}
+```
 
 ## Architecture
 

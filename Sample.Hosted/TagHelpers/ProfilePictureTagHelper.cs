@@ -18,7 +18,7 @@ public class ProfilePictureTagHelper : TagHelper
         output.TagName = "img";
         output.TagMode = TagMode.SelfClosing;
 
-        // Set the attributes on the <img> tag
+        // Include the user id so browser caches are partitioned by account even when PPVersion values match.
         output.Attributes.SetAttribute("src", $"{Get.Endpoint.User.PP.ControllerRoute}/{ScopeContext.UserId}?v={Get.Claim.Profile.PPVersion}");
         output.Attributes.SetAttribute("alt", Alt ?? "Profile Picture");
 
