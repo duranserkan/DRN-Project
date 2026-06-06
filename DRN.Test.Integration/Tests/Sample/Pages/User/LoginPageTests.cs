@@ -33,7 +33,7 @@ public class LoginPageTests(ITestOutputHelper outputHelper)
                 ["Input.Password"] = $"{registerRequest.Password}-wrong",
                 ["__RequestVerificationToken"] = antiforgeryToken
             });
-            _ = await client.PostAsync(Get.Page.User.Login, form);
+            using var response = await client.PostAsync(Get.Page.User.Login, form);
         }
 
         using var scope = context.CreateScope();
