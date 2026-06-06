@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json;
@@ -17,6 +18,32 @@ public class ScopedLog : IScopedLog
         : text.Length)];
 
     private static readonly ConcurrentDictionary<Type, PropertyInfo[]> _propertiesCache = new();
+
+    private static object CloneLogValue(object value)
+    {
+        if (value is IReadOnlyDictionary<string, object> readOnlyDictionary)
+            return readOnlyDictionary.ToDictionary(pair => pair.Key, pair => pair.Value);
+
+        if (value is IDictionary dictionary)
+        {
+            var clone = new Dictionary<object, object?>(dictionary.Count);
+            foreach (DictionaryEntry entry in dictionary)
+                clone[entry.Key] = entry.Value;
+
+            return clone;
+        }
+
+        if (value is List<object> list)
+            return new List<object>(list);
+
+        if (value is IList<object> objectList)
+            return objectList.ToList();
+
+        if (value is IEnumerable<object> objectEnumerable)
+            return objectEnumerable.ToList();
+
+        return value;
+    }
 
     private readonly Lock _timeUpdater = new();
     private readonly Lock _counter = new();
@@ -119,11 +146,12 @@ public class ScopedLog : IScopedLog
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        LogData = source is ScopedLog scopedLog
-            ? new ConcurrentDictionary<string, object>(scopedLog.LogData)
-            : new ConcurrentDictionary<string, object>(source.GetLogs());
-        HasException = source.HasException;
-        HasWarning = source.HasWarning;
+        var sourceLogs = source is ScopedLog scopedLog ? scopedLog.LogData : source.GetLogs();
+        foreach (var (key, value) in sourceLogs)
+            LogData.AddOrUpdate(key, CloneLogValue(value), (_, _) => CloneLogValue(value));
+
+        HasException |= source.HasException;
+        HasWarning |= source.HasWarning;
 
         return this;
     }

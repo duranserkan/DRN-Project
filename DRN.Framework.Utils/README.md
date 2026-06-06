@@ -545,9 +545,12 @@ using DRN.Framework.Utils.Validators;
 var validation = await JpegValidator.ValidateAsync(requestStream, maxLength: 1024 * 1024);
 if (!validation.IsValid)
 {
-    var message = validation.ErrorReason == JpegValidationErrorReason.MaxLengthExceeded
-        ? "Profile picture exceeds the maximum allowed size."
-        : "Profile picture must be a valid JPEG image.";
+    var message = validation.ErrorReason switch
+    {
+        JpegValidationErrorReason.MaxLengthExceeded => "Profile picture exceeds the maximum allowed size.",
+        JpegValidationErrorReason.InvalidMaxLength => "Profile picture maximum size must be zero or greater.",
+        _ => "Profile picture must be a valid JPEG image."
+    };
     throw ExceptionFor.Validation(message);
 }
 

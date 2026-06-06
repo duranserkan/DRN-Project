@@ -445,3 +445,21 @@ Record the parent value when present, then continue recursing into `child.GetChi
 ### Decision Checkpoint
 
 When traversing configuration, never assume `IConfigurationSection.Value != null` means the section has no children. Always inspect children independently if the view must be complete.
+
+## 20. MTP Test Projects Run Through `dotnet run`
+
+### Context
+
+`DRN.Test.Unit` and `DRN.Test.Integration` are executable Microsoft Testing Platform/xUnit v3 test projects.
+
+### Problem
+
+`dotnet test` invokes the legacy VSTest target and is rejected on .NET 10 MTP projects. Standard `--filter` syntax is also not accepted by the generated xUnit v3 test executable.
+
+### Fix Applied
+
+Run test projects with `dotnet run --project <test-csproj>`. For focused xUnit v3 runs, pass runner filters after `--`, such as `--filter-class Fully.Qualified.TestClass` or `--filter-method Fully.Qualified.TestMethod`.
+
+### Decision Checkpoint
+
+Use `dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj` for unit validation and only run integration after unit tests pass. Do not use `.slnx` in test commands.

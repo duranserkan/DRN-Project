@@ -58,6 +58,22 @@ public class ProfilePictureServiceTests
     }
 
     [Fact]
+    public async Task CreateProfilePictureAsync_Should_Reject_Invalid_MaxSize()
+    {
+        var repository = Substitute.For<IProfilePictureRepository>();
+        repository.UpdateProfilePictureAsync(Arg.Any<ProfilePicture>(), Arg.Any<SampleUser>()).Returns(Task.CompletedTask);
+        var service = new ProfilePictureService(repository);
+        var user = new SampleUser { Id = Guid.NewGuid().ToString("N") };
+        using var stream = new MemoryStream([]);
+
+        var upload = async () => await service.CreateProfilePictureAsync(user, stream, -1);
+
+        await upload.Should().ThrowExactlyAsync<ValidationException>()
+            .WithMessage("Profile picture maximum size must be zero or greater.");
+        await repository.DidNotReceive().UpdateProfilePictureAsync(Arg.Any<ProfilePicture>(), Arg.Any<SampleUser>());
+    }
+
+    [Fact]
     public async Task CreateProfilePictureAsync_Should_Reject_Truncated_Jpeg_Payload()
     {
         var repository = Substitute.For<IProfilePictureRepository>();
