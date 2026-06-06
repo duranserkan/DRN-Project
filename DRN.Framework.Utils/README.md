@@ -261,7 +261,7 @@ public class MyService(IAppSettings settings)
 }
 ```
 
-`GetDebugView(includeRawValues: true)` only includes raw values in Development. Secret-looking keys and sections are redacted by default in summaries. Child keys remain listed even when a provider also defines a scalar value for the parent section.
+`GetDebugView(includeRawValues: true)` only includes raw values in Development. Secret-looking keys and sections are redacted by default in summaries. Child keys remain listed even when a provider also defines a scalar value for the parent section, and summary paths use the value provider's key casing.
 
 ### Configuration Attributes (`[Config]`)
 

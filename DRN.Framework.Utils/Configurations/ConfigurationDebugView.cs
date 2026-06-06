@@ -48,8 +48,10 @@ public class ConfigurationDebugView
         foreach (var child in children)
         {
             var valueAndProvider = GetValueAndProvider(root, child.Path);
-            var value = ConfigurationDebugValueRedactor.Redact(child.Path, child.Key, valueAndProvider.Value, includeRawValues);
-            var entry = new DebugViewEntry(child.Path, child.Key, value, valueAndProvider.Provider, parentEntry);
+            var path = valueAndProvider.Provider == null ? child.Path : GetProviderPath(valueAndProvider.Provider, child.Path);
+            var key = GetKey(path);
+            var value = ConfigurationDebugValueRedactor.Redact(path, key, valueAndProvider.Value, includeRawValues);
+            var entry = new DebugViewEntry(path, key, value, valueAndProvider.Provider, parentEntry);
 
             if (entry.Provider != null)
                 entries.Add(entry);
@@ -65,6 +67,31 @@ public class ConfigurationDebugView
                 return (value, provider);
 
         return (null, null);
+    }
+
+    private static string GetProviderPath(IConfigurationProvider provider, string path)
+    {
+        // Render the path using the provider that supplied the value; merged sections can inherit casing from another provider.
+        var segments = path.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var providerSegments = new string[segments.Length];
+        string? parentPath = null;
+
+        for (var i = 0; i < segments.Length; i++)
+        {
+            var providerKey = provider.GetChildKeys([], parentPath)
+                .FirstOrDefault(key => string.Equals(key, segments[i], StringComparison.OrdinalIgnoreCase));
+            providerSegments[i] = providerKey ?? segments[i];
+
+            parentPath = parentPath == null ? providerSegments[i] : $"{parentPath}:{providerSegments[i]}";
+        }
+
+        return string.Join(':', providerSegments);
+    }
+
+    private static string GetKey(string path)
+    {
+        var separatorIndex = path.LastIndexOf(':');
+        return separatorIndex < 0 ? path : path[(separatorIndex + 1)..];
     }
 }
 

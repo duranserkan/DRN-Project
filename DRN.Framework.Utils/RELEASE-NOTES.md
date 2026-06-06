@@ -11,7 +11,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
-*   **Configuration Debug View**: Continues traversing child configuration keys when a higher-priority provider defines a scalar value for the parent section, so CI/environment overrides do not hide lower-provider child entries in debug summaries.
+*   **Configuration Debug View**: Continues traversing child configuration keys when a higher-priority provider defines a scalar value for the parent section, and renders entries with the value provider's key casing so CI/environment overrides do not hide or rename lower-provider child entries in debug summaries.
 
 ## Version 0.9.4
 

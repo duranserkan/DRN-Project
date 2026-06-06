@@ -436,15 +436,15 @@ When asserting `ConfigurationDebugView` output, match the configuration source. 
 
 ### Problem
 
-.NET configuration sections are not strictly containers or leaves. One provider can define a scalar parent such as `connectionStrings`, while another provider defines `connectionStrings:testDb`. Treating the scalar parent as terminal hides child keys, which can surface only in CI where environment variables add extra parent values.
+.NET configuration sections are not strictly containers or leaves. One provider can define a scalar parent such as `ConnectionStrings`, while another provider defines `connectionStrings:testDb`. Treating the scalar parent as terminal hides child keys. Reusing the merged traversal path for rendered entries can also leak the parent provider's casing into a child value from another provider, which can surface only in CI where environment variables add extra parent values.
 
 ### Fix Applied
 
-Record the parent value when present, then continue recursing into `child.GetChildren()` so sibling providers' child keys remain visible and redacted.
+Record the parent value when present, then continue recursing into `child.GetChildren()` so sibling providers' child keys remain visible and redacted. For each entry, render the path using the provider that supplied the value, not the merged section path inherited during traversal.
 
 ### Decision Checkpoint
 
-When traversing configuration, never assume `IConfigurationSection.Value != null` means the section has no children. Always inspect children independently if the view must be complete.
+When traversing configuration, never assume `IConfigurationSection.Value != null` means the section has no children. Always inspect children independently if the view must be complete. When asserting `ConfigurationDebugView` paths, simulate mixed-provider casing (`ConnectionStrings` parent plus `connectionStrings:testDb` child) so local tests cover CI-like environment-provider interactions.
 
 ## 20. MTP Test Projects Run Through `dotnet run`
 
