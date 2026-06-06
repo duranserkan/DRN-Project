@@ -34,9 +34,8 @@ public class DrnProgramBaseSecurityOptionsTests
         act.Should().Throw<ConfigurationException>()
             .WithMessage("AllowedHosts cannot contain '*' outside Development.");
     }
-
-    [Theory]
-    [DataInlineUnit]
+    
+    [Fact]
     public void ConfigureHostFilteringOptions_Should_Allow_Development_Fallback()
     {
         var appSettings = CreateAppSettings(isDevelopment: true);
@@ -47,9 +46,8 @@ public class DrnProgramBaseSecurityOptionsTests
 
         options.AllowedHosts.Should().Equal("*");
     }
-
-    [Theory]
-    [DataInlineUnit]
+    
+    [Fact]
     public void ConfigureHostFilteringOptions_Should_Use_Configured_Production_Hosts()
     {
         var appSettings = CreateAppSettings(isDevelopment: false, ("AllowedHosts", "example.com;api.example.com"));

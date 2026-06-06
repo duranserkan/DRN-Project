@@ -30,6 +30,7 @@ public interface IExceptionUtils
 [Transient<IExceptionUtils>]
 public class ExceptionUtils(
     ExceptionDetailsProvider exceptionDetailsProvider,
+    IAppSettings appSettings,
     IOptions<DeveloperExceptionPageOptions>? options = null)
     : IExceptionUtils
 {
@@ -39,8 +40,7 @@ public class ExceptionUtils(
 
     public ProblemDetails CreateProblemDetails(HttpContext context, Exception exception)
     {
-        var appSettings = context.RequestServices.GetService<IAppSettings>();
-        var includeExceptionDetails = appSettings?.IsDevelopmentEnvironment == true;
+        var includeExceptionDetails = appSettings.IsDevelopmentEnvironment;
         var problemDetails = new ProblemDetails
         {
             Title = includeExceptionDetails
@@ -69,12 +69,10 @@ public class ExceptionUtils(
 
     public CompilationErrorModel CreateCompilationErrorModel(HttpContext context, Exception exception, ICompilationException compilationException)
     {
-        var appSettings = context.RequestServices.GetService<IAppSettings>();
-        if (appSettings?.IsDevelopmentEnvironment != true)
+        if (!appSettings.IsDevelopmentEnvironment)
             throw new InvalidOperationException("Developer compilation exception page models are only available in Development.");
 
         var model = new CompilationErrorModel(ExceptionPageOptions);
-
         if (compilationException.CompilationFailures == null)
             return model;
 
@@ -118,10 +116,6 @@ public class ExceptionUtils(
     public async Task<DrnExceptionModel> CreateErrorPageModelAsync(HttpContext context, Exception exception)
     {
         var request = context.Request;
-        var appSettings = context.RequestServices.GetRequiredService<IAppSettings>();
-        if (!appSettings.IsDevelopmentEnvironment)
-            throw new InvalidOperationException("Developer exception page models are only available in Development.");
-
         var scopedLog = context.RequestServices.GetRequiredService<IScopedLog>();
         var title = GetPageTitle(exception);
         var body = await RequestBufferingState.ReadBodyAsync(context);

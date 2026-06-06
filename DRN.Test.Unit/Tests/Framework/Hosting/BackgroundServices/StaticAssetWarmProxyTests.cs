@@ -4,8 +4,7 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.BackgroundServices;
 
 public class StaticAssetWarmProxyTests
 {
-    [Theory]
-    [DataInlineUnit]
+    [Fact]
     public void GetOriginalFileSize_Should_Return_Size_For_File_Inside_ContentRoot()
     {
         var parent = Directory.CreateTempSubdirectory();
@@ -26,8 +25,7 @@ public class StaticAssetWarmProxyTests
         }
     }
 
-    [Theory]
-    [DataInlineUnit]
+    [Fact]
     public void GetOriginalFileSize_Should_Return_Zero_For_Path_Outside_ContentRoot()
     {
         var parent = Directory.CreateTempSubdirectory();

@@ -13,10 +13,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 
+public record ExceptionPageModel(HttpContext HttpContext, DrnExceptionModel? ExceptionModel);
+
 public interface IDrnExceptionHandler
 {
     Task HandleExceptionAsync(HttpContext context, Exception ex);
-    Task<ExceptionContentResult?> GetExceptionContentAsync(IServiceProvider serviceProvider, Exception exception, IScopedLog scopedLog);
+    Task<ExceptionPageModel> GetExceptionPageModel(IServiceProvider serviceProvider, Exception exception);
+    Task<ExceptionContentResult?> GetExceptionContentAsync(IServiceProvider serviceProvider, Exception exception);
+    Task<ExceptionContentResult?> GetStartupExceptionContentAsync(IServiceProvider serviceProvider, Exception exception, IScopedLog startupLog);
 }
 
 [Scoped<IDrnExceptionHandler>]
@@ -45,9 +49,7 @@ public class DrnExceptionHandler(
             scopedLog.Add("ExceptionPageErrorStackTrace", e2.StackTrace ?? string.Empty);
 
             if (!context.Response.HasStarted && appSettings.IsDevelopmentEnvironment)
-            {
                 await context.Response.WriteAsJsonAsync(scopedLog.GetLogs());
-            }
             else if (!context.Response.HasStarted)
                 await WriteProductionErrorResponseAsync(context);
         }
@@ -57,22 +59,38 @@ public class DrnExceptionHandler(
             WriteDiagnosticEvent(diagnosticSource, eventName, new { httpContext = context, exception = ex });
     }
 
-    public async Task<ExceptionContentResult?> GetExceptionContentAsync(IServiceProvider serviceProvider, Exception exception, IScopedLog scopedLog)
+    public async Task<ExceptionContentResult?> GetExceptionContentAsync(IServiceProvider serviceProvider, Exception exception)
     {
-        if (!appSettings.IsDevelopmentEnvironment) return null;
+        var exceptionPageModel = await GetExceptionPageModel(serviceProvider, exception);
+        if (!appSettings.IsDevelopmentEnvironment)
+            return null;
 
-        using var requestServices = serviceProvider.CreateScope();
+        var result = await GetExceptionContentResult(exceptionPageModel, exception);
+
+        return result;
+    }
+
+    public async Task<ExceptionPageModel> GetExceptionPageModel(IServiceProvider serviceProvider, Exception exception)
+    {
         var context = new DefaultHttpContext
         {
-            RequestServices = requestServices.ServiceProvider
+            RequestServices = serviceProvider
         };
 
-        var activeScopedLog = requestServices.ServiceProvider.GetService<IScopedLog>();
-        if (activeScopedLog != null)
-            ((ScopedLog)activeScopedLog).LogData = ((ScopedLog)scopedLog).LogData;
-
+        //even in production we may want to execute IDrnExceptionFilter filters
         var model = await ExecuteExceptionPageModel(context, exception);
-        var result = await GetExceptionContentResult(context, exception, model);
+
+        return new ExceptionPageModel(context, model);
+    }
+    
+    public async Task<ExceptionContentResult?> GetStartupExceptionContentAsync(IServiceProvider serviceProvider, Exception exception, IScopedLog startupLog)
+    {
+        using var requestServices = serviceProvider.CreateScope();
+        var scopedProvider = requestServices.ServiceProvider;
+        var activeScopedLog = scopedProvider.GetRequiredService<IScopedLog>();
+        ((ScopedLog)activeScopedLog).LogData = ((ScopedLog)startupLog).LogData;
+
+        var result = await GetExceptionContentAsync(scopedProvider, exception);
 
         return result;
     }
@@ -96,15 +114,18 @@ public class DrnExceptionHandler(
     {
         context.Response.StatusCode = context.Response.StatusCode < 1 ? 500 : context.Response.StatusCode;
 
+        //even in production we may want to execute IDrnExceptionFilter filters
+        var model = await ExecuteExceptionPageModel(context, exception);
         if (!appSettings.IsDevelopmentEnvironment)
         {
+            //todo: prod exception page, if error page is configured redirect to it
+            //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling#exception-handler-page
             await WriteProductionErrorResponseAsync(context);
             return;
         }
 
-        var model = await ExecuteExceptionPageModel(context, exception);
-        var result = await GetExceptionContentResult(context, exception, model);
-
+        var exceptionPageModel = new ExceptionPageModel(context, model);
+        var result = await GetExceptionContentResult(exceptionPageModel, exception);
         if (result != null)
         {
             context.Response.ContentType = result.ContentType;
@@ -112,11 +133,7 @@ public class DrnExceptionHandler(
             return;
         }
 
-        //todo: prod exception page
-        //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-9.0#exception-handler-page
-
-        var statusCode = ((HttpStatusCode)context.Response.StatusCode).ToString();
-        await context.Response.WriteAsync($"{statusCode} {context.Response.StatusCode} TraceId: {context.TraceIdentifier}");
+        await WriteProductionErrorResponseAsync(context);
     }
 
     private static async Task WriteProductionErrorResponseAsync(HttpContext context)
@@ -126,12 +143,14 @@ public class DrnExceptionHandler(
         await context.Response.WriteAsync($"{statusCode} {context.Response.StatusCode} TraceId: {context.TraceIdentifier}");
     }
 
-    private async Task<ExceptionContentResult?> GetExceptionContentResult(HttpContext context, Exception exception, DrnExceptionModel? model)
+    private async Task<ExceptionContentResult?> GetExceptionContentResult(ExceptionPageModel pageModel, Exception exception)
     {
-        if (!appSettings.IsDevelopmentEnvironment || model == null) return null;
+        var exceptionModel = pageModel.ExceptionModel;
+        if (exceptionModel == null)
+            return null;
 
         //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-9.0#database-error-page
-        var result = await contentProvider.CreateErrorContentResult(context, exception, model);
+        var result = await contentProvider.CreateErrorContentResult(pageModel.HttpContext, exception, exceptionModel);
         return result;
     }
 
@@ -149,13 +168,14 @@ public class DrnExceptionHandler(
 
         var model = await exceptionUtils.CreateErrorPageModelAsync(context, exception);
 
-        if (!skipPostCreationFilter)
+        if (skipPostCreationFilter)
+            return model;
+
+        foreach (var filter in filters)
         {
-            foreach (var filter in filters)
-            {
-                var postFilterResult = await filter.HandleExceptionAsync(context, exception, model);
-                if (postFilterResult.SkipExceptionHandling) return model;
-            }
+            var postFilterResult = await filter.HandleExceptionAsync(context, exception, model);
+            if (postFilterResult.SkipExceptionHandling)
+                return model;
         }
 
         return model;

@@ -715,7 +715,7 @@ Disable the publish item injection when an application owns this behavior itself
 DRN Hosting provides deep observability into application failures, especially during the critical startup phase.
 
 ### Startup Exception Reports
-In Development, if the application fails to start during `RunAsync`, it generates a `StartupExceptionReport.html` in the execution directory. Production and staging fail with normal logs only; rich exception models are not built outside Development. Development reports include:
+In Development, if the application fails to start during `RunAsync`, it generates a `StartupExceptionReport.html` in the execution directory. Production and staging fail with normal logs only. Development reports include:
 -   Full stack traces with source code highlighting (if symbols available).
 -   Environment details and configuration snapshots.
 -   Scoped logs leading up to the crash.
@@ -736,16 +736,14 @@ The framework includes built-in Razor Pages for developer-time exception handlin
 -   **Size gate** — requests exceeding the buffer limit are silently skipped (no buffering, no memory risk)
 -   **Method filter** — only POST/PUT/PATCH are buffered; GET/HEAD/DELETE/OPTIONS carry no semantic body
 -   **Chunked transfer** — requests without `Content-Length` (chunked encoding) are skipped to prevent unbounded DoS
--   **Developer-only consumer** — buffered bodies are only copied into developer exception models in Development
--   **Pool hygiene** — temporary character buffers are cleared before returning to the shared pool
 -   **Kestrel enforcement** — Content-Length is validated per-protocol (HTTP/1.1 slicing, HTTP/2 PROTOCOL_ERROR, HTTP/3 QUIC framing)
 
 **Configuration** via `DrnAppFeatures` (in `appsettings.json`):
 
-| Key | Type | Default | Effect |
-|-----|------|---------|--------|
-| `DisableRequestBuffering` | `bool` | `false` | Kill switch — disables all body buffering |
-| `MaxRequestBufferingSize` | `int` | `0` (→ 30,000) | Max bytes to buffer. Values below 10,000 are ignored |
+| Key                       | Type   | Default        | Effect                                               |
+|---------------------------|--------|----------------|------------------------------------------------------|
+| `DisableRequestBuffering` | `bool` | `false`        | Kill switch — disables all body buffering            |
+| `MaxRequestBufferingSize` | `int`  | `0` (→ 30,000) | Max bytes to buffer. Values below 10,000 are ignored |
 
 ```json
 {

@@ -179,9 +179,10 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             var services = applicationBuilder.Services.BuildServiceProvider();
             var isDevelopment = appSettings.IsDevelopmentEnvironment;
             var handler = services.GetService<IDrnExceptionHandler>();
+            //todo send startup exception report to nexus in non-develop
             if (handler != null && isDevelopment)
             {
-                var exceptionContentResult = await handler.GetExceptionContentAsync(services, exception, scopedLog);
+                var exceptionContentResult = await handler.GetStartupExceptionContentAsync(services, exception, scopedLog);
                 if (exceptionContentResult != null)
                 {
                     var directory = Path.GetDirectoryName(typeof(TProgram).Assembly.Location)!;
