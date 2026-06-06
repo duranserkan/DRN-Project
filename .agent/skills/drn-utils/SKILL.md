@@ -88,6 +88,8 @@ public interface IAppSettings
 }
 ```
 
+`ConfigurationDebugView` redacts secret-looking values by default and lists child keys even when a provider also defines a scalar value for the parent section.
+
 ### Config Attribute
 
 ```csharp

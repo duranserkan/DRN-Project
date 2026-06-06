@@ -427,3 +427,21 @@ Those JSON defaults use camelCase property names. Tests that add a `ConnectionSt
 ### Decision Checkpoint
 
 When asserting `ConfigurationDebugView` output, match the configuration source. Object-based configuration follows JSON naming policy; explicit key/value configuration preserves the key text supplied by the test.
+
+## 19. Configuration Sections Can Have Both Values and Children
+
+### Context
+
+`ConfigurationDebugView` walks `IConfigurationRoot.GetChildren()` and resolves each path back to the provider that supplies the visible value.
+
+### Problem
+
+.NET configuration sections are not strictly containers or leaves. One provider can define a scalar parent such as `connectionStrings`, while another provider defines `connectionStrings:testDb`. Treating the scalar parent as terminal hides child keys, which can surface only in CI where environment variables add extra parent values.
+
+### Fix Applied
+
+Record the parent value when present, then continue recursing into `child.GetChildren()` so sibling providers' child keys remain visible and redacted.
+
+### Decision Checkpoint
+
+When traversing configuration, never assume `IConfigurationSection.Value != null` means the section has no children. Always inspect children independently if the view must be complete.

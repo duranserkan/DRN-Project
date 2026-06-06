@@ -9,6 +9,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Stream Hashing Support**: Added stream and file hashing overloads in `HashExtensions` (supporting Blake3, XxHash3, Sha256, Sha512, and keyed Blake3/XxHash3 algorithms) to hash files and large payloads without first materializing them as `BinaryData`.
 *   **JPEG Payload Validation**: Added public `DRN.Framework.Utils.Validators.JpegValidator` with explicit `JpegValidationResult` and `JpegValidationErrorReason` support for structural, stream-based, and size-bounded JPEG byte validation before persisting uploaded image payloads.
 
+### Bug Fixes
+
+*   **Configuration Debug View**: Continues traversing child configuration keys when a higher-priority provider defines a scalar value for the parent section, so CI/environment overrides do not hide lower-provider child entries in debug summaries.
+
 ## Version 0.9.4
 
 Dependencies upgraded to dotnet 10.0.8

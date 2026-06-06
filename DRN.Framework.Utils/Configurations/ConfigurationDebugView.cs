@@ -53,8 +53,8 @@ public class ConfigurationDebugView
 
             if (entry.Provider != null)
                 entries.Add(entry);
-            else
-                RecurseChildren(root, entries, child.GetChildren(), includeRawValues, entry);
+
+            RecurseChildren(root, entries, child.GetChildren(), includeRawValues, entry);
         }
     }
 

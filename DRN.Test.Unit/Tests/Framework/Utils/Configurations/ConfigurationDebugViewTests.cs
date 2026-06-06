@@ -30,6 +30,23 @@ public class ConfigurationDebugViewTests
 
     [Theory]
     [DataInlineUnit("testDb", "Server=127.0.0.1;Port=5432;Database=myDataBase;User Id=myUsername;Password=myPassword;")]
+    public void ConfigurationDebugView_Should_List_Child_Keys_When_Parent_Section_Has_Value(
+        DrnTestContextUnit context, string name, string connectionString)
+    {
+        var connectionStrings = new ConnectionStringsCollection();
+        connectionStrings.ConnectionStrings.Add(name, connectionString);
+        context.AddToConfiguration(connectionStrings);
+        context.AddToConfiguration("connectionStrings", "parent-value-from-higher-priority-provider");
+
+        var debugView = context.GetConfigurationDebugView();
+
+        var settings = debugView.SettingsByProvider.Values.SelectMany(value => value).ToArray();
+        settings.Should().Contain("connectionStrings=[redacted]");
+        settings.Should().Contain($"connectionStrings:{name}=[redacted]");
+    }
+
+    [Theory]
+    [DataInlineUnit("testDb", "Server=127.0.0.1;Port=5432;Database=myDataBase;User Id=myUsername;Password=myPassword;")]
     public void ConfigurationDebugView_Should_Include_Raw_Values_Only_When_Development_Explicitly_Requests_Them(
         string name, string connectionString)
     {
