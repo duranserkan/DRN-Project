@@ -1,7 +1,7 @@
 ---
 name: test-unit
 description: Unit testing patterns and organization - Fast, isolated tests with auto-mocking (NSubstitute), service validation, test data management, and mocking strategies. Use for testing services, domain logic, and components in isolation. Keywords: unit-testing, mocking, nsubstitute, autofixture, test-patterns, service-testing, isolated-testing, dtt, xunit
-last-updated: 2026-02-15
+last-updated: 2026-06-06
 difficulty: basic
 tokens: ~1K
 ---
@@ -18,6 +18,40 @@ tokens: ~1K
 ---
 
 ## Test Patterns
+
+### Attribute Selection
+
+- Use `[Fact]` when the test has no inline data, generated parameters, or `DrnTestContextUnit` dependency.
+- Use `[Theory]` + `[DataInlineUnit]` for parameterized rows or auto-generated parameters.
+- Include `DrnTestContextUnit` in the method signature only when the test uses context services, configuration, data files, or service validation.
+
+```csharp
+[Fact]
+public void Trim_Should_Remove_Outer_Whitespace()
+{
+    "  Duran  ".Trim().Should().Be("Duran");
+}
+
+[Theory]
+[DataInlineUnit(2, 3, 5)]
+[DataInlineUnit(-1, -2, -3)]
+public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
+{
+    (a + b).Should().Be(expected);
+}
+
+[Theory]
+[DataInlineUnit("SafeSection", "Visible", "safe-value")]
+public void Configuration_Should_Be_Available_When_Context_Is_Requested(
+    DrnTestContextUnit context, string section, string key, string value)
+{
+    context.AddToConfiguration(section, key, value);
+    var debugView = context.GetConfigurationDebugView();
+
+    debugView.SettingsByProvider.Values.SelectMany(settings => settings)
+        .Should().Contain($"{section}:{key}={value}");
+}
+```
 
 ### Unit Test with Auto-Mocking
 
@@ -53,9 +87,9 @@ When multiple cases share identical test bodies, consolidate into one `[Theory]`
 [DataInlineUnit(2, 3, 5)]     // positive + positive
 [DataInlineUnit(-1, -2, -3)]  // negative + negative
 [DataInlineUnit(0, 0, 0)]     // zeros
-public void Add_Should_Return_Correct_Sum(DrnTestContextUnit context, int a, int b, int expected)
+public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
 {
-    new Calculator().Add(a, b).Should().Be(expected);
+    (a + b).Should().Be(expected);
 }
 ```
 

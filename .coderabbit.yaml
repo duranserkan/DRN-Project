@@ -29,8 +29,9 @@ reviews:
     - path: "DRN.Test.*/**"
       instructions: >
         Test projects — verify DTT patterns:
-        Integration tests should use [DataInline] with DrnTestContext.
-        Unit tests should use [DataInlineUnit] with DrnTestContextUnit.
+        Tests without inline data or generated parameters should use [Fact].
+        Integration data tests should use [DataInline] and request DrnTestContext only when needed.
+        Unit data tests should use [DataInlineUnit] and request DrnTestContextUnit only when needed.
         Prefer integration tests with real containers over heavy mocking.
         Check that test class names follow conventions.
     - path: ".agent/skills/**"

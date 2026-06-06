@@ -142,8 +142,8 @@ Follow Development Loop from `basic-agentic-development`:
    - API endpoints → API integration tests
 7. **Run tests**:
    ```bash
-   dotnet run --project DRN.Test.Unit
-   dotnet run --project DRN.Test.Integration
+   dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
+   dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
    ```
    - **Tests fail (code error)** → Self-Correction Loop applies.
    - **Cannot execute** (toolchain missing, permission denied) → inform user, skip test run, continue.
@@ -163,8 +163,8 @@ After all PBIs implemented:
 
 ```bash
 dotnet build DRN.slnx
-dotnet run --project DRN.Test.Unit
-dotnet run --project DRN.Test.Integration
+dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
+dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 ```
 
 All must pass. If not → return to §5.

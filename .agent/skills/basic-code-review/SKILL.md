@@ -78,8 +78,9 @@ Every service class should declare its lifetime:
 
 ### Review Checklist
 - [ ] New public API has corresponding test
-- [ ] Integration test uses `[DataInline]` + `DrnTestContext`
-- [ ] Unit test uses `[DataInlineUnit]` + `DrnTestContextUnit`
+- [ ] Tests without inline data or generated parameters use `[Fact]`
+- [ ] Integration data tests use `[DataInline]` and request `DrnTestContext` only when needed
+- [ ] Unit data tests use `[DataInlineUnit]` and request `DrnTestContextUnit` only when needed
 - [ ] No test uses `Thread.Sleep` or arbitrary delays
 - [ ] Mocks are justified — prefer real containers
 

@@ -8,7 +8,7 @@ All DTT data attributes (`DataInline`, `DataMember`, `DataSelf` and `Unit` varia
 
 | Step | What Happens |
 |------|-------------|
-| 1. Context | `DrnTestContext` or `DrnTestContextUnit` auto-provided as first parameter when the method signature requests it |
+| 1. Context | `DrnTestContext` or `DrnTestContextUnit` auto-provided when the method signature requests it |
 | 2. Inline values | Attribute arguments mapped to subsequent method parameters in order |
 | 3. AutoFixture | Remaining parameters without inline values auto-generated (primitives, `Guid`, POCOs, etc.) |
 | 4. NSubstitute | Interface/abstract-class parameters auto-mocked; mocks auto-replace matching registrations in `ServiceCollection` |
@@ -21,7 +21,45 @@ All DTT data attributes (`DataInline`, `DataMember`, `DataSelf` and `Unit` varia
 | `[DataMember]` | `[DataMemberUnit]` |
 | `[DataSelf]` | `[DataSelfUnit]` |
 
-Integration variants provide `DrnTestContext`; Unit variants provide `DrnTestContextUnit` (lightweight — no `ContainerContext`, `ApplicationContext`, or `FlurlHttpTest`).
+Integration variants provide `DrnTestContext` when requested; Unit variants provide `DrnTestContextUnit` when requested (lightweight — no `ContainerContext`, `ApplicationContext`, or `FlurlHttpTest`). Use `[Fact]` when a test has no inline data, generated parameters, or context dependency.
+
+### Attribute Examples
+
+```csharp
+[Fact]
+public void Trim_Should_Remove_Outer_Whitespace()
+{
+    "  Duran  ".Trim().Should().Be("Duran");
+}
+
+[Theory]
+[DataInline(AppEnvironment.Development, true)]
+public void Integration_DataInline_Should_Request_Context_When_Needed(
+    DrnTestContext context, AppEnvironment environment, bool expected)
+{
+    context.AddToConfiguration(new { Environment = environment.ToString() });
+    (environment == AppEnvironment.Development).Should().Be(expected);
+}
+
+[Theory]
+[DataInlineUnit(2, 3, 5)]
+public void Unit_DataInlineUnit_Should_Omit_Context_When_Unused(int a, int b, int expected)
+{
+    (a + b).Should().Be(expected);
+}
+
+[Theory]
+[DataInlineUnit("SafeSection", "Visible", "safe-value")]
+public void Unit_DataInlineUnit_Should_Request_Context_When_Needed(
+    DrnTestContextUnit context, string section, string key, string value)
+{
+    context.AddToConfiguration(section, key, value);
+    var debugView = context.GetConfigurationDebugView();
+
+    debugView.SettingsByProvider.Values.SelectMany(settings => settings)
+        .Should().Contain($"{section}:{key}={value}");
+}
+```
 
 ### Test Consolidation
 
@@ -66,7 +104,9 @@ public void Migrate_Flag_Should_Reflect_Environment_And_AutoMigrate_Settings(Drn
 3. **Comment inline data** — trailing comment on each attribute row when values aren't self-explanatory
 4. **Extract shared setup** — private helper keeps the test body focused on act + assert
 5. **Omit inline values for auto-generated params** — let AutoFixture/NSubstitute handle params you don't need to control
-6. **Don't consolidate when** — test bodies differ structurally, require different setup/teardown, or separate failure messages aid debugging more than parameterization
+6. **Omit context when unused** — `[DataInlineUnit]` and `[DataInline]` do not require `DrnTestContextUnit` / `DrnTestContext` parameters unless the test uses the context
+7. **Use `[Fact]` for no-parameter tests** — do not add a DTT context just to satisfy an attribute convention
+8. **Don't consolidate when** — test bodies differ structurally, require different setup/teardown, or separate failure messages aid debugging more than parameterization
 
 ## 2. Per-Request Allocation 
 
