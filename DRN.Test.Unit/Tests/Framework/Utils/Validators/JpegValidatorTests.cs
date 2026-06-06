@@ -59,6 +59,38 @@ public class JpegValidatorTests
     }
 
     [Fact]
+    public async Task Validate_Should_Strip_Trailing_Data_After_End_Of_Image()
+    {
+        var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
+        var jpegWithTrailingData = jpeg.Concat(new byte[] { 0x00, 0x00, 0x4D, 0x45, 0x54, 0x41 }).ToArray();
+
+        var result = JpegValidator.Validate(jpegWithTrailingData, jpegWithTrailingData.Length);
+
+        result.IsValid.Should().BeTrue();
+        result.ImageData.Should().Equal(jpeg);
+        result.ErrorMessage.Should().BeEmpty();
+        result.ErrorReason.Should().Be(JpegValidationErrorReason.None);
+    }
+
+    [Fact]
+    public async Task IsValid_Should_Accept_Zero_Padding_After_End_Of_Image()
+    {
+        var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
+        var jpegWithPadding = jpeg.Concat(new byte[] { 0x00, 0x00, 0x00 }).ToArray();
+
+        JpegValidator.IsValid(jpegWithPadding, jpegWithPadding.Length).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task IsValid_Should_Reject_NonPadding_Trailing_Data_After_End_Of_Image()
+    {
+        var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
+        var jpegWithTrailingData = jpeg.Concat(new byte[] { 0x4D, 0x45, 0x54, 0x41 }).ToArray();
+
+        JpegValidator.IsValid(jpegWithTrailingData, jpegWithTrailingData.Length).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task ValidateAsync_Should_Return_Invalid_Result_For_Invalid_Jpeg_Stream()
     {
         var pngPayload = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x00 };

@@ -24,6 +24,24 @@ public class ProfilePictureServiceTests
     }
 
     [Fact]
+    public async Task CreateProfilePictureAsync_Should_Store_Normalized_Jpeg_When_Trailing_Data_Follows_End_Of_Image()
+    {
+        var repository = Substitute.For<IProfilePictureRepository>();
+        repository.UpdateProfilePictureAsync(Arg.Any<ProfilePicture>(), Arg.Any<SampleUser>()).Returns(Task.CompletedTask);
+        var service = new ProfilePictureService(repository);
+        var user = new SampleUser { Id = Guid.NewGuid().ToString("N") };
+        var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
+        var jpegWithTrailingData = jpeg.Concat(new byte[] { 0x00, 0x00, 0x4D, 0x45, 0x54, 0x41 }).ToArray();
+        using var stream = new MemoryStream(jpegWithTrailingData);
+
+        await service.CreateProfilePictureAsync(user, stream, jpegWithTrailingData.Length);
+
+        await repository.Received(1).UpdateProfilePictureAsync(
+            Arg.Is<ProfilePicture>(picture => picture.UserId == user.Id && picture.ImageData.SequenceEqual(jpeg)),
+            user);
+    }
+
+    [Fact]
     public async Task CreateProfilePictureAsync_Should_Reject_NonJpeg_Payload()
     {
         var repository = Substitute.For<IProfilePictureRepository>();

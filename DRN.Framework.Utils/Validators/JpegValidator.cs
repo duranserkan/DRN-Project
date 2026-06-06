@@ -22,6 +22,7 @@ public static class JpegValidator
         return result.IsValid;
     }
 
+    //todo: evaluate proper Image library as an alternative
     public static JpegValidationResult Validate(byte[] imageData, long maxLength = long.MaxValue)
     {
         ArgumentNullException.ThrowIfNull(imageData);
@@ -34,8 +35,9 @@ public static class JpegValidator
                 $"JPEG image data exceeds the maximum allowed length of {maxLength:N0} bytes.",
                 JpegValidationErrorReason.MaxLengthExceeded);
 
-        return IsValid(imageData, maxLength)
-            ? JpegValidationResult.Valid(imageData)
+        // Return only the structurally validated JPEG stream; post-EOI bytes are not persisted.
+        return TryGetValidImageLength(imageData, maxLength, out var imageLength)
+            ? JpegValidationResult.Valid(NormalizeImageData(imageData, imageLength))
             : JpegValidationResult.Invalid(InvalidJpegMessage);
     }
 
@@ -59,7 +61,12 @@ public static class JpegValidator
     }
 
     public static bool IsValid(ReadOnlySpan<byte> imageData, long maxLength)
+        => TryGetValidImageLength(imageData, maxLength, out var imageLength)
+           && HasOnlyTrailingPadding(imageData[imageLength..]);
+
+    private static bool TryGetValidImageLength(ReadOnlySpan<byte> imageData, long maxLength, out int imageLength)
     {
+        imageLength = 0;
         if (maxLength < 0 || imageData.Length > maxLength || imageData.Length < 4
             || imageData[0] != MarkerPrefix || imageData[1] != StartOfImage)
             return false;
@@ -75,7 +82,13 @@ public static class JpegValidator
                 return false;
 
             if (marker == EndOfImage)
-                return hasFrame && hasScan && HasOnlyTrailingPadding(imageData[index..]);
+            {
+                if (!hasFrame || !hasScan)
+                    return false;
+
+                imageLength = index;
+                return true;
+            }
 
             if (IsStandaloneMarker(marker))
                 continue;
@@ -103,6 +116,9 @@ public static class JpegValidator
 
         return false;
     }
+
+    private static byte[] NormalizeImageData(byte[] imageData, int imageLength)
+        => imageLength == imageData.Length ? imageData : imageData[..imageLength];
 
     private static bool TryReadMarker(ReadOnlySpan<byte> imageData, ref int index, out byte marker)
     {
