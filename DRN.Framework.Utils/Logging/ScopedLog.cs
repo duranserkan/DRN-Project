@@ -115,6 +115,19 @@ public class ScopedLog : IScopedLog
         return this;
     }
 
+    public IScopedLog CopyFrom(IScopedLog source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        LogData = source is ScopedLog scopedLog
+            ? new ConcurrentDictionary<string, object>(scopedLog.LogData)
+            : new ConcurrentDictionary<string, object>(source.GetLogs());
+        HasException = source.HasException;
+        HasWarning = source.HasWarning;
+
+        return this;
+    }
+
     public IScopedLog WithLoggerName(string? name) => Add(ScopedLogConventions.KeyOfLoggerName, name ?? "n/a");
     public IScopedLog WithTraceIdentifier(string traceIdentifier) => Add(ScopedLogConventions.KeyOfTraceIdentifier, traceIdentifier);
 

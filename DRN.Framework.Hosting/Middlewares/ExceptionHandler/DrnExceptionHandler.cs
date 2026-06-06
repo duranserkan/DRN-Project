@@ -88,7 +88,7 @@ public class DrnExceptionHandler(
         using var requestServices = serviceProvider.CreateScope();
         var scopedProvider = requestServices.ServiceProvider;
         var activeScopedLog = scopedProvider.GetRequiredService<IScopedLog>();
-        ((ScopedLog)activeScopedLog).LogData = ((ScopedLog)startupLog).LogData;
+        activeScopedLog.CopyFrom(startupLog);
 
         var result = await GetExceptionContentAsync(scopedProvider, exception);
 

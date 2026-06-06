@@ -7,6 +7,10 @@ namespace DRN.Framework.Utils.Configurations;
 
 public class ConfigurationDebugView
 {
+    public ConfigurationDebugView(IAppSettings appSettings) : this(appSettings, false)
+    {
+    }
+
     public ConfigurationDebugView(IAppSettings appSettings, bool includeRawValues = false)
     {
         Environment = appSettings.Environment;

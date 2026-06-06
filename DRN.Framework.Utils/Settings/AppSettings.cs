@@ -41,6 +41,7 @@ public interface IAppSettings
     T? GetValue<T>(string key);
     T? GetValue<T>(string key, T defaultValue);
     T? Get<T>(string key, bool errorOnUnknownConfiguration = false, bool bindNonPublicProperties = true);
+    ConfigurationDebugView GetDebugView();
     ConfigurationDebugView GetDebugView(bool includeRawValues = false);
 }
 
@@ -163,6 +164,7 @@ public class AppSettings : IAppSettings
             c.ErrorOnUnknownConfiguration = errorOnUnknownConfiguration;
         });
 
+    public ConfigurationDebugView GetDebugView() => GetDebugView(false);
     public ConfigurationDebugView GetDebugView(bool includeRawValues = false) => new(this, includeRawValues);
 
     private IConfiguration GetSectionOrRoot(string key) => string.IsNullOrEmpty(key)
