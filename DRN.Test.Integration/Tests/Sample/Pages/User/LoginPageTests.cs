@@ -16,7 +16,7 @@ public class LoginPageTests(ITestOutputHelper outputHelper)
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
         var identity = Get.Endpoint.User.Identity;
-        var endpoints = new AuthenticationEndpoints(identity.LoginController.Login.RoutePattern!, identity.RegisterController.Register.RoutePattern!, typeof(SampleUser));
+        var endpoints = new AuthenticationEndpoints(identity.LoginController.Login.RoutePattern!, identity.RegisterController.Register.RoutePattern!);
         var registerRequest = new RegisterRequest
         {
             Email = $"lockout-{Guid.NewGuid():N}@example.com",

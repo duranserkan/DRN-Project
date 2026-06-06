@@ -25,7 +25,7 @@ public class StreamExtensionsTests
 
         var read = async () => await stream.ToArrayAsync(10);
 
-        await read.Should().ThrowAsync<InvalidOperationException>()
+        await read.Should().ThrowExactlyAsync<ValidationException>()
             .WithMessage("*maximum allowed size*");
     }
 

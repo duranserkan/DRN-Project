@@ -22,7 +22,7 @@ public class ConfigurationDebugViewTests
         debugView.RawValuesIncluded.Should().BeFalse();
 
         var settings = debugView.SettingsByProvider.Values.SelectMany(value => value).ToArray();
-        settings.Should().Contain($"ConnectionStrings:{name}=[redacted]");
+        settings.Should().Contain($"connectionStrings:{name}=[redacted]");
         settings.Should().Contain("SafeSection:Visible=safe-value");
         debugViewJson.Should().NotContain(connectionString);
         debugViewJson.Should().NotContain("myPassword");
@@ -41,7 +41,7 @@ public class ConfigurationDebugViewTests
 
         debugView.RawValuesIncluded.Should().BeTrue();
         var settings = debugView.SettingsByProvider.Values.SelectMany(value => value).ToArray();
-        settings.Should().Contain($"ConnectionStrings:{name}={connectionString}");
+        settings.Should().Contain($"connectionStrings:{name}={connectionString}");
     }
 
     [Theory]

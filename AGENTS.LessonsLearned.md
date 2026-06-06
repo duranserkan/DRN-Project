@@ -373,3 +373,17 @@ Bearer/MFA hardening was explored and then removed because it became confusing a
 ### Future TODO
 
 Re-evaluate Identity bearer authentication in an isolated change. Decide whether Identity bearer should be treated as a true MFA-exempt scheme, should satisfy MFA only through ambient `ScopeContext` when `amr=mfa` is present, or needs a separately named request-level concept. If revisited, keep the design small, document the chosen contract, and add focused tests for password-only bearer, MFA bearer, refresh, and mixed authentication schemes.
+
+## 18. Object-to-JSON Configuration Uses CamelCase Keys
+
+### Context
+
+`AddObjectToJsonConfiguration(...)`, `DrnTestContext.AddToConfiguration(object)`, and `AppSettings.Development(object...)` serialize option objects with the framework's global `System.Text.Json` defaults before loading them through `JsonStreamConfigurationProvider`.
+
+### Problem
+
+Those JSON defaults use camelCase property names. Tests that add a `ConnectionStringsCollection` object should expect keys like `connectionStrings:testDb`, while tests that explicitly add an in-memory key such as `ConnectionStrings:testDb` should expect the exact caller-provided casing.
+
+### Decision Checkpoint
+
+When asserting `ConfigurationDebugView` output, match the configuration source. Object-based configuration follows JSON naming policy; explicit key/value configuration preserves the key text supplied by the test.
