@@ -6,9 +6,9 @@ namespace DRN.Test.Unit.Tests.Sample.Controller;
 
 public class ExceptionControllerTests
 {
-    [Theory]
-    [DataInlineUnit]
-    public async Task Exception_Sample_Endpoints_Should_Be_Hidden_Outside_Development(DrnTestContextUnit _)
+
+    [Fact]
+    public async Task Exception_Sample_Endpoints_Should_Be_Hidden_Outside_Development()
     {
         var appSettings = Substitute.For<IAppSettings>();
         appSettings.IsDevelopmentEnvironment.Returns(false);

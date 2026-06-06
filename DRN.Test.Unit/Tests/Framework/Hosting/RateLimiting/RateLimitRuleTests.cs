@@ -29,9 +29,8 @@ public class RateLimitRuleTests
         rules.Should().ContainSingle(rule => rule is DefaultPostAuthRateLimitRule);
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void Default_Rules_Should_Run_After_Application_Rules(DrnTestContextUnit _)
+    [Fact]
+    public void Default_Rules_Should_Run_After_Application_Rules()
     {
         var features = new DrnAppFeatures();
 
@@ -39,9 +38,8 @@ public class RateLimitRuleTests
         new DefaultPostAuthRateLimitRule(features).Order.Should().Be(int.MaxValue);
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void TokenBucket_Result_Should_Compose_By_Default(DrnTestContextUnit _)
+    [Fact]
+    public void TokenBucket_Result_Should_Compose_By_Default()
     {
         var result = RateLimitRuleResult.TokenBucket("tenant:alpha", _ => new TokenBucketRateLimiterOptions
         {
@@ -57,9 +55,8 @@ public class RateLimitRuleTests
         result.StopRemainingRules.Should().BeFalse();
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void Allow_Result_Should_Stop_Remaining_Rules(DrnTestContextUnit _)
+    [Fact]
+    public void Allow_Result_Should_Stop_Remaining_Rules()
     {
         var result = RateLimitRuleResult.AllowRequest("health");
 
@@ -67,9 +64,8 @@ public class RateLimitRuleTests
         result.StopRemainingRules.Should().BeTrue();
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task Deny_Result_Should_Reject_And_Stop_Remaining_Rules(DrnTestContextUnit _)
+    [Fact]
+    public async Task Deny_Result_Should_Reject_And_Stop_Remaining_Rules()
     {
         var result = RateLimitRuleResult.DenyRequest("blocked", TimeSpan.FromSeconds(10));
         await using var limiter = result.Partition.Factory(result.Partition.PartitionKey);
@@ -83,9 +79,8 @@ public class RateLimitRuleTests
         retryAfter.Should().Be(TimeSpan.FromSeconds(10));
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void Default_PostAuth_Rule_Should_Partition_By_Authenticated_User_Id(DrnTestContextUnit _)
+    [Fact]
+    public void Default_PostAuth_Rule_Should_Partition_By_Authenticated_User_Id()
     {
         var context = new DefaultHttpContext
         {
@@ -100,9 +95,8 @@ public class RateLimitRuleTests
         result.Value.PartitionKey.Should().Be("user:Test:user-1");
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void Default_PostAuth_Rule_Should_Not_Partition_By_Mutable_User_Name(DrnTestContextUnit _)
+    [Fact]
+    public void Default_PostAuth_Rule_Should_Not_Partition_By_Mutable_User_Name()
     {
         var context = new DefaultHttpContext
         {
@@ -156,9 +150,8 @@ public class RateLimitRuleTests
         ScopeContext.Data.Parameters.Should().NotContainKey("leaked");
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void Default_PreAuth_Rule_Should_Partition_By_Remote_Ip(DrnTestContextUnit _)
+    [Fact]
+    public void Default_PreAuth_Rule_Should_Partition_By_Remote_Ip()
     {
         var context = new DefaultHttpContext();
         context.Connection.RemoteIpAddress = IPAddress.Parse("127.0.0.1");
@@ -169,9 +162,8 @@ public class RateLimitRuleTests
         result.Value.PartitionKey.Should().Be("ip:127.0.0.1");
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void Phase_Specific_TokenBucket_Options_Should_Override_Shared_Defaults(DrnTestContextUnit _)
+    [Fact]
+    public void Phase_Specific_TokenBucket_Options_Should_Override_Shared_Defaults()
     {
         var features = new DrnAppFeatures
         {
@@ -200,9 +192,8 @@ public class RateLimitRuleTests
         postAuth.TokensPerPeriod.Should().Be(200);
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void DrnRateLimit_Config_Key_Should_Bind_To_RateLimit_Property(DrnTestContextUnit _)
+    [Fact]
+    public void DrnRateLimit_Config_Key_Should_Bind_To_RateLimit_Property()
     {
         var appSettings = AppSettings.Development(new
         {
@@ -228,9 +219,8 @@ public class RateLimitRuleTests
         appSettings.Features.RateLimit.PartitionLogMode.Should().Be(RateLimitPartitionLogMode.PlainText);
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void Sample_Development_RateLimit_Settings_Should_Bind_And_Produce_Expected_TokenBucket_Options(DrnTestContextUnit _)
+    [Fact]
+    public void Sample_Development_RateLimit_Settings_Should_Bind_And_Produce_Expected_TokenBucket_Options()
     {
         // Mirrors exact values from Sample.Hosted/appsettings.Development.json
         var appSettings = AppSettings.Development(new
@@ -281,9 +271,8 @@ public class RateLimitRuleTests
         postAuth.AutoReplenishment.Should().BeTrue();
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task PreAuth_Middleware_Should_Honor_DisableRateLimiting_Endpoint_Metadata(DrnTestContextUnit _)
+    [Fact]
+    public async Task PreAuth_Middleware_Should_Honor_DisableRateLimiting_Endpoint_Metadata()
     {
         var nextCalled = false;
         var limiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
@@ -304,9 +293,8 @@ public class RateLimitRuleTests
         nextCalled.Should().BeTrue();
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task PreAuth_Middleware_Should_Run_For_EnableRateLimiting_Endpoint_Metadata(DrnTestContextUnit _)
+    [Fact]
+    public async Task PreAuth_Middleware_Should_Run_For_EnableRateLimiting_Endpoint_Metadata()
     {
         var limiterCalled = false;
         var nextCalled = false;
@@ -332,9 +320,8 @@ public class RateLimitRuleTests
         nextCalled.Should().BeTrue();
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task PreAuth_Rejection_Log_Should_Redact_Ip_And_Partition(DrnTestContextUnit _)
+    [Fact]
+    public async Task PreAuth_Rejection_Log_Should_Redact_Ip_And_Partition()
     {
         const string rawPartition = "api-key:secret-value";
         const string rawIp = "203.0.113.10";
@@ -364,9 +351,8 @@ public class RateLimitRuleTests
         scopedLog.DidNotReceive().Add("PreAuthRateLimitRejectedPartition", rawPartition);
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void Partition_Log_Format_Should_Allow_Explicit_PlainText_Audit_Mode(DrnTestContextUnit _)
+    [Fact]
+    public void Partition_Log_Format_Should_Allow_Explicit_PlainText_Audit_Mode()
     {
         const string rawPartition = "tenant:known-customer";
         var options = new DrnRateLimitOptions { PartitionLogMode = RateLimitPartitionLogMode.PlainText };
@@ -376,9 +362,8 @@ public class RateLimitRuleTests
         formatted.Should().Be(rawPartition);
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task PreAuth_RuleChain_Should_Not_Evaluate_Scoped_Rules(DrnTestContextUnit _)
+    [Fact]
+    public async Task PreAuth_RuleChain_Should_Not_Evaluate_Scoped_Rules()
     {
         var services = new ServiceCollection();
         services.AddScoped<IScopedRateLimitRule, ThrowingPreAuthScopedRule>();
@@ -398,9 +383,8 @@ public class RateLimitRuleTests
         lease.IsAcquired.Should().BeTrue();
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task PostAuth_Scoped_Rules_Should_Evaluate_All_Matching_Rules(DrnTestContextUnit _)
+    [Fact]
+    public async Task PostAuth_Scoped_Rules_Should_Evaluate_All_Matching_Rules()
     {
         var services = new ServiceCollection();
         services.AddScoped<IScopedRateLimitRule, FirstComposedScopedRule>();
@@ -421,9 +405,8 @@ public class RateLimitRuleTests
         GetRuleHits(context).Should().Equal("first", "second");
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task PostAuth_Scoped_ShortCircuit_Rule_Should_Run_First_For_Same_Order_And_Stop_On_Match(DrnTestContextUnit _)
+    [Fact]
+    public async Task PostAuth_Scoped_ShortCircuit_Rule_Should_Run_First_For_Same_Order_And_Stop_On_Match()
     {
         var services = new ServiceCollection();
         services.AddScoped<IScopedRateLimitRule, NormalScopedRule>();
@@ -444,9 +427,8 @@ public class RateLimitRuleTests
         GetRuleHits(context).Should().Equal("short");
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task PostAuth_Scoped_ShortCircuit_Rule_Should_Continue_When_Not_Matched(DrnTestContextUnit _)
+    [Fact]
+    public async Task PostAuth_Scoped_ShortCircuit_Rule_Should_Continue_When_Not_Matched()
     {
         var services = new ServiceCollection();
         services.AddScoped<IScopedRateLimitRule, NoMatchShortCircuitScopedRule>();
@@ -467,9 +449,8 @@ public class RateLimitRuleTests
         GetRuleHits(context).Should().Equal("short-null", "normal");
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task PostAuth_Same_Order_Singleton_ShortCircuit_Rule_Should_Run_First_And_Stop_On_Match(DrnTestContextUnit _)
+    [Fact]
+    public async Task PostAuth_Same_Order_Singleton_ShortCircuit_Rule_Should_Run_First_And_Stop_On_Match()
     {
         var services = new ServiceCollection();
         services.AddSingleton<ISingletonRateLimitRule, NormalSingletonRule>();
@@ -490,9 +471,8 @@ public class RateLimitRuleTests
         GetRuleHits(context).Should().Equal("singleton-short");
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task PostAuth_Deny_Rule_Should_Reject_And_Stop_Remaining_Rules(DrnTestContextUnit _)
+    [Fact]
+    public async Task PostAuth_Deny_Rule_Should_Reject_And_Stop_Remaining_Rules()
     {
         var services = new ServiceCollection();
         services.AddSingleton<ISingletonRateLimitRule, NormalSingletonRule>();
@@ -515,9 +495,8 @@ public class RateLimitRuleTests
         context.GetRejectedRateLimitRuleMatch()!.Value.Result.Action.Should().Be(RateLimitRuleAction.Deny);
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task PostAuth_Same_Order_Scoped_ShortCircuit_Rule_Should_Run_Before_Singleton_Normal_Rule(DrnTestContextUnit _)
+    [Fact]
+    public async Task PostAuth_Same_Order_Scoped_ShortCircuit_Rule_Should_Run_Before_Singleton_Normal_Rule()
     {
         var services = new ServiceCollection();
         services.AddSingleton<ISingletonRateLimitRule, NormalSingletonRule>();
@@ -538,9 +517,8 @@ public class RateLimitRuleTests
         GetRuleHits(context).Should().Equal("short");
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task PostAuth_Policy_Rule_Should_Run_Only_For_Matching_EnableRateLimiting_Metadata(DrnTestContextUnit _)
+    [Fact]
+    public async Task PostAuth_Policy_Rule_Should_Run_Only_For_Matching_EnableRateLimiting_Metadata()
     {
         var services = new ServiceCollection();
         services.AddSingleton<ISingletonRateLimitRule, StrictPolicySingletonRule>();
@@ -564,9 +542,8 @@ public class RateLimitRuleTests
         GetRuleHits(strictContext).Should().Equal("strict-policy");
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void Rule_Registry_Should_Reject_Blank_Policy_Name(DrnTestContextUnit _)
+    [Fact]
+    public void Rule_Registry_Should_Reject_Blank_Policy_Name()
     {
         var services = new ServiceCollection();
         services.AddSingleton<ISingletonRateLimitRule, BlankPolicySingletonRule>();
@@ -579,9 +556,8 @@ public class RateLimitRuleTests
             .WithMessage("*PolicyName*non-empty*");
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task PostAuth_Scoped_Rules_Should_Preserve_Global_Order_With_Singleton_Rules(DrnTestContextUnit _)
+    [Fact]
+    public async Task PostAuth_Scoped_Rules_Should_Preserve_Global_Order_With_Singleton_Rules()
     {
         var services = new ServiceCollection();
         services.AddScoped<IScopedRateLimitRule, LowOrderNoMatchScopedRule>();
@@ -603,9 +579,8 @@ public class RateLimitRuleTests
         GetRuleHits(context).Should().Equal("low-null", "singleton", "high-allow");
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void PostAuth_Options_Should_Preserve_AddRateLimiter_Customizations(DrnTestContextUnit _)
+    [Fact]
+    public void PostAuth_Options_Should_Preserve_AddRateLimiter_Customizations()
     {
         var services = new ServiceCollection();
         services.AddRateLimiter(options =>
@@ -631,9 +606,8 @@ public class RateLimitRuleTests
         options.GlobalLimiter.Should().NotBeNull();
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void Telemetry_Should_Expose_Rule_Action_Tag(DrnTestContextUnit _)
+    [Fact]
+    public void Telemetry_Should_Expose_Rule_Action_Tag()
     {
         var context = new DefaultHttpContext();
         var result = RateLimitRuleResult.AllowRequest("health");

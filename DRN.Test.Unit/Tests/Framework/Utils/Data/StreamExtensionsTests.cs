@@ -4,9 +4,9 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Data;
 
 public class StreamExtensionsTests
 {
-    [Theory]
-    [DataInlineUnit]
-    public async Task ToArrayAsync_Should_Read_NonSeekable_Stream_At_MaxSize(DrnTestContextUnit _)
+
+    [Fact]
+    public async Task ToArrayAsync_Should_Read_NonSeekable_Stream_At_MaxSize()
     {
         var payload = Enumerable.Range(0, 10).Select(value => (byte)value).ToArray();
         await using var stream = new NonSeekableReadStream(payload);
@@ -16,9 +16,8 @@ public class StreamExtensionsTests
         bytes.Should().Equal(payload);
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public async Task ToArrayAsync_Should_Reject_NonSeekable_Stream_Over_MaxSize(DrnTestContextUnit _)
+    [Fact]
+    public async Task ToArrayAsync_Should_Reject_NonSeekable_Stream_Over_MaxSize()
     {
         var payload = Enumerable.Range(0, 11).Select(value => (byte)value).ToArray();
         await using var stream = new NonSeekableReadStream(payload);

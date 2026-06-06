@@ -136,9 +136,9 @@ public class RequestBufferingStateTests
     /// Verifies that ReadBodyAsync returns the actual body content when buffering was enabled,
     /// and resets the stream position so subsequent reads remain possible.
     /// </summary>
-    [Theory]
-    [DataInlineUnit]
-    public async Task ReadBodyAsync_Should_Return_Body_And_Reset_Stream_Position(DrnTestContextUnit _)
+
+    [Fact]
+    public async Task ReadBodyAsync_Should_Return_Body_And_Reset_Stream_Position()
     {
         const string bodyContent = "{ \"hello\": \"world\" }";
         var bodyBytes = System.Text.Encoding.UTF8.GetBytes(bodyContent);
