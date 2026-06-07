@@ -131,7 +131,7 @@ npm run build:bootstrap
 npm run build:react
 ```
 
-CI runs `.github/workflows/actions/frontend-build`, which performs `npm ci`, `npm audit --audit-level=high`, and `npm run build` before .NET build/test or release publishing.
+CI validation runs `.github/workflows/actions/frontend-build` in parallel with backend checks. Release workflows run it before .NET build/test and publishing so generated `wwwroot` assets stay in the release job workspace.
 
 ### Shared Configuration
 

@@ -508,11 +508,11 @@ If workflow tag filters expect bare `v...` while the release contract says `rele
 
 ### Fix Applied
 
-Release workflows listen to documented `release/v*.*.*` and fixed-width `release/v*.*.*-previewNNN` tags, strip the `release/v` prefix for package versions, and Docker metadata emits `major.minor` tags only for stable releases. Preview releases keep the prerelease semver tag.
+Release workflows listen to documented `release/v*.*.*` and fixed-width `release/v*.*.*-previewNNN` tags, fail fast if a version step receives the wrong tag class, strip the `release/v` prefix for package versions, and Docker metadata emits `major.minor` tags only for stable releases. Preview releases keep the prerelease semver tag.
 
 ### Decision Checkpoint
 
-Whenever tag patterns change, update all three surfaces together: workflow triggers, version extraction, and Docker metadata rules. Verify preview tags cannot overwrite stable Docker tags, and keep preview numbers fixed width for natural ordering.
+Whenever tag patterns change, update all three surfaces together: workflow triggers, version extraction guards, and Docker metadata rules. Verify preview tags cannot overwrite stable Docker tags, and keep preview numbers fixed width for natural ordering.
 
 ## 24. Docker Scout Severity Filters Should Be Explicit
 
@@ -531,3 +531,21 @@ Keep `only-severities` explicit and include `critical,high,medium,low` so known 
 ### Decision Checkpoint
 
 For release gates, prefer explicit severity filters over relying on an empty/default filter. Add `unspecified` only if the team intentionally wants unknown-severity findings to block publishing.
+
+## 25. CI Parallelism Needs Artifact Boundary Checks
+
+### Context
+
+`develop.yml` and `master.yml` can run frontend validation independently from backend build/test and security-analysis jobs because frontend audit/build is self-contained under `Sample.Hosted`.
+
+### Problem
+
+Release workflows are different: NuGet publishing uses Release build outputs with `dotnet pack --no-build`, and Docker image builds consume `Sample.Hosted/wwwroot` from the Docker build context. Splitting release frontend/build/publish steps into separate jobs without upload/download artifact handoff can publish stale or missing Vite assets or lose package build outputs.
+
+### Fix Applied
+
+Parallelize only CI validation jobs by splitting frontend and backend/security checks, then join them with an aggregate gatekeeper job that runs with `always()` and explicitly verifies each dependency result. Keep release and preview-release workflows sequential until explicit artifacts are passed between jobs.
+
+### Decision Checkpoint
+
+Before parallelizing a GitHub Actions job, identify which later steps depend on generated files from earlier steps. If a dependency crosses job boundaries, add explicit artifact upload/download or keep the dependent steps in the same job. If an aggregate status job is used for branch protection, make it fail explicitly when any dependency result is not `success`.

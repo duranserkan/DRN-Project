@@ -14,14 +14,20 @@ CI/CD pipeline, GitHub Actions structure, and Docker containerization for `DRN-P
 
 | Branch / Tag | Workflow | Purpose | Triggers |
 | :--- | :--- | :--- | :--- |
-| `develop` | `develop.yml` | **Fast CI**: Frontend audit/build, .NET build, tests | Push/PR to `develop` |
-| `master` | `master.yml` | **Quality Gate**: Frontend audit/build, SonarCloud quality gate, CodeQL | Push/PR to `master`, Schedule (Sunday) |
+| `develop` | `develop.yml` | **Fast CI**: Parallel frontend audit/build and backend .NET build/tests, joined by `build` gatekeeper | Push/PR to `develop` |
+| `master` | `master.yml` | **Quality Gate**: Parallel frontend audit/build, SonarCloud quality gate, and CodeQL, joined by `gatekeeper` | Push/PR to `master`, Schedule (Sunday) |
 | `release/v*.*.*` | `release.yml` | **Release CD**: NuGet + Docker publish | Push of tag `release/v*` |
 | `release/v*.*.*-previewNNN` | `release-preview.yml` | **Preview CD**: Pre-release NuGet + Docker publish | Push of fixed-width preview tag, e.g. `release/v1.2.3-preview001` |
 
 ## 2. GitHub Actions Architecture
 
 **Composite Actions** in `.github/workflows/actions/` reduce duplication:
+
+### CI Job Parallelism
+
+- **`develop.yml`**: `frontend` and `backend` run independently; final `build` job verifies both results to preserve an aggregate CI status.
+- **`master.yml`**: `frontend`, `build-and-sonar-scan`, and `codeql-scan` run independently; `gatekeeper` verifies all three results.
+- **Release workflows** stay single-job unless explicit artifact handoff is added, because NuGet packing uses `--no-build` outputs and Docker images consume `Sample.Hosted/wwwroot` from the build context.
 
 ### Core Actions
 
