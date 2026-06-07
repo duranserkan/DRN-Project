@@ -481,3 +481,17 @@ Verify every pinned action with `git ls-remote --tags <repo> refs/tags/<version>
 ### Decision Checkpoint
 
 When updating pinned GitHub Actions, do not trust visual SHA prefixes or generated comments. Validate tag-to-SHA mapping from the official action repository before committing.
+
+## 22. Docker Scout Needs an Explicit Image Target
+
+### Context
+
+The release workflows build and push multi-platform Docker images through `docker/build-push-action`, then run `docker/scout-action` from the shared `docker-publish` composite action.
+
+### Problem
+
+When `docker/scout-action` runs without an explicit `image:` input, Scout may analyze the most recent image known to the runner instead of the image just built by DRN. In agentic or tool-rich runners, that can surface unrelated helper images such as `ghcr.io/github/gh-aw-firewall/agent:latest` and produce irrelevant CVEs or base-image recommendations.
+
+### Decision Checkpoint
+
+Always pass the exact pushed DRN image reference to Docker Scout, preferably by repository plus the `docker/build-push-action` digest output. Treat third-party helper-image recommendations as non-actionable for DRN unless the workflow intentionally consumes that image.

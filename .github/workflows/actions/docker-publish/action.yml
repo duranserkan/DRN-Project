@@ -38,7 +38,8 @@ runs:
       uses: docker/scout-action@cd72f264beff1cd72735de31148b9d3244a0234a # v1.21.0
       with:
         command: quickview,cves,recommendations
-        sarif-file: sarif.${{ inputs.project-name }}.output.json
+        image: registry://docker.io/duranserkan/${{ inputs.image-repository-name }}@${{ steps.container-build-push.outputs.digest }}
+        sarif-file: sarif.${{ inputs.image-repository-name }}.output.json
         summary: true
         only-severities: critical,high,medium
         ignore-base: true
@@ -47,5 +48,5 @@ runs:
       if: ${{ github.event_name != 'pull_request' }}
       uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
       with:
-        sarif_file: sarif.${{ inputs.project-name }}.output.json
-        category: docker-scout-${{ inputs.project-name }}
+        sarif_file: sarif.${{ inputs.image-repository-name }}.output.json
+        category: docker-scout-${{ inputs.image-repository-name }}
