@@ -37,7 +37,7 @@ runs:
       if: ${{ github.event_name != 'pull_request' }}
       uses: docker/scout-action@cd72f264beff1cd72735de31148b9d3244a0234a # v1.21.0
       with:
-        command: quickview,cves,recommendations
+        command: quickview,cves
         image: registry://docker.io/duranserkan/${{ inputs.image-repository-name }}@${{ steps.container-build-push.outputs.digest }}
         sarif-file: sarif.${{ inputs.image-repository-name }}.output.json
         summary: true

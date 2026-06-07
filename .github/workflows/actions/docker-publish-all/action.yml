@@ -20,13 +20,13 @@ runs:
       with:
         username: ${{ inputs.username }}
         password: ${{ inputs.password }}
-    - name: Publish Nexus
-      uses: ./.github/workflows/actions/docker-publish
-      with:
-        project-name: DRN.Nexus.Hosted
-        image-repository-name: drn-project-nexus
     - name: Publish Sample
       uses: ./.github/workflows/actions/docker-publish
       with:
         project-name: Sample.Hosted
         image-repository-name: drn-project-sample
+    - name: Publish Nexus
+      uses: ./.github/workflows/actions/docker-publish
+      with:
+        project-name: DRN.Nexus.Hosted
+        image-repository-name: drn-project-nexus
