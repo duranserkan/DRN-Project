@@ -1,0 +1,16 @@
+name: Verify CodeQL
+description: "Verifies CodeQL SARIF results and fails the build if security alerts are found."
+inputs:
+  sarif-directory:
+    description: "The directory containing CodeQL SARIF files."
+    required: false
+    default: "sarif-results"
+runs:
+  using: "composite"
+  steps:
+    - name: Verify CodeQL Results
+      shell: bash
+      env:
+        SARIF_DIRECTORY: ${{ inputs.sarif-directory }}
+      run: |
+        bash "$GITHUB_ACTION_PATH/verify-codeql.sh" "$SARIF_DIRECTORY"

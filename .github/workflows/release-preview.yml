@@ -59,11 +59,19 @@ jobs:
         uses: ./.github/workflows/actions/dotnet-test-release
 
       - name: Perform CodeQL Analysis
+        id: codeql-analysis
         uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        with:
+          output: sarif-results
+
+      - name: Verify CodeQL Results
+        uses: ./.github/workflows/actions/verify-codeql
+        with:
+          sarif-directory: ${{ steps.codeql-analysis.outputs.sarif-output }}
 
       - name: Publish Packages
         uses: ./.github/workflows/actions/nuget-publish-all
-        
+
       - name: Generate artifact attestation #https://andrewlock.net/creating-provenance-attestations-for-nuget-packages-in-github-actions/
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
