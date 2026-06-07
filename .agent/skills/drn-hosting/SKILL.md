@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service
-last-updated: 2026-05-17
+last-updated: 2026-06-07
 difficulty: advanced
 tokens: ~3K
 ---
@@ -53,7 +53,7 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 | `AddServicesAsync()` | **[Required]** Add services to DI |
 | `ConfigureSwaggerOptions()` | Customize Swagger/OpenAPI |
 | `ConfigureApplicationBuilder()` | Root builder customization |
-| `ConfigureMvcBuilder()` | IMvcBuilder customization |
+| `ConfigureMvcBuilder()` | IMvcBuilder customization; Razor runtime compilation only in Debug-built Development runs |
 | `ConfigureDefaultSecurityHeaders()` | CSP and security header policies |
 | `ConfigureDefaultCsp()` | Customize CSP directives |
 | `ConfigureSecurityHeaderPolicyBuilder()` | Route-specific security policies |

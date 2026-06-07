@@ -40,17 +40,24 @@ COPY . ./
 # Keep generated .deps.json framework metadata aligned with the runtime image patch level.
 # https://learn.microsoft.com/en-us/dotnet/core/project-sdk/msbuild-props
 RUN dotnet restore "./${PROJECT}/${PROJECT}.csproj" -a "$TARGETARCH" \
+    -p:Configuration=Release \
     -p:RuntimeFrameworkVersion="$DOTNET_RUNTIME_VERSION" \
     -p:SelfContained=false \
     -p:UseAppHost=false
 RUN dotnet build "./${PROJECT}/${PROJECT}.csproj" -c Release --no-restore -a "$TARGETARCH" \
     -p:RuntimeFrameworkVersion="$DOTNET_RUNTIME_VERSION" \
     -p:SelfContained=false \
-    -p:UseAppHost=false
+    -p:UseAppHost=false \
+    -p:PreserveCompilationContext=false \
+    -p:PreserveCompilationReferences=false \
+    -p:CopyRefAssembliesToPublishDirectory=false
 RUN dotnet publish "./${PROJECT}/${PROJECT}.csproj" -c Release -o /app/publish --no-restore --no-build -a "$TARGETARCH" \
     -p:RuntimeFrameworkVersion="$DOTNET_RUNTIME_VERSION" \
     -p:SelfContained=false \
-    -p:UseAppHost=false
+    -p:UseAppHost=false \
+    -p:PreserveCompilationContext=false \
+    -p:PreserveCompilationReferences=false \
+    -p:CopyRefAssembliesToPublishDirectory=false
 
 # Build runtime image
 FROM base AS final

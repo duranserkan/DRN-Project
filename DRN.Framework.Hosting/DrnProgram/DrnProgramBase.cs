@@ -937,8 +937,10 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         mvcBuilder.AddControllersAsServices();
         mvcBuilder.AddJsonOptions(options => JsonConventions.SetHtmlSafeWebJsonDefaults(options.JsonSerializerOptions));
 
+#if DEBUG
         if (appSettings.IsDevelopmentEnvironment)
             mvcBuilder.AddRazorRuntimeCompilation();
+#endif
     }
 
     protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)

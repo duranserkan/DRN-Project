@@ -211,7 +211,7 @@ These hooks run while the `WebApplicationBuilder` is active, allowing you to con
 | **Logging** | `ConfigureLoggingBuilder` | Configure logging providers (clears defaults, applies config section, registers NLog). |
 | **WebHost** | `ConfigureWebHostBuilder` | Configure Kestrel options (suppresses Server header, applies optional Kestrel section, registers static web assets). |
 | **OpenAPI** | `ConfigureSwaggerOptions` | Customize Swagger UI title, version, and visibility settings. |
-| **MVC** | `ConfigureMvcBuilder` | Add `ApplicationParts`, custom formatters, or enable Razor Runtime Compilation. |
+| **MVC** | `ConfigureMvcBuilder` | Add `ApplicationParts`, custom formatters, or enable Razor Runtime Compilation for Debug-built Development runs. |
 | **MVC** | `ConfigureMvcOptions` | Add global filters, conventions, or customize model binding. |
 | **Auth** | `ConfigureAuthorizationOptions` | Define security policies. **Note**: Sets MFA as the default/fallback by default. |
 | **Security** | `ConfigureDefaultSecurityHeaders` | Define global headers (HSTS, CSP, FrameOptions). |
