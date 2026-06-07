@@ -57,7 +57,7 @@ Built via `docker/build-push-action`.
 ## 4. NuGet Publishing
 
 - **Versioning**: Extracted from Git tag
-- **Attestation**: `actions/attest-build-provenance`
+- **Attestation**: `actions/attest`
 - **Artifacts**: Uploaded as `packages` workflow artifacts
 
 ## 5. Required Secrets

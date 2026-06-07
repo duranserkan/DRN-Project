@@ -1,4 +1,5 @@
 name: Setup SDK
+description: "Initialize SonarCloud scanning session."
 runs:
   using: "composite"
   steps:

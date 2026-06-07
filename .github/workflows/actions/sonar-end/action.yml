@@ -1,4 +1,5 @@
 name: Setup SDK
+description: "End the SonarCloud scan and upload results."
 runs:
   using: "composite"
   steps:

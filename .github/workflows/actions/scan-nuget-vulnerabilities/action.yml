@@ -1,4 +1,5 @@
 name: Scan Vulnerabilities
+description: "Scan NuGet packages for vulnerabilities."
 runs:
   using: "composite"
   steps:

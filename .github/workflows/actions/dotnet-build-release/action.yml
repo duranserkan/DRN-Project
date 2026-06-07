@@ -1,4 +1,5 @@
 name: Dotnet Build
+description: "Restore dependencies, scan NuGet vulnerabilities, and build solution in Release mode."
 runs:
   using: "composite"
   steps:

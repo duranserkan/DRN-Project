@@ -463,3 +463,21 @@ Run test projects with `dotnet run --project <test-csproj>`. For focused xUnit v
 ### Decision Checkpoint
 
 Use `dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj` for unit validation and only run integration after unit tests pass. Do not use `.slnx` in test commands.
+
+## 21. GitHub Action SHA Pins Must Match Tag Commits
+
+### Context
+
+CI workflows pin third-party GitHub Actions by full commit SHA and keep the intended version as an inline comment.
+
+### Problem
+
+Manually copied SHAs can look plausible while not existing in the upstream action repository. GitHub resolves `uses: owner/action@<sha>` as a ref; if the SHA is mistyped or mixed with a nearby tag value, the workflow fails before the action starts.
+
+### Fix Applied
+
+Verify every pinned action with `git ls-remote --tags <repo> refs/tags/<version> refs/tags/<version>^{}` and use the dereferenced tag commit when the tag is annotated. If a pinned SHA is suspicious, confirm it with `git fetch --depth=1 <repo> <sha>`; upstream should not return `not our ref`.
+
+### Decision Checkpoint
+
+When updating pinned GitHub Actions, do not trust visual SHA prefixes or generated comments. Validate tag-to-SHA mapping from the official action repository before committing.
