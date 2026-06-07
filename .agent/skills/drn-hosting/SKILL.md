@@ -53,7 +53,7 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 | `AddServicesAsync()` | **[Required]** Add services to DI |
 | `ConfigureSwaggerOptions()` | Customize Swagger/OpenAPI |
 | `ConfigureApplicationBuilder()` | Root builder customization |
-| `ConfigureMvcBuilder()` | IMvcBuilder customization; Razor runtime compilation only in Debug-built Development runs |
+| `ConfigureMvcBuilder()` | IMvcBuilder customization; Razor edit loops use IDE/`dotnet watch` Hot Reload, not runtime compilation |
 | `ConfigureDefaultSecurityHeaders()` | CSP and security header policies |
 | `ConfigureDefaultCsp()` | Customize CSP directives |
 | `ConfigureSecurityHeaderPolicyBuilder()` | Route-specific security policies |

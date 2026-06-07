@@ -2,6 +2,11 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.9.5
 
+### Changed
+
+*   **Razor Development Workflow**: Removed the default `Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation` dependency and `AddRazorRuntimeCompilation()` registration. DRN now relies on Razor SDK build-time/publish-time compilation and IDE or `dotnet watch` Hot Reload for local `.cshtml` iteration, following .NET 10 guidance that Razor runtime compilation is obsolete.
+    *   References: [Razor runtime compilation is obsolete](https://learn.microsoft.com/en-us/aspnet/core/breaking-changes/10/razor-runtime-compilation-obsolete), [.NET Hot Reload support for ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/test/hot-reload).
+
 ### New Features
 
 *   **Dual-Layer Rate Limiting**: Added pre-auth and post-auth rate limiting with lifetime-specific `ISingletonRateLimitRule` / `IScopedRateLimitRule` support, safe partition-based rule results, and extensibility for tenant/user/IP policies.
@@ -72,7 +77,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
     *   **Builder Phase**:
         *   `ConfigureSwaggerOptions`: Customize OpenAPI metadata.
         *   `ConfigureDefaultSecurityHeaders` / `ConfigureDefaultCsp`: Define security policies.
-        *   `ConfigureMvcBuilder` / `ConfigureMvcOptions`: Customize MVC conventions and runtime compilation.
+        *   `ConfigureMvcBuilder` / `ConfigureMvcOptions`: Customize MVC conventions and Razor Pages options.
         *   `ConfigureStaticFileOptions` / `ConfigureResponseCachingOptions`: Optimize asset delivery with server-side response caching (16MB max, case-insensitive) and automatic static asset caching.
         *   `ConfigureResponseCompressionOptions` / `ConfigureCompressionProviders`: Brotli and Gzip compression for static assets with built-in BREACH/CRIME protection.
         *   `ConfigureCookiePolicy`: Centralized security settings for cookies (HttpOnly, Secure, SameSite) with environment-aware defaults via `IsDevelopmentEnvironment`.

@@ -211,7 +211,7 @@ These hooks run while the `WebApplicationBuilder` is active, allowing you to con
 | **Logging** | `ConfigureLoggingBuilder` | Configure logging providers (clears defaults, applies config section, registers NLog). |
 | **WebHost** | `ConfigureWebHostBuilder` | Configure Kestrel options (suppresses Server header, applies optional Kestrel section, registers static web assets). |
 | **OpenAPI** | `ConfigureSwaggerOptions` | Customize Swagger UI title, version, and visibility settings. |
-| **MVC** | `ConfigureMvcBuilder` | Add `ApplicationParts`, custom formatters, or enable Razor Runtime Compilation for Debug-built Development runs. |
+| **MVC** | `ConfigureMvcBuilder` | Add `ApplicationParts`, custom formatters, or MVC/Razor options. Razor edit loops use Hot Reload, not runtime compilation. |
 | **MVC** | `ConfigureMvcOptions` | Add global filters, conventions, or customize model binding. |
 | **Auth** | `ConfigureAuthorizationOptions` | Define security policies. **Note**: Sets MFA as the default/fallback by default. |
 | **Security** | `ConfigureDefaultSecurityHeaders` | Define global headers (HSTS, CSP, FrameOptions). |
@@ -230,6 +230,15 @@ These hooks run while the `WebApplicationBuilder` is active, allowing you to con
 | **Infras.** | `ConfigureBrotliCompressionLevel` | Customize Brotli compression level (default: SmallestSize for static assets). |
 | **Infras.** | `ConfigureGzipCompressionLevel` | Customize Gzip compression level (default: SmallestSize for static assets). |
 | **Global** | `AddServicesAsync` | **[Required]** The primary place to register your application services. |
+
+### Razor Development
+
+DRN uses Razor SDK build-time and publish-time compilation. For local `.cshtml` iteration, use IDE Hot Reload or `dotnet watch` instead of `Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation`; runtime compilation is obsolete in .NET 10 and disables Hot Reload.
+
+References:
+
+- [Razor runtime compilation is obsolete](https://learn.microsoft.com/en-us/aspnet/core/breaking-changes/10/razor-runtime-compilation-obsolete)
+- [.NET Hot Reload support for ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/test/hot-reload)
 
 ### 2. Pipeline Hooks (Application Phase)
 

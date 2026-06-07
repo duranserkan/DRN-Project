@@ -936,11 +936,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
         mvcBuilder.AddControllersAsServices();
         mvcBuilder.AddJsonOptions(options => JsonConventions.SetHtmlSafeWebJsonDefaults(options.JsonSerializerOptions));
-
-#if DEBUG
-        if (appSettings.IsDevelopmentEnvironment)
-            mvcBuilder.AddRazorRuntimeCompilation();
-#endif
+        
+        //learn.microsoft.com/en-us/aspnet/core/breaking-changes/10/razor-runtime-compilation-obsolete
+        //learn.microsoft.com/en-us/aspnet/core/test/hot-reload
     }
 
     protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
