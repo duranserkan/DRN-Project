@@ -504,11 +504,11 @@ DRN release workflows, git conventions, and agent skills all describe the releas
 
 ### Problem
 
-If workflow tag filters expect bare `v...` while the release contract says `release/v...`, the intended namespaced release tags do nothing. Preview Docker metadata can also accidentally emit stable `major.minor` tags if prerelease tags are matched by the stable tag rule.
+If workflow tag filters expect bare `v...` while the release contract says `release/v...`, the intended namespaced release tags do nothing. Preview Docker metadata can also accidentally emit stable `major.minor` tags if prerelease tags are matched by the stable tag rule. When a stable-only `type=semver` rule stays enabled for preview refs, a failed `match` can leave the prefixed tag name in place, sanitize `release/v...` to `release-v...`, and warn that the prefixed value is not valid SemVer even though the extracted preview version is valid.
 
 ### Fix Applied
 
-Release workflows listen to documented `release/v*.*.*` and fixed-width `release/v*.*.*-previewNNN` tags, fail fast if a version step receives the wrong tag class, strip the `release/v` prefix for package versions, and Docker metadata emits `major.minor` tags only for stable releases. Preview releases keep the prerelease semver tag.
+Release workflows listen to documented `release/v*.*.*` and fixed-width `release/v*.*.*-previewNNN` tags, fail fast if a version step receives the wrong tag class, strip the `release/v` prefix for package versions, and Docker metadata emits `major.minor` tags only for stable releases by disabling the stable-only tag rule for hyphenated prerelease refs. Preview releases keep the prerelease semver tag.
 
 ### Decision Checkpoint
 

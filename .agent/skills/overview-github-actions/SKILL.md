@@ -55,7 +55,7 @@ Built via `docker/build-push-action`.
 | **Provenance** | SLSA (`provenance: true`) |
 | **Scanner** | Docker Scout (`quickview,cves,recommendations`) fails on `critical,high,medium,low` CVEs |
 | **Registry** | Docker Hub `duranserkan` namespace |
-| **Tags** | `semver`, stable-only `major.minor`, `branch`, `pr` |
+| **Tags** | `semver`, stable-only `major.minor` disabled for prerelease refs, `branch`, `pr` |
 
 ### Dockerfile Locations
 
