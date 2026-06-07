@@ -18,8 +18,8 @@ runs:
         tags: |
           type=ref,event=branch
           type=ref,event=pr
-          type=semver,pattern={{version}},match=^release/v(\d+\.\d+\.\d+(?:-preview[0-9]*)?)$
-          type=semver,pattern={{major}}.{{minor}},match=^release/v(\d+\.\d+\.\d+(?:-preview[0-9]*)?)$
+          type=semver,pattern={{version}},match=^release/v(\d+\.\d+\.\d+(?:-preview[0-9][0-9][0-9])?)$
+          type=semver,pattern={{major}}.{{minor}},match=^release/v(\d+\.\d+\.\d+)$
     - name: Build and push Docker image
       id: container-build-push
       uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
@@ -41,8 +41,9 @@ runs:
         image: registry://docker.io/duranserkan/${{ inputs.image-repository-name }}@${{ steps.container-build-push.outputs.digest }}
         sarif-file: sarif.${{ inputs.image-repository-name }}.output.json
         summary: true
-        only-severities: critical,high,medium
-        ignore-base: true
+        only-severities: critical,high,medium,low
+        exit-code: true
+        ignore-base: false
     - name: Upload SARIF result
       id: upload-container-sarif
       if: ${{ github.event_name != 'pull_request' }}

@@ -495,3 +495,39 @@ When `docker/scout-action` runs without an explicit `image:` input, Scout may an
 ### Decision Checkpoint
 
 Always pass the exact pushed DRN image reference to Docker Scout, preferably by repository plus the `docker/build-push-action` digest output. Treat third-party helper-image recommendations as non-actionable for DRN unless the workflow intentionally consumes that image.
+
+## 23. Release Tags Must Match CI Triggers and Docker Metadata
+
+### Context
+
+DRN release workflows, git conventions, and agent skills all describe the release contract that maintainers follow.
+
+### Problem
+
+If workflow tag filters expect bare `v...` while the release contract says `release/v...`, the intended namespaced release tags do nothing. Preview Docker metadata can also accidentally emit stable `major.minor` tags if prerelease tags are matched by the stable tag rule.
+
+### Fix Applied
+
+Release workflows listen to documented `release/v*.*.*` and fixed-width `release/v*.*.*-previewNNN` tags, strip the `release/v` prefix for package versions, and Docker metadata emits `major.minor` tags only for stable releases. Preview releases keep the prerelease semver tag.
+
+### Decision Checkpoint
+
+Whenever tag patterns change, update all three surfaces together: workflow triggers, version extraction, and Docker metadata rules. Verify preview tags cannot overwrite stable Docker tags, and keep preview numbers fixed width for natural ordering.
+
+## 24. Docker Scout Severity Filters Should Be Explicit
+
+### Context
+
+`docker/scout-action` supports `critical`, `high`, `medium`, `low`, and `unspecified` severity filters. When `exit-code: true` is enabled, the selected severities define which CVEs can block a release.
+
+### Problem
+
+Removing `only-severities` makes Scout consider every severity, including `unspecified`. That can turn unknown-severity findings into release blockers with weaker prioritization signal than known low/medium/high/critical CVEs.
+
+### Fix Applied
+
+Keep `only-severities` explicit and include `critical,high,medium,low` so known low severity CVEs block releases while `unspecified` findings remain reported without becoming the release gate.
+
+### Decision Checkpoint
+
+For release gates, prefer explicit severity filters over relying on an empty/default filter. Add `unspecified` only if the team intentionally wants unknown-severity findings to block publishing.

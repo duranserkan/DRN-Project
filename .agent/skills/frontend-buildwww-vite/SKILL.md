@@ -121,12 +121,17 @@ const buildType = process.env.BUILD_TYPE || 'app';
 
 ```bash
 # Build all targets
+npm run build
+
+# Or build individual targets
 npm run build:app
 npm run build:appPostload
 npm run build:htmx
 npm run build:bootstrap
 npm run build:react
 ```
+
+CI runs `.github/workflows/actions/frontend-build`, which performs `npm ci`, `npm audit --audit-level=high`, and `npm run build` before .NET build/test or release publishing.
 
 ### Shared Configuration
 

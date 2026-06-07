@@ -21,21 +21,27 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Verify commit exists in origin/develop
         run: git branch --remote --contains | grep origin/develop
 
       - name: Set VERSION variable from tag
-        run: echo "VERSION=${GITHUB_REF/refs\/tags\/release\/v/}" >> $GITHUB_ENV
+        run: |
+          version="${GITHUB_REF_NAME#release/v}"
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
 
       - name: Setup SDK
         uses: ./.github/workflows/actions/setup-sdk-and-tools
+
+      - name: Build frontend
+        uses: ./.github/workflows/actions/frontend-build
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2

@@ -1,7 +1,7 @@
 ---
 name: overview-github-actions
 description: CI/CD and deployment - GitHub Actions workflows (develop, master, release), composite actions, Docker multi-arch publishing with SBOM/provenance, NuGet package publishing, and security scanning (SonarCloud, CodeQL). Complete deployment pipeline documentation. Keywords: cicd, github-actions, deployment, docker, nuget, security-scanning, sonarcloud, codeql, release-management, continuous-integration
-last-updated: 2026-02-15
+last-updated: 2026-06-07
 difficulty: intermediate
 tokens: ~0.5K
 ---
@@ -14,10 +14,10 @@ CI/CD pipeline, GitHub Actions structure, and Docker containerization for `DRN-P
 
 | Branch / Tag | Workflow | Purpose | Triggers |
 | :--- | :--- | :--- | :--- |
-| `develop` | `develop.yml` | **Fast CI**: Build and test | Push/PR to `develop` |
-| `master` | `master.yml` | **Quality Gate**: SonarCloud, CodeQL, strict gates | Push/PR to `master`, Schedule (Sunday) |
-| `v*.*.*` | `release.yml` | **Release CD**: NuGet + Docker publish | Push of tag `v*` |
-| `v*-preview*` | `release-preview.yml` | **Preview CD**: Pre-release NuGet publish | Push of tag `v*-preview*` |
+| `develop` | `develop.yml` | **Fast CI**: Frontend audit/build, .NET build, tests | Push/PR to `develop` |
+| `master` | `master.yml` | **Quality Gate**: Frontend audit/build, SonarCloud quality gate, CodeQL | Push/PR to `master`, Schedule (Sunday) |
+| `release/v*.*.*` | `release.yml` | **Release CD**: NuGet + Docker publish | Push of tag `release/v*` |
+| `release/v*.*.*-previewNNN` | `release-preview.yml` | **Preview CD**: Pre-release NuGet + Docker publish | Push of fixed-width preview tag, e.g. `release/v1.2.3-preview001` |
 
 ## 2. GitHub Actions Architecture
 
@@ -26,6 +26,7 @@ CI/CD pipeline, GitHub Actions structure, and Docker containerization for `DRN-P
 ### Core Actions
 
 - **`setup-sdk-and-tools`**: .NET SDK setup, tool restoration, caching
+- **`frontend-build`**: Node 24 setup, `npm ci`, high-severity npm audit, Vite asset build
 - **`dotnet-build` / `dotnet-build-release`**: Centralized build logic
 - **`dotnet-test` / `dotnet-test-release`**: Centralized testing logic
 - **`docker-publish-all`**: Orchestrates all Docker image publishing
@@ -35,6 +36,7 @@ CI/CD pipeline, GitHub Actions structure, and Docker containerization for `DRN-P
 
 - **`sonar-begin` / `sonar-end`**: SonarCloud static analysis
 - **`scan-nuget-vulnerabilities`**: Dependency vulnerability checking
+- **Docker Scout**: Release image CVE gate with SARIF upload
 
 ## 3. Docker Standards
 
@@ -45,9 +47,9 @@ Built via `docker/build-push-action`.
 | **Architectures** | `linux/amd64`, `linux/arm64` |
 | **SBOM** | Generated (`sbom: true`) |
 | **Provenance** | SLSA (`provenance: true`) |
-| **Scanner** | Docker Scout (`quickview,cves,recommendations`) |
+| **Scanner** | Docker Scout (`quickview,cves,recommendations`) fails on `critical,high,medium,low` CVEs |
 | **Registry** | Docker Hub `duranserkan` namespace |
-| **Tags** | `semver`, `major.minor`, `branch`, `pr` |
+| **Tags** | `semver`, stable-only `major.minor`, `branch`, `pr` |
 
 ### Dockerfile Locations
 
@@ -59,6 +61,8 @@ Built via `docker/build-push-action`.
 - **Versioning**: Extracted from Git tag
 - **Attestation**: `actions/attest`
 - **Artifacts**: Uploaded as `packages` workflow artifacts
+- **Published packages**: `SharedKernel`, `Utils`, `EntityFramework`, `Hosting`, `Testing`
+- **Planned packages**: `Jobs` and `MassTransit` build with the solution but are not release-published yet
 
 ## 5. Required Secrets
 

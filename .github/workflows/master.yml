@@ -26,9 +26,13 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup SDK
         uses: ./.github/workflows/actions/setup-sdk-and-tools
+
+      - name: Build frontend
+        uses: ./.github/workflows/actions/frontend-build
 
       - name: Sonar Scan Begin
         uses: ./.github/workflows/actions/sonar-begin
@@ -56,6 +60,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup SDK
         uses: ./.github/workflows/actions/setup-sdk-and-tools
