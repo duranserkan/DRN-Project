@@ -15,6 +15,10 @@ public static class JpegValidator
     public static bool IsValid(ReadOnlySpan<byte> imageData)
         => IsValid(imageData, long.MaxValue);
 
+    public static bool IsValid(ReadOnlySpan<byte> imageData, long maxLength)
+        => TryGetValidImageLength(imageData, maxLength, out var imageLength)
+           && HasOnlyTrailingPadding(imageData[imageLength..]);
+
     public static async ValueTask<bool> IsValidAsync(Stream imageStream, long maxLength = long.MaxValue,
         CancellationToken cancellationToken = default)
     {
@@ -59,10 +63,6 @@ public static class JpegValidator
             return JpegValidationResult.Invalid(exception.Message, JpegValidationErrorReason.MaxLengthExceeded);
         }
     }
-
-    public static bool IsValid(ReadOnlySpan<byte> imageData, long maxLength)
-        => TryGetValidImageLength(imageData, maxLength, out var imageLength)
-           && HasOnlyTrailingPadding(imageData[imageLength..]);
 
     private static bool TryGetValidImageLength(ReadOnlySpan<byte> imageData, long maxLength, out int imageLength)
     {

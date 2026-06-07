@@ -11,7 +11,7 @@ public class ConfigurationDebugView
     {
     }
 
-    public ConfigurationDebugView(IAppSettings appSettings, bool includeRawValues = false)
+    public ConfigurationDebugView(IAppSettings appSettings, bool includeRawValues)
     {
         Environment = appSettings.Environment;
         ApplicationName = appSettings.ApplicationName;

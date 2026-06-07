@@ -42,7 +42,7 @@ public interface IAppSettings
     T? GetValue<T>(string key, T defaultValue);
     T? Get<T>(string key, bool errorOnUnknownConfiguration = false, bool bindNonPublicProperties = true);
     ConfigurationDebugView GetDebugView();
-    ConfigurationDebugView GetDebugView(bool includeRawValues = false);
+    ConfigurationDebugView GetDebugView(bool includeRawValues);
 }
 
 [Singleton<IAppSettings>]
@@ -165,7 +165,7 @@ public class AppSettings : IAppSettings
         });
 
     public ConfigurationDebugView GetDebugView() => GetDebugView(false);
-    public ConfigurationDebugView GetDebugView(bool includeRawValues = false) => new(this, includeRawValues);
+    public ConfigurationDebugView GetDebugView(bool includeRawValues) => new(this, includeRawValues);
 
     private IConfiguration GetSectionOrRoot(string key) => string.IsNullOrEmpty(key)
         ? Configuration

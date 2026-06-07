@@ -549,3 +549,39 @@ Parallelize only CI validation jobs by splitting frontend and backend/security c
 ### Decision Checkpoint
 
 Before parallelizing a GitHub Actions job, identify which later steps depend on generated files from earlier steps. If a dependency crosses job boundaries, add explicit artifact upload/download or keep the dependent steps in the same job. If an aggregate status job is used for branch protection, make it fail explicitly when any dependency result is not `success`.
+
+## 26. Npm Dependency Restore Must Ignore Lifecycle Scripts
+
+### Context
+
+`Sample.Hosted` frontend CI restores dependencies from `package-lock.json`, audits them, then runs project-owned Vite build scripts.
+
+### Problem
+
+Running `npm ci` without `--ignore-scripts` allows third-party dependency lifecycle hooks to execute during dependency restore. Even when the root package has no install hooks, transitive optional packages can declare install scripts, which triggers GitHub Actions security findings such as `githubactions:S6505`.
+
+### Fix Applied
+
+Use `npm ci --ignore-scripts` in CI dependency restore. Keep `npm run build` as a separate explicit step after `npm audit`, so only repository-owned build scripts execute intentionally.
+
+### Decision Checkpoint
+
+For JavaScript dependencies in CI, default dependency installation to `--ignore-scripts`. Allow install lifecycle scripts only when a verified dependency requires them for production build correctness, and document the exception next to the workflow command.
+
+## 27. Optional Parameters Must Not Duplicate Overload Shapes
+
+### Context
+
+`ConfigurationDebugView` and `IAppSettings.GetDebugView` exposed both a parameterless overload and a bool overload with `includeRawValues = false`.
+
+### Problem
+
+In C#, an overload with an optional parameter overlaps the invocation shape of a parameterless overload. The default value cannot be used because calls without that argument bind ambiguously or make the default unreachable.
+
+### Fix Applied
+
+Keep the explicit parameterless overload for convenience and remove the default value from the bool overload. Callers can use `GetDebugView()` for the default path and `GetDebugView(includeRawValues: true)` when raw values are intentionally requested.
+
+### Decision Checkpoint
+
+When adding overloads, make each signature have a distinct required call shape. If a parameterless convenience method exists, do not also default every additional parameter on another overload.

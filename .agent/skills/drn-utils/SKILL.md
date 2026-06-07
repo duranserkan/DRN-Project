@@ -73,18 +73,28 @@ Attributes inheriting from `ServiceRegistrationAttribute` handle complex registr
 ```csharp
 public interface IAppSettings
 {
-    AppEnvironment Environment { get; }
     IConfiguration Configuration { get; }
     DrnAppFeatures Features { get; }
-    bool IsDevEnvironment { get; }
+    DrnLocalizationSettings Localization { get; }
+    DrnDevelopmentSettings DevelopmentSettings { get; }
+    NexusAppSettings NexusAppSettings { get; }
+    AppEnvironment Environment { get; }
+    bool IsDevelopmentEnvironment { get; }
+    bool IsStagingEnvironment { get; }
     string AppKey { get; }
     string ApplicationName { get; }
+    string ApplicationNameNormalized { get; }
+    string GetAppSpecificName(string name, string prefix = "_");
     
     bool TryGetConnectionString(string name, out string connectionString);
     string GetRequiredConnectionString(string name);
+    bool TryGetSection(string key, out IConfigurationSection section);
+    IConfigurationSection GetRequiredSection(string key);
     T? GetValue<T>(string key);
-    T? Get<T>(string key, bool errorOnUnknownConfiguration = false);
+    T? GetValue<T>(string key, T defaultValue);
+    T? Get<T>(string key, bool errorOnUnknownConfiguration = false, bool bindNonPublicProperties = true);
     ConfigurationDebugView GetDebugView();
+    ConfigurationDebugView GetDebugView(bool includeRawValues);
 }
 ```
 
