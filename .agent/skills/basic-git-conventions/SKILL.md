@@ -1,7 +1,7 @@
 ---
 name: basic-git-conventions
-description: Git workflow conventions - GitFlow-inspired branching (develop→master→tag), commit message format, PR workflow (draft→review→squash), branch naming (feature/fix/chore/docs), release tagging (v*.*.* and v*-preview*), and release notes management. Keywords: git, branching, commit-messages, pull-request, pr-workflow, release, tagging, versioning, gitflow, conventional-commits
-last-updated: 2026-02-15
+description: Git workflow conventions - GitFlow-inspired branching (develop→master→tag), commit message format, PR workflow (draft→review→squash), branch naming (feature/fix/chore/docs), release tagging (release/v*.*.* and release/v*.*.*-previewNNN), and release notes management. Keywords: git, branching, commit-messages, pull-request, pr-workflow, release, tagging, versioning, gitflow, conventional-commits
+last-updated: 2026-06-07
 difficulty: basic
 tokens: ~1.5K
 ---
@@ -131,17 +131,17 @@ feat(Utils): add cancellation token propagation to HttpClientFactory
 
 ### Stable Releases
 ```bash
-# Tag format: v{major}.{minor}.{patch}
-git tag v1.2.3
-git push origin v1.2.3
+# Tag format: release/v{major}.{minor}.{patch}
+git tag release/v1.2.3
+git push origin release/v1.2.3
 # Triggers: release.yml → NuGet publish + Docker push
 ```
 
 ### Preview Releases
 ```bash
-# Tag format: v{major}.{minor}.{patch}-preview{N}
-git tag v1.3.0-preview1
-git push origin v1.3.0-preview1
+# Tag format: release/v{major}.{minor}.{patch}-preview{NNN}
+git tag release/v1.3.0-preview001
+git push origin release/v1.3.0-preview001
 # Triggers: release-preview.yml → NuGet preview publish
 ```
 
@@ -149,7 +149,7 @@ git push origin v1.3.0-preview1
 - **Major**: Breaking API changes
 - **Minor**: New features, backward compatible
 - **Patch**: Bug fixes, backward compatible
-- **Preview**: Pre-release testing
+- **Preview**: Pre-release testing; use three digits (`preview001`, `preview002`) for natural tag ordering
 
 ---
 

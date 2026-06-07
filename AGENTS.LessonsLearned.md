@@ -463,3 +463,89 @@ Run test projects with `dotnet run --project <test-csproj>`. For focused xUnit v
 ### Decision Checkpoint
 
 Use `dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj` for unit validation and only run integration after unit tests pass. Do not use `.slnx` in test commands.
+
+## 21. GitHub Action SHA Pins Must Match Tag Commits
+
+### Context
+
+CI workflows pin third-party GitHub Actions by full commit SHA and keep the intended version as an inline comment.
+
+### Problem
+
+Manually copied SHAs can look plausible while not existing in the upstream action repository. GitHub resolves `uses: owner/action@<sha>` as a ref; if the SHA is mistyped or mixed with a nearby tag value, the workflow fails before the action starts.
+
+### Fix Applied
+
+Verify every pinned action with `git ls-remote --tags <repo> refs/tags/<version> refs/tags/<version>^{}` and use the dereferenced tag commit when the tag is annotated. If a pinned SHA is suspicious, confirm it with `git fetch --depth=1 <repo> <sha>`; upstream should not return `not our ref`.
+
+### Decision Checkpoint
+
+When updating pinned GitHub Actions, do not trust visual SHA prefixes or generated comments. Validate tag-to-SHA mapping from the official action repository before committing.
+
+## 22. Docker Scout Needs an Explicit Image Target
+
+### Context
+
+The release workflows build and push multi-platform Docker images through `docker/build-push-action`, then run `docker/scout-action` from the shared `docker-publish` composite action.
+
+### Problem
+
+When `docker/scout-action` runs without an explicit `image:` input, Scout may analyze the most recent image known to the runner instead of the image just built by DRN. In agentic or tool-rich runners, that can surface unrelated helper images such as `ghcr.io/github/gh-aw-firewall/agent:latest` and produce irrelevant CVEs or base-image recommendations.
+
+### Decision Checkpoint
+
+Always pass the exact pushed DRN image reference to Docker Scout, preferably by repository plus the `docker/build-push-action` digest output. Treat third-party helper-image recommendations as non-actionable for DRN unless the workflow intentionally consumes that image.
+
+## 23. Release Tags Must Match CI Triggers and Docker Metadata
+
+### Context
+
+DRN release workflows, git conventions, and agent skills all describe the release contract that maintainers follow.
+
+### Problem
+
+If workflow tag filters expect bare `v...` while the release contract says `release/v...`, the intended namespaced release tags do nothing. Preview Docker metadata can also accidentally emit stable `major.minor` tags if prerelease tags are matched by the stable tag rule.
+
+### Fix Applied
+
+Release workflows listen to documented `release/v*.*.*` and fixed-width `release/v*.*.*-previewNNN` tags, fail fast if a version step receives the wrong tag class, strip the `release/v` prefix for package versions, and Docker metadata emits `major.minor` tags only for stable releases. Preview releases keep the prerelease semver tag.
+
+### Decision Checkpoint
+
+Whenever tag patterns change, update all three surfaces together: workflow triggers, version extraction guards, and Docker metadata rules. Verify preview tags cannot overwrite stable Docker tags, and keep preview numbers fixed width for natural ordering.
+
+## 24. Docker Scout Severity Filters Should Be Explicit
+
+### Context
+
+`docker/scout-action` supports `critical`, `high`, `medium`, `low`, and `unspecified` severity filters. When `exit-code: true` is enabled, the selected severities define which CVEs can block a release.
+
+### Problem
+
+Removing `only-severities` makes Scout consider every severity, including `unspecified`. That can turn unknown-severity findings into release blockers with weaker prioritization signal than known low/medium/high/critical CVEs.
+
+### Fix Applied
+
+Keep `only-severities` explicit and include `critical,high,medium,low` so known low severity CVEs block releases while `unspecified` findings remain reported without becoming the release gate.
+
+### Decision Checkpoint
+
+For release gates, prefer explicit severity filters over relying on an empty/default filter. Add `unspecified` only if the team intentionally wants unknown-severity findings to block publishing.
+
+## 25. CI Parallelism Needs Artifact Boundary Checks
+
+### Context
+
+`develop.yml` and `master.yml` can run frontend validation independently from backend build/test and security-analysis jobs because frontend audit/build is self-contained under `Sample.Hosted`.
+
+### Problem
+
+Release workflows are different: NuGet publishing uses Release build outputs with `dotnet pack --no-build`, and Docker image builds consume `Sample.Hosted/wwwroot` from the Docker build context. Splitting release frontend/build/publish steps into separate jobs without upload/download artifact handoff can publish stale or missing Vite assets or lose package build outputs.
+
+### Fix Applied
+
+Parallelize only CI validation jobs by splitting frontend and backend/security checks, then join them with an aggregate gatekeeper job that runs with `always()` and explicitly verifies each dependency result. Keep release and preview-release workflows sequential until explicit artifacts are passed between jobs.
+
+### Decision Checkpoint
+
+Before parallelizing a GitHub Actions job, identify which later steps depend on generated files from earlier steps. If a dependency crosses job boundaries, add explicit artifact upload/download or keep the dependent steps in the same job. If an aggregate status job is used for branch protection, make it fail explicitly when any dependency result is not `success`.

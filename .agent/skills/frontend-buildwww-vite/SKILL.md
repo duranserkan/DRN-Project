@@ -121,12 +121,17 @@ const buildType = process.env.BUILD_TYPE || 'app';
 
 ```bash
 # Build all targets
+npm run build
+
+# Or build individual targets
 npm run build:app
 npm run build:appPostload
 npm run build:htmx
 npm run build:bootstrap
 npm run build:react
 ```
+
+CI validation runs `.github/workflows/actions/frontend-build` in parallel with backend checks. Release workflows run it before .NET build/test and publishing so generated `wwwroot` assets stay in the release job workspace.
 
 ### Shared Configuration
 

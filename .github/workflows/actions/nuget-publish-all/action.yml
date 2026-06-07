@@ -1,4 +1,5 @@
 name: Nuget Publish All
+description: "Packs and publishes all DRN.Framework NuGet packages."
 runs:
   using: "composite"
   steps:

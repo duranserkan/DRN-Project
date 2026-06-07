@@ -74,6 +74,9 @@
   <Folder Name="/Items/.github/workflows/actions/dotnet-test/">
     <File Path=".github\workflows\actions\dotnet-test\action.yml" />
   </Folder>
+  <Folder Name="/Items/.github/workflows/actions/frontend-build/">
+    <File Path=".github\workflows\actions\frontend-build\action.yml" />
+  </Folder>
   <Folder Name="/Items/.github/workflows/actions/nuget-publish-all/">
     <File Path=".github\workflows\actions\nuget-publish-all\action.yml" />
   </Folder>

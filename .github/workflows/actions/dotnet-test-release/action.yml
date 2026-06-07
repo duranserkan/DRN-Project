@@ -1,4 +1,5 @@
 name: Dotnet Test Release
+description: "Run Dotnet unit and integration tests in Release mode without rebuilding."
 runs:
   using: "composite"
   steps:
@@ -6,11 +7,11 @@ runs:
       shell: bash
       env:
         # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
-        TESTINGPLATFORM_TELEMETRY_OPTOUT: '0'
+        TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
       run: dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity normal --configuration Release
     - name: Test Integration
       shell: bash
       env:
         # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
-        TESTINGPLATFORM_TELEMETRY_OPTOUT: '0'
+        TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
       run: dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity normal --configuration Release

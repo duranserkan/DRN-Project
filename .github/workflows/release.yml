@@ -21,24 +21,34 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Verify commit exists in origin/master
         run: git branch --remote --contains | grep origin/master
 
       - name: Set VERSION variable from tag
-        run: echo "VERSION=${GITHUB_REF/refs\/tags\/release\/v/}" >> $GITHUB_ENV
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected stable release tag, got: $GITHUB_REF_NAME"
+            exit 1
+          fi
+          version="${GITHUB_REF_NAME#release/v}"
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
 
       - name: Setup SDK
         uses: ./.github/workflows/actions/setup-sdk-and-tools
 
+      - name: Build frontend
+        uses: ./.github/workflows/actions/frontend-build
+
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           languages: csharp,javascript
 
@@ -49,17 +59,17 @@ jobs:
         uses: ./.github/workflows/actions/dotnet-test-release
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
 
       - name: Publish Packages
         uses: ./.github/workflows/actions/nuget-publish-all
-      
-      - name: Generate artifact attestation #https://andrewlock.net/creating-provenance-attestations-for-nuget-packages-in-github-actions/
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-path: 'artifacts/packages/*.nupkg'
 
-      - uses: actions/upload-artifact@v6
+      - name: Generate artifact attestation #https://andrewlock.net/creating-provenance-attestations-for-nuget-packages-in-github-actions/
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: "artifacts/packages/*.nupkg"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: packages
           path: artifacts/packages

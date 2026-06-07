@@ -1,7 +1,7 @@
 ---
 name: frontend-buildwww-packages
-description: Frontend package dependencies - Standardized npm packages (Bootstrap, htmx, jQuery validation, onmount), version management, and dependency purposes. Reference for adding or updating frontend libraries. Keywords: npm, packages, dependencies, bootstrap, htmx, jquery, onmount, package-management, versioning
-last-updated: 2026-02-15
+description: 'Frontend package dependencies - Standardized npm packages (Bootstrap, htmx, aspnet-client-validation, onmount, React, Tailwind), version management, and dependency purposes. Reference for adding or updating frontend libraries. Keywords: npm, packages, dependencies, bootstrap, htmx, aspnet-client-validation, onmount, react, tailwind, package-management, versioning'
+last-updated: 2026-06-07
 difficulty: basic
 tokens: ~0.5K
 ---
@@ -29,26 +29,34 @@ This acts as the baseline `package.json` for frontend projects.
   "version": "0.0.1",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npm run build:app && npm run build:appPostload && npm run build:htmx && npm run build:bootstrap && npm run build:react",
     "build:app": "BUILD_TYPE=app vite build",
+    "build:appPostload": "BUILD_TYPE=appPostload vite build",
     "build:htmx": "BUILD_TYPE=htmx vite build",
-    "build:bootstrap": "BUILD_TYPE=bootstrap vite build"
+    "build:bootstrap": "BUILD_TYPE=bootstrap vite build",
+    "build:react": "BUILD_TYPE=react vite build"
   },
   "type": "module",
   "dependencies": {
+    "@popperjs/core": "^2.11.8",
+    "aspnet-client-validation": "^0.11.1",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
-    "@popperjs/core": "^2.11.8",
-    "htmx.org": "^2.0.8",
-    "jquery": "^3.7.1",
-    "jquery-validation": "^1.21.0",
-    "jquery-validation-unobtrusive": "^4.0.0",
-    "onmount": "^2.0.0"
+    "htmx.org": "^2.0.10",
+    "onmount": "^2.0.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
-    "globals": "^16.5.0",
-    "sass": "1.94.3",
-    "typescript": "^5.9.3",
-    "vite": "^7.3.1"
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "globals": "^17.6.0",
+    "sass": "1.100.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14"
   }
 }
 ```
@@ -64,16 +72,17 @@ This acts as the baseline `package.json` for frontend projects.
 - **htmx.org**: Library for modern HTML-first interactivity.
 
 ### Validation & Utilities
-- **jquery**: Required dependency for validation libraries.
-- **jquery-validation**: Client-side form validation.
-- **jquery-validation-unobtrusive**: ASP.NET Core integration for unobtrusive validation attributes.
+- **aspnet-client-validation**: ASP.NET Core-compatible client-side validation.
 - **onmount**: Lifecycle management for DOM elements (used by standard RSJS pattern).
+- **react/react-dom**: Mounted island components for richer interactive surfaces.
+- **tailwindcss**: Utility styling for the React bundle.
 
 ### Build & Dev Tooling
 - **vite**: Next Generation Frontend Tooling.
 - **sass**: CSS preprocessor.
 - **typescript**: Typed JavaScript superset.
 - **globals**: Global variable definitions (often used for linting contexts).
+- **@tailwindcss/vite** and **@vitejs/plugin-react**: Vite plugins for Tailwind and React builds.
 
 ---
 

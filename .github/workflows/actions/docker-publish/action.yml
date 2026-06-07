@@ -1,25 +1,28 @@
 name: Docker Publish
+description: "Build, push, and scout Docker images."
 inputs:
   project-name:
+    description: "The name of the project folder containing the Dockerfile (e.g., DRN.Nexus.Hosted)."
     required: true
   image-repository-name:
+    description: "The name of the Docker repository target (e.g., drn-project-nexus)."
     required: true
 runs:
   using: "composite"
   steps:
     - name: Extract metadata (tags, labels) for Docker
       id: meta
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
       with:
         images: duranserkan/${{ inputs.image-repository-name }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
-          type=semver,pattern={{version}},match=^release/v(\d+\.\d+\.\d+(?:-preview[0-9]*)?)$
-          type=semver,pattern={{major}}.{{minor}},match=^release/v(\d+\.\d+\.\d+(?:-preview[0-9]*)?)$
+          type=semver,pattern={{version}},match=^release/v(\d+\.\d+\.\d+(?:-preview[0-9][0-9][0-9])?)$
+          type=semver,pattern={{major}}.{{minor}},match=^release/v(\d+\.\d+\.\d+)$
     - name: Build and push Docker image
       id: container-build-push
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
       with:
         context: .
         file: ./${{ inputs.project-name }}/Dockerfile
@@ -32,17 +35,19 @@ runs:
     - name: Docker Scout
       id: docker-scout
       if: ${{ github.event_name != 'pull_request' }}
-      uses: docker/scout-action@v1
+      uses: docker/scout-action@cd72f264beff1cd72735de31148b9d3244a0234a # v1.21.0
       with:
         command: quickview,cves,recommendations
-        sarif-file: sarif.${{ inputs.project-name }}.output.json
+        image: registry://docker.io/duranserkan/${{ inputs.image-repository-name }}@${{ steps.container-build-push.outputs.digest }}
+        sarif-file: sarif.${{ inputs.image-repository-name }}.output.json
         summary: true
-        only-severities: critical,high,medium
-        ignore-base: true
+        only-severities: critical,high,medium,low
+        exit-code: true
+        ignore-base: false
     - name: Upload SARIF result
       id: upload-container-sarif
       if: ${{ github.event_name != 'pull_request' }}
-      uses: github/codeql-action/upload-sarif@v4
+      uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
       with:
-        sarif_file: sarif.${{ inputs.project-name }}.output.json
-        category: docker-scout-${{ inputs.project-name }}
+        sarif_file: sarif.${{ inputs.image-repository-name }}.output.json
+        category: docker-scout-${{ inputs.image-repository-name }}
