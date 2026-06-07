@@ -2,6 +2,20 @@
 
 > Universal entry point for any AI coding agent working on this repository. (~1K tokens)
 
+## IMPORTANT [IMPORTANT]
+### Invention & Conflict Resolution
+- Security is Always the Most IMPORTANT Requirement(Strategic&Tactical First Priority)
+- Always Use TRIZ&Priority Stack for Conflicts&Frictions Before Decision
+#### TRIZ(Inventive Problem Solving)
+1. Ideal Final Result: Define Perfect Outcome (Max Benefit,Zero Cost&Harm) and Work Backward
+2. Contradiction Resolution: Reject False Tradeoffs&Seek Solutions Satisfying Competing Constraints. If Genuine Constraints Exists, Apply Priority Stack
+#### Priority Stack(If TRIZ Cannot Resolve)
+1. Security:Never Compromise
+2. Correctness:Wrong Fast is Wrong
+3. Clarity:Readable>Clever
+4. Simplicity:Complexity Must be Earned
+5. Performance:Optimize with Proof
+
 ## Behavioral Framework
 
 1. Re-read `.agent/rules/DiSCOS.md` — the Distinguished Secure Cognitive OS.
@@ -34,7 +48,6 @@ dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
 # Run integration tests only after unit tests pass
 dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 ```
-
 
 ## Conventions
 
