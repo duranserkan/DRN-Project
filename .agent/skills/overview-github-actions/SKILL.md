@@ -21,7 +21,7 @@ CI/CD pipeline, GitHub Actions structure, and Docker containerization for `DRN-P
 
 ## 2. GitHub Actions Architecture
 
-**Composite Actions** in `.github/workflows/actions/` reduce duplication:
+**Composite Actions** in `.github/actions/` reduce duplication.
 
 ### CI Job Parallelism
 

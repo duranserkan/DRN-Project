@@ -7,7 +7,7 @@ runs:
       shell: bash
       run: dotnet restore DRN.slnx
     - name: Scan vulnerabilities
-      uses: ./.github/workflows/actions/scan-nuget-vulnerabilities
+      uses: ./.github/actions/scan-nuget-vulnerabilities
     - name: Build solution
       shell: bash
       run: dotnet build DRN.slnx --no-restore --no-incremental -p:ContinuousIntegrationBuild=true

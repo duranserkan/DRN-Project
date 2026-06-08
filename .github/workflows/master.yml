@@ -23,7 +23,7 @@ jobs:
           persist-credentials: false
 
       - name: Build frontend
-        uses: ./.github/workflows/actions/frontend-build
+        uses: ./.github/actions/frontend-build
 
   build-and-sonar-scan:
     permissions:
@@ -42,13 +42,13 @@ jobs:
           persist-credentials: false
 
       - name: Setup SDK
-        uses: ./.github/workflows/actions/setup-sdk-and-tools
+        uses: ./.github/actions/setup-sdk-and-tools
 
       - name: Sonar Scan Begin
-        uses: ./.github/workflows/actions/sonar-begin
+        uses: ./.github/actions/sonar-begin
 
       - name: Build for Sonar Scan
-        uses: ./.github/workflows/actions/dotnet-build
+        uses: ./.github/actions/dotnet-build
 
       - name: Test Unit
         run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity normal" -f xml -o "coverage-unit.xml"
@@ -57,7 +57,7 @@ jobs:
         run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity normal" -f xml -o "coverage-integration.xml"
 
       - name: Sonar Scan End
-        uses: ./.github/workflows/actions/sonar-end
+        uses: ./.github/actions/sonar-end
 
   codeql-scan:
     permissions:
@@ -73,7 +73,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup SDK
-        uses: ./.github/workflows/actions/setup-sdk-and-tools
+        uses: ./.github/actions/setup-sdk-and-tools
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
@@ -81,10 +81,18 @@ jobs:
           languages: csharp,javascript
 
       - name: Build for CodeQL
-        uses: ./.github/workflows/actions/dotnet-build
+        uses: ./.github/actions/dotnet-build
 
       - name: Perform CodeQL Analysis
+        id: codeql-analysis
         uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        with:
+          output: sarif-results
+
+      - name: Verify CodeQL Results
+        uses: ./.github/actions/verify-codeql
+        with:
+          sarif-directory: ${{ steps.codeql-analysis.outputs.sarif-output }}
 
   gatekeeper:
     permissions: {}

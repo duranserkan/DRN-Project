@@ -4,7 +4,7 @@ runs:
   using: "composite"
   steps:
     - name: Set up Sonar tools
-      uses: ./.github/workflows/actions/sonar-tools
+      uses: ./.github/actions/sonar-tools
     - name: Sonar Scan Begin # Sonar Begin
       shell: pwsh
       run: |
