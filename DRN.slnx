@@ -55,48 +55,48 @@
     <File Path=".github\workflows\release.yml" />
     <File Path=".github\workflows\release-preview.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/" />
-  <Folder Name="/Items/.github/workflows/actions/docker-publish-all/">
-    <File Path=".github\workflows\actions\docker-publish-all\action.yml" />
+  <Folder Name="/Items/.github/actions/" />
+  <Folder Name="/Items/.github/actions/docker-publish-all/">
+    <File Path=".github\actions\docker-publish-all\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/docker-publish/">
-    <File Path=".github\workflows\actions\docker-publish\action.yml" />
+  <Folder Name="/Items/.github/actions/docker-publish/">
+    <File Path=".github\actions\docker-publish\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/dotnet-build-release/">
-    <File Path=".github\workflows\actions\dotnet-build-release\action.yml" />
+  <Folder Name="/Items/.github/actions/dotnet-build-release/">
+    <File Path=".github\actions\dotnet-build-release\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/dotnet-build/">
-    <File Path=".github\workflows\actions\dotnet-build\action.yml" />
+  <Folder Name="/Items/.github/actions/dotnet-build/">
+    <File Path=".github\actions\dotnet-build\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/dotnet-test-release/">
-    <File Path=".github\workflows\actions\dotnet-test-release\action.yml" />
+  <Folder Name="/Items/.github/actions/dotnet-test-release/">
+    <File Path=".github\actions\dotnet-test-release\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/dotnet-test/">
-    <File Path=".github\workflows\actions\dotnet-test\action.yml" />
+  <Folder Name="/Items/.github/actions/dotnet-test/">
+    <File Path=".github\actions\dotnet-test\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/frontend-build/">
-    <File Path=".github\workflows\actions\frontend-build\action.yml" />
+  <Folder Name="/Items/.github/actions/frontend-build/">
+    <File Path=".github\actions\frontend-build\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/nuget-publish-all/">
-    <File Path=".github\workflows\actions\nuget-publish-all\action.yml" />
+  <Folder Name="/Items/.github/actions/nuget-publish-all/">
+    <File Path=".github\actions\nuget-publish-all\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/nuget-publish/">
-    <File Path=".github\workflows\actions\nuget-publish\action.yml" />
+  <Folder Name="/Items/.github/actions/nuget-publish/">
+    <File Path=".github\actions\nuget-publish\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/scan-nuget-vulnerabilities/">
-    <File Path=".github\workflows\actions\scan-nuget-vulnerabilities\action.yml" />
+  <Folder Name="/Items/.github/actions/scan-nuget-vulnerabilities/">
+    <File Path=".github\actions\scan-nuget-vulnerabilities\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/setup-sdk-and-tools/">
-    <File Path=".github\workflows\actions\setup-sdk-and-tools\action.yml" />
+  <Folder Name="/Items/.github/actions/setup-sdk-and-tools/">
+    <File Path=".github\actions\setup-sdk-and-tools\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/sonar-begin/">
-    <File Path=".github\workflows\actions\sonar-begin\action.yml" />
+  <Folder Name="/Items/.github/actions/sonar-begin/">
+    <File Path=".github\actions\sonar-begin\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/sonar-end/">
-    <File Path=".github\workflows\actions\sonar-end\action.yml" />
+  <Folder Name="/Items/.github/actions/sonar-end/">
+    <File Path=".github\actions\sonar-end\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/workflows/actions/sonar-tools/">
-    <File Path=".github\workflows\actions\sonar-tools\action.yml" />
+  <Folder Name="/Items/.github/actions/sonar-tools/">
+    <File Path=".github\actions\sonar-tools\action.yml" />
   </Folder>
   <Folder Name="/Src/" />
   <Folder Name="/Src/Framework/">

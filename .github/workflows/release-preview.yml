@@ -59,15 +59,14 @@ jobs:
         uses: ./.github/actions/dotnet-test-release
 
       - name: Perform CodeQL Analysis
-        id: codeql-analysis
         uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           output: sarif-results
 
-      - name: Verify CodeQL Results
-        uses: ./.github/actions/verify-codeql
-        with:
-          sarif-directory: ${{ steps.codeql-analysis.outputs.sarif-output }}
+      # GitHub code scanning merge protection replaces the custom SARIF verifier.
+      # Usage: protect the source branch in Settings -> Rules -> Rulesets,
+      # enable "Require code scanning results", add CodeQL, then choose thresholds.
+      # https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/set-merge-protection
 
       - name: Publish Packages
         uses: ./.github/actions/nuget-publish-all
