@@ -1,7 +1,7 @@
 ---
 name: overview-repository-structure
 description: Repository structure overview - Solution organization (Src, Test, Docker, Docs), project dependencies, folder conventions, and codebase navigation. Start here for understanding the repository layout. Keywords: repository-structure, solution-organization, project-organization, codebase-navigation, folder-structure, project-dependencies
-last-updated: 2026-06-07
+last-updated: 2026-06-09
 difficulty: basic
 tokens: ~1.5K
 ---
@@ -27,7 +27,7 @@ DRN-Project/
 ├── .agent/                    # Agent skills and workflows
 │   ├── rules/                 # DiSCOS rules
 │   └── skills/                # Expert skills (this directory)
-├── .github/workflows/         # CI/CD workflows
+├── .github/                   # CI/CD workflows, composite actions, CODEOWNERS
 ├── DiSCOS/                    # Distinguished Secure Cognitive OS documentation
 ├── Docker/                    # Infrastructure compose definitions (PostgreSQL, Graylog, RabbitMQ)
 │
@@ -70,7 +70,7 @@ graph TD
     EF --> T
     U --> J[DRN.Framework.Jobs]
     U --> MT[DRN.Framework.MassTransit]
-    
+
     style SK fill:#e1f5fe
     style U fill:#b3e5fc
     style H fill:#4fc3f7
@@ -132,8 +132,9 @@ Sample.Hosted
 
 | Workflow | Trigger | Actions |
 |----------|---------|---------|
-| `develop.yml` | Push/PR to develop | Frontend audit/build, .NET build, unit + integration tests |
-| `master.yml` | Push/PR to master, weekly schedule | Frontend audit/build, SonarCloud quality gate, CodeQL |
+| `develop.yml` | Push to develop | Frontend audit/build, .NET build, unit + integration tests |
+| `pull-request.yml` | PR to develop/master | Secretless frontend audit/build, .NET build/tests, CodeQL |
+| `master.yml` | Push to master, weekly schedule | Frontend audit/build, SonarCloud branch quality gate, CodeQL |
 | `release.yml` | Stable `release/v*.*.*` tag push | Frontend audit/build, build, test, NuGet publish, Docker push + Scout gate |
 | `release-preview.yml` | Preview `release/v*.*.*-previewNNN` tag push | Frontend audit/build, build, test, preview NuGet publish, Docker push + Scout gate |
 

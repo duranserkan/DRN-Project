@@ -1,11 +1,19 @@
-name: Setup SDK
+name: Sonar Begin
 description: "Initialize SonarCloud scanning session."
+inputs:
+  working-directory:
+    description: "Repository directory to analyze."
+    required: false
+    default: "."
 runs:
   using: "composite"
   steps:
     - name: Set up Sonar tools
       uses: ./.github/actions/sonar-tools
+      with:
+        working-directory: ${{ inputs.working-directory }}
     - name: Sonar Scan Begin # Sonar Begin
       shell: pwsh
+      working-directory: ${{ inputs.working-directory }}
       run: |
         ./.sonar/scanner/dotnet-sonarscanner begin /k:"$env:SONAR_PROJECT_KEY" /o:"$env:SONAR_ORGANIZATION" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.vscoveragexml.reportsPaths=coverage-unit.xml,coverage-integration.xml /d:sonar.host.url="$env:SONAR_HOST_URL" /d:sonar.qualitygate.wait=true /d:sonar.qualitygate.timeout=600

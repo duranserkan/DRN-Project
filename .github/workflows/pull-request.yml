@@ -1,12 +1,16 @@
-# Protected-branch and scheduled CI for master. Token-bearing analysis stays
-# here, away from pull request jobs that execute PR-controlled code.
-name: master
+# This workflow validates pull requests into protected source branches.
+# It intentionally uses the standard pull request event. The workspace root is
+# trusted CI code from the event base SHA, while PR source code is checked out
+# under src.
+# PR jobs are intentionally secretless because they execute PR-controlled code.
+# Token-bearing Sonar analysis runs on protected branch push workflows instead.
+
+name: pull-request
 
 on:
-  push:
-    branches: [ "master" ]
-  schedule:
-      - cron: '29 13 * * 0' # Every Sunday at 13:29 UTC
+  pull_request:
+    branches: ["develop", "master"]
+    types: ["opened", "synchronize", "reopened", "edited"]
 
 jobs:
   frontend:
@@ -14,32 +18,48 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout trusted CI code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+
+      - name: Checkout PR source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          path: src
           persist-credentials: false
 
       - name: Build frontend
         uses: ./.github/actions/frontend-build
+        with:
+          working-directory: src/Sample.Hosted
 
   backend:
     permissions:
       contents: read
     runs-on: ubuntu-latest
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_PROJECT_KEY: duranserkan_DRN-Project
-      SONAR_HOST_URL: https://sonarcloud.io
-      SONAR_ORGANIZATION: duranserkan
     steps:
-      - name: Checkout
+      - name: Checkout trusted CI code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          fetch-depth: 0
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/actions
           persist-credentials: false
 
-      - name: Run backend Sonar scan
-        uses: ./.github/actions/dotnet-sonar-scan
+      - name: Checkout PR source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          path: src
+          persist-credentials: false
+
+      # This job executes PR-controlled projects and tests. Keep it free of
+      # repository secrets and token-bearing tools.
+      - name: Run backend validation
+        uses: ./.github/actions/dotnet-validate
+        with:
+          working-directory: src
 
   codeql:
     permissions:
@@ -48,17 +68,28 @@ jobs:
       security-events: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout trusted CI code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+
+      - name: Checkout PR source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          path: src
           fetch-depth: 0
           persist-credentials: false
 
       - name: Run CodeQL scan
         uses: ./.github/actions/codeql-scan
         with:
-          source-root: .
-          checkout-path: ${{ github.workspace }}
+          working-directory: src
+          # PR source is checked out below the workspace root; keep CodeQL
+          # databases and SARIF paths aligned with the analyzed repository.
+          source-root: src
+          checkout-path: ${{ github.workspace }}/src
 
       # GitHub code scanning merge protection replaces the custom SARIF verifier.
       # Usage: protect the source branch in Settings -> Rules -> Rulesets,

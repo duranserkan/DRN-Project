@@ -1,5 +1,10 @@
 name: Frontend Build
 description: "Install, audit, and build Sample.Hosted Vite frontend assets."
+inputs:
+  working-directory:
+    description: "Directory containing the frontend package.json and package-lock.json."
+    required: false
+    default: Sample.Hosted
 runs:
   using: "composite"
   steps:
@@ -8,19 +13,19 @@ runs:
       with:
         node-version: 24.x
         cache: npm
-        cache-dependency-path: Sample.Hosted/package-lock.json
+        cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
     - name: Install npm dependencies
       shell: bash
-      working-directory: Sample.Hosted
+      working-directory: ${{ inputs.working-directory }}
       # Keep dependency restore deterministic and prevent dependency lifecycle
       # hooks from executing in CI. The explicit build step below runs the
       # project-owned scripts after audit.
       run: npm ci --ignore-scripts
     - name: Audit npm dependencies
       shell: bash
-      working-directory: Sample.Hosted
+      working-directory: ${{ inputs.working-directory }}
       run: npm audit --audit-level=high
     - name: Build Vite assets
       shell: bash
-      working-directory: Sample.Hosted
+      working-directory: ${{ inputs.working-directory }}
       run: npm run build

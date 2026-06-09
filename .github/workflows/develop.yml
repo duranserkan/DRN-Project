@@ -1,19 +1,20 @@
 # This workflow will build a .NET project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+# Fast protected-branch CI for develop.
 name: develop
 
 on:
   push:
     branches: [ "develop" ]
-  pull_request:
-    branches: [ "develop" ]
+
 jobs:
   frontend:
     permissions:
       contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
 
@@ -25,20 +26,15 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
 
-      - name: Setup SDK
-        uses: ./.github/actions/setup-sdk-and-tools
+      - name: Run backend validation
+        uses: ./.github/actions/dotnet-validate
 
-      - name: Build
-        uses: ./.github/actions/dotnet-build
-
-      - name: Test
-        uses: ./.github/actions/dotnet-test
-
-  build:
+  gatekeeper:
     permissions: {}
     runs-on: ubuntu-latest
     if: ${{ always() }}
@@ -48,7 +44,7 @@ jobs:
       - frontend
       - backend
     steps:
-      - name: Verify frontend and backend completed successfully
+      - name: Verify required jobs completed successfully
         run: |
           if [ "${{ needs.frontend.result }}" != "success" ] || [ "${{ needs.backend.result }}" != "success" ]; then
             echo "One or more required checks failed."
@@ -56,4 +52,4 @@ jobs:
             echo "backend: ${{ needs.backend.result }}"
             exit 1
           fi
-          echo "Frontend and backend checks passed successfully!"
+          echo "Required jobs passed successfully."

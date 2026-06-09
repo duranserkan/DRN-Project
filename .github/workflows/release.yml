@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  Publish-Master:
+  publish:
     permissions:
       actions: read
       contents: read

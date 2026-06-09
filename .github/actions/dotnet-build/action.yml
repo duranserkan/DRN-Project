@@ -1,13 +1,22 @@
 name: Dotnet Build
 description: "Restore dependencies, scan NuGet vulnerabilities, and build solution in Debug mode."
+inputs:
+  working-directory:
+    description: "Repository directory containing DRN.slnx."
+    required: false
+    default: "."
 runs:
   using: "composite"
   steps:
     - name: Restore dependencies
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: dotnet restore DRN.slnx
     - name: Scan vulnerabilities
       uses: ./.github/actions/scan-nuget-vulnerabilities
+      with:
+        working-directory: ${{ inputs.working-directory }}
     - name: Build solution
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: dotnet build DRN.slnx --no-restore --no-incremental -p:ContinuousIntegrationBuild=true
