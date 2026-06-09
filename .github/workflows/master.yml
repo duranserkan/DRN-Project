@@ -1,15 +1,16 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
+# Protected-branch and scheduled CI for master. Token-bearing analysis stays
+# here, away from pull request jobs that execute PR-controlled code.
 name: master
 
 on:
   push:
     branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
   schedule:
       - cron: '29 13 * * 0' # Every Sunday at 13:29 UTC
+
+concurrency:
+  group: master-ci
+  cancel-in-progress: true
 
 jobs:
   frontend:
@@ -25,15 +26,10 @@ jobs:
       - name: Build frontend
         uses: ./.github/actions/frontend-build
 
-  build-and-sonar-scan:
+  backend:
     permissions:
       contents: read
     runs-on: ubuntu-latest
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_PROJECT_KEY: duranserkan_DRN-Project
-      SONAR_HOST_URL: https://sonarcloud.io
-      SONAR_ORGANIZATION: duranserkan
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -41,25 +37,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Setup SDK
-        uses: ./.github/actions/setup-sdk-and-tools
+      - name: Run backend Sonar scan
+        uses: ./.github/actions/dotnet-sonar-scan
+        with:
+          sonar-token: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Sonar Scan Begin
-        uses: ./.github/actions/sonar-begin
-
-      - name: Build for Sonar Scan
-        uses: ./.github/actions/dotnet-build
-
-      - name: Test Unit
-        run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity normal" -f xml -o "coverage-unit.xml"
-
-      - name: Test Integration
-        run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity normal" -f xml -o "coverage-integration.xml"
-
-      - name: Sonar Scan End
-        uses: ./.github/actions/sonar-end
-
-  codeql-scan:
+  codeql:
     permissions:
       actions: read
       contents: read
@@ -72,21 +55,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Setup SDK
-        uses: ./.github/actions/setup-sdk-and-tools
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+      - name: Run CodeQL scan
+        uses: ./.github/actions/codeql-scan
         with:
-          languages: csharp,javascript
-
-      - name: Build for CodeQL
-        uses: ./.github/actions/dotnet-build
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
-        with:
-          output: sarif-results
+          source-root: .
+          checkout-path: ${{ github.workspace }}
 
       # GitHub code scanning merge protection replaces the custom SARIF verifier.
       # Usage: protect the source branch in Settings -> Rules -> Rulesets,
@@ -101,16 +74,16 @@ jobs:
     # Add new jobs to both `needs` and the result check below.
     needs:
       - frontend
-      - build-and-sonar-scan
-      - codeql-scan
+      - backend
+      - codeql
     steps:
-      - name: Verify All Scans Completed Successfully
+      - name: Verify required jobs completed successfully
         run: |
-          if [ "${{ needs.frontend.result }}" != "success" ] || [ "${{ needs['build-and-sonar-scan'].result }}" != "success" ] || [ "${{ needs['codeql-scan'].result }}" != "success" ]; then
+          if [ "${{ needs.frontend.result }}" != "success" ] || [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.codeql.result }}" != "success" ]; then
             echo "One or more required checks failed."
             echo "frontend: ${{ needs.frontend.result }}"
-            echo "build-and-sonar-scan: ${{ needs['build-and-sonar-scan'].result }}"
-            echo "codeql-scan: ${{ needs['codeql-scan'].result }}"
+            echo "backend: ${{ needs.backend.result }}"
+            echo "codeql: ${{ needs.codeql.result }}"
             exit 1
           fi
-          echo "All scans passed successfully!"
+          echo "Required jobs passed successfully."

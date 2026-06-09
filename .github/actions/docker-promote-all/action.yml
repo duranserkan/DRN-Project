@@ -1,0 +1,52 @@
+name: Docker Promote All
+description: "Set up Docker Buildx, log in to the Docker registry, and promote tags for all scanned Docker image digests."
+inputs:
+  registry:
+    description: "Docker registry host used for authentication (e.g., docker.io, ghcr.io, registry.example.com)."
+    required: true
+  username:
+    description: "Docker registry username used for authentication."
+    required: true
+  password:
+    description: "Docker registry password or personal access token (PAT) used for authentication."
+    required: true
+  image-repository-prefix:
+    description: "Docker image repository namespace/path without the registry host (e.g., duranserkan, my-org/platform)."
+    required: true
+  version:
+    description: "Release version extracted from the release tag."
+    required: true
+  sample-image-digest:
+    description: "The staged and scanned Sample image digest to promote."
+    required: true
+  nexus-image-digest:
+    description: "The staged and scanned Nexus image digest to promote."
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+    - name: Log in to Docker registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
+    - name: Promote Sample Docker image tags
+      uses: ./.github/actions/docker-promote
+      with:
+        registry: ${{ inputs.registry }}
+        image-repository-prefix: ${{ inputs.image-repository-prefix }}
+        image-repository-name: drn-project-sample
+        version: ${{ inputs.version }}
+        image-digest: ${{ inputs.sample-image-digest }}
+    - name: Promote Nexus Docker image tags
+      uses: ./.github/actions/docker-promote
+      with:
+        registry: ${{ inputs.registry }}
+        image-repository-prefix: ${{ inputs.image-repository-prefix }}
+        image-repository-name: drn-project-nexus
+        version: ${{ inputs.version }}
+        image-digest: ${{ inputs.nexus-image-digest }}

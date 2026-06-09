@@ -1,0 +1,8 @@
+# Own CI control-plane files.
+# Repository rulesets must require CODEOWNERS review for these paths:
+# - .github/CODEOWNERS
+# - .github/workflows/**
+# - .github/actions/**
+/.github/CODEOWNERS @duranserkan
+/.github/workflows/** @duranserkan
+/.github/actions/** @duranserkan

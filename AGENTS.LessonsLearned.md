@@ -486,7 +486,7 @@ When updating pinned GitHub Actions, do not trust visual SHA prefixes or generat
 
 ### Context
 
-The release workflows build and push multi-platform Docker images through `docker/build-push-action`, then run `docker/scout-action` from the shared `docker-publish` composite action.
+The release workflows stage Docker images by digest through `docker/build-push-action`, then run `docker/scout-action` from the shared `docker-stage-scan` composite action before any Docker tags are promoted.
 
 ### Problem
 
@@ -494,7 +494,7 @@ When `docker/scout-action` runs without an explicit `image:` input, Scout may an
 
 ### Decision Checkpoint
 
-Always pass the exact pushed DRN image reference to Docker Scout, preferably by repository plus the `docker/build-push-action` digest output. Treat third-party helper-image recommendations as non-actionable for DRN unless the workflow intentionally consumes that image.
+Always pass the exact staged DRN image reference to Docker Scout, preferably by repository plus the `docker/build-push-action` digest output. Treat third-party helper-image recommendations as non-actionable for DRN unless the workflow intentionally consumes that image.
 
 ## 23. Release Tags Must Match CI Triggers and Docker Metadata
 
@@ -508,11 +508,11 @@ If workflow tag filters expect bare `v...` while the release contract says `rele
 
 ### Fix Applied
 
-Release workflows listen to documented `release/v*.*.*` and fixed-width `release/v*.*.*-previewNNN` tags, fail fast if a version step receives the wrong tag class, strip the `release/v` prefix for package versions, and Docker metadata emits `major.minor` tags only for stable releases by disabling the stable-only tag rule for hyphenated prerelease refs. Preview releases keep the prerelease semver tag.
+Release workflows listen to documented `release/v*.*.*` and fixed-width `release/v*.*.*-previewNNN` tags, fail fast if a version step receives the wrong tag class, strip the `release/v` prefix once, and pass that version to NuGet and Docker publishing. Docker metadata derives tags and labels from the extracted version, emits `major.minor` tags only for stable releases, and disables implicit `latest` tags. Preview releases keep the prerelease semver tag.
 
 ### Decision Checkpoint
 
-Whenever tag patterns change, update all three surfaces together: workflow triggers, version extraction guards, and Docker metadata rules. Verify preview tags cannot overwrite stable Docker tags, and keep preview numbers fixed width for natural ordering.
+Whenever tag patterns change, update all three surfaces together: workflow triggers, version extraction guards, and Docker metadata rules. Derive downstream package/image metadata from the single extracted version instead of re-parsing the ref in each publish action. Verify preview tags cannot overwrite stable Docker tags, and keep preview numbers fixed width for natural ordering.
 
 ## 24. Docker Scout Severity Filters Should Be Explicit
 
@@ -603,3 +603,93 @@ The verifier now requires at least one parseable `.sarif` or `.sarif.json` file,
 ### Decision Checkpoint
 
 For security gate post-processing, absence or unparsable artifacts are failures. Use producer action outputs over repeated path literals, and keep focused harness coverage for missing, empty, malformed, rule-level note-only, result-level overrides, and blocking-result SARIF.
+
+## 29. Split Checkout and CODEOWNERS Cover Different CI Risks
+
+### Context
+
+PR workflows can check out trusted base-branch composite actions at the workspace root while checking out PR source code under a separate directory such as `src`.
+
+### Problem
+
+Split checkout protects PR-run-time execution, but it does not by itself protect the workflow file that defines jobs, permissions, and aggregate gates. CODEOWNERS protects merge-time control-plane changes, but it does not replace the run-time guard against executing unreviewed PR-controlled composite actions.
+
+### Fix Applied
+
+Use both layers: keep split checkout for PR run-time isolation, add `.github/CODEOWNERS` coverage for itself, `.github/workflows/**`, and `.github/actions/**`, and require code-owner review through branch protection/rulesets.
+
+### Decision Checkpoint
+
+When hardening GitHub Actions for PRs, secure both execution inputs and control-plane definitions: checkout trusted action code, avoid secrets in PR jobs, and require owner review for any files that can change CI behavior.
+
+## 30. Pin Trusted PR CI Checkout to the Event Base SHA
+
+### Context
+
+Split-checkout PR workflows keep trusted composite actions at the workspace root and PR-controlled source code under `src`.
+
+### Problem
+
+Checking out trusted CI code with the mutable base branch name can drift from the exact base commit that triggered the PR run. Protected branches limit attacker control, but mutable refs still make auditability and reruns harder to reason about.
+
+### Fix Applied
+
+Checkout trusted CI code with `github.event.pull_request.base.sha`, then checkout PR source separately under `src`. Composite actions used during PR validation now come from the exact reviewed base commit for that event.
+
+### Decision Checkpoint
+
+For split-checkout PR workflows, pin the trusted checkout to an immutable event SHA. Use branch names for human routing and immutable SHAs for executable CI control-plane code.
+
+## 31. Release Publish Secrets Belong After Quality Gates
+
+### Context
+
+Release and preview-release workflows build publishable NuGet packages and Docker images from tag-triggered commits, then publish them to external registries.
+
+### Problem
+
+Putting publish credentials or publish-only values at job scope makes those values available during setup, build, test, and analysis steps that do not need them. Running release build/test and CodeQL without the same SonarCloud quality gate used by `master` also lets tags publish through a weaker gate than protected-branch CI. Publishing NuGet packages before Docker vulnerability scans finish can also create a partial release where packages are public even though release container images fail the CVE gate.
+
+### Fix Applied
+
+Keep release workflows single-job to preserve local build outputs and frontend assets, but split Docker publication into two phases. First, after Sonar and CodeQL gates pass, stage content-addressed multi-platform Docker digests with `push-by-digest=true` for the configured `platforms` action input, which defaults to `linux/amd64` and `linux/arm64`, and push a deterministic temporary `staged-<version>-run-<run_id>-<attempt>` tag with the staged digest for visibility and manual recovery. Then scan each staged digest with Docker Scout from the focused `docker-stage-scan` action, orchestrated for all images by `docker-stage-scan-all`. Only after the scans and SARIF uploads succeed do the workflows publish NuGet packages and promote Docker tags from the scanned digests through the focused `docker-promote` action, orchestrated by `docker-promote-all`. Pass NuGet and Docker credentials only to the steps that need registry access, define the required image repository prefix and NuGet package source URL once at job scope, pass them explicitly to publish actions, and derive Docker release metadata from the tag-derived version input.
+
+### Decision Checkpoint
+
+For release workflows, treat quality gates and publish inputs as separate phases even inside one job. Security analysis must complete before package publication and Docker tag promotion. When release images must support multiple platforms, carry the platform list as an action input through Buildx setup and Docker build, stage the multi-platform image by digest, scan that exact digest, then promote human-facing tags from the scanned digest after the gate. Keep stage/scan and promotion as focused composite actions at both the single-image and all-images layers so workflow readers can see the security boundary. Temporary staging tags should be visibly non-release tags and retained for manual inspection or cleanup. Registry write secrets should be scoped to registry steps, and package version values should be threaded explicitly to the package actions that consume them.
+
+## 32. Release Branch Gates Need Exact Ref Ancestry
+
+### Context
+
+Stable and preview release workflows run on `release/v*` tags, then verify that the tagged commit belongs to the expected protected release branch before publishing.
+
+### Problem
+
+Filtering `git branch --remote --contains` with `grep origin/master` or `grep origin/develop` treats branch-name prefixes as acceptable matches. A tag on `origin/master-evil` or `origin/develop-evil` can satisfy the substring filter even when the exact protected branch does not contain the commit.
+
+### Fix Applied
+
+Verify the exact remote-tracking ref exists, then use `git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/master` or `refs/remotes/origin/develop` for the stable and preview release gates.
+
+### Decision Checkpoint
+
+For branch membership security gates, never rely on display output plus substring matching. Resolve the exact ref and ask Git whether the candidate commit is an ancestor of that ref.
+
+## 33. PR Workflows Need Explicit Runner Timeouts
+
+### Context
+
+PR workflows intentionally execute contributor-controlled build and test code without repository secrets.
+
+### Problem
+
+Secretless execution limits credential exposure, but it does not limit runner exhaustion. A harmful or accidentally broken PR can hang npm scripts, .NET builds, integration tests, or CodeQL tracing until the platform default timeout.
+
+### Fix Applied
+
+Set explicit `timeout-minutes` values on every `pull-request.yml` job: short for frontend validation, longer for backend and CodeQL validation, and very short for the aggregate gatekeeper job.
+
+### Decision Checkpoint
+
+Whenever a workflow runs PR-controlled code, pair secret isolation with resource limits. Timeouts should be long enough for legitimate validation but short enough to bound denial-of-service impact.

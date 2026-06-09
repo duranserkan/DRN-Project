@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  Publish-Master:
+  publish:
     permissions:
       actions: read
       contents: read
@@ -19,9 +19,13 @@ jobs:
       id-token: write
       attestations: write
     runs-on: ubuntu-latest
-    env:
-      NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
     timeout-minutes: 45
+    env:
+      # Docker image validation intentionally accepts lowercase registry hosts and namespace paths only.
+      DOCKER_REGISTRY: docker.io
+      DOCKER_IMAGE_REPOSITORY_PREFIX: duranserkan
+      # NuGet source validation intentionally requires the canonical lowercase https:// scheme.
+      NUGET_PACKAGE_SOURCE_URL: https://api.nuget.org/v3/index.json
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -30,16 +34,23 @@ jobs:
           persist-credentials: false
 
       - name: Verify commit exists in origin/master
-        run: git branch --remote --contains | grep origin/master
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse --verify refs/remotes/origin/master
+          git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/master
 
-      - name: Set VERSION variable from tag
+      - name: Set version from tag
+        id: version
         run: |
           if [[ ! "$GITHUB_REF_NAME" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Expected stable release tag, got: $GITHUB_REF_NAME"
             exit 1
           fi
+          # Bash ${parameter#word} removes the shortest matching prefix.
+          # The guard above proves this tag starts with release/v, leaving only the package version.
           version="${GITHUB_REF_NAME#release/v}"
-          echo "VERSION=${version}" >> "$GITHUB_ENV"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Setup SDK
         uses: ./.github/actions/setup-sdk-and-tools
@@ -47,29 +58,50 @@ jobs:
       - name: Build frontend
         uses: ./.github/actions/frontend-build
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+      - name: Sonar Scan Begin
+        uses: ./.github/actions/sonar-begin
         with:
-          languages: csharp,javascript
+          sonar-token: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Build
-        uses: ./.github/actions/dotnet-build-release
-
-      - name: Test
-        uses: ./.github/actions/dotnet-test-release
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+      - name: Run CodeQL scan
+        uses: ./.github/actions/codeql-scan
         with:
-          output: sarif-results
+          source-root: .
+          checkout-path: ${{ github.workspace }}
+          configuration: Release
+          version: ${{ steps.version.outputs.version }}
 
       # GitHub code scanning merge protection replaces the custom SARIF verifier.
       # Usage: protect the source branch in Settings -> Rules -> Rulesets,
       # enable "Require code scanning results", add CodeQL, then choose thresholds.
       # https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/set-merge-protection
 
+      - name: Test with Coverage
+        uses: ./.github/actions/dotnet-test-coverage
+        with:
+          configuration: Release
+
+      - name: Sonar Scan End
+        uses: ./.github/actions/sonar-end
+        with:
+          sonar-token: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Stage and scan Docker images
+        id: docker-images
+        uses: ./.github/actions/docker-stage-scan-all
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          image-repository-prefix: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
+          version: ${{ steps.version.outputs.version }}
+
       - name: Publish Packages
         uses: ./.github/actions/nuget-publish-all
+        with:
+          version: ${{ steps.version.outputs.version }}
+          package-source-url: ${{ env.NUGET_PACKAGE_SOURCE_URL }}
+          nuget-token: ${{ secrets.NUGET_TOKEN }}
 
       - name: Generate artifact attestation #https://andrewlock.net/creating-provenance-attestations-for-nuget-packages-in-github-actions/
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
@@ -81,8 +113,13 @@ jobs:
           name: packages
           path: artifacts/packages
 
-      - name: Publish Images
-        uses: ./.github/actions/docker-publish-all
+      - name: Promote Docker image tags
+        uses: ./.github/actions/docker-promote-all
         with:
+          registry: ${{ env.DOCKER_REGISTRY }}
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+          image-repository-prefix: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
+          version: ${{ steps.version.outputs.version }}
+          sample-image-digest: ${{ steps.docker-images.outputs.sample-image-digest }}
+          nexus-image-digest: ${{ steps.docker-images.outputs.nexus-image-digest }}

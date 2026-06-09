@@ -1,8 +1,17 @@
 name: Nuget Publish
-description: Packs and publishes a single NuGet package to nuget.org.
+description: Packs and publishes a single NuGet package to a configured NuGet source.
 inputs:
   project-name:
     description: The project directory and csproj base name (e.g. DRN.Framework.Utils).
+    required: true
+  version:
+    description: Package version extracted from the release tag.
+    required: true
+  package-source-url:
+    description: NuGet package source URL used for package push.
+    required: true
+  nuget-token:
+    description: NuGet package source API token used only for package push.
     required: true
 runs:
   using: "composite"
@@ -13,16 +22,30 @@ runs:
         # Assigned to an env var to avoid direct expression interpolation in the
         # shell script — prevents script injection (GitHub Actions security advisory).
         PROJECT_NAME: ${{ inputs.project-name }}
+        PACKAGE_VERSION: ${{ inputs.version }}
       run: |
-        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${PROJECT_NAME}/PACKAGE-DESCRIPTION
-        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${PROJECT_NAME}/README.md
-        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H"  >>  ${PROJECT_NAME}/RELEASE-NOTES.md
-        dotnet pack ${PROJECT_NAME}/${PROJECT_NAME}.csproj --configuration Release /p:Version=${VERSION} --no-build --output artifacts/packages
+        set -euo pipefail
+
+        mkdir -p artifacts/packages
+        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H" >> "${PROJECT_NAME}/PACKAGE-DESCRIPTION"
+        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H" >> "${PROJECT_NAME}/README.md"
+        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H" >> "${PROJECT_NAME}/RELEASE-NOTES.md"
+        dotnet pack "${PROJECT_NAME}/${PROJECT_NAME}.csproj" --configuration Release "/p:Version=${PACKAGE_VERSION}" --no-build --output artifacts/packages
     - name: Push
       shell: bash
       env:
         # Same rationale as the Pack step above — env var indirection for injection safety.
         PROJECT_NAME: ${{ inputs.project-name }}
+        PACKAGE_VERSION: ${{ inputs.version }}
+        PACKAGE_SOURCE_URL: ${{ inputs.package-source-url }}
+        NUGET_TOKEN: ${{ inputs.nuget-token }}
       run: |
-        dotnet nuget push artifacts/packages/${PROJECT_NAME}.${VERSION}.nupkg --skip-duplicate --api-key ${NUGET_TOKEN} --source https://api.nuget.org/v3/index.json
-        dotnet nuget push artifacts/packages/${PROJECT_NAME}.${VERSION}.snupkg --skip-duplicate --api-key ${NUGET_TOKEN} --source https://api.nuget.org/v3/index.json
+        set -euo pipefail
+
+        if [[ ! "$PACKAGE_SOURCE_URL" =~ ^https://[^[:space:]]+$ ]]; then
+          echo "Expected package-source-url to be an HTTPS NuGet source URL, got: $PACKAGE_SOURCE_URL"
+          exit 1
+        fi
+
+        dotnet nuget push "artifacts/packages/${PROJECT_NAME}.${PACKAGE_VERSION}.nupkg" --skip-duplicate --api-key "$NUGET_TOKEN" --source "$PACKAGE_SOURCE_URL"
+        dotnet nuget push "artifacts/packages/${PROJECT_NAME}.${PACKAGE_VERSION}.snupkg" --skip-duplicate --api-key "$NUGET_TOKEN" --source "$PACKAGE_SOURCE_URL"

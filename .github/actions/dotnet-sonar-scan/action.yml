@@ -1,0 +1,52 @@
+name: Dotnet Sonar Scan
+description: "Set up .NET, run SonarCloud analysis, build, and collect test coverage."
+inputs:
+  working-directory:
+    description: "Repository directory containing DRN.slnx."
+    required: false
+    default: "."
+  sonar-token:
+    description: "SonarCloud token."
+    required: true
+  sonar-project-key:
+    description: "SonarCloud project key."
+    required: false
+    default: "duranserkan_DRN-Project"
+  sonar-host-url:
+    description: "SonarCloud host URL."
+    required: false
+    default: "https://sonarcloud.io"
+  sonar-organization:
+    description: "SonarCloud organization."
+    required: false
+    default: "duranserkan"
+runs:
+  using: "composite"
+  steps:
+    - name: Setup SDK
+      uses: ./.github/actions/setup-sdk-and-tools
+
+    - name: Sonar Scan Begin
+      uses: ./.github/actions/sonar-begin
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        sonar-token: ${{ inputs.sonar-token }}
+        sonar-project-key: ${{ inputs.sonar-project-key }}
+        sonar-host-url: ${{ inputs.sonar-host-url }}
+        sonar-organization: ${{ inputs.sonar-organization }}
+
+    - name: Build
+      uses: ./.github/actions/dotnet-build
+      with:
+        working-directory: ${{ inputs.working-directory }}
+
+    - name: Test with Coverage
+      uses: ./.github/actions/dotnet-test-coverage
+      with:
+        working-directory: ${{ inputs.working-directory }}
+
+    - name: Sonar Scan End
+      uses: ./.github/actions/sonar-end
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        sonar-token: ${{ inputs.sonar-token }}

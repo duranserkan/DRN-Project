@@ -1,0 +1,131 @@
+# This workflow validates pull requests into protected source branches.
+# It intentionally uses the standard pull request event. The workspace root is
+# trusted CI code from the event base SHA, while PR source code is checked out
+# under src.
+# PR jobs are intentionally secretless because they execute PR-controlled code.
+# Token-bearing Sonar analysis runs on protected branch push workflows instead.
+
+name: pull-request
+
+on:
+  pull_request:
+    branches: ["develop", "master"]
+    types: ["opened", "synchronize", "reopened", "edited"]
+
+concurrency:
+  group: pull-request-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout trusted CI code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+
+      - name: Checkout PR source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          path: src
+          persist-credentials: false
+
+      - name: Build frontend
+        uses: ./.github/actions/frontend-build
+        with:
+          working-directory: src/Sample.Hosted
+
+  backend:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout trusted CI code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+
+      - name: Checkout PR source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          path: src
+          persist-credentials: false
+
+      # This job executes PR-controlled projects and tests. Keep it free of
+      # repository secrets and token-bearing tools.
+      - name: Run backend validation
+        uses: ./.github/actions/dotnet-validate
+        with:
+          working-directory: src
+
+  codeql:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout trusted CI code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+
+      - name: Checkout PR source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          path: src
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run CodeQL scan
+        uses: ./.github/actions/codeql-scan
+        with:
+          working-directory: src
+          # PR source is checked out below the workspace root; keep CodeQL
+          # databases and SARIF paths aligned with the analyzed repository.
+          source-root: src
+          checkout-path: ${{ github.workspace }}/src
+
+      # GitHub code scanning merge protection replaces the custom SARIF verifier.
+      # Repository rulesets/branch protection must require CodeQL/code-scanning
+      # merge protection for PRs; uploaded SARIF alone is not a merge gate.
+      # Usage: protect the source branch in Settings -> Rules -> Rulesets,
+      # enable "Require code scanning results", add CodeQL, then choose thresholds.
+      # https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/set-merge-protection
+
+  gatekeeper:
+    permissions: {}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ always() }}
+    # Repository rulesets/branch protection must require this aggregate status
+    # check for PRs targeting develop and master: pull-request / gatekeeper.
+    # Keep this aggregate gate in sync with every required validation job.
+    # Add new jobs to both `needs` and the result check below.
+    needs:
+      - frontend
+      - backend
+      - codeql
+    steps:
+      - name: Verify required jobs completed successfully
+        run: |
+          if [ "${{ needs.frontend.result }}" != "success" ] || [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.codeql.result }}" != "success" ]; then
+            echo "One or more required checks failed."
+            echo "frontend: ${{ needs.frontend.result }}"
+            echo "backend: ${{ needs.backend.result }}"
+            echo "codeql: ${{ needs.codeql.result }}"
+            exit 1
+          fi
+          echo "Required jobs passed successfully."

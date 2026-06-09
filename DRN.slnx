@@ -48,31 +48,49 @@
   <Folder Name="/Items/.agent/rules/">
     <File Path=".agent\rules\discos.md" />
   </Folder>
-  <Folder Name="/Items/.github/" />
+  <Folder Name="/Items/.github/">
+    <File Path=".github\CODEOWNERS" />
+  </Folder>
   <Folder Name="/Items/.github/workflows/">
     <File Path=".github\workflows\develop.yml" />
     <File Path=".github\workflows\master.yml" />
     <File Path=".github\workflows\release.yml" />
+    <File Path=".github\workflows\pull-request.yml" />
     <File Path=".github\workflows\release-preview.yml" />
   </Folder>
   <Folder Name="/Items/.github/actions/" />
-  <Folder Name="/Items/.github/actions/docker-publish-all/">
-    <File Path=".github\actions\docker-publish-all\action.yml" />
+  <Folder Name="/Items/.github/actions/codeql-scan/">
+    <File Path=".github\actions\codeql-scan\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/actions/docker-publish/">
-    <File Path=".github\actions\docker-publish\action.yml" />
+  <Folder Name="/Items/.github/actions/docker-release-metadata/">
+    <File Path=".github\actions\docker-release-metadata\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/actions/dotnet-build-release/">
-    <File Path=".github\actions\dotnet-build-release\action.yml" />
+  <Folder Name="/Items/.github/actions/docker-promote-all/">
+    <File Path=".github\actions\docker-promote-all\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/actions/docker-promote/">
+    <File Path=".github\actions\docker-promote\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/actions/docker-stage-scan-all/">
+    <File Path=".github\actions\docker-stage-scan-all\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/actions/docker-stage-scan/">
+    <File Path=".github\actions\docker-stage-scan\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/actions/dotnet-sonar-scan/">
+    <File Path=".github\actions\dotnet-sonar-scan\action.yml" />
   </Folder>
   <Folder Name="/Items/.github/actions/dotnet-build/">
     <File Path=".github\actions\dotnet-build\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/actions/dotnet-test-release/">
-    <File Path=".github\actions\dotnet-test-release\action.yml" />
-  </Folder>
   <Folder Name="/Items/.github/actions/dotnet-test/">
     <File Path=".github\actions\dotnet-test\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/actions/dotnet-test-coverage/">
+    <File Path=".github\actions\dotnet-test-coverage\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/actions/dotnet-validate/">
+    <File Path=".github\actions\dotnet-validate\action.yml" />
   </Folder>
   <Folder Name="/Items/.github/actions/frontend-build/">
     <File Path=".github\actions\frontend-build\action.yml" />
