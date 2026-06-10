@@ -1,7 +1,7 @@
 ---
 name: overview-repository-structure
 description: Repository structure overview - Solution organization (Src, Test, Docker, Docs), project dependencies, folder conventions, and codebase navigation. Start here for understanding the repository layout. Keywords: repository-structure, solution-organization, project-organization, codebase-navigation, folder-structure, project-dependencies
-last-updated: 2026-06-09
+last-updated: 2026-06-10
 difficulty: basic
 tokens: ~1.5K
 ---
@@ -135,8 +135,8 @@ Sample.Hosted
 | `develop.yml` | Push to develop | Frontend audit/build, .NET build, unit + integration tests |
 | `pull-request.yml` | PR to develop/master | Secretless frontend audit/build, .NET build/tests, CodeQL |
 | `master.yml` | Push to master, weekly schedule | Frontend audit/build, SonarCloud branch quality gate, CodeQL |
-| `release.yml` | Stable `release/v*.*.*` tag push | Frontend audit/build, build, test, NuGet publish, Docker push + Scout gate |
-| `release-preview.yml` | Preview `release/v*.*.*-previewNNN` tag push | Frontend audit/build, build, test, preview NuGet publish, Docker push + Scout gate |
+| `release.yml` | Stable `release/v*.*.*` tag push | Frontend audit/build, Release build/test, SonarCloud quality gate, CodeQL, NuGet publish, Docker push + Scout gate |
+| `release-preview.yml` | Preview `release/v*.*.*-previewNNN` tag push | Frontend audit/build, Release build/test, SonarCloud quality gate, CodeQL, preview NuGet publish, Docker push + Scout gate |
 
 ---
 

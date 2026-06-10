@@ -12,26 +12,41 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
+        # Strict mode keeps CI honest: fail on unhandled errors, unset variables,
+        # and failed pipeline commands instead of continuing with partial state.
         set -euo pipefail
 
-        # dotnet list package does not support docker-compose.dcproj. Scan a
-        # temporary solution copy so CI never mutates the tracked DRN.slnx.
-        temp_solution="$(mktemp -p . DRN.package-scan.XXXXXX)"
+        # dotnet list package does not support docker-compose.dcproj. Work on a
+        # temporary solution copy so this scan never mutates the tracked DRN.slnx.
+        #
+        # mktemp creates a unique placeholder path. The .slnx suffix is added to
+        # the copy because dotnet sln/list should receive a solution-shaped file.
+        temp_solution="$(mktemp ./DRN.package-scan.XXXXXX)"
         scan_solution="${temp_solution}.slnx"
+
+        # Always remove both temp paths, even when restore/list commands fail.
         cleanup() {
           rm -f "$temp_solution" "$scan_solution"
         }
         trap cleanup EXIT
 
         cp DRN.slnx "$scan_solution"
+
+        # Ignore removal failure so the scan remains tolerant if the project is
+        # already absent from a future solution layout.
         dotnet sln "$scan_solution" remove docker-compose.dcproj || true
 
+        # Capture output and exit code manually. With set -e, an unhandled
+        # non-zero command would exit before we can print dotnet's diagnostics.
         status=0
         packages=$(dotnet list "$scan_solution" package --include-transitive --vulnerable) || status=$?
         if [ "$status" -ne 0 ]; then
           echo "$packages"
           exit "$status"
         fi
+
+        # dotnet list can complete successfully while reporting vulnerable
+        # packages, so treat that report text as a CI failure.
         if [[ "$packages" == *"has the following vulnerable packages"* ]]; then
           echo "$packages"
           exit 1

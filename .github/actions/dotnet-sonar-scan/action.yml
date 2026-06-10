@@ -5,6 +5,9 @@ inputs:
     description: "Repository directory containing DRN.slnx."
     required: false
     default: "."
+  sonar-token:
+    description: "SonarCloud token."
+    required: true
 runs:
   using: "composite"
   steps:
@@ -15,6 +18,7 @@ runs:
       uses: ./.github/actions/sonar-begin
       with:
         working-directory: ${{ inputs.working-directory }}
+        sonar-token: ${{ inputs.sonar-token }}
 
     - name: Build
       uses: ./.github/actions/dotnet-build
@@ -30,3 +34,4 @@ runs:
       uses: ./.github/actions/sonar-end
       with:
         working-directory: ${{ inputs.working-directory }}
+        sonar-token: ${{ inputs.sonar-token }}

@@ -1,5 +1,12 @@
 name: Nuget Publish All
 description: "Packs and publishes all DRN.Framework NuGet packages."
+inputs:
+  version:
+    description: "Package version extracted from the release tag."
+    required: true
+  nuget-token:
+    description: "NuGet.org API token used only for package push steps."
+    required: true
 runs:
   using: "composite"
   steps:
@@ -7,19 +14,29 @@ runs:
       uses: ./.github/actions/nuget-publish
       with:
         project-name: DRN.Framework.SharedKernel
+        version: ${{ inputs.version }}
+        nuget-token: ${{ inputs.nuget-token }}
     - name: Publish Utils
       uses: ./.github/actions/nuget-publish
       with:
         project-name: DRN.Framework.Utils
+        version: ${{ inputs.version }}
+        nuget-token: ${{ inputs.nuget-token }}
     - name: Publish EntityFramework
       uses: ./.github/actions/nuget-publish
       with:
         project-name: DRN.Framework.EntityFramework
+        version: ${{ inputs.version }}
+        nuget-token: ${{ inputs.nuget-token }}
     - name: Publish Hosting
       uses: ./.github/actions/nuget-publish
       with:
         project-name: DRN.Framework.Hosting
+        version: ${{ inputs.version }}
+        nuget-token: ${{ inputs.nuget-token }}
     - name: Publish Testing
       uses: ./.github/actions/nuget-publish
       with:
         project-name: DRN.Framework.Testing
+        version: ${{ inputs.version }}
+        nuget-token: ${{ inputs.nuget-token }}

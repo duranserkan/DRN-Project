@@ -639,3 +639,21 @@ Checkout trusted CI code with `github.event.pull_request.base.sha`, then checkou
 ### Decision Checkpoint
 
 For split-checkout PR workflows, pin the trusted checkout to an immutable event SHA. Use branch names for human routing and immutable SHAs for executable CI control-plane code.
+
+## 31. Release Publish Secrets Belong After Quality Gates
+
+### Context
+
+Release and preview-release workflows build publishable NuGet packages and Docker images from tag-triggered commits, then push them to external registries.
+
+### Problem
+
+Putting publish credentials or publish-only values at job scope makes those values available during setup, build, test, and analysis steps that do not need them. Running release build/test and CodeQL without the same SonarCloud quality gate used by `master` also lets tags publish through a weaker gate than protected-branch CI.
+
+### Fix Applied
+
+Keep release workflows single-job to preserve local build outputs and frontend assets, but run Sonar begin, shared CodeQL Release build, Release coverage tests, and Sonar end before any publish steps. Pass NuGet and Docker credentials only to the post-gate publish actions that need them, and pass the tag-derived package version as an explicit action input instead of a broad job environment value.
+
+### Decision Checkpoint
+
+For release workflows, treat quality gates and publish inputs as separate phases even inside one job. Security analysis must complete before publishing, registry write secrets should be scoped to publish-only steps, and package version values should be threaded explicitly to the package actions that consume them.

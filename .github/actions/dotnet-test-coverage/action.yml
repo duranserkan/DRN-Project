@@ -5,6 +5,10 @@ inputs:
     description: "Repository directory containing DRN.slnx and the .sonar tools."
     required: false
     default: "."
+  configuration:
+    description: "Test configuration."
+    required: false
+    default: Debug
 runs:
   using: "composite"
   steps:
@@ -14,11 +18,13 @@ runs:
       env:
         # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
-      run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity minimal" -f xml -o "coverage-unit.xml"
+        TEST_CONFIGURATION: ${{ inputs.configuration }}
+      run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity minimal --configuration ${TEST_CONFIGURATION}" -f xml -o "coverage-unit.xml"
     - name: Test Integration Coverage
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
         # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
-      run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity minimal" -f xml -o "coverage-integration.xml"
+        TEST_CONFIGURATION: ${{ inputs.configuration }}
+      run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity minimal --configuration ${TEST_CONFIGURATION}" -f xml -o "coverage-integration.xml"

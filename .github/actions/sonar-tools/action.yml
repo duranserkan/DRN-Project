@@ -47,4 +47,4 @@ runs:
       if: steps.cache-sonar.outputs.cache-hit != 'true'
       shell: pwsh
       run: |
-        New-Item -Path ~/.sonar/cache -ItemType Directory
+        New-Item -Path ~/.sonar/cache -ItemType Directory -Force

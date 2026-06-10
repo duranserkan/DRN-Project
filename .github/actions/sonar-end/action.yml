@@ -5,11 +5,16 @@ inputs:
     description: "Repository directory that contains the active Sonar analysis."
     required: false
     default: "."
+  sonar-token:
+    description: "SonarCloud token."
+    required: true
 runs:
   using: "composite"
   steps:
     - name: Sonar Scan End
       shell: pwsh
       working-directory: ${{ inputs.working-directory }}
+      env:
+        SONAR_TOKEN: ${{ inputs.sonar-token }}
       run: |
         ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"

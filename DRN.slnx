@@ -68,17 +68,11 @@
   <Folder Name="/Items/.github/actions/docker-publish/">
     <File Path=".github\actions\docker-publish\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/actions/dotnet-build-release/">
-    <File Path=".github\actions\dotnet-build-release\action.yml" />
-  </Folder>
   <Folder Name="/Items/.github/actions/dotnet-sonar-scan/">
     <File Path=".github\actions\dotnet-sonar-scan\action.yml" />
   </Folder>
   <Folder Name="/Items/.github/actions/dotnet-build/">
     <File Path=".github\actions\dotnet-build\action.yml" />
-  </Folder>
-  <Folder Name="/Items/.github/actions/dotnet-test-release/">
-    <File Path=".github\actions\dotnet-test-release\action.yml" />
   </Folder>
   <Folder Name="/Items/.github/actions/dotnet-test/">
     <File Path=".github\actions\dotnet-test\action.yml" />
