@@ -1,36 +1,30 @@
-name: Dotnet Test
-description: "Run Dotnet unit and integration tests without rebuilding."
+name: Dotnet Test Coverage
+description: "Run unit and integration tests through dotnet-coverage for SonarCloud."
 inputs:
   working-directory:
-    description: "Repository directory containing DRN.slnx."
+    description: "Repository directory containing DRN.slnx and the .sonar tools."
     required: false
     default: "."
   configuration:
     description: "Test configuration."
     required: false
     default: Debug
-  verbosity:
-    description: "Dotnet run verbosity."
-    required: false
-    default: minimal
 runs:
   using: "composite"
   steps:
-    - name: Test Unit
+    - name: Test Unit Coverage
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
         # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
         TEST_CONFIGURATION: ${{ inputs.configuration }}
-        TEST_VERBOSITY: ${{ inputs.verbosity }}
-      run: dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity "$TEST_VERBOSITY" --configuration "$TEST_CONFIGURATION"
-    - name: Test Integration
+      run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity minimal --configuration ${TEST_CONFIGURATION}" -f xml -o "coverage-unit.xml"
+    - name: Test Integration Coverage
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
         # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
         TEST_CONFIGURATION: ${{ inputs.configuration }}
-        TEST_VERBOSITY: ${{ inputs.verbosity }}
-      run: dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity "$TEST_VERBOSITY" --configuration "$TEST_CONFIGURATION"
+      run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity minimal --configuration ${TEST_CONFIGURATION}" -f xml -o "coverage-integration.xml"

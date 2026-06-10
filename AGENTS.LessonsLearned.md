@@ -603,3 +603,57 @@ The verifier now requires at least one parseable `.sarif` or `.sarif.json` file,
 ### Decision Checkpoint
 
 For security gate post-processing, absence or unparsable artifacts are failures. Use producer action outputs over repeated path literals, and keep focused harness coverage for missing, empty, malformed, rule-level note-only, result-level overrides, and blocking-result SARIF.
+
+## 29. Split Checkout and CODEOWNERS Cover Different CI Risks
+
+### Context
+
+PR workflows can check out trusted base-branch composite actions at the workspace root while checking out PR source code under a separate directory such as `src`.
+
+### Problem
+
+Split checkout protects PR-run-time execution, but it does not by itself protect the workflow file that defines jobs, permissions, and aggregate gates. CODEOWNERS protects merge-time control-plane changes, but it does not replace the run-time guard against executing unreviewed PR-controlled composite actions.
+
+### Fix Applied
+
+Use both layers: keep split checkout for PR run-time isolation, add `.github/CODEOWNERS` coverage for itself, `.github/workflows/**`, and `.github/actions/**`, and require code-owner review through branch protection/rulesets.
+
+### Decision Checkpoint
+
+When hardening GitHub Actions for PRs, secure both execution inputs and control-plane definitions: checkout trusted action code, avoid secrets in PR jobs, and require owner review for any files that can change CI behavior.
+
+## 30. Pin Trusted PR CI Checkout to the Event Base SHA
+
+### Context
+
+Split-checkout PR workflows keep trusted composite actions at the workspace root and PR-controlled source code under `src`.
+
+### Problem
+
+Checking out trusted CI code with the mutable base branch name can drift from the exact base commit that triggered the PR run. Protected branches limit attacker control, but mutable refs still make auditability and reruns harder to reason about.
+
+### Fix Applied
+
+Checkout trusted CI code with `github.event.pull_request.base.sha`, then checkout PR source separately under `src`. Composite actions used during PR validation now come from the exact reviewed base commit for that event.
+
+### Decision Checkpoint
+
+For split-checkout PR workflows, pin the trusted checkout to an immutable event SHA. Use branch names for human routing and immutable SHAs for executable CI control-plane code.
+
+## 31. Release Publish Secrets Belong After Quality Gates
+
+### Context
+
+Release and preview-release workflows build publishable NuGet packages and Docker images from tag-triggered commits, then push them to external registries.
+
+### Problem
+
+Putting publish credentials or publish-only values at job scope makes those values available during setup, build, test, and analysis steps that do not need them. Running release build/test and CodeQL without the same SonarCloud quality gate used by `master` also lets tags publish through a weaker gate than protected-branch CI.
+
+### Fix Applied
+
+Keep release workflows single-job to preserve local build outputs and frontend assets, but run Sonar begin, shared CodeQL Release build, Release coverage tests, and Sonar end before any publish steps. Pass NuGet and Docker credentials only to the post-gate publish actions that need them, and pass the tag-derived package version as an explicit action input instead of a broad job environment value.
+
+### Decision Checkpoint
+
+For release workflows, treat quality gates and publish inputs as separate phases even inside one job. Security analysis must complete before publishing, registry write secrets should be scoped to publish-only steps, and package version values should be threaded explicitly to the package actions that consume them.

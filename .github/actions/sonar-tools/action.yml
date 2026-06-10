@@ -1,5 +1,10 @@
-name: Setup SDK
+name: Sonar Tools
 description: "Setup and cache SonarCloud scanner and dotnet-coverage tools."
+inputs:
+  working-directory:
+    description: "Repository directory where Sonar tools should be installed."
+    required: false
+    default: "."
 runs:
   using: "composite"
   steps:
@@ -7,27 +12,29 @@ runs:
       id: cache-sonar-scanner
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
-        path: ./.sonar/scanner
+        path: ${{ inputs.working-directory }}/.sonar/scanner
         key: ${{ runner.os }}-sonar-scanner
         restore-keys: ${{ runner.os }}-sonar-scanner
     - name: Install SonarCloud scanner
       if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
       shell: pwsh
+      working-directory: ${{ inputs.working-directory }}
       run: |
-        New-Item -Path ./.sonar/scanner -ItemType Directory
+        New-Item -Path ./.sonar/scanner -ItemType Directory -Force
         dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
     - name: Cache dotnet-coverage
       id: cache-dotnet-coverage
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
-        path: ./.sonar/coverage
+        path: ${{ inputs.working-directory }}/.sonar/coverage
         key: ${{ runner.os }}-sonar-dotnet-coverage
         restore-keys: ${{ runner.os }}-sonar-dotnet-coverage
     - name: Install dotnet-coverage
       if: steps.cache-dotnet-coverage.outputs.cache-hit != 'true'
       shell: pwsh
+      working-directory: ${{ inputs.working-directory }}
       run: |
-        New-Item -Path ./.sonar/coverage -ItemType Directory
+        New-Item -Path ./.sonar/coverage -ItemType Directory -Force
         dotnet tool update dotnet-coverage --tool-path ./.sonar/coverage
     - name: Use sonar cache
       id: cache-sonar
@@ -40,4 +47,4 @@ runs:
       if: steps.cache-sonar.outputs.cache-hit != 'true'
       shell: pwsh
       run: |
-        New-Item -Path ~/.sonar/cache -ItemType Directory
+        New-Item -Path ~/.sonar/cache -ItemType Directory -Force

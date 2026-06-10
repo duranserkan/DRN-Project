@@ -1,0 +1,22 @@
+name: Dotnet Validate
+description: "Set up .NET, build, and run unit and integration tests in Debug mode."
+inputs:
+  working-directory:
+    description: "Repository directory containing DRN.slnx."
+    required: false
+    default: "."
+runs:
+  using: "composite"
+  steps:
+    - name: Setup SDK
+      uses: ./.github/actions/setup-sdk-and-tools
+
+    - name: Build
+      uses: ./.github/actions/dotnet-build
+      with:
+        working-directory: ${{ inputs.working-directory }}
+
+    - name: Test
+      uses: ./.github/actions/dotnet-test
+      with:
+        working-directory: ${{ inputs.working-directory }}

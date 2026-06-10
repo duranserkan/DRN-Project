@@ -1,0 +1,4 @@
+# Own CI control-plane files; rulesets must require code-owner review.
+/.github/CODEOWNERS @duranserkan
+/.github/workflows/** @duranserkan
+/.github/actions/** @duranserkan

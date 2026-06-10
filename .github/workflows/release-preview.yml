@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  Publish-Develop:
+  publish:
     permissions:
       actions: read
       contents: read
@@ -19,8 +19,6 @@ jobs:
       id-token: write
       attestations: write
     runs-on: ubuntu-latest
-    env:
-      NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
     timeout-minutes: 45
     steps:
       - name: Checkout
@@ -32,14 +30,17 @@ jobs:
       - name: Verify commit exists in origin/develop
         run: git branch --remote --contains | grep origin/develop
 
-      - name: Set VERSION variable from tag
+      - name: Set version from tag
+        id: version
         run: |
           if [[ ! "$GITHUB_REF_NAME" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+-preview[0-9]{3}$ ]]; then
             echo "Expected preview release tag, got: $GITHUB_REF_NAME"
             exit 1
           fi
+          # Bash ${parameter#word} removes the shortest matching prefix.
+          # The guard above proves this tag starts with release/v, leaving only the package version.
           version="${GITHUB_REF_NAME#release/v}"
-          echo "VERSION=${version}" >> "$GITHUB_ENV"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Setup SDK
         uses: ./.github/actions/setup-sdk-and-tools
@@ -47,34 +48,44 @@ jobs:
       - name: Build frontend
         uses: ./.github/actions/frontend-build
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+      - name: Sonar Scan Begin
+        uses: ./.github/actions/sonar-begin
         with:
-          languages: csharp,javascript
+          sonar-token: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Build
-        uses: ./.github/actions/dotnet-build-release
-
-      - name: Test
-        uses: ./.github/actions/dotnet-test-release
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+      - name: Run CodeQL scan
+        uses: ./.github/actions/codeql-scan
         with:
-          output: sarif-results
+          source-root: .
+          checkout-path: ${{ github.workspace }}
+          configuration: Release
+          version: ${{ steps.version.outputs.version }}
 
       # GitHub code scanning merge protection replaces the custom SARIF verifier.
       # Usage: protect the source branch in Settings -> Rules -> Rulesets,
       # enable "Require code scanning results", add CodeQL, then choose thresholds.
       # https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/set-merge-protection
 
+      - name: Test with Coverage
+        uses: ./.github/actions/dotnet-test-coverage
+        with:
+          configuration: Release
+
+      - name: Sonar Scan End
+        uses: ./.github/actions/sonar-end
+        with:
+          sonar-token: ${{ secrets.SONAR_TOKEN }}
+
       - name: Publish Packages
         uses: ./.github/actions/nuget-publish-all
+        with:
+          version: ${{ steps.version.outputs.version }}
+          nuget-token: ${{ secrets.NUGET_TOKEN }}
 
       - name: Generate artifact attestation #https://andrewlock.net/creating-provenance-attestations-for-nuget-packages-in-github-actions/
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
-          subject-path: 'artifacts/packages/*.nupkg'
+          subject-path: "artifacts/packages/*.nupkg"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
