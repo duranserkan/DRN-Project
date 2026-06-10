@@ -8,6 +8,18 @@ inputs:
   sonar-token:
     description: "SonarCloud token."
     required: true
+  sonar-project-key:
+    description: "SonarCloud project key."
+    required: false
+    default: "duranserkan_DRN-Project"
+  sonar-host-url:
+    description: "SonarCloud host URL."
+    required: false
+    default: "https://sonarcloud.io"
+  sonar-organization:
+    description: "SonarCloud organization."
+    required: false
+    default: "duranserkan"
 runs:
   using: "composite"
   steps:
@@ -19,9 +31,9 @@ runs:
       shell: pwsh
       working-directory: ${{ inputs.working-directory }}
       env:
-        SONAR_PROJECT_KEY: duranserkan_DRN-Project
-        SONAR_HOST_URL: https://sonarcloud.io
-        SONAR_ORGANIZATION: duranserkan
+        SONAR_PROJECT_KEY: ${{ inputs.sonar-project-key }}
+        SONAR_HOST_URL: ${{ inputs.sonar-host-url }}
+        SONAR_ORGANIZATION: ${{ inputs.sonar-organization }}
         SONAR_TOKEN: ${{ inputs.sonar-token }}
       run: |
         ./.sonar/scanner/dotnet-sonarscanner begin /k:"$env:SONAR_PROJECT_KEY" /o:"$env:SONAR_ORGANIZATION" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.vscoveragexml.reportsPaths=coverage-unit.xml,coverage-integration.xml /d:sonar.host.url="$env:SONAR_HOST_URL" /d:sonar.qualitygate.wait=true /d:sonar.qualitygate.timeout=600

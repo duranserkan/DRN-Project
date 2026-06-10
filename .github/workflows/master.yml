@@ -8,6 +8,10 @@ on:
   schedule:
       - cron: '29 13 * * 0' # Every Sunday at 13:29 UTC
 
+concurrency:
+  group: master-ci
+  cancel-in-progress: true
+
 jobs:
   frontend:
     permissions:

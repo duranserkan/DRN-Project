@@ -8,6 +8,18 @@ inputs:
   sonar-token:
     description: "SonarCloud token."
     required: true
+  sonar-project-key:
+    description: "SonarCloud project key."
+    required: false
+    default: "duranserkan_DRN-Project"
+  sonar-host-url:
+    description: "SonarCloud host URL."
+    required: false
+    default: "https://sonarcloud.io"
+  sonar-organization:
+    description: "SonarCloud organization."
+    required: false
+    default: "duranserkan"
 runs:
   using: "composite"
   steps:
@@ -19,6 +31,9 @@ runs:
       with:
         working-directory: ${{ inputs.working-directory }}
         sonar-token: ${{ inputs.sonar-token }}
+        sonar-project-key: ${{ inputs.sonar-project-key }}
+        sonar-host-url: ${{ inputs.sonar-host-url }}
+        sonar-organization: ${{ inputs.sonar-organization }}
 
     - name: Build
       uses: ./.github/actions/dotnet-build
