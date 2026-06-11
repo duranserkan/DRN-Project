@@ -1,0 +1,63 @@
+name: Docker Stage and Scan All
+description: "Set up Docker Buildx, log in to the Docker registry, and stage/scan all Docker containers."
+inputs:
+  registry:
+    description: "Docker registry host used for authentication (e.g., docker.io, ghcr.io, registry.example.com)."
+    required: true
+  username:
+    description: "Docker registry username used for authentication."
+    required: true
+  password:
+    description: "Docker registry password or personal access token (PAT) used for authentication."
+    required: true
+  image-repository-prefix:
+    description: "Docker image repository namespace/path without the registry host (e.g., duranserkan, my-org/platform)."
+    required: true
+  version:
+    description: "Release version extracted from the release tag."
+    required: true
+  platforms:
+    description: "Comma-separated Docker platforms to stage and scan."
+    required: false
+    default: linux/amd64,linux/arm64
+outputs:
+  sample-image-digest:
+    description: "The staged Sample Docker image digest that passed Docker Scout scans."
+    value: ${{ steps.sample.outputs.image-digest }}
+  nexus-image-digest:
+    description: "The staged Nexus Docker image digest that passed Docker Scout scans."
+    value: ${{ steps.nexus.outputs.image-digest }}
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+      with:
+        platforms: ${{ inputs.platforms }}
+    - name: Log in to Docker registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
+    - name: Stage and scan Sample Docker image
+      id: sample
+      uses: ./.github/actions/docker-stage-scan
+      with:
+        project-name: Sample.Hosted
+        registry: ${{ inputs.registry }}
+        image-repository-prefix: ${{ inputs.image-repository-prefix }}
+        image-repository-name: drn-project-sample
+        version: ${{ inputs.version }}
+        platforms: ${{ inputs.platforms }}
+    - name: Stage and scan Nexus Docker image
+      id: nexus
+      uses: ./.github/actions/docker-stage-scan
+      with:
+        project-name: DRN.Nexus.Hosted
+        registry: ${{ inputs.registry }}
+        image-repository-prefix: ${{ inputs.image-repository-prefix }}
+        image-repository-name: drn-project-nexus
+        version: ${{ inputs.version }}
+        platforms: ${{ inputs.platforms }}

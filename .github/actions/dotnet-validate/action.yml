@@ -2,9 +2,12 @@ name: Dotnet Validate
 description: "Set up .NET, build, and run unit and integration tests in Debug mode."
 inputs:
   working-directory:
-    description: "Repository directory containing DRN.slnx."
+    description: "Repository directory containing the solution file."
     required: false
     default: "."
+  solution-file:
+    description: "Solution file to build and validate."
+    required: true
 runs:
   using: "composite"
   steps:
@@ -15,6 +18,7 @@ runs:
       uses: ./.github/actions/dotnet-build
       with:
         working-directory: ${{ inputs.working-directory }}
+        solution-file: ${{ inputs.solution-file }}
 
     - name: Test
       uses: ./.github/actions/dotnet-test

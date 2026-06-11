@@ -1,0 +1,58 @@
+name: Docker Promote
+description: "Promote tags for an already staged and scanned Docker image digest."
+inputs:
+  registry:
+    description: "Docker registry host used for image names (e.g., docker.io, ghcr.io, registry.example.com)."
+    required: true
+  image-repository-prefix:
+    description: "Docker image repository namespace/path without the registry host (e.g., duranserkan, my-org/platform)."
+    required: true
+  image-repository-name:
+    description: "The name of the Docker repository target (e.g., drn-project-nexus)."
+    required: true
+  version:
+    description: "Release version extracted from the release tag."
+    required: true
+  image-digest:
+    description: "The staged and scanned Docker image digest to promote."
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Validate Docker image digest
+      shell: bash
+      env:
+        IMAGE_DIGEST: ${{ inputs.image-digest }}
+      run: |
+        set -euo pipefail
+
+        if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+          echo "Expected image-digest to be a sha256 digest, got: $IMAGE_DIGEST"
+          exit 1
+        fi
+    - name: Extract Docker metadata for promotion tags
+      id: metadata
+      uses: ./.github/actions/docker-release-metadata
+      with:
+        registry: ${{ inputs.registry }}
+        image-repository-prefix: ${{ inputs.image-repository-prefix }}
+        image-repository-name: ${{ inputs.image-repository-name }}
+        version: ${{ inputs.version }}
+    - name: Promote Docker image tags
+      id: container-push
+      shell: bash
+      env:
+        IMAGE_DIGEST: ${{ inputs.image-digest }}
+        DOCKER_REGISTRY: ${{ inputs.registry }}
+        IMAGE_REPOSITORY_PREFIX: ${{ inputs.image-repository-prefix }}
+        IMAGE_REPOSITORY_NAME: ${{ inputs.image-repository-name }}
+      run: |
+        set -euo pipefail
+
+        source_image="${DOCKER_REGISTRY}/${IMAGE_REPOSITORY_PREFIX}/${IMAGE_REPOSITORY_NAME}@${IMAGE_DIGEST}"
+        while IFS= read -r tag; do
+          [[ -n "$tag" ]] || continue
+          docker buildx imagetools create --tag "$tag" "$source_image"
+        done <<'TAGS'
+        ${{ steps.metadata.outputs.tags }}
+        TAGS

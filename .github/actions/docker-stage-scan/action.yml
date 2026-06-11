@@ -1,0 +1,70 @@
+name: Docker Stage and Scan
+description: "Stage release Docker images by digest, scan the staged digest, and upload SARIF."
+inputs:
+  project-name:
+    description: "The name of the project folder containing the Dockerfile (e.g., DRN.Nexus.Hosted)."
+    required: true
+  registry:
+    description: "Docker registry host used for image names (e.g., docker.io, ghcr.io, registry.example.com)."
+    required: true
+  image-repository-prefix:
+    description: "Docker image repository namespace/path without the registry host (e.g., duranserkan, my-org/platform)."
+    required: true
+  image-repository-name:
+    description: "The name of the Docker repository target (e.g., drn-project-nexus)."
+    required: true
+  version:
+    description: "Release version extracted from the release tag."
+    required: true
+  platforms:
+    description: "Comma-separated Docker platforms to stage and scan."
+    required: false
+    default: linux/amd64,linux/arm64
+outputs:
+  image-digest:
+    description: "The staged Docker image digest that passed Docker Scout scans."
+    value: ${{ steps.container-build-digest.outputs.digest }}
+runs:
+  using: "composite"
+  steps:
+    - name: Extract Docker metadata for image labels
+      id: metadata
+      uses: ./.github/actions/docker-release-metadata
+      with:
+        registry: ${{ inputs.registry }}
+        image-repository-prefix: ${{ inputs.image-repository-prefix }}
+        image-repository-name: ${{ inputs.image-repository-name }}
+        version: ${{ inputs.version }}
+    - name: Build and stage Docker image by digest
+      id: container-build-digest
+      uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+      with:
+        context: .
+        file: ./${{ inputs.project-name }}/Dockerfile
+        labels: ${{ steps.metadata.outputs.labels }}
+        platforms: ${{ inputs.platforms }}
+        tags: ${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}:staged-${{ inputs.version }}-run-${{ github.run_id }}-${{ github.run_attempt }}
+        outputs: type=image,name=${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }},push-by-digest=true,name-canonical=true,push=true
+        sbom: true
+        provenance: true
+        cache-from: type=gha,scope=${{ inputs.image-repository-name }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.image-repository-name }},ignore-error=true
+    - name: Docker Scout
+      id: docker-scout
+      if: ${{ always() && steps.container-build-digest.outcome == 'success' }}
+      uses: docker/scout-action@cd72f264beff1cd72735de31148b9d3244a0234a # v1.21.0
+      with:
+        command: quickview,cves
+        image: registry://${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}@${{ steps.container-build-digest.outputs.digest }}
+        sarif-file: sarif.${{ inputs.image-repository-name }}.output.json
+        summary: true
+        only-severities: critical,high,medium,low
+        exit-code: true
+        ignore-base: false
+    - name: Upload Docker Scout SARIF result
+      id: upload-container-sarif
+      if: ${{ always() && steps.docker-scout.outcome != 'skipped' }}
+      uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+      with:
+        sarif_file: sarif.${{ inputs.image-repository-name }}.output.json
+        category: docker-scout-${{ inputs.image-repository-name }}

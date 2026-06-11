@@ -2,9 +2,12 @@ name: Dotnet Sonar Scan
 description: "Set up .NET, run SonarCloud analysis, build, and collect test coverage."
 inputs:
   working-directory:
-    description: "Repository directory containing DRN.slnx."
+    description: "Repository directory containing the solution file."
     required: false
     default: "."
+  solution-file:
+    description: "Solution file to build during SonarCloud analysis."
+    required: true
   sonar-token:
     description: "SonarCloud token."
     required: true
@@ -39,6 +42,7 @@ runs:
       uses: ./.github/actions/dotnet-build
       with:
         working-directory: ${{ inputs.working-directory }}
+        solution-file: ${{ inputs.solution-file }}
 
     - name: Test with Coverage
       uses: ./.github/actions/dotnet-test-coverage

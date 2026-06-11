@@ -62,11 +62,20 @@
   <Folder Name="/Items/.github/actions/codeql-scan/">
     <File Path=".github\actions\codeql-scan\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/actions/docker-publish-all/">
-    <File Path=".github\actions\docker-publish-all\action.yml" />
+  <Folder Name="/Items/.github/actions/docker-release-metadata/">
+    <File Path=".github\actions\docker-release-metadata\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/actions/docker-publish/">
-    <File Path=".github\actions\docker-publish\action.yml" />
+  <Folder Name="/Items/.github/actions/docker-promote-all/">
+    <File Path=".github\actions\docker-promote-all\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/actions/docker-promote/">
+    <File Path=".github\actions\docker-promote\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/actions/docker-stage-scan-all/">
+    <File Path=".github\actions\docker-stage-scan-all\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/actions/docker-stage-scan/">
+    <File Path=".github\actions\docker-stage-scan\action.yml" />
   </Folder>
   <Folder Name="/Items/.github/actions/dotnet-sonar-scan/">
     <File Path=".github\actions\dotnet-sonar-scan\action.yml" />

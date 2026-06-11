@@ -1,0 +1,76 @@
+name: Docker Release Metadata
+description: "Derive Docker release tags and labels from the validated release version."
+inputs:
+  registry:
+    description: "Docker registry host used for image names (e.g., docker.io, ghcr.io, registry.example.com)."
+    required: true
+  image-repository-prefix:
+    description: "Docker image repository namespace/path without the registry host (e.g., duranserkan, my-org/platform)."
+    required: true
+  image-repository-name:
+    description: "The name of the Docker repository target (e.g., drn-project-nexus)."
+    required: true
+  version:
+    description: "Release version extracted from the release tag."
+    required: true
+outputs:
+  tags:
+    description: "Docker release tags derived from the release version."
+    value: ${{ steps.meta.outputs.tags }}
+  labels:
+    description: "Docker image labels derived from the release version and GitHub context."
+    value: ${{ steps.meta.outputs.labels }}
+runs:
+  using: "composite"
+  steps:
+    - name: Validate Docker release metadata context
+      id: validate
+      shell: bash
+      env:
+        DOCKER_REGISTRY: ${{ inputs.registry }}
+        IMAGE_REPOSITORY_PREFIX: ${{ inputs.image-repository-prefix }}
+        IMAGE_REPOSITORY_NAME: ${{ inputs.image-repository-name }}
+        RELEASE_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        registry_pattern='^[a-z0-9]+([._-][a-z0-9]+)*(:[0-9]+)?$'
+        repository_component='[a-z0-9]+(([._]|__|-+)[a-z0-9]+)*'
+        prefix_pattern="^${repository_component}(/${repository_component})*$"
+        name_pattern="^${repository_component}$"
+
+        if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+          echo "Docker release metadata is not allowed during pull_request events."
+          exit 1
+        fi
+
+        if [[ ! "$DOCKER_REGISTRY" =~ $registry_pattern ]]; then
+          echo "Expected registry to be a Docker registry host, got: $DOCKER_REGISTRY"
+          exit 1
+        fi
+
+        if [[ ! "$IMAGE_REPOSITORY_PREFIX" =~ $prefix_pattern ]]; then
+          echo "Expected image-repository-prefix to be a repository namespace/path without registry, got: $IMAGE_REPOSITORY_PREFIX"
+          exit 1
+        fi
+
+        if [[ ! "$IMAGE_REPOSITORY_NAME" =~ $name_pattern ]]; then
+          echo "Expected image-repository-name to be a Docker repository name component, got: $IMAGE_REPOSITORY_NAME"
+          exit 1
+        fi
+
+        if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-preview[0-9]{3})?$ ]]; then
+          echo "Expected release version, got: $RELEASE_VERSION"
+          exit 1
+        fi
+
+    - name: Extract Docker release metadata
+      id: meta
+      uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
+      with:
+        images: ${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}
+        flavor: |
+          latest=false
+        tags: |
+          type=semver,pattern={{version}},value=${{ inputs.version }}
+          type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version }},enable=${{ !contains(inputs.version, '-') }}

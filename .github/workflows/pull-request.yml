@@ -21,6 +21,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout trusted CI code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -44,6 +45,9 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SOLUTION_FILE: DRN.slnx
     steps:
       - name: Checkout trusted CI code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -64,13 +68,20 @@ jobs:
         uses: ./.github/actions/dotnet-validate
         with:
           working-directory: src
+          solution-file: ${{ env.SOLUTION_FILE }}
 
   codeql:
     permissions:
+      # Read workflow metadata required by CodeQL analysis.
       actions: read
+      # Read repository contents for checkout and analysis.
       contents: read
+      # Upload SARIF/code scanning results.
       security-events: write
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SOLUTION_FILE: DRN.slnx
     steps:
       - name: Checkout trusted CI code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -90,12 +101,15 @@ jobs:
         uses: ./.github/actions/codeql-scan
         with:
           working-directory: src
+          solution-file: ${{ env.SOLUTION_FILE }}
           # PR source is checked out below the workspace root; keep CodeQL
           # databases and SARIF paths aligned with the analyzed repository.
           source-root: src
           checkout-path: ${{ github.workspace }}/src
 
       # GitHub code scanning merge protection replaces the custom SARIF verifier.
+      # Repository rulesets/branch protection must require CodeQL/code-scanning
+      # merge protection for PRs; uploaded SARIF alone is not a merge gate.
       # Usage: protect the source branch in Settings -> Rules -> Rulesets,
       # enable "Require code scanning results", add CodeQL, then choose thresholds.
       # https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/set-merge-protection
@@ -103,7 +117,10 @@ jobs:
   gatekeeper:
     permissions: {}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: ${{ always() }}
+    # Repository rulesets/branch protection must require this aggregate status
+    # check for PRs targeting develop and master: pull-request / gatekeeper.
     # Keep this aggregate gate in sync with every required validation job.
     # Add new jobs to both `needs` and the result check below.
     needs:
@@ -112,12 +129,16 @@ jobs:
       - codeql
     steps:
       - name: Verify required jobs completed successfully
+        env:
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          CODEQL_RESULT: ${{ needs.codeql.result }}
         run: |
-          if [ "${{ needs.frontend.result }}" != "success" ] || [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.codeql.result }}" != "success" ]; then
+          if [ "$FRONTEND_RESULT" != "success" ] || [ "$BACKEND_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ]; then
             echo "One or more required checks failed."
-            echo "frontend: ${{ needs.frontend.result }}"
-            echo "backend: ${{ needs.backend.result }}"
-            echo "codeql: ${{ needs.codeql.result }}"
+            echo "frontend: $FRONTEND_RESULT"
+            echo "backend: $BACKEND_RESULT"
+            echo "codeql: $CODEQL_RESULT"
             exit 1
           fi
           echo "Required jobs passed successfully."

@@ -2,9 +2,12 @@ name: CodeQL Scan
 description: "Set up CodeQL, build the repository, and upload SARIF results."
 inputs:
   working-directory:
-    description: "Repository directory containing DRN.slnx."
+    description: "Repository directory containing the solution file."
     required: false
     default: "."
+  solution-file:
+    description: "Solution file to build for CodeQL tracing."
+    required: true
   source-root:
     description: "Repository source root passed to CodeQL init."
     required: true
@@ -39,6 +42,7 @@ runs:
       uses: ./.github/actions/dotnet-build
       with:
         working-directory: ${{ inputs.working-directory }}
+        solution-file: ${{ inputs.solution-file }}
         configuration: ${{ inputs.configuration }}
         version: ${{ inputs.version }}
 
