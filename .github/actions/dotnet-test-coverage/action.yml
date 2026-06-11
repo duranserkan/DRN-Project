@@ -2,7 +2,7 @@ name: Dotnet Test Coverage
 description: "Run unit and integration tests through dotnet-coverage for SonarCloud."
 inputs:
   working-directory:
-    description: "Repository directory containing DRN.slnx and the .sonar tools."
+    description: "Repository directory containing the test projects and the .sonar tools."
     required: false
     default: "."
   configuration:

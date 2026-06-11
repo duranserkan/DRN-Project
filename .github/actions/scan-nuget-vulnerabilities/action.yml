@@ -2,22 +2,28 @@ name: Scan Vulnerabilities
 description: "Scan NuGet packages for vulnerabilities."
 inputs:
   working-directory:
-    description: "Repository directory containing DRN.slnx."
+    description: "Repository directory containing the solution file."
     required: false
     default: "."
+  solution-file:
+    description: "Solution file to scan for NuGet vulnerabilities."
+    required: false
+    default: DRN.slnx
 runs:
   using: "composite"
   steps:
     - name: Scan vulnerabilities
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+      env:
+        SOLUTION_FILE: ${{ inputs.solution-file }}
       run: |
         # Strict mode keeps CI honest: fail on unhandled errors, unset variables,
         # and failed pipeline commands instead of continuing with partial state.
         set -euo pipefail
 
         # dotnet list package does not support docker-compose.dcproj. Work on a
-        # temporary solution copy so this scan never mutates the tracked DRN.slnx.
+        # temporary solution copy so this scan never mutates the tracked solution.
         #
         # mktemp creates a unique placeholder path. The .slnx suffix is added to
         # the copy because dotnet sln/list should receive a solution-shaped file.
@@ -30,7 +36,7 @@ runs:
         }
         trap cleanup EXIT
 
-        cp DRN.slnx "$scan_solution"
+        cp "$SOLUTION_FILE" "$scan_solution"
 
         # Ignore removal failure so the scan remains tolerant if the project is
         # already absent from a future solution layout.

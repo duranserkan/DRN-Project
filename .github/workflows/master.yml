@@ -30,6 +30,8 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    env:
+      SOLUTION_FILE: DRN.slnx
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -40,6 +42,7 @@ jobs:
       - name: Run backend Sonar scan
         uses: ./.github/actions/dotnet-sonar-scan
         with:
+          solution-file: ${{ env.SOLUTION_FILE }}
           sonar-token: ${{ secrets.SONAR_TOKEN }}
 
   codeql:
@@ -48,6 +51,8 @@ jobs:
       contents: read
       security-events: write
     runs-on: ubuntu-latest
+    env:
+      SOLUTION_FILE: DRN.slnx
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -58,6 +63,7 @@ jobs:
       - name: Run CodeQL scan
         uses: ./.github/actions/codeql-scan
         with:
+          solution-file: ${{ env.SOLUTION_FILE }}
           source-root: .
           checkout-path: ${{ github.workspace }}
 
@@ -78,12 +84,16 @@ jobs:
       - codeql
     steps:
       - name: Verify required jobs completed successfully
+        env:
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          CODEQL_RESULT: ${{ needs.codeql.result }}
         run: |
-          if [ "${{ needs.frontend.result }}" != "success" ] || [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.codeql.result }}" != "success" ]; then
+          if [ "$FRONTEND_RESULT" != "success" ] || [ "$BACKEND_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ]; then
             echo "One or more required checks failed."
-            echo "frontend: ${{ needs.frontend.result }}"
-            echo "backend: ${{ needs.backend.result }}"
-            echo "codeql: ${{ needs.codeql.result }}"
+            echo "frontend: $FRONTEND_RESULT"
+            echo "backend: $BACKEND_RESULT"
+            echo "codeql: $CODEQL_RESULT"
             exit 1
           fi
           echo "Required jobs passed successfully."

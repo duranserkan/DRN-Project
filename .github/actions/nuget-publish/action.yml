@@ -16,6 +16,18 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Validate package version
+      shell: bash
+      env:
+        PACKAGE_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        if [[ ! "$PACKAGE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+          echo "Expected version to be semver-like, got: $PACKAGE_VERSION"
+          exit 1
+        fi
+
     - name: Pack
       shell: bash
       env:

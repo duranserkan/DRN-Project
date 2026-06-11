@@ -1,5 +1,10 @@
 # Own CI control-plane files.
-# Repository rulesets must require CODEOWNERS review for these paths:
+#
+# Ruleset Enforcement:
+# To enforce these code owners, configure a GitHub Branch Ruleset:
+# Settings -> Rules -> Rulesets -> New ruleset -> Target branches (default/pattern)
+# -> Require a pull request before merging -> Require review from Code Owners.
+#
 # - .github/CODEOWNERS
 # - .github/workflows/**
 # - .github/actions/**

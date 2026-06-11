@@ -2,9 +2,12 @@ name: Dotnet Build
 description: "Restore dependencies, scan NuGet vulnerabilities, and build solution in the selected configuration."
 inputs:
   working-directory:
-    description: "Repository directory containing DRN.slnx."
+    description: "Repository directory containing the solution file."
     required: false
     default: "."
+  solution-file:
+    description: "Solution file to restore, scan, and build."
+    required: true
   configuration:
     description: "Build configuration."
     required: false
@@ -19,22 +22,26 @@ runs:
     - name: Restore dependencies
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: dotnet restore DRN.slnx
+      env:
+        SOLUTION_FILE: ${{ inputs.solution-file }}
+      run: dotnet restore "$SOLUTION_FILE"
     - name: Scan vulnerabilities
       uses: ./.github/actions/scan-nuget-vulnerabilities
       with:
         working-directory: ${{ inputs.working-directory }}
+        solution-file: ${{ inputs.solution-file }}
     - name: Build solution
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
+        SOLUTION_FILE: ${{ inputs.solution-file }}
         BUILD_CONFIGURATION: ${{ inputs.configuration }}
         BUILD_VERSION: ${{ inputs.version }}
       run: |
         set -euo pipefail
 
         build_args=(
-          dotnet build DRN.slnx
+          dotnet build "$SOLUTION_FILE"
           --no-restore
           --no-incremental
           --configuration "$BUILD_CONFIGURATION"

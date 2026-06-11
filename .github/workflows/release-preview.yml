@@ -24,6 +24,7 @@ jobs:
       # Docker image validation intentionally accepts lowercase registry hosts and namespace paths only.
       DOCKER_REGISTRY: docker.io
       DOCKER_IMAGE_REPOSITORY_PREFIX: duranserkan
+      SOLUTION_FILE: DRN.slnx
       # NuGet source validation intentionally requires the canonical lowercase https:// scheme.
       NUGET_PACKAGE_SOURCE_URL: https://api.nuget.org/v3/index.json
     steps:
@@ -42,6 +43,7 @@ jobs:
 
       - name: Set version from tag
         id: version
+        shell: bash
         run: |
           if [[ ! "$GITHUB_REF_NAME" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+-preview[0-9]{3}$ ]]; then
             echo "Expected preview release tag, got: $GITHUB_REF_NAME"
@@ -66,6 +68,7 @@ jobs:
       - name: Run CodeQL scan
         uses: ./.github/actions/codeql-scan
         with:
+          solution-file: ${{ env.SOLUTION_FILE }}
           source-root: .
           checkout-path: ${{ github.workspace }}
           configuration: Release
