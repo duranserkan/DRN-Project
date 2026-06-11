@@ -1,14 +1,14 @@
 ---
 name: frontend-buildwww-vite
-description: Frontend build system - Vite multi-build configuration, TypeScript setup with path aliases, build output structure (wwwroot), and entry point management (appPreload, appPostload). Essential for frontend asset compilation and bundling. Keywords: vite, typescript, bundling, asset-compilation, npm, javascript, css, scss, build-pipeline, entry-points, manifest
-last-updated: 2026-04-16
+description: "Frontend build system - Vite multi-build configuration, TypeScript setup with path aliases, build output structure (wwwroot), and entry point management (appPreload, appPostload). Essential for frontend asset compilation and bundling. Keywords: vite, typescript, bundling, asset-compilation, npm, javascript, css, scss, build-pipeline, entry-points, manifest"
+last-updated: 2026-06-12
 difficulty: intermediate
 tokens: ~2K
 ---
 
-# Sample.Hosted buildwww & Vite
+# buildwww & Vite
 
-> Frontend build system using Vite and TypeScript for Sample.Hosted.
+> Frontend build system using Vite and TypeScript for repositories that declare a `buildwww` convention.
 
 ## When to Apply
 - Configuring frontend build
@@ -22,11 +22,11 @@ tokens: ~2K
 ## Directory Structure
 
 ```
-Sample.Hosted/
+<frontend-package>/
 ├── buildwww/                # Source files (not served)
 │   ├── app/                 # Application code
 │   │   ├── js/              # JavaScript modules
-│   │   │   ├── drn/         # DRN utilities
+│   │   │   ├── drn/         # Application utilities
 │   │   │   ├── appPreload.js
 │   │   │   └── appPostload.js
 │   │   └── css/             # Application CSS
@@ -119,6 +119,8 @@ const buildType = process.env.BUILD_TYPE || 'app';
 
 ### Build Commands
 
+Repository rule: do not run build commands unless the user explicitly allows them.
+
 ```bash
 # Build all targets
 npm run build
@@ -151,10 +153,10 @@ const sharedConfig = {
     },
     resolve: {
         alias: {
-            '@scss': resolve(__dirname, 'buildwww/scss'),
-            '@css': resolve(__dirname, 'buildwww/css'),
-            '@js': resolve(__dirname, 'buildwww/js'),
-            '@ts': resolve(__dirname, 'buildwww/ts'),
+            '@css': resolve(__dirname, 'buildwww/app/css'),
+            '@js': resolve(__dirname, 'buildwww/app/js'),
+            '@lib': resolve(__dirname, 'buildwww/lib'),
+            '@types': resolve(__dirname, 'buildwww/types'),
             '@plugins': resolve(__dirname, 'buildwww/plugins')
         }
     }
@@ -163,7 +165,7 @@ const sharedConfig = {
 export default defineConfig(drnUtils.deepMerge(sharedConfig, builds[buildType]));
 ```
 
-> **Note**: TypeScript path alias `@/*` → `buildwww/*` is configured in `tsconfig.json` and resolved by `moduleResolution: "bundler"`. The Vite `resolve.alias` entries above are for non-TypeScript (JS/CSS/SCSS) imports.
+> **Note**: TypeScript path alias `@/*` → `buildwww/*` is configured in `tsconfig.json` and resolved by `moduleResolution: "bundler"`. The Vite `resolve.alias` entries above mirror the actual `buildwww/app`, `buildwww/lib`, `buildwww/types`, and `buildwww/plugins` layout. No root `buildwww/js`, `buildwww/css`, `buildwww/ts`, or `buildwww/scss` directories are assumed.
 
 ---
 
@@ -185,8 +187,10 @@ export default defineConfig(drnUtils.deepMerge(sharedConfig, builds[buildType]))
     "paths": {
       "@/*": ["buildwww/*"],
       "@js/*": ["buildwww/app/js/*"],
-      "@scss/*": ["buildwww/app/scss/*"],
-      "@types/*": ["buildwww/types/*"]
+      "@css/*": ["buildwww/app/css/*"],
+      "@lib/*": ["buildwww/lib/*"],
+      "@types/*": ["buildwww/types/*"],
+      "@plugins/*": ["buildwww/plugins/*"]
     },
     "typeRoots": ["./buildwww/types", "./node_modules/@types"]
   },
@@ -209,6 +213,8 @@ Detailed package versioning and dependency definitions are managed in:
 ---
 
 ## Entry Points
+
+Current builds are `app`, `appPostload`, `htmx`, `bootstrap`, and `react`.
 
 ### appPreload.js
 Loaded early, before page content:
@@ -255,15 +261,21 @@ wwwroot/
 
 ```razor
 <script src="buildwww/app/js/appPreload.js"></script>
+<link href="buildwww/app/css/app.css" rel="stylesheet" />
 <link href="buildwww/lib/bootstrap/bootstrap.scss" rel="stylesheet" />
 <script src="buildwww/lib/htmx/htmxBundle.js"></script>
+<script src="buildwww/lib/bootstrap/bootstrapBundle.js"></script>
+<script src="buildwww/app/js/appPostload.js"></script>
+<script src="buildwww/lib/react/reactBundle.tsx"></script>
 ```
+
+TagHelpers resolve these source paths through the per-output `.vite/manifest.json` files and emit content-hashed `wwwroot` paths with SRI where applicable.
 
 ---
 
 ## Related Skills
 
-- [overview-ddd-architecture.md](../overview-ddd-architecture/SKILL.md) - Sample architecture
+- [overview-ddd-architecture.md](../overview-ddd-architecture/SKILL.md) - Architecture guidance
 - [frontend-buildwww-libraries.md](../frontend-buildwww-libraries/SKILL.md) - Library usage
 - [frontend-buildwww-react.md](../frontend-buildwww-react/SKILL.md) - React build architecture
 - [frontend-buildwww-packages.md](../frontend-buildwww-packages/SKILL.md) - Package dependencies

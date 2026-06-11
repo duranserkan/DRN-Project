@@ -3,6 +3,8 @@
 
 ASPNETCORE_ENVIRONMENT=Staging
 Environment=Staging
+# Staging and production reject wildcard AllowedHosts; keep this explicit for host-filtering safety.
+AllowedHosts=localhost;127.0.0.1;[::1];sample;drn-sample
 DrnDevelopmentSettings__AutoMigrateStaging=true
 
 Identity__RequireConfirmedAccount=false

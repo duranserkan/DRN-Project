@@ -1,144 +1,117 @@
 ---
 name: basic-code-review
-description: Code review standards - Priority Stack as review gate (Security→Correctness→Clarity→Simplicity→Performance), DDD boundary validation, attribute-based DI audit, naming conventions, test coverage expectations (DTT), breaking change detection, and security review triggers. Keywords: code-review, review-standards, priority-stack, naming-conventions, breaking-changes, pull-request, quality-gate
-last-updated: 2026-05-30
+description: Use when reviewing code changes, pull requests, staged diffs, or self-reviewing work for security, correctness, clarity, simplicity, performance, breaking changes, and missing verification.
+last-updated: 2026-06-12
 difficulty: intermediate
-tokens: ~1.5K
+tokens: ~1.3K
 ---
 
 # Code Review Standards
 
-> Structured review criteria for DRN-Project, aligned with DiSCOS Priority Stack.
+> Portable review criteria. Load `.agent/repository-profile.md` first when present, then apply any local framework rules as an overlay.
 
-## When to Apply
-- Reviewing pull requests
-- Self-reviewing before committing
-- Assisting with code review as an agent
-- Evaluating architectural changes
+## Repository Context Gate
 
----
+Before reviewing, identify the local conventions that are actually in force:
+
+1. Read `AGENTS.md` and `.agent/repository-profile.md` when present.
+2. Load only relevant scoped skills, such as framework, frontend, testing, or security skills.
+3. Verify source-of-truth files instead of assuming conventions from examples.
+4. Treat generic checklist items as prompts, not proof that a repository uses a specific framework.
 
 ## Priority Stack Review Gate
 
-Evaluate every change through the Priority Stack, in order:
+Evaluate every change in order:
 
 | Priority | Gate | Key Question |
-|:--------:|------|-------------|
-| 1 | **Security** | Does this introduce vulnerabilities? |
-| 2 | **Correctness** | Does it do what it claims? |
-| 3 | **Clarity** | Can someone else understand it in 6 months? |
-| 4 | **Simplicity** | Is complexity earned, or accidental? |
-| 5 | **Performance** | Is optimization backed by measurement? |
+|:--------:|------|--------------|
+| 1 | Security | Does this introduce vulnerabilities or weaken safeguards? |
+| 2 | Correctness | Does it do what it claims under realistic conditions? |
+| 3 | Clarity | Can someone else understand it in 6 months? |
+| 4 | Simplicity | Is complexity earned, or accidental? |
+| 5 | Performance | Is optimization backed by measurement? |
 
-> A change that is fast but incorrect **fails**. A change that is clever but unreadable **fails**. Apply the stack sequentially — higher gates block lower ones.
+A change that is fast but incorrect fails. A change that is clever but unreadable fails.
 
----
+## Architecture Checks
 
-## DDD Boundary Checks
+- No dependency points from stable/core layers to volatile infrastructure layers unless the repository architecture explicitly allows it.
+- External contracts do not leak persistence internals, framework-only types, or private identifiers.
+- DTOs, API models, and persistence entities stay separated when the repository uses that boundary.
+- New abstractions remove real complexity or match an established local pattern.
+- Public behavior changes are documented and classified as breaking or non-breaking.
 
-### Review Checklist
-- [ ] No `DbContext` references in Domain or Application layers
-- [ ] Repository interfaces defined in Domain, implementations in Infrastructure
-- [ ] DTOs in Contract, never in Domain
+## Dependency Injection And Configuration
 
----
-
-## Attribute-Based DI Audit
-
-Every service class should declare its lifetime:
-
-```csharp
-// Verify these exist on all service classes
-[Scoped<TService>]      // Per-request (default for most services)
-[Singleton<TService>]   // Application lifetime (caches, configurations)
-[Transient<TService>]   // Per-resolution (lightweight, stateless)
-[Config]                // Settings objects mapped from config
-[ConfigRoot]            // Settings objects mapped from configroot
-[HostedService]         // Background services
-```
-
-### Review Checklist
-- [ ] All service classes have a lifetime attribute
-- [ ] `[Singleton<T>]` services hold no mutable per-request state
-- [ ] `[Scoped<T>]` services don't capture `[Singleton<T>]` dependencies that hold state
-- [ ] No manual `services.AddScoped<>()` calls for classes that should use attributes
-
----
+- Enforce the repository's declared registration convention only. If the profile says attributes are used, check attributes. If it says manual registration is used, check registration code.
+- Singleton services do not capture mutable request/user state.
+- Scoped dependencies are not retained by longer-lived services.
+- New required configuration has defaults, validation, documentation, or clear deployment instructions.
+- Secrets are not hardcoded, logged, committed, or documented as real values.
 
 ## Test Coverage Expectations
 
-### DTT Guidance
-| Change Type | Expected Tests |
-|-------------|---------------|
-| New entity/aggregate | Integration test with real DB |
-| New API endpoint | API integration test with `CreateClientAsync` |
-| Business rule | Unit test for pure logic |
-| Repository query | DB integration test with Testcontainers |
-| Bug fix | Regression test proving the fix |
+| Change Type | Expected Signal |
+|-------------|-----------------|
+| Security or authorization change | Focused regression test or explicit security review evidence |
+| Public API behavior | Contract/API test or documented compatibility reasoning |
+| Business rule | Unit or component test for the rule |
+| Persistence/query behavior | Integration or database-backed test where mocks would hide risk |
+| Bug fix | Regression test proving the old failure mode is covered |
+| Documentation-only change | Link/path validation, drift scan, or targeted review |
 
-### Review Checklist
-- [ ] New public API has corresponding test
-- [ ] Tests without inline data or generated parameters use `[Fact]`
-- [ ] Integration data tests use `[DataInline]` and request `DrnTestContext` only when needed
-- [ ] Unit data tests use `[DataInlineUnit]` and request `DrnTestContextUnit` only when needed
-- [ ] No test uses `Thread.Sleep` or arbitrary delays
-- [ ] Mocks are justified — prefer real containers
-
----
+Respect repository rules about running builds and tests. If execution is not allowed, report verification as not run instead of implying pass/fail.
 
 ## Breaking Change Detection
 
-### NuGet Public API
-- [ ] No removed public types or members
-- [ ] No changed method signatures in public interfaces
-- [ ] No changed exception types thrown by public methods
-- [ ] Version bump matches semver (breaking = major)
+### Public API
+- No removed public types or members without a breaking-change note.
+- No changed method signatures in public interfaces without migration guidance.
+- Optional parameters do not duplicate overload shapes or create ambiguous call sites.
+- Exception behavior changes are intentional and documented.
+- Versioning matches the repository's release policy.
 
-### Database
-- [ ] No column removals without migration
-- [ ] No type changes without migration
-- [ ] Migrations are additive when possible
+### Database And Data
+- No column removals or type changes without migration and data-safety reasoning.
+- Destructive migrations have rollback or recovery guidance.
+- New required data has safe defaults or deployment sequencing.
 
-### Configuration
-- [ ] No removed `IAppSettings` properties without fallback
-- [ ] New required settings documented in README
-
----
+### Configuration And Operations
+- Removed or renamed settings have compatibility handling or a breaking-change note.
+- Defaults changing runtime behavior are documented.
+- Operational docs and release notes mention user-facing behavior changes.
 
 ## Security Review Triggers
 
-Flag for additional security review when changes touch:
-- [ ] Authentication or authorization logic
-- [ ] New public endpoints
-- [ ] Input handling (forms, file uploads, API payloads)
-- [ ] CSP configuration or nonce handling
-- [ ] Cookie policies or session management
-- [ ] External HTTP calls
-- [ ] Cryptographic operations
-- [ ] User data storage or retrieval
+Flag for extra scrutiny when changes touch:
 
----
+- Authentication, authorization, tenant isolation, or identity.
+- New public endpoints or external network calls.
+- Input handling: forms, files, deserialization, query strings, headers, or API payloads.
+- CSP, CSRF, CORS, cookies, sessions, redirects, or rate limits.
+- Cryptography, token handling, secrets, or certificate validation.
+- User data storage, export, logging, or telemetry.
+- CI/CD, package restore, dependency provenance, Dockerfiles, or deploy scripts.
+- Container base images, runtime versions, environment defaults, or deployment config alignment with repository profile and project metadata.
 
-## Pre-Mortem: What Could Go Wrong?
+## Pre-Mortem
 
-Before approving, ask: *"If this change causes an incident in 6 months, what was the root cause?"*
+Before approving, ask: "If this causes an incident in 6 months, what was the root cause?"
 
 | Failure Mode | What to Look For |
-|-------------|-----------------|
-| **Silent security regression** | CSP weakened, auth bypassed, new endpoint without `[Authorize]` |
-| **Data leak via entity exposure** | API returning entity instead of DTO; `long Id` or `SourceKnownEntityId` in response |
-| **Unbounded query** | Missing pagination on collection endpoints; `GetAllAsync()` on large tables |
-| **DI lifetime mismatch** | `[Scoped<T>]` service captured by `[Singleton<T>]`; mutable state in singleton |
-| **Migration data loss** | Column removal/type change without data migration; non-additive schema change |
-| **Broken contract** | Removed public API member; changed method signature; renamed config key without fallback |
-| **Test false confidence** | Test passes but doesn't assert meaningful behavior; mock hides the actual bug |
-| **Dependency supply chain** | New NuGet/npm package not audited; transitive vulnerability introduced |
-
-> **DiSCOS Mental Model**: Inversion — avoid what must NOT happen, then verify the change doesn't introduce it.
-
----
+|-------------|------------------|
+| Silent security regression | Guard removed, endpoint exposed, policy weakened |
+| Data leak | Internal fields, private identifiers, secrets, logs, or entities exposed |
+| Unbounded work | Missing pagination, unbounded query, retry storm, large in-memory load |
+| Lifetime mismatch | Captive dependency, mutable singleton, leaked disposable |
+| Data loss | Destructive migration, overwrite path, missing backup/rollback |
+| Broken contract | Removed member, changed response shape, renamed config key |
+| False confidence | Test asserts plumbing only, mock hides integration failure |
+| Supply-chain risk | New package/action/image without provenance or pinning policy |
+| Runtime drift | Container image/runtime version no longer matches repository profile or project metadata |
 
 ## Related Skills
-- [basic-security-checklist.md](../basic-security-checklist/SKILL.md) - Security development patterns
-- [basic-git-conventions.md](../basic-git-conventions/SKILL.md) - PR and commit standards
-- [overview-ddd-architecture.md](../overview-ddd-architecture/SKILL.md) - Layer dependency rules
+
+- [basic-security-checklist.md](../basic-security-checklist/SKILL.md) - Security development patterns.
+- [basic-git-conventions.md](../basic-git-conventions/SKILL.md) - PR and commit standards.
+- [overview-ddd-architecture.md](../overview-ddd-architecture/SKILL.md) - Use only when the repository follows DDD layering.

@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
-description: DRN.Framework.SharedKernel - Foundational domain primitives (Entity, AggregateRoot, DomainEvent), exception hierarchy, repository contracts, pagination, and JSON conventions. Essential for domain modeling, entity design, and repository implementation. Keywords: entity, aggregate-root, domain-event, repository, pagination, exception, json, domain-modeling, source-known-id, entity-type
-last-updated: 2026-02-15
+description: "DRN.Framework.SharedKernel - Foundational domain primitives (Entity, AggregateRoot, DomainEvent), exception hierarchy, repository contracts, pagination, and JSON conventions. Essential for domain modeling, entity design, and repository implementation. Keywords: entity, aggregate-root, domain-event, repository, pagination, exception, json, domain-modeling, source-known-id, entity-type"
+last-updated: 2026-06-12
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -90,7 +90,7 @@ public readonly record struct SourceKnownId(
     long Id, DateTimeOffset CreatedAt, uint InstanceId, byte AppId, byte AppInstanceId);
 
 public readonly record struct SourceKnownEntityId(
-    SourceKnownId Source, Guid EntityId, byte EntityType, bool Valid);
+    SourceKnownId Source, Guid EntityId, byte EntityType, bool Valid, bool Secure);
 ```
 
 ### Validation Approaches

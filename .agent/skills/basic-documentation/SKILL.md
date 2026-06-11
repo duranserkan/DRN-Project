@@ -1,14 +1,14 @@
 ---
 name: basic-documentation
-description: Documentation standards - README structure, ROADMAP patterns, skill documentation format (YAML frontmatter), markdown conventions, security documentation, API docs, and best practices. Guidelines for creating and maintaining all project documentation. Keywords: documentation, readme, roadmap, markdown, documentation-standards, yaml-frontmatter, technical-writing, api-documentation, changelog
-last-updated: 2026-02-15
+description: "Documentation standards - README structure, ROADMAP patterns, skill documentation format (YAML frontmatter), markdown conventions, security documentation, API docs, and best practices. Guidelines for creating and maintaining all project documentation. Keywords: documentation, readme, roadmap, markdown, documentation-standards, yaml-frontmatter, technical-writing, api-documentation, changelog"
+last-updated: 2026-06-12
 difficulty: basic
 tokens: ~1K
 ---
 
 # Documentation
 
-Standards for creating and maintaining documentation within DRN-Project.
+Standards for creating and maintaining repository documentation.
 
 ## 1. Core Principles (DiSCOS)
 
@@ -17,6 +17,7 @@ Standards for creating and maintaining documentation within DRN-Project.
 - **Conciseness**: Front-load key info. Tables for comparisons. Start with TL;DR.
 - **Certainty**: "will"/"must" over "maybe"/"might". Quantify uncertainty.
 - **Maintenance**: Documentation is code. Update with every significant change.
+- **Shared Defaults**: Cross-package defaults and docs-sync rules belong in the repository profile or the owning source documentation. Package READMEs must stay self-contained for important facts and may reference sibling package READMEs for related guidance.
 
 ## 2. README.md Standard
 
@@ -61,7 +62,7 @@ Path: `.agent/skills/XX-skill-name/SKILL.md`
 ```yaml
 ---
 name: skill-name
-description: Concise description (<100 chars) with keywords. Keywords: keyword1, keyword2
+description: "Concise description (<100 chars) with keywords. Keywords: keyword1, keyword2"
 last-updated: YYYY-MM-DD
 difficulty: basic | intermediate | advanced
 ---

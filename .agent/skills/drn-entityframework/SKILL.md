@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
-description: DRN.Framework.EntityFramework - DrnContext base class, automatic migration application, entity tracking with domain events, NpgsqlDbContextOptions for database configuration, and repository implementations. Essential for database operations, migrations, and data persistence. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, entity-tracking, domain-events, dbcontext-configuration, prototype-mode, testcontainers
-last-updated: 2026-02-15
+description: "DRN.Framework.EntityFramework - DrnContext base class, automatic migration application, entity lifecycle tracking, NpgsqlDbContextOptions for database configuration, and repository implementations. Essential for database operations, migrations, and data persistence. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
+last-updated: 2026-06-12
 difficulty: advanced
 tokens: ~2.5K
 ---
@@ -14,7 +14,7 @@ tokens: ~2.5K
 - Creating new DbContexts
 - Setting up database migrations
 - Configuring development database connections
-- Understanding entity tracking and domain events
+- Understanding Source-Known entity lifecycle tracking
 - Working with Testcontainers for local development
 
 ---
@@ -132,13 +132,18 @@ dotnet ef database update --context QAContext
 
 ## Prototype Mode
 
-Auto-recreates database on model changes. **All three conditions must be true**:
+Auto-recreates the local development database on pending model changes. **All conditions must be true**:
 1. `NpgsqlDbContextOptionsAttribute.UsePrototypeMode = true`
 2. `DrnDevelopmentSettings:Prototype = true`
-3. `DrnDevelopmentSettings:LaunchExternalDependencies = true`
+3. Application environment is Development
+4. `DrnDevelopmentSettings:AutoMigrateDevelopment = true`
+5. Pending model changes exist
+6. No migrations have been applied, or applied migrations exist and `UsePrototypeModeWhenMigrationExists = true`
 
 > [!WARNING]
-> Prototype mode **drops and recreates** the database. Never use in production.
+> Prototype mode **drops and recreates** the database. It is Development-only; `AutoMigrateStaging` applies migrations only and must not enable prototype recreation.
+>
+> Canonical invariants: [Maintenance Reference: Migration And Prototype Invariants](../overview-drn-framework/SKILL.md#maintenance-reference-migration-and-prototype-invariants).
 
 ---
 
@@ -187,18 +192,18 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 public virtual void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder, IServiceProvider? serviceProvider);
 public virtual void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider serviceProvider);
 public virtual void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder builder, IServiceProvider? serviceProvider);
-public virtual Task SeedAsync<TContext>(TContext context, IServiceProvider serviceProvider) where TContext : DbContext;
+public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings);
 ```
 
 ### Performance Defaults
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
-| `UseNoTracking` | `true` | Disable change tracking |
-| `IgnoreAutoIncludes` | `true` | Prevent auto eager loading |
-| `Multiplexing` | `true` | Connection multiplexing |
-| `MinPoolSize`/`MaxPoolSize` | `1`/`10` | Connection pool |
-| `Read/WriteBufferSize` | `32768` | I/O buffers |
+| `MaxAutoPrepare` | `200` | Prepared statement cache size |
+| `AutoPrepareMinUsages` | `5` | Minimum usages before auto-prepare |
+| `MinPoolSize`/`MaxPoolSize` | `1`/`15` | Connection pool bounds |
+| `Read/WriteBufferSize` | `8192` | I/O buffers |
+| `CommandTimeout` | `30` | Command timeout in seconds |
 
 Custom performance attributes can inherit `NpgsqlPerformanceSettingsAttribute` to override defaults.
 
@@ -209,9 +214,12 @@ Configure repository-wide query behavior:
 ```csharp
 public class RepositorySettings<TEntity>
 {
-    public bool AsNoTracking { get; init; } = true;
-    public bool IgnoreAutoIncludes { get; init; } = true;
-    public IReadOnlyList<Expression<Func<TEntity, bool>>>? Filters { get; init; }
+    public bool AsNoTracking { get; set; }
+    public bool IgnoreAutoIncludes { get; set; }
+    public IReadOnlyDictionary<string, Expression<Func<TEntity, bool>>> Filters { get; }
+    public void AddFilter(string name, Expression<Func<TEntity, bool>> filter);
+    public bool RemoveFilter(string name);
+    public void ClearFilters();
 }
 ```
 
@@ -219,28 +227,9 @@ public class RepositorySettings<TEntity>
 
 ---
 
-## DrnDevelopmentSettings
+## Shared Defaults Reference
 
-```csharp
-public class DrnDevelopmentSettings
-{
-    public bool SkipValidation { get; init; }
-    public bool TemporaryApplication { get; init; }       // Auto-set by tests
-    public bool LaunchExternalDependencies { get; init; }
-    public bool AutoMigrate { get; init; }
-    public bool Prototype { get; init; }
-}
-```
-
-### Testcontainer Defaults (`PostgresContainerSettings`)
-
-| Property | Default | Notes |
-|----------|---------|-------|
-| `DefaultPassword` | `"drn"` | Container password |
-| `DefaultImage` | `"postgres"` | Docker image |
-| `DefaultVersion` | `"18.1-alpine3.23"` | Image tag |
-| `Database` | `"drn"` | From `DbContextConventions.DefaultDatabase` |
-| `Username` | `"drn"` | From `DbContextConventions.DefaultUsername` |
+Canonical `DrnDevelopmentSettings`, connection modes, prototype invariants, and container defaults live in the [DRN Framework Maintenance Reference](../overview-drn-framework/SKILL.md#drn-framework-maintenance-reference).
 
 ---
 

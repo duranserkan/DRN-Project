@@ -1,176 +1,111 @@
 ---
 name: overview-ddd-architecture
-description: Domain-Driven Design architecture guide - Tiered DDD structure (Domain, Application, Infrastructure, Presentation), layer responsibilities, dependency rules, and DDD pattern application within DRN applications. Keywords: ddd, domain-driven-design, architecture, layers, domain-layer, application-layer, infrastructure-layer, presentation-layer, dependency-rules, bounded-context
-last-updated: 2026-02-15
+description: Use when navigating or reviewing Domain-Driven Design architecture, layered boundaries, project placement, dependency direction, bounded contexts, domain model responsibilities, or DDD refactors.
+last-updated: 2026-06-12
 difficulty: intermediate
-tokens: ~1.5K
+tokens: ~1.2K
 ---
 
 # DDD Architecture
 
-> Domain-Driven Design layer architecture for DRN applications.
+> Portable Domain-Driven Design layer guidance. Load the repository profile and any framework-specific domain skills before applying concrete naming or base-type rules.
 
 ## When to Apply
 
-- Starting a new application or bounded context
-- Understanding layer responsibilities and dependencies
-- Deciding where to place new code
-- Reviewing architecture compliance
-
----
+- Starting a new application, module, or bounded context.
+- Deciding where to place code.
+- Reviewing dependency direction.
+- Separating business rules from I/O, UI, persistence, or framework details.
 
 ## Layer Structure
 
 ```text
-Presentation  →  Application  →  Domain  ←  Infrastructure
-    (UI/API)      (Orchestration)  (Core)     (Data/External)
+Presentation  ->  Application  ->  Domain  <-  Infrastructure
+    UI/API         Orchestration     Core        Data/External
 ```
 
-**Dependency rule**: Dependencies flow **inward**. Domain depends only on internal foundational packages (Contract, Utils, SharedKernel) — never on Application, Infrastructure, or Presentation. Infrastructure depends on Domain (implements its contracts).
-
-```mermaid
-graph TD
-    H[Hosted] --> A[Application]
-    A --> I[Infra]
-    A --> D[Domain]
-    I --> D
-    D --> C[Contract]
-    D --> U[Utils]
-    D --> SK[SharedKernel]
-    style D fill:#c8e6c9
-    style SK fill:#fff9c4
-```
-
-**Key**: Application → Infra project dependency is allowed (pragmatic DDD — Application orchestrates Infra interfaces directly).
-
----
+Dependency rule: dependencies flow inward. Domain owns business concepts and should not depend on Presentation, Infrastructure, or external delivery mechanisms. Infrastructure implements persistence and external integrations behind contracts owned by the inner layers.
 
 ## Layer Responsibilities
 
-### Application vs Domain Logic
-
 | Concern | Application Layer | Domain Layer |
-|---------|------------------|-------------|
-| **Example** | "Load Order → Tell Order to Pay → Save" | "Check if Order is valid to pay (invariants)" |
-| **Owns** | Orchestration, transaction management, DTO mapping | Business rules, invariants, domain events |
-| **Never does** | Domain invariant checks, business rule decisions | I/O, HTTP concerns, framework dependencies |
+|---------|-------------------|--------------|
+| Owns | Use-case orchestration, transactions, coordination, DTO mapping | Invariants, entities, value objects, domain events, business decisions |
+| Avoids | Business-rule decisions hidden in handlers | I/O, HTTP, database calls, framework-specific workflow |
+| Example | Load order, ask domain to pay, save result | Decide whether order can be paid |
 
----
+## Common Layers
 
-## Layers
+### Domain
 
-### Domain Layer (`*.Domain`)
+Place here:
 
-The core — entities, value objects, domain events, repository contracts, domain services.
+- Entities, aggregate roots, value objects.
+- Domain events and domain exceptions.
+- Repository or port interfaces when following ports/adapters.
+- Pure domain services.
 
-| Place Here | Never Place Here |
-|-----------|-----------------|
-| `SourceKnownEntity` / `AggregateRoot` subclasses | EF Core references |
-| Domain events | HTTP/API concerns |
-| Repository **interfaces** (`IXxxRepository`) | Framework dependencies |
-| Value objects, domain-internal enums, domain exceptions | Implementation details |
-| Domain services (pure business logic) | Database queries |
-| `ToDto()` instance methods (entity → DTO mapping) | DTO definitions |
+Never place here:
 
-### Contract Layer (`*.Contract`)
+- ORM mappings, SQL, HTTP clients, controllers, Razor/view code, or deployment configuration.
 
-Shared boundary — DTOs, shared enums, value models consumed across all layers.
+### Contract
 
-| Place Here | Never Place Here |
-|-----------|-----------------|
-| DTOs (`Dto` subclasses) | Entities |
-| Shared enums (source of truth for DTOs & entities) | Repository interfaces |
-| Value models (e.g., `TagValueModel`) | Domain services |
-| Shared constants / display types | Business logic |
+Place here when the repository uses a contract layer:
 
-**Dependency rule**: Contract depends **only** on `DRN.Framework.SharedKernel`. Any project (including `*.Domain`) may reference `*.Contract`.
+- DTOs, API models, shared enums, value models, and public message contracts.
 
-### Application Layer (`*.Application`)
+Never place here:
 
-Orchestration — coordinates domain objects and infrastructure services.
+- Persistence entities, domain services, repository implementations, or infrastructure clients.
 
-| Place Here | Never Place Here |
-|-----------|-----------------|
-| Use case handlers / application services | Entity definitions |
-| Input validation | Direct DB access |
-| Cross-cutting concerns (logging, auth checks) | Domain logic |
-| `ISourceKnownRepository<T>` consumption | UI concerns / Framework config |
+### Application
 
-### Infrastructure Layer (`*.Infra`)
+Place here:
 
-Implementation — database, external services, file system.
+- Use-case handlers, application services, validation, transactions, authorization checks that coordinate a use case, and DTO/domain mapping.
 
-| Place Here | Never Place Here |
-|-----------|-----------------|
-| `DrnContext<T>` subclasses | Business logic |
-| `IEntityTypeConfiguration<T>` | Domain events |
-| Repository **implementations** | DTOs |
-| External service clients | UI rendering |
-| EF Core migrations | Application orchestration |
+Never place here:
 
-### Presentation Layer (`*.Hosted` / `*.Web`)
+- Entity definitions, database implementation details, UI rendering, or hidden domain invariants.
 
-UI and API — Razor Pages, Controllers, minimal APIs.
+### Infrastructure
 
-| Place Here | Never Place Here |
-|-----------|-----------------|
-| `DrnProgramBase<T>` | Business logic |
-| Razor Pages / Controllers | Entity definitions |
-| View models, page models | Direct DB access |
-| Endpoint configuration | Domain services |
-| Static assets, layouts | Repository implementations |
+Place here:
 
----
+- ORM contexts, migrations, repository implementations, external service clients, filesystem adapters, message-bus adapters, and cache adapters.
 
-## DRN Project Naming Convention
+Never place here:
 
-```text
-Sample.Contract/       # Contract layer (DTOs, shared enums, value models)
-Sample.Domain/         # Domain layer
-Sample.Application/    # Application layer  
-Sample.Infra/          # Infrastructure layer
-Sample.Hosted/         # Presentation layer
-```
+- Business decisions, domain events as concepts, or UI rendering.
 
----
+### Presentation
 
-## Module Registration
+Place here:
 
-Each layer uses a `Module` class for self-contained service registration:
+- Controllers, minimal APIs, Razor Pages, views, page models, endpoint configuration, static assets, and request/response concerns.
 
-```csharp
-public static class InfraModule
-{
-    public static IServiceCollection AddSampleInfraServices(this IServiceCollection sc)
-    {
-        sc.AddServicesWithAttributes(); // Auto-register [Scoped<T>], [Singleton<T>], etc.
-        return sc;
-    }
-}
-```
+Never place here:
 
-Keeps `Program.cs` clean — each module owns its registrations.
+- Business rules, direct persistence access, or repository implementations.
 
----
+## Naming And Registration
 
-## DDD Patterns in DRN
+Use repository conventions first. Common conventions include:
 
-| Pattern | DRN Implementation |
-|---------|-------------------|
-| Entity | `SourceKnownEntity` with `[EntityType]` |
-| Aggregate Root | `AggregateRoot` / `AggregateRoot<TModel>` |
-| Repository | `ISourceKnownRepository<T>` → `SourceKnownRepository<TCtx, T>` |
-| Domain Event | `DomainEvent` subclasses, auto-collected by `DrnContext` |
-| Value Object | `record` or `readonly record struct` |
-| Factory | Static factory methods on entities |
-| Module | `AddXxxServices()` extension methods |
+- `*.Domain`, `*.Application`, `*.Infra` or `*.Infrastructure`, `*.Contract`, `*.Hosted` or `*.Web`.
+- Module registration methods such as `Add<Module>Services`.
+- One bounded context per module family unless the repository profile says otherwise.
 
-See [drn-domain-design](../drn-domain-design/SKILL.md) for implementation details.
+## Review Prompts
 
----
+- Is the business rule in Domain rather than a controller, handler, query, or migration?
+- Does Infrastructure implement interfaces instead of leaking concrete clients inward?
+- Are external contracts free of persistence-only fields and internal identifiers?
+- Does a new abstraction remove real duplication or protect a stable boundary?
+- Did the repository profile declare framework-specific entity, DTO, ID, or DI rules that must be applied?
 
 ## Related Skills
 
-- [drn-domain-design.md](../drn-domain-design/SKILL.md) - Entity & Repository patterns
-- [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) - Domain primitives
-- [overview-repository-structure.md](../overview-repository-structure/SKILL.md) - Folder conventions
+- [overview-repository-structure.md](../overview-repository-structure/SKILL.md) - Repository navigation conventions.
+- [basic-code-review.md](../basic-code-review/SKILL.md) - Review gate.

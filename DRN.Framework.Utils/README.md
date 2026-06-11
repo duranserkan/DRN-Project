@@ -25,7 +25,7 @@
 - **Bit Packing** — High-performance `NumberBuilder` for custom data structures
 - **Ambient Context** — `ScopeContext.UserId`, `ScopeContext.Settings` anywhere
 - **Auto-Registration** — `AddServicesWithAttributes()` scans and registers all attributed services
-- **Secure Entity IDs** — AES-256-ECB single-block encrypted, post-quantum secure SourceKnownEntityIds with auto-detecting `Parse`
+- **SourceKnownEntityId utilities** — generation, validation, secure/plain conversion, auto-detecting `Parse`
 
 ## Table of Contents
 
@@ -147,7 +147,7 @@ For DRN Hosting rate limiting, use `HybridCache` to cache tenant plan, feature f
 
 ### Attribute-Based Registration
 
-Reduce configuration boilerplate by using attributes directly on services. The **AddServicesWithAttributes** method scans the calling assembly for these attributes and registers all services in the target assembly.
+Reduce configuration boilerplate by using attributes directly on services. `AddServicesWithAttributes()` scans the calling assembly by default; pass an `Assembly` argument to scan a specific target assembly.
 
 | Attribute | Lifetime | Usage |
 |-----------|----------|-------|
@@ -197,11 +197,11 @@ await app.Services.ValidateServicesAddedByAttributesAsync();
 
 In integration tests with `DRN.Framework.Testing`:
 ```csharp
-[Theory, DataInlineContext]
-public void Validate_Dependencies(DrnTestContext context)
+[Theory, DataInline]
+public async Task Validate_Dependencies(DrnTestContext context)
 {
     context.ServiceCollection.AddServicesWithAttributes(); // Register local assembly
-    context.ValidateServices(); // Verifies resolution of all registered descriptors
+    await context.ValidateServicesAsync(); // Verifies attribute-registered services can be resolved
 }
 ```
 
@@ -284,11 +284,14 @@ public class RootSettings { ... }
 ### Configuration Sources
 
 The framework automatically loads configuration in this order:
-1.  `appsettings.json` / `appsettings.{Environment}.json`
-2.  Environment Variables
-3.  **Mounted Settings**:
-    -   `/appconfig/json-settings/*.json`
+1.  `appsettings.json`
+2.  `appsettings.{Environment}.json`
+3.  User Secrets when the application assembly is available
+4.  Environment variables (`ASPNETCORE_`, `DOTNET_`, then unprefixed)
+5.  **Mounted Settings**:
     -   `/appconfig/key-per-file-settings/*`
+    -   `/appconfig/json-settings/*.json`
+6.  Command-line arguments
 
 Override the mount directory by registering `IMountedSettingsConventionsOverride`.
 
@@ -339,7 +342,7 @@ Shared values apply to both DRN Hosting rate limiting phases. Phase-specific val
 | `SeedKey` | `string` | `"Peace at home!…"` | Secret key for seed operations. Enforced `[SecureKey(MinLength = 58)]`. |
 | `InternalRequestHttpVersion` | `string` | `"1.1"` | HTTP version used by `IInternalRequest`. |
 | `InternalRequestProtocol` | `string` | `"http"` | Protocol scheme used by `IInternalRequest` (e.g., `http`, `https`). |
-| `UseMonotonicDateTimeProvider` | `bool` | `false` | Experimental — switches to monotonic time provider for behavioral data collection. |
+| `UseMonotonicDateTimeProvider` | `bool` | `false` | Reserved experimental flag for monotonic time-provider behavior data; it is not wired as a provider switch. |
 | `DisableRequestBuffering` | `bool` | `false` | Disables request body buffering entirely. Use for high-throughput services (e.g., file upload endpoints). |
 | `MaxRequestBufferingSize` | `int` | `0` (→ 30,000) | Maximum request body size to buffer in bytes. Values below 10,000 are ignored; 0 uses the 30,000-byte default. |
 | `DrnRateLimit.Disabled` | `bool` | `false` | Disables both pre-auth and post-auth DRN Hosting rate limiting layers. |
@@ -402,7 +405,7 @@ public class OrderService(IScopedLog logger)
 
 ## HTTP Client Factories (`IExternalRequest`, `IInternalRequest`)
 
-Wrappers around [Flurl](https://flurl.dev/) for resilient HTTP clients with standardized JSON conventions.
+Wrappers around [Flurl](https://flurl.dev/) for HTTP clients with standardized JSON conventions and HTTP version policy configuration. Retries/circuit breakers are not configured by this package.
 
 ### External Requests
 Use `IExternalRequest` for standard external API calls. It pre-configures `DefaultJsonSerializer` and enforces HTTP version policies.
@@ -507,7 +510,7 @@ public class OrderService(IPaginationUtils pagination)
 
 ## Bit Packing
 
-For scenarios requiring custom ID generation or compact binary data structures, use `NumberBuilder` and `NumberParser`. These ref-structs provide zero-allocation bit manipulation.
+For scenarios requiring custom ID generation or compact binary data structures, use `NumberBuilder` and `NumberParser`. `NumberBuilder<TNumber>` is a `ref struct`; `NumberParser` is a value-type parser for low-allocation bit manipulation.
 
 ```csharp
 // Use NumberBuilder to pack data into a long
@@ -589,8 +592,8 @@ public class StartupService(DevelopmentStatus status, IScopedLog log)
 For systems requiring frequent timestamp lookups (like ID generation or rate limiting), `TimeStampManager` provides a cached UTC timestamp updated periodically (default 10ms) to reduce `DateTimeOffset.UtcNow` overhead.
 
 ```csharp
-long seconds = TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
-DateTimeOffset now = TimeStampManager.UtcNow; // Cached precision up to the second
+long precisionTicks = TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
+DateTimeOffset now = TimeStampManager.UtcNow; // Cached UTC time truncated to 250ms precision
 ```
 
 ### Async-Safe Timer (`RecurringAction`)
@@ -620,7 +623,7 @@ The `Generate` method dispatches to secure or plain generation based on the `Use
 | `Generate` | Dispatches to secure or plain based on `UseSecureSourceKnownIds` |
 | `GenerateSecure` | AES-256-ECB encrypted — full 16-byte GUID is a ciphertext block |
 | `GeneratePlain` | Plaintext with visible `8D8D` version/variant markers |
-| `ToSecure` | Converts an plain ID to its secure form (idempotent) |
+| `ToSecure` | Converts a plain ID to its secure form (idempotent) |
 | `ToPlain` | Converts a secure ID to its plain form (idempotent) |
 
 **Secure variant** encrypts the entire 16-byte GUID using AES-256-ECB as a pseudo-random permutation (PRP). For a single 128-bit block, ECB is mathematically identical to CBC with a zero IV — no nonce required, no nonce-reuse vulnerability. Key separation ensures BLAKE3 keyed MAC (integrity) and AES-256 (confidentiality) use cryptographically independent keys from the same keyring entry.
@@ -639,8 +642,8 @@ var secureId = sourceKnownEntityIdUtils.GenerateSecure<User>(id);
 var plainId = sourceKnownEntityIdUtils.GeneratePlain<User>(id);
 
 // Convert between secure and plain forms (idempotent)
-var secureId = sourceKnownEntityIdUtils.ToSecure(plainEntityId);
-var plainId = sourceKnownEntityIdUtils.ToPlain(secureEntityId);
+var convertedSecureId = sourceKnownEntityIdUtils.ToSecure(plainEntityId);
+var convertedPlainId = sourceKnownEntityIdUtils.ToPlain(secureEntityId);
 ```
 
 #### Parse & Validation

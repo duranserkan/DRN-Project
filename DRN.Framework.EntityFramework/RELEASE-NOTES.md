@@ -1,5 +1,19 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.5
+
+### Breaking Changes
+
+*   **Npgsql Multiplexing Removal**: Deprecated Npgsql multiplexing configuration has been removed from performance attributes and generated development connection strings. Consumers passing the `multiplexing` constructor argument to `NpgsqlPerformanceSettingsAttribute` or `DrnContextPerformanceDefaultsAttribute` must remove it.
+
+### Changed
+
+*   **PostgreSQL Defaults**: DRN's Npgsql context defaults now target PostgreSQL 18.4 instead of 18.2 when configuring provider compatibility.
+
+### Bug Fixes
+
+*   **Repository Entity-ID Validation**: `SourceKnownRepository` now validates collection `SourceKnownEntityId` inputs against the repository entity type before query/delete filters, preventing cross-entity IDs from matching by internal source ID.
+
 ## Version 0.9.4
 
 Dependencies upgraded to dotnet 10.0.8
@@ -13,7 +27,6 @@ Dependencies upgraded to dotnet 10.0.7
 Dependencies upgraded to dotnet 10.0.6
 
 ## Version 0.9.1
-
 
 My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenment ideals and is proud to inherit his spiritual legacy: 'I am not leaving behind any definitive text, any dogma, any frozen, rigid rule as my spiritual legacy. My spiritual wealth is science and reason. Those who wish to embrace me after my death will become my spiritual heirs if they accept the guidance of reason and science on this fundamental axis.'
 
@@ -44,20 +57,20 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
     *   **Auto-Tracking & Lifecycle**:
         - Automatic `CreatedAt`/`ModifiedAt` management.
         - Injection of `ISourceKnownEntityIdOperations` (`EntityIdOps`) during materialization/save for type-safe ID operations.
-    *   **Domain Events**: Events are collected and automatically published after `SaveChangesAsync`.
+    *   **Domain Events**: Entity lifecycle events are collected on entities; dispatching/publishing is not performed by this package.
 *   **SourceKnownRepository**
     *   **Complete Implementation**: `SourceKnownRepository<TContext, TEntity>` providing standard CRUD, identity validation, and logging.
     *   **Repository Settings**: `AsNoTracking`, `IgnoreAutoIncludes`, and custom `Filters` support via `RepositorySettings`.
     *   **Advanced Pagination**: Cursor-based pagination (`PaginateAsync`) and infinite scrolling (`PaginateAllAsync`) with `EntityCreatedFilter`.
-    *   **Secure ↔ Unsecure Conversion**: `ToSecure` / `ToUnsecure` methods for converting between encrypted and plaintext entity IDs at the repository level.
+    *   **Secure ↔ Plain Conversion**: `ToSecure` / `ToPlain` methods for converting between encrypted and plaintext entity IDs at the repository level.
 *   **Database Configuration**
-    *   **Npgsql Optimization**: `[DrnContextPerformanceDefaults]` enables connection multiplexing, pooling, batching, and query splitting.
+    *   **Npgsql Optimization**: `[DrnContextPerformanceDefaults]` configures pooling, batching, query splitting, command timeouts, and other Npgsql performance defaults.
     *   **Extensive Defaults**: `[DrnContextDefaults]` configures snake_case naming, JSON options, and places migration history in `__entity_migrations` schema.
     *   **Customizable Options**: `NpgsqlDbContextOptionsAttribute` allows overriding Npgsql (`ConfigureNpgsqlOptions`) and generic DbContext settings.
 *   **Development Experience**
     *   **Auto-Connection Strings**: Automatically generates connection strings for local Docker containers (e.g., `Host=postgresql;Port=5432...`) if missing.
     *   **Configurable Keys**: Supports overrides via `DrnContext_DevHost`, `DrnContext_DevUsername`, `DrnContext_DevDatabase`.
-    *   **Prototype Mode**: Auto-recreates database on model changes when `UsePrototypeMode=true` and `DrnDevelopmentSettings:Prototype=true`.
+    *   **Prototype Mode**: Development-only database recreation on model changes when `UsePrototypeMode=true`, `DrnDevelopmentSettings:Prototype=true`, and `AutoMigrateDevelopment=true`.
     *   **Auto-Migration**: `DrnDevelopmentSettings:AutoMigrateDevelopment` (default `true`) and `AutoMigrateStaging` (default `false`) apply pending migrations per environment at startup.
 
 ---

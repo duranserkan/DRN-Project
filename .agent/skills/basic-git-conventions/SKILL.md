@@ -1,14 +1,15 @@
 ---
 name: basic-git-conventions
-description: Git workflow conventions - GitFlow-inspired branching (develop→master→tag), commit message format, PR workflow (draft→review→squash), branch naming (feature/fix/chore/docs), release tagging (release/v*.*.* and release/v*.*.*-previewNNN), and release notes management. Keywords: git, branching, commit-messages, pull-request, pr-workflow, release, tagging, versioning, gitflow, conventional-commits
-last-updated: 2026-06-07
+description: "Git workflow conventions - GitFlow-inspired branching (integration→release→tag), commit message format, PR workflow (draft→review→squash), branch naming (feature/fix/chore/docs), repository-declared release tagging, and release notes management. Keywords: git, branching, commit-messages, pull-request, pr-workflow, release, tagging, versioning, gitflow, conventional-commits"
+last-updated: 2026-06-12
 difficulty: basic
 tokens: ~1.5K
 ---
 
 # Git Conventions & Branching
 
-> Branching model, commit messages, PR workflow, and release tagging for DRN-Project.
+> Branching model, commit messages, PR workflow, and release tagging. Apply repository-profile branch and release rules when present.
+> Branch names, tag patterns, package scopes, and release automation below are portable defaults or examples unless the repository profile declares stricter rules.
 
 ## When to Apply
 - Creating new branches
@@ -22,30 +23,30 @@ tokens: ~1.5K
 ## Branching Model
 
 ```
-  tag v1.0.0        tag v1.1.0
-       │                 │
-───────┼─────────────────┼──── master (release-ready)
-       │        ↑        │
-       │     merge       │
-       │        │        │
-───────┼────────┼────────┼──── develop (integration)
-       │     ↑  ↑  ↑     │
-       │     │  │  │     │
-       │   feat fix chore│
+  tag <release-tag>       tag <release-tag>
+          │                       │
+──────────┼───────────────────────┼──── <release-branch>
+          │            ↑          │
+          │          merge        │
+          │            │          │
+──────────┼────────────┼──────────┼──── <integration-branch>
+          │         ↑  ↑  ↑       │
+          │         │  │  │       │
+          │       feat fix chore  │
 ```
 
 | Branch | Purpose | Merges Into |
 |--------|---------|-------------|
-| `master` | Release-ready code | Tagged for release |
-| `develop` | Integration branch | `master` |
-| `feature/*` | New functionality | `develop` |
-| `fix/*` | Bug fixes | `develop` |
-| `chore/*` | Maintenance, refactoring | `develop` |
-| `docs/*` | Documentation only | `develop` |
+| `<release-branch>` | Release-ready code | Tagged for release |
+| `<integration-branch>` | Integration branch | `<release-branch>` |
+| `feature/*` | New functionality | `<integration-branch>` |
+| `fix/*` | Bug fixes | `<integration-branch>` |
+| `chore/*` | Maintenance, refactoring | `<integration-branch>` |
+| `docs/*` | Documentation only | `<integration-branch>` |
 
 ### Rules
-- **Never push directly to `master`** — always via PR from `develop`
-- **`develop` must always build** — broken builds block the team
+- **Never push directly to the protected release branch** declared by the repository profile.
+- **The integration branch must always build** — broken builds block the team.
 - **Feature branches are short-lived** — merge or close within days
 - **Delete branches after merge** — keep the repository clean
 
@@ -75,19 +76,18 @@ Use structured, descriptive messages:
 | `security` | Security fix or improvement |
 
 ### Scope
-Use the affected package or area:
-- `SharedKernel`, `Utils`, `Hosting`, `EntityFramework`, `Testing`
-- `Sample`, `Nexus`
+Use the affected package or area from the repository profile, package metadata, or changed paths:
+- `<package-or-module>`, `<application>`, `<bounded-context>`
 - `ci`, `docker`, `docs`, `skills`
 
 ### Examples
 ```
-feat(Sample): add user profile management page
-fix(EntityFramework): resolve connection pool exhaustion under load
-refactor(Utils): simplify attribute scanning with cached reflection
-test(Integration): add concurrency test for QAContext
+feat(App): add user profile management page
+fix(Persistence): resolve connection pool exhaustion under load
+refactor(Core): simplify attribute scanning with cached reflection
+test(Integration): add concurrency test for repository queries
 chore(ci): upgrade actions/checkout to v6
-security(Hosting): strengthen CSP for font-src directive
+security(Web): strengthen CSP for font-src directive
 docs(skills): add security development checklist
 ```
 
@@ -118,12 +118,12 @@ Draft PR → Self-Review → Ready for Review → Review → Squash Merge
 ### PR Title
 Follow the commit message format:
 ```
-feat(Utils): add cancellation token propagation to HttpClientFactory
+feat(Networking): add cancellation token propagation to HttpClientFactory
 ```
 
 ### Merge Strategy
-- **Squash merge** into `develop` — keeps history clean
-- **Merge commit** into `master` — preserves the merge point
+- **Squash merge** into the profile-declared integration branch when that is the local policy.
+- **Merge commit** into the profile-declared release branch when that is the local policy.
 
 ---
 
@@ -131,18 +131,18 @@ feat(Utils): add cancellation token propagation to HttpClientFactory
 
 ### Stable Releases
 ```bash
-# Tag format: release/v{major}.{minor}.{patch}
+# Example tag format: release/v{major}.{minor}.{patch}
 git tag release/v1.2.3
 git push origin release/v1.2.3
-# Triggers: release.yml → NuGet publish + Docker push
+# Triggers: repository-defined release automation
 ```
 
 ### Preview Releases
 ```bash
-# Tag format: release/v{major}.{minor}.{patch}-preview{NNN}
+# Example tag format: release/v{major}.{minor}.{patch}-preview{NNN}
 git tag release/v1.3.0-preview001
 git push origin release/v1.3.0-preview001
-# Triggers: release-preview.yml → NuGet preview publish
+# Triggers: repository-defined preview release automation
 ```
 
 ### Versioning Rules
@@ -155,10 +155,10 @@ git push origin release/v1.3.0-preview001
 
 ## Release Notes
 
-Each framework package maintains its own release notes:
+Each published module or package maintains its own release notes when the repository profile or package metadata declares it:
 
 ```
-DRN.Framework.{Package}/
+<module-or-package>/
 ├── RELEASE-NOTES.md   # Per-package changelog
 ├── README.md          # Package documentation
 └── PACKAGE-DESCRIPTION # NuGet short description

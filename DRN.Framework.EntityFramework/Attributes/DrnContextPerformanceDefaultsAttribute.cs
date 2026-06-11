@@ -8,14 +8,13 @@ namespace DRN.Framework.EntityFramework.Attributes;
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public class DrnContextPerformanceDefaultsAttribute : NpgsqlPerformanceSettingsAttribute
 {
-    public DrnContextPerformanceDefaultsAttribute(bool multiplexing = false,
-        int maxAutoPrepare = 200,
+    public DrnContextPerformanceDefaultsAttribute(int maxAutoPrepare = 200,
         int autoPrepareMinUsages = 5,
         int minPoolSize = 1,
         int maxPoolSize = 15,
         int readBufferSize = 8192,
         int writeBufferSize = 8192,
-        int commandTimeout = 30) : base(multiplexing, maxAutoPrepare, autoPrepareMinUsages,
+        int commandTimeout = 30) : base(maxAutoPrepare, autoPrepareMinUsages,
         minPoolSize, maxPoolSize, readBufferSize, writeBufferSize, commandTimeout)
     {
         FrameworkDefined = true;

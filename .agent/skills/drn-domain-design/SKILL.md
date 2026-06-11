@@ -1,7 +1,7 @@
 ---
 name: drn-domain-design
-description: Domain-Driven Design implementation patterns - Entity design with Source-Known IDs (SourceKnownEntity, AggregateRoot), repository contracts (ISourceKnownRepository), domain events, EF Core configuration, DTO mapping rules, and implementation templates. Essential for domain modeling and data access. Keywords: ddd, entity-design, aggregate-root, source-known-id, repository, domain-events, ef-core-configuration, dto-mapping, entity-type, identity
-last-updated: 2026-02-22
+description: "Domain-Driven Design implementation patterns - Entity design with Source-Known IDs (SourceKnownEntity, AggregateRoot), repository contracts (ISourceKnownRepository), domain events, EF Core configuration, DTO mapping rules, and implementation templates. Essential for domain modeling and data access. Keywords: ddd, entity-design, aggregate-root, source-known-id, repository, domain-events, ef-core-configuration, dto-mapping, entity-type, identity"
+last-updated: 2026-06-12
 difficulty: advanced
 tokens: ~2.9K
 ---
@@ -26,7 +26,7 @@ All entities inherit from `SourceKnownEntity`. See [drn-sharedkernel](../drn-sha
 ### Creating an Entity
 
 ```csharp
-[EntityType(1)]                          // Unique byte per entity
+[EntityType((byte)1)]                    // Unique byte per entity
 public class User : SourceKnownEntity    // or AggregateRoot
 {
     private User() { }                   // EF constructor
@@ -57,7 +57,7 @@ public class User : SourceKnownEntity    // or AggregateRoot
 For entities with rich document models, use `AggregateRoot<TModel>`:
 
 ```csharp
-[EntityType(3)]
+[EntityType((byte)3)]
 public class SystemSettings : AggregateRoot<SettingsModel> { }
 
 public class SettingsModel
@@ -219,7 +219,7 @@ Map entity properties via `ToDto()` **instance method on the entity** using obje
 // Sample.Domain/QA/Categories/Category.cs
 using Sample.Contract.QA.Categories;
 
-[EntityType((int)SampleEntityTypes.Category)]
+[EntityType((byte)SampleEntityTypes.Category)]
 public class Category : AggregateRoot
 {
     // ... entity definition ...
@@ -314,7 +314,7 @@ var result = await repository.PaginateAsync(request, filter);
 ## Implementation Template
 
 New entity checklist:
-1. Create entity class with `[EntityType(N)]` and private parameterless constructor
+1. Create entity class with `[EntityType((byte)N)]` or a byte-backed enum cast and private parameterless constructor
 2. Create DTO in `*.Contract` project with `Dto` base class and `required` + `init` properties
 3. Add `ToDto()` instance method on entity with object initializer
 4. Add `IEntityTypeConfiguration<T>` in infrastructure layer

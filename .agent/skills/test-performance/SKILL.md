@@ -1,30 +1,32 @@
 ---
 name: test-performance
-description: Performance testing and benchmarking - BenchmarkDotNet for micro-benchmarks, K6 for load/stress/spike testing, performance regression tracking, and report generation. Use for measuring and optimizing performance. Keywords: performance-testing, benchmarking, benchmarkdotnet, k6, load-testing, stress-testing, performance-optimization, regression-testing, dtt
-last-updated: 2026-02-15
+description: Use when measuring or reviewing performance, benchmarks, load tests, stress tests, spike tests, performance regressions, or optimization claims.
+last-updated: 2026-06-12
 difficulty: intermediate
 tokens: ~0.5K
 ---
 
-# DRN.Test.Performance
+# Performance Testing
 
-> Performance testing with BenchmarkDotNet and K6 load testing.
+> Performance testing with the repository's benchmark and load-test tooling.
 
 ## When to Apply
-- Benchmarking code performance
-- Load testing APIs
-- Measuring performance regressions
 
----
+- Benchmarking code performance.
+- Load testing APIs.
+- Measuring performance regressions.
+- Validating optimization claims.
 
 ## BenchmarkDotNet
+
+Run benchmark commands only when the user explicitly allows build/test execution. Use the repository profile command when available; otherwise discover the benchmark project and set `PERFORMANCE_PROJECT`.
 
 ```csharp
 [MemoryDiagnoser]
 public class MyBenchmark
 {
     private readonly List<int> _data = Enumerable.Range(0, 1000).ToList();
-    
+
     [Benchmark(Baseline = true)]
     public int ForLoop()
     {
@@ -32,15 +34,15 @@ public class MyBenchmark
         for (var i = 0; i < _data.Count; i++) sum += _data[i];
         return sum;
     }
-    
+
     [Benchmark]
     public int LinqSum() => _data.Sum();
 }
 ```
 
 ```bash
-dotnet run -c Release --project DRN.Test.Performance                       # All benchmarks
-dotnet run -c Release --project DRN.Test.Performance -- --filter "*Name*"  # Filtered
+dotnet run -c Release --project "$PERFORMANCE_PROJECT"
+dotnet run -c Release --project "$PERFORMANCE_PROJECT" -- --filter-method Fully.Qualified.PerformanceTestClass.Run_Benchmarks
 ```
 
 | Attribute | Purpose |
@@ -50,31 +52,9 @@ dotnet run -c Release --project DRN.Test.Performance -- --filter "*Name*"  # Fil
 | `[GlobalSetup]` / `[IterationSetup]` | Setup hooks |
 | `[Params(1, 10, 100)]` | Parameterized benchmarks |
 
----
-
 ## K6 Load Testing
 
-```javascript
-import http from 'k6/http';
-import { check, sleep } from 'k6';
-
-export const options = {
-    vus: 10, duration: '30s',
-    thresholds: {
-        http_req_failed: ['rate<0.01'],
-        http_req_duration: ['p(95)<500'],
-    },
-};
-
-export default function () {
-    const res = http.get('http://localhost:5988/api/status');
-    check(res, {
-        'is status 200': (r) => r.status === 200,
-        'response time < 200ms': (r) => r.timings.duration < 200,
-    });
-    sleep(1);
-}
-```
+Run load-test commands only when the user explicitly allows load-test execution. Discover script paths from the repository profile or the `k6/` folder.
 
 ```bash
 k6 run k6/scripts/api-load-test.js
@@ -89,18 +69,14 @@ k6 run --out json=results.json k6/scripts/api-load-test.js
 | Spike | Sudden load | Quick ramp to high VUs |
 | Soak | Extended duration | Low VUs, long duration |
 
----
-
 ## Best Practices
 
-- **Release mode only** for BenchmarkDotNet
-- **No parallel execution** (`parallelizeTestCollections: false`)
-- **Document baselines** to track regressions
-- Reports generated in `Reports/BenchmarkDotNet.Artifacts/` (HTML, MD, JSON)
-
----
+- Use release mode for micro-benchmarks.
+- Avoid parallel benchmark execution unless the framework supports it.
+- Document baselines to track regressions.
+- Tie optimization claims to before/after measurements.
 
 ## Related Skills
 
-- [overview-drn-testing.md](../overview-drn-testing/SKILL.md) - Testing philosophy
-- [drn-testing.md](../drn-testing/SKILL.md) - Framework.Testing
+- [test-unit](../test-unit/SKILL.md)
+- [test-integration](../test-integration/SKILL.md)

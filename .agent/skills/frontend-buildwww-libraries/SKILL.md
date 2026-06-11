@@ -1,7 +1,7 @@
 ---
 name: frontend-buildwww-libraries
-description: Frontend JavaScript architecture - DRN utilities (drnUtils, drnApp, drnCookieManager, drnOnmount), RSJS pattern for component mounting, htmx integration with CSP nonce security, and Bootstrap customization. Essential for client-side interactivity and component lifecycle. Keywords: javascript, rsjs, onmount, htmx, csp, nonce, bootstrap, cookie-management, component-mounting, client-side
-last-updated: 2026-04-16
+description: "Frontend JavaScript architecture - application utilities, onmount lifecycle, RSJS pattern for component mounting, htmx integration with CSP nonce security, and Bootstrap customization. Essential for client-side interactivity and component lifecycle. Keywords: javascript, rsjs, onmount, htmx, csp, nonce, bootstrap, cookie-management, component-mounting, client-side"
+last-updated: 2026-06-12
 difficulty: intermediate
 tokens: ~1.8K
 ---
@@ -9,24 +9,27 @@ tokens: ~1.8K
 # buildwww Libraries
 
 > JavaScript utilities, RSJS architecture, htmx integration, and Bootstrap customization in buildwww.
+> Convention-scoped: use only when the repository profile or filesystem declares `buildwww` and the DRN browser API surface.
 
 ## When to Apply
-- Using DRN JavaScript utilities
+- Using repository JavaScript utilities
 - Implementing RSJS for htmx (Reasonable System for JavaScript Structure)
 - Working with htmx and CSP nonces
 - Customizing Bootstrap styles
 - Understanding client-side cookie management
-- Setting up component mounting with `drnOnmount`
+- Setting up component mounting with the repository's onmount wrapper
 
 ---
 
 ## RSJS Architecture & DrnOnmount
 
-DRN follows [RSJS](https://github.com/rstacruz/rsjs): register behaviors that auto-attach to DOM elements via `data-` attributes or classes, instead of imperative initialization. Required for **htmx** — content swaps without full page reload.
+This convention follows [RSJS](https://github.com/rstacruz/rsjs): register behaviors that auto-attach to DOM elements via `data-` attributes or classes, instead of imperative initialization. Required for **htmx** — content swaps without full page reload.
 
-### drnOnmount.js
+DRN buildwww exposes common shared browser utilities under `window.DRN`. Treat `DRN`, `Drn*`, and `DRN.Framework.*` names as shared framework API, not placeholders for app-specific namespaces.
 
-`drnOnmount.js` — RSJS implementation. Wraps `onmount` with **idempotency** — prevents duplicate registration across htmx swaps.
+### Onmount Wrapper
+
+The onmount wrapper is an RSJS implementation. It wraps `onmount` with **idempotency** to prevent duplicate registration across htmx swaps.
 
 #### API
 
@@ -66,23 +69,21 @@ DRN.Onmount.register('[data-bs-toggle="tooltip"]', function (options) {
 
 Define behaviors directly in Razor Pages `<script>` tags. Use `idempotencyKey` to safely re-execute on htmx swap without duplicate registration.
 
-**Example: `Sample.Hosted/Pages/Test/Htmx.cshtml`**
+**Example: page-specific Razor logic**
 
 ```razor
 @section Scripts {
     <script>
-        // Use a unique ID or class for the specific element on this page
-        DRN.Onmount.register('#btnJqueryTest', function (options) {
-            console.log("Button registered");
+        DRN.Onmount.register('#refreshStatus', function (options) {
+            const button = this;
+            const onClick = () => button.dataset.clicked = "true";
 
-            // Attach event listener
-            $(this).on('click', function () {
-                $("#output").text("Clicked!");
-            });
+            button.addEventListener('click', onClick);
 
-            // Cleanup is handled automatically on swap if jQuery is used, 
-            // or use options.disposable for manual cleanup
-        }, "uniqueHandlerId"); // <--- Idempotency Key
+            options.disposable = {
+                dispose: () => button.removeEventListener('click', onClick)
+            };
+        }, "refreshStatusHandler");
     </script>
 }
 ```
@@ -105,7 +106,7 @@ Define behaviors directly in Razor Pages `<script>` tags. Use `idempotencyKey` t
 
 ---
 
-## DRN JavaScript Utilities
+## Application JavaScript Utilities
 
 Global utilities are exposed under `window.DRN`.
 
@@ -119,7 +120,7 @@ buildwww/app/js/drn/
 └── drnOnmount.js       # Component mounting system
 ```
 
-### drnCookieManager.js
+### Cookie Manager
 
 Handles cookie consent logic (Analytics/Marketing) and provides a wrapper for cookie operations.
 
@@ -152,7 +153,7 @@ reactBundle.tsx         → DRN.React.mount() + component registry
 @section Scripts { }   → Page-specific registrations (DRN.Onmount.register/registerFull)
 ```
 
-> **Dependency rule**: `appPreload.js` must execute first — it initializes the `window.DRN` namespace that all subsequent scripts attach to. If a bundle loads before its namespace is ready, it logs a critical error.
+> **Dependency rule**: `appPreload.js` must execute first — it initializes `window.DRN` so all subsequent scripts can attach to the shared framework browser API. If a bundle loads before `window.DRN` is ready, it logs a critical error.
 
 ---
 
@@ -160,7 +161,7 @@ reactBundle.tsx         → DRN.React.mount() + component registry
 
 ### Security with CSP Nonces
 
-DRN integrates htmx with a strict CSP using nonces.
+This convention integrates htmx with a strict CSP using nonces.
 
 **`htmxSafeNonce.js`**: Intercepts htmx requests to sync `htmx.config.inlineScriptNonce` with the current page nonce — allows inline scripts in partials, blocks unauthorized scripts.
 
@@ -168,6 +169,10 @@ DRN integrates htmx with a strict CSP using nonces.
 // buildwww/lib/htmx/htmxSafeNonce.js
 htmx.config.inlineScriptNonce = document.currentScript?.nonce;
 ```
+
+### Client Validation
+
+`htmxBundle.js` imports `htmxValidation.js`, which uses `aspnet-client-validation` with `watch: true` so htmx swaps are scanned automatically. Keep validation on this direct `data-val-*` path.
 
 ### Razor Usage
 
@@ -190,7 +195,7 @@ Bootstrap styles are customized via SCSS and compiled by Vite.
 ```
 buildwww/lib/bootstrap/
 ├── bootstrap.scss      # Variable overrides and imports
-└── bootstrap.js        # JavaScript component imports
+└── bootstrapBundle.js  # JavaScript component imports
 ```
 
 ### Configuration
@@ -207,7 +212,7 @@ $primary: #0d6efd;
 .btn-primary { ... }
 ```
 
-**`bootstrap.js`**:
+**`bootstrapBundle.js`**:
 Imports only necessary plugins to keep bundle size low.
 
 ```javascript
@@ -221,4 +226,4 @@ import 'bootstrap/js/dist/modal';
 
 - [frontend-buildwww-vite.md](../frontend-buildwww-vite/SKILL.md) - Vite configuration
 - [frontend-buildwww-react.md](../frontend-buildwww-react/SKILL.md) - React mounted islands (primary consumer of `registerFull`)
-- [drn-hosting.md](../drn-hosting/SKILL.md) - Security and TagHelpers
+- Framework-scoped hosting/security skill declared by `.agent/repository-profile.md`, when present.

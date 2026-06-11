@@ -1,195 +1,55 @@
 ---
 name: overview-drn-testing
-description: DTT (Duran's Testing Technique) philosophy - Testing approach, test organization principles, test type selection (unit vs integration vs performance), and testing best practices. Philosophical foundation for all testing work. Keywords: testing-philosophy, dtt, test-organization, test-strategy, unit-testing, integration-testing, performance-testing
-last-updated: 2026-06-06
-difficulty: intermediate
-tokens: ~1.5K
+description: "DTT (Duran's Testing Technique) philosophy - choosing unit, integration, API, or performance tests and routing to canonical DRN.Framework.Testing guidance. Keywords: testing-philosophy, dtt, test-strategy, unit-testing, integration-testing, performance-testing"
+last-updated: 2026-06-12
+difficulty: basic
+tokens: ~0.7K
 ---
 
-# DRN.Testing Overview
+# DRN Testing Overview
 
-> Philosophy and organization of testing in DRN-Project using DTT (Duran's Testing Technique).
+> DTT favors honest feedback with the least necessary test machinery. The canonical attribute/context matrix lives in [drn-testing](../drn-testing/SKILL.md).
 
-## When to Apply
-- Understanding the testing philosophy and approach
-- Choosing between unit, integration, or performance tests
-- Setting up new test classes following DRN conventions
-- Debugging test failures
+## DTT Principles
 
----
+| Principle | Practice |
+|---|---|
+| Security first | Avoid leaking secrets in fixtures, logs, snapshots, and generated data |
+| Correctness over speed | Prefer real dependencies when mocks would hide behavior |
+| Clarity over cleverness | One readable flow beats many tiny duplicate tests |
+| Simplicity | Use `[Fact]` when no data, generation, or context is needed |
+| Performance with proof | Benchmark only when a performance question is explicit |
 
-## DiSCOS Alignment
+## Test Type Selection
 
-| DiSCOS Principle | DTT Expression |
-|------------------|---------------|
-| Pit of Success / Guiding Structure | `[DataInline]` makes writing correct tests the lowest-effort action |
-| Correctness > Performance | Real containers over fast mocks — wrong fast is wrong |
-| TRIZ (Rejection of False Tradeoffs) | DTT rejects the unit-vs-integration dichotomy; each serves its purpose |
-| Feedback Loops | Build→Measure→Learn via tight test cycles with auto-mocking and Testcontainers |
+| Change | Default test type | Why |
+|---|---|---|
+| Pure utility, domain invariant, deterministic branch logic | Unit | No container value; use `DataInlineUnit` when data/generation helps |
+| Attribute DI registration or isolated service behavior | Unit | `DrnTestContextUnit` validates wiring without Docker |
+| Repository, EF mapping, query, transaction, concurrency | Integration DB | Real PostgreSQL is the useful signal |
+| Controller, endpoint, auth, middleware, serialization | API integration | Full request pipeline via `ApplicationContext` |
+| External HTTP client behavior | Integration/API | Use `FlurlHttpTest` against outbound URL patterns |
+| Throughput, allocation, latency, load | Performance | BenchmarkDotNet/K6 only with explicit user intent |
 
----
-
-## Testing Philosophy (DTT)
-
-**DTT (Duran's Testing Technique)** is built on two core ideas:
-
-1. **Writing tests should be easy and encouraging** - DrnTestContext handles wiring
-2. **Tests should test actual usage** - Real containers, minimal mocking
-
-```csharp
-[Theory]
-[DataInline]
-public async Task MyTest(DrnTestContext context)
-{
-    context.ServiceCollection.AddApplicationServices();
-    var service = context.GetRequiredService<IMyService>();
-    // Test actual behavior
-}
-```
-
----
-
-## Test Project Organization
-
-```
-DRN-Project/
-├── DRN.Test.Unit/         # Fast, isolated unit tests
-│   ├── Tests/             # Test classes organized by target
-│   ├── Data/              # Test data files
-│   └── Settings/          # Test configuration files
-│
-├── DRN.Test.Integration/  # Integration tests with containers
-│   ├── Tests/             # Integration test classes
-│   ├── Data/              # Test data
-│   └── Settings/          # Configuration
-│
-└── DRN.Test.Performance/  # Benchmarks and load tests
-    ├── Benchmark/         # BenchmarkDotNet tests
-    ├── K6/                # K6 load test scripts
-    └── Reports/           # Generated reports
-```
-
----
-
-## Test Context Types
-
-| Context | Purpose | Use Case |
-|---------|---------|----------|
-| `DrnTestContext` | Full context with containers | Integration tests |
-| `ContainerContext` | PostgreSQL testcontainer | Database tests |
-| `WebApplicationContext` | WebApplicationFactory wrapper | API tests |
-| `ApplicationContext` | Full app context | End-to-end tests |
-| `FlurlHttpTest` | HTTP mocking | External API testing |
-
----
-
-## Test Pyramid
+## Project Shape
 
 ```text
-          /\
-         /  \
-        / E2E\        (ApplicationContext)
-       /______\       • Full app stack, auth, API, DB
-      /        \
-     / Integration\   (DrnTestContext)
-    /______________\  • Real DB, Repositories, Use Cases (Preferred)
-   /                \
-  /    Unit Tests    \ (DrnTestContextUnit)
- /____________________\ • Domain Logic, Utils, isolated components
+DRN.Test.Unit/         # isolated logic and service validation
+DRN.Test.Integration/  # Testcontainers, repositories, API/E2E
+DRN.Test.Performance/  # BenchmarkDotNet and K6
 ```
 
-**DRN Philosophy (DTT)**:
-While the traditional pyramid suggests a massive base of unit tests, **DTT favors Integration Tests** with real containers.
-- **Unit Tests**: Use for pure logic, utilities, and complex domain invariants.
-- **Integration Tests**: The "sweet spot" for reliability. Test real behavior with `Testcontainers`.
-- **E2E Tests**: Critical user flows through the API.
+Context names:
 
----
+- `DrnTestContextUnit`: unit context, no containers
+- `DrnTestContext`: integration context with `ContainerContext`, `ApplicationContext`, and `FlurlHttpTest`
+- `ApplicationContext`: WebApplicationFactory wrapper for app/API tests
 
-## Data Attributes
+## Routing
 
-| Attribute | Behavior |
-|-----------|----------|
-| `[Fact]` | Test has no inline data, generated parameters, or test context |
-| `[DataInline]` | Integration data/generation attribute; request DrnTestContext only when needed |
-| `[DataInlineUnit]` | Unit data/generation attribute; request DrnTestContextUnit only when needed |
-| `[DataMember(nameof(Method))]` | Member data + auto-generation |
-| `[DataSelf]` | Class-based data source |
-| `[FactDebuggerOnly]` | Runs only when debugger attached |
-| `[TheoryDebuggerOnly]` | Theory that runs only with debugger |
-
-```csharp
-[Fact]
-public void Trim_Should_Remove_Outer_Whitespace()
-{
-    "  Duran  ".Trim().Should().Be("Duran");
-}
-
-[Theory]
-[DataInline(99)]
-public void Integration_DataInline_Should_Combine_Context_Inline_Data_And_Mocks(
-    DrnTestContext context, int value, IMockable mock)
-{
-    // value = 99 (inlined)
-    // mock = NSubstitute mock (auto-generated)
-    mock.Max.Returns(42);
-    context.ServiceCollection.AddScoped<IMockable>(_ => mock);
-}
-
-[Theory]
-[DataInlineUnit(2, 3, 5)]
-public void Unit_DataInlineUnit_Should_Map_Inline_Values(int a, int b, int expected)
-{
-    (a + b).Should().Be(expected);
-}
-
-[Theory]
-[DataInlineUnit("SafeSection", "Visible", "safe-value")]
-public void Unit_DataInlineUnit_Should_Request_Context_When_Needed(
-    DrnTestContextUnit context, string section, string key, string value)
-{
-    context.AddToConfiguration(section, key, value);
-    var debugView = context.GetConfigurationDebugView();
-
-    debugView.SettingsByProvider.Values.SelectMany(settings => settings)
-        .Should().Contain($"{section}:{key}={value}");
-}
-```
-
----
-
-## Test Categories
-
-### Unit Tests (DRN.Test.Unit)
-- **Purpose**: Fast, isolated logic testing
-- **Dependencies**: Mocked via NSubstitute
-- **Containers**: None
-- **Speed**: Milliseconds
-
-### Integration Tests (DRN.Test.Integration)
-- **Purpose**: Test with real dependencies
-- **Dependencies**: PostgreSQL testcontainers
-- **Containers**: Started automatically
-- **Speed**: Seconds
-
-### Performance Tests (DRN.Test.Performance)
-- **Purpose**: Benchmarks and load testing
-- **Tools**: BenchmarkDotNet, K6
-- **Output**: HTML/JSON reports
-
----
-
-> See [drn-testing.md](../drn-testing/SKILL.md) for implementation patterns (DrnTestContext, ContainerContext, ApplicationContext, Data Attributes).
-
----
-
-## Related Skills
-
-| Skill | Focus |
-|-------|-------|
-| [drn-testing.md](../drn-testing/SKILL.md) | DRN.Framework.Testing package details |
-| [test-unit.md](../test-unit/SKILL.md) | Unit test patterns |
-| [test-integration.md](../test-integration/SKILL.md) | Integration test patterns |
-| [test-performance.md](../test-performance/SKILL.md) | Performance testing |
-
----
+- Need exact attribute/context rules or MTP commands: [drn-testing](../drn-testing/SKILL.md)
+- Writing isolated tests: [test-unit](../test-unit/SKILL.md)
+- Choosing API vs DB integration: [test-integration](../test-integration/SKILL.md)
+- Endpoint behavior: [test-integration-api](../test-integration-api/SKILL.md)
+- Repository/database behavior: [test-integration-db](../test-integration-db/SKILL.md)
+- Performance work: [test-performance](../test-performance/SKILL.md)

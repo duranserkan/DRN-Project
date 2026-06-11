@@ -38,8 +38,10 @@
     "paths": {
       "@/*": ["buildwww/*"],
       "@js/*": ["buildwww/app/js/*"],
-      "@scss/*": ["buildwww/app/scss/*"],
-      "@types/*": ["buildwww/types/*"] // Or wherever your types are
+      "@css/*": ["buildwww/app/css/*"],
+      "@lib/*": ["buildwww/lib/*"],
+      "@types/*": ["buildwww/types/*"],
+      "@plugins/*": ["buildwww/plugins/*"]
     },
     "typeRoots": [
       "./buildwww/types",  // Add your custom types directory
@@ -48,8 +50,8 @@
     "jsx": "react-jsx"
   },
   "include": [
-    "buildwww/app/ts/**/*",
-    "buildwww/lib/react/**/*",
+    "buildwww/app/**/*",
+    "buildwww/lib/**/*",
     "buildwww/types/**/*"
   ],
   // Exclude node_modules and build outputs

@@ -8,10 +8,14 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Test Scope Initialization**: `ScopeContext.InitializeForTest(...)` is now public and resets the current async-local scope before initialization, preventing stale test scope data from leaking between helper calls.
 *   **Stream Hashing Support**: Added stream and file hashing overloads in `HashExtensions` (supporting Blake3, XxHash3, Sha256, Sha512, and keyed Blake3/XxHash3 algorithms) to hash files and large payloads without first materializing them as `BinaryData`.
 *   **JPEG Payload Validation**: Added public `DRN.Framework.Utils.Validators.JpegValidator` with explicit `JpegValidationResult` and `JpegValidationErrorReason` support for structural, stream-based, and size-bounded JPEG byte validation before persisting uploaded image payloads.
+*   **Path Security Extensions**: Added `PathExtensions.NormalizeDirectoryPath` (full-path resolution with trailing-separator cleanup) and `IsPathWithinDirectory` (segment-aware containment check using OS-correct path comparison) for safe path validation in file-serving and manifest processing.
+*   **ScopedLog.CopyFrom**: New method on `IScopedLog` for merging log data, exception, and warning state from one scoped log into another with defensive value cloning for mutable collection types.
+*   **Configuration Debug View Redaction**: `ConfigurationDebugView` now redacts sensitive configuration values (connection strings, passwords, secrets, tokens, API keys, credentials) by default. A new `GetDebugView(bool includeRawValues)` overload on `IAppSettings` allows opt-in to raw values, but raw inclusion is only permitted in the Development environment.
 
 ### Bug Fixes
 
 *   **Configuration Debug View**: Continues traversing child configuration keys when a higher-priority provider defines a scalar value for the parent section, and renders entries with the value provider's key casing so CI/environment overrides do not hide or rename lower-provider child entries in debug summaries.
+*   **Prototype Recreation Gate**: `DevelopmentStatus` now enables prototype database recreation only in Development, and honors applied migrations: empty databases can still be recreated for prototyping, while databases with applied migrations require `UsePrototypeModeWhenMigrationExists`.
 
 ## Version 0.9.4
 
@@ -95,7 +99,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
     *   **Monotonic Pagination**: `IPaginationUtils` for temporal cursor-based pagination leveraging entity IDs.
     *   **Cryptographic Helpers**: Unified `HashExtensions` (Blake3, XxHash3), `EncodingExtensions` (Base64, Base64Url, Hex), and `SafeApplyMergePatch` (RFC 7386).
 *   **HTTP & Temporal IDs**
-    *   **Resilient HTTP**: `IInternalRequest`/`IExternalRequest` with enriched `HttpResponse<T>` diagnostics and Flurl integration.
+    *   **HTTP Request Wrappers**: `IInternalRequest`/`IExternalRequest` with standardized Flurl integration, HTTP version policy configuration, and enriched `HttpResponse<T>` diagnostics. Retries/circuit breakers are not configured by this package.
     *   **Temporal IDs**: `ISourceKnownIdUtils` and `ISourceKnownEntityIdUtils` providing globally sortable identifiers.
     *   **Secure Entity IDs**: AES-256-ECB single-block encrypted `SourceKnownEntityId` variants with flag-based dispatch via `UseSecureSourceKnownIds` (defaults to `true`).
         *   `GenerateSecure` / `GenerateUnsecure` explicit methods; `Parse` auto-detects encrypted and plaintext IDs.

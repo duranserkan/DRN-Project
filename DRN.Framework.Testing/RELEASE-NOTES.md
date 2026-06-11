@@ -1,5 +1,11 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.5
+
+### Changed
+
+*   **PostgreSQL Testcontainer Default**: `PostgresContainerSettings.DefaultVersion` now uses `18.4-alpine3.23`.
+
 ## Version 0.9.4
 
 Dependencies upgraded to dotnet 10.0.8
@@ -40,22 +46,22 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
     *   **DI Validation**: `ValidateServicesAsync()` for verifying service collection health and identifying missing dependencies early.
     *   **Lightweight Unit Context**: `DrnTestContextUnit` for pure unit tests without container overhead.
 *   **Container Orchestration**
-    *   **ContainerContext**: Integrated management of PostgreSQL and RabbitMQ Testcontainers.
-    *   **Auto-Wiring**: Scans for `DrnContext`s, creates containers, applies migrations, and injects connection strings automatically.
+    *   **ContainerContext**: Integrated PostgreSQL Testcontainer binding for registered `DrnContext`s; RabbitMQ is available through an explicit opt-in helper.
+    *   **Auto-Wiring**: Scans for `DrnContext`s, creates PostgreSQL containers, applies migrations, and injects connection strings automatically.
     *   **Modes**: Supports shared containers (fast) or `.Isolated` containers (independent data).
     *   **Rapid Prototyping**: `EnsureDatabaseAsync` for schema generation without migrations.
 *   **Application Integration**
     *   **ApplicationContext**: Deep integration with `WebApplicationFactory`.
     *   **Helpers**: `CreateClientAsync` (starts app + migrations + auth client), `CreateApplicationAndBindDependenciesAsync`, `LogToTestOutput`.
 *   **Local Development Experience**
-    *   **Infrastructure Management**: `LaunchExternalDependenciesAsync` for `WebApplicationBuilder` to automatically start containers (Postgres, RabbitMQ) when `IsDevelopmentEnvironment` is true, ensuring zero-configuration onboarding for new developers.
+    *   **Infrastructure Management**: `LaunchExternalDependenciesAsync` for `WebApplicationBuilder` to automatically start PostgreSQL containers when `IsDevelopmentEnvironment` is true; RabbitMQ tests call `RabbitMQContext.StartAsync()` explicitly.
 *   **Data Attributes (Auto-Mocking)**
     *   **DataInline**: Replaces `[InlineData]`. Auto-mocks interfaces (NSubstitute), fills missing params (AutoFixture), provides `DrnTestContext`.
     *   **DataMember**: Replaces `[MemberData]`. Source data from properties with auto-mocking support.
     *   **DataSelf**: Self-contained test data classes inheriting `DataSelfAttribute` (using `AddRow`).
     *   **Debugger Attributes**: `[FactDebuggerOnly]` and `[TheoryDebuggerOnly]` for running tests only during debugging sessions.
 *   **Providers & Utilities**
-    *   **SettingsProvider**: Loads `appsettings.json` and overrides from `Settings/` folder or test-local folder.
+    *   **SettingsProvider**: Loads `settings.json` and overrides from `Settings/` folder or test-local folder.
     *   **DataProvider**: Loads test data files (e.g., `.json`, `.txt`) from `Data/` folder or test-local folder.
     *   **CredentialsProvider**: Generates unique, consistent usernames/passwords for test authentication.
     *   **JSON Utilities**: `ValidateObjectSerialization<T>()` for one-line JSON round-trip contract verification.

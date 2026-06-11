@@ -1,180 +1,57 @@
 ---
 name: test-unit
-description: Unit testing patterns and organization - Fast, isolated tests with auto-mocking (NSubstitute), service validation, test data management, and mocking strategies. Use for testing services, domain logic, and components in isolation. Keywords: unit-testing, mocking, nsubstitute, autofixture, test-patterns, service-testing, isolated-testing, dtt, xunit
-last-updated: 2026-06-06
+description: Use when adding or reviewing fast isolated tests for pure logic, deterministic branches, service wiring, validation, or regression coverage without external infrastructure.
+last-updated: 2026-06-12
 difficulty: basic
-tokens: ~1K
+tokens: ~0.7K
 ---
 
-# DRN.Test.Unit
+# Unit Testing
 
-> Unit test patterns for fast, isolated testing.
+> Portable unit-test guidance. Load the repository profile first; if it declares custom test attributes or contexts, apply the relevant framework/profile testing skill before using this generic guide.
 
-## When to Apply
-- Writing new unit tests
-- Mocking dependencies effectively
-- Testing services in isolation
+## Attribute Choice
 
----
-
-## Test Patterns
-
-### Attribute Selection
-
-- Use `[Fact]` when the test has no inline data, generated parameters, or `DrnTestContextUnit` dependency.
-- Use `[Theory]` + `[DataInlineUnit]` for parameterized rows or auto-generated parameters.
-- Include `DrnTestContextUnit` in the method signature only when the test uses context services, configuration, data files, or service validation.
-
-```csharp
-[Fact]
-public void Trim_Should_Remove_Outer_Whitespace()
-{
-    "  Duran  ".Trim().Should().Be("Duran");
-}
-
-[Theory]
-[DataInlineUnit(2, 3, 5)]
-[DataInlineUnit(-1, -2, -3)]
-public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
-{
-    (a + b).Should().Be(expected);
-}
-
-[Theory]
-[DataInlineUnit("SafeSection", "Visible", "safe-value")]
-public void Configuration_Should_Be_Available_When_Context_Is_Requested(
-    DrnTestContextUnit context, string section, string key, string value)
-{
-    context.AddToConfiguration(section, key, value);
-    var debugView = context.GetConfigurationDebugView();
-
-    debugView.SettingsByProvider.Values.SelectMany(settings => settings)
-        .Should().Contain($"{section}:{key}={value}");
-}
-```
-
-### Unit Test with Auto-Mocking
+- Use the framework's simple test attribute for tests without inline data.
+- Use parameterized tests for repeated behavior with multiple rows.
+- Use member/class data when row setup is too large for inline attributes.
+- Request fixture/context parameters only when the test needs DI, configuration, data files, or service validation.
 
 ```csharp
 [Theory]
-[DataInlineUnit]
-public void Service_Should_DoExpectedBehavior(DrnTestContextUnit context, IDependency mock)
-{
-    // Arrange: mock is auto-created by NSubstitute
-    mock.GetValue().Returns(42);
-    context.ServiceCollection.AddScoped<IDependency>(_ => mock);
-    context.ServiceCollection.AddScoped<MyService>();
-    
-    // Act
-    var service = context.GetRequiredService<MyService>();
-    var result = service.Calculate();
-    
-    // Assert
-    result.Should().Be(42);
-}
-```
-
-### Test Consolidation
-
-If tests share the same setup and their consolidation creates no semantic or performance issue, they should be unified. Apply when consolidation requires only minimal essential change.
-
-#### Parameterized
-
-When multiple cases share identical test bodies, consolidate into one `[Theory]` with multiple `[DataInlineUnit]` rows:
-
-```csharp
-[Theory]
-[DataInlineUnit(2, 3, 5)]     // positive + positive
-[DataInlineUnit(-1, -2, -3)]  // negative + negative
-[DataInlineUnit(0, 0, 0)]     // zeros
+[InlineData(2, 3, 5)]
+[InlineData(-1, -2, -3)]
 public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
 {
     (a + b).Should().Be(expected);
 }
 ```
 
-**Rules**: Last param = expected result · Name covers the dimension, not one case · Comment rows when values aren't obvious · Don't consolidate when test bodies differ structurally.
+## Unit Scope
 
-#### Flow
+Good unit targets:
 
-When tests share identical setup and additional assertions can be applied by continuing the existing test flow, unify into a single test to prevent code duplication and maintenance burden. Less common in unit tests (setup is cheap) but applies when multiple verifications share the same mock/service wiring.
+- pure domain invariants and value logic
+- utilities and deterministic branching
+- service behavior where collaborators can be mocked honestly
+- validation, mapping, formatting, and parsing
+- DI/service registration checks that do not need external infrastructure
 
-### Exception Testing
+Prefer integration tests when persistence, SQL, interceptors, middleware, auth, serialization boundaries, or real transport behavior matter.
 
-```csharp
-[Theory]
-[DataInlineUnit]
-public void Should_Throw_OnInvalid(DrnTestContextUnit context)
-{
-    context.ServiceCollection.AddScoped<MyService>();
-    var service = context.GetRequiredService<MyService>();
-    
-    var act = () => service.Process(null!);
-    act.Should().Throw<ValidationException>().WithMessage("*input*");
-}
-```
+## Consolidation
 
-### Verifying Mock Calls
-
-```csharp
-publisher.Received(1).Publish(Arg.Any<DomainEvent>());
-publisher.DidNotReceive().Publish(Arg.Is<DomainEvent>(e => e.Type == "Error"));
-```
-
----
+Parameterize identical bodies with multiple rows. Extend an existing test class when it already owns the component. Keep separate tests when setup, behavior, or assertion shape differs enough that a combined flow becomes harder to read.
 
 ## Service Validation
 
-```csharp
-[Theory]
-[DataInlineUnit]
-public async Task Validate_All_Dependencies(DrnTestContextUnit context)
-{
-    context.ServiceCollection.AddSampleApplicationServices();
-    context.ServiceCollection.AddSampleInfraServices();
-    await context.ValidateServicesAsync(); // Validates all attribute-based services
-}
-```
+Use the repository's DI container and service validation helpers if they exist. Keep service-validation tests narrow: prove the graph composes and important scoped/singleton rules hold; do not turn them into broad behavior tests.
 
----
+## Verification
 
-## Test Data
+Run unit tests only when the user and repository instructions allow test execution. Use the command from the repository profile; if absent, discover the narrowest unit-test project or package script.
 
-| Folder | Purpose | Access |
-|--------|---------|--------|
-| `Settings/` | Test configuration (appsettings.json) | Auto-loaded by DrnTestContextUnit |
-| `Data/` | Test data files | `context.GetData("file.json")` |
+## Related
 
-### Sketch.cs
-
-Use for experimental or debugging tests — not permanent, not CI-gated.
-
----
-
-## Related Skills
-
-- [drn-testing.md](../drn-testing/SKILL.md) - Framework.Testing package
-- [overview-drn-testing.md](../overview-drn-testing/SKILL.md) - Testing philosophy
-- [test-integration.md](../test-integration/SKILL.md) - Integration testing
-
----
-
-## Global Usings
-
-```csharp
-global using Xunit;
-global using AutoFixture;
-global using AutoFixture.AutoNSubstitute;
-global using DRN.Framework.Utils.Extensions;
-global using DRN.Framework.SharedKernel;
-global using DRN.Framework.Utils.Settings;
-global using DRN.Framework.Utils.DependencyInjection;
-global using DRN.Framework.Testing;
-global using DRN.Framework.Testing.DataAttributes;
-global using DRN.Framework.Testing.Providers;
-global using DRN.Framework.Testing.TestAttributes;
-global using DRN.Framework.Testing.Contexts;
-global using AwesomeAssertions;
-global using Microsoft.Extensions.DependencyInjection;
-global using NSubstitute;
-```
+- [test-integration](../test-integration/SKILL.md)
+- [basic-code-review](../basic-code-review/SKILL.md)

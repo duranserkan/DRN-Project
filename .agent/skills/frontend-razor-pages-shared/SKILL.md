@@ -1,6 +1,6 @@
 ---
 name: frontend-razor-pages-shared
-description: Razor Pages layout system - Layout hierarchy (_LayoutBase, _Layout), MainContentLayoutOptions for page configuration, HTMX integration for partial rendering, and Bootstrap grid integration. Foundation for consistent page structure and responsive layouts. Keywords: razor-pages, layout, html-shell, layout-options, htmx, partial-rendering, bootstrap, responsive-design, page-structure
+description: "Razor Pages layout system - Layout hierarchy (_LayoutBase, _Layout), MainContentLayoutOptions for page configuration, HTMX integration for partial rendering, and Bootstrap grid integration. Foundation for consistent page structure and responsive layouts. Keywords: razor-pages, layout, html-shell, layout-options, htmx, partial-rendering, bootstrap, responsive-design, page-structure"
 last-updated: 2026-02-15
 difficulty: intermediate
 tokens: ~1K
@@ -8,10 +8,10 @@ tokens: ~1K
 
 # Razor Pages Layout System
 
-> Core layout system and shared Razor structure for DRN hosted applications.
+> Core layout system and shared Razor structure for hosted Razor Pages applications using this convention.
 
 > [!NOTE]
-> `Sample.Hosted` is the reference implementation for these patterns.
+> Use the repository profile to identify the hosted web project that acts as the local reference implementation.
 
 ## When to Apply
 - Modifying `_Layout.cshtml` structure
@@ -21,7 +21,7 @@ tokens: ~1K
 
 ## Directory Structure
 
-A standard DRN-hosted application follows this structure in `Pages/Shared/`:
+A hosted Razor Pages application using this convention follows this structure in `Pages/Shared/`:
 
 ```
 Pages/Shared/

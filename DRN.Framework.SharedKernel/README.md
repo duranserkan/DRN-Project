@@ -40,7 +40,7 @@
 
 ## QuickStart: Beginner
 
-Define your first domain entity with automatic ID generation and domain events:
+Define your first domain entity with automatic ID generation and collected domain events:
 
 ```csharp
 using DRN.Framework.SharedKernel.Domain;
@@ -53,7 +53,7 @@ public class User : AggregateRoot
     public User(string name)
     {
         Name = name;
-        AddDomainEvent(new UserCreated(this)); // Automatically published by DrnContext
+        AddDomainEvent(new UserCreated(this)); // Collected on the entity for infrastructure handling
     }
 }
 
@@ -77,9 +77,8 @@ public class UserService(ISourceKnownRepository<User> repository)
         var filter = EntityCreatedFilter.After(DateTimeOffset.UtcNow.AddDays(-30));
         var result = await repository.PaginateAsync(request, filter);
         
-        return result.ToModel(user => new UserDto
+        return result.ToModel(user => new UserDto(user)
         {
-            Id = user.EntityId,  // External GUID for API
             Name = user.Name
         });
     }
@@ -125,14 +124,14 @@ public class User : AggregateRoot
     public User(string name) 
     {
         Name = name;
-        AddDomainEvent(new UserCreated(this)); // Auto-published by DrnContext
+        AddDomainEvent(new UserCreated(this)); // Collected on the entity for infrastructure handling
     }
 }
 ```
 
 ### Domain Events
 
-Entities encapsulate their events. `DrnContext` publishes them automatically upon saving changes.
+Entities encapsulate domain events through `AddDomainEvent` / `GetDomainEvents`. SharedKernel defines the event model and entity collection behavior; publication/outbox dispatch is handled by infrastructure when implemented.
 
 ```csharp
 public class UserCreated(User user) : EntityCreated(user)
@@ -170,8 +169,8 @@ The framework uses a three-tier Source Known identifier system (`SKID`, `SKEID`,
 `ISourceKnownEntityIdOperations` defines the core contract for entity ID operations (`Generate`, `Parse`, `ToSecure`, `ToPlain`). It lives in SharedKernel so domain entities can use it without referencing Utils. `ISourceKnownEntityIdUtils` in Utils inherits this interface and provides the full implementation, which EF interceptors inject into entities automatically.
 
 ```csharp
-// entityId.Valid will be true only if the GUID structure is correct AND matches the User entity type.
-var entityId = user.GetEntityId(someGuid, validate: true);
+// Validates GUID structure and the User entity type.
+var entityId = user.GetEntityId<User>(someGuid);
 ```
 
 ### ID Validation & Retrieval Strategies
@@ -281,7 +280,8 @@ public readonly record struct SourceKnownEntityId(
     SourceKnownId Source,   // The decoded internal components
     Guid EntityId,          // The external opaque GUID
     byte EntityType,        // The entity type identifier (from EntityTypeAttribute)
-    bool Valid              // Whether the ID structure is valid
+    bool Valid,             // Whether the ID structure is valid
+    bool Secure             // True when EntityId is the encrypted external form
 )
 {
     // Validates that this ID belongs to the specified TEntity type
@@ -407,6 +407,7 @@ if (result.Info.HasNext)
 | `ExceptionFor.Expired(msg)` | `ExpiredException` | **410** |
 | `ExceptionFor.UnprocessableEntity(msg)` | `UnprocessableEntityException` | **422** |
 | `ExceptionFor.Configuration(msg)` | `ConfigurationException` | **500** |
+| `ExceptionFor.Jackpot(msg)` | `JackpotException` | **500** |
 | `ExceptionFor.MaliciousRequest(msg)` | `MaliciousRequestException` | **Abort** |
 
 ```csharp
@@ -441,7 +442,7 @@ public static class ExceptionFor
 
 ## JsonConventions
 
-`JsonConventions` globally overrides `System.Text.Json` settings. These are automatically applied by `DrnTestContext` (in tests) and `DrnHostBuilder` (in hosted apps).
+`JsonConventions` centralizes `System.Text.Json` settings. These defaults are applied by `DrnTestContext` in tests and by `DrnProgramBase` / `DRN.Framework.Hosting` MVC setup in hosted apps.
 
 **Applied Settings:**
 - `JsonSerializerDefaults.Web` (CamelCase naming, case-insensitive)
@@ -514,6 +515,8 @@ public static class AppConstants
 ---
 
 ## Global Usings
+
+Suggested consumer usings for projects that work heavily with SharedKernel types:
 
 ```csharp
 global using DRN.Framework.SharedKernel.Domain;

@@ -47,12 +47,14 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
     public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings) => Task.CompletedTask;
     
     /// <summary>
-    /// When <see cref="UsePrototypeMode"/> is enabled and 
-    /// <see cref="DrnDevelopmentSettings.LaunchExternalDependencies"/> is <see langword="true"/>, 
-    /// the <see cref="DbContext"/> uses a separate, throwaway database created using Testcontainers.
+    /// When <see cref="UsePrototypeMode"/> is enabled in Development, the <see cref="DbContext"/>
+    /// can use the prototype recreation workflow for pending model changes.
     /// 
     /// This database is recreated only if all the following conditions are met:
     /// <list type="number">
+    ///   <item>
+    ///     <description>The application environment is Development.</description>
+    ///   </item>
     ///   <item>
     ///     <description>There are pending model changes not yet reflected in a migration.</description>
     ///   </item>
@@ -62,8 +64,16 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
     ///   <item>
     ///     <description>The prototype flag in <see cref="DrnDevelopmentSettings"/> is enabled.</description>
     ///   </item>
+    ///   <item>
+    ///     <description><see cref="DrnDevelopmentSettings.AutoMigrateDevelopment"/> is enabled.</description>
+    ///   </item>
+    ///   <item>
+    ///     <description>No migrations have been applied, or applied migrations exist and <see cref="UsePrototypeModeWhenMigrationExists"/> is enabled.</description>
+    ///   </item>
     /// </list>
     /// 
+    /// Staging auto-migration applies migrations only and cannot enable prototype recreation.
+    ///
     /// If the prototype flag in <see cref="DrnDevelopmentSettings"/> is disabled, the database is never recreated—
     /// even if <see cref="UsePrototypeMode"/> is enabled and model changes are detected.
     /// </summary>

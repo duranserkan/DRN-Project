@@ -1,7 +1,7 @@
 ---
 name: drn-utils
-description: DRN.Framework.Utils - Attribute-based dependency injection ([Scoped<T>], [Singleton<T>], [Transient<T>], [HostedService], [Config]), IAppSettings configuration pattern, logging infrastructure, validators, extension methods, and core utilities. Foundational for service registration, configuration management, and cross-cutting concerns. Keywords: dependency-injection, di, service-registration, configuration, appsettings, logging, scoped-log, validators, attributes, scoped, singleton, transient, config, extensions, http-client
-last-updated: 2026-06-06
+description: "DRN.Framework.Utils - Attribute-based dependency injection ([Scoped<T>], [Singleton<T>], [Transient<T>], [HostedService], [Config]), IAppSettings configuration pattern, logging infrastructure, validators, extension methods, and core utilities. Foundational for service registration, configuration management, and cross-cutting concerns. Keywords: dependency-injection, di, service-registration, configuration, appsettings, logging, scoped-log, validators, attributes, scoped, singleton, transient, config, extensions, http-client"
+last-updated: 2026-06-12
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -115,7 +115,9 @@ public class RootSettings { }
 
 ### Configuration Sources (in order, later overrides earlier)
 
-1. `appsettings.json` → 2. `appsettings.{Environment}.json` → 3. User secrets → 4. Environment variables → 5. Mounted settings (`/appconfig/`) → 6. Command line arguments
+Canonical copy: [Maintenance Reference: Configuration Sources](../overview-drn-framework/SKILL.md#maintenance-reference-configuration-sources).
+
+1. `appsettings.json` → 2. `appsettings.{Environment}.json` → 3. User secrets when the application assembly is available → 4. Environment variables → 5. Mounted settings (`/appconfig`) → 6. Command line arguments
 
 Override mount directory via `IMountedSettingsConventionsOverride`.
 
