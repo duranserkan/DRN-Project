@@ -1,6 +1,6 @@
 ---
 name: overview-github-actions
-description: "CI/CD and deployment - GitHub Actions workflows (develop, pull-request, master, release), composite actions, Docker publishing with SBOM/provenance, NuGet package publishing, and security scanning (SonarCloud, CodeQL). Complete deployment pipeline documentation. Keywords: cicd, github-actions, deployment, docker, nuget, security-scanning, sonarcloud, codeql, release-management, continuous-integration"
+description: "CI/CD and deployment - GitHub Actions workflows (develop, pull-request, master, release), composite actions, Docker multi-platform publishing with SBOM/provenance, NuGet package publishing, and security scanning (SonarCloud, CodeQL). Complete deployment pipeline documentation. Keywords: cicd, github-actions, deployment, docker, nuget, security-scanning, sonarcloud, codeql, release-management, continuous-integration"
 last-updated: 2026-06-11
 difficulty: intermediate
 tokens: ~0.5K
