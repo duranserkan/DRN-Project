@@ -8,12 +8,14 @@ description: Implement requirements from a clarified document using DiSCOS, AGEN
 ---
 
 ## 1. Resolve Input
+
 - **Explicit path** (e.g., `/develop .agent/temp/DEVELOP-x.md` or `.agent/temp/CLARIFY-x.md`): Use that file.
-- **No arguments**: Scan `.agent/temp/` for `DEVELOP-*.md`, then `CLARIFY-*.md`. If single, use it. If multiple, ask. If none or inline only, direct to `/clarify` then `/answer`.
+- **No arguments**: Scan `.agent/temp/` for `DEVELOP-*.md`, then `CLARIFY-*.md`; use a single matching file directly, prompt the user when multiple are found, and when none exist or only inline input is provided, direct them to `/clarify` then `/answer`.
 
 ---
 
 ## 2. Validate Status
+
 Read YAML `status`:
 - `ready-to-develop`: Proceed to §3.
 - `clarified`: Abort and run `/answer` §7 to produce `.agent/temp/DEVELOP-*.md`, then re-run `/develop` on that file.
@@ -22,6 +24,7 @@ Read YAML `status`:
 - `implemented`: Warn user. Resume only on explicit confirmation.
 
 ### 2a. .agent/temp/CLARIFY-*.md Lightweight Gate (if skipping `/answer`)
+
 Verify:
 - [ ] No `[ASSUMPTION - unverified]` tags in PBIs.
 - [ ] Every PBI has acceptance criteria.
@@ -29,11 +32,13 @@ Verify:
 All pass → proceed to §3. Any failure → redirect to `/answer`.
 
 ### 2b. Staleness Check
+
 If input is `.agent/temp/DEVELOP-*.md`, compare modification date with source `.agent/temp/CLARIFY-*.md`. If source is newer, warn user and recommend re-running `/answer` §7.
 
 ---
 
 ## 3. Load Context & Skills
+
 1. **Read Guidance**:
    - `view_file AGENTS.md` · `view_file .agent/repository-profile.md`
    - `.agent/skills/overview-skill-index/SKILL.md`
@@ -51,6 +56,7 @@ If input is `.agent/temp/DEVELOP-*.md`, compare modification date with source `.
 ---
 
 ## 4. Plan Implementation
+
 For each PBI (in priority order):
 1. **Identify**: Affected existing/new files.
 2. **Map**: Concrete tasks.
@@ -61,6 +67,7 @@ For each PBI (in priority order):
 *Presentation*: Trivial/Standard (summarize and proceed); Significant/Critical (wait for explicit approval). Maintain a checklist if PBIs ≥ 3.
 
 ### 4a. Version Control Setup
+
 - If already on task branch, use it. Otherwise, checkout `feature/[task-name-or-id] develop` (or `fix/[id] master` for hotfixes).
 - If branch creation fails (permissions, protected, read-only), notify user and **continue on current branch**.
 - Commit per PBI using conventional commits (`feat(Scope): desc`). **Do not push.**
@@ -68,6 +75,7 @@ For each PBI (in priority order):
 ---
 
 ## 5. Execute
+
 Follow the Development Loop per PBI:
 1. **Discovery**: Outline and target-read existing code.
 2. **Implement**: Smallest testable unit first, using conventions.
@@ -83,11 +91,13 @@ Follow the Development Loop per PBI:
    - Failures → Self-Correction Loop.
 
 ### Self-Correction Loop
+
 Build/test fails → Fix → Re-verify. Stop after **2 failed attempts** on the same issue; report errors, hypotheses, and proposed next steps.
 
 ---
 
 ## 6. Verify
+
 After all PBIs are implemented:
 1. **Build & Test**: Run only if allowed by user.
    - `<build command>` · `<unit test command>` · `<integration test command>`
@@ -100,6 +110,7 @@ After all PBIs are implemented:
 ---
 
 ## 7. Report & Update Status
+
 1. **Walkthrough Report**: Create walkthrough artifact containing:
    - Source document and implemented PBIs.
    - Changes table (PBI → Files Changed → Tests Added → Status).

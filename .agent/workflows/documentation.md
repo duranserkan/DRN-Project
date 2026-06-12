@@ -1,4 +1,5 @@
 ---
+title: Documentation Workflow
 description: Generate and update per-module README.md and RELEASE-NOTES.md from repository-profile documentation modules while preserving human-written content.
 ---
 
@@ -8,11 +9,13 @@ description: Generate and update per-module README.md and RELEASE-NOTES.md from 
 ---
 
 ## 1. Role & Mandate
+
 **Documentation Engineer**: Maintain module `README.md` and `RELEASE-NOTES.md` files in sync with code. Preserve human-written content and exclude root files unless profile-declared.
 
 ---
 
 ## 2. Resolve Scope & Sub-Command
+
 Use the default module set from `.agent/repository-profile.md` `Documentation Modules`. Fallback: find folders with project manifests containing `README.md` or `RELEASE-NOTES.md`.
 
 | Invocation | Scope | Action |
@@ -27,17 +30,21 @@ Use the default module set from `.agent/repository-profile.md` `Documentation Mo
 ---
 
 ## 3. Load Context
+
 For scoped modules:
+
 ```bash
 view_file <Module>/README.md
 view_file <Module>/RELEASE-NOTES.md
 view_file_outline <Module>/<manifest-file>
 ```
+
 Read source files. If `.agent/temp/DEVELOP-*.md` exists, read it; otherwise, infer changes from git history (tag inferred as `[ASSUMPTION]`).
 
 ---
 
 ## 4. Drift Scan
+
 Scan before editing:
 1. Extract README headers, referenced types, methods, and config keys.
 2. Extract source public elements.
@@ -50,6 +57,7 @@ Scan before editing:
 ---
 
 ## 5. Preserve Human-Written Sections
+
 Do not reorder headings or modify custom narrative without explicit confirmation. Preserve verbatim:
 - Badges block (top of file)
 - Blockquote description (after title)
@@ -58,7 +66,9 @@ Do not reorder headings or modify custom narrative without explicit confirmation
 ---
 
 ## 6. README Updates
+
 For stubs or new modules, use this template:
+
 ````markdown
 # <Module Name>
 [Description]
@@ -88,6 +98,7 @@ minimal example
 ---
 
 ## 7. RELEASE-NOTES Updates
+
 Append new version block *above* existing history. Never rewrite history.
 - Include only changes since the last documented version.
 - Omit empty subsections; include breaking changes.
@@ -96,7 +107,9 @@ Append new version block *above* existing history. Never rewrite history.
 ---
 
 ## 8. Review & Confirm
+
 Present changes and wait for approval before writing:
+
 ```markdown
 ## Documentation Change Plan
 ### <Module Name>
@@ -109,6 +122,7 @@ RELEASE-NOTES.md version: ...
 ---
 
 ## 9. Write & Verify
+
 1. Write files.
 2. Read first 20 lines and touched sections to verify layout.
 3. Run `git diff --check`.

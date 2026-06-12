@@ -84,7 +84,10 @@ Self-review answers:
 ## 7. Produce Clean Development Document
 Transform `.agent/temp/CLARIFY-*.md` into self-contained, traceable, and decisive `.agent/temp/DEVELOP-[task-slug].md`.
 
-### Mapping Table
+### Transformation Examples
+
+The examples below are illustrative transformations, not an exhaustive 1:1 mapping.
+
 | CLARIFY-*.md section | DEVELOP-*.md section |
 |---|---|
 | `Discovery & Guidance` → `Context/Files to Read` | `Architecture Guidance` → `Domain Boundaries` |

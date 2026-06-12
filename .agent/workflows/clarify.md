@@ -8,11 +8,13 @@ description: Clarify a user-given task into requirements as Technical Business A
 ---
 
 ## 1. Role & Mandate
+
 **Technical Business Analyst**: Bridge business intent and technical architecture. Research autonomously first, resolve ambiguities, and ensure all requirements are testable.
 
 ---
 
 ## 2. Capture Raw Input
+
 1. Record user task description verbatim under `## Raw Input`. If < 1 sentence or too vague, ask user to expand.
 2. Create document `.agent/temp/CLARIFY-[task-slug].md` (unless user specifies path).
 3. If file exists, ask to overwrite or rename.
@@ -21,6 +23,7 @@ description: Clarify a user-given task into requirements as Technical Business A
 ---
 
 ## 3. Self-Research & Enrichment
+
 Before asking questions, research to minimize round-trips (max 20% budget):
 - **Recommended**: Run `/search` to gather context (codebase, KIs, skills, web). Results append to `## Enrichment Context`.
 - **Fallback**: Manually search files, `.agent/skills/overview-skill-index/SKILL.md`, and external references.
@@ -29,6 +32,7 @@ Write findings under `## Enrichment Context` subheadings: Codebase Findings, Kno
 ---
 
 ## 4. First-Principles Analysis
+
 Silently analyze raw input and context:
 - **Five Whys** (root purpose) · **MECE** (complete decomposition)
 - **Inversion** (what to avoid/fail modes) · **Second-Order Thinking**
@@ -37,6 +41,7 @@ Silently analyze raw input and context:
 ---
 
 ## 5. Ask Clarification Questions
+
 Batch questions in a single numbered list (5–8 questions per round, prioritizing blockers).
 - **Demand references**: Ask for files/URLs when existing designs/docs are mentioned.
 - **Flag assumptions**: State explicitly, asking for validation.
@@ -45,6 +50,7 @@ Batch questions in a single numbered list (5–8 questions per round, prioritizi
 ---
 
 ## 6. Iterate Until Clarity
+
 For each round of responses:
 1. Integrate answers into the document.
 2. Apply First-Principles Analysis to the updated state.
@@ -56,6 +62,7 @@ For each round of responses:
 ---
 
 ## 7. Decompose Into Deliverables
+
 - **Requirements**: ID (REQ-NNN), Type (Functional/Non-Functional), Description, Acceptance Criteria, Priority (MoSCoW), Source.
 - **Epics**: ID (EPIC-NNN), Title, Description, linked REQs. *Skip if flat backlog (≤4 PBIs, single value area).*
 - **PBIs**: ID (PBI-NNN), Epic, Title, User Story, Acceptance Criteria, Priority, Size (S/M/L/XL), Dependencies, Context (skills, files), Assumptions.
@@ -65,6 +72,7 @@ For each round of responses:
 ---
 
 ## 8. Quality Gate — Priority Stack
+
 Evaluate output top-down. Failure at higher level blocks lower gates.
 
 | Gate | Question |
@@ -78,9 +86,11 @@ Evaluate output top-down. Failure at higher level blocks lower gates.
 ---
 
 ## 9. Output Artifact
+
 Verify all §8 gates and INVEST pass. Set `status: draft-self-reviewed`.
 
 ### Pre-presentation Checklist
+
 - [ ] §8 Priority Stack gates pass
 - [ ] INVEST valid for all PBIs
 - [ ] No unresolved `[ASSUMPTION - unverified]`
@@ -88,6 +98,7 @@ Verify all §8 gates and INVEST pass. Set `status: draft-self-reviewed`.
 - [ ] `/review` passed (no 🔴 Critical findings)
 
 ### Document Skeleton
+
 ```markdown
 ---
 status: draft  # advances to 'clarifying' when §5 begins; never set 'clarified' here
@@ -156,6 +167,7 @@ clarified:
 ---
 
 ## 10. Handoff
+
 Present the `draft-self-reviewed` document and stop.
 - **Default**: User manually runs `/answer` or `/develop`.
 - **`/clarify auto`**: Invokes `/answer auto` immediately after presentation.

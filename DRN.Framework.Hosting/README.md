@@ -392,6 +392,7 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
 > Disabling MFA removes a critical security layer. Only do this for internal applications on secured networks.
 
 ### 3. Content Security Policy (Nonce-based)
+
 DRN automatically generates a unique cryptographic nonce for every request.
 *   **Baseline**: `default-src 'none'` with explicit same-origin allowlists for styles, images, fonts, connections, media, manifests, and workers.
 *   **Automatic Protection**: Inline scripts and inline style elements without a matching nonce are blocked by the browser, stopping most XSS attacks.
@@ -831,6 +832,7 @@ The warm-up client only accepts loopback base addresses before installing its ce
 Use `DRN.Framework.Testing` to provision Postgres during local development without manual Docker management.
 
 ### 1. Add Conditional Reference
+
 Add the following to your `.csproj` file to ensure the testing library and Testcontainers dependencies are only included during development.
 
 ```xml

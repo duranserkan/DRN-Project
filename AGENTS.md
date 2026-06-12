@@ -46,8 +46,11 @@ Use the repository profile first. If it is missing or silent, discover by conven
 ## Skill Discovery
 
 - Skill index: `.agent/skills/overview-skill-index/SKILL.md`.
+- Standard overview loader: `.agent/workflows/load-skills-overview.md` is the recommended loader for portable `overview-*` skills.
+- Discover portable overview skills from the skill index and load only the `overview-*` skills relevant to the task.
+- Include framework-specific `overview-drn-*` skills only when `.agent/repository-profile.md` declares the repository uses DRN Framework or the active task explicitly needs that framework context.
 - Load all skills only when the task explicitly needs broad repository context.
-- Prefer task-specific workflows such as `.agent/workflows/load-skills-basic.md`, `.agent/workflows/load-skills-test.md`, or repository-profile workflows.
+- Prefer task-specific workflows such as `.agent/workflows/load-skills-overview.md`, `.agent/workflows/load-skills-basic.md`, `.agent/workflows/load-skills-test.md`, or repository-profile workflows.
 
 ## Working Rules
 
