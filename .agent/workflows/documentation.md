@@ -33,7 +33,7 @@ view_file <Module>/README.md
 view_file <Module>/RELEASE-NOTES.md
 view_file_outline <Module>/<manifest-file>
 ```
-Read source files. If `DEVELOP-*.md` exists, read it; otherwise, infer changes from git history (tag inferred as `[ASSUMPTION]`).
+Read source files. If `.agent/temp/DEVELOP-*.md` exists, read it; otherwise, infer changes from git history (tag inferred as `[ASSUMPTION]`).
 
 ---
 

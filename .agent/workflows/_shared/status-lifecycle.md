@@ -19,7 +19,7 @@ draft → clarifying → draft-self-reviewed → clarified → ready-to-develop 
 | `clarifying` | First question round begins (§5) | `/clarify` |
 | `draft-self-reviewed` | Gates and checklist pass (§9) | `/clarify` |
 | `clarified` | Approval criteria met (§6) | `/answer` |
-| `ready-to-develop` | `DEVELOP-*.md` produced (§7) | `/answer` |
+| `ready-to-develop` | `.agent/temp/DEVELOP-*.md` produced (§7) | `/answer` |
 | `implemented` | User approves final report (§7b) | `/develop` |
 
 ### Re-entry

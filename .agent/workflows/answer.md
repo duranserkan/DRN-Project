@@ -14,16 +14,16 @@ description: Answer clarification questions as Technical Product Owner, approve 
 
 ## 2. Resolve Input
 Identify the active clarification document:
-- **Explicit path** (e.g., `/answer CLARIFY-x.md`): Use that file.
-- **With user insights** (e.g., `/answer CLARIFY-x.md "We need OAuth2"`): Use file + integrate insights.
-- **No arguments**: Scan root for `CLARIFY-*.md`. If single, use it. If multiple, ask. If none, stop: *"No clarification document found. Run `/clarify [task]` first."*
+- **Explicit path** (e.g., `/answer .agent/temp/CLARIFY-x.md`): Use that file.
+- **With user insights** (e.g., `/answer .agent/temp/CLARIFY-x.md "We need OAuth2"`): Use file + integrate insights.
+- **No arguments**: Scan `.agent/temp/` for `CLARIFY-*.md`. If single, use it. If multiple, ask. If none, stop: *"No clarification document found. Run `/clarify [task]` first."*
 
 Read the document fully: raw input, enrichment, open questions, iteration history.
 
 ---
 
 ## 3. Enrich Context
-Review `## Enrichment Context`. If gaps exist relevant to open questions, conduct targeted research (max 20% budget, do not repeat `/clarify` research). Append to `CLARIFY-*.md`:
+Review `## Enrichment Context`. If gaps exist relevant to open questions, conduct targeted research (max 20% budget, do not repeat `/clarify` research). Append to the active `.agent/temp/CLARIFY-*.md` document:
 ```markdown
 ### Supplementary Context _(by: /answer)_
 - [Additional findings relevant to open questions]
@@ -45,7 +45,7 @@ Read questions in `## Clarification Q&A`. For each:
 Integrate user insights arguments. Use **TRIZ** for competing constraints. If resource conflicts remain, apply **Priority Stack** (Security > Correctness > Clarity > Simplicity > Performance).
 *Note*: If answering reveals major new scope, return to `/clarify`. For direct user answers, validate consistency and suggest improvements without overriding.
 
-Write directly into `CLARIFY-*.md` under `## Clarification Q&A`:
+Write directly into the active `.agent/temp/CLARIFY-*.md` document under `## Clarification Q&A`:
 ```markdown
 **Answers** _(by: /answer)_:
 1. [answer with PO rationale]
@@ -82,7 +82,7 @@ Self-review answers:
 ---
 
 ## 7. Produce Clean Development Document
-Transform `CLARIFY-*.md` into self-contained, traceable, and decisive `DEVELOP-[task-slug].md`.
+Transform `.agent/temp/CLARIFY-*.md` into self-contained, traceable, and decisive `.agent/temp/DEVELOP-[task-slug].md`.
 
 ### Mapping Table
 | CLARIFY-*.md section | DEVELOP-*.md section |
@@ -98,7 +98,7 @@ Transform `CLARIFY-*.md` into self-contained, traceable, and decisive `DEVELOP-[
 status: ready-to-develop
 title: [Task Title]
 created: [ISO 8601 date]
-source: CLARIFY-[task-slug].md
+source: .agent/temp/CLARIFY-[task-slug].md
 ---
 
 # [Task Title]
@@ -139,21 +139,21 @@ source: CLARIFY-[task-slug].md
 - **Simplicity**: ✅ [brief note]
 - **Performance**: ✅ [brief note]
 ```
-Run `/review` on `DEVELOP-*.md` before presenting (must be ✅ or ⚠️).
+Run `/review` on `.agent/temp/DEVELOP-*.md` before presenting (must be ✅ or ⚠️).
 
 ---
 
 ## 8. Handoff to `/develop`
-Present `DEVELOP-*.md` and stop.
+Present `.agent/temp/DEVELOP-*.md` and stop.
 
 | Mode | Action |
 |------|--------|
-| **Default** | User manually runs `/develop DEVELOP-[task-slug].md` |
+| **Default** | User manually runs `/develop .agent/temp/DEVELOP-[task-slug].md` |
 | **`/answer auto`** | Present document, ask confirmation prompt below, require explicit "yes" before running `/develop` |
-| **User changes** | Update `DEVELOP-*.md` directly (minor) or return to `/clarify` (major) |
+| **User changes** | Update `.agent/temp/DEVELOP-*.md` directly (minor) or return to `/clarify` (major) |
 
 **`/answer auto` confirmation prompt**:
-> ⚠️ **Confirmation required** — `/answer auto` is about to invoke `/develop DEVELOP-[task-slug].md`.
+> ⚠️ **Confirmation required** — `/answer auto` is about to invoke `/develop .agent/temp/DEVELOP-[task-slug].md`.
 > Review the document above. Type **yes** to proceed or **no** to stop here.
 
 > [!WARNING]

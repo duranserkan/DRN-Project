@@ -14,8 +14,9 @@
 !.sample-env
 
 # Agent workflow state
-.agent/update-plan.md
-.agent/update-verify-progress.md
+.agent/temp/*
+!.agent/temp/.gitkeep
+
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

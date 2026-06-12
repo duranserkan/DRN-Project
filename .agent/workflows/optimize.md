@@ -22,7 +22,7 @@ description: Optimize agent-consumed content using DiSCOS and AGENTS.md (skills,
   | `docs` | `README.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/**/*.md` |
   | `all` | All of the above |
 - **No arguments**: Ask user for target.
-- **Exclusions**: Never optimize `AGENTS.md`, `DiSCOS.md`, or `CLARIFY-*/DEVELOP-*` files with status `draft`, `draft-self-reviewed`, or `clarifying`.
+- **Exclusions**: Never optimize `AGENTS.md`, `DiSCOS.md`, or `.agent/temp/CLARIFY-*` / `.agent/temp/DEVELOP-*` files with status `draft`, `draft-self-reviewed`, or `clarifying`.
 - **Skill loading**: Track loaded skills to prevent redundant reads.
 
 ---

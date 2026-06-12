@@ -47,7 +47,7 @@ read_url_content "<url>"
 ---
 
 ## 4. Assemble Output
-Write to `## Enrichment Context` in `CLARIFY-*.md` (embedded) or standalone:
+Write to `## Enrichment Context` in `.agent/temp/CLARIFY-*.md` (embedded) or standalone:
 
 ```markdown
 ### Search Context _(by: /search)_
@@ -77,5 +77,5 @@ Write to `## Enrichment Context` in `CLARIFY-*.md` (embedded) or standalone:
 ---
 
 ## 5. Handoff
-- **Embedded**: Append section to `## Enrichment Context` in `CLARIFY-*.md` and go to §4 (clarify.md).
+- **Embedded**: Append section to `## Enrichment Context` in `.agent/temp/CLARIFY-*.md` and go to §4 (clarify.md).
 - **Standalone**: Present search context and stop.

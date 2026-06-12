@@ -134,7 +134,7 @@ Wait for user confirmation (affirmative like `yes`, `ok`, `confirmed`).
 ---
 
 ## 5. Generate Plan File
-Serialize report and plan to `.agent/update-plan.md`.
+Serialize report and plan to `.agent/temp/update-plan.md`.
 - **No plan file**: Run §2-§4 (within scope); write plan with affected as `pending`, others as `skipped`.
 - **`outlined` / `planning`**: Detail next outlined stages to `pending`.
 - **All pending/skipped resolved**: Set overall status to `ready`.

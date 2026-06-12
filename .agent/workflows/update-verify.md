@@ -9,7 +9,7 @@ description: Verification phase of /update — validate skill-body content again
 ---
 
 ## 0. Progress File Contract
-**Location**: `.agent/update-verify-progress.md` (ephemeral progress file).
+**Location**: `.agent/temp/update-verify-progress.md` (ephemeral progress file).
 If missing, initialize from template. If found, resume from the first actionable stage:
 - `pending` / `executing`: continue normally.
 - `fail`: reset to `pending` and re-run after corrections.
@@ -19,7 +19,7 @@ If missing, initialize from template. If found, resume from the first actionable
 ### 0.1 Progress File Template
 ```markdown
 # Update Verification Progress
-> Generated: <timestamp> | Status: verifying | verified | failed | Plan: .agent/update-plan.md
+> Generated: <timestamp> | Status: verifying | verified | failed | Plan: .agent/temp/update-plan.md
 
 ## Stage 0: Structural Integrity
 > Status: pending | skipped | executing | pass | fail | blocked
@@ -40,7 +40,7 @@ If missing, initialize from template. If found, resume from the first actionable
 ```
 
 - **Dynamic Stage Generation**: Generate one verification stage per project-family prefix. Unaffected families are marked `skipped`.
-- **Failed Re-Verification**: When `.agent/update-plan.md` has `Status: failed`, reset failed verification stages to `pending` before resuming. If Stage 0 previously failed, reset Stage 0 first; after it passes, reset blocked later stages to `pending`.
+- **Failed Re-Verification**: When `.agent/temp/update-plan.md` has `Status: failed`, reset failed verification stages to `pending` before resuming. If Stage 0 previously failed, reset Stage 0 first; after it passes, reset blocked later stages to `pending`.
 - **Verdict Rules**:
   - `pass`: No `❌` errors; minor `⚠️` warnings allowed (estimate delta ≤ 10%, cosmetic prose).
   - `fail`: Any `❌` error or a critical `⚠️` warning.
@@ -97,8 +97,8 @@ Aggregate results across executed stages:
 ## ✅ Verification Complete
 All stages passed. Skill content is aligned.
 **Next steps:**
-1. Review `.agent/update-verify-progress.md` for warnings.
-2. Delete `.agent/update-plan.md` and `.agent/update-verify-progress.md`.
+1. Review `.agent/temp/update-verify-progress.md` for warnings.
+2. Delete `.agent/temp/update-plan.md` and `.agent/temp/update-verify-progress.md`.
 3. Commit: `git add .agent/ && git commit -m "chore(skills): sync agent configuration"`
 ```
 

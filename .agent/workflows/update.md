@@ -11,12 +11,12 @@ description: Sync AGENTS.md, skill index, group loaders, and load-skills-all.md 
 ---
 
 ## 1. Architecture
-`/update` is a stateful orchestrator. It reads `.agent/update-plan.md`, detects progress, and delegates or resumes via the state machine. Run repeatedly until status is `verified`.
+`/update` is a stateful orchestrator. It reads `.agent/temp/update-plan.md`, detects progress, and delegates or resumes via the state machine. Run repeatedly until status is `verified`.
 
 ```mermaid
 flowchart LR
     A["/update"] --> B{"plan status?"}
-    B -- "no plan / outlined / planning" --> C["update-plan.md"]
+    B -- "no plan / outlined / planning" --> C["temp/update-plan.md"]
     B -- "ready" --> D["review.md\n(plan)"]
     B -- "plan-reviewed / executing" --> E["update-execute.md"]
     B -- "done" --> F["review.md\n(changes)"]
@@ -48,19 +48,19 @@ Emit a Situation Report before and after delegation:
 Upon `verified` status:
 ```markdown
 ## ✅ Update Complete
-Delete `.agent/update-plan.md` and `.agent/update-verify-progress.md` before staging, then commit:
+Delete `.agent/temp/update-plan.md` and `.agent/temp/update-verify-progress.md` before staging, then commit:
 `git add .agent/ && git commit -m "chore(skills): sync agent configuration"`
 ```
 
 ---
 
 ## 3. Detect State & Delegate
-Run `view_file .agent/update-plan.md`. If missing, state is `no-plan`. Else, parse `Status:` and `Scope:`.
+Run `view_file .agent/temp/update-plan.md`. If missing, state is `no-plan`. Else, parse `Status:` and `Scope:`.
 
 | State | Action | Delegate To | Post-Condition |
 |-------|--------|-------------|----------------|
 | No plan / `outlined` / `planning` | Plan discovery/detailing | `update-plan.md` | — |
-| `ready` | Plan review | `review.md` (scope: `.agent/update-plan.md`) | No 🔴 Critical → `plan-reviewed`; otherwise keep `ready` |
+| `ready` | Plan review | `review.md` (scope: `.agent/temp/update-plan.md`) | No 🔴 Critical → `plan-reviewed`; otherwise keep `ready` |
 | `plan-reviewed` | Fresh execution start | `update-execute.md` (Stage 1) | — |
 | `executing` | Resume execution | `update-execute.md` (resume) | — |
 | `done` | Changes review | `review.md` (scope table below) | No 🔴 Critical → `reviewed`; otherwise keep `done` |
@@ -75,7 +75,7 @@ Run `view_file .agent/update-plan.md`. If missing, state is `no-plan`. Else, par
 ---
 
 ## 4. Plan File Contract
-**Location**: `.agent/update-plan.md`
+**Location**: `.agent/temp/update-plan.md`
 **Lifecycle**: `outlined` → `planning` → `ready` → `plan-reviewed` → `executing` → `done` → `reviewed` → `verifying` → `verified` (or `failed` → re-verify).
 
 ### Structure
@@ -153,7 +153,7 @@ Run `view_file .agent/update-plan.md`. If missing, state is `no-plan`. Else, par
 ---
 
 ## 5. Operational Guarantees
-- **Stateful**: Ephemeral `.agent/update-plan.md` stores state across sessions.
+- **Stateful**: Ephemeral `.agent/temp/update-plan.md` stores state across sessions.
 - **Idempotent & Reversible**: Git-tracked changes, no backups.
 - **Scope-aware**: SKIPPED states for out-of-scope stages.
 - **Safe**: Manual deletion for skills, prefix mappings require approval.

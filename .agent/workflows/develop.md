@@ -8,20 +8,20 @@ description: Implement requirements from a clarified document using DiSCOS, AGEN
 ---
 
 ## 1. Resolve Input
-- **Explicit path** (e.g., `/develop DEVELOP-x.md` or `CLARIFY-x.md`): Use that file.
-- **No arguments**: Scan root for `DEVELOP-*.md`, then `CLARIFY-*.md`. If single, use it. If multiple, ask. If none or inline only, direct to `/clarify` then `/answer`.
+- **Explicit path** (e.g., `/develop .agent/temp/DEVELOP-x.md` or `.agent/temp/CLARIFY-x.md`): Use that file.
+- **No arguments**: Scan `.agent/temp/` for `DEVELOP-*.md`, then `CLARIFY-*.md`. If single, use it. If multiple, ask. If none or inline only, direct to `/clarify` then `/answer`.
 
 ---
 
 ## 2. Validate Status
 Read YAML `status`:
 - `ready-to-develop`: Proceed to §3.
-- `clarified`: Abort and run `/answer` §7 to produce `DEVELOP-*.md`, then re-run `/develop` on that file.
+- `clarified`: Abort and run `/answer` §7 to produce `.agent/temp/DEVELOP-*.md`, then re-run `/develop` on that file.
 - `draft-self-reviewed`: Proceed only via §2a gate (skip `/answer` path).
 - `draft` / `clarifying` / Missing: Abort; direct to `/clarify` + `/answer`.
 - `implemented`: Warn user. Resume only on explicit confirmation.
 
-### 2a. CLARIFY-*.md Lightweight Gate (if skipping `/answer`)
+### 2a. .agent/temp/CLARIFY-*.md Lightweight Gate (if skipping `/answer`)
 Verify:
 - [ ] No `[ASSUMPTION - unverified]` tags in PBIs.
 - [ ] Every PBI has acceptance criteria.
@@ -29,7 +29,7 @@ Verify:
 All pass → proceed to §3. Any failure → redirect to `/answer`.
 
 ### 2b. Staleness Check
-If input is `DEVELOP-*.md`, compare modification date with source `CLARIFY-*.md`. If source is newer, warn user and recommend re-running `/answer` §7.
+If input is `.agent/temp/DEVELOP-*.md`, compare modification date with source `.agent/temp/CLARIFY-*.md`. If source is newer, warn user and recommend re-running `/answer` §7.
 
 ---
 

@@ -75,7 +75,7 @@ Write as an artifact in task mode. Omit empty sections.
 
 ### `/update` State Hook
 When `/review` is invoked by `/update`, it owns the review state transition:
-- Reviewing `.agent/update-plan.md` from `Status: ready`: if no 🔴 Critical findings, update the plan header to `Status: plan-reviewed`; otherwise leave it `ready`.
+- Reviewing `.agent/temp/update-plan.md` from `Status: ready`: if no 🔴 Critical findings, update the plan header to `Status: plan-reviewed`; otherwise leave it `ready`.
 - Reviewing `/update` changes from `Status: done`: if no 🔴 Critical findings, update the plan header to `Status: reviewed`; otherwise leave it `done`.
 
 ### Report Template

@@ -14,7 +14,7 @@ description: Clarify a user-given task into requirements as Technical Business A
 
 ## 2. Capture Raw Input
 1. Record user task description verbatim under `## Raw Input`. If < 1 sentence or too vague, ask user to expand.
-2. Create document `./CLARIFY-[task-slug].md` at repository root (unless user specifies path).
+2. Create document `.agent/temp/CLARIFY-[task-slug].md` (unless user specifies path).
 3. If file exists, ask to overwrite or rename.
 4. Set `status: draft`, advancing to `clarifying` when the first question round starts.
 
