@@ -33,7 +33,7 @@ List directories in `.agent/skills/` and read each `SKILL.md` frontmatter. Build
 | *(other)* | custom | `load-skills-custom.md` |
 
 - **Group loaders**: Regenerated fully.
-- **Task workflows**: Sync `view_file` listings in skill-loading sections; preserve other content.
+- **Task workflows**: Discover task workflows in `.agent/workflows/*.md`, including `clarify.md`, `answer.md`, `develop.md`, `review.md`, `search.md`, `optimize.md`, and `test.md`. Sync only skill-loading or shared-workflow reference sections; preserve other content.
 - **Cross-references**: Preserve prefix-mismatched inclusions; report new ones for confirmation.
 - *Note*: Do not confuse `drn-testing` (group `drn`) with `overview-drn-testing` (group `overview`).
 
@@ -85,7 +85,7 @@ For projects with a `README.md`:
 | Path Pattern | Stages |
 |--------------|--------|
 | `.agent/skills/<skill-dir>/SKILL.md` | Parent group in Stage 1, Stage 2, Stage 5 |
-| `.agent/workflows/load-skills-*.md`, `.agent/workflows/test.md`, `.agent/workflows/review.md`, `.agent/workflows/develop.md` | Stage 1, Stage 2, Stage 5 |
+| `.agent/workflows/load-skills-*.md` or task workflows such as `clarify.md`, `answer.md`, `develop.md`, `review.md`, `search.md`, `optimize.md`, `test.md` | Stage 1, Stage 2, Stage 5 |
 | `AGENTS.md`, `.agent/repository-profile.md` | Stage 3 |
 | `*.slnx`, `*.sln`, `*.csproj` | Stage 3, Stage 6 |
 | `.github/workflows/**`, `Directory.*.props`, `global.json`, `nuget.config`, `Dockerfile*`, `docker-compose*` | Stage 4 |
@@ -114,7 +114,7 @@ Flag `⚠️ Possibly irrelevant` when referenced folders/configs are absent:
 *Note*: Removals of flagged irrelevant skills require explicit user approval.
 
 ### 4.3 Code Reference Sampling
-Check $\ge 1$ code reference (types, paths, config keys) per skill via `grep_search`. Flag stale items: `⚠️ Stale reference in <skill>: <id> not found`. Do not auto-fix.
+Check at least one code reference (types, paths, config keys) per skill with text search. Flag stale items: `⚠️ Stale reference in <skill>: <id> not found`. Do not auto-fix.
 
 ### 4.4 Cross-References & Scope-Widening
 Detect cross-references and check if scoped changes affect other groups. Report wider impact and ask user (never auto-widen).

@@ -40,11 +40,12 @@ Resume from the first incomplete stage. Git commands are **read-only** (no commi
 
 ### 1.1 Group Loaders (`load-skills-*.md`)
 1. **Preserve**: YAML frontmatter, descriptions, `// turbo` annotations, and skill ordering.
-2. **Regenerate**: `view_file` entries; append new at the end.
+2. **Regenerate**: file-read entries; append new at the end.
 3. **Update**: Token estimate = Sum of skill sizes ÷ 4, rounded to 0.1K.
 
-### 1.2 Task Workflows (`test.md`, `review.md`, `develop.md`)
-Sync only the `view_file` list in the skill-loading sections. Preserve surrounding instructions.
+### 1.2 Task Workflows
+Discover task workflows in `.agent/workflows/*.md`, including `clarify.md`, `answer.md`, `develop.md`, `review.md`, `search.md`, `optimize.md`, and `test.md`.
+Sync only skill-loading or shared-workflow reference sections. Preserve surrounding instructions.
 
 ### 1.3 Custom Group & Irrelevance Removal
 - Create/update `load-skills-custom.md` if custom skills exist.

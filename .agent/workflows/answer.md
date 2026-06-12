@@ -2,13 +2,15 @@
 description: Answer clarification questions as Technical Product Owner, approve documents, and produce clean development-ready documents. Use DiSCOS, AGENTS.md and repository skills guidance
 ---
 
-> **Pipeline**: `/clarify` → `/answer` (2/3) → `/develop` · [Status Lifecycle](./_shared/status-lifecycle.md)
+> **Pipeline**: `/clarify` -> `/answer` (2/3) -> `/develop` · [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
 > **Estimated context: ~1.2K tokens**
 
 ---
 
 ## 1. Role & Mandate
 **Technical Product Owner (co-TPO)**: Work with the user (TPO). TPO has domain authority; you bring analytical rigor, ROI framing, and Priority Stack discipline. Challenge scope creep and propose leaner alternatives.
+
+Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, and only needed skills.
 
 ---
 
@@ -23,10 +25,10 @@ Read the document fully: raw input, enrichment, open questions, iteration histor
 ---
 
 ## 3. Enrich Context
-Review `## Enrichment Context`. If gaps exist relevant to open questions, conduct targeted research (max 20% budget, do not repeat `/clarify` research). Append to the active `.agent/temp/CLARIFY-*.md` document:
+Review `## Enrichment Context`. If gaps exist relevant to open questions, conduct targeted research (max 20% budget, do not repeat `/clarify` research). Append findings to the matching existing enrichment subheading with `(by: /answer)` source tags:
 ```markdown
-### Supplementary Context _(by: /answer)_
-- [Additional findings relevant to open questions]
+### Codebase Findings
+- (by: /answer) [Additional finding relevant to open questions]
 ```
 
 ---
@@ -44,6 +46,7 @@ Read questions in `## Clarification Q&A`. For each:
   ```
 Integrate user insights arguments. Use **TRIZ** for competing constraints. If resource conflicts remain, apply **Priority Stack** (Security > Correctness > Clarity > Simplicity > Performance).
 *Note*: If answering reveals major new scope, return to `/clarify`. For direct user answers, validate consistency and suggest improvements without overriding.
+Accepted non-critical assumptions must be retagged `[ASSUMPTION - accepted]` and carried into `Risk Register` with impact, mitigation, and source. `[ASSUMPTION - unverified]` is a hard block.
 
 Write directly into the active `.agent/temp/CLARIFY-*.md` document under `## Clarification Q&A`:
 ```markdown
@@ -71,18 +74,18 @@ Self-review answers:
 | Criterion | Check |
 |---|---|
 | **All questions answered** | No open questions remain |
-| **No critical assumptions** | All `[ASSUMPTION - unverified]` resolved or accepted |
+| **No critical assumptions** | All `[ASSUMPTION - unverified]` resolved; accepted assumptions retagged `[ASSUMPTION - accepted]` with mitigation |
 | **Scope is clear** | In/out-of-scope unambiguous |
 | **Acceptance criteria exist** | Every requirement has testable criteria |
 | **Security addressed** | Security implications captured where relevant |
 
-- **All met** / **User explicitly approves**: Set `status: clarified` and `clarified: [ISO 8601 date]`. Go to §7.
-- **Partially met**: Document failures, notify user (BlockedOnUser: true), and align on steps.
+- **All criteria pass AND user explicitly approves**: Set `status: clarified`, `clarified: [ISO 8601 date]`, and `blocked_on_user: false`. Go to §7.
+- **Any criterion fails**: Keep the current status, document failures, set `blocked_on_user: true`, and align on steps.
 
 ---
 
 ## 7. Produce Clean Development Document
-Transform `.agent/temp/CLARIFY-*.md` into self-contained, traceable, and decisive `.agent/temp/DEVELOP-[task-slug].md`.
+Transform `.agent/temp/CLARIFY-*.md` into self-contained, traceable, and decisive `.agent/temp/DEVELOP-[task-slug].md`. Record source metadata so `/develop` can detect stale handoffs.
 
 ### Transformation Examples
 
@@ -90,9 +93,10 @@ The examples below are illustrative transformations, not an exhaustive 1:1 mappi
 
 | CLARIFY-*.md section | DEVELOP-*.md section |
 |---|---|
-| `Discovery & Guidance` → `Context/Files to Read` | `Architecture Guidance` → `Domain Boundaries` |
-| `Discovery & Guidance` → `Architectural Notes` | `Architecture Guidance` → `Patterns to Follow` + `Constraints` |
-| `Discovery & Guidance` → `Risks/Gotchas` | `Risk Register` |
+| `Discovery & Guidance` -> `Context/Files to Read` | `Implementation Context` -> `Context/Files to Read` |
+| `Discovery & Guidance` -> `Context/Files to Read` | `Architecture Guidance` -> `Domain Boundaries` |
+| `Discovery & Guidance` -> `Architectural Notes` | `Architecture Guidance` -> `Patterns to Follow` + `Constraints` |
+| `Discovery & Guidance` -> `Risks/Gotchas` | `Risk Register` |
 | `Assumptions & Open Items` (accepted) | `Risk Register` (as risks with mitigations) |
 
 ### Document Skeleton
@@ -102,6 +106,12 @@ status: ready-to-develop
 title: [Task Title]
 created: [ISO 8601 date]
 source: .agent/temp/CLARIFY-[task-slug].md
+source_status: clarified
+source_updated: [ISO 8601 timestamp or file mtime]
+source_sha256: [hash of source clarification document]
+needs_review: false
+stale: false
+approval_required: false
 ---
 
 # [Task Title]
@@ -122,6 +132,11 @@ source: .agent/temp/CLARIFY-[task-slug].md
 | ID | Epic | Title | User Story | Acceptance Criteria | Priority | Size | Dependencies | Context |
 |---|---|---|---|---|---|---|---|---|
 
+## Implementation Context
+- **Context/Files to Read**: [2-4 existing files/directories]
+- **Relevant Skills**: [skills actually needed]
+- **Verification Permissions**: [build/test allowed or not allowed by user/profile]
+
 ## Architecture Guidance
 - **Domain Boundaries**: [Affected aggregates, modules, layers]
 - **Patterns to Follow**: [Existing patterns to reuse]
@@ -129,8 +144,8 @@ source: .agent/temp/CLARIFY-[task-slug].md
 - **Constraints**: [Technical constraints shaping implementation]
 
 ## Risk Register
-| Risk | Impact | Mitigation |
-|---|---|---|
+| Risk | Impact | Mitigation | Source |
+|---|---|---|---|
 
 ## Dependency Map
 > _Include if PBI count > 4 or cross-PBI dependencies exist._
@@ -142,7 +157,7 @@ source: .agent/temp/CLARIFY-[task-slug].md
 - **Simplicity**: ✅ [brief note]
 - **Performance**: ✅ [brief note]
 ```
-Run `/review` on `.agent/temp/DEVELOP-*.md` before presenting (must be ✅ or ⚠️).
+Run `/review .agent/temp/DEVELOP-*.md` before presenting. If no 🔴 Critical findings remain, keep `needs_review: false`; otherwise set `needs_review: true` and block handoff.
 
 ---
 
@@ -153,11 +168,11 @@ Present `.agent/temp/DEVELOP-*.md` and stop.
 |------|--------|
 | **Default** | User manually runs `/develop .agent/temp/DEVELOP-[task-slug].md` |
 | **`/answer auto`** | Present document, ask confirmation prompt below, require explicit "yes" before running `/develop` |
-| **User changes** | Update `.agent/temp/DEVELOP-*.md` directly (minor) or return to `/clarify` (major) |
+| **User changes** | Update `.agent/temp/DEVELOP-*.md` directly only for minor changes, set `needs_review: true`, re-run `/review`, or return to `/clarify` for major changes |
 
 **`/answer auto` confirmation prompt**:
 > ⚠️ **Confirmation required** — `/answer auto` is about to invoke `/develop .agent/temp/DEVELOP-[task-slug].md`.
 > Review the document above. Type **yes** to proceed or **no** to stop here.
 
 > [!WARNING]
-> `/clarify auto` triggers `/answer auto`, which triggers `/develop` after confirmation. Safe only for low-risk, well-understood tasks. The confirmation gate is mandatory.
+> `/clarify auto` triggers `/answer auto`, which triggers `/develop` after confirmation. Safe only for low-risk tasks: no security, data, schema, public API, dependency, CI/CD, or infrastructure changes; small backlog; clear acceptance criteria; no `[ASSUMPTION - unverified]`. The confirmation gate is mandatory.
