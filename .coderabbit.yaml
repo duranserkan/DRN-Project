@@ -7,46 +7,231 @@ reviews:
     base_branches:
       - ".*"
   profile: assertive
+  review_status: true
+  review_details: false
+  poem: false
+  in_progress_fortune: false
+  enable_prompt_for_ai_agents: true
   path_filters:
-    - "!buildwww/**"
-    - "!**/*.lock"
+    - "!**/bin/**"
+    - "!**/obj/**"
+    - "!**/.DS_Store"
+    - "!Sample.Hosted/node_modules/**"
+    - "!**/wwwroot/**"
+    - "!Sample.Hosted/package-lock.json"
   path_instructions:
     - path: "DRN.Framework.*/**"
-      instructions: >
-        Framework package — verify backward compatibility for public API changes.
-        Check attribute-based DI ([Scoped], [Singleton], [Transient]) on all services.
-        Validate dependency direction matches hierarchy: SharedKernel → Utils → Hosting/EntityFramework → Testing.
+      instructions: |
+        Review as public DRN Framework package surface.
+        - Treat public types, members, configuration keys, serialized shapes, TagHelper attributes, and MSBuild targets as NuGet public API.
+        - Flag breaking or renaming changes unless package README and RELEASE-NOTES.md are updated with migration guidance.
+        - Enforce package dependency direction: SharedKernel has no DRN dependencies; Utils depends on SharedKernel; EntityFramework and Hosting depend on Utils; Testing may depend on EntityFramework and Hosting; production packages must not depend on Testing.
+        - Prefer attribute-based DI with [Scoped<T>], [Singleton<T>], [Transient<T>], [HostedService], [Config], and [ConfigRoot]; flag manual registration of attribute-decorated services unless it is an intentional test override or tryAdd:false multi-registration.
+        - Keep package READMEs self-contained for important behavior, defaults, config keys, examples, and public API.
+
+    - path: "DRN.Framework.Utils/Ids/**"
+      instructions: |
+        Source-Known ID and Source-Known Entity ID compatibility is security- and contract-sensitive.
+        - Treat byte layout, timestamp/tick precision, entity type placement, UUID marker bytes, MAC bytes, secure/plain conversion, parsing, and validation changes as breaking unless documented.
+        - Preserve ToSecure/ToPlain naming and behavior unless a breaking-change note and migration guidance are present.
+        - Require tests or explicit compatibility reasoning for layout, crypto, key derivation, parse, or validation changes.
+
+    - path: "DRN.Framework.SharedKernel/Domain/SourceKnownEntity*.cs"
+      instructions: |
+        Enforce the Source-Known entity contract.
+        - Entities keep long internal IDs and Guid external EntityId values.
+        - Every SourceKnownEntity type requires a unique [EntityType(byte)].
+        - Public contracts must not expose entities, long Id, or SourceKnownEntityId directly.
+        - DTO-facing APIs should expose Guid IDs only.
+
+    - path: "docs/draft-skid-00.md"
+      instructions: |
+        Keep SKID/SKEID documentation synchronized with DRN.Framework.Utils/Ids and DRN.Framework.SharedKernel entity-ID code.
+        - Flag stale byte-layout, tick, crypto, MAC, UUID, or naming descriptions.
+        - Security-sensitive identifier behavior needs precise wording and current examples.
+
+    - path: "DRN.Framework.Hosting/**"
+      instructions: |
+        Review as security-sensitive hosting framework code.
+        - Security defaults must remain fail-closed: MFA/auth boundaries, host filtering outside Development, CSP nonce support, secure cookies/headers, CSRF protection, and production-safe exception output.
+        - Preserve automatic CSRF support for hx-post, hx-put, hx-delete, and hx-patch unless a documented safe exception exists.
+        - Rate limit changes must avoid raw partition logging by default and clearly separate pre-auth singleton rules from post-auth scoped/user-aware rules.
+        - Preserve Vite manifest and SRI behavior: manifests discovered under WebRootPath or ContentRootPath/wwwroot, paths validated under output roots, integrity hashes kept valid, and buildTransitive target path kept package-compatible.
+
+    - path: "DRN.Framework.Jobs/**"
+      instructions: |
+        This package currently has very small public surface.
+        - New behavior establishes package API and must include README, RELEASE-NOTES.md, dependency-direction review, and tests.
+        - Clarify relationship to existing [HostedService] conventions and Hosting lifecycle behavior.
+
+    - path: "DRN.Framework.MassTransit/**"
+      instructions: |
+        This package currently has very small public surface.
+        - New messaging abstractions must document contracts, dependencies, RabbitMQ/Testcontainers behavior, and release notes.
+        - Message boundaries must use DTOs and Guid external IDs, not entities or internal long IDs.
+        - RabbitMQ startup should remain explicit unless documentation and tests prove otherwise.
+
     - path: "Sample.*/**"
-      instructions: >
-        DDD reference application — enforce layering rules:
-        Application orchestrates use cases with no direct DB access.
-        Infrastructure implements repository contracts from Domain.
-        Verify Source-Known ID pattern for entities (long internal + Guid external).
+      instructions: |
+        Review as the DDD reference application.
+        - Enforce layering: Contract has DTOs only; Domain owns entities and invariants; Infra owns DbContexts, EF configurations, migrations, and repository implementations; Application orchestrates use cases; Hosted owns controllers, Razor pages, endpoints, and web concerns.
+        - DTOs live in Sample.Contract, derive from Dto, and expose Guid IDs only.
+        - Public APIs return DTOs or PaginationResultModel<Dto>, never entities.
+        - SourceKnownEntity/AggregateRoot types need unique [EntityType((byte)...)] and should keep persistence details behind repository boundaries.
+        - Flag direct public DbContext usage, unbounded entity enumeration, and repository/API code that bypasses entity-ID validation.
+
     - path: "DRN.Nexus.*/**"
-      instructions: >
-        Nexus microservice hub — same DDD layering rules as Sample.
-        Verify service mesh patterns and internal request/response contracts.
+      instructions: |
+        Review as the Nexus DDD service.
+        - Apply the same Contract, Domain, Infra, Application, and Hosted layering rules as Sample.
+        - Internal service contracts must not leak persistence entities or internal long IDs.
+        - Security, identity, and service-mesh changes need explicit boundary validation and tests or compatibility reasoning.
+
+    - path: "Sample.Hosted/buildwww/**"
+      instructions: |
+        Review as frontend source, not generated output.
+        - Preserve window.DRN as shared browser API and keep DRN/Drn* names as framework surface.
+        - Keep htmx safety defaults: nonce propagation, safe-nonce same-origin filtering, allowEval=false, selfRequestsOnly=true, and stripHtmxEval defense-in-depth.
+        - React island changes must update DrnReactTypes.ts, reactBundle.tsx registry, and reactBundle.css together; keep DrnReactMicroFrontend and .drn-react-root CSS scoping.
+        - Clean timers, listeners, and mounted roots before onmount unregister/dispose paths.
+
+    - path: "Sample.Hosted/Pages/**"
+      instructions: |
+        Review Razor pages for DRN Hosting frontend conventions.
+        - Razor asset references should use buildwww source paths so Vite TagHelpers resolve hashed manifest assets and SRI.
+        - Preserve layout script order, CSP nonce behavior, htmx nonce configuration, hx-ext safe-nonce usage, and DRN.App.CsrfToken integration.
+        - Flag disable-nonce or disable-csrf-token outside explicit test/demo cases.
+
+    - path: "Sample.Hosted/package.json"
+      instructions: |
+        Review frontend dependencies as supply-chain-sensitive.
+        - Package versions are intentionally pinned exactly.
+        - Keep scripts aligned with Vite build targets: app, appPostload, htmx, bootstrap, and react.
+        - New dependencies need provenance, maintenance, and security justification.
+
+    - path: "Sample.Hosted/vite.config.js"
+      instructions: |
+        Preserve the DRN buildwww/Vite contract.
+        - Source lives in Sample.Hosted/buildwww and generated assets live under Sample.Hosted/wwwroot.
+        - Preserve aliases, BUILD_TYPE selection, per-bundle output roots, manifest generation, stripHtmxEval, IIFE wrapping, and React output name DrnReactMicroFrontend.
+        - Changes that affect published assets must stay aligned with DRN.Framework.Hosting Vite manifest discovery and SRI behavior.
+
     - path: "DRN.Test.*/**"
-      instructions: >
-        Test projects — verify DTT patterns:
-        Tests without inline data or generated parameters should use [Fact].
-        Integration data tests should use [DataInline] and request DrnTestContext only when needed.
-        Unit data tests should use [DataInlineUnit] and request DrnTestContextUnit only when needed.
-        Prefer integration tests with real containers over heavy mocking.
-        Check that test class names follow conventions.
-    - path: ".agent/skills/**"
-      instructions: >
-        Agent skill files — verify YAML frontmatter format (name, description with keywords).
-        Check that Related Skills links resolve to existing skill directories.
-    - path: "**/Dockerfile"
-      instructions: >
-        Docker images — verify multi-arch support (linux/amd64 + linux/arm64).
-        Check SBOM and provenance generation compliance.
+      instructions: |
+        Enforce DRN Testing Toolkit and Microsoft Testing Platform conventions.
+        - Tests without inline data or generated parameters use [Fact].
+        - Unit data tests use [Theory] with DataInlineUnit/DataMemberUnit/DataSelfUnit and optional DrnTestContextUnit first only when needed.
+        - Integration data tests use [Theory] with DataInline/DataMember/DataSelf and optional DrnTestContext first only when needed.
+        - Unit tests run before integration tests; performance tests are explicit and Release-oriented.
+        - Test execution guidance must use dotnet run --project <test-csproj>, never solution-based test commands.
+        - Reusable WebApplicationFactory entry-point programs belong in non-test support assemblies such as DRN.Test.Utils.
+
     - path: ".github/workflows/**"
-      instructions: >
-        CI/CD workflows — verify composite action references are correct.
-        Check that secrets are not hardcoded.
-        Validate workflow trigger conditions.
+      instructions: |
+        Review GitHub workflows as CI/CD control plane.
+        - PR workflows must use pull_request, not pull_request_target, when PR code executes.
+        - Preserve split checkout for PRs: trusted .github/actions from github.event.pull_request.base.sha at workspace root, PR source under src, persist-credentials:false.
+        - PR jobs must remain secretless and have explicit timeout-minutes.
+        - Gatekeeper jobs need if: always(), permissions:{}, and every required job listed in both needs and result checks.
+        - Release workflows derive one version from release/v... tags, verify exact protected-branch ancestry with git merge-base --is-ancestor, keep publishing secrets in release jobs, and publish only after build, CodeQL, tests, Sonar, and Docker scan gates.
+
+    - path: ".github/actions/**"
+      instructions: |
+        Review composite actions as reusable CI code.
+        - Third-party actions must be pinned to full 40-character commit SHAs with version comments; do not use mutable tags.
+        - Verify tag-to-SHA mapping from official upstream repositories when action pins change.
+        - Shell steps should use strict mode where practical, quote inputs, and pass GitHub expressions through env before shell use.
+        - Preserve dependency safety controls such as npm ci --ignore-scripts, npm audit --audit-level=high, and NuGet vulnerability scanning.
+        - Docker release actions must stage by digest, scan registry://...@sha256:<digest>, validate digest shapes, and promote only scanned digests with SBOM/provenance enabled.
+
+    - path: ".github/CODEOWNERS"
+      instructions: |
+        Keep CI control-plane ownership intact.
+        - .github/CODEOWNERS, .github/workflows/**, and .github/actions/** must remain code-owned.
+        - Branch/ruleset documentation should require code-owner review plus gatekeeper and code-scanning statuses.
+
+    - path: "**/Dockerfile"
+      instructions: |
+        Review container images for supply-chain and runtime safety.
+        - Keep .NET SDK/runtime versions, distro choices, TargetFramework, RuntimeFrameworkVersion, and DOTNET_RUNTIME_VERSION aligned.
+        - Preserve multi-arch support and non-root final runtime where supported.
+        - Flag base image tag changes unless digest pinning or a documented update policy exists.
+        - Release images should be built with SBOM/provenance and scanned before promotion.
+
+    - path: "Docker/**"
+      instructions: |
+        Review local infrastructure and image support files.
+        - Do not add real secrets to tracked files; sample credentials must be clearly sample-only.
+        - Flag public host port exposure, privileged containers, host networking, Docker socket mounts, broad host bind mounts, latest tags, and missing healthchecks.
+        - Prefer required environment variables for secrets instead of real defaults.
+
+    - path: "docker-compose*.yml"
+      instructions: |
+        Treat compose files as local/development infrastructure unless production hardening is explicitly documented.
+        - Flag new public host ports, privileged mode, host networking, Docker socket mounts, broad host binds, latest tags, missing healthchecks, and committed secrets.
+        - Keep runtime image choices aligned with repository profile and Docker release workflows.
+
+    - path: ".sample-env"
+      instructions: |
+        Review tracked environment samples for secret hygiene.
+        - Values must be fake or clearly sample-only.
+        - Do not introduce real credentials, tokens, connection strings, or private endpoints.
+
+    - path: ".agent/skills/**"
+      instructions: |
+        Review agent skills as reusable agent-control documentation.
+        - YAML frontmatter must include name, description, last-updated, difficulty, and useful keywords when appropriate.
+        - Related skill links and referenced paths must resolve.
+        - Generic skills must stay repository-agnostic; DRN-specific facts belong in drn-* skills or .agent/repository-profile.md.
+
+    - path: ".agent/workflows/**"
+      instructions: |
+        Review agent workflows for status-contract and loader consistency.
+        - Preserve startup gates, approval gates, status lifecycles, scope rules, and drift-detection contracts.
+        - Keep workflow skill loaders synchronized with actual .agent/skills directories.
+        - Do not weaken destructive-operation, security-impacting, or scope-widening confirmation rules.
+
+    - path: ".agent/repository-profile.md"
+      instructions: |
+        Review as the repository-specific source of truth for agent conventions.
+        - Update when layout, commands, CI/CD rules, documentation modules, source maps, shared framework facts, or release rules change.
+        - Keep source-owned facts synchronized with package docs and framework skills.
+
+    - path: "**/README.md"
+      instructions: |
+        Review documentation for drift against source code and repository profile.
+        - Package READMEs must be self-contained for important behavior, config keys, defaults, examples, and public API.
+        - Security, public API, configuration, release, and operational behavior changes need matching docs.
+
+    - path: "**/RELEASE-NOTES.md"
+      instructions: |
+        Review release notes for user-facing package changes.
+        - Breaking, security, public API, config/default, CI/CD, Docker, and operational behavior changes need top entries.
+        - Dependency-only upgrades need notes only when breaking or user-visible.
+        - Preserve existing package history and voice.
+
+    - path: "docs/**/*.md"
+      instructions: |
+        Review docs for source drift, security precision, and actionable examples.
+        - Keep shared framework facts synchronized with source-owned files and package READMEs.
+        - Flag stale identifiers, paths, config keys, commands, or diagrams.
+
+    - path: "ROADMAP.md"
+      instructions: |
+        Keep roadmap status aligned with implemented packages, stubs, and release plans.
+        - Flag completed/removed items that conflict with source or package docs.
+
+    - path: "SECURITY.md"
+      instructions: |
+        Preserve private vulnerability reporting guidance.
+        - Security reports should not be redirected to public GitHub issues.
+        - Do not include secrets, exploit steps, or sensitive operational details.
+
+    - path: "CONTRIBUTING.md"
+      instructions: |
+        Keep contributor guidance aligned with repository profile.
+        - PRs target develop, squash merge to develop, and merge commits to master.
+        - Build/test commands must match Microsoft Testing Platform usage and repository conventions.
 
 chat:
   auto_reply: true
@@ -56,6 +241,21 @@ knowledge_base:
     enabled: true
     filePatterns:
       - "AGENTS.md"
+      - "AGENTS.LessonsLearned.md"
       - ".agent/rules/DiSCOS.md"
+      - ".agent/repository-profile.md"
+      - ".agent/skills/basic-code-review/SKILL.md"
+      - ".agent/skills/basic-security-checklist/SKILL.md"
+      - ".agent/skills/basic-git-conventions/SKILL.md"
+      - ".agent/skills/overview-github-actions/SKILL.md"
+      - ".agent/skills/overview-drn-framework/SKILL.md"
+      - ".agent/skills/overview-drn-testing/SKILL.md"
+      - ".agent/skills/drn-*/SKILL.md"
+      - ".agent/skills/test-*/SKILL.md"
+      - ".agent/skills/frontend-*/SKILL.md"
+      - ".agent/workflows/review.md"
+      - ".agent/workflows/documentation.md"
+      - ".agent/workflows/update*.md"
+      - ".agent/workflows/_shared/*.md"
   learnings:
     scope: global
