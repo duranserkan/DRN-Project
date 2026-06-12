@@ -18,47 +18,23 @@ tokens: ~0.5K
 
 ---
 
-## Package Configuration
+## Source Of Truth
 
-This acts as the baseline `package.json` for frontend projects.
+Use `Sample.Hosted/package.json` as the source of truth for npm scripts, package names, and pinned top-level versions. Use `Sample.Hosted/package-lock.json` as the source of truth for resolved dependency metadata.
 
-```json
-{
-  "name": "sample.hosted",
-  "private": true,
-  "version": "0.0.1",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npm run build:app && npm run build:appPostload && npm run build:htmx && npm run build:bootstrap && npm run build:react",
-    "build:app": "BUILD_TYPE=app vite build",
-    "build:appPostload": "BUILD_TYPE=appPostload vite build",
-    "build:htmx": "BUILD_TYPE=htmx vite build",
-    "build:bootstrap": "BUILD_TYPE=bootstrap vite build",
-    "build:react": "BUILD_TYPE=react vite build"
-  },
-  "type": "module",
-  "dependencies": {
-    "@popperjs/core": "^2.11.8",
-    "aspnet-client-validation": "^0.11.1",
-    "bootstrap": "^5.3.8",
-    "bootstrap-icons": "^1.13.1",
-    "htmx.org": "^2.0.10",
-    "onmount": "^2.0.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "tailwindcss": "^4.3.0"
-  },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.3.0",
-    "@types/react": "^19.2.15",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.2",
-    "globals": "^17.6.0",
-    "sass": "1.100.0",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.14"
-  }
-}
+Do not copy package versions into this skill. Hardcoded versions drift when dependency maintenance commits update `package.json`.
+
+Top-level `dependencies` and `devDependencies` must use exact versions, not caret or tilde ranges. This keeps the supply-chain policy in `package.json` true and makes `npm ci` reproducible.
+
+When changing packages:
+
+1. Edit `Sample.Hosted/package.json` or run npm with exact-save behavior.
+2. Refresh lock metadata with `npm install --prefix Sample.Hosted --package-lock-only --ignore-scripts`.
+3. Verify the root lock metadata matches `package.json`.
+4. Run `npm ci --prefix Sample.Hosted --ignore-scripts --dry-run` to verify install consistency.
+
+```bash
+node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync("Sample.Hosted/package.json","utf8")); const l=JSON.parse(fs.readFileSync("Sample.Hosted/package-lock.json","utf8")).packages[""]; let bad=[]; for (const kind of ["dependencies","devDependencies"]) for (const [k,v] of Object.entries(p[kind]||{})) { const lv=(l[kind]||{})[k]; if (v!==lv) bad.push(kind+" "+k+": package.json="+v+" lock="+lv); } if (bad.length) { console.log(bad.join("\n")); process.exit(1); }'
 ```
 
 ---
