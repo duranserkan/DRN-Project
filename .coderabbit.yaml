@@ -52,5 +52,10 @@ chat:
   auto_reply: true
 
 knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "AGENTS.md"
+      - ".agent/rules/DiSCOS.md"
   learnings:
     scope: global

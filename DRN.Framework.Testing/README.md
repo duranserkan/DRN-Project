@@ -495,6 +495,8 @@ Following design principle is used for these attributes
 * DataMember attribute works like xunit `MemberData` except they try to provide missing values with AutoFixture and NSubstitute
 * DataSelf attribute needs to be inherited by another class and should call `AddRow` method in constructor to provide data
 
+Resolution order is identical for integration and unit variants: optional context first, then inline/member/self-provided values, then AutoFixture-generated values, then NSubstitute mocks for interface or abstract parameters. Request `DrnTestContext` or `DrnTestContextUnit` only when the test uses it. Interface substitutes are for dependencies; instantiate the concrete class when the concrete convenience method itself is the behavior under test.
+
 Example usages for DataMember attribute
 ```csharp
 [Theory]
@@ -656,6 +658,7 @@ When tests share identical setup (container init, migrations, service registrati
 - **Comment inline data** — add trailing comments when values aren't self-explanatory
 - **Extract shared setup** — use private helpers to keep the test body focused on act + assert
 - **Omit values for auto-generated params** — let AutoFixture/NSubstitute handle params you don't control
+- **Omit context when unused** — use `[Fact]` or a context-free data theory when the body does not need the context
 - **Don't consolidate when** test bodies differ structurally or separate failure messages aid debugging more than parameterization
 
 
@@ -829,6 +832,8 @@ Run test projects directly with Microsoft Testing Platform. Do not use `.slnx` f
 dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
 dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 ```
+
+For `WebApplicationFactory<TProgram>` scenarios, point `TProgram` at a hosted application or a non-test Web SDK support assembly such as `DRN.Test.Utils` (`IsTestProject=false`). Keep custom disposable app entry points out of the MTP test executable; keep test assertions in `DRN.Test.Integration`.
 
 ## Example Test Project .csproj File
 Don't forget to replace DRN.Framework.Testing project reference with its nuget package reference

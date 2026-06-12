@@ -36,6 +36,7 @@ Rules:
 - Request `DrnTestContext` / `DrnTestContextUnit` only when the test uses context services, configuration, data providers, containers, service validation, or app bootstrapping.
 - Use `DataInlineUnit` for pure logic and isolated services. Use `DataInline` when real dependencies make the signal more honest.
 - The context must be the first parameter when requested; attribute data follows; AutoFixture/NSubstitute fill missing parameters.
+- Interface/abstract parameters auto-mocked by NSubstitute can replace matching `ServiceCollection` registrations. Use those substitutes for dependencies, not for concrete convenience methods whose implementation is the behavior under test.
 - Assertions use `AwesomeAssertions`.
 - Unit self-data derives from `DataSelfUnitAttribute`.
 
@@ -118,6 +119,10 @@ public async Task Endpoint_Should_Return_Data(DrnTestContext context, ITestOutpu
 ## Consolidation Rule
 
 Prefer one readable test that exercises a coherent flow over many duplicate tests with the same setup. Parameterize identical bodies with multiple data rows. In integration tests, continue the same flow when assertions share container setup, migrations, or service registration. Do not combine structurally different behaviors only to reduce count.
+
+## WebApplicationFactory Entry Points
+
+`WebApplicationFactory<TProgram>` should point at a real hosted program type from the application or a non-test support assembly. Keep reusable disposable integration-test host programs in an SDK Web support project with `IsTestProject=false`, such as `DRN.Test.Utils`; keep `DRN.Test.Integration` focused on assertions. Do not define custom hosted `Program` entry points inside the MTP test executable.
 
 ## MTP Commands
 

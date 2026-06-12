@@ -92,7 +92,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
   - `[HostedService]` declares background services.
 - Entities: Source-Known ID pattern with `long` internal IDs and `Guid` external IDs; `[EntityType(byte)]` is required on every `SourceKnownEntity`.
 - DTOs: derive from `Dto`, live in `*.Contract`, and expose `Guid` IDs only. APIs return DTOs, never entities.
-- Testing: use `[Fact]` for tests without inline data or generated parameters. Use `[DataInline]` / `[DataInlineUnit]` for inline data, `[DataMember]` / `[DataMemberUnit]` for member data, and `DataSelfAttribute` / `DataSelfUnitAttribute` for generated self data. Request `DrnTestContext` / `DrnTestContextUnit` only when the test needs the context. Unit tests are listed before integration tests. Do not use `.slnx` in test-run commands.
+- Testing: use `[Fact]` for tests without inline data or generated parameters. Use `[DataInline]` / `[DataInlineUnit]` for inline data, `[DataMember]` / `[DataMemberUnit]` for member data, and `DataSelfAttribute` / `DataSelfUnitAttribute` for generated self data. Request `DrnTestContext` / `DrnTestContextUnit` only when the test needs the context; inline/member/self data follows the optional context and AutoFixture/NSubstitute fill remaining parameters. Unit tests are listed before integration tests. Run MTP test projects with `dotnet run --project <test-csproj>` and do not use `.slnx` in test-run commands. Keep reusable `WebApplicationFactory<TProgram>` entry-point programs in non-test support assemblies such as `DRN.Test.Utils`, not inside the MTP test executable.
 - Frontend:
   - Vite source lives in `Sample.Hosted/buildwww/`; built assets live under `Sample.Hosted/wwwroot/`.
   - Browser utilities are exposed under `window.DRN`; Vite config imports `buildwww/app/js/drn/drnUtils.js` as `drnUtils`.
@@ -100,7 +100,8 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
   - React islands use `buildwww/types/DrnReactTypes.ts`, `.drn-react-root`, and the `DrnReactMicroFrontend` IIFE wrapper name.
   - CSP nonces are auto-injected via `NonceTagHelper`; CSRF is auto-added on `hx-post`, `hx-put`, `hx-delete`, and `hx-patch`.
 - Git: GitFlow-inspired. Merge `develop` to `master`; release tags use `release/v*.*.*` or `release/v*.*.*-previewNNN`. Squash merge to `develop`; use merge commits to `master`.
-- Security: CSP nonces, CSRF anti-forgery, and input validation are mandatory. Third-party GitHub Actions must stay pinned to full commit SHAs with version comments. See `basic-security-checklist` and `drn-hosting`.
+- CI/CD: PR workflows use split checkout: trusted workflow/composite action code from `github.event.pull_request.base.sha` at the workspace root and PR source under `src`. PR jobs remain secretless, have explicit `timeout-minutes`, and are joined by an aggregate gatekeeper. Release workflows derive one version from `release/v...` tags, verify exact protected-branch ancestry with `git merge-base --is-ancestor`, keep build artifacts in the publishing job unless explicit artifacts cross job boundaries, stage Docker images by digest, scan the exact staged digest, then publish packages and promote Docker tags.
+- Security: CSP nonces, CSRF anti-forgery, and input validation are mandatory. Third-party GitHub Actions must stay pinned to full commit SHAs with version comments, and tag-to-SHA mapping must be verified from the official upstream action repository. `.github/CODEOWNERS` owns itself, workflows, and composite actions; branch rulesets should require code-owner review and required code-scanning/gatekeeper statuses. CodeRabbit global rules are sourced through `knowledge_base.code_guidelines.filePatterns` for `AGENTS.md` and `.agent/rules/DiSCOS.md`. See `basic-security-checklist`, `overview-github-actions`, and `drn-hosting`.
 - Containers: Docker SDK/runtime distro choices and `DOTNET_RUNTIME_VERSION` must stay aligned with `RuntimeFrameworkVersion` metadata.
 
 ## DRN Framework Source Overlay
@@ -115,6 +116,7 @@ Framework-level conventions and default values live in the framework-scoped DRN 
 | Mounted settings paths | [MountedSettingsConventions.cs](../DRN.Framework.Utils/Settings/Conventions/MountedSettingsConventions.cs) | Utils README, Hosting README |
 | Development settings defaults | [DrnDevelopmentSettings.cs](../DRN.Framework.Utils/Settings/DrnDevelopmentSettings.cs) | EntityFramework README, Testing README |
 | Test settings convention | [SettingsProvider.cs](../DRN.Framework.Testing/Providers/SettingsProvider.cs) | Testing README, testing skills |
+| Vite manifest discovery and publish support | [ViteManifest.cs](../DRN.Framework.Hosting/Utils/Vite/ViteManifest.cs), [DRN.Framework.Hosting.targets](../DRN.Framework.Hosting/buildTransitive/DRN.Framework.Hosting.targets) | Hosting README, frontend Vite skill, DRN hosting skill |
 
 ### Documentation Sync Checklist
 

@@ -725,7 +725,9 @@ string profileUrl = Get.User.ProfileDetail.Path(new() { ["id"] = userId.ToString
 
 ### Vite Manifest Publish Support
 
-`DRN.Framework.Hosting` ships a transitive MSBuild target that adds `wwwroot/**/.vite/manifest.json` files to Web SDK publish output. At runtime, `ViteManifest` scans for `.vite/manifest.json` below `IWebHostEnvironment.WebRootPath`; when `WebRootPath` is empty, it resolves `ContentRootPath/wwwroot`. This keeps manifest lookup, SRI generation, and static asset pre-warming working after publish, including Vite's default dot-directory manifest location.
+`DRN.Framework.Hosting` ships a transitive MSBuild target that adds `wwwroot/**/.vite/manifest.json` files to Web SDK publish output. The package path must stay at the exact NuGet convention path `buildTransitive/$(PackageId).targets`. At runtime, `ViteManifest` scans for `.vite/manifest.json` below `IWebHostEnvironment.WebRootPath`; when `WebRootPath` is empty, it resolves `ContentRootPath/wwwroot`. This keeps manifest lookup, SRI generation, and static asset pre-warming working after publish, including Vite's default dot-directory manifest location.
+
+When changing environment defaults, Staging-from-build-output behavior, or static-web-asset content roots, verify manifest discovery against the running app, not only server startup. A Razor page can render while CSS/JS is absent if the Vite manifests are outside the active manifest root.
 
 Disable the publish item injection when an application owns this behavior itself:
 

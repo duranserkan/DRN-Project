@@ -339,6 +339,8 @@ buildwww/
 ```
 
 > `vite.config.js` defines named builds (`app`, `appPostload`, `htmx`, `bootstrap`, `react`) selected via `BUILD_TYPE` env var. Output goes to `wwwroot/` with content-hashed filenames and manifest files for TagHelper resolution.
+>
+> `ViteManifest` discovers Vite's default `.vite/manifest.json` files under the active web root, or `ContentRootPath/wwwroot` when the web root is empty. The package's `buildTransitive` target uses the exact convention path `buildTransitive/$(PackageId).targets` and includes `wwwroot/**/.vite/manifest.json` for Web SDK publish output. When changing Staging/static-web-asset behavior, verify manifest discovery in the running app as well as server startup.
 
 > See [drn-entityframework](../drn-entityframework/SKILL.md) for `LaunchExternalDependenciesAsync` setup with Testcontainers.
 

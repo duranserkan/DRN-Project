@@ -98,7 +98,7 @@ public interface IAppSettings
 }
 ```
 
-`ConfigurationDebugView` redacts secret-looking values by default, lists child keys even when a provider also defines a scalar value for the parent section, and renders summary paths using the value provider's key casing.
+`ConfigurationDebugView` redacts secret-looking values by default, lists child keys even when a provider also defines a scalar value for the parent section, and renders summary paths using the value provider's key casing. Object-to-JSON configuration uses the framework JSON defaults, including camelCase keys; explicit key/value configuration preserves the caller-provided key text.
 
 ### Config Attribute
 
@@ -126,6 +126,8 @@ Override mount directory via `IMountedSettingsConventionsOverride`.
 | `ConfigurationException` | Add missing key to `appsettings.json` |
 | Env vars not binding | Use `__` for nested: `Section__Key` |
 | Mounted settings not loading | Check `/appconfig/` or override via `IMountedSettingsConventionsOverride` |
+
+When grouping options into nested objects, explicitly validate child objects before relying on child data annotations for startup safety; plain `Validator.TryValidateObject` does not recursively walk nested option objects.
 
 ---
 
@@ -231,7 +233,7 @@ if (scope.Acquired) { /* critical section */ }
 | Area | Key Types | Purpose |
 |------|-----------|---------|
 | **Data Encoding** | `EncodingExtensions` | Base64, Base64Url, Hex, Utf8 |
-| **Hashing** | `HashExtensions` | Blake3 (crypto), XxHash3 (fast), keyed and stream/file hashing |
+| **Hashing** | `HashExtensions` | Blake3 (crypto), XxHash3 (fast), keyed and stream/file hashing; prefer stream overloads for files and large payloads |
 | **JSON** | `JsonMergePatch` | RFC 7386 merge patch with depth protection |
 | **Query Strings** | `QueryParameterSerializer` | Complex objects → query strings |
 | **Streams** | `ToBinaryDataAsync` | Safe consumption with `MaxSizeGuard` |
