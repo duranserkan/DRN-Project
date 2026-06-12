@@ -1,5 +1,7 @@
 # Lessons Learned
 
+When a durable lesson is discovered, append a concise numbered entry only if it is not already covered by `AGENTS.md`, `.agent/rules/DiSCOS.md`, an existing skill, a workflow, package documentation, or source comments. Prefer general rules over one-time incident history, and move stable guidance into the owning skill or workflow during the next documentation sync.
+
 ## 1. DTT Data Attributes
 
 ### Parameter Resolution
@@ -693,3 +695,39 @@ Set explicit `timeout-minutes` values on every `pull-request.yml` job: short for
 ### Decision Checkpoint
 
 Whenever a workflow runs PR-controlled code, pair secret isolation with resource limits. Timeouts should be long enough for legitimate validation but short enough to bound denial-of-service impact.
+
+## 34. Shared DRN Identifiers Are Not App Namespace Placeholders
+
+### Context
+
+Agent-facing frontend guidance was generalized from concrete `DRN.Onmount`, `DRN.React`, `.drn-react-root`, and `DrnReactMicroFrontend` references to an invented `AppFrontend` namespace and app-shaped names.
+
+### Problem
+
+`DRN`, `Drn*`, and `DRN.Framework.*` identify shared framework APIs used as-is by consuming repositories. Treating them as repository-local placeholders creates incorrect generated code and hides the source-owned contract that `appPreload.js` exposes under `window.DRN`.
+
+### Fix Applied
+
+Restore concrete DRN names in frontend skills and add an explicit repository-profile rule that these identifiers must not be replaced with app-specific names.
+
+### Decision Checkpoint
+
+Before genericizing names in agent docs, verify whether the name is a brand, package, global API, or shared framework contract. Shared contracts stay literal; only true sample app names should become placeholders.
+
+## 35. Prototype Recreation Gates Need Applied Migration Counts
+
+### Context
+
+`DevelopmentStatus` computes whether prototype database recreation is allowed when pending model changes exist.
+
+### Problem
+
+Docs that say "migrations exist" are too broad for this gate. A database with declared-but-unapplied migrations is still empty enough for safe prototyping; applied migrations are the safety boundary.
+
+### Fix Applied
+
+Keep the prototype gate based on applied migration count, update docs to say applied migrations explicitly, and cover both empty and applied-migration cases with a unit regression test.
+
+### Decision Checkpoint
+
+For migration safety gates, distinguish declared migrations, applied migrations, and pending migrations explicitly. Destructive decisions should use the state that matches the invariant, and documentation should name that state exactly.

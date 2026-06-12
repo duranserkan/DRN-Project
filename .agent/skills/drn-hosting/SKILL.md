@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
-description: DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service
-last-updated: 2026-06-07
+description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
+last-updated: 2026-06-12
 difficulty: advanced
 tokens: ~3K
 ---
@@ -264,7 +264,7 @@ public class MyBackgroundWorker : BackgroundService
 | `PageAnchorHrefTagHelper` | `<a href>` | Mark active page |
 | `ScriptDefaultsTagHelper` | `<script>` | Modern defaults: `defer` (external), `type="module"` (inline) |
 
-**Vite**: `<script src="buildwww/app/js/appPostload.js">` → `<script src="/app/app_postload.abc123.js" integrity="sha256-xyz">`
+**Vite**: `<script src="buildwww/app/js/appPostload.js">` -> `<script src="/appPostload/appPostload.abc123.js" integrity="sha256-xyz">`
 
 **Nonce**: Auto-added to `<script>`, `<style>`, `<link>`, `<iframe>`. Opt-out: `<script disable-nonce="true">`
 
@@ -321,9 +321,10 @@ public class MyBackgroundWorker : BackgroundService
 **Application (`*.Hosted/wwwroot/`)** — Vite build output:
 ```
 wwwroot/
-├── app/           # Vite-built JS (app_preload.[hash].js, app_postload.[hash].js)
+├── app/           # app.[hash].css, appPreload.[hash].js
+├── appPostload/   # appPostload.[hash].js
 ├── images/        # Static images
-└── lib/           # Third-party bundles (bootstrap, htmx, bootstrap-icons, onmount)
+└── lib/           # htmx, bootstrap, react bundles
 ```
 
 **Vite source (`*.Hosted/buildwww/`)** — unbundled source files:
@@ -332,12 +333,12 @@ buildwww/
 ├── app/
 │   ├── css/       # App stylesheets
 │   └── js/        # App scripts (appPreload.js, appPostload.js)
-├── lib/           # Library sources (bootstrap scss, htmx bundle)
+├── lib/           # Library sources (htmx, bootstrap, react)
 ├── plugins/       # Vite plugins
 └── types/         # TypeScript type definitions
 ```
 
-> `vite.config.js` defines named builds (`app`, `htmx`, `bootstrap`) selected via `BUILD_TYPE` env var. Output goes to `wwwroot/` with content-hashed filenames and manifest for TagHelper resolution.
+> `vite.config.js` defines named builds (`app`, `appPostload`, `htmx`, `bootstrap`, `react`) selected via `BUILD_TYPE` env var. Output goes to `wwwroot/` with content-hashed filenames and manifest files for TagHelper resolution.
 
 > See [drn-entityframework](../drn-entityframework/SKILL.md) for `LaunchExternalDependenciesAsync` setup with Testcontainers.
 

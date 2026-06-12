@@ -1,6 +1,6 @@
 ---
 name: frontend-razor-pages-navigation
-description: Razor Pages navigation system - SidebarNavigationCollection for main navigation, SidebarSettingsCollection for user menu, SubNavigationCollection for tabs, and navigation data structures. Use for implementing and customizing application navigation UI. Keywords: razor-pages, navigation, sidebar, menu, sub-navigation, tabs, ui-components, navigation-collections, layout
+description: "Razor Pages navigation system - SidebarNavigationCollection for main navigation, SidebarSettingsCollection for user menu, SubNavigationCollection for tabs, and navigation data structures. Use for implementing and customizing application navigation UI. Keywords: razor-pages, navigation, sidebar, menu, sub-navigation, tabs, ui-components, navigation-collections, layout"
 last-updated: 2026-02-15
 difficulty: intermediate
 tokens: ~1K
@@ -8,10 +8,10 @@ tokens: ~1K
 
 # Razor Page Navigation
 
-> Standardized navigation data structures, sidebar configuration, and dynamic menu generation for DRN hosted applications.
+> Standardized navigation data structures, sidebar configuration, and dynamic menu generation for hosted Razor Pages applications using this convention.
 
 > [!NOTE]
-> `Sample.Hosted` is the reference implementation for these patterns.
+> Use the repository profile to identify the hosted web project that acts as the local reference implementation.
 
 ## When to Apply
 - Adding items to the Sidebar

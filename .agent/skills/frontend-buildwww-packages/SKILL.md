@@ -1,12 +1,12 @@
 ---
 name: frontend-buildwww-packages
 description: 'Frontend package dependencies - Standardized npm packages (Bootstrap, htmx, aspnet-client-validation, onmount, React, Tailwind), version management, and dependency purposes. Reference for adding or updating frontend libraries. Keywords: npm, packages, dependencies, bootstrap, htmx, aspnet-client-validation, onmount, react, tailwind, package-management, versioning'
-last-updated: 2026-06-07
+last-updated: 2026-06-12
 difficulty: basic
 tokens: ~0.5K
 ---
 
-# Sample.Hosted npm Packages
+# Frontend npm Packages
 
 > Definitions of standard frontend dependencies and their purposes.
 
@@ -18,47 +18,26 @@ tokens: ~0.5K
 
 ---
 
-## Package Configuration
+## Source Of Truth
 
-This acts as the baseline `package.json` for frontend projects.
+Resolve the frontend package root from `.agent/repository-profile.md` when it declares one. Otherwise, discover it by searching for `package.json` and choosing the root that owns `vite.config.*`, `buildwww/`, `src/`, or frontend build scripts.
 
-```json
-{
-  "name": "sample.hosted",
-  "private": true,
-  "version": "0.0.1",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npm run build:app && npm run build:appPostload && npm run build:htmx && npm run build:bootstrap && npm run build:react",
-    "build:app": "BUILD_TYPE=app vite build",
-    "build:appPostload": "BUILD_TYPE=appPostload vite build",
-    "build:htmx": "BUILD_TYPE=htmx vite build",
-    "build:bootstrap": "BUILD_TYPE=bootstrap vite build",
-    "build:react": "BUILD_TYPE=react vite build"
-  },
-  "type": "module",
-  "dependencies": {
-    "@popperjs/core": "^2.11.8",
-    "aspnet-client-validation": "^0.11.1",
-    "bootstrap": "^5.3.8",
-    "bootstrap-icons": "^1.13.1",
-    "htmx.org": "^2.0.10",
-    "onmount": "^2.0.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "tailwindcss": "^4.3.0"
-  },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.3.0",
-    "@types/react": "^19.2.15",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.2",
-    "globals": "^17.6.0",
-    "sass": "1.100.0",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.14"
-  }
-}
+Use that root's `package.json` as the source of truth for npm scripts, package names, and pinned top-level versions. Use the sibling lockfile as the source of truth for resolved dependency metadata.
+
+Do not copy package versions into this skill. Hardcoded versions drift when dependency maintenance commits update `package.json`.
+
+Top-level `dependencies` and `devDependencies` must use exact versions, not caret or tilde ranges. This keeps the supply-chain policy in `package.json` true and makes `npm ci` reproducible.
+
+When changing packages:
+
+1. Set `FRONTEND_PACKAGE_DIR` to the discovered package root.
+2. Edit `$FRONTEND_PACKAGE_DIR/package.json` or run npm with exact-save behavior.
+3. Refresh lock metadata with `npm install --prefix "$FRONTEND_PACKAGE_DIR" --package-lock-only --ignore-scripts`.
+4. Verify the root lock metadata matches `package.json`.
+5. Run `npm ci --prefix "$FRONTEND_PACKAGE_DIR" --ignore-scripts --dry-run` to verify install consistency.
+
+```bash
+node -e 'const fs=require("fs"); const dir=process.argv[1]; const p=JSON.parse(fs.readFileSync(`${dir}/package.json`,"utf8")); const l=JSON.parse(fs.readFileSync(`${dir}/package-lock.json`,"utf8")).packages[""]; let bad=[]; for (const kind of ["dependencies","devDependencies"]) for (const [k,v] of Object.entries(p[kind]||{})) { const lv=(l[kind]||{})[k]; if (v!==lv) bad.push(kind+" "+k+": package.json="+v+" lock="+lv); } if (bad.length) { console.log(bad.join("\n")); process.exit(1); }' "$FRONTEND_PACKAGE_DIR"
 ```
 
 ---
@@ -72,10 +51,12 @@ This acts as the baseline `package.json` for frontend projects.
 - **htmx.org**: Library for modern HTML-first interactivity.
 
 ### Validation & Utilities
-- **aspnet-client-validation**: ASP.NET Core-compatible client-side validation.
+- **aspnet-client-validation**: ASP.NET Core-compatible client-side validation from `data-val-*` attributes.
 - **onmount**: Lifecycle management for DOM elements (used by standard RSJS pattern).
 - **react/react-dom**: Mounted island components for richer interactive surfaces.
 - **tailwindcss**: Utility styling for the React bundle.
+
+CI restores dependencies with `npm ci --ignore-scripts` before audit/build. Under `AGENTS.md`, package build/test commands are reference commands unless the user explicitly allows running them.
 
 ### Build & Dev Tooling
 - **vite**: Next Generation Frontend Tooling.

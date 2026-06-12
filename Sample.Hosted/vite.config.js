@@ -65,10 +65,10 @@ const sharedConfig = {
     },
     resolve: {
         alias: {
-            '@scss': resolve(__dirname, 'buildwww/scss'),
-            '@css': resolve(__dirname, 'buildwww/css'),
-            '@js': resolve(__dirname, 'buildwww/js'),
-            '@ts': resolve(__dirname, 'buildwww/ts'),
+            '@css': resolve(__dirname, 'buildwww/app/css'),
+            '@js': resolve(__dirname, 'buildwww/app/js'),
+            '@lib': resolve(__dirname, 'buildwww/lib'),
+            '@types': resolve(__dirname, 'buildwww/types'),
             '@plugins': resolve(__dirname, 'buildwww/plugins'),
         }
     }

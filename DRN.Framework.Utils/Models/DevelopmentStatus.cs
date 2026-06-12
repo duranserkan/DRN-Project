@@ -19,7 +19,7 @@ public class DevelopmentStatus(IAppSettings appSettings)
         else
             contextModel.Flags.Migrate = false; // Production: never auto-migrate
 
-        contextModel.Flags.DevelopmentSettingsPrototypeFlag = appSettings.DevelopmentSettings.Prototype;
+        contextModel.Flags.DevelopmentSettingsPrototypeFlag = appSettings.IsDevelopmentEnvironment && appSettings.DevelopmentSettings.Prototype;
         _contextModels.Add(contextModel);
     }
 
@@ -35,12 +35,12 @@ public record DbContextChangeModelFlags(bool HasPendingModelChanges, bool Npgsql
     public bool HasPendingChangesForPrototype { get; private set; }
     public bool HasPendingMigrationsWithoutPendingModelChanges { get; private set; }
 
-    public void SetMigrationFlags(int migrationCount, int pendingMigrationCount)
+    public void SetMigrationFlags(int appliedMigrationCount, int pendingMigrationCount)
     {
         HasPendingMigrations = pendingMigrationCount > 0;
         HasPendingChanges = HasPendingMigrations || HasPendingModelChanges;
-        HasPendingChangesForPrototype = (migrationCount == 0 && HasPendingModelChanges) ||
-                                        (migrationCount > 0 && UsePrototypeModeWhenMigrationExists && HasPendingModelChanges);
+        HasPendingChangesForPrototype = (appliedMigrationCount == 0 && HasPendingModelChanges) ||
+                                        (appliedMigrationCount > 0 && UsePrototypeModeWhenMigrationExists && HasPendingModelChanges);
 
         HasPendingMigrationsWithoutPendingModelChanges = pendingMigrationCount > 0 && !HasPendingModelChanges;
     }
@@ -59,7 +59,7 @@ public class DbContextChangeModel
         LastAppliedMigration = appliedMigrations.Count > 0 ? appliedMigrations[^1] : "n/a";
         LastPendingMigration = PendingMigrations.Count > 0 ? PendingMigrations[^1] : "n/a";
         Flags = flags;
-        Flags.SetMigrationFlags(appliedMigrations.Count, PendingMigrations.Count);
+        Flags.SetMigrationFlags(AppliedMigrations.Count, PendingMigrations.Count);
     }
 
     public string Name { get; }

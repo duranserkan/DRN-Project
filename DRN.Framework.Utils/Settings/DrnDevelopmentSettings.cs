@@ -33,9 +33,10 @@ public class DrnDevelopmentSettings
     public bool AutoMigrateStaging { get; init; } = false;
 
     /// <summary>
-    /// Turns on fast prototyping for database development when <see cref="AutoMigrateDevelopment"/> is on.
+    /// Turns on development-only fast prototyping for database development when <see cref="AutoMigrateDevelopment"/> is on.
     /// <para>
-    /// When true, any DbContext that has <c>NpgsqlDbContextOptionsAttribute.UsePrototypeMode = true</c> will be recreated if there is pending model changes.
+    /// When true in the Development environment, any DbContext that has <c>NpgsqlDbContextOptionsAttribute.UsePrototypeMode = true</c> will be recreated if there are pending model changes.
+    /// Staging auto-migration applies migrations only and never enables prototype recreation.
     /// </para>
     /// <para>
     /// ⚠️ Only one DbContext should use prototyping at a time. <br/>

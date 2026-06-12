@@ -29,7 +29,7 @@ public class DataInlineAttributeTests
         autoInlinedMockable.Max.Returns(int.MaxValue); //dependency mocked by NSubstitute
 
         context.ServiceCollection.AddApplicationServices(); //you can add services, modules defined in hosted app, application, infrastructure layer etc..
-        var serviceProvider = context.BuildServiceProvider(); //appsettings.json added by convention. Context and service provider will be disposed by xunit
+        var serviceProvider = context.BuildServiceProvider(); //settings.json resolved by convention. Context and service provider will be disposed by xunit
         serviceProvider.GetService<ToBeRemovedService>().Should().BeNull(); //Service provider behaviour demonstration
 
         var dependentService = serviceProvider.GetRequiredService<DependentService>();
@@ -40,7 +40,7 @@ public class DataInlineAttributeTests
     [DataInlineUnit]
     public void TextContext_Should_Provide_AppSettings(DrnTestContextUnit context)
     {
-        var serviceProvider = context.BuildServiceProvider(); //appsettings.json added by convention. Context and service provider will be disposed by xunit
+        var serviceProvider = context.BuildServiceProvider(); //settings.json resolved by convention. Context and service provider will be disposed by xunit
 
         var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
         appSettings.GetRequiredSection("AllowedHosts").Value.Should().Be("*");

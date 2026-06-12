@@ -1,307 +1,165 @@
 ---
 name: drn-testing
-description: DRN.Framework.Testing - Comprehensive testing infrastructure with DrnTestContext (auto-mocking, DI), ContainerContext (Testcontainers for PostgreSQL), WebApplicationContext (WebApplicationFactory), DataAttributes (DataInline, DataMember), and test providers. Foundation for all DTT (Duran's Testing Technique) test types. Keywords: testing, drntest-context, testcontainers, webapplicationfactory, auto-mocking, nsubstitute, autofixture, data-attributes, integration-testing, unit-testing, dtt
-last-updated: 2026-06-06
+description: "DRN.Framework.Testing - canonical DTT attribute/context matrix with DrnTestContext, DrnTestContextUnit, ContainerContext, ApplicationContext, DataInline/DataMember/DataSelf, MTP command guidance, AwesomeAssertions, AutoFixture, NSubstitute, Testcontainers, and xUnit v3. Keywords: testing, dtt, drntest-context, applicationcontext, testcontainers, mtp, xunit, data-attributes, unit-testing, integration-testing"
+last-updated: 2026-06-12
 difficulty: intermediate
-tokens: ~2K
+tokens: ~1.6K
 ---
 
 # DRN.Framework.Testing
 
-> DTT (Duran's Testing Technique) testing infrastructure: auto-mocking, Testcontainers, WebApplicationFactory.
+> Canonical DTT (Duran's Testing Technique) guidance for choosing attributes, contexts, and test commands.
+
+Shared testing settings, container defaults, and docs-sync rules live in the [DRN Framework Maintenance Reference](../overview-drn-framework/SKILL.md#drn-framework-maintenance-reference).
 
 ## When to Apply
-- Setting up test projects
-- Writing unit tests with auto-mocking
-- Writing integration tests with Testcontainers
-- Working with WebApplicationFactory
-- Using data attributes and providers
 
----
+- Selecting `[Fact]`, `DataInline*`, `DataMember*`, or `DataSelf*` patterns
+- Writing unit, integration, API, or database component tests
+- Using `DrnTestContext`, `DrnTestContextUnit`, `ContainerContext`, `ApplicationContext`, or `FlurlHttpTest`
+- Explaining how DRN test projects run under Microsoft Testing Platform (MTP)
 
-## DrnTestContext
+## DTT Attribute/Context Matrix
 
-Core test context providing DI, auto-mocking, and container management.
+| Scenario | Attribute | Context parameter | Auto-generated params | Extra capabilities |
+|---|---|---|---|---|
+| No inline data, generated params, or context | `[Fact]` | none | no | simplest test shape |
+| Unit rows or generated params | `[Theory]` + `[DataInlineUnit]` | optional `DrnTestContextUnit` first | yes | DI, config, data files, service validation |
+| Unit member data | `[Theory]` + `[DataMemberUnit]` | optional `DrnTestContextUnit` first | yes | complex data from static member |
+| Unit self-contained data | `[Theory]` + custom `DataSelfUnitAttribute` | optional `DrnTestContextUnit` first | yes | complex rows declared in an attribute class |
+| Integration rows or generated params | `[Theory]` + `[DataInline]` | optional `DrnTestContext` first | yes | DI, config, data files, Testcontainers, `ApplicationContext`, `FlurlHttpTest` |
+| Integration member data | `[Theory]` + `[DataMember]` | optional `DrnTestContext` first | yes | complex data from static member |
+| Integration self-contained data | `[Theory]` + custom `DataSelfAttribute` | optional `DrnTestContext` first | yes | complex rows declared in an attribute class |
 
-```csharp
-[Theory]
-[DataInline]
-public void MyTest(DrnTestContext context, IMockable mock)
-{
-    context.ServiceCollection.AddMyServices();
-    mock.DoSomething().Returns(42);
-    
-    var service = context.GetRequiredService<MyService>();
-    service.Execute().Should().Be(42);
-}
-```
+Rules:
 
-### DrnTestContext vs DrnTestContextUnit
+- Request `DrnTestContext` / `DrnTestContextUnit` only when the test uses context services, configuration, data providers, containers, service validation, or app bootstrapping.
+- Use `DataInlineUnit` for pure logic and isolated services. Use `DataInline` when real dependencies make the signal more honest.
+- The context must be the first parameter when requested; attribute data follows; AutoFixture/NSubstitute fill missing parameters.
+- Assertions use `AwesomeAssertions`.
+- Unit self-data derives from `DataSelfUnitAttribute`.
 
-| Feature | `DrnTestContext` | `DrnTestContextUnit` |
-|---------|-------------------|----------------------|
-| DI & Auto-mocking | ✅ | ✅ |
-| ContainerContext | ✅ | ❌ |
-| ApplicationContext | ✅ | ❌ |
-| FlurlHttpTest | ✅ | ❌ |
-| Data Attributes | `DataInline`, `DataMember`, `DataSelf` | `DataInlineUnit`, `DataMemberUnit`, `DataSelfUnit` |
-
-Data attributes provide the matching context only when the method signature requests it. Use `[Fact]` for tests without inline data, generated parameters, or context access.
-
-### Key Methods
-
-| Method | Purpose |
-|--------|---------|
-| `GetRequiredService<T>()` | Resolve service (builds provider if needed) |
-| `BuildServiceProvider()` | Explicitly build provider |
-| `ValidateServicesAsync()` | Validate attribute-based services |
-| `GetData(path)` | Get test data file content |
-| `AddToConfiguration(object)` | Add config before resolution |
-
----
-
-## ContainerContext
-
-Testcontainer management for integration tests:
+## Minimal Patterns
 
 ```csharp
-[Theory]
-[DataInline]
-public async Task DbTest(DrnTestContext context)
-{
-    context.ServiceCollection.AddInfraServices();
-    await context.ContainerContext.Postgres.ApplyMigrationsAsync();
-    
-    var dbContext = context.GetRequiredService<QAContext>();
-    dbContext.Users.Add(new User("test"));
-    await dbContext.SaveChangesAsync();
-}
-```
-
-| Feature | Description |
-|---------|-------------|
-| Auto PostgreSQL container | Starts, injects connection strings, applies migrations |
-| `PostgresIsolated` | Exclusive container per test (no sharing) |
-| `EnsureDatabaseAsync()` | Quick prototyping without manual migrations |
-| RabbitMQ support | `ContainerContext.RabbitMq` |
-| `Reuse = true` | Keep container across runs |
-
-### Auto-Managed Test Flags
-
-| Flag | Auto-Set | Purpose |
-|------|----------|---------|
-| `TemporaryApplication` | `true` | Prevents collision with local dev |
-| `DrnTestContextEnabled` | `true` | Signals test environment |
-
----
-
-## ApplicationContext
-
-WebApplicationFactory wrapper for API testing:
-
-```csharp
-[Theory]
-[DataInline]
-public async Task ApiTest(DrnTestContext context, ITestOutputHelper outputHelper)
-{
-    var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
-    
-    var endpoint = Get.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
-    var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>(endpoint);
-    forecasts.Should().NotBeEmpty();
-}
-```
-
-Features: Syncs DrnTestContext with WebApplicationFactory, shares service provider, auto PostgreSQL + migrations, authenticated HTTP client.
-
----
-
-## FlurlHttpTest Integration
-
-Mock external HTTP requests:
-
-```csharp
-context.FlurlHttpTest.RespondWith("{ \"status\": \"ok\" }", 200);
-// ... resolve and call service ...
-context.FlurlHttpTest.ShouldHaveCalled("https://api.example.com/*").Times(1);
-```
-
----
-
-## Data Attributes
-
-```csharp
-// No inline data, generated parameters, or context
 [Fact]
 public void Trim_Should_Remove_Outer_Whitespace()
 {
     "  Duran  ".Trim().Should().Be("Duran");
 }
 
-// Inline data + auto-fixture
-[Theory]
-[DataInline(99, "test")]
-public void Test(DrnTestContext context, int value, string name, Guid auto) { }
-
-// Unit inline data without DrnTestContextUnit when context is not needed
 [Theory]
 [DataInlineUnit(2, 3, 5)]
+[DataInlineUnit(-1, -2, -3)]
 public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
 {
     (a + b).Should().Be(expected);
 }
 
-// Unit inline data + DrnTestContextUnit when context is needed
 [Theory]
-[DataInlineUnit("SafeSection", "Visible", "safe-value")]
-public void UnitConfiguration_Should_Be_Available(
-    DrnTestContextUnit context, string section, string key, string value)
+[DataInlineUnit]
+public void Service_Should_Use_Mocked_Dependency(DrnTestContextUnit context, IDependency dependency)
 {
-    context.AddToConfiguration(section, key, value);
-    var debugView = context.GetConfigurationDebugView();
+    dependency.GetValue().Returns(42);
+    context.ServiceCollection.AddScoped<IDependency>(_ => dependency);
+    context.ServiceCollection.AddScoped<MyService>();
 
-    debugView.SettingsByProvider.Values.SelectMany(settings => settings)
-        .Should().Contain($"{section}:{key}={value}");
+    context.GetRequiredService<MyService>().Calculate().Should().Be(42);
 }
 
-// Member data
+public sealed class CategoryRows : DataSelfUnitAttribute
+{
+    public CategoryRows()
+    {
+        AddRow("dotnet");
+        AddRow("security");
+    }
+}
+```
+
+```csharp
 [Theory]
-[DataMember(nameof(TestData))]
-public void Test(DrnTestContext context, int value) { }
-public static IEnumerable<object[]> TestData => new[] { new object[] { 1 }, new object[] { 2 } };
-
-// Self-contained (DrnTestContext variant)
-public class MyData : DataSelfAttribute { public MyData() { AddRow(1, "first"); } }
-
-// Self-contained (DrnTestContextUnit variant — use DataSelfContextAttribute)
-public class MyUnitData : DataSelfContextAttribute { public MyUnitData() { AddRow(1, "first"); } }
-
-// Auto-mocking — interface parameters auto-created by NSubstitute
 [DataInline]
-public void Test(DrnTestContext context, IMyService mock)
+public async Task Repository_Should_Persist_Entity(DrnTestContext context)
 {
-    mock.GetValue().Returns(42);
-    context.ServiceCollection.AddScoped<IMyService>(_ => mock);
+    context.ServiceCollection.AddSampleInfraServices();
+    await context.ContainerContext.Postgres.ApplyMigrationsAsync();
+
+    var repository = context.GetRequiredService<ICategoryRepository>();
+    var category = new Category("dotnet");
+
+    await repository.CreateAsync(category);
+
+    category.EntityId.Should().NotBe(Guid.Empty);
 }
-```
 
-### JSON Contract Testing
-
-```csharp
-var original = new MyDto { Name = "test", Value = 42 };
-var roundTripped = original.ValidateObjectSerialization();
-roundTripped.Name.Should().Be("test");
-```
-
-| Attribute | Context | Purpose |
-|-----------|---------|---------|
-| `[FactDebuggerOnly]` | - | Run only when debugger attached |
-| `[TheoryDebuggerOnly]` | - | Theory only when debugger attached |
-
-### Test Consolidation
-
-If tests share the same setup and their consolidation creates no semantic or performance issue, they should be unified. Apply when consolidation requires only minimal essential change.
-
-#### Parameterized
-
-When multiple cases share identical test bodies, prefer one `[Theory]` with multiple data rows over separate methods:
-
-```csharp
 [Theory]
-[DataInlineUnit(2, 3, 5)]     // positive
-[DataInlineUnit(-1, -2, -3)]  // negative
-[DataInlineUnit(0, 0, 0)]     // zeros
-public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
+[DataInline]
+public async Task Endpoint_Should_Return_Data(DrnTestContext context, ITestOutputHelper output)
 {
-    (a + b).Should().Be(expected);
+    var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(output);
+    var result = await client.GetFromJsonAsync<WeatherForecast[]>(
+        Get.Endpoint.Sample.WeatherForecast.Get.RoutePattern);
+
+    result.Should().NotBeEmpty();
 }
 ```
 
-Last param = expected result · Name covers the dimension · Comment non-obvious rows · Don't consolidate when test bodies differ.
+## Context Capabilities
 
-#### Flow
+| Context | Use for | Notable members |
+|---|---|---|
+| `DrnTestContextUnit` | unit tests without containers or full app startup | `ServiceCollection`, `GetRequiredService<T>()`, `BuildConfigurationRoot()`, `GetData()`, `ValidateServicesAsync()` |
+| `DrnTestContext` | integration tests | all unit capabilities plus `ContainerContext`, `ApplicationContext`, `FlurlHttpTest` |
+| `ContainerContext` | real dependencies | `Postgres.ApplyMigrationsAsync()`, `Postgres.Isolated`, `RabbitMq`, `BindExternalDependenciesAsync()` |
+| `ApplicationContext` | API/E2E tests | `CreateClientAsync<TProgram>()`, `CreateApplicationAndBindDependenciesAsync<TProgram>()`, `LogToTestOutput()` |
+| `FlurlHttpTest` | outbound HTTP mocks | `ForCallsTo(...).RespondWithJson(...)`, `ShouldHaveCalled(...)` |
 
-When tests share identical setup (container init, migrations, service registration) and additional assertions can be applied by continuing the existing test flow, unify into a single test. Prevents code duplication, maintenance burden, and redundant setup/teardown cost. Most valuable in integration tests where setup is expensive.
+## Consolidation Rule
 
----
+Prefer one readable test that exercises a coherent flow over many duplicate tests with the same setup. Parameterize identical bodies with multiple data rows. In integration tests, continue the same flow when assertions share container setup, migrations, or service registration. Do not combine structurally different behaviors only to reduce count.
 
-## Providers
+## MTP Commands
 
-| Provider | Usage | Source |
-|----------|-------|--------|
-| `SettingsProvider.GetAppSettings()` | Load IAppSettings | `Settings/` folder |
-| `DataProvider.Get("file.json")` | Load test data | `Data/` folder |
-| `CredentialsProvider.GenerateCredentials()` | Test credentials | Deterministic generation |
+Repository rule: do not build or run tests unless the user explicitly allows it. When allowed, prefer commands from `.agent/repository-profile.md`; otherwise discover test project paths from the filesystem or CI. Use project commands only; never use `.slnx` for test execution.
 
----
+```bash
+# Unit tests first
+dotnet run --project <unit-test-csproj>
 
-## Test Project Setup
+# Filter a unit class or method
+dotnet run --project <unit-test-csproj> -- --filter-class Fully.Qualified.TestClass
+dotnet run --project <unit-test-csproj> -- --filter-method Fully.Qualified.TestMethod
 
-```xml
-<Project Sdk="Microsoft.NET.Sdk">
-    <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
-        <OutputType>Exe</OutputType>
-        <IsPackable>false</IsPackable>
-        <IsTestProject>true</IsTestProject>
-        <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
-    </PropertyGroup>
-    <ItemGroup>
-        <PackageReference Include="DRN.Framework.Testing" />
-        <PackageReference Include="xunit.v3.mtp-v2" />
-    </ItemGroup>
-</Project>
+# Integration tests only after unit tests pass
+dotnet run --project <integration-test-csproj>
+
+# Filter integration tests
+dotnet run --project <integration-test-csproj> -- --filter-class Fully.Qualified.IntegrationTestClass
+
+# Performance only on explicit request
+dotnet run -c Release --project <performance-test-csproj> -- --filter-method Fully.Qualified.PerformanceTestClass.Run_Benchmarks
 ```
 
-**Data file copy rules** (add if using `Settings/` or `Data/` folders):
+## Test Project Essentials
+
 ```xml
-<ItemGroup>
-    <None Update="Settings\appsettings.json"><CopyToOutputDirectory>Always</CopyToOutputDirectory></None>
-    <None Update="Data\*.txt"><CopyToOutputDirectory>Always</CopyToOutputDirectory></None>
-</ItemGroup>
+<PropertyGroup>
+  <TargetFramework>net10.0</TargetFramework>
+  <OutputType>Exe</OutputType>
+  <IsPackable>false</IsPackable>
+  <IsTestProject>true</IsTestProject>
+  <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+</PropertyGroup>
 ```
 
-### DTT Philosophy: The Pit of Success
-
-DTT minimizes **cognitive cost** and **willpower depletion**. When testing requires high activation energy (wiring dependencies, managing containers, writing boilerplate), developers avoid writing tests. DTT wraps all rigor (containers, migrations, DI, auto-mocking) into a single attribute (`[DataInline]`), making the **Right Thing** accessible via the **Lowest Effort** action. Type `dtt` snippet to scaffold.
-
----
+If a test uses `Settings/` or `Data/`, copy those files to output. Global usings should include `AwesomeAssertions`, `NSubstitute`, xUnit v3, `DRN.Framework.Testing.Contexts`, `DRN.Framework.Testing.DataAttributes`, and `Microsoft.Extensions.DependencyInjection`.
 
 ## Related Skills
 
-- [overview-drn-testing.md](../overview-drn-testing/SKILL.md) - Testing philosophy
-- [test-unit.md](../test-unit/SKILL.md) - Unit test patterns
-- [test-integration.md](../test-integration/SKILL.md) - Integration patterns
-- [test-performance.md](../test-performance/SKILL.md) - Performance testing
-- [drn-entityframework.md](../drn-entityframework/SKILL.md) - Database testing
-
----
-
-## Global Usings
-
-```csharp
-global using Xunit;
-global using Xunit.v3;
-global using AutoFixture;
-global using AutoFixture.AutoNSubstitute;
-global using AutoFixture.Xunit3;
-global using AwesomeAssertions;
-global using NSubstitute;
-global using Microsoft.Extensions.DependencyInjection;
-global using Microsoft.Extensions.DependencyInjection.Extensions;
-global using Microsoft.Extensions.Configuration;
-global using DRN.Framework.Testing;
-global using DRN.Framework.Testing.Contexts;
-global using DRN.Framework.Testing.DataAttributes;
-global using DRN.Framework.Testing.Providers;
-global using DRN.Framework.Testing.TestAttributes;
-global using DRN.Framework.Utils.Extensions;
-global using DRN.Framework.Utils.Settings;
-global using DRN.Framework.SharedKernel;
-global using DRN.Framework.Utils.DependencyInjection;
-global using System.Reflection;
-global using System.IO;
-global using System.Linq;
-global using System.Collections;
-global using Xunit.Abstractions;
-```
+- [overview-drn-testing](../overview-drn-testing/SKILL.md) - DTT philosophy and test-type choice
+- [test-unit](../test-unit/SKILL.md) - unit-specific patterns
+- [test-integration](../test-integration/SKILL.md) - integration routing
+- [test-integration-api](../test-integration-api/SKILL.md) - API/E2E patterns
+- [test-integration-db](../test-integration-db/SKILL.md) - database component patterns
+- [test-performance](../test-performance/SKILL.md) - benchmark/load-test guidance

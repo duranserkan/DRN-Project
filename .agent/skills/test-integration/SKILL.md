@@ -1,69 +1,35 @@
 ---
 name: test-integration
-description: Integration testing overview - Orchestrates API testing (WebApplicationFactory) and database component testing (Testcontainers). Navigation hub for test-integration-api and test-integration-db specialized skills. Keywords: integration-testing, testcontainers, webapplicationfactory, api-testing, database-testing, e2e-testing, dtt
-last-updated: 2026-02-15
+description: Use when choosing or reviewing integration tests for API pipelines, database behavior, external dependencies, containers, serialization, middleware, or end-to-end component boundaries.
+last-updated: 2026-06-12
 difficulty: basic
 tokens: ~0.5K
 ---
 
-# DRN.Test.Integration Overview
+# Integration Testing
 
-> Integration testing suite using Testcontainers, WebApplicationFactory, and xUnit.
+> Portable integration-test router. Load repository-profile testing rules and scoped framework testing skills first when present.
 
-## Core Concepts
-- **DrnTestContext**: Primary test fixture.
-- **ContainerContext**: Manages docker containers (Postgres, RabbitMQ, etc.).
-- **ApplicationContext**: Manages `WebApplicationFactory` for E2E tests (automatically sets `DrnTestContextEnabled` and `TemporaryApplication` flags).
+## Choose the Narrowest Honest Integration
 
-## Skill Selection
+| Need | Use | Skill |
+|---|---|---|
+| Controllers, endpoints, auth, middleware, serialization, route bindings | API or web-application factory test | [test-integration-api](../test-integration-api/SKILL.md) |
+| Repositories, ORM mapping, SQL, interceptors, transactions, concurrency | Database-backed component test | [test-integration-db](../test-integration-db/SKILL.md) |
+| Outbound HTTP behavior | HTTP client test double at transport boundary | [test-integration-api](../test-integration-api/SKILL.md) |
+| Message bus, queue, cache, object storage | Real container or approved local emulator | Repository-specific skill |
 
-### [API & End-to-End Testing](../test-integration-api/SKILL.md)
-**Use when testing Controllers/Endpoints.**
-- Uses `CreateClientAsync` (Auto-setup).
-- Mocks external HTTP calls via `Flurl`.
-- Validates full request pipeline (middleware, auth, etc.).
+Use parameterized tests when the setup and assertions are genuinely the same across rows. Request heavyweight fixtures or containers only when the test needs them.
 
-### [Database Component Testing](../test-integration-db/SKILL.md)
-**Use when testing internal components (Repositories, Services) in isolation.**
-- **Manual Setup Required**: Must call `AddServices` and `ApplyMigrationsAsync`.
-- Best for checking complex SQL, transactions, or concurrency logic without web overhead.
+## Setup Rules
 
-## Test Consolidation
+- API/E2E: start the application through the repository's approved test host and bind external dependencies through test configuration.
+- DB/component: register only the services under test and apply migrations/schema setup explicitly.
+- Unit tests run first; integration tests run only after unit tests pass and only when the user explicitly allows test execution.
+- Do not merge structurally different behaviors merely to reduce test count.
 
-If tests share the same setup and their consolidation creates no semantic or performance issue, they should be unified. Apply when consolidation requires only minimal essential change. Integration tests benefit most — container startup, migrations, and service registration are expensive to repeat.
+## Related
 
-### Parameterized
-
-When multiple cases share identical test bodies, consolidate into one `[Theory]` with multiple `[DataInline]` rows:
-
-```csharp
-[Theory]
-[DataInline(AppEnvironment.Development, "ViveLaRépublique", true)]
-[DataInline(AppEnvironment.Production, "ViveLaRépublique", true)]
-public async Task ConnectionString_Should_Be_Set(DrnTestContext context,
-    AppEnvironment environment, string connectionString, bool expected)
-{
-    context.ServiceCollection.AddSampleInfraServices();
-    await context.ContainerContext.Postgres.ApplyMigrationsAsync();
-    // Act & Assert using environment + connectionString params
-}
-```
-
-**Rules**: Last param = expected result · Name covers the dimension, not one case · Comment rows when values aren't obvious · Don't consolidate when test bodies differ structurally.
-
-### Flow
-
-When tests share identical setup (container init, migrations, service registration) and additional assertions can be applied by continuing the existing test flow, unify into a single test. This prevents code duplication, maintenance burden, and redundant setup/teardown cost.
-
-**Reference**: [QAContextTagTests.cs](file:///Users/duranserkankilic/Work/Drn-Project/DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTagTests.cs) — single test flow that validates entity IDs, JSON model queries, date filters, and materialization interceptor with one shared setup.
-
-## Project Structure
-```text
-DRN.Test.Integration/
-├── Tests/
-│   ├── Sample/
-│   │   ├── Controller/   # API Tests (End-to-End)
-│   │   └── Infra/        # DB/Component Tests (Isolated)
-├── TestStartupJob.cs     # One-time global setup (passwords, auth)
-└── Usings.cs             # Global Usings (xUnit, FluentAssertions)
-```
+- [test-integration-api](../test-integration-api/SKILL.md)
+- [test-integration-db](../test-integration-db/SKILL.md)
+- [test-unit](../test-unit/SKILL.md)

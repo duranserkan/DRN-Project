@@ -3,8 +3,8 @@
 #https://www.jetbrains.com/help/rider/Docker_fast_mode.html
 #from solution root: docker build -f DRN.Nexus.Hosted/Dockerfile -t drn/nexus.hosted:localbuild .
 ARG PROJECT=DRN.Nexus.Hosted
-ARG DOTNET_RUNTIME_VERSION=10.0.8
-ARG DOTNET_SDK_VERSION=10.0.300
+ARG DOTNET_RUNTIME_VERSION=10.0.9
+ARG DOTNET_SDK_VERSION=10.0.301
 ARG DOTNET_DISTRO=resolute
 
 #https://www.mytechramblings.com/posts/testing-chiseled-ubuntu-containers-with-dotnet/

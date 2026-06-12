@@ -12,13 +12,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.9" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <Folder Include="DataProtection\Migrations\" />
     <Folder Include="Identity\Migrations\" />
     <Folder Include="QA\Migrations\" />
   </ItemGroup>
-  
+
 </Project>

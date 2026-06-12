@@ -8,12 +8,17 @@ public class DevelopmentStatusTests
     private static DbContextChangeModel CreateChangeModel() => new("TestContext", ["Migration1"], ["Migration1"],
         new DbContextChangeModelFlags(false, false, false));
 
-    private static void ConfigureEnvironment(DrnTestContextUnit context, AppEnvironment environment, bool autoMigrateDevelopment, bool autoMigrateStaging)
+    private static DbContextChangeModel CreatePrototypeChangeModel() => new("TestContext", [], [],
+        new DbContextChangeModelFlags(true, true, false));
+
+    private static void ConfigureEnvironment(DrnTestContextUnit context, AppEnvironment environment, bool autoMigrateDevelopment, bool autoMigrateStaging,
+        bool prototype = false)
     {
         var section = nameof(DrnDevelopmentSettings);
         context.AddToConfiguration("Environment", environment.ToString());
         context.AddToConfiguration(section, nameof(DrnDevelopmentSettings.AutoMigrateDevelopment), autoMigrateDevelopment.ToString());
         context.AddToConfiguration(section, nameof(DrnDevelopmentSettings.AutoMigrateStaging), autoMigrateStaging.ToString());
+        context.AddToConfiguration(section, nameof(DrnDevelopmentSettings.Prototype), prototype.ToString());
     }
 
     [Theory]
@@ -32,5 +37,40 @@ public class DevelopmentStatusTests
         status.AddChangeModel(model);
 
         model.Flags.Migrate.Should().Be(migrationEnabled);
+    }
+
+    [Theory]
+    [DataInlineUnit(AppEnvironment.Development, true)]
+    [DataInlineUnit(AppEnvironment.Staging, false)]
+    [DataInlineUnit(AppEnvironment.Production, false)]
+    public void Prototype_Recreate_Flag_Should_Only_Be_Enabled_In_Development(DrnTestContextUnit context,
+        AppEnvironment environment, bool recreateEnabled)
+    {
+        ConfigureEnvironment(context, environment, autoMigrateDevelopment: true, autoMigrateStaging: true, prototype: true);
+
+        var status = context.GetRequiredService<DevelopmentStatus>();
+        var model = CreatePrototypeChangeModel();
+        status.AddChangeModel(model);
+
+        model.Flags.RecreatePrototypeDatabaseForPendingModelChanges.Should().Be(recreateEnabled);
+    }
+
+    [Theory]
+    [DataInlineUnit(false, false, true)]
+    [DataInlineUnit(false, true, true)]
+    [DataInlineUnit(true, false, false)]
+    [DataInlineUnit(true, true, true)]
+    public void Prototype_Recreate_Flag_Should_Respect_Applied_Migrations(DrnTestContextUnit context,
+        bool hasAppliedMigration, bool usePrototypeModeWhenMigrationExists, bool recreateEnabled)
+    {
+        ConfigureEnvironment(context, AppEnvironment.Development, autoMigrateDevelopment: true, autoMigrateStaging: false, prototype: true);
+
+        var status = context.GetRequiredService<DevelopmentStatus>();
+        string[] appliedMigrations = hasAppliedMigration ? ["InitialMigration"] : [];
+        var model = new DbContextChangeModel("TestContext", ["InitialMigration"], appliedMigrations,
+            new DbContextChangeModelFlags(true, true, usePrototypeModeWhenMigrationExists));
+        status.AddChangeModel(model);
+
+        model.Flags.RecreatePrototypeDatabaseForPendingModelChanges.Should().Be(recreateEnabled);
     }
 }

@@ -369,4 +369,4 @@ Answer Why&What&Write for Reader 6 Months Later
 ---
 
 1. [IMPORTANT] Always Run DiSCOS(Keep Active as Overlay) & AGENTS.md(in repo root if any)
-2. Output Only Augmentation&Synergy&Compatibility&Utility Check→1 Concise Sentence
+2. For explicit DiSCOS augmentation/synergy/compatibility/utility checks only: output 1 concise sentence. Otherwise follow the active workflow's required output format.

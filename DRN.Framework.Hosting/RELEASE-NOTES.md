@@ -2,10 +2,19 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.9.5
 
+### Breaking Changes
+
+*   **Host Filtering Configuration**: `AllowedHosts` must now be configured outside Development and cannot contain `*`. Development still falls back to `*` for local convenience, but Staging and Production fail closed when host filtering is missing or wildcarded.
+
 ### Changed
 
 *   **Razor Development Workflow**: Removed the default `Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation` dependency and `AddRazorRuntimeCompilation()` registration. DRN now relies on Razor SDK build-time/publish-time compilation and IDE or `dotnet watch` Hot Reload for local `.cshtml` iteration, following .NET 10 guidance that Razor runtime compilation is obsolete.
     *   References: [Razor runtime compilation is obsolete](https://learn.microsoft.com/en-us/aspnet/core/breaking-changes/10/razor-runtime-compilation-obsolete), [.NET Hot Reload support for ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/test/hot-reload).
+*   **Production Error Responses**: Production exception responses and `ProblemDetails` no longer include raw exception messages or stack details. Development keeps detailed diagnostics.
+
+### Bug Fixes
+
+*   **Vite Manifest Integrity and Validation**: Vite manifest parsing now resolves from the web root, validates that manifest files and referenced assets stay under the expected output folders, fails fast on missing manifest assets, and emits SHA-256 integrity hashes in standard Base64 for browser SRI compatibility.
 
 ### New Features
 
@@ -115,7 +124,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 *   **Infrastructure & Development**
     *   **`IAppStartupStatus`**: Singleton gate for background services to await full host startup before executing.
     *   **`IServerSettings`**: Resolves bound Kestrel addresses with wildcard-to-localhost normalization for internal self-requests.
-    *   **Local Provisioning**: `LaunchExternalDependenciesAsync` auto-starts Postgres/RabbitMQ Testcontainers in Debug mode.
+    *   **Local Provisioning**: `LaunchExternalDependenciesAsync` auto-starts PostgreSQL Testcontainers in Debug mode; RabbitMQ is available through the explicit testing helper.
     *   **Validation**: `ValidateEndpoints` and `ValidateServicesAddedByAttributesAsync` ensure system integrity at startup.
     *   **Identity Integration**: `IdentityControllerBase` and `ScopedUserMiddleware` for deep identity context propagation.
 

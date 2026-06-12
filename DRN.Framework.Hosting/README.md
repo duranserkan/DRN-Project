@@ -15,10 +15,10 @@
 
 ## TL;DR
 
-- **Secure by Default** - MFA enforced (Fail-Closed), strict CSP with Nonces, HSTS automatic
+- **Secure by Default** - MFA enforced (Fail-Closed), strict CSP with nonces, HSTS outside Development
 - **Opinionated Startup** - `DrnProgramBase` with 20+ overrideable lifecycle hooks
 - **Type-Safe Routing** - Typed `Endpoint` and `Page` accessors replace magic strings
-- **Zero-Config Infrastructure** - Auto-provision Postgres/RabbitMQ in Debug mode
+- **Local Infrastructure** - Optional Debug-time Postgres provisioning via `DRN.Framework.Testing`
 - **Frontend Integration** - TagHelpers for Vite manifest, CSRF for HTMX, secure assets
 
 ## Table of Contents
@@ -152,10 +152,12 @@ flowchart TD
             CAPR --> HSM["HttpScopeMiddleware (TraceId/Logging)"]
             HSM --> CPSS["ConfigureApplicationPostScopeStart()"]
             CPSS --> UR["UseRouting()"]
-            UR --> CAPREA["ConfigureApplicationPreAuthentication()"]
+            UR --> PRL["PreAuthRateLimitingMiddleware"]
+            PRL --> CAPREA["ConfigureApplicationPreAuthentication()"]
             CAPREA --> AUTH["UseAuthentication()"]
             AUTH --> SUM["ScopedUserMiddleware"]
-            SUM --> CAPOSTA["ConfigureApplicationPostAuthentication()"]
+            SUM --> PARL["UseRateLimiter() (PostAuth)"]
+            PARL --> CAPOSTA["ConfigureApplicationPostAuthentication()"]
             CAPOSTA --> MFAE["MfaExemptionMiddleware"]
             CAPOSTA --> MFAR["MfaRedirectionMiddleware"]
             MFAE --> UA["UseAuthorization()"]
@@ -189,7 +191,7 @@ flowchart TD
 
     %% Apply Styles
     class CAB,CLB,CWHB,CSO,CDSH,CDCSP,CSHPB,CCP,CSFO,CRCO,CRCMO,CCP2,CFHO,CMVCB,CAO,ASA builderNode
-    class CA,CAPS,CAPR,HSM,CPSS,UR,CAPREA,AUTH,SUM,CAPOSTA,MFAE,MFAR,UA,CPSTAZ,MAE appNode
+    class CA,CAPS,CAPR,HSM,CPSS,UR,PRL,CAPREA,AUTH,SUM,PARL,CAPOSTA,MFAE,MFAR,UA,CPSTAZ,MAE appNode
     class ABC,ABA,AVA action
     class Start,Build,VE,VSA,Run core
     class B_NOTE,A_NOTE note
@@ -249,8 +251,8 @@ These hooks define the request processing middleware sequence.
 | **1** | `ConfigureApplicationPipelineStart` | `UseForwardedHeaders`, `UseHostFiltering`, `UseCookiePolicy`. |
 | **2** | `ConfigureApplicationPreScopeStart` | `UseResponseCaching`, `UseResponseCompression`, `UseStaticFiles`. Caching placed before compression for efficiency. |
 | **3** | `ConfigureApplicationPostScopeStart` | Add middleware that needs access to `IScopedLog` but runs before routing. |
-| **4** | `ConfigureApplicationPreAuthentication` | `UseRequestLocalization`. Runs before the user identity is resolved. |
-| **5** | `ConfigureApplicationPostAuthentication` | `MfaRedirectionMiddleware`, `MfaExemptionMiddleware`. Logic that runs after the user is known but before access checks. |
+| **4** | `ConfigureApplicationPreAuthentication` | `UseRequestLocalization`. The built-in pre-auth rate limiter runs after routing and before this hook when enabled. |
+| **5** | `ConfigureApplicationPostAuthentication` | `MfaRedirectionMiddleware`, `MfaExemptionMiddleware`. The built-in post-auth `UseRateLimiter()` runs after `ScopedUserMiddleware` and before this hook when enabled. |
 | **6** | `ConfigureApplicationPostAuthorization` | `UseSwaggerUI`. Runs after access is granted but before the final endpoint. |
 | **7** | `MapApplicationEndpoints` | `MapControllers`, `MapRazorPages`, `MapHubs`. |
 
@@ -285,15 +287,15 @@ These hooks define the request processing middleware sequence.
 ## Configuration
 
 > [!TIP]
-> **Configuration Precedence**: Environment > Secrets > AppSettings.
+> **Configuration Precedence**: command line and mounted settings override environment variables, which override User Secrets and appsettings files.
 > Always use `User Secrets` for local connection strings to avoid committing credentials.
 
 ### Layering
 1.  `appsettings.json`
 2.  `appsettings.{Environment}.json`
-3.  **User Secrets** (Development only)
-4.  **Environment Variables** (`ASPNETCORE_`, `DOTNET_`)
-5.  **Mounted Directories** (e.g. `/app/config`)
+3.  **User Secrets** when the application assembly can be loaded
+4.  **Environment Variables** (`ASPNETCORE_`, `DOTNET_`, then unprefixed)
+5.  **Mounted Directories** (default: `/appconfig`)
 6.  **Command Line Arguments**
 
 ### Host Filtering
@@ -354,12 +356,12 @@ protected override MfaRedirectionConfig ConfigureMFARedirection()
         mfaLoginUrl: Get.Page.User.LoginWith2Fa,
         loginUrl: Get.Page.User.Login,
         logoutUrl: Get.Page.User.Logout,
-        allowedUrls: Get.Page.All
+        appPages: Get.Page.All
     );
 
 // Exempt specific authentication schemes from MFA
 protected override MfaExemptionConfig ConfigureMFAExemption()
-    => new(exemptSchemes: ["ApiKey", "Certificate"]);
+    => new() { ExemptAuthSchemes = ["ApiKey", "Certificate"] };
 ```
 
 ### Disabling MFA Entirely
@@ -390,20 +392,23 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
 > Disabling MFA removes a critical security layer. Only do this for internal applications on secured networks.
 
 ### 3. Content Security Policy (Nonce-based)
+
 DRN automatically generates a unique cryptographic nonce for every request.
 *   **Baseline**: `default-src 'none'` with explicit same-origin allowlists for styles, images, fonts, connections, media, manifests, and workers.
 *   **Automatic Protection**: Inline scripts and inline style elements without a matching nonce are blocked by the browser, stopping most XSS attacks.
 *   **Usage**: Use the `NonceTagHelper` (see below) to automatically inject these nonces.
 
 ### 4. Transparent Security Headers
-Standard security headers are injected into every response:
-*   **HSTS**: Strict-Transport-Security (2 years, includes subdomains).
+Standard security headers are injected into responses:
+*   **HSTS**: Strict-Transport-Security (2 years, includes subdomains) outside Development.
 *   **FrameOptions**: `DENY` (prevents clickjacking).
 *   **ContentTypeOptions**: `nosniff`.
 *   **ReferrerPolicy**: `strict-origin-when-cross-origin`.
+*   **Cross-Origin**: COOP `same-origin`, COEP `credentialless`, and CORP `same-site`.
+*   **PermissionsPolicy**: Secure default directives with fullscreen limited to self.
 
 ### 5. GDPR & Cookie Security
-Cookies are configured with `SameSite=Strict` and `HttpOnly` by default to mitigate CSRF and session hijacking. The `ConsentCookie` system ensures compliance with privacy regulations.
+The global cookie policy uses `SameSite=Strict`; `Secure` is `Always` outside Development and `SameAsRequest` in Development. Global `HttpOnly` is not forced because some consent/client-side cookies must remain script-readable under strict CSP. Antiforgery and TempData cookies are explicitly `HttpOnly`. The `ConsentCookie` system supports privacy preference handling.
 
 ### 6. Per-Route Security Headers
 
@@ -411,103 +416,114 @@ Customize security headers for specific routes by overriding `ConfigureSecurityH
 
 ```csharp
 protected override void ConfigureSecurityHeaderPolicyBuilder(
-    HeaderPolicyCollection policies, 
+    SecurityHeaderPolicyBuilder builder,
+    IServiceProvider serviceProvider,
     IAppSettings appSettings)
 {
-    base.ConfigureSecurityHeaderPolicyBuilder(policies, appSettings);
+    base.ConfigureSecurityHeaderPolicyBuilder(builder, serviceProvider, appSettings);
     
     // Add route-specific CSP for embedding external content
-    policies.AddContentSecurityPolicy(builder =>
+    var legacyPolicy = new HeaderPolicyCollection();
+    ConfigureDefaultSecurityHeaders(legacyPolicy, serviceProvider, appSettings);
+    legacyPolicy.Remove("Content-Security-Policy");
+    legacyPolicy.AddContentSecurityPolicy(csp =>
     {
-        builder.AddFrameAncestors().Self();
-        builder.AddScriptSrc().Self().UnsafeInline(); // Only for specific legacy routes
-    }, 
-    // Apply only to specific paths
-    context => context.Request.Path.StartsWithSegments("/legacy"));
+        ConfigureDefaultCspBase(csp);
+        csp.AddFrameAncestors().Self();
+        csp.AddScriptSrc().Self().UnsafeInline(); // Only for selected legacy routes
+    });
+    builder.AddPolicy("legacy-inline-csp", legacyPolicy);
+    builder.SetPolicySelector(selector =>
+        selector.HttpContext.Request.Path.StartsWithSegments("/legacy")
+            ? selector.ConfiguredPolicies["legacy-inline-csp"]
+            : selector.DefaultPolicy);
 }
 ```
 
 ### 7. Rate Limiting
 
-DRN Hosting provides first-class, dual-layer rate limiting with a pluggable rule engine.
+DRN Hosting adds two composable limiter phases:
 
-- **Pre-Auth Layer**: Lightweight middleware placed before authentication. Rejects abusive requests (IP-based by default) early to save expensive auth/MFA checks. It evaluates singleton rules only. Endpoints with ASP.NET Core `[DisableRateLimiting]` metadata bypass this DRN pre-auth layer as well as the built-in post-auth layer; `[EnableRateLimiting]` does not bypass the global pre-auth limiter, matching ASP.NET Core global-limiter semantics.
-- **Post-Auth Layer**: Placed after `ScopedUserMiddleware` to allow user-aware and tenant-based partitioning. The default authenticated partition uses stable user id claims (`NameIdentifier`/`sub`) with the authentication scheme, falling back to IP only for anonymous requests.
+- **Pre-auth** runs after routing and before authentication. It evaluates singleton rules only and uses a coarse IP default to reject obvious abuse before auth and MFA work. Add a custom singleton rule for trusted-header partitioning behind a correctly configured edge proxy.
+- **Post-auth** runs after `ScopedUserMiddleware`. It can use singleton and scoped rules, including user, tenant, account, claim, or endpoint partitions.
 
-Post-auth defaults to Token Bucket (100 tokens/minute per authenticated user or anonymous IP). Pre-auth defaults to a coarser B2B-friendly IP bucket (1,000 tokens/minute) so shared corporate NAT/VPN/CDN egress addresses are not punished like one user. Both layers return `429 Too Many Requests` with a `Retry-After` header.
+Defaults are token buckets: 1,000 tokens/minute for pre-auth IP partitions and 100 tokens/minute for post-auth authenticated users or anonymous IP fallback. Rejections return `429 Too Many Requests` with `Retry-After`.
 
 > [!IMPORTANT]
-> DRN's built-in limiter state is process-local. In horizontally scaled production deployments, enforce coarse limits at the edge (WAF/CDN/API gateway/load balancer) or add a distributed limiter for limits that must hold across every application instance.
+> DRN's built-in limiter state is process-local. In horizontally scaled production deployments, enforce coarse limits at the edge (WAF/CDN/API gateway/load balancer) or add a distributed/custom limiter for quotas that must hold across every application instance.
 
-```mermaid
-flowchart LR
-    request["Request"] --> routing["UseRouting"]
-    routing --> pre["Pre-auth singleton rule chain"]
-    pre --> auth["Authentication + ScopedUserMiddleware"]
-    auth --> post["Post-auth singleton + scoped rule chain"]
-    post --> endpoint["Endpoint"]
-    endpoint -. "[EnableRateLimiting(policy)]" .-> post
-    endpoint -. "[DisableRateLimiting]" .-> pre
-```
+Endpoint metadata behavior:
+
+- `[DisableRateLimiting]` bypasses DRN pre-auth and post-auth limiting, plus ASP.NET Core post-auth policies.
+- `[EnableRateLimiting("policy-name")]` selects ASP.NET Core named post-auth policies. DRN pre-auth remains global; DRN rules with matching `PolicyName` compose with the named policy.
+- Static files served before routing are naturally outside the limiter path.
 
 #### Why DRN Rate Limiting
 
-ASP.NET Core `UseRateLimiter()` has a single `GlobalLimiter` property and named policies per endpoint. A second limiter overwrites the first. Named policies do not compose on the same endpoint. There is no pre-auth layer. DRN solves these problems:
+ASP.NET Core `UseRateLimiter()` supports a single global limiter plus endpoint policies. DRN keeps those native policies and adds framework-managed composition for common application needs:
 
-| Capability | ASP.NET Core Native | DRN |
+| Capability | ASP.NET Core native | DRN |
 |---|---|---|
-| Multiple rules per request | Manual `CreateChained(...)` wiring | ✅ Automatic. Register rules to chain them |
-| Pre-auth and post-auth layers | Single layer only | ✅ Two layers with lifetime separation |
-| Tenant, User, and IP together | Manual plumbing in one `GlobalLimiter` | ✅ Separate rules that chain automatically |
-| Add a rule without touching existing config | Risk overwriting `GlobalLimiter` | ✅ Derive from base class |
-| Policy-scoped rules that compose | One named policy per endpoint | ✅ Multiple rules with same `PolicyName` chain |
-| Named policies from `AddRateLimiter(...)` | ✅ Supported | ✅ Preserved. DRN enriches them |
-| Multi-dimensional partitioning | Single key per limiter. Combine dimensions manually | ✅ Each rule owns its partition key. Dimensions compose via chaining |
-| Partition key isolation | Each `Create(...)` instance has own cache | ✅ Same. Auto-namespaced keys for diagnostics and defense |
-| Identity-aware partitioning | Write `HttpContext.User` parsing inline | ✅ Scoped rules inject `IScopedUser`. Defaults use stable `NameIdentifier` or `sub` claims |
-| Pre-auth partition defaults | No pre-auth layer | ✅ IP-based with coarse limits |
-| Post-auth partition defaults | Must implement from scratch | ✅ User ID (auth) or IP (anonymous) out of the box |
-
-> **Register a class to chain automatically.** No manual `CreateChained(...)`. No single-property overwrite risk. No touching `Program.cs`.
-
-#### Settings Quick Reference
-
-Configure DRN defaults under `DrnAppFeatures:DrnRateLimit`. Application code reads the same values through `IAppSettings.Features.RateLimit`. Settings are a startup snapshot, so changing them requires an application restart.
-
-| Setting group | Default | Used by | Meaning |
-|---|---:|---|---|
-| `Disabled` | `false` | Both phases | Disables DRN pre-auth and post-auth rate limiting entirely. |
-| `PartitionLogMode` | `KeyedHash` | Both phases | Controls structured log values for rejected IP/partition keys. `KeyedHash` logs deterministic keyed hashes for correlation; `PlainText` logs raw values and should be limited to controlled development or dedicated audit sinks. |
-| `TokenLimit`, `ReplenishmentSeconds`, `TokensPerPeriod` | `100`, `60`, `100` | Shared fallback | Base token bucket values for both phases. |
-| `PreAuthTokenLimit`, `PreAuthReplenishmentSeconds`, `PreAuthTokensPerPeriod` | `1000`, `60`, `1000` | Pre-auth | Coarse IP/header limits before authentication. Keep these higher behind NAT, VPN, or CDN egress. `0` inherits the shared value. |
-| `PostAuthTokenLimit`, `PostAuthReplenishmentSeconds`, `PostAuthTokensPerPeriod` | `0`, `0`, `0` | Post-auth | Authenticated user or anonymous IP limits after `ScopedUserMiddleware`. `0` inherits the shared value. |
+| Pre-auth abuse rejection | Single post-routing limiter path | Pre-auth limiter before auth/MFA work |
+| User, tenant, account, and IP limits together | Manual chained limiter wiring | Independent rules compose automatically |
+| Rule addition | Update central `GlobalLimiter` configuration | Add a rule class with DI attributes/base class |
+| Scoped/user-aware partitioning | Manual `HttpContext.User` parsing | Post-auth scoped rules can use `IScopedUser` and app helpers |
+| Endpoint named policies | Native support | Preserved and enriched with DRN matching rules |
+| Rejection diagnostics | Native policy result | Rule, phase, action, and redacted partition tags/logs |
 
 Usage guidance:
 
 - Use the default post-auth rule for ordinary per-user throttling.
 - Raise pre-auth limits or add a singleton trusted-header rule when many legitimate users share one edge IP.
 - Add scoped post-auth rules for tenant, account, or user-claim partitions that need `IScopedUser` or other scoped collaborators.
-- Use `[DisableRateLimiting]` for trusted health and operational endpoints that must not consume any quota.
-- Use `[EnableRateLimiting("policy-name")]` for ASP.NET Core named post-auth policies. DRN pre-auth remains global; DRN rule `PolicyName` values compose with matching endpoint metadata.
-- DRN's built-in token bucket queues are disabled (`QueueLimit = 0`) so rejected requests fail fast with 429. Custom rules can choose different algorithms or queue behavior.
-- Treat `DrnRateLimitOptions` as global default policy. Put tenant plan, feature-flag, account, or endpoint-specific quota decisions in app-owned rules.
-- Process-local limits are not a distributed enforcement boundary. In horizontally scaled production, pair DRN app-local limits with edge or distributed rate limiting.
+- Use `[DisableRateLimiting]` only for trusted health and operational endpoints that must not consume quota.
+- Keep tenant plan, feature-flag, account, or endpoint-specific quota decisions in app-owned rules, not in global defaults.
+- Pair process-local DRN limits with edge or distributed rate limiting when a quota must hold across replicas.
 
-#### Dynamic Tenant Policies and Distributed Enforcement
+#### Settings Quick Reference
 
-`DrnRateLimitOptions` is a startup snapshot for global defaults. Enterprise tenant plans should be modeled in rules, not in the global settings object. A scoped post-auth rule can read `IScopedUser`, request-scoped feature flags, or tenant plan data already loaded for the request and return a partition with the correct limit values.
+Configure defaults under `DrnAppFeatures:DrnRateLimit`. Application code reads the same values through `IAppSettings.Features.RateLimit`. Settings are a startup snapshot, so changes require restart.
 
-Rule evaluation is synchronous because ASP.NET Core partition selection is synchronous. Do not perform database, Redis, or `HybridCache` I/O inside `EvaluatePreAuth` / `EvaluatePostAuth`. Load dynamic plan data earlier in the request, or maintain an in-memory snapshot refreshed by a background service.
+| Setting group | Default | Used by | Meaning |
+|---|---:|---|---|
+| `Disabled` | `false` | Both phases | Disables DRN pre-auth and post-auth rate limiting. |
+| `PartitionLogMode` | `KeyedHash` | Both phases | Logs deterministic keyed hashes for rejected partitions. Use `PlainText` only in controlled development or dedicated audit sinks. |
+| `TokenLimit`, `ReplenishmentSeconds`, `TokensPerPeriod` | `100`, `60`, `100` | Shared fallback | Base token bucket values for both phases. |
+| `PreAuthTokenLimit`, `PreAuthReplenishmentSeconds`, `PreAuthTokensPerPeriod` | `1000`, `60`, `1000` | Pre-auth | Coarse IP limits before authentication. `0` inherits the shared value. |
+| `PostAuthTokenLimit`, `PostAuthReplenishmentSeconds`, `PostAuthTokensPerPeriod` | `0`, `0`, `0` | Post-auth | Authenticated user or anonymous IP limits after `ScopedUserMiddleware`. `0` inherits the shared value. |
 
-`HybridCache` and `IDistributedCache` are useful for sharing and refreshing rate-limit policy data across app instances. They are not, by themselves, a hard distributed quota counter because DRN's built-in token/fixed/sliding/concurrency limiters keep counters inside each process. For strict multi-replica quotas, use an API gateway, CDN/WAF, service mesh policy, or a Redis-backed custom `RateLimiter` returned via `RateLimitRuleResult.CustomPartition(...)`. Redis-backed counters should use atomic server-side operations such as Lua scripts with TTL.
+#### Rule Extension Points
 
-#### Extensibility via Rate Limit Rules
+Add rules by deriving from `SingletonRateLimitRule` or `ScopedRateLimitRule`; the base classes include attribute-based DI registration. Direct interface implementations must opt into multi-registration with `[Singleton<ISingletonRateLimitRule>(tryAdd: false)]` or `[Scoped<IScopedRateLimitRule>(tryAdd: false)]`.
 
-You can customize rules by implementing `ISingletonRateLimitRule` / `IScopedRateLimitRule`, or by extending `SingletonRateLimitRule` / `ScopedRateLimitRule`.
-Rules are evaluated in ascending `Order`. Matching rules compose with .NET's native chained limiter, so tenant + user + IP policies can all apply to the same request. Framework defaults run last.
-Prefer the base classes for automatic attribute-based DI registration. If you implement the interfaces directly, add `[Singleton<ISingletonRateLimitRule>(tryAdd: false)]` or `[Scoped<IScopedRateLimitRule>(tryAdd: false)]` so multiple rules compose in the lifetime-specific rule chains.
+Rules run by ascending `Order`; framework defaults run last. Matching rules compose through .NET's chained limiter, so tenant + user + IP policies can all apply to one request. `ScopedRateLimitRule` is post-auth only.
 
-Keep application-specific claim names in the hosted app, and compose them from claim-access primitives:
+| Return value | Effect |
+|---|---|
+| `null` | Rule does not apply. |
+| `RateLimitRuleResult.TokenBucket(key, ...)` | Applies a token bucket to this partition. |
+| `RateLimitRuleResult.AllowRequest("reason")` | Allows and skips remaining rules. |
+| `RateLimitRuleResult.DenyRequest("reason")` | Rejects immediately with 429. |
+| Any result with `stopRemainingRules: true` | Applies this result and skips later rules. |
+
+Partition helpers include `TokenBucket`, `FixedWindow`, `SlidingWindow`, `ConcurrencyLimiter`, and `CustomPartition`. `RateLimitRuleResult.Action` is `Limit`, `Allow`, or `Deny`; `StopRemainingRules` only controls whether later rules compose after this result.
+
+Use `PolicyName` to target endpoints marked with `[EnableRateLimiting("policy-name")]`. Native policies configured through `builder.Services.AddRateLimiter(options => ...)` remain available and run alongside DRN rule policies. DRN invokes rule-specific `OnRejectedAsync` only when that DRN rule's limiter rejects; native named-policy rejections still flow through the configured ASP.NET Core callback.
+
+Use `ShortCircuitOnMatch` and lower `Order` for allow/deny rules that must bypass quota checks. Rules with the same `Order` evaluate short-circuit rules first; if a short-circuit rule returns `null`, later rules still evaluate.
+
+Partition identities are internally namespaced by phase and rule type:
+
+```text
+({phase}, {rule type}, {your partition key})
+```
+
+The namespacing keeps metrics/logs diagnosable and prevents accidental key collisions between rules. Your rule still returns a simple key like `tenant:acme-corp`; DRN handles the namespace.
+
+> [!WARNING]
+> Partition option factories are cached by .NET per partition key. Do not capture `HttpContext` or scoped services inside factory lambdas; pass only immutable values.
+
+Dynamic tenant plans belong in rules, not global settings. Rule evaluation is synchronous, so do not perform database, Redis, or `HybridCache` I/O inside `EvaluatePreAuth` / `EvaluatePostAuth`. Load plan data earlier in the request or maintain an in-memory snapshot refreshed in the background. `HybridCache` and `IDistributedCache` can share policy data, but they are not hard distributed counters by themselves.
 
 ```csharp
 // Sample.Hosted/Helpers/RateLimitFor.cs
@@ -517,7 +533,6 @@ public class RateLimitFor
     public string? TenantPartition => Get.Claim.Tenant.Id == null ? null : $"tenant:{Get.Claim.Tenant.Id:N}";
 }
 
-// Sample.Hosted rate limit rule using the helper
 public class AccountRateLimitRule(DrnAppFeatures features) : ScopedRateLimitRule
 {
     public override RateLimitRuleResult? EvaluatePostAuth(HttpContext context)
@@ -607,10 +622,10 @@ DRN emits OpenTelemetry-friendly metrics through the `DRN.Framework.Hosting.Rate
 
 | Metric | Tags |
 |--------|------|
-| `drn.rate_limiting.requests` | `phase`, `policy`, `result`, `action`, `rule` |
-| `drn.rate_limiting.rejections` | `phase`, `policy`, `result`, `action`, `rule` |
-| `drn.rate_limiting.active_request_leases` | `phase`, `policy`, `result`, `action`, `rule` |
-| `drn.rate_limiting.request_lease.duration` | `phase`, `policy`, `result`, `action`, `rule` |
+| `drn.rate_limiting.requests` | `drn.rate_limiting.phase`, `aspnetcore.rate_limiting.policy`, `aspnetcore.rate_limiting.result`, `drn.rate_limiting.action`, `drn.rate_limiting.rule` |
+| `drn.rate_limiting.rejections` | `drn.rate_limiting.phase`, `aspnetcore.rate_limiting.policy`, `aspnetcore.rate_limiting.result`, `drn.rate_limiting.action`, `drn.rate_limiting.rule` |
+| `drn.rate_limiting.active_request_leases` | `drn.rate_limiting.phase`, `aspnetcore.rate_limiting.policy`, `aspnetcore.rate_limiting.result`, `drn.rate_limiting.action`, `drn.rate_limiting.rule` |
+| `drn.rate_limiting.request_lease.duration` | `drn.rate_limiting.phase`, `aspnetcore.rate_limiting.policy`, `aspnetcore.rate_limiting.result`, `drn.rate_limiting.action`, `drn.rate_limiting.rule` |
 
 ASP.NET Core's native rate limiting middleware continues to provide its built-in post-auth metrics.
 The `action` tag is `limit`, `allow`, `deny`, or `unknown`; this makes whitelist, blocklist, and quota decisions visible without inspecting rule names.
@@ -619,7 +634,7 @@ By default, pre-auth and post-auth rejection logs write IP and partition values 
 
 #### Overriding Defaults
 
-Override `CreatePreAuthRateLimiter` or `ConfigurePostAuthRateLimiterOptions` in your `DrnProgramBase` to change limits, add named policies, or swap algorithms. DRN starts from the DI-configured `RateLimiterOptions`, so endpoint policies and existing rejection callbacks are preserved.
+Override `CreatePreAuthRateLimiter` or `ConfigurePostAuthRateLimiterOptions` in `DrnProgramBase` to change global algorithms, add named policies, or preserve custom `RateLimiterOptions` callbacks:
 
 ```csharp
 protected override void ConfigurePostAuthRateLimiterOptions(
@@ -698,18 +713,19 @@ string profileUrl = Get.User.ProfileDetail.Path(new() { ["id"] = userId.ToString
 
 | TagHelper | Target | Purpose |
 | :--- | :--- | :--- |
-| `ViteScriptTagHelper` | `<script src="buildwww/...">` | Resolves Vite manifest entries, adds subresource integrity (SRI), and automatic nonce. |
+| `ViteScriptTagHelper` | `<script src="buildwww/...">` | Resolves Vite manifest entries and adds subresource integrity (SRI). |
 | `ViteLinkTagHelper` | `<link href="buildwww/...">` | Resolves Vite manifest entries for CSS assets, adds SRI. |
 | `NonceTagHelper` | `<script>`, `<style>`, `<link>`, `<iframe>` | Automatically injects the request-specific CSP nonce. |
 | `CsrfTokenTagHelper` | `hx-post`, `hx-put`, etc. | Automatically adds `RequestVerificationToken` to HTMX headers for non-GET requests. |
 | `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Renders the element only if the user has an active MFA session. |
 | `AnonymousOnlyTagHelper` | `*[anonymous-only]` | Renders the element only if the user is **not** authenticated. |
-| `PageAnchorTagHelper` | `<a asp-page="...">` | Automatically adds `active` CSS class if the link matches current page. |
+| `PageAnchorAspPageTagHelper` | `<a asp-page="...">` | Automatically adds `active` CSS class if the link matches current page. |
+| `PageAnchorHrefTagHelper` | `<a href="...">` | Automatically adds `active` CSS class if the link matches current path. |
 | `ScriptDefaultsTagHelper` | `<script>` | Modern defaults: `defer` for external scripts, `type="module"` for inline scripts. Opt-out via `defer="false"` or explicit `type`. |
 
 ### Vite Manifest Publish Support
 
-`DRN.Framework.Hosting` ships a transitive MSBuild target that adds `wwwroot/**/.vite/manifest.json` files to Web SDK publish output. This keeps Vite manifest lookup, SRI generation, and static asset pre-warming working after publish, including Vite's default dot-directory manifest location.
+`DRN.Framework.Hosting` ships a transitive MSBuild target that adds `wwwroot/**/.vite/manifest.json` files to Web SDK publish output. At runtime, `ViteManifest` scans for `.vite/manifest.json` below `IWebHostEnvironment.WebRootPath`; when `WebRootPath` is empty, it resolves `ContentRootPath/wwwroot`. This keeps manifest lookup, SRI generation, and static asset pre-warming working after publish, including Vite's default dot-directory manifest location.
 
 Disable the publish item injection when an application owns this behavior itself:
 
@@ -724,7 +740,7 @@ Disable the publish item injection when an application owns this behavior itself
 DRN Hosting provides deep observability into application failures, especially during the critical startup phase.
 
 ### Startup Exception Reports
-In Development, if the application fails to start during `RunAsync`, it generates a `StartupExceptionReport.html` in the execution directory. Production and staging fail with normal logs only. Development reports include:
+In Development, if the application fails to start during `RunAsync`, it generates a `StartupExceptionReport.html` beside the application assembly. Production and staging fail with normal logs only. Development reports include:
 -   Full stack traces with source code highlighting (if symbols available).
 -   Environment details and configuration snapshots.
 -   Scoped logs leading up to the crash.
@@ -783,7 +799,7 @@ The framework provides a structured way to handle user privacy choices:
 <!-- Input: Original Vite source path -->
 <script src="buildwww/app/main.ts" crossorigin="anonymous"></script>
 
-<!-- Output: Browser receives hashed path + integrity + nonce -->
+<!-- Output after ViteScriptTagHelper and NonceTagHelper: hashed path + integrity + nonce -->
 <script src="/app/main.abc123.js" 
         integrity="sha256-xyz..." 
         nonce="random_nonce_here" 
@@ -813,10 +829,11 @@ The warm-up client only accepts loopback base addresses before installing its ce
 
 ## Local Development Infrastructure
 
-Use `DRN.Framework.Testing` to provision infrastructure (Postgres, RabbitMQ) during local development without manual Docker management.
+Use `DRN.Framework.Testing` to provision Postgres during local development without manual Docker management.
 
 ### 1. Add Conditional Reference
-Add the following to your `.csproj` file to ensure the testing library (and its heavy dependencies like Testcontainers) is only included during development.
+
+Add the following to your `.csproj` file to ensure the testing library and Testcontainers dependencies are only included during development.
 
 ```xml
 <ItemGroup Condition="'$(Configuration)' == 'Debug'">
@@ -887,7 +904,7 @@ public class MyService(IServerSettings server)
 
 ## Global Usings
 
-Standard global usings for Hosted applications to reduce boilerplate:
+Suggested global usings for Hosted applications to reduce boilerplate:
 ```csharp
 global using DRN.Framework.Hosting.DrnProgram;
 global using DRN.Framework.Hosting.Endpoints;

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 namespace Sample.Infra.DataProtection;
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-public class DrnDataProtectionContextOptionsAttribute() : NpgsqlPerformanceSettingsAttribute(multiplexing: false)
+public class DrnDataProtectionContextOptionsAttribute() : NpgsqlPerformanceSettingsAttribute()
 {
     public override bool UsePrototypeMode { get; set; } = false;
     public override bool UsePrototypeModeWhenMigrationExists { get; set; } = false;

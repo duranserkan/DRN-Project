@@ -12,13 +12,13 @@
 
 # DRN.Framework.EntityFramework
 
-> Convention-based Entity Framework Core integration with automatic configuration, migrations, and domain event support.
+> Convention-based Entity Framework Core integration with automatic configuration, migrations, and Source-Known entity lifecycle support.
 
 ## TL;DR
 
 - **Zero-Config DbContext** - `DrnContext<T>` auto-registers, discovers configurations, and manages migrations
-- **Source Known IDs** - Internal `long` for DB performance, external `Guid` for API security
-- **Auto-Tracking** - Automatic `CreatedAt`/`ModifiedAt` timestamps and domain events
+- **Source Known persistence** - ID generation, materialization, validation, and secure/plain conversion hooks
+- **Auto-Tracking** - Automatic `CreatedAt`/`ModifiedAt` timestamps and Source-Known lifecycle events
 - **Prototype Mode** - Auto-recreate database on model changes during development
 - **Repository Base** - `SourceKnownRepository<TContext, TEntity>` with pagination and validation
 
@@ -151,7 +151,8 @@ public readonly record struct SourceKnownEntityId(
     SourceKnownId Source,   // Decoded internal components
     Guid EntityId,          // Opaque external GUID
     byte EntityType,        // Entity type discriminator
-    bool Valid              // Structural validity flag
+    bool Valid,             // Structural validity flag
+    bool Secure             // True when EntityId is the encrypted external form
 );
 ```
 
@@ -187,7 +188,7 @@ public abstract class DrnContext<TContext> : DbContext, IDrnContext<TContext>
 | --- | --- |
 | `DrnContextServiceRegistration` | Auto-registration, startup validation, migration management |
 | `DrnContextDefaults` | Npgsql defaults, JSON configuration, logging setup |
-| `DrnContextPerformanceDefaults` | Connection pooling, multiplexing, command timeouts |
+| `DrnContextPerformanceDefaults` | Connection pooling, auto-prepare, command timeouts |
 
 ### Features
 
@@ -196,7 +197,7 @@ public abstract class DrnContext<TContext> : DbContext, IDrnContext<TContext>
     *   Context name defines the connection string key (e.g., `QAContext` → `ConnectionStrings:QAContext`).
     *   Automatically applies `IEntityTypeConfiguration` from the context's assembly and namespace.
     *   Schema naming derived from context name in `snake_case`.
-*   **Audit Support**: Automatically manages `IDomainEvent` dispatching and `Tracking` properties (`CreatedAt`, `ModifiedAt`) for `SourceKnownEntity`.
+*   **Audit Support**: Automatically manages Source-Known lifecycle events and tracking properties (`CreatedAt`, `ModifiedAt`) for `SourceKnownEntity`. Domain-event publication is planned separately.
 *   **Integration Testing**: Native support for `DRN.Framework.Testing`'s `ContainerContext` for isolated Postgres container tests.
 
 ## Context-Specific Migrations
@@ -332,7 +333,7 @@ Efficient cursor-based pagination using `PaginateAsync`:
 
 ```csharp
 // Basic pagination
-var request = PaginationRequest.DefaultWith(pageSize: 20);
+var request = PaginationRequest.DefaultWith(size: 20);
 var result = await repository.PaginateAsync(request);
 
 // Access results
@@ -405,7 +406,7 @@ You can change the standard behavior of all repository methods (e.g., `GetAsync`
 
 ```csharp
 public class UserRepository(QAContext context, IEntityUtils utils) 
-    : SourceKnownRepository<AppContext, User>(context, utils), IUserRepository
+    : SourceKnownRepository<QAContext, User>(context, utils), IUserRepository
 {
     protected override IQueryable<User> EntitiesWithAppliedSettings(string? caller = null)
     {
@@ -567,8 +568,8 @@ Provides framework defaults for Npgsql and EF Core:
 - Query splitting behavior: `SplitQuery`
 - Migrations assembly: Context's assembly
 - Migrations history table: `{context_name}_history` in `__entity_migrations` schema
-- PostgreSQL version: 18.1
-- **Database History**: Automically placed in the `__entity_migrations` schema (e.g., `__entity_migrations.mycontext_history`) to keep the public schema focused on domain data.
+- PostgreSQL version: 18.4
+- **Database History**: Automatically placed in the `__entity_migrations` schema (e.g., `__entity_migrations.mycontext_history`) to keep the public schema focused on domain data.
 
 **Data Source Defaults:**
 - Parameter logging: Disabled
@@ -586,7 +587,6 @@ Provides production-ready performance settings for Npgsql:
 
 ```csharp
 [DrnContextPerformanceDefaults(
-    multiplexing: true,
     maxAutoPrepare: 200,
     autoPrepareMinUsages: 5,
     minPoolSize: 1,
@@ -639,7 +639,7 @@ public class MyContextOptions : NpgsqlDbContextOptionsAttribute
         IAppSettings appSettings)
     {
         // Seed data after migrations
-        var context = serviceProvider.GetRequiredService<TContext>();
+        var context = serviceProvider.GetRequiredService<MyDbContext>();
         if (!await context.Users.AnyAsync())
         {
             context.Users.Add(new User { Username = "admin" });
@@ -664,7 +664,6 @@ Abstract base for declarative performance tuning. Create custom attributes by in
 public class HighThroughputSettings : NpgsqlPerformanceSettingsAttribute
 {
     public HighThroughputSettings() : base(
-        multiplexing: true,
         maxAutoPrepare: 500,
         autoPrepareMinUsages: 3,
         minPoolSize: 10,
@@ -683,13 +682,16 @@ public class HighThroughputSettings : NpgsqlPerformanceSettingsAttribute
 
 ### What It Does
 
-When prototype mode is active and the framework detects pending model changes (e.g., you added a property to an entity) but no corresponding migration exists yet, it will **automatically drop and recreate the local development database**.
+When prototype mode is active in Development and the framework detects pending model changes (e.g., you added a property to an entity), it can **automatically drop and recreate the local development database** if Development auto-migration is enabled and the migration state allows prototype recreation.
 
 **Benefit**: Eliminates the need to create "junk" migrations during the initial prototyping phase.
 
+> [!CAUTION]
+> Prototype mode is Development-only. `AutoMigrateStaging = true` applies migrations only; it must not enable prototype database recreation.
+
 ### How to Enable
 
-Prototype mode requires **all three** of the following conditions:
+Prototype mode requires the following conditions:
 
 1. **Attribute Configuration**: Set `UsePrototypeMode = true` on your `NpgsqlDbContextOptionsAttribute`
 
@@ -703,29 +705,29 @@ public class MyDbContext : DrnContext<MyDbContext> { }
 ```json
 {
   "DrnDevelopmentSettings": {
-    "LaunchExternalDependencies": true,  // Uses testcontainer instead of connection string
     "AutoMigrateDevelopment": true,      // Required for schema initialization
     "Prototype": true                    // Enables database recreation on model changes
   }
 }
 ```
 
-3. **Development Environment**: Must be running in Development environment
+3. **Migration Workflow**: The application must run in Development with `AutoMigrateDevelopment = true`
 
 ### When Database Recreates
 
 The database is recreated **only** when:
-- Pending model changes exist (no migration created yet)
+- Pending model changes exist
 - `UsePrototypeMode = true` on the attribute
 - `DrnDevelopmentSettings.Prototype = true` in configuration
-- `DrnDevelopmentSettings.LaunchExternalDependencies = true` (uses testcontainer)
+- The application runs in Development with `AutoMigrateDevelopment = true`
+- No migrations have been applied, or applied migrations exist and `UsePrototypeModeWhenMigrationExists = true`
 
 > [!TIP]
-> If `DrnDevelopmentSettings.Prototype` is `false`, the database is **never** recreated, even if `UsePrototypeMode` is enabled and model changes are detected. This gives you control over when prototype behavior is active.
+> If `DrnDevelopmentSettings.Prototype` is `false`, the database is **never** recreated, even if `UsePrototypeMode` is enabled and model changes are detected. Prototype mode is intended for local development; `LaunchExternalDependencies` is recommended for safe local container isolation, but it is not itself a prototype-recreate condition.
 
-### Prototype Mode with Existing Migrations
+### Prototype Mode with Applied Migrations
 
-By default, prototype mode is disabled once migrations exist. To override this behavior:
+By default, prototype mode is disabled once migrations have been applied. Declared migrations that have not been applied do not block empty-database prototyping. To override the applied-migration guard:
 
 ```csharp
 [MyProjectPrototypeSettings(
@@ -748,13 +750,20 @@ flowchart TD
         START([Start]) --> ENV{Environment?}
 
         %% PRODUCTION FLOW
-        ENV ---->|Prod/Staging| PROD_FLOW
-        subgraph PROD_FLOW ["Production / Staging"]
+        ENV ---->|Production| PROD_FLOW
+        subgraph PROD_FLOW ["Production"]
             direction TB
-            P_START["GetRequiredConnectionString"] --> P_MIG{AutoMigrate?}
-            P_MIG -->|✓ Yes| P_APPLY["Apply Migrations"]
-            P_MIG -->|✗ No| P_READY([Ready])
-            P_APPLY --> P_READY
+            P_START["GetRequiredConnectionString"] --> P_READY([Ready])
+        end
+
+        %% STAGING FLOW
+        ENV ---->|Staging| STAGE_FLOW
+        subgraph STAGE_FLOW ["Staging"]
+            direction TB
+            S_START["GetRequiredConnectionString"] --> S_MIG{AutoMigrateStaging?}
+            S_MIG -->|✓ Yes| S_APPLY["Apply Migrations"]
+            S_MIG -->|✗ No| S_READY([Ready])
+            S_APPLY --> S_READY
         end
 
         %% DEVELOPMENT FLOW
@@ -783,12 +792,12 @@ flowchart TD
             TC_PW --> D_INJECT["Inject Connection String"]
             GEN --> D_INJECT
             
-            D_INJECT --> D_MIG{AutoMigrate?}
+            D_INJECT --> D_MIG{AutoMigrateDevelopment?}
             D_MIG -->|✗ No| D_READY([Ready])
-            D_MIG -->|✓ Yes| PROTO{Prototype Mode?}
+            D_MIG -->|✓ Yes| PROTO{Prototype recreate conditions?}
             
             PROTO -->|✗ No| D_APPLY["Apply Migrations"]
-            PROTO -->|✓ Yes| CHK_MOD{Pending Model Changes?}
+            PROTO -->|✓ Yes| CHK_MOD{Pending model changes and migration state allows?}
             
             CHK_MOD -->|✗ No| D_APPLY
             CHK_MOD -->|✓ Yes| RECREATE["Drop & Recreate DB"]
@@ -815,6 +824,7 @@ flowchart TD
     %% Subgraph Backgrounds
     style CONTAINER fill:#F0F8FF,stroke:#B0C4DE,stroke-width:2px,color:#4682B4
     style PROD_FLOW fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px,color:#1A237E
+    style STAGE_FLOW fill:#FFF3E0,stroke:#EF6C00,stroke-width:2px,color:#E65100
     style DEV_FLOW fill:#E1F5FE,stroke:#0288D1,stroke-width:2px,color:#01579B
     style TEST_FLOW fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20
     
@@ -824,17 +834,19 @@ flowchart TD
     
     %% Node Styles (White Backgrounds for Contrast Against Subgraph)
     classDef prodNode fill:#FFFFFF,stroke:#3F51B5,stroke-width:2px,color:#1A237E
+    classDef stageNode fill:#FFFFFF,stroke:#EF6C00,stroke-width:2px,color:#E65100
     classDef devNode fill:#FFFFFF,stroke:#0288D1,stroke-width:2px,color:#01579B
     classDef testNode fill:#FFFFFF,stroke:#43A047,stroke-width:2px,color:#1B5E20
     classDef errNode fill:#FFCDD2,stroke:#C62828,stroke-width:2px,color:#B71C1C
     classDef decision fill:#FFE0B2,stroke:#E65100,stroke-width:3px,color:#E65100
     
     %% Apply Node Styles
-    class P_START,P_APPLY,P_READY prodNode
+    class P_START,P_READY prodNode
+    class S_START,S_APPLY,S_READY stageNode
     class TC,TC_PW,D_INJECT,MANUAL,GEN,D_APPLY,SEED,D_READY devNode
     class T_START,T_TC,T_INJECT,T_MIG,T_SEED,T_READY testNode
     class D_ERR errNode
-    class ENV,P_MIG,D_START,PW_CHK,D_MIG,PROTO,CHK_MOD,RECREATE decision
+    class ENV,S_MIG,D_START,PW_CHK,D_MIG,PROTO,CHK_MOD,RECREATE decision
     
     %% Link Styles for Decision Paths (Yes=Green, No=Red)
     linkStyle default stroke:#666,stroke-width:2px
@@ -865,7 +877,7 @@ Staging uses the same `GetRequiredConnectionString` flow as Production — expli
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `IsStagingEnvironment` | `false` | `true` when `Environment=Staging` |
-| `AutoMigrateStaging` | `false` | Enables automatic migrations in staging |
+| `AutoMigrateStaging` | `false` | Enables automatic migrations in staging; does not enable prototype recreation |
 
 **Example** `appsettings.Staging.json`:
 
@@ -1001,7 +1013,7 @@ stringData:
 When `postgres-password` is set, the framework auto-generates:
 ```
 Host={DrnContext_DevHost};Port={DrnContext_DevPort};Database={DrnContext_DevDatabase};
-User ID={DrnContext_DevUsername};password={postgres-password};Multiplexing=true;...
+User ID={DrnContext_DevUsername};password={postgres-password};Max Auto Prepare=10;Maximum Pool Size=20;...
 ```
 
 ---
@@ -1041,7 +1053,7 @@ These settings are used **only** by [DrnContextDevelopmentConnection](Context/Dr
 | `DrnContext_DevHost` | `drn` | DbContextConventions.DevHostKey | Database host |
 | `DrnContext_DevPort` | `5432` | DbContextConventions.DevPortKey | Database port |
 | `DrnContext_DevUsername` | `drn` | DbContextConventions.DevUsernameKey | Database username |
-| `DrnContext_DevDatabase` | `drn` | DbContextConventions.DefaultDatabaseKey | Database name |
+| `DrnContext_DevDatabase` | `drn` | DbContextConventions.DevDatabaseKey | Database name |
 | `postgres-password` | *(required)* | DbContextConventions.DevPasswordKey | Triggers auto-connection string |
 
 ### Migration and Prototype Settings
@@ -1049,20 +1061,20 @@ These settings are used **only** by [DrnContextDevelopmentConnection](Context/Dr
 | Setting | Default | Source | Purpose |
 |---------|---------|--------|---------|
 | `AutoMigrateDevelopment` | `true` | DrnDevelopmentSettings.AutoMigrateDevelopment | Auto-migrate in Development |
-| `AutoMigrateStaging` | `false` | DrnDevelopmentSettings.AutoMigrateStaging | Auto-migrate in Staging |
-| `Prototype` | `false` | DrnDevelopmentSettings.Prototype | Enables DB recreation on model changes |
-| `LaunchExternalDependencies` | `false` | DrnDevelopmentSettings.LaunchExternalDependencies | Launches Testcontainers |
+| `AutoMigrateStaging` | `false` | DrnDevelopmentSettings.AutoMigrateStaging | Auto-migrate in Staging; migrations only, no prototype recreation |
+| `Prototype` | `false` | DrnDevelopmentSettings.Prototype | Enables Development-only DB recreation on model changes |
+| `LaunchExternalDependencies` | `false` | DrnDevelopmentSettings.LaunchExternalDependencies | Launches local PostgreSQL Testcontainers |
 | `TemporaryApplication` | `false` | DrnDevelopmentSettings.TemporaryApplication | **Auto-set by tests** to prevent collision |
 
 ### Testcontainers Defaults
 
-When using `LaunchExternalDependencies` or `ContainerContext`, these values from [PostgresContainerSettings](../DRN.Framework.Testing/Contexts/Postgres/PostgresContainerSettings.cs) are used:
+When using `LaunchExternalDependencies` or `ContainerContext`, these PostgreSQL values are used:
 
 | Property | Default | Notes |
 |----------|---------|-------|
 | `DefaultPassword` | `"drn"` | Container password |
 | `DefaultImage` | `"postgres"` | Docker image |
-| `DefaultVersion` | `"18.3-alpine3.23"` | Image tag |
+| `DefaultVersion` | `"18.4-alpine3.23"` | Image tag |
 | `Database` | `"drn"` | From `DbContextConventions.DefaultDatabase` |
 | `Username` | `"drn"` | From `DbContextConventions.DefaultUsername` |
 
@@ -1070,7 +1082,9 @@ When using `LaunchExternalDependencies` or `ContainerContext`, these values from
 > **Prototype Mode Requirements**:
 > 1. `NpgsqlDbContextOptionsAttribute.UsePrototypeMode = true` on context
 > 2. `DrnDevelopmentSettings:Prototype = true`
-> 3. `DrnDevelopmentSettings:LaunchExternalDependencies = true`
+> 3. The application runs in Development with `AutoMigrateDevelopment = true`
+> 4. Pending model changes exist
+> 5. No migrations have been applied, or applied migrations exist and `UsePrototypeModeWhenMigrationExists = true`
 >
 > If any condition is false, the database is **never** recreated.
 
@@ -1087,6 +1101,7 @@ public class DrnDevelopmentSettings
     public bool AutoMigrateDevelopment { get; init; } = true;
     public bool AutoMigrateStaging { get; init; } = false;
     public bool Prototype { get; init; }
+    public bool BreakForUserUnhandledException { get; init; }
 }
 ```
 

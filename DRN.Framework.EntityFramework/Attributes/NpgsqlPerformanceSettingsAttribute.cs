@@ -7,7 +7,6 @@ namespace DRN.Framework.EntityFramework.Attributes;
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
 public abstract class NpgsqlPerformanceSettingsAttribute(
-    bool? multiplexing = null,
     int? maxAutoPrepare = null,
     int? autoPrepareMinUsages = null,
     int? minPoolSize = null,
@@ -17,7 +16,6 @@ public abstract class NpgsqlPerformanceSettingsAttribute(
     int? commandTimeout = null)
     : NpgsqlDbContextOptionsAttribute
 {
-    private bool? Multiplexing { get; } = multiplexing;
     private int? MaxAutoPrepare { get; } = maxAutoPrepare;
     private int? AutoPrepareMinUsages { get; } = autoPrepareMinUsages;
     private int? MinPoolSize { get; } = minPoolSize;
@@ -30,7 +28,6 @@ public abstract class NpgsqlPerformanceSettingsAttribute(
     {
         var csBuilder = builder.ConnectionStringBuilder;
 
-        if (Multiplexing != null) csBuilder.Multiplexing = Multiplexing.Value;
         if (MaxAutoPrepare != null) csBuilder.MaxAutoPrepare = MaxAutoPrepare.Value;
         if (AutoPrepareMinUsages != null) csBuilder.AutoPrepareMinUsages = AutoPrepareMinUsages.Value;
         if (MinPoolSize != null) csBuilder.MinPoolSize = MinPoolSize.Value;

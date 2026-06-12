@@ -1,7 +1,7 @@
 ---
 name: frontend-buildwww-react
-description: Building and integrating React 19 mounted islands — Islands Architecture, Shadow DOM isolation with Tailwind CSS 4, typed component registry, drnOnmount lifecycle, mount/update/dispose API, Razor page integration patterns, and Vite IIFE build. Keywords: react, islands-architecture, drnOnmount, components, shadow-dom, typescript, tailwind, mount-api, iife
-last-updated: 2026-04-16
+description: "Building and integrating React 19 mounted islands — Islands Architecture, Shadow DOM isolation with Tailwind CSS 4, typed component registry, onmount lifecycle, mount/update/dispose API, Razor page integration patterns, and Vite IIFE build. Keywords: react, islands-architecture, onmount, components, shadow-dom, typescript, tailwind, mount-api, iife"
+last-updated: 2026-06-12
 difficulty: advanced
 tokens: ~4K
 ---
@@ -9,6 +9,7 @@ tokens: ~4K
 # React Mounted Islands (buildwww)
 
 > React 19 components rendered client-side into isolated Shadow DOM islands within server-rendered Razor Pages — no SPA, no hydration.
+> Convention-scoped: use only when the repository profile or filesystem declares `buildwww` and the DRN browser API surface.
 
 ## When to Apply
 - Creating new React components for Razor Pages
@@ -37,24 +38,26 @@ tokens: ~4K
 
 ## Architecture Overview
 
-DRN uses **Mounted Islands Architecture** — React components are explicitly mounted into target DOM nodes as isolated islands, not a monolithic SPA. Each island:
+This convention uses **Mounted Islands Architecture** — React components are explicitly mounted into target DOM nodes as isolated islands, not a monolithic SPA. Each island:
 
 - Renders **client-side only** (no SSR/hydration — Razor Pages handle server rendering)
 - Mounts inside **Shadow DOM** by default for CSS isolation from Bootstrap
 - Uses **Tailwind CSS 4** inside Shadow DOM while the host page uses Bootstrap 5
-- Integrates with **drnOnmount** for lifecycle management (mount on connect, dispose on HTMX swap)
+- Integrates with the repository's **onmount wrapper** for lifecycle management (mount on connect, dispose on HTMX swap)
 - Communicates with the host page via **typed props and callbacks**
 
 ### Script Loading Prerequisites
 
-`reactBundle.tsx` relies on the page-wide script loading order defined in [frontend-buildwww-libraries](../frontend-buildwww-libraries/SKILL.md#script-loading-order). Key constraint: `appPreload.js` **must** initialize `window.DRN.React = {}` before this bundle loads — otherwise `mount()` is not attached and a critical error is logged.
+`reactBundle.tsx` relies on the page-wide script loading order defined in [frontend-buildwww-libraries](../frontend-buildwww-libraries/SKILL.md#script-loading-order). Key constraint: `appPreload.js` **must** initialize the shared `window.DRN.React` object before this bundle loads — otherwise `mount()` is not attached and a critical error is logged.
+
+Treat `DRN`, `Drn*`, and `DRN.Framework.*` names as shared framework API, not placeholders for app-specific namespaces.
 
 ---
 
 ## File Layout
 
 ```
-Sample.Hosted/buildwww/
+<frontend-package>/buildwww/
 ├── lib/react/
 │   ├── reactBundle.tsx          # Entry point — registry, mount API, Shadow DOM, ErrorBoundary
 │   ├── reactBundle.css          # CSS aggregator — @reference tailwind, @import components
@@ -131,7 +134,7 @@ react: {
             },
             output: {
                 format: 'iife',                    // Self-contained, no module imports
-                name: 'DrnReactMicroFrontend'      // Global wrapper name
+                name: 'DrnReactMicroFrontend'      // Shared global wrapper name
             },
             transform: {
                 define: { 'import.meta': '{}' }    // IIFE doesn't support import.meta
@@ -193,9 +196,9 @@ All component CSS is scoped under `.drn-react-root`:
 
 ```typescript
 // Constructable stylesheet (modern browsers)
-const drnSharedSheet = new CSSStyleSheet();
-drnSharedSheet.replaceSync(bundleStyles);
-shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, drnSharedSheet];
+const sharedSheet = new CSSStyleSheet();
+sharedSheet.replaceSync(bundleStyles);
+shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, sharedSheet];
 
 // Fallback (<style> tag for older browsers)
 const styleTag = document.createElement('style');
@@ -287,7 +290,7 @@ Every mounted component is wrapped in:
 
 ## Razor Page Integration
 
-Islands mount via `drnOnmount` — **not** via declarative `data-drn-island` attributes.
+Islands mount via the onmount wrapper — **not** via declarative `data-app-island` attributes.
 
 ### Pattern
 
@@ -320,7 +323,7 @@ Islands mount via `drnOnmount` — **not** via declarative `data-drn-island` att
 ### Key Integration Points
 
 1. **`this`** — the DOM element matched by the selector
-2. **`options.disposable = island`** — wires island disposal into drnOnmount's unregister lifecycle
+2. **`options.disposable = island`** — wires island disposal into the onmount unregister lifecycle
 3. **Custom unregister** — clean up non-React resources first (intervals, DOM listeners), then delegate to default `unregister`
 4. **Shadow DOM access** — `this.shadowRoot` gives access to the shadow root for querying rendered content
 5. **Props from server** — use `@Json.Serialize()` to pass server-side data as initial props
@@ -446,6 +449,6 @@ Components accept `on*`-prefixed function props for island→host event notifica
 
 ## Related Skills
 
-- [frontend-buildwww-libraries](../frontend-buildwww-libraries/SKILL.md) — `drnOnmount` structure and lifecycle
+- [frontend-buildwww-libraries](../frontend-buildwww-libraries/SKILL.md) — onmount wrapper structure and lifecycle
 - [frontend-buildwww-vite](../frontend-buildwww-vite/SKILL.md) — Vite multi-build configuration
 - [frontend-buildwww-packages](../frontend-buildwww-packages/SKILL.md) — React, Tailwind, and type dependency management

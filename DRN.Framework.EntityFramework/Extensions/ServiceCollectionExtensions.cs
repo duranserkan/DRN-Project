@@ -19,7 +19,7 @@ public static class ServiceCollectionExtensions
     {
         var contextName = typeof(TContext).Name;
 
-        //todo: check multiplexing and MultiHost usability
+        //todo: check MultiHost usability
         //https://www.npgsql.org/doc/failover-and-load-balancing.html
         //https://www.npgsql.org/doc/basic-usage.html
         sc.AddNpgsqlDataSource("", (serviceProvider, dataSourceBuilderBuilder) =>

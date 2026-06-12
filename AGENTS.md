@@ -1,92 +1,86 @@
-# AGENTS.md — DRN-Project Agent Instructions
+# AGENTS.md - Portable Agent Instructions
 
-> Universal entry point for any AI coding agent working on this repository. (~1K tokens)
+> Copyable entry point for AI coding agents. Keep this file repository-agnostic; put project facts in `.agent/repository-profile.md`.
 
-## IMPORTANT [IMPORTANT]
-### Invention & Conflict Resolution
-- Security is Always the Most IMPORTANT Requirement(Strategic&Tactical First Priority)
-- Always Use TRIZ&Priority Stack for Conflicts&Frictions Before Decision
-#### TRIZ(Inventive Problem Solving)
-1. Ideal Final Result: Define Perfect Outcome (Max Benefit,Zero Cost&Harm) and Work Backward
-2. Contradiction Resolution: Reject False Tradeoffs&Seek Solutions Satisfying Competing Constraints. If Genuine Constraints Exists, Apply Priority Stack
-#### Priority Stack(If TRIZ Cannot Resolve)
-1. Security:Never Compromise
-2. Correctness:Wrong Fast is Wrong
-3. Clarity:Readable>Clever
-4. Simplicity:Complexity Must be Earned
-5. Performance:Optimize with Proof
+## Priority Stack
 
-## Behavioral Framework
+Security is always the first requirement. Resolve conflicts with TRIZ first, then apply this priority stack:
 
-1. Re-read `.agent/rules/DiSCOS.md` — the Distinguished Secure Cognitive OS.
-2. Always sync `AGENTS.md`, skill files, and tests with the source code
-3. Never limit yourself with given examples. Actively seek supporting and counter examples.
-4. Do not build or run tests unless you are explicitly allowed.
+1. Security: never compromise.
+2. Correctness: wrong fast is wrong.
+3. Clarity: readable beats clever.
+4. Simplicity: complexity must be earned.
+5. Performance: optimize with proof.
 
-## Project Overview
+## Portability Contract
 
-| Aspect | Detail                                      |
-|--------|---------------------------------------------|
-| **Type** | .NET 10 framework + DDD reference application |
-| **Architecture** | Domain → Infrastructure/Application → Hosted |
-| **Frontend** | Razor Pages + htmx + Bootstrap 5 (Vite build) |
-| **Testing** | DTT — integration-first with Testcontainers |
+- Keep `AGENTS.md`, generic skills, and generic workflows reusable across repositories.
+- Store repository-specific facts in `.agent/repository-profile.md`: project names, exact commands, module lists, release rules, source maps, and framework selection or overrides.
+- Use conventions before hardcoding paths: discover solution files, test projects, frontend package roots, docs folders, and CI workflows from the filesystem.
+- Generic skills (`basic-*`, `test-*`, unscoped `frontend-*`) must not require one repository's types, package names, or paths.
+- Framework-specific skills must be explicit by name or description, such as `drn-*`, and should only trigger when the repository profile or user request calls for that framework.
+- When source code changes a shared fact, update the source-owned docs, relevant repository profile entries, and any framework or repository-owned skills that agents use for that fact.
+
+## Startup
+
+1. Re-read `.agent/rules/DiSCOS.md` when present.
+2. Read `.agent/repository-profile.md` when present; treat it as the local overlay for this repository.
+3. Load only the skills needed for the current task.
+4. Seek supporting and counter examples; do not stop at the examples already shown.
+5. Do not build or run tests unless explicitly allowed by the user or the repository profile.
+
+## Discovery Conventions
+
+Use the repository profile first. If it is missing or silent, discover by convention:
+
+| Need | Convention |
+|------|------------|
+| Build command | Find `*.slnx`, project files, Makefile, package scripts, or CI build jobs. |
+| Unit tests | Prefer the profile command; otherwise inspect test projects, package scripts, or CI jobs and run the narrowest allowed command. |
+| Integration tests | Run only after unit tests pass and only with explicit permission. |
+| Frontend root | Find `package.json`; prefer roots with `vite.config.*`, `buildwww/`, `src/`, or build scripts. |
+| Package versions | Treat lockfiles and manifest files as source of truth; do not duplicate pinned versions in skills. |
+| Documentation scope | Discover module READMEs, release notes, docs folders, or profile-declared documentation modules. |
+| Release rules | Prefer profile and CI workflows; otherwise infer from tags, changelog, and package metadata. |
 
 ## Skill Discovery
 
-- **Skill index**: `.agent/skills/overview-skill-index/SKILL.md` — task→skill & layer→skill lookup (~2K tokens)
-- **Load all skills**: `.agent/workflows/load-skills-all.md` (cascades: basic → overview → drn → test → frontend)
-- **Individual workflows**: `.agent/workflows/load-skills-{basic,overview,drn,test,frontend}.md`
+- Skill index: `.agent/skills/overview-skill-index/SKILL.md`.
+- Standard overview loader: `.agent/workflows/load-skills-overview.md` is the recommended loader for portable `overview-*` skills.
+- Discover portable overview skills from the skill index and load only the `overview-*` skills relevant to the task.
+- Include framework-specific `overview-drn-*` skills only when `.agent/repository-profile.md` declares the repository uses DRN Framework or the active task explicitly needs that framework context.
+- Load all skills only when the task explicitly needs broad repository context.
+- Prefer task-specific workflows such as `.agent/workflows/load-skills-overview.md`, `.agent/workflows/load-skills-basic.md`, `.agent/workflows/load-skills-test.md`, or repository-profile workflows.
 
-## Key Commands
+## Working Rules
 
-```bash
-# Build solution
-dotnet build DRN.slnx
-# Run unit tests (avoids long-running performance tests)
-dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
-# Run integration tests only after unit tests pass
-dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
-```
-
-## Conventions
-
-- **DI**: Attribute-based — no manual `services.Add*<>()` for attribute-decorated classes
-  - `[Scoped<T>]`, `[Singleton<T>]`, `[Transient<T>]` — service lifetime
-  - `[Config("Section")]`, `[ConfigRoot]` — configuration binding
-  - `[HostedService]` — background services
-- **Entities**: Source-Known ID pattern (long internal + Guid external); `[EntityType(byte)]` required on every entity
-- **DTOs**: Derive from `Dto`; live in `*.Contract`; APIs return DTOs only — never entities; expose `Guid` IDs only (Source-Known EntityId: `Guid` externally, never `long Id`)
-- **Testing**: DTT (Duran's Testing Technique) — integration-first; use `[Fact]` for tests without inline data or generated parameters. Use `[DataInline]` / `[DataInlineUnit]` for data-driven tests; request `DrnTestContext` / `DrnTestContextUnit` only when the test needs the context. Always run unit tests first, and only run integration tests after unit tests pass. Never use/reference `.slnx` in test commands.
-- **Frontend**: Razor Pages + htmx + Bootstrap 5; Vite-built assets in `buildwww/`; CSP nonces auto-injected via `NonceTagHelper`; CSRF auto-added on `hx-post/put/delete/patch`
-- **Git**: GitFlow-inspired — `develop` → `master` → tag `release/v*.*.*`; squash merge to develop, merge commit to master
-- **Security**: CSP nonces, CSRF anti-forgery, input validation — see `basic-security-checklist` skill
+- Read before editing; use code and docs as source of truth.
+- Keep edits scoped to the requested behavior.
+- Preserve user changes and unrelated worktree changes.
+- Prefer established local patterns over new abstractions.
+- Add comments only when they explain non-obvious intent.
+- Update documentation and skills when a code or convention change would otherwise create drift.
+- Run `git diff --check` after documentation or code edits unless blocked.
 
 ## Lessons Learned
 
-- **File**: `AGENTS.LessonsLearned.md` (repo root — create if missing)
-- **When**: Mistake, anti-pattern, non-obvious insight, or correction discovered during any workflow
-- **How**: Append `## N. Title` with concise subsections adapted to the lesson; keep entries dense and scannable
-- **Dedup**: Read existing entries first — update rather than duplicate
+- File: `AGENTS.LessonsLearned.md` in the repository root, unless the profile overrides it.
+- When: mistake, anti-pattern, non-obvious insight, or correction discovered during a workflow.
+- How: append `## N. Title` with dense, scannable subsections.
+- Dedup: read existing entries first and update rather than duplicate.
 
 ## Workflows
 
 | Slash Command | Purpose |
 |---------------|---------|
-| `/clarify` | Clarify task → requirements, epics, backlog (~2K tokens) |
-| `/answer` | Answer clarification questions, approve documents (~2K tokens) |
-| `/develop` | Implement from clarified requirements (~2K tokens) |
-| `/review` | Review staged changes or branch diff via Priority Stack (~1K tokens) |
-| `/commit-polish` | Commit staged changes and polish non-pushed commit messages to comply with git conventions (~1.5K tokens) |
-| `/test` | Add tests for staged changes or a task (~1K tokens) |
-| `/optimize` | Optimize agent-consumed content (skills, workflows, docs) (~3K tokens) |
-| `/search` | Gather structured knowledge context — codebase, knowledge items, skills, web — before running /clarify enrichment (~1K tokens) |
-| `/documentation` | Generate and update per-module README.md and RELEASE-NOTES.md for DRN.Framework.* packages (~1.5K tokens) |
-| `/update` | Sync AGENTS.md, skill index, workflows from filesystem (runs update-plan, update-execute, update-verify; ~3K tokens + 3 sub-workflows ~9K) |
-| `/update-last` | Detect changed files from last N commits → delegate to `/update` (~1K tokens) |
-| `/load-skills-basic` | Load: `basic-agentic-development`, `basic-documentation`, `basic-documentation-diagrams`, `basic-security-checklist`, `basic-code-review`, `basic-git-conventions` (~7.6K tokens) |
-| `/load-skills-overview` | Load: `overview-repository-structure`, `overview-ddd-architecture`, `overview-drn-framework`, `overview-drn-testing`, `overview-github-actions`, `overview-skill-index` (~8.3K tokens) |
-| `/load-skills-drn` | Load: `drn-sharedkernel`, `drn-entityframework`, `drn-domain-design`, `drn-utils`, `drn-hosting`, `drn-testing` (~18.5K tokens) |
-| `/load-skills-test` | Load: `overview-drn-testing`, `test-integration`, `test-integration-api`, `test-integration-db`, `test-performance`, `test-unit` (~5.3K tokens) |
-| `/load-skills-frontend` | Load: `frontend-buildwww-libraries`, `frontend-buildwww-packages`, `frontend-buildwww-vite`, `frontend-razor-accessors`, `frontend-razor-pages-navigation`, `frontend-razor-pages-shared`, `frontend-buildwww-react` (~11.6K tokens) |
-| `/load-skills-all` | Cascade: basic → overview → drn → test → frontend (~48.5K tokens) |
+| `/clarify` | Clarify task into requirements, epics, and backlog. |
+| `/answer` | Answer clarification questions and approve documents. |
+| `/develop` | Implement from clarified requirements using repository conventions. |
+| `/review` | Review staged changes or branch diff via Priority Stack. |
+| `/commit-polish` | Commit staged changes and polish non-pushed commit messages. |
+| `/test` | Add tests for staged changes or a described task. |
+| `/optimize` | Optimize agent-consumed content: skills, workflows, docs. |
+| `/search` | Gather structured codebase, docs, skill, and web context before clarification. |
+| `/documentation` | Update module documentation and release notes declared by repository conventions. |
+| `/update` | Sync agent instructions, skill index, workflows, and profile from filesystem. |
+| `/update-last` | Detect changed files from recent commits, then delegate to `/update`. |

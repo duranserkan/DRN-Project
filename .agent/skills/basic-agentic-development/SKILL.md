@@ -1,7 +1,7 @@
 ---
 name: basic-agentic-development
-description: Agentic development standards - Silent Partner Protocol, context economy, development loop (discovery, planning, execution, verification), and anti-patterns for efficient autonomous development. Keywords: agentic, ai-agent, development-loop, context-economy, autonomous, discovery, planning, execution, verification, anti-patterns, silent-partner
-last-updated: 2026-02-15
+description: "Agentic development standards - Silent Partner Protocol, context economy, development loop (discovery, planning, execution, verification), and anti-patterns for efficient autonomous development. Keywords: agentic, ai-agent, development-loop, context-economy, autonomous, discovery, planning, execution, verification, anti-patterns, silent-partner"
+last-updated: 2026-06-12
 difficulty: basic
 tokens: ~1.5K
 ---
@@ -28,7 +28,7 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 
 | Principle | Action |
 |-----------|--------|
-| Load only what's needed | Use `/basic`, `/drn`, `/test`, `/frontend` — not `/all` — for focused tasks |
+| Load only what's needed | Use `/load-skills-basic`, `/load-skills-drn`, `/load-skills-test`, or `/load-skills-frontend` instead of `/load-skills-all` for focused tasks |
 | Summarize, don't echo | Never repeat file contents in conversation |
 | Batch reads | Read related files together |
 | Early exit | Stop reading when you have enough context |
@@ -56,15 +56,16 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 ### 3. Execution
 
 - Work incrementally: smallest testable unit first
-- Validate after each change (build, lint, test)
+- Validate after each change (build, lint, test) only when the active instructions allow those commands
 - Follow existing patterns in the codebase
-- Use attribute-based DI (`[Scoped<T>]`, `[Singleton<T>]`)
+- Follow the repository profile's dependency-injection and configuration conventions
 
 ### 4. Verification
 
-**Mandatory order**: Build → Test → Lint → Self-Correct
+**Mandatory order when permitted**: Build → Test → Lint → Self-Correct
 - .NET: `dotnet build` → `dotnet run --project` (for test projects)
 - Node: `npm run build` / `npm run typecheck` → `npm test`
+- Under `AGENTS.md`, do not build or run tests unless explicitly allowed; use static verification and report skipped commands when permission is absent.
 - Fix warnings introduced by your changes (Boy Scout Rule)
 - Use relative paths in code/configs, not absolute paths
 
@@ -88,7 +89,7 @@ Capture non-obvious insights discovered during the task into `AGENTS.LessonsLear
 
 | Anti-Pattern | Correct Approach |
 |-------------|-----------------|
-| Reading all skills when only one area is relevant | Load specific workflow (`/drn`, `/test`, etc.) |
+| Reading all skills when only one area is relevant | Load the repository profile and the specific workflow or skill family for the task. |
 | Echoing file contents back in conversation | Summarize key points, reference file paths |
 | Asking for permission on trivial changes | Act, then report |
 | Implementing without reading existing code | Discovery first |
@@ -99,7 +100,7 @@ Capture non-obvious insights discovered during the task into `AGENTS.LessonsLear
 | Using namespaces/names from assumption | Verify with `grep_search`, `view_file_outline`, check `GlobalUsings.cs` |
 | Importing uninstalled libraries | Check `*.csproj`/`package.json` before using; ask user before adding |
 
-> **Name & Namespace Hallucination**: Never assume a namespace from folder structure. Always verify exact name with `view_file_outline` or `grep_search`. Example: `DRN.Framework.EntityFramework.Models` doesn't exist — the correct namespace is `DRN.Framework.EntityFramework.Context`.
+> **Name & Namespace Hallucination**: Never assume a namespace from folder structure. Always verify exact names with source files, project metadata, or search before using them.
 
 ---
 
@@ -110,7 +111,7 @@ Capture non-obvious insights discovered during the task into `AGENTS.LessonsLear
 | Destructive/irreversible | Ask first |
 | Security-related | Ask first |
 | Reading/analysis | Proceed |
-| Testing your own work | Proceed |
+| Testing your own work | Proceed only when current instructions allow build/test commands |
 | Ambiguous architecture | Ask first |
 | Routine refactoring following patterns | Proceed |
 
@@ -118,8 +119,8 @@ Capture non-obvious insights discovered during the task into `AGENTS.LessonsLear
 
 ## Verification Checklist
 
-- [ ] Code compiles without errors
-- [ ] Tests pass
+- [ ] Code compiles without errors, or build was not run because current instructions forbid it
+- [ ] Tests pass, or tests were not run because current instructions forbid them
 - [ ] No new warnings introduced
 - [ ] Follows existing codebase patterns
 - [ ] Security implications considered
