@@ -133,7 +133,7 @@ reviews:
         - Preserve split checkout for PRs: trusted .github/actions from github.event.pull_request.base.sha at workspace root, PR source under src, persist-credentials:false.
         - PR jobs must remain secretless and have explicit timeout-minutes.
         - Gatekeeper jobs need if: always(), permissions:{}, and every required job listed in both needs and result checks.
-        - Release workflows derive one version from release/v... tags, verify exact protected-branch ancestry with git merge-base --is-ancestor, keep publishing secrets in release jobs, and publish only after build, CodeQL, tests, Sonar, and Docker scan gates.
+        - Release workflows derive one version from release/v... tags, verify the tag commit equals the protected source branch HEAD, keep publishing secrets in release jobs, and publish only after build, CodeQL, tests, Sonar, and Docker scan gates.
 
     - path: ".github/actions/**"
       instructions: |
@@ -142,7 +142,7 @@ reviews:
         - Verify tag-to-SHA mapping from official upstream repositories when action pins change.
         - Shell steps should use strict mode where practical, quote inputs, and pass GitHub expressions through env before shell use.
         - Preserve dependency safety controls such as npm ci --ignore-scripts, npm audit --audit-level=high, and NuGet vulnerability scanning.
-        - Docker release actions must stage by digest, scan registry://...@sha256:<digest>, validate digest shapes, and promote only scanned digests with SBOM/provenance enabled.
+        - Docker release actions must stage images with deterministic staged-* cleanup tags, scan registry://...@sha256:<digest>, validate digest shapes, and promote only scanned digests with SBOM/provenance enabled.
 
     - path: ".github/CODEOWNERS"
       instructions: |

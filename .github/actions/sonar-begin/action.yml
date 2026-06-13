@@ -20,6 +20,14 @@ inputs:
     description: "SonarCloud organization."
     required: false
     default: "duranserkan"
+  sonar-branch-name:
+    description: "Optional SonarCloud branch name to attach analysis to when the workflow runs from a tag ref."
+    required: false
+    default: ""
+  sonar-branch-target:
+    description: "Optional SonarCloud target branch for non-main branch analysis."
+    required: false
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -35,5 +43,29 @@ runs:
         SONAR_HOST_URL: ${{ inputs.sonar-host-url }}
         SONAR_ORGANIZATION: ${{ inputs.sonar-organization }}
         SONAR_TOKEN: ${{ inputs.sonar-token }}
+        SONAR_BRANCH_NAME: ${{ inputs.sonar-branch-name }}
+        SONAR_BRANCH_TARGET: ${{ inputs.sonar-branch-target }}
       run: |
-        ./.sonar/scanner/dotnet-sonarscanner begin /k:"$env:SONAR_PROJECT_KEY" /o:"$env:SONAR_ORGANIZATION" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.vscoveragexml.reportsPaths=coverage-unit.xml,coverage-integration.xml /d:sonar.host.url="$env:SONAR_HOST_URL" /d:sonar.qualitygate.wait=true /d:sonar.qualitygate.timeout=600
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $true
+
+        $scannerArgs = @(
+          "begin",
+          "/k:$env:SONAR_PROJECT_KEY",
+          "/o:$env:SONAR_ORGANIZATION",
+          "/d:sonar.token=$env:SONAR_TOKEN",
+          "/d:sonar.cs.vscoveragexml.reportsPaths=coverage-unit.xml,coverage-integration.xml",
+          "/d:sonar.host.url=$env:SONAR_HOST_URL",
+          "/d:sonar.qualitygate.wait=true",
+          "/d:sonar.qualitygate.timeout=600"
+        )
+
+        if (-not [string]::IsNullOrWhiteSpace($env:SONAR_BRANCH_NAME)) {
+          $scannerArgs += "/d:sonar.branch.name=$env:SONAR_BRANCH_NAME"
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($env:SONAR_BRANCH_TARGET)) {
+          $scannerArgs += "/d:sonar.branch.target=$env:SONAR_BRANCH_TARGET"
+        }
+
+        ./.sonar/scanner/dotnet-sonarscanner @scannerArgs

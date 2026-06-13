@@ -8,6 +8,14 @@ inputs:
   solution-file:
     description: "Solution file to build during SonarCloud analysis."
     required: true
+  configuration:
+    description: "Build and test configuration used during SonarCloud analysis."
+    required: false
+    default: Debug
+  version:
+    description: "Optional package/application version to pass to MSBuild."
+    required: false
+    default: ""
   sonar-token:
     description: "SonarCloud token."
     required: true
@@ -23,6 +31,14 @@ inputs:
     description: "SonarCloud organization."
     required: false
     default: "duranserkan"
+  sonar-branch-name:
+    description: "Optional SonarCloud branch name to attach analysis to when the workflow runs from a tag ref."
+    required: false
+    default: ""
+  sonar-branch-target:
+    description: "Optional SonarCloud target branch for non-main branch analysis."
+    required: false
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -37,17 +53,22 @@ runs:
         sonar-project-key: ${{ inputs.sonar-project-key }}
         sonar-host-url: ${{ inputs.sonar-host-url }}
         sonar-organization: ${{ inputs.sonar-organization }}
+        sonar-branch-name: ${{ inputs.sonar-branch-name }}
+        sonar-branch-target: ${{ inputs.sonar-branch-target }}
 
     - name: Build
       uses: ./.github/actions/dotnet-build
       with:
         working-directory: ${{ inputs.working-directory }}
         solution-file: ${{ inputs.solution-file }}
+        configuration: ${{ inputs.configuration }}
+        version: ${{ inputs.version }}
 
     - name: Test with Coverage
       uses: ./.github/actions/dotnet-test-coverage
       with:
         working-directory: ${{ inputs.working-directory }}
+        configuration: ${{ inputs.configuration }}
 
     - name: Sonar Scan End
       uses: ./.github/actions/sonar-end

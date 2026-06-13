@@ -1,0 +1,51 @@
+name: Verify Release Tag Head
+description: "Verify that a release tag points at the protected source branch HEAD."
+inputs:
+  source-branch:
+    description: "Protected source branch name that the release tag must point at."
+    required: true
+  release-channel:
+    description: "Release channel to validate: stable or preview."
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Verify tag commit is source branch HEAD
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        SOURCE_BRANCH: ${{ inputs.source-branch }}
+        RELEASE_CHANNEL: ${{ inputs.release-channel }}
+      run: |
+        set -euo pipefail
+
+        if [[ "$GITHUB_REF" != refs/tags/* ]]; then
+          echo "Expected a tag ref, got: $GITHUB_REF"
+          exit 1
+        fi
+
+        case "$RELEASE_CHANNEL" in
+          stable|preview)
+            ;;
+          *)
+            echo "Expected release-channel to be stable or preview, got: $RELEASE_CHANNEL"
+            exit 1
+            ;;
+        esac
+
+        if [[ ! "$SOURCE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]] || [[ "$SOURCE_BRANCH" == /* ]] || [[ "$SOURCE_BRANCH" == *..* ]]; then
+          echo "Expected source-branch to be a safe branch path, got: $SOURCE_BRANCH"
+          exit 1
+        fi
+
+        branch_ref="refs/remotes/origin/${SOURCE_BRANCH}"
+        git rev-parse --verify "$branch_ref"
+        branch_sha="$(git rev-parse "$branch_ref")"
+        tag_sha="$(git rev-parse "${GITHUB_REF}^{commit}")"
+
+        if [ "$tag_sha" != "$branch_sha" ]; then
+          echo "${RELEASE_CHANNEL} release tag must point at origin/${SOURCE_BRANCH} HEAD."
+          echo "origin/${SOURCE_BRANCH}: $branch_sha"
+          echo "tag commit:        $tag_sha"
+          exit 1
+        fi
