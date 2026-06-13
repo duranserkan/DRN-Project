@@ -12,6 +12,7 @@ runs:
   steps:
     - name: Verify tag commit is source branch HEAD
       shell: bash
+      working-directory: ${{ github.workspace }}
       env:
         SOURCE_BRANCH: ${{ inputs.source-branch }}
         RELEASE_CHANNEL: ${{ inputs.release-channel }}

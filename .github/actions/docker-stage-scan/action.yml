@@ -50,6 +50,7 @@ runs:
         cache-from: type=gha,scope=${{ inputs.image-repository-name }}
         cache-to: type=gha,mode=max,scope=${{ inputs.image-repository-name }},ignore-error=true
     - name: Validate staged Docker image digest
+      id: validate-image-digest
       shell: bash
       env:
         IMAGE_DIGEST: ${{ steps.container-build-digest.outputs.digest }}
@@ -62,7 +63,7 @@ runs:
         fi
     - name: Docker Scout
       id: docker-scout
-      if: ${{ always() && steps.container-build-digest.outcome == 'success' }}
+      if: ${{ steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}
       uses: docker/scout-action@cd72f264beff1cd72735de31148b9d3244a0234a # v1.21.0
       with:
         command: quickview,cves
