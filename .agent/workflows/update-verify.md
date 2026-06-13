@@ -19,6 +19,7 @@ If missing, initialize from template. If found, resume from the first actionable
 - `pass` / `skipped`: terminal; do not re-run unless the plan scope changed.
 
 ### 0.1 Progress File Template
+
 ```markdown
 # Update Verification Progress
 > Generated: <timestamp> | Status: verifying | verified | failed | Plan: .agent/temp/update-plan.md
@@ -98,6 +99,7 @@ Aggregate results across executed stages:
 ### Report Templates
 
 #### Success (✅ or ⚠️)
+
 ```markdown
 ## ✅ Verification Complete
 All non-skipped stages passed. Skill content is aligned.
@@ -109,6 +111,7 @@ Warnings, if any, include evidence, impact, invariant, recommendation, confidenc
 ```
 
 #### Failure (❌)
+
 ```markdown
 ## ❌ Verification Failed — Corrections Required
 Drift detected. Apply corrections and re-run `/update`:

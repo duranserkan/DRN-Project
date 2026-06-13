@@ -116,6 +116,7 @@ Read file: `.agent/temp/update-plan.md`. If missing, state is `no-plan`. Else, p
 # Update Plan
 > Generated: <timestamp> | Status: <status> | Scope: <scope> | Resolved Stages: <stages>
 > Repo: <path> | Baseline HEAD: <sha> | Baseline Inputs Hash: <sha256 or N/A>
+> Baseline Inputs Hash Justification: no-material-input-files
 > Custom Groups: <prefix> → <workflow>
 
 ## Discovery Summary
@@ -156,7 +157,7 @@ Read file: `.agent/temp/update-plan.md`. If missing, state is `no-plan`. Else, p
 <!-- Repeat for each stage; skipped stages replace Actions with _(skipped — out of scope)_ -->
 ```
 
-Baseline semantics: `Baseline HEAD` is audit metadata and may differ after unrelated commits. `Baseline Inputs Hash` is the staleness gate; compute it from sorted normalized in-scope paths, file contents, and deletion markers. Use `N/A` only when the resolved scope has no material input files to hash.
+Baseline semantics: `Baseline HEAD` is audit metadata and may differ after unrelated commits. `Baseline Inputs Hash` is the staleness gate; see [Baseline Inputs Hash Specification](./_shared/baseline-inputs-hash-spec.md) for the canonical algorithm. Compute it for every material in-scope input. Use `N/A` only when the resolved scope has no material input files, and include the exact header value `Baseline Inputs Hash Justification: no-material-input-files`. Omit the justification header when `Baseline Inputs Hash` is a SHA-256 value.
 
 ---
 

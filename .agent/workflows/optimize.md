@@ -76,6 +76,7 @@ Add content only if its absence causes agent errors or degrades outcomes (clarif
 - Security-critical details, decision rationale, and versions.
 - Acceptance criteria, code blocks, diagrams, and tables.
 - Lifecycle metadata and active handoff content in `.agent/temp/CLARIFY-*` and `.agent/temp/DEVELOP-*`.
+- Source-tracking metadata (`source_status`, `source_updated`, `source_sha256`) in `.agent/temp/DEVELOP-*`; these keys are defined and validated by clarification/develop workflows, not by the shared lifecycle flags.
 
 ### 3f. Content-Type Strategies
 | Type | Strategy |

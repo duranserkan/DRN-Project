@@ -57,6 +57,7 @@ Load profile-specific guidance first, then target-specific generic skills:
 - If allowed, run unit tests first. Discover commands from CI/files if profile is silent.
 - Run `git diff --check` after edits unless blocked.
 - If tests are not allowed, perform static verification: read the touched test file sections, confirm attributes/contexts match loaded guidance, and report build/test as `not run per repo rule`.
+- When reporting blocked or skipped verification, use the [Evidence Contract](./_shared/workflow-operating-model.md) fields — Evidence, Impact, Invariant, Recommendation, Confidence, Verification.
 
 ---
 
@@ -68,4 +69,4 @@ Apply Priority Stack:
 - **Simplicity**: Can fewer tests cover the behavior without hiding failure modes?
 - **Performance**: Is runtime justified by signal?
 
-Report findings or residual risk using the shared Evidence Contract when verification is blocked or incomplete.
+Report findings or residual risk using the [Evidence Contract](./_shared/workflow-operating-model.md) fields — Evidence, Impact, Invariant, Recommendation, Confidence, Verification — when verification is blocked or incomplete.

@@ -15,9 +15,10 @@ If invoked directly, apply the shared Startup Gate before work; otherwise inheri
 
 1. **Warn** if plan is > 24 hours old.
 2. **Warn** if `Baseline HEAD` differs from current `HEAD`; it is audit metadata, not a hard gate.
-3. **Abort** if `Baseline Inputs Hash` is present and no longer matches the current normalized in-scope inputs.
-4. **Warn** if `Baseline Inputs Hash` is `N/A`; continue only after confirming the scope has no material input files or after re-checking exact scope paths.
+3. **Abort** if material in-scope inputs exist and `Baseline Inputs Hash` is missing, malformed, `N/A`, or no longer matches the current normalized in-scope inputs.
+4. **Allow** `Baseline Inputs Hash: N/A` only after confirming the plan header contains exactly `Baseline Inputs Hash Justification: no-material-input-files` and re-checking exact scope paths still finds no material inputs; otherwise abort as stale.
 5. **Abort** if in-scope files have uncommitted changes not represented in the plan:
+
    ```bash
    git diff -- <scope-paths>          # unstaged
    git diff --cached -- <scope-paths>  # staged
@@ -90,9 +91,11 @@ If a project prefix changed:
 1. Scan `.agent/repository-profile.md` and repository-owned overlay skills. (Generic/framework-scoped skills are excluded).
 2. Present prefix mapping families for approval.
 3. Apply boundary-aware regex:
+
    ```regex
    (?<=[ \t`'"\n\/]|^)<Prefix>\.
    ```
+
 4. Verify all replaced paths resolve.
 
 ---
@@ -112,11 +115,13 @@ Update `overview-skill-index/SKILL.md`:
 ## 6. Sync Project Docs (Stage 6)
 *Flag-only stage*: Flag drift in READMEs/skills based on plan data (stale, missing, renamed).
 - **Report Findings Template**:
+
   ```markdown
   ## Stage 6: Project Docs Flags
   ### Content Drift / Skill Content Drift / Stale Project References
   - Family.Module: Evidence: <file:line> | Impact: <risk> | Invariant: <rule> | Recommendation: <delegate/fix> | Confidence: high/medium/low | Verification: run/not run/blocked/N/A
   ```
+
 - **Delegation Offer**: Ask user: *"Delegate updates to /documentation for each module? (Y/N)"*. Y loads `documentation.md` with the affected module scope and its preview gate.
 
 ---

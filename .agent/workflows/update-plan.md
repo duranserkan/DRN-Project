@@ -143,6 +143,6 @@ Serialize report and plan to `.agent/temp/update-plan.md`.
 - **No plan file**: Run §2-§4 (within scope); write plan with affected as `pending`, others as `skipped`.
 - **`outlined` / `planning`**: Detail next outlined stages to `pending`.
 - **All pending/skipped resolved**: Set overall status to `ready`.
-- Record `Baseline HEAD` as audit metadata and `Baseline Inputs Hash` as the staleness gate. Compute the hash from sorted normalized in-scope paths, file contents, and deletion markers; use `N/A` only when the resolved scope has no material input files to hash.
+- Record `Baseline HEAD` as audit metadata and `Baseline Inputs Hash` as the staleness gate per the [Baseline Inputs Hash Specification](./_shared/baseline-inputs-hash-spec.md). Compute the hash for every material in-scope input; use `N/A` only when there are no material input files, and record the exact plan header value `Baseline Inputs Hash Justification: no-material-input-files`.
 
 Follow the template in `update.md §Plan File Contract`.
