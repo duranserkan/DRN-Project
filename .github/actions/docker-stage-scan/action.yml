@@ -1,5 +1,5 @@
 name: Docker Stage and Scan
-description: "Stage release Docker images by digest, scan the staged digest, and upload SARIF."
+description: "Stage release Docker images with run-scoped cleanup tags, scan the staged digest, and upload SARIF."
 inputs:
   project-name:
     description: "The name of the project folder containing the Dockerfile (e.g., DRN.Nexus.Hosted)."
@@ -35,7 +35,7 @@ runs:
         image-repository-prefix: ${{ inputs.image-repository-prefix }}
         image-repository-name: ${{ inputs.image-repository-name }}
         version: ${{ inputs.version }}
-    - name: Build and stage Docker image by digest
+    - name: Build and stage Docker image
       id: container-build-digest
       uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
       with:
@@ -44,11 +44,22 @@ runs:
         labels: ${{ steps.metadata.outputs.labels }}
         platforms: ${{ inputs.platforms }}
         tags: ${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}:staged-${{ inputs.version }}-run-${{ github.run_id }}-${{ github.run_attempt }}
-        outputs: type=image,name=${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }},push-by-digest=true,name-canonical=true,push=true
+        push: true
         sbom: true
         provenance: true
         cache-from: type=gha,scope=${{ inputs.image-repository-name }}
         cache-to: type=gha,mode=max,scope=${{ inputs.image-repository-name }},ignore-error=true
+    - name: Validate staged Docker image digest
+      shell: bash
+      env:
+        IMAGE_DIGEST: ${{ steps.container-build-digest.outputs.digest }}
+      run: |
+        set -euo pipefail
+
+        if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+          echo "Expected staged Docker image digest to be a sha256 digest, got: $IMAGE_DIGEST"
+          exit 1
+        fi
     - name: Docker Scout
       id: docker-scout
       if: ${{ always() && steps.container-build-digest.outcome == 'success' }}

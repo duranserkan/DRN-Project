@@ -34,25 +34,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify commit exists in origin/develop
-        shell: bash
-        run: |
-          set -euo pipefail
-          git rev-parse --verify refs/remotes/origin/develop
-          git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/develop
+      - name: Verify tag commit is origin/develop HEAD
+        uses: ./.github/actions/verify-release-tag-head
+        with:
+          source-branch: develop
+          release-channel: preview
 
       - name: Set version from tag
         id: version
-        shell: bash
-        run: |
-          if [[ ! "$GITHUB_REF_NAME" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+-preview[0-9]{3}$ ]]; then
-            echo "Expected preview release tag, got: $GITHUB_REF_NAME"
-            exit 1
-          fi
-          # Bash ${parameter#word} removes the shortest matching prefix.
-          # The guard above proves this tag starts with release/v, leaving only the package version.
-          version="${GITHUB_REF_NAME#release/v}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/release-version-from-tag
+        with:
+          release-channel: preview
 
       - name: Setup SDK
         uses: ./.github/actions/setup-sdk-and-tools
@@ -60,10 +52,15 @@ jobs:
       - name: Build frontend
         uses: ./.github/actions/frontend-build
 
-      - name: Sonar Scan Begin
-        uses: ./.github/actions/sonar-begin
+      - name: Run Sonar preview gate
+        uses: ./.github/actions/dotnet-sonar-scan
         with:
+          solution-file: ${{ env.SOLUTION_FILE }}
+          configuration: Release
+          version: ${{ steps.version.outputs.version }}
           sonar-token: ${{ secrets.SONAR_TOKEN }}
+          sonar-branch-name: develop
+          sonar-branch-target: master
 
       - name: Run CodeQL scan
         uses: ./.github/actions/codeql-scan
@@ -78,16 +75,6 @@ jobs:
       # Usage: protect the source branch in Settings -> Rules -> Rulesets,
       # enable "Require code scanning results", add CodeQL, then choose thresholds.
       # https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/set-merge-protection
-
-      - name: Test with Coverage
-        uses: ./.github/actions/dotnet-test-coverage
-        with:
-          configuration: Release
-
-      - name: Sonar Scan End
-        uses: ./.github/actions/sonar-end
-        with:
-          sonar-token: ${{ secrets.SONAR_TOKEN }}
 
       - name: Stage and scan Docker images
         id: docker-images
