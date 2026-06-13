@@ -658,7 +658,7 @@ When tests share identical setup (container init, migrations, service registrati
 - **Comment inline data** — add trailing comments when values aren't self-explanatory
 - **Extract shared setup** — use private helpers to keep the test body focused on act + assert
 - **Omit values for auto-generated params** — let AutoFixture/NSubstitute handle params you don't control
-- **Omit context when unused** — use `[Fact]` or a context-free data theory when the body does not need the context
+- **Omit context when unused** — declare `DrnTestContext` or `DrnTestContextUnit` as a parameter only when the test body uses it; omit it for pure logic tests that need no context
 - **Don't consolidate when** test bodies differ structurally or separate failure messages aid debugging more than parameterization
 
 
@@ -890,9 +890,11 @@ public async Task $name$(DrnTestContext context)
 
 ## Testing Guide and DTT Approach
 
-DTT(Duran's Testing Technique) is developed upon following two ideas to make testing natural part of the software development:
+DTT (Duran's Testing Technique) is a **context-oriented testing** approach developed to make testing a natural part of software development. Instead of scattering setup across fixtures, factories, and lifecycle hooks, DTT places a single test context at the center of the test. The context adapts to the test's scope. It is lightweight for unit tests (`DrnTestContextUnit`), full-stack for integration tests (`DrnTestContext`).
+
+DTT is built upon two core ideas:
 * Writing a unit or integration test, providing settings and data to it should be easy, effective and encouraging as much as possible
-* A test should test actual usage as much as possible.
+* A test should test actual usage as much as possible
 
 DTT with **DrnTestContext** makes these ideas possible by
 * being aware of test data and location
@@ -902,6 +904,9 @@ DTT with **DrnTestContext** makes these ideas possible by
 * effortlessly validating service provider
 * effortlessly wiring external dependencies with Container Context
 * effortlessly wiring application with Application Context
+
+The context is opt-in: declare it as a parameter when the test needs it, omit it for pure logic tests that require no context. Data attributes inject the context only when the method signature requests it.
+
 With the help of test context, integration tests can be written easily with following styles.
 1. A data context attribute can provide NSubstituted interfaces and test context automatically replaces actual implementations with mocked interfaces and provides test data.
 2. Test containers can be used as actual dependencies instead of mocking them.

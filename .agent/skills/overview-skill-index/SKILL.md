@@ -1,9 +1,9 @@
 ---
 name: overview-skill-index
 description: Use when choosing which repository skills to load for a task, mapping work to skill families, finding related skills, or updating skill routing after skills change.
-last-updated: 2026-06-12
+last-updated: 2026-06-13
 difficulty: basic
-tokens: ~1.4K
+tokens: ~1.5K
 ---
 
 # Skill Cross-Reference Index
@@ -57,6 +57,31 @@ The following families are framework- or convention-scoped and should be used on
 | Testing | `test-unit`, `test-integration`, `test-performance` | Framework/profile testing skill |
 | Frontend | Detected `frontend-*` convention skill | Framework/web skill from profile |
 | CI/CD | `overview-github-actions`, `basic-git-conventions` | Release/deployment profile |
+
+## Dependency Graph
+
+```mermaid
+flowchart TD
+    Profile[".agent/repository-profile.md"]
+    Index["overview-skill-index"]
+    Basic["basic-*"]
+    Overview["overview-*"]
+    DRN["drn-*"]
+    Test["test-*"]
+    Frontend["frontend-*"]
+    Workflows["task workflows"]
+
+    Profile --> Index
+    Index --> Basic
+    Index --> Overview
+    Profile --> DRN
+    Profile --> Test
+    Profile --> Frontend
+    Overview --> DRN
+    DRN --> Test
+    Frontend --> Workflows
+    Basic --> Workflows
+```
 
 ## Keyword Index
 

@@ -1,8 +1,8 @@
 ---
-description: Shared status lifecycle for the /clarify -> /answer -> /develop pipeline
+description: Shared status lifecycle for agent workflow artifacts
 ---
 
-> **Estimated context: ~0.2K tokens**
+> **Estimated context: ~0.4K tokens**
 > See also: [Workflow Operating Model](./workflow-operating-model.md)
 
 ## Status Lifecycle
@@ -10,6 +10,8 @@ description: Shared status lifecycle for the /clarify -> /answer -> /develop pip
 ```text
 CLARIFY-* : draft -> clarifying -> draft-self-reviewed -> clarified
 DEVELOP-* : ready-to-develop -> implemented
+UPDATE    : outlined -> planning -> ready -> plan-reviewed -> executing -> done -> reviewed -> verifying -> verified
+UPDATE    : failed -> verifying -> verified | failed
 ```
 
 ### Status Transitions
@@ -22,6 +24,16 @@ DEVELOP-* : ready-to-develop -> implemented
 | `clarified` | `CLARIFY-*` | Approval criteria met (§6) | `/answer` |
 | `ready-to-develop` | `DEVELOP-*` | Development document produced (§7) | `/answer` |
 | `implemented` | `DEVELOP-*` | User approves final report (§7.2) | `/develop` |
+| `outlined` | `update-plan.md` | Initial update plan shell created | `/update-plan` |
+| `planning` | `update-plan.md` | Discovery/detailing in progress | `/update-plan` |
+| `ready` | `update-plan.md` | Plan has resolved stages and awaits review | `/update-plan` |
+| `plan-reviewed` | `update-plan.md` | `/review` reports `transition_allowed: plan-reviewed` | `/update` |
+| `executing` | `update-plan.md` | First execution stage starts | `/update-execute` |
+| `done` | `update-plan.md` | All in-scope execution stages complete | `/update-execute` |
+| `reviewed` | `update-plan.md` | `/review` reports `transition_allowed: reviewed` | `/update` |
+| `verifying` | `update-plan.md`, `update-verify-progress.md` | Verification starts or resumes | `/update-verify` |
+| `verified` | `update-plan.md`, `update-verify-progress.md` | Verification verdict passes | `/update-verify` |
+| `failed` | `update-plan.md`, `update-verify-progress.md` | Verification verdict fails | `/update-verify` |
 
 ### Metadata Flags
 

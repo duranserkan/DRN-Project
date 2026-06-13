@@ -14,6 +14,8 @@ description: Optimize agent-consumed content using DiSCOS and AGENTS.md (skills,
 ---
 
 ## 1. Resolve Scope
+Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, the shared operating model, and only needed skills.
+
 - **File/directory path**: Target specified files/directory.
 - **Content-type keyword**:
   | Keyword | Resolves To |
@@ -23,7 +25,7 @@ description: Optimize agent-consumed content using DiSCOS and AGENTS.md (skills,
   | `docs` | `README.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/**/*.md` |
   | `all` | All of the above |
 - **No arguments**: Ask user for target.
-- **Exclusions**: Never optimize `AGENTS.md`, `DiSCOS.md`, or `.agent/temp/CLARIFY-*` / `.agent/temp/DEVELOP-*` files with status `draft`, `draft-self-reviewed`, or `clarifying`.
+- **Exclusions**: Never optimize `AGENTS.md`, `DiSCOS.md`, or `.agent/temp/CLARIFY-*` / `.agent/temp/DEVELOP-*` by default. If the user explicitly scopes a temp handoff artifact, require explicit approval and preserve lifecycle metadata (`status`, `stale`, `needs_review`, `source_*`, hashes) or stop.
 - **Skill loading**: Track loaded skills to prevent redundant reads.
 
 ---
@@ -73,6 +75,7 @@ Add content only if its absence causes agent errors or degrades outcomes (clarif
 - YAML frontmatter, structural anchors, and cross-references.
 - Security-critical details, decision rationale, and versions.
 - Acceptance criteria, code blocks, diagrams, and tables.
+- Lifecycle metadata and active handoff content in `.agent/temp/CLARIFY-*` and `.agent/temp/DEVELOP-*`.
 
 ### 3f. Content-Type Strategies
 | Type | Strategy |

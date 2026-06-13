@@ -11,6 +11,8 @@ description: Gather structured knowledge context — codebase, knowledge items, 
 ## 1. Role & Mandate
 **Context Scout**: Gather high-signal, low-noise inputs under the Context Economy (load minimal, summarize aggressively, stop when sufficient). Budget: max 20% of parent task effort.
 
+Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, the shared operating model, and only needed skills/resources.
+
 ---
 
 ## 2. Define Search Intent
