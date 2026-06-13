@@ -2,7 +2,7 @@
 description: Clarify a user-given task into requirements as Technical Business Analyst, epics, and product backlog items through iterative questioning. Use DiSCOS, AGENTS.md and repository skills guidance
 ---
 
-> **Pipeline**: `/clarify` (1/3) → `/answer` → `/develop` · [Status Lifecycle](./_shared/status-lifecycle.md)
+> **Pipeline**: `/clarify` (1/3) -> `/answer` -> `/develop` · [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
 > **Estimated context: ~1.2K tokens**
 
 ---
@@ -10,6 +10,8 @@ description: Clarify a user-given task into requirements as Technical Business A
 ## 1. Role & Mandate
 
 **Technical Business Analyst**: Bridge business intent and technical architecture. Research autonomously first, resolve ambiguities, and ensure all requirements are testable.
+
+Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, and only needed skills.
 
 ---
 
@@ -19,13 +21,14 @@ description: Clarify a user-given task into requirements as Technical Business A
 2. Create document `.agent/temp/CLARIFY-[task-slug].md` (unless user specifies path).
 3. If file exists, ask to overwrite or rename.
 4. Set `status: draft`, advancing to `clarifying` when the first question round starts.
+5. If the task is waiting on the user, keep the current `status` and set `blocked_on_user: true` until the answer is recorded.
 
 ---
 
 ## 3. Self-Research & Enrichment
 
 Before asking questions, research to minimize round-trips (max 20% budget):
-- **Recommended**: Run `/search` to gather context (codebase, KIs, skills, web). Results append to `## Enrichment Context`.
+- **Recommended**: Run `/search` to gather context (codebase, KIs, skills, web). Append returned findings to `## Enrichment Context` under the matching subheadings.
 - **Fallback**: Manually search files, `.agent/skills/overview-skill-index/SKILL.md`, and external references.
 Write findings under `## Enrichment Context` subheadings: Codebase Findings, Knowledge Items, Relevant Skills, External References, Initial Observations.
 
@@ -57,7 +60,7 @@ For each round of responses:
 3. Check for remaining gaps:
    - **Gaps exist**: Run follow-up round (back to §5).
    - **No gaps**: Summarize and ask: *"Is this complete and accurate?"*
-4. Stop on user confirmation. Max 3 rounds; if reached, tag unknowns `[ASSUMPTION - unverified]`.
+4. Stop on user confirmation. Max 3 rounds; if reached, tag unknowns `[ASSUMPTION - unverified]`, keep `status: clarifying`, set `blocked_on_user: true`, and do not produce `draft-self-reviewed`.
 
 ---
 
@@ -67,7 +70,7 @@ For each round of responses:
 - **Epics**: ID (EPIC-NNN), Title, Description, linked REQs. *Skip if flat backlog (≤4 PBIs, single value area).*
 - **PBIs**: ID (PBI-NNN), Epic, Title, User Story, Acceptance Criteria, Priority, Size (S/M/L/XL), Dependencies, Context (skills, files), Assumptions.
 - **INVEST Validation**: All PBIs must pass (Independent, Negotiable, Valuable, Estimable, Small, Testable).
-- **Assumption Contract**: All `[ASSUMPTION - unverified]` must be resolved before `/develop` starts.
+- **Assumption Contract**: `[ASSUMPTION - unverified]` blocks `draft-self-reviewed`; accepted non-critical assumptions must be retagged `[ASSUMPTION - accepted]` and carried to the risk register by `/answer`.
 
 ---
 
@@ -87,7 +90,7 @@ Evaluate output top-down. Failure at higher level blocks lower gates.
 
 ## 9. Output Artifact
 
-Verify all §8 gates and INVEST pass. Set `status: draft-self-reviewed`.
+Verify all §8 gates and INVEST pass. Run `/review .agent/temp/CLARIFY-[task-slug].md`; if no 🔴 Critical findings remain, set `status: draft-self-reviewed`.
 
 ### Pre-presentation Checklist
 
@@ -105,6 +108,8 @@ status: draft  # advances to 'clarifying' when §5 begins; never set 'clarified'
 title: [Task Title]
 created: [ISO 8601 date]
 clarified:
+blocked_on_user: false
+needs_review: false
 ---
 
 # Task Clarification: [Task Title]
@@ -133,7 +138,7 @@ clarified:
 [2–3 sentence summary of the clarified task]
 
 ## Assumptions & Open Items
-[Unresolved assumptions and explicitly excluded items]
+[Accepted assumptions, unresolved questions, and explicitly excluded items. Use `[ASSUMPTION - unverified]` only while status remains `clarifying`.]
 
 ## Discovery & Guidance
 - **Context/Files to Read**: [2-4 existing files/directories]
@@ -169,6 +174,6 @@ clarified:
 ## 10. Handoff
 
 Present the `draft-self-reviewed` document and stop.
-- **Default**: User manually runs `/answer` or `/develop`.
+- **Default**: User manually runs `/answer`.
 - **`/clarify auto`**: Invokes `/answer auto` immediately after presentation.
-- **Skip `/answer`**: Safe only if: no `[ASSUMPTION]`, all PBIs have acceptance criteria, security is addressed, and user explicitly confirms skip. Then run `/develop` directly.
+- **Skip `/answer` approval phase**: Safe only when the user explicitly confirms skip, all `/answer` approval criteria are already satisfied, and no `[ASSUMPTION - unverified]` remains. `/answer` §7 still produces the `DEVELOP-*` artifact with source metadata before `/develop` starts.

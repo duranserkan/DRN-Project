@@ -3,6 +3,7 @@ description: Execution phase of /update — read update-plan.md, execute sync st
 ---
 
 > **Sub-workflow of `/update`** — not invoked directly. Reads `Scope` and follows Stage Resumption Protocol.
+> See also: [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
 > **Estimated context: ~1.5K tokens**
 
 ---
@@ -10,8 +11,14 @@ description: Execution phase of /update — read update-plan.md, execute sync st
 ## 0. Pre-Execution Validation
 
 ### Staleness Guard
+If invoked directly, apply the shared Startup Gate before work; otherwise inherit `/update` startup context.
+
 1. **Warn** if plan is > 24 hours old.
-2. **Abort** if in-scope files changed since plan generation:
+2. **Warn** if `Baseline HEAD` differs from current `HEAD`; it is audit metadata, not a hard gate.
+3. **Abort** if material in-scope inputs exist and `Baseline Inputs Hash` is missing, malformed, `N/A`, or no longer matches the current normalized in-scope inputs.
+4. **Allow** `Baseline Inputs Hash: N/A` only after confirming the plan header contains exactly `Baseline Inputs Hash Justification: no-material-input-files` and re-checking exact scope paths still finds no material inputs; otherwise abort as stale.
+5. **Abort** if in-scope files have uncommitted changes not represented in the plan:
+
    ```bash
    git diff -- <scope-paths>          # unstaged
    git diff --cached -- <scope-paths>  # staged
@@ -40,11 +47,12 @@ Resume from the first incomplete stage. Git commands are **read-only** (no commi
 
 ### 1.1 Group Loaders (`load-skills-*.md`)
 1. **Preserve**: YAML frontmatter, descriptions, `// turbo` annotations, and skill ordering.
-2. **Regenerate**: `view_file` entries; append new at the end.
+2. **Regenerate**: file-read entries; append new at the end.
 3. **Update**: Token estimate = Sum of skill sizes ÷ 4, rounded to 0.1K.
 
-### 1.2 Task Workflows (`test.md`, `review.md`, `develop.md`)
-Sync only the `view_file` list in the skill-loading sections. Preserve surrounding instructions.
+### 1.2 Task Workflows
+Discover task workflows in `.agent/workflows/*.md` except `load-skills-*.md`, including meta/sub-workflows such as `documentation.md`, `commit-polish.md`, and `update*.md`.
+Sync only skill-loading or shared-workflow reference sections. Preserve surrounding instructions.
 
 ### 1.3 Custom Group & Irrelevance Removal
 - Create/update `load-skills-custom.md` if custom skills exist.
@@ -83,15 +91,17 @@ If a project prefix changed:
 1. Scan `.agent/repository-profile.md` and repository-owned overlay skills. (Generic/framework-scoped skills are excluded).
 2. Present prefix mapping families for approval.
 3. Apply boundary-aware regex:
+
    ```regex
    (?<=[ \t`'"\n\/]|^)<Prefix>\.
    ```
+
 4. Verify all replaced paths resolve.
 
 ---
 
 ## 4. Sync Non-Project References (Stage 4)
-*Flag-only stage*: Verify references to non-project assets (Build configs, CI/CD actions, containers, solution file in build commands). Report stale items; do not modify.
+*Flag-only stage*: Verify references to non-project assets (Build configs, CI/CD actions, containers, solution file in build commands). Report stale items using the shared Evidence Contract; do not modify.
 
 ---
 
@@ -105,14 +115,19 @@ Update `overview-skill-index/SKILL.md`:
 ## 6. Sync Project Docs (Stage 6)
 *Flag-only stage*: Flag drift in READMEs/skills based on plan data (stale, missing, renamed).
 - **Report Findings Template**:
+
   ```markdown
   ## Stage 6: Project Docs Flags
   ### Content Drift / Skill Content Drift / Stale Project References
-  - Family.Module: [details of drift]
+  - Family.Module: Evidence: <file:line> | Impact: <risk> | Invariant: <rule> | Recommendation: <delegate/fix> | Confidence: high/medium/low | Verification: run/not run/blocked/N/A
   ```
-- **Delegation Offer**: Ask user: *"Delegate updates to /documentation for each module? (Y/N)"*. Y runs `/documentation <module>`.
+
+- **Delegation Offer**: Ask user: *"Delegate updates to /documentation for each module? (Y/N)"*. Y loads `documentation.md` with the affected module scope and its preview gate.
 
 ---
 
 ## 7. Plan Completion
-Verify all stages are `done`, set plan status to `done`, and report. (Content verification is handled next by `update-verify.md`).
+Verify every stage is terminal, then set plan status to `done` and report. (Content verification is handled next by `update-verify.md`).
+- In-scope stages must be `done`.
+- Out-of-scope stages may remain `skipped`.
+- Any `pending`, `executing`, `blocked`, `fail`, or unresolved `Requires Approval` item blocks completion.

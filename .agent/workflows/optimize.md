@@ -6,6 +6,7 @@ description: Optimize agent-consumed content using DiSCOS and AGENTS.md (skills,
 > **Mission**: Maximize context efficiency (Reduce waste, Enhance effectiveness).
 > **Principle**: DiSCOS Context Management (Preserve: Conclusions > Decisions > Patterns > Instances).
 > **TRIZ Contradiction**: Brevity vs. Completeness → optimize for correct output per token.
+> See also: [Operating Model](./_shared/workflow-operating-model.md)
 > [!IMPORTANT]
 > **Executive Presence governs every stage**: structured analysis, evidence-based optimization, honest metrics, decisive reporting.
 > **Estimated context: ~1.5K tokens**
@@ -13,6 +14,8 @@ description: Optimize agent-consumed content using DiSCOS and AGENTS.md (skills,
 ---
 
 ## 1. Resolve Scope
+Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, the shared operating model, and only needed skills.
+
 - **File/directory path**: Target specified files/directory.
 - **Content-type keyword**:
   | Keyword | Resolves To |
@@ -22,18 +25,18 @@ description: Optimize agent-consumed content using DiSCOS and AGENTS.md (skills,
   | `docs` | `README.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/**/*.md` |
   | `all` | All of the above |
 - **No arguments**: Ask user for target.
-- **Exclusions**: Never optimize `AGENTS.md`, `DiSCOS.md`, or `.agent/temp/CLARIFY-*` / `.agent/temp/DEVELOP-*` files with status `draft`, `draft-self-reviewed`, or `clarifying`.
+- **Exclusions**: Never optimize `AGENTS.md`, `DiSCOS.md`, or `.agent/temp/CLARIFY-*` / `.agent/temp/DEVELOP-*` by default. If the user explicitly scopes a temp handoff artifact, require explicit approval and preserve lifecycle metadata (`status`, `stale`, `needs_review`, `source_*`, hashes) or stop.
 - **Skill loading**: Track loaded skills to prevent redundant reads.
 
 ---
 
-## 2. Analyze Targets (Dry Run)
-Analyze targets before applying changes.
+## 2. Analyze Targets (Preview)
+Analyze targets before applying changes. No files are edited in this section.
 
 | Severity | Examples | Approval |
 |----------|----------|----------|
-| **Safe** | Filler, whitespace, obvious redundancy | Auto-apply |
-| **Moderate** | Condensing examples, restructuring, merging | Preview diff → apply |
+| **Safe** | Filler, whitespace, obvious redundancy | Preview; apply only after confirmation |
+| **Moderate** | Condensing examples, restructuring, merging | Preview diff -> apply only after confirmation |
 | **Significant** | Removing sections, changing meaning/structure | Explicit approval |
 
 For each target:
@@ -44,7 +47,7 @@ For each target:
 5. **Alternative-comparison**: Check if a structurally different approach is better. Apply TRIZ test.
 6. **Cross-file scan**: Detect duplicates across files (§3g).
 7. Verify cross-references.
-Present dry-run summary before proceeding:
+Present preview summary before proceeding:
 | File | Baseline Tokens | Candidates | Severity | Risk |
 |---|---|---|---|---|
 
@@ -72,6 +75,8 @@ Add content only if its absence causes agent errors or degrades outcomes (clarif
 - YAML frontmatter, structural anchors, and cross-references.
 - Security-critical details, decision rationale, and versions.
 - Acceptance criteria, code blocks, diagrams, and tables.
+- Lifecycle metadata and active handoff content in `.agent/temp/CLARIFY-*` and `.agent/temp/DEVELOP-*`.
+- Source-tracking metadata (`source_status`, `source_updated`, `source_sha256`) in `.agent/temp/DEVELOP-*`; these keys are defined and validated by clarification/develop workflows, not by the shared lifecycle flags.
 
 ### 3f. Content-Type Strategies
 | Type | Strategy |
@@ -85,7 +90,7 @@ Add content only if its absence causes agent errors or degrades outcomes (clarif
 ### 3g. Cross-File Deduplication (Multi-file only)
 1. **Detect**: Similarity > 70%.
 2. **Report**: List duplicate pairs.
-3. **Recommend**: Suggest reference file or consolidation. Never auto-apply.
+3. **Recommend**: Suggest reference file or consolidation. Never apply without confirmation.
 
 ### 3h. Accidental Complexity Removal
 - Simplify indirection (inline valueless reference chains).
@@ -95,16 +100,16 @@ Add content only if its absence causes agent errors or degrades outcomes (clarif
 ---
 
 ## 4. Apply Changes
-Present dry-run summary first.
+Apply only when the user confirms the preview or invokes an explicit apply mode. Safe edits still require confirmation.
 
 | Severity | Action |
 |----------|--------|
-| **Safe** | Apply directly |
-| **Moderate** | Show diff → apply after approval |
-| **Significant** | Show diff + rationale → wait for explicit approval |
-| **Mixed** | Apply safe immediately, present rest for approval |
+| **Safe** | Apply after preview confirmation |
+| **Moderate** | Show diff -> apply after approval |
+| **Significant** | Show diff + rationale -> wait for explicit approval |
+| **Mixed** | Apply only confirmed items; leave the rest untouched |
 
-Post-apply: verify cross-references and check idempotency (re-run §2). Git-diff is the rollback mechanism.
+Post-apply: verify cross-references, check idempotency (re-run §2), and run `git diff --check` unless blocked.
 
 ---
 
@@ -118,7 +123,8 @@ Post-apply: verify cross-references and check idempotency (re-run §2). Git-diff
 ---
 
 ## 6. Quality Gate
-Priority Stack: Security → Correctness → Clarity → Simplicity → Alternatives → Performance.
+Priority Stack: Security → Correctness → Clarity → Simplicity → Performance.
+Run Alternatives as a separate self-check before finalizing recommendations.
 Run `/review` on Moderate/Significant changes to workflows/skills. Must be ✅ or ⚠️.
 
 ---
@@ -129,5 +135,5 @@ Run `/review` on Moderate/Significant changes to workflows/skills. Must be ✅ o
 - **Non-destructive**: Preserves frontmatter, anchors, security, versions.
 - **Scope-aware**: Touches only scoped files.
 - **Observable**: Metrics report shows before/after and scores.
-- **Safe by default**: Tiered approval for semantic changes.
+- **Safe by default**: Preview-first; no edits before confirmation.
 - **Reference-safe / No duplicate loads**: Verified references, single skill load tracking.

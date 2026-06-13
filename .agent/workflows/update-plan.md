@@ -3,6 +3,7 @@ description: Planning phase of /update — discover skills/projects, detect drif
 ---
 
 > **Sub-workflow of `/update`** — receives `Scope` (default: `all`).
+> See also: [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
 > [!IMPORTANT]
 > **Safety**: Drift, cross-references, stale references, and scope-widening are **flagged only** — never auto-modified.
 > **Estimated context: ~1.5K tokens**
@@ -10,6 +11,8 @@ description: Planning phase of /update — discover skills/projects, detect drif
 ---
 
 ## 1. Resolve Scope
+If invoked directly, apply the shared Startup Gate before work; otherwise inherit `/update` startup context.
+
 - **Known scopes** (`all`, `skills`, `agents`, `projects`, `infra`, `<group>`, `<skill-dir>`, `files: <paths>`, `stage-<N>`): Proceed to §2.
 - **Freeform scope**:
   1. **Interpret**: Scan skills manifest, projects, and files to map to closest known scope + affected stages.
@@ -33,7 +36,7 @@ List directories in `.agent/skills/` and read each `SKILL.md` frontmatter. Build
 | *(other)* | custom | `load-skills-custom.md` |
 
 - **Group loaders**: Regenerated fully.
-- **Task workflows**: Sync `view_file` listings in skill-loading sections; preserve other content.
+- **Task workflows**: Discover task workflows in `.agent/workflows/*.md` except `load-skills-*.md`; include meta/sub-workflows such as `documentation.md`, `commit-polish.md`, and `update*.md`. Sync only skill-loading or shared-workflow reference sections; preserve other content.
 - **Cross-references**: Preserve prefix-mismatched inclusions; report new ones for confirmation.
 - *Note*: Do not confuse `drn-testing` (group `drn`) with `overview-drn-testing` (group `overview`).
 
@@ -85,7 +88,9 @@ For projects with a `README.md`:
 | Path Pattern | Stages |
 |--------------|--------|
 | `.agent/skills/<skill-dir>/SKILL.md` | Parent group in Stage 1, Stage 2, Stage 5 |
-| `.agent/workflows/load-skills-*.md`, `.agent/workflows/test.md`, `.agent/workflows/review.md`, `.agent/workflows/develop.md` | Stage 1, Stage 2, Stage 5 |
+| `.agent/workflows/load-skills-*.md` | Stage 1, Stage 2, Stage 5 |
+| `.agent/workflows/*.md` task/meta/sub-workflows, including `documentation.md`, `commit-polish.md`, `test.md`, and `update*.md` | Stage 1, Stage 5 |
+| `.agent/workflows/_shared/*.md` | Stage 1, Stage 5 |
 | `AGENTS.md`, `.agent/repository-profile.md` | Stage 3 |
 | `*.slnx`, `*.sln`, `*.csproj` | Stage 3, Stage 6 |
 | `.github/workflows/**`, `Directory.*.props`, `global.json`, `nuget.config`, `Dockerfile*`, `docker-compose*` | Stage 4 |
@@ -114,7 +119,7 @@ Flag `⚠️ Possibly irrelevant` when referenced folders/configs are absent:
 *Note*: Removals of flagged irrelevant skills require explicit user approval.
 
 ### 4.3 Code Reference Sampling
-Check $\ge 1$ code reference (types, paths, config keys) per skill via `grep_search`. Flag stale items: `⚠️ Stale reference in <skill>: <id> not found`. Do not auto-fix.
+Check at least one code reference (types, paths, config keys) per skill with text search. Flag stale items: `⚠️ Stale reference in <skill>: <id> not found`. Do not auto-fix.
 
 ### 4.4 Cross-References & Scope-Widening
 Detect cross-references and check if scoped changes affect other groups. Report wider impact and ask user (never auto-widen).
@@ -125,7 +130,7 @@ Detect cross-references and check if scoped changes affect other groups. Report 
 ### Scope
 - **Requested**: `<scope>` | **Effective stages**: <list> | **Scope-widening**: <none/details>
 ### Skills / Cross-References / Projects / Non-Project Assets / Documentation
-- [Details of drift, stubs, stale references]
+- Evidence: <file:line or command output> | Impact: <risk> | Invariant: <rule> | Recommendation: <action> | Confidence: high/medium/low | Verification: run/not run/blocked/N/A
 ### Actions Planned
 - [ ] List of planned stage tasks
 ```
@@ -138,5 +143,6 @@ Serialize report and plan to `.agent/temp/update-plan.md`.
 - **No plan file**: Run §2-§4 (within scope); write plan with affected as `pending`, others as `skipped`.
 - **`outlined` / `planning`**: Detail next outlined stages to `pending`.
 - **All pending/skipped resolved**: Set overall status to `ready`.
+- Record `Baseline HEAD` as audit metadata and `Baseline Inputs Hash` as the staleness gate per the [Baseline Inputs Hash Specification](./_shared/baseline-inputs-hash-spec.md). Compute the hash for every material in-scope input; use `N/A` only when there are no material input files, and record the exact plan header value `Baseline Inputs Hash Justification: no-material-input-files`.
 
 Follow the template in `update.md §Plan File Contract`.

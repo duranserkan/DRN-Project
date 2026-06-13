@@ -4,6 +4,7 @@ description: Generate and update per-module README.md and RELEASE-NOTES.md from 
 ---
 
 > **Standalone documentation workflow**
+> See also: [Operating Model](./_shared/workflow-operating-model.md)
 > **Estimated context: ~0.6K tokens**
 
 ---
@@ -11,6 +12,8 @@ description: Generate and update per-module README.md and RELEASE-NOTES.md from 
 ## 1. Role & Mandate
 
 **Documentation Engineer**: Maintain module `README.md` and `RELEASE-NOTES.md` files in sync with code. Preserve human-written content and exclude root files unless profile-declared.
+
+Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, the shared operating model, and only needed documentation/source skills.
 
 ---
 
@@ -31,28 +34,29 @@ Use the default module set from `.agent/repository-profile.md` `Documentation Mo
 
 ## 3. Load Context
 
-For scoped modules:
+For scoped modules, use portable tool verbs and map them to the active platform:
 
 ```bash
-view_file <Module>/README.md
-view_file <Module>/RELEASE-NOTES.md
-view_file_outline <Module>/<manifest-file>
+Read file: <Module>/README.md
+Read file: <Module>/RELEASE-NOTES.md
+Inspect outline: <Module>/<manifest-file>
 ```
 
-Read source files. If `.agent/temp/DEVELOP-*.md` exists, read it; otherwise, infer changes from git history (tag inferred as `[ASSUMPTION]`).
+Read source files named by the repository profile source map, public API surface, and recent scoped changes. Use a `.agent/temp/DEVELOP-*.md` artifact only when explicitly supplied or uniquely tied to the requested module; block writes if it is `stale: true`, `needs_review: true`, `approval_required: true`, or contains `[ASSUMPTION - unverified]`.
 
 ---
 
 ## 4. Drift Scan
 
-Scan before editing:
+Scan before editing and report findings using the shared Evidence Contract:
 1. Extract README headers, referenced types, methods, and config keys.
 2. Extract source public elements.
 3. Flag divergence:
    - `[STALE]`: Doc references missing/renamed code element.
    - `[MISSING]`: Source has undocumented public behavior.
    - `[RENAMED]`: Heading mismatch.
-4. Present findings before proposing changes.
+4. For each finding include evidence, impact, invariant, recommendation, confidence, and verification status.
+5. Present findings before proposing changes.
 
 ---
 
@@ -102,7 +106,7 @@ minimal example
 Append new version block *above* existing history. Never rewrite history.
 - Include only changes since the last documented version.
 - Omit empty subsections; include breaking changes.
-- Tag inferred changes with `[ASSUMPTION]`.
+- Keep inferred changes in the change plan until source evidence or explicit approval resolves them. Do not write assumption markers into published docs unless the user explicitly requests that wording.
 
 ---
 
@@ -114,7 +118,7 @@ Present changes and wait for approval before writing:
 ## Documentation Change Plan
 ### <Module Name>
 Detected drift:
-- [STALE] ...
+- [STALE] Evidence: <file:line or command output> | Impact: <reader/API risk> | Invariant: <rule> | Recommendation: <edit> | Confidence: high/medium/low | Verification: run/not run/blocked/N/A
 README.md structural changes: ...
 RELEASE-NOTES.md version: ...
 ```
@@ -126,4 +130,5 @@ RELEASE-NOTES.md version: ...
 1. Write files.
 2. Read first 20 lines and touched sections to verify layout.
 3. Run `git diff --check`.
-4. Report updates.
+4. Report build/test commands as `not run per repo rule` unless explicitly allowed and relevant.
+5. Report updates with evidence and residual risk.

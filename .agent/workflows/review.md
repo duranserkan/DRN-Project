@@ -1,8 +1,9 @@
 ---
-description: Review git staged changes, diff the current feature/fix branch against develop, or a specified task using Priority Stack and project review skills. Use DiSCOS, AGENTS.md and repository skills guidance
+description: Review staged changes, the current feature/fix branch against the profile-declared integration branch, or a specified task using Priority Stack and project review skills. Use DiSCOS, AGENTS.md and repository skills guidance
 ---
 
-> **Estimated context: ~0.8K tokens** (this workflow) + ~5.1K when skills load
+> **Estimated context: ~0.8K tokens** (this workflow) + review skills
+> See also: [Operating Model](./_shared/workflow-operating-model.md)
 >
 > [!IMPORTANT]
 > **Executive Presence governs every stage**: structured evaluation, evidence-based findings, honest verdicts, decisive recommendations.
@@ -12,9 +13,10 @@ description: Review git staged changes, diff the current feature/fix branch agai
 ## 1. Determine Scope
 - **File path(s) provided**: Read specified files directly; skip git analysis.
 - **No arguments**:
-  1. Not on `develop`/`master` → Run `git diff develop...HEAD`.
-  2. On `develop`/`master` (or empty diff) → Run `git diff --cached` (staged changes).
-  3. Empty → Inform user and stop.
+  1. Determine the integration/release branch from `.agent/repository-profile.md` or discovered primary refs.
+  2. Not on an integration/release branch -> run branch diff against the integration branch.
+  3. On an integration/release branch, or branch diff is empty -> run staged diff.
+  4. Empty -> inform user and stop.
 - **Task/description provided**: Identify files via keywords/git history; read minimal context.
 - **Re-review**: Evaluate changed lines only. Triggered when user asks to "re-review", "check fixes", or scope was recently reviewed.
 
@@ -22,10 +24,11 @@ description: Review git staged changes, diff the current feature/fix branch agai
 
 ## 2. Load Review Skills
 ```text
-view_file .agent/skills/basic-code-review/SKILL.md
-view_file .agent/skills/basic-security-checklist/SKILL.md
-view_file .agent/skills/basic-documentation/SKILL.md
-view_file .agent/skills/basic-git-conventions/SKILL.md
+Read file: .agent/skills/basic-agentic-development/SKILL.md
+Read file: .agent/skills/basic-code-review/SKILL.md
+Read file: .agent/skills/basic-security-checklist/SKILL.md
+Read file: .agent/skills/basic-documentation/SKILL.md
+Read file: .agent/skills/basic-git-conventions/SKILL.md
 ```
 *Single source of truth — do not duplicate criteria.*
 
@@ -43,7 +46,7 @@ Apply loaded skills' criteria top-down:
 1. **Priority Stack Gate**: Security → Correctness → Clarity → Simplicity → Performance. Failure blocks lower gates.
 2. **Skill Checklists**: Run all relevant checklists.
 
-> **Re-review rule**: Evaluate **changed lines/constructs only**. Do not evaluate unchanged code — prevents fix → new-finding cascades.
+> **Re-review rule**: Findings must be caused by changed lines or changed behavior. Inspect unchanged context only when needed to prove or disprove impact.
 
 > **Recommendation self-check**: Do not recommend a 🟡 Suggestion if the fix is more complex than the finding. If so, tag it `[COMPLEXITY WARNING]`, recommend accepting status quo, and demote to 🔵 Note. (Does not apply to 🔴 Critical).
 
@@ -62,7 +65,7 @@ Apply loaded skills' criteria top-down:
 ---
 
 ## 5. Produce Review Report
-Write as an artifact in task mode. Omit empty sections.
+Produce a report; do not edit reviewed files. Omit empty sections except when no findings exist, in which case state that clearly.
 
 | Verdict | Condition |
 |---|---|
@@ -74,9 +77,9 @@ Write as an artifact in task mode. Omit empty sections.
 > **Iteration limit**: Max 2 cycles (initial + 1 re-review). Remaining 🟡 are accepted after re-review.
 
 ### `/update` State Hook
-When `/review` is invoked by `/update`, it owns the review state transition:
-- Reviewing `.agent/temp/update-plan.md` from `Status: ready`: if no 🔴 Critical findings, update the plan header to `Status: plan-reviewed`; otherwise leave it `ready`.
-- Reviewing `/update` changes from `Status: done`: if no 🔴 Critical findings, update the plan header to `Status: reviewed`; otherwise leave it `done`.
+`/review` is read-only. When invoked by `/update`, report the allowed state transition; `/update` performs any header mutation:
+- Reviewing `.agent/temp/update-plan.md` from `Status: ready`: if no 🔴 Critical findings, report `transition_allowed: plan-reviewed`; otherwise report `transition_allowed: none`.
+- Reviewing `/update` changes from `Status: done`: if no 🔴 Critical findings, report `transition_allowed: reviewed`; otherwise report `transition_allowed: none`.
 
 ### Report Template
 ```markdown
@@ -86,10 +89,10 @@ When `/review` is invoked by `/update`, it owns the review state transition:
 
 ## Findings
 ### 🔴 Critical
-- [file · location · issue · fix · `[IMPROVABLE]` if better alternative exists]
+- [file:line · evidence · impact · violated invariant · recommendation · confidence · verification · `[IMPROVABLE]` if better alternative exists]
 
 ### 🟡 Suggestions
-- [file · location · issue · fix · `[IMPROVABLE]` if better alternative exists]
+- [file:line · evidence · impact · violated invariant · recommendation · confidence · verification · `[IMPROVABLE]` if better alternative exists]
 
 ### 🟢 Positive
 - [pattern observed]

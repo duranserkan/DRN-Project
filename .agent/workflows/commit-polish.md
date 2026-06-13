@@ -2,18 +2,22 @@
 description: Commit staged changes and polish non-pushed commit messages to comply with basic-git-conventions — never pushes, only local history rewrites
 ---
 
+> See also: [Operating Model](./_shared/workflow-operating-model.md)
+
 ## 1. Role & Safety
 
 **Commit Message Editor**: Commit staged changes and polish non-pushed commits.
 > [!CAUTION]
 > **NEVER execute `git push`** (including `--force`). Only perform local commits and rewrites (`--amend` or `rebase -i`). Refuse push requests.
 
+Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, the shared operating model, and only needed skills.
+
 ---
 
 ## 2. Load Skills
 
 ```text
-view_file .agent/skills/basic-git-conventions/SKILL.md
+Read file: .agent/skills/basic-git-conventions/SKILL.md
 ```
 
 *Single source of truth for format rules.*
@@ -47,16 +51,16 @@ git diff --cached --stat
 | `/commit-polish N` | Last N non-pushed commits |
 
 Detect non-pushed range (stop if empty, limit to N if provided):
+1. Prefer the upstream ref (`@{u}`) when present.
+2. Otherwise, read the repository profile's Git rules and discover remote refs.
+3. Prefer the profile-declared integration branch, then release branch, then discovered primary refs only when the profile is silent.
 
 ```bash
 if git rev-parse --abbrev-ref @{u} 2>/dev/null; then
   git log @{u}..HEAD --oneline --no-decorate
-elif git rev-parse --verify origin/develop 2>/dev/null; then
-  git log origin/develop..HEAD --oneline --no-decorate
-elif git rev-parse --verify origin/master 2>/dev/null; then
-  git log origin/master..HEAD --oneline --no-decorate
 else
-  echo "No upstream reference found"
+  git for-each-ref --format='%(refname:short)' refs/remotes
+  git log <profile-or-discovered-base-ref>..HEAD --oneline --no-decorate
 fi
 ```
 
@@ -94,7 +98,7 @@ Present changes and await explicit user approval before rewriting:
 git commit --amend -m "<new message>"
 ```
 
-**Multiple commits** (verify tree is clean; stash if dirty):
+**Multiple commits** (verify tree is clean; if dirty, stop and ask before any stash or rewrite):
 
 ```bash
 # Mark target commits for reword (MacOS/Linux portable sed)

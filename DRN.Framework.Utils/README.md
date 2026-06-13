@@ -261,7 +261,7 @@ public class MyService(IAppSettings settings)
 }
 ```
 
-`GetDebugView(includeRawValues: true)` only includes raw values in Development. Secret-looking keys and sections are redacted by default in summaries. Child keys remain listed even when a provider also defines a scalar value for the parent section, and summary paths use the value provider's key casing.
+`GetDebugView(includeRawValues: true)` only includes raw values in Development. Secret-looking keys and sections are redacted by default in summaries. Child keys remain listed even when a provider also defines a scalar value for the parent section, and summary paths use the value provider's key casing. Object-based configuration helpers serialize through the framework JSON defaults and therefore use camelCase keys; explicit key/value configuration preserves the key text supplied by the caller.
 
 ### Configuration Attributes (`[Config]`)
 
@@ -334,6 +334,8 @@ Feature flags and runtime knobs bound from the `DrnAppFeatures` configuration se
 
 `DrnRateLimit` is the configuration key; application code reads the same settings through `IAppSettings.Features.RateLimit`.
 Shared values apply to both DRN Hosting rate limiting phases. Phase-specific values set to `0` inherit the shared value; positive phase-specific values override it. Treat these values as global defaults; tenant plan, feature-flag, and account-specific quotas belong in DRN Hosting rate-limit rules. See the [Hosting README rate limiting settings](../DRN.Framework.Hosting/README.md#settings-quick-reference) for operational guidance, endpoint metadata behavior, and production scaling notes.
+
+Nested option objects must be validated explicitly before relying on child data annotations for startup safety. `DrnAppFeatures` validates `DrnRateLimit` as part of root validation because plain `Validator.TryValidateObject` does not recursively walk nested objects by itself.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -479,7 +481,7 @@ High-performance hashing extensions supporting modern and legacy algorithms.
 *   **Blake3**: Default modern cryptographic hash (fast and secure).
 *   **XxHash3**: Non-cryptographic hashing for performance-critical scenarios (IDs, Cache keys).
 *   **Security**: Keyed hashing support (`HashWithKey`) for integrity protection.
-*   **Streams**: Stream overloads hash files and large payloads without first materializing them as `BinaryData`.
+*   **Streams**: Stream overloads hash files and large payloads without first materializing them as `BinaryData`; prefer these overloads for file and upload hashing.
 
 ### JSON & Document Utilities
 *   **JSON Merge Patch**: `JsonMergePatch.SafeApplyMergePatch` follows RFC 7386 for partial updates with built-in recursion depth protection.

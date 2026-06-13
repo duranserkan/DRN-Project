@@ -4,12 +4,14 @@ description: Verification phase of /update — validate skill-body content again
 
 > **Sub-workflow of `/update`** — not invoked directly.
 > Reads `Scope` and generates/resumes stages based on executed stages.
+> See also: [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
 > **Estimated context: ~1.5K tokens**
 
 ---
 
 ## 0. Progress File Contract
 **Location**: `.agent/temp/update-verify-progress.md` (ephemeral progress file).
+If invoked directly, apply the shared Startup Gate before work; otherwise inherit `/update` startup context.
 If missing, initialize from template. If found, resume from the first actionable stage:
 - `pending` / `executing`: continue normally.
 - `fail`: reset to `pending` and re-run after corrections.
@@ -17,6 +19,7 @@ If missing, initialize from template. If found, resume from the first actionable
 - `pass` / `skipped`: terminal; do not re-run unless the plan scope changed.
 
 ### 0.1 Progress File Template
+
 ```markdown
 # Update Verification Progress
 > Generated: <timestamp> | Status: verifying | verified | failed | Plan: .agent/temp/update-plan.md
@@ -35,15 +38,17 @@ If missing, initialize from template. If found, resume from the first actionable
 ### Checks & Findings
 
 ## Stage Final: Verdict
-> Status: pending | executing | pass | fail
+> Status: pending | executing | pass | fail | blocked
 ### Summary Table & Corrections Required Table
 ```
 
 - **Dynamic Stage Generation**: Generate one verification stage per project-family prefix. Unaffected families are marked `skipped`.
 - **Failed Re-Verification**: When `.agent/temp/update-plan.md` has `Status: failed`, reset failed verification stages to `pending` before resuming. If Stage 0 previously failed, reset Stage 0 first; after it passes, reset blocked later stages to `pending`.
 - **Verdict Rules**:
-  - `pass`: No `❌` errors; minor `⚠️` warnings allowed (estimate delta ≤ 10%, cosmetic prose).
+  - `pass`: No `❌` errors; minor `⚠️` warnings allowed (token-estimate soft warnings, cosmetic prose).
   - `fail`: Any `❌` error or a critical `⚠️` warning.
+  - `skipped`: Terminal and excluded from all-pass calculations.
+  - `blocked`: Non-terminal for verification; final verdict fails until the blocker is resolved or the blocking stage passes.
   - *Primary (❌)*: Identifier used to locate/load code (class, interface, method, attribute, config key, path).
   - *Secondary (⚠️)*: Illustrative snippets or example paths.
 - **Resumption**: Mid-stage checkpointing updates `Last verified skill` to allow context-eviction recovery.
@@ -54,7 +59,7 @@ If missing, initialize from template. If found, resume from the first actionable
 *Failure blocks all subsequent stages (remaining set to `blocked`)*.
 - **Consistency**: Bidirectional check of `.agent/skills/` directories ↔ workflow loader listings.
 - **Union Validation**: Verify `load-skills-all.md` matches loaders in Standard Load Order.
-- **Token Estimate**: Check Sum of skill file sizes ÷ 4 ≈ `Estimated context:` (flag if delta > 10%).
+- **Token Estimate (soft warning)**: Check Sum of skill file sizes ÷ 4 ≈ `Estimated context:`. The heuristic is approximate; flag `⚠️` if delta > 15%, never `❌` by itself.
 - **Cross-References**: Verify cross-references against plan drift report.
 - **References**: Resolve `AGENTS.md` project paths and `overview-skill-index` skill directories.
 
@@ -69,7 +74,7 @@ Verify non-project config references (props, json, workflows, compose, configs):
 ---
 
 ## 3. Stages 2–N — Per-Project Content Verification
-For each project family, locate relevant skills (via `grep_search "<FamilyPrefix>"`):
+For each project family, locate relevant skills with Search text for `<FamilyPrefix>`:
 1. **Verify Code Identifiers**:
    - *Classes/Interfaces*: Quoted names exist in source.
    - *File paths*: Paths exist.
@@ -86,33 +91,37 @@ Aggregate results across executed stages:
 
 | Stage Statuses | Verdict | Action |
 |----------------|---------|--------|
-| All `pass` (no ⚠️) | ✅ **Verified** | Plan status → `verified` |
-| All `pass` (some ⚠️) | ⚠️ **Verified with warnings** | List warnings, plan → `verified` |
-| Any `fail` (contains ❌) | ❌ **Failed** | Consolidate corrections, plan → `failed` |
+| All non-skipped stages `pass` (no ⚠️) | ✅ **Verified** | Plan status → `verified` |
+| All non-skipped stages `pass` (some ⚠️) | ⚠️ **Verified with warnings** | List warnings, plan → `verified` |
+| Any `fail` or `blocked` | ❌ **Failed** | Consolidate corrections, plan → `failed` |
+| Any `pending` or `executing` | ⏳ **Incomplete** | Keep plan status → `verifying` |
 
 ### Report Templates
 
 #### Success (✅ or ⚠️)
+
 ```markdown
 ## ✅ Verification Complete
-All stages passed. Skill content is aligned.
+All non-skipped stages passed. Skill content is aligned.
+Warnings, if any, include evidence, impact, invariant, recommendation, confidence, and verification status in `.agent/temp/update-verify-progress.md`.
 **Next steps:**
 1. Review `.agent/temp/update-verify-progress.md` for warnings.
-2. Delete `.agent/temp/update-plan.md` and `.agent/temp/update-verify-progress.md`.
-3. Commit: `git add .agent/ && git commit -m "chore(skills): sync agent configuration"`
+2. Delete `.agent/temp/update-plan.md` and `.agent/temp/update-verify-progress.md` only if cleanup was requested.
+3. Commit only if explicitly requested: `git add .agent/ && git commit -m "chore(skills): sync agent configuration"`
 ```
 
 #### Failure (❌)
+
 ```markdown
 ## ❌ Verification Failed — Corrections Required
 Drift detected. Apply corrections and re-run `/update`:
-| # | Stage | Skill | Reference | Type | Correction |
-|---|-------|-------|-----------|------|------------|
+| # | Stage | Skill/File | Evidence | Impact | Invariant | Recommendation | Confidence | Verification |
+|---|-------|------------|----------|--------|-----------|----------------|------------|--------------|
 ```
 
 ---
 
 ## 5. Design Properties
-- **Non-destructive / Ephemeral**: Read-only verification; plan/progress files are removed before commit.
+- **Non-destructive / Ephemeral**: Read-only verification; plan/progress files are not committed and are removed only when cleanup is requested.
 - **Fail-fast**: Stage 0 blocks others.
 - **Context-safe**: Mid-stage checkpointing enables multi-window execution.
