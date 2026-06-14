@@ -13,7 +13,7 @@ inputs:
     required: false
     default: Debug
   version:
-    description: "Optional package/application version to pass to MSBuild."
+    description: "Optional package/application version to pass to SonarCloud analysis and MSBuild."
     required: false
     default: ""
   sonar-token:
@@ -53,6 +53,7 @@ runs:
         sonar-project-key: ${{ inputs.sonar-project-key }}
         sonar-host-url: ${{ inputs.sonar-host-url }}
         sonar-organization: ${{ inputs.sonar-organization }}
+        version: ${{ inputs.version }}
         sonar-branch-name: ${{ inputs.sonar-branch-name }}
         sonar-branch-target: ${{ inputs.sonar-branch-target }}
 

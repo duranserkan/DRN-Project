@@ -20,6 +20,10 @@ inputs:
     description: "SonarCloud organization."
     required: false
     default: "duranserkan"
+  version:
+    description: "Optional project version to attach to the SonarCloud analysis."
+    required: false
+    default: ""
   sonar-branch-name:
     description: "Optional SonarCloud branch name to attach analysis to when the workflow runs from a tag ref."
     required: false
@@ -42,6 +46,7 @@ runs:
         SONAR_PROJECT_KEY: ${{ inputs.sonar-project-key }}
         SONAR_HOST_URL: ${{ inputs.sonar-host-url }}
         SONAR_ORGANIZATION: ${{ inputs.sonar-organization }}
+        SONAR_PROJECT_VERSION: ${{ inputs.version }}
         SONAR_TOKEN: ${{ inputs.sonar-token }}
         SONAR_BRANCH_NAME: ${{ inputs.sonar-branch-name }}
         SONAR_BRANCH_TARGET: ${{ inputs.sonar-branch-target }}
@@ -59,6 +64,10 @@ runs:
           "/d:sonar.qualitygate.wait=true",
           "/d:sonar.qualitygate.timeout=600"
         )
+
+        if (-not [string]::IsNullOrWhiteSpace($env:SONAR_PROJECT_VERSION)) {
+          $scannerArgs += "/v:$env:SONAR_PROJECT_VERSION"
+        }
 
         if (-not [string]::IsNullOrWhiteSpace($env:SONAR_BRANCH_NAME)) {
           $scannerArgs += "/d:sonar.branch.name=$env:SONAR_BRANCH_NAME"
