@@ -23,7 +23,7 @@ public class IetfTestVectorGeneratorTests
         for (var i = 0; i < 32; i++) testKeyBytes[i] = (byte)i;
         var testKeyBase64Url = Base64Url.EncodeToString(testKeyBytes);
 
-        var nexusMacKey = new NexusMacKey(testKeyBase64Url) { Default = true };
+        var nexusMacKey = new NexusMacKey(testKeyBase64Url, ByteEncoding.Base64UrlEncoded) { Default = true };
         var nexusSettings = new NexusAppSettings
         {
             AppId = 5,

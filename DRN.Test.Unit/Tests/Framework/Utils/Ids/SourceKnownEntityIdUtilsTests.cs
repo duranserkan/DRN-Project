@@ -327,6 +327,89 @@ public class SourceKnownEntityIdUtilsTests
         }
     }
 
+    [Fact]
+    public void Parse_Should_Fall_Back_To_Previous_KeyRing_Entries()
+    {
+        var oldKey = new NexusMacKey(new string('A', 32)) { Default = true };
+        var oldSettings = AppSettings.Development(new
+        {
+            NexusAppSettings = new NexusAppSettings
+            {
+                AppId = 5,
+                AppInstanceId = 12,
+                MacKeys = [oldKey]
+            }
+        });
+        var oldIdUtils = new SourceKnownIdUtils(oldSettings, new EpochTimeUtils());
+        using var oldEntityIdUtils = new SourceKnownEntityIdUtils(oldSettings, oldIdUtils);
+
+        var id = SourceKnownIdUtils.Generate<XEntity>(oldSettings.NexusAppSettings.AppId, oldSettings.NexusAppSettings.AppInstanceId);
+        var secureId = oldEntityIdUtils.GenerateSecure<XEntity>(id);
+
+        var rotatedSettings = AppSettings.Development(new
+        {
+            NexusAppSettings = new NexusAppSettings
+            {
+                AppId = 5,
+                AppInstanceId = 12,
+                MacKeys =
+                [
+                    new NexusMacKey(new string('B', 32)) { Default = true },
+                    new NexusMacKey(new string('A', 32))
+                ]
+            }
+        });
+        var rotatedIdUtils = new SourceKnownIdUtils(rotatedSettings, new EpochTimeUtils());
+        using var rotatedEntityIdUtils = new SourceKnownEntityIdUtils(rotatedSettings, rotatedIdUtils);
+
+        var parsed = rotatedEntityIdUtils.Parse(secureId.EntityId);
+
+        parsed.Valid.Should().BeTrue("old IDs must remain parseable while the old key remains in the key ring");
+        parsed.Secure.Should().BeTrue();
+        parsed.EntityType.Should().Be(SourceKnownEntity.GetEntityType<XEntity>());
+        parsed.Source.Id.Should().Be(id);
+    }
+
+    [Fact]
+    public void Generate_Should_Use_Default_Key_When_Default_Is_Not_First()
+    {
+        var settings = AppSettings.Development(new
+        {
+            NexusAppSettings = new NexusAppSettings
+            {
+                AppId = 5,
+                AppInstanceId = 12,
+                MacKeys =
+                [
+                    new NexusMacKey(new string('A', 32)),
+                    new NexusMacKey(new string('B', 32)) { Default = true }
+                ]
+            }
+        });
+        var idUtils = new SourceKnownIdUtils(settings, new EpochTimeUtils());
+        using var entityIdUtils = new SourceKnownEntityIdUtils(settings, idUtils);
+
+        var id = SourceKnownIdUtils.Generate<XEntity>(settings.NexusAppSettings.AppId, settings.NexusAppSettings.AppInstanceId);
+        var secureId = entityIdUtils.GenerateSecure<XEntity>(id);
+
+        var defaultOnlySettings = AppSettings.Development(new
+        {
+            NexusAppSettings = new NexusAppSettings
+            {
+                AppId = 5,
+                AppInstanceId = 12,
+                MacKeys = [new NexusMacKey(new string('B', 32)) { Default = true }]
+            }
+        });
+        var defaultOnlyIdUtils = new SourceKnownIdUtils(defaultOnlySettings, new EpochTimeUtils());
+        using var defaultOnlyEntityIdUtils = new SourceKnownEntityIdUtils(defaultOnlySettings, defaultOnlyIdUtils);
+
+        var parsed = defaultOnlyEntityIdUtils.Parse(secureId.EntityId);
+
+        parsed.Valid.Should().BeTrue("generation must use the configured default key even when it is not first in MacKeys");
+        parsed.Source.Id.Should().Be(id);
+    }
+
     private static void AssertValidEntityId(SourceKnownEntityId entityId, long expectedId,
         NexusAppSettings nexusSettings, byte expectedEntityType, bool expectedSecure)
     {

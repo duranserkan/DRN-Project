@@ -129,6 +129,21 @@ Override mount directory via `IMountedSettingsConventionsOverride`.
 
 When grouping options into nested objects, explicitly validate child objects before relying on child data annotations for startup safety; plain `Validator.TryValidateObject` does not recursively walk nested option objects.
 
+### Nexus MAC Keys
+
+`NexusAppSettings.MacKeys` must contain exactly one default `NexusMacKey`. Generation uses the default key; parsing tries the default key first and then the remaining configured keys for rotation fallback.
+
+`NexusMacKey.Format` defaults to `ByteEncoding.Utf8` and supports:
+
+| Format | Requirement |
+|--------|-------------|
+| `Utf8` | Key is exactly 32 UTF-8 bytes. |
+| `Hex` | Hex decodes to exactly 32 bytes, normally 64 hex chars. |
+| `Base64` | Base64 decodes to exactly 32 bytes. |
+| `Base64UrlEncoded` | Base64Url decodes to exactly 32 bytes. |
+
+Do not hash, pad, truncate, auto-detect, or repair configured keys. In `Development`, when no default MAC key is configured, `AppSettings` deterministically derives a Base64Url key from `DrnAppFeatures.SeedKey` through `AppSecuritySettings` and the default `Hash()` extension.
+
 ---
 
 ## Scoped Logging (IScopedLog)
