@@ -673,7 +673,7 @@ Generation uses the default `NexusMacKey`. Parse uses a default-first key-ring f
 > - **macOS (AppleCommonCrypto)**: Invokes the pure stateless `CCCrypt` function directly.
 > - **Linux (OpenSSL)**: Allocates a temporary `SafeEvpCipherCtxHandle` context inside the call, avoiding instance state mutation.
 >
-> Concurrency has been validated via stress tests executing ~800,000 parallel operations without data races or corruption.
+> Concurrency has been validated via stress tests (`SourceKnownEntityIdUtils_Should_Generate_Ids_For_3_Seconds`) executing ~800,000 parallel operations without data races or corruption.
 
 > [!NOTE]
 > **Post-quantum readiness**: AES-256 retains 128-bit security under Grover's algorithm — NIST recommended for post-quantum symmetric encryption.

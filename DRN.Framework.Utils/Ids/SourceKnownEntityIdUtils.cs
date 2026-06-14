@@ -492,7 +492,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// </list>
     /// </para>
     /// <para>
-    /// Concurrency validated with stress tests generating ~800,000 IDs across 8 parallel threads without data races or corruption.
+    /// Concurrency validated with <c>SourceKnownEntityIdUtils_Should_Generate_Ids_For_3_Seconds</c> generating ~800,000 IDs across 8 parallel threads without data races or corruption.
     /// </para>
     /// For a single 128-bit block, ECB is mathematically identical to CBC with a zero IV
     /// (C = AES(Key, P ⊕ 0) = AES(Key, P)), but avoids the IV allocation and XOR overhead.
