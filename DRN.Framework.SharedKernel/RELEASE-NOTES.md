@@ -1,5 +1,11 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.5
+
+### Changed
+
+*   **.NET Version Alignment**: Package release aligned with the DRN.Framework 0.9.5 dependency wave for .NET 10.0.9.
+
 ## Version 0.9.4
 
 Dependencies upgraded to dotnet 10.0.8
@@ -63,7 +69,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ---
 
-Documented with the assistance of [DiSCOS](https://github.com/duranserkan/DRN-Project/blob/develop/DiSCOS/DiSCOS.md)
+Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/.agent/rules/DiSCOS.md)
 
 ---
 **Semper Progressivus: Always Progressive**

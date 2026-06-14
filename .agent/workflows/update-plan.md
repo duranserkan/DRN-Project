@@ -65,6 +65,7 @@ For projects with a `README.md`:
 2. Extract README headers and code elements (types, methods, config keys).
 3. Extract actual public types/methods from `.csproj` / source.
 4. Flag divergence: `[STALE]` (stale reference in README), `[MISSING]` (missing reference in README), `[RENAMED]` (mismatch).
+For projects with a `RELEASE-NOTES.md`, flag `[RELEASE-NOTE-TRIGGER]` when in-scope source or package metadata changes other than version-only alignment appear to affect public contracts, configuration/defaults, security or operational behavior, data/migration behavior, observable fixes, or published package artifacts. Do not auto-write release notes from `/update`; delegate to `/documentation`.
 *Budget*: Max 2 tool calls per module.
 
 ### 3.4 Scope Filtering

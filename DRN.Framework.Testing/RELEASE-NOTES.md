@@ -4,7 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
-*   **PostgreSQL Testcontainer Default**: `PostgresContainerSettings.DefaultVersion` now uses `18.4-alpine3.23`.
+*   **PostgreSQL Testcontainers Default**: `PostgresContainerSettings.DefaultVersion` now uses `18.4-alpine3.23`.
 
 ## Version 0.9.4
 
@@ -68,7 +68,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 
 ---
 
-Documented with the assistance of [DiSCOS](https://github.com/duranserkan/DRN-Project/blob/develop/DiSCOS/DiSCOS.md)
+Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/.agent/rules/DiSCOS.md)
 
 ---
 **Semper Progressivus: Always Progressive**

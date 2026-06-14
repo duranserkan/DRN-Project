@@ -1,7 +1,7 @@
 ---
 name: basic-git-conventions
 description: "Git workflow conventions - GitFlow-inspired branching (integration→release→tag), commit message format, PR workflow (draft→review→squash), branch naming (feature/fix/chore/docs), repository-declared release tagging, and release notes management. Keywords: git, branching, commit-messages, pull-request, pr-workflow, release, tagging, versioning, gitflow, conventional-commits"
-last-updated: 2026-06-12
+last-updated: 2026-06-14
 difficulty: basic
 tokens: ~1.5K
 ---
@@ -164,21 +164,42 @@ Each published module or package maintains its own release notes when the reposi
 └── PACKAGE-DESCRIPTION # NuGet short description
 ```
 
+### When To Update
+
+Update only the affected module/package release notes when a change reaches consumers:
+
+| Trigger | Examples |
+|---------|----------|
+| Public contract | APIs, DTOs, endpoints, events, CLI options, generated package metadata |
+| Runtime behavior | Defaults, validation, security posture, auth, rate limits, errors, data/migration behavior |
+| Fixes | Observable bug fixes, compatibility fixes, performance changes with user-facing effect |
+| Dependencies or tooling | Breaking, security-relevant, runtime/container/default changes, or changed published artifacts |
+
+Do not create release-note noise for internal-only refactors, tests, comments, agent-only docs, or routine dependency-only updates with no consumer-visible effect unless the repository profile declares a stricter release rule.
+
+For version-aligned releases, leave unchanged module/package release notes untouched unless the repository profile explicitly requires an empty or consistency-only entry.
+
 ### Format
+Use the repository profile or package metadata for the exact prefix, heading style, section names, and footer. If no local template is declared, use this portable default:
+
 ```markdown
-## v1.2.3
+## Version X.Y.Z
 
-### Added
-- New feature description
+### Breaking Changes
 
-### Fixed
-- Bug fix description
+- **Area**: Detail description.
+
+### New Features
+
+- **Feature Group**: Detail description.
 
 ### Changed
-- Behavior change description
 
-### Security
-- Security improvement description
+- **Area**: Detail description.
+
+### Bug Fixes
+
+- **Area**: Detail description.
 ```
 
 ---

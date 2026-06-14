@@ -104,9 +104,20 @@ minimal example
 ## 7. RELEASE-NOTES Updates
 
 Append new version block *above* existing history. Never rewrite history.
-- Include only changes since the last documented version.
+- Add or update a version block only when a release-note trigger applies:
+  - Public API, contract, endpoint, event, DTO, configuration key, default, security posture, operational behavior, data/migration behavior, or observable bug fix.
+  - Dependency, runtime, container, or build-output changes that are breaking, security-relevant, consumer-visible, or alter published package artifacts.
+  - Published docs shipped as package metadata, such as package READMEs or release notes.
+- Do not add entries for internal-only refactors, tests, comments, agent-only docs, or routine dependency-only changes with no consumer-visible impact unless the repository profile declares a stricter rule.
+- Include only changes since the last documented version for the affected module.
 - Omit empty subsections; include breaking changes.
 - Keep inferred changes in the change plan until source evidence or explicit approval resolves them. Do not write assumption markers into published docs unless the user explicitly requests that wording.
+- For version-aligned releases, do not create artificial version blocks for unchanged modules unless the repository profile explicitly requires them.
+- Enforce the repository-declared release notes template from the profile, package metadata, or framework-owned skill:
+  - Ensure required invariant prefix/footer only when the local convention declares them.
+  - Use the local version heading format; default to `## Version X.Y.Z`.
+  - Use the local section names; default to `### Breaking Changes`, `### New Features`, `### Changed`, and `### Bug Fixes`.
+  - Preserve existing historical wording unless it is the current edited version block or malformed package metadata blocks a declared invariant.
 
 ---
 

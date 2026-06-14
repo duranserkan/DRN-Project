@@ -20,6 +20,7 @@ Security is always the first requirement. Resolve conflicts with TRIZ first, the
 - Generic skills (`basic-*`, `test-*`, unscoped `frontend-*`) must not require one repository's types, package names, or paths.
 - Framework-specific skills must be explicit by name or description, such as `drn-*`, and should only trigger when the repository profile or user request calls for that framework.
 - When source code changes a shared fact, update the source-owned docs, relevant repository profile entries, and any framework or repository-owned skills that agents use for that fact.
+- When source code or package metadata changes published behavior, update the owning module's release notes according to repository conventions; keep package-specific trigger lists in the repository profile or framework-owned skills.
 
 ## Startup
 
@@ -41,6 +42,7 @@ Use the repository profile first. If it is missing or silent, discover by conven
 | Frontend root | Find `package.json`; prefer roots with `vite.config.*`, `buildwww/`, `src/`, or build scripts. |
 | Package versions | Treat lockfiles and manifest files as source of truth; do not duplicate pinned versions in skills. |
 | Documentation scope | Discover module READMEs, release notes, docs folders, or profile-declared documentation modules. |
+| Release notes | Prefer profile/package metadata; update only affected modules for consumer-visible behavior, breaking changes, security fixes, operational defaults, or published package metadata changes other than version-only alignment. |
 | Release rules | Prefer profile and CI workflows; otherwise infer from tags, changelog, and package metadata. |
 
 ## Skill Discovery
@@ -60,6 +62,7 @@ Use the repository profile first. If it is missing or silent, discover by conven
 - Prefer established local patterns over new abstractions.
 - Add comments only when they explain non-obvious intent.
 - Update documentation and skills when a code or convention change would otherwise create drift.
+- Decide whether release notes are required before finishing source, packaging, or published documentation changes; record "not required" when no trigger applies.
 - Run `git diff --check` after documentation or code edits unless blocked.
 
 ## Lessons Learned

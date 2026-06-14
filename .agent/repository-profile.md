@@ -124,7 +124,9 @@ When source code changes one of the shared framework facts above:
 
 1. Verify the source-owned file in the source map.
 2. Update package READMEs with self-contained important facts wherever package readers need the new behavior.
-3. Update release notes when a published behavior or user-facing default changed.
+3. Update the owning `DRN.Framework.*` release notes when a published behavior, public contract, security or operational default, observable bug fix, data/migration behavior, or published package metadata other than version-only alignment changed.
 4. Update the framework-scoped DRN skills that agents use for that package.
 5. Search changed terms, renamed keys, changed defaults, and removed examples across package docs, framework skills, `AGENTS.md`, and this profile.
 6. Run `git diff --check`.
+
+Release-note non-triggers: internal-only refactors, tests, comments, agent-only docs, routine dependency-only updates with no consumer-visible impact, and shared-version release alignment for packages with no package-specific changes. Dependency/runtime/container changes trigger release notes when they are breaking, security-relevant, consumer-visible, or alter published package artifacts. During release preparation, if no package-specific change exists before release, one concise version-alignment disclaimer may be added so package metadata is not empty for the release. For unchanged packages outside release preparation, leave `RELEASE-NOTES.md` untouched and report release notes as not required; the standard prefix covers consistency-only version increments.

@@ -1,7 +1,7 @@
 ---
 name: overview-github-actions
 description: Use when reviewing or modifying GitHub Actions workflows, composite actions, CI gates, release pipelines, Docker publishing, package publishing, or security scanning.
-last-updated: 2026-06-12
+last-updated: 2026-06-14
 difficulty: intermediate
 tokens: ~1.4K
 ---
@@ -55,7 +55,7 @@ Composite actions reduce duplication, but they are part of the CI control plane.
 - Docker images are built with SBOM/provenance when supported.
 - Package publishing and Docker tag promotion happen after security gates and staged-image CVE scans, not before.
 - Registry and package publishing secrets are scoped to the steps or composite actions that need them.
-- Dependency-only upgrades are not listed in release notes unless they are breaking or user-facing.
+- Dependency-only upgrades are not listed in release notes unless they are breaking, security-relevant, user-facing, or alter published package artifacts.
 
 ## Docker Standards
 

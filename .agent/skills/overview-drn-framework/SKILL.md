@@ -1,7 +1,7 @@
 ---
 name: overview-drn-framework
 description: "DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, package-dependencies"
-last-updated: 2026-06-12
+last-updated: 2026-06-14
 difficulty: basic
 tokens: ~3K
 ---
@@ -273,13 +273,69 @@ dotnet run --project <integration-test-csproj>
 
 Unit tests should be listed before integration tests. Do not use `.slnx` in test-run commands.
 
+### Maintenance Reference: Release Notes Triggers
+
+Every `DRN.Framework.*` package packs `RELEASE-NOTES.md` into NuGet metadata through `PackageReleaseNotes`. Update only the package(s) whose consumer-facing behavior or published package metadata other than version-only alignment changed.
+
+| Package | Release-note trigger examples |
+|---------|-------------------------------|
+| `DRN.Framework.SharedKernel` | Domain primitives, public repository/domain contracts, exceptions, JSON conventions, public entity ID operations. |
+| `DRN.Framework.Utils` | Settings/configuration, DI attributes, logging/scope behavior, validators, hashing, ID utilities, public extension methods. |
+| `DRN.Framework.EntityFramework` | DbContext/repository behavior, migrations, provider defaults, query semantics, database safety gates. |
+| `DRN.Framework.Hosting` | Web hosting pipeline, security headers, CSRF/CSP/host filtering, endpoint behavior, Vite/static asset publishing, rate limiting. |
+| `DRN.Framework.Testing` | Test contexts, data attributes, providers, Testcontainers defaults, integration-test orchestration. |
+| `DRN.Framework.Jobs` | Published jobs package APIs, scheduling behavior, package metadata shipped to consumers. |
+| `DRN.Framework.MassTransit` | Published messaging package APIs, bus/consumer behavior, package metadata shipped to consumers. |
+
+Triggers include public API/contract changes, behavior/default changes, security or operational posture changes, observable bug fixes, data/migration behavior, package metadata changes other than version-only alignment, and dependency/runtime/container changes that are breaking, security-relevant, consumer-visible, or alter published artifacts.
+
+Non-triggers include internal-only refactors, tests, comments, agent-only docs, routine dependency-only updates with no consumer-visible effect, and shared-version release alignment for packages with no package-specific changes. During release preparation, if no package-specific change exists before release, one concise version-alignment disclaimer may be added so package metadata is not empty for the release. Outside release preparation, when no trigger applies, explicitly report release notes as not required and leave that package's `RELEASE-NOTES.md` unchanged; the invariant prefix already explains that versions may advance for consistency even when a package has no changes.
+
+### Maintenance Reference: Release Notes Format
+
+DRN Framework package release notes use this repository-owned template:
+
+```markdown
+Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
+
+## Version X.Y.Z
+
+[Optional dedication or milestone message]
+
+### Breaking Changes
+
+*   **Area**: Detail description.
+
+### New Features
+
+*   **Feature Group**
+    *   **Feature Description**: Details.
+
+### Changed
+
+*   **Area**: Detail description.
+
+### Bug Fixes
+
+*   **Area**: Detail description.
+
+---
+
+Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/.agent/rules/DiSCOS.md)
+
+---
+**Semper Progressivus: Always Progressive**
+```
+
+Use `## Version X.Y.Z` headings, not `## vX.Y.Z`. Omit empty sections in actual package files. Preserve historical wording unless editing the current version block or repairing a malformed invariant prefix/footer.
+
 ### Maintenance Reference: Documentation Sync Checklist
 
 When source code changes one of the shared facts above:
 
 1. Verify the framework source-owned file or package docs.
 2. Update package READMEs with self-contained important facts wherever package readers need the new behavior.
-3. Update release notes when a published behavior or user-facing default changed.
+3. Update the owning package release notes when a release-note trigger above applies; leave unchanged packages untouched during version-only alignment releases.
 4. Update framework-scoped DRN skills that agents use for that package.
 5. Search changed terms, renamed keys, changed defaults, and removed examples across package docs, framework skills, `AGENTS.md`, and the repository profile.
 6. Run `git diff --check`.

@@ -1,7 +1,7 @@
 ---
 name: basic-code-review
 description: Use when reviewing code changes, pull requests, staged diffs, or self-reviewing work for security, correctness, clarity, simplicity, performance, breaking changes, and missing verification.
-last-updated: 2026-06-12
+last-updated: 2026-06-14
 difficulty: intermediate
 tokens: ~1.3K
 ---
@@ -80,6 +80,12 @@ Respect repository rules about running builds and tests. If execution is not all
 - Removed or renamed settings have compatibility handling or a breaking-change note.
 - Defaults changing runtime behavior are documented.
 - Operational docs and release notes mention user-facing behavior changes.
+
+### Documentation And Release Notes
+- Published modules update release notes when changed behavior reaches consumers: public contracts, configuration/defaults, security or operational behavior, data/migration behavior, observable fixes, or package metadata shipped to users other than version-only alignment.
+- Dependency, runtime, container, and build-output changes appear in release notes only when they are breaking, security-relevant, consumer-visible, or alter published artifacts.
+- Internal-only refactors, tests, comments, and agent-only docs do not need release-note entries unless the repository profile declares a stricter rule.
+- Version-only alignment releases do not need artificial release-note entries for unchanged modules unless the repository profile declares a stricter rule.
 
 ## Security Review Triggers
 
