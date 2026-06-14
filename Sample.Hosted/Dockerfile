@@ -14,13 +14,22 @@ ARG APP_VERSION=0.0.1
 #https://mcr.microsoft.com/en-us/artifact/mar/dotnet/aspnet/tags alternative registry for ubuntu/dotnet-aspnet
 #https://github.com/dotnet/dotnet-docker
 FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_RUNTIME_VERSION}-${DOTNET_DISTRO}-chiseled-extra AS base
+
+ARG APP_VERSION
 ARG TARGETARCH
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 #https://docs.docker.com/build/building/multi-platform/
+
+ENV APP_VERSION=${APP_VERSION}
 ENV DRN_TARGET_ARCH=${TARGETARCH}
 ENV DRN_TARGET_PLATFORM=${TARGETPLATFORM}
 ENV DRN_BUILD_PLATFORM=${BUILDPLATFORM}
+
+LABEL org.opencontainers.image.version=${APP_VERSION} \
+      org.opencontainers.image.vendor="Duran Serkan KILIC" \
+      org.opencontainers.image.authors="Duran Serkan KILIC" \
+      org.opencontainers.image.documentation="https://github.com/duranserkan/DRN-Project"
 
 USER app
 #Kubernetes can volume mount configs and settings to these directories
@@ -67,9 +76,6 @@ RUN dotnet publish "./${PROJECT}/${PROJECT}.csproj" -c Release -o /app/publish -
 
 # Build runtime image
 FROM base AS final
-ARG APP_VERSION=0.0.1
-ENV APP_VERSION=${APP_VERSION}
-LABEL org.opencontainers.image.version=${APP_VERSION}
 
 COPY --from=build /app/publish .
 
