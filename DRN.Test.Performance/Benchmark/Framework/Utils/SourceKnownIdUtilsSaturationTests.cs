@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
+using AwesomeAssertions;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Loggers;
@@ -23,6 +24,7 @@ public class SourceKnownIdUtilsSaturationPerformanceTests(ITestOutputHelper outp
             .AddLogger(logger)
             .WithOptions(ConfigOptions.DisableOptimizationsValidator);
         var summary = BenchmarkRunner.Run<SourceKnownIdUtilsSaturationBenchmark>(config);
+        summary.Reports.Should().NotBeEmpty();
 
         output.WriteLine("===================================");
         output.WriteLine("Saturation Benchmark Results Path");

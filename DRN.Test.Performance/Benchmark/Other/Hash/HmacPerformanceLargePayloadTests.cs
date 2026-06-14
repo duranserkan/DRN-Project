@@ -1,6 +1,7 @@
 using System.IO.Hashing;
 using System.Security.Cryptography;
 using System.Text.Json;
+using AwesomeAssertions;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Loggers;
@@ -22,6 +23,7 @@ public class HmacPerformanceLargePayloadTests(ITestOutputHelper output)
             .AddLogger(logger)
             .WithOptions(ConfigOptions.DisableOptimizationsValidator);
         var summary = BenchmarkRunner.Run<HashBenchmarkLargePayload>(config);
+        summary.Reports.Should().NotBeEmpty();
 
         if (summary.ValidationErrors.Length > 0)
         {

@@ -1,4 +1,5 @@
 using System.Reflection;
+using AwesomeAssertions;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Loggers;
@@ -20,6 +21,7 @@ public class MethodUtilsPerformanceTests(ITestOutputHelper output)
             .AddLogger(logger)
             .WithOptions(ConfigOptions.DisableOptimizationsValidator);
         var summary = BenchmarkRunner.Run<MethodUtilsBenchmark>(config);
+        summary.Reports.Should().NotBeEmpty();
 
         output.WriteLine("===================================");
         output.WriteLine("Benchmark Results Path");

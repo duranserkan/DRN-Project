@@ -1,9 +1,9 @@
 using System.Diagnostics;
+using AwesomeAssertions;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
-using DRN.Framework.Utils.Time;
 
 namespace DRN.Test.Performance.Benchmark.Framework.Utils;
 
@@ -19,6 +19,7 @@ public class DateTimeProviderPerformanceTests(ITestOutputHelper output)
             .AddLogger(logger)
             .WithOptions(ConfigOptions.DisableOptimizationsValidator);
         var summary = BenchmarkRunner.Run<DateTimeProviderBenchmark>(config);
+        summary.Reports.Should().NotBeEmpty();
 
         output.WriteLine("===================================");
         output.WriteLine("Benchmark Results Path");

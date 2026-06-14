@@ -325,7 +325,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// produce a coincidental MAC match. Used by the collision guard in
     /// <see cref="GenerateSecure(long, byte)"/> to detect the ~1/2^48 edge case.
     /// </summary>
-    private bool HasCoincidentalMacMatch(ReadOnlySpan<byte> ciphertextBytes, BinaryData macKey)
+    private static bool HasCoincidentalMacMatch(ReadOnlySpan<byte> ciphertextBytes, BinaryData macKey)
     {
         Span<byte> actualHash = stackalloc byte[MacHashLength];
         Span<byte> expectedHash = stackalloc byte[MacHashLength];
