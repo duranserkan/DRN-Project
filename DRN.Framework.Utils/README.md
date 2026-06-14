@@ -362,6 +362,41 @@ Nested option objects must be validated explicitly before relying on child data 
 > [!TIP]
 > Request buffering and rate limiting settings are consumed by `DRN.Framework.Hosting`. See the [Hosting README](../DRN.Framework.Hosting/README.md) for middleware details.
 
+### NexusAppSettings and MAC Keys
+
+`NexusAppSettings` provides Nexus routing, source-known ID generator identity, secure/plain ID mode, and the MAC key ring used by `SourceKnownEntityIdUtils`.
+
+```json
+{
+  "NexusAppSettings": {
+    "NexusAddress": "localhost:5988",
+    "AppId": 5,
+    "AppInstanceId": 12,
+    "UseSecureSourceKnownIds": true,
+    "MacKeys": [
+      {
+        "Key": "0123456789abcdef0123456789abcdef",
+        "Format": "Utf8",
+        "Default": true
+      }
+    ]
+  }
+}
+```
+
+`MacKeys` must contain exactly one default key. Generation always uses the default key. Parsing tries the default key first and then the remaining configured keys, so old IDs remain parseable during key rotation while the previous key stays in the key ring.
+
+| `ByteEncoding` | Requirement |
+|---------------------|-------------|
+| `Utf8` | Default when omitted. `Key` must be exactly 32 UTF-8 bytes. ASCII 32-character values satisfy this; non-ASCII values are valid only when the UTF-8 byte count is exactly 32. |
+| `Hex` | `Key` must hex-decode to exactly 32 bytes, normally 64 hex characters. A 32-character hex string is rejected because it decodes to 16 bytes. |
+| `Base64` | `Key` must Base64-decode to exactly 32 bytes. |
+| `Base64UrlEncoded` | `Key` must Base64Url-decode to exactly 32 bytes. This is the format produced by the framework `Hash()` default. |
+
+Invalid user-provided keys are not hashed, stretched, truncated, repaired, or treated as another format. Startup validation rejects malformed encodings, empty keys, wrong decoded lengths, and raw values that are not exactly 32 UTF-8 bytes. Exception messages avoid including the secret key value.
+
+When no default MAC key is configured in the `Development` environment, `AppSettings` adds one automatically. This key is deterministic from `DrnAppFeatures.SeedKey`, not random, and is stored in memory as `Format = Base64UrlEncoded`.
+
 ## Logging (`IScopedLog`)
 
 `IScopedLog` provides request-scoped structured logging. It aggregates operational data, metrics, and checkpoints during the request lifecycle, flushing them as a single entry for efficient monitoring.
@@ -629,6 +664,8 @@ The `Generate` method dispatches to secure or plain generation based on the `Use
 | `ToPlain` | Converts a secure ID to its plain form (idempotent) |
 
 **Secure variant** encrypts the entire 16-byte GUID using AES-256-ECB as a pseudo-random permutation (PRP). For a single 128-bit block, ECB is mathematically identical to CBC with a zero IV — no nonce required, no nonce-reuse vulnerability. Key separation ensures BLAKE3 keyed MAC (integrity) and AES-256 (confidentiality) use cryptographically independent keys from the same keyring entry.
+
+Generation uses the default `NexusMacKey`. Parse uses a default-first key-ring fallback, so IDs generated before key rotation can still be parsed while the previous key remains configured.
 
 > [!NOTE]
 > **Post-quantum readiness**: AES-256 retains 128-bit security under Grover's algorithm — NIST recommended for post-quantum symmetric encryption.

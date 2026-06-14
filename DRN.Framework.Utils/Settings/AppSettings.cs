@@ -83,9 +83,9 @@ public class AppSettings : IAppSettings
         AppKey = securitySettings.AppKey;
 
         if (NexusAppSettings.AppId > SourceKnownIdUtils.MaxAppId)
-            throw new ConfigurationException($"Nexus AppId must be less than 64: NexusAppId: {NexusAppSettings.AppId}");
+            throw new ConfigurationException($"Nexus AppId must be less than or equal to {SourceKnownIdUtils.MaxAppId}: NexusAppId: {NexusAppSettings.AppId}");
         if (NexusAppSettings.AppInstanceId > SourceKnownIdUtils.MaxAppInstanceId)
-            throw new ConfigurationException($"Nexus App Instance Id must be less than 32: NexusAppId: {NexusAppSettings.AppInstanceId}");
+            throw new ConfigurationException($"Nexus App Instance Id must be less than or equal to {SourceKnownIdUtils.MaxAppInstanceId}: NexusAppInstanceId: {NexusAppSettings.AppInstanceId}");
 
         ApplicationNameNormalized = ApplicationName.ToPascalCase();
 
@@ -98,8 +98,8 @@ public class AppSettings : IAppSettings
             //Even if the application is not connected to nexus, we still need to add a default Mac key to make development easier.
             var keyPart1 = Hasher.Hash(("1881" + securitySettings.AppHashKey + securitySettings.AppEncryptionKey + "Forever").ToByteArray()).AsSpan().Encode();
             var keyPart2 = Hasher.Hash(("193∞" + securitySettings.AppHashKey + securitySettings.AppEncryptionKey + "Forever").ToByteArray()).AsSpan().Encode();
-            var key = (keyPart1 + keyPart2 + securitySettings.AppKey).Hash();
-            NexusAppSettings.AddNexusMacKey(new NexusMacKey(key) { Default = true });
+            var key = (keyPart1 + keyPart2 + securitySettings.AppKey).Hash(HashAlgorithm.Blake3, ByteEncoding.Base64UrlEncoded);
+            NexusAppSettings.AddNexusMacKey(new NexusMacKey(key, ByteEncoding.Base64UrlEncoded) { Default = true });
         }
 
         NexusAppSettings.Validate();

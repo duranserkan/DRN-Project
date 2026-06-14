@@ -19,7 +19,11 @@ POSTGRES_PASSWORD=drn
 POSTGRES_DB=drn
 PGDATA=/data/postgres
 
+# Development without an explicit default MacKey derives one deterministically from DrnAppFeatures__SeedKey.
+# Changing SeedKey changes generated IDs unless the previous key remains in NexusAppSettings__MacKeys.
+# Alternative MacKey formats: set Format to Hex, Base64, or Base64UrlEncoded; decoded bytes must be exactly 32.
 NexusAppSettings__MacKeys__0__Key=1019464a0c19475693c155fcb0f7b3e8
+NexusAppSettings__MacKeys__0__Format=Utf8
 NexusAppSettings__MacKeys__0__Default=true
 
 NLog__targets__graylog-udp__address=udp://graylog:12201

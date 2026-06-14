@@ -12,6 +12,7 @@
     "MacKeys": [
       {
         "Key": "SFnefTwiLUfxc_RCX54vHROJQ50TDvqDdHImA2rvrso",
+        "Format": "Base64UrlEncoded",
         "Default": true
       }
     ]
