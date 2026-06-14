@@ -383,7 +383,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// Returns true if the previous variant genuinely collided (legitimate escalation).
     /// Called only for non-default variant bytes (recoveredVariant > 0x8D) during Parse.
     /// </summary>
-    private bool VerifyCollisionGuardProof(ReadOnlySpan<byte> decryptedBytes, byte previousVariant, NexusKeyMaterial key)
+    private static bool VerifyCollisionGuardProof(ReadOnlySpan<byte> decryptedBytes, byte previousVariant, NexusKeyMaterial key)
     {
         // Read upper half (big-endian) and untoggle sign bit
         var idUpperHalf = BinaryPrimitives.ReadUInt32BigEndian(
