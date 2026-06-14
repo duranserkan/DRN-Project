@@ -67,6 +67,9 @@ RUN dotnet publish "./${PROJECT}/${PROJECT}.csproj" -c Release -o /app/publish -
 
 # Build runtime image
 FROM base AS final
+ARG APP_VERSION=0.0.1
+ENV APP_VERSION=${APP_VERSION}
+LABEL org.opencontainers.image.version=${APP_VERSION}
 
 COPY --from=build /app/publish .
 
