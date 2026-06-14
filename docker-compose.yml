@@ -5,10 +5,12 @@ x-sample-postgres-connection: &sample-postgres-connection "Host=postgres;Port=54
 services:
   sample:
     container_name: drn-sample
-    image: ${DOCKER_REGISTRY-}sample:0.0.1
+    image: ${DOCKER_REGISTRY-}sample:${APP_VERSION:-0.0.1}
     build:
       context: .
       dockerfile: Sample.Hosted/Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-0.0.1}
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,8 +38,8 @@ services:
       ConnectionStrings__QAContext: *sample-postgres-connection
       ConnectionStrings__QBContext: *sample-postgres-connection
       ConnectionStrings__SampleIdentityContext: *sample-postgres-connection
-      NLog__targets__graylog-udp__address: ${NLog__targets__graylog-udp__address:-udp://graylog:12201}
-      NLog__targets__graylog-http__address: ${NLog__targets__graylog-http__address:-http://graylog:12201/gelf}
+      NLog__targets__graylog-udp__address: ${NLOG_GRAYLOG_UDP_ADDRESS:-udp://graylog:12201}
+      NLog__targets__graylog-http__address: ${NLOG_GRAYLOG_HTTP_ADDRESS:-http://graylog:12201/gelf}
       NLog__rules__0__writeTo: ${NLog__rules__0__writeTo:-console,graylog-udp}
     ports:
       - "5998:5998/tcp"

@@ -42,6 +42,8 @@ runs:
         context: .
         file: ./${{ inputs.project-name }}/Dockerfile
         labels: ${{ steps.metadata.outputs.labels }}
+        build-args: |
+          APP_VERSION=${{ inputs.version }}
         platforms: ${{ inputs.platforms }}
         tags: ${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}:staged-${{ inputs.version }}-run-${{ github.run_id }}-${{ github.run_attempt }}
         push: true

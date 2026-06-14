@@ -13,6 +13,8 @@ Identity__RequireConfirmedPhoneNumber=false
 
 # Optional Docker registry prefix (e.g. registry.hub.docker.com/ or local registry)
 DOCKER_REGISTRY=
+# Optional application/image version used by local Sample.Hosted Docker builds.
+APP_VERSION=0.0.1
 
 POSTGRES_USER=drn
 POSTGRES_PASSWORD=drn
@@ -26,8 +28,8 @@ NexusAppSettings__MacKeys__0__Key=sample-mac-key-00000000000000000
 NexusAppSettings__MacKeys__0__Format=Utf8
 NexusAppSettings__MacKeys__0__Default=true
 
-NLog__targets__graylog-udp__address=udp://graylog:12201
-NLog__targets__graylog-http__address=http://graylog:12201/gelf
+NLOG_GRAYLOG_UDP_ADDRESS=udp://graylog:12201
+NLOG_GRAYLOG_HTTP_ADDRESS=http://graylog:12201/gelf
 NLog__rules__0__writeTo=console,graylog-udp
 
 # You MUST set a secret to secure/pepper the stored user passwords here. Use at least 64 characters.

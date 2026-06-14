@@ -6,6 +6,7 @@ ARG PROJECT=Sample.Hosted
 ARG DOTNET_RUNTIME_VERSION=10.0.9
 ARG DOTNET_SDK_VERSION=10.0.301
 ARG DOTNET_DISTRO=resolute
+ARG APP_VERSION=0.0.1
 
 #https://www.mytechramblings.com/posts/testing-chiseled-ubuntu-containers-with-dotnet/
 #https://hub.docker.com/r/ubuntu/dotnet-aspnet use this dotnet deps with self contained apps are not supported with dockerfastmode
@@ -34,6 +35,7 @@ FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${DOTNET_SDK_VERSION
 ARG PROJECT
 ARG TARGETARCH
 ARG DOTNET_RUNTIME_VERSION
+ARG APP_VERSION
 
 WORKDIR /app
 COPY . ./
@@ -48,6 +50,8 @@ RUN dotnet restore "./${PROJECT}/${PROJECT}.csproj" -a "$TARGETARCH" \
     -p:UseAppHost=false
 RUN dotnet build "./${PROJECT}/${PROJECT}.csproj" -c Release --no-restore -a "$TARGETARCH" \
     -p:RuntimeFrameworkVersion="$DOTNET_RUNTIME_VERSION" \
+    -p:Version="$APP_VERSION" \
+    -p:InformationalVersion="$APP_VERSION" \
     -p:SelfContained=false \
     -p:UseAppHost=false \
     -p:PreserveCompilationContext=false \
