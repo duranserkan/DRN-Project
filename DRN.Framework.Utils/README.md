@@ -672,7 +672,6 @@ Generation uses the default `NexusMacKey`. Parse uses a default-first key-ring f
 > - **Windows (CNG)**: Uses native `BCryptEncrypt` under thread-safe CNG key handles.
 > - **macOS (AppleCommonCrypto)**: Invokes the pure stateless `CCCrypt` function directly.
 > - **Linux (OpenSSL)**: Allocates a temporary `SafeEvpCipherCtxHandle` context inside the call, avoiding instance state mutation.
->
 > Concurrency has been validated via stress tests (`SourceKnownEntityIdUtils_Should_Generate_Ids_For_3_Seconds`) executing ~800,000 parallel operations without data races or corruption.
 
 > [!NOTE]
