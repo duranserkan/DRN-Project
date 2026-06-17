@@ -57,6 +57,12 @@ Framework testing skills:
 - `drn-testing`
 - `overview-drn-testing`
 
+### Missing Profile Extensions
+
+When this profile is copied to another repository, profile-declared custom skills that do not exist under `.agent/skills/` are retained as `⚠️ Missing profile reference` warnings. Loaders are generated only from existing skill directories, so missing references must not be added to `load-skills-*.md` or `load-skills-all.md`; resolve them by copying the missing skill or explicitly removing/updating the profile entry after review.
+
+When missing custom skill references exist, record them under the affected custom skill load-set section in a table with these columns, in order: `Skill`, `Expected Loader`, `Status`, `Resolution`. Only rows whose `Status` cell is exactly `⚠️ Missing profile reference` satisfy Stage 0 verification. Missing skills listed this way stay out of generated loaders, `load-skills-all.md`, and loader union validation until the skill directory exists. Do not keep placeholder rows in the profile.
+
 ## Documentation Modules
 
 The `/documentation` workflow targets these package modules when no narrower module is requested:

@@ -1,7 +1,7 @@
 ---
 name: basic-agentic-development
 description: "Agentic development standards - Silent Partner Protocol, context economy, development loop (discovery, planning, execution, verification), and anti-patterns for efficient autonomous development. Keywords: agentic, ai-agent, development-loop, context-economy, autonomous, discovery, planning, execution, verification, anti-patterns, silent-partner"
-last-updated: 2026-06-12
+last-updated: 2026-06-17
 difficulty: basic
 tokens: ~1.5K
 ---
@@ -28,7 +28,7 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 
 | Principle | Action |
 |-----------|--------|
-| Load only what's needed | Use `/load-skills-basic`, `/load-skills-drn`, `/load-skills-test`, or `/load-skills-frontend` instead of `/load-skills-all` for focused tasks |
+| Thin loading by default | Use existing source-owned guidance with the current workflow route and scoped loaders (`/load-skills-basic`, `/load-skills-drn`, `/load-skills-test`, `/load-skills-frontend`); reserve `/load-skills-all` for explicit broad context or sync workflows |
 | Summarize, don't echo | Never repeat file contents in conversation |
 | Batch reads | Read related files together |
 | Early exit | Stop reading when you have enough context |
@@ -75,13 +75,15 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 
 ### 5. Lessons Learned
 
-Capture non-obvious insights discovered during the task into `AGENTS.LessonsLearned.md` (repo root — create if missing).
+Capture only durable, generalizable insights discovered during the task into `AGENTS.LessonsLearned.md` (repo root - create if missing).
 
-**When**: mistake, anti-pattern, non-obvious insight, correction, or reusable pattern discovered.
+**When**: reusable mistake, anti-pattern, non-obvious insight, correction, or pattern that can change future decisions across cases.
 
-**Entry format**: `## N. Descriptive Title` → concise subsections adapted to the lesson (e.g. Context, Anti-Pattern, Preferred Approach, Rules). Keep entries dense and scannable — not every lesson needs all subsections.
+**Exclude**: one-time findings, incident history, or case details that cannot be generalized. Move durable rules into the owning docs, skills, workflows, or source comments and remove stale lesson entries during cleanup.
 
-**Before adding**: read existing entries — update rather than duplicate.
+**Entry format**: `## N. Descriptive Title` -> `### Case`, `### General Rule`, `### Decision Boundary`, and `### Source To Update`. Keep the case specific enough to recognize the failure mode, but make the rule portable enough to apply beyond that case.
+
+**Before adding**: read existing entries - update rather than duplicate.
 
 ---
 

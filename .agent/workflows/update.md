@@ -31,6 +31,16 @@ flowchart LR
 `Basic` → `Overview` → `DRN Framework` → `Testing` → `Frontend` → `Custom`
 *Single source of truth for group ordering.*
 
+### New Repository Self-Sync
+When `.agent/` and its dependencies are copied into a new repository and `/update` is called with no scope or `all`, run in full bootstrap mode:
+
+1. Treat the current filesystem as source of truth; cached manifests and old repository facts are evidence only.
+2. Rediscover `AGENTS.md`, `.agent/repository-profile.md`, `.agent/skills/**/SKILL.md`, `.agent/workflows/**/*.md`, solution/project/package manifests, CI files, docs roots, and repository-owned asset files.
+3. Detect custom skills and workflows, including `<custom>-*` skill prefixes, uncategorized skill directories, and task workflow routes not listed in portable `AGENTS.md`.
+4. Sync all derived agent-consumed files in one route: group loaders, `load-skills-all.md`, `AGENTS.md` workflow table, repository profile custom route/load-set sections, and `overview-skill-index`.
+5. Flag project documentation and release-note drift only; delegate content rewrites to `/documentation`.
+6. Verify structural consistency before reporting `verified`.
+
 ---
 
 ## 2. Situation Report
@@ -52,7 +62,7 @@ Upon `verified` status, suggest cleanup and commit commands only. Do not delete 
 ```markdown
 ## ✅ Update Complete
 Suggested cleanup: delete `.agent/temp/update-plan.md` and `.agent/temp/update-verify-progress.md` before staging.
-Suggested commit: `git add .agent/ && git commit -m "chore(skills): sync agent configuration"`
+Suggested commit: `git add AGENTS.md .agent/ && git commit -m "chore(skills): sync agent configuration"`
 ```
 
 ---
@@ -96,7 +106,7 @@ Read file: `.agent/temp/update-plan.md`. If missing, state is `no-plan`. Else, p
 ### Scope Resolution
 | Scope | Meaning | Stages | Discovery |
 |-------|---------|--------|-----------|
-| `all` / *(omitted)* | Full repo sync | 1–6 | Full |
+| `all` / *(omitted)* | Full repo sync; also the new-repository bootstrap mode | 1–6 | Full filesystem rediscovery |
 | `<group>` (e.g. `basic`) | Group skills changed | 1 (group), 2, 5 | Skills only |
 | `<skill-dir>` | Single skill changed | 1 (parent), 2, 5 | That skill only |
 | `skills` | All skill groups | 1, 2, 5 | Skills only |
@@ -118,6 +128,7 @@ Read file: `.agent/temp/update-plan.md`. If missing, state is `no-plan`. Else, p
 > Repo: <path> | Baseline HEAD: <sha> | Baseline Inputs Hash: <sha256 or N/A>
 > Baseline Inputs Hash Justification: no-material-input-files
 > Custom Groups: <prefix> → <workflow>
+> Custom Workflows: <route> → <workflow>
 
 ## Discovery Summary
 

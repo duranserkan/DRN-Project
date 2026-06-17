@@ -44,7 +44,16 @@ Flags are lowercase YAML metadata and do not replace `status`.
 | `blocked_on_user: true` | Human decision is required before the owner can advance status | The decision is recorded |
 | `needs_review: true` | The artifact changed after its last review | `/review` passes with no critical findings |
 | `stale: true` | Source artifact changed after this artifact was produced | The artifact is regenerated or revalidated |
-| `approval_required: true` | The next step mutates state, VCS, or risk-bearing scope | Explicit approval is recorded |
+| `approval_required: true` | The next step mutates state, VCS, or risk-bearing scope | Explicit approval or a valid shared approval record is recorded |
+
+### Approval Records
+
+Explicit approval remains the default approval record. A workflow may produce or consume a shared substitute approval record only when this lifecycle, the shared operating model, the producing workflow, and the accepting workflow all allow the same bounded scope.
+
+| Record | Valid Only When | Never Satisfies |
+|---|---|---|
+| `explicit approval recorded` | The user approves the exact next mutation, scope, and risk. | No record-level exclusions; still satisfy stricter gate-specific requirements. |
+| `ApprovalRecord=workflow-tolerated` | A composing workflow explicitly supports producing this record, the route is approval-tolerable, and the pre-mutation record captures producer workflow, accepting gate, bounded scope, Priority Stack decision, source/status/staleness checks when artifacts exist, no unverified assumptions, and planned verification. | Gates whose owning workflow has not opted in, security-sensitive, VCS, destructive, failed-gate, unclear-gate, unresolved-input, unverified-assumption, temp-artifact lifecycle-risk, or final user-approval gates such as setting `status: implemented`. Final completion still requires executed verification evidence. |
 
 ### Assumption Tags
 
@@ -53,7 +62,7 @@ Flags are lowercase YAML metadata and do not replace `status`.
 | `[ASSUMPTION - unverified]` | Required decision or fact is unresolved | Blocks `draft-self-reviewed`, `clarified`, and `ready-to-develop` |
 | `[ASSUMPTION - accepted]` | User or workflow accepted a non-critical uncertainty | Allowed only in `Risk Register` with mitigation and source |
 
-Accepted assumptions never bypass Security, Correctness, testable acceptance criteria, or user approval.
+Accepted assumptions never bypass Security, Correctness, testable acceptance criteria, or the required approval record.
 
 ### Re-entry
 Resume from the last incomplete step identified by the artifact's `status` field and metadata flags.

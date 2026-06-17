@@ -26,7 +26,7 @@ If invoked directly, apply the shared Startup Gate before work; otherwise inheri
 
 | Scope | `<scope-paths>` |
 |-------|-------|
-| `all` / *(omitted)* | `.agent/` |
+| `all` / *(omitted)* | `AGENTS.md`, `.agent/`, and every material input/output path recorded in the plan |
 | `<group>` | `.agent/workflows/load-skills-<group>.md` and `.agent/skills/<group>-*/**` |
 | `<skill-dir>` | `.agent/skills/<skill-dir>/**` |
 | `skills` | `.agent/skills/**` and all `load-skills-*.md` loaders and task workflows |
@@ -49,13 +49,16 @@ Resume from the first incomplete stage. Git commands are **read-only** (no commi
 1. **Preserve**: YAML frontmatter, descriptions, `// turbo` annotations, and skill ordering.
 2. **Regenerate**: file-read entries; append new at the end.
 3. **Update**: Token estimate = Sum of skill sizes ÷ 4, rounded to 0.1K.
+4. **Custom prefixes**: For each discovered `<custom>-*` prefix group, create/update `.agent/workflows/load-skills-<custom>.md`. Use `.agent/workflows/load-skills-custom.md` only for uncategorized skill directories that do not map cleanly to a prefix group.
+5. **Removed groups**: If a group has no remaining skills, remove its loader references from task workflows and `load-skills-all.md`; report the empty loader for manual deletion unless the user explicitly approved deletion.
 
 ### 1.2 Task Workflows
 Discover task workflows in `.agent/workflows/*.md` except `load-skills-*.md`, including meta/sub-workflows such as `documentation.md`, `commit-polish.md`, and `update*.md`.
+Use the plan's workflow classification and `Custom Workflows` header as the execution contract. If current discovery finds a repository-specific custom route missing from the plan header, or the plan names a custom workflow file that no longer exists, abort with `"Plan is stale — run /update again to regenerate the plan"`; do not append or reclassify custom routes during execution.
 Sync only skill-loading or shared-workflow reference sections. Preserve surrounding instructions.
 
 ### 1.3 Custom Group & Irrelevance Removal
-- Create/update `load-skills-custom.md` if custom skills exist.
+- Create/update per-prefix custom loaders and `load-skills-custom.md` according to the planner's Custom loader rule.
 - **Irrelevance Removal** (if user-approved): Remove from loaders/task workflows, flag for Stage 3/5, and report directories for manual deletion (never auto-delete).
 
 ---
@@ -64,7 +67,8 @@ Sync only skill-loading or shared-workflow reference sections. Preserve surround
 Regenerate from all group loader workflows:
 1. **Preserve**: YAML, `// turbo-all` annotation.
 2. **Regenerate**: All group sections in Standard Load Order (Basic → Overview → DRN Framework → Testing → Frontend → Custom).
-3. **Update**: Sum total token estimate. Include custom group if it exists.
+3. **Custom ordering**: Within `Custom`, list per-prefix custom loaders alphabetically, then `load-skills-custom.md` if it exists.
+4. **Update**: Sum total token estimate. Include every custom loader that exists.
 
 ---
 
@@ -82,9 +86,17 @@ Populate from discovered projects:
 Update project names in `dotnet build`, `dotnet run --project <unit>`, and `dotnet run --project <integration>`. Preserve the repo rule: do not run unless user explicitly allows it.
 
 ### 3.3 AGENTS.md Skill Discovery
-Discover workflows and classify:
+Read the plan header and discovery summary before syncing. Extract the planner-recorded `Custom Workflows: <route> → <workflow>` entries as the authoritative custom route set for Stage 3 and Stage 5; do not independently discover or classify a different custom route set during execution.
+
+Use the plan's workflow classification for non-custom route sync:
 - *Skill-loading*: `load-skills-*.md` (except custom if absent).
 - *Task / Sub-workflows / Meta*: task `.md` files.
+
+Then sync derived routing:
+1. Update the `AGENTS.md` Workflows table from discovered task workflows. Add new routes, remove stale routes, and preserve portable descriptions when the route already exists.
+2. Keep repository-specific facts out of `AGENTS.md`. For custom routes, keep the AGENTS row generic and put exact project triggers, workflow ownership, and required skill loaders in `.agent/repository-profile.md`.
+3. In `.agent/repository-profile.md`, create or refresh a `Custom Workflow Routes` section when custom task workflows exist. Record route, workflow file, trigger/intent, and required custom skill loaders.
+4. In `.agent/repository-profile.md`, create or refresh custom skill load-set entries for discovered custom prefix groups. Missing skill strategy: retain profile-declared copied skill references that are absent from `.agent/skills/` using the profile's `Missing Profile Extensions` table contract, with `⚠️ Missing profile reference` as the exact status marker so incomplete copies stay visible; do not add missing skills to loaders, do not auto-delete them from the profile, and surface them in Stage 0 verification rather than Stage 6 documentation drift.
 
 ### 3.4 Project Name Substitution (Prefix Rename)
 If a project prefix changed:
@@ -109,6 +121,8 @@ If a project prefix changed:
 Update `overview-skill-index/SKILL.md`:
 - Set `last-updated` to today.
 - Update Task Table, By Layer Tables, Dependency Graph (Mermaid), and Keyword Index. Add new, remove deleted, preserve custom tweaks.
+- Add or remove entries for custom task workflow routes, custom skill prefixes, and `new repository` / `port .agent` / `self-sync` routing.
+- Ensure every skill directory referenced by the index exists, and every discovered custom skill group has an index route through the profile/custom overlay language.
 
 ---
 

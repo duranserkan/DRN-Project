@@ -13,6 +13,37 @@ description: Shared operating model for agent workflows
 
 Reuse context already loaded in the same session. Do not re-read broad skill sets when a focused skill or workflow is enough.
 
+## Repository Extension Gate
+
+After the Startup Gate, resolve repository-specific workflow and skill overlays before choosing a generic fallback:
+
+1. Use `.agent/repository-profile.md` as the source of truth for custom workflow routes, skill load sets, framework overlays, frontend conventions, test commands, release rules, and documentation modules.
+2. Load only the profile-declared custom workflow or skill that matches the task, route, layer, or flag; skip unrelated custom guidance even when it exists.
+3. If the profile is silent, discover by convention from `.agent/workflows/<route>.md`, `.agent/workflows/load-skills-<group>.md`, `.agent/skills/<group>-*/SKILL.md`, and `.agent/skills/overview-skill-index/SKILL.md`.
+4. Preserve the strictest gate from every composed source. Custom routes may refine routing, accuracy, completeness, and clarity, but must not weaken security, approval, lifecycle, mutation, or verification gates. A named approval record may satisfy a workflow-local approval gate only when this shared model, the status lifecycle, the producing workflow, and the accepting gate owner all allow that record for the same bounded scope.
+5. If a profile-declared custom workflow or skill is missing, record the gap, fall back to the smallest safe generic route when possible, and report the missing repository extension in the audit.
+
+## Workflow Composition Contract
+
+Compose workflows by ownership, not copied rules:
+
+| Workflow | Owns | When composed |
+|---|---|---|
+| `/goal` | Route choice, iteration, completion audit | Delegates route details and reports proof from composed workflows |
+| `/clarify` -> `/answer` -> `/develop` | CAD requirements, approval, handoff, implementation status | May reference `/review` or `/optimize` as quality gates without inlining their rules |
+| `/review` | Read-only findings, verdicts, transition recommendations | Caller owns any mutation, status update, or optimization apply step |
+| `/optimize` | Preview, apply approval, content optimization, metrics | Uses `/review` before or after moderate/significant workflow or skill edits |
+| Profile/custom workflows | Repository-specific routing, domain gates, local skill overlays | Compose when the profile, skill index, task, route, or discovered convention selects them |
+| `_shared/*` | Startup, mutation, evidence, lifecycle, verification primitives | Referenced by workflows to prevent duplicate gate text |
+
+Rules:
+1. Preserve the strictest chained gate: preview-first, approval, read-only, and lifecycle gates never weaken by composition. Use only approval records defined by the shared status lifecycle, produced by an allowed workflow, and accepted by the owning workflow.
+2. Pass summaries, findings, candidate sets, metrics, status transitions, or artifact paths forward; do not paste full source-owned checklists downstream.
+3. Use section links or file references for another workflow's rules. Duplicate only the phrase needed to make the local step executable.
+4. `/review` supplies evidence and recommendations; `/optimize` owns preview/apply and metrics; `/review` validates the result when required.
+5. Repository-specific custom workflows and skills are overlays, not replacements for shared gates, unless `AGENTS.md` or the repository profile explicitly declares a stricter local owner.
+6. CAD artifacts record routed workflows and approval state for workflow/skill changes; they do not own `/review` or `/optimize` gates.
+
 ## Priority Queue
 
 Classify work before acting:
@@ -23,7 +54,23 @@ Classify work before acting:
 | `P1` | Ambiguity, portability drift, missing evidence, maintainability risk | Fix in the current pass unless explicitly scoped out |
 | `P2` | Polish, deduplication, token efficiency, minor references | Fix after P0/P1 when low risk |
 
-When priorities conflict, use TRIZ first: seek an option that satisfies both constraints. If a real tradeoff remains, apply the Priority Stack: Security, Correctness, Clarity, Simplicity, Performance.
+When priorities conflict, use TRIZ first: seek a source-owned, root-cause option that satisfies both constraints. If a real tradeoff remains, apply the Priority Stack: Security, Correctness, Clarity, Simplicity, Performance.
+
+## TRIZ Decision Record
+
+For non-trivial conflicts or friction, record:
+- **IFR**: ideal final result with maximum benefit and minimum harm.
+- **Contradiction**: competing constraints or false tradeoff.
+- **Resolution**: no-tradeoff/source-owned fix, or Priority Stack fallback.
+- **Residual risk**: required only when a workaround is the safest acceptable route.
+
+Prefer permanent acceptable fixes over workaround-only patches. Do not make permanence absolute when the safest path is temporary, reversible, and explicitly risk-managed.
+
+## Subagent Gate
+
+Use subagents when available for independent codebase questions, disjoint write scopes, parallel verification, or second-look review. Skip delegation when work is sequential, transfer cost exceeds value, scopes overlap, or the active workflow requires the main agent to own the gate.
+
+Subagents support workflows; they do not replace them. Give bounded scope, read-only/disjoint write ownership, no VCS/destructive authority, and an evidence summary. Verify against current files or commands before relying on subagent output.
 
 ## Mutation Tiers
 
