@@ -49,6 +49,7 @@ Use the repository profile first. If it is missing or silent, discover by conven
 
 - Skill index: `.agent/skills/overview-skill-index/SKILL.md`.
 - Standard overview loader: `.agent/workflows/load-skills-overview.md` is the recommended loader for portable `overview-*` skills.
+- Default to existing source-owned guidance with thin loading: read startup/profile context plus only the current workflow route and relevant skills.
 - Discover portable overview skills from the skill index and load only the `overview-*` skills relevant to the task.
 - Include framework-specific `overview-drn-*` skills only when `.agent/repository-profile.md` declares the repository uses DRN Framework or the active task explicitly needs that framework context.
 - Load all skills only when the task explicitly needs broad repository context.
@@ -68,14 +69,16 @@ Use the repository profile first. If it is missing or silent, discover by conven
 ## Lessons Learned
 
 - File: `AGENTS.LessonsLearned.md` in the repository root, unless the profile overrides it.
-- When: mistake, anti-pattern, non-obvious insight, or correction discovered during a workflow.
-- How: append `## N. Title` with dense, scannable subsections.
+- When: reusable mistake, anti-pattern, non-obvious insight, or correction that can change future decisions across cases.
+- Exclude: one-time findings, incident history, or case details that cannot be generalized; move durable rules into the owning docs, skills, workflows, or source comments and remove stale lesson entries during cleanup.
+- How: append `## N. Title` with dense, scannable subsections that name the concrete case, the general rule, the decision boundary, and the source to update.
 - Dedup: read existing entries first and update rather than duplicate.
 
 ## Workflows
 
 | Slash Command | Purpose |
 |---------------|---------|
+| `/goal` | Pursue a goal through the fastest safe workflow route with TRIZ and Priority/Quality Stack gates. |
 | `/clarify` | Clarify task into requirements, epics, and backlog. |
 | `/answer` | Answer clarification questions and approve documents. |
 | `/develop` | Implement from clarified requirements using repository conventions. |
@@ -85,5 +88,5 @@ Use the repository profile first. If it is missing or silent, discover by conven
 | `/optimize` | Optimize agent-consumed content: skills, workflows, docs. |
 | `/search` | Gather structured codebase, docs, skill, and web context before clarification. |
 | `/documentation` | Update module documentation and release notes declared by repository conventions. |
-| `/update` | Sync agent instructions, skill index, workflows, and profile from filesystem. |
+| `/update` | Sync agent instructions, skill index, workflows, and profile from filesystem; use after porting `.agent` to a new repository. |
 | `/update-last` | Detect changed files from recent commits, then delegate to `/update`. |

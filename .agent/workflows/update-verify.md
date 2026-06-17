@@ -58,10 +58,13 @@ If missing, initialize from template. If found, resume from the first actionable
 ## 1. Stage 0 — Structural Integrity
 *Failure blocks all subsequent stages (remaining set to `blocked`)*.
 - **Consistency**: Bidirectional check of `.agent/skills/` directories ↔ workflow loader listings.
-- **Union Validation**: Verify `load-skills-all.md` matches loaders in Standard Load Order.
+- **Custom Loader Consistency**: Verify each discovered `<custom>-*` skill prefix maps to `.agent/workflows/load-skills-<custom>.md`; verify uncategorized skills map only to `.agent/workflows/load-skills-custom.md`.
+- **Union Validation**: Verify `load-skills-all.md` matches loaders in Standard Load Order, with custom prefix loaders sorted after Frontend and before generic custom.
+- **Workflow Route Validation**: Verify `.agent/workflows/*.md` task routes match the `AGENTS.md` Workflows table and the profile's `Custom Workflow Routes` entries when custom routes exist.
 - **Token Estimate (soft warning)**: Check Sum of skill file sizes ÷ 4 ≈ `Estimated context:`. The heuristic is approximate; flag `⚠️` if delta > 15%, never `❌` by itself.
 - **Cross-References**: Verify cross-references against plan drift report.
-- **References**: Resolve `AGENTS.md` project paths and `overview-skill-index` skill directories.
+- **References**: Resolve `AGENTS.md` project paths, profile custom skill load-set entries, and `overview-skill-index` skill directories.
+- **New Repository Bootstrap**: For `all` scope, confirm `AGENTS.md`, `.agent/repository-profile.md`, group loaders, `load-skills-all.md`, and `overview-skill-index` were checked against current filesystem discovery rather than stale copied manifests.
 
 ---
 
@@ -107,7 +110,7 @@ Warnings, if any, include evidence, impact, invariant, recommendation, confidenc
 **Next steps:**
 1. Review `.agent/temp/update-verify-progress.md` for warnings.
 2. Delete `.agent/temp/update-plan.md` and `.agent/temp/update-verify-progress.md` only if cleanup was requested.
-3. Commit only if explicitly requested: `git add .agent/ && git commit -m "chore(skills): sync agent configuration"`
+3. Commit only if explicitly requested: `git add AGENTS.md .agent/ && git commit -m "chore(skills): sync agent configuration"`
 ```
 
 #### Failure (❌)

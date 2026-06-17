@@ -79,7 +79,7 @@ Self-review answers:
 | **Acceptance criteria exist** | Every requirement has testable criteria |
 | **Security addressed** | Security implications captured where relevant |
 
-- **All criteria pass AND user explicitly approves**: Set `status: clarified`, `clarified: [ISO 8601 date]`, and `blocked_on_user: false`. Go to §7.
+- **All criteria pass AND approval is recorded**: Set `status: clarified`, `clarified: [ISO 8601 date]`, and `blocked_on_user: false`. Approval means explicit user approval, or `ApprovalRecord=workflow-tolerated` only when composed by an allowed producer such as `/goal cad` under the shared approval-record rules and this document's criteria all pass. Go to §7.
 - **Any criterion fails**: Keep the current status, document failures, set `blocked_on_user: true`, and align on steps.
 
 ---
@@ -167,12 +167,12 @@ Present `.agent/temp/DEVELOP-*.md` and stop.
 | Mode | Action |
 |------|--------|
 | **Default** | User manually runs `/develop .agent/temp/DEVELOP-[task-slug].md` |
-| **`/answer auto`** | Present document, ask confirmation prompt below, require explicit "yes" before running `/develop` |
+| **`/answer auto`** | Present document, ask confirmation prompt below, require explicit "yes" before running `/develop`; when composed by an allowed producer such as `/goal cad`, that producer may satisfy this confirmation only under its approval-tolerable route rules |
 | **User changes** | Update `.agent/temp/DEVELOP-*.md` directly only for minor changes, set `needs_review: true`, re-run `/review`, or return to `/clarify` for major changes |
 
-**`/answer auto` confirmation prompt**:
+**Standalone `/answer auto` confirmation prompt**:
 > ⚠️ **Confirmation required** — `/answer auto` is about to invoke `/develop .agent/temp/DEVELOP-[task-slug].md`.
 > Review the document above. Type **yes** to proceed or **no** to stop here.
 
 > [!WARNING]
-> `/clarify auto` triggers `/answer auto`, which triggers `/develop` after confirmation. Safe only for low-risk tasks: no security, data, schema, public API, dependency, CI/CD, or infrastructure changes; small backlog; clear acceptance criteria; no `[ASSUMPTION - unverified]`. The confirmation gate is mandatory.
+> `/clarify auto` triggers `/answer auto`, which triggers `/develop` after confirmation. Safe only for low-risk tasks: no security, data, schema, public API, dependency, CI/CD, or infrastructure changes; small backlog; clear acceptance criteria; no `[ASSUMPTION - unverified]`. The confirmation gate is mandatory for standalone `/answer auto`; an allowed producer such as `/goal cad` may satisfy it only with an approval-tolerable record.

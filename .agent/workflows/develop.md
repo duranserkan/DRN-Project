@@ -26,7 +26,7 @@ Read YAML `status`:
 - `implemented`: Warn user. Resume only on explicit confirmation.
 
 ### 2a. `.agent/temp/CLARIFY-*.md` Skip Gate
-Skipping the `/answer` approval phase requires explicit user confirmation. This gate never authorizes direct implementation from `CLARIFY-*`; it only authorizes `/answer` §7 to produce `DEVELOP-*` without another approval round.
+Skipping the `/answer` approval phase requires explicit user confirmation or `ApprovalRecord=workflow-tolerated` from an allowed producer such as `/goal cad` under the shared approval-record rules. This gate never authorizes direct implementation from `CLARIFY-*`; it only authorizes `/answer` §7 to produce `DEVELOP-*` without another approval round.
 
 Verify:
 - [ ] No `[ASSUMPTION - unverified]` tags in PBIs.
@@ -34,7 +34,7 @@ Verify:
 - [ ] Every PBI has acceptance criteria.
 - [ ] Security implications are addressed.
 - [ ] In/out-of-scope is unambiguous.
-- [ ] User approval to skip the `/answer` approval phase is recorded.
+- [ ] Explicit user approval or valid `ApprovalRecord=workflow-tolerated` from an allowed producer such as `/goal cad` to skip the `/answer` approval phase is recorded.
 All pass -> run `/answer` §7 to create `DEVELOP-*`, then re-run `/develop` on that file. Any failure -> redirect to `/answer`.
 
 ### 2b. Staleness Check
@@ -42,7 +42,8 @@ All pass -> run `/answer` §7 to create `DEVELOP-*`, then re-run `/develop` on t
 If input is `.agent/temp/DEVELOP-*.md`, verify `source`, `source_status`, `source_updated`, and `source_sha256` against the source `.agent/temp/CLARIFY-*.md`.
 - Source missing, newer, or hash mismatch -> set or report `stale: true`; recommend re-running `/answer` §7.
 - `needs_review: true` -> run `/review` before implementation.
-- `approval_required: true` -> obtain explicit approval before mutating.
+- `approval_required: true` -> obtain explicit approval before mutating unless invoked by a workflow with a valid shared `ApprovalRecord=workflow-tolerated` approval record that this gate accepts.
+  - Caller exception: `/goal` may produce `ApprovalRecord=workflow-tolerated` for this workflow-local approval only under the shared lifecycle's limits. Failed, unclear, critical, destructive, VCS, security-sensitive, or otherwise non-tolerable gates still require explicit human approval.
 
 ---
 
@@ -74,7 +75,7 @@ For each PBI (in priority order):
 4. **Estimate Complexity**: Trivial / Standard / Significant / Critical.
 5. **Assumption Check**: Halt and escalate if any `[ASSUMPTION - unverified]` is found.
 6. **Conflicts**: Apply **TRIZ** first, then **Priority Stack**.
-*Presentation*: Trivial/Standard (summarize and proceed); Significant/Critical (wait for explicit approval). Maintain a checklist if PBIs ≥ 3.
+*Presentation*: Trivial/Standard (summarize and proceed); Significant (proceed only with explicit approval or an accepted `ApprovalRecord=workflow-tolerated`); Critical or security-sensitive (wait for explicit approval). Maintain a checklist if PBIs >= 3.
 
 ### 4a. Version Control Setup
 

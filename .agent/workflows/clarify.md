@@ -60,7 +60,7 @@ For each round of responses:
 3. Check for remaining gaps:
    - **Gaps exist**: Run follow-up round (back to §5).
    - **No gaps**: Summarize and ask: *"Is this complete and accurate?"*
-4. Stop on user confirmation. Max 3 rounds; if reached, tag unknowns `[ASSUMPTION - unverified]`, keep `status: clarifying`, set `blocked_on_user: true`, and do not produce `draft-self-reviewed`.
+4. Stop on user confirmation. When composed by an allowed producer such as `/goal cad`, `ApprovalRecord=workflow-tolerated` may satisfy this completeness confirmation only if the route is approval-tolerable and no gaps remain. Max 3 rounds; if reached, tag unknowns `[ASSUMPTION - unverified]`, keep `status: clarifying`, set `blocked_on_user: true`, and do not produce `draft-self-reviewed`.
 
 ---
 
@@ -176,4 +176,4 @@ needs_review: false
 Present the `draft-self-reviewed` document and stop.
 - **Default**: User manually runs `/answer`.
 - **`/clarify auto`**: Invokes `/answer auto` immediately after presentation.
-- **Skip `/answer` approval phase**: Safe only when the user explicitly confirms skip, all `/answer` approval criteria are already satisfied, and no `[ASSUMPTION - unverified]` remains. `/answer` §7 still produces the `DEVELOP-*` artifact with source metadata before `/develop` starts.
+- **Skip `/answer` approval phase**: Safe only when explicit user confirmation or `ApprovalRecord=workflow-tolerated` from an allowed producer such as `/goal cad` is recorded, all `/answer` approval criteria are already satisfied, and no `[ASSUMPTION - unverified]` remains. `/answer` §7 still produces the `DEVELOP-*` artifact with source metadata before `/develop` starts.

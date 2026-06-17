@@ -1,66 +1,61 @@
 ---
-description: Review staged changes, the current feature/fix branch against the profile-declared integration branch, or a specified task using Priority Stack and project review skills. Use DiSCOS, AGENTS.md and repository skills guidance
+description: Review files, staged changes, branch diffs, or task-scoped changes using Priority Stack and project review skills
 ---
 
-> **Estimated context: ~0.8K tokens** (this workflow) + review skills
-> See also: [Operating Model](./_shared/workflow-operating-model.md)
+> **Trigger**: `/review [paths | task description | re-review]`
+> **Mission**: produce read-only, evidence-backed findings and a verdict.
+> **Estimated context: ~0.7K tokens** + loaded review skills
+> See also: [Operating Model](./_shared/workflow-operating-model.md), [`/optimize`](./optimize.md)
 >
 > [!IMPORTANT]
 > **Executive Presence governs every stage**: structured evaluation, evidence-based findings, honest verdicts, decisive recommendations.
 
 ---
 
-## 1. Determine Scope
-- **File path(s) provided**: Read specified files directly; skip git analysis.
-- **No arguments**:
-  1. Determine the integration/release branch from `.agent/repository-profile.md` or discovered primary refs.
-  2. Not on an integration/release branch -> run branch diff against the integration branch.
-  3. On an integration/release branch, or branch diff is empty -> run staged diff.
-  4. Empty -> inform user and stop.
-- **Task/description provided**: Identify files via keywords/git history; read minimal context.
-- **Re-review**: Evaluate changed lines only. Triggered when user asks to "re-review", "check fixes", or scope was recently reviewed.
+## 1. Resolve Scope
+Run the shared Startup Gate once, reuse loaded context, and load only review skills needed for the scoped material.
+
+| Invocation | Scope Rule |
+|---|---|
+| File path(s) | Read specified files directly; skip git analysis unless needed for changed-line context. |
+| Task description | Identify likely files by keywords, ownership, and recent git history; read minimal context. |
+| No arguments | Determine integration/release branch from profile or primary refs; review branch diff, then staged diff if branch diff is empty. |
+| Re-review/check fixes | Evaluate changed lines or changed behavior only; inspect unchanged context only to prove impact. |
+
+If no diff, file, or task evidence exists, report that there is nothing reviewable and stop.
 
 ---
 
-## 2. Load Review Skills
-```text
-Read file: .agent/skills/basic-agentic-development/SKILL.md
-Read file: .agent/skills/basic-code-review/SKILL.md
-Read file: .agent/skills/basic-security-checklist/SKILL.md
-Read file: .agent/skills/basic-documentation/SKILL.md
-Read file: .agent/skills/basic-git-conventions/SKILL.md
-```
-*Single source of truth — do not duplicate criteria.*
+## 2. Load Criteria
+Use skills as source of truth; do not duplicate their checklists.
+
+| Load | Skills |
+|---|---|
+| Core | `basic-agentic-development`, `basic-code-review`, `basic-security-checklist` |
+| Docs/workflows/skills | `basic-documentation` |
+| Branch, commit, PR, release, or VCS policy | `basic-git-conventions` |
 
 ---
 
 ## 3. Analyze
-- **Branch/Staged**: Run `git diff --stat` first, then full diff. Confirm no dangling references exist for deleted files.
-- **Specified task**: Read files to understand changes.
-- *Large diffs*: If > 500 lines, split into logical file groups, evaluate individually, then synthesize.
+| Case | Action |
+|---|---|
+| Branch/staged diff | Run `git diff --stat`, then full diff. Confirm deleted files leave no dangling references. |
+| Paths/task | Read scoped files plus only the references needed to prove or disprove impact. |
+| Large diff >500 lines | Split into logical groups, review each group, then synthesize one verdict. |
+| Before `/optimize` | Return findings and optimization candidates only; do not edit or approve apply. |
+| After `/optimize` | Review the optimized diff against previewed scope, candidate set, and severity; verify frontmatter, references, lifecycle metadata, and source-owned rules. |
+| Called by CAD or `/goal` | Return the report template; caller owns artifact state, mutation, and completion. |
 
 ---
 
 ## 4. Evaluate
-Apply loaded skills' criteria top-down:
-1. **Priority Stack Gate**: Security → Correctness → Clarity → Simplicity → Performance. Failure blocks lower gates.
-2. **Skill Checklists**: Run all relevant checklists.
-
-> **Re-review rule**: Findings must be caused by changed lines or changed behavior. Inspect unchanged context only when needed to prove or disprove impact.
-
-> **Recommendation self-check**: Do not recommend a 🟡 Suggestion if the fix is more complex than the finding. If so, tag it `[COMPLEXITY WARNING]`, recommend accepting status quo, and demote to 🔵 Note. (Does not apply to 🔴 Critical).
-
-> **Alternative-comparison**: For 🔴 Critical or 🟡 Suggestions, check if a simpler alternative exists:
-> 1. Current approach vs best known alternative (pattern, idiom, framework feature).
-> 2. TRIZ test: satisfies constraints without tradeoff? If yes, recommend it.
-> 3. If no better alternative: state "no better alternative identified" and proceed.
-> Tag findings with demonstrably better alternatives as `[IMPROVABLE]` and include refactoring direction. Must pass self-check.
-
-3. **Pre-Mortem**: Root cause of potential failure in 6 months?
-4. **Second-Order Thinking**: Consequences of consequences?
-5. **Five Whys** (bug fixes): Target root cause or symptom?
-6. **Systems Thinking**: Shared state, cross-layer effects, integration.
-7. **What-If Analysis**: Null, huge, malicious, concurrent inputs.
+1. Apply Priority Stack in order: Security -> Correctness -> Clarity -> Simplicity -> Performance. A failed higher gate blocks lower gates.
+2. Apply loaded skill criteria and the shared Evidence Contract to every finding.
+3. For 🔴 Critical or 🟡 Suggestion findings, run the recommendation self-check:
+   - If the fix is more complex than the finding, tag `[COMPLEXITY WARNING]`, recommend status quo, and demote to 🔵 Note unless severity is 🔴.
+   - Compare current approach with a simpler local pattern or framework feature. Tag `[IMPROVABLE]` only when a better alternative is evidenced.
+4. Run risk lenses only where relevant: pre-mortem, second-order effects, Five Whys for bug fixes, systems boundaries, and malicious/null/large/concurrent inputs.
 
 ---
 
@@ -76,10 +71,14 @@ Produce a report; do not edit reviewed files. Omit empty sections except when no
 
 > **Iteration limit**: Max 2 cycles (initial + 1 re-review). Remaining 🟡 are accepted after re-review.
 
-### `/update` State Hook
-`/review` is read-only. When invoked by `/update`, report the allowed state transition; `/update` performs any header mutation:
-- Reviewing `.agent/temp/update-plan.md` from `Status: ready`: if no 🔴 Critical findings, report `transition_allowed: plan-reviewed`; otherwise report `transition_allowed: none`.
-- Reviewing `/update` changes from `Status: done`: if no 🔴 Critical findings, report `transition_allowed: reviewed`; otherwise report `transition_allowed: none`.
+### State Hooks
+`/review` is read-only. Report state recommendations; callers perform mutations.
+
+| Caller | No 🔴 Critical | 🔴 Critical Present |
+|---|---|---|
+| `/update` plan review from `Status: ready` | `transition_allowed: plan-reviewed` | `transition_allowed: none` |
+| `/update` changes review from `Status: done` | `transition_allowed: reviewed` | `transition_allowed: none` |
+| `/optimize` quality gate | `optimization_review: passed` | `optimization_review: blocked` |
 
 ### Report Template
 ```markdown

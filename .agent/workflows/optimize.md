@@ -1,32 +1,32 @@
 ---
-description: Optimize agent-consumed content using DiSCOS and AGENTS.md (skills, workflows, docs, reports, todos) — reduce waste, enhance effectiveness, maximize context efficiency
+description: Optimize agent-consumed content for correctness per token while preserving source-owned rules and workflow gates
 ---
 
-> **Trigger**: `/optimize <scope>` or `/optimize` (prompts for scope).
-> **Mission**: Maximize context efficiency (Reduce waste, Enhance effectiveness).
-> **Principle**: DiSCOS Context Management (Preserve: Conclusions > Decisions > Patterns > Instances).
-> **TRIZ Contradiction**: Brevity vs. Completeness → optimize for correct output per token.
-> See also: [Operating Model](./_shared/workflow-operating-model.md)
+> **Trigger**: `/optimize [scope]`
+> **Mission**: maximize correct output per token.
+> **Principle**: DiSCOS Context Management: preserve conclusions, decisions, and patterns before instances.
+> **TRIZ Contradiction**: Brevity vs. completeness -> optimize for actionability, not shortest text.
+> See also: [Operating Model](./_shared/workflow-operating-model.md), [`/review`](./review.md)
 > [!IMPORTANT]
 > **Executive Presence governs every stage**: structured analysis, evidence-based optimization, honest metrics, decisive reporting.
-> **Estimated context: ~1.5K tokens**
+> **Estimated context: ~1.2K tokens**
 
 ---
 
 ## 1. Resolve Scope
-Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, the shared operating model, and only needed skills.
+Run the shared Startup Gate once, reuse loaded context, and load only skills needed for the scoped material.
 
-- **File/directory path**: Target specified files/directory.
-- **Content-type keyword**:
-  | Keyword | Resolves To |
-  |---------|-------------|
-  | `skills` | `.agent/skills/*/SKILL.md` |
-  | `workflows` | `.agent/workflows/**/*.md` (including `_shared/`) |
-  | `docs` | `README.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/**/*.md` |
-  | `all` | All of the above |
-- **No arguments**: Ask user for target.
-- **Exclusions**: Never optimize `AGENTS.md`, `DiSCOS.md`, or `.agent/temp/CLARIFY-*` / `.agent/temp/DEVELOP-*` by default. If the user explicitly scopes a temp handoff artifact, require explicit approval and preserve lifecycle metadata (`status`, `stale`, `needs_review`, `source_*`, hashes) or stop.
-- **Skill loading**: Track loaded skills to prevent redundant reads.
+| Invocation | Scope Rule |
+|---|---|
+| File or directory path | Target exactly that scope. |
+| `skills` | `.agent/skills/*/SKILL.md` |
+| `workflows` | `.agent/workflows/**/*.md`, including `_shared/` |
+| `docs` | `README.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/**/*.md` |
+| `all` | Skills, workflows, and docs above. |
+| No arguments | Ask for scope and stop. |
+| From `/review`, CAD, or `/goal` | Treat findings as candidate evidence; preserve caller gates and report routed proof back. |
+
+Never optimize `AGENTS.md`, `DiSCOS.md`, or `.agent/temp/CLARIFY-*` / `.agent/temp/DEVELOP-*` by default. If explicitly scoped, require approval and preserve lifecycle metadata (`status`, `stale`, `needs_review`, `source_*`, hashes).
 
 ---
 
@@ -40,13 +40,15 @@ Analyze targets before applying changes. No files are edited in this section.
 | **Significant** | Removing sections, changing meaning/structure | Explicit approval |
 
 For each target:
-1. Read content and measure baseline (token count = chars ÷ 4).
-2. Select strategy (§3f) and identify candidates per §3 rules.
-3. Classify severity.
-4. **Net-impact check**: If optimization adds complexity, tag `[COMPLEXITY WARNING]` and drop.
-5. **Alternative-comparison**: Check if a structurally different approach is better. Apply TRIZ test.
-6. **Cross-file scan**: Detect duplicates across files (§3g).
-7. Verify cross-references.
+1. Measure baseline tokens (`chars / 4`).
+2. Select a content strategy and candidates from §3.
+3. Classify severity and risk.
+4. Drop candidates that add net complexity; tag `[COMPLEXITY WARNING]` if reporting them.
+5. Compare alternatives with TRIZ; keep the simpler source-owned option.
+6. Scan duplicates across multi-file scopes; recommend consolidation only with confirmation.
+7. Verify cross-references and preserved metadata.
+8. Map supplied review findings to `optimize`, `defer`, or `reject` with one-line reasons.
+
 Present preview summary before proceeding:
 | File | Baseline Tokens | Candidates | Severity | Risk |
 |---|---|---|---|---|
@@ -56,46 +58,24 @@ Present preview summary before proceeding:
 ## 3. Optimization Rules
 Apply in order:
 
-### 3a. Eliminate
-- Filler phrases ("in order to" → "to") and redundant statements.
-- Comments restating structure, placeholders, and hedging.
+| Rule | Action |
+|---|---|
+| Eliminate | Remove filler, hedging, placeholders, comments that restate structure, and duplicate statements. |
+| Condense | Prefer tables/bullets, one-sentence definitions, one representative example, and "same pattern" references. |
+| Restructure | Front-load decisions, use parallel grammar, max 2 nesting levels for workflows. |
+| Enhance | Add only when omission causes agent errors, ambiguity, broken references, or missing edge cases. |
+| Simplify | Remove valueless indirection, deep nesting, redundant guards, and compensating complexity. |
+| Deduplicate | For multi-file scopes, report similarity >70% and recommend a source file; never consolidate without confirmation. |
 
-### 3b. Condense
-- prose to tables/bullets; keep definitions to a single sentence.
-- limit examples to one minimal representative case per pattern.
-- repeated patterns to one instance + "Same pattern for X".
+Preserve YAML frontmatter, anchors, cross-references, security details, decision rationale, versions, acceptance criteria, code blocks, diagrams, tables, lifecycle metadata, active handoff content, and `.agent/temp/DEVELOP-*` source-tracking keys (`source_status`, `source_updated`, `source_sha256`).
 
-### 3c. Restructure
-- Use inverted pyramid, front-load keywords, visual hierarchy, and parallel grammar.
-
-### 3d. Enhance
-Add content only if its absence causes agent errors or degrades outcomes (clarify ambiguity, missing links, edge cases). Removal must not force a compensating action.
-
-### 3e. Preserve (Never Optimize Away)
-- YAML frontmatter, structural anchors, and cross-references.
-- Security-critical details, decision rationale, and versions.
-- Acceptance criteria, code blocks, diagrams, and tables.
-- Lifecycle metadata and active handoff content in `.agent/temp/CLARIFY-*` and `.agent/temp/DEVELOP-*`.
-- Source-tracking metadata (`source_status`, `source_updated`, `source_sha256`) in `.agent/temp/DEVELOP-*`; these keys are defined and validated by clarification/develop workflows, not by the shared lifecycle flags.
-
-### 3f. Content-Type Strategies
 | Type | Strategy |
-|------|----------|
-| **Skill** | Tables over prose. Alphabetical order. Inline examples only if essential. |
-| **Workflow** | Strict numbered steps. Clear `If X, do Y` conditionals. Max 2 nesting levels. No narrative. |
-| **Doc** | Inverted pyramid. Progressive disclosure. TOC for 5+ sections. |
-| **Report** | Tables for data. Executive summary first. Minimal prose. |
-| **Todo** | Strip context older than current sprint. One-line completed summaries. |
-
-### 3g. Cross-File Deduplication (Multi-file only)
-1. **Detect**: Similarity > 70%.
-2. **Report**: List duplicate pairs.
-3. **Recommend**: Suggest reference file or consolidation. Never apply without confirmation.
-
-### 3h. Accidental Complexity Removal
-- Simplify indirection (inline valueless reference chains).
-- Flatten deep nesting.
-- Remove redundant guards.
+|---|---|
+| Skill | Tables over prose; alphabetical order; examples only when essential. |
+| Workflow | Numbered steps and `If X, do Y`; no narrative filler. |
+| Doc | Inverted pyramid; progressive disclosure; TOC for 5+ sections. |
+| Report | Executive summary first; tables for data. |
+| Todo | Current-sprint context only; one-line completed summaries. |
 
 ---
 
@@ -109,7 +89,10 @@ Apply only when the user confirms the preview or invokes an explicit apply mode.
 | **Significant** | Show diff + rationale -> wait for explicit approval |
 | **Mixed** | Apply only confirmed items; leave the rest untouched |
 
-Post-apply: verify cross-references, check idempotency (re-run §2), and run `git diff --check` unless blocked.
+Approval must record previewed scope, candidate set, and severity. Post-apply, verify cross-references, re-run §2 for idempotency, and run `git diff --check` unless blocked.
+
+### Review Loop
+For Moderate or Significant workflow/skill changes, run `/review` on the optimized diff. 🔴 Critical findings block completion and feed the next preview/apply cycle. ✅ or ⚠️ satisfies the `/optimize` quality gate; carry remaining 🟡 findings into metrics.
 
 ---
 
@@ -122,18 +105,11 @@ Post-apply: verify cross-references, check idempotency (re-run §2), and run `gi
 
 ---
 
-## 6. Quality Gate
-Priority Stack: Security → Correctness → Clarity → Simplicity → Performance.
-Run Alternatives as a separate self-check before finalizing recommendations.
-Run `/review` on Moderate/Significant changes to workflows/skills. Must be ✅ or ⚠️.
-
----
-
-## 7. Operational Guarantees
+## 6. Operational Guarantees
 - **Idempotent**: Re-running on already-optimized content produces no further changes.
 - **Reversible**: Changes are git-tracked; no backup files are created.
 - **Non-destructive**: Preserves frontmatter, anchors, security, versions.
 - **Scope-aware**: Touches only scoped files.
 - **Observable**: Metrics report shows before/after and scores.
 - **Safe by default**: Preview-first; no edits before confirmation.
-- **Reference-safe / No duplicate loads**: Verified references, single skill load tracking.
+- **Quality-gated**: Priority Stack and `/review` validate Moderate/Significant workflow or skill edits.

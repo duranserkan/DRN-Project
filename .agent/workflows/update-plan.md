@@ -14,6 +14,7 @@ description: Planning phase of /update — discover skills/projects, detect drif
 If invoked directly, apply the shared Startup Gate before work; otherwise inherit `/update` startup context.
 
 - **Known scopes** (`all`, `skills`, `agents`, `projects`, `infra`, `<group>`, `<skill-dir>`, `files: <paths>`, `stage-<N>`): Proceed to §2.
+- **New-repository bootstrap**: If scope is omitted or `all`, assume `.agent/` may have been copied from another repository. Rebuild discovery from the current filesystem even when `.agent/repository-profile.md`, old plan files, or cached manifests exist. Treat stale profile facts as drift candidates, not as authoritative inputs.
 - **Freeform scope**:
   1. **Interpret**: Scan skills manifest, projects, and files to map to closest known scope + affected stages.
   2. **Present**: Ask user: *Proceed / adjust / clarify?*
@@ -36,7 +37,9 @@ List directories in `.agent/skills/` and read each `SKILL.md` frontmatter. Build
 | *(other)* | custom | `load-skills-custom.md` |
 
 - **Group loaders**: Regenerated fully.
+- **Custom loader rule**: Create one loader per discovered custom prefix group (`load-skills-<custom>.md`). Use `load-skills-custom.md` only for skill directories that do not match a `<prefix>-*` family or whose prefix would collide with a portable/framework group.
 - **Task workflows**: Discover task workflows in `.agent/workflows/*.md` except `load-skills-*.md`; include meta/sub-workflows such as `documentation.md`, `commit-polish.md`, and `update*.md`. Sync only skill-loading or shared-workflow reference sections; preserve other content.
+- **Custom workflow manifest**: Classify every task workflow as portable, meta/sub-workflow, or repository-specific custom route. Repository-specific routes must be carried into the plan header as `Custom Workflows: <route> → <workflow>` and scheduled for Stage 3 and Stage 5 sync.
 - **Cross-references**: Preserve prefix-mismatched inclusions; report new ones for confirmation.
 - *Note*: Do not confuse `drn-testing` (group `drn`) with `overview-drn-testing` (group `overview`).
 
@@ -71,7 +74,7 @@ For projects with a `RELEASE-NOTES.md`, flag `[RELEASE-NOTE-TRIGGER]` when in-sc
 ### 3.4 Scope Filtering
 | Scope | §2 Skills | §3.1-3.2 Projects & Assets | §3.3 Doc Drift |
 |-------|-----------|----------------------------|----------------|
-| `all` / *(omitted)* | All skills | Full | All |
+| `all` / *(omitted)* | All skills and all task workflows; ignore stale cached manifests | Full | All |
 | `skills` | All skills | Skip | Skip |
 | `<group>` (e.g. `basic`) | `<group>-*` only; build manifest for cross-reference validation | Skip | Skip |
 | `<skill-dir>` (e.g. `drn-hosting`) | That skill only; identify parent group | Skip | Skip |
@@ -90,7 +93,7 @@ For projects with a `RELEASE-NOTES.md`, flag `[RELEASE-NOTE-TRIGGER]` when in-sc
 |--------------|--------|
 | `.agent/skills/<skill-dir>/SKILL.md` | Parent group in Stage 1, Stage 2, Stage 5 |
 | `.agent/workflows/load-skills-*.md` | Stage 1, Stage 2, Stage 5 |
-| `.agent/workflows/*.md` task/meta/sub-workflows, including `documentation.md`, `commit-polish.md`, `test.md`, and `update*.md` | Stage 1, Stage 5 |
+| `.agent/workflows/*.md` task/meta/sub-workflows, including `documentation.md`, `commit-polish.md`, `test.md`, and `update*.md` | Stage 1, Stage 3, Stage 5 |
 | `.agent/workflows/_shared/*.md` | Stage 1, Stage 5 |
 | `AGENTS.md`, `.agent/repository-profile.md` | Stage 3 |
 | `*.slnx`, `*.sln`, `*.csproj` | Stage 3, Stage 6 |
@@ -108,6 +111,7 @@ Compare discovered assets against previous manifests to detect drift.
 
 ### 4.1 Drift Detection
 - **Skills**: Directory additions, removals, reclassifications, or custom skills.
+- **Workflows**: Task workflow additions, removals, route renames, custom route discovery, and stale `AGENTS.md` workflow table entries.
 - **Projects**: Missing, new, or renamed project names.
 - **Stale references**: Old names, paths, or namespaces inside skill files (sampling).
 
@@ -145,5 +149,6 @@ Serialize report and plan to `.agent/temp/update-plan.md`.
 - **`outlined` / `planning`**: Detail next outlined stages to `pending`.
 - **All pending/skipped resolved**: Set overall status to `ready`.
 - Record `Baseline HEAD` as audit metadata and `Baseline Inputs Hash` as the staleness gate per the [Baseline Inputs Hash Specification](./_shared/baseline-inputs-hash-spec.md). Compute the hash for every material in-scope input; use `N/A` only when there are no material input files, and record the exact plan header value `Baseline Inputs Hash Justification: no-material-input-files`.
+- For `all`, material inputs include `AGENTS.md`, `.agent/repository-profile.md`, every discovered skill/workflow file, project/solution/package manifests, CI/container/build config files, and any repository docs/source samples used for drift detection.
 
 Follow the template in `update.md §Plan File Contract`.

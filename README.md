@@ -74,7 +74,8 @@ dotnet run --project Sample.Hosted                      # Run the sample web app
 dotnet run --project DRN.Test.Unit                      # Run unit tests
 dotnet run --project DRN.Test.Integration               # Run integration tests (requires Docker)
 dotnet run --project DRN.Test.Performance -c Release     # Run all performance benchmarks (requires Release build)
-dotnet run --project DRN.Test.Performance -c Release -- --filter SourceKnownIdUtils  # Run SKID/SKEID benchmark only
+dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdUtilsPerformanceTests.Run_Benchmarks  # Run SKID/SKEID performance benchmark only
+dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdUtilsSaturationPerformanceTests.Run_Benchmarks  # Run SKID/SKEID saturation benchmark only
 ```
 
 > All test projects (unit, integration, and performance) use [Microsoft Testing Platform (MTP) 2.0](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-intro) with xUnit v3 and are built as standalone executables. Use `dotnet run --project` to execute them.
