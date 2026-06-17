@@ -57,14 +57,14 @@ If missing, initialize from template. If found, resume from the first actionable
 
 ## 1. Stage 0 — Structural Integrity
 *Failure blocks all subsequent stages (remaining set to `blocked`)*.
-- **Consistency**: Bidirectional check of `.agent/skills/` directories ↔ workflow loader listings.
+- **Consistency**: Bidirectional check of `.agent/skills/` directories ↔ workflow loader listings. Existing skill directories missing from their expected loader are `❌`; loader entries that point to absent skill directories are `❌`. Profile-declared copied skill references that are absent from `.agent/skills/` are allowed only when recorded in the affected profile load-set table with `⚠️ Missing profile reference` as the exact status marker; exclude them from loader union validation and report them in Stage 0, not Stage 6.
 - **Custom Loader Consistency**: Verify each discovered `<custom>-*` skill prefix maps to `.agent/workflows/load-skills-<custom>.md`; verify uncategorized skills map only to `.agent/workflows/load-skills-custom.md`.
 - **Union Validation**: Verify `load-skills-all.md` matches loaders in Standard Load Order, with custom prefix loaders sorted after Frontend and before generic custom.
 - **Workflow Route Validation**: Verify `.agent/workflows/*.md` task routes match the `AGENTS.md` Workflows table and the profile's `Custom Workflow Routes` entries when custom routes exist.
 - **Token Estimate (soft warning)**: Check Sum of skill file sizes ÷ 4 ≈ `Estimated context:`. The heuristic is approximate; flag `⚠️` if delta > 15%, never `❌` by itself.
 - **Cross-References**: Verify cross-references against plan drift report.
-- **References**: Resolve `AGENTS.md` project paths, profile custom skill load-set entries, and `overview-skill-index` skill directories.
-- **New Repository Bootstrap**: For `all` scope, confirm `AGENTS.md`, `.agent/repository-profile.md`, group loaders, `load-skills-all.md`, and `overview-skill-index` were checked against current filesystem discovery rather than stale copied manifests.
+- **References**: Resolve `AGENTS.md` project paths, profile custom skill load-set entries, and `overview-skill-index` skill directories. Missing profile extension entries satisfy this check only when explicitly marked with the profile's `Missing Profile Extensions` table contract and the Stage 0 warning strategy above.
+- **New Repository Bootstrap**: For `all` scope, verify current-filesystem discovery was rebuilt and the pre-execution staleness guard used Baseline Inputs Hash reproducibility from [`_shared/baseline-inputs-hash-spec.md`](./_shared/baseline-inputs-hash-spec.md). The baseline hash is compared before mutation in `update-execute.md`; do not recompute it against post-execution files because valid `/update` runs intentionally edit `AGENTS.md`, `.agent/repository-profile.md`, skill files, workflow files, loaders, the skill index, and other material outputs. During verification, use structural checks, current discovery, and recorded pre-execution evidence to prove freshness.
 
 ---
 

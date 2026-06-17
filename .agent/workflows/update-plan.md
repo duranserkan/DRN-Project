@@ -39,7 +39,7 @@ List directories in `.agent/skills/` and read each `SKILL.md` frontmatter. Build
 - **Group loaders**: Regenerated fully.
 - **Custom loader rule**: Create one loader per discovered custom prefix group (`load-skills-<custom>.md`). Use `load-skills-custom.md` only for skill directories that do not match a `<prefix>-*` family or whose prefix would collide with a portable/framework group.
 - **Task workflows**: Discover task workflows in `.agent/workflows/*.md` except `load-skills-*.md`; include meta/sub-workflows such as `documentation.md`, `commit-polish.md`, and `update*.md`. Sync only skill-loading or shared-workflow reference sections; preserve other content.
-- **Custom workflow manifest**: Classify every task workflow as portable, meta/sub-workflow, or repository-specific custom route. Repository-specific routes must be carried into the plan header as `Custom Workflows: <route> → <workflow>` and scheduled for Stage 3 and Stage 5 sync.
+- **Custom workflow manifest**: Classify every task workflow as portable, meta/sub-workflow, or repository-specific custom route. Repository-specific routes must be carried into the plan header as `Custom Workflows: <route> → <workflow>` and scheduled for Stage 3 and Stage 5 sync. The plan header is the contract for execution: Stage 3.3 reads these recorded `Custom Workflows` entries instead of independently discovering or classifying a different route set.
 - **Cross-references**: Preserve prefix-mismatched inclusions; report new ones for confirmation.
 - *Note*: Do not confuse `drn-testing` (group `drn`) with `overview-drn-testing` (group `overview`).
 
