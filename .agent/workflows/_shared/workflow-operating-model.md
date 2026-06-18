@@ -23,6 +23,50 @@ After the Startup Gate, resolve repository-specific workflow and skill overlays 
 4. Preserve the strictest gate from every composed source. Custom routes may refine routing, accuracy, completeness, and clarity, but must not weaken security, approval, lifecycle, mutation, or verification gates. A named approval record may satisfy a workflow-local approval gate only when this shared model, the status lifecycle, the producing workflow, and the accepting gate owner all allow that record for the same bounded scope.
 5. If a profile-declared custom workflow or skill is missing, record the gap, fall back to the smallest safe generic route when possible, and report the missing repository extension in the audit.
 
+## Expert Lens Pass
+
+Use this shared pass when `/clarify`, `/answer`, or another workflow asks for expert-lens review. It is a concise challenge mechanism, not a theatrical roleplay or approval body.
+
+### Ordering
+
+1. Keep the Security/Privacy gate active from intake onward.
+2. Assign specialist lenses only after Startup Gate context, raw task review, initial risk/scope check, and context enrichment. Do not preselect specialist lenses solely from the raw prompt when repository context could change the risk profile.
+3. For follow-up passes, integrate the latest answers or artifact changes first. Refresh lens selection only when the risk profile changed.
+
+### Lens Selection
+
+Select `2-4` full lenses for each pass:
+
+- Include at least one Product, Business, ROI, Growth, or MVP lens.
+- Keep Security/Privacy mandatory even when it is not one of the full lenses.
+- Promote Security/Privacy to a full lens when the task touches authentication, authorization, user input, sensitive data, browser protections, secrets, dependencies, CI/CD, infrastructure, external communication, or storage. When promoted, it counts toward the `2-4` limit and takes precedence over optional specialist lenses.
+- If more than four lenses are relevant, choose by risk and value using TRIZ first, then the Priority Stack. Merge adjacent concerns when useful, such as Security+Compliance, Database+Performance, or Architecture+Operations, without hiding a higher-priority risk.
+
+Conditionally add these specialist lenses when relevant:
+
+| Lens | Trigger |
+|---|---|
+| Compliance/Audit | Regulated data, privacy, retention, legal, payment, identity, enterprise, or contractual requirements |
+| Frontend UX/Accessibility | User-facing UI, forms, workflows, navigation, feedback states, or design behavior |
+| Database/Performance | Persistence, queries, migrations, reporting, scale, concurrency, indexing, or latency |
+| Architecture/Maintainability | Cross-layer design, boundaries, public APIs, or framework conventions |
+| Test/QA | Acceptance criteria, regression risk, observability, or verification strategy |
+| Operations/SRE | Deployment, reliability, runtime behavior, rollback, or supportability |
+| Domain SME/User Workflow | Domain rules, user roles, operational realities, edge cases, manual workarounds, or how the work is actually performed |
+| Integration/API Contract | External APIs, events, webhooks, public contracts, backward compatibility, SDKs, or cross-system interoperability |
+| Data Governance/Analytics | Data quality, lineage, metric definitions, reporting correctness, retention, auditability, or analytics assumptions |
+| Developer Experience/Public API | Framework or package work, naming, discoverability, ergonomics, migration impact, consumer-facing API clarity, or documentation needs |
+| Content/Localization | User-facing copy, terminology, internationalization/localization, support content, or accessibility-adjacent language concerns |
+| AI/Automation Safety | LLM features, agent workflows, generated content, prompt injection, evaluation, human review, or failure containment |
+
+### Pass Rules
+
+1. Lenses challenge the work; they do not approve it. User/TPO authority remains final. A lens cannot grant approval, clear status flags, bypass review, satisfy lifecycle gates, or weaken Security/Privacy.
+2. No lens may invent facts. Every claim must cite user input, repository context, loaded skill/workflow, source file, external reference, or be tagged `[ASSUMPTION - unverified]`.
+3. Resolve conflicts with TRIZ first, then the Priority Stack: Security, Correctness, Clarity, Simplicity, Performance.
+4. Keep output concise. Record synthesized findings, not raw simulated transcripts. Avoid theatrical roleplay, fake consensus, approval language, or persona labels unless a label makes a question or tradeoff clearer.
+5. Preserve traceability through question rationale, answer tradeoffs, requirement sources, acceptance criteria, risk register entries, Priority Stack validation notes, and implementation constraints. Do not require a permanent "Expert Lens Transcript" section.
+
 ## Workflow Composition Contract
 
 Compose workflows by ownership, not copied rules:

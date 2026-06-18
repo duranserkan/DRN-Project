@@ -31,22 +31,27 @@ Review `## Enrichment Context`. If gaps exist relevant to open questions, conduc
 - (by: /answer) [Additional finding relevant to open questions]
 ```
 
+Update the risk/scope check before answering: confirm scope boundaries, Security/Privacy triggers, compliance/data/performance/design implications, lifecycle or approval implications, stale assumptions, and source gaps. Cite evidence or tag assumptions; do not invent facts.
+
 ---
 
 ## 4. Answer Questions
-Read questions in `## Clarification Q&A`. For each:
+Read questions in `## Clarification Q&A`, draft candidate answers privately, then run the shared [Expert Lens Pass](./_shared/workflow-operating-model.md#expert-lens-pass) after targeted enrichment and the updated risk/scope check. Assign or refresh lenses from evidence and challenge the candidate answers for ROI, scope creep, Security/Privacy, compliance, UX/accessibility, database/performance, implementation risk, and verification fit before writing revised answers.
+
+For each revised answer:
 - **Confidence ≥ 76%**: Decisive answer. State confidence. Frame with value, ROI, and fit.
-- **Confidence 61–75%**: Present alternatives with tradeoffs. Let co-TPO choose.
+- **Confidence 61–75%**: Present alternatives with tradeoffs, include a recommendation when evidence supports one, and leave unresolved choices to the human TPO/user.
 - **Confidence ≤ 60%**: Escalate using template:
   ```markdown
-  > **Decision needed** (by: co-TPO):
+  > **Decision needed** (by: human TPO/user):
   > **Context**: [why this matters, 1–2 sentences]
   > **Options**: A) … B) … C) …
+  > **Expert-lens tradeoff**: [compact summary when useful]
   > **Recommendation**: Option A because …
   ```
 Integrate user insights arguments. Use **TRIZ** for competing constraints. If resource conflicts remain, apply **Priority Stack** (Security > Correctness > Clarity > Simplicity > Performance).
-*Note*: If answering reveals major new scope, return to `/clarify`. For direct user answers, validate consistency and suggest improvements without overriding.
-Accepted non-critical assumptions must be retagged `[ASSUMPTION - accepted]` and carried into `Risk Register` with impact, mitigation, and source. `[ASSUMPTION - unverified]` is a hard block.
+*Note*: If answering reveals major new scope or unresolved critical assumptions, return to `/clarify`. For direct user answers, validate consistency and suggest improvements without overriding.
+The agent acting as co-TPO may provide options, tradeoffs, and a recommendation, but must not approve its own unresolved decision. Accepted non-critical assumptions must be retagged `[ASSUMPTION - accepted]` only when mitigation and source are recorded, then carried into `Risk Register` with impact, mitigation, and source. `[ASSUMPTION - unverified]` is a hard block.
 
 Write directly into the active `.agent/temp/CLARIFY-*.md` document under `## Clarification Q&A`:
 ```markdown
@@ -65,6 +70,7 @@ Self-review answers:
 - [ ] **Aligned**: Priority Stack applied; TRIZ used for conflicts.
 - [ ] **Decisive**: Use definitive language ("will", "must"), not hedging.
 - [ ] **Traceable**: Link to original question and user need.
+- [ ] **Lens-challenged**: Expert Lens Pass concerns are resolved, escalated, or traceably carried into risks, constraints, acceptance criteria, or implementation guidance.
 
 ---
 
@@ -78,6 +84,7 @@ Self-review answers:
 | **Scope is clear** | In/out-of-scope unambiguous |
 | **Acceptance criteria exist** | Every requirement has testable criteria |
 | **Security addressed** | Security implications captured where relevant |
+| **Lens concerns handled** | Security/compliance/performance/design implications resolved, escalated, or carried into constraints and `Risk Register` |
 
 - **All criteria pass AND approval is recorded**: Set `status: clarified`, `clarified: [ISO 8601 date]`, and `blocked_on_user: false`. Approval means explicit user approval, or `ApprovalRecord=workflow-tolerated` only when composed by an allowed producer such as `/goal cad` under the shared approval-record rules and this document's criteria all pass. Go to §7.
 - **Any criterion fails**: Keep the current status, document failures, set `blocked_on_user: true`, and align on steps.
@@ -98,6 +105,9 @@ The examples below are illustrative transformations, not an exhaustive 1:1 mappi
 | `Discovery & Guidance` -> `Architectural Notes` | `Architecture Guidance` -> `Patterns to Follow` + `Constraints` |
 | `Discovery & Guidance` -> `Risks/Gotchas` | `Risk Register` |
 | `Assumptions & Open Items` (accepted) | `Risk Register` (as risks with mitigations) |
+| Expert-lens findings and answer tradeoffs | Acceptance criteria, `Architecture Guidance`, `Risk Register`, `Priority Stack Validation`, and implementation constraints |
+
+The `DEVELOP-*` artifact must preserve handoff data `/develop` consumes: `Risk Register`, accepted assumptions and mitigations, architecture guidance, relevant skills, verification permissions, and Security/Privacy, compliance, performance, database, frontend/design, and implementation constraints where relevant.
 
 ### Document Skeleton
 ```markdown
@@ -141,7 +151,7 @@ approval_required: false
 - **Domain Boundaries**: [Affected aggregates, modules, layers]
 - **Patterns to Follow**: [Existing patterns to reuse]
 - **Integration Points**: [External APIs, shared state, cross-layer effects]
-- **Constraints**: [Technical constraints shaping implementation]
+- **Constraints**: [Security/compliance/performance/design/database/API constraints shaping implementation]
 
 ## Risk Register
 | Risk | Impact | Mitigation | Source |

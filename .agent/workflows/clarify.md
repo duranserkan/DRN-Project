@@ -32,6 +32,8 @@ Before asking questions, research to minimize round-trips (max 20% budget):
 - **Fallback**: Manually search files, `.agent/skills/overview-skill-index/SKILL.md`, and external references.
 Write findings under `## Enrichment Context` subheadings: Codebase Findings, Knowledge Items, Relevant Skills, External References, Initial Observations.
 
+Then perform an initial risk/scope check and record concise findings under `Initial Observations`: scope boundaries, Security/Privacy triggers, compliance/data/performance/design implications, lifecycle or approval implications, likely specialist-lens triggers, and `[ASSUMPTION - unverified]` items. Cite evidence or tag assumptions; do not invent facts.
+
 ---
 
 ## 4. First-Principles Analysis
@@ -43,12 +45,15 @@ Silently analyze raw input and context:
 
 ---
 
-## 5. Ask Clarification Questions
+## 5. Expert Lens Pass & Ask Clarification Questions
 
-Batch questions in a single numbered list (5–8 questions per round, prioritizing blockers).
+Before each question round, run the shared [Expert Lens Pass](./_shared/workflow-operating-model.md#expert-lens-pass) after §3 and §4 are current. Assign lenses from gathered evidence, not raw input alone.
+
+Use the pass to improve question quality, missing context discovery, scope boundaries, MVP/ROI pressure, Security/Privacy and compliance coverage, domain workflow realism, acceptance-criteria candidates, and risk or assumption discovery. Convert synthesized findings into a single numbered list of 5–8 questions per round, prioritizing blockers.
 - **Demand references**: Ask for files/URLs when existing designs/docs are mentioned.
 - **Flag assumptions**: State explicitly, asking for validation.
-- Group by categories as needed (Scope, Constraints, Architecture, Security, etc.).
+- **Rationale**: Give each question an implicit or concise explicit reason tied to business value, security, correctness, usability, compliance, performance, or implementation risk when the reason would otherwise be unclear.
+- **Labels**: Use persona/lens labels only when they make a question clearer. Do not group by persona or category if it weakens priority order.
 
 ---
 
@@ -57,10 +62,11 @@ Batch questions in a single numbered list (5–8 questions per round, prioritizi
 For each round of responses:
 1. Integrate answers into the document.
 2. Apply First-Principles Analysis to the updated state.
-3. Check for remaining gaps:
+3. Refresh the risk/scope check. Reuse the previous lens set unless the risk profile changed; when it changed, reassign lenses through §5 before generating follow-up questions.
+4. Check for remaining gaps:
    - **Gaps exist**: Run follow-up round (back to §5).
    - **No gaps**: Summarize and ask: *"Is this complete and accurate?"*
-4. Stop on user confirmation. When composed by an allowed producer such as `/goal cad`, `ApprovalRecord=workflow-tolerated` may satisfy this completeness confirmation only if the route is approval-tolerable and no gaps remain. Max 3 rounds; if reached, tag unknowns `[ASSUMPTION - unverified]`, keep `status: clarifying`, set `blocked_on_user: true`, and do not produce `draft-self-reviewed`.
+5. Stop on user confirmation. When composed by an allowed producer such as `/goal cad`, `ApprovalRecord=workflow-tolerated` may satisfy this completeness confirmation only if the route is approval-tolerable and no gaps remain. Max 3 rounds; if reached, tag unknowns `[ASSUMPTION - unverified]`, keep `status: clarifying`, set `blocked_on_user: true`, and do not produce `draft-self-reviewed`.
 
 ---
 
@@ -71,6 +77,7 @@ For each round of responses:
 - **PBIs**: ID (PBI-NNN), Epic, Title, User Story, Acceptance Criteria, Priority, Size (S/M/L/XL), Dependencies, Context (skills, files), Assumptions.
 - **INVEST Validation**: All PBIs must pass (Independent, Negotiable, Valuable, Estimable, Small, Testable).
 - **Assumption Contract**: `[ASSUMPTION - unverified]` blocks `draft-self-reviewed`; accepted non-critical assumptions must be retagged `[ASSUMPTION - accepted]` and carried to the risk register by `/answer`.
+- **Traceability**: Carry Expert Lens Pass findings into questions, answer rationale, requirement sources, acceptance criteria, Discovery & Guidance, Risks/Gotchas, and Priority Stack Validation. Do not add a raw expert transcript.
 
 ---
 
@@ -85,6 +92,8 @@ Evaluate output top-down. Failure at higher level blocks lower gates.
 | **Clarity** | Understandable by someone outside this conversation? |
 | **Simplicity** | No unnecessary decomposition? Could items merge without losing clarity? |
 | **Performance** | Performance/scalability captured where relevant? |
+
+Also confirm Expert Lens Pass outputs are traceably reflected in durable artifact fields where they changed the requirements, risks, constraints, acceptance criteria, or question rationale.
 
 ---
 

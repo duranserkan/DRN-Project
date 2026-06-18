@@ -18,6 +18,8 @@ Apply the shared Startup Gate before implementation planning: read `AGENTS.md`, 
 
 ## 2. Validate Status
 
+`/develop` consumes approved `/answer` outputs; it does not reopen product strategy by default. Use this section to prove the handoff is current and implementation-ready before mutating source.
+
 Read YAML `status`:
 - `ready-to-develop`: Proceed to §3.
 - `clarified`: Abort and run `/answer` §7 to produce `.agent/temp/DEVELOP-*.md`, then re-run `/develop` on that file.
@@ -45,6 +47,20 @@ If input is `.agent/temp/DEVELOP-*.md`, verify `source`, `source_status`, `sourc
 - `approval_required: true` -> obtain explicit approval before mutating unless invoked by a workflow with a valid shared `ApprovalRecord=workflow-tolerated` approval record that this gate accepts.
   - Caller exception: `/goal` may produce `ApprovalRecord=workflow-tolerated` for this workflow-local approval only under the shared lifecycle's limits. Failed, unclear, critical, destructive, VCS, security-sensitive, or otherwise non-tolerable gates still require explicit human approval.
 
+### 2c. Handoff Completeness Gate
+
+Before loading implementation skills or planning edits, verify the `DEVELOP-*` artifact contains current handoff data from `/answer`:
+
+- Source metadata exists, matches the source clarification document, and `source_status: clarified`.
+- No `[ASSUMPTION - unverified]`, `stale: true`, unresolved `needs_review: true`, or unresolved `approval_required: true`.
+- Scope, requirements, PBIs, and acceptance criteria are clear and testable.
+- `Implementation Context` lists context/files to read, relevant skills, and verification permissions.
+- `Architecture Guidance` captures domain boundaries, patterns, integration points, and Security/Privacy, compliance, performance, database, frontend/design, or API constraints where relevant.
+- `Risk Register` carries accepted assumptions and identified security, compliance, performance, design, data, operational, or integration risks with mitigation/source.
+- `Priority Stack Validation` reflects Security, Correctness, Clarity, Simplicity, and Performance.
+
+Any failure stops implementation. Redirect to `/answer` for stale source metadata, missing handoff data, missing risk/constraint traceability, or unresolved implications that can be answered from existing clarification context. Redirect to `/clarify` when scope, acceptance criteria, or critical assumptions require a new human decision.
+
 ---
 
 ## 3. Load Context & Skills
@@ -55,6 +71,7 @@ If input is `.agent/temp/DEVELOP-*.md`, verify `source`, `source_status`, `sourc
    - `.agent/skills/overview-skill-index/SKILL.md`
    - `.agent/skills/basic-agentic-development/SKILL.md` (Autonomy Ladder + Development Loop)
    *Note: Reuse loaded context if `/clarify` or `/answer` ran in the same session.*
+   Also read the `DEVELOP-*` sections that `/answer` produced: `Risk Register`, accepted assumptions and mitigations, `Architecture Guidance`, relevant skills, verification permissions, and Security/Privacy, compliance, performance, database, frontend/design, and implementation constraints.
 2. **Load Relevant Skills**: Use skill index to load **only** what PBIs need:
    - *Domain/Entity*: `overview-ddd-architecture` + profile-declared domain skills.
    - *API/Hosting*: `basic-security-checklist`, `test-integration-api` + profile hosting skills.
@@ -71,10 +88,11 @@ If input is `.agent/temp/DEVELOP-*.md`, verify `source`, `source_status`, `sourc
 For each PBI (in priority order):
 1. **Identify**: Affected existing/new files.
 2. **Map**: Concrete tasks.
-3. **Identify Risks**: Breaking changes, security, schema changes.
+3. **Identify Risks**: Start from the `Risk Register` and constraints handoff, then add implementation-specific risks such as breaking changes, security, schema changes, or verification limits.
 4. **Estimate Complexity**: Trivial / Standard / Significant / Critical.
 5. **Assumption Check**: Halt and escalate if any `[ASSUMPTION - unverified]` is found.
 6. **Conflicts**: Apply **TRIZ** first, then **Priority Stack**.
+7. **Strategy Boundary**: Do not reopen approved product decisions unless §2c fails or implementation discovery proves the handoff is stale, contradictory, unsafe, or impossible.
 *Presentation*: Trivial/Standard (summarize and proceed); Significant (proceed only with explicit approval or an accepted `ApprovalRecord=workflow-tolerated`); Critical or security-sensitive (wait for explicit approval). Maintain a checklist if PBIs >= 3.
 
 ### 4a. Version Control Setup
