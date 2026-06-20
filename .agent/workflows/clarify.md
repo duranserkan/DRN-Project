@@ -58,11 +58,11 @@ Before each question round, run the shared [Expert Lens Pass](./_shared/workflow
 
 Use the pass to improve question quality, missing context discovery, scope boundaries, MVP/ROI pressure, Security/Privacy and compliance coverage, domain workflow realism, acceptance-criteria candidates, and risk or assumption discovery.
 
-- **Document selected lenses**: Document the selected expert lenses along with a concise reasoning for each in the generated clarify document (e.g., under the current question round in `Clarification Q&A`).
+- **Document selected lenses**: List selected expert lenses once per question round with concise reasoning.
 - **Demand references**: Ask for files/URLs when existing designs/docs are mentioned.
 - **Flag assumptions**: State explicitly, asking for validation.
 - **Rationale**: Give each question an implicit or concise explicit reason tied to business value, security, correctness, usability, compliance, performance, or implementation risk when the reason would otherwise be unclear.
-- **Labels**: Use persona/lens labels only when they make a question clearer. Do not group by persona or category if it weakens priority order.
+- **Question labels**: If a question is asked by an expert lens, label it with that lens; otherwise leave it unlabeled. Do not group by lens if it weakens priority order.
 
 ---
 
@@ -86,7 +86,7 @@ For each round of responses:
 - **PBIs**: ID (PBI-NNN), Epic, Title, User Story, Acceptance Criteria, Priority, Size (S/M/L/XL), Dependencies, Context (skills, files), Assumptions.
 - **INVEST Validation**: All PBIs must pass (Independent, Negotiable, Valuable, Estimable, Small, Testable).
 - **Assumption Contract**: `[ASSUMPTION - unverified]` blocks `draft-self-reviewed`; accepted non-critical assumptions must be retagged `[ASSUMPTION - accepted]` and carried to the risk register by `/answer`.
-- **Traceability**: Document selected expert lenses with concise reasoning in the Q&A section, and carry Expert Lens Pass findings into questions, answer rationale, requirement sources, acceptance criteria, Discovery & Guidance, Risks/Gotchas, and Priority Stack Validation. Do not add a raw expert transcript.
+- **Traceability**: Document selected expert lenses in the Q&A section. Label questions asked by expert lenses, and carry relevant findings into answer rationale, requirement sources, acceptance criteria, Discovery & Guidance, Risks/Gotchas, and Priority Stack Validation. Do not add a raw expert transcript.
 
 ---
 
@@ -150,10 +150,10 @@ needs_review: false
 - **[Lens Name]**: [Concise reasoning for selecting this lens based on raw input and enrichment context]
 
 **Questions:**
-1. [question]
+1. [optional lens label] [question]
 
 **Answers** _(by: user | /answer)_:
-1. [answer]
+1. [optional lens label] [answer]
 
 ## Summary
 [2-3 sentence summary]

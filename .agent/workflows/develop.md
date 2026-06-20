@@ -57,8 +57,8 @@ Before loading implementation skills or planning edits, verify the `DEVELOP-*` a
 - No `[ASSUMPTION - unverified]`, `stale: true`, unresolved `needs_review: true`, unresolved `approval_required: true`, or missing approval record when `approval_required: false`.
 - Scope, requirements, PBIs, and acceptance criteria are clear and testable.
 - `Implementation Context` lists context/files to read, relevant skills, and verification permissions.
-- `Architecture Guidance`, requirements, acceptance criteria, `Risk Register`, and `Priority Stack Validation` collectively preserve every relevant Expert Lens Pass finding and answer tradeoff from `/answer`, not only named constraint buckets.
-- Confirm the selected Expert Lens Pass categories, including any context-specific lenses, are traceably present before proceeding.
+- Relevant Expert Lens Pass findings and answer tradeoffs from `/answer` appear in actionable `DEVELOP-*` fields: acceptance criteria, `Architecture Guidance` -> `Constraints`, `Risk Register`, or `Priority Stack Validation`.
+- Questions or answers attributed to expert lenses remain labeled.
 - `Priority Stack Validation` reflects Security, Correctness, Clarity, Simplicity, and Performance.
 
 Any failure stops implementation. Redirect to `/answer` for stale source metadata, missing handoff data, missing risk/constraint traceability, or unresolved implications that can be answered from existing clarification context. Redirect to `/clarify` when scope, acceptance criteria, or critical assumptions require a new human decision.

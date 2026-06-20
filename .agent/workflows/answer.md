@@ -58,9 +58,9 @@ The agent acting as co-TPO may provide options, tradeoffs, and a recommendation,
 Write directly into the active `.agent/temp/CLARIFY-*.md` document under `## Clarification Q&A`:
 ```markdown
 **Answers** _(by: /answer)_:
-1. [answer with PO rationale]
+1. [optional lens label] [answer with PO rationale]
 ```
-Tag source: `(by: user)`, `(by: /answer)`, or `(by: user via /answer)`.
+Tag source: `(by: user)`, `(by: /answer)`, or `(by: user via /answer)`. If an answer is given by an expert lens, label it with that lens; otherwise leave it unlabeled.
 
 ---
 
@@ -107,9 +107,9 @@ The examples below are illustrative transformations, not an exhaustive 1:1 mappi
 | `Discovery & Guidance` -> `Architectural Notes` | `Architecture Guidance` -> `Patterns to Follow` + `Constraints` |
 | `Discovery & Guidance` -> `Risks/Gotchas` | `Risk Register` |
 | `Assumptions & Open Items` (accepted) | `Risk Register` (as risks with mitigations) |
-| Expert-lens findings and answer tradeoffs | Acceptance criteria, `Architecture Guidance`, `Risk Register`, `Priority Stack Validation`, and implementation constraints |
+| Expert-lens findings and answer tradeoffs | Acceptance criteria, `Architecture Guidance` -> `Constraints`, `Risk Register`, or `Priority Stack Validation` |
 
-The `DEVELOP-*` artifact must preserve the complete set of relevant Expert Lens Pass findings and answer tradeoffs from the shared operating model, not only named constraint buckets. Carry every such finding into the durable handoff data `/develop` consumes: `Risk Register`, accepted assumptions and mitigations, architecture guidance, acceptance criteria, relevant skills, verification permissions, Priority Stack validation, and implementation constraints where relevant.
+Carry relevant Expert Lens Pass findings and answer tradeoffs into actionable `DEVELOP-*` fields: acceptance criteria, `Architecture Guidance` -> `Constraints`, `Risk Register`, or `Priority Stack Validation`.
 
 ### Document Skeleton
 ```markdown
@@ -156,7 +156,7 @@ approval_scope: "/develop .agent/temp/DEVELOP-[task-slug].md"
 - **Patterns to Follow**: [Existing patterns to reuse]
 - **Integration Points**: [External APIs, shared state, cross-layer effects]
 - **Selected Lenses**: [Lenses selected/applied for this task]
-- **Constraints**: [Expert Lens Pass findings and tradeoffs; optionally record skipped key categories as N/A with brief rationale]
+- **Constraints**: [Expert Lens Pass findings and tradeoffs that affect implementation]
 
 ## Risk Register
 | Risk | Impact | Mitigation | Source |
