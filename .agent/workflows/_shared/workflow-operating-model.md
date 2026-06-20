@@ -60,7 +60,7 @@ Compose workflows by ownership, not copied rules:
 Rules:
 1. Preserve the strictest chained gate: preview-first, approval, read-only, and lifecycle gates never weaken.
 2. Use only approval records defined by the status lifecycle, produced by an allowed workflow, and accepted by the owning workflow.
-3. CAD chain invariant: when `/clarify` is invoked for work that will mutate files, the route must continue through `/answer`, a `DEVELOP-*` artifact, and `/develop`. Automation may bridge stages only when autonomy and approval gates allow; manual handoff waits for the next workflow, never direct implementation.
+3. CAD chain invariant: when workflows such as `/clarify`, `/answer`, or `/develop` are invoked, never skip generating or updating their workspace-local artifacts (e.g. `CLARIFY-*.md`, `DEVELOP-*.md` in `.agent/temp/`). System-level planning artifacts must reference and link to these local pipeline documents rather than bypassing them. Automation may bridge stages only when autonomy and approval gates allow; manual handoff waits for the next workflow, never direct implementation.
 4. Pass summaries, findings, candidates, metrics, status transitions, or artifact paths forward; do not paste full source-owned checklists downstream.
 5. Link to another workflow's rules; duplicate only phrases needed for local executability.
 6. `/review` supplies evidence/recommendations; `/optimize` owns preview/apply/metrics; `/review` validates when required.

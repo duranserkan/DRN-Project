@@ -18,6 +18,7 @@ Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCO
 - **Context Reuse**: For repeated startup/profile context in the same session, reuse conclusions; re-read only changed or missing sources.
 - **Handling Uncertainty**: Record an accepted non-critical assumption only when allowed, and ensure it is documented with its source and mitigation.
 - **Stop-and-Ask**: Stop and ask the user (or route to the owning workflow) if there is unclear scope, confidence is below the threshold, a security-sensitive choice arises, destructive/VCS actions are needed, a gate fails, a source is stale, or an unresolved `[ASSUMPTION - unverified]` occurs.
+- **No Artifact Skipping**: Never bypass the CAD workflow sequence. You must always generate the `.agent/temp/CLARIFY-[task-slug].md` artifact. Implementing changes directly without progressing to `/answer` and `/develop` is strictly prohibited.
 
 ---
 

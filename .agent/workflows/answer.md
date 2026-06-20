@@ -12,6 +12,8 @@ description: Answer clarification questions as Technical Product Owner, approve 
 
 Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, and only needed skills.
 
+- **No Artifact Skipping**: Never bypass generating or updating the `.agent/temp/DEVELOP-[task-slug].md` artifact before proceeding to `/develop`. Transitioning directly to code edits or implementation without producing this development handoff artifact is strictly prohibited.
+
 ---
 
 ## 2. Resolve Input
@@ -183,6 +185,7 @@ Present `.agent/temp/DEVELOP-*.md` and hand off to `/develop`; implementation mu
 |------|--------|
 | **Default/manual** | Stop only to let the user run `/develop .agent/temp/DEVELOP-[task-slug].md` |
 | **`/answer auto`** | Present document, ask confirmation prompt below, require explicit "yes" before running `/develop`; when composed by an allowed producer such as `/goal cad`, that producer may satisfy this confirmation only under its approval-tolerable route rules |
+| **Approved skip** | `/develop` may skip its approval phase only with explicit confirmation or a valid `ApprovalRecord=workflow-tolerated` (setting `approval_required: false` in `DEVELOP-*`), provided all criteria are satisfied and no `[ASSUMPTION - unverified]` remains |
 | **User changes** | Update `.agent/temp/DEVELOP-*.md` directly only for minor changes, set `needs_review: true`, re-run `/review`, or return to `/clarify` for major changes |
 
 Manual and automatic modes decide how `/develop` is invoked; they never make `/develop` optional for implementation after `/clarify`.

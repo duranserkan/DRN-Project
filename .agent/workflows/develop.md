@@ -12,6 +12,7 @@ description: Implement requirements from a clarified document using DiSCOS, AGEN
 - **Explicit `DEVELOP-*` path** (e.g., `/develop .agent/temp/DEVELOP-x.md`): Use that file.
 - **Explicit `CLARIFY-*` path**: Do not implement directly. Redirect to `/answer` §7 to produce a `DEVELOP-*` artifact with source metadata, then re-run `/develop` on that file. This remains mandatory even when `/clarify` was user-approved or approval-tolerable.
 - **No arguments**: Scan `.agent/temp/` for `DEVELOP-*.md`. If single, use it. If multiple, ask. If none or inline only, direct to `/clarify` then `/answer`.
+- **Mandatory CAD Artifacts**: You must never implement changes directly from generic system planning files without a valid, current `.agent/temp/DEVELOP-[task-slug].md` handoff artifact. Bypassing `/clarify` or `/answer` to perform quick edits is strictly prohibited.
 Apply the shared Startup Gate before implementation planning: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, and only needed skills.
 
 ---
