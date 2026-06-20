@@ -6,11 +6,11 @@
 
 Security is always the first requirement. Resolve conflicts with TRIZ first, then apply this priority stack:
 
-1. Security: never compromise.
-2. Correctness: wrong fast is wrong.
-3. Clarity: readable beats clever.
-4. Simplicity: complexity must be earned.
-5. Performance: optimize with proof.
+1. Security: Never Compromise
+2. Correctness: Includes Completeness & Accuracy
+3. Clarity: Readable > Clever
+4. Simplicity: Complexity Must be Earned
+5. Performance: Optimize with Proof
 
 ## Portability Contract
 
@@ -64,6 +64,7 @@ Use the repository profile first. If it is missing or silent, discover by conven
 - Add comments only when they explain non-obvious intent.
 - Update documentation and skills when a code or convention change would otherwise create drift.
 - Decide whether release notes are required before finishing source, packaging, or published documentation changes; record "not required" when no trigger applies.
+- **No CAD Artifact Bypassing**: When workflows such as `/clarify`, `/answer`, or `/develop` are invoked, never skip generating or updating their workspace-local artifacts (e.g. `CLARIFY-*.md`, `DEVELOP-*.md` in `.agent/temp/`). System-level planning artifacts must reference and link to these local pipeline documents rather than bypassing them.
 - Run `git diff --check` after documentation or code edits unless blocked.
 
 ## Lessons Learned

@@ -23,7 +23,7 @@ UPDATE    : failed -> verifying -> verified | failed
 | `draft-self-reviewed` | `CLARIFY-*` | Gates and checklist pass (§9) | `/clarify` |
 | `clarified` | `CLARIFY-*` | Approval criteria met (§6) | `/answer` |
 | `ready-to-develop` | `DEVELOP-*` | Development document produced (§7) | `/answer` |
-| `implemented` | `DEVELOP-*` | User approves final report (§7.2) | `/develop` |
+| `implemented` | `DEVELOP-*` | User approves final report (§7) | `/develop` |
 | `outlined` | `update-plan.md` | Initial update plan shell created | `/update-plan` |
 | `planning` | `update-plan.md` | Discovery/detailing in progress | `/update-plan` |
 | `ready` | `update-plan.md` | Plan has resolved stages and awaits review | `/update-plan` |
@@ -44,7 +44,9 @@ Flags are lowercase YAML metadata and do not replace `status`.
 | `blocked_on_user: true` | Human decision is required before the owner can advance status | The decision is recorded |
 | `needs_review: true` | The artifact changed after its last review | `/review` passes with no critical findings |
 | `stale: true` | Source artifact changed after this artifact was produced | The artifact is regenerated or revalidated |
-| `approval_required: true` | The next step mutates state, VCS, or risk-bearing scope | Explicit approval or a valid shared approval record is recorded |
+| `approval_required: true` | The next step mutates source/state, VCS, or risk-bearing scope and no current approval record has been captured | `approval_record` and `approval_scope` capture explicit approval or a valid shared approval record for the exact next mutation |
+
+Artifacts that carry `approval_required` must also carry `approval_record` and `approval_scope` when the flag is cleared. `approval_required: false` without a current matching approval record is an unresolved approval gate.
 
 ### Approval Records
 

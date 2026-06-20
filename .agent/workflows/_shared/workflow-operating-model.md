@@ -2,47 +2,74 @@
 description: Shared operating model for agent workflows
 ---
 
-> Load with task workflows that mutate or review agent-consumed documents.
-
 ## Startup Gate
 
-1. Read `AGENTS.md`.
-2. Read `.agent/rules/DiSCOS.md` when present.
-3. Read `.agent/repository-profile.md` when present.
-4. Read the target workflow and only the skills needed for the task.
+When present read once per task, then reuse conclusions:
 
-Reuse context already loaded in the same session. Do not re-read broad skill sets when a focused skill or workflow is enough.
+1. `AGENTS.md`.
+2. `.agent/rules/DiSCOS.md`
+3. `.agent/repository-profile.md`
+4. The target workflow and only task-needed skills.
+
+Avoid broad reloads when a focused workflow, profile entry, or skill is enough.
 
 ## Repository Extension Gate
 
-After the Startup Gate, resolve repository-specific workflow and skill overlays before choosing a generic fallback:
+Resolve repository overlays before generic fallback:
 
-1. Use `.agent/repository-profile.md` as the source of truth for custom workflow routes, skill load sets, framework overlays, frontend conventions, test commands, release rules, and documentation modules.
-2. Load only the profile-declared custom workflow or skill that matches the task, route, layer, or flag; skip unrelated custom guidance even when it exists.
-3. If the profile is silent, discover by convention from `.agent/workflows/<route>.md`, `.agent/workflows/load-skills-<group>.md`, `.agent/skills/<group>-*/SKILL.md`, and `.agent/skills/overview-skill-index/SKILL.md`.
-4. Preserve the strictest gate from every composed source. Custom routes may refine routing, accuracy, completeness, and clarity, but must not weaken security, approval, lifecycle, mutation, or verification gates. A named approval record may satisfy a workflow-local approval gate only when this shared model, the status lifecycle, the producing workflow, and the accepting gate owner all allow that record for the same bounded scope.
-5. If a profile-declared custom workflow or skill is missing, record the gap, fall back to the smallest safe generic route when possible, and report the missing repository extension in the audit.
+1. `.agent/repository-profile.md` owns custom routes, skill load sets, framework/frontend overlays, commands, release rules, and docs modules.
+2. Load only profile-declared workflows/skills matching the task, route, layer, or flag.
+3. If profile is silent, discover from `.agent/workflows/<route>.md`, `load-skills-<group>.md`, `.agent/skills/<group>-*/SKILL.md`, and `overview-skill-index`.
+4. Preserve the strictest security, approval, lifecycle, mutation, and verification gate. Custom routes may refine routing, accuracy, completeness, or clarity only upward.
+5. Approval records satisfy local gates only when this model, status lifecycle, producer, and accepting owner allow the same bounded scope.
+6. If an overlay is missing, record it, use the smallest safe generic route when possible, and report the gap in the audit.
+
+## Expert Lens Pass
+
+Use when `/clarify`, `/answer`, or another workflow asks for expert-lens review. This is a concise challenge pass, not roleplay or approval.
+
+1. Select specialist lenses only after Startup context, raw task review, initial risk/scope check, and enrichment.
+2. Include Security/Privacy lens per priority stack.
+3. When applicable include at least one
+  - Product, Business, ROI, Growth, or MVP lenses.
+  - Domain expert lenses.
+  - Necessary task relevant lenses such as UI/UX, Infrastructure.
+4. For follow-up passes, integrate new answers or artifact changes first; refresh lenses if needed.
+
+### Pass Rules
+
+1. Lenses challenge; they never approve, clear flags, bypass review, satisfy lifecycle gates, or weaken Security/Privacy. User/TPO authority remains final.
+2. Claims cite user input, repo context, loaded skill/workflow, source file, or external reference; otherwise tag `[ASSUMPTION - unverified]`.
+3. Resolve conflicts with TRIZ first, then Priority Stack: Security, Correctness, Clarity, Simplicity, Performance.
+4. Record synthesized findings, not transcripts. Avoid roleplay, fake consensus, approval language, and persona labels unless they clarify a tradeoff.
+5. Carry findings into question rationale, answer tradeoffs, sources, acceptance criteria, risks, Priority Stack notes, and implementation constraints. No permanent transcript section required.
 
 ## Workflow Composition Contract
 
 Compose workflows by ownership, not copied rules:
 
-| Workflow | Owns | When composed |
+| Workflow | Owns | Compose Rule |
 |---|---|---|
-| `/goal` | Route choice, iteration, completion audit | Delegates route details and reports proof from composed workflows |
-| `/clarify` -> `/answer` -> `/develop` | CAD requirements, approval, handoff, implementation status | May reference `/review` or `/optimize` as quality gates without inlining their rules |
-| `/review` | Read-only findings, verdicts, transition recommendations | Caller owns any mutation, status update, or optimization apply step |
-| `/optimize` | Preview, apply approval, content optimization, metrics | Uses `/review` before or after moderate/significant workflow or skill edits |
-| Profile/custom workflows | Repository-specific routing, domain gates, local skill overlays | Compose when the profile, skill index, task, route, or discovered convention selects them |
-| `_shared/*` | Startup, mutation, evidence, lifecycle, verification primitives | Referenced by workflows to prevent duplicate gate text |
+| `/goal` | Route choice, iteration, completion audit | Delegate route details; report proof. |
+| `/clarify` -> `/answer` -> `/develop` | CAD requirements, approval, handoff, implementation status | May reference `/review` or `/optimize`; do not inline them. |
+| `/review` | Read-only findings, verdicts, transition recommendations | Caller owns mutation, status, and apply steps. |
+| `/optimize` | Preview, apply approval, content optimization, metrics | Use `/review` before/after moderate or significant workflow/skill edits. |
+| Profile/custom | Repository routing, domain gates, local overlays | Compose when profile, skill index, task, route, or convention selects them. |
+| `_shared/*` | Startup, mutation, evidence, lifecycle, verification primitives | Reference to prevent duplicated gates. |
 
 Rules:
-1. Preserve the strictest chained gate: preview-first, approval, read-only, and lifecycle gates never weaken by composition. Use only approval records defined by the shared status lifecycle, produced by an allowed workflow, and accepted by the owning workflow.
-2. Pass summaries, findings, candidate sets, metrics, status transitions, or artifact paths forward; do not paste full source-owned checklists downstream.
-3. Use section links or file references for another workflow's rules. Duplicate only the phrase needed to make the local step executable.
-4. `/review` supplies evidence and recommendations; `/optimize` owns preview/apply and metrics; `/review` validates the result when required.
-5. Repository-specific custom workflows and skills are overlays, not replacements for shared gates, unless `AGENTS.md` or the repository profile explicitly declares a stricter local owner.
-6. CAD artifacts record routed workflows and approval state for workflow/skill changes; they do not own `/review` or `/optimize` gates.
+1. Preserve the strictest chained gate: preview-first, approval, read-only, and lifecycle gates never weaken.
+2. Use only approval records defined by the status lifecycle, produced by an allowed workflow, and accepted by the owning workflow.
+3. CAD chain invariant: when workflows such as `/clarify`, `/answer`, or `/develop` are invoked, never skip generating or updating their workspace-local artifacts (e.g. `CLARIFY-*.md`, `DEVELOP-*.md` in `.agent/temp/`). System-level planning artifacts must reference and link to these local pipeline documents rather than bypassing them. Automation may bridge stages only when autonomy and approval gates allow; manual handoff waits for the next workflow, never direct implementation.
+4. Pass summaries, findings, candidates, metrics, status transitions, or artifact paths forward; do not paste full source-owned checklists downstream.
+5. Link to another workflow's rules; duplicate only phrases needed for local executability.
+6. `/review` supplies evidence/recommendations; `/optimize` owns preview/apply/metrics; `/review` validates when required.
+7. Profile/custom workflows and skills overlay shared gates; they do not replace them unless `AGENTS.md` or the profile names a stricter local owner.
+8. CAD artifacts record routed workflows and approval state for workflow/skill changes; they do not own `/review` or `/optimize` gates.
+
+## Non-Compressible Gates
+
+The CAD pipeline must never shorten away or skip required security/privacy checks, source metadata, status transitions, approval records, assumption tags, mutation tiers, stale detection, review gates, or verification evidence. Specific checklists and templates reside inside their respective workflow files to keep them actionable and in the active context.
 
 ## Priority Queue
 
@@ -58,17 +85,13 @@ When priorities conflict, use TRIZ first: seek a source-owned, root-cause option
 
 ## TRIZ Decision Record
 
-For non-trivial conflicts or friction, record:
-- **IFR**: ideal final result with maximum benefit and minimum harm.
-- **Contradiction**: competing constraints or false tradeoff.
-- **Resolution**: no-tradeoff/source-owned fix, or Priority Stack fallback.
-- **Residual risk**: required only when a workaround is the safest acceptable route.
+For non-trivial conflict or friction, record `IFR`, `Contradiction`, `Resolution`, and `Residual risk` when a workaround is the safest acceptable route.
 
 Prefer permanent acceptable fixes over workaround-only patches. Do not make permanence absolute when the safest path is temporary, reversible, and explicitly risk-managed.
 
 ## Subagent Gate
 
-Use subagents when available for independent codebase questions, disjoint write scopes, parallel verification, or second-look review. Skip delegation when work is sequential, transfer cost exceeds value, scopes overlap, or the active workflow requires the main agent to own the gate.
+Use subagents for independent codebase questions, disjoint write scopes, parallel verification, or second-look review. Skip when work is sequential, transfer cost exceeds value, scopes overlap, or the active workflow requires main-agent ownership.
 
 Subagents support workflows; they do not replace them. Give bounded scope, read-only/disjoint write ownership, no VCS/destructive authority, and an evidence summary. Verify against current files or commands before relying on subagent output.
 
@@ -82,7 +105,7 @@ Subagents support workflows; they do not replace them. Give bounded scope, read-
 | VCS mutation | Branch creation, commits, rewrites, tags, push | Requires explicit user approval unless the user directly requested that exact action |
 | Destructive | Delete, reset, force push, data migration | Requires explicit approval and a rollback plan |
 
-Do not rely on "git diff is rollback" as approval for unrequested edits. Preview-first workflows must not mutate until the apply step is confirmed.
+Do not treat `git diff` as approval for unrequested edits. Preview-first workflows must not mutate until apply is confirmed.
 
 ## Portable Tool Verbs
 
@@ -101,14 +124,7 @@ Prefer repository facts and source files over external references. Use web sourc
 
 ## Evidence Contract
 
-Every review finding or workflow gate failure must include:
-
-- **Evidence**: file/path and line, command output, or source link.
-- **Impact**: what breaks, leaks, confuses, or slows.
-- **Invariant**: which rule, status contract, or priority gate is violated.
-- **Recommendation**: concrete next action.
-- **Confidence**: high, medium, low.
-- **Verification**: run, not run per rule, blocked, or not applicable.
+Every review finding or workflow gate failure includes: `Evidence` (file/path+line, command output, or source link), `Impact`, violated `Invariant`, concrete `Recommendation`, `Confidence` (high/medium/low), and `Verification` (run, not run per rule, blocked, or not applicable).
 
 Findings are caused by changed lines or changed behavior, but reviewers may inspect unchanged context needed to prove or disprove impact.
 

@@ -12,6 +12,8 @@ description: Answer clarification questions as Technical Product Owner, approve 
 
 Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, and only needed skills.
 
+- **No Artifact Skipping**: Never bypass generating or updating the `.agent/temp/DEVELOP-[task-slug].md` artifact before proceeding to `/develop`. Transitioning directly to code edits or implementation without producing this development handoff artifact is strictly prohibited.
+
 ---
 
 ## 2. Resolve Input
@@ -31,29 +33,34 @@ Review `## Enrichment Context`. If gaps exist relevant to open questions, conduc
 - (by: /answer) [Additional finding relevant to open questions]
 ```
 
+Update the risk/scope check before answering: confirm scope boundaries, Security/Privacy triggers, compliance/data/performance/design implications, lifecycle or approval implications, stale assumptions, and source gaps. Cite evidence or tag assumptions; do not invent facts.
+
 ---
 
 ## 4. Answer Questions
-Read questions in `## Clarification Q&A`. For each:
+Read questions in `## Clarification Q&A`, draft candidate answers privately, then run the shared [Expert Lens Pass](./_shared/workflow-operating-model.md#expert-lens-pass) after targeted enrichment and the updated risk/scope check. Assign or refresh lenses from evidence and challenge the candidate answers for ROI, scope creep, Security/Privacy, compliance, UX/accessibility, database/performance, implementation risk, and verification fit before writing revised answers.
+
+For each revised answer:
 - **Confidence ≥ 76%**: Decisive answer. State confidence. Frame with value, ROI, and fit.
-- **Confidence 61–75%**: Present alternatives with tradeoffs. Let co-TPO choose.
+- **Confidence 61–75%**: Present alternatives with tradeoffs, include a recommendation when evidence supports one, and leave unresolved choices to the human TPO/user.
 - **Confidence ≤ 60%**: Escalate using template:
   ```markdown
-  > **Decision needed** (by: co-TPO):
+  > **Decision needed** (by: human TPO/user):
   > **Context**: [why this matters, 1–2 sentences]
   > **Options**: A) … B) … C) …
+  > **Expert-lens tradeoff**: [compact summary when useful]
   > **Recommendation**: Option A because …
   ```
-Integrate user insights arguments. Use **TRIZ** for competing constraints. If resource conflicts remain, apply **Priority Stack** (Security > Correctness > Clarity > Simplicity > Performance).
-*Note*: If answering reveals major new scope, return to `/clarify`. For direct user answers, validate consistency and suggest improvements without overriding.
-Accepted non-critical assumptions must be retagged `[ASSUMPTION - accepted]` and carried into `Risk Register` with impact, mitigation, and source. `[ASSUMPTION - unverified]` is a hard block.
+Integrate user insights arguments. Use **TRIZ** for competing constraints. If resource conflicts remain, apply **Priority Stack**.
+*Note*: If answering reveals major new scope or unresolved critical assumptions, return to `/clarify`. For direct user answers, validate consistency and suggest improvements without overriding.
+The agent acting as co-TPO may provide options, tradeoffs, and a recommendation, but must not approve its own unresolved decision. Accepted non-critical assumptions must be retagged `[ASSUMPTION - accepted]` only when mitigation and source are recorded, then carried into `Risk Register` with impact, mitigation, and source. `[ASSUMPTION - unverified]` is a hard block.
 
 Write directly into the active `.agent/temp/CLARIFY-*.md` document under `## Clarification Q&A`:
 ```markdown
 **Answers** _(by: /answer)_:
-1. [answer with PO rationale]
+1. [optional lens label] [answer with PO rationale]
 ```
-Tag source: `(by: user)`, `(by: /answer)`, or `(by: user via /answer)`.
+Tag source: `(by: user)`, `(by: /answer)`, or `(by: user via /answer)`. If an answer is given by an expert lens, label it with that lens; otherwise leave it unlabeled.
 
 ---
 
@@ -65,6 +72,7 @@ Self-review answers:
 - [ ] **Aligned**: Priority Stack applied; TRIZ used for conflicts.
 - [ ] **Decisive**: Use definitive language ("will", "must"), not hedging.
 - [ ] **Traceable**: Link to original question and user need.
+- [ ] **Lens-challenged**: Expert Lens Pass concerns are resolved, escalated, or traceably carried into risks, constraints, acceptance criteria, or implementation guidance.
 
 ---
 
@@ -78,6 +86,7 @@ Self-review answers:
 | **Scope is clear** | In/out-of-scope unambiguous |
 | **Acceptance criteria exist** | Every requirement has testable criteria |
 | **Security addressed** | Security implications captured where relevant |
+| **Lens concerns handled** | Security/compliance/performance/design implications resolved, escalated, or carried into constraints and `Risk Register` |
 
 - **All criteria pass AND approval is recorded**: Set `status: clarified`, `clarified: [ISO 8601 date]`, and `blocked_on_user: false`. Approval means explicit user approval, or `ApprovalRecord=workflow-tolerated` only when composed by an allowed producer such as `/goal cad` under the shared approval-record rules and this document's criteria all pass. Go to §7.
 - **Any criterion fails**: Keep the current status, document failures, set `blocked_on_user: true`, and align on steps.
@@ -98,6 +107,9 @@ The examples below are illustrative transformations, not an exhaustive 1:1 mappi
 | `Discovery & Guidance` -> `Architectural Notes` | `Architecture Guidance` -> `Patterns to Follow` + `Constraints` |
 | `Discovery & Guidance` -> `Risks/Gotchas` | `Risk Register` |
 | `Assumptions & Open Items` (accepted) | `Risk Register` (as risks with mitigations) |
+| Expert-lens findings and answer tradeoffs | Acceptance criteria, `Architecture Guidance` -> `Constraints`, `Risk Register`, or `Priority Stack Validation` |
+
+Carry relevant Expert Lens Pass findings and answer tradeoffs into actionable `DEVELOP-*` fields: acceptance criteria, `Architecture Guidance` -> `Constraints`, `Risk Register`, or `Priority Stack Validation`.
 
 ### Document Skeleton
 ```markdown
@@ -111,7 +123,9 @@ source_updated: [ISO 8601 timestamp or file mtime]
 source_sha256: [hash of source clarification document]
 needs_review: false
 stale: false
-approval_required: false
+approval_required: true
+approval_record: pending
+approval_scope: "/develop .agent/temp/DEVELOP-[task-slug].md"
 ---
 
 # [Task Title]
@@ -141,7 +155,8 @@ approval_required: false
 - **Domain Boundaries**: [Affected aggregates, modules, layers]
 - **Patterns to Follow**: [Existing patterns to reuse]
 - **Integration Points**: [External APIs, shared state, cross-layer effects]
-- **Constraints**: [Technical constraints shaping implementation]
+- **Selected Lenses**: [Lenses selected/applied for this task]
+- **Constraints**: [Expert Lens Pass findings and tradeoffs that affect implementation]
 
 ## Risk Register
 | Risk | Impact | Mitigation | Source |
@@ -159,16 +174,21 @@ approval_required: false
 ```
 Run `/review .agent/temp/DEVELOP-*.md` before presenting. If no 🔴 Critical findings remain, keep `needs_review: false`; otherwise set `needs_review: true` and block handoff.
 
+Leave `approval_required: true` unless explicit confirmation or a valid `ApprovalRecord=workflow-tolerated` has already been recorded for the exact `/develop` invocation, bounded scope, and risk. When that record exists, set `approval_required: false`, populate `approval_record` and `approval_scope`, and preserve the record for `/develop` validation.
+
 ---
 
 ## 8. Handoff to `/develop`
-Present `.agent/temp/DEVELOP-*.md` and stop.
+Present `.agent/temp/DEVELOP-*.md` and hand off to `/develop`; implementation must not occur outside `/develop`.
 
 | Mode | Action |
 |------|--------|
-| **Default** | User manually runs `/develop .agent/temp/DEVELOP-[task-slug].md` |
+| **Default/manual** | Stop only to let the user run `/develop .agent/temp/DEVELOP-[task-slug].md` |
 | **`/answer auto`** | Present document, ask confirmation prompt below, require explicit "yes" before running `/develop`; when composed by an allowed producer such as `/goal cad`, that producer may satisfy this confirmation only under its approval-tolerable route rules |
+| **Approved skip** | `/develop` may skip its approval phase only with explicit confirmation or a valid `ApprovalRecord=workflow-tolerated` (setting `approval_required: false` in `DEVELOP-*`), provided all criteria are satisfied and no `[ASSUMPTION - unverified]` remains |
 | **User changes** | Update `.agent/temp/DEVELOP-*.md` directly only for minor changes, set `needs_review: true`, re-run `/review`, or return to `/clarify` for major changes |
+
+Manual and automatic modes decide how `/develop` is invoked; they never make `/develop` optional for implementation after `/clarify`.
 
 **Standalone `/answer auto` confirmation prompt**:
 > ⚠️ **Confirmation required** — `/answer auto` is about to invoke `/develop .agent/temp/DEVELOP-[task-slug].md`.
