@@ -13,6 +13,12 @@ description: Clarify a user-given task into requirements as Technical Business A
 
 Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, and only needed skills.
 
+## 1a. Flow Rules
+
+- **Context Reuse**: For repeated startup/profile context in the same session, reuse conclusions; re-read only changed or missing sources.
+- **Handling Uncertainty**: Record an accepted non-critical assumption only when allowed, and ensure it is documented with its source and mitigation.
+- **Stop-and-Ask**: Stop and ask the user (or route to the owning workflow) if there is unclear scope, confidence is below the threshold, a security-sensitive choice arises, destructive/VCS actions are needed, a gate fails, a source is stale, or an unresolved `[ASSUMPTION - unverified]` occurs.
+
 ---
 
 ## 2. Capture Raw Input
@@ -49,7 +55,7 @@ Silently analyze raw input and context:
 
 Before each question round, run the shared [Expert Lens Pass](./_shared/workflow-operating-model.md#expert-lens-pass) after §3 and §4 are current. Assign lenses from gathered evidence, not raw input alone.
 
-Use the pass to improve question quality, missing context discovery, scope boundaries, MVP/ROI pressure, Security/Privacy and compliance coverage, domain workflow realism, acceptance-criteria candidates, and risk or assumption discovery. Convert synthesized findings into a single numbered list of 5–8 questions per round, prioritizing blockers.
+Use the pass to improve question quality, missing context discovery, scope boundaries, MVP/ROI pressure, Security/Privacy and compliance coverage, domain workflow realism, acceptance-criteria candidates, and risk or assumption discovery.
 - **Demand references**: Ask for files/URLs when existing designs/docs are mentioned.
 - **Flag assumptions**: State explicitly, asking for validation.
 - **Rationale**: Give each question an implicit or concise explicit reason tied to business value, security, correctness, usability, compliance, performance, or implementation risk when the reason would otherwise be unclear.
@@ -144,15 +150,15 @@ needs_review: false
 1. [answer]
 
 ## Summary
-[2–3 sentence summary of the clarified task]
+[2-3 sentence summary]
 
 ## Assumptions & Open Items
-[Accepted assumptions, unresolved questions, and explicitly excluded items. Use `[ASSUMPTION - unverified]` only while status remains `clarifying`.]
+[accepted assumptions, unresolved questions, exclusions]
 
 ## Discovery & Guidance
-- **Context/Files to Read**: [2-4 existing files/directories]
-- **Architectural Notes**: [Boundaries to respect]
-- **Risks/Gotchas**: [Edge cases or tricky integrations]
+- **Context/Files to Read**: [2-4 files/directories]
+- **Architectural Notes**: [boundaries]
+- **Risks/Gotchas**: [edge cases]
 
 ## Requirements
 | ID | Type | Description | Acceptance Criteria | Priority | Source |
@@ -160,6 +166,7 @@ needs_review: false
 
 ## Epics
 > _Omit when not applicable._
+
 | ID | Title | Description | Requirements |
 |---|---|---|---|
 
@@ -171,18 +178,21 @@ needs_review: false
 > _Include when PBI count > 4 or cross-PBI dependencies exist._
 
 ## Priority Stack Validation
-- **Security**: ✅/❌ [brief note]
-- **Correctness**: ✅/❌ [brief note]
-- **Clarity**: ✅/❌ [brief note]
-- **Simplicity**: ✅/❌ [brief note]
-- **Performance**: ✅/❌ [brief note]
+- **Security**:
+- **Correctness**:
+- **Clarity**:
+- **Simplicity**:
+- **Performance**:
 ```
 
 ---
 
 ## 10. Handoff
 
-Present the `draft-self-reviewed` document and stop.
-- **Default**: User manually runs `/answer`.
-- **`/clarify auto`**: Invokes `/answer auto` immediately after presentation.
-- **Skip `/answer` approval phase**: Safe only when explicit user confirmation or `ApprovalRecord=workflow-tolerated` from an allowed producer such as `/goal cad` is recorded, all `/answer` approval criteria are already satisfied, and no `[ASSUMPTION - unverified]` remains. `/answer` §7 still produces the `DEVELOP-*` artifact with source metadata before `/develop` starts.
+Present the `draft-self-reviewed` artifact and route to `/answer`. `/clarify` never authorizes target-file mutation.
+
+| Mode | Action |
+|---|---|
+| Default/manual | Stop after presenting the path and tell the user to run `/answer .agent/temp/CLARIFY-[task-slug].md`. |
+| `/clarify auto` | Invoke `/answer auto` only when autonomy gates allow it. |
+| Approved skip | `/answer` may skip its approval phase only with explicit confirmation or a valid `ApprovalRecord=workflow-tolerated`, provided no `[ASSUMPTION - unverified]` remains and all approval criteria are satisfied; it still must produce `DEVELOP-*` before `/develop`. |

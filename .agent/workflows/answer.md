@@ -107,7 +107,7 @@ The examples below are illustrative transformations, not an exhaustive 1:1 mappi
 | `Assumptions & Open Items` (accepted) | `Risk Register` (as risks with mitigations) |
 | Expert-lens findings and answer tradeoffs | Acceptance criteria, `Architecture Guidance`, `Risk Register`, `Priority Stack Validation`, and implementation constraints |
 
-The `DEVELOP-*` artifact must preserve handoff data `/develop` consumes: `Risk Register`, accepted assumptions and mitigations, architecture guidance, relevant skills, verification permissions, and Security/Privacy, compliance, performance, database, frontend/design, and implementation constraints where relevant.
+The `DEVELOP-*` artifact must preserve the complete set of relevant Expert Lens Pass findings and answer tradeoffs from the shared operating model, not only named constraint buckets. Carry every such finding into the durable handoff data `/develop` consumes: `Risk Register`, accepted assumptions and mitigations, architecture guidance, acceptance criteria, relevant skills, verification permissions, Priority Stack validation, and implementation constraints where relevant.
 
 ### Document Skeleton
 ```markdown
@@ -151,7 +151,7 @@ approval_required: false
 - **Domain Boundaries**: [Affected aggregates, modules, layers]
 - **Patterns to Follow**: [Existing patterns to reuse]
 - **Integration Points**: [External APIs, shared state, cross-layer effects]
-- **Constraints**: [Security/compliance/performance/design/database/API constraints shaping implementation]
+- **Constraints**: [All relevant Expert Lens Pass constraints/findings from the shared operating model, including but not limited to Security/Privacy, compliance, performance, design, database, API, test/QA, operations, domain workflow, integration contract, data governance, developer experience/public API, content/localization, AI/automation safety, and product/business/ROI/MVP constraints shaping implementation]
 
 ## Risk Register
 | Risk | Impact | Mitigation | Source |
@@ -172,13 +172,15 @@ Run `/review .agent/temp/DEVELOP-*.md` before presenting. If no 🔴 Critical fi
 ---
 
 ## 8. Handoff to `/develop`
-Present `.agent/temp/DEVELOP-*.md` and stop.
+Present `.agent/temp/DEVELOP-*.md` and hand off to `/develop`; implementation must not occur outside `/develop`.
 
 | Mode | Action |
 |------|--------|
-| **Default** | User manually runs `/develop .agent/temp/DEVELOP-[task-slug].md` |
+| **Default/manual** | Stop only to let the user run `/develop .agent/temp/DEVELOP-[task-slug].md` |
 | **`/answer auto`** | Present document, ask confirmation prompt below, require explicit "yes" before running `/develop`; when composed by an allowed producer such as `/goal cad`, that producer may satisfy this confirmation only under its approval-tolerable route rules |
 | **User changes** | Update `.agent/temp/DEVELOP-*.md` directly only for minor changes, set `needs_review: true`, re-run `/review`, or return to `/clarify` for major changes |
+
+Manual and automatic modes decide how `/develop` is invoked; they never make `/develop` optional for implementation after `/clarify`.
 
 **Standalone `/answer auto` confirmation prompt**:
 > ⚠️ **Confirmation required** — `/answer auto` is about to invoke `/develop .agent/temp/DEVELOP-[task-slug].md`.
