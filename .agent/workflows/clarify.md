@@ -56,6 +56,7 @@ Silently analyze raw input and context:
 Before each question round, run the shared [Expert Lens Pass](./_shared/workflow-operating-model.md#expert-lens-pass) after §3 and §4 are current. Assign lenses from gathered evidence, not raw input alone.
 
 Use the pass to improve question quality, missing context discovery, scope boundaries, MVP/ROI pressure, Security/Privacy and compliance coverage, domain workflow realism, acceptance-criteria candidates, and risk or assumption discovery.
+
 - **Demand references**: Ask for files/URLs when existing designs/docs are mentioned.
 - **Flag assumptions**: State explicitly, asking for validation.
 - **Rationale**: Give each question an implicit or concise explicit reason tied to business value, security, correctness, usability, compliance, performance, or implementation risk when the reason would otherwise be unclear.
@@ -119,7 +120,7 @@ Verify all §8 gates and INVEST pass. Run `/review .agent/temp/CLARIFY-[task-slu
 
 ```markdown
 ---
-status: draft  # advances to 'clarifying' when §5 begins; never set 'clarified' here
+status: draft  # advances to 'clarifying' when §5 begins, and to 'draft-self-reviewed' after §9 checklist and /review pass; never set 'clarified' here
 title: [Task Title]
 created: [ISO 8601 date]
 clarified:

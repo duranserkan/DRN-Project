@@ -49,7 +49,7 @@ For each revised answer:
   > **Expert-lens tradeoff**: [compact summary when useful]
   > **Recommendation**: Option A because …
   ```
-Integrate user insights arguments. Use **TRIZ** for competing constraints. If resource conflicts remain, apply **Priority Stack** (Security > Correctness > Clarity > Simplicity > Performance).
+Integrate user insights arguments. Use **TRIZ** for competing constraints. If resource conflicts remain, apply **Priority Stack**.
 *Note*: If answering reveals major new scope or unresolved critical assumptions, return to `/clarify`. For direct user answers, validate consistency and suggest improvements without overriding.
 The agent acting as co-TPO may provide options, tradeoffs, and a recommendation, but must not approve its own unresolved decision. Accepted non-critical assumptions must be retagged `[ASSUMPTION - accepted]` only when mitigation and source are recorded, then carried into `Risk Register` with impact, mitigation, and source. `[ASSUMPTION - unverified]` is a hard block.
 
@@ -121,7 +121,9 @@ source_updated: [ISO 8601 timestamp or file mtime]
 source_sha256: [hash of source clarification document]
 needs_review: false
 stale: false
-approval_required: false
+approval_required: true
+approval_record: pending
+approval_scope: "/develop .agent/temp/DEVELOP-[task-slug].md"
 ---
 
 # [Task Title]
@@ -151,7 +153,8 @@ approval_required: false
 - **Domain Boundaries**: [Affected aggregates, modules, layers]
 - **Patterns to Follow**: [Existing patterns to reuse]
 - **Integration Points**: [External APIs, shared state, cross-layer effects]
-- **Constraints**: [All relevant Expert Lens Pass constraints/findings from the shared operating model, including but not limited to Security/Privacy, compliance, performance, design, database, API, test/QA, operations, domain workflow, integration contract, data governance, developer experience/public API, content/localization, AI/automation safety, and product/business/ROI/MVP constraints shaping implementation]
+- **Selected Lenses**: [Lenses selected/applied for this task]
+- **Constraints**: [Expert Lens Pass findings and tradeoffs; optionally record skipped key categories as N/A with brief rationale]
 
 ## Risk Register
 | Risk | Impact | Mitigation | Source |
@@ -168,6 +171,8 @@ approval_required: false
 - **Performance**: ✅ [brief note]
 ```
 Run `/review .agent/temp/DEVELOP-*.md` before presenting. If no 🔴 Critical findings remain, keep `needs_review: false`; otherwise set `needs_review: true` and block handoff.
+
+Leave `approval_required: true` unless explicit confirmation or a valid `ApprovalRecord=workflow-tolerated` has already been recorded for the exact `/develop` invocation, bounded scope, and risk. When that record exists, set `approval_required: false`, populate `approval_record` and `approval_scope`, and preserve the record for `/develop` validation.
 
 ---
 

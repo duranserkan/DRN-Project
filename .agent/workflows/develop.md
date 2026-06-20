@@ -44,19 +44,20 @@ All pass -> run `/answer` §7 to create `DEVELOP-*`, then re-run `/develop` on t
 If input is `.agent/temp/DEVELOP-*.md`, verify `source`, `source_status`, `source_updated`, and `source_sha256` against the source `.agent/temp/CLARIFY-*.md`.
 - Source missing, newer, or hash mismatch -> set or report `stale: true`; recommend re-running `/answer` §7.
 - `needs_review: true` -> run `/review` before implementation.
-- `approval_required: true` -> obtain explicit approval before mutating unless invoked by a workflow with a valid shared `ApprovalRecord=workflow-tolerated` approval record that this gate accepts.
+- `approval_required: true` -> obtain and record explicit approval before mutating unless invoked by a workflow with a valid shared `ApprovalRecord=workflow-tolerated` approval record that this gate accepts. A direct user invocation of `/develop <this DEVELOP path>` may satisfy this gate only for the exact artifact, bounded scope, and risk; record `approval_record: explicit approval recorded`, `approval_scope`, and `approval_required: false` before source edits.
   - Caller exception: `/goal` may produce `ApprovalRecord=workflow-tolerated` for this workflow-local approval only under the shared lifecycle's limits. Failed, unclear, critical, destructive, VCS, security-sensitive, or otherwise non-tolerable gates still require explicit human approval.
+- `approval_required: false` without current matching `approval_record` and `approval_scope` -> treat as an unresolved approval gate and stop before mutation.
 
 ### 2c. Handoff Completeness Gate
 
 Before loading implementation skills or planning edits, verify the `DEVELOP-*` artifact contains current handoff data from `/answer`:
 
 - Source metadata exists, matches the source clarification document, and `source_status: clarified`.
-- No `[ASSUMPTION - unverified]`, `stale: true`, unresolved `needs_review: true`, or unresolved `approval_required: true`.
+- No `[ASSUMPTION - unverified]`, `stale: true`, unresolved `needs_review: true`, unresolved `approval_required: true`, or missing approval record when `approval_required: false`.
 - Scope, requirements, PBIs, and acceptance criteria are clear and testable.
 - `Implementation Context` lists context/files to read, relevant skills, and verification permissions.
 - `Architecture Guidance`, requirements, acceptance criteria, `Risk Register`, and `Priority Stack Validation` collectively preserve every relevant Expert Lens Pass finding and answer tradeoff from `/answer`, not only named constraint buckets.
-- Confirm all applicable lens categories from the shared operating model are traceably present before proceeding: Product/Business/ROI/Growth/MVP, Security/Privacy, Compliance/Audit, Frontend UX/Accessibility, Database/Performance, Architecture/Maintainability, Test/QA, Operations/SRE, Domain SME/User Workflow, Integration/API Contract, Data Governance/Analytics, Developer Experience/Public API, Content/Localization, and AI/Automation Safety.
+- Confirm the selected Expert Lens Pass categories, including any context-specific lenses, are traceably present before proceeding.
 - `Priority Stack Validation` reflects Security, Correctness, Clarity, Simplicity, and Performance.
 
 Any failure stops implementation. Redirect to `/answer` for stale source metadata, missing handoff data, missing risk/constraint traceability, or unresolved implications that can be answered from existing clarification context. Redirect to `/clarify` when scope, acceptance criteria, or critical assumptions require a new human decision.
@@ -110,15 +111,8 @@ Run a VCS preflight before edits:
 Follow the Development Loop per PBI:
 1. **Discovery**: Outline and target-read existing code.
 2. **Implement**: Smallest testable unit first, using conventions.
-3. **Clean Code Gate** (enforce for new or materially touched code before next PBI):
-   - *Separation of concerns*: No business logic in controllers/handlers; no persistence logic in domain.
-   - *Method size*: Extract methods > 20 lines or doing > 1 thing when it improves clarity.
-   - *Cyclomatic complexity (CC)*: Max CC 5 per touched method unless local patterns justify a documented exception.
-   - *Naming*: Express intent; no abbreviations or generic names (`data`, `result`).
-   - *Dead code*: Remove commented-out code, unused parameters, unreachable branches.
-4. **Validate**: Run build only when explicitly allowed by user.
-   - Build fails -> Self-Correction Loop.
-   - Toolchain missing/blocked -> mark verification blocked; continue only for low-risk static work and never imply pass/fail.
+3. **Clean Code Gate** (enforce for new or materially touched code before next PBI).
+4. **Validate by Review**: Run build only when explicitly allowed by user.
 5. **Tests**:
    - Add or update tests when required by the PBI and repository conventions.
    - Run test commands only when explicitly allowed (unit tests first).
@@ -126,7 +120,7 @@ Follow the Development Loop per PBI:
 
 ### Self-Correction Loop
 
-Build/test fails → Fix → Re-verify. Stop after **2 failed attempts** on the same issue; report errors, hypotheses, and proposed next steps.
+Fix failing builds or tests and re-verify. Limit to 2 attempts before escalating.
 
 ---
 

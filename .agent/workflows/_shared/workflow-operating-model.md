@@ -28,34 +28,13 @@ Resolve repository overlays before generic fallback:
 
 Use when `/clarify`, `/answer`, or another workflow asks for expert-lens review. This is a concise challenge pass, not roleplay or approval.
 
-### Ordering
-
-1. Keep Security/Privacy active from intake onward.
-2. Select specialist lenses only after Startup context, raw task review, initial risk/scope check, and enrichment.
-3. For follow-up passes, integrate new answers or artifact changes first; refresh lenses only when risk changed.
-
-### Lens Selection
-
-Select `2-4` full lenses:
-
-- Include one Product, Business, ROI, Growth, or MVP lens.
-- Keep Security/Privacy mandatory even outside the full-lens set.
-- Promote Security/Privacy for auth/authz, user input, sensitive data, browser protections, secrets, dependencies, CI/CD, infrastructure, external communication, or storage; it counts toward `2-4` and outranks optional lenses.
-- If more than four fit, choose by TRIZ risk/value, then Priority Stack. Merge adjacent lenses such as Security+Compliance, Database+Performance, or Architecture+Operations without hiding higher-priority risk.
-
-Specialist triggers:
-- Compliance/Audit: regulated data, privacy, retention, legal, payment, identity, enterprise, contracts.
-- Frontend UX/Accessibility: user UI, forms, navigation, feedback states, design behavior.
-- Database/Performance: persistence, queries, migrations, reporting, scale, concurrency, indexing, latency.
-- Architecture/Maintainability: cross-layer design, boundaries, public APIs, framework conventions.
-- Test/QA: acceptance criteria, regression risk, observability, verification strategy.
-- Operations/SRE: deployment, reliability, runtime behavior, rollback, supportability.
-- Domain SME/User Workflow: domain rules, roles, operational reality, edge cases, manual workarounds.
-- Integration/API Contract: external APIs, events, webhooks, public contracts, compatibility, SDKs.
-- Data Governance/Analytics: data quality, lineage, metrics, reporting correctness, retention, auditability.
-- Developer Experience/Public API: framework/package work, naming, discoverability, ergonomics, migration, docs.
-- Content/Localization: user-facing copy, terminology, localization, support content.
-- AI/Automation Safety: LLMs, agent workflows, generated content, prompt injection, evaluation, human review, containment.
+1. Select specialist lenses only after Startup context, raw task review, initial risk/scope check, and enrichment.
+2. Include Security/Privacy lens per priority stack.
+3. When applicable include at least one
+  - Product, Business, ROI, Growth, or MVP lenses.
+  - Domain expert lenses.
+  - Necessary task relevant lenses such as UI/UX, Infrastructure.
+4. For follow-up passes, integrate new answers or artifact changes first; refresh lenses if needed.
 
 ### Pass Rules
 

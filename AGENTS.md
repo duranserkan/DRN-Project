@@ -6,11 +6,11 @@
 
 Security is always the first requirement. Resolve conflicts with TRIZ first, then apply this priority stack:
 
-1. Security: never compromise.
-2. Correctness: wrong fast is wrong.
-3. Clarity: readable beats clever.
-4. Simplicity: complexity must be earned.
-5. Performance: optimize with proof.
+1. Security: Never compromise
+2. Correctness: Includes Completeness & Accuracy
+3. Clarity: Readable beats clever
+4. Simplicity: Complexity must be earned
+5. Performance: Optimize with proof
 
 ## Portability Contract
 
