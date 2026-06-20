@@ -18,17 +18,24 @@ Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCO
 - **Context Reuse**: For repeated startup/profile context in the same session, reuse conclusions; re-read only changed or missing sources.
 - **Handling Uncertainty**: Record an accepted non-critical assumption only when allowed, and ensure it is documented with its source and mitigation.
 - **Stop-and-Ask**: Stop and ask the user (or route to the owning workflow) if there is unclear scope, confidence is below the threshold, a security-sensitive choice arises, destructive/VCS actions are needed, a gate fails, a source is stale, or an unresolved `[ASSUMPTION - unverified]` occurs.
-- **No Artifact Skipping**: Never bypass the CAD workflow sequence. You must always generate the `.agent/temp/CLARIFY-[task-slug].md` artifact. Implementing changes directly without progressing to `/answer` and `/develop` is strictly prohibited.
+- **No Artifact Skipping**: Never bypass the CAD workflow sequence. You must always generate the resolved `.agent/temp/CLARIFY-*` artifact. Implementing changes directly without progressing to `/answer` and `/develop` is strictly prohibited.
 
 ---
 
 ## 2. Capture Raw Input
 
-1. Record user task description verbatim under `## Raw Input`. If < 1 sentence or too vague, ask user to expand.
-2. Create document `.agent/temp/CLARIFY-[task-slug].md` (unless user specifies path).
-3. If file exists, ask to overwrite or rename.
-4. Set `status: draft`, advancing to `clarifying` when the first question round starts.
-5. If the task is waiting on the user, keep the current `status` and set `blocked_on_user: true` until the answer is recorded.
+1. Resolve loop input before deriving the task slug:
+   - One existing `.agent/temp/CLARIFY-*.md` path means continue that lineage: set it as `previous_artifact` and treat remaining text as new raw input.
+   - Multiple `CLARIFY-*` paths means ask which lineage to continue.
+   - Missing or unreadable supplied paths stop creation.
+   - If no new text remains, continue from the previous artifact's summary, open items, review/optimization findings, and latest user instruction.
+2. Record raw input verbatim under `## Raw Input`; for loop input, include new text plus `Previous artifact:`. If it stays vague after loop context, ask the user to expand.
+3. Create a fresh `.agent/temp/CLARIFY-[task-slug].md` unless the user specifies a path. For loop input, use `.agent/temp/CLARIFY-[task-slug]-iteration-[N].md` when the base filename exists.
+4. If the target exists and no loop-safe suffix is available, ask to overwrite or rename. Edit a prior artifact in place only on explicit user request and after normal review gates.
+5. Set `status: draft`, advancing to `clarifying` when the first question round starts.
+6. For loop input, populate lineage metadata in frontmatter: `iteration`, `previous_artifact`, `previous_status`, `previous_updated`, and `previous_sha256`.
+7. If a matching prior `.agent/temp/DEVELOP-*.md`, `.agent/temp/WALKTHROUGH-*.md`, or explicit commit/ref is supplied or unambiguously discoverable, record optional lineage metadata: `previous_develop_artifact`, `previous_develop_sha256`, `previous_walkthrough_artifact`, and `previous_commit`. This local temporary loop uses name-based lineage for walkthrough and commit/ref evidence; do not require extra hashes beyond the listed freshness fields.
+8. If the task is waiting on the user, keep the current `status` and set `blocked_on_user: true` until the answer is recorded.
 
 ---
 
@@ -40,6 +47,21 @@ Before asking questions, research to minimize round-trips (max 20% budget):
 Write findings under `## Enrichment Context` subheadings: Codebase Findings, Knowledge Items, Relevant Skills, External References, Initial Observations.
 
 Then perform an initial risk/scope check and record concise findings under `Initial Observations`: scope boundaries, Security/Privacy triggers, compliance/data/performance/design implications, lifecycle or approval implications, likely specialist-lens triggers, and `[ASSUMPTION - unverified]` items. Cite evidence or tag assumptions; do not invent facts.
+
+For loop input, add `### Enriched Lineage Snapshot` under `## Enrichment Context`. The snapshot must be self-sufficient for `/answer` and sufficient for `/answer` to produce a current `DEVELOP-*` handoff without reopening older artifacts by default. Summarize and cite evidence; do not paste whole prior artifacts or large diffs.
+
+Include these subparts when evidence exists:
+- **Previous Clarify Snapshot**: prior artifact path, status, timestamp/mtime, SHA-256, raw intent, summary, accepted answers, requirements, PBIs, risks, assumptions, and open items.
+- **Previous Develop Snapshot**: prior `DEVELOP-*` path, source metadata, status, executive summary, implementation context, architecture guidance, constraints, risk register, verification permissions, approval state, and stale/needs-review flags.
+- **Previous Implementation Snapshot**: prior walkthrough path or commit/ref, changed files, implemented PBIs or requirements, verification results, deviations, unresolved follow-ups, and any user-approved status changes.
+- **Iteration Delta**: requested new change, carried-forward decisions, superseded decisions, changed acceptance criteria, new risks, and downstream handoff notes `/answer` and `/develop` must honor.
+
+Evidence rules:
+- Prefer explicit user-supplied `DEVELOP-*`, `WALKTHROUGH-*`, and commit refs. If absent, discover matching prior `DEVELOP-*` artifacts whose `source` points to the previous `CLARIFY-*`; ask if multiple candidates exist.
+- Use name-versioned local references as sufficient lineage evidence when they identify one artifact or commit/ref. If a name is missing, ambiguous, or conflicts with summarized evidence, record the source gap or ask.
+- Use read-only git inspection for commit evidence. Use an inferred previous commit only when the user explicitly refers to the previous commit and the intended commit is unambiguous; otherwise record the missing commit evidence as an open item.
+- Supplied `/review` or `/optimize` findings may be summarized in the snapshot. Route to those workflows only under their gates; do not copy their rules or mutate prior temp artifacts by default.
+- If prior implementation evidence conflicts with prior clarification intent, record the conflict and ask unless the user already supplied a clear supersession decision.
 
 ---
 
@@ -108,7 +130,7 @@ Also confirm Expert Lens Pass outputs are traceably reflected in durable artifac
 
 ## 9. Output Artifact
 
-Verify all §8 gates and INVEST pass. Run `/review .agent/temp/CLARIFY-[task-slug].md`; if no 🔴 Critical findings remain, set `status: draft-self-reviewed`.
+Verify all §8 gates and INVEST pass. Run `/review` on the resolved new `.agent/temp/CLARIFY-*` artifact path; if no 🔴 Critical findings remain, set `status: draft-self-reviewed`.
 
 ### Pre-presentation Checklist
 
@@ -128,6 +150,15 @@ created: [ISO 8601 date]
 clarified:
 blocked_on_user: false
 needs_review: false
+iteration: 1
+previous_artifact:
+previous_status:
+previous_updated:
+previous_sha256:
+previous_develop_artifact:
+previous_develop_sha256:
+previous_walkthrough_artifact:
+previous_commit:
 ---
 
 # Task Clarification: [Task Title]
@@ -142,6 +173,12 @@ needs_review: false
 ### Knowledge Items
 ### Relevant Skills
 ### External References
+### Enriched Lineage Snapshot
+> _Include only when this clarification continues a previous `CLARIFY-*` artifact._
+#### Previous Clarify Snapshot
+#### Previous Develop Snapshot
+#### Previous Implementation Snapshot
+#### Iteration Delta
 ### Initial Observations
 
 ## Clarification Q&A
@@ -199,6 +236,8 @@ Present the `draft-self-reviewed` artifact and route to `/answer`. `/clarify` ne
 
 | Mode | Action |
 |---|---|
-| Default/manual | Stop after presenting the path and tell the user to run `/answer .agent/temp/CLARIFY-[task-slug].md`. |
-| `/clarify auto` | Invoke `/answer auto` only when autonomy gates allow it. |
+| Default/manual | Stop after presenting the resolved new path and tell the user to run `/answer` with that exact path. |
+| `/clarify auto` | Invoke `/answer auto` on the new artifact only when autonomy gates allow it. |
 | Approved skip | `/answer` may skip its approval phase only with explicit confirmation or a valid `ApprovalRecord=workflow-tolerated`, provided no `[ASSUMPTION - unverified]` remains and all approval criteria are satisfied; it still must produce `DEVELOP-*` before `/develop`. |
+
+For loop input, state that older artifacts are lineage evidence, not the default `/answer` target. `/clarify` does not create branches or commits; record VCS intent as guidance for `/develop` or `/commit-polish`.

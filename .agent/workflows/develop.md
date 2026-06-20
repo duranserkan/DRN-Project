@@ -44,6 +44,7 @@ All pass -> run `/answer` §7 to create `DEVELOP-*`, then re-run `/develop` on t
 
 If input is `.agent/temp/DEVELOP-*.md`, verify `source`, `source_status`, `source_updated`, and `source_sha256` against the source `.agent/temp/CLARIFY-*.md`.
 - Source missing, newer, or hash mismatch -> set or report `stale: true`; recommend re-running `/answer` §7.
+- Source `CLARIFY-*` is superseded in the same lineage -> set or report `stale: true`; recommend `/answer` §7 on the latest intended clarification artifact.
 - `needs_review: true` -> run `/review` before implementation.
 - `approval_required: true` -> obtain and record explicit approval before mutating unless invoked by a workflow with a valid shared `ApprovalRecord=workflow-tolerated` approval record that this gate accepts. A direct user invocation of `/develop <this DEVELOP path>` may satisfy this gate only for the exact artifact, bounded scope, and risk; record `approval_record: explicit approval recorded`, `approval_scope`, and `approval_required: false` before source edits.
   - Caller exception: `/goal` may produce `ApprovalRecord=workflow-tolerated` for this workflow-local approval only under the shared lifecycle's limits. Failed, unclear, critical, destructive, VCS, security-sensitive, or otherwise non-tolerable gates still require explicit human approval.
@@ -57,6 +58,7 @@ Before loading implementation skills or planning edits, verify the `DEVELOP-*` a
 - No `[ASSUMPTION - unverified]`, `stale: true`, unresolved `needs_review: true`, unresolved `approval_required: true`, or missing approval record when `approval_required: false`.
 - Scope, requirements, PBIs, and acceptance criteria are clear and testable.
 - `Implementation Context` lists context/files to read, relevant skills, and verification permissions.
+- If the source `CLARIFY-*` continues a previous artifact or contains non-empty enriched lineage evidence, the `DEVELOP-*` includes `Lineage Notes` with previous clarify/develop/implementation evidence, carried-forward decisions, superseded decisions, iteration delta, and unresolved follow-ups converted to risks or PBIs.
 - Relevant Expert Lens Pass findings and answer tradeoffs from `/answer` appear in actionable `DEVELOP-*` fields: acceptance criteria, `Architecture Guidance` -> `Constraints`, `Risk Register`, or `Priority Stack Validation`.
 - Questions or answers attributed to expert lenses remain labeled.
 - `Priority Stack Validation` reflects Security, Correctness, Clarity, Simplicity, and Performance.
@@ -73,7 +75,7 @@ Any failure stops implementation. Redirect to `/answer` for stale source metadat
    - `.agent/skills/overview-skill-index/SKILL.md`
    - `.agent/skills/basic-agentic-development/SKILL.md` (Autonomy Ladder + Development Loop)
    *Note: Reuse loaded context if `/clarify` or `/answer` ran in the same session.*
-   Also read the `DEVELOP-*` sections that `/answer` produced: `Risk Register`, accepted assumptions and mitigations, `Architecture Guidance`, relevant skills, verification permissions, and the complete set of relevant Expert Lens Pass findings, answer tradeoffs, and implementation constraints.
+   Also read the `DEVELOP-*` sections that `/answer` produced: `Lineage Notes` when present, `Risk Register`, accepted assumptions and mitigations, `Architecture Guidance`, relevant skills, verification permissions, and the complete set of relevant Expert Lens Pass findings, answer tradeoffs, and implementation constraints.
 2. **Load Relevant Skills**: Use skill index to load **only** what PBIs need:
    - *Domain/Entity*: `overview-ddd-architecture` + profile-declared domain skills.
    - *API/Hosting*: `basic-security-checklist`, `test-integration-api` + profile hosting skills.
@@ -104,6 +106,7 @@ Run a VCS preflight before edits:
 - If the user explicitly requested branch creation, create it from the profile-declared integration branch, or from the release branch only for confirmed hotfixes.
 - If branch creation fails, stop and ask; do not silently continue on the current branch.
 - Commits are opt-in. When requested, commit per approved checkpoint using `basic-git-conventions`. Never push unless explicitly requested and approved.
+- `/clarify` and `/answer` never create branches or commits. To commit `.agent/temp/` CAD artifacts, verify ignore rules and require an explicit tracking choice, such as force-adding selected artifacts or changing ignore rules.
 
 ---
 

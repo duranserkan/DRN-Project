@@ -48,6 +48,28 @@ Flags are lowercase YAML metadata and do not replace `status`.
 
 Artifacts that carry `approval_required` must also carry `approval_record` and `approval_scope` when the flag is cleared. `approval_required: false` without a current matching approval record is an unresolved approval gate.
 
+### Lineage Metadata
+
+`CLARIFY-*` artifacts use optional lineage keys when a new clarification loop starts from an earlier artifact. Workflows use them for supersession checks:
+
+| Key | Meaning |
+|---|---|
+| `iteration` | Current clarification iteration number within the lineage. |
+| `previous_artifact` | Prior `CLARIFY-*` artifact used as input for this iteration. |
+| `previous_status` | Prior artifact status when this iteration was created. |
+| `previous_updated` | Prior artifact timestamp or filesystem mtime used for freshness evidence. |
+| `previous_sha256` | SHA-256 of the prior artifact when this iteration was created. |
+| `previous_develop_artifact` | Prior `DEVELOP-*` artifact summarized into the enriched lineage snapshot, when supplied or unambiguously discovered. |
+| `previous_develop_sha256` | SHA-256 of the prior `DEVELOP-*` artifact when it was summarized. |
+| `previous_walkthrough_artifact` | Prior walkthrough artifact summarized into the enriched lineage snapshot, when supplied or unambiguously discovered. |
+| `previous_commit` | Prior commit/ref summarized into the enriched lineage snapshot, when supplied or unambiguously inferred from the user's loop request. |
+
+Clarification loop lineage is local and temporary. Use explicit, name-versioned artifact and commit/ref references as sufficient evidence when they are supplied or unambiguous. Additional hashes are not required unless a listed `*_sha256` key is already part of a source freshness check. Ambiguous names, missing referenced artifacts, or conflicting evidence are source gaps that must be recorded or escalated.
+
+An artifact named by another `CLARIFY-*` in `previous_artifact` is superseded for default `/answer` selection when the descendant is fresher by `iteration`, then artifact timestamp. Superseded artifacts remain lineage evidence or explicit branch points when the user confirms that intent.
+
+`### Enriched Lineage Snapshot` is the durable summarized context that lets a new clarification iteration stand on its own for `/answer`. It can summarize prior `CLARIFY-*`, matching `DEVELOP-*`, walkthrough, and commit evidence, but it does not replace `source_*` freshness checks, approval records, `/review`, `/optimize`, or `/develop` handoff gates.
+
 ### Approval Records
 
 Explicit approval remains the default approval record. A workflow may produce or consume a shared substitute approval record only when this lifecycle, the shared operating model, the producing workflow, and the accepting workflow all allow the same bounded scope.
