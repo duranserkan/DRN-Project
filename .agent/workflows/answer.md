@@ -103,15 +103,19 @@ Verify answers meet these checklist items:
 Transform `.agent/temp/CLARIFY-*.md` into a self-contained, decisive `.agent/temp/DEVELOP-[task-slug].md`.
 
 ### Transformation Rules
-| CLARIFY-*.md section | DEVELOP-*.md section |
-|---|---|
-| `Discovery & Guidance` -> `Context/Files to Read` | `Implementation Context` -> `Context/Files to Read` |
-| `Discovery & Guidance` -> `Context/Files to Read` | `Architecture Guidance` -> `Domain Boundaries` |
-| `Discovery & Guidance` -> `Architectural Notes` | `Architecture Guidance` -> `Patterns to Follow` + `Constraints` |
-| `Discovery & Guidance` -> `Risks/Gotchas` | `Risk Register` |
-| `Assumptions & Open Items` (accepted) | `Risk Register` (with mitigations) |
-| Expert-lens findings / tradeoffs | Acceptance criteria, `Constraints`, `Risk Register`, or `Priority Stack Validation` |
-| `Enriched Lineage Snapshot` | `Lineage Notes`, `Executive Summary`, carried-forward/superseded requirements and PBIs, `Architecture Guidance`, `Risk Register`, and `Priority Stack Validation` |
+
+> [!NOTE]
+> The table below maps sections and subbullets from `CLARIFY-*.md` to their corresponding destinations in `DEVELOP-*.md`. A single parent section (such as `Discovery & Guidance`) can map to multiple distinct target sections/subbullets (one-to-many mapping) to logically organize the development context.
+
+| CLARIFY Source Section | CLARIFY Source Subbullet | DEVELOP Target Section | DEVELOP Target Subbullet |
+|---|---|---|---|
+| `Discovery & Guidance` | `Context/Files` | `Implementation Context` | `Context/Files to Read` |
+| `Discovery & Guidance` | `Architecture` | `Architecture Guidance` | `Domain Boundaries` |
+| `Discovery & Guidance` | `Architecture` | `Architecture Guidance` | `Patterns to Follow` + `Constraints` |
+| `Discovery & Guidance` | `Risks` | `Risk Register` | (All rows) |
+| `Assumptions & Open Items` | (Accepted items) | `Risk Register` | (With mitigations) |
+| `Clarification Q&A` | (Expert-lens findings / tradeoffs) | Multiple sections | Acceptance criteria, `Constraints`, `Risk Register`, or `Priority Stack Validation` |
+| `Enriched Lineage Snapshot` | (All snapshot data) | Multiple sections | `Lineage Notes`, `Executive Summary`, carried-forward/superseded requirements and PBIs, `Architecture Guidance`, `Risk Register`, and `Priority Stack Validation` |
 
 ### Document Skeleton
 ```markdown
