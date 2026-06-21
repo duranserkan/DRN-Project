@@ -2,7 +2,7 @@
 description: Shared status lifecycle for agent workflow artifacts
 ---
 
-> **Estimated context: ~0.4K tokens**
+> **Estimated context: ~1.8K tokens**
 > See also: [Workflow Operating Model](./workflow-operating-model.md)
 
 ## Status Lifecycle
@@ -64,11 +64,10 @@ Artifacts that carry `approval_required` must also carry `approval_record` and `
 | `previous_walkthrough_artifact` | Prior walkthrough artifact summarized into the enriched lineage snapshot, when supplied or unambiguously discovered. |
 | `previous_commit` | Prior commit/ref summarized into the enriched lineage snapshot, when supplied or unambiguously inferred from the user's loop request. |
 
-Clarification loop lineage is local and temporary. Use explicit, name-versioned artifact and commit/ref references as sufficient evidence when they are supplied or unambiguous. Additional hashes are not required unless a listed `*_sha256` key is already part of a source freshness check. Ambiguous names, missing referenced artifacts, or conflicting evidence are source gaps that must be recorded or escalated.
-
-An artifact named by another `CLARIFY-*` in `previous_artifact` is superseded for default `/answer` selection when the descendant is fresher by `iteration`, then artifact timestamp. Superseded artifacts remain lineage evidence or explicit branch points when the user confirms that intent.
-
-`### Enriched Lineage Snapshot` is the durable summarized context that lets a new clarification iteration stand on its own for `/answer`. It can summarize prior `CLARIFY-*`, matching `DEVELOP-*`, walkthrough, and commit evidence, but it does not replace `source_*` freshness checks, approval records, `/review`, `/optimize`, or `/develop` handoff gates.
+Apply these shared lineage rules unless a workflow names a stricter local gate:
+- **Evidence**: Explicit, name-versioned artifacts and commit/ref references are sufficient when supplied or unambiguous. Extra hashes are not required unless a listed `*_sha256` key is part of a source freshness check. Missing, ambiguous, or conflicting evidence is a source gap to record or escalate.
+- **Supersession**: A same-lineage descendant supersedes the ancestor named in `previous_artifact` when fresher by `iteration`, then artifact timestamp. Superseded artifacts remain lineage evidence or explicit branch points only when the user confirms that intent.
+- **Snapshot Boundary**: `### Enriched Lineage Snapshot` lets a new clarification iteration stand on its own for `/answer`. It can summarize prior `CLARIFY-*`, matching `DEVELOP-*`, walkthrough, and commit evidence, but it does not replace `source_*` freshness checks, approval records, `/review`, `/optimize`, or `/develop` handoff gates.
 
 ### Approval Records
 
