@@ -100,7 +100,9 @@ If all criteria pass and explicit approval or valid `ApprovalRecord=workflow-tol
 
 Transform the clarified artifact into `.agent/temp/DEVELOP-[task-slug].md`.
 
-| CLARIFY Source Section | CLARIFY Source Detail | DEVELOP Target Section | DEVELOP Target Detail |
+Each row is one mapping route. Repeated CLARIFY sections are intentional one-to-many mappings when different source subbullets feed different DEVELOP targets.
+
+| CLARIFY Source Section | CLARIFY Source Subbullet/Path | DEVELOP Target Section | DEVELOP Target Subbullet/Path |
 |---|---|---|---|
 | `Discovery & Guidance` | `Context/Files` | `Implementation Context` | `Context/Files to Read` |
 | `Discovery & Guidance` | `Architecture` | `Architecture Guidance` | `Domain Boundaries`, `Patterns to Follow`, `Constraints` |
