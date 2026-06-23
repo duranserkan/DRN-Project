@@ -3,113 +3,103 @@ description: Optimize agent-consumed content for correctness per token while pre
 ---
 
 > **Trigger**: `/optimize [scope]`
-> **Mission**: maximize correct output per token.
-> **Principle**: DiSCOS Context Management: preserve conclusions, decisions, and patterns before instances.
-> **TRIZ Contradiction**: Brevity vs. completeness -> optimize for actionability, not shortest text.
+> **Mission**: Maximize correct output per token.
+> **DiSCOS**: Preserve conclusions, decisions, and patterns.
+> **TRIZ**: Optimize for actionability, not shortest text.
 > See also: [Operating Model](./_shared/workflow-operating-model.md), [`/review`](./review.md)
+> **Estimated context: ~1.1K tokens**
+>
 > [!IMPORTANT]
-> **Executive Presence governs every stage**: structured analysis, evidence-based optimization, honest metrics, decisive reporting.
-> **Estimated context: ~1.2K tokens**
+> Be structured, evidenced, honest, and decisive.
 
----
+## 1. Scope
 
-## 1. Resolve Scope
-Run the shared Startup Gate once, reuse loaded context, and load only skills needed for the scoped material.
+Run Startup Gate once. Load scoped files only.
 
-| Invocation | Scope Rule |
+| Scope | Target |
 |---|---|
-| File or directory path | Target exactly that scope. |
+| File path | Exact file path |
 | `skills` | `.agent/skills/*/SKILL.md` |
 | `workflows` | `.agent/workflows/**/*.md`, including `_shared/` |
 | `docs` | `README.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/**/*.md` |
-| `all` | Skills, workflows, and docs above. |
-| No arguments | Ask for scope and stop. |
-| From `/review`, CAD, or `/goal` | Treat findings as candidate evidence; preserve caller gates and report routed proof back. |
+| `all` | Skills, workflows, and docs |
+| None | Ask for scope and stop |
+| Caller | From `/review`, CAD, or `/goal`: preserve caller gates and treat findings as evidence |
 
-Never optimize `AGENTS.md`, `DiSCOS.md`, or `.agent/temp/CLARIFY-*` / `.agent/temp/DEVELOP-*` by default. If explicitly scoped, require approval and preserve lifecycle metadata (`status`, `stale`, `needs_review`, `source_*`, hashes).
+Invariant: Do not optimize `AGENTS.md`, `DiSCOS.md`, or `.agent/temp/` files unless explicitly scoped. Require approval and preserve all metadata: status, hashes, source keys.
 
----
+## 2. Preview
 
-## 2. Analyze Targets (Preview)
-Analyze targets before applying changes. No files are edited in this section.
+Preview before edits.
 
-| Severity | Examples | Approval |
-|----------|----------|----------|
-| **Safe** | Filler, whitespace, obvious redundancy | Preview; apply only after confirmation |
-| **Moderate** | Condensing examples, restructuring, merging | Preview diff -> apply only after confirmation |
-| **Significant** | Removing sections, changing meaning/structure | Explicit approval |
+| Severity | Examples | Gate |
+|---|---|---|
+| Safe | Whitespace, filler, duplicate phrasing | Confirm preview |
+| Moderate | Structural condensation, text merging | Show diff, confirm |
+| Significant | Content removal, semantic change | Show diff and rationale; require approval |
+| Mixed | Varied severities | Apply confirmed changes only |
 
 For each target:
-1. Measure baseline tokens (`chars / 4`).
-2. Select a content strategy and candidates from §3.
+1. Estimate baseline tokens: `chars / 4`.
+2. Map candidates to Section 3 rules.
 3. Classify severity and risk.
-4. Drop candidates that add net complexity; tag `[COMPLEXITY WARNING]` if reporting them.
-5. Compare alternatives with TRIZ; keep the simpler source-owned option.
-6. Scan duplicates across multi-file scopes; recommend consolidation only with confirmation.
-7. Verify cross-references and preserved metadata.
-8. Map supplied review findings to `optimize`, `defer`, or `reject` with one-line reasons.
+4. Reject net complexity; mark additions `[COMPLEXITY WARNING]`.
+5. Apply TRIZ and choose the simplest source-owned option.
+6. Report multi-file similarity >70%; consolidate only on confirmation.
+7. Validate references, metadata, and workflow gates.
+8. Label each action `optimize`, `defer`, or `reject` with one-sentence rationale.
 
-Present preview summary before proceeding:
-| File | Baseline Tokens | Candidates | Severity | Risk |
+Preview summary:
+
+| File | Baseline Tokens | Proposed Changes | Severity | Risk |
 |---|---|---|---|---|
 
----
+## 3. Rules
 
-## 3. Optimization Rules
 Apply in order:
+- Eliminate filler, hedging, placeholders, duplicate phrasing, and comment restatements.
+- Condense tables, bullets, definitions, and examples.
+- Restructure by front-loading decisions, using parallel grammar, and limiting nesting to 2 levels.
+- Enhance only to fix errors, ambiguity, broken links, or edge cases.
+- Simplify indirection, deep nesting, redundant checks, and compensating complexity.
+- Deduplicate similarities >70%; report source and confirm consolidation.
 
-| Rule | Action |
+Keep YAML frontmatter, anchors, links, security instructions, design rationale, versions, code blocks, diagrams, metadata, and source keys (`source_status`, `source_updated`, `source_sha256`).
+
+| Type | Standard |
 |---|---|
-| Eliminate | Remove filler, hedging, placeholders, comments that restate structure, and duplicate statements. |
-| Condense | Prefer tables/bullets, one-sentence definitions, one representative example, and "same pattern" references. |
-| Restructure | Front-load decisions, use parallel grammar, max 2 nesting levels for workflows. |
-| Enhance | Add only when omission causes agent errors, ambiguity, broken references, or missing edge cases. |
-| Simplify | Remove valueless indirection, deep nesting, redundant guards, and compensating complexity. |
-| Deduplicate | For multi-file scopes, report similarity >70% and recommend a source file; never consolidate without confirmation. |
+| Skill | Tables, alphabetical keys, minimal examples |
+| Workflow | Direct steps and conditional directives: `If X, do Y` |
+| Doc | Inverted pyramid, progressive disclosure, TOC when sections >=5 |
+| Report | Executive summary plus tables |
+| Todo | Active context only; one-line completion logs |
 
-Preserve YAML frontmatter, anchors, cross-references, security details, decision rationale, versions, acceptance criteria, code blocks, diagrams, tables, lifecycle metadata, active handoff content, and `.agent/temp/DEVELOP-*` source-tracking keys (`source_status`, `source_updated`, `source_sha256`).
+## 4. Apply
 
-| Type | Strategy |
-|---|---|
-| Skill | Tables over prose; alphabetical order; examples only when essential. |
-| Workflow | Numbered steps and `If X, do Y`; no narrative filler. |
-| Doc | Inverted pyramid; progressive disclosure; TOC for 5+ sections. |
-| Report | Executive summary first; tables for data. |
-| Todo | Current-sprint context only; one-line completed summaries. |
+Edit only after preview confirmation or explicit apply mode.
 
----
+1. Record approved scope, candidates, and severity.
+2. Verify references, links, and metadata.
+3. Re-run preview checks for idempotency.
+4. Run `git diff --check`.
 
-## 4. Apply Changes
-Apply only when the user confirms the preview or invokes an explicit apply mode. Safe edits still require confirmation.
+Review integration: run `/review` on diffs for Moderate or Significant changes. Block completion on Critical findings; restart preview when blocked. Integrate minor feedback into metrics.
 
-| Severity | Action |
-|----------|--------|
-| **Safe** | Apply after preview confirmation |
-| **Moderate** | Show diff -> apply after approval |
-| **Significant** | Show diff + rationale -> wait for explicit approval |
-| **Mixed** | Apply only confirmed items; leave the rest untouched |
+## 5. Metrics
 
-Approval must record previewed scope, candidate set, and severity. Post-apply, verify cross-references, re-run §2 for idempotency, and run `git diff --check` unless blocked.
-
-### Review Loop
-For Moderate or Significant workflow/skill changes, run `/review` on the optimized diff. 🔴 Critical findings block completion and feed the next preview/apply cycle. ✅ or ⚠️ satisfies the `/optimize` quality gate; carry remaining 🟡 findings into metrics.
-
----
-
-## 5. Report Metrics
-| File | Before (tokens) | After (tokens) | Δ Change | Quality Score | Severity |
+| File | Pre-Tokens | Post-Tokens | Delta % | Quality Score | Severity |
 |---|---|---|---|---|---|
 
-**Quality Score** (0–100): Scannable structure % (30%) + Avg words/bullet ≤15 (25%) + Heading density (25%) + Verb-first imperatives (20%).
-**Actionability Gate**: Every step has a clear next action, no ambiguity, and documented edge cases. Must pass before scoring.
+Quality Score, 0-100: Layout/Structure 30%, Conciseness 25% with average bullet length <=15 words, Heading density 25%, Imperative phrasing 20%.
 
----
+Actionability Gate: score is 0 if any step lacks a clear action, contains ambiguity, or omits documented edge cases.
 
-## 6. Operational Guarantees
-- **Idempotent**: Re-running on already-optimized content produces no further changes.
-- **Reversible**: Changes are git-tracked; no backup files are created.
-- **Non-destructive**: Preserves frontmatter, anchors, security, versions.
-- **Scope-aware**: Touches only scoped files.
-- **Observable**: Metrics report shows before/after and scores.
-- **Safe by default**: Preview-first; no edits before confirmation.
-- **Quality-gated**: Priority Stack and `/review` validate Moderate/Significant workflow or skill edits.
+## 6. Guarantees
+
+Ensure edits remain:
+- Idempotent and preview-driven.
+- Non-destructive and Git-tracked.
+- Strictly scoped.
+- Respectful of invariants.
+
+Apply Priority Stack and `/review` to Moderate and Significant changes.

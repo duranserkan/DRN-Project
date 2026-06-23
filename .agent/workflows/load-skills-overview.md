@@ -2,7 +2,7 @@
 description: Load portable overview skills and framework-scoped overview skills declared by the profile
 ---
 
-> **Estimated context: ~8.7K tokens with profile-declared DRN overview skills** (~4.5K portable-only)
+> **Estimated context: ~9.4K tokens with profile-declared DRN overview skills** (~4.8K portable-only)
 
 Read profile and skills:
    - Read file: `.agent/repository-profile.md` (if present)

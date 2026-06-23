@@ -2,153 +2,151 @@
 description: Planning phase of /update — discover skills/projects, detect drift, generate update-plan.md
 ---
 
-> **Sub-workflow of `/update`** — receives `Scope` (default: `all`).
+> **Sub-workflow of `/update`**. Receives `Scope`; default `all`.
 > See also: [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
 > [!IMPORTANT]
-> **Safety**: Drift, cross-references, stale references, and scope-widening are **flagged only** — never auto-modified.
-> **Estimated context: ~1.5K tokens**
-
----
+> Flag drift, cross-references, stale references, and scope-widening only. Do not auto-modify them.
+> **Estimated context: ~2.0K tokens**
 
 ## 1. Resolve Scope
-If invoked directly, apply the shared Startup Gate before work; otherwise inherit `/update` startup context.
 
-- **Known scopes** (`all`, `skills`, `agents`, `projects`, `infra`, `<group>`, `<skill-dir>`, `files: <paths>`, `stage-<N>`): Proceed to §2.
-- **New-repository bootstrap**: If scope is omitted or `all`, assume `.agent/` may have been copied from another repository. Rebuild discovery from the current filesystem even when `.agent/repository-profile.md`, old plan files, or cached manifests exist. Treat stale profile facts as drift candidates, not as authoritative inputs.
-- **Freeform scope**:
-  1. **Interpret**: Scan skills manifest, projects, and files to map to closest known scope + affected stages.
-  2. **Present**: Ask user: *Proceed / adjust / clarify?*
-  3. **Wait**: Stop and await approval.
-  4. **Persist**: Write `Scope` and `Resolved Stages` to the plan header.
+If invoked directly, run the shared Startup Gate; otherwise inherit `/update` context.
+
+- Known scope (`all`, `skills`, `agents`, `projects`, `infra`, `<group>`, `<skill-dir>`, `files: <paths>`, `stage-<N>`): proceed.
+- Omitted or `all`: assume `.agent/` may be copied from another repository. Rebuild discovery from the current filesystem. Treat stale profile facts as drift evidence, not authority.
+- Freeform scope: map it to the closest known scope and affected stages; ask `Proceed / adjust / clarify?`; stop until approved; then persist `Scope` and `Resolved Stages`.
 
 ---
 
-## 2. Discover Skills
-List directories in `.agent/skills/` and read each `SKILL.md` frontmatter. Build the **skills manifest** in-memory:
+## 2. Discover Skills And Workflows
 
-| Prefix | Group | Workflow |
-|--------|-------|----------|
+Read `.agent/skills/*/SKILL.md` frontmatter and build the skills manifest.
+
+| Prefix | Group | Loader |
+|---|---|---|
 | `basic-*` | basic | `load-skills-basic.md` |
 | `overview-*` | overview | `load-skills-overview.md` |
 | `drn-*` | drn | `load-skills-drn.md` |
 | `test-*` | test | `load-skills-test.md` |
 | `frontend-*` | frontend | `load-skills-frontend.md` |
 | `<custom>-*` | custom group | `load-skills-<custom>.md` |
-| *(other)* | custom | `load-skills-custom.md` |
+| other | custom | `load-skills-custom.md` |
 
-- **Group loaders**: Regenerated fully.
-- **Custom loader rule**: Create one loader per discovered custom prefix group (`load-skills-<custom>.md`). Use `load-skills-custom.md` only for skill directories that do not match a `<prefix>-*` family or whose prefix would collide with a portable/framework group.
-- **Task workflows**: Discover task workflows in `.agent/workflows/*.md` except `load-skills-*.md`; include meta/sub-workflows such as `documentation.md`, `commit-polish.md`, and `update*.md`. Sync only skill-loading or shared-workflow reference sections; preserve other content.
-- **Custom workflow manifest**: Classify every task workflow as portable, meta/sub-workflow, or repository-specific custom route. Repository-specific routes must be carried into the plan header as `Custom Workflows: <route> → <workflow>` and scheduled for Stage 3 and Stage 5 sync. The plan header is the contract for execution: Stage 3.3 reads these recorded `Custom Workflows` entries instead of independently discovering or classifying a different route set.
-- **Cross-references**: Preserve prefix-mismatched inclusions; report new ones for confirmation.
-- *Note*: Do not confuse `drn-testing` (group `drn`) with `overview-drn-testing` (group `overview`).
+Rules:
+
+- Regenerate group loaders fully; append new entries at the end.
+- Create one loader per custom prefix. Use `load-skills-custom.md` only for uncategorized skills or prefix collisions with portable/framework groups.
+- Discover task workflows in `.agent/workflows/*.md` except `load-skills-*.md`, including meta/sub-workflows such as `documentation.md`, `commit-polish.md`, and `update*.md`.
+- Sync only skill-loading or shared-workflow reference sections; preserve other workflow content.
+- Classify every task workflow as portable, meta/sub-workflow, or repository-specific custom route.
+- Record custom routes in the plan header as `Custom Workflows: <route> -> <workflow>`. The Stage 3 `Skill Discovery And Custom Routes` section must use that header as the execution contract.
+- Preserve prefix-mismatched inclusions; report new ones for confirmation.
+- Keep `drn-testing` in group `drn`; keep `overview-drn-testing` in group `overview`.
 
 ---
 
-## 3. Discover Projects & Assets
-Scan repository for solution files, projects, and assets.
+## 3. Discover Projects, Assets, And Docs
 
-### 3.1 Projects Manifest
-Detect projects and build manifest: name, family prefix, layer, runnable (bool), test (bool).
-- **Hosted**: OutputType=Exe, Program.cs, launchSettings.json, API/Web.
-- **Test**: xUnit/NUnit, `*.Test(s)`, `*IntegrationTests`.
-- **Layer**: Domain, Application, Infrastructure, Contract, Hosted, Utils.
+Scan the repository for solution files, project files, and assets.
 
-### 3.2 Non-Project Assets
-Discover non-project config files:
-- *Build*: `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `nuget.config`.
-- *Editor*: `.editorconfig`, `.gitattributes`, `.gitignore`.
-- *CI/CD*: `.github/workflows/`.
-- *Container*: `Dockerfile*`, `docker-compose*`.
-- *Docs*: `README.md`, `RELEASE-NOTES.md`, `LICENSE`.
+### Projects Manifest
 
-### 3.3 Documentation Drift Pre-Scan
-For projects with a `README.md`:
-1. Check first 5 lines. If stub (`# Name` + footer), flag `[STUB]` and skip.
-2. Extract README headers and code elements (types, methods, config keys).
-3. Extract actual public types/methods from `.csproj` / source.
-4. Flag divergence: `[STALE]` (stale reference in README), `[MISSING]` (missing reference in README), `[RENAMED]` (mismatch).
-For projects with a `RELEASE-NOTES.md`, flag `[RELEASE-NOTE-TRIGGER]` when in-scope source or package metadata changes other than version-only alignment appear to affect public contracts, configuration/defaults, security or operational behavior, data/migration behavior, observable fixes, or published package artifacts. Do not auto-write release notes from `/update`; delegate to `/documentation`.
-*Budget*: Max 2 tool calls per module.
+Record project name, family prefix, layer, runnable, and test.
 
-### 3.4 Scope Filtering
-| Scope | §2 Skills | §3.1-3.2 Projects & Assets | §3.3 Doc Drift |
-|-------|-----------|----------------------------|----------------|
-| `all` / *(omitted)* | All skills and all task workflows; ignore stale cached manifests | Full | All |
+- Hosted: `OutputType=Exe`, `Program.cs`, `launchSettings.json`, API/Web markers.
+- Test: xUnit/NUnit, `*.Test(s)`, `*IntegrationTests`.
+- Layer: Domain, Application, Infrastructure, Contract, Hosted, Utils.
+
+### Non-Project Assets
+
+Record build config, editor files, CI/CD, containers, docs, and root manifests: `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `nuget.config`, `.editorconfig`, `.gitattributes`, `.gitignore`, `.github/workflows/`, `Dockerfile*`, `docker-compose*`, `README.md`, `RELEASE-NOTES.md`, `LICENSE`.
+
+### Documentation Drift Pre-Scan
+
+For each project README:
+
+1. Check the first five lines. If it is a stub (`# Name` plus footer), flag `[STUB]` and skip.
+2. Extract README headers and code elements.
+3. Extract public types and methods from project/source files.
+4. Flag `[STALE]`, `[MISSING]`, or `[RENAMED]`.
+
+For each `RELEASE-NOTES.md`, flag `[RELEASE-NOTE-TRIGGER]` when in-scope source or package metadata changes affect public contracts, configuration/defaults, security or operational behavior, data/migration behavior, observable fixes, or published package artifacts. Do not write release notes here; delegate to `/documentation`.
+
+Budget: max two tool calls per module.
+
+### Scope Filtering
+
+| Scope | Skills/workflows | Projects/assets | Doc drift |
+|---|---|---|---|
+| `all` / omitted | All; ignore stale caches | Full | All |
 | `skills` | All skills | Skip | Skip |
-| `<group>` (e.g. `basic`) | `<group>-*` only; build manifest for cross-reference validation | Skip | Skip |
-| `<skill-dir>` (e.g. `drn-hosting`) | That skill only; identify parent group | Skip | Skip |
-| `agents` / `projects` | Skip when cached manifest is current; otherwise rebuild needed manifest slices | Full | Affected modules |
-| `infra` | Skip | Non-project assets only | Skip |
+| `<group>` | `<group>-*` plus cross-reference validation | Skip | Skip |
+| `<skill-dir>` | That skill plus parent group | Skip | Skip |
+| `agents` / `projects` | Skip when cached manifest is current; rebuild needed slices otherwise | Full | Affected modules |
+| `infra` | Skip | Non-project assets | Skip |
 | `files: <paths>` | Path-derived subset | Path-derived subset | Path-derived subset |
-| `stage-<N>` | Stage-scoped | Stage-scoped | Only if stage 6 |
-| *(freeform)* | Per §1 resolved set | Per §1 resolved set | Per §1 resolved set |
+| `stage-<N>` | Stage-scoped | Stage-scoped | Only Stage 6 |
+| freeform | Resolved in §1 | Resolved in §1 | Resolved in §1 |
 
----
+### File Scope Mapping
 
-### 3.5 File Scope Mapping
-`files:` scopes are deterministic, not freeform. Split comma-separated paths, normalize relative to the repository root, deduplicate, and map to stages:
+Normalize comma-separated `files:` paths relative to the repository root. Deduplicate and map:
 
-| Path Pattern | Stages |
-|--------------|--------|
+| Path pattern | Stages |
+|---|---|
 | `.agent/skills/<skill-dir>/SKILL.md` | Parent group in Stage 1, Stage 2, Stage 5 |
 | `.agent/workflows/load-skills-*.md` | Stage 1, Stage 2, Stage 5 |
-| `.agent/workflows/*.md` task/meta/sub-workflows, including `documentation.md`, `commit-polish.md`, `test.md`, and `update*.md` | Stage 1, Stage 3, Stage 5 |
+| `.agent/workflows/*.md` task/meta/sub-workflows, including `documentation.md`, `commit-polish.md`, `test.md`, `update*.md` | Stage 1, Stage 3, Stage 5 |
 | `.agent/workflows/_shared/*.md` | Stage 1, Stage 5 |
 | `AGENTS.md`, `.agent/repository-profile.md` | Stage 3 |
 | `*.slnx`, `*.sln`, `*.csproj` | Stage 3, Stage 6 |
 | `.github/workflows/**`, `Directory.*.props`, `global.json`, `nuget.config`, `Dockerfile*`, `docker-compose*` | Stage 4 |
 | `README.md`, `docs/**/*.md`, `**/README.md`, `**/RELEASE-NOTES.md` | Stage 6 |
-| Other existing file | Inspect owner and map to nearest affected stage |
-| Deleted or unknown file | Record in drift report and skip unless it names a removed skill/project/workflow |
+| Other existing file | Inspect owner and map nearest stage |
+| Deleted or unknown file | Record drift; skip unless it names a removed skill/project/workflow |
 
-Persist `Scope: files: <paths>` and `Resolved Stages: <stage list>` in the plan header.
+Persist `Scope: files: <paths>` and `Resolved Stages: <stage list>`.
 
 ---
 
-## 4. Diff & Report
-Compare discovered assets against previous manifests to detect drift.
+## 4. Diff And Report
 
-### 4.1 Drift Detection
-- **Skills**: Directory additions, removals, reclassifications, or custom skills.
-- **Workflows**: Task workflow additions, removals, route renames, custom route discovery, and stale `AGENTS.md` workflow table entries.
-- **Projects**: Missing, new, or renamed project names.
-- **Stale references**: Old names, paths, or namespaces inside skill files (sampling).
+Compare discovery against previous manifests.
 
-### 4.2 Possibly Irrelevant Skills
-Flag `⚠️ Possibly irrelevant` when referenced folders/configs are absent:
-- No frontend files → `frontend-*`.
-- No runnable projects → `drn-hosting`.
-- No tests → `test-*`, `drn-testing`.
-- No workflows → `overview-github-actions`.
-*Note*: Removals of flagged irrelevant skills require explicit user approval.
+- Skills: additions, removals, reclassifications, custom skills.
+- Workflows: additions, removals, route renames, custom routes, stale `AGENTS.md` rows.
+- Projects: missing, new, or renamed names.
+- Stale references: old names, paths, or namespaces in sampled skill files.
+- Possibly irrelevant skills: flag `⚠️ Possibly irrelevant` when required folders/configs are absent; require approval before removal.
+- Code reference sampling: check at least one type, path, or config key per skill; flag stale items and do not auto-fix.
+- Cross-references and scope-widening: report wider impact and ask before widening.
 
-### 4.3 Code Reference Sampling
-Check at least one code reference (types, paths, config keys) per skill with text search. Flag stale items: `⚠️ Stale reference in <skill>: <id> not found`. Do not auto-fix.
+Sync report template:
 
-### 4.4 Cross-References & Scope-Widening
-Detect cross-references and check if scoped changes affect other groups. Report wider impact and ask user (never auto-widen).
-
-### 4.5 Sync Report Template
 ```markdown
 ## Sync Report
 ### Scope
-- **Requested**: `<scope>` | **Effective stages**: <list> | **Scope-widening**: <none/details>
+- Requested: `<scope>` | Effective stages: <list> | Scope-widening: <none/details>
 ### Skills / Cross-References / Projects / Non-Project Assets / Documentation
 - Evidence: <file:line or command output> | Impact: <risk> | Invariant: <rule> | Recommendation: <action> | Confidence: high/medium/low | Verification: run/not run/blocked/N/A
 ### Actions Planned
-- [ ] List of planned stage tasks
+- [ ] <stage task>
 ```
-Wait for user confirmation (affirmative like `yes`, `ok`, `confirmed`).
+
+Wait for affirmative confirmation (`yes`, `ok`, `confirmed`) before writing the plan.
 
 ---
 
 ## 5. Generate Plan File
-Serialize report and plan to `.agent/temp/update-plan.md`.
-- **No plan file**: Run §2-§4 (within scope); write plan with affected as `pending`, others as `skipped`.
-- **`outlined` / `planning`**: Detail next outlined stages to `pending`.
-- **All pending/skipped resolved**: Set overall status to `ready`.
-- Record `Baseline HEAD` as audit metadata and `Baseline Inputs Hash` as the staleness gate per the [Baseline Inputs Hash Specification](./_shared/baseline-inputs-hash-spec.md). Compute the hash for every material in-scope input; use `N/A` only when there are no material input files, and record the exact plan header value `Baseline Inputs Hash Justification: no-material-input-files`.
-- For `all`, material inputs include `AGENTS.md`, `.agent/repository-profile.md`, every discovered skill/workflow file, project/solution/package manifests, CI/container/build config files, and any repository docs/source samples used for drift detection.
 
-Follow the template in `update.md §Plan File Contract`.
+Serialize the report and plan to `.agent/temp/update-plan.md`.
+
+- No plan: run §2-§4 in scope; write affected stages as `pending` and others as `skipped`.
+- `outlined` / `planning`: detail the next outlined stages to `pending`.
+- All pending/skipped resolved: set status to `ready`.
+- Record `Baseline HEAD` as audit metadata.
+- Record `Baseline Inputs Hash` as the staleness gate per [`baseline-inputs-hash-spec.md`](./_shared/baseline-inputs-hash-spec.md).
+- Hash every material in-scope input. For `all`, include `AGENTS.md`, profile, discovered skill/workflow files, project/solution/package manifests, CI/container/build config files, and docs/source samples used for drift detection.
+- Use `N/A` only when no material input files exist, and then record exactly `Baseline Inputs Hash Justification: no-material-input-files`.
+
+Follow the template in `update.md` §Plan File Contract.

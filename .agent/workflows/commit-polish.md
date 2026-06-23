@@ -1,110 +1,116 @@
 ---
-description: Commit staged changes and polish non-pushed commit messages to comply with basic-git-conventions — never pushes, only local history rewrites
+description: Commit staged changes and polish non-pushed commit messages; never push or rewrite pushed history
 ---
 
 > See also: [Operating Model](./_shared/workflow-operating-model.md)
+> **Estimated context: ~0.9K tokens**
 
-## 1. Role & Safety
+## 1. Mandate
 
-**Commit Message Editor**: Commit staged changes and polish non-pushed commits.
-> [!CAUTION]
-> **NEVER execute `git push`** (including `--force`). Only perform local commits and rewrites (`--amend` or `rebase -i`). Refuse push requests.
+Act as Commit Message Editor.
 
-Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, the shared operating model, and only needed skills.
+- Commit only staged changes after user confirmation.
+- Polish only non-pushed commit messages after explicit approval.
+- Never run `git push`, including `--force`.
+- Use only local commits, `--amend`, or interactive rebase.
+- Run the shared Startup Gate; load `basic-git-conventions`.
 
----
+Refuse push requests. Stop before any rewrite that could touch pushed history.
 
-## 2. Load Skills
+## 2. Commit Staged Changes
 
-```text
-Read file: .agent/skills/basic-git-conventions/SKILL.md
-```
-
-*Single source of truth for format rules.*
-
----
-
-## 3. Commit Staged Changes
-
-Check staged changes:
+Check staged work:
 
 ```bash
 git diff --cached --stat
 ```
 
-- **Nothing staged**: Skip to §4.
-- **Staged changes**: Analyze diff, draft compliant message, get user confirmation, then commit:
+- If nothing is staged, continue to non-pushed commit detection.
+- If staged changes exist, inspect the diff, draft a compliant message, ask for confirmation, then run:
 
   ```bash
   git commit -m "<compliant message>"
   ```
 
-  If changes span multiple scopes, split them: unstage (`git reset HEAD <files>`), commit the rest, then stage and commit the remainder.
+- If staged files span unrelated scopes, split them before committing: unstage selected files, commit the first scope, then stage and commit the next scope.
 
----
-
-## 4. Resolve Scope & Detect Non-Pushed Commits
+## 3. Select Non-Pushed Commits
 
 | Invocation | Scope |
 |---|---|
 | `/commit-polish` | All non-pushed commits |
-| `/commit-polish N` | Last N non-pushed commits |
+| `/commit-polish N` | Last `N` non-pushed commits |
 
-Detect non-pushed range (stop if empty, limit to N if provided):
-1. Prefer the upstream ref (`@{u}`) when present.
-2. Otherwise, read the repository profile's Git rules and discover remote refs.
-3. Prefer the profile-declared integration branch, then release branch, then discovered primary refs only when the profile is silent.
+Find the base:
+
+1. Prefer upstream `@{u}`.
+2. If absent, use the repository profile's integration or release branch.
+3. If the profile is silent, inspect remotes and choose the safest primary ref.
+
+Run only the matching branch. If no upstream exists, set `base_ref` from the profile or discovered primary ref; if no safe base can be resolved, stop and ask.
 
 ```bash
-if git rev-parse --abbrev-ref @{u} 2>/dev/null; then
-  git log @{u}..HEAD --oneline --no-decorate
+upstream_ref=$(git rev-parse --abbrev-ref @{u} 2>/dev/null || true)
+if [ -n "$upstream_ref" ]; then
+  base_ref="$upstream_ref"
 else
   git for-each-ref --format='%(refname:short)' refs/remotes
-  git log <profile-or-discovered-base-ref>..HEAD --oneline --no-decorate
+  base_ref="<profile-or-discovered-base-ref>"
 fi
+
+if [ -z "$base_ref" ] || [ "$base_ref" = "<profile-or-discovered-base-ref>" ] || ! git rev-parse --verify --quiet "$base_ref" >/dev/null; then
+  echo "No safe non-pushed commit base found; stop and ask."
+  exit 1
+fi
+
+git log "$base_ref"..HEAD --oneline --no-decorate
 ```
 
----
+Stop if the range is empty. Limit to `N` when supplied.
 
-## 5. Analyze Messages
+## 4. Analyze Messages
 
-Evaluate each commit message against conventions. If message is vague, inspect the diff:
+Compare each message against `basic-git-conventions`.
+
+If a message is vague, inspect the commit:
 
 ```bash
-git show <sha> --stat   # file overview
-git show <sha>          # full diff (if --stat is insufficient)
+git show <sha> --stat
+git show <sha>
 ```
 
----
+Use the full diff only when the stat is insufficient.
 
-## 6. Preview & Confirm
+## 5. Preview And Confirm
 
-Present changes and await explicit user approval before rewriting:
+Show the rewrite plan and wait for explicit approval:
 
 ```markdown
 ## Commit Message Changes
-| # | SHA | Current Message | Proposed Message | Violations Fixed |
-|---|-----|-----------------|------------------|------------------|
-| 1 | `abc1234` | `fixed stuff` | `fix(Utils): resolve null ref in attribute scanner` | format, type, scope, mood |
+| # | SHA | Current | Proposed | Fixes |
+|---|---|---|---|---|
+| 1 | `abc1234` | `fixed stuff` | `fix(Utils): resolve null reference in scanner` | type, scope, mood |
 ```
 
----
+Do not rewrite until approved.
 
-## 7. Rewrite
+## 6. Rewrite
 
-**Single commit (HEAD)**:
+For `HEAD` only:
 
 ```bash
 git commit --amend -m "<new message>"
 ```
 
-**Multiple commits** (verify tree is clean; if dirty, stop and ask before any stash or rewrite):
+For multiple commits:
+
+1. Verify the tree is clean. If dirty, stop and ask before stash or rewrite.
+2. Reword only approved commits.
+3. Abort and report on conflict.
 
 ```bash
-# Mark target commits for reword (MacOS/Linux portable sed)
 GIT_SEQUENCE_EDITOR="sed -i.bak \"s/^pick ${SHA}/reword ${SHA}/\" \"\$1\" && rm -f \"\$1.bak\"" git rebase -i <base>
 
-# Rewriting loop using temporary file
 MSGFILE=$(mktemp)
 cat > "$MSGFILE" <<'COMMITMSG'
 <type>(<scope>): <description>
@@ -113,24 +119,23 @@ GIT_EDITOR="cp \"$MSGFILE\"" git rebase --continue
 rm -f "$MSGFILE"
 ```
 
-*Abort rebase on conflict (`git rebase --abort`) and report.*
+```bash
+git rebase --abort
+```
 
----
+## 7. Verify And Report
 
-## 8. Verify & Report
-
-Confirm compliance:
+Report final messages:
 
 ```markdown
 ## Results
 | # | SHA (new) | Message | Status |
-|---|-----------|---------|--------|
+|---|---|---|---|
 ```
 
-**Push status**: ⛔ Not pushed (by design)
-
----
+State: `Push status: not pushed by design`.
 
 ## Related
 
-- `basic-git-conventions` · `/review`
+- `basic-git-conventions`
+- `/review`

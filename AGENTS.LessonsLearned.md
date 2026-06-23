@@ -17,3 +17,17 @@ This applies whenever `/clarify` is invoked for source, workflow, skill, documen
 
 ### Source To Update
 Keep the invariant in `.agent/workflows/_shared/workflow-operating-model.md`, `.agent/workflows/clarify.md`, `.agent/workflows/answer.md`, and `.agent/workflows/develop.md` rather than relying on conversational memory.
+
+## 2. Quote Literal Shell Patterns With Backticks Safely
+
+### Case
+A search command used a double-quoted `rg` pattern containing literal backticks around `git push`. The shell treated the backticks as command substitution before `rg` executed.
+
+### General Rule
+Wrap shell search patterns in single quotes, or escape metacharacters, whenever the pattern contains backticks, `$()`, `$VAR`, glob characters, or other shell syntax. Treat the shell as an interpreter before the target command receives arguments.
+
+### Decision Boundary
+This applies to shell commands that pass literal text to search, lint, formatting, or analysis tools. It does not apply when command substitution or variable expansion is intentional and reviewed as part of the command design.
+
+### Source To Update
+If this recurs, add the rule to `AGENTS.md` shell/tool guidance or the shared workflow operating model so agents do not rely on lesson memory.
