@@ -3,160 +3,172 @@ description: Sync AGENTS.md, skill index, group loaders, and load-skills-all.md 
 ---
 
 > **Trigger**: After adding/removing/renaming skills, or when porting `.agent` to a new repository.
-> **Scope**: `/update <scope>` (limits sync to affected stages). Default: `all`.
+> **Scope**: `/update <scope>`; default `all`.
 > See also: [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
 > [!IMPORTANT]
-> **Executive Presence governs every stage**: structured reporting, evidence-based checks, honest findings, scope-adaptive execution.
-> **Estimated context: ~1.5K tokens**
+> Govern each stage with Executive Presence: structure, evidence, honesty, and scope-adaptive execution.
+> **Estimated context: ~2.0K tokens**
 
----
+## 1. Mission
 
-## 1. Architecture
-`/update` is a stateful orchestrator. It reads `.agent/temp/update-plan.md`, detects progress, and delegates or resumes via the state machine. Run repeatedly until status is `verified`.
+`/update` is the stateful orchestrator for agent configuration sync. It reads `.agent/temp/update-plan.md`, detects status, delegates the next owner, and repeats until status is `verified`.
 
-Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, the shared operating model, the shared status lifecycle, and only needed skills/workflows.
+Run the shared Startup Gate once. Read `AGENTS.md`; read `.agent/rules/DiSCOS.md` and `.agent/repository-profile.md` when present; read this workflow, the operating model, the status lifecycle, and only task-needed skills or workflows.
+
+### State Machine
 
 ```mermaid
 flowchart LR
     A["/update"] --> B{"plan status?"}
-    B -- "no plan / outlined / planning" --> C["temp/update-plan.md"]
-    B -- "ready" --> D["review.md\n(plan)"]
+    B -- "no plan / outlined / planning" --> C["update-plan.md"]
+    B -- "ready" --> D["review.md (plan)"]
     B -- "plan-reviewed / executing" --> E["update-execute.md"]
-    B -- "done" --> F["review.md\n(changes)"]
+    B -- "done" --> F["review.md (changes)"]
     B -- "reviewed / verifying / failed" --> G["update-verify.md"]
-    B -- "verified" --> H["✅ Done"]
+    B -- "verified" --> H["Done"]
 ```
 
-### Standard Load Order (Stage 1, 2, 5)
-`Basic` → `Overview` → `DRN Framework` → `Testing` → `Frontend` → `Custom`
-*Single source of truth for group ordering.*
+### Standard Load Order
+
+Use this order for Stages 1, 2, and 5:
+
+`Basic` -> `Overview` -> `DRN Framework` -> `Testing` -> `Frontend` -> `Custom`
 
 ### New Repository Self-Sync
-When `.agent/` and its dependencies are copied into a new repository and `/update` is called with no scope or `all`, run in full bootstrap mode:
 
-1. Treat the current filesystem as source of truth; cached manifests and old repository facts are evidence only.
-2. Rediscover `AGENTS.md`, `.agent/repository-profile.md`, `.agent/skills/**/SKILL.md`, `.agent/workflows/**/*.md`, solution/project/package manifests, CI files, docs roots, and repository-owned asset files.
-3. Detect custom skills and workflows, including `<custom>-*` skill prefixes, uncategorized skill directories, and task workflow routes not listed in portable `AGENTS.md`.
-4. Sync all derived agent-consumed files in one route: group loaders, `load-skills-all.md`, `AGENTS.md` workflow table, repository profile custom route/load-set sections, and `overview-skill-index`.
-5. Flag project documentation and release-note drift only; delegate content rewrites to `/documentation`.
+When `.agent/` is copied into a new repository and scope is omitted or `all`:
+
+1. Treat the current filesystem as source of truth; use cached manifests and old facts only as evidence.
+2. Rediscover `AGENTS.md`, profile, skills, workflows, manifests, CI, docs roots, and repository assets.
+3. Detect custom skills and workflows, including `<custom>-*`, uncategorized skill directories, and task routes absent from portable `AGENTS.md`.
+4. Sync derived agent files together: group loaders, `load-skills-all.md`, `AGENTS.md` workflow table, profile route/load-set sections, and `overview-skill-index`.
+5. Flag project docs and release-note drift only; delegate rewrites to `/documentation`.
 6. Verify structural consistency before reporting `verified`.
 
 ---
 
 ## 2. Situation Report
-Emit a Situation Report before and after delegation:
+
+Emit before and after delegation:
+
 ```markdown
-## 🔍 Situation <Before | After>
+## Situation <Before | After>
 | Aspect | Value |
-|--------|-------|
-| **Plan file** | exists / missing |
-| **Plan status** | outlined / planning / ready / plan-reviewed / executing / done / reviewed / verifying / verified / failed / N/A |
-| **Scope** | `<scope>` or `all` |
-| **Stages** | N total — X pending, Y skipped, Z done |
-| **Last generated** | <timestamp> or N/A |
-| **What happened** | *(After only)* <summary of work performed> |
-| **Next step** | Run `/update` again / Done — suggest cleanup and commit commands |
+|---|---|
+| Plan file | exists / missing |
+| Plan status | outlined / planning / ready / plan-reviewed / executing / done / reviewed / verifying / verified / failed / N/A |
+| Scope | `<scope>` or `all` |
+| Stages | N total; X pending, Y skipped, Z done |
+| Last generated | <timestamp> or N/A |
+| What happened | <After only: summary> |
+| Next step | Run `/update` again / Done; suggest cleanup and commit commands |
 ```
 
-Upon `verified` status, suggest cleanup and commit commands only. Do not delete files or run VCS mutations unless the user explicitly requested that action:
+When status is `verified`, suggest cleanup and commit commands only. Do not delete files or mutate Git unless the user explicitly asks.
+
 ```markdown
-## ✅ Update Complete
+## Update Complete
 Suggested cleanup: delete `.agent/temp/update-plan.md` and `.agent/temp/update-verify-progress.md` before staging.
 Suggested commit: `git add AGENTS.md .agent/ && git commit -m "chore(skills): sync agent configuration"`
 ```
 
 ---
 
-## 3. Detect State & Delegate
-Read file: `.agent/temp/update-plan.md`. If missing, state is `no-plan`. Else, parse `Status:` and `Scope:`.
+## 3. Detect State And Delegate
 
-| State | Action | Delegate To | Post-Condition |
-|-------|--------|-------------|----------------|
-| No plan / `outlined` / `planning` | Plan discovery/detailing | `update-plan.md` | — |
-| `ready` | Plan review | `review.md` (scope: `.agent/temp/update-plan.md`) | No 🔴 Critical → `plan-reviewed`; otherwise keep `ready` |
-| `plan-reviewed` | Fresh execution start | `update-execute.md` (Stage 1) | — |
-| `executing` | Resume execution | `update-execute.md` (resume) | — |
-| `done` | Changes review | `review.md` (scope table below) | No 🔴 Critical → `reviewed`; otherwise keep `done` |
-| `reviewed` / `verifying` | Verify content | `update-verify.md` | `verified` \| `failed` |
-| `failed` | Re-verify after fixes | `update-verify.md` | `verified` \| `failed` |
-| `verified` | Stop | None | — |
+Read `.agent/temp/update-plan.md`. If missing, state is `no-plan`. Otherwise parse `Status:` and `Scope:`.
 
-`/review` is read-only. When it returns `transition_allowed: plan-reviewed` or `transition_allowed: reviewed`, `/update` performs the plan-header status mutation. Other sub-workflows own only the state files named in the shared status lifecycle.
+| State | Action | Delegate | Post-condition |
+|---|---|---|---|
+| No plan / `outlined` / `planning` | Plan discovery/detailing | `update-plan.md` | - |
+| `ready` | Review plan | `review.md` on `.agent/temp/update-plan.md` | No Critical -> `plan-reviewed`; else keep `ready` |
+| `plan-reviewed` | Start execution | `update-execute.md` Stage 1 | - |
+| `executing` | Resume execution | `update-execute.md` | - |
+| `done` | Review changes | `review.md` on scope below | No Critical -> `reviewed`; else keep `done` |
+| `reviewed` / `verifying` | Verify content | `update-verify.md` | `verified` or `failed` |
+| `failed` | Re-verify after fixes | `update-verify.md` | `verified` or `failed` |
+| `verified` | Stop | None | - |
 
-### Review Scope for `done` State
-- **Include**: Stage 1–5 action item files, `_shared` fragments when in scope, `AGENTS.md` (if Stage 3 run), `overview-skill-index/SKILL.md` (if Stage 5 run).
-- **Exclude**: Stage 6 files (flags only, no edits).
+`/review` is read-only. When it returns `transition_allowed: plan-reviewed` or `transition_allowed: reviewed`, `/update` mutates only the plan-header status. Other sub-workflows own only their lifecycle state files.
+
+### Review Scope For `done`
+
+- Include Stage 1-5 action files, in-scope `_shared` fragments, `AGENTS.md` if Stage 3 ran, and `overview-skill-index/SKILL.md` if Stage 5 ran.
+- Exclude Stage 6 files; Stage 6 flags drift only.
 
 ---
 
 ## 4. Plan File Contract
-**Location**: `.agent/temp/update-plan.md`
-**Lifecycle**: shared `UPDATE` lifecycle in `_shared/status-lifecycle.md`.
 
-### Structure
-- **Header**: Metadata.
-- **Discovery Summary**: Skills Manifest, Projects Manifest, Non-Project Assets, Drift Report, Documentation Drift.
-- **Stage 1**: Sync Group Workflows (group loaders & task workflows).
-- **Stage 2**: Sync `load-skills-all.md`.
-- **Stage 3**: Sync `AGENTS.md` & profile.
-- **Stage 4**: Sync Non-Project References.
-- **Stage 5**: Sync Skill Index.
-- **Stage 6**: Sync Project Docs (drift flag only, no edits).
+**Location**: `.agent/temp/update-plan.md`
+**Lifecycle**: `UPDATE` lifecycle in `_shared/status-lifecycle.md`.
+
+### Required Structure
+
+- Header metadata.
+- Discovery Summary: Skills Manifest, Projects Manifest, Non-Project Assets, Drift Report, Documentation Drift.
+- Stages 1-6:
+  1. Sync Group Workflows.
+  2. Sync `load-skills-all.md`.
+  3. Sync `AGENTS.md` and profile.
+  4. Sync Non-Project References.
+  5. Sync Skill Index.
+  6. Sync Project Docs as drift flags only.
 
 ### Scope Resolution
+
 | Scope | Meaning | Stages | Discovery |
-|-------|---------|--------|-----------|
-| `all` / *(omitted)* | Full repo sync; also the new-repository bootstrap mode | 1–6 | Full filesystem rediscovery |
-| `<group>` (e.g. `basic`) | Group skills changed | 1 (group), 2, 5 | Skills only |
-| `<skill-dir>` | Single skill changed | 1 (parent), 2, 5 | That skill only |
-| `skills` | All skill groups | 1, 2, 5 | Skills only |
-| `agents` | AGENTS.md sync | 3 | Projects + assets |
+|---|---|---|---|
+| `all` / omitted | Full repo sync plus bootstrap mode | 1-6 | Full filesystem |
+| `<group>` | Group skills changed | 1 group, 2, 5 | Skills |
+| `<skill-dir>` | Single skill changed | 1 parent, 2, 5 | That skill |
+| `skills` | All skill groups | 1, 2, 5 | Skills |
+| `agents` | `AGENTS.md` sync | 3 | Projects + assets |
 | `projects` | Projects changed | 3, 4, 6 | Projects + assets |
-| `infra` | Infrastructure changed | 4 | Assets only |
-| `files: <paths>` | Explicit changed file list, usually from `/update-last` | Derived from listed paths | File-scoped |
+| `infra` | Infrastructure changed | 4 | Assets |
+| `files: <paths>` | Explicit changed files, usually from `/update-last` | Derived | File-scoped |
 | `stage-<N>` | Explicit stage | Stage N | Stage-scoped |
-| *(freeform)* | Handled by planner | Determined in planning | Resolved in planning |
+| freeform | Planner resolves | Determined | Resolved in planning |
 
-- **Scope-widening rule**: If cross-group dependencies are found, report and ask before widening (never auto-widen).
-- **File-scope rule**: `files:` is a known scope. The planner maps each path to affected stages, preserves the original path list in the plan, and asks only when a listed path cannot be mapped deterministically.
-- **Stage Resumption Protocol**: Read plan, find first non-terminal stage, execute, pause at `Requires Approval`, update status.
+Rules:
 
-### Plan File Template
+- Ask before widening scope for cross-group dependencies.
+- Treat `files:` as known scope. Map each path to stages, preserve the original list, and ask only when a path cannot be mapped deterministically.
+- Resume from the first non-terminal stage; pause at `Requires Approval`; update status after each stage.
+
+### Plan Template
+
 ```markdown
 # Update Plan
 > Generated: <timestamp> | Status: <status> | Scope: <scope> | Resolved Stages: <stages>
 > Repo: <path> | Baseline HEAD: <sha> | Baseline Inputs Hash: <sha256 or N/A>
 > Baseline Inputs Hash Justification: no-material-input-files
-> Custom Groups: <prefix> → <workflow>
-> Custom Workflows: <route> → <workflow>
+> Custom Groups: <prefix> -> <workflow>
+> Custom Workflows: <route> -> <workflow>
 
 ## Discovery Summary
 
 ### Skills Manifest
 | Name | Group | Path | Tokens |
-|------|-------|------|--------|
-| <name> | <group> | .agent/skills/<dir>/SKILL.md | <bytes/4> |
+|---|---|---|---|
 
 ### Projects Manifest
 | Project | Layer | Runnable | Test |
-|---------|-------|----------|------|
-| <name> | <layer> | ✅/❌ | ✅/❌ |
+|---|---|---|---|
 
 ### Non-Project Assets
 | File | Category | Exists |
-|------|----------|--------|
-| `Directory.Build.props` | Build config | ✅/❌ |
+|---|---|---|
 
 ### Drift Report
-- ➕ Added: <list>
-- ➖ Removed: <list>
-- ⚠️ Stale references: <list>
-- 🔀 Prefix mapping: <old> → <new>
+- Added:
+- Removed:
+- Stale references:
+- Prefix mapping:
 
 ### Documentation Drift
 | Module | State | STALE | MISSING | RENAMED | Action |
-|--------|-------|-------|---------|---------|--------|
-| <Module> | rich/stub | N | N | N | flag / skip |
+|---|---|---|---|---|---|
 
 ## Stage <N>: <Title>
 > Status: pending | skipped | executing | done | Maps to: §<refs>
@@ -164,16 +176,15 @@ Read file: `.agent/temp/update-plan.md`. If missing, state is `no-plan`. Else, p
 - [ ] <description>
 ### Requires Approval
 - [ ] <approval item>
-
-<!-- Repeat for each stage; skipped stages replace Actions with _(skipped — out of scope)_ -->
 ```
 
-Baseline semantics: `Baseline HEAD` is audit metadata and may differ after unrelated commits. `Baseline Inputs Hash` is the staleness gate; see [Baseline Inputs Hash Specification](./_shared/baseline-inputs-hash-spec.md) for the canonical algorithm. Compute it for every material in-scope input. Use `N/A` only when the resolved scope has no material input files, and include the exact header value `Baseline Inputs Hash Justification: no-material-input-files`. Omit the justification header when `Baseline Inputs Hash` is a SHA-256 value.
+Baseline semantics: `Baseline HEAD` is audit metadata. `Baseline Inputs Hash` is the staleness gate; compute it for every material in-scope input using [`baseline-inputs-hash-spec.md`](./_shared/baseline-inputs-hash-spec.md). Use `N/A` only when no material input files exist, and then include the exact header `Baseline Inputs Hash Justification: no-material-input-files`. Omit that header when the hash is a SHA-256 value.
 
 ---
 
-## 5. Operational Guarantees
-- **Stateful**: Ephemeral `.agent/temp/update-plan.md` stores state across sessions.
-- **Idempotent & Reversible**: Git-tracked changes, no backups, no destructive cleanup without explicit request.
-- **Scope-aware**: SKIPPED states for out-of-scope stages.
-- **Safe**: Manual deletion for skills, prefix mappings require approval, and VCS mutations are suggested only unless explicitly requested.
+## 5. Guarantees
+
+- Stateful: `.agent/temp/update-plan.md` stores progress.
+- Idempotent and reversible: use Git-tracked changes; do not create backups.
+- Scope-aware: mark out-of-scope stages `skipped`.
+- Safe: require approval for manual deletion and prefix mappings; suggest VCS mutations only unless explicitly requested.

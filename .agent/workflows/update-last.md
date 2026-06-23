@@ -2,45 +2,51 @@
 description: Detect changed files from the last N commits and delegate to /update with file-based scope
 ---
 
-> **Trigger**: `/update-last <N>` (N is commit count).
-> **Purpose**: Derives `/update` scope from recent git history.
+> **Trigger**: `/update-last <N>` where N is a commit count.
+> **Purpose**: Derive `/update` scope from recent Git history.
 > See also: [Operating Model](./_shared/workflow-operating-model.md)
 > **Estimated context: ~0.4K tokens**
 
----
-
 ## 1. Validate Input
-Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, and the shared operating model.
 
-Verify N is a positive integer. If missing/invalid, respond:
+Run the shared Startup Gate: read `AGENTS.md`; read `.agent/rules/DiSCOS.md` and `.agent/repository-profile.md` when present; read this workflow and the operating model.
+
+Require N to be a positive integer. If missing or invalid, respond:
 
 ```text
-⚠️ Usage: /update-last <N> — N must be a positive integer.
+Usage: /update-last <N> -- N must be a positive integer.
 ```
 
 ---
 
 ## 2. Collect Changed Files
-Inspect changes across the last N commits:
+
+Inspect the last N commits:
 
 ```bash
 git diff --name-status HEAD~<N>..HEAD
 ```
 
-If the range is unavailable, fall back to `git log --name-status --pretty=format: -<N>`.
+If the range is unavailable, fall back to:
+
+```bash
+git log --name-status --pretty=format: -<N>
+```
 
 ---
 
 ## 3. Build Scope
-1. Filter, deduplicate, and sort the file list while preserving change status (`A`, `M`, `D`, `R`).
-   *Note: Deleted and renamed-from files are included so `/update` can detect removed skills/projects/workflows.*
-2. If no files changed, stop:
+
+1. Keep change status (`A`, `M`, `D`, `R`).
+2. Filter, deduplicate, and sort paths.
+3. Include deleted and renamed-from files so `/update` can detect removed skills, projects, or workflows.
+4. Stop if no files changed:
 
    ```text
-   ℹ️ No files changed in the last <N> commit(s). Nothing to sync.
+   No files changed in the last <N> commit(s). Nothing to sync.
    ```
 
-3. Format scope:
+5. Format scope:
 
    ```text
    files: <comma-separated paths>
@@ -48,29 +54,21 @@ If the range is unavailable, fall back to `git log --name-status --pretty=format
 
 ---
 
-## 4. Report & Delegate
-Report changes and delegate:
+## 4. Report And Delegate
 
 ```markdown
-## 🔍 update-last: Detected Changes
-**Commits inspected**: <N> | **Changed files** (<count>)
+## update-last: Detected Changes
+Commits inspected: <N> | Changed files: <count>
 | Status | File |
 |---|---|
 | M | <file1> |
-**Scope**: `files: <comma-separated>`
-Delegating to `/update files: <scope>` …
+Scope: `files: <comma-separated>`
+Delegating to `/update <scope>`.
 ```
 
-Delegate to `/update` by loading the workflow:
-
-```bash
-Read file: .agent/workflows/update.md
-```
-
-Pass the `files: <comma-separated>` scope argument.
-
----
+Delegate by loading `.agent/workflows/update.md` and passing the `files: <comma-separated>` scope.
 
 ## Operational Notes
-- **Read-only**: Reads history; does not modify git state.
-- **Composable / Fail-fast**: Stops on empty changesets or invalid inputs.
+
+- Read-only: inspect history only; do not modify Git state.
+- Fail-fast: stop on invalid input or empty changesets.

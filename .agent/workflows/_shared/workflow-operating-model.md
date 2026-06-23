@@ -4,7 +4,7 @@ description: Shared operating model for agent workflows
 
 ## Startup Gate
 
-When present read once per task, then reuse conclusions:
+Read once when present; reuse conclusions:
 
 1. `AGENTS.md`.
 2. `.agent/rules/DiSCOS.md`
@@ -15,38 +15,36 @@ Avoid broad reloads when a focused workflow, profile entry, or skill is enough.
 
 ## Repository Extension Gate
 
-Resolve repository overlays before generic fallback:
+Resolve repository overlays before generic fallback.
 
-1. `.agent/repository-profile.md` owns custom routes, skill load sets, framework/frontend overlays, commands, release rules, and docs modules.
+1. Let `.agent/repository-profile.md` own custom routes, skill load sets, framework/frontend overlays, commands, release rules, and docs modules.
 2. Load only profile-declared workflows/skills matching the task, route, layer, or flag.
 3. If profile is silent, discover from `.agent/workflows/<route>.md`, `load-skills-<group>.md`, `.agent/skills/<group>-*/SKILL.md`, and `overview-skill-index`.
-4. Preserve the strictest security, approval, lifecycle, mutation, and verification gate. Custom routes may refine routing, accuracy, completeness, or clarity only upward.
-5. Approval records satisfy local gates only when this model, status lifecycle, producer, and accepting owner allow the same bounded scope.
-6. If an overlay is missing, record it, use the smallest safe generic route when possible, and report the gap in the audit.
+4. Preserve the strictest security, approval, lifecycle, mutation, and verification gate.
+5. Let custom routes improve routing, accuracy, completeness, or clarity only upward.
+6. Accept approval records only when this model, status lifecycle, producer, and accepting owner allow the same bounded scope.
+7. If an overlay is missing, record it, use the smallest safe generic route, and report the audit gap.
 
 ## Expert Lens Pass
 
-Use when `/clarify`, `/answer`, or another workflow asks for expert-lens review. This is a concise challenge pass, not roleplay or approval.
+Use when `/clarify`, `/answer`, or another workflow asks for expert-lens review. Challenge; do not roleplay or approve.
 
-1. Select specialist lenses only after Startup context, raw task review, initial risk/scope check, and enrichment.
-2. Include Security/Privacy lens per priority stack.
-3. When applicable include at least one
-  - Product, Business, ROI, Growth, or MVP lenses.
-  - Domain expert lenses.
-  - Necessary task relevant lenses such as UI/UX, Infrastructure.
+1. Select lenses only after Startup context, raw task review, risk/scope check, and enrichment.
+2. Include Security/Privacy by Priority Stack.
+3. Add applicable lenses: Product, Business, ROI, Growth, MVP, domain, UI/UX, Infrastructure, or other task-critical specialty.
 4. For follow-up passes, integrate new answers or artifact changes first; refresh lenses if needed.
 
 ### Pass Rules
 
-1. Lenses challenge; they never approve, clear flags, bypass review, satisfy lifecycle gates, or weaken Security/Privacy. User/TPO authority remains final.
+1. Lenses challenge only. They never approve, clear flags, bypass review, satisfy lifecycle gates, or weaken Security/Privacy. User/TPO authority stays final.
 2. Claims cite user input, repo context, loaded skill/workflow, source file, or external reference; otherwise tag `[ASSUMPTION - unverified]`.
 3. Resolve conflicts with TRIZ first, then Priority Stack: Security, Correctness, Clarity, Simplicity, Performance.
-4. Record synthesized findings, not transcripts. Avoid roleplay, fake consensus, approval language, and persona labels unless they clarify a tradeoff.
-5. Carry findings into question rationale, answer tradeoffs, sources, acceptance criteria, risks, Priority Stack notes, and implementation constraints. No permanent transcript section required.
+4. Record synthesized findings, not transcripts. Avoid fake consensus, approval language, and persona labels unless they clarify tradeoffs.
+5. Carry findings into questions, tradeoffs, sources, acceptance criteria, risks, Priority Stack notes, and implementation constraints. Do not require a transcript section.
 
 ## Workflow Composition Contract
 
-Compose workflows by ownership, not copied rules:
+Compose workflows by ownership, not copied rules.
 
 | Workflow | Owns | Compose Rule |
 |---|---|---|
@@ -58,9 +56,10 @@ Compose workflows by ownership, not copied rules:
 | `_shared/*` | Startup, mutation, evidence, lifecycle, verification primitives | Reference to prevent duplicated gates. |
 
 Rules:
-1. Preserve the strictest chained gate: preview-first, approval, read-only, and lifecycle gates never weaken.
-2. Use only approval records defined by the status lifecycle, produced by an allowed workflow, and accepted by the owning workflow.
-3. CAD chain invariant: when workflows such as `/clarify`, `/answer`, or `/develop` are invoked, never skip generating or updating their workspace-local artifacts (e.g. `CLARIFY-*.md`, `DEVELOP-*.md` in `.agent/temp/`). System-level planning artifacts must reference and link to these local pipeline documents rather than bypassing them. Automation may bridge stages only when autonomy and approval gates allow; manual handoff waits for the next workflow, never direct implementation.
+
+1. Preserve the strictest chained gate. Never weaken preview-first, approval, read-only, or lifecycle gates.
+2. Use only approval records defined by the status lifecycle, produced by an allowed workflow, and accepted by the owner.
+3. CAD chain invariant: `/clarify`, `/answer`, and `/develop` must generate or update workspace-local artifacts (`CLARIFY-*.md`, `DEVELOP-*.md` in `.agent/temp/`). System plans must link these pipeline documents, not bypass them. Automation may bridge stages only when autonomy and approval gates allow; manual handoff waits for the next workflow.
 4. Pass summaries, findings, candidates, metrics, status transitions, or artifact paths forward; do not paste full source-owned checklists downstream.
 5. Link to another workflow's rules; duplicate only phrases needed for local executability.
 6. `/review` supplies evidence/recommendations; `/optimize` owns preview/apply/metrics; `/review` validates when required.
@@ -69,31 +68,31 @@ Rules:
 
 ## Non-Compressible Gates
 
-The CAD pipeline must never shorten away or skip required security/privacy checks, source metadata, status transitions, approval records, assumption tags, mutation tiers, stale detection, review gates, or verification evidence. Specific checklists and templates reside inside their respective workflow files to keep them actionable and in the active context.
+Never compress away required security/privacy checks, source metadata, status transitions, approval records, assumption tags, mutation tiers, stale detection, review gates, or verification evidence. Keep details in owning workflow files.
 
 ## Priority Queue
 
-Classify work before acting:
+Classify work before acting.
 
 | Priority | Meaning | Action |
 |---|---|---|
-| `P0` | Security, correctness, data loss, irreversible mutation, broken lifecycle | Fix first; block handoff until resolved |
-| `P1` | Ambiguity, portability drift, missing evidence, maintainability risk | Fix in the current pass unless explicitly scoped out |
+| `P0` | Security, correctness, data loss, irreversible mutation, broken lifecycle | Fix first; block handoff |
+| `P1` | Ambiguity, portability drift, missing evidence, maintainability risk | Fix now unless scoped out |
 | `P2` | Polish, deduplication, token efficiency, minor references | Fix after P0/P1 when low risk |
 
-When priorities conflict, use TRIZ first: seek a source-owned, root-cause option that satisfies both constraints. If a real tradeoff remains, apply the Priority Stack: Security, Correctness, Clarity, Simplicity, Performance.
+When priorities conflict, use TRIZ first. Seek a source-owned root-cause option that satisfies both constraints. If tradeoff remains, apply the Priority Stack: Security, Correctness, Clarity, Simplicity, Performance.
 
 ## TRIZ Decision Record
 
-For non-trivial conflict or friction, record `IFR`, `Contradiction`, `Resolution`, and `Residual risk` when a workaround is the safest acceptable route.
+For non-trivial conflict or friction, record `IFR`, `Contradiction`, `Resolution`, and `Residual risk` when a workaround is safest.
 
-Prefer permanent acceptable fixes over workaround-only patches. Do not make permanence absolute when the safest path is temporary, reversible, and explicitly risk-managed.
+Prefer permanent acceptable fixes over workaround-only patches. Allow temporary, reversible paths when they are safest and explicitly risk-managed.
 
 ## Subagent Gate
 
 Use subagents for independent codebase questions, disjoint write scopes, parallel verification, or second-look review. Skip when work is sequential, transfer cost exceeds value, scopes overlap, or the active workflow requires main-agent ownership.
 
-Subagents support workflows; they do not replace them. Give bounded scope, read-only/disjoint write ownership, no VCS/destructive authority, and an evidence summary. Verify against current files or commands before relying on subagent output.
+Subagents support workflows; they do not replace them. Give bounded scope, read-only/disjoint write ownership, no VCS/destructive authority, and evidence-summary requirements. Verify output against files or commands before relying on it.
 
 ## Mutation Tiers
 
@@ -103,13 +102,13 @@ Subagents support workflows; they do not replace them. Give bounded scope, read-
 | Reversible docs | Workflow, skill, README, report edits | Edit only scoped files; run `git diff --check` |
 | State mutation | Status flags, temp plan progress, generated handoff docs | Allowed only when the owning workflow says so |
 | VCS mutation | Branch creation, commits, rewrites, tags, push | Requires explicit user approval unless the user directly requested that exact action |
-| Destructive | Delete, reset, force push, data migration | Requires explicit approval and a rollback plan |
+| Destructive | Delete, reset, force push, data migration | Requires explicit approval and rollback plan |
 
 Do not treat `git diff` as approval for unrequested edits. Preview-first workflows must not mutate until apply is confirmed.
 
 ## Portable Tool Verbs
 
-Use capability names in reusable workflows. Map them to the active platform's tools at execution time.
+Use capability names in reusable workflows. Map them to active platform tools at execution time.
 
 | Need | Portable wording |
 |---|---|
@@ -124,7 +123,7 @@ Prefer repository facts and source files over external references. Use web sourc
 
 ## Evidence Contract
 
-Every review finding or workflow gate failure includes: `Evidence` (file/path+line, command output, or source link), `Impact`, violated `Invariant`, concrete `Recommendation`, `Confidence` (high/medium/low), and `Verification` (run, not run per rule, blocked, or not applicable).
+Every review finding or workflow gate failure must include `Evidence` (file/path+line, command output, or source link), `Impact`, violated `Invariant`, concrete `Recommendation`, `Confidence` (high/medium/low), and `Verification` (run, not run per rule, blocked, or not applicable).
 
 Findings are caused by changed lines or changed behavior, but reviewers may inspect unchanged context needed to prove or disprove impact.
 

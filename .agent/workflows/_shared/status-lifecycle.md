@@ -2,7 +2,7 @@
 description: Shared status lifecycle for agent workflow artifacts
 ---
 
-> **Estimated context: ~1.8K tokens**
+> **Estimated context: ~1.5K tokens**
 > See also: [Workflow Operating Model](./workflow-operating-model.md)
 
 ## Status Lifecycle
@@ -16,17 +16,17 @@ UPDATE    : failed -> verifying -> verified | failed
 
 ### Status Transitions
 
-| Status | Artifact | Trigger | Owner |
-|---|---|---|
-| `draft` | `CLARIFY-*` | Document created (§2) | `/clarify` |
-| `clarifying` | `CLARIFY-*` | First question round begins (§5) | `/clarify` |
-| `draft-self-reviewed` | `CLARIFY-*` | Gates and checklist pass (§9) | `/clarify` |
-| `clarified` | `CLARIFY-*` | Approval criteria met (§6) | `/answer` |
-| `ready-to-develop` | `DEVELOP-*` | Development document produced (§7) | `/answer` |
-| `implemented` | `DEVELOP-*` | User approves final report (§7) | `/develop` |
-| `outlined` | `update-plan.md` | Initial update plan shell created | `/update-plan` |
-| `planning` | `update-plan.md` | Discovery/detailing in progress | `/update-plan` |
-| `ready` | `update-plan.md` | Plan has resolved stages and awaits review | `/update-plan` |
+| Status | Artifact | Advance When | Owner |
+|---|---|---|---|
+| `draft` | `CLARIFY-*` | `/clarify` creates the document | `/clarify` |
+| `clarifying` | `CLARIFY-*` | `/clarify` starts question round 1 | `/clarify` |
+| `draft-self-reviewed` | `CLARIFY-*` | `/clarify` gates and self-review pass | `/clarify` |
+| `clarified` | `CLARIFY-*` | `/answer` approval criteria pass | `/answer` |
+| `ready-to-develop` | `DEVELOP-*` | `/answer` writes the development handoff | `/answer` |
+| `implemented` | `DEVELOP-*` | User approves the `/develop` final report | `/develop` |
+| `outlined` | `update-plan.md` | Initial plan shell exists | `/update-plan` |
+| `planning` | `update-plan.md` | Discovery or detailing runs | `/update-plan` |
+| `ready` | `update-plan.md` | Stages are resolved and awaiting review | `/update-plan` |
 | `plan-reviewed` | `update-plan.md` | `/review` reports `transition_allowed: plan-reviewed` | `/update` |
 | `executing` | `update-plan.md` | First execution stage starts | `/update-execute` |
 | `done` | `update-plan.md` | All in-scope execution stages complete | `/update-execute` |
@@ -37,46 +37,47 @@ UPDATE    : failed -> verifying -> verified | failed
 
 ### Metadata Flags
 
-Flags are lowercase YAML metadata and do not replace `status`.
+Use lowercase YAML flags; never replace `status`.
 
 | Flag | Meaning | Clear When |
 |---|---|---|
-| `blocked_on_user: true` | Human decision is required before the owner can advance status | The decision is recorded |
-| `needs_review: true` | The artifact changed after its last review | `/review` passes with no critical findings |
-| `stale: true` | Source artifact changed after this artifact was produced | The artifact is regenerated or revalidated |
-| `approval_required: true` | The next step mutates source/state, VCS, or risk-bearing scope and no current approval record has been captured | `approval_record` and `approval_scope` capture explicit approval or a valid shared approval record for the exact next mutation |
+| `blocked_on_user: true` | Human decision blocks status advance | Decision is recorded |
+| `needs_review: true` | Artifact changed after last review | `/review` passes with no critical findings |
+| `stale: true` | Source changed after artifact production | Artifact is regenerated or revalidated |
+| `approval_required: true` | Next step mutates source/state, VCS, or risk-bearing scope without current approval | `approval_record` and `approval_scope` cover the exact next mutation |
 
-Artifacts that carry `approval_required` must also carry `approval_record` and `approval_scope` when the flag is cleared. `approval_required: false` without a current matching approval record is an unresolved approval gate.
+When clearing `approval_required`, keep matching `approval_record` and `approval_scope`. `approval_required: false` without a current matching record remains an unresolved approval gate.
 
 ### Lineage Metadata
 
-`CLARIFY-*` artifacts use optional lineage keys when a new clarification loop starts from an earlier artifact. Workflows use them for supersession checks:
+`CLARIFY-*` artifacts may use these keys when a new clarification loop starts from an earlier artifact. Use them for supersession.
 
 | Key | Meaning |
 |---|---|
-| `iteration` | Current clarification iteration number within the lineage. |
-| `previous_artifact` | Prior `CLARIFY-*` artifact used as input for this iteration. |
-| `previous_status` | Prior artifact status when this iteration was created. |
-| `previous_updated` | Prior artifact timestamp or filesystem mtime used for freshness evidence. |
-| `previous_sha256` | SHA-256 of the prior artifact when this iteration was created. |
-| `previous_develop_artifact` | Prior `DEVELOP-*` artifact summarized into the enriched lineage snapshot, when supplied or unambiguously discovered. |
-| `previous_develop_sha256` | SHA-256 of the prior `DEVELOP-*` artifact when it was summarized. |
-| `previous_walkthrough_artifact` | Prior walkthrough artifact summarized into the enriched lineage snapshot, when supplied or unambiguously discovered. |
-| `previous_commit` | Prior commit/ref summarized into the enriched lineage snapshot, when supplied or unambiguously inferred from the user's loop request. |
+| `iteration` | Current iteration number in the lineage |
+| `previous_artifact` | Prior `CLARIFY-*` input artifact |
+| `previous_status` | Prior artifact status at creation |
+| `previous_updated` | Prior artifact timestamp or filesystem mtime used for freshness |
+| `previous_sha256` | Prior artifact SHA-256 at creation |
+| `previous_develop_artifact` | Prior `DEVELOP-*` artifact summarized into the enriched lineage snapshot, if supplied/unambiguous |
+| `previous_develop_sha256` | Prior `DEVELOP-*` SHA-256 when summarized |
+| `previous_walkthrough_artifact` | Prior walkthrough artifact summarized into the enriched lineage snapshot, if supplied/unambiguous |
+| `previous_commit` | Prior commit/ref summarized into the enriched lineage snapshot, if supplied/unambiguous |
 
 Apply these shared lineage rules unless a workflow names a stricter local gate:
-- **Evidence**: Explicit, name-versioned artifacts and commit/ref references are sufficient when supplied or unambiguous. Extra hashes are not required unless a listed `*_sha256` key is part of a source freshness check. Missing, ambiguous, or conflicting evidence is a source gap to record or escalate.
-- **Supersession**: A same-lineage descendant supersedes the ancestor named in `previous_artifact` when fresher by `iteration`, then artifact timestamp. Superseded artifacts remain lineage evidence or explicit branch points only when the user confirms that intent.
-- **Snapshot Boundary**: `### Enriched Lineage Snapshot` lets a new clarification iteration stand on its own for `/answer`. It can summarize prior `CLARIFY-*`, matching `DEVELOP-*`, walkthrough, and commit evidence, but it does not replace `source_*` freshness checks, approval records, `/review`, `/optimize`, or `/develop` handoff gates.
+
+- **Evidence**: Accept explicit name-versioned artifacts and commits/refs when supplied or unambiguous. Require hashes only when a listed `*_sha256` key drives freshness. Record or escalate source gaps.
+- **Supersession**: Same-lineage descendants supersede `previous_artifact` by higher `iteration`, then newer timestamp. Treat superseded artifacts as evidence or branch points only with user confirmation.
+- **Snapshot Boundary**: `### Enriched Lineage Snapshot` lets a new clarification iteration stand alone for `/answer`. It may summarize prior `CLARIFY-*`, matching `DEVELOP-*`, walkthrough, and commit evidence. It never replaces `source_*` freshness checks, approval records, `/review`, `/optimize`, or `/develop` gates.
 
 ### Approval Records
 
-Explicit approval remains the default approval record. A workflow may produce or consume a shared substitute approval record only when this lifecycle, the shared operating model, the producing workflow, and the accepting workflow all allow the same bounded scope.
+Use explicit approval by default. Use a substitute only when this lifecycle, the operating model, the producer, and the accepting workflow all allow the same bounded scope.
 
 | Record | Valid Only When | Never Satisfies |
 |---|---|---|
-| `explicit approval recorded` | The user approves the exact next mutation, scope, and risk. | No record-level exclusions; still satisfy stricter gate-specific requirements. |
-| `ApprovalRecord=workflow-tolerated` | A composing workflow explicitly supports producing this record, the route is approval-tolerable, and the pre-mutation record captures producer workflow, accepting gate, bounded scope, Priority Stack decision, source/status/staleness checks when artifacts exist, no unverified assumptions, and planned verification. | Gates whose owning workflow has not opted in, security-sensitive, VCS, destructive, failed-gate, unclear-gate, unresolved-input, unverified-assumption, temp-artifact lifecycle-risk, or final user-approval gates such as setting `status: implemented`. Final completion still requires executed verification evidence. |
+| `explicit approval recorded` | User approves the exact next mutation, scope, and risk | No record-level exclusions; still satisfy stricter gate rules |
+| `ApprovalRecord=workflow-tolerated` | Workflow opts in; route is approval-tolerable; pre-mutation record captures producer, gate, scope, Priority Stack decision, source/status/staleness checks when artifacts exist, no unverified assumptions, and planned verification | Non-opted-in, security-sensitive, VCS, destructive, failed/unclear-gate, unresolved-input, unverified-assumption, temp-artifact lifecycle-risk, or final user-approval gates, including `status: implemented`. Final completion still needs verification evidence |
 
 ### Assumption Tags
 
@@ -88,4 +89,5 @@ Explicit approval remains the default approval record. A workflow may produce or
 Accepted assumptions never bypass Security, Correctness, testable acceptance criteria, or the required approval record.
 
 ### Re-entry
-Resume from the last incomplete step identified by the artifact's `status` field and metadata flags.
+
+Resume from the last incomplete step named by `status` and metadata flags.

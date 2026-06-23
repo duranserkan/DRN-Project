@@ -1,50 +1,32 @@
 ---
-description: Gather structured knowledge context — codebase, knowledge items, skills, web — before running /clarify enrichment
+description: Gather structured codebase, knowledge, skill, and web context before /clarify enrichment
 ---
 
 > **Standalone or embedded in `/clarify §3`**
 > See also: [Operating Model](./_shared/workflow-operating-model.md)
-> **Estimated context: ~0.5K tokens**
+> **Estimated context: ~0.6K tokens**
 
----
+## 1. Mandate
 
-## 1. Role & Mandate
-**Context Scout**: Gather high-signal, low-noise inputs under the Context Economy (load minimal, summarize aggressively, stop when sufficient). Budget: max 20% of parent task effort.
+Act as **Context Scout**. Gather high-signal inputs. Load minimally, summarize aggressively, and stop when sufficient. Spend max 20% of parent task effort. Run the shared Startup Gate once; load only needed skills and resources.
 
-Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, the shared operating model, and only needed skills/resources.
+## 2. Intent
 
----
-
-## 2. Define Search Intent
-Before searching, state intent in one sentence:
+Before searching, state one sentence:
 > *"I am looking for [topic] to inform [decision/question]."*
 
----
+## 3. Sources
 
-## 3. Search Sources
-Search in priority order; stop when sufficient context is assembled:
+Search in order. Stop when context is sufficient.
 
-### 3.1 Repository Profile + Skills Index
-Read `.agent/repository-profile.md` when present, then read `.agent/skills/overview-skill-index/SKILL.md` to map tasks to skills.
+1. **Profile and skills**: read `.agent/repository-profile.md` when present; read `.agent/skills/overview-skill-index/SKILL.md` only to map tasks to skills.
+2. **Codebase**: find paths, search identifiers/literals/regex, inspect outlines before large files, and stop reading when the answer is clear.
+3. **Knowledge items**: list resources, then read only relevant ones.
+4. **External references**: use only when internal sources are insufficient or the user asks for external/current facts. Max 2 web queries. Prefer primary sources. Record URL and retrieval date.
 
-### 3.2 Codebase
-Locate patterns, configurations, naming, and files:
-- **Find paths** by name or glob.
-- **Search text** for identifiers, literals, and regular expressions.
-- **Inspect outlines/symbols** before reading large source files.
-- **Read files** with early exit when the answer is clear.
+## 4. Output
 
-### 3.3 Knowledge Items
-List knowledge resources, then read only relevant resources.
-
-### 3.4 External References (Bounded)
-Use only when internal sources are insufficient or the user asks for external/current facts (max 2 web queries). Prefer primary sources and record URL plus retrieval date:
-search a specific query, then read only the selected source URLs.
-
----
-
-## 4. Assemble Output
-Return structured context for the caller. `/search` is output-only; when embedded, `/clarify` owns appending this output to the active `CLARIFY-*` document. Use `(by: /search)` source tags:
+Return structured context only. `/search` does not edit artifacts. When embedded, `/clarify` appends this section to the active `CLARIFY-*` document. Tag bullets with `(by: /search)`.
 
 ```markdown
 ### Relevant Skills
@@ -52,29 +34,28 @@ Return structured context for the caller. `/search` is output-only; when embedde
 - Loaded: [skill names actually read]
 
 ### Codebase Findings
-- (by: /search) [file:line or pattern] — [key insight, 1 line]
+- (by: /search) [file:line or pattern] - [key insight, 1 line]
 
 ### Knowledge Items
-- (by: /search) [KI title] — [key insight, 1 line]
+- (by: /search) [KI title] - [key insight, 1 line]
 
 ### External References
-- (by: /search) [URL, retrieved YYYY-MM-DD] — [key insight, 1 line]
+- (by: /search) [URL, retrieved YYYY-MM-DD] - [key insight, 1 line]
 
 ### Initial Observations
 - (by: /search) [observation or assumption candidate]
 
 ### Not Searched
-- [source type] — [reason: budget / not relevant]
+- [source type] - [reason: budget / not relevant]
 ```
 
-**Compression Rules**:
-- Max **5 bullet points** per source section.
-- Each bullet: 1 line, key insight only (no code echoing).
-- Include file:line citations for local files when line numbers are available.
-- If empty: `[source] — no relevant findings`.
-
----
+Compression:
+- Max 5 bullets per source section.
+- Use one line per bullet; give the key insight only.
+- Include file:line citations for local files when available.
+- If empty, write `[source] - no relevant findings`.
 
 ## 5. Handoff
-- **Embedded**: Return the section to `/clarify`; `/clarify` appends it to `## Enrichment Context` and continues at §4.
-- **Standalone**: Present search context and stop.
+
+- Embedded: return the section to `/clarify`; `/clarify` appends it to `## Enrichment Context` and continues at §4.
+- Standalone: present search context and stop.

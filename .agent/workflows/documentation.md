@@ -1,40 +1,37 @@
 ---
 title: Documentation Workflow
-description: Generate and update per-module README.md and RELEASE-NOTES.md from repository-profile documentation modules while preserving human-written content.
+description: Update per-module README.md and RELEASE-NOTES.md from repository-profile modules while preserving human-written content.
 ---
 
 > **Standalone documentation workflow**
 > See also: [Operating Model](./_shared/workflow-operating-model.md)
-> **Estimated context: ~0.6K tokens**
+> **Estimated context: ~1.2K tokens**
 
----
+## 1. Mandate
 
-## 1. Role & Mandate
+Act as Documentation Engineer.
 
-**Documentation Engineer**: Maintain module `README.md` and `RELEASE-NOTES.md` files in sync with code. Preserve human-written content and exclude root files unless profile-declared.
+- Keep module `README.md` and `RELEASE-NOTES.md` in sync with code.
+- Use profile-declared documentation modules; exclude root docs unless declared.
+- Preserve human-written sections unless the user confirms changes.
+- Run the shared Startup Gate; load only needed documentation and source skills.
 
-Apply the shared Startup Gate before work: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, the shared operating model, and only needed documentation/source skills.
+## 2. Resolve Scope
 
----
-
-## 2. Resolve Scope & Sub-Command
-
-Use the default module set from `.agent/repository-profile.md` `Documentation Modules`. Fallback: find folders with project manifests containing `README.md` or `RELEASE-NOTES.md`.
+Use `.agent/repository-profile.md` `Documentation Modules`. If absent, find module folders with manifests plus `README.md` or `RELEASE-NOTES.md`.
 
 | Invocation | Scope | Action |
 |---|---|---|
-| `/documentation` | Discovered/profile modules | Update both |
-| `/documentation readme` | Discovered/profile modules | README only |
-| `/documentation release-notes` | Discovered/profile modules | RELEASE-NOTES only |
-| `/documentation <module>` | Named module/path | Update both |
+| `/documentation` | Profile/discovered modules | README + release notes |
+| `/documentation readme` | Profile/discovered modules | README only |
+| `/documentation release-notes` | Profile/discovered modules | Release notes only |
+| `/documentation <module>` | Named module/path | README + release notes |
 | `/documentation <module> readme` | Named module/path | README only |
-| `/documentation <module> release-notes` | Named module/path | RELEASE-NOTES only |
+| `/documentation <module> release-notes` | Named module/path | Release notes only |
 
----
+## 3. Load Evidence
 
-## 3. Load Context
-
-For scoped modules, use portable tool verbs and map them to the active platform:
+For each scoped module:
 
 ```bash
 Read file: <Module>/README.md
@@ -42,36 +39,36 @@ Read file: <Module>/RELEASE-NOTES.md
 Inspect outline: <Module>/<manifest-file>
 ```
 
-Read source files named by the repository profile source map, public API surface, and recent scoped changes. Use a `.agent/temp/DEVELOP-*.md` artifact only when explicitly supplied or uniquely tied to the requested module; block writes if it is `stale: true`, `needs_review: true`, `approval_required: true`, or contains `[ASSUMPTION - unverified]`.
+Read profile source-map files, public API surface, and recent scoped changes.
 
----
+Use a `.agent/temp/DEVELOP-*.md` artifact only when explicitly supplied or uniquely tied to the module. Block writes if it is `stale: true`, `needs_review: true`, `approval_required: true`, or contains `[ASSUMPTION - unverified]`.
 
-## 4. Drift Scan
+## 4. Scan Drift
 
-Scan before editing and report findings using the shared Evidence Contract:
+Before editing:
+
 1. Extract README headers, referenced types, methods, and config keys.
-2. Extract source public elements.
+2. Extract source public elements and observable behavior.
 3. Flag divergence:
-   - `[STALE]`: Doc references missing/renamed code element.
-   - `[MISSING]`: Source has undocumented public behavior.
-   - `[RENAMED]`: Heading mismatch.
-4. For each finding include evidence, impact, invariant, recommendation, confidence, and verification status.
-5. Present findings before proposing changes.
+   - `[STALE]`: docs name missing or renamed code.
+   - `[MISSING]`: public behavior lacks docs.
+   - `[RENAMED]`: heading or concept drift.
+4. Report each finding with Evidence, Impact, Invariant, Recommendation, Confidence, and Verification.
+5. Present findings before changes.
 
----
+## 5. Preserve Content
 
-## 5. Preserve Human-Written Sections
+Do not reorder headings or alter custom narrative without confirmation.
 
-Do not reorder headings or modify custom narrative without explicit confirmation. Preserve verbatim:
-- Badges block (top of file)
-- Blockquote description (after title)
-- Custom sections, voice, dedication, and footers
+Preserve verbatim:
 
----
+- Badges block.
+- Blockquote description after title.
+- Custom sections, voice, dedication, and footers.
 
-## 6. README Updates
+## 6. Update README
 
-For stubs or new modules, use this template:
+For new modules or stubs, use:
 
 ````markdown
 # <Module Name>
@@ -87,7 +84,7 @@ For stubs or new modules, use this template:
 
 ## Key Types
 | Type | Purpose |
-|------|---------|
+|---|---|
 | `<ClassName>` | [purpose] |
 
 ## Usage
@@ -99,47 +96,41 @@ minimal example
 - [link]
 ````
 
----
+## 7. Update Release Notes
 
-## 7. RELEASE-NOTES Updates
+Append a current version block above history. Never rewrite history.
 
-Append new version block *above* existing history. Never rewrite history.
-- Add or update a version block only when a release-note trigger applies:
-  - Public API, contract, endpoint, event, DTO, configuration key, default, security posture, operational behavior, data/migration behavior, or observable bug fix.
-  - Dependency, runtime, container, or build-output changes that are breaking, security-relevant, consumer-visible, or alter published package artifacts.
-  - Published docs shipped as package metadata, such as package READMEs or release notes.
-- Do not add entries for internal-only refactors, tests, comments, agent-only docs, or routine dependency-only changes with no consumer-visible impact unless the repository profile declares a stricter rule.
-- Include only changes since the last documented version for the affected module.
-- Omit empty subsections; include breaking changes.
-- Keep inferred changes in the change plan until source evidence or explicit approval resolves them. Do not write assumption markers into published docs unless the user explicitly requests that wording.
-- For version-aligned releases, do not create artificial version blocks for unchanged modules unless the repository profile explicitly requires them.
-- Enforce the repository-declared release notes template from the profile, package metadata, or framework-owned skill:
-  - Ensure required invariant prefix/footer only when the local convention declares them.
-  - Use the local version heading format; default to `## Version X.Y.Z`.
-  - Use the local section names; default to `### Breaking Changes`, `### New Features`, `### Changed`, and `### Bug Fixes`.
-  - Preserve existing historical wording unless it is the current edited version block or malformed package metadata blocks a declared invariant.
+Add or update a block only for:
 
----
+- Public API, contract, endpoint, event, DTO, configuration key, default, security posture, operational behavior, data/migration behavior, or observable bug fix.
+- Dependency, runtime, container, or build-output changes that are breaking, security-relevant, consumer-visible, or alter published package artifacts.
+- Published docs shipped as package metadata.
 
-## 8. Review & Confirm
+Do not add entries for internal-only refactors, tests, comments, agent-only docs, routine dependency-only changes with no consumer-visible impact, or unchanged version-aligned packages unless the profile requires them.
 
-Present changes and wait for approval before writing:
+Use only changes since the last documented version. Omit empty subsections. Include breaking changes. Keep inferred changes in the plan until source evidence or explicit approval resolves them; do not publish assumption markers unless requested.
+
+Follow the local template from the profile, package metadata, or framework-owned skill, including required prefix or footer invariants. Otherwise use `## Version X.Y.Z` with `### Breaking Changes`, `### New Features`, `### Changed`, and `### Bug Fixes`.
+
+Preserve historical wording unless editing the current block or fixing malformed package metadata that violates a declared invariant.
+
+## 8. Preview And Confirm
+
+Show the plan and wait for approval before writing:
 
 ```markdown
 ## Documentation Change Plan
 ### <Module Name>
 Detected drift:
 - [STALE] Evidence: <file:line or command output> | Impact: <reader/API risk> | Invariant: <rule> | Recommendation: <edit> | Confidence: high/medium/low | Verification: run/not run/blocked/N/A
-README.md structural changes: ...
+README.md changes: ...
 RELEASE-NOTES.md version: ...
 ```
 
----
+## 9. Write And Verify
 
-## 9. Write & Verify
-
-1. Write files.
-2. Read first 20 lines and touched sections to verify layout.
+1. Write approved edits.
+2. Read the first 20 lines and touched sections.
 3. Run `git diff --check`.
 4. Report build/test commands as `not run per repo rule` unless explicitly allowed and relevant.
-5. Report updates with evidence and residual risk.
+5. Report evidence, release-note decision, residual risk, and verification.
