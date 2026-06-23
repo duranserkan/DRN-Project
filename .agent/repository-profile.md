@@ -31,12 +31,12 @@ Hosted projects: `Sample.Hosted/` for the reference app; `DRN.Nexus.Hosted/` for
 
 - DRN framework: load `overview-drn-framework`, then the relevant `drn-*` skill.
 - Testing: load `drn-testing` and `overview-drn-testing` before generic `test-*` router skills.
-- Frontend: load relevant `frontend-*` skill; package root is `Sample.Hosted/`.
+- Frontend: load relevant `drn-buildwww-*` skills for DRN buildwww work and relevant `frontend-razor-*` skills for Razor UI; package root is `Sample.Hosted/`.
 - Framework package docs: use `.agent/workflows/documentation.md`.
 
 ### Framework Skills
 
-- Full DRN load set: `overview-drn-framework`, `overview-drn-testing`, `drn-sharedkernel`, `drn-entityframework`, `drn-domain-design`, `drn-utils`, `drn-hosting`, `drn-testing`.
+- Full DRN load set: `overview-drn-framework`, `overview-drn-testing`, `drn-sharedkernel`, `drn-entityframework`, `drn-domain-design`, `drn-utils`, `drn-hosting`, `drn-testing`, `drn-buildwww-libraries`, `drn-buildwww-packages`, `drn-buildwww-vite`, `drn-buildwww-react`.
 - Overview set: `overview-drn-framework`, `overview-drn-testing`.
 - Testing set: `drn-testing`, `overview-drn-testing`.
 

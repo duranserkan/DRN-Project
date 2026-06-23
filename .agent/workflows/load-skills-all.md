@@ -4,7 +4,7 @@ description: Load all portable skills plus framework-scoped or profile-declared 
 
 // turbo-all
 
-> **Estimated context: ~54.1K tokens** (30 skills plus repository profile)
+> **Estimated context: ~54.7K tokens** (30 skills plus repository profile)
 
 Read all skills:
 
@@ -26,8 +26,8 @@ Read all skills:
    - Read file: `.agent/skills/overview-skill-index/SKILL.md`
 
 **Framework-scoped/profile-declared skills:**
-   - Read every skill listed in `.agent/repository-profile.md` under `Framework Skill Load Set`.
-   - Current DRN framework load set:
+   - Read every skill listed in `.agent/repository-profile.md` under `Framework Skills`.
+   - Current DRN framework and buildwww load set:
      - Read file: `.agent/skills/overview-drn-framework/SKILL.md`
      - Read file: `.agent/skills/overview-drn-testing/SKILL.md`
      - Read file: `.agent/skills/drn-sharedkernel/SKILL.md`
@@ -36,6 +36,10 @@ Read all skills:
      - Read file: `.agent/skills/drn-utils/SKILL.md`
      - Read file: `.agent/skills/drn-hosting/SKILL.md`
      - Read file: `.agent/skills/drn-testing/SKILL.md`
+     - Read file: `.agent/skills/drn-buildwww-libraries/SKILL.md`
+     - Read file: `.agent/skills/drn-buildwww-packages/SKILL.md`
+     - Read file: `.agent/skills/drn-buildwww-vite/SKILL.md`
+     - Read file: `.agent/skills/drn-buildwww-react/SKILL.md`
    - Skip profile-declared skills that do not exist in this repository.
 
 **Testing:**
@@ -45,11 +49,7 @@ Read all skills:
    - Read file: `.agent/skills/test-performance/SKILL.md`
    - Read file: `.agent/skills/test-unit/SKILL.md`
 
-**Frontend:**
-   - Read file: `.agent/skills/frontend-buildwww-libraries/SKILL.md`
-   - Read file: `.agent/skills/frontend-buildwww-packages/SKILL.md`
-   - Read file: `.agent/skills/frontend-buildwww-vite/SKILL.md`
+**Frontend (generic Razor):**
    - Read file: `.agent/skills/frontend-razor-accessors/SKILL.md`
    - Read file: `.agent/skills/frontend-razor-pages-navigation/SKILL.md`
    - Read file: `.agent/skills/frontend-razor-pages-shared/SKILL.md`
-   - Read file: `.agent/skills/frontend-buildwww-react/SKILL.md`

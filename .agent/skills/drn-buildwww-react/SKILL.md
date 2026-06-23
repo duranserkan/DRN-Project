@@ -1,15 +1,15 @@
 ---
-name: frontend-buildwww-react
-description: "Building and integrating React 19 mounted islands — Islands Architecture, Shadow DOM isolation with Tailwind CSS 4, typed component registry, onmount lifecycle, mount/update/dispose API, Razor page integration patterns, and Vite IIFE build. Keywords: react, islands-architecture, onmount, components, shadow-dom, typescript, tailwind, mount-api, iife"
-last-updated: 2026-06-12
+name: drn-buildwww-react
+description: "DRN buildwww React 19 mounted islands - Shadow DOM, Tailwind CSS 4, typed registry, DRN.React mount/update/dispose API, Razor integration, and Vite IIFE build. Keywords: drn, buildwww, react, islands-architecture, onmount, components, shadow-dom, typescript, tailwind, mount-api, iife"
+last-updated: 2026-06-23
 difficulty: advanced
 tokens: ~4K
 ---
 
-# React Mounted Islands (buildwww)
+# DRN React Mounted Islands (buildwww)
 
 > React 19 components rendered client-side into isolated Shadow DOM islands within server-rendered Razor Pages — no SPA, no hydration.
-> Convention-scoped: use only when the repository profile or filesystem declares `buildwww` and the DRN browser API surface.
+> DRN-scoped: use only when the repository profile or filesystem declares DRN `buildwww` and the DRN browser API surface.
 
 ## When to Apply
 - Creating new React components for Razor Pages
@@ -48,7 +48,7 @@ This convention uses **Mounted Islands Architecture** — React components are e
 
 ### Script Loading Prerequisites
 
-`reactBundle.tsx` relies on the page-wide script loading order defined in [frontend-buildwww-libraries](../frontend-buildwww-libraries/SKILL.md#script-loading-order). Key constraint: `appPreload.js` **must** initialize the shared `window.DRN.React` object before this bundle loads — otherwise `mount()` is not attached and a critical error is logged.
+`reactBundle.tsx` relies on the page-wide script loading order defined in [drn-buildwww-libraries](../drn-buildwww-libraries/SKILL.md#script-loading-order). Key constraint: `appPreload.js` **must** initialize the shared `window.DRN.React` object before this bundle loads — otherwise `mount()` is not attached and a critical error is logged.
 
 Treat `DRN`, `Drn*`, and `DRN.Framework.*` names as shared framework API, not placeholders for app-specific namespaces.
 
@@ -72,7 +72,7 @@ Treat `DRN`, `Drn*`, and `DRN.Framework.*` names as shared framework API, not pl
 
 > `HelloReactComponent` is the **reference implementation**. New components follow the same file-pair pattern inside `components/` and are wired via the 4-point registration described in [Adding a New Component](#adding-a-new-component).
 
-**Output**: `wwwroot/lib/react/reactBundle.[hash].js` + `reactBundle.[hash].css`
+**Checked-in output**: `wwwroot/lib/react/reactBundle.[hash].js`. Use the manifest as the source of truth before adding Razor link tags for React assets.
 
 ---
 
@@ -158,11 +158,11 @@ react: {
 `reactBundle.tsx` imports CSS twice for two different purposes:
 
 ```typescript
-import './reactBundle.css'                    // Extracted to reactBundle.[hash].css by Vite
+import './reactBundle.css'                    // Let Vite/Tailwind process the CSS dependency
 import bundleStyles from './reactBundle.css?inline';  // Inlined as string for Shadow DOM injection
 ```
 
-- First import: standard CSS extraction for the build output
+- First import: lets Vite/Tailwind process the CSS dependency for the bundle
 - Second import (`?inline`): raw CSS string used to create constructable stylesheets for Shadow DOM
 
 ### CSS Aggregation
@@ -449,6 +449,6 @@ Components accept `on*`-prefixed function props for island→host event notifica
 
 ## Related Skills
 
-- [frontend-buildwww-libraries](../frontend-buildwww-libraries/SKILL.md) — onmount wrapper structure and lifecycle
-- [frontend-buildwww-vite](../frontend-buildwww-vite/SKILL.md) — Vite multi-build configuration
-- [frontend-buildwww-packages](../frontend-buildwww-packages/SKILL.md) — React, Tailwind, and type dependency management
+- [drn-buildwww-libraries](../drn-buildwww-libraries/SKILL.md) — onmount wrapper structure and lifecycle
+- [drn-buildwww-vite](../drn-buildwww-vite/SKILL.md) — Vite multi-build configuration
+- [drn-buildwww-packages](../drn-buildwww-packages/SKILL.md) — React, Tailwind, and type dependency management

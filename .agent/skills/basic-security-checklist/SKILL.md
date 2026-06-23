@@ -1,7 +1,7 @@
 ---
 name: basic-security-checklist
 description: Use when adding or reviewing endpoints, input handling, auth, authorization, CSP, CSRF, secrets, dependencies, security headers, infrastructure, or deployment changes.
-last-updated: 2026-06-12
+last-updated: 2026-06-23
 difficulty: intermediate
 tokens: ~1K
 ---
@@ -105,4 +105,4 @@ Rules:
 ## Related Skills
 
 - [basic-code-review.md](../basic-code-review/SKILL.md) - Security review triggers.
-- [frontend-buildwww-libraries.md](../frontend-buildwww-libraries/SKILL.md) - htmx CSP nonce integration when that convention is in use.
+- Load framework-specific frontend/CSP guidance from the repository profile when present.

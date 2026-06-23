@@ -1,14 +1,14 @@
 ---
-description: Load Frontend development skills
+description: Load DRN buildwww and Razor frontend development skills
 ---
 
-> **Estimated context: ~12.6K tokens** (7 skills)
+> **Estimated context: ~12.8K tokens** (7 skills)
 
 Read the skills:
-   - Read file: `.agent/skills/frontend-buildwww-libraries/SKILL.md`
-   - Read file: `.agent/skills/frontend-buildwww-packages/SKILL.md`
-   - Read file: `.agent/skills/frontend-buildwww-vite/SKILL.md`
+   - Read file: `.agent/skills/drn-buildwww-libraries/SKILL.md`
+   - Read file: `.agent/skills/drn-buildwww-packages/SKILL.md`
+   - Read file: `.agent/skills/drn-buildwww-vite/SKILL.md`
    - Read file: `.agent/skills/frontend-razor-accessors/SKILL.md`
    - Read file: `.agent/skills/frontend-razor-pages-navigation/SKILL.md`
    - Read file: `.agent/skills/frontend-razor-pages-shared/SKILL.md`
-   - Read file: `.agent/skills/frontend-buildwww-react/SKILL.md`
+   - Read file: `.agent/skills/drn-buildwww-react/SKILL.md`

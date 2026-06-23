@@ -36,11 +36,11 @@ public class QAContext : DrnContext<QAContext>
 |---------|-------------|
 | **Auto-registration** | Via `AddServicesWithAttributes()` |
 | **Convention naming** | Connection string: `ConnectionStrings:QAContext` |
-| **Config discovery** | Auto-applies `IEntityTypeConfiguration` from context namespace |
+| **Config discovery** | Auto-applies `IEntityTypeConfiguration` from the context assembly when the configuration namespace contains the context namespace |
 | **Entity tracking** | Auto-marks entities as Created/Modified/Deleted with timestamps |
 | **Design-time** | Implements `IDesignTimeDbContextFactory` |
 
-> Configurations are auto-discovered: place `IEntityTypeConfiguration<T>` in the same namespace as the `DrnContext` subclass.
+> Configurations are auto-discovered from the context assembly when the configuration namespace contains the `DrnContext` namespace. Child namespaces such as `Sample.Infra.QA.Configurations` are valid for a `Sample.Infra.QA` context.
 
 ### Augmented Entity Behavior
 

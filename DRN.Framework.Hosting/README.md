@@ -102,7 +102,7 @@ DRN.Framework.Hosting/
 ├── Extensions/          # Configuration, controller context, endpoint helpers
 ├── HealthCheck/         # WeatherForecastControllerBase for quick health checks
 ├── Identity/            # Identity integration and scoped user middleware
-├── Middlewares/         # HttpScopeLogger, exception handling, security middlewares
+├── Middlewares/         # HttpScopeMiddleware, exception handling, security middlewares
 ├── Nexus/               # NexusClient for inter-service HTTP communication
 ├── TagHelpers/          # Razor TagHelpers (Vite, Nonce, CSRF, Auth-Only, Anon-Only)
 ├── Utils/               # AppStartupStatus, ServerSettings, Vite manifest, ResourceExtractor
@@ -799,10 +799,10 @@ The framework provides a structured way to handle user privacy choices:
 ### Example: Secure Script Loading
 ```html
 <!-- Input: Original Vite source path -->
-<script src="buildwww/app/main.ts" crossorigin="anonymous"></script>
+<script src="buildwww/app/js/appPreload.js" crossorigin="anonymous"></script>
 
 <!-- Output after ViteScriptTagHelper and NonceTagHelper: hashed path + integrity + nonce -->
-<script src="/app/main.abc123.js" 
+<script src="/app/appPreload.abc123.js"
         integrity="sha256-xyz..." 
         nonce="random_nonce_here" 
         crossorigin="anonymous"></script>

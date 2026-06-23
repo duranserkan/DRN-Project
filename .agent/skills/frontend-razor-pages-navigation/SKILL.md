@@ -74,10 +74,10 @@ var sidebarSettingsCollection = ViewData[Get.ViewDataKeys.SidebarSettingsCollect
 Secondary horizontal navigation (tabs) displayed above the main content area. This is configured via `MainContentLayoutOptions` in the Page Model.
 
 ```csharp
-public class SubNavigationCollection(IReadOnlyList<SubNavigationItem> items)
+public class SubNavigationCollection(IReadOnlyList<SubNavigationItem> items, bool justifyContentCenter = false)
 {
     public IReadOnlyList<SubNavigationItem> Items { get; } = items;
-    public bool JustifyContentCenter { get; init; }
+    public bool JustifyContentCenter { get; } = justifyContentCenter;
 }
 ```
 
@@ -89,8 +89,8 @@ In your Page Model or Controller:
 ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = new MainContentLayoutOptions 
 { 
     SubNavigation = new SubNavigationCollection([
-        new(Get.Page.Profile.Details, "Profile", "bi-person"),
-        new(Get.Page.Profile.Security, "Security", "bi-shield-lock")
+        new(Get.Page.User.Profile.Details, "Profile", "bi-person"),
+        new(Get.Page.User.Profile.Edit, "Edit", "bi-pencil-square")
     ])
 };
 ```
@@ -102,8 +102,8 @@ Helper class pattern for defining reusable sub-navigation collections (e.g., acc
 ```csharp
 public class SubNavigationFor
 {
-    public DefaultSubNavigationCollection Default { get; } = new();
-    public ProfileSubNavigationCollection Profile { get; } = new();
+    public DefaultSubNavigationCollection DefaultSubNavigationCollection { get; } = new();
+    public ProfileSubNavigationCollection ProfileSubNavigationCollection { get; } = new();
 }
 ```
 

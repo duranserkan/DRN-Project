@@ -1,14 +1,14 @@
 ---
-name: frontend-buildwww-packages
-description: 'Frontend package dependencies - Standardized npm packages (Bootstrap, htmx, aspnet-client-validation, onmount, React, Tailwind), version management, and dependency purposes. Reference for adding or updating frontend libraries. Keywords: npm, packages, dependencies, bootstrap, htmx, aspnet-client-validation, onmount, react, tailwind, package-management, versioning'
-last-updated: 2026-06-12
+name: drn-buildwww-packages
+description: 'DRN buildwww package dependencies - npm packages for Bootstrap, htmx, ASP.NET validation, onmount, React, Tailwind, and Vite. Keywords: drn, buildwww, npm, packages, dependencies, bootstrap, htmx, aspnet-client-validation, onmount, react, tailwind'
+last-updated: 2026-06-23
 difficulty: basic
 tokens: ~0.5K
 ---
 
-# Frontend npm Packages
+# DRN buildwww npm Packages
 
-> Definitions of standard frontend dependencies and their purposes.
+> Definitions of DRN buildwww frontend dependencies and their purposes.
 
 ## When to Apply
 - Adding new npm libraries
@@ -69,5 +69,5 @@ CI restores dependencies with `npm ci --ignore-scripts` before audit/build. Unde
 
 ## Related Skills
 
-- [frontend-buildwww-vite.md](../frontend-buildwww-vite/SKILL.md) - Build process configuration
-- [frontend-buildwww-libraries.md](../frontend-buildwww-libraries/SKILL.md) - Library implementation and usage patterns
+- [drn-buildwww-vite.md](../drn-buildwww-vite/SKILL.md) - Build process configuration
+- [drn-buildwww-libraries.md](../drn-buildwww-libraries/SKILL.md) - Library implementation and usage patterns
