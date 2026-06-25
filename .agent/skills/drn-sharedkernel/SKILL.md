@@ -49,9 +49,9 @@ public abstract class SourceKnownEntity(long id = 0)
     public SourceKnownEntityId ToSecure(SourceKnownEntityId id);
     public SourceKnownEntityId ToPlain(SourceKnownEntityId id);
     
-    // Auto-called by DrnContext
-    internal void MarkAsCreated();   // Sets CreatedAt, adds created event
-    internal void MarkAsModified();  // Sets ModifiedAt, adds modified event
+    // Auto-called by EF save interceptor alongside timestamp updates
+    internal void MarkAsCreated();   // Adds created event
+    internal void MarkAsModified();  // Adds modified event
     internal void MarkAsDeleted();   // Adds deleted event
 }
 ```
@@ -123,14 +123,22 @@ var plainId = entity.ToPlain(entityId);  // or sourceKnownEntityIdUtils.ToPlain(
 ## Repository Contract
 
 ```csharp
+// Public contract excerpt. See SourceKnownRepository.cs for XML docs and full remarks.
 public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 {
     RepositorySettings<TEntity> Settings { get; set; }
     CancellationToken CancellationToken { get; set; }
+    void MergeCancellationTokens(CancellationToken other);
+    void CancelChanges();
+    Task<int> SaveChangesAsync();
     
     // Identity Conversion & Validation
     SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
+    SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true);
     SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true);
+    SourceKnownEntityId?[] GetEntityIds(IReadOnlyCollection<Guid?> ids, bool validate = true);
     
     // Retrieval by GUID (External ID)
     Task<TEntity> GetAsync(Guid id);
@@ -155,7 +163,6 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities);
     Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids);
     Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids);
-    Task<int> SaveChangesAsync();
     
     // Pagination
     Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);

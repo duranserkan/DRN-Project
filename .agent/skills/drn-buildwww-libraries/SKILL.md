@@ -1,15 +1,15 @@
 ---
-name: frontend-buildwww-libraries
-description: "Frontend JavaScript architecture - application utilities, onmount lifecycle, RSJS pattern for component mounting, htmx integration with CSP nonce security, and Bootstrap customization. Essential for client-side interactivity and component lifecycle. Keywords: javascript, rsjs, onmount, htmx, csp, nonce, bootstrap, cookie-management, component-mounting, client-side"
-last-updated: 2026-06-12
+name: drn-buildwww-libraries
+description: "DRN buildwww JavaScript architecture - DRN browser utilities, onmount lifecycle, RSJS mounting, htmx CSP nonce security, and Bootstrap customization. Keywords: drn, buildwww, javascript, rsjs, onmount, htmx, csp, nonce, bootstrap, cookie-management, component-mounting"
+last-updated: 2026-06-23
 difficulty: intermediate
 tokens: ~1.8K
 ---
 
-# buildwww Libraries
+# DRN buildwww Libraries
 
 > JavaScript utilities, RSJS architecture, htmx integration, and Bootstrap customization in buildwww.
-> Convention-scoped: use only when the repository profile or filesystem declares `buildwww` and the DRN browser API surface.
+> DRN-scoped: use only when the repository profile or filesystem declares DRN `buildwww` and the DRN browser API surface.
 
 ## When to Apply
 - Using repository JavaScript utilities
@@ -47,7 +47,7 @@ DRN.Onmount.registerFull(selector, registerCallback, unregisterCallback, idempot
 - **idempotencyKey** (optional): Prevents re-registration when scripts reload in partials.
 - **options.disposable**: Set in register callback; default `unregister` calls `.dispose()` and `.destroy()` on it automatically.
 
-> `register()` delegates to `registerFull()` with the default `unregister`. Use `registerFull()` when you need custom cleanup (e.g., clearing intervals, removing DOM listeners) — see [frontend-buildwww-react](../frontend-buildwww-react/SKILL.md) for the canonical example.
+> `register()` delegates to `registerFull()` with the default `unregister`. Use `registerFull()` when you need custom cleanup (e.g., clearing intervals, removing DOM listeners) — see [drn-buildwww-react](../drn-buildwww-react/SKILL.md) for the canonical example.
 
 ---
 
@@ -116,17 +116,19 @@ Global utilities are exposed under `window.DRN`.
 buildwww/app/js/drn/
 ├── drnApp.js           # Application state and globals
 ├── drnUtils.js         # General utility functions
-├── drnCookieManager.js # Cookie consent management
-└── drnOnmount.js       # Component mounting system
+├── drnCookieManager.js # Cookie list/set/get/remove/exists wrapper
+├── drnErrorHandler.js  # Early global error handling
+├── drnOnmount.js       # Component mounting system
+└── drnToast.js         # Bootstrap toast helper
 ```
 
 ### Cookie Manager
 
-Handles cookie consent logic (Analytics/Marketing) and provides a wrapper for cookie operations.
+Provides low-level cookie operations. Consent preferences are stored by Razor/footer code using `DRN.Cookie.get()` and `DRN.Cookie.set()` with the server-provided consent cookie name.
 
 ```javascript
-// Check specific consent
-if (DRN.Cookie.hasConsent('Analytics')) {
+const preferences = DRN.Cookie.get(preferencesCookieName, {encoding: 'base64'}) || {};
+if (preferences.AnalyticsConsent) {
     // load analytics scripts
 }
 ```
@@ -142,7 +144,7 @@ appPreload.js          → DRN.App, DRN.Utils, DRN.Onmount, DRN.React = {} names
   ↓
 <inline script>        → DRN.App config (Environment, CsrfToken, Cultures)
   ↓
-htmxBundle.js          → htmx + CSP nonce sync
+htmxBundle.js          → htmx + safe-nonce extension + client validation
   ↓
 bootstrapBundle.js     → Bootstrap JS plugins
   ↓
@@ -163,11 +165,15 @@ reactBundle.tsx         → DRN.React.mount() + component registry
 
 This convention integrates htmx with a strict CSP using nonces.
 
-**`htmxSafeNonce.js`**: Intercepts htmx requests to sync `htmx.config.inlineScriptNonce` with the current page nonce — allows inline scripts in partials, blocks unauthorized scripts.
+`_LayoutBase.cshtml` sets `htmx.config.inlineScriptNonce` through the `htmx-config` meta tag. `htmxSafeNonce.js` defines the `safe-nonce` extension used by `hx-ext="safe-nonce"`: it reads `HX-Nonce` or CSP nonce headers from htmx responses and removes swapped `<script>` tags whose nonce does not match.
 
 ```javascript
 // buildwww/lib/htmx/htmxSafeNonce.js
-htmx.config.inlineScriptNonce = document.currentScript?.nonce;
+htmx.defineExtension('safe-nonce', {
+    transformResponse: function (text, xhr, elt) {
+        // parse response and remove scripts without the response nonce
+    }
+});
 ```
 
 ### Client Validation
@@ -203,27 +209,39 @@ buildwww/lib/bootstrap/
 **`bootstrap.scss`**:
 ```scss
 // 1. Configure default variables
-$primary: #0d6efd;
+$primary: #0750bc;
 
-// 2. Import Bootstrap
-@import "bootstrap/scss/bootstrap";
+// 2. Import Bootstrap partials from node_modules in the required order
+@import "../../../node_modules/bootstrap/scss/functions";
+@import "../../../node_modules/bootstrap/scss/variables";
+@import "../../../node_modules/bootstrap/scss/maps";
+@import "../../../node_modules/bootstrap/scss/mixins";
+@import "../../../node_modules/bootstrap/scss/utilities";
 
-// 3. Add custom overrides
-.btn-primary { ... }
+// 3. Merge Bootstrap Icons into the same CSS bundle
+@import "../../../node_modules/bootstrap-icons/font/bootstrap-icons";
 ```
 
 **`bootstrapBundle.js`**:
-Imports only necessary plugins to keep bundle size low.
+Imports the selected Bootstrap plugins and exposes them under `window.bootstrap`.
 
 ```javascript
-import 'bootstrap/js/dist/tooltip';
-import 'bootstrap/js/dist/modal';
+import Alert from 'bootstrap/js/dist/alert'
+import Button from 'bootstrap/js/dist/button'
+import Modal from 'bootstrap/js/dist/modal'
+import Tooltip from 'bootstrap/js/dist/tooltip'
+import Toast from 'bootstrap/js/dist/toast'
+import Collapse from 'bootstrap/js/dist/collapse'
+import Dropdown from 'bootstrap/js/dist/dropdown'
+import Tab from 'bootstrap/js/dist/tab'
+import Popover from 'bootstrap/js/dist/popover'
+import Offcanvas from 'bootstrap/js/dist/offcanvas'
 ```
 
 ---
 
 ## Related Skills
 
-- [frontend-buildwww-vite.md](../frontend-buildwww-vite/SKILL.md) - Vite configuration
-- [frontend-buildwww-react.md](../frontend-buildwww-react/SKILL.md) - React mounted islands (primary consumer of `registerFull`)
+- [drn-buildwww-vite.md](../drn-buildwww-vite/SKILL.md) - Vite configuration
+- [drn-buildwww-react.md](../drn-buildwww-react/SKILL.md) - React mounted islands (primary consumer of `registerFull`)
 - Framework-scoped hosting/security skill declared by `.agent/repository-profile.md`, when present.

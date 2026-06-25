@@ -1,14 +1,14 @@
 ---
-name: frontend-buildwww-vite
-description: "Frontend build system - Vite multi-build configuration, TypeScript setup with path aliases, build output structure (wwwroot), and entry point management (appPreload, appPostload). Essential for frontend asset compilation and bundling. Keywords: vite, typescript, bundling, asset-compilation, npm, javascript, css, scss, build-pipeline, entry-points, manifest"
-last-updated: 2026-06-12
+name: drn-buildwww-vite
+description: "DRN buildwww Vite build system - multi-build configuration, TypeScript aliases, wwwroot output, appPreload/appPostload, and Vite manifest discovery. Keywords: drn, buildwww, vite, typescript, bundling, asset-compilation, npm, javascript, css, scss, build-pipeline, entry-points, manifest"
+last-updated: 2026-06-23
 difficulty: intermediate
 tokens: ~2K
 ---
 
-# buildwww & Vite
+# DRN buildwww & Vite
 
-> Frontend build system using Vite and TypeScript for repositories that declare a `buildwww` convention.
+> Frontend build system using Vite and TypeScript for repositories that declare the DRN `buildwww` convention.
 
 ## When to Apply
 - Configuring frontend build
@@ -115,7 +115,7 @@ const builds = {
 const buildType = process.env.BUILD_TYPE || 'app';
 ```
 
-> See [frontend-buildwww-react](../frontend-buildwww-react/SKILL.md) for the full React build architecture (Shadow DOM, Tailwind 4, IIFE format rationale).
+> See [drn-buildwww-react](../drn-buildwww-react/SKILL.md) for the full React build architecture (Shadow DOM, Tailwind 4, IIFE format rationale).
 
 ### Build Commands
 
@@ -208,7 +208,7 @@ export default defineConfig(drnUtils.deepMerge(sharedConfig, builds[buildType]))
 ## Package Configuration
  
 Detailed package versioning and dependency definitions are managed in:
-- [frontend-buildwww-packages.md](../frontend-buildwww-packages/SKILL.md)
+- [drn-buildwww-packages.md](../drn-buildwww-packages/SKILL.md)
 
 ---
 
@@ -251,7 +251,6 @@ wwwroot/
 │   │   └── .vite/manifest.json
 │   └── react/
 │       ├── reactBundle.[hash].js
-│       ├── reactBundle.[hash].css
 │       └── .vite/manifest.json
 ```
 
@@ -278,9 +277,9 @@ Runtime manifest discovery is source-owned by `DRN.Framework.Hosting.Utils.Vite.
 ## Related Skills
 
 - [overview-ddd-architecture.md](../overview-ddd-architecture/SKILL.md) - Architecture guidance
-- [frontend-buildwww-libraries.md](../frontend-buildwww-libraries/SKILL.md) - Library usage
-- [frontend-buildwww-react.md](../frontend-buildwww-react/SKILL.md) - React build architecture
-- [frontend-buildwww-packages.md](../frontend-buildwww-packages/SKILL.md) - Package dependencies
+- [drn-buildwww-libraries.md](../drn-buildwww-libraries/SKILL.md) - Library usage
+- [drn-buildwww-react.md](../drn-buildwww-react/SKILL.md) - React build architecture
+- [drn-buildwww-packages.md](../drn-buildwww-packages/SKILL.md) - Package dependencies
 - [frontend-razor-pages-shared.md](../frontend-razor-pages-shared/SKILL.md) - Layout integration
 
 ---

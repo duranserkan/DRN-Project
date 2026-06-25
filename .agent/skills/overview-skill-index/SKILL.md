@@ -1,7 +1,7 @@
 ---
 name: overview-skill-index
 description: Use when choosing which repository skills to load for a task, mapping work to skill families, finding related skills, or updating skill routing after skills change.
-last-updated: 2026-06-17
+last-updated: 2026-06-23
 difficulty: basic
 tokens: ~1.8K
 ---
@@ -15,9 +15,10 @@ tokens: ~1.8K
 1. Use existing source-owned guidance through the smallest set of skills that covers the task; do not create separate thin guidance forks.
 2. Prefer generic `basic-*`, `overview-*`, and `test-*` skills for portable process guidance.
 3. Load framework-specific skills only when the repository profile, source code, or user request names that framework.
-4. Load `frontend-*` skills only when the repository profile or filesystem declares the matching frontend convention.
-5. Load profile-declared custom workflows and skills before generic fallback when they match the task, route, layer, or slash-command flag.
-6. If a referenced skill is missing after copying to another repository, skip it and rely on conventions/profile discovery.
+4. Load generic `frontend-*` skills only when the repository profile or filesystem declares the matching frontend convention.
+5. Load DRN-scoped buildwww skills only when the repository profile or filesystem declares DRN `buildwww`.
+6. Load profile-declared custom workflows and skills before generic fallback when they match the task, route, layer, or slash-command flag.
+7. If a referenced skill is missing after copying to another repository, skip it and rely on conventions/profile discovery.
 
 ## By Task
 
@@ -31,10 +32,10 @@ tokens: ~1.8K
 | Add unit tests | repository testing profile -> `test-unit` |
 | Add integration tests | repository testing profile -> `test-integration` plus `test-integration-api` or `test-integration-db` |
 | Run benchmarks | `test-performance` |
-| Add frontend package | repository frontend profile -> `frontend-buildwww-packages` when `buildwww` applies |
-| Modify Vite/buildwww | `frontend-buildwww-vite` when that convention applies |
+| Add DRN buildwww package | repository frontend profile -> `drn-buildwww-packages` when DRN `buildwww` applies |
+| Modify DRN Vite/buildwww | `drn-buildwww-vite` when DRN `buildwww` applies |
 | Add Razor UI | `frontend-razor-pages-shared` -> `frontend-razor-pages-navigation` -> `frontend-razor-accessors` |
-| Add React mounted island | `frontend-buildwww-libraries` -> `frontend-buildwww-react` when that convention applies |
+| Add DRN React mounted island | `drn-buildwww-libraries` -> `drn-buildwww-react` when DRN `buildwww` applies |
 | Work as an AI agent | `basic-agentic-development` |
 | Pursue a goal through workflow routing | `/goal` workflow -> profile/custom route or skill overlays -> `basic-agentic-development` |
 | Use repository-specific custom behavior | `.agent/repository-profile.md` -> matching `.agent/workflows/<custom>.md` or `.agent/skills/<custom>-*/SKILL.md` |
@@ -49,7 +50,7 @@ The following families are framework- or convention-scoped and should be used on
 |--------|---------|
 | `drn-*` | Repository uses DRN Framework or the user asks for DRN behavior |
 | `overview-drn-*` | Repository profile declares DRN overview/testing conventions |
-| `frontend-buildwww-*` | Repository profile or filesystem declares `buildwww` frontend convention |
+| `drn-buildwww-*` | Repository profile or filesystem declares DRN `buildwww` frontend convention |
 | `<custom>-*` | Repository profile, workflow, or task declares a custom local convention |
 
 ## By Layer
@@ -60,7 +61,7 @@ The following families are framework- or convention-scoped and should be used on
 | Hosting / API | `basic-security-checklist`, `test-integration-api` | Hosting skill from profile |
 | Persistence | `test-integration-db` | ORM/framework skill from profile |
 | Testing | `test-unit`, `test-integration`, `test-performance` | Framework/profile testing skill |
-| Frontend | Detected `frontend-*` convention skill | Framework/web skill from profile |
+| Frontend | Detected generic `frontend-*` convention skill | `drn-buildwww-*` or other framework/web skill from profile |
 | CI/CD | `overview-github-actions`, `basic-git-conventions` | Release/deployment profile |
 | Custom workflow route | Selected generic route | Profile-declared custom workflow or skill overlay |
 
@@ -74,7 +75,7 @@ flowchart TD
     Overview["overview-*"]
     DRN["drn-*"]
     Test["test-*"]
-    Frontend["frontend-*"]
+    Frontend["frontend-* / drn-buildwww-*"]
     Custom["profile/custom workflows + skills"]
     Workflows["task workflows"]
 
@@ -102,10 +103,8 @@ Portable keywords should stay broad. Repository- or framework-specific terms bel
 | architecture / ddd | `overview-ddd-architecture` |
 | ci / github-actions / deployment | `overview-github-actions` |
 | documentation / readme / release-notes | `basic-documentation`, `/documentation` |
-| frontend / vite / buildwww | `frontend-buildwww-vite`, `frontend-buildwww-packages` |
+| frontend / razor-ui | `frontend-razor-pages-shared`, `frontend-razor-pages-navigation`, `frontend-razor-accessors` |
 | goal / goal-mode / workflow-routing | `/goal`, profile/custom route overlays, `basic-agentic-development` |
-| htmx / csp / nonce | `frontend-buildwww-libraries`, `basic-security-checklist` |
-| react / islands | `frontend-buildwww-react` |
 | repository / navigation | `overview-repository-structure` |
 | new repository / port .agent / self-sync | `/update all`, `.agent/repository-profile.md`, `overview-skill-index` |
 | repository-specific / custom workflow / custom skill | `.agent/repository-profile.md`, matching `.agent/workflows/<custom>.md`, matching `.agent/skills/<custom>-*/SKILL.md` |
@@ -122,9 +121,11 @@ Use these terms only when the repository profile declares the matching framework
 | repository / pagination / dto | `drn-domain-design`, `drn-sharedkernel`, `drn-entityframework` |
 | ef-core / migration / prototype-mode | `drn-entityframework`, `drn-testing`, `test-integration-db` |
 | testcontainers / postgres / rabbitmq | `drn-testing`, `test-integration-db` |
-| authentication / authorization / csp / csrf / nonce | `drn-hosting`, `basic-security-checklist`, `frontend-buildwww-libraries` |
-| htmx / bootstrap / rsjs / onmount | `frontend-buildwww-libraries`, `frontend-buildwww-vite` |
-| shadow-dom / mount-api / tailwind / react-islands | `frontend-buildwww-react`, `frontend-buildwww-packages` |
+| frontend / vite / buildwww | `drn-buildwww-vite`, `drn-buildwww-packages` |
+| authentication / authorization / csp / csrf / nonce | `drn-hosting`, `basic-security-checklist`, `drn-buildwww-libraries` |
+| htmx / bootstrap / rsjs / onmount | `drn-buildwww-libraries`, `drn-buildwww-vite` |
+| react / islands | `drn-buildwww-react` |
+| shadow-dom / mount-api / tailwind / react-islands | `drn-buildwww-react`, `drn-buildwww-packages` |
 | background-job / hosted-service | `drn-hosting`, profile-declared framework package docs |
 | mass-transit / messaging / rabbitmq | `drn-testing`, profile-declared framework package docs |
 

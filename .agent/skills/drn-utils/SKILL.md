@@ -291,10 +291,11 @@ worker.Stop();
 
 ```csharp
 // ServiceCollectionExtensions
-services.ReplaceInstance<T>(instance);
-services.ReplaceTransient<TService, TImpl>();
-services.ReplaceScoped<TService, TImpl>();
-services.ReplaceSingleton<TService, TImpl>();
+var replacement = new MyService();
+services.ReplaceInstance<MyService>(typeof(IMyService), new[] { replacement }, ServiceLifetime.Singleton);
+services.ReplaceTransient<IMyService, MyService>(replacement);
+services.ReplaceScoped<IMyService, MyService>(replacement);
+services.ReplaceSingleton<IMyService, MyService>(replacement);
 services.GetAllAssignableTo<TService>();
 
 // String & Binary

@@ -310,12 +310,33 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 {
     RepositorySettings<TEntity> Settings { get; set; }
     CancellationToken CancellationToken { get; set; }
+    void MergeCancellationTokens(CancellationToken other);
+    void CancelChanges();
+    Task<int> SaveChangesAsync();
+
+    // Predicates & Counts
+    Task<bool> AllAsync(Expression<Func<TEntity, bool>> predicate);
+    Task<bool> AnyAsync(Expression<Func<TEntity, bool>>? predicate = null);
+    Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null);
     
     // Identity Conversion & Validation
     SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
+    SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true);
     SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true);
+    SourceKnownEntityId?[] GetEntityIds(IReadOnlyCollection<Guid?> ids, bool validate = true);
+    SourceKnownEntityId[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid> ids) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId?[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid?> ids) where TOtherEntity : SourceKnownEntity;
+    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool validate = true);
+    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable(IEnumerable<Guid?> ids, bool validate = true);
+    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids) where TOtherEntity : SourceKnownEntity;
+    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid?> ids) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId ToSecure(SourceKnownEntityId id);
+    SourceKnownEntityId ToPlain(SourceKnownEntityId id);
     
     // Data Access
+    Task<TEntity[]> GetAllAsync();
     Task<TEntity> GetAsync(Guid id);
     Task<TEntity> GetAsync(SourceKnownEntityId id);
     Task<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true);
@@ -324,13 +345,6 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     // Batch Retrieval
     Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);
     Task<TEntity[]> GetAsync(IReadOnlyCollection<SourceKnownEntityId> ids);
-    Task<TEntity[]> GetAllAsync(); 
-    
-    // Batch & Counts
-    Task<bool> AnyAsync(Expression<Func<TEntity, bool>>? predicate = null);
-    Task<bool> AllAsync(Expression<Func<TEntity, bool>> predicate);
-    Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null);
-    
     // Modification
     void Add(params IReadOnlyCollection<TEntity> entities);
     void Remove(params IReadOnlyCollection<TEntity> entities);
@@ -338,10 +352,12 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities);
     Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids);
     Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids);
-    Task<int> SaveChangesAsync();
 
     // Pagination
     Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
+    Task<PaginationResultModel<TEntity>> PaginateAsync(
+        PaginationResultInfo? resultInfo = null, long jumpTo = 1, int pageSize = -1, int maxSize = -1,
+        PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false);
     IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null);
 }
 ```

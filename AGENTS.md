@@ -2,6 +2,11 @@
 
 > Portable entry point for AI coding agents. Keep project facts in `.agent/repository-profile.md`.
 
+## Bootstrap and precedence
+
+- `AGENTS.md` and `.agent/rules/DiSCOS.md` are complementary entry points; a tool may load either first.
+- Do not re-read agent files.
+
 ## Priority Stack
 
 Resolve conflicts with TRIZ first. If a tradeoff remains, apply this order:
@@ -91,4 +96,7 @@ Use the profile first. If it is missing or silent, discover by convention:
 | `/search` | Gather structured codebase, docs, skill, and web context before clarification. |
 | `/documentation` | Update module documentation and release notes declared by repository conventions. |
 | `/update` | Sync agent instructions, skill index, workflows, and profile from filesystem; use after porting `.agent` to a new repository. |
+| `/update-plan` | Discover skills, projects, assets, and drift, then generate `.agent/temp/update-plan.md`. |
+| `/update-execute` | Execute reviewed update-plan sync stages and record completion state. |
+| `/update-verify` | Verify update structural integrity and mark the update plan verified or failed. |
 | `/update-last` | Detect changed files from recent commits, then delegate to `/update`. |
