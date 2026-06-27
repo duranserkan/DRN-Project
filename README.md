@@ -232,22 +232,25 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 ## About Management
 
 ### Security Management
+
 * Security is always your most important requirement.
-* Always be defensive and secure by default
+* Always be defensive and secure by default.
 * Prefer whitelisting over blacklisting. Blacklists can be penetrated.
 
 ### Task Management
-* Always make a Todo List
-* Prioritize tasks - Use your insights or MoSCoW prioritization etc...
-* Warm up - start with one easy task then focus on hard one.
-* Know your options 4D+E - Do it, drop it, delegate it, defer it or escalate.
-> 4D comes from David Allen's 4d model. +E is my personal addition to it. Escalation is your friend. Inform others and ask their opinions whenever you are not sure what to do.
+
+* Always make a To-Do List.
+* Prioritize tasks - use your insights or MoSCoW prioritization, etc.
+* Warm up - start with one easy task, then focus on the hard one.
+* Know your options 4D+E - do it, drop it, delegate it, defer it, or escalate.
+> 4D comes from David Allen's 4D model. +E is my personal addition to it. Escalation is your friend. Inform others and ask their opinions whenever you are not sure what to do.
 
 ### Time Management
-* Small things add up then become big thing. Do it while they are small and avoid stress.
-* Don't micromanage delegate whenever possible.
-  * Delegation requires shared understanding. It is not fire and forget process. Guide and track results when needed
-* Don't over optimize. Good enough is better than excellent.
+
+* Small things add up then become big things. Do them while they are small and avoid stress.
+* Don't micromanage; delegate whenever possible.
+  * Delegation requires shared understanding. It is not a fire-and-forget process. Guide and track results when needed.
+* Don't over-optimize. Good enough is better than excellent.
 
 ### Quality Management
 * Follow best practices and solutions. Don't reinvent the wheel
