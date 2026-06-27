@@ -92,6 +92,7 @@ public async Task WeatherForecast_Should_Return_Data(DrnTestContext context, ITe
 ```
 
 ## Directory Structure
+
 ```
 DRN.Framework.Hosting/
 ├── DrnProgram/          # DrnProgramBase, options, actions, conventions
@@ -291,6 +292,7 @@ These hooks define the request processing middleware sequence.
 > Always use `User Secrets` for local connection strings to avoid committing credentials.
 
 ### Layering
+
 1.  `appsettings.json`
 2.  `appsettings.{Environment}.json`
 3.  **User Secrets** when the application assembly can be loaded
@@ -305,6 +307,7 @@ These hooks define the request processing middleware sequence.
 ### Reference Configurations
 
 #### NLog (Logging)
+
 Standard configuration for Console and Graylog output.
 ```json
 {
@@ -325,6 +328,7 @@ Standard configuration for Console and Graylog output.
 ```
 
 #### Kestrel (Server)
+
 ```json
 {
   "Kestrel": {
@@ -341,11 +345,13 @@ Standard configuration for Console and Graylog output.
 DRN Hosting enforces a **"Fail-Closed"** security model. If you forget to configure something, it remains locked.
 
 ### 1. MFA Enforcement (Fail-Closed)
+
 The framework sets the `FallbackPolicy` for the entire application to require a Multi-Factor Authentication session. 
 *   **Result**: Any new controller or page you add is **secure by default**. 
 *   **Opt-Out**: Use `[AllowAnonymous]` or `[Authorize(Policy = AuthPolicy.MfaExempt)]` for single-factor pages like Login or MFA Setup.
 
 ### 2. MFA Configuration
+
 Configure MFA behavior by overriding these hooks in your `DrnProgramBase` implementation:
 
 ```csharp
@@ -399,6 +405,7 @@ DRN automatically generates a unique cryptographic nonce for every request.
 *   **Usage**: Use the `NonceTagHelper` (see below) to automatically inject these nonces.
 
 ### 4. Transparent Security Headers
+
 Standard security headers are injected into responses:
 *   **HSTS**: Strict-Transport-Security (2 years, includes subdomains) outside Development.
 *   **FrameOptions**: `DENY` (prevents clickjacking).
@@ -408,6 +415,7 @@ Standard security headers are injected into responses:
 *   **PermissionsPolicy**: Secure default directives with fullscreen limited to self.
 
 ### 5. GDPR & Cookie Security
+
 The global cookie policy uses `SameSite=Strict`; `Secure` is `Always` outside Development and `SameAsRequest` in Development. Global `HttpOnly` is not forced because some consent/client-side cookies must remain script-readable under strict CSP. Antiforgery and TempData cookies are explicitly `HttpOnly`. The `ConsentCookie` system supports privacy preference handling.
 
 ### 6. Per-Route Security Headers
@@ -676,6 +684,7 @@ protected override void ConfigurePostAuthRateLimiterOptions(
 Avoid "magic strings" in your code. DRN provides a type-safe way to reference routes that is verified at startup.
 
 ### 1. Define Your Accessors
+
 Create a class inheriting from `EndpointCollectionBase<Program>` or `PageCollectionBase<Program>`.
 
 ```csharp
@@ -696,6 +705,7 @@ public class UserEndpoints : ControllerForBase<UserController>
 ```
 
 ### 2. Usage in Code
+
 Resolve routes at compile-time with full IDE support (intellisense).
 
 ```csharp
@@ -742,12 +752,14 @@ Disable the publish item injection when an application owns this behavior itself
 DRN Hosting provides deep observability into application failures, especially during the critical startup phase.
 
 ### Startup Exception Reports
+
 In Development, if the application fails to start during `RunAsync`, it generates a `StartupExceptionReport.html` beside the application assembly. Production and staging fail with normal logs only. Development reports include:
 -   Full stack traces with source code highlighting (if symbols available).
 -   Environment details and configuration snapshots.
 -   Scoped logs leading up to the crash.
 
 ### Custom Error Pages
+
 The framework includes built-in Razor Pages for developer-time exception handling:
 -   **RuntimeExceptionPage**: Detailed breakdown of unhandled exceptions with request state and logs.
 -   **CompilationExceptionPage**: Visualizes Razor or code compilation errors with line-specific highlighting.
@@ -797,6 +809,7 @@ The framework provides a structured way to handle user privacy choices:
 -   **Middleware Integration**: `ScopedUserMiddleware` automatically extracts consent data and makes it available via `ScopeContext.Data`, allowing services to check consent status without reaching into the raw cookie.
 
 ### Example: Secure Script Loading
+
 ```html
 <!-- Input: Original Vite source path -->
 <script src="buildwww/app/js/appPreload.js" crossorigin="anonymous"></script>
@@ -844,6 +857,7 @@ Add the following to your `.csproj` file to ensure the testing library and Testc
 ```
 
 ### 2. Configure Startup Actions
+
 Implement `DrnProgramActions` to trigger the auto-provisioning.
 
 ```csharp

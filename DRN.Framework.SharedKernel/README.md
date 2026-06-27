@@ -178,6 +178,7 @@ var entityId = user.GetEntityId<User>(someGuid);
 The framework provides three distinct ways to validate and retrieve typed identifiers based on the operational context:
 
 #### 1. Injectable Utility
+
 Recommended for service layer logic or when `sourceKnownEntityIdUtils` is in scope.
 
 ```csharp
@@ -185,6 +186,7 @@ var id = sourceKnownEntityIdUtils.Validate<User>(externalGuid);
 ```
 
 #### 2. Repository
+
 Directly available on `ISourceKnownRepository<TEntity>` to standardize validation at the data entry point.
 
 ```csharp
@@ -192,6 +194,7 @@ var id = userRepository.GetEntityId(externalGuid);
 ```
 
 #### 3. Domain Entity
+
 Helper methods on the `SourceKnownEntity` base class, optimized for intra-domain operations.
 
 ```csharp
@@ -501,6 +504,7 @@ public static class JsonConventions
 ## Attributes
 
 ### `[IgnoreLog]`
+
 Excludes sensitive properties or entire classes from scoped logging.
 
 ```csharp
@@ -509,6 +513,7 @@ public class IgnoreLogAttribute : Attribute;
 ```
 
 ### `[SecureKey]`
+
 Validates that a string meets secure key requirements (length, character classes).
 
 ---
