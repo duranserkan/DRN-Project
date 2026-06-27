@@ -81,7 +81,7 @@ public class NexusMacKey
         Key = key;
         Format = format;
         KeyAsBinary = DecodeKey(key, format);
-        KeyHash = Key.Hash();
+        KeyHash = KeyAsBinary.Hash();
         AlternativeKey = (((KeyHash + "1919").Hash() + "1923").Hash() + "193∞").Hash();
         AlternativeKeyAsBinary = AlternativeKey.Decode();
 

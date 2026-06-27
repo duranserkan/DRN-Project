@@ -395,6 +395,8 @@ Nested option objects must be validated explicitly before relying on child data 
 
 Invalid user-provided keys are not hashed, stretched, truncated, repaired, or treated as another format. Startup validation rejects malformed encodings, empty keys, wrong decoded lengths, and raw values that are not exactly 32 UTF-8 bytes. Exception messages avoid including the secret key value.
 
+After format validation, key separation derives the alternative AES key from the decoded 32 raw bytes. Hex, Base64, and Base64Url text are never hashed as UTF-8 key bytes, so equivalent raw key material derives the same MAC and AES key material in every supported format.
+
 When no default MAC key is configured in the `Development` environment, `AppSettings` adds one automatically. This key is deterministic from `DrnAppFeatures.SeedKey`, not random, and is stored in memory as `Format = Base64UrlEncoded`.
 
 ## Logging (`IScopedLog`)
@@ -672,7 +674,7 @@ The `Generate` method dispatches to secure or plain generation based on the `Use
 | `ToSecure` | Converts a plain ID to its secure form (idempotent) |
 | `ToPlain` | Converts a secure ID to its plain form (idempotent) |
 
-**Secure variant** encrypts the entire 16-byte GUID using AES-256-ECB as a pseudo-random permutation (PRP). For a single 128-bit block, ECB is mathematically identical to CBC with a zero IV — no nonce required, no nonce-reuse vulnerability. Key separation ensures BLAKE3 keyed MAC (integrity) and AES-256 (confidentiality) use cryptographically independent keys from the same keyring entry.
+**Secure variant** encrypts the entire 16-byte GUID using AES-256-ECB as a pseudo-random permutation (PRP). For a single 128-bit block, ECB is mathematically identical to CBC with a zero IV — no nonce required, no nonce-reuse vulnerability. Key separation ensures BLAKE3 keyed MAC (integrity) and AES-256 (confidentiality) use cryptographically independent keys derived from the same decoded `NexusMacKey` bytes.
 
 Generation uses the default `NexusMacKey`. Parse uses a default-first key-ring fallback, so IDs generated before key rotation can still be parsed while the previous key remains configured.
 
