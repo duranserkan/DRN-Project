@@ -30,7 +30,7 @@ Before processing:
 
 ## 3. Enrich Context
 
-Review `## Enrichment Context` and the snapshot. If gaps remain, research within the 20% budget; do not repeat `/clarify`. Append findings under matching subheadings:
+Review `## Enrichment Context` and the snapshot. If gaps remain, research within the default 20% budget; for stale, current, or security-sensitive correctness gaps, may extend automatically up to 40%. Beyond 40% requires explicit approval; otherwise stop and record not searched. Do not repeat `/clarify`. Append findings under matching subheadings:
 
 ```markdown
 ### Codebase Findings

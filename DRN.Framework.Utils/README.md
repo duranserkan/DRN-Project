@@ -402,6 +402,7 @@ When no default MAC key is configured in the `Development` environment, `AppSett
 `IScopedLog` provides request-scoped structured logging. It aggregates operational data, metrics, and checkpoints during the request lifecycle, flushing them as a single entry for efficient monitoring.
 
 ### Core Features
+
 *   **Contextual**: Automatically captures `TraceId`, `UserId`, `RequestPath`, and custom scope data.
 *   **Aggregation**: Groups all actions, metrics, and exceptions into a single structured log entry.
 *   **Performance Tracking**: Built-in measurement for code block durations and execution counts.
@@ -445,6 +446,7 @@ public class OrderService(IScopedLog logger)
 Wrappers around [Flurl](https://flurl.dev/) for HTTP clients with standardized JSON conventions and HTTP version policy configuration. Retries/circuit breakers are not configured by this package.
 
 ### External Requests
+
 Use `IExternalRequest` for standard external API calls. It pre-configures `DefaultJsonSerializer` and enforces HTTP version policies.
 
 ```csharp
@@ -462,9 +464,11 @@ public class PaymentService(IExternalRequest request)
 ```
 
 ### Internal Requests (Service Mesh)
+
 Use `IInternalRequest` for Service-to-Service communication in Kubernetes. It's designed to work with Linkerd, supporting automatic protocol switching (HTTP/HTTPS) based on infrastructure settings.
 
 #### Recommended Pattern: Request Wrappers
+
 Instead of using `IInternalRequest` directly in business logic, wrap it in a typed request factory for better maintainability and configuration encapsulation.
 
 ```csharp
@@ -507,11 +511,13 @@ if (ScopeContext.IsUserInRole("Admin")) { ... }
 ## Data Utilities
 
 ### Encodings (`EncodingExtensions`)
+
 Unified API for binary-to-text encodings and model serialization-encoding.
 *   **Encodings**: Base64, Base64Url (Safe for URLs), Hex, and Utf8.
 *   **Integrated**: `model.Encode(ByteEncoding.Hex)` and `hexString.Decode<TModel>()`.
 
 ### Hashing (`HashExtensions`)
+
 High-performance hashing extensions supporting modern and legacy algorithms.
 *   **Blake3**: Default modern cryptographic hash (fast and secure).
 *   **XxHash3**: Non-cryptographic hashing for performance-critical scenarios (IDs, Cache keys).
@@ -519,14 +525,17 @@ High-performance hashing extensions supporting modern and legacy algorithms.
 *   **Streams**: Stream overloads hash files and large payloads without first materializing them as `BinaryData`; prefer these overloads for file and upload hashing.
 
 ### JSON & Document Utilities
+
 *   **JSON Merge Patch**: `JsonMergePatch.SafeApplyMergePatch` follows RFC 7386 for partial updates with built-in recursion depth protection.
 *   **Query String Serialization**: `QueryParameterSerializer` flattens complex nested objects/arrays into clean query strings for API clients.
 
 ### Serialization & Streams
+
 *   **Unified Extensions**: `model.Serialize(method)` supports both JSON and Query String formats.
 *   **Safe Stream Consumption**: `ToBinaryDataAsync` and `ToArrayAsync` extensions with `MaxSizeGuard` to prevent memory exhaustion from untrusted streams.
 
 ### Programmatic Validation
+
 Extensions for programmatic validation using `System.ComponentModel.DataAnnotations`.
 *   **Contextual**: Integrates with `DRN.Framework.SharedKernel.ValidationException` for standardized error reporting across layers.
 
@@ -748,6 +757,7 @@ SourceKnownEntityIds use epoch-based time addressing for monotonic ordering. Eac
 > The first epoch requires no configuration and covers approximately 68 years from 2025-01-01. Epoch transitions are handled automatically.
 
 ### Time
+
 `TimeProvider` singleton is registered by default to `TimeProvider.System` for testable time entry. See [Time & Async](#time--async) for high-performance alternatives.
 
 ## Concurrency
@@ -784,17 +794,20 @@ LockUtils.TrySetIfNull(ref _instance, service);
 Comprehensive set of extensions for standard .NET types and reflection.
 
 ### Reflection & `MethodUtils`
+
 Highly optimized reflection helpers with built-in caching for generic and non-generic method invocation.
 *   **Invoke**: `instance.InvokeMethod("Name", args)` and `type.InvokeStaticMethod("Name", args)`.
 *   **Generics**: `instance.InvokeGenericMethod("Name", typeArgs, args)` with static and uncached variations.
 *   **Caching**: Uses internal `ConcurrentDictionary` and `record struct` keys for zero-allocation cache lookups.
 
 ### Service Collection
+
 Advanced DI container manipulation for testing and modularity.
 *   **Querying**: `sc.GetAllAssignableTo<TService>()` retrieves all descriptors matching a type.
 *   **Replacement**: `ReplaceScoped`, `ReplaceSingleton`, and `ReplaceInstance` for mocking/overriding dependencies in integration tests.
 
 ### String, Path & Binary Extensions
+
 *   **Casing**: `ToSnakeCase`, `ToCamelCase`, and `ToPascalCase` for clean code-to-external system mapping.
 *   **Parsing**: `string.Parse<T>()` and `string.TryParse<T>(out result)` using the modern `IParsable<T>` interface.
 *   **Path**: `NormalizeDirectoryPath()` resolves a directory path to a full path and trims trailing separators without trimming filesystem roots. `IsPathWithinDirectory()` performs full-path containment checks.
@@ -802,16 +815,19 @@ Advanced DI container manipulation for testing and modularity.
 *   **FileSystem**: `GetLines()` for `IFileInfo` with efficient physical path reading.
 
 ### Type & Assembly Extensions
+
 *   **Discovery**: `assembly.GetSubTypes(typeof(T))` and `assembly.GetTypesAssignableTo(to)`.
 *   **Instantiation**: `assembly.CreateSubTypes<T>()` automatically discovers and instantiates classes with parameterless constructors.
 *   **Metadata**: `type.GetAssemblyName()` returns a clean assembly name.
 
 ### Flurl & HTTP Diagnostics
+
 *   **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` captures exhaustive request/response metadata from Flurl exceptions into `IScopedLog`.
 *   **Status Codes**: `GetGatewayStatusCode()` maps API errors to standard gateway codes (502, 503, 504).
 *   **Testing**: `ClearFilteredSetups()` utility for complex test scenarios.
 
 ### Object & Dictionary Extensions
+
 *   **Deep Discovery**: `instance.GetGroupedPropertiesOfSubtype(type)` recursively finds properties matching a base type across complex object graphs.
 *   **Dictionary Utility**: Extensions for `IDictionary` to handle null-safe value retrieval and manipulation.
 *   **Bit Manipulation**: `GetBitPositions()` for `long` values and bitmask generators for signed/unsigned lengths.

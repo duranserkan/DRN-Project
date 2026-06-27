@@ -4,7 +4,9 @@
 - [X] Engineering manifest
 - [X] Reference documents for design, architecture and microservices
 - [ ] DRN.Nexus  (will be released with 1.0.0)
+
 ## DRN.Framework
+
 ### DRN.Framework.Testing
 - [X] DrnTestContext
   - MethodContext
@@ -24,6 +26,7 @@
 - [ ] AuthContext for OpenID Connect (OIDC)
 - [ ] EmailContext with MailHog
 - [ ] MessageBrokerContext with MassTransit
+
 ### DRN.Framework.Utils
 - [X] DependencyInjection
   - ScopedAttribute, ScopedWithKeyAttribute
@@ -36,6 +39,7 @@
 - [X] Configuration
   - JsonSerializerConfigurationSource
 - [X] Scoped Logs
+
 ### DRN.Framework.SharedKernel
 - [X] Domain Entities and definitions
 - [X] Generalized Convention Exceptions
@@ -44,11 +48,13 @@
   - ApplicationId
   - Local IP address
 - [X] Source Known Ids
+
 ### DRN.Framework.EntityFramework
 - [X] DDD style entities, aggregates
 - [X] DrnContext inherited from DbContext and its DbContext conventions for rapid domain design and development
 - [ ] Postgresql based remote dictionary with retentions
 - [ ] Migration manager that supports sharding and schema based multi tenancy
+
 ### DRN.Framework.Masstransit
 - [ ] Convention & Settings based consumer, batch consumer, request consumer registrations
 - [ ] Scoped log support
@@ -57,11 +63,13 @@
 - [ ] Exception type based error queues
 - [ ] Observable and Traceable Messages 
 - [ ] Consumer Topology
+
 ### DRN.Framework.Jobs
 - [ ] Cron based recurring jobs
 - [ ] Scheduled jobs
 - [ ] Active passive distributed jobs
 - [ ] Job Topology
+
 ### DRN.Framework.Hosting
 - [X] Http request scoped log support
 - [ ] Secure endpoints
@@ -69,6 +77,7 @@
 - [ ] Service discovery
 - [ ] Remote settings
 - [ ] Self-documenting microservices with unified topology
+
 ## DRN.Nexus
 - [ ] Service discovery
 - [ ] Remote settings

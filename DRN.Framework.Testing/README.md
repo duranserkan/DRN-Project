@@ -64,6 +64,7 @@ Write your first auto-mocked test in seconds:
 ```
 
 ### Testing models used in the QuickStart
+
 ```csharp
 
 public static class ApplicationModule //Can be defined in Application Layer or in Hosted App
@@ -129,6 +130,7 @@ public void TestContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
 ```
 
 ## DrnTestContext
+
 `DrnTestContext` has following properties:
 * captures values provided to running test method, test method info and location.
 * provides `ServiceCollection` so that to be tested services and dependencies can be added before building `ServiceProvider`.
@@ -180,9 +182,11 @@ public void TestContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
 ```
 
 ## ContainerContext
+
 With `ContainerContext` and conventions you can easily write effective integration tests against your database and message queue dependencies.
 
 ### PostgreSQL Container
+
 ```csharp
     [Theory]
     [DataInline]
@@ -268,6 +272,7 @@ For rapid development where migrations are not yet created, use `EnsureDatabaseA
 
 
 ## ApplicationContext
+
 `ApplicationContext` syncs `DrnTestContext` service collection and configuration with a `WebApplicationFactory`.
 
 - You can override configuration and services until the factory builds a host, such as when `CreateClient()` or `TestServer` is requested.
@@ -278,6 +283,7 @@ For rapid development where migrations are not yet created, use `EnsureDatabaseA
   - `AppSettings.DevelopmentSettings.TemporaryApplication` = `true`
 
 ### Basic Usage
+
 ```csharp
     [Theory]
     [DataInline]
@@ -481,6 +487,7 @@ AppSettings.DevelopmentSettings.TemporaryApplication = true;
 See [DrnDevelopmentSettings.cs](../DRN.Framework.Utils/Settings/DrnDevelopmentSettings.cs) for the complete class definition.
 
 ## Data Attributes
+
 DRN.Framework.Testing provides following data attributes that can provide data to tests:
 * DataInlineAttribute
 * DataMemberAttribute
@@ -573,11 +580,13 @@ public void TestContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
 For pure unit tests that do not need container orchestration or full application startup, use `DrnTestContextUnit` and the corresponding **Unit** attributes.
 
 ### Unit Attributes
+
 * `[DataInlineUnit]`: Same as `DataInline` but provides `DrnTestContextUnit`.
 * `[DataMemberUnit]`: Same as `DataMember` but provides `DrnTestContextUnit`.
 * `DataSelfUnitAttribute`: Base class for custom self-contained data attributes that provide `DrnTestContextUnit`.
 
 ### DrnTestContextUnit
+
 Unlike `DrnTestContext`, `DrnTestContextUnit` is lightweight and focused on method data, method metadata, configuration, and optional unit-level service validation. It does not provide `ContainerContext`, `ApplicationContext`, `FlurlHttpTest`, or full app startup.
 
 ```csharp
@@ -653,6 +662,7 @@ When tests share identical setup (container init, migrations, service registrati
 **Reference**: `QAContextTagTests.cs` — single test flow validating entity IDs, JSON model queries, date filters, and materialization interceptor with one shared setup.
 
 #### Guidelines
+
 - **Last parameter = expected result** — each attribute row is a self-contained specification
 - **Name covers the dimension** — describes *what* is tested, not a specific case
 - **Comment inline data** — add trailing comments when values aren't self-explanatory
@@ -663,6 +673,7 @@ When tests share identical setup (container init, migrations, service registrati
 
 
 ## DebugOnly Tests
+
 Following attributes can be used to run test only when the debugger is attached. These attributes does respect the attached debugger, not debug or release configuration.
 * FactDebuggerOnly
 * TheoryDebuggerOnly
@@ -765,7 +776,9 @@ public async Task Retry_Logic_Should_Work(DrnTestContext context)
 ```
 
 ## Providers
+
 ### SettingsProvider
+
 `SettingsProvider` gets the settings from Settings folder. Settings file path is relative Settings folder. Settings folder must be created in the root of the test Project. Make sure the settings file is copied to output directory.
 ```csharp
     [Fact]
@@ -791,7 +804,9 @@ public async Task Retry_Logic_Should_Work(DrnTestContext context)
         configuration.GetConnectionString("Bar").Should().Be("Foo");
     }
 ```
+
 ### DataProvider
+
 `DataProvider` gets the content of specified data file in the Data folder. Data file path is relative Data folder including file extension. Data folder must be created in the root of the test Project. Make sure the data file is copied to output directory.
 ```csharp
     [Fact]
@@ -802,6 +817,7 @@ public async Task Retry_Logic_Should_Work(DrnTestContext context)
 ```
 
 ### CredentialsProvider
+
 `CredentialsProvider` is a helper class for generating and caching test usernames and passwords.
 ```csharp
     [Fact]
@@ -812,7 +828,9 @@ public async Task Retry_Logic_Should_Work(DrnTestContext context)
         credentials.Password.Length.Should().BeGreaterThanOrEqualTo(12);
     }
 ```
+
 ### xUnit Runner Configuration
+
 `xunit.runner.json` is optional but recommended for configuring the test runner. When using **Microsoft Testing Platform (MTP)**, this file ensures the runner behaves as expected (e.g., parallelization settings). Ensure this file is set to `CopyToOutputDirectory` in your csproj.
 
 ```json
@@ -836,6 +854,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 For `WebApplicationFactory<TProgram>` scenarios, point `TProgram` at a hosted application or a non-test Web SDK support assembly such as `DRN.Test.Utils` (`IsTestProject=false`). Keep custom disposable app entry points out of the MTP test executable; keep test assertions in `DRN.Test.Integration`.
 
 ## Example Test Project .csproj File
+
 Don't forget to replace DRN.Framework.Testing project reference with its nuget package reference
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">

@@ -5,7 +5,7 @@
 ## Bootstrap and precedence
 
 - `AGENTS.md` and `.agent/rules/DiSCOS.md` are complementary entry points; a tool may load either first.
-- Do not re-read agent files.
+- Do not re-read agent files unless the user changes them or the task requires exact current text.
 
 ## Priority Stack
 
@@ -82,6 +82,8 @@ Use the profile first. If it is missing or silent, discover by convention:
 - Dedup: read existing entries before adding one.
 
 ## Workflows
+
+If the active agent platform does not support slash commands, execute the named workflow steps manually. Treat `/clarify X` as "follow `.agent/workflows/clarify.md` with input X"; apply the same mapping to other routes.
 
 | Slash Command | Purpose |
 |---------------|---------|
