@@ -33,7 +33,7 @@ Invariants:
 
 ## 3. Research And Risk
 
-Research before questions; spend at most 20% of task time.
+Research before questions; spend at most 20% of task time by default. For stale, current, or security-sensitive correctness gaps, `/search` or scoped research may extend automatically up to 40%. Beyond 40% requires explicit approval; otherwise stop and record not searched.
 
 - Prefer `/search`; fallback to scoped file search, the skill index, required skills, and required external references.
 - Append evidence to `## Enrichment Context` under `Codebase Findings`, `Knowledge Items`, `Relevant Skills`, `External References`, and `Initial Observations`.

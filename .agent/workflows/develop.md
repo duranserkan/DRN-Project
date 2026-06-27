@@ -25,6 +25,8 @@ Read YAML `status`:
 | Status | Action |
 |---|---|
 | `ready-to-develop` | Continue. |
+| `implementing` | Resume implementation after refreshing freshness, review, approval, and completeness gates. |
+| `implemented-pending-approval` | Verify final report state; wait for user approval before setting `implemented`. |
 | `clarified` | Run `/answer` Section 6 to create `DEVELOP-*`, then rerun `/develop`. |
 | `draft-self-reviewed` | Use the CLARIFY Skip Gate only to decide whether `/answer` may skip approval while still creating `DEVELOP-*`. |
 | `draft`, `clarifying`, or missing | Stop. Route to `/clarify` plus `/answer`. |
@@ -58,6 +60,8 @@ For `DEVELOP-*`, verify `source`, `source_status`, `source_updated`, and `source
 - `approval_required: false` without current matching `approval_record` and `approval_scope` -> stop.
 
 Security-sensitive, failed, unclear, destructive, VCS, or non-tolerable gates still require explicit human approval.
+
+When approval is recorded and implementation starts, set `status: implementing` before source mutation.
 
 ### 2c. Completeness Gate
 
@@ -147,4 +151,4 @@ Create a walkthrough artifact with:
 - Build/test results and Priority Stack validation.
 - Notes, decisions, and deviations.
 
-Set `status: implemented` and `implemented: [ISO 8601 date]` only after user approval.
+Set `status: implemented-pending-approval` after changes, verification, and the walkthrough artifact are complete. Set `status: implemented` and `implemented: [ISO 8601 date]` only after user approval.

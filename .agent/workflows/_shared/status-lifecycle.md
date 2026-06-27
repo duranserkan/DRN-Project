@@ -9,7 +9,7 @@ description: Shared status lifecycle for agent workflow artifacts
 
 ```text
 CLARIFY-* : draft -> clarifying -> draft-self-reviewed -> clarified
-DEVELOP-* : ready-to-develop -> implemented
+DEVELOP-* : ready-to-develop -> implementing -> implemented-pending-approval -> implemented
 UPDATE    : outlined -> planning -> ready -> plan-reviewed -> executing -> done -> reviewed -> verifying -> verified
 UPDATE    : failed -> verifying -> verified | failed
 ```
@@ -23,6 +23,8 @@ UPDATE    : failed -> verifying -> verified | failed
 | `draft-self-reviewed` | `CLARIFY-*` | `/clarify` gates and self-review pass | `/clarify` |
 | `clarified` | `CLARIFY-*` | `/answer` approval criteria pass | `/answer` |
 | `ready-to-develop` | `DEVELOP-*` | `/answer` writes the development handoff | `/answer` |
+| `implementing` | `DEVELOP-*` | `/develop` validates the handoff, records approval, and starts source mutation | `/develop` |
+| `implemented-pending-approval` | `DEVELOP-*` | `/develop` applies changes, completes verification, and writes the final report for user approval | `/develop` |
 | `implemented` | `DEVELOP-*` | User approves the `/develop` final report | `/develop` |
 | `outlined` | `update-plan.md` | Initial plan shell exists | `/update-plan` |
 | `planning` | `update-plan.md` | Discovery or detailing runs | `/update-plan` |
@@ -83,7 +85,7 @@ Use explicit approval by default. Use a substitute only when this lifecycle, the
 
 | Tag | Meaning | Handoff Rule |
 |---|---|---|
-| `[ASSUMPTION - unverified]` | Required decision or fact is unresolved | Blocks `draft-self-reviewed`, `clarified`, and `ready-to-develop` |
+| `[ASSUMPTION - unverified]` | Required decision or fact is unresolved | Blocks `draft-self-reviewed`, `clarified`, `ready-to-develop`, `implementing`, and `implemented-pending-approval` |
 | `[ASSUMPTION - accepted]` | User or workflow accepted a non-critical uncertainty | Allowed only in `Risk Register` with mitigation and source |
 
 Accepted assumptions never bypass Security, Correctness, testable acceptance criteria, or the required approval record.
