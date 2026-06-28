@@ -458,7 +458,7 @@ Marker Bytes:
 A SKID is a 64-bit signed integer with the following field layout,
 packed most-significant bit first:
 
-~~~
+~~~text
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -533,7 +533,7 @@ skid-parsed = {
 
 Given `entityType`, `appId`, `appInstanceId`, and a configured `epoch`:
 
-~~~
+~~~pseudocode
 procedure GenerateSKID(entityType, appId, appInstanceId, epoch):
   1. elapsedTicks ← floor((now_utc - epoch) / 250 milliseconds)
      -- four ticks per second
@@ -562,7 +562,7 @@ procedure GenerateSKID(entityType, appId, appInstanceId, epoch):
 
 Given a 64-bit signed integer `value` and a configured `epoch`:
 
-~~~
+~~~pseudocode
 procedure ParseSKID(value, epoch):
   1. Extract bit  63       → sign bit
   2. Extract bits [62..31] → timestamp (32 bits, unsigned)
@@ -599,7 +599,7 @@ The system handles backward time jumps at two levels:
 An SKEID occupies 16 bytes (128 bits), structured as follows in
 big-endian (network byte order) per RFC 9562:
 
-~~~
+~~~text
 Byte:  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
      +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
      |EP| SKID Upper|S0|VE|ET|VA|S1|S2|S3|    MAC    |
@@ -696,7 +696,7 @@ implementation's small-payload BenchmarkDotNet measurements show
 BLAKE3 keyed hashing is approximately 3.5 times faster than
 HMAC-SHA-256 for this workload.
 
-~~~
+~~~pseudocode
 procedure ComputeMAC(guidBytes[0..15], macKey):
   1. Clear MAC bytes:
      guidBytes[12] ← 0x00
@@ -717,7 +717,7 @@ field.
 
 The 4-byte MAC is written contiguously:
 
-~~~
+~~~pseudocode
 procedure WriteMACToGUID(guidBytes, hashBytes[0..3]):
   guidBytes[12] ← hashBytes[0]
   guidBytes[13] ← hashBytes[1]
@@ -727,7 +727,7 @@ procedure WriteMACToGUID(guidBytes, hashBytes[0..3]):
 
 Reading extracts from the same positions:
 
-~~~
+~~~pseudocode
 procedure ReadMACFromGUID(guidBytes) → hashBytes[0..3]:
   hashBytes[0] ← guidBytes[12]
   hashBytes[1] ← guidBytes[13]
@@ -758,7 +758,7 @@ skeid-parsed = {
 
 Given a 64-bit SKID `id`, `epoch`, `entityType`, and `macKey`:
 
-~~~
+~~~pseudocode
 procedure GenerateSKEID(id, epoch, entityType, macKey, variantByte=0x8D):
   1. Allocate guidBytes[0..15], initialize to zero
   2. Split id into upper and lower 32-bit halves.
@@ -793,7 +793,7 @@ reference implementation [DRN-PROJECT] implements the multi-key
 wrapper: generation uses the configured default key, and parsing tries
 the default key first followed by remaining configured fallback keys.
 
-~~~
+~~~pseudocode
 procedure ParseSKEID(entityId, macKey, aesKey):
   1. guidBytes ← entityId as 16-byte big-endian byte array
      (network byte order, per RFC 9562)
@@ -822,7 +822,7 @@ procedure ParseSKEID(entityId, macKey, aesKey):
        Return INVALID
 ~~~
 
-~~~
+~~~pseudocode
 procedure VerifyAndExtract(guidBytes, macKey, secure):
   1. actualMAC ← ReadMACFromGUID(guidBytes)
   2. epochByte ← guidBytes[0]
@@ -852,7 +852,7 @@ procedure VerifyAndExtract(guidBytes, macKey, secure):
 A Secure SKEID is produced by encrypting the entire 16-byte SKEID
 plaintext using AES-256-ECB [FIPS197]:
 
-~~~
+~~~pseudocode
 procedure GenerateSecureSKEID(id, epoch, entityType, macKey, aesKey):
   1. variantByte ← 0x8D              -- primary variant
   2. guidBytes ← GenerateSKEID(id, epoch, entityType, macKey,
@@ -885,7 +885,7 @@ were a plaintext SKEID, extracts the MAC bytes from contiguous
 positions 12-15, clears those positions, recomputes the MAC, and
 compares:
 
-~~~
+~~~pseudocode
 procedure HasCoincidentalMACMatch(ciphertextBytes, macKey):
   1. workingCopy ← copy of ciphertextBytes[0..15]
   2. actualMAC ← ReadMACFromGUID(workingCopy)
@@ -894,7 +894,7 @@ procedure HasCoincidentalMACMatch(ciphertextBytes, macKey):
   5. Return actualMAC == expectedMAC
 ~~~
 
-~~~
+~~~pseudocode
 procedure EncryptGUIDBlock(guidBytes[0..15], aesKey):
   1. ciphertext ← AES-256-ECB-Encrypt(key=aesKey, plaintext=guidBytes)
      -- single 128-bit block, no padding
@@ -903,7 +903,7 @@ procedure EncryptGUIDBlock(guidBytes[0..15], aesKey):
 
 ## Decryption
 
-~~~
+~~~pseudocode
 procedure DecryptGUIDBlock(guidBytes[0..15], aesKey):
   1. plaintext ← AES-256-ECB-Decrypt(key=aesKey, ciphertext=guidBytes)
      -- single 128-bit block, no padding
@@ -1025,7 +1025,7 @@ During parsing, when a non-default variant byte V is recovered from the
 decrypted plaintext (V > 0x8D), the parse algorithm MUST verify that
 the previous variant (V−1) genuinely triggered the collision guard:
 
-~~~
+~~~pseudocode
 procedure VerifyCollisionGuardProof(decryptedBytes, macKey, aesKey,
                                      previousVariant):
   1. Extract id, entityType from decryptedBytes
@@ -1099,7 +1099,7 @@ parses C2 by decrypting with K_aes, the recovered plaintext reveals
 variant byte 0x8E (greater than 0x8D).  The parser MUST verify that
 the escalation was legitimate:
 
-~~~
+~~~pseudocode
 1. Reconstruct the SKEID with variant 0x8D (replacing 0x8E and
    recomputing the MAC).
 2. Encrypt that reconstruction with K_aes to obtain C1.
@@ -1124,7 +1124,7 @@ that would invalidate these values produces a test failure.
 Given a valid (parsed) SKEID, implementations MAY convert between
 secure and plain representations:
 
-~~~
+~~~pseudocode
 procedure ToSecure(skeid):
   If skeid.secure: Return skeid (already encrypted)
   Return GenerateSecureSKEID(skeid.sourceKnownId.value, skeid.epoch, skeid.entityType,
@@ -1166,7 +1166,7 @@ through configured fallback keys.  Operators SHOULD configure fallback
 keys in reverse chronological order so the newest previous key is tried
 first:
 
-~~~
+~~~pseudocode
 procedure ParseWithKeyRing(entityId, keyRing):
   -- Try current (default) key first
   result ← ParseSKEID(entityId, keyRing.current.macKey, keyRing.current.aesKey)
@@ -1223,7 +1223,7 @@ derived values, need re-generation.
 
 ## Three-Tier Model
 
-~~~
+~~~text
 +-------------------+    +-------------------+    +-------------------+
 | Database Tier     |    | Trusted Env Tier  |    | External Tier     |
 |                   |    |                   |    |                   |
@@ -1326,7 +1326,7 @@ epoch index is the first SKEID byte, epoch ordering precedes timestamp
 ordering in lexicographic comparisons.  The value identifies which
 epoch the SKID timestamp is relative to:
 
-~~~
+~~~text
 epochStart = baseEpoch + (epochByte × 2^31 seconds)
 ~~~
 
@@ -1956,7 +1956,7 @@ accepts this key material with `NexusMacKey.Format = Hex`.
 
 ## A.1. Test Key Material
 
-~~~
+~~~text
 MAC Key (32 bytes, hex):   000102030405060708090A0B0C0D0E0F
                            101112131415161718191A1B1C1D1E1F
 AES Key (32 bytes, hex):   3E7E55BEC606C85A816104A7BB9A7E49
@@ -1970,7 +1970,7 @@ both keys from the same input to reproduce these vectors.
 
 ## A.2. SKID Generation
 
-~~~
+~~~text
 Input:
   entityType     = 1
   appId          = 5
@@ -1991,7 +1991,7 @@ Expected SKID (hex):      0x881B3200050C002A
 
 ## A.3. SKEID Generation (Plain)
 
-~~~
+~~~text
 Input:
   SKID       = -8639256484514103254 (0x881B3200050C002A)
   entityType = 1
@@ -2021,7 +2021,7 @@ Expected hex:   00081B3200058D018D0C002A6279D160
 
 ## A.4. Secure SKEID Generation
 
-~~~
+~~~text
 Input:
   SKEID plaintext from A.3
   aesKey = [from A.1]
@@ -2035,7 +2035,7 @@ Expected hex:          785D100D4AE356DCA7E68B350566441D
 
 ## A.5. Round-Trip Verification
 
-~~~
+~~~text
 1. Generate SKID with inputs from A.2
    → SKID = -8639256484514103254 (0x881B3200050C002A)            ✓
 2. Generate SKEID from SKID (A.3)
@@ -2165,7 +2165,7 @@ and application workload.
 Given the SKID's monotonic ordering, cursor-based pagination is
 straightforward:
 
-~~~
+~~~sql
 SELECT * FROM entities
 WHERE id > :last_skid
 ORDER BY id ASC
@@ -2180,7 +2180,7 @@ No offset tracking is needed.
 Given a SKID and the configured epoch, the creation timestamp can be
 extracted without a database query:
 
-~~~
+~~~pseudocode
 parsed = ParseSKID(skid, epoch)
 createdAt = parsed.createdAt
 ~~~
