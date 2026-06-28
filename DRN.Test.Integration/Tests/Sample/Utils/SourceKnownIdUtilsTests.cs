@@ -50,6 +50,7 @@ public class SourceKnownIdUtilsTests
         // to ticks prevents sub-second precision race conditions with high-precision UtcNow times.
         var beforeIdGeneratedTimestamp = EpochTimeUtils.ConvertToTicks(beforeIdGenerated, epoch);
         var afterIdGeneratedTimestamp = EpochTimeUtils.ConvertToTicks(afterIdGenerated, epoch);
+        var idInfos = ids.Select(id => generator.Parse(id)).ToArray();
 
         idInfos.Length.Should().Be(idCount);
         idInfos.Should().AllSatisfy(idInfo =>
