@@ -45,7 +45,11 @@ public class SourceKnownIdUtilsTests
 
         epoch.Should().BeBefore(beforeIdGenerated);
 
-        var idInfos = ids.Select(id => generator.Parse(id)).ToArray();
+        // Normalize test execution bounds and CreatedAt timestamps to 250ms epoch ticks.
+        // TimeStampManager truncates timestamps to 250ms tick boundaries, so converting bounds
+        // to ticks prevents sub-second precision race conditions with high-precision UtcNow times.
+        var beforeIdGeneratedTimestamp = EpochTimeUtils.ConvertToTicks(beforeIdGenerated, epoch);
+        var afterIdGeneratedTimestamp = EpochTimeUtils.ConvertToTicks(afterIdGenerated, epoch);
 
         idInfos.Length.Should().Be(idCount);
         idInfos.Should().AllSatisfy(idInfo =>
@@ -54,8 +58,9 @@ public class SourceKnownIdUtilsTests
             idInfo.AppId.Should().Be(nexusSettings.AppId);
             idInfo.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
 
-            idInfo.CreatedAt.Should().BeBefore(afterIdGenerated);
-            idInfo.CreatedAt.Should().BeAfter(beforeIdGenerated);
+            var createdAtTimestamp = EpochTimeUtils.ConvertToTicks(idInfo.CreatedAt, epoch);
+            createdAtTimestamp.Should().BeGreaterThanOrEqualTo(beforeIdGeneratedTimestamp);
+            createdAtTimestamp.Should().BeLessThanOrEqualTo(afterIdGeneratedTimestamp);
         });
 
         var idInfoGroups = idInfos
