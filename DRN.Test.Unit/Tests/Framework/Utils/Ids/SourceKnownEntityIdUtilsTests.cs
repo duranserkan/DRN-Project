@@ -51,8 +51,7 @@ public class SourceKnownEntityIdUtilsTests
         var idInfo = idUtils.Parse(plainId1.Source.Id);
         idInfo.AppId.Should().Be(nexusSettings.AppId);
         idInfo.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
-        idInfo.CreatedAt.Should().BeBefore(afterIdGenerated);
-        idInfo.CreatedAt.Should().BeAfter(beforeIdGenerated);
+        AssertCreatedAtWithinGeneratedRange(idInfo, beforeIdGenerated, afterIdGenerated, epoch);
         epoch.Should().BeBefore(beforeIdGenerated);
 
         // Secure parse — parsed result carries the encrypted EntityId Guid
@@ -453,6 +452,24 @@ public class SourceKnownEntityIdUtilsTests
         var isRfc9562Variant = (bytes[8] & 0xC0) == 0x80; // RFC 9562 octet 8: variant bits
         return isVersion8 && isRfc9562Variant;
     }
+
+    /// <summary>
+    /// Validates that <paramref name="idInfo"/>.CreatedAt falls within the expected test execution range.
+    /// Timestamps are converted to 250ms epoch ticks before assertion because TimeStampManager truncates
+    /// timestamps to 250ms precision boundaries. Converting all bounds to ticks normalizes sub-second
+    /// precision disparities and prevents race conditions with high-precision DateTimeOffset.UtcNow bounds.
+    /// </summary>
+    private static void AssertCreatedAtWithinGeneratedRange(
+        SourceKnownId idInfo,
+        DateTimeOffset beforeIdGenerated,
+        DateTimeOffset afterIdGenerated,
+        DateTimeOffset epoch)
+    {
+        var createdAtTimestamp = EpochTimeUtils.ConvertToTicks(idInfo.CreatedAt, epoch);
+        createdAtTimestamp.Should().BeGreaterThanOrEqualTo(EpochTimeUtils.ConvertToTicks(beforeIdGenerated, epoch));
+        createdAtTimestamp.Should().BeLessThanOrEqualTo(EpochTimeUtils.ConvertToTicks(afterIdGenerated, epoch));
+    }
+
 
     [EntityType(200)]
     class XEntity(long id) : SourceKnownEntity(id);

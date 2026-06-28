@@ -23,6 +23,33 @@ public class NexusMacKeyTests
         nexusMacKey.AlternativeKeyAsBinary.Length.Should().Be(32);
     }
 
+    [Fact]
+    public void NexusMacKey_Should_Derive_Alternative_Key_From_Decoded_Key_Bytes()
+    {
+        var keyBytes = Encoding.UTF8.GetBytes(Utf8Key);
+        var keys = new[]
+        {
+            new NexusMacKey(Utf8Key, ByteEncoding.Utf8),
+            new NexusMacKey(keyBytes.Encode(ByteEncoding.Hex), ByteEncoding.Hex),
+            new NexusMacKey(keyBytes.Encode(ByteEncoding.Base64), ByteEncoding.Base64),
+            new NexusMacKey(keyBytes.Encode(ByteEncoding.Base64UrlEncoded), ByteEncoding.Base64UrlEncoded)
+        };
+
+        var expectedKeyHash = keys[0].KeyHash;
+        var expectedAlternativeKey = keys[0].AlternativeKey;
+        var expectedAlternativeKeyBytes = keys[0].AlternativeKeyAsBinary.ToArray();
+
+        foreach (var key in keys)
+        {
+            key.KeyAsBinary.ToArray().Should().Equal(keyBytes);
+            key.KeyHash.Should().Be(expectedKeyHash,
+                "derived hash input must be decoded key bytes, not the configured text representation");
+            key.AlternativeKey.Should().Be(expectedAlternativeKey,
+                "alternative key derivation must be invariant for equivalent raw key bytes");
+            key.AlternativeKeyAsBinary.ToArray().Should().Equal(expectedAlternativeKeyBytes);
+        }
+    }
+
     [Theory]
     [DataMemberUnit(nameof(InvalidKeys))]
     public void NexusMacKey_Should_Reject_Invalid_Key_Formats(string key, ByteEncoding format)

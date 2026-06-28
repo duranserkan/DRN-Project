@@ -1,5 +1,11 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.6
+
+### Changed
+
+*   **Framework Version Alignment**: Package release aligned with the DRN.Framework 0.9.6 release wave; no runtime behavior changed.
+
 ## Version 0.9.5
 
 ### Changed

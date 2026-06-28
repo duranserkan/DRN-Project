@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
 
@@ -26,8 +27,7 @@ public class SourceKnownIdUtilsTests
         idInfo.AppInstanceId.Should().Be(appInstanceId);
 
         epoch.Should().BeBefore(beforeIdGenerated);
-        idInfo.CreatedAt.Should().BeBefore(afterIdGenerated);
-        idInfo.CreatedAt.Should().BeAfter(beforeIdGenerated);
+        AssertCreatedAtWithinGeneratedRange(idInfo, beforeIdGenerated, afterIdGenerated, epoch);
     }
 
     [Theory]
@@ -65,8 +65,7 @@ public class SourceKnownIdUtilsTests
         idInfo1.AppId.Should().Be(nexusSettings.AppId);
         idInfo1.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
 
-        idInfo1.CreatedAt.Should().BeBefore(afterIdGenerated);
-        idInfo1.CreatedAt.Should().BeAfter(beforeIdGenerated);
+        AssertCreatedAtWithinGeneratedRange(idInfo1, beforeIdGenerated, afterIdGenerated, epoch);
 
         var id2 = generator.Next<SourceKnownIdUtilsTests>();
         (id2 > id1).Should().BeTrue();
@@ -80,4 +79,22 @@ public class SourceKnownIdUtilsTests
         (idInfo1 <= idInfo2).Should().BeTrue();
         (idInfo1 <= idInfo1Duplicate).Should().BeTrue();
     }
+
+    /// <summary>
+    /// Validates that <paramref name="idInfo"/>.CreatedAt falls within the expected test execution range.
+    /// Timestamps are converted to 250ms epoch ticks before assertion because TimeStampManager truncates
+    /// timestamps to 250ms precision boundaries. Converting all bounds to ticks normalizes sub-second
+    /// precision disparities and prevents race conditions with high-precision DateTimeOffset.UtcNow bounds.
+    /// </summary>
+    private static void AssertCreatedAtWithinGeneratedRange(
+        SourceKnownId idInfo,
+        DateTimeOffset beforeIdGenerated,
+        DateTimeOffset afterIdGenerated,
+        DateTimeOffset epoch)
+    {
+        var createdAtTimestamp = EpochTimeUtils.ConvertToTicks(idInfo.CreatedAt, epoch);
+        createdAtTimestamp.Should().BeGreaterThanOrEqualTo(EpochTimeUtils.ConvertToTicks(beforeIdGenerated, epoch));
+        createdAtTimestamp.Should().BeLessThanOrEqualTo(EpochTimeUtils.ConvertToTicks(afterIdGenerated, epoch));
+    }
 }
+

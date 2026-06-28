@@ -1,5 +1,11 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.6
+
+### Breaking Changes
+
+*   **Nexus MAC Key Derivation**: `NexusMacKey` now derives its separated AES key from the decoded 32-byte key material for every supported `ByteEncoding`, instead of hashing non-UTF8 key text. This aligns Hex/Base64/Base64Url keys with Appendix A test vectors and keeps equivalent raw key bytes format-invariant. Secure IDs generated under the previous text-derived behavior for non-UTF8 configured keys may require migration, regeneration, or an explicit compatibility strategy.
+
 ## Version 0.9.5
 
 ### New Features
