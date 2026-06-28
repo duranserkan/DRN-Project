@@ -176,8 +176,9 @@ per-entity-type sequence counter.  It serves as the database primary
 key, providing compact storage (8 bytes) and natural B-tree ordering.
 
 The second tier, Source Known Entity ID (SKEID), extends the SKID into
-a 128-bit UUID-compatible value by adding an entity type discriminator,
-an epoch selector, and a BLAKE3 keyed message authentication code (MAC).
+a strict RFC 9562 UUID Version 8 value by adding an entity type
+discriminator, an epoch selector, and a BLAKE3 keyed message
+authentication code (MAC).
 SKEIDs enable zero-lookup verification of identifier origin, integrity,
 and entity type within trusted environments.  Their big-endian byte
 layout preserves chronological ordering in lexicographic UUID string
@@ -186,8 +187,10 @@ comparisons.
 The third tier, Secure SKEID, encrypts the entire SKEID using AES-256
 symmetric encryption as a single-block pseudo-random permutation (PRP).
 The result is ciphertext indistinguishable from random bytes while
-remaining compatible with standard UUID data-type parsers in string
-representation.  A collision guard mechanism using variant byte
+remaining UUID-form and binary-compatible with standard UUID data-type
+parsers.  Because encryption randomizes the plaintext version and
+variant marker bytes, Secure SKEID is not guaranteed to pass strict RFC
+9562 UUIDv8 validation.  A collision guard mechanism using variant byte
 iteration with cryptographic backward verification prevents
 misclassification between encrypted and unencrypted forms.
 
@@ -401,15 +404,17 @@ Source Known ID (SKID):
   primary key.
 
 Source Known Entity ID (SKEID):
-: A 128-bit value structured as a UUID, embedding a SKID, entity type
+: A strict RFC 9562 UUID Version 8 value embedding a SKID, entity type
   byte, epoch byte, keyed MAC, and identification markers in big-endian
   (network byte order) per RFC 9562.  Used for communication within
   trusted environments.
 
 Secure Source Known Entity ID (Secure SKEID):
-: A 128-bit value produced by encrypting an SKEID under AES-256-ECB.
-  Used for external communication where information confidentiality
-  is required.
+: A UUID-form 128-bit opaque ciphertext produced by encrypting an SKEID
+  under AES-256-ECB.  Used for external communication where information
+  confidentiality is required.  Secure SKEIDs fit UUID storage and
+  string formats but are not guaranteed to preserve RFC 9562 UUIDv8
+  version and variant marker bits after encryption.
 
 Epoch:
 : A reference point in time from which SKID timestamps are measured.
@@ -438,10 +443,9 @@ PRP (Pseudo-Random Permutation):
   a distinct ciphertext and vice versa.
 
 Key Separation:
-: The practice of deriving independent keys for different cryptographic
-  operations from a single key-ring entry.  SKID uses one key for
-  BLAKE3 MAC (integrity) and a cryptographically independent key for
-  AES-256-ECB (confidentiality).
+: The practice of using independent keys for different cryptographic
+  operations.  SKID uses one key for BLAKE3 MAC (integrity) and a
+  cryptographically independent key for AES-256-ECB (confidentiality).
 
 Marker Bytes:
 : The byte 0x8D at byte offset 6 (version marker, RFC 9562 Section 5.8
@@ -641,7 +645,6 @@ split lower half operates correctly.
 
 The marker bytes at positions 6 and 8 serve dual purposes:
 
-1. **UUID V8 Compatibility**: `0x8D` at byte 6 satisfies the RFC 9562
    Section 5.8 version octet requirement, and `0x8D` at byte 8
    satisfies the RFC 9562 Section 4.1 variant octet requirement,
    making the SKEID a valid RFC 9562 UUID V8 when formatted as a
@@ -956,10 +959,12 @@ from each key-ring entry:
 | MAC Key | BLAKE3 keyed MAC | Integrity verification |
 | AES Key | AES-256-ECB | Confidentiality (encryption) |
 
-The two keys MUST NOT be the same value.  Implementations SHOULD derive
-both keys from a single master secret using a key derivation function
-or a deterministic hash chain that produces cryptographically
-independent outputs.
+The two keys MUST NOT be the same value.  Implementations MAY provision
+the MAC key and AES key as independent secrets, or derive both keys from
+a single master secret using a standard Key Derivation Function (such as
+HKDF per RFC 5869).  Key management and derivation mechanisms are
+implementation-specific operational policies outside the scope of this
+protocol specification.
 
 ## Auto-Detection Parse Logic
 
@@ -1031,19 +1036,24 @@ procedure VerifyCollisionGuardProof(decryptedBytes, macKey, aesKey,
   1. Extract id, entityType from decryptedBytes
   2. epochByte ← decryptedBytes[0]
   3. Reconstruct plaintext with variant = previousVariant:
-     reconstructed ← GenerateSKEID(id, epochByte, entityType, macKey,
-                                    variantByte=previousVariant)
-  4. EncryptGUIDBlock(reconstructed, aesKey)
-  5. Return reconstructed[6] == 0x8D AND reconstructed[8] == 0x8D
-         AND HasCoincidentalMACMatch(reconstructed, macKey)
+     reconstructedPlaintext ← GenerateSKEID(id, epochByte, entityType,
+                                            macKey,
+                                            variantByte=previousVariant)
+  4. candidateCiphertext ← EncryptGUIDBlock(reconstructedPlaintext, aesKey)
+  5. Return candidateCiphertext[6] == 0x8D
+         AND candidateCiphertext[8] == 0x8D
+         AND HasCoincidentalMACMatch(candidateCiphertext, macKey)
      -- True: previous variant genuinely collided → legitimate escalation
      -- False: variant was tampered → INVALID
 ~~~
 
-This single-step backward proof is sufficient by induction.  If variant
-V is legitimate, then V-1 must have collided.  The previous variant is
-legitimate either because V-1 = 0x8D (the base case) or because V-2
-also collided during generation.
+This single-step backward check verifies the immediate predecessor
+collision that justified the recovered non-default variant.  It rejects
+arbitrary non-default variant tampering under the current generator and
+parser contract, but it is not a full canonical proof that every lower
+variant from 0x8D through V-1 also collided.  Implementations that need
+that stronger canonicality property MUST verify each prior variant
+explicitly.
 
 This provides a deterministic guarantee: no Secure SKEID produced by a
 compliant implementation can ever pass the plain parse path with a
@@ -1105,8 +1115,8 @@ the escalation was legitimate:
 2. Encrypt that reconstruction with K_aes to obtain C1.
 3. Check that C1 exhibits the marker-plus-MAC coincidence,
    confirming the collision that justified the escalation.
-4. Since 0x8D is the base case (always legitimate), the single
-   backward step completes the proof.
+4. This immediate-predecessor check completes the reference parser's
+   supported validation for the recovered 0x8E variant.
 ~~~
 
 If the backward check fails (the reconstructed C1 does not exhibit the
@@ -1335,10 +1345,13 @@ epochStart = baseEpoch + (epochByte × 2^31 seconds)
 | 0x00  | January 1, 2025    | January 19, 2093  |
 | 0x01  | January 19, 2093   | February 7, 2161  |
 | ...   | ...                | ...               |
-| 0xFF  | 19378              | 19446             |
+| 0xFF  | ~19378             | ~19446            |
 
 With 256 possible epoch values, a full multi-epoch implementation spans
-approximately 17,421 years of total coverage.
+approximately 17,421 years of total coverage.  The 0xFF values above
+are year-level proleptic approximations because common runtime date
+types do not represent years in the 19000 range.  The exact invariant
+is 256 * 2^31 seconds of addressable epoch windows.
 
 ## Epoch Configuration
 
@@ -1760,9 +1773,6 @@ representation remains big-endian and RFC 9562 compliant.
    changes?
 2. Is there demand for a 96-bit intermediate representation (e.g.,
    for systems where 128-bit UUIDs are not used)?
-3. Should the specification standardize a key derivation function (KDF)
-   recommendation for producing independent MAC/AES keys from a master
-   secret?
 
 
 # Security Considerations
@@ -1777,11 +1787,11 @@ An attacker who intercepts a Secure SKEID cannot derive the plaintext
 SKEID without the AES-256 key.  Forging a valid Secure SKEID requires
 producing ciphertext that, when decrypted, yields valid markers, a
 correct BLAKE3 MAC, a valid entity type, and a SKID corresponding to
-an existing record.  The multiplicative barrier across the defense-in-
-depth layers puts successful forgery outside the intended threat model
-when keys and rate limits are enforced.  For plaintext SKEIDs within
-trusted environments, the BLAKE3 MAC prevents identifier fabrication
-without the MAC key.
+an existing record.  AES-256 provides confidentiality and makes the
+plaintext unavailable without the key; online acceptance is governed by
+the marker, MAC, entity-type, topology, existence, and rate-limit checks
+after parsing.  For plaintext SKEIDs within trusted environments, the
+BLAKE3 MAC prevents identifier fabrication without the MAC key.
 
 **Tampering (Identifier Modification)**:
 Any modification to a Secure SKEID produces different plaintext upon
@@ -1904,8 +1914,11 @@ SKIDs.
 
 Endpoints that accept SKEID values from untrusted sources (e.g.,
 public APIs) MUST implement rate limiting to prevent brute-force
-attacks against the MAC.  Implementations SHOULD log and alert on
-sustained high-rate SKEID validation failures.
+attacks against the MAC.  Such endpoints MUST account for failed parse
+and validation attempts per relevant subject (for example client,
+principal, route, or tenant), SHOULD expose an operator-configurable
+failure budget, and SHOULD log and alert on sustained or bursty SKEID
+validation failures.
 
 ## Information Leakage (Plain SKEID)
 
@@ -1964,9 +1977,7 @@ AES Key (32 bytes, hex):   3E7E55BEC606C85A816104A7BB9A7E49
 Epoch:                     2025-01-01T00:00:00Z
 ~~~
 
-The AES key is derived from the MAC key via a deterministic hash
-chain (see "Key Separation" above).  Implementations MUST derive
-both keys from the same input to reproduce these vectors.
+Implementations MUST use the exact MAC key and AES key bytes defined above to reproduce the test vectors in this appendix.
 
 ## A.2. SKID Generation
 
@@ -2115,10 +2126,13 @@ through multiple evidence tiers:
 - **Unit tests** cover SKID generation, SKEID construction with MAC
   verification, and Secure SKEID encryption/decryption round-trips.
 - **Paper-verification tests** (`PaperNumericWalkthroughTests`,
-  `PaperEpochAddressabilityTests`, and `PaperThroughputAnalysisTests`)
+  `PaperEpochAddressabilityTests`, `PaperThroughputAnalysisTests`, and
+  `IetfTestVectorGeneratorTests`)
   assert the exact numeric walkthrough values, byte layouts, epoch
-  boundaries, lexicographic ordering, and throughput limits cited by
-  the specification and companion paper [SKID-PAPER].
+  boundaries, lexicographic ordering, Appendix A vectors, and arithmetic
+  throughput limits cited by the specification and companion paper
+  [SKID-PAPER].  Runtime backpressure and latency claims are benchmark
+  evidence, not unit-test evidence.
 - **Integration tests** exercise EF Core value generation,
   interceptors, repository behavior, and cursor-based pagination with
   PostgreSQL test containers.

@@ -27,7 +27,8 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
 
     private const uint TestSignBitToggle = 0x80000000;
     private const byte TestEpochByte = 0x00;
-    private const byte TestMarkerByte = 0x8D;
+    private const byte SourceKnownMarkerVersionByte = 0x8D; //6 | V8 => UUID V8 per RFC 9562 §5.8
+    private const byte SourceKnownMarkerVariantByte = 0x8D; //8 | Variant RFC 9562 §4.1
     private const byte TestEntityType = 0x01;
     private const byte TestAppId = 5;
     private const byte TestAppInstanceId = 3;
@@ -54,9 +55,9 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         skeidBytes[0] = TestEpochByte;
         BinaryPrimitives.WriteUInt32BigEndian(skeidBytes[1..5], upperHalf ^ TestSignBitToggle);
         skeidBytes[5] = (byte)(lowerHalf >> 24);
-        skeidBytes[6] = TestMarkerByte;
+        skeidBytes[6] = SourceKnownMarkerVersionByte;
         skeidBytes[7] = TestEntityType;
-        skeidBytes[8] = TestMarkerByte;
+        skeidBytes[8] = SourceKnownMarkerVariantByte;
         skeidBytes[9] = (byte)(lowerHalf >> 16);
         skeidBytes[10] = (byte)(lowerHalf >> 8);
         skeidBytes[11] = (byte)lowerHalf;
@@ -184,6 +185,10 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         var plainId = entityIdUtils.GeneratePlain(skid, TestEntityType);
         var plainBytes = plainId.EntityId.ToByteArray(bigEndian: true);
 
+        SourceKnownEntity.GetEntityType<TestVectorEntity>().Should().Be(TestEntityType);
+        var typedPlainId = entityIdUtils.GeneratePlain(new TestVectorEntity(skid));
+        typedPlainId.EntityId.Should().Be(plainId.EntityId, "the Appendix A entity type attribute should drive the same byte layout as the explicit byte");
+
         // Assert exact byte layout matches draft-skid-00.md Appendix A.3
         var plainHex = Convert.ToHexString(plainBytes);
         var plainGuidStr = plainId.EntityId.ToString();
@@ -193,8 +198,8 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         // Structural assertions — SKEID big-endian byte layout (RFC 9562)
         plainBytes[0].Should().Be(TestEpochByte, "byte 0 = epoch 0x00");
         plainBytes[7].Should().Be(TestEntityType, "byte 7 = entity type");
-        plainBytes[6].Should().Be(TestMarkerByte, "byte 6 = version marker");
-        plainBytes[8].Should().Be(TestMarkerByte, "byte 8 = variant marker");
+        plainBytes[6].Should().Be(SourceKnownMarkerVersionByte, "byte 6 = version marker");
+        plainBytes[8].Should().Be(SourceKnownMarkerVariantByte, "byte 8 = variant marker");
 
         var byteLayout = string.Join("\n", Enumerable.Range(0, 16)
             .Select(i => $"  Byte {i,2}: 0x{plainBytes[i]:X2}  ({DescribeByte(i)})"));
@@ -215,8 +220,8 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
             """);
 
         // Verify markers (RFC 9562 big-endian positions)
-        plainBytes[6].Should().Be(TestMarkerByte, "marker version at RFC octet 6");
-        plainBytes[8].Should().Be(TestMarkerByte, "marker variant at RFC octet 8");
+        plainBytes[6].Should().Be(SourceKnownMarkerVersionByte, "marker version at RFC octet 6");
+        plainBytes[8].Should().Be(SourceKnownMarkerVariantByte, "marker variant at RFC octet 8");
 
         // --- A.4: Secure SKEID Generation ---
         var secureId = entityIdUtils.GenerateSecure(skid, TestEntityType);
