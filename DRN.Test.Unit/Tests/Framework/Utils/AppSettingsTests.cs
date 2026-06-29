@@ -91,25 +91,38 @@ public class AppSettingsTests
     }
 
     [Fact]
-    public void AppSettings_Should_Report_Null_NexusKey_From_NexusAppSettings_Validation()
+    public void NexusAppSettings_HasDefaultKey_Should_Report_Null_NexusKey_From_Validation()
     {
-        var configuration = new ConfigurationManager()
-            .AddObjectToJsonConfiguration(new
-            {
-                Environment = "Staging",
-                NexusAppSettings = new
-                {
-                    AppId = 1,
-                    AppInstanceId = 1,
-                    Keys = new object?[] { null }
-                }
-            })
-            .Build();
+        var nexusAppSettings = new NexusAppSettings
+        {
+            Keys = [null!]
+        };
 
-        var action = () => new AppSettings(configuration);
+        var action = () => nexusAppSettings.HasDefaultKey();
 
         var exception = action.Should().ThrowExactly<ConfigurationException>().Which;
         exception.Message.Should().Be("NexusAppSettings.Keys[0] must not be null");
+    }
+
+    [Fact]
+    public void AppSettings_Should_Derive_Development_NexusKey_When_Configured_Keys_Have_No_Default()
+    {
+        var configuredKey = new NexusKey(new string('A', 32));
+
+        var settings = AppSettings.Development(new
+        {
+            NexusAppSettings = new NexusAppSettings
+            {
+                AppId = 1,
+                AppInstanceId = 1,
+                Keys = [configuredKey]
+            }
+        });
+
+        var defaultKey = settings.NexusAppSettings.GetDefaultKey();
+        defaultKey.Default.Should().BeTrue();
+        defaultKey.Format.Should().Be(ByteEncoding.Base64UrlEncoded);
+        settings.NexusAppSettings.Keys.Should().Contain(key => key.KeyMaterial == configuredKey.KeyMaterial && !key.Default);
     }
 
     [Fact]

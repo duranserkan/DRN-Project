@@ -95,7 +95,8 @@ public class AppSettings : IAppSettings
 
         ApplicationNameNormalized = ApplicationName.ToPascalCase();
 
-        if (NexusAppSettings.Keys.Count == 0)
+        var hasDefaultNexusKey = NexusAppSettings.HasDefaultKey();
+        if (!hasDefaultNexusKey)
         {
             if (Environment != AppEnvironment.Development)
                 throw ExceptionFor.Configuration($"Default Nexus key not found for the environment: {Environment.ToString()}");

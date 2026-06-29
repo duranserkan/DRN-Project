@@ -36,23 +36,21 @@ public class NexusAppSettings
 
     public NexusKey GetDefaultKey() => Keys.First(x => x.Default);
 
-    internal void AddNexusKey(NexusKey key)
+    internal bool HasDefaultKey()
     {
-        if (_keys is List<NexusKey> list)
-            list.Add(key);
-        _keys = _keys.Union([key]).ToArray();
+        ThrowIfKeysContainNullEntries();
+
+        return Keys.Any(k => k.Default);
     }
+
+    internal void AddNexusKey(NexusKey key) => _keys = [.. _keys, key];
 
     public void Validate()
     {
         if (Keys.Count == 0)
             throw ExceptionFor.Configuration($"{nameof(NexusAppSettings)}.{nameof(Keys)} must contain at least 1 {nameof(NexusKey)}");
 
-        for (var index = 0; index < Keys.Count; index++)
-        {
-            if (Keys[index] is null)
-                throw ExceptionFor.Configuration($"{nameof(NexusAppSettings)}.{nameof(Keys)}[{index}] must not be null");
-        }
+        ThrowIfKeysContainNullEntries();
 
         var defaultKeyCount = Keys.Count(k => k.Default);
         if (defaultKeyCount == 0)
@@ -67,6 +65,13 @@ public class NexusAppSettings
             if (!key.IsValid)
                 throw ExceptionFor.Configuration($"{nameof(NexusAppSettings)}.{nameof(Keys)}[{index}] must resolve to exactly 32 bytes");
         }
+    }
+
+    private void ThrowIfKeysContainNullEntries()
+    {
+        for (var index = 0; index < Keys.Count; index++)
+            if (Keys[index] is null)
+                throw ExceptionFor.Configuration($"{nameof(NexusAppSettings)}.{nameof(Keys)}[{index}] must not be null");
     }
 }
 
