@@ -70,12 +70,19 @@ public class NexusAppSettings
     }
 }
 
+/// <summary>
+/// Represents a Nexus configuration key and handles BLAKE3 subkey derivation for MAC and Encryption keys.
+/// </summary>
+/// <remarks>
+/// Key derivation uses BLAKE3 context-string key derivation mode. See:
+/// <see href="https://docs.rs/blake3/latest/blake3/fn.derive_key.html"/>
+/// </remarks>
 public class NexusKey
 {
     private const int RequiredKeyByteLength = 32;
-    private const string MacKeyDerivationContext = 
+    private const string MacKeyDerivationContext =
         "DRN.Framework.Utils NexusKey 1881 1919 1923 193∞ derive_key mackey 2026-06-29 21:57:43 v1";
-    private const string EncryptionKeyDerivationContext = 
+    private const string EncryptionKeyDerivationContext =
         "DRN.Framework.Utils NexusKey 1881 1919 1923 193∞ derive_key encryption key 2026-06-29 21:57:43 v1";
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 

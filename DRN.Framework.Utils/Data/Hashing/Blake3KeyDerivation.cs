@@ -2,6 +2,13 @@ using Blake3;
 
 namespace DRN.Framework.Utils.Data.Hashing;
 
+/// <summary>
+/// Provides helper methods for deriving subkeys using BLAKE3 Key Derivation Mode.
+/// </summary>
+/// <remarks>
+/// For cryptographic specification and details on BLAKE3 subkey derivation, see:
+/// <see href="https://docs.rs/blake3/latest/blake3/fn.derive_key.html"/>
+/// </remarks>
 internal static class Blake3KeyDerivation
 {
     public const int KeyLength = 32;

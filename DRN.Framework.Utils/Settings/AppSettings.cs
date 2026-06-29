@@ -50,7 +50,7 @@ public class AppSettings : IAppSettings
 {
     private const string LegacyNexusMacKeysSection = "NexusAppSettings:MacKeys";
     private const string NexusKeysSection = "NexusAppSettings:Keys";
-    private const string DevelopmentNexusKeyMaterialContext = 
+    private const string DevelopmentNexusKeyMaterialContext =
         "DRN.Framework.Utils Development NexusKey material from 1881 to 193∞ Forever 2026-06-29 21:57:43 v1";
 
     public static IAppSettings Development(params object[] settings)

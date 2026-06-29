@@ -20,8 +20,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Path Security Extensions**: Added `PathExtensions.NormalizeDirectoryPath` (full-path resolution with trailing-separator cleanup) and `IsPathWithinDirectory` (segment-aware containment check using OS-correct path comparison) for safe path validation in file-serving and manifest processing.
 *   **ScopedLog.CopyFrom**: New method on `IScopedLog` for merging log data, exception, and warning state from one scoped log into another with defensive value cloning for mutable collection types.
 *   **Configuration Debug View Redaction**: `ConfigurationDebugView` now redacts sensitive configuration values (connection strings, passwords, secrets, tokens, API keys, credentials) by default. A new `GetDebugView(bool includeRawValues)` overload on `IAppSettings` allows opt-in to raw values, but raw inclusion is only permitted in the Development environment.
-*   **Strict Nexus Key Formats**: `NexusKey` records a `ByteEncoding` `Format` (`Utf8`, `Hex`, `Base64`, or `Base64UrlEncoded`) and accepts only values that resolve directly to exactly 32 bytes. Development auto-generation remains deterministic from `SeedKey` and uses the framework `Hash()` default Base64Url output as key material before BLAKE3 derive-key separation.
-*   **SourceKnownEntityId Key-Ring Fallback**: `SourceKnownEntityIdUtils` generates with the default Nexus key and parses with a default-first key ring so IDs generated before key rotation remain parseable while old keys stay configured.
+*   **Strict Nexus MAC Key Formats**: `NexusMacKey` now records a `ByteEncoding` `Format` (`Utf8`, `Hex`, `Base64`, or `Base64UrlEncoded`) and accepts only values that resolve directly to exactly 32 bytes. Development auto-generation remains deterministic from `SeedKey` and uses the framework `Hash()` default Base64Url output.
+*   **SourceKnownEntityId Key-Ring Fallback**: `SourceKnownEntityIdUtils` generates with the default Nexus MAC key and parses with a default-first key ring so IDs generated before key rotation remain parseable while old keys stay configured.
 
 ### Bug Fixes
 

@@ -117,13 +117,13 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
             .ToUniversalTime()
             .ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
-        // Assert key derivation matches draft-skid-00.md Appendix A.1
+        // Assert key-material derivation matches draft-skid-00.md Appendix A.1
         nexusKey.Format.Should()
-            .Be(ByteEncoding.Hex, "Appendix A.1 defines the canonical MAC key as hexadecimal octets");
+            .Be(ByteEncoding.Hex, "Appendix A.1 defines the canonical key material as hexadecimal octets");
         Convert.ToHexString(macKeyBinary.ToArray()).Should()
-            .Be(TestMacKeyHex, "MAC key hex must match Appendix A.1");
+            .Be(TestMacKeyHex, "MAC key hex must match the Appendix A.1 derived MAC key");
         Convert.ToHexString(aesKeyBinary.ToArray()).Should()
-            .Be(TestAesKeyHex, "AES key hex must match Appendix A.1 (derived from MAC key via hash chain)");
+            .Be(TestAesKeyHex, "AES key hex must match the Appendix A.1 AES key derived from key material with BLAKE3 derive-key mode");
         epochText.Should()
             .Be("2025-01-01T00:00:00Z", "default epoch must match Appendix A.1");
 
