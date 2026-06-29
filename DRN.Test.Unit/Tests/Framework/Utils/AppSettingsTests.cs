@@ -91,6 +91,28 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void AppSettings_Should_Report_Null_NexusKey_From_NexusAppSettings_Validation()
+    {
+        var configuration = new ConfigurationManager()
+            .AddObjectToJsonConfiguration(new
+            {
+                Environment = "Staging",
+                NexusAppSettings = new
+                {
+                    AppId = 1,
+                    AppInstanceId = 1,
+                    Keys = new object?[] { null }
+                }
+            })
+            .Build();
+
+        var action = () => new AppSettings(configuration);
+
+        var exception = action.Should().ThrowExactly<ConfigurationException>().Which;
+        exception.Message.Should().Be("NexusAppSettings.Keys[0] must not be null");
+    }
+
+    [Fact]
     public void AppSettings_Should_Thrown_Configuration_Exception_For_Invalid_NexusAppId()
     {
         byte appId = 128;

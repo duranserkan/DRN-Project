@@ -9,6 +9,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Development Nexus Key Material Derivation**: When `Development` has no explicit default Nexus key, `AppSettings` now derives deterministic 32-byte Base64Url key material with BLAKE3 derive-key mode from `AppSecuritySettings` context-derived values instead of the previous custom hash-chain. Development-generated secure IDs may require migration, regeneration, or an explicit compatibility key.
 *   **Legacy Nexus Key Configuration**: `AppSettings` now rejects legacy `NexusAppSettings:MacKeys` configuration before Development key auto-generation, preventing old key material from being silently ignored. Migrate `MacKeys[*].Key` to `Keys[*].KeyMaterial` and move matching `Format` and `Default` values to `Keys[*].Format` and `Keys[*].Default`.
 
+### Bug Fixes
+
+*   **AppSettings Nexus Key Validation**: Configured `NexusAppSettings:Keys` entries are now validated before default-key inspection, so null key entries report the intended configuration error instead of a null-reference failure.
+
 ## Version 0.9.5
 
 ### New Features

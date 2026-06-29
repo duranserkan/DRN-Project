@@ -28,9 +28,9 @@ services:
       Identity__RequireConfirmedEmail: ${Identity__RequireConfirmedEmail:-false}
       Identity__RequireConfirmedPhoneNumber: ${Identity__RequireConfirmedPhoneNumber:-false}
       DrnDevelopmentSettings__AutoMigrateStaging: ${DrnDevelopmentSettings__AutoMigrateStaging:-true}
-      # Development without an explicit default NexusKey derives deterministic key material from DrnAppFeatures__SeedKey.
-      # Changing SeedKey changes generated IDs unless the previous key remains in NexusAppSettings__Keys.
-      # Alternative NexusKey formats: set Format to Hex, Base64, or Base64UrlEncoded; decoded bytes must be exactly 32.
+      # This service runs as Staging, so NexusAppSettings__Keys__0__KeyMaterial is required.
+      # DrnAppFeatures__SeedKey is not used to derive Nexus key material for this Staging service.
+      # Alternative formats: set NexusAppSettings__Keys__0__Format to Hex, Base64, or Base64UrlEncoded; decoded bytes must be exactly 32.
       NexusAppSettings__Keys__0__KeyMaterial: ${NexusAppSettings__Keys__0__KeyMaterial:?configure in the .env file}
       NexusAppSettings__Keys__0__Format: ${NexusAppSettings__Keys__0__Format:-Utf8}
       NexusAppSettings__Keys__0__Default: ${NexusAppSettings__Keys__0__Default:-true}

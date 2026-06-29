@@ -88,18 +88,17 @@ public class AppSettings : IAppSettings
         AppKey = securitySettings.AppKey;
 
         if (NexusAppSettings.AppId > SourceKnownIdUtils.MaxAppId)
-            throw new ConfigurationException($"Nexus AppId must be less than or equal to {SourceKnownIdUtils.MaxAppId}: NexusAppId: {NexusAppSettings.AppId}");
+            throw ExceptionFor.Configuration($"Nexus AppId must be less than or equal to {SourceKnownIdUtils.MaxAppId}: NexusAppId: {NexusAppSettings.AppId}");
         if (NexusAppSettings.AppInstanceId > SourceKnownIdUtils.MaxAppInstanceId)
-            throw new ConfigurationException(
+            throw ExceptionFor.Configuration(
                 $"Nexus App Instance Id must be less than or equal to {SourceKnownIdUtils.MaxAppInstanceId}: NexusAppInstanceId: {NexusAppSettings.AppInstanceId}");
 
         ApplicationNameNormalized = ApplicationName.ToPascalCase();
 
-        var hasDefaultNexusKey = NexusAppSettings.Keys.Any(k => k.Default);
-        if (!hasDefaultNexusKey)
+        if (NexusAppSettings.Keys.Count == 0)
         {
             if (Environment != AppEnvironment.Development)
-                throw new ConfigurationException($"Default Nexus key not found for the environment: {Environment.ToString()}");
+                throw ExceptionFor.Configuration($"Default Nexus key not found for the environment: {Environment.ToString()}");
 
             // Even if the application is not connected to Nexus, development still needs deterministic key material.
             var keyMaterial = DeriveDevelopmentNexusKeyMaterial(securitySettings);
@@ -140,7 +139,7 @@ public class AppSettings : IAppSettings
     {
         var connectionString = Configuration.GetConnectionString(name);
         return string.IsNullOrWhiteSpace(connectionString)
-            ? throw new ConfigurationException($"{name} connection string not found")
+            ? throw ExceptionFor.Configuration($"{name} connection string not found")
             : connectionString;
     }
 
@@ -155,7 +154,7 @@ public class AppSettings : IAppSettings
         var section = Configuration.GetSection(key);
         return section.Exists()
             ? section
-            : throw new ConfigurationException($"{key} configuration section not found");
+            : throw ExceptionFor.Configuration($"{key} configuration section not found");
     }
 
     public T? GetValue<T>(string key) => Configuration.GetValue<T>(key);
@@ -176,7 +175,7 @@ public class AppSettings : IAppSettings
         if (!Configuration.GetSection(LegacyNexusMacKeysSection).Exists())
             return;
 
-        throw new ConfigurationException(
+        throw ExceptionFor.Configuration(
             $"{LegacyNexusMacKeysSection} is no longer supported. " +
             $"Migrate {LegacyNexusMacKeysSection}[*].Key to {NexusKeysSection}[*].KeyMaterial, " +
             $"and move Format and Default to the matching {NexusKeysSection}[*].Format and {NexusKeysSection}[*].Default entries.");
