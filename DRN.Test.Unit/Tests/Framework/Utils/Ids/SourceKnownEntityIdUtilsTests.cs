@@ -270,7 +270,7 @@ public class SourceKnownEntityIdUtilsTests
         // Decrypt the secure SKEID to access plaintext
         var cipherBytes = secureId.EntityId.ToByteArray(bigEndian: true);
         var aesKey = context.GetRequiredService<IAppSettings>()
-            .NexusAppSettings.GetDefaultMacKey().AlternativeKeyAsBinary.ToArray();
+            .NexusAppSettings.GetDefaultKey().EncryptionKey.ToArray();
 
         using var aes = Aes.Create();
         aes.Mode = CipherMode.ECB;
@@ -329,14 +329,14 @@ public class SourceKnownEntityIdUtilsTests
     [Fact]
     public void Parse_Should_Fall_Back_To_Previous_KeyRing_Entries()
     {
-        var oldKey = new NexusMacKey(new string('A', 32)) { Default = true };
+        var oldKey = new NexusKey(new string('A', 32)) { Default = true };
         var oldSettings = AppSettings.Development(new
         {
             NexusAppSettings = new NexusAppSettings
             {
                 AppId = 5,
                 AppInstanceId = 12,
-                MacKeys = [oldKey]
+                Keys = [oldKey]
             }
         });
         var oldIdUtils = new SourceKnownIdUtils(oldSettings, new EpochTimeUtils());
@@ -351,10 +351,10 @@ public class SourceKnownEntityIdUtilsTests
             {
                 AppId = 5,
                 AppInstanceId = 12,
-                MacKeys =
+                Keys =
                 [
-                    new NexusMacKey(new string('B', 32)) { Default = true },
-                    new NexusMacKey(new string('A', 32))
+                    new NexusKey(new string('B', 32)) { Default = true },
+                    new NexusKey(new string('A', 32))
                 ]
             }
         });
@@ -378,10 +378,10 @@ public class SourceKnownEntityIdUtilsTests
             {
                 AppId = 5,
                 AppInstanceId = 12,
-                MacKeys =
+                Keys =
                 [
-                    new NexusMacKey(new string('A', 32)),
-                    new NexusMacKey(new string('B', 32)) { Default = true }
+                    new NexusKey(new string('A', 32)),
+                    new NexusKey(new string('B', 32)) { Default = true }
                 ]
             }
         });
@@ -397,7 +397,7 @@ public class SourceKnownEntityIdUtilsTests
             {
                 AppId = 5,
                 AppInstanceId = 12,
-                MacKeys = [new NexusMacKey(new string('B', 32)) { Default = true }]
+                Keys = [new NexusKey(new string('B', 32)) { Default = true }]
             }
         });
         var defaultOnlyIdUtils = new SourceKnownIdUtils(defaultOnlySettings, new EpochTimeUtils());
@@ -405,7 +405,7 @@ public class SourceKnownEntityIdUtilsTests
 
         var parsed = defaultOnlyEntityIdUtils.Parse(secureId.EntityId);
 
-        parsed.Valid.Should().BeTrue("generation must use the configured default key even when it is not first in MacKeys");
+        parsed.Valid.Should().BeTrue("generation must use the configured default key even when it is not first in Keys");
         parsed.Source.Id.Should().Be(id);
     }
 

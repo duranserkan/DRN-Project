@@ -1,3 +1,5 @@
+using System.Text;
+using Blake3;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Data.Encodings;
@@ -6,6 +8,9 @@ namespace DRN.Test.Unit.Tests.Framework.Utils;
 
 public class AppSettingsTests
 {
+    private const string DevelopmentNexusKeyMaterialDerivationContext =
+        "DRN.Framework.Utils Development NexusKey material from 1881 to 193∞ Forever 2026-06-29 21:57:43 v1";
+
     [Fact]
     public void AppSettings_Should_Be_Obtained()
     {
@@ -21,22 +26,56 @@ public class AppSettingsTests
     }
 
     [Fact]
-    public void AppSettings_Should_Generate_Base64Url_MacKey_In_Development_When_Default_Not_Configured()
+    public void AppSettings_Should_Generate_Base64Url_NexusKey_In_Development_When_Default_Not_Configured()
     {
         byte appId = 56;
         byte appInstanceId = 21;
 
         var settings = AppSettings.Development(GetCustomSettings(appId, appInstanceId));
-        var defaultMacKey = settings.NexusAppSettings.GetDefaultMacKey();
+        var defaultNexusKey = settings.NexusAppSettings.GetDefaultKey();
 
-        defaultMacKey.Default.Should().BeTrue();
-        defaultMacKey.Format.Should().Be(ByteEncoding.Base64UrlEncoded);
-        defaultMacKey.IsValid.Should().BeTrue();
-        defaultMacKey.Key.Decode(ByteEncoding.Base64UrlEncoded).Length.Should().Be(32);
+        defaultNexusKey.Default.Should().BeTrue();
+        defaultNexusKey.Format.Should().Be(ByteEncoding.Base64UrlEncoded);
+        defaultNexusKey.IsValid.Should().BeTrue();
+        defaultNexusKey.KeyMaterial.Decode(ByteEncoding.Base64UrlEncoded).Length.Should().Be(32);
     }
 
     [Fact]
-    public void AppSettings_Should_Throw_Configuration_Exception_When_Default_MacKey_Missing_Outside_Development()
+    public void AppSettings_Should_Derive_Development_NexusKey_Material_With_Blake3_DeriveKey_Mode()
+    {
+        var settings = AppSettings.Development(GetCustomSettings(56, 21));
+        var securitySettings = new AppSecuritySettings(settings.Features);
+        var defaultNexusKey = settings.NexusAppSettings.GetDefaultKey();
+
+        defaultNexusKey.KeyMaterial.Should().Be(DeriveExpectedDevelopmentNexusKeyMaterial(securitySettings));
+    }
+
+    [Fact]
+    public void AppSettings_Should_Reject_Legacy_MacKeys_Configuration_Before_Development_Key_Generation()
+    {
+        var configuration = new ConfigurationManager()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Environment"] = nameof(AppEnvironment.Development),
+                ["NexusAppSettings:AppId"] = "1",
+                ["NexusAppSettings:AppInstanceId"] = "1",
+                ["NexusAppSettings:MacKeys:0:Key"] = new string('A', 32),
+                ["NexusAppSettings:MacKeys:0:Format"] = nameof(ByteEncoding.Utf8),
+                ["NexusAppSettings:MacKeys:0:Default"] = bool.TrueString
+            })
+            .Build();
+
+        var action = () => new AppSettings(configuration);
+
+        var exception = action.Should().ThrowExactly<ConfigurationException>().Which;
+        exception.Message.Should().Contain("NexusAppSettings:MacKeys");
+        exception.Message.Should().Contain("NexusAppSettings:Keys");
+        exception.Message.Should().Contain("MacKeys[*].Key");
+        exception.Message.Should().Contain("Keys[*].KeyMaterial");
+    }
+
+    [Fact]
+    public void AppSettings_Should_Throw_Configuration_Exception_When_Default_NexusKey_Missing_Outside_Development()
     {
         var configuration = new ConfigurationManager()
             .AddObjectToJsonConfiguration(new
@@ -77,5 +116,15 @@ public class AppSettingsTests
     {
         var custom = new { NexusAppSettings = new NexusAppSettings { AppId = appId, AppInstanceId = appInstanceId } };
         return custom;
+    }
+
+    private static string DeriveExpectedDevelopmentNexusKeyMaterial(AppSecuritySettings securitySettings)
+    {
+        Span<byte> derived = stackalloc byte[32];
+        using var hasher = Hasher.NewDeriveKey(DevelopmentNexusKeyMaterialDerivationContext);
+        hasher.Update(Encoding.UTF8.GetBytes($"{securitySettings.AppHashKey}:{securitySettings.AppEncryptionKey}:{securitySettings.AppKey}"));
+        hasher.Finalize(derived);
+
+        return derived.Encode(ByteEncoding.Base64UrlEncoded);
     }
 }

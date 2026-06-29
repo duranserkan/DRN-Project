@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection ([Scoped<T>], [Singleton<T>], [Transient<T>], [HostedService], [Config]), IAppSettings configuration pattern, logging infrastructure, validators, extension methods, and core utilities. Foundational for service registration, configuration management, and cross-cutting concerns. Keywords: dependency-injection, di, service-registration, configuration, appsettings, logging, scoped-log, validators, attributes, scoped, singleton, transient, config, extensions, http-client"
-last-updated: 2026-06-12
+last-updated: 2026-06-29
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -129,11 +129,13 @@ Override mount directory via `IMountedSettingsConventionsOverride`.
 
 When grouping options into nested objects, explicitly validate child objects before relying on child data annotations for startup safety; plain `Validator.TryValidateObject` does not recursively walk nested option objects.
 
-### Nexus MAC Keys
+`DrnAppFeatures.SeedKey` feeds `AppSecuritySettings`, which derives `AppHashKey`, `AppEncryptionKey`, `AppKey`, and `AppSeed` through BLAKE3 derive-key mode with distinct DRN Framework context strings. The hash and encryption keys stay Base64Url-encoded 32-byte values, `AppKey` stays an 8-character public discriminator, and `AppSeed` stays a signed 64-bit seed value.
 
-`NexusAppSettings.MacKeys` must contain exactly one default `NexusMacKey`. Generation uses the default key; parsing tries the default key first and then the remaining configured keys for rotation fallback.
+### Nexus Keys
 
-`NexusMacKey.Format` defaults to `ByteEncoding.Utf8` and supports:
+`NexusAppSettings.Keys` must contain exactly one default `NexusKey`. Generation uses the default key; parsing tries the default key first and then the remaining configured keys for rotation fallback.
+
+`NexusKey.Format` defaults to `ByteEncoding.Utf8` and supports:
 
 | Format | Requirement |
 |--------|-------------|
@@ -142,7 +144,7 @@ When grouping options into nested objects, explicitly validate child objects bef
 | `Base64` | Base64 decodes to exactly 32 bytes. |
 | `Base64UrlEncoded` | Base64Url decodes to exactly 32 bytes. |
 
-Do not hash, pad, truncate, auto-detect, or repair configured keys. In `Development`, when no default MAC key is configured, `AppSettings` deterministically derives a Base64Url key from `DrnAppFeatures.SeedKey` through `AppSecuritySettings` and the default `Hash()` extension.
+Do not hash, pad, truncate, auto-detect, or repair configured key material before decoding. After validation, `NexusKey` derives separate 32-byte `MacKey` and `EncryptionKey` values from decoded key material through BLAKE3 derive-key mode with distinct DRN Framework context strings. In `Development`, when no default Nexus key is configured, `AppSettings` deterministically derives Base64Url key material from `AppSecuritySettings` context-derived values with BLAKE3 derive-key mode; `DrnAppFeatures.SeedKey` feeds `AppSecuritySettings`, and the generated key material then goes through the same `NexusKey` BLAKE3 derive-key separation.
 
 ---
 

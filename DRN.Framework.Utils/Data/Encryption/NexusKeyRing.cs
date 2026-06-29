@@ -6,9 +6,9 @@ internal sealed class NexusKeyRing : IDisposable
 {
     public NexusKeyRing(NexusAppSettings settings)
     {
-        var defaultMacKey = settings.GetDefaultMacKey();
-        Default = new NexusKeyMaterial(defaultMacKey);
-        Fallback = settings.MacKeys
+        var defaultNexusKey = settings.GetDefaultKey();
+        Default = new NexusKeyMaterial(defaultNexusKey);
+        Fallback = settings.Keys
             .Where(key => !key.Default)
             .Select(key => new NexusKeyMaterial(key))
             .ToArray();

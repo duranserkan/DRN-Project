@@ -8,9 +8,9 @@
     "Foo": "Bar"
   },
   "NexusAppSettings": {
-    "MacKeys": [
+    "Keys": [
       {
-        "Key": "wN2dC5sO7vVkXpQnYqRtJbZaUxLmKoMhH8GfP4yEI0k=",
+        "KeyMaterial": "wN2dC5sO7vVkXpQnYqRtJbZaUxLmKoMhH8GfP4yEI0k=",
         "Format": "Base64",
         "Default": true
       }

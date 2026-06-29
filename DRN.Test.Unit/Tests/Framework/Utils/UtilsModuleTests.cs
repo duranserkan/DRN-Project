@@ -12,7 +12,7 @@ public class UtilsModuleTests
         await context.ValidateServicesAsync();
 
         var appSettings = context.GetRequiredService<IAppSettings>();
-        var key = appSettings.NexusAppSettings.GetDefaultMacKey();
-        key.Key.Should().Be("SFnefTwiLUfxc_RCX54vHROJQ50TDvqDdHImA2rvrso");
+        var key = appSettings.NexusAppSettings.GetDefaultKey();
+        key.KeyMaterial.Should().Be("SFnefTwiLUfxc_RCX54vHROJQ50TDvqDdHImA2rvrso");
     }
 }

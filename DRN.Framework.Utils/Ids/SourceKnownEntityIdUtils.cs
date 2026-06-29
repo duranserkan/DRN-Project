@@ -114,8 +114,8 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     private const byte EntityIdLowerByte0Index = 5;
     private const byte EntityIdLowerBytes123Offset = 9; // 9-11
 
-    // Key separation: KeyAsBinary and AlternativeKeyAsBinary are cryptographically independent keys from the same keyring entry.
-    // KeyAsBinary → BLAKE3 keyed MAC (integrity). AlternativeKeyAsBinary → AES-256-ECB (confidentiality).
+    // Key separation: MacKey and EncryptionKey are cryptographically independent keys from the same keyring entry.
+    // MacKey -> BLAKE3 keyed MAC (integrity). EncryptionKey -> AES-256-ECB (confidentiality).
     private readonly NexusKeyRing _keyRing;
     private readonly Aes _aes;
     private readonly BinaryData _macKey;
@@ -445,9 +445,9 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// <summary>
     /// Computes BLAKE3 keyed MAC over the guid bytes (MAC slots must be zeroed before calling).
     /// </summary>
-    private static void ComputeMac(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes, BinaryData defaultMacKey)
+    private static void ComputeMac(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes, BinaryData macKey)
     {
-        using var hasher = Hasher.NewKeyed(defaultMacKey);
+        using var hasher = Hasher.NewKeyed(macKey);
         hasher.Update(guidBytes);
         hasher.Finalize(hashBytes);
     }

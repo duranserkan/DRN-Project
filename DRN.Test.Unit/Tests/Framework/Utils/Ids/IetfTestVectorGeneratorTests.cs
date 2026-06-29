@@ -18,8 +18,9 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 /// </summary>
 public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
 {
-    private const string TestMacKeyHex = "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F";
-    private const string TestAesKeyHex = "3E7E55BEC606C85A816104A7BB9A7E490E957DBADD3886402EBBD4CAE0E45B3D";
+    private const string TestNexusKeyMaterialHex = "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F";
+    private const string TestMacKeyHex = "5E293E89136745A96B70EB8C8F81CDFCAED177BE5358BC83D3039FB6607FD8FE";
+    private const string TestAesKeyHex = "4988F97FF724CD086BDFEC83497C3527B3656F35F0911BEEAA6BCE4BB92D3BC7";
 
     private const ulong TestSkidBits = 0x881B3200050C002AUL;
     private const long TestSkidDecimal = -8639256484514103254L;
@@ -35,11 +36,11 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
     private const uint TestSequenceId = 42;
     private const uint TestTimestampTicks = 272000000;
 
-    private const string TestMacHex = "6279D160";
-    private const string TestPlainHex = "00081B3200058D018D0C002A6279D160";
-    private const string TestPlainGuid = "00081b32-0005-8d01-8d0c-002a6279d160";
-    private const string TestSecureHex = "785D100D4AE356DCA7E68B350566441D";
-    private const string TestSecureGuid = "785d100d-4ae3-56dc-a7e6-8b350566441d";
+    private const string TestMacHex = "492C0E75";
+    private const string TestPlainHex = "00081B3200058D018D0C002A492C0E75";
+    private const string TestPlainGuid = "00081b32-0005-8d01-8d0c-002a492c0e75";
+    private const string TestSecureHex = "652068A43612CC4B8ABB83B853DC6786";
+    private const string TestSecureGuid = "652068a4-3612-cc4b-8abb-83b853dc6786";
 
     [Fact]
     public void Appendix_A_Recipe_Should_Match_Published_Skeid_And_Secure_Skeid()
@@ -97,12 +98,12 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
     [DataInlineUnit]
     public void Generate_IETF_Test_Vectors(DrnTestContextUnit context)
     {
-        var nexusMacKey = new NexusMacKey(TestMacKeyHex, ByteEncoding.Hex) { Default = true };
+        var nexusKey = new NexusKey(TestNexusKeyMaterialHex, ByteEncoding.Hex) { Default = true };
         var nexusSettings = new NexusAppSettings
         {
             AppId = TestAppId,
             AppInstanceId = TestAppInstanceId,
-            MacKeys = [nexusMacKey]
+            Keys = [nexusKey]
         };
         context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
 
@@ -110,14 +111,14 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
 
         // --- A.1: Test Key Material ---
-        var macKeyBinary = nexusMacKey.KeyAsBinary;
-        var aesKeyBinary = nexusMacKey.AlternativeKeyAsBinary;
+        var macKeyBinary = nexusKey.MacKey;
+        var aesKeyBinary = nexusKey.EncryptionKey;
         var epochText = EpochTimeUtils.DefaultEpoch
             .ToUniversalTime()
             .ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
         // Assert key derivation matches draft-skid-00.md Appendix A.1
-        nexusMacKey.Format.Should()
+        nexusKey.Format.Should()
             .Be(ByteEncoding.Hex, "Appendix A.1 defines the canonical MAC key as hexadecimal octets");
         Convert.ToHexString(macKeyBinary.ToArray()).Should()
             .Be(TestMacKeyHex, "MAC key hex must match Appendix A.1");

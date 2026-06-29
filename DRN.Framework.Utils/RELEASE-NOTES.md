@@ -4,7 +4,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
-*   **Nexus MAC Key Derivation**: `NexusMacKey` now derives its separated AES key from the decoded 32-byte key material for every supported `ByteEncoding`, instead of hashing non-UTF8 key text. This aligns Hex/Base64/Base64Url keys with Appendix A test vectors and keeps equivalent raw key bytes format-invariant. Secure IDs generated under the previous text-derived behavior for non-UTF8 configured keys may require migration, regeneration, or an explicit compatibility strategy.
+*   **AppSecuritySettings BLAKE3 Derivation**: `AppHashKey`, `AppEncryptionKey`, `AppKey`, and `AppSeed` are now derived from `DrnAppFeatures.SeedKey` through BLAKE3 derive-key mode with distinct DRN Framework context strings. This replaces the previous custom SHA/BLAKE3 hash chains and changes app-specific names, rate-limit redaction hashes, Development default Nexus key material, and seed-dependent operations.
+*   **NexusKey BLAKE3 Derivation**: `NexusKey` now derives both `MacKey` and `EncryptionKey` from decoded 32-byte key material through BLAKE3 derive-key mode with distinct DRN Framework context strings. This replaces the previous custom hash-chain derivation and changes generated secure IDs; existing IDs may require migration, regeneration, or an explicit compatibility strategy.
+*   **Development Nexus Key Material Derivation**: When `Development` has no explicit default Nexus key, `AppSettings` now derives deterministic 32-byte Base64Url key material with BLAKE3 derive-key mode from `AppSecuritySettings` context-derived values instead of the previous custom hash-chain. Development-generated secure IDs may require migration, regeneration, or an explicit compatibility key.
+*   **Legacy Nexus Key Configuration**: `AppSettings` now rejects legacy `NexusAppSettings:MacKeys` configuration before Development key auto-generation, preventing old key material from being silently ignored. Migrate `MacKeys[*].Key` to `Keys[*].KeyMaterial` and move matching `Format` and `Default` values to `Keys[*].Format` and `Keys[*].Default`.
 
 ## Version 0.9.5
 
@@ -17,8 +20,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Path Security Extensions**: Added `PathExtensions.NormalizeDirectoryPath` (full-path resolution with trailing-separator cleanup) and `IsPathWithinDirectory` (segment-aware containment check using OS-correct path comparison) for safe path validation in file-serving and manifest processing.
 *   **ScopedLog.CopyFrom**: New method on `IScopedLog` for merging log data, exception, and warning state from one scoped log into another with defensive value cloning for mutable collection types.
 *   **Configuration Debug View Redaction**: `ConfigurationDebugView` now redacts sensitive configuration values (connection strings, passwords, secrets, tokens, API keys, credentials) by default. A new `GetDebugView(bool includeRawValues)` overload on `IAppSettings` allows opt-in to raw values, but raw inclusion is only permitted in the Development environment.
-*   **Strict Nexus MAC Key Formats**: `NexusMacKey` now records a `ByteEncoding` `Format` (`Utf8`, `Hex`, `Base64`, or `Base64UrlEncoded`) and accepts only values that resolve directly to exactly 32 bytes. Development auto-generation remains deterministic from `SeedKey` and uses the framework `Hash()` default Base64Url output.
-*   **SourceKnownEntityId Key-Ring Fallback**: `SourceKnownEntityIdUtils` generates with the default Nexus MAC key and parses with a default-first key ring so IDs generated before key rotation remain parseable while old keys stay configured.
+*   **Strict Nexus Key Formats**: `NexusKey` records a `ByteEncoding` `Format` (`Utf8`, `Hex`, `Base64`, or `Base64UrlEncoded`) and accepts only values that resolve directly to exactly 32 bytes. Development auto-generation remains deterministic from `SeedKey` and uses the framework `Hash()` default Base64Url output as key material before BLAKE3 derive-key separation.
+*   **SourceKnownEntityId Key-Ring Fallback**: `SourceKnownEntityIdUtils` generates with the default Nexus key and parses with a default-first key ring so IDs generated before key rotation remain parseable while old keys stay configured.
 
 ### Bug Fixes
 

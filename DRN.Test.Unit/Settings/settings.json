@@ -9,9 +9,9 @@
     "Foo": "Bar"
   },
   "NexusAppSettings": {
-    "MacKeys": [
+    "Keys": [
       {
-        "Key": "SFnefTwiLUfxc_RCX54vHROJQ50TDvqDdHImA2rvrso",
+        "KeyMaterial": "SFnefTwiLUfxc_RCX54vHROJQ50TDvqDdHImA2rvrso",
         "Format": "Base64UrlEncoded",
         "Default": true
       }

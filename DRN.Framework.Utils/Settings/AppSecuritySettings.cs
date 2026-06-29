@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Text;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -27,19 +29,23 @@ public interface IAppSecuritySettings
 [Singleton<IAppSecuritySettings>]
 public class AppSecuritySettings : IAppSecuritySettings
 {
+    private const string AppHashKeyDerivationContext =
+        "DRN.Framework.Utils AppSecuritySettings Peace at home AppHashKey 2026-06-29 21:57:43 v1";
+    private const string AppEncryptionKeyDerivationContext =
+        "DRN.Framework.Utils AppSecuritySettings Peace in the world AppEncryptionKey 2026-06-29 21:57:43 v1";
+    private const string AppKeyDerivationContext =
+        "DRN.Framework.Utils AppSecuritySettings 1919 MKA 1923 AppKey 2026-06-29 21:57:43 v1";
+    private const string AppSeedDerivationContext =
+        "DRN.Framework.Utils AppSecuritySettings 1923 DRN 2923 AppSeed 2026-06-29 21:57:43 v1";
+
     public AppSecuritySettings(DrnAppFeatures features)
     {
-        //Inside only usage
-        AppHashKey = string.Concat("Peace at home", ("MKA " + features.SeedKey + " DRN")
-                .Hash(HashAlgorithm.Sha512, ByteEncoding.Hex)
-                .AsSpan(18, 81), "Peace in the world")
-            .Hash(HashAlgorithm.Sha256, ByteEncoding.Hex).Hash().Hash();
+        var seedKey = Encoding.UTF8.GetBytes(features.SeedKey);
 
-        //Inside only usage
-        AppEncryptionKey = (AppHashKey + "1919").Hash().Hash().Hash().Hash();
-        //Outside only usage
-        AppKey = (AppHashKey + "1923" + AppEncryptionKey + "2923").Hash().Hash().Hash().Hash().Hash().Hash()[..8];
-        AppSeed = (features.SeedKey + "2923").GenerateSeedFromInputHash();
+        AppHashKey = DeriveBase64UrlKey(seedKey, AppHashKeyDerivationContext);
+        AppEncryptionKey = DeriveBase64UrlKey(seedKey, AppEncryptionKeyDerivationContext);
+        AppKey = DeriveBase64UrlKey(seedKey, AppKeyDerivationContext)[..8];
+        AppSeed = DeriveSeed(seedKey);
     }
 
     /// <summary>
@@ -58,4 +64,14 @@ public class AppSecuritySettings : IAppSecuritySettings
     public string AppEncryptionKey { get; }
 
     public long AppSeed { get; }
+
+    private static string DeriveBase64UrlKey(ReadOnlySpan<byte> keyMaterial, string context)
+        => Blake3KeyDerivation.Derive32ByteKey(keyMaterial, context).Encode(ByteEncoding.Base64UrlEncoded);
+
+    private static long DeriveSeed(ReadOnlySpan<byte> keyMaterial)
+    {
+        var seed = Blake3KeyDerivation.Derive32ByteKey(keyMaterial, AppSeedDerivationContext);
+
+        return BinaryPrimitives.ReadInt64LittleEndian(seed.ToMemory().Span);
+    }
 }
