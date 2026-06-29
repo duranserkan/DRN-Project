@@ -18,8 +18,9 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 /// </summary>
 public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
 {
-    private const string TestMacKeyHex = "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F";
-    private const string TestAesKeyHex = "3E7E55BEC606C85A816104A7BB9A7E490E957DBADD3886402EBBD4CAE0E45B3D";
+    private const string TestNexusKeyMaterialHex = "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F";
+    private const string TestMacKeyHex = "5E293E89136745A96B70EB8C8F81CDFCAED177BE5358BC83D3039FB6607FD8FE";
+    private const string TestAesKeyHex = "4988F97FF724CD086BDFEC83497C3527B3656F35F0911BEEAA6BCE4BB92D3BC7";
 
     private const ulong TestSkidBits = 0x881B3200050C002AUL;
     private const long TestSkidDecimal = -8639256484514103254L;
@@ -27,18 +28,19 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
 
     private const uint TestSignBitToggle = 0x80000000;
     private const byte TestEpochByte = 0x00;
-    private const byte TestMarkerByte = 0x8D;
+    private const byte SourceKnownMarkerVersionByte = 0x8D; //6 | V8 => UUID V8 per RFC 9562 §5.8
+    private const byte SourceKnownMarkerVariantByte = 0x8D; //8 | Variant RFC 9562 §4.1
     private const byte TestEntityType = 0x01;
     private const byte TestAppId = 5;
     private const byte TestAppInstanceId = 3;
     private const uint TestSequenceId = 42;
     private const uint TestTimestampTicks = 272000000;
 
-    private const string TestMacHex = "6279D160";
-    private const string TestPlainHex = "00081B3200058D018D0C002A6279D160";
-    private const string TestPlainGuid = "00081b32-0005-8d01-8d0c-002a6279d160";
-    private const string TestSecureHex = "785D100D4AE356DCA7E68B350566441D";
-    private const string TestSecureGuid = "785d100d-4ae3-56dc-a7e6-8b350566441d";
+    private const string TestMacHex = "492C0E75";
+    private const string TestPlainHex = "00081B3200058D018D0C002A492C0E75";
+    private const string TestPlainGuid = "00081b32-0005-8d01-8d0c-002a492c0e75";
+    private const string TestSecureHex = "652068A43612CC4B8ABB83B853DC6786";
+    private const string TestSecureGuid = "652068a4-3612-cc4b-8abb-83b853dc6786";
 
     [Fact]
     public void Appendix_A_Recipe_Should_Match_Published_Skeid_And_Secure_Skeid()
@@ -54,9 +56,9 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         skeidBytes[0] = TestEpochByte;
         BinaryPrimitives.WriteUInt32BigEndian(skeidBytes[1..5], upperHalf ^ TestSignBitToggle);
         skeidBytes[5] = (byte)(lowerHalf >> 24);
-        skeidBytes[6] = TestMarkerByte;
+        skeidBytes[6] = SourceKnownMarkerVersionByte;
         skeidBytes[7] = TestEntityType;
-        skeidBytes[8] = TestMarkerByte;
+        skeidBytes[8] = SourceKnownMarkerVariantByte;
         skeidBytes[9] = (byte)(lowerHalf >> 16);
         skeidBytes[10] = (byte)(lowerHalf >> 8);
         skeidBytes[11] = (byte)lowerHalf;
@@ -96,12 +98,12 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
     [DataInlineUnit]
     public void Generate_IETF_Test_Vectors(DrnTestContextUnit context)
     {
-        var nexusMacKey = new NexusMacKey(TestMacKeyHex, ByteEncoding.Hex) { Default = true };
+        var nexusKey = new NexusKey(TestNexusKeyMaterialHex, ByteEncoding.Hex) { Default = true };
         var nexusSettings = new NexusAppSettings
         {
             AppId = TestAppId,
             AppInstanceId = TestAppInstanceId,
-            MacKeys = [nexusMacKey]
+            Keys = [nexusKey]
         };
         context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
 
@@ -109,19 +111,19 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
 
         // --- A.1: Test Key Material ---
-        var macKeyBinary = nexusMacKey.KeyAsBinary;
-        var aesKeyBinary = nexusMacKey.AlternativeKeyAsBinary;
+        var macKeyBinary = nexusKey.MacKey;
+        var aesKeyBinary = nexusKey.EncryptionKey;
         var epochText = EpochTimeUtils.DefaultEpoch
             .ToUniversalTime()
             .ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
-        // Assert key derivation matches draft-skid-00.md Appendix A.1
-        nexusMacKey.Format.Should()
-            .Be(ByteEncoding.Hex, "Appendix A.1 defines the canonical MAC key as hexadecimal octets");
+        // Assert key-material derivation matches draft-skid-00.md Appendix A.1
+        nexusKey.Format.Should()
+            .Be(ByteEncoding.Hex, "Appendix A.1 defines the canonical key material as hexadecimal octets");
         Convert.ToHexString(macKeyBinary.ToArray()).Should()
-            .Be(TestMacKeyHex, "MAC key hex must match Appendix A.1");
+            .Be(TestMacKeyHex, "MAC key hex must match the Appendix A.1 derived MAC key");
         Convert.ToHexString(aesKeyBinary.ToArray()).Should()
-            .Be(TestAesKeyHex, "AES key hex must match Appendix A.1 (derived from MAC key via hash chain)");
+            .Be(TestAesKeyHex, "AES key hex must match the Appendix A.1 AES key derived from key material with BLAKE3 derive-key mode");
         epochText.Should()
             .Be("2025-01-01T00:00:00Z", "default epoch must match Appendix A.1");
 
@@ -184,6 +186,10 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         var plainId = entityIdUtils.GeneratePlain(skid, TestEntityType);
         var plainBytes = plainId.EntityId.ToByteArray(bigEndian: true);
 
+        SourceKnownEntity.GetEntityType<TestVectorEntity>().Should().Be(TestEntityType);
+        var typedPlainId = entityIdUtils.GeneratePlain(new TestVectorEntity(skid));
+        typedPlainId.EntityId.Should().Be(plainId.EntityId, "the Appendix A entity type attribute should drive the same byte layout as the explicit byte");
+
         // Assert exact byte layout matches draft-skid-00.md Appendix A.3
         var plainHex = Convert.ToHexString(plainBytes);
         var plainGuidStr = plainId.EntityId.ToString();
@@ -193,8 +199,8 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         // Structural assertions — SKEID big-endian byte layout (RFC 9562)
         plainBytes[0].Should().Be(TestEpochByte, "byte 0 = epoch 0x00");
         plainBytes[7].Should().Be(TestEntityType, "byte 7 = entity type");
-        plainBytes[6].Should().Be(TestMarkerByte, "byte 6 = version marker");
-        plainBytes[8].Should().Be(TestMarkerByte, "byte 8 = variant marker");
+        plainBytes[6].Should().Be(SourceKnownMarkerVersionByte, "byte 6 = version marker");
+        plainBytes[8].Should().Be(SourceKnownMarkerVariantByte, "byte 8 = variant marker");
 
         var byteLayout = string.Join("\n", Enumerable.Range(0, 16)
             .Select(i => $"  Byte {i,2}: 0x{plainBytes[i]:X2}  ({DescribeByte(i)})"));
@@ -215,8 +221,8 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
             """);
 
         // Verify markers (RFC 9562 big-endian positions)
-        plainBytes[6].Should().Be(TestMarkerByte, "marker version at RFC octet 6");
-        plainBytes[8].Should().Be(TestMarkerByte, "marker variant at RFC octet 8");
+        plainBytes[6].Should().Be(SourceKnownMarkerVersionByte, "marker version at RFC octet 6");
+        plainBytes[8].Should().Be(SourceKnownMarkerVariantByte, "marker variant at RFC octet 8");
 
         // --- A.4: Secure SKEID Generation ---
         var secureId = entityIdUtils.GenerateSecure(skid, TestEntityType);

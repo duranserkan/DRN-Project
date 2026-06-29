@@ -28,12 +28,12 @@ services:
       Identity__RequireConfirmedEmail: ${Identity__RequireConfirmedEmail:-false}
       Identity__RequireConfirmedPhoneNumber: ${Identity__RequireConfirmedPhoneNumber:-false}
       DrnDevelopmentSettings__AutoMigrateStaging: ${DrnDevelopmentSettings__AutoMigrateStaging:-true}
-      # Development without an explicit default MacKey derives one deterministically from DrnAppFeatures__SeedKey.
-      # Changing SeedKey changes generated IDs unless the previous key remains in NexusAppSettings__MacKeys.
-      # Alternative MacKey formats: set Format to Hex, Base64, or Base64UrlEncoded; decoded bytes must be exactly 32.
-      NexusAppSettings__MacKeys__0__Key: ${NexusAppSettings__MacKeys__0__Key:?configure in the .env file}
-      NexusAppSettings__MacKeys__0__Format: ${NexusAppSettings__MacKeys__0__Format:-Utf8}
-      NexusAppSettings__MacKeys__0__Default: ${NexusAppSettings__MacKeys__0__Default:-true}
+      # This service runs as Staging, so NexusAppSettings__Keys__0__KeyMaterial is required.
+      # DrnAppFeatures__SeedKey is not used to derive Nexus key material for this Staging service.
+      # Alternative formats: set NexusAppSettings__Keys__0__Format to Hex, Base64, or Base64UrlEncoded; decoded bytes must be exactly 32.
+      NexusAppSettings__Keys__0__KeyMaterial: ${NexusAppSettings__Keys__0__KeyMaterial:?configure in the .env file}
+      NexusAppSettings__Keys__0__Format: ${NexusAppSettings__Keys__0__Format:-Utf8}
+      NexusAppSettings__Keys__0__Default: ${NexusAppSettings__Keys__0__Default:-true}
       ConnectionStrings__DrnDataProtectionContext: *sample-postgres-connection
       ConnectionStrings__QAContext: *sample-postgres-connection
       ConnectionStrings__QBContext: *sample-postgres-connection
