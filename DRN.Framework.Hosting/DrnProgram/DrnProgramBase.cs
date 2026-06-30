@@ -125,7 +125,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     protected static async Task RunAsync(string[]? args = null)
     {
         var configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationAssemblyName(), args).Build();
-        var appSettings = new AppSettings(configuration);
+        using var appSettings = new AppSettings(configuration);
         var scopedLog = new ScopedLog(appSettings).WithLoggerName(typeof(TProgram).FullName);
         var loggerProvider = new NLogLoggerProvider(NLogOptions, CreateLogFactory(appSettings));
         var logger = loggerProvider.CreateLogger(typeof(TProgram).FullName!);
@@ -176,7 +176,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         try
         {
             var (_, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopedLog);
-            var services = applicationBuilder.Services.BuildServiceProvider();
+            using var services = applicationBuilder.Services.BuildServiceProvider();
             var isDevelopment = appSettings.IsDevelopmentEnvironment;
             var handler = services.GetService<IDrnExceptionHandler>();
             //todo send startup exception report to nexus in non-develop

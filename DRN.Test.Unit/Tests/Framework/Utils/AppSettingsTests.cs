@@ -36,7 +36,6 @@ public class AppSettingsTests
 
         defaultNexusKey.Default.Should().BeTrue();
         defaultNexusKey.Format.Should().Be(ByteEncoding.Base64UrlEncoded);
-        defaultNexusKey.IsValid.Should().BeTrue();
         defaultNexusKey.KeyMaterial.Decode(ByteEncoding.Base64UrlEncoded).Length.Should().Be(32);
     }
 

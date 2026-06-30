@@ -23,7 +23,6 @@ public class NexusKeyTests
         var nexusKey = new NexusKey(key, format) { Default = true };
 
         nexusKey.Format.Should().Be(format);
-        nexusKey.IsValid.Should().BeTrue();
         nexusKey.MacKey.Should().BeOfType<SecretKey32>();
         nexusKey.EncryptionKey.Should().BeOfType<SecretKey32>();
         nexusKey.MacKey.Bytes.Should().Equal(DeriveExpectedKey(decodedKeyMaterial, MacKeyDerivationContext));
@@ -140,7 +139,6 @@ public class NexusKeyTests
         roundTripped.Keys[0].KeyMaterial.Should().Be(key);
         roundTripped.Keys[0].Format.Should().Be(format);
         roundTripped.Keys[0].Default.Should().BeTrue();
-        roundTripped.Keys[0].IsValid.Should().BeTrue();
     }
 
     [Fact]

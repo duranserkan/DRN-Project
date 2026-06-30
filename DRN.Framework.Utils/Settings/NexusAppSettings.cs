@@ -59,14 +59,6 @@ public class NexusAppSettings : IDisposable
             throw ExceptionFor.Configuration($"Default {nameof(NexusKey)}, not found");
         if (defaultKeyCount != 1)
             throw ExceptionFor.Configuration($"Only 1 default {nameof(NexusKey)} is allowed");
-
-        for (var index = 0; index < Keys.Count; index++)
-        {
-            var key = Keys[index];
-            key.ValidateDataAnnotationsThrowIfInvalid();
-            if (!key.IsValid)
-                throw ExceptionFor.Configuration($"{nameof(NexusAppSettings)}.{nameof(Keys)}[{index}] must resolve to exactly 32 bytes");
-        }
     }
 
     private void ThrowIfKeysContainNullEntries()
@@ -141,9 +133,6 @@ public class NexusKey : IDisposable
 
     [JsonIgnore]
     internal SecretKey32 EncryptionKey { get; }
-
-    [JsonIgnore]
-    public bool IsValid => MacKey.Length == RequiredKeyByteLength && EncryptionKey.Length == RequiredKeyByteLength;
 
     public void Dispose()
     {

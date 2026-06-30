@@ -16,7 +16,8 @@ public static class ConfigurationExtensions
     /// </summary>
     public static IConfigurationBuilder AddMountDirectorySettings(this IConfigurationBuilder builder, IServiceCollection? sc = null)
     {
-        var overrideService = sc?.BuildServiceProvider().GetService<IMountedSettingsConventionsOverride>();
+        using var serviceProvider = sc?.BuildServiceProvider();
+        var overrideService = serviceProvider?.GetService<IMountedSettingsConventionsOverride>();
         var mountOverride = overrideService?.MountedSettingsDirectory;
         if (overrideService != null)
             builder.AddObjectToJsonConfiguration(overrideService);
@@ -80,7 +81,7 @@ public static class ConfigurationExtensions
 
         builder.AddJsonFile($"{settingJsonName}.json", true);
         AddSettingsOverrides(builder, args, sc);
-        var tempSettings = new AppSettings(builder.Build());
+        using var tempSettings = new AppSettings(builder.Build());
 
         return tempSettings.Environment;
     }

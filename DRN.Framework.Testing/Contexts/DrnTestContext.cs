@@ -125,7 +125,8 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
     public ConfigurationDebugViewSummary GetConfigurationDebugView()
     {
         var configurationRoot = BuildConfigurationRoot();
-        var debugView = new ConfigurationDebugView(new AppSettings(configurationRoot));
+        using var appSettings = new AppSettings(configurationRoot);
+        var debugView = new ConfigurationDebugView(appSettings);
         return new ConfigurationDebugViewSummary(debugView);
     }
 
