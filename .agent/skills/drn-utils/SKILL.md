@@ -144,7 +144,6 @@ When grouping options into nested objects, explicitly validate child objects bef
 | `Base64` | Base64 decodes to exactly 32 bytes. |
 | `Base64UrlEncoded` | Base64Url decodes to exactly 32 bytes. |
 
-Do not hash, pad, truncate, auto-detect, or repair configured key material before decoding. After validation, `NexusKey` derives separate 32-byte `MacKey` and `EncryptionKey` values from decoded key material through BLAKE3 derive-key mode with distinct DRN Framework context strings. In `Development`, when no default Nexus key is configured, `AppSettings` deterministically derives Base64Url key material from `AppSecuritySettings` context-derived values with BLAKE3 derive-key mode; `DrnAppFeatures.SeedKey` feeds `AppSecuritySettings`, and the generated key material then goes through the same `NexusKey` BLAKE3 derive-key separation.
 
 ---
 

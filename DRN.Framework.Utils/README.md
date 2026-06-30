@@ -397,7 +397,6 @@ Nested option objects must be validated explicitly before relying on child data 
 
 Invalid user-provided keys are not hashed, stretched, truncated, repaired, or treated as another format. Startup validation rejects malformed encodings, empty keys, wrong decoded lengths, and raw values that are not exactly 32 UTF-8 bytes. Exception messages avoid including the secret key value.
 
-After format validation, `NexusKey` derives `MacKey` and `EncryptionKey` from the decoded 32 raw bytes through BLAKE3 derive-key mode with distinct DRN Framework context strings. Hex, Base64, and Base64Url text are never hashed as UTF-8 key bytes, so equivalent raw key material derives the same MAC and AES key material in every supported format.
 
 When no default Nexus key is configured in the `Development` environment, `AppSettings` derives deterministic 32-byte key material from `AppSecuritySettings` context-derived values with BLAKE3 derive-key mode. `DrnAppFeatures.SeedKey` feeds `AppSecuritySettings`. The generated key material is not random, is stored in memory as `Format = Base64UrlEncoded`, and then goes through the same BLAKE3 derive-key separation as configured keys.
 

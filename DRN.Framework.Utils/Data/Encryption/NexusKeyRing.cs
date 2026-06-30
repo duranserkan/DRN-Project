@@ -7,18 +7,18 @@ internal sealed class NexusKeyRing : IDisposable
     public NexusKeyRing(NexusAppSettings settings)
     {
         var defaultNexusKey = settings.GetDefaultKey();
-        Default = new NexusKeyMaterial(defaultNexusKey);
+        Default = new NexusSecret(defaultNexusKey);
         Fallback = settings.Keys
             .Where(key => !key.Default)
-            .Select(key => new NexusKeyMaterial(key))
+            .Select(key => new NexusSecret(key))
             .ToArray();
 
         AllWithDefaultAsFirstItem = [Default, ..Fallback];
     }
 
-    public NexusKeyMaterial Default { get; }
-    public IReadOnlyList<NexusKeyMaterial> Fallback { get; }
-    public IReadOnlyList<NexusKeyMaterial> AllWithDefaultAsFirstItem { get; }
+    public NexusSecret Default { get; }
+    public IReadOnlyList<NexusSecret> Fallback { get; }
+    public IReadOnlyList<NexusSecret> AllWithDefaultAsFirstItem { get; }
 
     public void Dispose()
     {

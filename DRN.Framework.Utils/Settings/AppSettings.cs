@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
 using DRN.Framework.SharedKernel.Enums;
@@ -46,7 +47,7 @@ public interface IAppSettings
 }
 
 [Singleton<IAppSettings>]
-public class AppSettings : IAppSettings
+public class AppSettings : IAppSettings, IDisposable
 {
     private const string LegacyNexusMacKeysSection = "NexusAppSettings:MacKeys";
     private const string NexusKeysSection = "NexusAppSettings:Keys";
@@ -130,6 +131,8 @@ public class AppSettings : IAppSettings
     public string ApplicationNameNormalized { get; }
     public string GetAppSpecificName(string name, string prefix = "_") => $"{prefix}{ApplicationNameNormalized}.{name}.{AppKey}";
 
+    public void Dispose() => NexusAppSettings.Dispose();
+
     public bool TryGetConnectionString(string name, out string connectionString)
     {
         connectionString = Configuration.GetConnectionString(name)!;
@@ -184,11 +187,20 @@ public class AppSettings : IAppSettings
 
     private static string DeriveDevelopmentNexusKeyMaterial(AppSecuritySettings securitySettings)
     {
-        var keyMaterial = Blake3KeyDerivation.Derive32ByteKey(
-            Encoding.UTF8.GetBytes($"{securitySettings.AppHashKey}:{securitySettings.AppEncryptionKey}:{securitySettings.AppKey}"),
-            DevelopmentNexusKeyMaterialContext);
+        var developmentKeyMaterialSeed = Encoding.UTF8.GetBytes($"{securitySettings.AppHashKey}:{securitySettings.AppEncryptionKey}:{securitySettings.AppKey}");
 
-        return keyMaterial.Encode(ByteEncoding.Base64UrlEncoded);
+        try
+        {
+            using var keyMaterial = Blake3KeyDerivation.Derive32ByteKey(
+                developmentKeyMaterialSeed,
+                DevelopmentNexusKeyMaterialContext);
+
+            return keyMaterial.Span.Encode(ByteEncoding.Base64UrlEncoded);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(developmentKeyMaterialSeed);
+        }
     }
 
     private IConfiguration GetSectionOrRoot(string key) => string.IsNullOrEmpty(key)

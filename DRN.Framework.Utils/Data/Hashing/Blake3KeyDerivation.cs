@@ -1,4 +1,6 @@
+using System.Security.Cryptography;
 using Blake3;
+using DRN.Framework.Utils.Data.Encryption;
 
 namespace DRN.Framework.Utils.Data.Hashing;
 
@@ -11,18 +13,25 @@ namespace DRN.Framework.Utils.Data.Hashing;
 /// </remarks>
 internal static class Blake3KeyDerivation
 {
-    public const int KeyLength = 32;
+    internal const int KeyLength = SecretKey32.KeyLength;
 
-    public static BinaryData Derive32ByteKey(ReadOnlySpan<byte> keyMaterial, string context)
+    internal static SecretKey32 Derive32ByteKey(ReadOnlySpan<byte> keyMaterial, string context)
     {
         Span<byte> derived = stackalloc byte[KeyLength];
-        using var hasher = Hasher.NewDeriveKey(context);
-        hasher.Update(keyMaterial);
-        hasher.Finalize(derived);
+        try
+        {
+            using var hasher = Hasher.NewDeriveKey(context);
+            hasher.Update(keyMaterial);
+            hasher.Finalize(derived);
 
-        return BinaryData.FromBytes(derived.ToArray());
+            return new SecretKey32(derived);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(derived);
+        }
     }
 
-    public static BinaryData Derive32ByteKey(BinaryData keyMaterial, string context)
-        => Derive32ByteKey(keyMaterial.ToMemory().Span, context);
+    internal static SecretKey32 Derive32ByteKey(SecretKey32 keyMaterial, string context)
+        => Derive32ByteKey(keyMaterial.Span, context);
 }

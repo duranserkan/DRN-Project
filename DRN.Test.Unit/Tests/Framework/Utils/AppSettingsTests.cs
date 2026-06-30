@@ -51,6 +51,18 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void AppSettings_Should_Dispose_NexusAppSettings_Key_Material()
+    {
+        var settings = (AppSettings)AppSettings.Development(GetCustomSettings(56, 21));
+        var defaultNexusKey = settings.NexusAppSettings.GetDefaultKey();
+
+        settings.Dispose();
+
+        var action = () => { _ = defaultNexusKey.MacKey.Bytes; };
+        action.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
     public void AppSettings_Should_Reject_Legacy_MacKeys_Configuration_Before_Development_Key_Generation()
     {
         var configuration = new ConfigurationManager()

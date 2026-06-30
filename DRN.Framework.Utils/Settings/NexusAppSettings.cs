@@ -1,5 +1,7 @@
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
+using DRN.Framework.Utils.Data.Encryption;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.Data.Validation;
@@ -9,7 +11,7 @@ namespace DRN.Framework.Utils.Settings;
 /// <summary>
 /// In production values will be obtained from nexus as a remote configuration source
 /// </summary>
-public class NexusAppSettings
+public class NexusAppSettings : IDisposable
 {
     private IReadOnlyList<NexusKey> _keys = [];
 
@@ -73,6 +75,12 @@ public class NexusAppSettings
             if (Keys[index] is null)
                 throw ExceptionFor.Configuration($"{nameof(NexusAppSettings)}.{nameof(Keys)}[{index}] must not be null");
     }
+
+    public void Dispose()
+    {
+        foreach (var key in Keys)
+            key?.Dispose();
+    }
 }
 
 /// <summary>
@@ -82,7 +90,7 @@ public class NexusAppSettings
 /// Key derivation uses BLAKE3 context-string key derivation mode. See:
 /// <see href="https://docs.rs/blake3/latest/blake3/fn.derive_key.html"/>
 /// </remarks>
-public class NexusKey
+public class NexusKey : IDisposable
 {
     private const int RequiredKeyByteLength = 32;
     private const string MacKeyDerivationContext =
@@ -98,8 +106,15 @@ public class NexusKey
         Format = format;
 
         var decodedKeyMaterial = DecodeKey(keyMaterial, format);
-        MacKey = Blake3KeyDerivation.Derive32ByteKey(decodedKeyMaterial, MacKeyDerivationContext);
-        EncryptionKey = Blake3KeyDerivation.Derive32ByteKey(decodedKeyMaterial, EncryptionKeyDerivationContext);
+        try
+        {
+            MacKey = Blake3KeyDerivation.Derive32ByteKey(decodedKeyMaterial, MacKeyDerivationContext);
+            EncryptionKey = Blake3KeyDerivation.Derive32ByteKey(decodedKeyMaterial, EncryptionKeyDerivationContext);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(decodedKeyMaterial);
+        }
 
         if (!IsValid)
             throw ExceptionFor.Configuration($"{nameof(NexusKey)} must resolve to exactly 32-byte MAC and encryption keys");
@@ -111,15 +126,21 @@ public class NexusKey
     public bool Default { get; init; }
 
     [JsonIgnore]
-    public BinaryData MacKey { get; }
+    internal SecretKey32 MacKey { get; }
 
     [JsonIgnore]
-    public BinaryData EncryptionKey { get; }
+    internal SecretKey32 EncryptionKey { get; }
 
     [JsonIgnore]
     public bool IsValid => MacKey.Length == RequiredKeyByteLength && EncryptionKey.Length == RequiredKeyByteLength;
 
-    private static BinaryData DecodeKey(string key, ByteEncoding format)
+    public void Dispose()
+    {
+        MacKey.Dispose();
+        EncryptionKey.Dispose();
+    }
+
+    private static byte[] DecodeKey(string key, ByteEncoding format)
     {
         if (string.IsNullOrEmpty(key))
             throw ExceptionFor.Configuration($"{nameof(NexusKey)}.{nameof(KeyMaterial)} must not be empty");
@@ -153,7 +174,7 @@ public class NexusKey
             throw ExceptionFor.Configuration(
                 $"{nameof(NexusKey)}.{nameof(KeyMaterial)} with format {format} must resolve to exactly 32 bytes; resolved length: {keyBytes.Length}");
 
-        return BinaryData.FromBytes(keyBytes);
+        return keyBytes;
     }
 
     private static byte[] DecodeUtf8(string key)

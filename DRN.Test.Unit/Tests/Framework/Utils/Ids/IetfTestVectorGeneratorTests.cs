@@ -111,8 +111,8 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
 
         // --- A.1: Test Key Material ---
-        var macKeyBinary = nexusKey.MacKey;
-        var aesKeyBinary = nexusKey.EncryptionKey;
+        var macKey = nexusKey.MacKey;
+        var aesKey = nexusKey.EncryptionKey;
         var epochText = EpochTimeUtils.DefaultEpoch
             .ToUniversalTime()
             .ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
@@ -120,9 +120,9 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         // Assert key-material derivation matches draft-skid-00.md Appendix A.1
         nexusKey.Format.Should()
             .Be(ByteEncoding.Hex, "Appendix A.1 defines the canonical key material as hexadecimal octets");
-        Convert.ToHexString(macKeyBinary.ToArray()).Should()
+        Convert.ToHexString(macKey.Bytes).Should()
             .Be(TestMacKeyHex, "MAC key hex must match the Appendix A.1 derived MAC key");
-        Convert.ToHexString(aesKeyBinary.ToArray()).Should()
+        Convert.ToHexString(aesKey.Bytes).Should()
             .Be(TestAesKeyHex, "AES key hex must match the Appendix A.1 AES key derived from key material with BLAKE3 derive-key mode");
         epochText.Should()
             .Be("2025-01-01T00:00:00Z", "default epoch must match Appendix A.1");
@@ -130,8 +130,8 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         output.WriteLine($"""
             === A.1. Test Key Material ===
 
-            MAC Key (32 bytes, hex):   {Convert.ToHexString(macKeyBinary.ToArray())}
-            AES Key (32 bytes, hex):   {Convert.ToHexString(aesKeyBinary.ToArray())}
+            MAC Key (32 bytes, hex):   {Convert.ToHexString(macKey.Bytes)}
+            AES Key (32 bytes, hex):   {Convert.ToHexString(aesKey.Bytes)}
             Epoch:                     {epochText}
 
             """);
