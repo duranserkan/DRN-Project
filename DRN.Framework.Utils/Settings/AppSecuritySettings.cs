@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Security.Cryptography;
 using System.Text;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
@@ -42,10 +43,17 @@ public class AppSecuritySettings : IAppSecuritySettings
     {
         var seedKey = Encoding.UTF8.GetBytes(features.SeedKey);
 
-        AppHashKey = DeriveBase64UrlKey(seedKey, AppHashKeyDerivationContext);
-        AppEncryptionKey = DeriveBase64UrlKey(seedKey, AppEncryptionKeyDerivationContext);
-        AppKey = DeriveBase64UrlKey(seedKey, AppKeyDerivationContext)[..8];
-        AppSeed = DeriveSeed(seedKey);
+        try
+        {
+            AppHashKey = DeriveBase64UrlKey(seedKey, AppHashKeyDerivationContext);
+            AppEncryptionKey = DeriveBase64UrlKey(seedKey, AppEncryptionKeyDerivationContext);
+            AppKey = DeriveBase64UrlKey(seedKey, AppKeyDerivationContext)[..8];
+            AppSeed = DeriveSeed(seedKey);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(seedKey);
+        }
     }
 
     /// <summary>
@@ -66,12 +74,16 @@ public class AppSecuritySettings : IAppSecuritySettings
     public long AppSeed { get; }
 
     private static string DeriveBase64UrlKey(ReadOnlySpan<byte> keyMaterial, string context)
-        => Blake3KeyDerivation.Derive32ByteKey(keyMaterial, context).Encode(ByteEncoding.Base64UrlEncoded);
+    {
+        using var derivedKey = Blake3KeyDerivation.Derive32ByteKey(keyMaterial, context);
+
+        return derivedKey.Span.Encode(ByteEncoding.Base64UrlEncoded);
+    }
 
     private static long DeriveSeed(ReadOnlySpan<byte> keyMaterial)
     {
-        var seed = Blake3KeyDerivation.Derive32ByteKey(keyMaterial, AppSeedDerivationContext);
+        using var seed = Blake3KeyDerivation.Derive32ByteKey(keyMaterial, AppSeedDerivationContext);
 
-        return BinaryPrimitives.ReadInt64LittleEndian(seed.ToMemory().Span);
+        return BinaryPrimitives.ReadInt64LittleEndian(seed.Span);
     }
 }

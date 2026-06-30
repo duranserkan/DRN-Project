@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
 using DRN.Framework.SharedKernel.Enums;
@@ -46,7 +47,7 @@ public interface IAppSettings
 }
 
 [Singleton<IAppSettings>]
-public class AppSettings : IAppSettings
+public class AppSettings : IAppSettings, IDisposable
 {
     private const string LegacyNexusMacKeysSection = "NexusAppSettings:MacKeys";
     private const string NexusKeysSection = "NexusAppSettings:Keys";
@@ -83,30 +84,38 @@ public class AppSettings : IAppSettings
         DevelopmentSettings.ValidateDataAnnotationsThrowIfInvalid();
 
         NexusAppSettings = Get<NexusAppSettings>(nameof(NexusAppSettings)) ?? new NexusAppSettings();
-        ThrowIfLegacyNexusMacKeysConfigured();
-        var securitySettings = new AppSecuritySettings(Features);
-        AppKey = securitySettings.AppKey;
-
-        if (NexusAppSettings.AppId > SourceKnownIdUtils.MaxAppId)
-            throw ExceptionFor.Configuration($"Nexus AppId must be less than or equal to {SourceKnownIdUtils.MaxAppId}: NexusAppId: {NexusAppSettings.AppId}");
-        if (NexusAppSettings.AppInstanceId > SourceKnownIdUtils.MaxAppInstanceId)
-            throw ExceptionFor.Configuration(
-                $"Nexus App Instance Id must be less than or equal to {SourceKnownIdUtils.MaxAppInstanceId}: NexusAppInstanceId: {NexusAppSettings.AppInstanceId}");
-
-        ApplicationNameNormalized = ApplicationName.ToPascalCase();
-
-        var hasDefaultNexusKey = NexusAppSettings.HasDefaultKey();
-        if (!hasDefaultNexusKey)
+        try
         {
-            if (Environment != AppEnvironment.Development)
-                throw ExceptionFor.Configuration($"Default Nexus key not found for the environment: {Environment.ToString()}");
+            ThrowIfLegacyNexusMacKeysConfigured();
+            var securitySettings = new AppSecuritySettings(Features);
+            AppKey = securitySettings.AppKey;
 
-            // Even if the application is not connected to Nexus, development still needs deterministic key material.
-            var keyMaterial = DeriveDevelopmentNexusKeyMaterial(securitySettings);
-            NexusAppSettings.AddNexusKey(new NexusKey(keyMaterial, ByteEncoding.Base64UrlEncoded) { Default = true });
+            if (NexusAppSettings.AppId > SourceKnownIdUtils.MaxAppId)
+                throw ExceptionFor.Configuration($"Nexus AppId must be less than or equal to {SourceKnownIdUtils.MaxAppId}: NexusAppId: {NexusAppSettings.AppId}");
+            if (NexusAppSettings.AppInstanceId > SourceKnownIdUtils.MaxAppInstanceId)
+                throw ExceptionFor.Configuration(
+                    $"Nexus App Instance Id must be less than or equal to {SourceKnownIdUtils.MaxAppInstanceId}: NexusAppInstanceId: {NexusAppSettings.AppInstanceId}");
+
+            ApplicationNameNormalized = ApplicationName.ToPascalCase();
+
+            var hasDefaultNexusKey = NexusAppSettings.HasDefaultKey();
+            if (!hasDefaultNexusKey)
+            {
+                if (Environment != AppEnvironment.Development)
+                    throw ExceptionFor.Configuration($"Default Nexus key not found for the environment: {Environment.ToString()}");
+
+                // Even if the application is not connected to Nexus, development still needs deterministic key material.
+                var keyMaterial = DeriveDevelopmentNexusKeyMaterial(securitySettings);
+                NexusAppSettings.AddNexusKey(new NexusKey(keyMaterial, ByteEncoding.Base64UrlEncoded) { Default = true });
+            }
+
+            NexusAppSettings.Validate();
         }
-
-        NexusAppSettings.Validate();
+        catch
+        {
+            NexusAppSettings.Dispose();
+            throw;
+        }
     }
 
     [JsonIgnore]
@@ -129,6 +138,8 @@ public class AppSettings : IAppSettings
     public string ApplicationName { get; }
     public string ApplicationNameNormalized { get; }
     public string GetAppSpecificName(string name, string prefix = "_") => $"{prefix}{ApplicationNameNormalized}.{name}.{AppKey}";
+
+    public void Dispose() => NexusAppSettings.Dispose();
 
     public bool TryGetConnectionString(string name, out string connectionString)
     {
@@ -184,11 +195,20 @@ public class AppSettings : IAppSettings
 
     private static string DeriveDevelopmentNexusKeyMaterial(AppSecuritySettings securitySettings)
     {
-        var keyMaterial = Blake3KeyDerivation.Derive32ByteKey(
-            Encoding.UTF8.GetBytes($"{securitySettings.AppHashKey}:{securitySettings.AppEncryptionKey}:{securitySettings.AppKey}"),
-            DevelopmentNexusKeyMaterialContext);
+        var developmentKeyMaterialSeed = Encoding.UTF8.GetBytes($"{securitySettings.AppHashKey}:{securitySettings.AppEncryptionKey}:{securitySettings.AppKey}");
 
-        return keyMaterial.Encode(ByteEncoding.Base64UrlEncoded);
+        try
+        {
+            using var keyMaterial = Blake3KeyDerivation.Derive32ByteKey(
+                developmentKeyMaterialSeed,
+                DevelopmentNexusKeyMaterialContext);
+
+            return keyMaterial.Span.Encode(ByteEncoding.Base64UrlEncoded);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(developmentKeyMaterialSeed);
+        }
     }
 
     private IConfiguration GetSectionOrRoot(string key) => string.IsNullOrEmpty(key)

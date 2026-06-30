@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Blake3;
 using DRN.Framework.SharedKernel.Json;
+using DRN.Framework.Utils.Data.Encryption;
 using DRN.Framework.Utils.Data.Encodings;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Settings;
@@ -23,9 +24,68 @@ public class NexusKeyTests
 
         nexusKey.Format.Should().Be(format);
         nexusKey.IsValid.Should().BeTrue();
-        nexusKey.MacKey.ToArray().Should().Equal(DeriveExpectedKey(decodedKeyMaterial, MacKeyDerivationContext));
-        nexusKey.EncryptionKey.ToArray().Should().Equal(DeriveExpectedKey(decodedKeyMaterial, EncryptionKeyDerivationContext));
-        nexusKey.MacKey.ToArray().Should().NotEqual(nexusKey.EncryptionKey.ToArray());
+        nexusKey.MacKey.Should().BeOfType<SecretKey32>();
+        nexusKey.EncryptionKey.Should().BeOfType<SecretKey32>();
+        nexusKey.MacKey.Bytes.Should().Equal(DeriveExpectedKey(decodedKeyMaterial, MacKeyDerivationContext));
+        nexusKey.EncryptionKey.Bytes.Should().Equal(DeriveExpectedKey(decodedKeyMaterial, EncryptionKeyDerivationContext));
+        nexusKey.MacKey.Bytes.Should().NotEqual(nexusKey.EncryptionKey.Bytes);
+    }
+
+    [Fact]
+    public void SecretKey32_Should_Copy_Key_Material_And_Reject_Wrong_Lengths()
+    {
+        var source = SequentialKeyBytes.ToArray();
+        var key = new SecretKey32(source);
+        source[0] = byte.MaxValue;
+
+        key.Length.Should().Be(32);
+        key.Span.ToArray().Should().Equal(SequentialKeyBytes);
+        key.Memory.ToArray().Should().Equal(SequentialKeyBytes);
+        key.Bytes.Should().Equal(SequentialKeyBytes);
+
+        var action = () => { _ = new SecretKey32(new byte[31]); };
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void SecretKey32_Should_Clear_And_Reject_Access_After_Dispose()
+    {
+        var key = new SecretKey32(SequentialKeyBytes);
+
+        key.Dispose();
+        var action = () => { _ = key.Bytes; };
+
+        action.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public void NexusKey_Should_Dispose_Runtime_Key_Material()
+    {
+        var nexusKey = new NexusKey(Utf8Key, ByteEncoding.Utf8);
+        var macKey = nexusKey.MacKey;
+        var encryptionKey = nexusKey.EncryptionKey;
+
+        nexusKey.Dispose();
+
+        var macAction = () => { _ = macKey.Bytes; };
+        var encryptionAction = () => { _ = encryptionKey.Bytes; };
+        macAction.Should().Throw<ObjectDisposedException>();
+        encryptionAction.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public void NexusAppSettings_Should_Dispose_Configured_Keys()
+    {
+        var firstKey = new NexusKey(Utf8Key, ByteEncoding.Utf8) { Default = true };
+        var secondKey = new NexusKey(SequentialKeyBytes.Encode(ByteEncoding.Hex), ByteEncoding.Hex);
+        var settings = new NexusAppSettings { Keys = [firstKey, secondKey] };
+
+        settings.Dispose();
+
+        var firstAction = () => { _ = firstKey.MacKey.Bytes; };
+        var secondAction = () => { _ = secondKey.EncryptionKey.Bytes; };
+        firstAction.Should().Throw<ObjectDisposedException>();
+        secondAction.Should().Throw<ObjectDisposedException>();
     }
 
     [Fact]
@@ -46,9 +106,9 @@ public class NexusKeyTests
         {
             key.MacKey.Length.Should().Be(32);
             key.EncryptionKey.Length.Should().Be(32);
-            key.MacKey.ToArray().Should().Equal(expectedMacKeyBytes);
-            key.EncryptionKey.ToArray().Should().Equal(expectedEncryptionKeyBytes);
-            key.MacKey.ToArray().Should().NotEqual(key.EncryptionKey.ToArray());
+            key.MacKey.Bytes.Should().Equal(expectedMacKeyBytes);
+            key.EncryptionKey.Bytes.Should().Equal(expectedEncryptionKeyBytes);
+            key.MacKey.Bytes.Should().NotEqual(key.EncryptionKey.Bytes);
         }
     }
 
@@ -97,7 +157,7 @@ public class NexusKeyTests
         roundTripped.KeyMaterial.Should().Be(key);
         roundTripped.Format.Should().Be(ByteEncoding.Base64UrlEncoded);
         roundTripped.Default.Should().BeTrue();
-        roundTripped.MacKey.ToArray().Should().Equal(DeriveExpectedKey(SequentialKeyBytes, MacKeyDerivationContext));
+        roundTripped.MacKey.Bytes.Should().Equal(DeriveExpectedKey(SequentialKeyBytes, MacKeyDerivationContext));
     }
 
     [Fact]
@@ -108,7 +168,7 @@ public class NexusKeyTests
 
         Encoding.UTF8.GetByteCount(key).Should().Be(32);
         key.Length.Should().NotBe(32);
-        nexusKey.MacKey.ToArray().Should().Equal(DeriveExpectedKey(Encoding.UTF8.GetBytes(key), MacKeyDerivationContext));
+        nexusKey.MacKey.Bytes.Should().Equal(DeriveExpectedKey(Encoding.UTF8.GetBytes(key), MacKeyDerivationContext));
     }
 
     [Fact]
@@ -131,7 +191,7 @@ public class NexusKeyTests
         settings.Should().NotBeNull();
         settings.Keys.Should().ContainSingle();
         settings.Keys[0].Format.Should().Be(ByteEncoding.Hex);
-        settings.Keys[0].MacKey.ToArray().Should().Equal(DeriveExpectedKey(SequentialKeyBytes, MacKeyDerivationContext));
+        settings.Keys[0].MacKey.Bytes.Should().Equal(DeriveExpectedKey(SequentialKeyBytes, MacKeyDerivationContext));
     }
 
     [Fact]
@@ -153,7 +213,7 @@ public class NexusKeyTests
         settings.Validate();
         settings.Keys.Should().ContainSingle();
         settings.Keys[0].Format.Should().Be(ByteEncoding.Base64UrlEncoded);
-        settings.Keys[0].MacKey.ToArray().Should().Equal(DeriveExpectedKey(SequentialKeyBytes, MacKeyDerivationContext));
+        settings.Keys[0].MacKey.Bytes.Should().Equal(DeriveExpectedKey(SequentialKeyBytes, MacKeyDerivationContext));
     }
 
     private static byte[] DeriveExpectedKey(ReadOnlySpan<byte> keyMaterial, string context)

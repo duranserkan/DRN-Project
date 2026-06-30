@@ -118,7 +118,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     // MacKey -> BLAKE3 keyed MAC (integrity). EncryptionKey -> AES-256-ECB (confidentiality).
     private readonly NexusKeyRing _keyRing;
     private readonly Aes _aes;
-    private readonly BinaryData _macKey;
+    private readonly SecretKey32 _macKey;
     private readonly bool _useSecure;
     private readonly ISourceKnownIdUtils _sourceKnownIdUtils;
 
@@ -135,8 +135,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity => Generate(id, SourceKnownEntity.GetEntityType<TEntity>());
     public SourceKnownEntityId Generate(SourceKnownEntity entity) => Generate(entity.Id, SourceKnownEntity.GetEntityType(entity));
 
-    public SourceKnownEntityId Generate(long id, byte entityType)
-        => _useSecure ? GenerateSecure(id, entityType) : GeneratePlain(id, entityType);
+    public SourceKnownEntityId Generate(long id, byte entityType) => _useSecure ? GenerateSecure(id, entityType) : GeneratePlain(id, entityType);
 
     public SourceKnownEntityId GeneratePlain<TEntity>(long id) where TEntity : SourceKnownEntity => GeneratePlain(id, SourceKnownEntity.GetEntityType<TEntity>());
     public SourceKnownEntityId GeneratePlain(SourceKnownEntity entity) => GeneratePlain(entity.Id, SourceKnownEntity.GetEntityType(entity));
@@ -225,7 +224,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         return CreateInvalid(entityId);
     }
 
-    private SourceKnownEntityId ParseWithKey(Guid entityId, NexusKeyMaterial key)
+    private SourceKnownEntityId ParseWithKey(Guid entityId, NexusSecret key)
     {
         Span<byte> guidBytes = stackalloc byte[GuidLength];
         entityId.TryWriteBytes(guidBytes, bigEndian: true, out _);
@@ -258,9 +257,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
                 return CreateInvalid(entityId);
         }
         else if (recoveredVariant != SourceKnownMarkerVariantByte)
-        {
             return CreateInvalid(entityId);
-        }
 
         return VerifyAndParse(guidBytes, entityId, secure: true, macKey: key.MacKey);
     }
@@ -305,7 +302,8 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     public SourceKnownEntityId? ToPlain(SourceKnownEntityId? id)
         => id.HasValue ? ToPlain(id.Value) : null;
 
-    private static SourceKnownEntityId CreateInvalid(Guid entityId) => new(default, entityId, InvalidEntityType, false, Secure: false);
+    private static SourceKnownEntityId CreateInvalid(Guid entityId) 
+        => new(default, entityId, InvalidEntityType, false, Secure: false);
 
     private static bool HasValidMarkers(ReadOnlySpan<byte> guidBytes)
         => guidBytes[SourceKnownMarkerVersionIndex] == SourceKnownMarkerVersionByte
@@ -325,7 +323,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// produce a coincidental MAC match. Used by the collision guard in
     /// <see cref="GenerateSecure(long, byte)"/> to detect the ~1/2^48 edge case.
     /// </summary>
-    private static bool HasCoincidentalMacMatch(ReadOnlySpan<byte> ciphertextBytes, BinaryData macKey)
+    private static bool HasCoincidentalMacMatch(ReadOnlySpan<byte> ciphertextBytes, SecretKey32 macKey)
     {
         Span<byte> actualHash = stackalloc byte[MacHashLength];
         Span<byte> expectedHash = stackalloc byte[MacHashLength];
@@ -344,7 +342,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// Reads the SKID upper half from bytes 1–4 (big-endian, sign-toggled) and the split lower half
     /// from byte 5 + bytes 9–11 (big-endian). XOR untoggle restores the original signed representation.
     /// </summary>
-    private SourceKnownEntityId VerifyAndParse(Span<byte> guidBytes, Guid entityId, bool secure, BinaryData macKey)
+    private SourceKnownEntityId VerifyAndParse(Span<byte> guidBytes, Guid entityId, bool secure, SecretKey32 macKey)
     {
         Span<byte> actualHashBytes = stackalloc byte[MacHashLength];
         Span<byte> expectedHashBytes = stackalloc byte[MacHashLength];
@@ -383,7 +381,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// Returns true if the previous variant genuinely collided (legitimate escalation).
     /// Called only for non-default variant bytes (recoveredVariant > 0x8D) during Parse.
     /// </summary>
-    private static bool VerifyCollisionGuardProof(ReadOnlySpan<byte> decryptedBytes, byte previousVariant, NexusKeyMaterial key)
+    private static bool VerifyCollisionGuardProof(ReadOnlySpan<byte> decryptedBytes, byte previousVariant, NexusSecret key)
     {
         // Read upper half (big-endian) and untoggle sign bit
         var idUpperHalf = BinaryPrimitives.ReadUInt32BigEndian(
@@ -445,9 +443,9 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// <summary>
     /// Computes BLAKE3 keyed MAC over the guid bytes (MAC slots must be zeroed before calling).
     /// </summary>
-    private static void ComputeMac(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes, BinaryData macKey)
+    private static void ComputeMac(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes, SecretKey32 macKey)
     {
-        using var hasher = Hasher.NewKeyed(macKey);
+        using var hasher = Hasher.NewKeyed(macKey.Span);
         hasher.Update(guidBytes);
         hasher.Finalize(hashBytes);
     }
@@ -455,26 +453,20 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// <summary>
     /// Writes 4-byte MAC hash into guid byte positions 12-15 (contiguous).
     /// </summary>
-    private static void WriteMacToGuid(Span<byte> guidBytes, ReadOnlySpan<byte> hashBytes)
-    {
-        hashBytes[..MacHashLength].CopyTo(guidBytes[MacHashOffset..]);
-    }
+    private static void WriteMacToGuid(Span<byte> guidBytes, ReadOnlySpan<byte> hashBytes) 
+        => hashBytes[..MacHashLength].CopyTo(guidBytes[MacHashOffset..]);
 
     /// <summary>
     /// Reads 4-byte MAC hash from guid byte positions 12-15 (contiguous).
     /// </summary>
-    private static void ReadMacFromGuid(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes)
-    {
-        guidBytes[MacHashOffset..(MacHashOffset + MacHashLength)].CopyTo(hashBytes);
-    }
+    private static void ReadMacFromGuid(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes) 
+        => guidBytes[MacHashOffset..(MacHashOffset + MacHashLength)].CopyTo(hashBytes);
 
     /// <summary>
     /// Zeros the MAC slots (bytes 12-15) in the guid bytes for MAC re-computation.
     /// </summary>
-    private static void ClearMacSlots(Span<byte> guidBytes)
-    {
-        guidBytes[MacHashOffset..(MacHashOffset + MacHashLength)].Clear();
-    }
+    private static void ClearMacSlots(Span<byte> guidBytes) 
+        => guidBytes[MacHashOffset..(MacHashOffset + MacHashLength)].Clear();
 
     /// <summary>
     /// Encrypts all 16 guid bytes in-place using AES-256-ECB (single-block PRP).

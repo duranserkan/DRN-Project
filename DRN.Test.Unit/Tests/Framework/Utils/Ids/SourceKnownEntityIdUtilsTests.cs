@@ -270,7 +270,7 @@ public class SourceKnownEntityIdUtilsTests
         // Decrypt the secure SKEID to access plaintext
         var cipherBytes = secureId.EntityId.ToByteArray(bigEndian: true);
         var aesKey = context.GetRequiredService<IAppSettings>()
-            .NexusAppSettings.GetDefaultKey().EncryptionKey.ToArray();
+            .NexusAppSettings.GetDefaultKey().EncryptionKey.Bytes;
 
         using var aes = Aes.Create();
         aes.Mode = CipherMode.ECB;
