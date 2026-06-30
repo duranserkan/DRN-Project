@@ -106,18 +106,29 @@ public class NexusKey : IDisposable
         Format = format;
 
         var decodedKeyMaterial = DecodeKey(keyMaterial, format);
+        SecretKey32? derivedMacKey = null;
+        SecretKey32? derivedEncryptionKey = null;
         try
         {
-            MacKey = Blake3KeyDerivation.Derive32ByteKey(decodedKeyMaterial, MacKeyDerivationContext);
-            EncryptionKey = Blake3KeyDerivation.Derive32ByteKey(decodedKeyMaterial, EncryptionKeyDerivationContext);
+            derivedMacKey = Blake3KeyDerivation.Derive32ByteKey(decodedKeyMaterial, MacKeyDerivationContext);
+            derivedEncryptionKey = Blake3KeyDerivation.Derive32ByteKey(decodedKeyMaterial, EncryptionKeyDerivationContext);
+
+            if (derivedMacKey.Length != RequiredKeyByteLength || derivedEncryptionKey.Length != RequiredKeyByteLength)
+                throw ExceptionFor.Configuration($"{nameof(NexusKey)} must resolve to exactly 32-byte MAC and encryption keys");
+
+            MacKey = derivedMacKey;
+            EncryptionKey = derivedEncryptionKey;
+        }
+        catch
+        {
+            derivedMacKey?.Dispose();
+            derivedEncryptionKey?.Dispose();
+            throw;
         }
         finally
         {
             CryptographicOperations.ZeroMemory(decodedKeyMaterial);
         }
-
-        if (!IsValid)
-            throw ExceptionFor.Configuration($"{nameof(NexusKey)} must resolve to exactly 32-byte MAC and encryption keys");
     }
 
 
@@ -145,36 +156,46 @@ public class NexusKey : IDisposable
         if (string.IsNullOrEmpty(key))
             throw ExceptionFor.Configuration($"{nameof(NexusKey)}.{nameof(KeyMaterial)} must not be empty");
 
-        byte[] keyBytes;
+        byte[]? keyBytes = null;
         try
         {
-            keyBytes = format switch
+            try
             {
-                ByteEncoding.Utf8 => DecodeUtf8(key),
-                ByteEncoding.Hex => Convert.FromHexString(key),
-                ByteEncoding.Base64 => Convert.FromBase64String(key),
-                ByteEncoding.Base64UrlEncoded => key.Decode(ByteEncoding.Base64UrlEncoded).ToArray(),
-                _ => throw ExceptionFor.Configuration($"{nameof(NexusKey)}.{nameof(Format)} is not supported")
-            };
-        }
-        catch (EncoderFallbackException exception)
-        {
-            throw ExceptionFor.Configuration($"{nameof(NexusKey)}.{nameof(KeyMaterial)} must be valid {format} and resolve to exactly 32 bytes", exception);
-        }
-        catch (FormatException exception)
-        {
-            throw ExceptionFor.Configuration($"{nameof(NexusKey)}.{nameof(KeyMaterial)} must be valid {format} and resolve to exactly 32 bytes", exception);
-        }
-        catch (ArgumentException exception) when (format is not ByteEncoding.Utf8)
-        {
-            throw ExceptionFor.Configuration($"{nameof(NexusKey)}.{nameof(KeyMaterial)} must be valid {format} and resolve to exactly 32 bytes", exception);
-        }
+                keyBytes = format switch
+                {
+                    ByteEncoding.Utf8 => DecodeUtf8(key),
+                    ByteEncoding.Hex => Convert.FromHexString(key),
+                    ByteEncoding.Base64 => Convert.FromBase64String(key),
+                    ByteEncoding.Base64UrlEncoded => key.Decode(ByteEncoding.Base64UrlEncoded).ToArray(),
+                    _ => throw ExceptionFor.Configuration($"{nameof(NexusKey)}.{nameof(Format)} is not supported")
+                };
+            }
+            catch (EncoderFallbackException exception)
+            {
+                throw ExceptionFor.Configuration($"{nameof(NexusKey)}.{nameof(KeyMaterial)} must be valid {format} and resolve to exactly 32 bytes", exception);
+            }
+            catch (FormatException exception)
+            {
+                throw ExceptionFor.Configuration($"{nameof(NexusKey)}.{nameof(KeyMaterial)} must be valid {format} and resolve to exactly 32 bytes", exception);
+            }
+            catch (ArgumentException exception) when (format is not ByteEncoding.Utf8)
+            {
+                throw ExceptionFor.Configuration($"{nameof(NexusKey)}.{nameof(KeyMaterial)} must be valid {format} and resolve to exactly 32 bytes", exception);
+            }
 
-        if (keyBytes.Length != RequiredKeyByteLength)
-            throw ExceptionFor.Configuration(
-                $"{nameof(NexusKey)}.{nameof(KeyMaterial)} with format {format} must resolve to exactly 32 bytes; resolved length: {keyBytes.Length}");
+            if (keyBytes.Length != RequiredKeyByteLength)
+                throw ExceptionFor.Configuration(
+                    $"{nameof(NexusKey)}.{nameof(KeyMaterial)} with format {format} must resolve to exactly 32 bytes; resolved length: {keyBytes.Length}");
 
-        return keyBytes;
+            var result = keyBytes;
+            keyBytes = null;
+            return result;
+        }
+        finally
+        {
+            if (keyBytes is not null)
+                CryptographicOperations.ZeroMemory(keyBytes);
+        }
     }
 
     private static byte[] DecodeUtf8(string key)

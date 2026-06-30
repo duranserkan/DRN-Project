@@ -84,30 +84,38 @@ public class AppSettings : IAppSettings, IDisposable
         DevelopmentSettings.ValidateDataAnnotationsThrowIfInvalid();
 
         NexusAppSettings = Get<NexusAppSettings>(nameof(NexusAppSettings)) ?? new NexusAppSettings();
-        ThrowIfLegacyNexusMacKeysConfigured();
-        var securitySettings = new AppSecuritySettings(Features);
-        AppKey = securitySettings.AppKey;
-
-        if (NexusAppSettings.AppId > SourceKnownIdUtils.MaxAppId)
-            throw ExceptionFor.Configuration($"Nexus AppId must be less than or equal to {SourceKnownIdUtils.MaxAppId}: NexusAppId: {NexusAppSettings.AppId}");
-        if (NexusAppSettings.AppInstanceId > SourceKnownIdUtils.MaxAppInstanceId)
-            throw ExceptionFor.Configuration(
-                $"Nexus App Instance Id must be less than or equal to {SourceKnownIdUtils.MaxAppInstanceId}: NexusAppInstanceId: {NexusAppSettings.AppInstanceId}");
-
-        ApplicationNameNormalized = ApplicationName.ToPascalCase();
-
-        var hasDefaultNexusKey = NexusAppSettings.HasDefaultKey();
-        if (!hasDefaultNexusKey)
+        try
         {
-            if (Environment != AppEnvironment.Development)
-                throw ExceptionFor.Configuration($"Default Nexus key not found for the environment: {Environment.ToString()}");
+            ThrowIfLegacyNexusMacKeysConfigured();
+            var securitySettings = new AppSecuritySettings(Features);
+            AppKey = securitySettings.AppKey;
 
-            // Even if the application is not connected to Nexus, development still needs deterministic key material.
-            var keyMaterial = DeriveDevelopmentNexusKeyMaterial(securitySettings);
-            NexusAppSettings.AddNexusKey(new NexusKey(keyMaterial, ByteEncoding.Base64UrlEncoded) { Default = true });
+            if (NexusAppSettings.AppId > SourceKnownIdUtils.MaxAppId)
+                throw ExceptionFor.Configuration($"Nexus AppId must be less than or equal to {SourceKnownIdUtils.MaxAppId}: NexusAppId: {NexusAppSettings.AppId}");
+            if (NexusAppSettings.AppInstanceId > SourceKnownIdUtils.MaxAppInstanceId)
+                throw ExceptionFor.Configuration(
+                    $"Nexus App Instance Id must be less than or equal to {SourceKnownIdUtils.MaxAppInstanceId}: NexusAppInstanceId: {NexusAppSettings.AppInstanceId}");
+
+            ApplicationNameNormalized = ApplicationName.ToPascalCase();
+
+            var hasDefaultNexusKey = NexusAppSettings.HasDefaultKey();
+            if (!hasDefaultNexusKey)
+            {
+                if (Environment != AppEnvironment.Development)
+                    throw ExceptionFor.Configuration($"Default Nexus key not found for the environment: {Environment.ToString()}");
+
+                // Even if the application is not connected to Nexus, development still needs deterministic key material.
+                var keyMaterial = DeriveDevelopmentNexusKeyMaterial(securitySettings);
+                NexusAppSettings.AddNexusKey(new NexusKey(keyMaterial, ByteEncoding.Base64UrlEncoded) { Default = true });
+            }
+
+            NexusAppSettings.Validate();
         }
-
-        NexusAppSettings.Validate();
+        catch
+        {
+            NexusAppSettings.Dispose();
+            throw;
+        }
     }
 
     [JsonIgnore]
