@@ -1,4 +1,6 @@
+using System.Linq;
 using System.Reflection;
+using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Settings;
@@ -38,9 +40,7 @@ public static class ConfigurationExtensions
     {
         if (string.IsNullOrWhiteSpace(settingJsonName))
             settingJsonName = "appsettings";
-        var fileProvider = builder.Properties
-            .Where(pair => pair.Value.GetType() == typeof(PhysicalFileProvider))
-            .Select(pair => (PhysicalFileProvider)pair.Value).FirstOrDefault();
+        var fileProvider = builder.GetFileProvider() as PhysicalFileProvider;
 
         var environment = GetEnvironment(settingJsonName, args, sc, fileProvider?.Root);
         builder.AddJsonFile($"{settingJsonName}.json", true);
@@ -80,9 +80,22 @@ public static class ConfigurationExtensions
             builder.SetBasePath(root);
 
         builder.AddJsonFile($"{settingJsonName}.json", true);
-        AddSettingsOverrides(builder, args, sc);
-        using var tempSettings = new AppSettings(builder.Build());
+        builder.AddSettingsOverrides(args, sc);
+        var configuration = builder.Build();
 
-        return tempSettings.Environment;
+        var envString = configuration[nameof(AppSettings.Environment)];
+        if (string.IsNullOrWhiteSpace(envString))
+        {
+            throw new ConfigurationException("Environment setting is missing. Please provide a valid Environment value (e.g. Development, Staging, Production) in appsettings.json or via environment variables.");
+        }
+
+        var validNamesArray = Enum.GetNames<AppEnvironment>().Where(n => n != nameof(AppEnvironment.NotDefined)).ToArray();
+        if (!validNamesArray.Contains(envString, StringComparer.OrdinalIgnoreCase))
+        {
+            var validNames = string.Join(", ", validNamesArray);
+            throw new ConfigurationException($"Invalid Environment value: '{envString}'. Valid values are: {validNames}.");
+        }
+
+        return Enum.Parse<AppEnvironment>(envString, true);
     }
 }

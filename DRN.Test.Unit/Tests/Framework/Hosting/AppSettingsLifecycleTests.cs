@@ -1,31 +1,47 @@
-using System.Runtime.CompilerServices;
+using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
+using DRN.Framework.Utils.Logging;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using DRN.Test.Utils.Hosting;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting;
 
 public class AppSettingsLifecycleTests
 {
     [Fact]
-    public void ConfigurationExtensions_Should_Dispose_Temporary_AppSettings_After_Environment_Discovery()
+    public async Task DrnProgramBase_RunAsync_Should_Dispose_Startup_AppSettings_When_Temporary_Application_Exits()
     {
-        var source = ReadRepositoryFile("DRN.Framework.Hosting/Extensions/ConfigurationExtensions.cs");
+        TemporaryLifecycleProgram.Reset();
 
-        source.Should().Contain("using var serviceProvider = sc?.BuildServiceProvider();");
-        source.Should().Contain("using var tempSettings = new AppSettings(builder.Build());");
+        await TemporaryLifecycleProgram.Main(CreateTemporaryApplicationArgs());
+
+        var appSettings = TemporaryLifecycleProgram.CapturedAppSettings;
+        appSettings.Should().NotBeNull();
+        var defaultKey = appSettings!.NexusAppSettings.GetDefaultKey();
+        var action = () => { _ = defaultKey.MacKey.Bytes; };
+        action.Should().Throw<ObjectDisposedException>();
     }
 
     [Fact]
-    public void DrnProgramBase_RunAsync_Should_Own_Startup_AppSettings_With_Using()
+    public async Task DrnProgramBase_StartupExceptionReport_Should_Dispose_Temporary_ServiceProvider()
     {
-        var source = ReadRepositoryFile("DRN.Framework.Hosting/DrnProgram/DrnProgramBase.cs");
+        StartupExceptionReportProgram.Reset();
 
-        source.Should().Contain("using var appSettings = new AppSettings(configuration);");
-        source.Should().Contain("using var services = applicationBuilder.Services.BuildServiceProvider();");
+        Func<Task> run = () => StartupExceptionReportProgram.Main(CreateTemporaryApplicationArgs());
+
+        await run.Should().ThrowExactlyAsync<InvalidOperationException>()
+            .WithMessage(StartupExceptionReportProgram.FailureMessage);
+        StartupExceptionReportProgram.ReportServiceDisposeCount.Should().Be(1);
     }
 
-    private static string ReadRepositoryFile(string relativePath, [CallerFilePath] string testFilePath = "")
-    {
-        var repositoryRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(testFilePath)!, "../../../.."));
-
-        return File.ReadAllText(Path.Combine(repositoryRoot, relativePath));
-    }
+    private static string[] CreateTemporaryApplicationArgs() =>
+    [
+        "--Environment=Development",
+        "--DrnDevelopmentSettings:TemporaryApplication=true",
+        "--NLog:targets:console:type=Console",
+        "--NLog:rules:0:logger=*",
+        "--NLog:rules:0:minLevel=Trace",
+        "--NLog:rules:0:writeTo=console"
+    ];
 }

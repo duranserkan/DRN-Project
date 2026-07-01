@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection ([Scoped<T>], [Singleton<T>], [Transient<T>], [HostedService], [Config]), IAppSettings configuration pattern, logging infrastructure, validators, extension methods, and core utilities. Foundational for service registration, configuration management, and cross-cutting concerns. Keywords: dependency-injection, di, service-registration, configuration, appsettings, logging, scoped-log, validators, attributes, scoped, singleton, transient, config, extensions, http-client"
-last-updated: 2026-06-29
+last-updated: 2026-07-01
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -119,11 +119,14 @@ Canonical copy: [Maintenance Reference: Configuration Sources](../overview-drn-f
 
 1. `appsettings.json` → 2. `appsettings.{Environment}.json` → 3. User secrets when the application assembly is available → 4. Environment variables → 5. Mounted settings (`/appconfig`) → 6. Command line arguments
 
+`Environment` is required and must be `Development`, `Staging`, or `Production`. DRN validates this value before loading `appsettings.{Environment}.json`; missing, `NotDefined`, or unknown values fail startup with `ConfigurationException`.
+
 Override mount directory via `IMountedSettingsConventionsOverride`.
 
 | Symptom | Solution |
 |---------|----------|
 | `ConfigurationException` | Add missing key to `appsettings.json` |
+| `Environment setting is missing` | Set `Environment` to `Development`, `Staging`, or `Production` |
 | Env vars not binding | Use `__` for nested: `Section__Key` |
 | Mounted settings not loading | Check `/appconfig/` or override via `IMountedSettingsConventionsOverride` |
 

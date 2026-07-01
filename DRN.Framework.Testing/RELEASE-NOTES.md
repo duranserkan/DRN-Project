@@ -2,9 +2,13 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.9.6
 
-### Changed
+### New Features
 
-*   **Framework Version Alignment**: Package release aligned with the DRN.Framework 0.9.6 release wave; no runtime behavior changed.
+*   **Test-Scoped Temp Paths**: `MethodContext` now owns `GetTempPath()` for created, method-scoped temporary directories under `AppConstants.TempPath`; `DrnTestContext` and `DrnTestContextUnit` expose convenience delegates.
+
+### Bug Fixes
+
+*   **Robust Disposal Cleanup**: `DrnTestContext` and `DrnTestContextUnit` now aggregate cleanup exceptions, remain idempotent after disposal failures, and continue temporary folder cleanup even when other owned resources fail to dispose.
 
 ## Version 0.9.5
 

@@ -300,6 +300,8 @@ These hooks define the request processing middleware sequence.
 5.  **Mounted Directories** (default: `/appconfig`)
 6.  **Command Line Arguments**
 
+`Environment` is required and must be `Development`, `Staging`, or `Production`. DRN reads and validates this value before loading `appsettings.{Environment}.json`; missing, `NotDefined`, or unknown values fail startup with `ConfigurationException`.
+
 ### Host Filtering
 
 `AllowedHosts` must be configured outside Development and cannot be `*`. Development may fall back to `*` for local convenience; production and staging should use explicit host names such as `example.com;api.example.com`.

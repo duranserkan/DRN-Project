@@ -6,6 +6,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <IsPackable>false</IsPackable>
         <IsTestProject>false</IsTestProject>
+        <StartupObject>DRN.Test.Utils.RateLimiting.RateLimitingTestProgram</StartupObject>
     </PropertyGroup>
 
     <ItemGroup>

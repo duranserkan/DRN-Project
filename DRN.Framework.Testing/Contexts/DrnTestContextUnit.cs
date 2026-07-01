@@ -90,6 +90,8 @@ public class DrnTestContextUnit : IDisposable, IKeyedServiceProvider
     public DataProviderResult GetData(string pathRelativeToDataFolder, string? conventionDirectory = null) =>
         DataProvider.Get(pathRelativeToDataFolder, MethodContext.GetTestFolderLocation(), conventionDirectory);
 
+    public string GetTempPath() => MethodContext.GetTempPath();
+
     public ConfigurationDebugViewSummary GetConfigurationDebugView()
     {
         var configurationRoot = BuildConfigurationRoot();
@@ -152,12 +154,28 @@ public class DrnTestContextUnit : IDisposable, IKeyedServiceProvider
     protected virtual void Dispose(bool disposing)
     {
         if (_disposed) return;
+        _disposed = true;
+
         if (disposing)
         {
-            DisposeServiceProvider();
-            if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
-        }
+            var exceptions = new List<Exception>();
 
-        _disposed = true;
+            try { DisposeServiceProvider(); }
+            catch (Exception ex) { exceptions.Add(ex); }
+
+            try
+            {
+                if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
+            }
+            catch (Exception ex) { exceptions.Add(ex); }
+
+            try { MethodContext.DeleteTempPath(); }
+            catch (Exception ex) { exceptions.Add(ex); }
+
+            if (exceptions.Count > 0)
+            {
+                throw new AggregateException("One or more errors occurred during test context disposal.", exceptions);
+            }
+        }
     }
 }

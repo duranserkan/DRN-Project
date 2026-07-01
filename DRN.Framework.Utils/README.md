@@ -293,6 +293,8 @@ The framework automatically loads configuration in this order:
     -   `/appconfig/json-settings/*.json`
 6.  Command-line arguments
 
+`Environment` is required and must be `Development`, `Staging`, or `Production`. DRN reads and validates this value before loading `appsettings.{Environment}.json`; missing, `NotDefined`, or unknown values fail startup with `ConfigurationException`.
+
 Override the mount directory by registering `IMountedSettingsConventionsOverride`.
 
 ### IAppSettings Troubleshooting
@@ -300,6 +302,7 @@ Override the mount directory by registering `IMountedSettingsConventionsOverride
 | Symptom | Cause | Solution |
 |---------|-------|----------|
 | `ConfigurationException` on startup | Missing required configuration key | Add the key to `appsettings.json` or environment variables |
+| `Environment setting is missing` | Required `Environment` key not configured | Set `Environment` to `Development`, `Staging`, or `Production` in `appsettings.json`, environment variables, mounted settings, or command-line arguments |
 | `GetRequiredConnectionString` throws | Connection string not found | Verify key exists under `ConnectionStrings` section |
 | `IsDevelopmentEnvironment` always false | `ASPNETCORE_ENVIRONMENT` not set | Set environment variable or use `launchSettings.json` |
 | Mounted settings not loading | Wrong mount path | Verify files exist at `/appconfig/json-settings/` or override via `IMountedSettingsConventionsOverride` |
