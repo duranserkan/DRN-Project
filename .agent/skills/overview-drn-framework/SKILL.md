@@ -1,7 +1,7 @@
 ---
 name: overview-drn-framework
 description: "DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, package-dependencies"
-last-updated: 2026-06-14
+last-updated: 2026-07-01
 difficulty: basic
 tokens: ~3K
 ---
@@ -98,6 +98,8 @@ Configuration applied in order. Canonical copy: [Maintenance Reference: Configur
 5. Mounted settings (`/appconfig/`)
 6. Command line arguments
 
+`Environment` is required and must be `Development`, `Staging`, or `Production`. DRN validates this value before loading `appsettings.{Environment}.json`; missing, `NotDefined`, or unknown values fail startup with `ConfigurationException`.
+
 ### 3. JSON Conventions
 
 System.Text.Json defaults overridden globally:
@@ -192,6 +194,8 @@ Package READMEs must remain self-contained for important operational information
    - `/appconfig/key-per-file-settings/*`
    - `/appconfig/json-settings/*.json`
 6. Command-line arguments
+
+`Environment` is required and must be `Development`, `Staging`, or `Production`. DRN validates this value before loading `appsettings.{Environment}.json`; missing, `NotDefined`, or unknown values fail startup with `ConfigurationException`.
 
 The mounted root defaults to `/appconfig` and can be overridden by registering `IMountedSettingsConventionsOverride`.
 

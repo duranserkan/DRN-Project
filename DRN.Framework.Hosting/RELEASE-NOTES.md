@@ -2,9 +2,14 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.9.6
 
-### Changed
+### Breaking Changes
 
-*   **Framework Version Alignment**: Package release aligned with the DRN.Framework 0.9.6 release wave; no runtime behavior changed.
+*   **Environment Validation Requirement**: Application startup now fails fast with `ConfigurationException` if the `Environment` configuration key is missing, `NotDefined`, or set to an invalid value. Consumers must explicitly configure `Environment` (as `Development`, `Staging`, or `Production`) in `appsettings.json`, environment variables, mounted settings, or command-line arguments.
+
+### Bug Fixes
+
+*   **File Provider Preservation**: `AddDrnSettings` now preserves the outer builder's `IFileProvider` during environment resolution, ensuring custom or composite file providers are not discarded.
+*   **Environment-Specific Configuration Discovery**: `AddDrnSettings` now discovers `Environment` without constructing full `AppSettings`, so `appsettings.{Environment}.json` can load even when required settings such as `NexusAppSettings` are supplied by the environment-specific file.
 
 ## Version 0.9.5
 

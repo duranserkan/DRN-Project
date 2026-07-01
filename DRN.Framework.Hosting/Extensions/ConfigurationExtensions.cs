@@ -1,4 +1,6 @@
+using System.Linq;
 using System.Reflection;
+using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Settings;
@@ -38,11 +40,9 @@ public static class ConfigurationExtensions
     {
         if (string.IsNullOrWhiteSpace(settingJsonName))
             settingJsonName = "appsettings";
-        var fileProvider = builder.Properties
-            .Where(pair => pair.Value.GetType() == typeof(PhysicalFileProvider))
-            .Select(pair => (PhysicalFileProvider)pair.Value).FirstOrDefault();
+        var fileProvider = builder.GetFileProvider();
 
-        var environment = GetEnvironment(settingJsonName, args, sc, fileProvider?.Root);
+        var environment = GetEnvironment(settingJsonName, args, sc, fileProvider);
         builder.AddJsonFile($"{settingJsonName}.json", true);
         builder.AddJsonFile($"{settingJsonName}.{environment.ToString()}.json", true);
 
@@ -73,16 +73,28 @@ public static class ConfigurationExtensions
             builder.AddCommandLine(args);
     }
 
-    private static AppEnvironment GetEnvironment(string settingJsonName, string[]? args, IServiceCollection? sc, string? root)
+    private static AppEnvironment GetEnvironment(string settingJsonName, string[]? args, IServiceCollection? sc, IFileProvider fileProvider)
     {
         var builder = new ConfigurationBuilder();
-        if (!string.IsNullOrEmpty(root))
-            builder.SetBasePath(root);
+        builder.SetFileProvider(fileProvider);
 
         builder.AddJsonFile($"{settingJsonName}.json", true);
-        AddSettingsOverrides(builder, args, sc);
-        using var tempSettings = new AppSettings(builder.Build());
+        builder.AddSettingsOverrides(args, sc);
+        var configuration = builder.Build();
 
-        return tempSettings.Environment;
+        var envString = configuration[nameof(AppSettings.Environment)];
+        if (string.IsNullOrWhiteSpace(envString))
+        {
+            throw new ConfigurationException("Environment setting is missing. Please provide a valid Environment value (e.g. Development, Staging, Production) in appsettings.json or via environment variables.");
+        }
+
+        var validNamesArray = Enum.GetNames<AppEnvironment>().Where(n => n != nameof(AppEnvironment.NotDefined)).ToArray();
+        if (!validNamesArray.Contains(envString, StringComparer.OrdinalIgnoreCase))
+        {
+            var validNames = string.Join(", ", validNamesArray);
+            throw new ConfigurationException($"Invalid Environment value: '{envString}'. Valid values are: {validNames}.");
+        }
+
+        return Enum.Parse<AppEnvironment>(envString, true);
     }
 }
