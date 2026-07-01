@@ -153,7 +153,7 @@ public void TestContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
   * data file can be found in the same folder with test
   * data file can be found in the global Data folder or Data folder that stays in the test folder
   * Make sure file is copied to output directory
-* provides `MethodContext.GetTempPath()` and context-level `GetTempPath()` for a created, method-scoped temporary directory under `AppConstants.TempPath`.
+* provides `MethodContext.GetTempPath()` and context-level `GetTempPath()` for a created, method-scoped temporary directory under `AppConstants.TempPath`. This directory is owned by `DrnTestContext` / `DrnTestContextUnit` and is automatically deleted during disposal (even if other cleanup steps fail), preventing directory leaks.
 * triggers `StartupJobRunner` to execute one-time test setup jobs marked with `ITestStartupJob`
 * `ServiceProvider` provides utils provided with DRN.Framework.Utils' `UtilsModule`
 * `BuildServiceProvider` replaces dependencies that can be replaced with inlined interfaces.

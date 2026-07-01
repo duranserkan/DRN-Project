@@ -2,6 +2,7 @@ using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.Settings.Conventions;
+using Microsoft.Extensions.FileProviders;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting;
 
@@ -35,6 +36,37 @@ public class ConfigurationExtensionsTests
         {
             var configuration = new ConfigurationBuilder()
                 .SetBasePath(settingsDirectory)
+                .AddDrnSettings("")
+                .Build();
+
+            configuration["EnvironmentSpecificValue"].Should().Be("loaded");
+        });
+    }
+
+    [Theory]
+    [DataInlineUnit("Staging")]
+    public void AddDrnSettings_Should_Preserve_Custom_FileProvider_During_Environment_Discovery(DrnTestContextUnit context, string environment)
+    {
+        var settingsDirectory = context.GetTempPath();
+
+        File.WriteAllText(Path.Combine(settingsDirectory, "appsettings.json"), $$"""
+            {
+              "Environment": "{{environment}}"
+            }
+            """);
+        File.WriteAllText(Path.Combine(settingsDirectory, "appsettings.Staging.json"), """
+            {
+              "EnvironmentSpecificValue": "loaded"
+            }
+            """);
+
+        WithoutEnvironmentOverrides(() =>
+        {
+            using var physicalProvider = new PhysicalFileProvider(settingsDirectory);
+            var compositeProvider = new CompositeFileProvider(physicalProvider);
+
+            var configuration = new ConfigurationBuilder()
+                .SetFileProvider(compositeProvider)
                 .AddDrnSettings("")
                 .Build();
 

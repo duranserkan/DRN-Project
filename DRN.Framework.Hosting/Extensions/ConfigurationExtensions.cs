@@ -40,9 +40,9 @@ public static class ConfigurationExtensions
     {
         if (string.IsNullOrWhiteSpace(settingJsonName))
             settingJsonName = "appsettings";
-        var fileProvider = builder.GetFileProvider() as PhysicalFileProvider;
+        var fileProvider = builder.GetFileProvider();
 
-        var environment = GetEnvironment(settingJsonName, args, sc, fileProvider?.Root);
+        var environment = GetEnvironment(settingJsonName, args, sc, fileProvider);
         builder.AddJsonFile($"{settingJsonName}.json", true);
         builder.AddJsonFile($"{settingJsonName}.{environment.ToString()}.json", true);
 
@@ -73,11 +73,10 @@ public static class ConfigurationExtensions
             builder.AddCommandLine(args);
     }
 
-    private static AppEnvironment GetEnvironment(string settingJsonName, string[]? args, IServiceCollection? sc, string? root)
+    private static AppEnvironment GetEnvironment(string settingJsonName, string[]? args, IServiceCollection? sc, IFileProvider fileProvider)
     {
         var builder = new ConfigurationBuilder();
-        if (!string.IsNullOrEmpty(root))
-            builder.SetBasePath(root);
+        builder.SetFileProvider(fileProvider);
 
         builder.AddJsonFile($"{settingJsonName}.json", true);
         builder.AddSettingsOverrides(args, sc);

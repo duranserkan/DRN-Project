@@ -59,6 +59,7 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
     public ApplicationContext ApplicationContext { get; }
     public ServiceCollection ServiceCollection { get; internal set; } = [];
     public HttpTest FlurlHttpTest => _flurlHttpTest.Value;
+    internal Lazy<HttpTest> FlurlHttpTestLazy => _flurlHttpTest;
 
     /// <summary>
     /// Creates a service provider from test context service collection

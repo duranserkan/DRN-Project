@@ -59,6 +59,19 @@ public class DrnTestContextTempPathTests
         context.ServiceCollection.Should().BeEmpty();
     }
 
+    [Theory]
+    [DataInlineUnit]
+    public void DrnTestContextUnit_GetTempPath_Should_Throw_ObjectDisposedException_After_Disposal(DrnTestContextUnit context)
+    {
+        var tempPath = context.GetTempPath();
+        Directory.Exists(tempPath).Should().BeTrue();
+
+        context.Dispose();
+
+        var act = () => context.GetTempPath();
+        act.Should().Throw<ObjectDisposedException>();
+    }
+
     private static DrnTestContextUnit CreateContext(string testMethodName)
     {
         var testMethod = typeof(DrnTestContextTempPathTests).GetMethod(testMethodName)!;

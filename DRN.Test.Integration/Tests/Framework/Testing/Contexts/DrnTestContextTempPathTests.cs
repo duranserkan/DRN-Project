@@ -50,20 +50,32 @@ public class DrnTestContextTempPathTests
         IsLazyValueCreated(flurlHttpTest).Should().BeFalse();
     }
 
+    [Theory]
+    [DataInline]
+    public void DrnTestContext_GetTempPath_Should_Throw_ObjectDisposedException_After_Disposal(DrnTestContext context)
+    {
+        var tempPath = context.GetTempPath();
+        Directory.Exists(tempPath).Should().BeTrue();
+
+        context.Dispose();
+
+        var act = () => context.GetTempPath();
+        act.Should().Throw<ObjectDisposedException>();
+    }
+
     private static DrnTestContext CreateContext(string testMethodName)
     {
         var testMethod = typeof(DrnTestContextTempPathTests).GetMethod(testMethodName)!;
         return new DrnTestContext(testMethod);
     }
 
-    private static object GetFlurlHttpTestLazy(DrnTestContext context)
+    private static Lazy<Flurl.Http.Testing.HttpTest> GetFlurlHttpTestLazy(DrnTestContext context)
     {
-        var field = typeof(DrnTestContext).GetField("_flurlHttpTest", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        return field.GetValue(context)!;
+        return context.FlurlHttpTestLazy;
     }
 
-    private static bool IsLazyValueCreated(object lazy) =>
-        (bool)lazy.GetType().GetProperty(nameof(Lazy<object>.IsValueCreated))!.GetValue(lazy)!;
+    private static bool IsLazyValueCreated(Lazy<Flurl.Http.Testing.HttpTest> lazy) =>
+        lazy.IsValueCreated;
 
     private sealed class ThrowingDisposable : IDisposable
     {
