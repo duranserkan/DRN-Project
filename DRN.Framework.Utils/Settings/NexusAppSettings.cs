@@ -11,7 +11,7 @@ namespace DRN.Framework.Utils.Settings;
 /// <summary>
 /// In production values will be obtained from nexus as a remote configuration source
 /// </summary>
-public class NexusAppSettings : IDisposable
+public sealed class NexusAppSettings : IDisposable
 {
     private IReadOnlyList<NexusKey> _keys = [];
 
@@ -68,8 +68,13 @@ public class NexusAppSettings : IDisposable
                 throw ExceptionFor.Configuration($"{nameof(NexusAppSettings)}.{nameof(Keys)}[{index}] must not be null");
     }
 
+    private bool _disposed;
+
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         foreach (var key in Keys)
             key?.Dispose();
     }
@@ -82,7 +87,7 @@ public class NexusAppSettings : IDisposable
 /// Key derivation uses BLAKE3 context-string key derivation mode. See:
 /// <see href="https://docs.rs/blake3/latest/blake3/fn.derive_key.html"/>
 /// </remarks>
-public class NexusKey : IDisposable
+public sealed class NexusKey : IDisposable
 {
     private const int RequiredKeyByteLength = 32;
     private const string MacKeyDerivationContext =
@@ -134,10 +139,15 @@ public class NexusKey : IDisposable
     [JsonIgnore]
     internal SecretKey32 EncryptionKey { get; }
 
+    private bool _disposed;
+
     public void Dispose()
     {
-        MacKey.Dispose();
-        EncryptionKey.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+
+        MacKey?.Dispose();
+        EncryptionKey?.Dispose();
     }
 
     private static byte[] DecodeKey(string key, ByteEncoding format)

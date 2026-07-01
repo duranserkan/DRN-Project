@@ -20,6 +20,8 @@ public sealed class TemporaryLifecycleProgram : DrnProgramBase<TemporaryLifecycl
 
     protected override void ConfigureApplication(WebApplication application, IAppSettings appSettings)
     {
+        // This program is only used to capture IAppSettings and verify their lifecycle and disposal behavior.
+        // No HTTP middleware pipeline configuration is required, so the default ASP.NET Core middleware pipeline setup is bypassed.
     }
 
     protected override Task ValidateServicesAsync(WebApplication application, IScopedLog scopeLog) => Task.CompletedTask;

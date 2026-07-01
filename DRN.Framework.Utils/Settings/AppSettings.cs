@@ -47,7 +47,7 @@ public interface IAppSettings
 }
 
 [Singleton<IAppSettings>]
-public class AppSettings : IAppSettings, IDisposable
+public sealed class AppSettings : IAppSettings, IDisposable
 {
     private const string LegacyNexusMacKeysSection = "NexusAppSettings:MacKeys";
     private const string NexusKeysSection = "NexusAppSettings:Keys";
@@ -139,7 +139,15 @@ public class AppSettings : IAppSettings, IDisposable
     public string ApplicationNameNormalized { get; }
     public string GetAppSpecificName(string name, string prefix = "_") => $"{prefix}{ApplicationNameNormalized}.{name}.{AppKey}";
 
-    public void Dispose() => NexusAppSettings.Dispose();
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        NexusAppSettings.Dispose();
+    }
 
     public bool TryGetConnectionString(string name, out string connectionString)
     {
