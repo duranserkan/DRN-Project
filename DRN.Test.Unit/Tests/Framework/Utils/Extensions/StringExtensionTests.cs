@@ -29,6 +29,6 @@ public class StringExtensionTests
     [InlineData("George Carlin: Everyone smiles in the same Language", "GeorgeCarlinEveryoneSmilesInTheSameLanguage")]
     public void UtilsNamespace_ToPascalCase_ShouldRemainSourceCompatible(string input, string output)
     {
-        DRN.Framework.Utils.Extensions.StringExtensions.ToPascalCase(input).Should().Be(output);
+        input.ToPascalCase().Should().Be(output);
     }
 }

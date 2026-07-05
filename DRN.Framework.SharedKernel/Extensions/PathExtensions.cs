@@ -1,4 +1,4 @@
-namespace DRN.Framework.Utils.Extensions;
+namespace DRN.Framework.SharedKernel.Extensions;
 
 public static class PathExtensions
 {

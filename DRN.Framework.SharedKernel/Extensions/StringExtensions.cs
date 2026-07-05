@@ -86,7 +86,7 @@ public static class StringExtensions
             }
 
             camelCaseStringBuilder.Append(char.ToUpper(word[0]));
-            camelCaseStringBuilder.Append(word.Substring(1).ToLower());
+            camelCaseStringBuilder.Append(word[1..].ToLower());
         }
 
         return camelCaseStringBuilder.ToString();

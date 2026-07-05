@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using DRN.Framework.Hosting.Utils.Vite.Models;
+using DRN.Framework.SharedKernel.Extensions;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Hosting;

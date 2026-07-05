@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using System.Text.Json;
 using DRN.Framework.Hosting.Utils.Vite.Models;
 using DRN.Framework.SharedKernel;
+using DRN.Framework.SharedKernel.Extensions;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
