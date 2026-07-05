@@ -1,6 +1,7 @@
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.SharedKernel.Extensions;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

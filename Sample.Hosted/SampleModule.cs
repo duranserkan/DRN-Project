@@ -1,5 +1,4 @@
-using DRN.Framework.EntityFramework;
-using DRN.Framework.Utils.Extensions;
+using DRN.Framework.SharedKernel.Extensions;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;

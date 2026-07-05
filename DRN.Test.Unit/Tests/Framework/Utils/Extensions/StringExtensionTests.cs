@@ -1,3 +1,5 @@
+using DRN.Framework.SharedKernel.Extensions;
+
 namespace DRN.Test.Unit.Tests.Framework.Utils.Extensions;
 
 public class StringExtensionTests
@@ -21,5 +23,12 @@ public class StringExtensionTests
     public void ToPascalCase(string input, string output)
     {
         input.ToPascalCase().Should().Be(output);
+    }
+
+    [Theory]
+    [InlineData("George Carlin: Everyone smiles in the same Language", "GeorgeCarlinEveryoneSmilesInTheSameLanguage")]
+    public void UtilsNamespace_ToPascalCase_ShouldRemainSourceCompatible(string input, string output)
+    {
+        DRN.Framework.Utils.Extensions.StringExtensions.ToPascalCase(input).Should().Be(output);
     }
 }

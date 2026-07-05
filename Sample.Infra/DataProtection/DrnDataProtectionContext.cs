@@ -1,4 +1,4 @@
-using DRN.Framework.Utils.Extensions;
+using DRN.Framework.SharedKernel.Extensions;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 
 namespace Sample.Infra.DataProtection;

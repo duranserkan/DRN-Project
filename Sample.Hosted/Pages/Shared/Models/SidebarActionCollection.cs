@@ -1,6 +1,5 @@
 using DRN.Framework.SharedKernel.Enums;
-using DRN.Framework.Utils.Extensions;
-using DRN.Framework.Utils.Scope;
+using DRN.Framework.SharedKernel.Extensions;
 
 namespace Sample.Hosted.Pages.Shared.Models;
 
