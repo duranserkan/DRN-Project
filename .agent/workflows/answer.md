@@ -157,7 +157,8 @@ approval_scope: "/develop .agent/temp/DEVELOP-[task-slug].md"
 ## Implementation Context
 - **Context/Files to Read**: [2-4 existing files/directories]
 - **Relevant Skills**: [skills actually needed]
-- **Verification Permissions**: [build/test allowed or not allowed by user/profile]
+- **Command Execution Authorization**: [forbidden by default, or allowed scope with user/profile source]
+- **Static Verification Plan**: [diff/source/read checks to use when command execution is forbidden]
 
 ## Architecture Guidance
 - **Domain Boundaries**: [Affected aggregates, modules, layers]
