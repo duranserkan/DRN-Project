@@ -92,17 +92,24 @@ public class AppDataTests
             .Should().Throw<ArgumentException>().WithMessage("*must stay within directory*");
     }
 
-    [Fact]
-    public void Constructor_WithNullConfiguredPaths_ShouldUseFallbackPaths()
+    [Theory]
+    [DataInlineUnit]
+    public void Constructor_WithNullConfiguredPaths_ShouldUseFallbackPaths(DrnTestContextUnit context)
     {
+        var tempRoot = context.GetTempPath();
+        var fallbackTemp = Path.Combine(tempRoot, "temp-fallback");
+        var fallbackData = Path.Combine(tempRoot, "data-fallback");
         var settings = new DrnAppDataSettings();
-        var appData = new AppData(settings);
 
-        appData.Temp.Path.Should().Be(AppConstants.TempPath);
-        appData.Data.Path.Should().Be(AppConstants.LocalAppDataPath);
-        appData.Temp.DirectoryExists.Should().Be(Directory.Exists(AppConstants.TempPath));
+        var appData = new AppData(settings, fallbackTemp, fallbackData);
+
+        appData.Temp.Path.Should().Be(Path.TrimEndingDirectorySeparator(Path.GetFullPath(fallbackTemp)));
+        appData.Data.Path.Should().Be(Path.TrimEndingDirectorySeparator(Path.GetFullPath(fallbackData)));
+        appData.Temp.DirectoryExists.Should().BeFalse();
+        appData.Temp.Status.Should().Be(AppDataPathStatus.PathNotFound);
         appData.Data.DirectoryExists.Should().BeTrue();
         appData.Data.Status.Should().Be(AppDataPathStatus.Valid);
-        Directory.Exists(AppConstants.LocalAppDataPath).Should().BeTrue();
+        Directory.Exists(fallbackTemp).Should().BeFalse();
+        Directory.Exists(fallbackData).Should().BeTrue();
     }
 }

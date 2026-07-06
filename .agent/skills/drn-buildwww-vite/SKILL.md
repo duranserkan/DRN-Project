@@ -55,6 +55,7 @@ tokens: ~2K
 // vite.config.js — uses rolldownOptions (Vite 6+ with Rolldown)
 const builds = {
     app: {
+        plugins: [iifeWrap()],
         build: {
             outDir: 'wwwroot/app',
             rolldownOptions: {
@@ -66,6 +67,7 @@ const builds = {
         }
     },
     appPostload: {
+        plugins: [iifeWrap()],
         build: {
             outDir: 'wwwroot/appPostload',
             rolldownOptions: {
@@ -76,7 +78,7 @@ const builds = {
         }
     },
     htmx: {
-        plugins: [stripHtmxEval()],
+        plugins: [stripHtmxEval(), iifeWrap()],
         build: {
             outDir: 'wwwroot/lib/htmx',
             rolldownOptions: {

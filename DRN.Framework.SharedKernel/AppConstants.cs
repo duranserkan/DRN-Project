@@ -45,7 +45,7 @@ public static class AppConstants
     {
         var appSpecificPath = GetAppSpecificDirectoryPath(Environment.GetFolderPath(specialFolder), EntryAssemblyName);
         return string.IsNullOrWhiteSpace(appSpecificPath)
-            ? "?:\\InvalidAppDataPath_ResolutionFailed"
+            ? string.Empty
             : appSpecificPath;
     }
 

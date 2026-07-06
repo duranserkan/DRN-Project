@@ -22,6 +22,9 @@ ARG BUILDPLATFORM
 #https://docs.docker.com/build/building/multi-platform/
 
 ENV APP_VERSION=${APP_VERSION}
+# Default the image to Staging while allowing runtime Environment, DOTNET_ENVIRONMENT,
+# mounted settings, or command-line values to override through DRN config precedence.
+ENV ASPNETCORE_ENVIRONMENT=Staging
 ENV DRN_TARGET_ARCH=${TARGETARCH}
 ENV DRN_TARGET_PLATFORM=${TARGETPLATFORM}
 ENV DRN_BUILD_PLATFORM=${BUILDPLATFORM}
@@ -44,9 +47,8 @@ ARG APP_VERSION
 WORKDIR /app
 COPY . ./
 
-# 1654 is the default UID/GID for the non-root 'app' user in .NET container images.
-# This ensures app-data permissions are correct when copied to the final stage.
-RUN mkdir -p /appdata && touch /appdata/.keep && chown -R 1654:1654 /appdata
+# The final-stage copy (COPY --chown=app:app) is the authoritative ownership fix.
+RUN mkdir -p /appdata && touch /appdata/.keep
 
 #https://learn.microsoft.com/en-us/dotnet/core/rid-catalog
 # Keep generated .deps.json framework metadata aligned with the runtime image patch level.
@@ -81,6 +83,7 @@ WORKDIR /appconfig/key-per-file-settings
 WORKDIR /appconfig/json-settings
 WORKDIR /app
 
+# 1654 is the default UID/GID for the non-root 'app' user in .NET container images.
 COPY --chown=app:app --from=build /appdata /appdata
 COPY --from=build /app/publish .
 

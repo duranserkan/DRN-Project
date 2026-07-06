@@ -74,15 +74,19 @@ const sharedConfig = {
     }
 };
 
+// Scope isolation rule:
+// - Use iifeWrap() for classic-script builds with mixed or multiple entries.
+// - Use native format:'iife' only for single-JS-entry builds that can be named.
 const builds = {
     app: {
+        plugins: [iifeWrap()],
         build: {
             // Output directory relative to the project root
             outDir: 'wwwroot/app',
             rolldownOptions: {
                 // Define entry points. These are the files Vite will bundle.
                 input: {
-                    // Key is the output name (e.g., app_css), value is the input file path
+                    // Key is the output name (e.g., app), value is the input file path
                     app: resolve(__dirname, 'buildwww/app/css/app.css'),
                     appPreload: resolve(__dirname, 'buildwww/app/js/appPreload.js')
                 }
@@ -90,6 +94,7 @@ const builds = {
         },
     },
     appPostload: {
+        plugins: [iifeWrap()],
         build: {
             // Output directory relative to the project root
             outDir: 'wwwroot/appPostload',
@@ -102,7 +107,7 @@ const builds = {
         },
     },
     htmx: {
-        plugins: [stripHtmxEval()],
+        plugins: [iifeWrap(), stripHtmxEval()],
         build: {
             // Output directory relative to the project root
             outDir: 'wwwroot/lib/htmx',
@@ -157,6 +162,8 @@ const builds = {
                     reactBundle: resolve(__dirname, 'buildwww/lib/react/reactBundle.tsx'),
                 },
                 output: {
+                    // React is a single JS entry, so native IIFE output is valid here.
+                    // Mixed-entry builds above use iifeWrap() instead.
                     format: 'iife',
                     name: 'DrnReactMicroFrontend'
                 },

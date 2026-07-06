@@ -80,13 +80,13 @@ public static class StringExtensions
         {
             if (isFirstWord)
             {
-                camelCaseStringBuilder.Append(word.ToLower());
+                camelCaseStringBuilder.Append(word.ToLowerInvariant());
                 isFirstWord = false;
                 continue;
             }
 
-            camelCaseStringBuilder.Append(char.ToUpper(word[0]));
-            camelCaseStringBuilder.Append(word[1..].ToLower());
+            camelCaseStringBuilder.Append(char.ToUpperInvariant(word[0]));
+            camelCaseStringBuilder.Append(word[1..].ToLowerInvariant());
         }
 
         return camelCaseStringBuilder.ToString();
@@ -101,8 +101,8 @@ public static class StringExtensions
         var pascalCaseBuilder = new StringBuilder(text.Length);
         foreach (var word in words)
         {
-            pascalCaseBuilder.Append(char.ToUpper(word[0]));
-            pascalCaseBuilder.Append(word.Substring(1).ToLower());
+            pascalCaseBuilder.Append(char.ToUpperInvariant(word[0]));
+            pascalCaseBuilder.Append(word[1..].ToLowerInvariant());
         }
 
         return pascalCaseBuilder.ToString();

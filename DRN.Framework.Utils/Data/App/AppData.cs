@@ -10,10 +10,21 @@ public interface IAppData
 }
 
 [Singleton<IAppData>]
-public class AppData(DrnAppDataSettings settings) : IAppData
+public class AppData : IAppData
 {
-    public AppDataPathResult Temp { get; } = Resolve(settings.TempPath, AppConstants.TempPath);
-    public AppDataPathResult Data { get; } = ResolveData(settings.DataPath, AppConstants.LocalAppDataPath);
+    public AppDataPathResult Temp { get; }
+    public AppDataPathResult Data { get; }
+
+    public AppData(DrnAppDataSettings settings)
+        : this(settings, AppConstants.TempPath, AppConstants.LocalAppDataPath)
+    {
+    }
+
+    internal AppData(DrnAppDataSettings settings, string fallbackTempPath, string fallbackLocalAppDataPath)
+    {
+        Temp = Resolve(settings.TempPath, fallbackTempPath);
+        Data = ResolveData(settings.DataPath, fallbackLocalAppDataPath);
+    }
 
     private static AppDataPathResult Resolve(string? configuredPath, string fallback)
     {
