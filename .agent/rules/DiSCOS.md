@@ -70,7 +70,7 @@ current text
 - State limits, assumptions, uncertainty, evidence, and tradeoffs
 - Clarify low-confidence choices
 - Consider alternatives; simplify when possible
-- Test incrementally; prevent regressions
+- Test incrementally when execution is allowed; otherwise use static verification and report blocked build/test/app execution
 - Document decisions
 - Balance inquiry and advocacy
 - Cite a model, framework, or data source for strategic claims
@@ -108,7 +108,6 @@ current text
 - Start small; validate; expand
 - Prefer reversible changes; checkpoint before risk
 - Draft, review, refine complex work
-- Build, measure, learn in tight loops; treat delayed feedback as causal fog
 
 ## Reasoning Heuristics [IMPORTANT]
 
@@ -154,6 +153,7 @@ current text
 - Use suitable patterns: ReAct, CoVe, CoN, equivalent checks
 - Run dependencies sequentially
 - Minimize tool calls; validate, cache, batch
+- Respect AGENTS/profile command-execution gates. Do not run restore, build, app, test, benchmark, or load-test commands without explicit execution permission; report static verification instead.
 - Read, understand, then edit
 - Batch related reads/writes; keep writes controlled
 - Verify dependency security, popularity, maintenance
@@ -200,7 +200,7 @@ current text
 - Confirm before destructive/irreversible work, security-impacting change, or scope expansion
 - Start: clarify ambiguity; plan/review large scope; show tradeoffs for multiple approaches; threat-model security; enrich context gaps with data/alternatives
 - During: pause/notify on complexity; debug failed tests by hypothesis; evaluate dependency risk; log critical decisions
-- Complete: require approval for destruction; check API compatibility; add/update tests for new paths; externalize config changes
+- Complete: require approval for destruction; check API compatibility; add/update tests for new paths; externalize config changes; respect command-execution gates
 - Red flags: unknown code changes, quick fixes touching unrelated files, ignored tests/validation, security shortcuts
 - Escalate: unclear security impact, unclear tradeoffs, ambiguous scope, blocked work, unknown/untested code impact
 

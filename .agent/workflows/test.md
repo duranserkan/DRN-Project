@@ -4,7 +4,7 @@ description: Add tests for staged changes or a described task using repository c
 
 > **Estimated context: ~0.8K tokens** + testing skills.
 > See also: [Operating Model](./_shared/workflow-operating-model.md)
-> Do not run tests unless the user or profile explicitly allows it.
+> Do not run tests unless the user or profile explicitly allows that execution scope through the shared Command Execution Authorization Gate.
 
 ## 1. Startup
 
@@ -48,7 +48,7 @@ Use framework attributes and contexts only when the profile or testing skills de
 ## 6. Write And Verify
 
 - Write tests by repository conventions.
-- If test execution is allowed, run unit tests first; discover commands from profile, CI, or files.
+- If test execution is allowed by the shared gate, run unit tests first; discover commands from profile, CI, or files.
 - If tests are not allowed, perform static verification: reread touched test sections, confirm attributes/contexts match loaded guidance, and report build/test as `not run per repo rule`.
 - Run `git diff --check` after edits unless blocked.
 - For blocked or skipped verification, use the [Evidence Contract](./_shared/workflow-operating-model.md): Evidence, Impact, Invariant, Recommendation, Confidence, Verification.

@@ -33,7 +33,7 @@ Resolve conflicts with TRIZ first. If a tradeoff remains, apply this order:
 2. Read `.agent/repository-profile.md` when present; treat it as the local overlay.
 3. Load only task-needed skills.
 4. Seek supporting and counter examples; do not stop at the examples already shown.
-5. Build or test only when the user or profile explicitly allows it.
+5. Restore, build, run apps, or test only when the user or profile explicitly allows that execution scope.
 
 ## Discovery Conventions
 

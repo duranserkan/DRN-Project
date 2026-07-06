@@ -22,20 +22,18 @@ ARG BUILDPLATFORM
 #https://docs.docker.com/build/building/multi-platform/
 
 ENV APP_VERSION=${APP_VERSION}
+# Default the image to Staging while allowing runtime Environment, DOTNET_ENVIRONMENT,
+# mounted settings, or command-line values to override through DRN config precedence.
+ENV ASPNETCORE_ENVIRONMENT=Staging
 ENV DRN_TARGET_ARCH=${TARGETARCH}
 ENV DRN_TARGET_PLATFORM=${TARGETPLATFORM}
 ENV DRN_BUILD_PLATFORM=${BUILDPLATFORM}
+ENV DrnAppDataSettings__DataPath=/appdata
 
 LABEL org.opencontainers.image.version=${APP_VERSION} \
-      org.opencontainers.image.vendor="Duran Serkan KILIC" \
-      org.opencontainers.image.authors="Duran Serkan KILIC" \
-      org.opencontainers.image.documentation="https://github.com/duranserkan/DRN-Project"
-
-USER app
-#Kubernetes can volume mount configs and settings to these directories
-WORKDIR /appconfig/key-per-file-settings
-WORKDIR /appconfig/json-settings
-WORKDIR /app
+    org.opencontainers.image.vendor="Duran Serkan KILIC" \
+    org.opencontainers.image.authors="Duran Serkan KILIC" \
+    org.opencontainers.image.documentation="https://github.com/duranserkan/DRN-Project"
 
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
 #https://mcr.microsoft.com/en-us/artifact/mar/dotnet/sdk/tags
@@ -48,6 +46,9 @@ ARG APP_VERSION
 
 WORKDIR /app
 COPY . ./
+
+# The final-stage copy (COPY --chown=app:app) is the authoritative ownership fix.
+RUN mkdir -p /appdata && touch /appdata/.keep
 
 #https://learn.microsoft.com/en-us/dotnet/core/rid-catalog
 # Keep generated .deps.json framework metadata aligned with the runtime image patch level.
@@ -77,7 +78,16 @@ RUN dotnet publish "./${PROJECT}/${PROJECT}.csproj" -c Release -o /app/publish -
 # Build runtime image
 FROM base AS final
 
+#Kubernetes can volume mount configs and settings to these directories
+WORKDIR /appconfig/key-per-file-settings
+WORKDIR /appconfig/json-settings
+WORKDIR /app
+
+# 1654 is the default UID/GID for the non-root 'app' user in .NET container images.
+COPY --chown=app:app --from=build /appdata /appdata
 COPY --from=build /app/publish .
+
+USER app
 
 # Set Entrypoint - ARGs are not allowed here. we need retype project name as we did in ARG PROJECT
 ENTRYPOINT ["dotnet", "Sample.Hosted.dll"]

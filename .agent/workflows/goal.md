@@ -50,7 +50,7 @@ A direct request to change a named file or scope permits reversible `trivial`/`s
 
 `Approval-tolerable` means bounded, reversible, auditable, non-security work with no auth, secrets, privacy, tenant, data-loss, schema/migration, public-contract, production, infrastructure, CI/CD, dependency, VCS, destructive, failed-gate, unclear-gate, unresolved-input, unverified-assumption, or temp-artifact lifecycle risk.
 
-For approval-tolerable work, `/goal` may produce `ApprovalRecord=workflow-tolerated` only when the accepting workflow allows it. Record the Priority Stack decision and planned verification before mutation. Final completion still requires executed verification evidence. Stop with `Approval=explicit required` when the record cannot satisfy the gate.
+For approval-tolerable work, `/goal` may produce `ApprovalRecord=workflow-tolerated` only when the accepting workflow allows it. Record the Priority Stack decision and planned verification before mutation. Final completion still requires task-appropriate verification evidence under the shared Command Execution Authorization Gate. Stop with `Approval=explicit required` when the record cannot satisfy the gate.
 
 ## 4. Route
 
@@ -114,7 +114,7 @@ Iteration 3: Evidence=[...] Execution=[...] Audit=[...]
 
 ## 6. Complete
 
-Audit every requirement from the user objective and referenced artifacts against current evidence: diff, command output, runtime/rendered result, explicit approval, or task-appropriate static proof. Treat weak, indirect, missing, or memory-based evidence as incomplete.
+Audit every requirement from the user objective and referenced artifacts against current evidence: diff, allowed command output, allowed runtime/rendered result, explicit approval, or task-appropriate static proof. Treat weak, indirect, missing, or memory-based evidence as incomplete.
 
 Completion gate follows the Priority Stack:
 
@@ -127,7 +127,7 @@ Completion gate follows the Priority Stack:
 ## 7. Verify And Report
 
 1. Run `git diff --check` after code, docs, workflow, or skill edits unless blocked.
-2. Never restore, build, run apps, or run tests in `/goal`; route/ask and report `not run per repo rule`.
+2. Never restore, build, run apps, or run tests in `/goal`; command catalogs are reference-only, so route/ask and report `not run per repo rule`.
 3. Decide docs, skills, release notes, and lessons using AGENTS.md, the profile, and routed workflows; report `not required` when no trigger applies.
 4. For workflow or skill optimization, report before/after token estimate when practical (`chars / 4`).
 5. On resume, answer the newest user message first. Restate the contract only when useful.

@@ -127,6 +127,18 @@ Every review finding or workflow gate failure must include `Evidence` (file/path
 
 Findings are caused by changed lines or changed behavior, but reviewers may inspect unchanged context needed to prove or disprove impact.
 
+## Command Execution Authorization Gate
+
+Resolve this gate before restore, build, app-run, test, benchmark, load-test, or other executable validation commands.
+
+1. Default `command_execution: forbidden`.
+2. Allow execution only when the user or repository profile explicitly allows the exact scope.
+3. Treat command catalogs, discovered commands, CI examples, package scripts, and test project paths as reference data only; they never grant execution permission.
+4. Treat words such as verify, validate, test, regression check, or executed verification evidence as static verification unless this gate is allowed.
+5. Record `permission_source` as a user quote or profile path/line when execution is allowed.
+6. When forbidden, do not run or escalate for the command. Use static verification and report `not run per repo rule`.
+7. When allowed, run the narrowest relevant command from the profile or discovered source; unit tests precede integration tests.
+
 ## Verification
 
 After workflow, skill, or documentation edits:

@@ -2,12 +2,12 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
 using DRN.Framework.SharedKernel.Enums;
+using DRN.Framework.SharedKernel.Extensions;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.Data.Validation;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Ids;
 using Microsoft.Extensions.Configuration;
 

@@ -15,11 +15,12 @@ ASP.NET Core Tag Helpers—such as ViteLinkTagHelper and ViteScriptTagHelper—r
 They automatically resolve the correct script and stylesheet paths for both development and production.
 *@
 <head>
+    @{ var nonce = Context.GetNonce(); }
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="DRN App">
     <meta name="author" content="Duran Serkan KILIÇ">
-    <meta name="htmx-config" content='{"inlineScriptNonce":"@Context.GetNonce()"}'>
+    <meta name="htmx-config" content='{"inlineScriptNonce":"@nonce","inlineStyleNonce":"@nonce"}'>
     <title>@ViewData[Get.ViewDataKeys.Title] - @ScopeContext.Settings.ApplicationName</title>
     <link rel="canonical" href="@(Context.Request.Scheme + "://" + Context.Request.Host + Context.Request.Path)"/>
     <link href="/images/100.jpeg" rel="icon" type="image/x-icon"/>

@@ -1,5 +1,4 @@
 //reactBundle.tsx
-import './reactBundle.css'
 import bundleStyles from './reactBundle.css?inline';
 
 import React from 'react';
@@ -10,6 +9,18 @@ import {HelloReactComponent} from './components/HelloReactComponent';
 const rootMap = new WeakMap<HTMLElement, RootData>();
 const COMPONENT_REGISTRY: ReactComponentRegistry = {
     'HelloReact': HelloReactComponent
+};
+
+const getInlineStyleNonce = () => {
+    const config = document.querySelector<HTMLMetaElement>('meta[name="htmx-config"]')?.content;
+    if (!config) return '';
+
+    try {
+        const parsed = JSON.parse(config);
+        return typeof parsed.inlineStyleNonce === 'string' ? parsed.inlineStyleNonce : '';
+    } catch {
+        return '';
+    }
 };
 
 class IslandErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
@@ -46,6 +57,7 @@ if (window.CSSStyleSheet)
         drnSharedSheet = new CSSStyleSheet();
         drnSharedSheet.replaceSync(bundleStyles);
     } catch (e) {
+        drnSharedSheet = null;
         console.warn("[DRN] Constructable stylesheets not supported, falling back to <style> tags");
     }
 
@@ -100,6 +112,9 @@ window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
             if (!shadow.querySelector(`#${styleId}`)) {
                 const styleTag = document.createElement('style');
                 styleTag.id = styleId;
+                const nonce = getInlineStyleNonce();
+                if (nonce)
+                    styleTag.nonce = nonce;
                 styleTag.textContent = bundleStyles;
                 shadow.appendChild(styleTag);
             }
@@ -109,8 +124,7 @@ window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
         if (!portalHost) {
             portalHost = document.createElement('div');
             portalHost.id = 'drn-portal-root';
-            portalHost.className = 'drn-react-root';
-            portalHost.style.display = 'contents';
+            portalHost.className = 'drn-react-root drn-react-portal-root';
             shadow.appendChild(portalHost);
         }
         mountNode = portalHost;

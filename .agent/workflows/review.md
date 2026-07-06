@@ -41,6 +41,8 @@ Use skills as source of truth. Do not duplicate checklists.
 | After `/optimize` | Compare optimized diff with previewed scope, candidates, and severity. Verify frontmatter, references, lifecycle metadata, and source-owned rules. |
 | CAD or `/goal` caller | Return the report template; caller owns artifact state, mutation, and completion. |
 
+Do not run restore, build, app, test, benchmark, or load-test commands during `/review`. If the user explicitly requests execution, route that work through the appropriate workflow under the shared Command Execution Authorization Gate. Otherwise inspect recorded verification and report missing execution as `not run per repo rule`.
+
 ## 4. Evaluate
 1. Apply Priority Stack: Security -> Correctness -> Clarity -> Simplicity -> Performance. Higher failure blocks lower gates.
 2. Apply loaded skill criteria and the shared Evidence Contract to every finding.

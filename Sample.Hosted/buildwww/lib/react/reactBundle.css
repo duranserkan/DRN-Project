@@ -6,3 +6,7 @@
 
 /* Component styles — all scoped under .drn-react-root */
 @import "./components/HelloReactComponent.css";
+
+.drn-react-root.drn-react-portal-root {
+    display: contents;
+}

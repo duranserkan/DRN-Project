@@ -69,7 +69,7 @@ Before planning edits, verify:
 - Source metadata matches the clarified `CLARIFY-*`.
 - No `[ASSUMPTION - unverified]`, `stale: true`, unresolved `needs_review: true`, unresolved `approval_required: true`, or missing approval record.
 - Scope, requirements, PBIs, and acceptance criteria are clear and testable.
-- `Implementation Context` names files/context to read, relevant skills, and verification permissions.
+- `Implementation Context` names files/context to read, relevant skills, command execution authorization, and static verification plan.
 - `Lineage Notes` exist when source evidence continues prior artifacts or implementation.
 - Expert Lens findings and `/answer` tradeoffs appear in criteria, `Architecture Guidance` constraints, `Risk Register`, or Priority Stack Validation.
 - Expert-attributed Q&A labels remain.
@@ -83,7 +83,7 @@ Read:
 - `.agent/workflows/_shared/workflow-operating-model.md`.
 - `.agent/skills/overview-skill-index/SKILL.md`.
 - `.agent/skills/basic-agentic-development/SKILL.md` for Autonomy Ladder and Development Loop.
-- `DEVELOP-*` sections: Lineage Notes, Risk Register, accepted assumptions, Architecture Guidance, relevant skills, verification permissions, expert findings, tradeoffs, and constraints.
+- `DEVELOP-*` sections: Lineage Notes, Risk Register, accepted assumptions, Architecture Guidance, relevant skills, command execution authorization, static verification plan, expert findings, tradeoffs, and constraints.
 
 Reuse context loaded by `/clarify` or `/answer`. Load only PBI-needed skills.
 
@@ -130,14 +130,14 @@ Run the Development Loop per PBI:
 1. Discover: inspect outlines and target-read existing code.
 2. Implement the smallest testable unit using repository conventions.
 3. Enforce Clean Code Gate on new or materially touched code.
-4. Build only when explicitly allowed.
-5. Add or update required tests; run tests only when allowed, unit tests first.
+4. Build only when explicitly allowed by the shared Command Execution Authorization Gate.
+5. Add or update required tests; run tests only when that gate allows it, unit tests first.
 6. On failure, fix and re-verify; stop after 2 attempts and escalate.
 
 ## 6. Verify
 
 After all PBIs:
-1. Run only allowed build/test commands. If not allowed, report "not run per repo rule" and do not claim pass/fail.
+1. Run only commands allowed by the shared Command Execution Authorization Gate. If not allowed, use static verification, report "not run per repo rule", and do not claim pass/fail.
 2. Run `/review` on implemented changes.
 3. Verify Priority Stack and Clean Code Gate.
 4. Update docs when behavior, contracts, or conventions changed.
