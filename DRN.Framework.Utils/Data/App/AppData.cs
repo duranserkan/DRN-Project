@@ -22,7 +22,7 @@ public class AppData : IAppData
 
     internal AppData(DrnAppDataSettings settings, string fallbackTempPath, string fallbackLocalAppDataPath)
     {
-        Temp = Resolve(settings.TempPath, fallbackTempPath);
+        Temp = ResolveTemp(settings.TempPath, fallbackTempPath);
         Data = ResolveData(settings.DataPath, fallbackLocalAppDataPath);
     }
 
@@ -33,6 +33,26 @@ public class AppData : IAppData
             : fallback;
 
         return AppDataPathResult.From(rawPath);
+    }
+
+    private static AppDataPathResult ResolveTemp(string? configuredPath, string fallback)
+    {
+        var temp = Resolve(configuredPath, fallback);
+        try
+        {
+            if (Directory.Exists(temp.Path))
+                Directory.Delete(temp.Path, true);
+
+            Directory.CreateDirectory(temp.Path);
+        }
+        catch (Exception)
+        {
+            // ignored
+        }
+
+        temp = Resolve(configuredPath, fallback);
+
+        return temp;
     }
 
     private static AppDataPathResult ResolveData(string? configuredPath, string fallback)

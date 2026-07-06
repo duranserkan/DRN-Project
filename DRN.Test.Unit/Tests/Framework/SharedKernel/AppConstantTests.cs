@@ -16,7 +16,7 @@ public class AppConstantTests
         var assemblyName = AppConstants.EntryAssemblyName.ToPascalCase();
 
         AppConstants.TempPath.Should().Contain(assemblyName);
-        AppConstants.TempPath.Should().StartWith(Path.GetTempPath());
+        AppConstants.TempPath.Should().Be(Path.Combine(AppConstants.LocalAppDataPath, "Temp"));
 
         AppConstants.LocalAppDataPath.Should().Contain(assemblyName);
         AppConstants.LocalAppDataPath.Should().StartWith(Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)));
