@@ -40,9 +40,8 @@ public static class PathExtensions
         if (segments.Length == 0)
             return directoryPath.NormalizeDirectoryPath();
 
-        foreach (var segment in segments)
-            if (string.IsNullOrWhiteSpace(segment))
-                throw new ArgumentException("Path segments must not be null, empty, or whitespace.", nameof(segments));
+        if (segments.Any(string.IsNullOrWhiteSpace))
+            throw new ArgumentException("Path segments must not be null, empty, or whitespace.", nameof(segments));
 
         var combinedPath = segments.Aggregate(directoryPath, Path.Combine);
         var fullPath = Path.GetFullPath(combinedPath);

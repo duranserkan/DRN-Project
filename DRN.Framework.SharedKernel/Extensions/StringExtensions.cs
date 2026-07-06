@@ -32,7 +32,6 @@ public static class StringExtensions
                         previousCategory == UnicodeCategory.LowercaseLetter ||
                         previousCategory != UnicodeCategory.DecimalDigitNumber &&
                         previousCategory != null &&
-                        currentIndex > 0 &&
                         currentIndex + 1 < text.Length &&
                         char.IsLower(text[currentIndex + 1]))
                     {
