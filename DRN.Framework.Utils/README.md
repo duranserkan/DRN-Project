@@ -18,6 +18,7 @@
 
 - **Attribute DI** — `[Scoped<T>]`, `[Singleton<T>]`, `[Transient<T>]` for zero-config service registration
 - **Configuration** — `IAppSettings` with typed access, `[Config("Section")]` bindings
+- **App data roots** — `IAppData` resolves temp/data paths with traversal-safe child paths
 - **Scoped Logging** — `IScopedLog` aggregates structured logs per request
 - **Scoped Cancellation** — Scoped `ICancellationUtils` for request lifecycle control
 - **Validators** — Reusable payload validators such as `JpegValidator`
@@ -308,6 +309,17 @@ Override the mount directory by registering `IMountedSettingsConventionsOverride
 | Mounted settings not loading | Wrong mount path | Verify files exist at `/appconfig/json-settings/` or override via `IMountedSettingsConventionsOverride` |
 | Environment variables not binding | Wrong naming format | Use `__` (double underscore) for nested keys: `MySection__MyKey` |
 
+### App Data Settings
+
+`DrnAppDataSettings` controls required temp/data roots. Overrides use process environment variables because roots resolve before DRN configuration.
+
+| Environment variable | Purpose |
+|---|---|
+| `DrnAppDataSettings__TempPath` | Overrides the temp root used by `AppConstants.TempPath` and `IAppData.Temp`. |
+| `DrnAppDataSettings__DataPath` | Overrides data root; backs temp as `<DataPath>/Temp` when temp path is unset. |
+
+Set `DrnAppDataSettings:RequireTemp` or `DrnAppDataSettings:RequireData` to fail startup when the resolved path is not valid.
+
 ### DrnAppFeatures
 
 Feature flags and runtime knobs bound from the `DrnAppFeatures` configuration section via `[Config]`.
@@ -515,6 +527,20 @@ if (ScopeContext.IsUserInRole("Admin")) { ... }
 ```
 
 ## Data Utilities
+
+### App Data Roots (`IAppData`)
+
+`IAppData` exposes validated temp/data roots. Normal startup recreates temp; DRN test contexts preserve sibling test data.
+
+```csharp
+public class ExportService(IAppData appData)
+{
+    public string GetExportPath(string fileName) =>
+        appData.Temp.GetPath("exports", fileName);
+}
+```
+
+Use `AppDataPathResult.GetPath(...)` for traversal-safe child paths.
 
 ### Encodings (`EncodingExtensions`)
 
@@ -812,13 +838,13 @@ Advanced DI container manipulation for testing and modularity.
 *   **Querying**: `sc.GetAllAssignableTo<TService>()` retrieves all descriptors matching a type.
 *   **Replacement**: `ReplaceScoped`, `ReplaceSingleton`, and `ReplaceInstance` for mocking/overriding dependencies in integration tests.
 
-### String, Path & Binary Extensions
+### String & Binary Extensions
 
-*   **Casing**: `ToSnakeCase`, `ToCamelCase`, and `ToPascalCase` for clean code-to-external system mapping.
 *   **Parsing**: `string.Parse<T>()` and `string.TryParse<T>(out result)` using the modern `IParsable<T>` interface.
-*   **Path**: `NormalizeDirectoryPath()` resolves a directory path to a full path and trims trailing separators without trimming filesystem roots. `IsPathWithinDirectory()` performs full-path containment checks.
 *   **Binary**: `ToStream()` and `ToByteArray()` shortcuts with UTF8 default.
 *   **FileSystem**: `GetLines()` for `IFileInfo` with efficient physical path reading.
+
+Casing and safe path helpers live in `DRN.Framework.SharedKernel.Extensions`.
 
 ### Type & Assembly Extensions
 
@@ -845,8 +871,8 @@ var implementations = typeof(IMyInterface).Assembly.CreateSubTypes<IMyInterface>
 // Modern Parsing
 int value = "123".Parse<int>();
 
-// Casing for APIs
-var key = "MyPropertyName".ToSnakeCase(); // my_property_name
+// Binary shortcuts
+using var body = "payload".ToStream();
 ```
 
 ---
@@ -855,6 +881,7 @@ var key = "MyPropertyName".ToSnakeCase(); // my_property_name
 
 ```csharp
 global using DRN.Framework.SharedKernel;
+global using DRN.Framework.SharedKernel.Extensions;
 global using DRN.Framework.Utils.DependencyInjection;
 ```
 

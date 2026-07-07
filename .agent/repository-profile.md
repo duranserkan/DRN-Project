@@ -60,7 +60,7 @@ When no narrower module is requested, `/documentation` targets:
 
 ## Commands
 
-Do not run build or test commands unless the user explicitly allows it.
+Do not run or plan build/test commands unless the user explicitly allows it.
 
 ```bash
 dotnet build DRN.slnx
@@ -93,6 +93,7 @@ Framework conventions and defaults live in framework-scoped DRN skills, especial
 |---|---|---|
 | Configuration source order | [ConfigurationExtensions.cs](../DRN.Framework.Hosting/Extensions/ConfigurationExtensions.cs) | Utils README, Hosting README, DRN framework skills |
 | Mounted settings paths | [MountedSettingsConventions.cs](../DRN.Framework.Utils/Settings/Conventions/MountedSettingsConventions.cs) | Utils README, Hosting README |
+| App data and temp paths | [AppConstants.cs](../DRN.Framework.SharedKernel/AppConstants.cs), [AppData.cs](../DRN.Framework.Utils/Data/App/AppData.cs), [DrnAppDataSettings.cs](../DRN.Framework.Utils/Settings/DrnAppDataSettings.cs) | SharedKernel README, Utils README, DRN framework skills |
 | Development settings defaults | [DrnDevelopmentSettings.cs](../DRN.Framework.Utils/Settings/DrnDevelopmentSettings.cs) | EntityFramework README, Testing README |
 | Test settings convention | [SettingsProvider.cs](../DRN.Framework.Testing/Providers/SettingsProvider.cs) | Testing README, testing skills |
 | Vite manifest discovery and publish support | [ViteManifest.cs](../DRN.Framework.Hosting/Utils/Vite/ViteManifest.cs), [DRN.Framework.Hosting.targets](../DRN.Framework.Hosting/buildTransitive/DRN.Framework.Hosting.targets) | Hosting README, frontend Vite skill, DRN hosting skill |
@@ -107,5 +108,7 @@ When source code changes a shared framework fact:
 4. Update framework-scoped DRN skills used for that package.
 5. Search changed terms, renamed keys, changed defaults, and removed examples across package docs, framework skills, `AGENTS.md`, and this profile.
 6. Run `git diff --check`.
+
+Documentation agents must classify public impact first. Skip private/internal-only checks unless needed to prove public behavior or docs accuracy.
 
 Release notes are not required for internal-only refactors, tests, comments, agent-only docs, dependency-only updates with no consumer-visible impact, or shared-version release alignment for packages with no package-specific changes. Dependency/runtime/container changes require release notes when they are breaking, security-relevant, consumer-visible, or alter published package artifacts. During release preparation, if no package-specific change exists before release, add one concise version-alignment disclaimer only when package metadata would otherwise be empty. Outside release preparation, leave unchanged package `RELEASE-NOTES.md` files untouched and report release notes as not required; the standard prefix covers consistency-only version increments.

@@ -1,7 +1,7 @@
 ---
 name: basic-documentation
 description: "Documentation standards - README structure, ROADMAP patterns, skill documentation format (YAML frontmatter), markdown conventions, security documentation, API docs, and best practices. Guidelines for creating and maintaining all project documentation. Keywords: documentation, readme, roadmap, markdown, documentation-standards, yaml-frontmatter, technical-writing, api-documentation, changelog"
-last-updated: 2026-06-14
+last-updated: 2026-07-07
 difficulty: basic
 tokens: ~1K
 ---
@@ -57,7 +57,9 @@ Update release notes when a change affects a published module's consumers or pac
 - Dependency, runtime, container, or build-output changes only when they are breaking, security-relevant, consumer-visible, or alter published package artifacts.
 - Published docs that are shipped as package metadata, such as package READMEs or release notes.
 
-Do not add release-note entries for internal-only refactors, tests, comments, agent-only docs, or routine dependency-only updates with no consumer-visible impact unless the repository profile declares a stricter rule.
+Do not add release-note entries for internal-only refactors, tests, comments, private/internal-only checks, agent-only docs, or routine dependency-only updates unless the repository profile declares a stricter rule.
+
+Skip private/internal-only checks unless needed to prove public behavior or docs accuracy.
 
 For version-aligned releases, do not add artificial version blocks to unchanged packages unless the repository profile explicitly requires them; record release notes as not required.
 

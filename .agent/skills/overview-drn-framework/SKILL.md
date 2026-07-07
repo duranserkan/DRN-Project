@@ -1,7 +1,7 @@
 ---
 name: overview-drn-framework
 description: "DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, package-dependencies"
-last-updated: 2026-07-01
+last-updated: 2026-07-07
 difficulty: basic
 tokens: ~3K
 ---
@@ -211,6 +211,10 @@ The mounted root defaults to `/appconfig` and can be overridden by registering `
 | `Prototype` | `false` | Development-only prototype database recreation gate. |
 | `BreakForUserUnhandledException` | `false` | Developer diagnostics flag. |
 
+### Maintenance Reference: App Data Paths
+
+App data paths resolve before DRN configuration. `TempPath` order: `DrnAppDataSettings__TempPath` -> `DrnAppDataSettings__DataPath/Temp` -> local app data `Temp`. `LocalAppDataPath` order: `DrnAppDataSettings__DataPath` -> app-specific local app data. `IAppData` owns directory creation, temp cleanup, test temp preservation, and safe child paths.
+
 ### Maintenance Reference: Migration And Prototype Invariants
 
 Production:
@@ -293,7 +297,7 @@ Every `DRN.Framework.*` package packs `RELEASE-NOTES.md` into NuGet metadata thr
 
 Triggers include public API/contract changes, behavior/default changes, security or operational posture changes, observable bug fixes, data/migration behavior, package metadata changes other than version-only alignment, and dependency/runtime/container changes that are breaking, security-relevant, consumer-visible, or alter published artifacts.
 
-Non-triggers include internal-only refactors, tests, comments, agent-only docs, routine dependency-only updates with no consumer-visible effect, and shared-version release alignment for packages with no package-specific changes. During release preparation, if no package-specific change exists before release, one concise version-alignment disclaimer may be added so package metadata is not empty for the release. Outside release preparation, when no trigger applies, explicitly report release notes as not required and leave that package's `RELEASE-NOTES.md` unchanged; the invariant prefix already explains that versions may advance for consistency even when a package has no changes.
+Non-triggers include internal-only refactors, tests, comments, private/internal implementation checks with no consumer-visible effect, agent-only docs, routine dependency-only updates with no consumer-visible effect, and shared-version release alignment for packages with no package-specific changes. During release preparation, if no package-specific change exists before release, one concise version-alignment disclaimer may be added so package metadata is not empty for the release. Outside release preparation, when no trigger applies, explicitly report release notes as not required and leave that package's `RELEASE-NOTES.md` unchanged; the invariant prefix already explains that versions may advance for consistency even when a package has no changes.
 
 ### Maintenance Reference: Release Notes Format
 
