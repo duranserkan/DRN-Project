@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-vite
 description: "DRN buildwww Vite build system - multi-build configuration, TypeScript aliases, wwwroot output, appPreload/appPostload, and Vite manifest discovery. Keywords: drn, buildwww, vite, typescript, bundling, asset-compilation, npm, javascript, css, scss, build-pipeline, entry-points, manifest"
-last-updated: 2026-06-23
+last-updated: 2026-07-07
 difficulty: intermediate
 tokens: ~2K
 ---
@@ -78,7 +78,7 @@ const builds = {
         }
     },
     htmx: {
-        plugins: [stripHtmxEval(), iifeWrap()],
+        plugins: [iifeWrap(), stripHtmxEval()],
         build: {
             outDir: 'wwwroot/lib/htmx',
             rolldownOptions: {
@@ -97,7 +97,8 @@ const builds = {
                     bootstrapBundle: resolve(__dirname, 'buildwww/lib/bootstrap/bootstrapBundle.js')
                 }
             }
-        }
+        },
+        plugins: [iifeWrap()]
     },
     react: {
         plugins: [react(), tailwindcss()],

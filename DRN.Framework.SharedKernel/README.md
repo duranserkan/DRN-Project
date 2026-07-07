@@ -20,6 +20,7 @@
 - **Domain primitives** - `SourceKnownEntity`, `AggregateRoot`, `DomainEvent` for DDD patterns
 - **Type-safe exceptions** - `ExceptionFor.NotFound()`, `ExceptionFor.Validation()` map to HTTP status codes
 - **JSON conventions** - Global `System.Text.Json` defaults with camelCase, enums-as-strings
+- **Shared extensions** - Casing and safe path helpers for lower-layer packages
 - **Source Known IDs** - Internal `long` for DB performance, external `Guid` for API security
 
 ## Table of Contents
@@ -32,6 +33,7 @@
 - [Exceptions](#exceptions)
 - [JsonConventions](#jsonconventions)
 - [Attributes](#attributes)
+- [Shared Extensions](#shared-extensions)
 - [AppConstants](#appconstants)
 - [Global Usings](#global-usings)
 - [Related Packages](#related-packages)
@@ -518,6 +520,24 @@ Validates that a string meets secure key requirements (length, character classes
 
 ---
 
+## Shared Extensions
+
+SharedKernel owns low-level extensions needed without higher-layer dependencies.
+
+```csharp
+using DRN.Framework.SharedKernel.Extensions;
+
+var schema = "OrderHistory".ToSnakeCase();     // order_history
+var typeName = "sample hosted".ToPascalCase(); // SampleHosted
+
+var root = "/data/app";
+var file = root.GetPathWithinDirectory("exports", "orders.json");
+```
+
+`GetPathWithinDirectory()` rejects parent-directory and symbolic-link traversal. Use it for file-serving, manifest, upload, and app-data child paths.
+
+---
+
 ## AppConstants
 
 ```csharp
@@ -528,10 +548,18 @@ public static class AppConstants
     public static int ProcessId { get; } = Environment.ProcessId;
     public static Guid AppInstanceId { get; } = Guid.NewGuid();
     public static string EntryAssemblyName { get; } = Assembly.GetEntryAssembly()?.GetName().Name ?? "Entry Assembly Not Found";
-    public static string TempPath { get; } = GetTempPath(); //Cleans directory at every startup
+    public static string EntryAssemblyNameNormalized { get; } = EntryAssemblyName.ToPascalCase();
+    public static string EntryAssemblyFullName { get; } = Assembly.GetEntryAssembly()?.GetName().FullName ?? "Entry Assembly Not Found";
+    public static string LocalAppDataPath { get; } = GetAppSpecificLocalDataPath();
+    public static string TempPath { get; } = GetTempPath();
     public static string LocalIpAddress { get; } = GetLocalIpAddress();
+
+    public const string LocalAppDataPathEnvVariable = "DrnAppDataSettings__DataPath";
+    public const string TempPathEnvVariable = "DrnAppDataSettings__TempPath";
 }
 ```
+
+`TempPath` order: `DrnAppDataSettings__TempPath` -> `DrnAppDataSettings__DataPath/Temp` -> local app data `Temp`. `LocalAppDataPath` order: `DrnAppDataSettings__DataPath` -> app-specific local app data. `IAppData` owns directory creation and cleanup.
 
 ---
 
@@ -542,6 +570,7 @@ Suggested consumer usings for projects that work heavily with SharedKernel types
 ```csharp
 global using DRN.Framework.SharedKernel.Domain;
 global using DRN.Framework.SharedKernel;
+global using DRN.Framework.SharedKernel.Extensions;
 global using DRN.Framework.SharedKernel.Json;
 ```
 

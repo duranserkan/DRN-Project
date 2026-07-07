@@ -41,6 +41,8 @@ Inspect outline: <Module>/<manifest-file>
 
 Read profile source-map files, public API surface, and recent scoped changes.
 
+Skip private/internal-only checks unless needed to prove public behavior or docs accuracy. Record internal-only changes as no docs/release-note trigger.
+
 Use a `.agent/temp/DEVELOP-*.md` artifact only when explicitly supplied or uniquely tied to the module. Block writes if it is `stale: true`, `needs_review: true`, `approval_required: true`, or contains `[ASSUMPTION - unverified]`.
 
 ## 4. Scan Drift
@@ -106,7 +108,7 @@ Add or update a block only for:
 - Dependency, runtime, container, or build-output changes that are breaking, security-relevant, consumer-visible, or alter published package artifacts.
 - Published docs shipped as package metadata.
 
-Do not add entries for internal-only refactors, tests, comments, agent-only docs, routine dependency-only changes with no consumer-visible impact, or unchanged version-aligned packages unless the profile requires them.
+Do not add entries for internal-only refactors, tests, comments, private/internal-only checks, agent-only docs, routine dependency-only changes, or unchanged version-aligned packages unless the profile requires them.
 
 Use only changes since the last documented version. Omit empty subsections. Include breaking changes. Keep inferred changes in the plan until source evidence or explicit approval resolves them; do not publish assumption markers unless requested.
 

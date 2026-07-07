@@ -8,10 +8,17 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **NexusKey BLAKE3 Derivation**: `NexusKey` now derives both `MacKey` and `EncryptionKey` from decoded 32-byte key material through BLAKE3 derive-key mode with distinct DRN Framework context strings. This replaces the previous custom hash-chain derivation and changes generated secure IDs; existing IDs may require migration, regeneration, or an explicit compatibility strategy.
 *   **Development Nexus Key Material Derivation**: When `Development` has no explicit default Nexus key, `AppSettings` now derives deterministic 32-byte Base64Url key material with BLAKE3 derive-key mode from `AppSecuritySettings` context-derived values instead of the previous custom hash-chain. Development-generated secure IDs may require migration, regeneration, or an explicit compatibility key.
 *   **Legacy Nexus Key Configuration**: `AppSettings` now rejects legacy `NexusAppSettings:MacKeys` configuration before Development key auto-generation, preventing old key material from being silently ignored. Migrate `MacKeys[*].Key` to `Keys[*].KeyMaterial` and move matching `Format` and `Default` values to `Keys[*].Format` and `Keys[*].Default`.
+*   **Casing And Path Extension Relocation**: Casing and safe path helpers moved from Utils to `DRN.Framework.SharedKernel.Extensions`.
+*   **Settings Classes Sealed**: `AppSettings`, `NexusAppSettings`, and `NexusKey` are now sealed.
+
+### New Features
+
+*   **App Data Roots**: Added `IAppData` and related types for validated temp/data roots, startup temp cleanup, and safe child paths.
 
 ### Bug Fixes
 
 *   **AppSettings Nexus Key Validation**: Configured `NexusAppSettings:Keys` entries are now validated before default-key inspection, so null key entries report the intended configuration error instead of a null-reference failure.
+*   **Settings Disposal Idempotency**: Settings now ignore repeated disposal and dispose owned key material once.
 
 ## Version 0.9.5
 

@@ -1,7 +1,7 @@
 ---
 name: drn-utils
-description: "DRN.Framework.Utils - Attribute-based dependency injection ([Scoped<T>], [Singleton<T>], [Transient<T>], [HostedService], [Config]), IAppSettings configuration pattern, logging infrastructure, validators, extension methods, and core utilities. Foundational for service registration, configuration management, and cross-cutting concerns. Keywords: dependency-injection, di, service-registration, configuration, appsettings, logging, scoped-log, validators, attributes, scoped, singleton, transient, config, extensions, http-client"
-last-updated: 2026-07-01
+description: "DRN.Framework.Utils - Attribute-based dependency injection ([Scoped<T>], [Singleton<T>], [Transient<T>], [HostedService], [Config]), IAppSettings configuration, app data roots, logging, validators, extension methods, and core utilities. Keywords: dependency-injection, di, service-registration, configuration, appsettings, appdata, logging, scoped-log, validators, attributes, scoped, singleton, transient, config, extensions, http-client"
+last-updated: 2026-07-07
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -134,6 +134,10 @@ When grouping options into nested objects, explicitly validate child objects bef
 
 `DrnAppFeatures.SeedKey` feeds `AppSecuritySettings`, which derives `AppHashKey`, `AppEncryptionKey`, `AppKey`, and `AppSeed` through BLAKE3 derive-key mode with distinct DRN Framework context strings. The hash and encryption keys stay Base64Url-encoded 32-byte values, `AppKey` stays an 8-character public discriminator, and `AppSeed` stays a signed 64-bit seed value.
 
+### App Data Roots
+
+`IAppData` exposes `Temp` and `Data`. Override roots before DRN config with `DrnAppDataSettings__TempPath` and `DrnAppDataSettings__DataPath`; data path backs temp as `<DataPath>/Temp` when temp path is unset. Use `GetPath(...)` for safe child paths.
+
 ### Nexus Keys
 
 `NexusAppSettings.Keys` must contain exactly one default `NexusKey`. Generation uses the default key; parsing tries the default key first and then the remaining configured keys for rotation fallback.
@@ -258,6 +262,7 @@ if (scope.Acquired) { /* critical section */ }
 | **Streams** | `ToBinaryDataAsync` | Safe consumption with `MaxSizeGuard` |
 | **Validation** | `ValidationExtensions` | DataAnnotations-based programmatic validation |
 | **Validators** | `JpegValidator`, `JpegValidationResult`, `JpegValidationErrorReason` | Structural, stream-based, size-bounded JPEG validation with typed error reasons |
+| **App data** | `IAppData`, `AppDataPathResult`, `DrnAppDataSettings` | Validated temp/data roots with traversal-safe child path resolution |
 | **Pagination** | `IPaginationUtils` | Cursor-based via `SourceKnownEntityId` |
 | **Cancellation** | `ICancellationUtils` | Merge tokens from multiple sources |
 | **Diagnostics** | `DevelopmentStatus` | Track pending DB model changes at startup |
@@ -303,9 +308,9 @@ services.ReplaceSingleton<IMyService, MyService>(replacement);
 services.GetAllAssignableTo<TService>();
 
 // String & Binary
-"hello world".ToStream();       "camelCase".ToPascalCase();
-"MyProp".ToSnakeCase();         "MyProp".ToCamelCase();
+"hello world".ToStream();
 int v = "123".Parse<int>();     bool ok = "abc".TryParse<int>(out _);
+// Casing/path helpers live in DRN.Framework.SharedKernel.Extensions.
 
 // Type & Assembly
 assembly.GetTypesAssignableTo<TInterface>();

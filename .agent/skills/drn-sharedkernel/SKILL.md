@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
-description: "DRN.Framework.SharedKernel - Foundational domain primitives (Entity, AggregateRoot, DomainEvent), exception hierarchy, repository contracts, pagination, and JSON conventions. Essential for domain modeling, entity design, and repository implementation. Keywords: entity, aggregate-root, domain-event, repository, pagination, exception, json, domain-modeling, source-known-id, entity-type"
-last-updated: 2026-06-12
+description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts, pagination, JSON conventions, app constants, and shared casing/path extensions. Keywords: entity, aggregate-root, domain-event, repository, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
+last-updated: 2026-07-07
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -16,6 +16,7 @@ tokens: ~2.5K
 - Using or extending DRN exceptions
 - Understanding repository contracts
 - Accessing JSON serialization conventions
+- Using shared casing or safe path extensions in lower-layer packages
 
 ---
 
@@ -246,9 +247,25 @@ All factories accept optional `category` parameter for sub-classification: `Exce
 
 ```csharp
 AppConstants.ProcessId;          AppConstants.AppInstanceId;
-AppConstants.EntryAssemblyName;  AppConstants.TempPath;  // Cleaned at startup
+AppConstants.EntryAssemblyName;  AppConstants.EntryAssemblyNameNormalized;
+AppConstants.EntryAssemblyFullName;
+AppConstants.LocalAppDataPath;   AppConstants.TempPath;
 AppConstants.LocalIpAddress;
 ```
+
+`TempPath` order: `DrnAppDataSettings__TempPath` -> `DrnAppDataSettings__DataPath/Temp` -> local app data `Temp`. `LocalAppDataPath` order: `DrnAppDataSettings__DataPath` -> app-specific local app data. `IAppData` creates/cleans directories and resolves safe child paths.
+
+## Shared Extensions
+
+```csharp
+using DRN.Framework.SharedKernel.Extensions;
+
+"OrderHistory".ToSnakeCase();    // order_history
+"sample hosted".ToPascalCase();  // SampleHosted
+"/data/app".GetPathWithinDirectory("exports", "orders.json");
+```
+
+`GetPathWithinDirectory()` rejects parent-directory and symbolic-link traversal. Use it for file-serving, manifests, uploads, and app-data child paths.
 
 ## Attributes
 
@@ -274,5 +291,6 @@ AppConstants.LocalIpAddress;
 ```csharp
 global using DRN.Framework.SharedKernel.Domain;
 global using DRN.Framework.SharedKernel;
+global using DRN.Framework.SharedKernel.Extensions;
 global using DRN.Framework.SharedKernel.Json;
 ```

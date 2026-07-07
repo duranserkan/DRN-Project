@@ -69,6 +69,7 @@ Use the profile first. If it is missing or silent, discover by convention:
 - Comment only to explain non-obvious intent.
 - Update docs and skills when code or convention changes would otherwise create drift.
 - Decide release-note impact before finishing source, packaging, or published-doc changes; record "not required" when no trigger applies.
+- Omit restore/build/run/test/benchmark steps from plans unless explicitly allowed; use static verification instead.
 - **No CAD Artifact Bypassing**: `/clarify`, `/answer`, and `/develop` must create or update workspace-local artifacts such as `CLARIFY-*.md` and `DEVELOP-*.md` in `.agent/temp/`. System plans must reference and link those documents.
 - Run `git diff --check` after documentation or code edits unless blocked.
 
