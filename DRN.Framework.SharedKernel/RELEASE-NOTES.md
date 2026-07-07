@@ -2,6 +2,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.9.6
 
+### Security
+
+*   **Secure TempPath Directory**: Updated `AppConstants.TempPath` to resolve to a subdirectory under the user-specific, non-publicly-writable local application data directory (with fallback to the user profile or environment temporary directory only if local application data is unavailable). This mitigates vulnerabilities related to predictable/shared temporary file directories (CWE-377/CWE-379).
+
 ### Breaking Changes
 
 *   **NexusKey BLAKE3 Derivation**: `NexusKey` now derives both `MacKey` and `EncryptionKey` from decoded 32-byte key material through BLAKE3 derive-key mode with distinct DRN Framework context strings. This replaces the previous custom hash-chain derivation and changes generated secure IDs; existing IDs may require migration, regeneration, or an explicit compatibility strategy.
