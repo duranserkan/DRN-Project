@@ -2,13 +2,45 @@ namespace DRN.Framework.SharedKernel.Extensions;
 
 public static class PathExtensions
 {
-    public static readonly StringComparison PathComparison = 
+    public static readonly StringComparison PathComparison =
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-    
+
     /// <summary>
     /// Resolves a directory path to a full path and removes trailing directory separators without trimming filesystem roots.
     /// </summary>
     public static string NormalizeDirectoryPath(this string path) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+
+    public static bool TryCreateDirectory(this string path)
+    {
+        try
+        {
+            if (!Directory.Exists(path))
+                Directory.CreateDirectory(path);
+
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    public static bool TryRecreateDirectory(this string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+                Directory.Delete(path, true);
+
+            Directory.CreateDirectory(path);
+
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
 
     /// <summary>
     /// Returns whether <paramref name="filePath"/> resolves under <paramref name="directoryPath"/> using full-path,
@@ -81,7 +113,7 @@ public static class PathExtensions
             var attributes = Directory.Exists(path)
                 ? new DirectoryInfo(path).Attributes
                 : new FileInfo(path).Attributes;
-                
+
             return (attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
         }
         catch (DirectoryNotFoundException)

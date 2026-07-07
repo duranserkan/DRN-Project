@@ -17,15 +17,21 @@ public static class AppConstants
     public static string LocalIpAddress { get; } = GetLocalIpAddress();
 
     /// <summary>
-    /// Prefer AppData over using app constants for data paths
+    /// Prefer AppData over using app constants for data paths.
+    /// Set DrnAppDataSettings__DataPath as a process environment variable to override;
+    /// otherwise the system local application data location is used.
     /// </summary>
-    public static string LocalAppDataPath { get; } = GetAppDataPath();
+    public static string LocalAppDataPath { get; } = GetAppSpecificLocalDataPath();
 
-    public static string TempPath { get; } = GetTempPath(); //Attempts to clean directory at every startup
+    /// <summary>
+    /// Resolved temp root path. Set DrnAppDataSettings__TempPath as a process
+    /// environment variable to override; AppData owns directory creation and cleanup.
+    /// </summary>
+    public static string TempPath { get; } = GetTempPath();
 
     public const string LocalAppDataPathEnvVariable = "DrnAppDataSettings__DataPath";
     public const string TempPathEnvVariable = "DrnAppDataSettings__TempPath";
-    
+
     private static string GetTempPath()
     {
         var tempBase = Environment.GetEnvironmentVariable(TempPathEnvVariable);
@@ -33,27 +39,27 @@ public static class AppConstants
         if (!string.IsNullOrEmpty(tempFromEnv))
             return tempFromEnv;
 
-        tempBase = LocalAppDataPath;
+        tempBase = GetLocalDataPath();
         if (string.IsNullOrWhiteSpace(tempBase))
             return string.Empty;
 
         tempBase = Path.Combine(tempBase, "Temp");
-        try
-        {
-            if (Directory.Exists(tempBase))
-                Directory.Delete(tempBase, true);
+        var tempFromLocalData = GetAppSpecificDirectoryPath(tempBase);
 
-            Directory.CreateDirectory(tempBase);
-        }
-        catch (Exception)
-        {
-            // ignored
-        }
-
-        return tempBase;
+        return tempFromLocalData;
     }
 
-    private static string GetAppDataPath()
+    internal static string GetLocalDataPath()
+    {
+        var appDataFromEnv = Environment.GetEnvironmentVariable(LocalAppDataPathEnvVariable);
+        if (!string.IsNullOrEmpty(appDataFromEnv))
+            return appDataFromEnv;
+
+        var folder = Environment.SpecialFolder.LocalApplicationData;
+        return Environment.GetFolderPath(folder);
+    }
+
+    private static string GetAppSpecificLocalDataPath()
     {
         var appDataFromEnv = Environment.GetEnvironmentVariable(LocalAppDataPathEnvVariable);
         if (!string.IsNullOrEmpty(appDataFromEnv))
@@ -67,12 +73,12 @@ public static class AppConstants
             : appSpecificPath;
     }
 
-    internal static string GetAppSpecificDirectoryPath(string? rootPath)
+    internal static string GetAppSpecificDirectoryPath(string? rootPath, string? assemblyName = null)
     {
         if (string.IsNullOrWhiteSpace(rootPath))
             return string.Empty;
 
-        var appDirectoryName = EntryAssemblyNameNormalized;
+        var appDirectoryName = assemblyName?.ToPascalCase() ?? EntryAssemblyNameNormalized;
         if (string.IsNullOrWhiteSpace(appDirectoryName))
             return string.Empty;
 

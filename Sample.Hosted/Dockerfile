@@ -30,6 +30,8 @@ ENV DRN_TARGET_PLATFORM=${TARGETPLATFORM}
 ENV DRN_BUILD_PLATFORM=${BUILDPLATFORM}
 ENV DrnAppDataSettings__DataPath=/appdata
 ENV DrnAppDataSettings__TempPath=/apptemp
+ENV NLog__variables__logPath=/applogs
+ENV NLog__internalLogFile=/applogs/00-nlog-internal.log
 
 LABEL org.opencontainers.image.version=${APP_VERSION} \
     org.opencontainers.image.vendor="Duran Serkan KILIC" \
@@ -49,7 +51,7 @@ WORKDIR /app
 COPY . ./
 
 # The final-stage copy (COPY --chown=app:app) is the authoritative ownership fix.
-RUN mkdir -p /appdata && touch /appdata/.keep && mkdir -p /apptemp && touch /apptemp/.keep
+RUN mkdir -p /appdata && touch /appdata/.keep && mkdir -p /apptemp && touch /apptemp/.keep && mkdir -p /applogs && touch /applogs/.keep
 
 #https://learn.microsoft.com/en-us/dotnet/core/rid-catalog
 # Keep generated .deps.json framework metadata aligned with the runtime image patch level.
@@ -87,6 +89,7 @@ WORKDIR /app
 # 1654 is the default UID/GID for the non-root 'app' user in .NET container images.
 COPY --chown=app:app --from=build /appdata /appdata
 COPY --chown=app:app --from=build /apptemp /apptemp
+COPY --chown=app:app --from=build /applogs /applogs
 COPY --from=build /app/publish .
 
 USER app

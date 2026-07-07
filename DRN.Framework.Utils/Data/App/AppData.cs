@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Extensions;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Settings;
 
@@ -12,6 +13,7 @@ public interface IAppData
 [Singleton<IAppData>]
 public class AppData : IAppData
 {
+    public DrnAppDataSettings Settings { get; }
     public AppDataPathResult Temp { get; }
     public AppDataPathResult Data { get; }
 
@@ -22,54 +24,20 @@ public class AppData : IAppData
 
     internal AppData(DrnAppDataSettings settings, string fallbackTempPath, string fallbackLocalAppDataPath)
     {
-        Temp = ResolveTemp(settings.TempPath, fallbackTempPath);
-        Data = ResolveData(settings.DataPath, fallbackLocalAppDataPath);
-    }
+        Settings = settings;
+        _ = TestEnvironment.DrnTestContextEnabled
+            ? fallbackTempPath.TryCreateDirectory()
+            : fallbackTempPath.TryRecreateDirectory(); //clean up on each start
 
-    private static AppDataPathResult Resolve(string? configuredPath, string fallback)
-    {
-        var rawPath = !string.IsNullOrWhiteSpace(configuredPath)
-            ? configuredPath
-            : fallback;
+        fallbackLocalAppDataPath.TryCreateDirectory();
 
-        return AppDataPathResult.From(rawPath);
-    }
+        Temp = AppDataPathResult.From(fallbackTempPath);
+        Data = AppDataPathResult.From(fallbackLocalAppDataPath);
 
-    private static AppDataPathResult ResolveTemp(string? configuredPath, string fallback)
-    {
-        var temp = Resolve(configuredPath, fallback);
-        try
-        {
-            if (Directory.Exists(temp.Path))
-                Directory.Delete(temp.Path, true);
+        if (settings.RequireTemp && Temp.Status != AppDataPathStatus.Valid)
+            throw ExceptionFor.Configuration($"Temp path '{Temp.Path}' is required but not valid. Status: {Temp.Status}");
 
-            Directory.CreateDirectory(temp.Path);
-        }
-        catch (Exception)
-        {
-            // ignored
-        }
-
-        temp = Resolve(configuredPath, fallback);
-
-        return temp;
-    }
-
-    private static AppDataPathResult ResolveData(string? configuredPath, string fallback)
-    {
-        var result = Resolve(configuredPath, fallback);
-        if (result.Status != AppDataPathStatus.PathNotFound)
-            return result;
-
-        try
-        {
-            Directory.CreateDirectory(result.Path);
-        }
-        catch (Exception)
-        {
-            return result;
-        }
-
-        return AppDataPathResult.From(result.Path);
+        if (settings.RequireData && Data.Status != AppDataPathStatus.Valid)
+            throw ExceptionFor.Configuration($"Data path '{Data.Path}' is required but not valid. Status: {Data.Status}");
     }
 }
