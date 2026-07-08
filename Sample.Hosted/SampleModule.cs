@@ -25,8 +25,7 @@ public static class SampleModule
 
         //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
         //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/
-        services
-            .AddDataProtection().PersistKeysToDbContext<DrnDataProtectionContext>();
+        services.AddDataProtection().PersistKeysToDbContext<DrnDataProtectionContext>();
 
         //.AddPersonalDataProtection<>()
         services.AddServicesWithAttributes();
@@ -63,7 +62,7 @@ public static class SampleModule
         options.Stores = IdentitySettings.StoreOptions;
         options.ClaimsIdentity = IdentitySettings.ClaimsIdentityOptions;
 
-        var config = settings.Get<SampleIdentityConfig>("Identity") ?? new SampleIdentityConfig();
+        var config = settings.Get<IdentityConfig>("Identity") ?? new IdentityConfig();
         options.SignIn.RequireConfirmedAccount = config.RequireConfirmedAccount;
         options.SignIn.RequireConfirmedEmail = config.RequireConfirmedEmail;
         options.SignIn.RequireConfirmedPhoneNumber = config.RequireConfirmedPhoneNumber;

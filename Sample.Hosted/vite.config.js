@@ -4,43 +4,7 @@ import {resolve} from 'path'; // Import resolve for path management
 import drnUtils from './buildwww/app/js/drn/drnUtils.js';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-
-// Rolldown plugin: wraps every JS chunk in an IIFE for scope isolation.
-// This avoids minified-name collisions between independently bundled libraries
-// (e.g. Bootstrap vs Syncfusion) without requiring format:'iife' (which
-// doesn't support multiple entry points).
-function iifeWrap() {
-    return {
-        name: 'iife-wrap',
-        renderChunk(code, chunk) {
-            if (chunk.fileName.endsWith('.js')) {
-                return {code: `(function(){"use strict";\n${code}\n})();`, map: null};
-            }
-            return null;
-        }
-    };
-}
-
-// Strips direct eval from htmx.org's internalEval function during bundling.
-// htmx uses eval for hx-vars, hx-on:*, and trigger conditions — none of which
-// this project uses. config.allowEval is already false at runtime; this plugin
-// physically removes the eval token for defense-in-depth and CSP auditability.
-function stripHtmxEval() {
-    const htmxPathRegex = /(?:^|[/\\])htmx\.org(?:[/\\]|$)/;
-    return {
-        name: 'strip-htmx-eval',
-        transform(code, id) {
-            // Precise path matching resolves CodeQL "Incomplete URL substring sanitization" warning
-            if (!htmxPathRegex.test(id)) return null;
-            const target = 'return eval(str)';
-            if (!code.includes(target)) return null;
-            return {
-                code: code.replace(target, 'return undefined'),
-                map: null
-            };
-        }
-    };
-}
+import {iifeWrap, stripHtmxEval} from './vite.config.plugin.js';
 
 const sharedConfig = {
     // Set the base public path for assets (important for ASP.NET)
@@ -122,6 +86,7 @@ const builds = {
         // Relative base ensures @font-face url() in compiled CSS resolves
         // relative to the CSS file's location (wwwroot/lib/bootstrap/)
         base: './',
+        plugins: [iifeWrap()],
         build: {
             outDir: 'wwwroot/lib/bootstrap',
             rolldownOptions: {
@@ -132,7 +97,6 @@ const builds = {
                 }
             }
         },
-        plugins: [iifeWrap()],
         css: {
             preprocessorOptions: {
                 scss: {

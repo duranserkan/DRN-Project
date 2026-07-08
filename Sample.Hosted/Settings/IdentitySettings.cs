@@ -1,3 +1,4 @@
+using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Identity;
 
 namespace Sample.Hosted.Settings;
@@ -39,14 +40,18 @@ public static class IdentitySettings
         DefaultLockoutTimeSpan = TimeSpan.FromMinutes(1)
     };
 
-    public static readonly SignInOptions SignInOptions = new()
-    {
-        RequireConfirmedAccount = true,
-        RequireConfirmedEmail = true,
-        RequireConfirmedPhoneNumber = true
-    };
-
     public static readonly ClaimsIdentityOptions ClaimsIdentityOptions = new();
     public static readonly StoreOptions StoreOptions = new();
     public static readonly TokenOptions TokenOptions = new();
+}
+
+[Config("Identity")]
+public class IdentityConfig : SignInOptions
+{
+    public IdentityConfig()
+    {
+        RequireConfirmedAccount = true;
+        RequireConfirmedEmail = true;
+        RequireConfirmedPhoneNumber = true;
+    }
 }

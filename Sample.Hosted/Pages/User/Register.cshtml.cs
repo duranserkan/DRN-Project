@@ -8,7 +8,7 @@ using Sample.Hosted.Settings;
 namespace Sample.Hosted.Pages.User;
 
 [AllowAnonymous]
-public class RegisterModel(UserManager<SampleUser> userManager, SignInManager<SampleUser> signInManager, SampleIdentityConfig identityConfig)
+public class RegisterModel(UserManager<SampleUser> userManager, SignInManager<SampleUser> signInManager, IdentityConfig identityConfig)
     : PageModel
 {
     [BindProperty] public RegisterInput Input { get; set; } = null!;
