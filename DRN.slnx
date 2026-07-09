@@ -46,7 +46,7 @@
   </Folder>
   <Folder Name="/Items/.agent/" />
   <Folder Name="/Items/.agent/rules/">
-    <File Path=".agent\rules\discos.md" />
+    <File Path=".agent\rules\DiSCOS.md" />
   </Folder>
   <Folder Name="/Items/.github/">
     <File Path=".github\CODEOWNERS" />

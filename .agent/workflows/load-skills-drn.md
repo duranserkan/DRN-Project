@@ -2,7 +2,7 @@
 description: Load DRN framework and DRN buildwww specific skills
 ---
 
-> **Estimated context: ~31.8K tokens** (12 skills)
+> **Estimated context: ~32.6K tokens** (12 skills)
 
 Read the skills:
    - Read file: `.agent/skills/overview-drn-framework/SKILL.md`

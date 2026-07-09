@@ -1,7 +1,7 @@
 ---
 name: overview-skill-index
 description: Use when choosing which repository skills to load for a task, mapping work to skill families, finding related skills, or updating skill routing after skills change.
-last-updated: 2026-06-23
+last-updated: 2026-07-09
 difficulty: basic
 tokens: ~1.8K
 ---

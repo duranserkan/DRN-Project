@@ -2,7 +2,7 @@
 description: Load DRN buildwww and Razor frontend development skills
 ---
 
-> **Estimated context: ~12.8K tokens** (7 skills)
+> **Estimated context: ~12.9K tokens** (7 skills)
 
 Read the skills:
    - Read file: `.agent/skills/drn-buildwww-libraries/SKILL.md`

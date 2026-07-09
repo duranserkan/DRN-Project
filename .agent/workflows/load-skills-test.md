@@ -2,7 +2,7 @@
 description: Load portable testing skills and framework-scoped testing skills declared by the profile
 ---
 
-> **Estimated context: ~5.5K tokens with profile-declared DRN testing skills** (~2.7K portable-only)
+> **Estimated context: ~5.6K tokens with profile-declared DRN testing skills** (~2.7K portable-only)
 
 Read profile and skills:
    - Read file: `.agent/repository-profile.md` (if present)
