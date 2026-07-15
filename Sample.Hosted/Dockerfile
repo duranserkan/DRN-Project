@@ -3,8 +3,8 @@
 #https://www.jetbrains.com/help/rider/Docker_fast_mode.html
 #from solution root: docker build -f Sample.Hosted/Dockerfile -t drn/sample.hosted:localbuild .
 ARG PROJECT=Sample.Hosted
-ARG DOTNET_RUNTIME_VERSION=10.0.9
-ARG DOTNET_SDK_VERSION=10.0.301
+ARG DOTNET_RUNTIME_VERSION=10.0.10
+ARG DOTNET_SDK_VERSION=10.0.302
 ARG DOTNET_DISTRO=resolute
 ARG APP_VERSION=0.0.1
 
