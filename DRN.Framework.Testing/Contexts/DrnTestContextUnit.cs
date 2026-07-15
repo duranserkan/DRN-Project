@@ -21,6 +21,7 @@ public class DrnTestContextUnit : IDisposable, IKeyedServiceProvider
 
     public DrnTestContextUnit(MethodInfo testMethod)
     {
+        TestEnvironment.DrnTestContextEnabled = true;
         MethodContext = new MethodContext(testMethod);
         AddToConfiguration(nameof(DrnAppFeatures), nameof(DrnAppFeatures.ApplicationStartedBy), MethodContext.TestMethod.Name);
     }

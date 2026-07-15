@@ -56,12 +56,12 @@ public class HmacPerformanceSmallPayloadTests(ITestOutputHelper output)
 [InvocationCount(2_097_152)]
 public class HashBenchmarkSmallPayload
 {
-    private byte[] _data8B = new byte[8];
-    private byte[] _data12B = new byte[12];
-    private byte[] _data16B = new byte[16];
-
-
-    private byte[] _key = new byte[32];
+    // Returning one output byte lets BenchmarkDotNet observe each result without allocation,
+    // preventing dead-code elimination with the same minimal consumption cost for every algorithm.
+    private readonly byte[] _data8B = new byte[8];
+    private readonly byte[] _data12B = new byte[12];
+    private readonly byte[] _data16B = new byte[16];
+    private readonly byte[] _key = new byte[32];
 
     [Params(8, 12, 16)]
     public int Size { get; set; }
@@ -81,74 +81,70 @@ public class HashBenchmarkSmallPayload
     }
 
     [Benchmark]
-    public byte[] Blake3_256_Update()
+    public byte Blake3_256_Update()
     {
-        Blake3Hasher.Update(GetData());
-        var tag = Blake3Hasher.Finalize();
+        Span<byte> hashBytes = stackalloc byte[32];
         Blake3Hasher.Reset();
+        Blake3Hasher.Update(GetData());
+        Blake3Hasher.Finalize(hashBytes);
 
-        return tag.AsSpan().ToArray();
+        return hashBytes[0];
     }
 
     [Benchmark]
-    public byte[] Blake3_256_UpdateWithJoin()
+    public byte Blake3_256_UpdateWithJoin()
     {
-        Blake3HasherForUpdateJoin.UpdateWithJoin(GetData());
-        var tag = Blake3HasherForUpdateJoin.Finalize();
+        Span<byte> hashBytes = stackalloc byte[32];
         Blake3HasherForUpdateJoin.Reset();
+        Blake3HasherForUpdateJoin.UpdateWithJoin(GetData());
+        Blake3HasherForUpdateJoin.Finalize(hashBytes);
 
-        return tag.AsSpan().ToArray();
+        return hashBytes[0];
     }
 
     [Benchmark]
-    public byte[] Blake3_256_New_Update()
+    public byte Blake3_256_New_Update()
     {
+        Span<byte> hashBytes = stackalloc byte[32];
         using var hasher = Hasher.NewKeyed(_key);
-
         hasher.Update(GetData());
-        var tag = hasher.Finalize();
+        hasher.Finalize(hashBytes);
 
-        return tag.AsSpan().ToArray();
+        return hashBytes[0];
     }
 
     [Benchmark]
-    public byte[] Blake3_256_New_Update_With_Join()
+    public byte Blake3_256_New_Update_With_Join()
     {
+        Span<byte> hashBytes = stackalloc byte[32];
         using var hasher = Hasher.NewKeyed(_key);
-
         hasher.UpdateWithJoin(GetData());
-        var tag = hasher.Finalize();
+        hasher.Finalize(hashBytes);
 
-        return tag.AsSpan().ToArray();
+        return hashBytes[0];
     }
 
     [Benchmark]
-    public byte[] Fast_Crc32() => Crc32.Hash(GetData());
+    public byte Hmac_Sha256()
+    {
+        Span<byte> hashBytes = stackalloc byte[HMACSHA256.HashSizeInBytes];
+        HMACSHA256.HashData(_key, GetData(), hashBytes);
+
+        return hashBytes[0];
+    }
 
     [Benchmark]
-    public byte[] Fast_Crc64() => Crc64.Hash(GetData());
+    public byte Hmac_Sha512()
+    {
+        Span<byte> hashBytes = stackalloc byte[HMACSHA512.HashSizeInBytes];
+        HMACSHA512.HashData(_key, GetData(), hashBytes);
 
-    [Benchmark]
-    public byte[] Fast_XxHash3() => XxHash3.Hash(GetData());
+        return hashBytes[0];
+    }
 
-    [Benchmark]
-    public byte[] Fast_XxHash32() => XxHash32.Hash(GetData());
+    //todo KMAC, HMACSHA3_256, HMACSHA3_512(not available for macOS yet) performance benchmark
 
-    [Benchmark]
-    public byte[] Fast_XxHash64() => XxHash64.Hash(GetData());
-
-    [Benchmark]
-    public byte[] Fast_XxHash128() => XxHash128.Hash(GetData());
-
-    [Benchmark]
-    public byte[] Hmac_Sha256() => HMACSHA256.HashData(_key, GetData());
-
-    [Benchmark]
-    public byte[] Hmac_Sha512() => HMACSHA512.HashData(_key, GetData());
-
-    //todo KMAC, HMACSHA3_256, HMACSHA3_512(not available for macos yet) performance benchmark
-
-    //Not supported yet on macos
+    //Not supported yet on macOS
     // [Benchmark]
     // public byte[] HmacSha3_Sha256() => HMACSHA3_256.HashData(_key, GetData());
     // [Benchmark]
@@ -157,6 +153,60 @@ public class HashBenchmarkSmallPayload
     // public byte[] Kmac_128() => Kmac128.HashData(_key, GetData(), 32);
     // [Benchmark]
     // public byte[] Kmac_256() => Kmac256.HashData(_key, GetData(), 64);
+
+    [Benchmark]
+    public byte Fast_Crc32()
+    {
+        Span<byte> hashBytes = stackalloc byte[sizeof(uint)];
+        Crc32.Hash(GetData(), hashBytes);
+
+        return hashBytes[0];
+    }
+
+    [Benchmark]
+    public byte Fast_Crc64()
+    {
+        Span<byte> hashBytes = stackalloc byte[sizeof(ulong)];
+        Crc64.Hash(GetData(), hashBytes);
+
+        return hashBytes[0];
+    }
+
+    [Benchmark]
+    public byte Fast_XxHash3()
+    {
+        Span<byte> hashBytes = stackalloc byte[sizeof(ulong)];
+        XxHash3.Hash(GetData(), hashBytes);
+
+        return hashBytes[0];
+    }
+
+    [Benchmark]
+    public byte Fast_XxHash32()
+    {
+        Span<byte> hashBytes = stackalloc byte[sizeof(uint)];
+        XxHash32.Hash(GetData(), hashBytes);
+
+        return hashBytes[0];
+    }
+
+    [Benchmark]
+    public byte Fast_XxHash64()
+    {
+        Span<byte> hashBytes = stackalloc byte[sizeof(ulong)];
+        XxHash64.Hash(GetData(), hashBytes);
+
+        return hashBytes[0];
+    }
+
+    [Benchmark]
+    public byte Fast_XxHash128()
+    {
+        Span<byte> hashBytes = stackalloc byte[16];
+        XxHash128.Hash(GetData(), hashBytes);
+
+        return hashBytes[0];
+    }
 
     private byte[] GetData() => Size switch
     {
