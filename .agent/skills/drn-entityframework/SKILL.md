@@ -229,10 +229,10 @@ public class RepositorySettings<TEntity>
 
 Repository operations resolve a child cancellation scope instead of using the root:
 
-- `CancellationToken` is read-only and exposes the stable repository-group token; `CancelWhen(token)` explicitly links a lifetime token. `CancelChanges` cancels that named group.
-- The protected virtual `RepositoryCancellationScopeKey` is non-nullable and defaults to the concrete repository type, so same-type instances share a terminal scope within the parent DI scope.
-- Override `RepositoryCancellationScopeKey` with another stable developer-constant typed key only when a repository must join a different intentional group. Names are ordinal, limited to 128 characters, and must never come from request/user input or operation IDs.
-- `cancellation.Root.Cancel()` is the explicit cancel-all path. For one operation, locally link `repository.CancellationToken` with the operation token.
+- `CancellationToken` is read-only, `CancelWhen(token)` links a lifetime token, and `CancelChanges` cancels the repository group.
+- `RepositoryCancellationScopeKey` defaults to the concrete repository type, so instances of the same type share cancellation within the current DI scope.
+- Override the key only to select another shared group; never create keys from request or operation data.
+- Use `cancellation.Root.Cancel()` for cancel-all behavior and a local linked source for one operation.
 
 ```csharp
 using var operationSource =

@@ -15,15 +15,14 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### New Features
 
 *   **App Data Roots**: Added `IAppData` and related types for validated temp/data roots, startup temp cleanup, and safe child paths.
-*   **Cancellation Scopes**: Added strongly typed named children through `CancellationScopeKey`. The same key returns one stable, terminal scope, while root cancellation reaches every existing and later-created child.
+*   **Cancellation Scopes**: Added typed child scopes through `CancellationScopeKey`. The same key resolves to the same scope and token, while root cancellation reaches every existing and later-created child.
 
 ### Bug Fixes
 
 *   **AppSettings Nexus Key Validation**: Configured `NexusAppSettings:Keys` entries are now validated before default-key inspection, so null key entries report the intended configuration error instead of a null-reference failure.
 *   **Settings Disposal Idempotency**: Settings now ignore repeated disposal and dispose owned key material once.
-*   **Scoped Cancellation Composition**: Root and child tokens remain stable, repeated token merges are deduplicated, and tokens returned before a merge observe later external or manual cancellation.
-*   **Cancellation And Disposal Coordination**: Cancellation callbacks now run outside scope and parent dictionary locks. Reentrant and repeated disposal safely defer owned registration and child cleanup until active cancellation completes without disposing external token sources.
-*   **Terminal Registration Cleanup**: Terminal cancellation now detaches merged-token registrations immediately instead of retaining external sources and callbacks until parent-scope disposal.
+*   **Scoped Cancellation Composition**: Root and child scopes keep the same token for their lifetime, repeated merges do not duplicate registrations, and existing consumers observe later external or manual cancellation.
+*   **Cancellation Lifecycle**: Reentrant or repeated cancellation and disposal are safe, caller-owned token sources remain untouched, and merged-token resources are released promptly.
 
 ## Version 0.9.5
 

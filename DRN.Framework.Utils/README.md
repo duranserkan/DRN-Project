@@ -208,13 +208,13 @@ public async Task Validate_Dependencies(DrnTestContext context)
 
 ### Scoped Cancellation
 
-`ICancellationUtils` owns one explicit root plus strongly typed named child scopes within the current DI service scope.
+`ICancellationUtils` owns a root and typed child scopes within the current DI service scope.
 
 | Intent | API | Effect |
 |---|---|---|
-| Cancel everything | `cancellation.Root.Cancel()` or `cancellation.Root.Merge(token)` | Manual or merged-token cancellation reaches the root and every existing or later-created child. |
-| Cancel one component or workflow group | `GetOrCreateScope(key).Cancel()` or `.Merge(token)` | Cancels only that named group; the root and unrelated scopes remain active. |
-| Isolate one instance or operation | A caller-owned linked `CancellationTokenSource` | Stops only local work without adding parent-owned scope state. |
+| Cancel all scoped work | `cancellation.Root.Cancel()` or `cancellation.Root.Merge(token)` | Reaches every existing and later-created child. |
+| Cancel a component or workflow | `GetOrCreateScope(key).Cancel()` or `.Merge(token)` | Affects only that group. |
+| Cancel one operation | A local linked `CancellationTokenSource` | Affects only caller-owned work. |
 
 ```csharp
 public sealed class CheckoutWorkflow(ICancellationUtils cancellation)
@@ -227,7 +227,7 @@ public sealed class CheckoutWorkflow(ICancellationUtils cancellation)
         CancellationToken operationToken)
     {
         var scope = cancellation.GetOrCreateScope(ScopeKey);
-        scope.Merge(workflowLifetimeToken); // Intentionally cancels the whole payment group.
+        scope.Merge(workflowLifetimeToken);
 
         using var operationSource =
             CancellationTokenSource.CreateLinkedTokenSource(
@@ -244,11 +244,11 @@ public sealed class CheckoutWorkflow(ICancellationUtils cancellation)
 }
 ```
 
-The same key always returns the same shared child and stable token within the parent DI scope. Different owner types or ordinally different names produce isolated groups. Root and child cancellation are terminal: later keyed lookups return the same canceled scope rather than a reset or replacement.
+The same key returns the same scope and token. Root cancellation reaches every child, while child cancellation does not affect the root or other groups. Canceled scopes cannot be reset.
 
-Use `CancellationScopeKey.For<T>()` or `For<T>(name)` for stable component and workflow groups; `For(Type)` variants are available when the owner type is known only at runtime, and there is no string-only key. Names must be nonblank developer-defined constants of at most 128 characters. Never derive keys from request data, user input, instance IDs, or operation IDs; named scopes are retained until their parent `ICancellationUtils` is disposed. For instance-specific or operation-specific isolation, create and dispose a local linked `CancellationTokenSource`. The parent owns named-child disposal, so callers must not dispose returned scopes.
+Create keys with `CancellationScopeKey.For<T>()` or `For<T>(name)`; use `For(Type)` only when the owner type is known at runtime. Optional names use ordinal, case-sensitive equality and must be nonblank developer-defined constants of at most 128 characters. Do not derive keys from request data, user input, instance IDs, or operation IDs because each scope remains registered until its parent is disposed. `ICancellationUtils` owns returned scopes; callers own and dispose local linked sources.
 
-Bare root members were removed to make cancel-all intent explicit. Migrate root-wide calls from `cancellation.Cancel()`, `Merge(token)`, `Token`, and `IsCancellationRequested` to the corresponding `cancellation.Root` members. Use a typed named child when cancellation must remain below the root, and a caller-owned linked source when cancellation must remain local.
+For root-wide migration, replace `cancellation.Cancel()`, `Merge(token)`, `Token`, and `IsCancellationRequested` with their `cancellation.Root` equivalents.
 
 ### Module Registration & Startup Actions
 

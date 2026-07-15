@@ -21,13 +21,17 @@ Keep the invariant in `.agent/workflows/_shared/workflow-operating-model.md`, `.
 ## 2. Cancellation Aggregators Need Stable Effective Tokens
 
 ### Case
+
 A cancellation utility merged a new external token by replacing its linked `CancellationTokenSource` and disposing the previous source. Repeated merges could unregister earlier external tokens, while tokens already handed to asynchronous operations no longer observed later merges or manual cancellation. Adding named child scopes exposed two more failure modes: one global child coupled unrelated component groups, and normal terminal cancellation retained now-useless external registrations until parent disposal.
 
 ### General Rule
+
 Keep one stable effective token per cancellation scope when requests arrive over time. Use stable typed keys for component or workflow groups, and caller-owned linked token sources for instance-specific or operation-specific isolation. Detach merged registrations as soon as terminal cancellation completes. Mark the parent disposed and snapshot/detach named children under its lock, but cancel and dispose them only after releasing it. If disposal is requested reentrantly from a root callback, defer child and root cleanup until root cancellation completes so downward propagation cannot be unregistered midway.
 
 ### Decision Boundary
+
 This applies to scoped or long-lived cancellation aggregators that support incremental merging, manual cancellation after operations start, or parent-owned named children. Named child scopes are not caller-owned and must never be used as dynamic per-instance or per-operation storage; link local tokens with a caller-owned source instead. A single linked source remains appropriate when every input token is known at construction time, the effective token is never replaced, and the owner disposes the source only after all consumers finish.
 
 ### Source To Update
+
 Keep the invariant in the owning cancellation utility, parent/child and reentrant-disposal concurrency tests, and consumer documentation that distinguishes root, named-group, and local-operation cancellation.

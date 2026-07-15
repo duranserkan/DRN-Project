@@ -177,9 +177,9 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 **Key Behaviors**:
 - `Get(OrDefault)Async` with `Guid` auto-validates ID format and EntityType byte before querying
 - `PaginateAllAsync` returns `IAsyncEnumerable` for efficient large dataset streaming
-- `CancellationToken` exposes the stable repository-group token; `CancelWhen(token)` links a lifetime token explicitly. `CancelChanges` cancels only that named group, not the root or unrelated repository keys.
-- EntityFramework repositories use a non-nullable concrete-type key by default, so same-type instances share one terminal scope within the parent DI scope. Implementations can override `RepositoryCancellationScopeKey` to join a different stable group.
-- Root-wide intent is explicit through `ICancellationUtils.Root`. Link an operation token locally with `repository.CancellationToken` when only one call should stop; never create dynamic named scopes from operation or request IDs.
+- `CancellationToken` exposes the repository-group token, `CancelWhen(token)` links a lifetime token, and `CancelChanges` cancels that group.
+- Group selection is implementation-defined. The default EntityFramework implementation groups repositories by concrete type; see [drn-entityframework](../drn-entityframework/SKILL.md#repository-cancellation).
+- See [drn-utils](../drn-utils/SKILL.md#scoped-cancellation) for root-wide and operation-only cancellation.
 
 ### Pagination
 

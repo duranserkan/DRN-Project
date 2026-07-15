@@ -232,30 +232,28 @@ var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 
 ## Scoped Cancellation
 
-`ICancellationUtils` owns an explicit root plus stable typed named child scopes for the current DI service scope.
+`ICancellationUtils` owns a root and typed child scopes for the current DI service scope.
 
 | Intent | Use | Propagation |
 |---|---|---|
-| Cancel all work | `cancellation.Root.Cancel()` / `cancellation.Root.Merge(token)` | Downward to every existing and later-created child. |
-| Cancel a component/workflow group | Named child `.Cancel()` / `.Merge(token)` | Target group only; never upward or sideways. |
-| Isolate an instance or call | Locally link the group token with the instance or operation token. | Only caller-owned local work stops. |
+| Cancel all work | `cancellation.Root.Cancel()` / `.Merge(token)` | Every existing and later-created child. |
+| Cancel a component/workflow | Child `.Cancel()` / `.Merge(token)` | That group only. |
+| Cancel one operation | Local linked token source | Caller-owned work only. |
 
 ```csharp
 private static readonly CancellationScopeKey ScopeKey =
     CancellationScopeKey.For<PaymentWorkflow>("capture");
 
 var scope = cancellation.GetOrCreateScope(ScopeKey);
-scope.Merge(workflowLifetimeToken); // Intentionally cancels the whole group.
-
-using var operationSource =
-    CancellationTokenSource.CreateLinkedTokenSource(
-        scope.Token,
-        operationToken);
+scope.Merge(workflowLifetimeToken);
 ```
 
-The same key returns the same stable, terminal scope and token within the parent DI scope; different owner types or ordinally different names are isolated. Use `For<T>()` / `For<T>(name)` for stable component and workflow groups. `For(Type)` variants exist for runtime types, but there is no string-only key. Names are nonblank developer-defined constants of at most 128 characters, never request/user input, instance IDs, or operation IDs. Use a caller-owned local linked source for instance-specific or operation-specific isolation. `ICancellationUtils` owns named-child disposal; `ICancellationScope` is not disposable.
+- The same key returns the same scope and token; canceled scopes cannot be reset.
+- Optional names use ordinal, case-sensitive equality and must be developer-defined constants of at most 128 characters. Never use request data, user input, instance IDs, or operation IDs.
+- `ICancellationUtils` owns child scopes. Callers own and dispose local linked sources used for operation-only cancellation.
+- Replace removed root members with their `cancellation.Root` equivalents.
 
-Root-wide migration is explicit: replace bare `cancellation.Cancel()`, `Merge(token)`, `Token`, and `IsCancellationRequested` calls with their `cancellation.Root` equivalents. Use a typed named child when cancel-all is not intended and a caller-owned linked source when cancellation must remain local.
+See the package [Scoped Cancellation](../../../DRN.Framework.Utils/README.md#scoped-cancellation) guide for the complete API and migration example.
 
 ---
 

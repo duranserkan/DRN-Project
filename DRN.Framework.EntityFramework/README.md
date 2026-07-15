@@ -296,31 +296,19 @@ public class UserRepository(QAContext context, IEntityUtils utils)
 
 Repository operations use a child scope, not the cancellation root:
 
-- `CancellationToken` is read-only and exposes the stable repository-group token. `CancelWhen(token)` explicitly links a lifetime token to that group.
-- `CancelChanges` cancels the repository's named group. By default, that reaches same-concrete-type repository instances in the current DI scope; it never cancels `ICancellationUtils.Root` or unrelated keys.
-- `cancellation.Root.Cancel()` remains the explicit cancel-all operation and reaches every repository child.
-- `RepositoryCancellationScopeKey` is non-nullable and defaults to the concrete repository type, so same-type instances share one scope within the parent DI scope.
-- Repository scopes are terminal. A canceled instance remains canceled; an explicitly shared key returns the same canceled scope.
+- `CancellationToken` is read-only, and `CancelWhen(token)` links a lifetime token to the repository group.
+- `CancelChanges` cancels repositories sharing that group. By default, this means instances of the same concrete repository type in the current DI scope.
+- `cancellation.Root.Cancel()` cancels every repository group in the scope.
+- A canceled repository group cannot be reset.
 
-Concrete repositories can override the protected virtual `RepositoryCancellationScopeKey` when they must join a different intentional cancellation group:
+`RepositoryCancellationScopeKey` defaults to the concrete repository type. Override it only when a repository must join another shared group:
 
 ```csharp
 protected override CancellationScopeKey RepositoryCancellationScopeKey =>
     CancellationScopeKey.For<UserRepository>("shared-writes");
 ```
 
-Names are ordinal, developer-defined constants limited to 128 characters. Never derive them from request/user input or operation IDs because the parent cancellation utility retains named scopes for its lifetime.
-
-For one-operation cancellation, link the repository token locally:
-
-```csharp
-using var operationSource =
-    CancellationTokenSource.CreateLinkedTokenSource(
-        repository.CancellationToken,
-        operationToken);
-
-await ExecuteQueryAsync(operationSource.Token);
-```
+Optional key names are case-sensitive developer-defined constants limited to 128 characters. Never derive them from request data, user input, instance IDs, or operation IDs. For operation-only cancellation, link the operation token locally instead of adding it to the repository group. See [Scoped Cancellation](../DRN.Framework.Utils/README.md#scoped-cancellation) for key and lifetime rules.
 
 ### RepositorySettings
 

@@ -9,7 +9,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
-*   **Repository Cancellation Scopes**: Each concrete repository type now receives one stable, terminal named child within the parent DI scope. Same-type instances share cancellation by default; override the non-nullable protected virtual `RepositoryCancellationScopeKey` only when a repository must join a different intentional group.
+*   **Repository Cancellation Scopes**: The default repository implementation groups cancellation by concrete repository type within the current DI scope. Instances of the same type cancel together; override the non-nullable protected virtual `RepositoryCancellationScopeKey` to select another shared group.
 
 ### Bug Fixes
 
