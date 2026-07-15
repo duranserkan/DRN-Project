@@ -6,6 +6,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **NexusKey BLAKE3 Derivation**: `NexusKey` now derives both `MacKey` and `EncryptionKey` from decoded 32-byte key material through BLAKE3 derive-key mode with distinct DRN Framework context strings. This replaces the previous custom hash-chain derivation and changes generated secure IDs; existing IDs may require migration, regeneration, or an explicit compatibility strategy.
 
+### Bug Fixes
+
+*   **Repository Query Correctness**: `SourceKnownRepository.CountAsync` now preserves its 64-bit contract with `LongCountAsync`, and generated queries retain both repository and caller SQL tags.
+
 ## Version 0.9.5
 
 ### Breaking Changes

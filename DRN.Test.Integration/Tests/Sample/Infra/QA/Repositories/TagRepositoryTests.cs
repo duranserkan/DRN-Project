@@ -1,6 +1,9 @@
+using DRN.Framework.EntityFramework.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
+using DRN.Framework.Utils.Entity;
 using DRN.Test.Integration.Tests.Sample.Infra.QA.Repositories.Data;
+using Microsoft.EntityFrameworkCore;
 using Sample.Domain.QA.Categories;
 using Sample.Domain.QA.Tags;
 using Sample.Infra;
@@ -17,6 +20,7 @@ public class TagRepositoryTests
         context.ServiceCollection.AddSampleInfraServices();
         await context.ContainerContext.Postgres.Isolated.ApplyMigrationsAsync();
         var repository = context.GetRequiredService<ITagRepository>();
+        AssertSqlQueryTags(context);
 
         var tagPrefix = $"{nameof(TagRepository_Should_Implement_SourceKnownRepository_Functionalities)}_{Guid.NewGuid():N}";
         var (firstTag, secondTag, thirdTag) = TagGenerator.GetTags(tagPrefix);
@@ -315,5 +319,24 @@ public class TagRepositoryTests
 
         var entry3 = qaContext3.ChangeTracker.Entries<Tag>().ToArray();
         entry3.Length.Should().Be(0);
+    }
+
+    private static void AssertSqlQueryTags(DrnTestContext context)
+    {
+        using var scope = context.CreateScope();
+        var repository = new QueryTagRepository(
+            scope.ServiceProvider.GetRequiredService<QAContext>(),
+            scope.ServiceProvider.GetRequiredService<IEntityUtils>());
+
+        var sql = repository.GetTaggedQueryString();
+
+        sql.Should().Contain(typeof(QueryTagRepository).FullName!);
+        sql.Should().Contain(nameof(QueryTagRepository.GetTaggedQueryString));
+    }
+
+    private sealed class QueryTagRepository(QAContext context, IEntityUtils utils)
+        : SourceKnownRepository<QAContext, Tag>(context, utils)
+    {
+        public string GetTaggedQueryString() => EntitiesWithAppliedSettings().ToQueryString();
     }
 }

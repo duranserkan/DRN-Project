@@ -51,7 +51,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     {
         var repositoryType = GetType();
         var entities = Entities.TagWith(repositoryType.FullName ?? repositoryType.Name);
-        if (caller != null) entities.TagWith(caller);
+        if (caller != null) entities = entities.TagWith(caller);
 
         foreach (var filter in Settings.Filters)
             entities = entities.Where(filter.Value);
@@ -108,8 +108,8 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     {
         using var _ = ScopedLog.Measure(this);
         var count = predicate == null
-            ? await EntitiesWithAppliedSettings().CountAsync(CancellationToken)
-            : await EntitiesWithAppliedSettings().CountAsync(predicate, CancellationToken);
+            ? await EntitiesWithAppliedSettings().LongCountAsync(CancellationToken)
+            : await EntitiesWithAppliedSettings().LongCountAsync(predicate, CancellationToken);
 
         return count;
     }
