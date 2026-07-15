@@ -20,7 +20,7 @@
 - **Configuration** — `IAppSettings` with typed access, `[Config("Section")]` bindings
 - **App data roots** — `IAppData` resolves temp/data paths with traversal-safe child paths
 - **Scoped Logging** — `IScopedLog` aggregates structured logs per request
-- **Scoped Cancellation** — Scoped `ICancellationUtils` for request lifecycle control
+- **Scoped Cancellation** — Explicit root cancel-all plus stable typed named groups
 - **Validators** — Reusable payload validators such as `JpegValidator`
 - **Monotonic Pagination** — Cursor-based pagination leveraging entity ID temporal ordering
 - **Bit Packing** — High-performance `NumberBuilder` for custom data structures
@@ -208,24 +208,43 @@ public async Task Validate_Dependencies(DrnTestContext context)
 
 ### Scoped Cancellation
 
-Manage request-scoped cancellation tokens using `ICancellationUtils`. It supports merging tokens from multiple sources, such as `HttpContext.RequestAborted` and application-level timeouts.
+`ICancellationUtils` owns a root and typed child scopes within the current DI service scope.
+
+| Intent | API | Effect |
+|---|---|---|
+| Cancel all scoped work | `cancellation.Root.Cancel()` or `cancellation.Root.Merge(token)` | Reaches every existing and later-created child. |
+| Cancel a component or workflow | `GetOrCreateScope(key).Cancel()` or `.Merge(token)` | Affects only that group. |
+| Cancel one operation | A local linked `CancellationTokenSource` | Affects only caller-owned work. |
 
 ```csharp
-public class MyScopedService(ICancellationUtils cancellation)
+public sealed class CheckoutWorkflow(ICancellationUtils cancellation)
 {
-    public async Task DoWorkAsync(CancellationToken externalToken)
+    private static readonly CancellationScopeKey ScopeKey =
+        CancellationScopeKey.For<CheckoutWorkflow>("payment");
+
+    public async Task RunAsync(
+        CancellationToken workflowLifetimeToken,
+        CancellationToken operationToken)
     {
-        // Automatically merges with the scoped token
-        cancellation.Merge(externalToken);
-        
-        // Use the unified token
-        await SomeAsyncOp(cancellation.Token);
-        
-        if (cancellation.IsCancellationRequested)
-            return;
+        var scope = cancellation.GetOrCreateScope(ScopeKey);
+
+        using var operationSource = CancellationTokenSource
+            .CreateLinkedTokenSource(scope.Token, workflowLifetimeToken, operationToken);
+
+        await SomeAsyncOp(operationSource.Token);
     }
+
+    public void CancelWorkflow() => cancellation.GetOrCreateScope(ScopeKey).Cancel();
+
+    public void CancelEverything() => cancellation.Root.Cancel();
 }
 ```
+
+The same key returns the same scope and token. Root cancellation reaches every child, while child cancellation does not affect the root or other groups. Canceled scopes cannot be reset.
+
+Create keys with `CancellationScopeKey.For<T>()` or `For<T>(name)`; use `For(Type)` only when the owner type is known at runtime. Optional names use ordinal, case-sensitive equality and must be nonblank developer-defined constants of at most 128 characters. Do not derive keys from request data, user input, instance IDs, or operation IDs because each scope remains registered until its parent is disposed. `ICancellationUtils` owns returned scopes; callers own and dispose local linked sources.
+
+For root-wide migration, replace `cancellation.Cancel()`, `Merge(token)`, `Token`, and `IsCancellationRequested` with their `cancellation.Root` equivalents.
 
 ### Module Registration & Startup Actions
 

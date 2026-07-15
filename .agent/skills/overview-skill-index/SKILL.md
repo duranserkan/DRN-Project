@@ -1,7 +1,7 @@
 ---
 name: overview-skill-index
 description: Use when choosing which repository skills to load for a task, mapping work to skill families, finding related skills, or updating skill routing after skills change.
-last-updated: 2026-07-09
+last-updated: 2026-07-15
 difficulty: basic
 tokens: ~1.8K
 ---
@@ -119,6 +119,7 @@ Use these terms only when the repository profile declares the matching framework
 |---------|-------------------|
 | aggregate / entity / source-known / source-known-id / entity-type | `drn-domain-design`, `drn-sharedkernel` |
 | repository / pagination / dto | `drn-domain-design`, `drn-sharedkernel`, `drn-entityframework` |
+| cancellation / cancellation-scope / repository-cancellation | `drn-utils`, `drn-sharedkernel`, `drn-entityframework` |
 | ef-core / migration / prototype-mode | `drn-entityframework`, `drn-testing`, `test-integration-db` |
 | testcontainers / postgres / rabbitmq | `drn-testing`, `test-integration-db` |
 | frontend / vite / buildwww | `drn-buildwww-vite`, `drn-buildwww-packages` |

@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
-description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts, pagination, JSON conventions, app constants, and shared casing/path extensions. Keywords: entity, aggregate-root, domain-event, repository, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
-last-updated: 2026-07-07
+description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts and cancellation semantics, pagination, JSON conventions, app constants, and shared extensions. Keywords: entity, aggregate-root, domain-event, repository, repository-cancellation, cancellation, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
+last-updated: 2026-07-15
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -128,8 +128,8 @@ var plainId = entity.ToPlain(entityId);  // or sourceKnownEntityIdUtils.ToPlain(
 public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 {
     RepositorySettings<TEntity> Settings { get; set; }
-    CancellationToken CancellationToken { get; set; }
-    void MergeCancellationTokens(CancellationToken other);
+    CancellationToken CancellationToken { get; }
+    void CancelWhen(CancellationToken token);
     void CancelChanges();
     Task<int> SaveChangesAsync();
     
@@ -177,7 +177,9 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 **Key Behaviors**:
 - `Get(OrDefault)Async` with `Guid` auto-validates ID format and EntityType byte before querying
 - `PaginateAllAsync` returns `IAsyncEnumerable` for efficient large dataset streaming
-- `CancellationToken` supports merging via `MergeCancellationTokens`
+- `CancellationToken` exposes the repository-group token, `CancelWhen(token)` links a lifetime token, and `CancelChanges` cancels that group.
+- Group selection is implementation-defined. The default EntityFramework implementation groups repositories by concrete type; see [drn-entityframework](../drn-entityframework/SKILL.md#repository-cancellation).
+- See [drn-utils](../drn-utils/SKILL.md#scoped-cancellation) for root-wide and operation-only cancellation.
 
 ### Pagination
 

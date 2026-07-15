@@ -1,6 +1,10 @@
+using DRN.Framework.EntityFramework.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
+using DRN.Framework.Utils.Cancellation;
+using DRN.Framework.Utils.Entity;
 using DRN.Test.Integration.Tests.Sample.Infra.QA.Repositories.Data;
+using Microsoft.EntityFrameworkCore;
 using Sample.Domain.QA.Categories;
 using Sample.Domain.QA.Tags;
 using Sample.Infra;
@@ -17,6 +21,7 @@ public class TagRepositoryTests
         context.ServiceCollection.AddSampleInfraServices();
         await context.ContainerContext.Postgres.Isolated.ApplyMigrationsAsync();
         var repository = context.GetRequiredService<ITagRepository>();
+        AssertSqlQueryTags(context);
 
         var tagPrefix = $"{nameof(TagRepository_Should_Implement_SourceKnownRepository_Functionalities)}_{Guid.NewGuid():N}";
         var (firstTag, secondTag, thirdTag) = TagGenerator.GetTags(tagPrefix);
@@ -93,6 +98,7 @@ public class TagRepositoryTests
         resetSizeResult.Info.Total.Count.Should().Be(secondPageResult.Info.Total.Count);
 
         await AssertRepositorySettings(context, tagPrefix);
+        await AssertCancellation(context);
     }
 
 
@@ -315,5 +321,150 @@ public class TagRepositoryTests
 
         var entry3 = qaContext3.ChangeTracker.Entries<Tag>().ToArray();
         entry3.Length.Should().Be(0);
+    }
+
+    private static void AssertSqlQueryTags(DrnTestContext context)
+    {
+        using var scope = context.CreateScope();
+        var repository = new QueryTagRepository(
+            scope.ServiceProvider.GetRequiredService<QAContext>(),
+            scope.ServiceProvider.GetRequiredService<IEntityUtils>());
+
+        var sql = repository.GetTaggedQueryString();
+
+        sql.Should().Contain(typeof(QueryTagRepository).FullName!);
+        sql.Should().Contain(nameof(QueryTagRepository.GetTaggedQueryString));
+    }
+
+    private sealed class QueryTagRepository(QAContext context, IEntityUtils utils)
+        : SourceKnownRepository<QAContext, Tag>(context, utils)
+    {
+        public string GetTaggedQueryString() => EntitiesWithAppliedSettings().ToQueryString();
+    }
+
+    private sealed class AlternateQueryTagRepository(QAContext context, IEntityUtils utils)
+        : SourceKnownRepository<QAContext, Tag>(context, utils)
+    {
+        internal static readonly CancellationScopeKey ScopeKey = CancellationScopeKey.For<AlternateQueryTagRepository>("alternate");
+
+        protected override CancellationScopeKey RepositoryCancellationScopeKey => ScopeKey;
+    }
+
+    private static async Task AssertCancellation(DrnTestContext context)
+    {
+        await AssertRepositoryTokenComposition(context, cancelFirstToken: true);
+        await AssertRepositoryTokenComposition(context, cancelFirstToken: false);
+        await AssertCancelChangesIsolation(context);
+        await AssertRootCancellation(context);
+        await AssertRepositoryScopeSharingAndKeyIsolation(context);
+        AssertParentServiceScopeIsolation(context);
+    }
+
+    private static async Task AssertRepositoryTokenComposition(DrnTestContext context, bool cancelFirstToken)
+    {
+        using var scope = context.CreateScope();
+        using var firstSource = new CancellationTokenSource();
+        using var secondSource = new CancellationTokenSource();
+        var cancellation = scope.ServiceProvider.GetRequiredService<ICancellationUtils>();
+        var repository = scope.ServiceProvider.GetRequiredService<ITagRepository>();
+        var stableToken = repository.CancellationToken;
+
+        cancellation.Root.Token.Should().NotBe(stableToken);
+
+        repository.CancelWhen(firstSource.Token);
+        repository.CancellationToken.Should().Be(stableToken);
+        repository.CancelWhen(secondSource.Token);
+        repository.CancellationToken.Should().Be(stableToken);
+
+        if (cancelFirstToken)
+            firstSource.Cancel();
+        else
+            secondSource.Cancel();
+
+        stableToken.IsCancellationRequested.Should().BeTrue();
+        cancellation.Root.IsCancellationRequested.Should().BeFalse();
+        await AssertQueryCancellation(repository, stableToken);
+    }
+
+    private static async Task AssertCancelChangesIsolation(DrnTestContext context)
+    {
+        using var scope = context.CreateScope();
+        var cancellation = scope.ServiceProvider.GetRequiredService<ICancellationUtils>();
+        var repository = scope.ServiceProvider.GetRequiredService<ITagRepository>();
+        var unrelatedScope = cancellation.GetOrCreateScope(CancellationScopeKey.For<TagRepositoryTests>("unrelated-repository"));
+        var effectiveToken = repository.CancellationToken;
+
+        repository.CancelChanges();
+
+        effectiveToken.IsCancellationRequested.Should().BeTrue();
+        cancellation.Root.IsCancellationRequested.Should().BeFalse();
+        unrelatedScope.IsCancellationRequested.Should().BeFalse();
+        await AssertQueryCancellation(repository, effectiveToken);
+    }
+
+    private static async Task AssertRootCancellation(DrnTestContext context)
+    {
+        using var scope = context.CreateScope();
+        var cancellation = scope.ServiceProvider.GetRequiredService<ICancellationUtils>();
+        var repository = scope.ServiceProvider.GetRequiredService<ITagRepository>();
+        var effectiveToken = repository.CancellationToken;
+
+        cancellation.Root.Cancel();
+
+        cancellation.Root.IsCancellationRequested.Should().BeTrue();
+        await AssertQueryCancellation(repository, effectiveToken);
+    }
+
+    private static async Task AssertRepositoryScopeSharingAndKeyIsolation(DrnTestContext context)
+    {
+        using var scope = context.CreateScope();
+        var cancellation = scope.ServiceProvider.GetRequiredService<ICancellationUtils>();
+        var qaContext = scope.ServiceProvider.GetRequiredService<QAContext>();
+        var entityUtils = scope.ServiceProvider.GetRequiredService<IEntityUtils>();
+        var firstRepository = new QueryTagRepository(qaContext, entityUtils);
+        var secondRepository = new QueryTagRepository(qaContext, entityUtils);
+        var alternateRepository = new AlternateQueryTagRepository(qaContext, entityUtils);
+        var firstToken = firstRepository.CancellationToken;
+        var secondToken = secondRepository.CancellationToken;
+        var alternateToken = alternateRepository.CancellationToken;
+
+        secondToken.Should().Be(firstToken);
+        alternateToken.Should().NotBe(firstToken);
+        cancellation.GetOrCreateScope(CancellationScopeKey.For<QueryTagRepository>()).Token.Should().Be(firstToken);
+        cancellation.GetOrCreateScope(AlternateQueryTagRepository.ScopeKey).Token.Should().Be(alternateToken);
+
+        firstRepository.CancelChanges();
+
+        firstToken.IsCancellationRequested.Should().BeTrue();
+        secondToken.IsCancellationRequested.Should().BeTrue();
+        alternateToken.IsCancellationRequested.Should().BeFalse();
+        cancellation.Root.IsCancellationRequested.Should().BeFalse();
+        await AssertQueryCancellation(secondRepository, secondToken);
+    }
+
+    private static void AssertParentServiceScopeIsolation(DrnTestContext context)
+    {
+        using (var canceledScope = context.CreateScope())
+        {
+            var canceledRepository = canceledScope.ServiceProvider.GetRequiredService<ITagRepository>();
+            canceledRepository.CancelChanges();
+            canceledRepository.CancellationToken.IsCancellationRequested.Should().BeTrue();
+        }
+
+        using var activeScope = context.CreateScope();
+        var activeCancellation = activeScope.ServiceProvider.GetRequiredService<ICancellationUtils>();
+        var activeRepository = activeScope.ServiceProvider.GetRequiredService<ITagRepository>();
+
+        activeCancellation.Root.IsCancellationRequested.Should().BeFalse();
+        activeRepository.CancellationToken.IsCancellationRequested.Should().BeFalse();
+    }
+
+    private static async Task AssertQueryCancellation(ISourceKnownRepository<Tag> repository, CancellationToken effectiveToken)
+    {
+        repository.CancellationToken.Should().Be(effectiveToken);
+        effectiveToken.IsCancellationRequested.Should().BeTrue();
+
+        var query = async () => await repository.AnyAsync();
+        await query.Should().ThrowAsync<OperationCanceledException>();
     }
 }

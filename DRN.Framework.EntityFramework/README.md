@@ -287,10 +287,28 @@ public class UserRepository(QAContext context, IEntityUtils utils)
 **IEntityUtils provides:**
 - **Id**: Identity generation and validation utilities
 - **EntityId**: GUID ↔ SourceKnownEntityId conversion (including `ToSecure` / `ToPlain`)
-- **Cancellation**: Token management and merging
+- **Cancellation**: Explicit root cancel-all plus isolated repository scopes and opt-in shared groups
 - **Pagination**: Pagination logic helpers
 - **DateTime**: Time-aware operations
 - **ScopedLog**: Integrated performance logging
+
+### Repository Cancellation
+
+Repository operations use a child scope, not the cancellation root:
+
+- `CancellationToken` is read-only, and `CancelWhen(token)` links a lifetime token to the repository group.
+- `CancelChanges` cancels repositories sharing that group. By default, this means instances of the same concrete repository type in the current DI scope.
+- `cancellation.Root.Cancel()` cancels every repository group in the scope.
+- A canceled repository group cannot be reset.
+
+`RepositoryCancellationScopeKey` defaults to the concrete repository type. Override it only when a repository must join another shared group:
+
+```csharp
+protected override CancellationScopeKey RepositoryCancellationScopeKey =>
+    CancellationScopeKey.For<UserRepository>("shared-writes");
+```
+
+Optional key names are case-sensitive developer-defined constants limited to 128 characters. Never derive them from request data, user input, instance IDs, or operation IDs. For operation-only cancellation, link the operation token locally instead of adding it to the repository group. See [Scoped Cancellation](../DRN.Framework.Utils/README.md#scoped-cancellation) for key and lifetime rules.
 
 ### RepositorySettings
 

@@ -10,15 +10,19 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Legacy Nexus Key Configuration**: `AppSettings` now rejects legacy `NexusAppSettings:MacKeys` configuration before Development key auto-generation, preventing old key material from being silently ignored. Migrate `MacKeys[*].Key` to `Keys[*].KeyMaterial` and move matching `Format` and `Default` values to `Keys[*].Format` and `Keys[*].Default`.
 *   **Casing And Path Extension Relocation**: Casing and safe path helpers moved from Utils to `DRN.Framework.SharedKernel.Extensions`.
 *   **Settings Classes Sealed**: `AppSettings`, `NexusAppSettings`, and `NexusKey` are now sealed.
+*   **Explicit Cancellation Root**: Removed the bare `ICancellationUtils.Token`, `IsCancellationRequested`, `Merge`, and `Cancel` members. Migrate root-wide calls to `cancellation.Root.Token`, `cancellation.Root.IsCancellationRequested`, `cancellation.Root.Merge(token)`, and `cancellation.Root.Cancel()`. Use `GetOrCreateScope(key)` for component or workflow groups and a caller-owned linked token source for instance-specific or operation-specific isolation.
 
 ### New Features
 
 *   **App Data Roots**: Added `IAppData` and related types for validated temp/data roots, startup temp cleanup, and safe child paths.
+*   **Cancellation Scopes**: Added typed child scopes through `CancellationScopeKey`. The same key resolves to the same scope and token, while root cancellation reaches every existing and later-created child.
 
 ### Bug Fixes
 
 *   **AppSettings Nexus Key Validation**: Configured `NexusAppSettings:Keys` entries are now validated before default-key inspection, so null key entries report the intended configuration error instead of a null-reference failure.
 *   **Settings Disposal Idempotency**: Settings now ignore repeated disposal and dispose owned key material once.
+*   **Scoped Cancellation Composition**: Root and child scopes keep the same token for their lifetime, repeated merges do not duplicate registrations, and existing consumers observe later external or manual cancellation.
+*   **Cancellation Lifecycle**: Reentrant or repeated cancellation and disposal are safe, caller-owned token sources remain untouched, and merged-token resources are released promptly.
 
 ## Version 0.9.5
 

@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
-description: "DRN.Framework.EntityFramework - DrnContext base class, automatic migration application, entity lifecycle tracking, NpgsqlDbContextOptions for database configuration, and repository implementations. Essential for database operations, migrations, and data persistence. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
-last-updated: 2026-06-12
+description: "DRN.Framework.EntityFramework - DrnContext, migrations, entity lifecycle tracking, Npgsql configuration, repositories, and named repository cancellation scopes. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, repository-cancellation, cancellation-scope, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
+last-updated: 2026-07-15
 difficulty: advanced
 tokens: ~2.5K
 ---
@@ -224,6 +224,22 @@ public class RepositorySettings<TEntity>
 ```
 
 > Override `EntitiesWithAppliedSettings` in custom repositories for global includes/filters. See [drn-domain-design](../drn-domain-design/SKILL.md) for examples.
+
+### Repository Cancellation
+
+Repository operations resolve a child cancellation scope instead of using the root:
+
+- `CancellationToken` is read-only, `CancelWhen(token)` links a lifetime token, and `CancelChanges` cancels the repository group.
+- `RepositoryCancellationScopeKey` defaults to the concrete repository type, so instances of the same type share cancellation within the current DI scope.
+- Override the key only to select another shared group; never create keys from request or operation data.
+- Use `cancellation.Root.Cancel()` for cancel-all behavior and a local linked source for one operation.
+
+```csharp
+using var operationSource =
+    CancellationTokenSource.CreateLinkedTokenSource(
+        repository.CancellationToken,
+        operationToken);
+```
 
 ---
 

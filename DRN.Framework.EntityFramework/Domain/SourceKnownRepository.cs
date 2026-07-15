@@ -5,6 +5,7 @@ using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
+using DRN.Framework.Utils.Cancellation;
 using DRN.Framework.Utils.Entity;
 using DRN.Framework.Utils.Logging;
 using Microsoft.EntityFrameworkCore;
@@ -27,11 +28,39 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     private static readonly string GetCountKey = $"Count.{nameof(GetAsync)}.{typeof(TEntity).Name}";
     private static readonly string CreateCountKey = $"Count.{nameof(CreateAsync)}.{typeof(TEntity).Name}";
     private static readonly string DeleteCountKey = $"Count.{nameof(DeleteAsync)}.{typeof(TEntity).Name}";
+    private readonly Lock _repositoryCancellationScopeLock = new();
+    private ICancellationScope? _repositoryCancellationScope;
 
     protected TContext Context { get; } = context;
     protected DbSet<TEntity> Entities { get; } = context.GetEntities<TEntity>();
     protected IEntityUtils Utils { get; } = utils;
     protected IScopedLog ScopedLog { get; } = utils.ScopedLog;
+
+    /// <summary>Gets the stable key used to share this repository's cancellation scope.</summary>
+    /// <remarks>
+    /// The default key is owned by the concrete repository type, so instances of the same type share cancellation within the parent
+    /// dependency-injection scope. Override with another stable key only when the repository must join a different intentional group.
+    /// </remarks>
+    protected virtual CancellationScopeKey RepositoryCancellationScopeKey => CancellationScopeKey.For(GetType());
+
+    private ICancellationScope RepositoryCancellationScope
+    {
+        get
+        {
+            var scope = Volatile.Read(ref _repositoryCancellationScope);
+            if (scope is not null) return scope;
+
+            lock (_repositoryCancellationScopeLock)
+            {
+                scope = _repositoryCancellationScope;
+                if (scope is not null) return scope;
+
+                scope = Utils.Cancellation.GetOrCreateScope(RepositoryCancellationScopeKey);
+                Volatile.Write(ref _repositoryCancellationScope, scope);
+                return scope;
+            }
+        }
+    }
 
     /// <summary>
     /// Settings for default public members of SourceKnownRepositories
@@ -51,7 +80,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     {
         var repositoryType = GetType();
         var entities = Entities.TagWith(repositoryType.FullName ?? repositoryType.Name);
-        if (caller != null) entities.TagWith(caller);
+        if (caller != null) entities = entities.TagWith(caller);
 
         foreach (var filter in Settings.Filters)
             entities = entities.Where(filter.Value);
@@ -59,18 +88,14 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return entities;
     }
 
-    public CancellationToken CancellationToken
-    {
-        get => field == CancellationToken.None ? Utils.Cancellation.Token : field;
-        set;
-    } = CancellationToken.None;
+    public CancellationToken CancellationToken => RepositoryCancellationScope.Token;
 
-    public void MergeCancellationTokens(CancellationToken other) => Utils.Cancellation.Merge(other);
+    public void CancelWhen(CancellationToken token) => RepositoryCancellationScope.Merge(token);
 
     public void CancelChanges()
     {
         using var _ = ScopedLog.Measure(this);
-        Utils.Cancellation.Cancel();
+        RepositoryCancellationScope.Cancel();
     }
 
     /// <summary>
@@ -108,8 +133,8 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     {
         using var _ = ScopedLog.Measure(this);
         var count = predicate == null
-            ? await EntitiesWithAppliedSettings().CountAsync(CancellationToken)
-            : await EntitiesWithAppliedSettings().CountAsync(predicate, CancellationToken);
+            ? await EntitiesWithAppliedSettings().LongCountAsync(CancellationToken)
+            : await EntitiesWithAppliedSettings().LongCountAsync(predicate, CancellationToken);
 
         return count;
     }

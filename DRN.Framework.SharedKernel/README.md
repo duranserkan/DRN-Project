@@ -307,15 +307,18 @@ public readonly record struct SourceKnownEntityId(
 - **Standardized Access**: Common CRUD operations (`CreateAsync`, `GetAsync`, `DeleteAsync`).
 - **Identity Conversion**: Specialized methods for mapping external `Guid` to internal `SourceKnownEntityId`.
 - **Secure ↔ Plain Conversion**: `ToSecure` / `ToPlain` for converting between encrypted and plaintext entity IDs.
-- **Cancellation**: Native support for `CancellationToken` merging and propagation.
+- **Cancellation**: `CancellationToken` exposes the repository-group token, `CancelWhen(token)` links a lifetime token, and `CancelChanges` cancels that group.
 - **Streaming**: Supports `IAsyncEnumerable` for efficient large dataset processing.
+
+
+Repository contract excerpt:
 
 ```csharp
 public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 {
     RepositorySettings<TEntity> Settings { get; set; }
-    CancellationToken CancellationToken { get; set; }
-    void MergeCancellationTokens(CancellationToken other);
+    CancellationToken CancellationToken { get; }
+    void CancelWhen(CancellationToken token);
     void CancelChanges();
     Task<int> SaveChangesAsync();
 
