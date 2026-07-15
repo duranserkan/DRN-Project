@@ -1,3 +1,5 @@
+using DRN.Framework.Utils.Data.App;
+
 namespace DRN.Test.Unit.Tests.Framework.Testing.Contexts;
 
 public class DrnTestContextTempPathTests
@@ -33,6 +35,17 @@ public class DrnTestContextTempPathTests
 
         paths.Should().OnlyContain(path => path == paths[0]);
         Directory.Exists(paths[0]).Should().BeTrue();
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void DrnTestContextUnit_Should_Preserve_Temp_Path_When_AppData_Initializes(DrnTestContextUnit context)
+    {
+        var tempPath = context.GetTempPath();
+
+        _ = new AppData(new DrnAppDataSettings());
+
+        Directory.Exists(tempPath).Should().BeTrue();
     }
 
     [Fact]

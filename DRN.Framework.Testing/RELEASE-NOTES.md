@@ -8,6 +8,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Unit Test Temp Isolation**: `DrnTestContextUnit` now enables the DRN test-environment flag during construction, preventing `IAppData` initialization in parallel unit tests from recreating the shared temp root and deleting active method-scoped directories.
 *   **Temporary Path Disposal Protection**: `MethodContext.GetTempPath` now throws `ObjectDisposedException` if called after context disposal, preventing the leakage of temporary folders recreated after disposal.
 *   **FlurlHttpTest Internal Lazy Access**: Exposed `FlurlHttpTestLazy` internally to prevent brittle reflection on private members during test validation.
 *   **Robust Disposal Cleanup**: `DrnTestContext` and `DrnTestContextUnit` now aggregate cleanup exceptions, remain idempotent after disposal failures, and continue temporary folder cleanup even when other owned resources fail to dispose.
