@@ -307,15 +307,30 @@ public readonly record struct SourceKnownEntityId(
 - **Standardized Access**: Common CRUD operations (`CreateAsync`, `GetAsync`, `DeleteAsync`).
 - **Identity Conversion**: Specialized methods for mapping external `Guid` to internal `SourceKnownEntityId`.
 - **Secure ↔ Plain Conversion**: `ToSecure` / `ToPlain` for converting between encrypted and plaintext entity IDs.
-- **Cancellation**: Native support for `CancellationToken` merging and propagation.
+- **Cancellation**: `CancellationToken` exposes the stable repository-group token. `CancelWhen(token)` links a lifetime token explicitly, while `CancelChanges` cancels only that named group without canceling the root or unrelated repository keys.
 - **Streaming**: Supports `IAsyncEnumerable` for efficient large dataset processing.
+
+The default EntityFramework implementation creates one named child scope per concrete repository type within the parent DI scope. Same-type instances share cancellation. Implementations can join a different intentional group by overriding the non-nullable `RepositoryCancellationScopeKey`. A root-wide cancel remains explicit through the injected utility: `cancellation.Root.Cancel()`.
+
+For one-operation cancellation, link locally instead of creating a dynamic named scope:
+
+```csharp
+using var operationSource =
+    CancellationTokenSource.CreateLinkedTokenSource(
+        repository.CancellationToken,
+        operationToken);
+
+await ExecuteAsync(operationSource.Token);
+```
+
+Repository contract excerpt:
 
 ```csharp
 public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 {
     RepositorySettings<TEntity> Settings { get; set; }
-    CancellationToken CancellationToken { get; set; }
-    void MergeCancellationTokens(CancellationToken other);
+    CancellationToken CancellationToken { get; }
+    void CancelWhen(CancellationToken token);
     void CancelChanges();
     Task<int> SaveChangesAsync();
 

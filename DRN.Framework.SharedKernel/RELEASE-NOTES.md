@@ -13,6 +13,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Breaking Changes
 
 *   **AppConstants TempPath Ownership**: `AppConstants.TempPath` resolves only the temp root. Use `IAppData` for directory creation, cleanup, and child paths.
+*   **Repository Cancellation API**: `ISourceKnownRepository<TEntity>.CancellationToken` is now read-only and `MergeCancellationTokens` was replaced by `CancelWhen(token)` for explicit repository-lifetime linkage. Repository implementations share cancellation by concrete repository type within the parent DI scope and remain isolated from the root and unrelated repository keys.
 
 ## Version 0.9.5
 

@@ -18,9 +18,33 @@ public interface ISourceKnownRepository<TEntity>
     /// </summary>
     RepositorySettings<TEntity> Settings { get; set; }
 
-    //todo test cancellation
-    CancellationToken CancellationToken { get; set; }
-    void MergeCancellationTokens(CancellationToken other);
+    /// <summary>
+    /// Gets the stable token for this repository's named cancellation group.
+    /// </summary>
+    /// <remarks>
+    /// The framework repository implementation creates one named scope per concrete repository type by default, so same-type instances share
+    /// cancellation within the parent dependency-injection scope. Cancellation remains isolated from the root cancel-all scope and unrelated
+    /// repository keys unless the root is canceled. Once cancellation is requested, the repository scope remains canceled for its lifetime.
+    /// For one operation only, link the repository token locally:
+    /// <code>
+    /// using var operationSource = CancellationTokenSource.CreateLinkedTokenSource(
+    ///     repository.CancellationToken,
+    ///     operationToken);
+    /// </code>
+    /// </remarks>
+    CancellationToken CancellationToken { get; }
+
+    /// <summary>Requests cancellation of this repository scope when <paramref name="token"/> is canceled.</summary>
+    /// <remarks>
+    /// Cancellation propagates to repositories explicitly sharing the group, but not to the root cancel-all scope or unrelated repositories.
+    /// Link operation-only tokens locally instead of merging them.
+    /// </remarks>
+    void CancelWhen(CancellationToken token);
+
+    /// <summary>Cancels operations using this repository's cancellation scope.</summary>
+    /// <remarks>
+    /// This affects other repositories only when they explicitly share the same key. It does not cancel the root or unrelated repositories.
+    /// </remarks>
     void CancelChanges();
 
     Task<int> SaveChangesAsync();

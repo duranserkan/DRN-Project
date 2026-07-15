@@ -1,7 +1,7 @@
 ---
 name: drn-utils
-description: "DRN.Framework.Utils - Attribute-based dependency injection ([Scoped<T>], [Singleton<T>], [Transient<T>], [HostedService], [Config]), IAppSettings configuration, app data roots, logging, validators, extension methods, and core utilities. Keywords: dependency-injection, di, service-registration, configuration, appsettings, appdata, logging, scoped-log, validators, attributes, scoped, singleton, transient, config, extensions, http-client"
-last-updated: 2026-07-07
+description: "DRN.Framework.Utils - Attribute-based dependency injection, IAppSettings configuration, app data roots, logging, scoped cancellation, validators, extension methods, and core utilities. Keywords: dependency-injection, di, service-registration, configuration, appsettings, appdata, logging, scoped-log, cancellation, cancellation-scope, validators, attributes, scoped, singleton, transient, config, extensions, http-client"
+last-updated: 2026-07-15
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -14,6 +14,7 @@ tokens: ~2.5K
 - Setting up dependency injection with attributes
 - Accessing configuration via IAppSettings
 - Using or extending logging (IScopedLog)
+- Coordinating explicit root or named scoped cancellation
 - Working with DRN extension methods
 - Understanding service registration patterns
 
@@ -229,6 +230,35 @@ var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 
 ---
 
+## Scoped Cancellation
+
+`ICancellationUtils` owns an explicit root plus stable typed named child scopes for the current DI service scope.
+
+| Intent | Use | Propagation |
+|---|---|---|
+| Cancel all work | `cancellation.Root.Cancel()` / `cancellation.Root.Merge(token)` | Downward to every existing and later-created child. |
+| Cancel a component/workflow group | Named child `.Cancel()` / `.Merge(token)` | Target group only; never upward or sideways. |
+| Isolate an instance or call | Locally link the group token with the instance or operation token. | Only caller-owned local work stops. |
+
+```csharp
+private static readonly CancellationScopeKey ScopeKey =
+    CancellationScopeKey.For<PaymentWorkflow>("capture");
+
+var scope = cancellation.GetOrCreateScope(ScopeKey);
+scope.Merge(workflowLifetimeToken); // Intentionally cancels the whole group.
+
+using var operationSource =
+    CancellationTokenSource.CreateLinkedTokenSource(
+        scope.Token,
+        operationToken);
+```
+
+The same key returns the same stable, terminal scope and token within the parent DI scope; different owner types or ordinally different names are isolated. Use `For<T>()` / `For<T>(name)` for stable component and workflow groups. `For(Type)` variants exist for runtime types, but there is no string-only key. Names are nonblank developer-defined constants of at most 128 characters, never request/user input, instance IDs, or operation IDs. Use a caller-owned local linked source for instance-specific or operation-specific isolation. `ICancellationUtils` owns named-child disposal; `ICancellationScope` is not disposable.
+
+Root-wide migration is explicit: replace bare `cancellation.Cancel()`, `Merge(token)`, `Token`, and `IsCancellationRequested` calls with their `cancellation.Root` equivalents. Use a typed named child when cancel-all is not intended and a caller-owned linked source when cancellation must remain local.
+
+---
+
 ## Concurrency (`LockUtils`)
 
 Lock-free atomic operations via `Interlocked`:
@@ -264,7 +294,7 @@ if (scope.Acquired) { /* critical section */ }
 | **Validators** | `JpegValidator`, `JpegValidationResult`, `JpegValidationErrorReason` | Structural, stream-based, size-bounded JPEG validation with typed error reasons |
 | **App data** | `IAppData`, `AppDataPathResult`, `DrnAppDataSettings` | Validated temp/data roots with traversal-safe child path resolution |
 | **Pagination** | `IPaginationUtils` | Cursor-based via `SourceKnownEntityId` |
-| **Cancellation** | `ICancellationUtils` | Merge tokens from multiple sources |
+| **Cancellation** | `ICancellationUtils`, `ICancellationScope`, `CancellationScopeKey` | Explicit root, stable typed named groups, and caller-owned local links |
 | **Diagnostics** | `DevelopmentStatus` | Track pending DB model changes at startup |
 
 ### Bit Packing (`NumberBuilder` / `NumberParser`)

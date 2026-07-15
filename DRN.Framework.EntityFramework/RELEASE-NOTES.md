@@ -5,6 +5,11 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Breaking Changes
 
 *   **NexusKey BLAKE3 Derivation**: `NexusKey` now derives both `MacKey` and `EncryptionKey` from decoded 32-byte key material through BLAKE3 derive-key mode with distinct DRN Framework context strings. This replaces the previous custom hash-chain derivation and changes generated secure IDs; existing IDs may require migration, regeneration, or an explicit compatibility strategy.
+*   **Repository Cancellation API**: `SourceKnownRepository.CancellationToken` is now read-only and `MergeCancellationTokens` was replaced by the explicit `CancelWhen(token)` lifetime-linking method. `CancelChanges` no longer cancels `ICancellationUtils.Root`; callers that relied on cancel-all behavior must migrate to `cancellation.Root.Cancel()` or `cancellation.Root.Merge(token)`.
+
+### New Features
+
+*   **Repository Cancellation Scopes**: Each concrete repository type now receives one stable, terminal named child within the parent DI scope. Same-type instances share cancellation by default; override the non-nullable protected virtual `RepositoryCancellationScopeKey` only when a repository must join a different intentional group.
 
 ### Bug Fixes
 

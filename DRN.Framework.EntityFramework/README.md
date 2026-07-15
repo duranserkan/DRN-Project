@@ -287,10 +287,40 @@ public class UserRepository(QAContext context, IEntityUtils utils)
 **IEntityUtils provides:**
 - **Id**: Identity generation and validation utilities
 - **EntityId**: GUID ↔ SourceKnownEntityId conversion (including `ToSecure` / `ToPlain`)
-- **Cancellation**: Token management and merging
+- **Cancellation**: Explicit root cancel-all plus isolated repository scopes and opt-in shared groups
 - **Pagination**: Pagination logic helpers
 - **DateTime**: Time-aware operations
 - **ScopedLog**: Integrated performance logging
+
+### Repository Cancellation
+
+Repository operations use a child scope, not the cancellation root:
+
+- `CancellationToken` is read-only and exposes the stable repository-group token. `CancelWhen(token)` explicitly links a lifetime token to that group.
+- `CancelChanges` cancels the repository's named group. By default, that reaches same-concrete-type repository instances in the current DI scope; it never cancels `ICancellationUtils.Root` or unrelated keys.
+- `cancellation.Root.Cancel()` remains the explicit cancel-all operation and reaches every repository child.
+- `RepositoryCancellationScopeKey` is non-nullable and defaults to the concrete repository type, so same-type instances share one scope within the parent DI scope.
+- Repository scopes are terminal. A canceled instance remains canceled; an explicitly shared key returns the same canceled scope.
+
+Concrete repositories can override the protected virtual `RepositoryCancellationScopeKey` when they must join a different intentional cancellation group:
+
+```csharp
+protected override CancellationScopeKey RepositoryCancellationScopeKey =>
+    CancellationScopeKey.For<UserRepository>("shared-writes");
+```
+
+Names are ordinal, developer-defined constants limited to 128 characters. Never derive them from request/user input or operation IDs because the parent cancellation utility retains named scopes for its lifetime.
+
+For one-operation cancellation, link the repository token locally:
+
+```csharp
+using var operationSource =
+    CancellationTokenSource.CreateLinkedTokenSource(
+        repository.CancellationToken,
+        operationToken);
+
+await ExecuteQueryAsync(operationSource.Token);
+```
 
 ### RepositorySettings
 

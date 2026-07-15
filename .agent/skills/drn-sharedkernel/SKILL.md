@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
-description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts, pagination, JSON conventions, app constants, and shared casing/path extensions. Keywords: entity, aggregate-root, domain-event, repository, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
-last-updated: 2026-07-07
+description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts and cancellation semantics, pagination, JSON conventions, app constants, and shared extensions. Keywords: entity, aggregate-root, domain-event, repository, repository-cancellation, cancellation, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
+last-updated: 2026-07-15
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -128,8 +128,8 @@ var plainId = entity.ToPlain(entityId);  // or sourceKnownEntityIdUtils.ToPlain(
 public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 {
     RepositorySettings<TEntity> Settings { get; set; }
-    CancellationToken CancellationToken { get; set; }
-    void MergeCancellationTokens(CancellationToken other);
+    CancellationToken CancellationToken { get; }
+    void CancelWhen(CancellationToken token);
     void CancelChanges();
     Task<int> SaveChangesAsync();
     
@@ -177,7 +177,9 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 **Key Behaviors**:
 - `Get(OrDefault)Async` with `Guid` auto-validates ID format and EntityType byte before querying
 - `PaginateAllAsync` returns `IAsyncEnumerable` for efficient large dataset streaming
-- `CancellationToken` supports merging via `MergeCancellationTokens`
+- `CancellationToken` exposes the stable repository-group token; `CancelWhen(token)` links a lifetime token explicitly. `CancelChanges` cancels only that named group, not the root or unrelated repository keys.
+- EntityFramework repositories use a non-nullable concrete-type key by default, so same-type instances share one terminal scope within the parent DI scope. Implementations can override `RepositoryCancellationScopeKey` to join a different stable group.
+- Root-wide intent is explicit through `ICancellationUtils.Root`. Link an operation token locally with `repository.CancellationToken` when only one call should stop; never create dynamic named scopes from operation or request IDs.
 
 ### Pagination
 

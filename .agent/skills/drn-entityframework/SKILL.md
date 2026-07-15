@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
-description: "DRN.Framework.EntityFramework - DrnContext base class, automatic migration application, entity lifecycle tracking, NpgsqlDbContextOptions for database configuration, and repository implementations. Essential for database operations, migrations, and data persistence. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
-last-updated: 2026-06-12
+description: "DRN.Framework.EntityFramework - DrnContext, migrations, entity lifecycle tracking, Npgsql configuration, repositories, and named repository cancellation scopes. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, repository-cancellation, cancellation-scope, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
+last-updated: 2026-07-15
 difficulty: advanced
 tokens: ~2.5K
 ---
@@ -224,6 +224,22 @@ public class RepositorySettings<TEntity>
 ```
 
 > Override `EntitiesWithAppliedSettings` in custom repositories for global includes/filters. See [drn-domain-design](../drn-domain-design/SKILL.md) for examples.
+
+### Repository Cancellation
+
+Repository operations resolve a child cancellation scope instead of using the root:
+
+- `CancellationToken` is read-only and exposes the stable repository-group token; `CancelWhen(token)` explicitly links a lifetime token. `CancelChanges` cancels that named group.
+- The protected virtual `RepositoryCancellationScopeKey` is non-nullable and defaults to the concrete repository type, so same-type instances share a terminal scope within the parent DI scope.
+- Override `RepositoryCancellationScopeKey` with another stable developer-constant typed key only when a repository must join a different intentional group. Names are ordinal, limited to 128 characters, and must never come from request/user input or operation IDs.
+- `cancellation.Root.Cancel()` is the explicit cancel-all path. For one operation, locally link `repository.CancellationToken` with the operation token.
+
+```csharp
+using var operationSource =
+    CancellationTokenSource.CreateLinkedTokenSource(
+        repository.CancellationToken,
+        operationToken);
+```
 
 ---
 
