@@ -227,18 +227,14 @@ public sealed class CheckoutWorkflow(ICancellationUtils cancellation)
         CancellationToken operationToken)
     {
         var scope = cancellation.GetOrCreateScope(ScopeKey);
-        scope.Merge(workflowLifetimeToken);
 
-        using var operationSource =
-            CancellationTokenSource.CreateLinkedTokenSource(
-                scope.Token,
-                operationToken);
+        using var operationSource = CancellationTokenSource
+            .CreateLinkedTokenSource(scope.Token, workflowLifetimeToken, operationToken);
 
         await SomeAsyncOp(operationSource.Token);
     }
 
-    public void CancelWorkflow() =>
-        cancellation.GetOrCreateScope(ScopeKey).Cancel();
+    public void CancelWorkflow() => cancellation.GetOrCreateScope(ScopeKey).Cancel();
 
     public void CancelEverything() => cancellation.Root.Cancel();
 }
