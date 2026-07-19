@@ -301,14 +301,16 @@ Repository operations use a child scope, not the cancellation root:
 - `cancellation.Root.Cancel()` cancels every repository group in the scope.
 - A canceled repository group cannot be reset.
 
-`RepositoryCancellationScopeKey` defaults to the concrete repository type. Override it only when a repository must join another shared group:
+`RepositoryCancellationScopeKey` defaults to the concrete repository type. Override it only when a repository must join another stable, type-owned group:
 
 ```csharp
 protected override CancellationScopeKey RepositoryCancellationScopeKey =>
     CancellationScopeKey.For<UserRepository>("shared-writes");
 ```
 
-Optional key names are case-sensitive developer-defined constants limited to 128 characters. Never derive them from request data, user input, instance IDs, or operation IDs. For operation-only cancellation, link the operation token locally instead of adding it to the repository group. See [Scoped Cancellation](../DRN.Framework.Utils/README.md#scoped-cancellation) for key and lifetime rules.
+Names are optional, case-sensitive developer-defined constants limited to 128 characters. Use one only when a type owns multiple intentional groups.
+
+Never derive keys from request data, user input, instance IDs, or operation IDs. For operation-only cancellation, link the operation token locally instead of adding it to the repository group. See [Scoped Cancellation](../DRN.Framework.Utils/README.md#scoped-cancellation) for key and lifetime rules.
 
 ### RepositorySettings
 

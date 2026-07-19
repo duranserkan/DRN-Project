@@ -28,9 +28,6 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     private static readonly string GetCountKey = $"Count.{nameof(GetAsync)}.{typeof(TEntity).Name}";
     private static readonly string CreateCountKey = $"Count.{nameof(CreateAsync)}.{typeof(TEntity).Name}";
     private static readonly string DeleteCountKey = $"Count.{nameof(DeleteAsync)}.{typeof(TEntity).Name}";
-    private readonly Lock _repositoryCancellationScopeLock = new();
-    private ICancellationScope? _repositoryCancellationScope;
-
     protected TContext Context { get; } = context;
     protected DbSet<TEntity> Entities { get; } = context.GetEntities<TEntity>();
     protected IEntityUtils Utils { get; } = utils;
@@ -38,29 +35,14 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     /// <summary>Gets the stable key used to share this repository's cancellation scope.</summary>
     /// <remarks>
-    /// The default key is owned by the concrete repository type, so instances of the same type share cancellation within the parent
-    /// dependency-injection scope. Override with another stable key only when the repository must join a different intentional group.
+    /// The default key uses the concrete repository type, so instances of the same type share cancellation within the parent
+    /// dependency-injection scope. Override only to join another stable intentional group.
     /// </remarks>
-    protected virtual CancellationScopeKey RepositoryCancellationScopeKey => CancellationScopeKey.For(GetType());
+    protected virtual CancellationScopeKey RepositoryCancellationScopeKey =>
+        CancellationScopeKey.For(GetType());
 
-    private ICancellationScope RepositoryCancellationScope
-    {
-        get
-        {
-            var scope = Volatile.Read(ref _repositoryCancellationScope);
-            if (scope is not null) return scope;
-
-            lock (_repositoryCancellationScopeLock)
-            {
-                scope = _repositoryCancellationScope;
-                if (scope is not null) return scope;
-
-                scope = Utils.Cancellation.GetOrCreateScope(RepositoryCancellationScopeKey);
-                Volatile.Write(ref _repositoryCancellationScope, scope);
-                return scope;
-            }
-        }
-    }
+    private ICancellationScope RepositoryCancellationScope =>
+        Utils.Cancellation.GetOrCreateScope(RepositoryCancellationScopeKey);
 
     /// <summary>
     /// Settings for default public members of SourceKnownRepositories

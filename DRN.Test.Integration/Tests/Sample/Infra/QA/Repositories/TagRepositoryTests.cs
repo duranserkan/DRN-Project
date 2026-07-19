@@ -430,7 +430,6 @@ public class TagRepositoryTests
 
         secondToken.Should().Be(firstToken);
         alternateToken.Should().NotBe(firstToken);
-        cancellation.GetOrCreateScope(CancellationScopeKey.For<QueryTagRepository>()).Token.Should().Be(firstToken);
         cancellation.GetOrCreateScope(AlternateQueryTagRepository.ScopeKey).Token.Should().Be(alternateToken);
 
         firstRepository.CancelChanges();

@@ -1,5 +1,11 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.7
+
+### Changed
+
+*   **Repository Cancellation Guidance**: Package guidance now describes the concrete repository type default, intentional group overrides, and operation-local cancellation.
+
 ## Version 0.9.6
 
 ### Breaking Changes
