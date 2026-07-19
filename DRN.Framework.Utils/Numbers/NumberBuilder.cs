@@ -30,7 +30,7 @@ public ref struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<
 
     private int _currentBitOffset;
     private ulong _unsignedValue = ulong.MinValue;
-    private long _signedValue = long.MinValue;
+    private long _signedValue;
 
     internal NumberBuilder(NumberBuildDirection direction, byte bitLength, byte residueBitLength, bool signed)
     {
@@ -38,6 +38,7 @@ public ref struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<
         _signed = signed;
         _residueBitLength = residueBitLength;
         _bitLength = bitLength;
+        _signedValue = signed ? 1L << (bitLength - 1) : 0;
 
         if (_signed)
         {
@@ -110,7 +111,7 @@ public ref struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<
     public void Reset()
     {
         _unsignedValue = ulong.MinValue;
-        _signedValue = long.MinValue;
+        _signedValue = _signed ? 1L << (_bitLength - 1) : 0;
         _currentBitOffset = 0;
         _residue = 0;
         _signBit = true;
