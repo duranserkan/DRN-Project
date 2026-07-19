@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,13 +12,22 @@ public static class ServiceCollectionExtensions
     private static readonly ConcurrentDictionary<string, DrnServiceContainer> ContainerDictionary = new();
 
     /// <summary>
-    /// This method scans implementations with LifetimeAttributes and adds them to the service collection
-    /// Method needs to be called from assembly to scan or caller method should provide assembly to override default
+    /// Scans implementations with LifetimeAttributes in the calling assembly and adds them to the service collection.
     /// </summary>
-    public static DrnServiceContainer AddServicesWithAttributes(this IServiceCollection sc, Assembly? assembly = null)
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static DrnServiceContainer AddServicesWithAttributes(this IServiceCollection sc)
     {
-        if (Assembly.GetCallingAssembly() != typeof(AppSettings).Assembly) sc.AddDrnUtils();
-        assembly ??= Assembly.GetCallingAssembly();
+        return sc.AddServicesWithAttributes(Assembly.GetCallingAssembly());
+    }
+
+    /// <summary>
+    /// Scans implementations with LifetimeAttributes in the specified assembly and adds them to the service collection.
+    /// </summary>
+    public static DrnServiceContainer AddServicesWithAttributes(this IServiceCollection sc, Assembly assembly)
+    {
+        ArgumentNullException.ThrowIfNull(assembly);
+
+        if (assembly != typeof(AppSettings).Assembly) sc.AddDrnUtils();
 
         var container = CreateDrnServiceContainer(assembly);
         container.AddServices(sc);

@@ -8,6 +8,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
+*   **JIT-Safe Assembly Scanning**: Split `AddServicesWithAttributes` into a parameterless convenience overload (protected against JIT compiler inlining with `[MethodImpl(MethodImplOptions.NoInlining)]`) and an explicit `Assembly` overload. This prevents tail-call or inlining optimizations from unexpectedly altering assembly scanning results.
 *   **Scoped Cancellation Guidance**: Package guidance now distinguishes type-owned shared groups from caller-owned operation cancellation and documents type-only keys with optional names.
 
 ## Version 0.9.6
