@@ -20,7 +20,7 @@
 - **Configuration** — `IAppSettings` with typed access, `[Config("Section")]` bindings
 - **App data roots** — `IAppData` resolves temp/data paths with traversal-safe child paths
 - **Scoped Logging** — `IScopedLog` aggregates structured logs per request
-- **Scoped Cancellation** — Explicit root cancel-all plus stable type-owned groups
+- **Scoped Cancellation** — Explicit root cancel-all plus stable keyed groups with optional type ownership
 - **Validators** — Reusable payload validators such as `JpegValidator`
 - **Monotonic Pagination** — Cursor-based pagination leveraging entity ID temporal ordering
 - **Bit Packing** — High-performance `NumberBuilder` for custom data structures
@@ -242,9 +242,11 @@ public sealed class CheckoutWorkflow(ICancellationUtils cancellation)
 
 The same key returns the same scope and token. Root cancellation reaches every child, while child cancellation does not affect the root or other groups. Canceled scopes cannot be reset.
 
-Every key requires an owning type. Use `CancellationScopeKey.For<T>()` for a compile-time type or `For(Type)` for a runtime type. Add a name with `For<T>(name)` or `For(Type, name)` only when one type owns multiple intentional groups.
+Keys can be type-owned or ownerless. Prefer `CancellationScopeKey.For<T>()` for a compile-time type or `For(Type)` for a runtime type. Add a name with `For<T>(name)` or `For(Type, name)` when one type owns multiple intentional groups. Use `CancellationScopeKey.For(name)` only when different types intentionally share one group.
 
-Names use ordinal, case-sensitive equality and must be nonblank developer-defined constants of at most 128 characters. Keys are opaque and factory-created; the default value is invalid.
+Names use ordinal, case-sensitive equality and must be non-null developer-defined constants of at most 128 characters (empty string and whitespace are permitted). Keys are opaque and factory-created; the default value is invalid.
+
+Ownerless keys share one ordinal-name namespace within the current `ICancellationUtils` service scope. Although empty and whitespace names are valid, prefer qualified, centrally defined names such as `"MyPackage.CheckoutShutdown"`, because unrelated callers using the same ownerless name receive the same scope and can cancel each other's work.
 
 Do not derive keys from request data, user input, instance IDs, or operation IDs because these values represent individual work rather than shared component or workflow lifetimes. `ICancellationUtils` owns returned scopes; callers own and dispose local linked sources.
 

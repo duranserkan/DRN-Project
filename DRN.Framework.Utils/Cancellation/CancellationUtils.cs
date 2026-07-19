@@ -18,7 +18,7 @@ public interface ICancellationUtils : IDisposable
     ICancellationScope Root { get; }
 
     /// <summary>Gets the stable, terminal child scope associated with <paramref name="key"/>.</summary>
-    /// <param name="key">A valid type-owned key defined by the cancellation group.</param>
+    /// <param name="key">A valid key with a non-null name and an optional owner type.</param>
     /// <returns>The one shared child scope associated with <paramref name="key"/> in this parent service scope.</returns>
     /// <exception cref="ArgumentException"><paramref name="key"/> is the invalid default value.</exception>
     /// <exception cref="ObjectDisposedException">This utility has been disposed.</exception>

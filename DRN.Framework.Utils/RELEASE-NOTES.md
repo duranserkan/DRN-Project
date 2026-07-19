@@ -10,6 +10,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **HTTP Response Ownership**: `HttpResponse<TResult>` is now sealed and implements `IDisposable`. Disposing it also disposes an `IDisposable` payload.
 *   **Scope Data Authentication Separation**: `ScopeData` no longer stores role checks or parses claim strings. Its `Roles`, `IsRoleExists`, `SetParameterAsRole`, `SetParameterAsFlag`, and string-parsing `SetParameter` members were removed. Use `IScopedUser.IsInRole` / `ScopeContext.IsUserInRole` for roles, `IScopedUser.GetClaimParameter<TValue>` / `ScopeContext.GetClaimParameter<TValue>` for claims, and the typed `ScopeData.SetFlag` / `SetParameter` methods for caller-owned ambient values.
 
+### New Features
+
+*   **Ownerless Named Cancellation Keys**: Support creating named cancellation keys without an owner type via `CancellationScopeKey.For(name)` for intentional cross-type groups. Ownerless keys share one ordinal-name namespace within the current cancellation service scope, so qualified, centrally defined names are recommended. Empty and whitespace names are valid, but the key name must not be null.
+
 ### Changed
 
 *   **Inspectable HTTP Call Results**: Added HTTP status-class inspection and non-throwing `TryToStringAsync`, `TryToBytesAsync`, `TryToStreamAsync`, and `TryFromJsonAsync<T>` converters. Try results distinguish redirects, client errors, server errors, transport/timeouts, response-read failures, and JSON deserialization failures while preserving cancellation and response ownership semantics. `ThrowIfFailure()` rethrows captured processing failures with their original stack after inspection without treating HTTP error statuses as exceptions. Raw diagnostic exception messages and exception objects are excluded from System.Text.Json serialization.

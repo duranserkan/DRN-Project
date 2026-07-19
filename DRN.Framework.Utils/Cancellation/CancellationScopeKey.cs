@@ -1,55 +1,63 @@
 namespace DRN.Framework.Utils.Cancellation;
 
-/// <summary>Identifies one child cancellation scope by its owning type and an optional ordinal name.</summary>
+/// <summary>Identifies one child cancellation scope by a non-null ordinal name and an optional owning type.</summary>
 /// <remarks>
-/// Names are developer-defined constants for intentionally distinct groups owned by the same type. They must not come from request,
-/// user, instance, or operation identifiers. The default value is invalid.
+/// Names are non-null developer-defined constants; empty and whitespace names are permitted. They must not come from request, user,
+/// instance, or operation identifiers. Ownerless keys share one ordinal-name namespace within an <c>ICancellationUtils</c> service
+/// scope, so use them only for intentional cross-type groups and qualify their names to prevent accidental collisions. The default
+/// value is invalid.
 /// </remarks>
 public readonly struct CancellationScopeKey : IEquatable<CancellationScopeKey>
 {
     private const int MaxNameLength = 128;
     private readonly Type? _ownerType;
-    private readonly string? _name;
+    private readonly string _name;
 
-    private CancellationScopeKey(Type ownerType, string? name)
+    private CancellationScopeKey(Type? ownerType, string name)
     {
         _ownerType = ownerType;
         _name = name;
     }
 
-    /// <summary>Creates a type-only key owned by <typeparamref name="TScope"/>.</summary>
+    /// <summary>Creates an ownerless key for an intentional cross-type group with the specified ordinal name.</summary>
+    /// <param name="name">A non-null developer-defined constant of at most 128 characters, preferably qualified to avoid collisions.</param>
+    /// <returns>A valid ownerless key.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is longer than 128 characters.</exception>
+    public static CancellationScopeKey For(string name) => For(null, name);
+
+    /// <summary>Creates an empty-name key owned by <typeparamref name="TScope"/>.</summary>
     /// <typeparam name="TScope">The component or workflow type that owns the group.</typeparam>
-    /// <returns>A valid type-only key.</returns>
+    /// <returns>A valid type-owned key.</returns>
     public static CancellationScopeKey For<TScope>() => For(typeof(TScope));
 
     /// <summary>Creates a named key owned by <typeparamref name="TScope"/>.</summary>
     /// <typeparam name="TScope">The component or workflow type that owns the group.</typeparam>
-    /// <param name="name">A nonblank developer-defined constant of at most 128 characters.</param>
+    /// <param name="name">A non-null developer-defined constant of at most 128 characters.</param>
     /// <returns>A valid named key.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="name"/> is blank or longer than 128 characters.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is longer than 128 characters.</exception>
     public static CancellationScopeKey For<TScope>(string name) => For(typeof(TScope), name);
 
-    /// <summary>Creates a type-only key owned by <paramref name="ownerType"/>.</summary>
+    /// <summary>Creates an empty-name key owned by <paramref name="ownerType"/>.</summary>
     /// <param name="ownerType">The component or workflow type that owns the group.</param>
-    /// <returns>A valid type-only key.</returns>
+    /// <returns>A valid type-owned key.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="ownerType"/> is <see langword="null"/>.</exception>
     public static CancellationScopeKey For(Type ownerType)
     {
         ArgumentNullException.ThrowIfNull(ownerType);
-        return new CancellationScopeKey(ownerType, null);
+        return new CancellationScopeKey(ownerType, string.Empty);
     }
 
     /// <summary>Creates a named key owned by <paramref name="ownerType"/>.</summary>
-    /// <param name="ownerType">The component or workflow type that owns the group.</param>
-    /// <param name="name">A nonblank developer-defined constant of at most 128 characters.</param>
+    /// <param name="ownerType">The component or workflow type that owns the group, or <see langword="null"/>.</param>
+    /// <param name="name">A developer-defined constant of at most 128 characters.</param>
     /// <returns>A valid named key.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="ownerType"/> or <paramref name="name"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="name"/> is blank or longer than 128 characters.</exception>
-    public static CancellationScopeKey For(Type ownerType, string name)
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is longer than 128 characters.</exception>
+    public static CancellationScopeKey For(Type? ownerType, string name)
     {
-        ArgumentNullException.ThrowIfNull(ownerType);
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(name);
         return name.Length > MaxNameLength
             ? throw new ArgumentException($"Cancellation scope names cannot exceed {MaxNameLength} characters.", nameof(name))
             : new CancellationScopeKey(ownerType, name);
@@ -79,7 +87,7 @@ public readonly struct CancellationScopeKey : IEquatable<CancellationScopeKey>
 
     internal void Validate(string parameterName)
     {
-        if (_ownerType is null)
+        if (_name is null)
             throw new ArgumentException("The default cancellation scope key is invalid.", parameterName);
     }
 }

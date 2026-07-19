@@ -127,6 +127,30 @@ public class CancellationUtilsTests
     }
 
     [Fact]
+    public void Ownerless_Keys_Should_Share_By_Name_And_Remain_Isolated_From_Other_Keys()
+    {
+        const string sharedName = "DRN.Tests.SharedWorkflow";
+        const string otherName = "DRN.Tests.OtherWorkflow";
+        using var cancellation = new CancellationUtils();
+        var first = cancellation.GetOrCreateScope(CancellationScopeKey.For(sharedName));
+        var sameName = cancellation.GetOrCreateScope(CancellationScopeKey.For(sharedName));
+        var differentName = cancellation.GetOrCreateScope(CancellationScopeKey.For(otherName));
+        var typeOwnedSameName = cancellation.GetOrCreateScope(
+            CancellationScopeKey.For<FirstScope>(sharedName));
+
+        sameName.Should().BeSameAs(first);
+        differentName.Should().NotBeSameAs(first);
+        typeOwnedSameName.Should().NotBeSameAs(first);
+
+        first.Cancel();
+
+        sameName.IsCancellationRequested.Should().BeTrue();
+        differentName.IsCancellationRequested.Should().BeFalse();
+        typeOwnedSameName.IsCancellationRequested.Should().BeFalse();
+        cancellation.Root.IsCancellationRequested.Should().BeFalse();
+    }
+
+    [Fact]
     public void Child_Merge_Should_Cancel_Only_That_Child()
     {
         using var cancellation = new CancellationUtils();
@@ -453,7 +477,7 @@ public class CancellationUtilsTests
     }
 
     [Fact]
-    public void CancellationScopeKey_Factories_Should_Use_Required_Owner_Type_And_Optional_Ordinal_Name()
+    public void CancellationScopeKey_Factories_Should_Use_Owner_Type_And_Ordinal_Name_Identity()
     {
         var genericOwner = CancellationScopeKey.For<FirstScope>();
         var runtimeOwner = CancellationScopeKey.For(typeof(FirstScope));
@@ -472,21 +496,40 @@ public class CancellationUtilsTests
     }
 
     [Fact]
-    public void CancellationScopeKey_Factories_Should_Reject_Null_Owner_And_Invalid_Names()
+    public void CancellationScopeKey_Factories_Should_Reject_Null_Owner_And_Null_Names()
     {
         Action nullOwner = () => CancellationScopeKey.For((Type)null!);
-        Action nullOwnerWithName = () => CancellationScopeKey.For((Type)null!, "operation-group");
-
         nullOwner.Should().ThrowExactly<ArgumentNullException>();
-        nullOwnerWithName.Should().ThrowExactly<ArgumentNullException>();
 
-        foreach (var invalidName in new string?[] { null, string.Empty, "   " })
+        Action nullNameGeneric = () => CancellationScopeKey.For<FirstScope>(null!);
+        Action nullNameRuntime = () => CancellationScopeKey.For(typeof(FirstScope), null!);
+        Action nullNameOwnerless = () => CancellationScopeKey.For((string)null!);
+
+        nullNameGeneric.Should().ThrowExactly<ArgumentNullException>();
+        nullNameRuntime.Should().ThrowExactly<ArgumentNullException>();
+        nullNameOwnerless.Should().ThrowExactly<ArgumentNullException>();
+
+        var nullOwnerWithName = CancellationScopeKey.For((Type)null!, "operation-group");
+        var ownerlessKey = CancellationScopeKey.For("operation-group");
+        nullOwnerWithName.Should().Be(ownerlessKey);
+    }
+
+    [Fact]
+    public void CancellationScopeKey_Factories_Should_Accept_Empty_And_Whitespace_Names()
+    {
+        foreach (var name in new[] { string.Empty, "   " })
         {
-            Action genericFactory = () => CancellationScopeKey.For<FirstScope>(invalidName!);
-            Action runtimeFactory = () => CancellationScopeKey.For(typeof(FirstScope), invalidName!);
+            var generic = CancellationScopeKey.For<FirstScope>(name);
+            var runtime = CancellationScopeKey.For(typeof(FirstScope), name);
+            var ownerless = CancellationScopeKey.For(name);
 
-            genericFactory.Should().Throw<ArgumentException>();
-            runtimeFactory.Should().Throw<ArgumentException>();
+            Action validateGeneric = () => generic.Validate("key");
+            Action validateRuntime = () => runtime.Validate("key");
+            Action validateOwnerless = () => ownerless.Validate("key");
+
+            validateGeneric.Should().NotThrow();
+            validateRuntime.Should().NotThrow();
+            validateOwnerless.Should().NotThrow();
         }
     }
 
@@ -497,13 +540,17 @@ public class CancellationUtilsTests
         var oversizedName = new string('a', 129);
         Action genericMaximum = () => CancellationScopeKey.For<FirstScope>(maximumName);
         Action runtimeMaximum = () => CancellationScopeKey.For(typeof(FirstScope), maximumName);
+        Action ownerlessMaximum = () => CancellationScopeKey.For(maximumName);
         Action genericOversized = () => CancellationScopeKey.For<FirstScope>(oversizedName);
         Action runtimeOversized = () => CancellationScopeKey.For(typeof(FirstScope), oversizedName);
+        Action ownerlessOversized = () => CancellationScopeKey.For(oversizedName);
 
         genericMaximum.Should().NotThrow();
         runtimeMaximum.Should().NotThrow();
+        ownerlessMaximum.Should().NotThrow();
         genericOversized.Should().Throw<ArgumentException>();
         runtimeOversized.Should().Throw<ArgumentException>();
+        ownerlessOversized.Should().Throw<ArgumentException>();
     }
 
     [Fact]

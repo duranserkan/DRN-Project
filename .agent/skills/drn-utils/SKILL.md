@@ -14,7 +14,7 @@ tokens: ~2.5K
 - Setting up dependency injection with attributes
 - Accessing configuration via IAppSettings
 - Using or extending logging (IScopedLog)
-- Coordinating explicit root or type-owned scoped cancellation
+- Coordinating explicit root or keyed scoped cancellation with optional type ownership
 - Working with DRN extension methods
 - Understanding service registration patterns
 
@@ -258,8 +258,9 @@ scope.Merge(workflowLifetimeToken);
 ```
 
 - The same key returns the same scope and token; canceled scopes cannot be reset.
-- Every key requires an owning type. Use `For<T>()` or `For(Type)` for one group per type. Use `For<T>(name)` or `For(Type, name)` only when that type owns multiple intentional groups.
-- Names use ordinal, case-sensitive equality and must be developer-defined constants of at most 128 characters. Never use request data, user input, instance IDs, or operation IDs to create groups.
+- Every key requires a non-null name and may have an owning type. Prefer `For<T>()` or `For(Type)` for an empty-name group owned by one type. Use `For<T>(name)` or `For(Type, name)` when that type owns multiple intentional groups, and `For(name)` only when different types intentionally share one ownerless group.
+- Names use ordinal, case-sensitive equality and must be developer-defined constants of at most 128 characters. Empty and whitespace names are permitted. Never use request data, user input, instance IDs, or operation IDs to create groups.
+- Ownerless keys share one ordinal-name namespace within the current `ICancellationUtils` service scope. Although empty and whitespace names are valid, prefer qualified, centrally defined names because unrelated callers using the same ownerless name receive the same scope and can cancel each other's work.
 - Keys are opaque and factory-created; the default value is invalid.
 - `ICancellationUtils` owns child scopes. Callers own and dispose local linked sources used for operation-only cancellation.
 - Replace removed root members with their `cancellation.Root` equivalents.
@@ -303,7 +304,7 @@ if (scope.Acquired) { /* critical section */ }
 | **Validators** | `JpegValidator`, `JpegValidationResult`, `JpegValidationErrorReason` | Structural, stream-based, size-bounded JPEG validation with typed error reasons |
 | **App data** | `IAppData`, `AppDataPathResult`, `DrnAppDataSettings` | Validated temp/data roots with traversal-safe child path resolution |
 | **Pagination** | `IPaginationUtils` | Cursor-based via `SourceKnownEntityId` |
-| **Cancellation** | `ICancellationUtils`, `ICancellationScope`, `CancellationScopeKey` | Explicit root, stable type-owned groups, and caller-owned local links |
+| **Cancellation** | `ICancellationUtils`, `ICancellationScope`, `CancellationScopeKey` | Explicit root, stable named groups with optional owners, and caller-owned local links |
 | **Diagnostics** | `DevelopmentStatus` | Track pending DB model changes at startup |
 
 ### Bit Packing (`NumberBuilder` / `NumberParser`)
