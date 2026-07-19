@@ -4,6 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **JSON Merge Patch API Split And Result Type**: Removed the `changeOriginal` Boolean from `JsonMergePatch.SafeApplyMergePatch`; the method now always leaves both inputs unchanged and reuses the target only for semantic no-ops. Use the new object-only `ApplyObjectMergePatchInPlace` method when full-tree in-place mutation is required. `MergeResult` changed from a record class to a readonly record struct, and its `Json` value is nullable because `System.Text.Json` represents root-level JSON `null` as a null `JsonNode`.
 *   **Opaque Cancellation Scope Keys**: Removed the public `CancellationScopeKey.OwnerType` and `Name` identity accessors and the custom identity-revealing `ToString()` output. Continue creating type-owned keys with `For<T>()`, `For(Type)`, `For<T>(name)`, or `For(Type, name)` instead of inspecting their identity.
 *   **HTTP Response Snapshots**: Removed `HttpResponse.Response` and changed public wrapper construction to accept an HTTP status. Use `HttpStatus` and `Payload`; dispose streaming wrappers after use.
 *   **HTTP Response Conversion API**: Removed static conversion methods from `HttpResponse`. Call `ToStringAsync`, `ToBytesAsync`, `ToStreamAsync`, `FromJsonAsync<T>`, and their non-throwing `Try*` counterparts as extension methods on `Task<IFlurlResponse>` or `IFlurlResponse`.
@@ -16,6 +17,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
+*   **JSON Merge Patch Allocation Model**: Safe changed-object merges clone the target once and mutate that detached tree without repeated nested subtree clones; semantic no-ops return the original target without a result allocation. The object-only in-place API avoids target-tree cloning for disjoint inputs and preserves existing nested object references.
 *   **Inspectable HTTP Call Results**: Added HTTP status-class inspection and non-throwing `TryToStringAsync`, `TryToBytesAsync`, `TryToStreamAsync`, and `TryFromJsonAsync<T>` converters. Try results distinguish redirects, client errors, server errors, transport/timeouts, response-read failures, and JSON deserialization failures while preserving cancellation and response ownership semantics. `ThrowIfFailure()` rethrows captured processing failures with their original stack after inspection without treating HTTP error statuses as exceptions. Raw diagnostic exception messages and exception objects are excluded from System.Text.Json serialization.
 *   **JIT-Safe Assembly Scanning**: Split `AddServicesWithAttributes` into a parameterless convenience overload (protected against JIT compiler inlining with `[MethodImpl(MethodImplOptions.NoInlining)]`) and an explicit `Assembly` overload. This prevents tail-call or inlining optimizations from unexpectedly altering assembly scanning results.
 *   **Claim Lookup Allocation**: `ClaimGroup.GetValue`, `ClaimExists`, and `FindClaim` now traverse the frozen claim set directly instead of constructing LINQ iterators for single-result lookups.
@@ -29,6 +31,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Multi-Identity Authentication**: `ScopedUser.Authenticated` now matches ASP.NET Core authorization by accepting any authenticated identity, treats an empty principal as anonymous, selects an authenticated primary identity, and excludes unauthenticated identities from ambient claims.
 *   **Recurring Action Stop Semantics**: `RecurringAction.Stop()` now prevents an active callback from rescheduling the timer after the callback completes. A later `Start()` resumes scheduling normally.
 *   **Object Reflection Depth Enforcement**: Fixed `GetGroupedPropertiesOfSubtype` recursion depth limit check to correctly increment depth levels along nested property traversal chains. Invalid (non-positive) recursion limits now trigger an `ArgumentOutOfRangeException`.
+*   **JSON Merge Patch RFC, Change Tracking, And Depth Enforcement**: Object patches now merge recursively against empty objects when targets are missing or non-object, omitting null members per RFC 7396. Root-level JSON null is supported, no-op deletions and equivalent replacements no longer report `Changed`, and the complete patch depth is validated before applying changes. Unit coverage includes all 15 RFC 7396 Appendix A examples.
 *   **Width-Aware Signed NumberBuilder Initialization**: Signed integer builders now initialize and reset the sign bit at the selected numeric width, preserving negative defaults when building 32-bit values.
 *   **HTTP Response Disposal**: Converters now dispose responses when payload reading fails. Streaming conversion also disposes the response if stream retrieval fails.
 
@@ -155,7 +158,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 *   **Advanced Data & Bit Packing**
     *   **Bit Packing**: `NumberBuilder` and `NumberParser` (ref structs) for high-performance custom data structures and bit manipulation.
     *   **Monotonic Pagination**: `IPaginationUtils` for temporal cursor-based pagination leveraging entity IDs.
-    *   **Cryptographic Helpers**: Unified `HashExtensions` (Blake3, XxHash3), `EncodingExtensions` (Base64, Base64Url, Hex), and `SafeApplyMergePatch` (RFC 7386).
+    *   **Cryptographic Helpers**: Unified `HashExtensions` (Blake3, XxHash3), `EncodingExtensions` (Base64, Base64Url, Hex), and `SafeApplyMergePatch` (RFC 7396).
 *   **HTTP & Temporal IDs**
     *   **HTTP Request Wrappers**: `IInternalRequest`/`IExternalRequest` with standardized Flurl integration, HTTP version policy configuration, and enriched `HttpResponse<T>` diagnostics. Retries/circuit breakers are not configured by this package.
     *   **Temporal IDs**: `ISourceKnownIdUtils` and `ISourceKnownEntityIdUtils` providing globally sortable identifiers.
