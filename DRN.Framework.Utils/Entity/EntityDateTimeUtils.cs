@@ -26,48 +26,70 @@ public interface IEntityDateTimeUtils
 [Singleton<IEntityDateTimeUtils>]
 public class EntityDateTimeUtils : IEntityDateTimeUtils
 {
-    private static long ConvertToTimeStamp(DateTimeOffset dateTimeOffset) => EpochTimeUtils.ConvertToSourceKnownIdTimeStamp(dateTimeOffset, EpochTimeUtils.DefaultEpoch);
+    private const long SourceKnownIdPayloadMask = 0x7FFF_FFFF; // 7 app + 6 app-instance + 18 sequence bits
+
+    private static (long Min, long Max) ConvertToTickBounds(DateTimeOffset dateTimeOffset)
+    {
+        var min = EpochTimeUtils.ConvertToSourceKnownIdTimeStamp(dateTimeOffset, EpochTimeUtils.DefaultEpoch);
+        return (min, min | SourceKnownIdPayloadMask);
+    }
 
     public IQueryable<TEntity> CreatedAfter<TEntity>(IQueryable<TEntity> query, DateTimeOffset date, bool inclusive = true)
         where TEntity : SourceKnownEntity
-        => inclusive
-            ? query.Where(entity => entity.Id >= ConvertToTimeStamp(date))
-            : query.Where(e => e.Id > ConvertToTimeStamp(date));
+    {
+        var bounds = ConvertToTickBounds(date);
+        var threshold = inclusive ? bounds.Min : bounds.Max;
+
+        return inclusive
+            ? query.Where(entity => entity.Id >= threshold)
+            : query.Where(entity => entity.Id > threshold);
+    }
 
     public IQueryable<TEntity> CreatedBefore<TEntity>(IQueryable<TEntity> query, DateTimeOffset date, bool inclusive = true)
         where TEntity : SourceKnownEntity
-        => inclusive
-            ? query.Where(entity => entity.Id <= ConvertToTimeStamp(date))
-            : query.Where(entity => entity.Id < ConvertToTimeStamp(date));
+    {
+        var bounds = ConvertToTickBounds(date);
+        var threshold = inclusive ? bounds.Max : bounds.Min;
+
+        return inclusive
+            ? query.Where(entity => entity.Id <= threshold)
+            : query.Where(entity => entity.Id < threshold);
+    }
 
     public IQueryable<TEntity> CreatedBetween<TEntity>(IQueryable<TEntity> query, DateTimeOffset begin, DateTimeOffset end, bool inclusive = true)
         where TEntity : SourceKnownEntity
     {
-        var timestampAfterCreation = ConvertToTimeStamp(end);
-        var timestampBeforeCreation = ConvertToTimeStamp(begin);
+        var beginBounds = ConvertToTickBounds(begin);
+        var endBounds = ConvertToTickBounds(end);
 
-        //value mismatch can be fixed, no need to throw exception or return invalid results
-        if (timestampBeforeCreation > timestampAfterCreation) //todo test correction
-            (timestampAfterCreation, timestampBeforeCreation) = (timestampBeforeCreation, timestampAfterCreation);
+        // Normalize reversed bounds instead of returning invalid results.
+        if (beginBounds.Min > endBounds.Min)
+            (beginBounds, endBounds) = (endBounds, beginBounds);
+
+        var lowerThreshold = inclusive ? beginBounds.Min : beginBounds.Max;
+        var upperThreshold = inclusive ? endBounds.Max : endBounds.Min;
 
         return inclusive
-            ? query.Where(entity => entity.Id <= timestampAfterCreation && entity.Id >= timestampBeforeCreation)
-            : query.Where(entity => entity.Id < timestampAfterCreation && entity.Id > timestampBeforeCreation);
+            ? query.Where(entity => entity.Id >= lowerThreshold && entity.Id <= upperThreshold)
+            : query.Where(entity => entity.Id > lowerThreshold && entity.Id < upperThreshold);
     }
 
     public IQueryable<TEntity> CreatedOutside<TEntity>(IQueryable<TEntity> query, DateTimeOffset begin, DateTimeOffset end, bool inclusive = true)
         where TEntity : SourceKnownEntity
     {
-        var beforeTimeStamp = ConvertToTimeStamp(begin);
-        var afterTimeStamp = ConvertToTimeStamp(end);
+        var beginBounds = ConvertToTickBounds(begin);
+        var endBounds = ConvertToTickBounds(end);
 
-        //value mismatch can be fixed, no need to throw exception or return invalid results
-        if (beforeTimeStamp > afterTimeStamp) //todo test correction
-            (afterTimeStamp, beforeTimeStamp) = (beforeTimeStamp, afterTimeStamp);
+        // Normalize reversed bounds instead of returning invalid results.
+        if (beginBounds.Min > endBounds.Min)
+            (beginBounds, endBounds) = (endBounds, beginBounds);
+
+        var lowerThreshold = inclusive ? beginBounds.Max : beginBounds.Min;
+        var upperThreshold = inclusive ? endBounds.Min : endBounds.Max;
 
         return inclusive
-            ? query.Where(entity => entity.Id <= beforeTimeStamp || entity.Id >= afterTimeStamp)
-            : query.Where(entity => entity.Id < beforeTimeStamp || entity.Id > afterTimeStamp);
+            ? query.Where(entity => entity.Id <= lowerThreshold || entity.Id >= upperThreshold)
+            : query.Where(entity => entity.Id < lowerThreshold || entity.Id > upperThreshold);
     }
     
     public IQueryable<TEntity> Apply<TEntity>(IQueryable<TEntity> query, EntityCreatedFilter filter)

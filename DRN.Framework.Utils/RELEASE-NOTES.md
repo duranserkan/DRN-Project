@@ -24,6 +24,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Entity Date Filter Tick Boundaries**: Date filters now apply inclusive and exclusive boundaries to the full 250ms Source-Known ID tick, preventing nonzero app, instance, and sequence payloads from being incorrectly included or excluded at range edges.
 *   **Ambient Claim Isolation**: `ScopeContext` claim helpers now resolve every typed lookup independently by claim type, issuer, and requested target type. Issuer, type, and default-value choices can no longer contaminate later reads that use the same claim name.
 *   **Multi-Identity Authentication**: `ScopedUser.Authenticated` now matches ASP.NET Core authorization by accepting any authenticated identity, treats an empty principal as anonymous, selects an authenticated primary identity, and excludes unauthenticated identities from ambient claims.
 *   **Recurring Action Stop Semantics**: `RecurringAction.Stop()` now prevents an active callback from rescheduling the timer after the callback completes. A later `Start()` resumes scheduling normally.

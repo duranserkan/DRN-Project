@@ -106,6 +106,8 @@ Subagents support workflows; they do not replace them. Give bounded scope, read-
 
 Do not treat `git diff` as approval for unrequested edits. Preview-first workflows must not mutate until apply is confirmed.
 
+- Do not amend and commit unless explicitly approved.
+
 ## Portable Tool Verbs
 
 Use capability names in reusable workflows. Map them to active platform tools at execution time.

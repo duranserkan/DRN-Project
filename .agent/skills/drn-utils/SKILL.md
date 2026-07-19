@@ -1,9 +1,9 @@
 ---
 name: drn-utils
-description: "DRN.Framework.Utils - Attribute-based dependency injection, IAppSettings configuration, app data roots, logging, scoped cancellation, validators, extension methods, and core utilities. Keywords: dependency-injection, di, service-registration, configuration, appsettings, appdata, logging, scoped-log, cancellation, cancellation-scope, validators, attributes, scoped, singleton, transient, config, extensions, http-client"
+description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, entity-date-filter, tick-boundary, validators, extensions, http-client"
 last-updated: 2026-07-19
 difficulty: intermediate
-tokens: ~2.5K
+tokens: ~2.7K
 ---
 
 # DRN.Framework.Utils
@@ -236,6 +236,21 @@ var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 
 > [!NOTE]
 > ID generation is automatically handled by `DrnContext` when SourceKnownEntities are saved.
+
+### Entity Creation-Date Filters
+
+`IEntityDateTimeUtils` filters `SourceKnownEntity.Id` by its 250ms Source-Known ID creation tick. Each date boundary maps to the minimum ID for that tick (payload bits cleared) and the maximum ID (all 31 app, instance, and sequence payload bits set).
+
+| Filter | Inclusive boundary | Exclusive boundary |
+|---|---|---|
+| `CreatedAfter` | `Id >= tick.Min` | `Id > tick.Max` |
+| `CreatedBefore` | `Id <= tick.Max` | `Id < tick.Min` |
+| `CreatedBetween` | `Id >= begin.Min && Id <= end.Max` | `Id > begin.Max && Id < end.Min` |
+| `CreatedOutside` | `Id <= begin.Max || Id >= end.Min` | `Id < begin.Min || Id > end.Max` |
+
+`CreatedBetween` and `CreatedOutside` normalize reversed endpoints before applying thresholds. Equal endpoints therefore select the whole tick for inclusive `Between`, no rows for exclusive `Between`, all rows for inclusive `Outside`, and everything except the tick for exclusive `Outside`.
+
+Keep the payload-mask calculation outside the query expression so providers receive scalar `long` comparisons. Unit regressions must cover inclusive/exclusive payload edges, equal and distinct endpoints, reversed inputs, and the negative-to-positive epoch-half transition. Use database-backed verification only when SQL translation or query-plan behavior is the subject.
 
 ---
 
