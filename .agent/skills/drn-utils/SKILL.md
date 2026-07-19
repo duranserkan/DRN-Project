@@ -319,10 +319,13 @@ ushort value = parser.ReadUShort();
 long seconds = TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
 DateTimeOffset now = TimeStampManager.UtcNow;
 
-// Lock-free async timer — prevents overlapping executions
+// Async-safe timer — prevents overlapping executions
 var worker = new RecurringAction(async () => await DoWork(), period: 1000, start: true);
 worker.Stop();
+worker.Start(); // Resume after stopping
 ```
+
+`Stop()` lets an active callback finish but prevents that callback from rescheduling the timer.
 
 `TimeProvider` singleton registered to `TimeProvider.System` by default for testable time.
 

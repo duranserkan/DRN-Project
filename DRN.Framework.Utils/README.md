@@ -699,7 +699,7 @@ DateTimeOffset now = TimeStampManager.UtcNow; // Cached UTC time truncated to 25
 
 ### Async-Safe Timer (`RecurringAction`)
 
-A lock-free, atomic timer implementation that prevents overlapping executions if one cycle takes longer than the period.
+An atomic timer implementation that prevents overlapping executions if one cycle takes longer than the period.
 
 ```csharp
 var worker = new RecurringAction(async () => {
@@ -707,7 +707,10 @@ var worker = new RecurringAction(async () => {
 }, period: 1000, start: true);
 
 worker.Stop();
+worker.Start(); // Resume after stopping
 ```
+
+`Stop()` prevents an active callback from rescheduling the timer after it completes. The callback itself is allowed to finish.
 
 ### ID Generation & Validation
 

@@ -7,7 +7,10 @@ public sealed class RecurringAction : IDisposable
     private readonly Timer _timer;
     private readonly Func<Task> _actionAsync;
     private readonly int _period;
+    // Keeps the atomic started state and Timer.Change calls in the same ordering domain.
+    private readonly Lock _scheduleLock = new();
     private volatile int _isRunning; //0 = false, 1 = true
+    private int _isStarted; //0 = stopped, 1 = started
     private volatile int _disposed;
 
     /// <summary>
@@ -48,23 +51,34 @@ public sealed class RecurringAction : IDisposable
     /// <exception cref="ObjectDisposedException">Thrown when the instance has already been disposed of.</exception>
     public void Start()
     {
-        ObjectDisposedException.ThrowIf(_disposed == 1, this);
+        lock (_scheduleLock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed == 1, this);
 
-        _timer.Change(0, Timeout.Infinite);
+            Interlocked.Exchange(ref _isStarted, 1);
+            _timer.Change(0, Timeout.Infinite);
+        }
     }
 
+    /// <summary>
+    /// Stops recurring scheduling. An active callback is allowed to finish without scheduling another invocation.
+    /// </summary>
     public void Stop()
     {
-        if (_disposed == 1)
-            return;
+        lock (_scheduleLock)
+        {
+            Interlocked.Exchange(ref _isStarted, 0);
+            if (_disposed == 1)
+                return;
 
-        try
-        {
-            _timer.Change(Timeout.Infinite, Timeout.Infinite);
-        }
-        catch (ObjectDisposedException)
-        {
-            // Ignore if already disposed
+            try
+            {
+                _timer.Change(Timeout.Infinite, Timeout.Infinite);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Ignore if already disposed
+            }
         }
     }
 
@@ -96,25 +110,34 @@ public sealed class RecurringAction : IDisposable
             LockUtils.ReleaseLock(ref _isRunning);
 #pragma warning restore CS0420 
             
-            if (_disposed == 0) //if not disposed
-                try
+            lock (_scheduleLock)
+            {
+                if (_disposed == 0 && Volatile.Read(ref _isStarted) == 1)
                 {
-                    _timer.Change(_period, Timeout.Infinite); //reschedule itself
+                    try
+                    {
+                        _timer.Change(_period, Timeout.Infinite); //reschedule itself
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Timer already disposed
+                        //https://learn.microsoft.com/en-us/dotnet/api/System.Threading.Timer.Dispose
+                    }
                 }
-                catch (ObjectDisposedException)
-                {
-                    // Timer already disposed
-                    //https://learn.microsoft.com/en-us/dotnet/api/System.Threading.Timer.Dispose
-                }
+            }
         }
     }
 
     public void Dispose()
     {
+        lock (_scheduleLock)
+        {
 #pragma warning disable CS0420 // Interlocked provides full memory barrier
-        if (!LockUtils.TryClaimLock(ref _disposed)) return;
+            if (!LockUtils.TryClaimLock(ref _disposed)) return;
 #pragma warning restore CS0420
 
-        _timer.Dispose();
+            Interlocked.Exchange(ref _isStarted, 0);
+            _timer.Dispose();
+        }
     }
 }

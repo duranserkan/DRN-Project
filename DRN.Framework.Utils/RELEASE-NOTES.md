@@ -13,6 +13,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Recurring Action Stop Semantics**: `RecurringAction.Stop()` now prevents an active callback from rescheduling the timer after the callback completes. A later `Start()` resumes scheduling normally.
 *   **Object Reflection Depth Enforcement**: Fixed `GetGroupedPropertiesOfSubtype` recursion depth limit check to correctly increment depth levels along nested property traversal chains. Invalid (non-positive) recursion limits now trigger an `ArgumentOutOfRangeException`.
 *   **Width-Aware Signed NumberBuilder Initialization**: Signed integer builders now initialize and reset the sign bit at the selected numeric width, preserving negative defaults when building 32-bit values.
 
