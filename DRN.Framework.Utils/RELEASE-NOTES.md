@@ -11,6 +11,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **JIT-Safe Assembly Scanning**: Split `AddServicesWithAttributes` into a parameterless convenience overload (protected against JIT compiler inlining with `[MethodImpl(MethodImplOptions.NoInlining)]`) and an explicit `Assembly` overload. This prevents tail-call or inlining optimizations from unexpectedly altering assembly scanning results.
 *   **Scoped Cancellation Guidance**: Package guidance now distinguishes type-owned shared groups from caller-owned operation cancellation and documents type-only keys with optional names.
 
+### Bug Fixes
+
+*   **Object Reflection Depth Enforcement**: Fixed `GetGroupedPropertiesOfSubtype` recursion depth limit check to correctly increment depth levels along nested property traversal chains. Invalid (non-positive) recursion limits now trigger an `ArgumentOutOfRangeException`.
+
 ## Version 0.9.6
 
 ### Breaking Changes
