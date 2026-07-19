@@ -6,11 +6,13 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **Opaque Cancellation Scope Keys**: Removed the public `CancellationScopeKey.OwnerType` and `Name` identity accessors and the custom identity-revealing `ToString()` output. Continue creating type-owned keys with `For<T>()`, `For(Type)`, `For<T>(name)`, or `For(Type, name)` instead of inspecting their identity.
 *   **HTTP Response Snapshots**: Removed `HttpResponse.Response` and changed public wrapper construction to accept an HTTP status. Use `HttpStatus` and `Payload`; dispose streaming wrappers after use.
+*   **HTTP Response Conversion API**: Removed static conversion methods from `HttpResponse`. Call `ToStringAsync`, `ToBytesAsync`, `ToStreamAsync`, `FromJsonAsync<T>`, and their non-throwing `Try*` counterparts as extension methods on `Task<IFlurlResponse>` or `IFlurlResponse`.
 *   **HTTP Response Ownership**: `HttpResponse<TResult>` is now sealed and implements `IDisposable`. Disposing it also disposes an `IDisposable` payload.
 *   **Scope Data Authentication Separation**: `ScopeData` no longer stores role checks or parses claim strings. Its `Roles`, `IsRoleExists`, `SetParameterAsRole`, `SetParameterAsFlag`, and string-parsing `SetParameter` members were removed. Use `IScopedUser.IsInRole` / `ScopeContext.IsUserInRole` for roles, `IScopedUser.GetClaimParameter<TValue>` / `ScopeContext.GetClaimParameter<TValue>` for claims, and the typed `ScopeData.SetFlag` / `SetParameter` methods for caller-owned ambient values.
 
 ### Changed
 
+*   **Inspectable HTTP Call Results**: Added HTTP status-class inspection and non-throwing `TryToStringAsync`, `TryToBytesAsync`, `TryToStreamAsync`, and `TryFromJsonAsync<T>` converters. Try results distinguish redirects, client errors, server errors, transport/timeouts, response-read failures, and JSON deserialization failures while preserving cancellation and response ownership semantics. `ThrowIfFailure()` rethrows captured processing failures with their original stack after inspection without treating HTTP error statuses as exceptions. Raw diagnostic exception messages and exception objects are excluded from System.Text.Json serialization.
 *   **JIT-Safe Assembly Scanning**: Split `AddServicesWithAttributes` into a parameterless convenience overload (protected against JIT compiler inlining with `[MethodImpl(MethodImplOptions.NoInlining)]`) and an explicit `Assembly` overload. This prevents tail-call or inlining optimizations from unexpectedly altering assembly scanning results.
 *   **Claim Lookup Allocation**: `ClaimGroup.GetValue`, `ClaimExists`, and `FindClaim` now traverse the frozen claim set directly instead of constructing LINQ iterators for single-result lookups.
 *   **Scoped-User Typed Claims**: `IScopedUser` now exposes typed claim parsing through `GetClaimParameter<TValue>`, and `ScopeContext` delegates to that contract. `ScopedUser` resolves and parses each existing claim on demand without a separate parsed-value cache; missing claims return the supplied typed default unchanged so issuer, target-type, and default choices stay call-local.
@@ -23,6 +25,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Recurring Action Stop Semantics**: `RecurringAction.Stop()` now prevents an active callback from rescheduling the timer after the callback completes. A later `Start()` resumes scheduling normally.
 *   **Object Reflection Depth Enforcement**: Fixed `GetGroupedPropertiesOfSubtype` recursion depth limit check to correctly increment depth levels along nested property traversal chains. Invalid (non-positive) recursion limits now trigger an `ArgumentOutOfRangeException`.
 *   **Width-Aware Signed NumberBuilder Initialization**: Signed integer builders now initialize and reset the sign bit at the selected numeric width, preserving negative defaults when building 32-bit values.
+*   **HTTP Response Disposal**: Converters now dispose responses when payload reading fails. Streaming conversion also disposes the response if stream retrieval fails.
 
 ## Version 0.9.6
 

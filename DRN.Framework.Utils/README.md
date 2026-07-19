@@ -499,7 +499,7 @@ public class PaymentService(IExternalRequest request)
         var response = await request.For("https://api.example.com", HttpVersion.Version11)
             .AppendPathSegment("v1/charges")
             .PostJsonAsync(new { Amount = 1000 })
-            .ToJsonAsync<ExternalApiResponse>();
+            .FromJsonAsync<ExternalApiResponse>();
     }
 }
 ```
@@ -530,6 +530,44 @@ public class NexusClient(INexusRequest request) : INexusClient
         await request.For("status").GetAsync().ToStringAsync();
 }
 ```
+
+Buffered response converters (`ToStringAsync`, `ToBytesAsync`, and `FromJsonAsync`) capture `HttpStatus` and `Payload`, then dispose the response even if reading or deserialization fails.
+Call converters as extension methods on `Task<IFlurlResponse>` or `IFlurlResponse`; `HttpResponse` models the converted result and no longer exposes static conversion entry points.
+
+`HttpResponse.StatusClass` classifies the status as `Informational`, `Success`, `Redirection`, `ClientError`, `ServerError`, or `Unknown`; `IsSuccessStatusCode` is true only for `2xx`. Flurl normally follows redirects, so a `3xx` snapshot represents a redirect that remained final. Use `AllowAnyHttpStatus()` when the throwing converters should return non-success responses for direct inspection.
+
+Use the `TryToStringAsync`, `TryToBytesAsync`, or `TryFromJsonAsync<T>` counterparts when transport, timeout, response-read, or deserialization failures must be inspected without catching exceptions:
+
+```csharp
+var result = await request.For("status").GetAsync().TryFromJsonAsync<StatusResponse>();
+if (result.StatusClass == HttpStatusClass.ClientError)
+{
+    // Handle 4xx. HttpStatus and a successfully converted Payload remain available.
+}
+else if (result.StatusClass == HttpStatusClass.ServerError)
+{
+    // Handle 5xx according to the caller's retry policy.
+}
+else if (result.Failure is { } failure)
+{
+    // Handles transport, timeout, response-read, or deserialization failures.
+    logger.LogWarning("HTTP conversion failed: {Kind}", failure.Kind);
+}
+```
+
+HTTP error statuses and processing failures are independent. For example, a `422` with readable JSON has `StatusClass.ClientError` and no `Failure`, while malformed JSON returned with `200` has `StatusClass.Success`, `IsSuccess == false`, and `Failure.Kind == Deserialization`. Try converters propagate cancellation. `HttpFailure.Message` and `HttpFailure.Exception` are available for local diagnostics, may contain request details, and must be redacted before logging or exposure; both are ignored by System.Text.Json serialization.
+
+Call `result.ThrowIfFailure()` after inspection to rethrow a captured transport, timeout, response-read, or deserialization exception with its original stack preserved. The method does not throw for a `3xx`, `4xx`, or `5xx` response without a processing failure; inspect `StatusClass` or `IsSuccessStatusCode` when status enforcement is required.
+
+Use `using` for streaming responses so the payload and response are released together:
+
+```csharp
+using var response = await request.For("export").GetAsync().ToStreamAsync();
+await response.Payload!.CopyToAsync(destination);
+```
+
+`HttpResponse<T>.Dispose()` is idempotent and disposes any `IDisposable` payload.
+`TryToStreamAsync()` transfers the same ownership to `HttpCallResult<T>`; dispose that result after consuming its stream payload.
 
 ## Scope & Ambient Context (ScopeContext)
 

@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection, IAppSettings configuration, app data roots, logging, scoped cancellation, validators, extension methods, and core utilities. Keywords: dependency-injection, di, service-registration, configuration, appsettings, appdata, logging, scoped-log, cancellation, cancellation-scope, validators, attributes, scoped, singleton, transient, config, extensions, http-client"
-last-updated: 2026-07-16
+last-updated: 2026-07-19
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -181,7 +181,7 @@ Wrappers around [Flurl](https://flurl.dev/) with standardized JSON conventions.
 var response = await request.For("https://api.example.com", HttpVersion.Version11)
     .AppendPathSegment("v1/charges")
     .PostJsonAsync(new { Amount = 1000 })
-    .ToJsonAsync<ExternalApiResponse>();
+    .FromJsonAsync<ExternalApiResponse>();
 
 // Internal Service Mesh (Kubernetes/Linkerd)
 public interface INexusRequest { IFlurlRequest For(string path); }
@@ -193,6 +193,15 @@ public class NexusRequest(IInternalRequest request, IAppSettings settings) : INe
         .AppendPathSegment(path);
 }
 ```
+
+Buffered converters capture `HttpStatus` and `Payload`, then dispose the response even if reading fails. Use `using` for streaming wrappers; disposal releases the response and any `IDisposable` payload.
+Converters are exposed as extension methods on `Task<IFlurlResponse>` and `IFlurlResponse`; `HttpResponse` only models the converted result and its ownership.
+
+`HttpResponse.StatusClass` distinguishes `1xx`, `2xx`, `3xx`, `4xx`, and `5xx` responses, and `IsSuccessStatusCode` is true only for `2xx`. Flurl normally follows redirects, so `3xx` is observed only when a redirect remains final. Use `AllowAnyHttpStatus()` with the throwing converters to inspect non-success responses directly.
+
+The `TryToStringAsync`, `TryToBytesAsync`, `TryToStreamAsync`, and `TryFromJsonAsync<T>` converters return `HttpCallResult<T>` for inspectable failures. HTTP status and processing failure are separate: readable `4xx`/`5xx` responses retain their status and payload without a `Failure`; transport, timeout, response-read, and deserialization errors populate `Failure`. A successful HTTP status with malformed JSON preserves the status but has `IsSuccess == false`. Try converters propagate cancellation. Dispose streaming try results, and treat `HttpFailure.Message` and `HttpFailure.Exception` as local diagnostic data that may contain request details and requires redaction before logging or exposure; both are ignored by System.Text.Json serialization.
+
+Use `HttpCallResult<T>.ThrowIfFailure()` to rethrow a captured processing failure with its original stack after inspection. It does not throw for a `3xx`, `4xx`, or `5xx` result whose response was read successfully; status enforcement remains an explicit caller decision through `StatusClass` or `IsSuccessStatusCode`.
 
 ---
 
