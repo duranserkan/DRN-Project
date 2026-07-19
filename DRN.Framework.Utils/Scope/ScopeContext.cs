@@ -37,37 +37,10 @@ public class ScopeContext
     public static IServiceProvider Services => Value.ServiceProvider;
     public static IAppSettings Settings => Value.AppSettings;
 
-    public static bool IsUserInRole(string role)
-    {
-        if (Data.Roles.TryGetValue(role, out var value))
-            return value;
-
-        AddRoleExistanceToRoles(role);
-
-        return Data.IsRoleExists(role);
-    }
-
-    private static void AddRoleExistanceToRoles(string role)
-    {
-        var value = User.IsInRole(role);
-        Data.SetParameterAsRole(role, value);
-    }
+    public static bool IsUserInRole(string role) => User.IsInRole(role);
 
     public static bool IsClaimFlagEnabled(string flag, string? issuer = null, bool defaultValue = false)
-    {
-        if (Data.Flags.TryGetValue(flag, out var value))
-            return value;
-
-        AddClaimValueToFlags(flag, issuer, defaultValue);
-
-        return Data.IsFlagEnabled(flag);
-    }
-
-    private static void AddClaimValueToFlags(string claim, string? issuer = null, bool defaultValue = false)
-    {
-        var value = User.GetClaimValue(claim, issuer, defaultValue.ToString());
-        Data.SetParameterAsFlag(claim, value);
-    }
+        => GetClaimParameter(flag, issuer, defaultValue) == true;
 
     public static bool HasClaimValue<TValue>(string key, TValue expectedValue, string? issuer = null) where TValue : IParsable<TValue>
     {
@@ -77,20 +50,7 @@ public class ScopeContext
     }
 
     public static TValue? GetClaimParameter<TValue>(string key, string? issuer = null, TValue? defaultValue = default) where TValue : IParsable<TValue>
-    {
-        if (Data.Parameters.TryGetValue(key, out var value))
-            return value is TValue tValue ? tValue : defaultValue;
-
-        AddClaimValueToParameters(key, issuer, defaultValue);
-
-        return Data.GetParameter(key, defaultValue);
-    }
-
-    private static void AddClaimValueToParameters<TValue>(string claim, string? issuer = null, TValue? defaultValue = default) where TValue : IParsable<TValue>
-    {
-        var value = User.GetClaimValue(claim, issuer, defaultValue?.ToString() ?? string.Empty);
-        Data.SetParameter<TValue>(claim, value);
-    }
+        => User.GetClaimParameter(key, issuer, defaultValue);
 
     internal static void Initialize(string traceId, IScopedLog scopedLog, IScopedUser scopedUser, IAppSettings settings, IServiceProvider serviceProvider)
     {

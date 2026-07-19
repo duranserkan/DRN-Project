@@ -1,34 +1,23 @@
-using DRN.Framework.Utils.Extensions;
-
 namespace DRN.Framework.Utils.Scope;
 
 /// <summary>
-/// Compares keys and flags with StringComparer.OrdinalIgnoreCase
+/// Stores caller-owned ambient flags and parameters with case-insensitive keys.
 /// </summary>
 public class ScopeData
 {
-    private readonly Dictionary<string, bool> _roles = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, bool> _flags = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, object?> _parameters = new(StringComparer.OrdinalIgnoreCase);
 
-    public IReadOnlyDictionary<string, bool> Roles => _roles;
     public IReadOnlyDictionary<string, bool> Flags => _flags;
     public IReadOnlyDictionary<string, object?> Parameters => _parameters;
 
     public bool IsFlagEnabled(string flag) => _flags.TryGetValue(flag, out var value) && value;
-    public bool IsRoleExists(string flag) => _roles.TryGetValue(flag, out var value) && value;
-    public TValue? GetParameter<TValue>(string key, TValue? defaultValue = default) => _parameters.GetAndCastValueOrDefault(key, defaultValue);
+    public TValue? GetParameter<TValue>(string key, TValue? defaultValue = default) =>
+        _parameters.TryGetValue(key, out var value) && value is TValue typedValue ? typedValue : defaultValue;
 
-    public void SetParameterAsFlag(string flag, string stringValue, bool defaultValue = false)
-        => _flags[flag] = bool.TryParse(stringValue, out var value) ? value : defaultValue;
-
-    public void SetParameterAsRole(string role, bool value)
-        => _roles[role] = value;
-
-    public void SetParameter<TValue>(string key, string stringValue, TValue? defaultValue = default) where TValue : IParsable<TValue>
-        => _parameters[key] = stringValue.TryParse<TValue>(out var result) ? result! : defaultValue;
-
+    public void SetFlag(string flag, bool value) => _flags[flag] = value;
     public void SetParameter<TValue>(string key, TValue value) => _parameters[key] = value;
-    
-    //todo: GetOrSet values from Headers, QueryString, Form, Cookie, Path, Items, tempdata etc... (Manage or Unify)
+
+    // TODO: Add explicit GetOrSet adapters for Headers, QueryString, Form, Cookie, Path, Items, and TempData.
+    // Define trust and precedence before managing or unifying values from those boundaries.
 }

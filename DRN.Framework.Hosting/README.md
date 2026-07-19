@@ -614,7 +614,7 @@ The namespacing is internal. Your `EvaluatePreAuth` or `EvaluatePostAuth` method
 #### Claim-Based Partitions
 
 - Use app-specific `RateLimitFor` wrappers (e.g., `Sample.Hosted.Helpers.RateLimitFor`) with claim-access primitives from `Get.Claim.*`.
-- This reads claims from the cached scoped user model instead of repeatedly parsing `HttpContext.User`.
+- This reads claims from the request-scoped authenticated user model instead of repeatedly traversing `HttpContext.User`.
 
 > [!WARNING]
 > **Factory capture safety**: Partition option factories are cached by .NET per partition key. Do **not** capture `HttpContext` or scoped services inside the factory lambda — use only value-based parameters.

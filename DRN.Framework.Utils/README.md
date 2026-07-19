@@ -540,6 +540,10 @@ public class NexusClient(INexusRequest request) : INexusClient
 *   **RBAC Helpers**: Built-in support for role and claim checks.
 *   **Test Initialization**: `ScopeContext.InitializeForTest(...)` resets the async-local scope before seeding test services, user, log, and trace data.
 
+`IScopedUser` owns authenticated identity and claim state. Use `GetClaimParameter<TValue>` for typed claims; the default `ScopedUser` implementation resolves and parses the authenticated claim snapshot on each lookup without a separate parsed-value cache. `ScopeContext.GetClaimParameter<TValue>` is an ambient façade over the same contract.
+
+`ScopeData` is separate caller-owned ambient storage. It does not store roles or parsed claims. Use `SetFlag` and typed `SetParameter` values for application data. Future header, query, form, cookie, path, item, and TempData adapters must define trust and precedence explicitly before those request boundaries are managed or unified.
+
 ```csharp
 var currentUserId = ScopeContext.UserId;
 var traceId = ScopeContext.TraceId;
@@ -547,6 +551,10 @@ var settings = ScopeContext.Settings; // Static IAppSettings access
 var logger = ScopeContext.Log; // Static IScopedLog access
 
 if (ScopeContext.IsUserInRole("Admin")) { ... }
+
+var tenantId = ScopeContext.GetClaimParameter<Guid>("tenant-id");
+ScopeContext.Data.SetFlag("show-preview", true);
+ScopeContext.Data.SetParameter("page-size", 50);
 ```
 
 ## Data Utilities
