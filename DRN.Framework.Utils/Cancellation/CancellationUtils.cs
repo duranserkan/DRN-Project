@@ -3,7 +3,7 @@ using DRN.Framework.Utils.DependencyInjection.Attributes;
 namespace DRN.Framework.Utils.Cancellation;
 
 /// <summary>
-/// Owns the explicit root plus stable named child scopes for the current dependency-injection service scope.
+/// Owns the explicit root plus stable keyed child scopes for the current dependency-injection service scope.
 /// </summary>
 /// <remarks>
 /// Use <see cref="Root"/> only for cancel-all behavior and <see cref="GetOrCreateScope"/> for a component or workflow group.
@@ -17,8 +17,8 @@ public interface ICancellationUtils : IDisposable
     /// <summary>Gets the stable, explicit cancel-all scope for the current dependency-injection service scope.</summary>
     ICancellationScope Root { get; }
 
-    /// <summary>Gets the stable, terminal named child scope associated with <paramref name="key"/>.</summary>
-    /// <param name="key">A valid owner-type-based key defined by the component that owns the cancellation group.</param>
+    /// <summary>Gets the stable, terminal child scope associated with <paramref name="key"/>.</summary>
+    /// <param name="key">A valid type-owned key defined by the cancellation group.</param>
     /// <returns>The one shared child scope associated with <paramref name="key"/> in this parent service scope.</returns>
     /// <exception cref="ArgumentException"><paramref name="key"/> is the invalid default value.</exception>
     /// <exception cref="ObjectDisposedException">This utility has been disposed.</exception>
@@ -30,16 +30,9 @@ public interface ICancellationUtils : IDisposable
 public sealed class CancellationUtils : ICancellationUtils
 {
     private readonly CancellationScope _root = new();
-    private readonly CancellationToken _rootToken;
-    private readonly Dictionary<CancellationScopeKey, CancellationScope> _namedScopes = [];
+    private readonly Dictionary<CancellationScopeKey, CancellationScope> _keyedScopes = [];
     private readonly Lock _lock = new();
     private bool _isDisposed;
-
-    /// <summary>Initializes a cancellation owner with one stable root scope.</summary>
-    public CancellationUtils()
-    {
-        _rootToken = _root.Token;
-    }
 
     /// <inheritdoc />
     public ICancellationScope Root => _root;
@@ -52,43 +45,25 @@ public sealed class CancellationUtils : ICancellationUtils
         lock (_lock)
         {
             ThrowIfDisposedUnderLock();
-            if (_namedScopes.TryGetValue(key, out var existing))
+            if (_keyedScopes.TryGetValue(key, out var existing))
                 return existing;
-        }
 
-        var candidate = CreateRootLinkedScope();
-
-        CancellationScope selected;
-        var candidateWasAdded = false;
-        try
-        {
-            lock (_lock)
+            var scope = new CancellationScope();
+            try
             {
-                ThrowIfDisposedUnderLock();
-                if (_namedScopes.TryGetValue(key, out var existing))
-                {
-                    selected = existing;
-                }
-                else
-                {
-                    _namedScopes.Add(key, candidate);
-                    selected = candidate;
-                    candidateWasAdded = true;
-                }
+                scope.Merge(_root.Token);
+                _keyedScopes.Add(key, scope);
+                return scope;
+            }
+            catch
+            {
+                scope.ReleaseResources();
+                throw;
             }
         }
-        catch
-        {
-            candidate.Dispose();
-            throw;
-        }
-
-        if (!candidateWasAdded)
-            candidate.Dispose();
-        return selected;
     }
 
-    /// <summary>Disposes every child scope and then the root scope.</summary>
+    /// <inheritdoc />
     public void Dispose()
     {
         CancellationScope[] children;
@@ -97,39 +72,22 @@ public sealed class CancellationUtils : ICancellationUtils
             if (_isDisposed) return;
 
             _isDisposed = true;
-            children = _namedScopes.Values.ToArray();
-            _namedScopes.Clear();
+            children = _keyedScopes.Values.ToArray();
+            _keyedScopes.Clear();
         }
 
         // If disposal is reentered from a root callback, child cleanup waits until all root callbacks finish.
-        _root.Dispose(() => DisposeChildren(children));
-    }
-
-    private CancellationScope CreateRootLinkedScope()
-    {
-        var candidate = new CancellationScope();
-        try
-        {
-            // Root cancellation can invoke this callback synchronously, so linking occurs without the parent lock.
-            candidate.Merge(_rootToken);
-            return candidate;
-        }
-        catch
-        {
-            candidate.Dispose();
-            throw;
-        }
+        _root.ReleaseResources(() => DisposeChildren(children));
     }
 
     private void ThrowIfDisposedUnderLock()
     {
-        if (_isDisposed)
-            throw new ObjectDisposedException(nameof(CancellationUtils));
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
     }
 
     private static void DisposeChildren(IEnumerable<CancellationScope> children)
     {
         foreach (var child in children)
-            child.Dispose();
+            child.ReleaseResources();
     }
 }

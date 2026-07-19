@@ -20,7 +20,7 @@
 - **Configuration** — `IAppSettings` with typed access, `[Config("Section")]` bindings
 - **App data roots** — `IAppData` resolves temp/data paths with traversal-safe child paths
 - **Scoped Logging** — `IScopedLog` aggregates structured logs per request
-- **Scoped Cancellation** — Explicit root cancel-all plus stable typed named groups
+- **Scoped Cancellation** — Explicit root cancel-all plus stable type-owned groups
 - **Validators** — Reusable payload validators such as `JpegValidator`
 - **Monotonic Pagination** — Cursor-based pagination leveraging entity ID temporal ordering
 - **Bit Packing** — High-performance `NumberBuilder` for custom data structures
@@ -208,7 +208,7 @@ public async Task Validate_Dependencies(DrnTestContext context)
 
 ### Scoped Cancellation
 
-`ICancellationUtils` owns a root and typed child scopes within the current DI service scope.
+`ICancellationUtils` owns a root and keyed child scopes within the current DI service scope.
 
 | Intent | API | Effect |
 |---|---|---|
@@ -220,7 +220,7 @@ public async Task Validate_Dependencies(DrnTestContext context)
 public sealed class CheckoutWorkflow(ICancellationUtils cancellation)
 {
     private static readonly CancellationScopeKey ScopeKey =
-        CancellationScopeKey.For<CheckoutWorkflow>("payment");
+        CancellationScopeKey.For<CheckoutWorkflow>();
 
     public async Task RunAsync(
         CancellationToken workflowLifetimeToken,
@@ -242,7 +242,11 @@ public sealed class CheckoutWorkflow(ICancellationUtils cancellation)
 
 The same key returns the same scope and token. Root cancellation reaches every child, while child cancellation does not affect the root or other groups. Canceled scopes cannot be reset.
 
-Create keys with `CancellationScopeKey.For<T>()` or `For<T>(name)`; use `For(Type)` only when the owner type is known at runtime. Optional names use ordinal, case-sensitive equality and must be nonblank developer-defined constants of at most 128 characters. Do not derive keys from request data, user input, instance IDs, or operation IDs because each scope remains registered until its parent is disposed. `ICancellationUtils` owns returned scopes; callers own and dispose local linked sources.
+Every key requires an owning type. Use `CancellationScopeKey.For<T>()` for a compile-time type or `For(Type)` for a runtime type. Add a name with `For<T>(name)` or `For(Type, name)` only when one type owns multiple intentional groups.
+
+Names use ordinal, case-sensitive equality and must be nonblank developer-defined constants of at most 128 characters. Keys are opaque and factory-created; the default value is invalid.
+
+Do not derive keys from request data, user input, instance IDs, or operation IDs because these values represent individual work rather than shared component or workflow lifetimes. `ICancellationUtils` owns returned scopes; callers own and dispose local linked sources.
 
 For root-wide migration, replace `cancellation.Cancel()`, `Merge(token)`, `Token`, and `IsCancellationRequested` with their `cancellation.Root` equivalents.
 

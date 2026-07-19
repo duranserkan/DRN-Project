@@ -3,7 +3,7 @@ namespace DRN.Framework.Utils.Cancellation;
 /// <summary>Represents one stable, terminal cancellation scope.</summary>
 /// <remarks>
 /// A scope keeps the same token for its complete lifetime. Merged tokens and manual cancellation cancel that token once;
-/// a canceled scope is never reset or replaced. Named child scopes are owned by <see cref="ICancellationUtils"/> and shared by key.
+/// a canceled scope is never reset or replaced. Keyed child scopes are owned by <see cref="ICancellationUtils"/> and shared by key.
 /// </remarks>
 public interface ICancellationScope
 {
@@ -29,6 +29,7 @@ public interface ICancellationScope
 internal sealed class CancellationScope : ICancellationScope
 {
     private readonly CancellationTokenSource _source = new();
+    private readonly CancellationToken _token;
     private readonly HashSet<CancellationToken> _mergedTokens = [];
     private readonly List<CancellationTokenRegistration> _registrations = [];
     private readonly Lock _lock = new();
@@ -37,23 +38,14 @@ internal sealed class CancellationScope : ICancellationScope
     private bool _disposeAfterCancellation;
     private bool _isDisposed;
 
-    public CancellationToken Token
+    internal CancellationScope()
     {
-        get
-        {
-            lock (_lock)
-                return _source.Token;
-        }
+        _token = _source.Token;
     }
 
-    public bool IsCancellationRequested
-    {
-        get
-        {
-            lock (_lock)
-                return _source.IsCancellationRequested;
-        }
-    }
+    public CancellationToken Token => _token;
+
+    public bool IsCancellationRequested => _token.IsCancellationRequested;
 
     public void Cancel()
     {
@@ -116,9 +108,7 @@ internal sealed class CancellationScope : ICancellationScope
             registration.Dispose();
     }
 
-    internal void Dispose() => Dispose(null);
-
-    internal void Dispose(Action? beforeScopeResources)
+    internal void ReleaseResources(Action? beforeScopeResources = null)
     {
         ScopeResources resources;
         lock (_lock)
@@ -167,7 +157,7 @@ internal sealed class CancellationScope : ICancellationScope
     {
         if (!CanAcceptCancellationUnderLock()) return false;
         if (!token.CanBeCanceled) return false;
-        if (token == _source.Token) return false;
+        if (token == _token) return false;
 
         return !_mergedTokens.Contains(token);
     }
@@ -177,7 +167,7 @@ internal sealed class CancellationScope : ICancellationScope
         if (_isDisposed) return false;
         if (_isCancellationInProgress) return false;
 
-        return !_source.IsCancellationRequested;
+        return !_token.IsCancellationRequested;
     }
 
     private ScopeResources TakeResourcesUnderLock()

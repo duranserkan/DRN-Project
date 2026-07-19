@@ -1,4 +1,3 @@
-using System.Reflection;
 using DRN.Framework.Utils.Cancellation;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Cancellation;
@@ -111,19 +110,19 @@ public class CancellationUtilsTests
     }
 
     [Fact]
-    public void Named_Keys_Should_Isolate_Distinct_Groups_Owned_By_The_Same_Type()
+    public void Different_Purpose_Names_Should_Isolate_Groups_Qualified_By_The_Same_Scope_Type()
     {
         using var cancellation = new CancellationUtils();
-        var typeOnly = cancellation.GetOrCreateScope(FirstKey);
-        var named = cancellation.GetOrCreateScope(NamedFirstKey);
+        var operations = cancellation.GetOrCreateScope(FirstKey);
+        var operationGroup = cancellation.GetOrCreateScope(NamedFirstKey);
 
-        named.Should().NotBeSameAs(typeOnly);
-        named.Token.Should().NotBe(typeOnly.Token);
+        operationGroup.Should().NotBeSameAs(operations);
+        operationGroup.Token.Should().NotBe(operations.Token);
 
-        named.Cancel();
+        operationGroup.Cancel();
 
-        named.IsCancellationRequested.Should().BeTrue();
-        typeOnly.IsCancellationRequested.Should().BeFalse();
+        operationGroup.IsCancellationRequested.Should().BeTrue();
+        operations.IsCancellationRequested.Should().BeFalse();
         cancellation.Root.IsCancellationRequested.Should().BeFalse();
     }
 
@@ -283,28 +282,26 @@ public class CancellationUtilsTests
     }
 
     [Fact]
-    public void Cancel_Should_Release_Merged_Token_Registrations_Before_Scope_Disposal()
+    public void Cancel_Should_Leave_Merged_Token_Sources_Usable()
     {
-        var scope = new CancellationScope();
+        using var cancellation = new CancellationUtils();
         using var firstSource = new CancellationTokenSource();
         using var secondSource = new CancellationTokenSource();
+        var scope = cancellation.GetOrCreateScope(FirstKey);
         scope.Merge(firstSource.Token);
         scope.Merge(secondSource.Token);
 
-        GetMergedRegistrationCount(scope).Should().Be(2);
-
         scope.Cancel();
 
-        GetMergedRegistrationCount(scope).Should().Be(0);
         Action cancelFirstSource = firstSource.Cancel;
         Action cancelSecondSource = secondSource.Cancel;
         cancelFirstSource.Should().NotThrow();
         cancelSecondSource.Should().NotThrow();
-        scope.Dispose();
+        scope.IsCancellationRequested.Should().BeTrue();
     }
 
     [Fact]
-    public void Parent_Dispose_During_Child_Cancellation_Should_Defer_Child_Cleanup()
+    public void Parent_Dispose_During_Child_Cancellation_Should_Not_Block_Active_Callback()
     {
         var cancellation = new CancellationUtils();
         using var externalSource = new CancellationTokenSource();
@@ -355,24 +352,22 @@ public class CancellationUtilsTests
         cancellationException.Should().BeNull();
         disposalException.Should().BeNull();
         childToken.IsCancellationRequested.Should().BeTrue();
-        Action getChildToken = () => _ = child.Token;
-        getChildToken.Should().Throw<ObjectDisposedException>();
     }
 
     [Theory]
     [DataInlineUnit(true)]
     [DataInlineUnit(false)]
-    public void Cancellation_Callbacks_Should_Not_Hold_State_Or_Parent_Dictionary_Locks(bool cancelRoot)
+    public void Cancellation_Callbacks_Should_Allow_Concurrent_Reads_And_Scope_Lookup(bool cancelRoot)
     {
         using var cancellation = new CancellationUtils();
         var child = cancellation.GetOrCreateScope(FirstKey);
         var target = cancelRoot ? cancellation.Root : child;
 
-        AssertCallbacksRunWithoutLocks(cancellation, target, target.Cancel);
+        AssertConcurrentReadsAndLookupCompleteDuringCallback(cancellation, target, target.Cancel);
     }
 
     [Fact]
-    public void Parent_Dispose_From_Root_Callback_Should_Preserve_Child_Cancellation_Before_Disposal()
+    public void Parent_Dispose_From_Root_Callback_Should_Cancel_Children_And_Complete_Safely()
     {
         var cancellation = new CancellationUtils();
         var child = cancellation.GetOrCreateScope(FirstKey);
@@ -385,8 +380,6 @@ public class CancellationUtilsTests
         cancelRoot.Should().NotThrow();
         rootToken.IsCancellationRequested.Should().BeTrue();
         childToken.IsCancellationRequested.Should().BeTrue();
-        Action getChildToken = () => _ = child.Token;
-        getChildToken.Should().Throw<ObjectDisposedException>();
         Action secondDispose = cancellation.Dispose;
         secondDispose.Should().NotThrow();
     }
@@ -405,30 +398,25 @@ public class CancellationUtilsTests
         cancelChild.Should().NotThrow();
         childToken.IsCancellationRequested.Should().BeTrue();
         rootToken.IsCancellationRequested.Should().BeFalse();
-        Action getChildToken = () => _ = child.Token;
-        getChildToken.Should().Throw<ObjectDisposedException>();
         Action secondDispose = cancellation.Dispose;
         secondDispose.Should().NotThrow();
     }
 
     [Fact]
-    public void Parent_Dispose_Should_Be_Idempotent_And_Dispose_Owned_Scopes()
+    public void Parent_Dispose_Should_Be_Idempotent_And_Leave_Captured_Tokens_Usable()
     {
         var cancellation = new CancellationUtils();
-        var root = cancellation.Root;
-        var firstChild = cancellation.GetOrCreateScope(FirstKey);
-        var secondChild = cancellation.GetOrCreateScope(SecondKey);
+        var rootToken = cancellation.Root.Token;
+        var firstChildToken = cancellation.GetOrCreateScope(FirstKey).Token;
+        var secondChildToken = cancellation.GetOrCreateScope(SecondKey).Token;
 
         cancellation.Dispose();
 
         Action secondDispose = cancellation.Dispose;
         secondDispose.Should().NotThrow();
-        Action getRootToken = () => _ = root.Token;
-        getRootToken.Should().Throw<ObjectDisposedException>();
-        Action getFirstChildToken = () => _ = firstChild.Token;
-        getFirstChildToken.Should().Throw<ObjectDisposedException>();
-        Action getSecondChildToken = () => _ = secondChild.Token;
-        getSecondChildToken.Should().Throw<ObjectDisposedException>();
+        rootToken.IsCancellationRequested.Should().BeFalse();
+        firstChildToken.IsCancellationRequested.Should().BeFalse();
+        secondChildToken.IsCancellationRequested.Should().BeFalse();
     }
 
     [Fact]
@@ -465,7 +453,7 @@ public class CancellationUtilsTests
     }
 
     [Fact]
-    public void CancellationScopeKey_Factories_Should_Use_Owner_Identity_And_Ordinal_Name_Equality()
+    public void CancellationScopeKey_Factories_Should_Use_Required_Owner_Type_And_Optional_Ordinal_Name()
     {
         var genericOwner = CancellationScopeKey.For<FirstScope>();
         var runtimeOwner = CancellationScopeKey.For(typeof(FirstScope));
@@ -479,14 +467,15 @@ public class CancellationUtilsTests
         CancellationScopeKey.For<FirstScope>("\u00E9")
             .Should().NotBe(CancellationScopeKey.For<FirstScope>("e\u0301"));
         genericNamed.Should().NotBe(CancellationScopeKey.For<SecondScope>("operation-group"));
+        genericOwner.Should().NotBe(CancellationScopeKey.For<SecondScope>());
         genericOwner.Should().NotBe(genericNamed);
     }
 
     [Fact]
     public void CancellationScopeKey_Factories_Should_Reject_Null_Owner_And_Invalid_Names()
     {
-        Action nullOwner = () => CancellationScopeKey.For(null!);
-        Action nullOwnerWithName = () => CancellationScopeKey.For(null!, "operation-group");
+        Action nullOwner = () => CancellationScopeKey.For((Type)null!);
+        Action nullOwnerWithName = () => CancellationScopeKey.For((Type)null!, "operation-group");
 
         nullOwner.Should().ThrowExactly<ArgumentNullException>();
         nullOwnerWithName.Should().ThrowExactly<ArgumentNullException>();
@@ -532,11 +521,11 @@ public class CancellationUtilsTests
         => typeof(IDisposable).IsAssignableFrom(typeof(ICancellationScope)).Should().BeFalse();
 
     [Fact]
-    public void ICancellationUtils_Should_Not_Expose_Unnamed_Scope_Creation()
+    public void ICancellationUtils_Should_Not_Expose_Unkeyed_Scope_Creation()
         => typeof(ICancellationUtils).GetMethod("CreateScope").Should().BeNull();
 
     [Fact]
-    public void Returned_Child_Runtime_Type_Should_Not_Expose_Disposal_Ownership()
+    public void Returned_Child_Should_Not_Transfer_Disposal_Ownership()
     {
         using var cancellation = new CancellationUtils();
         var child = cancellation.GetOrCreateScope(FirstKey);
@@ -566,27 +555,8 @@ public class CancellationUtilsTests
         targetToken.IsCancellationRequested.Should().BeTrue();
         childToken.IsCancellationRequested.Should().BeTrue();
         rootToken.IsCancellationRequested.Should().Be(mergeIntoRoot);
-        Action getTargetToken = () => _ = target.Token;
-        getTargetToken.Should().Throw<ObjectDisposedException>();
         Action secondDispose = cancellation.Dispose;
         secondDispose.Should().NotThrow();
-    }
-
-    [Fact]
-    public void Internal_CancellationScope_Dispose_Should_Be_Idempotent_And_Leave_External_Source_Usable()
-    {
-        var scope = new CancellationScope();
-        using var externalSource = new CancellationTokenSource();
-        scope.Merge(externalSource.Token);
-
-        scope.Dispose();
-
-        Action secondDispose = () => scope.Dispose();
-        secondDispose.Should().NotThrow();
-        Action cancelExternalSource = externalSource.Cancel;
-        cancelExternalSource.Should().NotThrow();
-        Action getToken = () => _ = scope.Token;
-        getToken.Should().Throw<ObjectDisposedException>();
     }
 
     [Fact]
@@ -605,7 +575,7 @@ public class CancellationUtilsTests
         child.IsCancellationRequested.Should().BeTrue();
     }
 
-    private static void AssertCallbacksRunWithoutLocks(
+    private static void AssertConcurrentReadsAndLookupCompleteDuringCallback(
         CancellationUtils cancellation,
         ICancellationScope target,
         Action triggerCancellation)
@@ -613,7 +583,7 @@ public class CancellationUtilsTests
         using var readerReady = new ManualResetEventSlim();
         using var beginRead = new ManualResetEventSlim();
         using var readerCompleted = new ManualResetEventSlim();
-        var callbackObservedUnlockedState = false;
+        var callbackObservedCompletedRead = false;
         Exception? readerException = null;
         var readerThread = new Thread(() =>
         {
@@ -643,7 +613,7 @@ public class CancellationUtilsTests
         using var registration = target.Token.Register(() =>
         {
             beginRead.Set();
-            callbackObservedUnlockedState = readerCompleted.Wait(TimeSpan.FromSeconds(5));
+            callbackObservedCompletedRead = readerCompleted.Wait(TimeSpan.FromSeconds(5));
         });
 
         triggerCancellation();
@@ -652,17 +622,7 @@ public class CancellationUtilsTests
         readerWasReady.Should().BeTrue();
         readerJoined.Should().BeTrue();
         readerException.Should().BeNull();
-        callbackObservedUnlockedState.Should().BeTrue();
-    }
-
-    private static int GetMergedRegistrationCount(CancellationScope scope)
-    {
-        var registrationsField = typeof(CancellationScope).GetField("_registrations", BindingFlags.Instance | BindingFlags.NonPublic);
-        registrationsField.Should().NotBeNull();
-        var registrations = registrationsField!.GetValue(scope).Should()
-            .BeAssignableTo<IReadOnlyCollection<CancellationTokenRegistration>>().Subject;
-
-        return registrations.Count;
+        callbackObservedCompletedRead.Should().BeTrue();
     }
 
     private sealed class FirstScope

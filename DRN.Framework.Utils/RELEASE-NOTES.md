@@ -1,5 +1,15 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.7
+
+### Breaking Changes
+
+*   **Opaque Cancellation Scope Keys**: Removed the public `CancellationScopeKey.OwnerType` and `Name` identity accessors and the custom identity-revealing `ToString()` output. Continue creating type-owned keys with `For<T>()`, `For(Type)`, `For<T>(name)`, or `For(Type, name)` instead of inspecting their identity.
+
+### Changed
+
+*   **Scoped Cancellation Guidance**: Package guidance now distinguishes type-owned shared groups from caller-owned operation cancellation and documents type-only keys with optional names.
+
 ## Version 0.9.6
 
 ### Breaking Changes

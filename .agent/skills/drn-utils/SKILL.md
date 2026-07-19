@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection, IAppSettings configuration, app data roots, logging, scoped cancellation, validators, extension methods, and core utilities. Keywords: dependency-injection, di, service-registration, configuration, appsettings, appdata, logging, scoped-log, cancellation, cancellation-scope, validators, attributes, scoped, singleton, transient, config, extensions, http-client"
-last-updated: 2026-07-15
+last-updated: 2026-07-16
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -14,7 +14,7 @@ tokens: ~2.5K
 - Setting up dependency injection with attributes
 - Accessing configuration via IAppSettings
 - Using or extending logging (IScopedLog)
-- Coordinating explicit root or named scoped cancellation
+- Coordinating explicit root or type-owned scoped cancellation
 - Working with DRN extension methods
 - Understanding service registration patterns
 
@@ -232,7 +232,7 @@ var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 
 ## Scoped Cancellation
 
-`ICancellationUtils` owns a root and typed child scopes for the current DI service scope.
+`ICancellationUtils` owns a root and keyed child scopes for the current DI service scope.
 
 | Intent | Use | Propagation |
 |---|---|---|
@@ -242,14 +242,16 @@ var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 
 ```csharp
 private static readonly CancellationScopeKey ScopeKey =
-    CancellationScopeKey.For<PaymentWorkflow>("capture");
+    CancellationScopeKey.For<PaymentWorkflow>();
 
 var scope = cancellation.GetOrCreateScope(ScopeKey);
 scope.Merge(workflowLifetimeToken);
 ```
 
 - The same key returns the same scope and token; canceled scopes cannot be reset.
-- Optional names use ordinal, case-sensitive equality and must be developer-defined constants of at most 128 characters. Never use request data, user input, instance IDs, or operation IDs.
+- Every key requires an owning type. Use `For<T>()` or `For(Type)` for one group per type. Use `For<T>(name)` or `For(Type, name)` only when that type owns multiple intentional groups.
+- Names use ordinal, case-sensitive equality and must be developer-defined constants of at most 128 characters. Never use request data, user input, instance IDs, or operation IDs to create groups.
+- Keys are opaque and factory-created; the default value is invalid.
 - `ICancellationUtils` owns child scopes. Callers own and dispose local linked sources used for operation-only cancellation.
 - Replace removed root members with their `cancellation.Root` equivalents.
 
@@ -292,7 +294,7 @@ if (scope.Acquired) { /* critical section */ }
 | **Validators** | `JpegValidator`, `JpegValidationResult`, `JpegValidationErrorReason` | Structural, stream-based, size-bounded JPEG validation with typed error reasons |
 | **App data** | `IAppData`, `AppDataPathResult`, `DrnAppDataSettings` | Validated temp/data roots with traversal-safe child path resolution |
 | **Pagination** | `IPaginationUtils` | Cursor-based via `SourceKnownEntityId` |
-| **Cancellation** | `ICancellationUtils`, `ICancellationScope`, `CancellationScopeKey` | Explicit root, stable typed named groups, and caller-owned local links |
+| **Cancellation** | `ICancellationUtils`, `ICancellationScope`, `CancellationScopeKey` | Explicit root, stable type-owned groups, and caller-owned local links |
 | **Diagnostics** | `DevelopmentStatus` | Track pending DB model changes at startup |
 
 ### Bit Packing (`NumberBuilder` / `NumberParser`)
