@@ -24,9 +24,9 @@ public class ObjectExtensionsTests
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    [InlineData(-5)]
+    [DataInlineUnit(0)]
+    [DataInlineUnit(-1)]
+    [DataInlineUnit(-5)]
     public void GetGroupedPropertiesOfSubtype_WithInvalidMaxRecursionLevel_ShouldThrowArgumentOutOfRangeException(int invalidLimit)
     {
         var root = new Level1();

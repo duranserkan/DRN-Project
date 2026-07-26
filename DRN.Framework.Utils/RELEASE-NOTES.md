@@ -37,6 +37,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Width-Aware Signed NumberBuilder Initialization**: Signed integer builders now initialize and reset the sign bit at the selected numeric width, preserving negative defaults when building 32-bit values.
 *   **HTTP Response Disposal**: Converters now dispose responses when payload reading fails. Streaming conversion also disposes the response if stream retrieval fails.
 *   **Claim Parameter Fallback**: `IScopedUser.GetClaimParameter` and `ScopedUser.GetClaimParameter` now return the caller-provided `defaultValue` fallback when claim value parsing fails.
+*   **Scope Data Stored Null Handling**: `ScopeData.GetParameter<TValue>` now returns `null` for explicitly stored null entries when `TValue` is a nullable type, returning `defaultValue` only for missing keys, incompatible stored types, or non-nullable target types.
 
 ## Version 0.9.6
 
