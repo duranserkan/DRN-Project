@@ -46,19 +46,44 @@ public class JsonMergePatchTests
 
         var result = JsonMergePatch.SafeApplyMergePatch(target, patch);
 
-        result.Changed.Should().BeTrue();
+        var isSemanticallyEqual = JsonNode.DeepEquals(targetSnapshot, expected);
+        result.Changed.Should().Be(!isSemanticallyEqual);
         JsonNode.DeepEquals(result.Json, expected).Should().BeTrue();
         JsonNode.DeepEquals(target, targetSnapshot).Should().BeTrue();
         JsonNode.DeepEquals(patch, patchSnapshot).Should().BeTrue();
 
-        if (result.Json is not null && target is not null)
+        if (result.Json is not null && target is not null && !isSemanticallyEqual)
             result.Json.Should().NotBeSameAs(target);
         if (result.Json is not null && patch is not null)
             result.Json.Should().NotBeSameAs(patch);
     }
 
+    [Theory]
+    [DataMemberUnit(nameof(Rfc7396AppendixACases))]
+    public void ApplyMergePatchInPlace_Ref_Should_Produce_Rfc7396_Appendix_A_Result(
+        string targetJson, string patchJson, string expectedJson)
+    {
+        var target = JsonNode.Parse(targetJson);
+        var patch = JsonNode.Parse(patchJson);
+        var targetSnapshot = target?.DeepClone();
+        var patchSnapshot = patch?.DeepClone();
+        var expected = JsonNode.Parse(expectedJson);
+
+        var changed = JsonMergePatch.ApplyMergePatchInPlace(ref target, patch);
+
+        var isSemanticallyEqual = JsonNode.DeepEquals(targetSnapshot, expected);
+        changed.Should().Be(!isSemanticallyEqual);
+        JsonNode.DeepEquals(target, expected).Should().BeTrue();
+        JsonNode.DeepEquals(patch, patchSnapshot).Should().BeTrue();
+
+        if (target is not null && patch is not null && !isSemanticallyEqual)
+        {
+            target.Should().NotBeSameAs(patch);
+        }
+    }
+
     [Fact]
-    public void Safe_Merge_Should_Reuse_Target_For_Semantic_No_Ops()
+    public void All_Merge_Methods_Should_Reuse_Target_For_Semantic_No_Ops()
     {
         var objectTarget = JsonNode.Parse("""{"value":{"nested":1}}""")!;
         var objectPatch = JsonNode.Parse("""{"value":{"nested":1,"absent":null}}""")!;
@@ -67,6 +92,7 @@ public class JsonMergePatchTests
         var primitiveTarget = JsonValue.Create("same")!;
         var primitivePatch = JsonValue.Create("same")!;
 
+        // 1. SafeApplyMergePatch
         var objectResult = JsonMergePatch.SafeApplyMergePatch(objectTarget, objectPatch);
         var arrayResult = JsonMergePatch.SafeApplyMergePatch(arrayTarget, arrayPatch);
         var primitiveResult = JsonMergePatch.SafeApplyMergePatch(primitiveTarget, primitivePatch);
@@ -80,6 +106,23 @@ public class JsonMergePatchTests
         primitiveResult.Json.Should().BeSameAs(primitiveTarget);
         nullResult.Changed.Should().BeFalse();
         nullResult.Json.Should().BeNull();
+
+        // 2. ApplyMergePatchInPlace (ref JsonNode?)
+        JsonNode? refObject = objectTarget.DeepClone();
+        JsonNode? refArray = arrayTarget.DeepClone();
+        JsonNode? refPrimitive = primitiveTarget.DeepClone();
+        JsonNode? refNull = null;
+
+        JsonMergePatch.ApplyMergePatchInPlace(ref refObject, objectPatch).Should().BeFalse();
+        JsonMergePatch.ApplyMergePatchInPlace(ref refArray, arrayPatch).Should().BeFalse();
+        JsonMergePatch.ApplyMergePatchInPlace(ref refPrimitive, primitivePatch).Should().BeFalse();
+        JsonMergePatch.ApplyMergePatchInPlace(ref refNull, null).Should().BeFalse();
+
+        // 3. ApplyMergePatchInPlace (JsonObject)
+        var objTargetInPlace = objectTarget.DeepClone().AsObject();
+        var nestedRef = objTargetInPlace["value"];
+        JsonMergePatch.ApplyMergePatchInPlace(objTargetInPlace, objectPatch.AsObject()).Should().BeFalse();
+        objTargetInPlace["value"].Should().BeSameAs(nestedRef);
     }
 
     [Fact]
@@ -111,7 +154,7 @@ public class JsonMergePatchTests
         var patchSnapshot = patch.DeepClone();
         var nested = target["nested"]!.AsObject();
 
-        var changed = JsonMergePatch.ApplyObjectMergePatchInPlace(target, patch);
+        var changed = JsonMergePatch.ApplyMergePatchInPlace(target, patch);
 
         changed.Should().BeTrue();
         target["nested"].Should().BeSameAs(nested);
@@ -122,118 +165,60 @@ public class JsonMergePatchTests
     }
 
     [Fact]
-    public void InPlace_Object_Merge_Should_Preserve_References_For_No_Op_Subtrees()
+    public void All_Merge_Methods_Should_Handle_Same_Tree_Aliasing()
     {
-        var target = JsonNode.Parse("""{"nested":{"value":1}}""")!.AsObject();
-        var patch = JsonNode.Parse("""{"nested":{"value":1,"absent":null}}""")!.AsObject();
-        var nested = target["nested"];
+        var targetJson = """{"value":1,"nested":{"stable":true},"remove":null}""";
 
-        var changed = JsonMergePatch.ApplyObjectMergePatchInPlace(target, patch);
+        // 1. SafeApplyMergePatch
+        var safeTarget = JsonNode.Parse(targetJson)!;
+        var safeResult = JsonMergePatch.SafeApplyMergePatch(safeTarget, safeTarget);
+        safeResult.Changed.Should().BeTrue();
+        safeResult.Json.Should().NotBeSameAs(safeTarget);
+        safeResult.Json!.AsObject().ContainsKey("remove").Should().BeFalse();
+        safeTarget.AsObject().ContainsKey("remove").Should().BeTrue();
 
-        changed.Should().BeFalse();
-        target["nested"].Should().BeSameAs(nested);
+        // 2. ApplyMergePatchInPlace (ref JsonNode?)
+        JsonNode? refTarget = JsonNode.Parse(targetJson)!;
+        var refChanged = JsonMergePatch.ApplyMergePatchInPlace(ref refTarget, refTarget);
+        refChanged.Should().BeTrue();
+        refTarget!.AsObject().ContainsKey("remove").Should().BeFalse();
+
+        // 3. ApplyMergePatchInPlace (JsonObject)
+        var objTarget = JsonNode.Parse(targetJson)!.AsObject();
+        var objChanged = JsonMergePatch.ApplyMergePatchInPlace(objTarget, objTarget);
+        objChanged.Should().BeTrue();
+        objTarget.ContainsKey("remove").Should().BeFalse();
     }
 
     [Fact]
-    public void InPlace_Object_Merge_Should_Handle_Patch_From_Target_Tree()
+    public void All_Merge_Methods_Should_Prevalidate_Depth_Before_Mutation()
     {
-        var target = JsonNode.Parse("""{"value":1,"remove":null}""")!.AsObject();
-
-        var changed = JsonMergePatch.ApplyObjectMergePatchInPlace(target, target);
-
-        changed.Should().BeTrue();
-        target.ContainsKey("remove").Should().BeFalse();
-        target["value"]!.GetValue<int>().Should().Be(1);
-    }
-
-    [Fact]
-    public void InPlace_Object_Merge_Should_Reuse_Same_Tree_For_Semantic_No_Op()
-    {
-        var target = JsonNode.Parse("""{"value":1,"nested":{"stable":true}}""")!.AsObject();
-        var nested = target["nested"];
-
-        var changed = JsonMergePatch.ApplyObjectMergePatchInPlace(target, target);
-
-        changed.Should().BeFalse();
-        target["nested"].Should().BeSameAs(nested);
-    }
-
-    [Fact]
-    public void InPlace_Object_Merge_Should_Merge_New_Objects_Against_Empty_Objects()
-    {
-        var target = new JsonObject();
-        var patch = JsonNode.Parse("""{"new":{"remove":null,"keep":true}}""")!.AsObject();
-        var expected = JsonNode.Parse("""{"new":{"keep":true}}""");
-
-        var changed = JsonMergePatch.ApplyObjectMergePatchInPlace(target, patch);
-
-        changed.Should().BeTrue();
-        JsonNode.DeepEquals(target, expected).Should().BeTrue();
-    }
-
-    [Fact]
-    public void ApplyMergePatchInPlace_Should_Mutate_Ref_Target_InPlace()
-    {
-        JsonNode? target = JsonNode.Parse("""{"nested":{"value":1},"stable":true}""");
-        var patch = JsonNode.Parse("""{"nested":{"value":2,"added":true}}""");
-        var nested = target!["nested"]!.AsObject();
-
-        var changed = JsonMergePatch.ApplyMergePatchInPlace(ref target, patch);
-
-        changed.Should().BeTrue();
-        target!["nested"].Should().BeSameAs(nested);
-        nested["value"]!.GetValue<int>().Should().Be(2);
-        nested["added"]!.GetValue<bool>().Should().BeTrue();
-    }
-
-    [Fact]
-    public void ApplyMergePatchInPlace_Should_Replace_Ref_Target_When_Root_Type_Changes()
-    {
-        JsonNode? target = JsonNode.Parse("""{"value":1}""");
-        var patch = JsonNode.Parse("""[1,2,3]""");
-
-        var changed = JsonMergePatch.ApplyMergePatchInPlace(ref target, patch);
-
-        changed.Should().BeTrue();
-        JsonNode.DeepEquals(target, patch).Should().BeTrue();
-    }
-
-    [Fact]
-    public void ApplyMergePatchInPlace_Should_Return_False_For_No_Ops()
-    {
-        JsonNode? target = JsonNode.Parse("""{"a":1}""");
-        var patch = JsonNode.Parse("""{"a":1,"b":null}""");
-
-        var changed = JsonMergePatch.ApplyMergePatchInPlace(ref target, patch);
-
-        changed.Should().BeFalse();
-    }
-
-    [Fact]
-    public void Safe_Merge_Should_Enforce_Array_Depth()
-    {
-        var patch = CreateDeepArray(5);
-
-        var operation = () => JsonMergePatch.SafeApplyMergePatch(new JsonObject(), patch, maxDepth: 4);
-
-        operation.Should().Throw<InvalidOperationException>();
-    }
-
-    [Fact]
-    public void InPlace_Object_Merge_Should_Prevalidate_Depth_Before_Mutation()
-    {
-        var target = new JsonObject { ["existing"] = true };
-        var patch = new JsonObject
+        var deepPatchObject = new JsonObject
         {
             ["shallow"] = "change",
             ["deep"] = CreateDeepObject(5)
         };
+        var deepPatchArray = CreateDeepArray(5);
 
-        var operation = () => JsonMergePatch.ApplyObjectMergePatchInPlace(target, patch, maxDepth: 4);
+        // 1. SafeApplyMergePatch (Object & Array)
+        Action safeObjectOp = () => JsonMergePatch.SafeApplyMergePatch(new JsonObject(), deepPatchObject, maxDepth: 4);
+        Action safeArrayOp = () => JsonMergePatch.SafeApplyMergePatch(new JsonObject(), deepPatchArray, maxDepth: 4);
+        safeObjectOp.Should().Throw<InvalidOperationException>();
+        safeArrayOp.Should().Throw<InvalidOperationException>();
 
-        operation.Should().Throw<InvalidOperationException>();
-        target.ContainsKey("shallow").Should().BeFalse();
-        target.ContainsKey("deep").Should().BeFalse();
+        // 2. ApplyMergePatchInPlace (ref JsonNode? Object & Array)
+        JsonNode? refTarget = new JsonObject { ["existing"] = true };
+        Action refObjectOp = () => JsonMergePatch.ApplyMergePatchInPlace(ref refTarget, deepPatchObject, maxDepth: 4);
+        Action refArrayOp = () => JsonMergePatch.ApplyMergePatchInPlace(ref refTarget, deepPatchArray, maxDepth: 4);
+        refObjectOp.Should().Throw<InvalidOperationException>();
+        refArrayOp.Should().Throw<InvalidOperationException>();
+        refTarget.AsObject().ContainsKey("shallow").Should().BeFalse();
+
+        // 3. ApplyMergePatchInPlace (JsonObject)
+        var objTarget = new JsonObject { ["existing"] = true };
+        Action objOp = () => JsonMergePatch.ApplyMergePatchInPlace(objTarget, deepPatchObject, maxDepth: 4);
+        objOp.Should().Throw<InvalidOperationException>();
+        objTarget.ContainsKey("shallow").Should().BeFalse();
     }
 
     [Fact]
@@ -252,12 +237,15 @@ public class JsonMergePatchTests
     {
         var target = new JsonObject();
         var patch = new JsonObject();
+        JsonNode? refTarget = target;
 
-        var safeOperation = () => JsonMergePatch.SafeApplyMergePatch(target, patch, maxDepth: 0);
-        var inPlaceOperation = () => JsonMergePatch.ApplyObjectMergePatchInPlace(target, patch, maxDepth: 0);
+        Action safeOp = () => JsonMergePatch.SafeApplyMergePatch(target, patch, maxDepth: 0);
+        Action refOp = () => JsonMergePatch.ApplyMergePatchInPlace(ref refTarget, patch, maxDepth: 0);
+        Action objOp = () => JsonMergePatch.ApplyMergePatchInPlace(target, patch, maxDepth: 0);
 
-        safeOperation.Should().Throw<ArgumentException>();
-        inPlaceOperation.Should().Throw<ArgumentException>();
+        safeOp.Should().Throw<ArgumentException>();
+        refOp.Should().Throw<ArgumentException>();
+        objOp.Should().Throw<ArgumentException>();
     }
 
     private static JsonObject CreateDeepObject(int depth)

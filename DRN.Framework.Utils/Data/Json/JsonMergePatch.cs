@@ -93,15 +93,6 @@ public static class JsonMergePatch
         return ApplyObjectMergePatchInPlaceCore(target, detachedPatch);
     }
 
-    /// <summary>
-    /// Applies the object-to-object branch of RFC 7396 directly to an existing target object.
-    /// </summary>
-    /// <param name="target">Target object to mutate, including existing nested objects.</param>
-    /// <param name="patch">Object patch. It is never mutated.</param>
-    /// <param name="maxDepth">Maximum object or array nesting depth allowed in the patch (default: 64).</param>
-    /// <returns><see langword="true"/> when the target document changed; otherwise <see langword="false"/>.</returns>
-    public static bool ApplyObjectMergePatchInPlace(JsonObject target, JsonObject patch, int maxDepth = 64) =>
-        ApplyMergePatchInPlace(target, patch, maxDepth);
 
     private static bool WouldChange(JsonNode? target, JsonNode? patch)
     {
