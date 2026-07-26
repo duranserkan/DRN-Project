@@ -1,4 +1,5 @@
 using DRN.Framework.EntityFramework.Domain;
+using DRN.Framework.SharedKernel.Cancellation;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Cancellation;
@@ -336,28 +337,50 @@ public class TagRepositoryTests
         sql.Should().Contain(nameof(QueryTagRepository.GetTaggedQueryString));
     }
 
-    private sealed class QueryTagRepository(QAContext context, IEntityUtils utils)
-        : SourceKnownRepository<QAContext, Tag>(context, utils)
+    private sealed class QueryTagRepository : SourceKnownRepository<QAContext, Tag>
     {
+        public QueryTagRepository(QAContext context, IEntityUtils utils)
+            : base(context, utils)
+        {
+            Settings.ScopeKey = CancellationScopeKey.For<QueryTagRepository>();
+        }
+
         public string GetTaggedQueryString() => EntitiesWithAppliedSettings().ToQueryString();
     }
 
-    private sealed class AlternateQueryTagRepository(QAContext context, IEntityUtils utils)
-        : SourceKnownRepository<QAContext, Tag>(context, utils)
+    private sealed class AlternateQueryTagRepository : SourceKnownRepository<QAContext, Tag>
     {
         internal static readonly CancellationScopeKey ScopeKey = CancellationScopeKey.For<AlternateQueryTagRepository>("alternate");
 
-        protected override CancellationScopeKey RepositoryCancellationScopeKey => ScopeKey;
+        public AlternateQueryTagRepository(QAContext context, IEntityUtils utils)
+            : base(context, utils)
+        {
+            Settings.ScopeKey = ScopeKey;
+        }
     }
 
     private static async Task AssertCancellation(DrnTestContext context)
     {
+        AssertNullScopeKeyDefaultRootCancellation(context);
         await AssertRepositoryTokenComposition(context, cancelFirstToken: true);
         await AssertRepositoryTokenComposition(context, cancelFirstToken: false);
         await AssertCancelChangesIsolation(context);
         await AssertRootCancellation(context);
         await AssertRepositoryScopeSharingAndKeyIsolation(context);
         AssertParentServiceScopeIsolation(context);
+    }
+
+    private static void AssertNullScopeKeyDefaultRootCancellation(DrnTestContext context)
+    {
+        using var scope = context.CreateScope();
+        var cancellation = scope.ServiceProvider.GetRequiredService<ICancellationUtils>();
+        var repository = scope.ServiceProvider.GetRequiredService<ITagRepository>();
+
+        repository.Settings.ScopeKey.Should().BeNull();
+        repository.CancellationToken.Should().Be(cancellation.Root.Token);
+
+        repository.CancelChanges();
+        cancellation.Root.IsCancellationRequested.Should().BeTrue();
     }
 
     private static async Task AssertRepositoryTokenComposition(DrnTestContext context, bool cancelFirstToken)
@@ -367,6 +390,7 @@ public class TagRepositoryTests
         using var secondSource = new CancellationTokenSource();
         var cancellation = scope.ServiceProvider.GetRequiredService<ICancellationUtils>();
         var repository = scope.ServiceProvider.GetRequiredService<ITagRepository>();
+        repository.Settings.ScopeKey = CancellationScopeKey.For<ITagRepository>();
         var stableToken = repository.CancellationToken;
 
         cancellation.Root.Token.Should().NotBe(stableToken);
@@ -391,6 +415,7 @@ public class TagRepositoryTests
         using var scope = context.CreateScope();
         var cancellation = scope.ServiceProvider.GetRequiredService<ICancellationUtils>();
         var repository = scope.ServiceProvider.GetRequiredService<ITagRepository>();
+        repository.Settings.ScopeKey = CancellationScopeKey.For<ITagRepository>();
         var unrelatedScope = cancellation.GetOrCreateScope(CancellationScopeKey.For<TagRepositoryTests>("unrelated-repository"));
         var effectiveToken = repository.CancellationToken;
 

@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Cancellation;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Cancellation;
@@ -40,7 +41,8 @@ public sealed class CancellationUtils : ICancellationUtils
     /// <inheritdoc />
     public ICancellationScope GetOrCreateScope(CancellationScopeKey key)
     {
-        key.Validate(nameof(key));
+        if (!key.IsValid)
+            throw new ArgumentException("The default cancellation scope key is invalid.", nameof(key));
 
         lock (_lock)
         {

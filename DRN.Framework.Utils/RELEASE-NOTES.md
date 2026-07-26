@@ -4,6 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **CancellationScopeKey Relocation**: Moved `CancellationScopeKey` to `DRN.Framework.SharedKernel.Cancellation`. Callers should update namespace imports from `DRN.Framework.Utils.Cancellation` to `DRN.Framework.SharedKernel.Cancellation`.
 *   **JSON Merge Patch API Split And Result Type**: Removed the `changeOriginal` Boolean from `JsonMergePatch.SafeApplyMergePatch`; the method now always leaves both inputs unchanged and reuses the target only for semantic no-ops. Use the new `ApplyMergePatchInPlace` method when in-place mutation is required. `MergeResult` changed from a record class to a readonly record struct, and its `Json` value is nullable because `System.Text.Json` represents root-level JSON `null` as a null `JsonNode`.
 *   **Opaque Cancellation Scope Keys**: Removed the public `CancellationScopeKey.OwnerType` and `Name` identity accessors and the custom identity-revealing `ToString()` output. Continue creating type-owned keys with `For<T>()`, `For(Type)`, `For<T>(name)`, or `For(Type, name)` instead of inspecting their identity.
 *   **HTTP Response Snapshots**: Removed `HttpResponse.Response` and changed public wrapper construction to accept an HTTP status. Use `HttpStatus` and `Payload`; dispose streaming wrappers after use.

@@ -2,9 +2,9 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.9.7
 
-### Changed
+### Breaking Changes
 
-*   **Repository Cancellation Guidance**: Package guidance now describes the concrete repository type default, intentional group overrides, and operation-local cancellation.
+*   **Repository Cancellation Scope Key Override Removed**: Removed protected virtual `RepositoryCancellationScopeKey` from `SourceKnownRepository`. Configure `Settings.ScopeKey` instead (defaults to `null` which uses `Utils.Cancellation.Root`).
 
 ## Version 0.9.6
 

@@ -294,18 +294,16 @@ public class UserRepository(QAContext context, IEntityUtils utils)
 
 ### Repository Cancellation
 
-Repository operations use a child scope, not the cancellation root:
+Repository cancellation scope is configured via `Settings.ScopeKey`:
 
-- `CancellationToken` is read-only, and `CancelWhen(token)` links a lifetime token to the repository group.
-- `CancelChanges` cancels repositories sharing that group. By default, this means instances of the same concrete repository type in the current DI scope.
-- `cancellation.Root.Cancel()` cancels every repository group in the scope.
-- A canceled repository group cannot be reset.
-
-`RepositoryCancellationScopeKey` defaults to the concrete repository type. Override it only when a repository must join another stable, type-owned group:
+- When `Settings.ScopeKey` is `null` (default), repository cancellation uses `Utils.Cancellation.Root`. `CancelChanges()` cancels `Root`, affecting all scope-wide operations.
+- When `Settings.ScopeKey` is set to a `CancellationScopeKey`, operations use that child scope:
+  - `CancellationToken` returns the child scope token.
+  - `CancelWhen(token)` links a lifetime token to the repository group.
+  - `CancelChanges()` cancels only repositories sharing that scope key.
 
 ```csharp
-protected override CancellationScopeKey RepositoryCancellationScopeKey =>
-    CancellationScopeKey.For<UserRepository>("shared-writes");
+repository.Settings.ScopeKey = CancellationScopeKey.For<UserRepository>("shared-writes");
 ```
 
 Names are optional, case-sensitive developer-defined constants limited to 128 characters. Use one only when a type owns multiple intentional groups.

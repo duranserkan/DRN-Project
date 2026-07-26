@@ -227,14 +227,17 @@ public class RepositorySettings<TEntity>
 
 ### Repository Cancellation
 
-Repository operations resolve a child cancellation scope instead of using the root:
+Repository cancellation scope is configured via `Settings.ScopeKey`:
 
-- `CancellationToken` is read-only, `CancelWhen(token)` links a lifetime token, and `CancelChanges` cancels the repository group.
-- `RepositoryCancellationScopeKey` defaults to the concrete repository type, so instances of the same type share cancellation within the current DI scope.
-- Override the key only to select another stable, type-owned group; use an optional name only when one type owns multiple groups. Never create keys from request or operation data.
-- Use `cancellation.Root.Cancel()` for cancel-all behavior and a local linked source for one operation.
+- When `Settings.ScopeKey` is `null` (default), repository cancellation uses `Utils.Cancellation.Root`. `CancelChanges()` cancels `Root`, affecting all scope-wide operations.
+- When `Settings.ScopeKey` is set to a `CancellationScopeKey`, operations use that child scope:
+  - `CancellationToken` returns the child scope token.
+  - `CancelWhen(token)` links a lifetime token to the repository group.
+  - `CancelChanges()` cancels only repositories sharing that scope key.
 
 ```csharp
+repository.Settings.ScopeKey = CancellationScopeKey.For<UserRepository>("shared-writes");
+
 using var operationSource =
     CancellationTokenSource.CreateLinkedTokenSource(
         repository.CancellationToken,

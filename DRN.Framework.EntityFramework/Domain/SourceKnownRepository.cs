@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel;
+using DRN.Framework.SharedKernel.Cancellation;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
@@ -33,16 +34,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     protected IEntityUtils Utils { get; } = utils;
     protected IScopedLog ScopedLog { get; } = utils.ScopedLog;
 
-    /// <summary>Gets the stable key used to share this repository's cancellation scope.</summary>
-    /// <remarks>
-    /// The default key uses the concrete repository type, so instances of the same type share cancellation within the parent
-    /// dependency-injection scope. Override only to join another stable intentional group.
-    /// </remarks>
-    protected virtual CancellationScopeKey RepositoryCancellationScopeKey =>
-        CancellationScopeKey.For(GetType());
-
-    private ICancellationScope RepositoryCancellationScope =>
-        Utils.Cancellation.GetOrCreateScope(RepositoryCancellationScopeKey);
+    private ICancellationScope? RepositoryCancellationScope => Settings.ScopeKey is { } key ? Utils.Cancellation.GetOrCreateScope(key) : null;
 
     /// <summary>
     /// Settings for default public members of SourceKnownRepositories
@@ -70,14 +62,14 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return entities;
     }
 
-    public CancellationToken CancellationToken => RepositoryCancellationScope.Token;
+    public CancellationToken CancellationToken => RepositoryCancellationScope?.Token ?? Utils.Cancellation.Root.Token;
 
-    public void CancelWhen(CancellationToken token) => RepositoryCancellationScope.Merge(token);
+    public void CancelWhen(CancellationToken token) => (RepositoryCancellationScope ?? Utils.Cancellation.Root).Merge(token);
 
     public void CancelChanges()
     {
         using var _ = ScopedLog.Measure(this);
-        RepositoryCancellationScope.Cancel();
+        (RepositoryCancellationScope ?? Utils.Cancellation.Root).Cancel();
     }
 
     /// <summary>

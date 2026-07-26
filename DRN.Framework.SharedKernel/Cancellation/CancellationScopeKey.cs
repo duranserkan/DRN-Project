@@ -1,4 +1,4 @@
-namespace DRN.Framework.Utils.Cancellation;
+namespace DRN.Framework.SharedKernel.Cancellation;
 
 /// <summary>Identifies one child cancellation scope by a non-null ordinal name and an optional owning type.</summary>
 /// <remarks>
@@ -85,9 +85,6 @@ public readonly struct CancellationScopeKey : IEquatable<CancellationScopeKey>
     /// <summary>Returns whether two keys differ by owner type or ordinal name.</summary>
     public static bool operator !=(CancellationScopeKey left, CancellationScopeKey right) => !left.Equals(right);
 
-    internal void Validate(string parameterName)
-    {
-        if (_name is null)
-            throw new ArgumentException("The default cancellation scope key is invalid.", parameterName);
-    }
+    /// <summary>Gets a value indicating whether this key was created via a factory method and is not the invalid default value.</summary>
+    public bool IsValid => _name is not null;
 }

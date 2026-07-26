@@ -307,7 +307,7 @@ public readonly record struct SourceKnownEntityId(
 - **Standardized Access**: Common CRUD operations (`CreateAsync`, `GetAsync`, `DeleteAsync`).
 - **Identity Conversion**: Specialized methods for mapping external `Guid` to internal `SourceKnownEntityId`.
 - **Secure ↔ Plain Conversion**: `ToSecure` / `ToPlain` for converting between encrypted and plaintext entity IDs.
-- **Cancellation**: `CancellationToken` exposes the repository-group token, `CancelWhen(token)` links a lifetime token, and `CancelChanges` cancels that group.
+- **Cancellation**: `CancellationToken` exposes the active repository scope token (uses Root when `ScopeKey` is null, or named scope when set), `CancelWhen(token)` links a lifetime token, and `CancelChanges` cancels the effective scope.
 - **Streaming**: Supports `IAsyncEnumerable` for efficient large dataset processing.
 
 

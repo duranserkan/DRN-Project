@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Cancellation;
 using DRN.Framework.Utils.Cancellation;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Cancellation;
@@ -523,14 +524,12 @@ public class CancellationUtilsTests
             var runtime = CancellationScopeKey.For(typeof(FirstScope), name);
             var ownerless = CancellationScopeKey.For(name);
 
-            Action validateGeneric = () => generic.Validate("key");
-            Action validateRuntime = () => runtime.Validate("key");
-            Action validateOwnerless = () => ownerless.Validate("key");
-
-            validateGeneric.Should().NotThrow();
-            validateRuntime.Should().NotThrow();
-            validateOwnerless.Should().NotThrow();
+            generic.IsValid.Should().BeTrue();
+            runtime.IsValid.Should().BeTrue();
+            ownerless.IsValid.Should().BeTrue();
         }
+
+        default(CancellationScopeKey).IsValid.Should().BeFalse();
     }
 
     [Fact]

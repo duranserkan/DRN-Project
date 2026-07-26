@@ -1,5 +1,12 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.7
+
+### New Features
+
+*   **CancellationScopeKey Primitive**: `CancellationScopeKey` is now available in `DRN.Framework.SharedKernel.Cancellation` for defining typed or named child cancellation scope keys across domain and framework layers.
+*   **Repository Cancellation Settings**: `RepositorySettings<TEntity>` now includes `ScopeKey` for configuring child cancellation scopes on repository instances.
+
 ## Version 0.9.6
 
 ### Security
