@@ -644,6 +644,27 @@ High-performance hashing extensions supporting modern and legacy algorithms.
 Extensions for programmatic validation using `System.ComponentModel.DataAnnotations`.
 *   **Contextual**: Integrates with `DRN.Framework.SharedKernel.ValidationException` for standardized error reporting across layers.
 
+### Entity Creation-Date Filters (`IEntityDateTimeUtils`)
+
+`IEntityDateTimeUtils` filters `SourceKnownEntity.Id` by its 250ms Source-Known ID creation tick without requiring database timestamp columns. Each date boundary maps to minimum and maximum scalar `long` ID bounds for efficient query evaluation.
+
+```csharp
+public class OrderService(IEntityDateTimeUtils dateTimeUtils)
+{
+    public IQueryable<Order> GetOrdersInDateRange(IQueryable<Order> query, DateTimeOffset start, DateTimeOffset end)
+    {
+        return dateTimeUtils.CreatedBetween(query, start, end, inclusive: true);
+    }
+}
+```
+
+| Filter | Inclusive boundary | Exclusive boundary |
+|---|---|---|
+| `CreatedAfter` | `Id >= tick.Min` | `Id > tick.Max` |
+| `CreatedBefore` | `Id <= tick.Max` | `Id < tick.Min` |
+| `CreatedBetween` | `Id >= begin.Min && Id <= end.Max` | `Id > begin.Max && Id < end.Min` |
+| `CreatedOutside` | `Id <= begin.Max \|\| Id >= end.Min` | `Id < begin.Min \|\| Id > end.Max` |
+
 ## Pagination
 
 The framework provides `IPaginationUtils` for high-performance, monotonic cursor-based pagination. It leverages the temporal sequence of `SourceKnownEntityId` to ensure stable results even as data is being added.

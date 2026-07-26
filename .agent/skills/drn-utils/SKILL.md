@@ -246,7 +246,7 @@ var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 | `CreatedAfter` | `Id >= tick.Min` | `Id > tick.Max` |
 | `CreatedBefore` | `Id <= tick.Max` | `Id < tick.Min` |
 | `CreatedBetween` | `Id >= begin.Min && Id <= end.Max` | `Id > begin.Max && Id < end.Min` |
-| `CreatedOutside` | `Id <= begin.Max || Id >= end.Min` | `Id < begin.Min || Id > end.Max` |
+| `CreatedOutside` | `Id <= begin.Max \|\| Id >= end.Min` | `Id < begin.Min \|\| Id > end.Max` |
 
 `CreatedBetween` and `CreatedOutside` normalize reversed endpoints before applying thresholds. Equal endpoints therefore select the whole tick for inclusive `Between`, no rows for exclusive `Between`, all rows for inclusive `Outside`, and everything except the tick for exclusive `Outside`.
 
