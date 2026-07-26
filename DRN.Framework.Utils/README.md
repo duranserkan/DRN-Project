@@ -630,8 +630,8 @@ High-performance hashing extensions supporting modern and legacy algorithms.
 ### JSON & Document Utilities
 
 *   **Safe JSON Merge Patch**: `JsonMergePatch.SafeApplyMergePatch(target, patch)` implements RFC 7396 processing semantics without mutating either input. Semantic no-ops reuse the target; changed object targets are cloned once and merged without repeated subtree cloning. `MergeResult` is a readonly record struct, `Json` is nullable for a root-level JSON `null` result, and `Changed` reports only actual document changes.
-*   **In-Place Object Merge Patch**: `JsonMergePatch.ApplyObjectMergePatchInPlace(targetObject, patchObject)` provides an allocation-sensitive object-only path that mutates the complete existing target tree and preserves nested object references. Use the safe method when a patch can replace the root with an array, scalar, or JSON `null`.
-*   **Resource Safety**: Both methods validate the complete patch depth before applying changes. The repository unit suite includes every RFC 7396 Appendix A example.
+*   **In-Place JSON Merge Patch**: `JsonMergePatch.ApplyMergePatchInPlace(ref target, patch)` and `ApplyMergePatchInPlace(targetObject, patchObject)` perform full RFC 7396 merge patch operations directly in-place, preserving existing nested object references and updating the `ref target` reference if the root type changes.
+*   **Resource Safety**: All merge methods validate the complete patch depth before applying changes. The repository unit suite includes every RFC 7396 Appendix A example.
 *   **Query String Serialization**: `QueryParameterSerializer` flattens complex nested objects/arrays into clean query strings for API clients.
 
 ### Serialization & Streams

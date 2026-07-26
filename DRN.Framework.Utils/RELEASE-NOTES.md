@@ -4,7 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
-*   **JSON Merge Patch API Split And Result Type**: Removed the `changeOriginal` Boolean from `JsonMergePatch.SafeApplyMergePatch`; the method now always leaves both inputs unchanged and reuses the target only for semantic no-ops. Use the new object-only `ApplyObjectMergePatchInPlace` method when full-tree in-place mutation is required. `MergeResult` changed from a record class to a readonly record struct, and its `Json` value is nullable because `System.Text.Json` represents root-level JSON `null` as a null `JsonNode`.
+*   **JSON Merge Patch API Split And Result Type**: Removed the `changeOriginal` Boolean from `JsonMergePatch.SafeApplyMergePatch`; the method now always leaves both inputs unchanged and reuses the target only for semantic no-ops. Use the new `ApplyMergePatchInPlace` method when in-place mutation is required. `MergeResult` changed from a record class to a readonly record struct, and its `Json` value is nullable because `System.Text.Json` represents root-level JSON `null` as a null `JsonNode`.
 *   **Opaque Cancellation Scope Keys**: Removed the public `CancellationScopeKey.OwnerType` and `Name` identity accessors and the custom identity-revealing `ToString()` output. Continue creating type-owned keys with `For<T>()`, `For(Type)`, `For<T>(name)`, or `For(Type, name)` instead of inspecting their identity.
 *   **HTTP Response Snapshots**: Removed `HttpResponse.Response` and changed public wrapper construction to accept an HTTP status. Use `HttpStatus` and `Payload`; dispose streaming wrappers after use.
 *   **HTTP Response Conversion API**: Removed static conversion methods from `HttpResponse`. Call `ToStringAsync`, `ToBytesAsync`, `ToStreamAsync`, `FromJsonAsync<T>`, and their non-throwing `Try*` counterparts as extension methods on `Task<IFlurlResponse>` or `IFlurlResponse`.
@@ -13,6 +13,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
+*   **In-Place JSON Merge Patching**: Added `JsonMergePatch.ApplyMergePatchInPlace` overloads (`ref JsonNode? target` and `JsonObject target`) for executing full RFC 7396 merge patches in-place while preserving nested object references and updating root node references when necessary.
 *   **Ownerless Named Cancellation Keys**: Support creating named cancellation keys without an owner type via `CancellationScopeKey.For(name)` for intentional cross-type groups. Ownerless keys share one ordinal-name namespace within the current cancellation service scope, so qualified, centrally defined names are recommended. Empty and whitespace names are valid, but the key name must not be null.
 
 ### Changed

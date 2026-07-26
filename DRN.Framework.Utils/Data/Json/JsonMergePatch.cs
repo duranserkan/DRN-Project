@@ -36,17 +36,48 @@ public static class JsonMergePatch
     }
 
     /// <summary>
+    /// Applies an RFC 7396 JSON Merge Patch directly to <paramref name="target"/> in-place.
+    /// </summary>
+    /// <param name="target">Target JSON node to mutate in-place. May be updated to point to a new root node if root type changes.</param>
+    /// <param name="patch">Merge patch node. It is never mutated.</param>
+    /// <param name="maxDepth">Maximum object or array nesting depth allowed in the patch (default: 64).</param>
+    /// <returns><see langword="true"/> when the target document changed; otherwise <see langword="false"/>.</returns>
+    public static bool ApplyMergePatchInPlace(ref JsonNode? target, JsonNode? patch, int maxDepth = 64)
+    {
+        ValidateMaxDepth(maxDepth);
+        ValidatePatchDepth(patch, maxDepth);
+
+        if (!WouldChange(target, patch))
+            return false;
+
+        if (patch is not JsonObject patchObject)
+        {
+            target = patch?.DeepClone();
+            return true;
+        }
+
+        if (target is not JsonObject targetObject)
+        {
+            var newTarget = new JsonObject(patchObject.Options);
+            ApplyObjectMergePatchInPlaceCore(newTarget, patchObject);
+            target = newTarget;
+            return true;
+        }
+
+        var sharesTreeWithTarget = ReferenceEquals(targetObject.Root, patchObject.Root);
+        var detachedPatch = sharesTreeWithTarget ? patchObject.DeepClone().AsObject() : patchObject;
+
+        return ApplyObjectMergePatchInPlaceCore(targetObject, detachedPatch);
+    }
+
+    /// <summary>
     /// Applies the object-to-object branch of RFC 7396 directly to an existing target object.
     /// </summary>
     /// <param name="target">Target object to mutate, including existing nested objects.</param>
     /// <param name="patch">Object patch. It is never mutated.</param>
     /// <param name="maxDepth">Maximum object or array nesting depth allowed in the patch (default: 64).</param>
     /// <returns><see langword="true"/> when the target document changed; otherwise <see langword="false"/>.</returns>
-    /// <remarks>
-    /// Use <see cref="SafeApplyMergePatch"/> for the complete RFC operation, including root replacement by arrays,
-    /// scalars, or JSON null. This method is object-only so its in-place guarantee remains exact.
-    /// </remarks>
-    public static bool ApplyObjectMergePatchInPlace(JsonObject target, JsonObject patch, int maxDepth = 64)
+    public static bool ApplyMergePatchInPlace(JsonObject target, JsonObject patch, int maxDepth = 64)
     {
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(patch);
@@ -61,6 +92,16 @@ public static class JsonMergePatch
 
         return ApplyObjectMergePatchInPlaceCore(target, detachedPatch);
     }
+
+    /// <summary>
+    /// Applies the object-to-object branch of RFC 7396 directly to an existing target object.
+    /// </summary>
+    /// <param name="target">Target object to mutate, including existing nested objects.</param>
+    /// <param name="patch">Object patch. It is never mutated.</param>
+    /// <param name="maxDepth">Maximum object or array nesting depth allowed in the patch (default: 64).</param>
+    /// <returns><see langword="true"/> when the target document changed; otherwise <see langword="false"/>.</returns>
+    public static bool ApplyObjectMergePatchInPlace(JsonObject target, JsonObject patch, int maxDepth = 64) =>
+        ApplyMergePatchInPlace(target, patch, maxDepth);
 
     private static bool WouldChange(JsonNode? target, JsonNode? patch)
     {

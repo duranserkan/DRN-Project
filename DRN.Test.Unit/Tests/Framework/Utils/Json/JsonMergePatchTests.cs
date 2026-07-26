@@ -172,6 +172,44 @@ public class JsonMergePatchTests
     }
 
     [Fact]
+    public void ApplyMergePatchInPlace_Should_Mutate_Ref_Target_InPlace()
+    {
+        JsonNode? target = JsonNode.Parse("""{"nested":{"value":1},"stable":true}""");
+        var patch = JsonNode.Parse("""{"nested":{"value":2,"added":true}}""");
+        var nested = target!["nested"]!.AsObject();
+
+        var changed = JsonMergePatch.ApplyMergePatchInPlace(ref target, patch);
+
+        changed.Should().BeTrue();
+        target!["nested"].Should().BeSameAs(nested);
+        nested["value"]!.GetValue<int>().Should().Be(2);
+        nested["added"]!.GetValue<bool>().Should().BeTrue();
+    }
+
+    [Fact]
+    public void ApplyMergePatchInPlace_Should_Replace_Ref_Target_When_Root_Type_Changes()
+    {
+        JsonNode? target = JsonNode.Parse("""{"value":1}""");
+        var patch = JsonNode.Parse("""[1,2,3]""");
+
+        var changed = JsonMergePatch.ApplyMergePatchInPlace(ref target, patch);
+
+        changed.Should().BeTrue();
+        JsonNode.DeepEquals(target, patch).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ApplyMergePatchInPlace_Should_Return_False_For_No_Ops()
+    {
+        JsonNode? target = JsonNode.Parse("""{"a":1}""");
+        var patch = JsonNode.Parse("""{"a":1,"b":null}""");
+
+        var changed = JsonMergePatch.ApplyMergePatchInPlace(ref target, patch);
+
+        changed.Should().BeFalse();
+    }
+
+    [Fact]
     public void Safe_Merge_Should_Enforce_Array_Depth()
     {
         var patch = CreateDeepArray(5);
