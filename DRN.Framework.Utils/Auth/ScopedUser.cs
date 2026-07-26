@@ -79,7 +79,7 @@ public class ScopedUser : IScopedUser
         if (claimValue is null)
             return defaultValue;
 
-        return claimValue.TryParse<TValue>(out var result) ? result : default;
+        return claimValue.TryParse<TValue>(out var result) ? result : defaultValue;
     }
 
     internal void SetUser(ClaimsPrincipal user)

@@ -36,6 +36,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **JSON Merge Patch RFC, Change Tracking, And Depth Enforcement**: Object patches now merge recursively against empty objects when targets are missing or non-object, omitting null members per RFC 7396. Root-level JSON null is supported, no-op deletions and equivalent replacements no longer report `Changed`, and the complete patch depth is validated before applying changes. Unit coverage includes all 15 RFC 7396 Appendix A examples.
 *   **Width-Aware Signed NumberBuilder Initialization**: Signed integer builders now initialize and reset the sign bit at the selected numeric width, preserving negative defaults when building 32-bit values.
 *   **HTTP Response Disposal**: Converters now dispose responses when payload reading fails. Streaming conversion also disposes the response if stream retrieval fails.
+*   **Claim Parameter Fallback**: `IScopedUser.GetClaimParameter` and `ScopedUser.GetClaimParameter` now return the caller-provided `defaultValue` fallback when claim value parsing fails.
 
 ## Version 0.9.6
 
