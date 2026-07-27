@@ -72,8 +72,13 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
                 if (_outputHelper == null)
                     return;
 
+                var testMethod = testContext.MethodContext.TestMethod;
+                var testName = testMethod.DeclaringType != null
+                    ? $"{testMethod.DeclaringType.Name}.{testMethod.Name}"
+                    : testMethod.Name;
+
                 // Create a custom NLog target that writes to the test output helper
-                var testOutputTarget = new TestOutputTarget(_outputHelper);
+                var testOutputTarget = new TestOutputTarget(_outputHelper, testName);
                 var config = new LoggingConfiguration();
                 config.AddTarget(testOutputTarget);
                 config.AddRule(LogLevel.Info, LogLevel.Fatal, testOutputTarget);
@@ -154,12 +159,13 @@ public sealed class TestOutputTarget : TargetWithLayout
 {
     private readonly ITestOutputHelper _testOutputHelper;
 
-    public TestOutputTarget(ITestOutputHelper testOutputHelper)
+    public TestOutputTarget(ITestOutputHelper testOutputHelper, string? testName = null)
     {
         _testOutputHelper = testOutputHelper ?? throw new ArgumentNullException(nameof(testOutputHelper));
         Name = "testOutput";
+        var testTag = !string.IsNullOrWhiteSpace(testName) ? $" [{testName}]" : string.Empty;
         Layout =
-            "[BEGIN ${date:format=HH\\:mm\\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}]${newline}${message}${newline}[END ${date:format=HH\\:mm\\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}]${newline}";
+            $"[BEGIN ${{date:format=HH\\:mm\\:ss.fffffff}} ${{level:format=Name:padding=-3:uppercase=true}} ${{logger}}{testTag}]${{newline}}${{message}}${{newline}}[END ${{date:format=HH\\:mm\\:ss.fffffff}} ${{level:format=Name:padding=-3:uppercase=true}} ${{logger}}{testTag}]${{newline}}";
     }
 
     protected override void Write(LogEventInfo logEvent)
