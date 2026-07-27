@@ -8,12 +8,12 @@ namespace DRN.Framework.Hosting.Middlewares;
 /// Manages request body buffering with a size gate to prevent memory/disk exhaustion.
 /// <list type="bullet">
 ///   <item><b>Producer:</b> <see cref="TryEnableBuffering"/> — called in <see cref="HttpScopeMiddleware"/></item>
-///   <item><b>Consumer:</b> <see cref="ReadBodyAsync"/> — called in
+///   <item><b>Consumer:</b> <see cref="ReadBodyAsync(HttpContext)"/> — called in
 ///     <see cref="ExceptionHandler.Utils.ExceptionUtils.CreateErrorPageModelAsync"/></item>
 /// </list>
 /// Buffering is only enabled for methods that semantically carry a body (POST, PUT, PATCH).
 /// Requests with Content-Length exceeding the configured max buffer size (default 30,000 bytes) are not buffered,
-/// and <see cref="ReadBodyAsync"/> returns a descriptive reason for unbuffered requests.
+/// and <see cref="ReadBodyAsync(HttpContext)"/> returns a descriptive reason for unbuffered requests.
 /// </summary>
 public class RequestBufferingState
 {
@@ -87,7 +87,19 @@ public class RequestBufferingState
     /// Returns a descriptive reason when the request was not buffered.
     /// Resets the stream position after reading so subsequent reads remain possible.
     /// </summary>
-    public static async Task<string> ReadBodyAsync(HttpContext context)
+    /// <param name="context">The active HTTP context whose request body may have been buffered.</param>
+    public static Task<string> ReadBodyAsync(HttpContext context)
+        => ReadBodyAsync(context, context.RequestAborted);
+
+    /// <summary>
+    /// Safely reads the request body with an explicit cancellation token if buffering was enabled,
+    /// up to <see cref="BufferSizeLimit"/> bytes.
+    /// Returns a descriptive reason when the request was not buffered.
+    /// Resets the stream position after reading so subsequent reads remain possible.
+    /// </summary>
+    /// <param name="context">The active HTTP context whose request body may have been buffered.</param>
+    /// <param name="cancellationToken">The token that cancels the buffered body read.</param>
+    public static async Task<string> ReadBodyAsync(HttpContext context, CancellationToken cancellationToken)
     {
         if (!context.Items.TryGetValue(Key, out var obj) || obj is not RequestBufferingState state)
             return "[Request body not captured: buffering state not initialized]";
@@ -114,16 +126,32 @@ public class RequestBufferingState
 
         var bufferSize = state.BufferSizeLimit;
         var buffer = ArrayPool<char>.Shared.Rent(bufferSize);
+        var readFailed = false;
         try
         {
             using var reader = new StreamReader(stream, leaveOpen: true);
-            var charsRead = await reader.ReadAsync(buffer.AsMemory(0, bufferSize));
-            stream.Seek(0, SeekOrigin.Begin);
+            var charsRead = await reader.ReadAsync(buffer.AsMemory(0, bufferSize), cancellationToken);
             return new string(buffer, 0, charsRead);
+        }
+        catch
+        {
+            readFailed = true;
+            throw;
         }
         finally
         {
-            ArrayPool<char>.Shared.Return(buffer, clearArray: true);
+            try
+            {
+                stream.Seek(0, SeekOrigin.Begin);
+            }
+            catch when (readFailed)
+            {
+                // Preserve the original read or cancellation failure if rewinding also fails.
+            }
+            finally
+            {
+                ArrayPool<char>.Shared.Return(buffer, clearArray: true);
+            }
         }
     }
 }

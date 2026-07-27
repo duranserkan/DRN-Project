@@ -118,7 +118,7 @@ public class ExceptionUtils(
         var request = context.Request;
         var scopedLog = context.RequestServices.GetRequiredService<IScopedLog>();
         var title = GetPageTitle(exception);
-        var body = await RequestBufferingState.ReadBodyAsync(context);
+        var body = await RequestBufferingState.ReadBodyAsync(context, context.RequestAborted);
 
         var model = new DrnExceptionModel
         {

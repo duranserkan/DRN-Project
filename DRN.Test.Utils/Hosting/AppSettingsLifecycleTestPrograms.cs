@@ -19,7 +19,7 @@ public sealed class TemporaryLifecycleProgram : DrnProgramBase<TemporaryLifecycl
     public static void Reset()
     {
         CapturedAppSettings = null;
-        LogCaptureProvider.Reset();
+        LogCaptureProvider.Clear();
     }
 
     protected override void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder, IAppSettings appSettings)
@@ -56,7 +56,7 @@ public sealed class TemporaryLifecycleProgram : DrnProgramBase<TemporaryLifecycl
 
         public ILogger CreateLogger(string categoryName) => new LifecycleLogCaptureLogger(categoryName, _messages);
 
-        public void Reset() => _messages.Clear();
+        public void Clear() => _messages.Clear();
 
         public void Dispose()
         {

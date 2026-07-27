@@ -48,10 +48,7 @@ public class DrnExceptionHandler(
             scopedLog.Add("ExceptionPageErrorMessage", e2.Message);
             scopedLog.Add("ExceptionPageErrorStackTrace", e2.StackTrace ?? string.Empty);
 
-            if (!context.Response.HasStarted && appSettings.IsDevelopmentEnvironment)
-                await context.Response.WriteAsJsonAsync(scopedLog.GetLogs());
-            else if (!context.Response.HasStarted)
-                await WriteProductionErrorResponseAsync(context);
+            await TryWriteFallbackResponseAsync(context);
         }
 
         const string eventName = "Microsoft.AspNetCore.Diagnostics.UnhandledException";
@@ -97,7 +94,7 @@ public class DrnExceptionHandler(
 
     private static bool IsRequestCancelled(HttpContext context, Exception ex)
     {
-        if (ex is not (OperationCanceledException or IOException) || !context.RequestAborted.IsCancellationRequested) return false;
+        if (!IsRequestAbortFailure(context, ex)) return false;
 
         if (!context.Response.HasStarted)
             context.Response.StatusCode = StatusCodes.Status499ClientClosedRequest;
@@ -109,6 +106,28 @@ public class DrnExceptionHandler(
         Debugger.BreakForUserUnhandledException(ex);
         return true;
     }
+
+    private async Task TryWriteFallbackResponseAsync(HttpContext context)
+    {
+        if (context.Response.HasStarted || context.RequestAborted.IsCancellationRequested)
+            return;
+
+        try
+        {
+            if (appSettings.IsDevelopmentEnvironment)
+                await context.Response.WriteAsJsonAsync(scopedLog.GetLogs(), context.RequestAborted);
+            else
+                await WriteProductionErrorResponseAsync(context);
+        }
+        catch (Exception exception) when (IsRequestAbortFailure(context, exception))
+        {
+            // The client can disconnect after the pre-check but before or during the fallback write.
+        }
+    }
+
+    private static bool IsRequestAbortFailure(HttpContext context, Exception exception)
+        => context.RequestAborted.IsCancellationRequested &&
+           exception is OperationCanceledException or IOException;
 
     private async Task RenderErrorPageAsync(HttpContext context, Exception exception)
     {
@@ -129,7 +148,7 @@ public class DrnExceptionHandler(
         if (result != null)
         {
             context.Response.ContentType = result.ContentType;
-            await context.Response.WriteAsync(result.Content);
+            await context.Response.WriteAsync(result.Content, context.RequestAborted);
             return;
         }
 
@@ -140,7 +159,7 @@ public class DrnExceptionHandler(
     {
         context.Response.ContentType = "text/plain; charset=utf-8";
         var statusCode = ((HttpStatusCode)context.Response.StatusCode).ToString();
-        await context.Response.WriteAsync($"{statusCode} {context.Response.StatusCode} TraceId: {context.TraceIdentifier}");
+        await context.Response.WriteAsync($"{statusCode} {context.Response.StatusCode} TraceId: {context.TraceIdentifier}", context.RequestAborted);
     }
 
     private async Task<ExceptionContentResult?> GetExceptionContentResult(ExceptionPageModel pageModel, Exception exception)

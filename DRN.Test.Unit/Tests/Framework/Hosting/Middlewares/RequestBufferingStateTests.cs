@@ -6,6 +6,16 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.Middlewares;
 
 public class RequestBufferingStateTests
 {
+    [Fact]
+    public void ReadBodyAsync_Should_Preserve_Single_Context_Overload()
+    {
+        var method = typeof(RequestBufferingState).GetMethod(
+            nameof(RequestBufferingState.ReadBodyAsync),
+            [typeof(HttpContext)]);
+
+        method.Should().NotBeNull();
+    }
+
     /// <summary>
     /// Covers all non-buffering branches of TryEnableBuffering in one parameterized test:
     ///   1. Idempotency  — second call returns the cached state
@@ -164,6 +174,74 @@ public class RequestBufferingStateTests
         // Stream must be rewound so downstream middleware can still read it
         context.Request.Body.Position.Should().Be(0);
     }
+
+    [Fact]
+    public async Task ReadBodyAsync_Should_Honor_Explicit_None_When_Request_Is_Aborted()
+    {
+        const string bodyContent = "{ \"hello\": \"world\" }";
+        var bodyBytes = System.Text.Encoding.UTF8.GetBytes(bodyContent);
+
+        using var requestCancellation = new CancellationTokenSource();
+        await requestCancellation.CancelAsync();
+        var context = new DefaultHttpContext
+        {
+            RequestAborted = requestCancellation.Token,
+            Request =
+            {
+                Method = "POST",
+                ContentLength = bodyBytes.Length,
+                Body = new MemoryStream(bodyBytes)
+            }
+        };
+
+        RequestBufferingState.TryEnableBuffering(context, new DrnAppFeatures());
+
+        var result = await RequestBufferingState.ReadBodyAsync(context, CancellationToken.None);
+
+        result.Should().Be(bodyContent);
+        context.Request.Body.Position.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ReadBodyAsync_Should_Reset_Stream_Position_When_Read_Is_Cancelled()
+    {
+        var bodyBytes = System.Text.Encoding.UTF8.GetBytes("{ \"hello\": \"world\" }");
+        var context = new DefaultHttpContext
+        {
+            Request =
+            {
+                Method = "POST",
+                ContentLength = bodyBytes.Length,
+                Body = new PartiallyReadingCancelledStream(bodyBytes)
+            }
+        };
+
+        RequestBufferingState.TryEnableBuffering(context, new DrnAppFeatures());
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        Func<Task> action = () => RequestBufferingState.ReadBodyAsync(context, cancellation.Token);
+
+        await action.Should().ThrowAsync<OperationCanceledException>();
+        context.Request.Body.Position.Should().Be(0);
+    }
+}
+
+public sealed class PartiallyReadingCancelledStream(byte[] buffer) : MemoryStream(buffer)
+{
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+    {
+        AdvancePosition();
+        return Task.FromCanceled<int>(cancellationToken);
+    }
+
+    public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+        AdvancePosition();
+        return ValueTask.FromCanceled<int>(cancellationToken);
+    }
+
+    private void AdvancePosition() => Position = Math.Min(Position + 1, Length);
 }
 
 public class NonSeekableStream(Stream innerStream) : Stream
