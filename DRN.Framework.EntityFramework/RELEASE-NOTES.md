@@ -6,6 +6,11 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **Repository Cancellation Scope Key Override Removed**: Removed protected virtual `RepositoryCancellationScopeKey` from `SourceKnownRepository`. Configure `Settings.ScopeKey` instead. A `null` key now uses `Utils.Cancellation.Root`, so `CancelChanges()` and `CancelWhen(token)` affect every operation linked to the root cancellation scope; set an explicit key to isolate a repository group.
 
+### Bug Fixes
+
+*   **DbContext Configuration Discovery**: `DbContextExtensions.ModelCreatingDefaults` now matches entity configurations using exact-or-ordinal-child namespace matching (`Equals` or `StartsWith` with dot delimiter) and safely handles `null` namespaces, preventing accidental configuration discovery from prefix-sibling namespaces (e.g. `Acme.Database` for `Acme.Data`) or `NullReferenceException`.
+
+
 ## Version 0.9.6
 
 ### Breaking Changes

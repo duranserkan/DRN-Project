@@ -14,8 +14,9 @@ internal static class DbContextExtensions
     public static void ModelCreatingDefaults(this DbContext dbContext, ModelBuilder modelBuilder)
     {
         var context = dbContext.GetType();
+        var contextNamespace = context.Namespace;
         modelBuilder.HasDefaultSchema(context.Name.ToSnakeCase())
-            .ApplyConfigurationsFromAssembly(context.Assembly, type => type.Namespace!.Contains(context.Namespace!))
+            .ApplyConfigurationsFromAssembly(context.Assembly, type => IsExactOrChildNamespace(type.Namespace, contextNamespace))
             .Ignore<DomainEvent>()
             .Ignore<IDomainEvent>();
 
@@ -72,6 +73,18 @@ internal static class DbContextExtensions
                 new NpgsqlDataSourceBuilder(connectionString).Build());
 
         return (TContext)Activator.CreateInstance(typeof(TContext), optionsBuilder.Options)!;
+    }
+
+    internal static bool IsExactOrChildNamespace(string? typeNamespace, string? contextNamespace)
+    {
+        if (contextNamespace == null)
+            return typeNamespace == null;
+
+        if (typeNamespace == null)
+            return false;
+
+        return typeNamespace.Equals(contextNamespace, StringComparison.Ordinal) ||
+               typeNamespace.StartsWith(contextNamespace + ".", StringComparison.Ordinal);
     }
 
     public record EntityTypeBuilderPair(Type EntityType, EntityTypeBuilder EntityTypeBuilder);
