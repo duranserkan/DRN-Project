@@ -10,7 +10,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **File Provider Preservation**: `AddDrnSettings` now preserves the outer builder's `IFileProvider` during environment resolution, ensuring custom or composite file providers are not discarded.
 *   **Environment-Specific Configuration Discovery**: `AddDrnSettings` now discovers `Environment` without constructing full `AppSettings`, so `appsettings.{Environment}.json` can load even when required settings such as `NexusAppSettings` are supplied by the environment-specific file.
-*   **Static Asset Response Compression**: Added `text/javascript` to `ResponseCompressionOptions.MimeTypes` so static JavaScript assets served with `Content-Type: text/javascript` by ASP.NET Core static file middleware are compressed over HTTPS as intended.
+*   **Static Asset Response Compression**: Enabled HTTPS compression (`EnableForHttps = true`), replaced default MIME types with an explicit allowlist (`text/css`, `text/javascript`, `application/javascript`, `image/svg+xml`, `font/ttf`, `application/x-font-ttf`, `font/otf`, `font/opentype`), and included `text/javascript` for static JavaScript assets.
 
 ## Version 0.9.5
 

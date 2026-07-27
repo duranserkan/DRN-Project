@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.1",
   "//": "Dependency versions are pinned exactly to prevent supply chain attacks and guarantee reproducible builds.",
+  "engines": {
+    "node": ">=24.18.0"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "npm run build:app && npm run build:appPostload && npm run build:htmx && npm run build:bootstrap && npm run build:react",

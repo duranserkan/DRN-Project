@@ -851,9 +851,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// <summary>
     /// Configures response compression with security-first defaults.
     /// <para>
-    /// HTTPS compression (<c>EnableForHttps = true</c>) is enabled exclusively for a strict whitelist of safe static asset MIME types
+    /// HTTPS compression (<c>EnableForHttps = true</c>) is enabled for an explicit allowlist of safe MIME types
     /// (CSS, JS, SVG, TTF, OTF). Dynamic response MIME types (such as <c>text/html</c> and <c>application/json</c>) are excluded
-    /// to mitigate BREACH attack vectors on responses containing per-user secrets or reflected user input.
+    /// from default compression.
     /// </para>
     /// <para><b>References:</b></para>
     /// <list type="bullet">
@@ -865,9 +865,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// </summary>
     protected virtual void ConfigureResponseCompressionOptions(ResponseCompressionOptions options)
     {
-        // Enable HTTPS response compression for whitelisted static asset MIME types only.
-        // Dynamic response MIME types (e.g. text/html, application/json) are intentionally excluded
-        // to prevent BREACH side-channel attacks on responses containing secrets or user input.
+        // Enable HTTPS response compression for matching MIME allowlist entries.
+        // Default response MIME types (e.g. text/html, application/json) are excluded.
         // References:
         //   - Caching exclusion conditions: https://learn.microsoft.com/en-us/aspnet/core/performance/caching/middleware#conditions-for-caching
         //   - Response compression middleware: https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression

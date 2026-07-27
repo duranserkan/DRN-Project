@@ -24,7 +24,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     /// By default, logs are written to test output when debugger is attached in order to not leak sensitive data.
     /// Use test output logger cautiously.
     /// </summary>
-    public void LogToTestOutput(ITestOutputHelper outputHelper, bool debuggerOnly = true)
+    private void LogToTestOutput(ITestOutputHelper outputHelper, bool debuggerOnly = true)
     {
         if (debuggerOnly && !Debugger.IsAttached) return;
 
@@ -142,7 +142,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
 public class DrnWebApplicationFactory<TEntryPoint>(DrnTestContext context, bool temporary = false) : WebApplicationFactory<TEntryPoint>
     where TEntryPoint : class
 {
-    public bool Temporary { get; } = temporary;
+    private bool Temporary { get; } = temporary;
 
     protected override IHost CreateHost(IHostBuilder builder)
     {
@@ -163,9 +163,13 @@ public sealed class TestOutputTarget : TargetWithLayout
     {
         _testOutputHelper = testOutputHelper ?? throw new ArgumentNullException(nameof(testOutputHelper));
         Name = "testOutput";
-        var testTag = !string.IsNullOrWhiteSpace(testName) ? $" [{testName}]" : string.Empty;
+        var testTag = !string.IsNullOrWhiteSpace(testName) ? $" : {testName}" : string.Empty;
         Layout =
-            $"[BEGIN ${{date:format=HH\\:mm\\:ss.fffffff}} ${{level:format=Name:padding=-3:uppercase=true}} ${{logger}}{testTag}]${{newline}}${{message}}${{newline}}[END ${{date:format=HH\\:mm\\:ss.fffffff}} ${{level:format=Name:padding=-3:uppercase=true}} ${{logger}}{testTag}]${{newline}}";
+            $$"""
+              [BEGIN ${date:format=HH\:mm\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}{{testTag}}]
+              ${message}
+              [END ${date:format=HH\:mm\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}{{testTag}}]${newline}
+              """;
     }
 
     protected override void Write(LogEventInfo logEvent)
