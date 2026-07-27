@@ -1,4 +1,5 @@
 using System.Reflection;
+using DRN.Framework.EntityFramework.Attributes;
 using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel;
@@ -44,9 +45,9 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         var changeModel = await GetChangeModel(serviceProvider, context);
         changeModel.LogChanges(scopedLog, appSettings.Environment.ToString());
 
-        if (changeModel.Flags is { Migrate: false}) 
+        if (changeModel.Flags is { Migrate: false})
             return;
-        
+
         if (changeModel.Flags.RecreatePrototypeDatabaseForPendingModelChanges)
         {
             scopedLog?.AddToActions($"checking {changeModel.Name} database in prototype mode.");

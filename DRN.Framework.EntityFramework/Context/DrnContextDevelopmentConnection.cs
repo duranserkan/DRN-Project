@@ -18,7 +18,7 @@ public static class DrnContextDevelopmentConnection
         else
         {
             var host = appSettings.Configuration.GetValue(DbContextConventions.DevHostKey, DbContextConventions.DefaultHost);
-            var port = appSettings.Configuration.GetValue(DbContextConventions.DevPortKey, DbContextConventions.DefaultPort);
+            var port = appSettings.Configuration.GetValue<int>(DbContextConventions.DevPortKey, DbContextConventions.DefaultPort);
             var username = appSettings.Configuration.GetValue<string>(DbContextConventions.DevUsernameKey, DbContextConventions.DefaultUsername);
             var database = appSettings.Configuration.GetValue<string>(DbContextConventions.DevDatabaseKey, DbContextConventions.DefaultDatabase);
             var password = appSettings.Configuration.GetValue<string>(DbContextConventions.DevPasswordKey);

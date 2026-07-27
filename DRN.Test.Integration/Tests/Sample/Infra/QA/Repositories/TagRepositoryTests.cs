@@ -214,6 +214,9 @@ public class TagRepositoryTests
         var getOrDefaultWithWrongTypeAction = async () => await repository.GetOrDefaultAsync(category.EntityIdSource, validate: true);
         await getOrDefaultWithWrongTypeAction.Should().ThrowAsync<ValidationException>();
 
+        var getOrDefaultWithWrongTypeGuidAction = async () => await repository.GetOrDefaultAsync(category.EntityId, validate: true);
+        await getOrDefaultWithWrongTypeGuidAction.Should().ThrowAsync<ValidationException>();
+
         var getOrDefaultWithWrongTypeNoValidate = await repository.GetOrDefaultAsync(category.EntityIdSource, validate: false);
         getOrDefaultWithWrongTypeNoValidate.Should().BeNull();
 
