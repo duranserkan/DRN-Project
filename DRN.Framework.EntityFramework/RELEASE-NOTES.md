@@ -9,6 +9,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Bug Fixes
 
 *   **DbContext Configuration Discovery**: `DbContextExtensions.ModelCreatingDefaults` now matches entity configurations using exact-or-ordinal-child namespace matching (`Equals` or `StartsWith` with dot delimiter) and safely handles `null` namespaces, preventing accidental configuration discovery from prefix-sibling namespaces (e.g. `Acme.Database` for `Acme.Data`) or `NullReferenceException`.
+*   **Repository Entity-ID Cross-Entity Substitution**: Fixed `GetOrDefaultAsync` in `SourceKnownRepository` so querying with `validate: false` for a `SourceKnownEntityId` or `Guid` of a different entity type returns `null` instead of querying by internal numeric ID.
 
 
 ## Version 0.9.6
