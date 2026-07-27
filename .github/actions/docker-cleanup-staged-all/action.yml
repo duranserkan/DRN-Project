@@ -1,0 +1,90 @@
+name: Docker Cleanup Staged All
+description: "Best-effort cleanup of run-scoped staging tags for all Docker Hub images."
+inputs:
+  username:
+    description: "Docker Hub username used for authentication."
+    required: true
+  password:
+    description: "Docker Hub password or PAT with Delete permission for removing staging tags."
+    required: true
+  image-repository-prefix:
+    description: "Single Docker Hub namespace containing the image repositories."
+    required: true
+  version:
+    description: "Release version used in the run-scoped staging tags."
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Clean up staged Docker Hub tags
+      shell: bash
+      env:
+        DOCKER_USERNAME: ${{ inputs.username }}
+        DOCKER_PASSWORD: ${{ inputs.password }}
+        IMAGE_REPOSITORY_PREFIX: ${{ inputs.image-repository-prefix }}
+        RELEASE_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        warn_and_stop() {
+          echo "::warning::$1"
+          exit 0
+        }
+
+        repository_component='[a-z0-9]+(([._]|__|-+)[a-z0-9]+)*'
+        if [[ ! "$IMAGE_REPOSITORY_PREFIX" =~ ^${repository_component}$ ]]; then
+          warn_and_stop "Skipping staged-tag cleanup: expected a single Docker Hub namespace, got: $IMAGE_REPOSITORY_PREFIX"
+        fi
+
+        if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-preview[0-9]{3})?$ ]]; then
+          warn_and_stop "Skipping staged-tag cleanup: expected release version, got: $RELEASE_VERSION"
+        fi
+
+        if [[ ! "$GITHUB_RUN_ID" =~ ^[0-9]+$ || ! "$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+$ ]]; then
+          warn_and_stop "Skipping staged-tag cleanup: expected numeric GitHub run identifiers."
+        fi
+
+        if [[ -z "$DOCKER_USERNAME" || -z "$DOCKER_PASSWORD" ]]; then
+          warn_and_stop "Skipping staged-tag cleanup: Docker Hub credentials are unavailable."
+        fi
+
+        if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+          warn_and_stop "Skipping staged-tag cleanup: curl and jq are required."
+        fi
+
+        docker_hub_token="$(
+          jq -cn '{identifier: env.DOCKER_USERNAME, secret: env.DOCKER_PASSWORD}' |
+            curl --fail-with-body --silent --show-error \
+              --connect-timeout 10 \
+              --max-time 30 \
+              --retry 2 \
+              --retry-delay 1 \
+              --request POST \
+              --header "Content-Type: application/json" \
+              --data-binary @- \
+              "https://hub.docker.com/v2/auth/token" |
+            jq -er '.access_token | select(type == "string" and length > 0)' || true
+        )"
+        unset DOCKER_PASSWORD
+
+        if [[ -z "$docker_hub_token" ]]; then
+          warn_and_stop "Failed to acquire Docker Hub API token for staged-tag cleanup."
+        fi
+
+        echo "::add-mask::${docker_hub_token}"
+
+        staged_tag="staged-${RELEASE_VERSION}-run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+        for repository in drn-project-sample drn-project-nexus; do
+          echo "Cleaning up Docker Hub tag: ${IMAGE_REPOSITORY_PREFIX}/${repository}:${staged_tag}"
+          curl --fail-with-body --silent --show-error \
+            --connect-timeout 10 \
+            --max-time 30 \
+            --retry 2 \
+            --retry-delay 1 \
+            --request DELETE \
+            --header "Authorization: Bearer ${docker_hub_token}" \
+            "https://hub.docker.com/v2/namespaces/${IMAGE_REPOSITORY_PREFIX}/repositories/${repository}/tags/${staged_tag}" || \
+            echo "::warning::Failed to delete staged Docker Hub tag ${IMAGE_REPOSITORY_PREFIX}/${repository}:${staged_tag}"
+        done
+
+        unset docker_hub_token

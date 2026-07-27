@@ -76,6 +76,8 @@ jobs:
       # enable "Require code scanning results", add CodeQL, then choose thresholds.
       # https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/set-merge-protection
 
+      # DOCKER_PASSWORD must be a Docker Hub PAT with Read, Write, and Delete permissions.
+      # Staging and promotion require Read/Write; best-effort staged-tag cleanup requires Delete.
       - name: Stage and scan Docker images
         id: docker-images
         uses: ./.github/actions/docker-stage-scan-all
@@ -113,3 +115,12 @@ jobs:
           version: ${{ steps.version.outputs.version }}
           sample-image-digest: ${{ steps.docker-images.outputs.sample-image-digest }}
           nexus-image-digest: ${{ steps.docker-images.outputs.nexus-image-digest }}
+
+      - name: Clean up staged Docker image tags
+        if: ${{ always() && steps.version.outcome == 'success' && steps.docker-images.outcome != 'skipped' && env.DOCKER_REGISTRY == 'docker.io' }}
+        uses: ./.github/actions/docker-cleanup-staged-all
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          image-repository-prefix: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
+          version: ${{ steps.version.outputs.version }}

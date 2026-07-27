@@ -1,5 +1,5 @@
 name: Docker Stage and Scan
-description: "Stage release Docker images with run-scoped cleanup tags, scan the staged digest, and upload SARIF."
+description: "Stage release Docker images with run-scoped tags, scan the staged digest, and upload SARIF."
 inputs:
   project-name:
     description: "The name of the project folder containing the Dockerfile (e.g., DRN.Nexus.Hosted)."
