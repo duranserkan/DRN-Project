@@ -39,7 +39,7 @@ For each target:
 2. Reject net complexity; tag additions `[COMPLEXITY WARNING]`.
 3. Validate references, metadata, gates, and semantic consistency.
 4. For semantic workflow/skill changes, run `/review` and resolve Critical findings before preview.
-5. Persist `.agent/temp/optimize-apply-preview.md` with the bounded scope, severity, risk decision, proposed patch summary, and a target manifest. List each repository-relative target exactly once in bytewise path order. Record its existence, non-followed file type, mode, raw symlink target or `N/A`, and lowercase SHA-256 of regular-file bytes or raw symlink-target bytes; use `N/A` for missing targets. The target-manifest digest is the lowercase SHA-256 of the manifest block's exact raw UTF-8 bytes, excluding its digest line.
+5. Persist `.agent/temp/optimize-apply-preview.md` with the bounded scope, severity, risk decision, proposed patch summary, and a target manifest. Check non-following filesystem metadata for each target and reject or explicitly exclude symlink targets before generating the manifest and approval bundle, matching Apply And Verify rules. List each eligible repository-relative target (regular files and missing targets) exactly once in bytewise path order. Record its existence, non-followed file type (`regular` or `missing`), mode, `N/A` for raw symlink target, and lowercase SHA-256 of regular-file bytes (or `N/A` for missing targets). The target-manifest digest is the lowercase SHA-256 of the manifest block's exact raw UTF-8 bytes, excluding its digest line.
 6. Persist the exact patch bytes at `.agent/temp/optimize-proposed.diff`.
 7. Compute the raw-byte SHA-256 of both files and present the preview and exact patch for explicit approval.
 

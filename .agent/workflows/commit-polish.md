@@ -98,13 +98,16 @@ Multi-commit rewriting is unsupported. Do not use interactive rebase until a sep
 - Pre/post tree and final topology equality checks.
 - File-based message transport without shell interpolation.
 
-For the approved `HEAD`-only rewrite:
+For the approved `HEAD`-only rewrite, enforce the Hook Policy before execution:
 
-1. Write the exact approved message to a temporary file through the platform file-write capability.
+- **Hook Policy**: Rewriting must prevent every local Git hook from executing. Create an empty temporary hooks directory and override `core.hooksPath` for the amend command; `--no-verify` alone is insufficient because it bypasses only `pre-commit` and `commit-msg`. Also suppress `post-rewrite`.
+
+1. Write the exact approved message to a temporary file through the platform file-write capability, create an empty temporary hooks directory, and record the raw-byte digest of the clean NUL-delimited status.
 2. Immediately before mutation, recheck that `HEAD` and its tree SHA match the recorded values, the worktree and index are clean, the current remote-tracking-ref snapshot is unchanged and still fresh, and `HEAD` remains unreachable from every current remote-tracking ref and tag. Abort and require a new preview and approval on any mismatch.
-3. Run `git commit --amend --file "$message_file"`; never interpolate the message into a shell command.
-4. Remove the temporary file.
-5. Stop and report if the resulting tree SHA differs from the recorded tree SHA.
+3. Run `git -c core.hooksPath="$empty_hooks_dir" commit --amend --no-verify --no-post-rewrite --cleanup=verbatim --file "$message_file"`; never interpolate the message into a shell command.
+4. Record the amended commit SHA. Verify the resulting tree SHA, raw commit-message bytes, and raw-byte status digest match the recorded tree, approved message, and pre-amend status.
+5. On any mismatch, attempt to restore the original commit with compare-and-swap protection and the same hook isolation: `git -c core.hooksPath="$empty_hooks_dir" update-ref -m "rollback failed commit-polish amend" HEAD "$original_commit_sha" "$amended_commit_sha"`. If the command fails because `HEAD` no longer equals the amended SHA, stop without further mutation; never reset or overwrite concurrent work. Otherwise verify the restored `HEAD` and tree SHA, report any remaining worktree or index difference, and stop.
+6. Remove the temporary message file and hooks directory before every successful or failed exit.
 
 ```bash
 git status --porcelain=v1 -z
@@ -112,8 +115,9 @@ git rev-parse HEAD
 git rev-parse HEAD^{tree}
 git for-each-ref --format='%(refname) %(objectname)' refs/remotes
 git for-each-ref --contains HEAD --format='%(refname)' refs/remotes refs/tags
-git commit --amend --file "$message_file"
+git -c core.hooksPath="$empty_hooks_dir" commit --amend --no-verify --no-post-rewrite --cleanup=verbatim --file "$message_file"
 git rev-parse HEAD^{tree}
+git cat-file commit HEAD
 ```
 
 ## 7. Verify And Report
