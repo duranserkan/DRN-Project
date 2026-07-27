@@ -118,6 +118,8 @@ public async Task Endpoint_Should_Return_Data(DrnTestContext context, ITestOutpu
 | `ApplicationContext` | API/E2E tests | `CreateClientAsync<TProgram>()`, `CreateApplicationAndBindDependenciesAsync<TProgram>()`, debugger-gated `ITestOutputHelper` logging through those helpers |
 | `FlurlHttpTest` | outbound HTTP mocks | `ForCallsTo(...).RespondWithJson(...)`, `ShouldHaveCalled(...)` |
 
+`DrnTestContext` owns the bootstrap and migration providers it builds. `ApplicationContext` only borrows the active host provider for service resolution; its `WebApplicationFactory` remains responsible for stopping and disposing that host before context-owned providers are disposed.
+
 ## Consolidation Rule
 
 Prefer one readable test that exercises a coherent flow over many duplicate tests with the same setup. Parameterize identical bodies with multiple data rows. In integration tests, continue the same flow when assertions share container setup, migrations, or service registration. Do not combine structurally different behaviors only to reduce count.

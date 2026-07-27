@@ -296,6 +296,7 @@ For rapid development where migrations are not yet created, use `EnsureDatabaseA
 `ApplicationContext` syncs `DrnTestContext` service collection and configuration with a `WebApplicationFactory`.
 
 - You can override configuration and services until the factory builds a host, such as when `CreateClient()` or `TestServer` is requested.
+- `DrnTestContext` owns the bootstrap and migration providers it builds, while `WebApplicationFactory` owns its host provider. While an application is active, context service resolution uses the host provider; replacing the application or disposing `ApplicationContext` disposes the factory first and then falls back to the context-owned provider.
 - `CreateClientAsync<TProgram>()` calls `ContainerContext.BindExternalDependenciesAsync()`, which applies Postgres migrations for registered `DrnContext` types. It does not start RabbitMQ.
 - Passing `ITestOutputHelper` to `CreateApplicationAndBindDependenciesAsync` or `CreateClientAsync` captures application logs only when the debugger is attached by default.
 - Temporary discovery hosts and non-debug test hosts run without logging providers so parallel test lifecycle logs do not spill into shared runner output.

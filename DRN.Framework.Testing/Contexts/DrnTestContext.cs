@@ -22,7 +22,8 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
 
     private readonly Lazy<HttpTest> _flurlHttpTest = new(() => new HttpTest());
     private readonly List<IConfigurationSource> _configurationSources = [];
-    private ServiceProvider? _serviceProvider;
+    private ServiceProvider? _ownedServiceProvider;
+    private IServiceProvider? _applicationServiceProvider;
     private bool _disposed;
 
     /// <summary>
@@ -70,24 +71,23 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
     public ServiceProvider BuildServiceProvider(string appSettingsName = SettingsProvider.ConventionSettingsName)
     {
         //dispose previously initiated sp to create new
-        DisposeServiceProvider();
+        DisposeOwnedServiceProvider();
         MethodContext.ReplaceSubstitutedInterfaces(ServiceCollection);
 
         var configuration = BuildConfigurationRoot(appSettingsName);
-        _serviceProvider = ServiceCollection
+        _ownedServiceProvider = ServiceCollection
             .AddSingleton<IConfiguration>(_ => configuration)
             .AddLogging(logging => { logging.ClearProviders(); })
             .AddDrnUtils()
             .BuildServiceProvider(false);
 
-        return _serviceProvider;
+        return _ownedServiceProvider;
     }
 
-    internal void OverrideServiceProvider(IServiceProvider serviceProvider)
-    {
-        if (serviceProvider is ServiceProvider sp)
-            _serviceProvider = sp;
-    }
+    internal void UseApplicationServiceProvider(IServiceProvider serviceProvider) =>
+        _applicationServiceProvider = serviceProvider;
+
+    internal void ClearApplicationServiceProvider() => _applicationServiceProvider = null;
 
     internal void OverrideServiceCollection(IServiceCollection serviceCollection)
     {
@@ -151,20 +151,17 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
 
     public object? GetService(Type serviceType)
     {
-        _serviceProvider ??= BuildServiceProvider();
-        return _serviceProvider.GetService(serviceType);
+        return GetCurrentServiceProvider().GetService(serviceType);
     }
 
     public object? GetKeyedService(Type serviceType, object? serviceKey)
     {
-        _serviceProvider ??= BuildServiceProvider();
-        return _serviceProvider.GetKeyedService(serviceType, serviceKey);
+        return GetCurrentServiceProvider().GetKeyedService(serviceType, serviceKey);
     }
 
     public object GetRequiredKeyedService(Type serviceType, object? serviceKey)
     {
-        _serviceProvider ??= BuildServiceProvider();
-        return _serviceProvider.GetRequiredKeyedService(serviceType, serviceKey);
+        return GetCurrentServiceProvider().GetRequiredKeyedService(serviceType, serviceKey);
     }
 
     public override string ToString() => "drnTestContext";
@@ -175,10 +172,13 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
         GC.SuppressFinalize(this);
     }
 
-    private void DisposeServiceProvider()
+    private IServiceProvider GetCurrentServiceProvider() =>
+        _applicationServiceProvider ?? _ownedServiceProvider ?? BuildServiceProvider();
+
+    private void DisposeOwnedServiceProvider()
     {
-        _serviceProvider?.Dispose();
-        _serviceProvider = null;
+        _ownedServiceProvider?.Dispose();
+        _ownedServiceProvider = null;
     }
 
     protected virtual void Dispose(bool disposing)
@@ -190,12 +190,12 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
 
         var exceptions = new List<Exception>();
 
-        SafeExecute(DisposeServiceProvider, exceptions);
+        SafeExecute(ApplicationContext.Dispose, exceptions);
+        SafeExecute(DisposeOwnedServiceProvider, exceptions);
         SafeExecute(() =>
         {
             if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
         }, exceptions);
-        SafeExecute(ApplicationContext.Dispose, exceptions);
         SafeExecute(ContainerContext.Dispose, exceptions);
 
         if (_flurlHttpTest.IsValueCreated)

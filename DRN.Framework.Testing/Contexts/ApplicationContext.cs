@@ -19,6 +19,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
 {
     private IDisposable? _factory;
     private ITestOutputHelper? _outputHelper;
+    private ServiceDescriptor[]? _initialServiceDescriptors;
 
     /// <summary>
     /// By default, logs are written to test output when debugger is attached in order to not leak sensitive data.
@@ -36,7 +37,8 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     {
         Dispose();
 
-        var initialDrnTestContextServiceDescriptors = testContext.ServiceCollection.ToArray();
+        _initialServiceDescriptors = testContext.ServiceCollection.ToArray();
+        var initialServiceDescriptors = _initialServiceDescriptors;
         //Add program services to drnTestContext
         var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true).WithWebHostBuilder(webHostBuilder =>
         {
@@ -59,7 +61,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
         {
             webHostBuilder.ConfigureServices(services =>
             {
-                services.Add(initialDrnTestContextServiceDescriptors);
+                services.Add(initialServiceDescriptors);
                 testContext.OverrideServiceCollection(services);
                 testContext.MethodContext.ReplaceSubstitutedInterfaces(services);
                 testContext.ServiceCollection = new ServiceCollection { services };
@@ -137,7 +139,23 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     public WebApplicationFactory<TEntryPoint>? GetCreatedApplication<TEntryPoint>() where TEntryPoint : class
         => (WebApplicationFactory<TEntryPoint>?)_factory;
 
-    public void Dispose() => _factory?.Dispose();
+    public void Dispose()
+    {
+        try
+        {
+            _factory?.Dispose();
+        }
+        finally
+        {
+            _factory = null;
+            if (_initialServiceDescriptors != null)
+            {
+                testContext.ServiceCollection = new ServiceCollection { _initialServiceDescriptors };
+                _initialServiceDescriptors = null;
+            }
+            testContext.ClearApplicationServiceProvider();
+        }
+    }
 }
 
 public class DrnWebApplicationFactory<TEntryPoint>(DrnTestContext context, bool temporary = false) : WebApplicationFactory<TEntryPoint>
@@ -149,7 +167,7 @@ public class DrnWebApplicationFactory<TEntryPoint>(DrnTestContext context, bool 
     {
         var host = base.CreateHost(builder);
         if (!Temporary)
-            context.OverrideServiceProvider(host.Services);
+            context.UseApplicationServiceProvider(host.Services);
 
         return host;
     }
