@@ -2,13 +2,23 @@
 description: Orchestrate filesystem-driven synchronization of agent instructions, loaders, workflows, and skill index
 ---
 
-> **Trigger**: skill/workflow changes or `.agent` portability sync. Scope defaults to `all`.
+> **Trigger**: skill/workflow changes or `.agent` portability sync. Scope defaults to `all` only when no retained run exists.
 > See [Lifecycle](./_shared/status-lifecycle.md) and [Operating Model](./_shared/workflow-operating-model.md).
-> **Estimated context: ~1.8K tokens**
+> **Estimated context: ~2.3K tokens**
 
 ## 1. Mission And State
 
 Run the Startup and Repository Extension gates once. Read the plan, this workflow, shared contracts, and only delegated workflow/skill context.
+
+### Run And Scope Reconciliation
+
+Normalize an explicit invocation scope through the Plan Contract before reading retained state.
+
+1. With no retained plan, start a new run from the explicit scope or `all`.
+2. For a non-terminal plan, a missing explicit scope resumes its recorded `Requested Scope`; an exact match resumes the same run. A different explicit scope blocks mutation until the user chooses the active run or supersedes it through `/update-plan`.
+3. For a `verified` plan, any explicit scope delegates to `/update-plan` for a fresh run, even when equal to the prior scope. A scope-less invocation stops only when the current verification binding still matches.
+4. Before honoring `verified`, recompute and compare Run ID, Requested Scope, effective Scope, Semantic Plan SHA-256, and Output Revision SHA-256 against `update-verify-progress.md`. An output-only mismatch invalidates verification and returns the plan to `done` for review; a run, scope, or semantic-plan mismatch requires a fresh plan.
+5. A fresh or superseding plan receives a new lowercase UUID v4 Run ID. Never reuse prior verification progress, output manifests, approval, or pass states across Run IDs.
 
 ```text
 no plan/outlined/planning -> update-plan
@@ -16,8 +26,10 @@ ready                    -> review plan
 plan-reviewed            -> exact preview + approval -> update-execute
 executing                -> update-execute
 done                     -> review changes
-reviewed/verifying/failed -> update-verify
-verified                 -> stop
+reviewed/verifying        -> update-verify
+failed                    -> correction preview + approval -> update-execute
+correcting                -> update-execute
+verified + current binding -> stop
 ```
 
 | State | Action | Post-condition |
@@ -27,10 +39,12 @@ verified                 -> stop
 | `plan-reviewed` | Run apply-preview gate below. | Complete current approval. |
 | `executing` | Delegate/resume execution. | `done`. |
 | `done` | Review Stage 1-5 outputs. | No Critical -> `/update` sets `reviewed`. |
-| `reviewed` / `verifying` / `failed` | Delegate verification. | `verified` or `failed`. |
-| `verified` | Stop; suggest cleanup/commit only. | No mutation. |
+| `reviewed` / `verifying` | Delegate verification. | `verified` or `failed`. |
+| `failed` | Build and approve the exact correction proposal; delegate correction. | `correcting` then `done`. |
+| `correcting` | Resume correction through `/update-execute`. | `done`. |
+| `verified` | Reconcile invocation and verification binding. | Stop only when both are current. |
 
-`/review` is read-only. `/update` may apply only its returned plan-header transition; sub-workflows own their lifecycle files.
+`/review` is read-only. `/update` owns scope reconciliation, preview/approval artifacts, verification invalidation, and review-recommended plan-header transitions; sub-workflows own their declared lifecycle files.
 
 For `all` in a copied repository, rediscover current instructions, profile, skills, workflows, manifests, CI, docs, and project assets. Treat old facts as drift evidence. Sync derived loaders, workflow routes, profile, `AGENTS.md`, and skill index together; flag project-doc drift for `/documentation`.
 
@@ -38,19 +52,21 @@ Use load order: `Basic -> Overview -> DRN Framework -> Testing -> Frontend -> Cu
 
 ## 2. Situation Report
 
-Before and after delegation, report plan path/status, scope, stage counts, timestamp, action/result, and next step. At `verified`, suggest cleanup of update temp artifacts and a compliant commit command; never delete or mutate VCS without request.
+Before and after delegation, report Run ID, plan path/status, requested/effective scope, stage counts, timestamp, binding state, action/result, and next step. At a current `verified`, suggest cleanup of update temp artifacts and a compliant commit command; never delete or mutate VCS without request.
 
 ## 3. Apply-Preview Gate
 
 Plan review is not apply approval. Before the first execution mutation:
 
 1. Compute the Semantic Plan digest below.
-2. Persist `.agent/temp/update-apply-preview.md` with scope, actions/output paths, semantic-plan digest, baseline manifest/hash, and Priority Stack risk decision.
+2. Persist `.agent/temp/update-apply-preview.md` with Run ID, requested/effective scope, actions/output paths, semantic-plan digest, baseline manifest/hash, and Priority Stack risk decision.
 3. If an exact diff exists, persist raw bytes at `.agent/temp/update-proposed.diff` and reference its digest; otherwise remove a stale proposal and use the preview as proposal.
 4. Present the exact human-readable preview/diff, scope, and risk for explicit approval.
 5. On confirmation, recompute semantic plan, preview/diff, and baseline digests; abort on mismatch.
 6. Record the complete shared approval envelope in `## Apply Approval`: subject digest is the preview digest; preview digest is the proposed-diff digest or preview digest when no diff exists.
 7. Invalidate approval when any envelope input, semantic plan, baseline manifest/hash, preview, or diff changes.
+
+For a `failed` run, the Corrections Required table is the correction action list. Re-run this entire gate with a correction-labeled preview and exact diff, invalidate the prior apply approval, and restrict targets to the current run's scope and declared Stage 1-5 outputs. Scope widening or semantic-plan changes require a fresh run. After current explicit approval, `/update-execute` owns `failed -> correcting -> done`.
 
 ### Semantic Plan SHA-256
 
@@ -65,13 +81,13 @@ The lowercase SHA-256 of this projection is stable across execution progress but
 
 ## 4. Review Scope
 
-For a `done` plan, review Stage 1-5 action files and in-scope shared fragments; include `AGENTS.md` when Stage 3 ran and the skill index when Stage 5 ran. Exclude Stage 6, which only flags drift.
+For a `done` plan, review the exact repository-relative paths declared under Stage 1-5 `### Outputs`; include in-scope shared fragments, `AGENTS.md` when Stage 3 ran, and the skill index when Stage 5 ran. Exclude Stage 6, which only flags drift.
 
 ## 5. Plan Contract
 
 Location: `.agent/temp/update-plan.md`. Required content:
 
-- Header with generated time, status, scope, stages, repository, baseline HEAD, Baseline Inputs Hash, and Baseline Inputs Manifest.
+- Header with generated time, Run ID, status, Requested Scope, effective Scope, stages, repository, baseline HEAD, Baseline Inputs Hash, and Baseline Inputs Manifest.
 - Custom groups/routes.
 - `## Apply Approval`.
 - Discovery Summary: skills, projects, assets, drift, documentation drift.
@@ -96,7 +112,8 @@ Minimum template:
 
 ```markdown
 # Update Plan
-> Generated: <timestamp> | Status: <status> | Scope: <scope> | Resolved Stages: <stages>
+> Generated: <timestamp> | Run ID: <lowercase UUID v4> | Status: <status>
+> Requested Scope: <normalized invocation scope> | Scope: <effective scope> | Resolved Stages: <stages>
 > Repo: <path> | Baseline HEAD: <sha> | Baseline Inputs Hash: <sha256 or N/A> | Baseline Inputs Manifest: .agent/temp/update-baseline-inputs.manifest or N/A
 > Custom Groups: <prefix -> workflow>
 > Custom Workflows: <route -> workflow>
@@ -124,12 +141,16 @@ Minimum template:
 > Status: <pending|skipped|executing|done|blocked|fail> | Maps to: §<refs>
 ### Actions
 - [ ] <action>
+### Outputs
+- <exact repository-relative path or N/A>
 ### Requires Approval
 - [ ] <approval item>
 ```
+
+Every mutating Stage 1-5 action must map to at least one exact `### Outputs` path before plan review. Deduplicate output paths bytewise; use `N/A` only for a non-mutating stage. Unlisted output mutation makes the plan stale.
 
 Compute and persist the canonical baseline manifest per [baseline-inputs-hash-spec.md](./_shared/baseline-inputs-hash-spec.md). `N/A` requires `Baseline Inputs Manifest: N/A`, no retained manifest, and exact header `Baseline Inputs Hash Justification: no-material-input-files`; omit that justification otherwise.
 
 ## 6. Guarantees
 
-Stateful, resumable, scope-aware, Git-tracked, and reversible. Never treat plan review as apply approval. Suggest VCS actions only unless explicitly requested.
+Stateful, resumable, scope-aware, revision-bound, Git-tracked, and reversible. Never treat plan review as apply approval. Suggest VCS actions only unless explicitly requested.

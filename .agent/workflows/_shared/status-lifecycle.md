@@ -2,7 +2,7 @@
 description: Shared status, approval, lineage, and assumption contract for workflow artifacts
 ---
 
-> **Estimated context: ~1.4K tokens**
+> **Estimated context: ~1.5K tokens**
 > See [Workflow Operating Model](./workflow-operating-model.md).
 
 ## Lifecycle
@@ -11,7 +11,7 @@ description: Shared status, approval, lineage, and assumption contract for workf
 CLARIFY: draft -> clarifying -> draft-self-reviewed -> clarified
 DEVELOP: ready-to-develop -> implementing -> implemented-pending-approval -> implemented
 UPDATE : outlined -> planning -> ready -> plan-reviewed -> executing -> done -> reviewed -> verifying -> verified
-         failed -> verifying -> verified | failed
+         failed -> correcting -> done -> reviewed -> verifying -> verified | failed
 ```
 
 | Transition | Owner | Gate |
@@ -26,7 +26,10 @@ UPDATE : outlined -> planning -> ready -> plan-reviewed -> executing -> done -> 
 | `ready` -> `plan-reviewed` | `/update` from `/review` | `transition_allowed: plan-reviewed`. |
 | `plan-reviewed` -> `executing` -> `done` | `/update-execute` | Current apply approval, then all stages terminal. |
 | `done` -> `reviewed` | `/update` from `/review` | `transition_allowed: reviewed`. |
-| `reviewed`/`failed` -> `verifying` -> `verified`/`failed` | `/update-verify` | Verification verdict. |
+| `reviewed` -> `verifying` -> `verified`/`failed` | `/update-verify` | Current run/scope/plan/output binding and verification verdict. |
+| `failed` -> `correcting` -> `done` | `/update-execute` | Current correction preview, explicit approval, matching verification findings, and completed correction progress. |
+
+`verified` is terminal only while its complete verification binding remains current. `/update` invalidates an output-only mismatch to `done` for review; a Run ID, requested/effective scope, or semantic-plan mismatch starts a fresh plan and never reuses prior approval or verification state.
 
 ## Metadata
 
