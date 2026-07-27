@@ -1,5 +1,16 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.7
+
+### Changed
+
+*   **Response Compression MIME Registration**: Response compression middleware remains disabled over HTTPS for dynamic responses, while static files continue to opt in through `StaticFileOptions.HttpsCompression`. DRN's additional MIME registrations now contain only raw TTF/OTF font formats; CSS, JavaScript, SVG, and pre-compressed WOFF/WOFF2 formats are no longer added beyond ASP.NET Core defaults.
+*   **Network Logging Dependency**: Upgraded `NLog.Targets.Network` from 6.0.4 to 6.1.4 in the published package dependency graph.
+
+### Bug Fixes
+
+*   **Asynchronous Hosting Resource Disposal**: Application shutdown and startup-exception reporting now asynchronously dispose the NLog provider and temporary service provider, allowing asynchronous cleanup to complete.
+
 ## Version 0.9.6
 
 ### Breaking Changes
@@ -10,7 +21,6 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **File Provider Preservation**: `AddDrnSettings` now preserves the outer builder's `IFileProvider` during environment resolution, ensuring custom or composite file providers are not discarded.
 *   **Environment-Specific Configuration Discovery**: `AddDrnSettings` now discovers `Environment` without constructing full `AppSettings`, so `appsettings.{Environment}.json` can load even when required settings such as `NexusAppSettings` are supplied by the environment-specific file.
-*   **Static Asset Response Compression**: Disabled response compression middleware over HTTPS (`EnableForHttps = false`) to mitigate BREACH attack vectors on dynamic response pipelines, while static assets opt in via `StaticFileOptions.HttpsCompression`. Extended default compression MIME types with raw font formats (`font/ttf`, `application/x-font-ttf`, `font/otf`, `font/opentype`).
 
 ## Version 0.9.5
 
@@ -37,7 +47,7 @@ Not every version includes changes, features or bug fixes. This project can incr
     *   Matching rules compose through .NET's native chained limiter so tenant + user + IP policies can be enforced together.
     *   Scoped rules are post-auth only, preserve global ordering with singleton rules, compose together, and same-order rules can opt into `ShortCircuitOnMatch` for allow/deny precedence.
     *   Rule-level `PolicyName` filters DRN rules by ASP.NET Core `[EnableRateLimiting("policy-name")]` endpoint metadata without replacing native named policies.
-    *   Added app-specific `RateLimitFor` pattern (e.g., `Sample.Hosted.Helpers.RateLimitFor`) for claim-based scoped partitions composed from `Get.Claim.*` primitives backed by authenticated `IScopedUser` claims.
+    *   Added app-specific `RateLimitFor` pattern (e.g., `Sample.Hosted.Helpers.RateLimitFor`) for claim-based scoped partitions composed from `Get.Claim.*` primitives backed by cached `IScopedUser` claims.
     *   Post-auth rate limiting now preserves named policies and rejection callbacks configured through `AddRateLimiter(options => ...)`, so `[EnableRateLimiting("policy-name")]` works alongside DRN's global rule chain.
     *   DRN rule rejection attribution now tracks the rule that actually failed, so native named-policy rejections do not trigger unrelated DRN rule `OnRejectedAsync` callbacks.
     *   Hot-path rule selection uses value-based rule results/matches and cached default-rule option factories to reduce avoidable per-request allocation pressure.

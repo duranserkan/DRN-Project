@@ -20,6 +20,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Changed
 
 *   **JSON Merge Patch Allocation Model**: Safe changed-object merges clone the target once and mutate that detached tree without repeated nested subtree clones; semantic no-ops return the original target without a result allocation. The object-only in-place API avoids target-tree cloning for disjoint inputs and preserves existing nested object references.
+*   **JSON Merge Patch Standard Reference**: Current APIs and documentation target RFC 7396, which obsoletes RFC 7386; historical release-note blocks retain their originally published wording.
 *   **Inspectable HTTP Call Results**: Added HTTP status-class inspection and non-throwing `TryToStringAsync`, `TryToBytesAsync`, `TryToStreamAsync`, and `TryFromJsonAsync<T>` converters. Try results distinguish redirects, client errors, server errors, transport/timeouts, response-read failures, and JSON deserialization failures while preserving cancellation and response ownership semantics. `ThrowIfFailure()` rethrows captured processing failures with their original stack after inspection without treating HTTP error statuses as exceptions. Raw diagnostic exception messages and exception objects are excluded from System.Text.Json serialization.
 *   **JIT-Safe Assembly Scanning**: Split `AddServicesWithAttributes` into a parameterless convenience overload (protected against JIT compiler inlining with `[MethodImpl(MethodImplOptions.NoInlining)]`) and an explicit `Assembly` overload. This prevents tail-call or inlining optimizations from unexpectedly altering assembly scanning results.
 *   **Claim Lookup Allocation**: `ClaimGroup.GetValue`, `ClaimExists`, and `FindClaim` now traverse the frozen claim set directly instead of constructing LINQ iterators for single-result lookups.
@@ -162,7 +163,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 *   **Advanced Data & Bit Packing**
     *   **Bit Packing**: `NumberBuilder` and `NumberParser` (ref structs) for high-performance custom data structures and bit manipulation.
     *   **Monotonic Pagination**: `IPaginationUtils` for temporal cursor-based pagination leveraging entity IDs.
-    *   **Cryptographic Helpers**: Unified `HashExtensions` (Blake3, XxHash3), `EncodingExtensions` (Base64, Base64Url, Hex), and `SafeApplyMergePatch` (RFC 7396).
+    *   **Cryptographic Helpers**: Unified `HashExtensions` (Blake3, XxHash3), `EncodingExtensions` (Base64, Base64Url, Hex), and `SafeApplyMergePatch` (RFC 7386).
 *   **HTTP & Temporal IDs**
     *   **HTTP Request Wrappers**: `IInternalRequest`/`IExternalRequest` with standardized Flurl integration, HTTP version policy configuration, and enriched `HttpResponse<T>` diagnostics. Retries/circuit breakers are not configured by this package.
     *   **Temporal IDs**: `ISourceKnownIdUtils` and `ISourceKnownEntityIdUtils` providing globally sortable identifiers.

@@ -4,7 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
-*   **Repository Cancellation Scope Key Override Removed**: Removed protected virtual `RepositoryCancellationScopeKey` from `SourceKnownRepository`. Configure `Settings.ScopeKey` instead (defaults to `null` which uses `Utils.Cancellation.Root`).
+*   **Repository Cancellation Scope Key Override Removed**: Removed protected virtual `RepositoryCancellationScopeKey` from `SourceKnownRepository`. Configure `Settings.ScopeKey` instead. A `null` key now uses `Utils.Cancellation.Root`, so `CancelChanges()` and `CancelWhen(token)` affect every operation linked to the root cancellation scope; set an explicit key to isolate a repository group.
 
 ## Version 0.9.6
 
