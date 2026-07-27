@@ -45,6 +45,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
             webHostBuilder.UseConfiguration(configuration);
             webHostBuilder.UseSetting(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.SkipValidation)), "true");
             webHostBuilder.UseSetting(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.TemporaryApplication)), "true");
+            webHostBuilder.ConfigureLogging(logging => logging.ClearProviders());
 
             webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
             webHostConfigurator?.Invoke(webHostBuilder);

@@ -278,7 +278,8 @@ For rapid development where migrations are not yet created, use `EnsureDatabaseA
 
 - You can override configuration and services until the factory builds a host, such as when `CreateClient()` or `TestServer` is requested.
 - `CreateClientAsync<TProgram>()` calls `ContainerContext.BindExternalDependenciesAsync()`, which applies Postgres migrations for registered `DrnContext` types. It does not start RabbitMQ.
-- `LogToTestOutput(output, debuggerOnly: true)` captures application logs only when the debugger is attached by default.
+- Passing `ITestOutputHelper` to `CreateApplicationAndBindDependenciesAsync` or `CreateClientAsync` captures application logs only when the debugger is attached by default.
+- Temporary discovery hosts and non-debug test hosts run without logging providers so parallel test lifecycle logs do not spill into shared runner output.
 - Test isolation flags keep local development provisioning from colliding with integration tests:
   - `TestEnvironment.DrnTestContextEnabled` = `true`
   - `AppSettings.DevelopmentSettings.TemporaryApplication` = `true`
@@ -332,10 +333,10 @@ Capture application logs in test output for debugging:
     [DataInline]
     public async Task Test_With_Logging(DrnTestContext context, ITestOutputHelper output)
     {
-        context.ApplicationContext.LogToTestOutput(output);
-        var app = context.ApplicationContext.CreateApplication<Program>();
+        var app = await context.ApplicationContext
+            .CreateApplicationAndBindDependenciesAsync<Program>(output);
         
-        // Application logs will appear in test output
+        // Application logs will appear in test output when a debugger is attached
     }
 ```
 

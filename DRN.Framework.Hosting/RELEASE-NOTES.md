@@ -10,6 +10,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Bug Fixes
 
 *   **Asynchronous Hosting Resource Disposal**: Application shutdown and startup-exception reporting now asynchronously dispose the NLog provider and temporary service provider, allowing asynchronous cleanup to complete.
+*   **Host-Aware Lifecycle Logging**: Successful application lifecycle logs now use the built host's configured logger, allowing test hosts and other consumers to suppress or redirect them. Failures before host construction continue to use the standalone bootstrap logger.
 
 ## Version 0.9.6
 

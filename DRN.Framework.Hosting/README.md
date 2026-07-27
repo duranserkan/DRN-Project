@@ -113,7 +113,7 @@ DRN.Framework.Hosting/
 
 ## Lifecycle & Execution Flow
 
-`DrnProgramBase` manages application startup sequence to ensure security headers, logging scopes, and validation logic execute in order. Use `DrnProgramActions` to intercept these phases without modifying the primary Program class.
+`DrnProgramBase` manages application startup sequence to ensure security headers, logging scopes, and validation logic execute in order. Lifecycle logs use the built host's configured logger; a standalone NLog bootstrap logger is retained only for failures before the host is available. Use `DrnProgramActions` to intercept these phases without modifying the primary Program class.
 
 ```mermaid
 flowchart TD

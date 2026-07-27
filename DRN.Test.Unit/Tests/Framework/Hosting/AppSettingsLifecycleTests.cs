@@ -24,6 +24,16 @@ public class AppSettingsLifecycleTests
     }
 
     [Fact]
+    public async Task DrnProgramBase_RunAsync_Should_Use_Built_Host_Logger()
+    {
+        TemporaryLifecycleProgram.Reset();
+
+        await TemporaryLifecycleProgram.Main(CreateTemporaryApplicationArgs());
+
+        TemporaryLifecycleProgram.CapturedLifecycleLogCount.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
     public async Task DrnProgramBase_StartupExceptionReport_Should_Dispose_Temporary_ServiceProvider()
     {
         StartupExceptionReportProgram.Reset();

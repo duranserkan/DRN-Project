@@ -1,20 +1,31 @@
+using System.Collections.Concurrent;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
+using Microsoft.Extensions.Logging;
 
 namespace DRN.Test.Utils.Hosting;
 
 public sealed class TemporaryLifecycleProgram : DrnProgramBase<TemporaryLifecycleProgram>, IDrnProgram
 {
+    private static readonly LifecycleLogCaptureProvider LogCaptureProvider = new();
+
     public static IAppSettings? CapturedAppSettings { get; private set; }
+    public static int CapturedLifecycleLogCount => LogCaptureProvider.Count;
 
     public static async Task Main(string[] args) => await RunAsync(args);
 
-    public static void Reset() => CapturedAppSettings = null;
+    public static void Reset()
+    {
+        CapturedAppSettings = null;
+        LogCaptureProvider.Reset();
+    }
 
     protected override void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder, IAppSettings appSettings)
     {
+        applicationBuilder.Logging.ClearProviders();
+        applicationBuilder.Logging.AddProvider(LogCaptureProvider);
         ConfigureWebHostBuilder(appSettings, applicationBuilder.WebHost);
     }
 
@@ -35,6 +46,35 @@ public sealed class TemporaryLifecycleProgram : DrnProgramBase<TemporaryLifecycl
         }
 
         return Task.CompletedTask;
+    }
+
+    private sealed class LifecycleLogCaptureProvider : ILoggerProvider
+    {
+        private readonly ConcurrentQueue<string> _messages = new();
+
+        public int Count => _messages.Count;
+
+        public ILogger CreateLogger(string categoryName) => new LifecycleLogCaptureLogger(categoryName, _messages);
+
+        public void Reset() => _messages.Clear();
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private sealed class LifecycleLogCaptureLogger(string categoryName, ConcurrentQueue<string> messages) : ILogger
+    {
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (categoryName == typeof(TemporaryLifecycleProgram).FullName && IsEnabled(logLevel))
+                messages.Enqueue(formatter(state, exception));
+        }
     }
 }
 

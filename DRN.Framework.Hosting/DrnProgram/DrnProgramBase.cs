@@ -127,13 +127,16 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         var configuration = new ConfigurationBuilder().AddDrnSettings(GetApplicationAssemblyName(), args).Build();
         using var appSettings = new AppSettings(configuration);
         var scopedLog = new ScopedLog(appSettings).WithLoggerName(typeof(TProgram).FullName);
-        var loggerProvider = new NLogLoggerProvider(NLogOptions, CreateLogFactory(appSettings));
-        var logger = loggerProvider.CreateLogger(typeof(TProgram).FullName!);
+        await using var bootstrapLoggerProvider = new NLogLoggerProvider(NLogOptions, CreateLogFactory(appSettings));
+        var logger = bootstrapLoggerProvider.CreateLogger(typeof(TProgram).FullName!);
+        WebApplication? application = null;
+        var disposeApplication = false;
 
         try
         {
             scopedLog.AddToActions("Creating Application");
-            var application = await CreateApplicationAsync(args, appSettings, scopedLog);
+            application = await CreateApplicationAsync(args, appSettings, scopedLog);
+            logger = application.Services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(TProgram).FullName!);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.SkipValidation)}", appSettings.DevelopmentSettings.SkipValidation);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.TemporaryApplication)}", appSettings.DevelopmentSettings.TemporaryApplication);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.Prototype)}", appSettings.DevelopmentSettings.Prototype);
@@ -141,6 +144,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.AutoMigrateStaging)}", appSettings.DevelopmentSettings.AutoMigrateStaging);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.LaunchExternalDependencies)}", appSettings.DevelopmentSettings.LaunchExternalDependencies);
             scopedLog.AddToActions("Running Application");
+            disposeApplication = !appSettings.DevelopmentSettings.TemporaryApplication;
             logger.LogWarning("{@Logs}", scopedLog.GetLogs());
 
             if (appSettings.DevelopmentSettings.TemporaryApplication)
@@ -150,7 +154,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             ApplicationLifetime.ShutdownAction = lifetime.StopApplication;
 
             //todo create startup report for dev environment
-            await application.RunAsync();
+            await application.StartAsync();
+            await application.WaitForShutdownAsync();
             scopedLog.AddToActions("Application Shutdown Gracefully");
         }
         catch (Exception exception)
@@ -162,12 +167,18 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         }
         finally
         {
-            if (scopedLog.HasException)
-                logger.LogError("{@Logs}", scopedLog.GetLogs());
-            else
-                logger.LogWarning("{@Logs}", scopedLog.GetLogs());
-
-            await loggerProvider.DisposeAsync();
+            try
+            {
+                if (scopedLog.HasException)
+                    logger.LogError("{@Logs}", scopedLog.GetLogs());
+                else
+                    logger.LogWarning("{@Logs}", scopedLog.GetLogs());
+            }
+            finally
+            {
+                if (disposeApplication && application != null)
+                    await application.DisposeAsync();
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using DRN.Framework.Utils.Models.Sample;
+using DRN.Test.Utils.Hosting;
 using Sample.Hosted;
 using Sample.Hosted.Helpers;
 using Sample.Infra.QA;
@@ -8,6 +9,18 @@ namespace DRN.Test.Integration.Tests.Framework.Testing;
 
 public class ApplicationContextTests
 {
+    [Theory]
+    [DataInline]
+    public void ApplicationContext_Hosts_Should_Not_Emit_Lifecycle_Logs(DrnTestContext context)
+    {
+        TemporaryLifecycleProgram.Reset();
+
+        var application = context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>();
+        _ = application.Server;
+
+        TemporaryLifecycleProgram.CapturedLifecycleLogCount.Should().Be(0);
+    }
+
     [Theory]
     [DataInline]
     public async Task ApplicationContext_Should_Provide_Configuration_To_Program(DrnTestContext context)

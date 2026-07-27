@@ -13,6 +13,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Test Output Log Identity**: Application test-output log boundaries now include the declaring test type and method name.
 *   **Testing Dependencies**: Upgraded AwesomeAssertions to 9.5.0, NSubstitute to 6.0.0, and `xunit.v3.extensibility.core` to 4.0.0-pre.154. Removed explicit legacy `System.Net.Http` and `System.Text.RegularExpressions` package overrides.
 
+### Bug Fixes
+
+*   **Parallel Application Log Isolation**: `ApplicationContext` now clears logging providers for its temporary discovery host as well as the real test host, preventing parallel test lifecycle records from spilling into and interleaving on shared CI runner output.
+
 ## Version 0.9.6
 
 ### New Features

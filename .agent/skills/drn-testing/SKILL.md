@@ -115,7 +115,7 @@ public async Task Endpoint_Should_Return_Data(DrnTestContext context, ITestOutpu
 | `DrnTestContextUnit` | unit tests without containers or full app startup | `ServiceCollection`, `GetRequiredService<T>()`, `BuildConfigurationRoot()`, `GetData()`, `MethodContext.GetTempPath()`, `GetTempPath()`, `ValidateServicesAsync()` |
 | `DrnTestContext` | integration tests | all unit capabilities plus `ContainerContext`, `ApplicationContext`, `FlurlHttpTest` |
 | `ContainerContext` | real dependencies | `Postgres.ApplyMigrationsAsync()`, `Postgres.Isolated`, `RabbitMq`, `BindExternalDependenciesAsync()` |
-| `ApplicationContext` | API/E2E tests | `CreateClientAsync<TProgram>()`, `CreateApplicationAndBindDependenciesAsync<TProgram>()`, `LogToTestOutput()` |
+| `ApplicationContext` | API/E2E tests | `CreateClientAsync<TProgram>()`, `CreateApplicationAndBindDependenciesAsync<TProgram>()`, debugger-gated `ITestOutputHelper` logging through those helpers |
 | `FlurlHttpTest` | outbound HTTP mocks | `ForCallsTo(...).RespondWithJson(...)`, `ShouldHaveCalled(...)` |
 
 ## Consolidation Rule
