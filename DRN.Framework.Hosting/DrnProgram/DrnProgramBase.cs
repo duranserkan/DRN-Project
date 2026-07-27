@@ -167,7 +167,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             else
                 logger.LogWarning("{@Logs}", scopedLog.GetLogs());
 
-            loggerProvider.Dispose();
+            await loggerProvider.DisposeAsync();
         }
     }
 
@@ -176,7 +176,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         try
         {
             var (_, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopedLog);
-            using var services = applicationBuilder.Services.BuildServiceProvider();
+            await using var services = applicationBuilder.Services.BuildServiceProvider();
             var isDevelopment = appSettings.IsDevelopmentEnvironment;
             var handler = services.GetService<IDrnExceptionHandler>();
             //todo send startup exception report to nexus in non-develop
@@ -875,6 +875,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         options.MimeTypes =
         [
             "text/css",
+            "text/javascript",
             "application/javascript",
             "image/svg+xml",
             // Raw/uncompressed font MIME types only (WOFF and WOFF2 are already compressed at binary level)
