@@ -29,13 +29,15 @@ public static class DataProvider
         var lookupDirectoryPaths = new DataProviderDataLookupDirectoryPaths(dataDirectoryPath ?? string.Empty, conventionDirectory);
 
         var locationFound = CheckLocation(lookupDirectoryPaths.TestDirectory, pathRelativeToDataDirectory);
+        var targetDirectory = lookupDirectoryPaths.TestDirectory;
+
         if (!locationFound && !string.IsNullOrWhiteSpace(dataDirectoryPath))
         {
-            dataDirectoryPath = Path.Combine(dataDirectoryPath, lookupDirectoryPaths.TestDataDirectory);
-            locationFound = CheckLocation(dataDirectoryPath, pathRelativeToDataDirectory);
+            targetDirectory = lookupDirectoryPaths.TestDataDirectory;
+            locationFound = CheckLocation(targetDirectory, pathRelativeToDataDirectory);
         }
 
-        var selectedDirectory = locationFound ? dataDirectoryPath! : lookupDirectoryPaths.GlobalDataDirectory;
+        var selectedDirectory = locationFound ? targetDirectory : lookupDirectoryPaths.GlobalDataDirectory;
         var path = Path.Combine(selectedDirectory, pathRelativeToDataDirectory);
 
         return new DataProviderResultDataPath(path, selectedDirectory, lookupDirectoryPaths);

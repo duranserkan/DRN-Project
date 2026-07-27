@@ -102,6 +102,7 @@ Framework conventions and defaults live in framework-scoped DRN skills, especial
 | Entity creation-date filter tick bounds | [EntityDateTimeUtils.cs](../DRN.Framework.Utils/Entity/EntityDateTimeUtils.cs), [EpochTimeUtils.cs](../DRN.Framework.Utils/Time/EpochTimeUtils.cs), [SourceKnownIdUtils.cs](../DRN.Framework.Utils/Ids/SourceKnownIdUtils.cs) | Utils README, Utils release notes, `drn-utils`, `drn-testing`, and DRN framework overview skills |
 | Development settings defaults | [DrnDevelopmentSettings.cs](../DRN.Framework.Utils/Settings/DrnDevelopmentSettings.cs) | EntityFramework README, Testing README |
 | Test settings convention | [SettingsProvider.cs](../DRN.Framework.Testing/Providers/SettingsProvider.cs) | Testing README, testing skills |
+| Test-context/application provider ownership and host lifecycle | [DrnTestContext.cs](../DRN.Framework.Testing/Contexts/DrnTestContext.cs), [ApplicationContext.cs](../DRN.Framework.Testing/Contexts/ApplicationContext.cs) | Testing README, Testing release notes, `drn-testing` skill |
 | Vite manifest discovery and publish support | [ViteManifest.cs](../DRN.Framework.Hosting/Utils/Vite/ViteManifest.cs), [DRN.Framework.Hosting.targets](../DRN.Framework.Hosting/buildTransitive/DRN.Framework.Hosting.targets) | Hosting README, frontend Vite skill, DRN hosting skill |
 
 ### Documentation Sync

@@ -175,10 +175,11 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
     private IServiceProvider GetCurrentServiceProvider() =>
         _applicationServiceProvider ?? _ownedServiceProvider ?? BuildServiceProvider();
 
-    private void DisposeOwnedServiceProvider()
+    internal void DisposeOwnedServiceProvider()
     {
-        _ownedServiceProvider?.Dispose();
+        var ownedServiceProvider = _ownedServiceProvider;
         _ownedServiceProvider = null;
+        ownedServiceProvider?.Dispose();
     }
 
     protected virtual void Dispose(bool disposing)
@@ -191,6 +192,9 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
         var exceptions = new List<Exception>();
 
         SafeExecute(ApplicationContext.Dispose, exceptions);
+        if (ApplicationContext.HasCreatedApplication)
+            SafeExecute(ApplicationContext.Dispose, exceptions);
+
         SafeExecute(DisposeOwnedServiceProvider, exceptions);
         SafeExecute(() =>
         {

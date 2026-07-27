@@ -15,8 +15,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Host Configuration Timing**: `ApplicationContext` now invokes caller `webHostConfigurator` delegates prior to DRN service-collection capture and substitution replacement, ensuring caller-registered `DbContext` services are captured for migration binding and interface substitutes apply consistently.
+*   **Data Provider Path Resolution**: `DataProvider.GetDataPath` now uses pre-computed `TestDataDirectory` directly when resolving custom data folder paths, preventing path duplication (`folder/folder/Data`) and ensuring local fixture files take precedence over global fallbacks.
 *   **Parallel Application Log Isolation**: `ApplicationContext` now clears logging providers for its temporary discovery host as well as the real test host, preventing parallel test lifecycle records from spilling into and interleaving on shared CI runner output.
-*   **Application Service-Provider Ownership**: `DrnTestContext` now keeps its bootstrap and migration providers separate from factory-owned host services, allowing sequential application/client creation and ensuring each provider is disposed by its owner in factory-first order.
+*   **Application Service-Provider Ownership**: `DrnTestContext` now keeps its bootstrap and migration providers separate from factory-owned host services, allowing isolated sequential application/client creation with current configuration, recovering from context-provider disposal failures, retaining failed factory shutdowns for disposal retry, and ensuring each provider is disposed by its owner in factory-first order.
 *   **Theory Row Metadata Preservation**: `DataInline*`, `DataMember*`, and `DataSelf*` now preserve xUnit row controls after AutoFixture reconstruction. Member-source row metadata overrides outer attributes, missing values inherit through the generated row and `[Theory]`, conditional skip settings move with their skip reason, and traits combine case-insensitively.
 
 ## Version 0.9.6

@@ -33,5 +33,11 @@ public class ObjectToJsonConfigurationProvider(ObjectToJsonConfigurationSource s
 {
     public Type ObjectType { get; } = source.ToBeSerializedObject.GetType();
 
+    public override void Load()
+    {
+        using var stream = JsonSerializer.Serialize(source.ToBeSerializedObject).ToStream();
+        Load(stream);
+    }
+
     public override string ToString() => $"{GetType().Name} for {ObjectType.FullName}";
 }

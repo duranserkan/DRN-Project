@@ -49,8 +49,8 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
             webHostBuilder.UseSetting(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.TemporaryApplication)), "true");
             webHostBuilder.ConfigureLogging(logging => logging.ClearProviders());
 
-            webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
             webHostConfigurator?.Invoke(webHostBuilder);
+            webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
         });
         _ = tempApplicationFactory.Server; //To trigger webHostBuilder action
         tempApplicationFactory.Dispose();
@@ -59,16 +59,10 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
         //This will be triggered when TestServer or HttpClient requested until then further configurations can be added to test context configuration
         var factory = new DrnWebApplicationFactory<TEntryPoint>(testContext).WithWebHostBuilder(webHostBuilder =>
         {
-            webHostBuilder.ConfigureServices(services =>
-            {
-                services.Add(initialServiceDescriptors);
-                testContext.OverrideServiceCollection(services);
-                testContext.MethodContext.ReplaceSubstitutedInterfaces(services);
-                testContext.ServiceCollection = new ServiceCollection { services };
-            });
-
             var configuration = testContext.GetRequiredService<IConfiguration>();
             webHostBuilder.UseConfiguration(configuration);
+            webHostBuilder.ConfigureServices(services => services.Add(initialServiceDescriptors));
+
             webHostBuilder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();
@@ -96,10 +90,17 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
                 };
                 logging.AddNLogWeb(logFactory, options);
             });
+
             webHostConfigurator?.Invoke(webHostBuilder);
+            webHostBuilder.ConfigureServices(services =>
+            {
+                testContext.OverrideServiceCollection(services);
+                testContext.MethodContext.ReplaceSubstitutedInterfaces(services);
+                testContext.ServiceCollection = new ServiceCollection { services };
+            });
         });
 
-        _factory = factory;
+        UseApplicationFactory(factory);
 
         return factory;
     }
@@ -139,15 +140,20 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     public WebApplicationFactory<TEntryPoint>? GetCreatedApplication<TEntryPoint>() where TEntryPoint : class
         => (WebApplicationFactory<TEntryPoint>?)_factory;
 
+    internal bool HasCreatedApplication => _factory != null;
+
+    internal void UseApplicationFactory(IDisposable factory) => _factory = factory;
+
     public void Dispose()
     {
+        var factory = _factory;
         try
         {
-            _factory?.Dispose();
+            factory?.Dispose();
+            _factory = null;
         }
         finally
         {
-            _factory = null;
             if (_initialServiceDescriptors != null)
             {
                 testContext.ServiceCollection = new ServiceCollection { _initialServiceDescriptors };
@@ -155,6 +161,9 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
             }
             testContext.ClearApplicationServiceProvider();
         }
+
+        if (factory != null)
+            testContext.DisposeOwnedServiceProvider();
     }
 }
 
