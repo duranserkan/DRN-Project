@@ -39,16 +39,19 @@ public class DrnContextDevelopmentConnectionTests
         appSettings.GetValue<string>(DbContextConventions.DevPasswordKey).Should().Be(password);
         appSettings.DevelopmentSettings.AutoMigrateDevelopment.Should().Be(migrate);
 
-        var connectionString = DrnContextDevelopmentConnection.GetConnectionString(appSettings, nameof(QAContext));
-        connectionString.Should().NotBeNull();
-
         if (environment != AppEnvironment.Development)
         {
+            var action = () => DrnContextDevelopmentConnection.GetConnectionString(appSettings, nameof(QAContext));
+            action.Should().Throw<ConfigurationException>();
+
             var serviceProviderValidation = testContext.ValidateServicesAsync;
             //connection strings are not auto-generated other than development environment
             await serviceProviderValidation.Should().ThrowAsync<ConfigurationException>();
             return;
         }
+
+        var connectionString = DrnContextDevelopmentConnection.GetConnectionString(appSettings, nameof(QAContext));
+        connectionString.Should().NotBeNull();
 
         //trigger PostStartupValidation
         await testContext.ValidateServicesAsync();
