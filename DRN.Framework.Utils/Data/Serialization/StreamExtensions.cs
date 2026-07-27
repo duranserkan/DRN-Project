@@ -4,17 +4,18 @@ namespace DRN.Framework.Utils.Data.Serialization;
 
 public static class StreamExtensions
 {
+    public const long DefaultMaxStreamSize = 10 * 1024 * 1024; // 10MB default safety limit for stream materialization
     private const int DefaultBufferSize = 8192; // 8KB is often optimal
 
     public static async ValueTask<byte[]> ToArrayAsync(this Stream inputStream,
-        long maxSize = long.MaxValue, CancellationToken cancellationToken = default)
+        long maxSize = DefaultMaxStreamSize, CancellationToken cancellationToken = default)
     {
         var binaryData = await inputStream.ToBinaryDataAsync(maxSize, cancellationToken);
         return binaryData.ToArray();
     }
 
     public static async ValueTask<BinaryData> ToBinaryDataAsync(this Stream inputStream,
-        long maxSize = long.MaxValue, CancellationToken cancellationToken = default)
+        long maxSize = DefaultMaxStreamSize, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(inputStream);
 
