@@ -388,10 +388,15 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     // Override authorization to remove MFA requirement from fallback policy
     protected override void ConfigureAuthorizationOptions(AuthorizationOptions options)
     {
+        base.ConfigureAuthorizationOptions(options);
+
         // Remove MFA enforcement - authenticated users can access without MFA
-        options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        var authenticatedUserPolicy = new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
             .Build();
+
+        options.DefaultPolicy = authenticatedUserPolicy;
+        options.FallbackPolicy = authenticatedUserPolicy;
     }
 }
 ```

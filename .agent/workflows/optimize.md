@@ -72,13 +72,14 @@ Keep security rules, rationale, versions, runnable code, anchors, links, and sou
 
 After user approval:
 
-1. Recheck every target with non-following filesystem metadata before hashing content. Abort on any path-state change from the approved manifest, including a previously present target now missing, a previously missing target now added, deletion, rename, type or mode change, or symlink-target change.
-2. Only after all path-state checks pass, recompute every content digest, the target-manifest digest, and the preview and patch raw-byte digests; abort on mismatch.
+1. Recheck every target with non-following filesystem metadata before hashing content. Reject symlink targets or abort on any path-state or type change from the approved manifest (including a previously present target now missing, a previously missing target now added, deletion, rename, mode change, file-type transition such as regular file to symlink, or symlink-target change).
+2. Only after all path-state checks pass, recompute every content digest, the target-manifest digest, and the preview and patch raw-byte digests using no-follow reads; abort if any file-type or identity change occurs during reading or on any digest mismatch.
 3. Record and verify the complete shared approval envelope in `.agent/temp/optimize-approval.md` using the canonical mapping above.
-4. Apply only the approved patch.
-5. Verify links, metadata, idempotency, and `git diff --check`.
-6. Post-review every Moderate/Significant change; workflow/skill semantics require both pre- and post-review.
-7. If a correction changes a target, scope, risk decision, preview, or patch, invalidate the active record, retain it as superseded history, and restart preview.
+4. Perform an immediate, final non-following revalidation of path state, file type, and target identity immediately before mutation; abort if any target is a symlink or has changed type or identity.
+5. Apply only the approved patch.
+6. Verify links, metadata, idempotency, and `git diff --check`.
+7. Post-review every Moderate/Significant change; workflow/skill semantics require both pre- and post-review.
+8. If a correction changes a target, scope, risk decision, preview, or patch, invalidate the active record, retain it as superseded history, and restart preview.
 
 Report pre/post tokens, delta, severity, and a 0-100 quality score: structure 30%, conciseness 25%, heading density 25%, imperative phrasing 20%. Score zero when any action is ambiguous or omits a documented edge case.
 

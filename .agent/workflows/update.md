@@ -136,7 +136,7 @@ Minimum template:
 > approval_envelope_sha256:
 
 ### Approval History
-<!-- Append the current approval state and its complete envelope when present before every Run ID or approval-state change. Never edit or remove prior records. -->
+<!-- Omit approval history records until an actual invalidation occurs. When invalidating, append the current approval state and its complete envelope before every Run ID or approval-state change; never edit or remove prior records:
 #### Superseded Approval: <invalidated-at>
 > invalidation_reason:
 > run_id:
@@ -150,6 +150,7 @@ Minimum template:
 > approval_recorded_at:
 > approval_risk_decision:
 > approval_envelope_sha256:
+-->
 
 ## Discovery Summary
 ### Skills Manifest
