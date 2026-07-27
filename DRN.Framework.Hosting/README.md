@@ -228,7 +228,7 @@ These hooks run while the `WebApplicationBuilder` is active, allowing you to con
 | **Infras.** | `ConfigureRequestLocalizationOptions` | Configure culture providers and supported cultures. |
 | **Infras.** | `ConfigureHostFilteringOptions` | Configure allowed hosts for host header validation. |
 | **Infras.** | `ConfigureResponseCachingOptions` | Configure server-side response caching with sensible defaults (16MB max body size, case-insensitive paths). |
-| **Infras.** | `ConfigureResponseCompressionOptions` | Configure response compression (Brotli/Gzip) for whitelisted MIME types (CSS, JS, SVG, TTF, OTF) with HTTPS compression enabled. |
+| **Infras.** | `ConfigureResponseCompressionOptions` | Configure response compression (Brotli/Gzip) for MIME types (extending default types with font formats) with HTTPS compression disabled (`EnableForHttps = false`) for BREACH mitigation. Static files enable HTTPS compression via `ConfigureStaticFileOptions`. |
 | **Infras.** | `ConfigureCompressionProviders` | Configure Brotli and Gzip compression provider options including compression levels. |
 | **Infras.** | `ConfigureBrotliCompressionLevel` | Customize Brotli compression level (default: SmallestSize for static assets). |
 | **Infras.** | `ConfigureGzipCompressionLevel` | Customize Gzip compression level (default: SmallestSize for static assets). |

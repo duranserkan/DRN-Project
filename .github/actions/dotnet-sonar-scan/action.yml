@@ -31,6 +31,10 @@ inputs:
     description: "SonarCloud organization."
     required: false
     default: "duranserkan"
+  sonar-exclusions:
+    description: "File exclusion patterns for SonarCloud analysis."
+    required: false
+    default: "**/wwwroot/**,**/*.jpeg,**/*.jpg,**/*.png,**/*.gif,**/*.ico,**/*.bmp,**/*.webp,**/*.tiff,**/*.woff,**/*.woff2,**/*.ttf,**/*.eot,**/*.otf"
   sonar-branch-name:
     description: "Optional SonarCloud branch name to attach analysis to when the workflow runs from a tag ref."
     required: false
@@ -53,6 +57,7 @@ runs:
         sonar-project-key: ${{ inputs.sonar-project-key }}
         sonar-host-url: ${{ inputs.sonar-host-url }}
         sonar-organization: ${{ inputs.sonar-organization }}
+        sonar-exclusions: ${{ inputs.sonar-exclusions }}
         version: ${{ inputs.version }}
         sonar-branch-name: ${{ inputs.sonar-branch-name }}
         sonar-branch-target: ${{ inputs.sonar-branch-target }}

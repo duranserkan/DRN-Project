@@ -20,6 +20,10 @@ inputs:
     description: "SonarCloud organization."
     required: false
     default: "duranserkan"
+  sonar-exclusions:
+    description: "File exclusion patterns for SonarCloud analysis."
+    required: false
+    default: "**/wwwroot/**,**/*.jpeg,**/*.jpg,**/*.png,**/*.gif,**/*.ico,**/*.bmp,**/*.webp,**/*.tiff,**/*.woff,**/*.woff2,**/*.ttf,**/*.eot,**/*.otf"
   version:
     description: "Optional project version to attach to the SonarCloud analysis."
     required: false
@@ -46,6 +50,7 @@ runs:
         SONAR_PROJECT_KEY: ${{ inputs.sonar-project-key }}
         SONAR_HOST_URL: ${{ inputs.sonar-host-url }}
         SONAR_ORGANIZATION: ${{ inputs.sonar-organization }}
+        SONAR_EXCLUSIONS: ${{ inputs.sonar-exclusions }}
         SONAR_PROJECT_VERSION: ${{ inputs.version }}
         SONAR_TOKEN: ${{ inputs.sonar-token }}
         SONAR_BRANCH_NAME: ${{ inputs.sonar-branch-name }}
@@ -64,6 +69,10 @@ runs:
           "/d:sonar.qualitygate.wait=true",
           "/d:sonar.qualitygate.timeout=600"
         )
+
+        if (-not [string]::IsNullOrWhiteSpace($env:SONAR_EXCLUSIONS)) {
+          $scannerArgs += "/d:sonar.exclusions=$env:SONAR_EXCLUSIONS"
+        }
 
         if (-not [string]::IsNullOrWhiteSpace($env:SONAR_PROJECT_VERSION)) {
           $scannerArgs += "/v:$env:SONAR_PROJECT_VERSION"

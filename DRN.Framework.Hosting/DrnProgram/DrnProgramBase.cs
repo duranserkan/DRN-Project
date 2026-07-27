@@ -851,9 +851,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// <summary>
     /// Configures response compression with security-first defaults.
     /// <para>
-    /// HTTPS compression (<c>EnableForHttps = true</c>) is enabled for an explicit allowlist of safe MIME types
-    /// (CSS, JS, SVG, TTF, OTF). Dynamic response MIME types (such as <c>text/html</c> and <c>application/json</c>) are excluded
-    /// from default compression.
+    /// Response compression middleware is disabled over HTTPS (<c>EnableForHttps = false</c>)
+    /// to mitigate BREACH attack vectors on dynamic response pipelines.
+    /// Static assets served by <c>StaticFileMiddleware</c> safely enable HTTPS compression via <see cref="ConfigureStaticFileOptions"/>.
     /// </para>
     /// <para><b>References:</b></para>
     /// <list type="bullet">
@@ -865,24 +865,18 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// </summary>
     protected virtual void ConfigureResponseCompressionOptions(ResponseCompressionOptions options)
     {
-        // Enable HTTPS response compression for matching MIME allowlist entries.
-        // Default response MIME types (e.g. text/html, application/json) are excluded.
-        // References:
-        //   - Caching exclusion conditions: https://learn.microsoft.com/en-us/aspnet/core/performance/caching/middleware#conditions-for-caching
-        //   - Response compression middleware: https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression
-        options.EnableForHttps = true;
-        options.MimeTypes =
+        // Response compression middleware is disabled over HTTPS by default (EnableForHttps = false)
+        // to mitigate BREACH attack vectors on dynamic responses.
+        // Static assets opt in through StaticFileOptions.HttpsCompression = HttpsCompressionMode.Compress.
+        options.EnableForHttps = false;
+        options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
         [
-            "text/css",
-            "text/javascript",
-            "application/javascript",
-            "image/svg+xml",
             // Raw/uncompressed font MIME types only (WOFF and WOFF2 are already compressed at binary level)
             "font/ttf",
             "application/x-font-ttf",
             "font/otf",
             "font/opentype"
-        ];
+        ]);
         options.Providers.Add<BrotliCompressionProvider>();
         options.Providers.Add<GzipCompressionProvider>();
     }
