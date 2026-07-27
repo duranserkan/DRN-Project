@@ -252,7 +252,7 @@ public class User : SourceKnownEntity
 *   **Entity Type Check**: Scans all `SourceKnownEntity` types in the model to ensure they have unique `[EntityType]` attributes.
 *   **Auto-Migration & Seeding**:
     *   Detects pending migrations and applies them if configured (`DrnDevelopmentSettings:AutoMigrateDevelopment`).
-    *   Runs `SeedAsync` implementations from registered `NpgsqlDbContextOptionsAttribute`s after migration.
+    *   Runs `SeedAsync` implementations from registered `NpgsqlDbContextOptionsAttribute`s after migration. **Note**: Idempotency and duplicate seed prevention are the caller's responsibility; custom `SeedAsync` methods must verify existing data before seeding. For guidelines, see [EF Core Data Seeding Guidance](https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding).
 
 ### Example
 

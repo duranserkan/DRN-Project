@@ -16,7 +16,8 @@ jobs:
   frontend:
     permissions:
       contents: read
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -29,7 +30,8 @@ jobs:
   backend:
     permissions:
       contents: read
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     env:
       SOLUTION_FILE: DRN.slnx
     steps:
@@ -50,7 +52,8 @@ jobs:
       actions: read
       contents: read
       security-events: write
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     env:
       SOLUTION_FILE: DRN.slnx
     steps:
@@ -74,7 +77,8 @@ jobs:
 
   gatekeeper:
     permissions: {}
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     if: ${{ always() }}
     # Keep this aggregate gate in sync with every required validation job.
     # Add new jobs to both `needs` and the result check below.

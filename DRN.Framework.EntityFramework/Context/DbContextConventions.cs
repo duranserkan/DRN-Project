@@ -17,7 +17,7 @@ public static class DbContextConventions
     public const string DefaultUsername = "drn";
     public const string DefaultDatabase = "drn";
     public const string DefaultHost = "drn";
-    public const string DefaultPort = "5432";
+    public const int DefaultPort = 5432;
 
     private static readonly ConcurrentDictionary<Type, NpgsqlDbContextOptionsAttribute[]> AttributeCache = new();
 

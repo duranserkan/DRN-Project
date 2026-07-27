@@ -31,6 +31,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="DRN.Test.Unit"/>
+        <InternalsVisibleTo Include="DRN.Test.Integration"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj"/>
     </ItemGroup>
 

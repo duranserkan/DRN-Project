@@ -6,6 +6,13 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **Repository Cancellation Scope Key Override Removed**: Removed protected virtual `RepositoryCancellationScopeKey` from `SourceKnownRepository`. Configure `Settings.ScopeKey` instead. A `null` key now uses `Utils.Cancellation.Root`, so `CancelChanges()` and `CancelWhen(token)` affect every operation linked to the root cancellation scope; set an explicit key to isolate a repository group.
 
+### Bug Fixes
+
+*   **DbContext Configuration Discovery**: `DbContextExtensions.ModelCreatingDefaults` now matches entity configurations using exact-or-ordinal-child namespace matching (`Equals` or `StartsWith` with dot delimiter) and safely handles `null` namespaces, preventing accidental configuration discovery from prefix-sibling namespaces (e.g. `Acme.Database` for `Acme.Data`) or `NullReferenceException`.
+*   **Repository Entity-ID Cross-Entity Substitution**: Fixed `GetOrDefaultAsync` in `SourceKnownRepository` so querying with `validate: false` for a `SourceKnownEntityId` or `Guid` of a different entity type returns `null` instead of querying by internal numeric ID.
+*   **Auto-Migration Seeding**: Fixed `DrnContextServiceRegistrationAttribute.PostStartupValidationAsync` so `SeedData` is invoked whenever pending migrations are applied, regardless of whether previous migrations were already applied to the database. Documented that duplicate seed prevention/idempotency is the responsibility of `SeedAsync` implementations, not `DRN.Framework.EntityFramework`.
+
+
 ## Version 0.9.6
 
 ### Breaking Changes

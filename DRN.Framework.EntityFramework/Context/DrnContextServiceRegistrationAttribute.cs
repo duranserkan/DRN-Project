@@ -1,4 +1,5 @@
 using System.Reflection;
+using DRN.Framework.EntityFramework.Attributes;
 using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel;
@@ -44,9 +45,9 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         var changeModel = await GetChangeModel(serviceProvider, context);
         changeModel.LogChanges(scopedLog, appSettings.Environment.ToString());
 
-        if (changeModel.Flags is { Migrate: false}) 
+        if (changeModel.Flags is { Migrate: false})
             return;
-        
+
         if (changeModel.Flags.RecreatePrototypeDatabaseForPendingModelChanges)
         {
             scopedLog?.AddToActions($"checking {changeModel.Name} database in prototype mode.");
@@ -71,8 +72,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             scopedLog?.AddToActions($"{changeModel.Name} is migrating {appSettings.Environment.ToString()}");
             await context.Database.MigrateAsync();
 
-            if (changeModel.AppliedMigrations.Count == 0)
-                await SeedData(context, serviceProvider, appSettings);
+            await SeedData(context, serviceProvider, appSettings);
             scopedLog?.AddToActions($"{changeModel.Name} migrated {changeModel.PendingMigrations.Count} pending migrations");
         }
 
@@ -94,6 +94,10 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         serviceProvider.GetRequiredService(context.GetType());
     }
 
+    /// <summary>
+    /// Invokes <see cref="NpgsqlDbContextOptionsAttribute.SeedAsync"/> on registered context option attributes.
+    /// See <see href="https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding"/> for EF Core data seeding guidance.
+    /// </summary>
     private static async Task SeedData(DbContext context, IServiceProvider serviceProvider, IAppSettings appSettings)
     {
         var optionsAttributes = DbContextConventions.GetContextAttributes(context);
