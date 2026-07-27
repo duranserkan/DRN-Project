@@ -126,17 +126,14 @@ public class RequestBufferingState
 
         var bufferSize = state.BufferSizeLimit;
         var buffer = ArrayPool<char>.Shared.Rent(bufferSize);
-        var readFailed = false;
+        var readFailed = true;
         try
         {
             using var reader = new StreamReader(stream, leaveOpen: true);
             var charsRead = await reader.ReadAsync(buffer.AsMemory(0, bufferSize), cancellationToken);
-            return new string(buffer, 0, charsRead);
-        }
-        catch
-        {
-            readFailed = true;
-            throw;
+            var result = new string(buffer, 0, charsRead);
+            readFailed = false;
+            return result;
         }
         finally
         {
