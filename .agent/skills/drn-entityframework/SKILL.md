@@ -192,7 +192,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 public virtual void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder, IServiceProvider? serviceProvider);
 public virtual void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider serviceProvider);
 public virtual void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder builder, IServiceProvider? serviceProvider);
-public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings);
+public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings); // See https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding
 ```
 
 ### Performance Defaults

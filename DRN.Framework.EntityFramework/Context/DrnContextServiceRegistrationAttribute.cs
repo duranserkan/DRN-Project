@@ -71,8 +71,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             scopedLog?.AddToActions($"{changeModel.Name} is migrating {appSettings.Environment.ToString()}");
             await context.Database.MigrateAsync();
 
-            if (changeModel.AppliedMigrations.Count == 0)
-                await SeedData(context, serviceProvider, appSettings);
+            await SeedData(context, serviceProvider, appSettings);
             scopedLog?.AddToActions($"{changeModel.Name} migrated {changeModel.PendingMigrations.Count} pending migrations");
         }
 
@@ -94,6 +93,10 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         serviceProvider.GetRequiredService(context.GetType());
     }
 
+    /// <summary>
+    /// Invokes <see cref="NpgsqlDbContextOptionsAttribute.SeedAsync"/> on registered context option attributes.
+    /// See <see href="https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding"/> for EF Core data seeding guidance.
+    /// </summary>
     private static async Task SeedData(DbContext context, IServiceProvider serviceProvider, IAppSettings appSettings)
     {
         var optionsAttributes = DbContextConventions.GetContextAttributes(context);

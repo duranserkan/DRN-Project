@@ -44,6 +44,18 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
             builder.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
     }
 
+    /// <summary>
+    /// Override this method to seed initial or updated data when prototype database recreation or pending migrations occur.
+    /// <para>
+    /// Note: Handling duplicate seed data or idempotency is not the responsibility of <c>DRN.Framework.EntityFramework</c>.
+    /// Implementations must verify existing records before inserting seed data (e.g. check for existing keys or use upsert logic).
+    /// </para>
+    /// </summary>
+    /// <remarks>
+    /// For EF Core data seeding guidance and patterns, see <see href="https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding"/>.
+    /// </remarks>
+    /// <param name="serviceProvider">The root or scoped service provider.</param>
+    /// <param name="appSettings">Application settings for environment awareness.</param>
     public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings) => Task.CompletedTask;
     
     /// <summary>
