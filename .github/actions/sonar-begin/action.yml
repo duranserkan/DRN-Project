@@ -24,8 +24,8 @@ inputs:
     description: "Source-analysis exclusions; defaults to generated wwwroot output to avoid scanning built assets as source."
     required: false
     default: "**/wwwroot/**"
-  sonar-text-excluded-file-suffixes:
-    description: "Binary suffixes excluded from Text/Secrets decoding so valid image and font assets are not parsed as UTF-8 text."
+  sonar-secrets-excluded-file-suffixes:
+    description: "Binary suffixes excluded from Secrets decoding so valid image and font assets are not parsed as UTF-8 text."
     required: false
     default: ".jpeg,.jpg,.png,.gif,.ico,.bmp,.webp,.tiff,.woff,.woff2,.ttf,.eot,.otf"
   version:
@@ -55,7 +55,7 @@ runs:
         SONAR_HOST_URL: ${{ inputs.sonar-host-url }}
         SONAR_ORGANIZATION: ${{ inputs.sonar-organization }}
         SONAR_EXCLUSIONS: ${{ inputs.sonar-exclusions }}
-        SONAR_TEXT_EXCLUDED_FILE_SUFFIXES: ${{ inputs.sonar-text-excluded-file-suffixes }}
+        SONAR_SECRETS_EXCLUDED_FILE_SUFFIXES: ${{ inputs.sonar-secrets-excluded-file-suffixes }}
         SONAR_PROJECT_VERSION: ${{ inputs.version }}
         SONAR_TOKEN: ${{ inputs.sonar-token }}
         SONAR_BRANCH_NAME: ${{ inputs.sonar-branch-name }}
@@ -71,6 +71,7 @@ runs:
           "/d:sonar.token=$env:SONAR_TOKEN",
           "/d:sonar.cs.vscoveragexml.reportsPaths=coverage-unit.xml,coverage-integration.xml",
           "/d:sonar.host.url=$env:SONAR_HOST_URL",
+          "/d:sonar.sourceEncoding=UTF-8",
           "/d:sonar.qualitygate.wait=true",
           "/d:sonar.qualitygate.timeout=600"
         )
@@ -79,8 +80,8 @@ runs:
           $scannerArgs += "/d:sonar.exclusions=$env:SONAR_EXCLUSIONS"
         }
 
-        if (-not [string]::IsNullOrWhiteSpace($env:SONAR_TEXT_EXCLUDED_FILE_SUFFIXES)) {
-          $scannerArgs += "/d:sonar.text.excluded.file.suffixes=$env:SONAR_TEXT_EXCLUDED_FILE_SUFFIXES"
+        if (-not [string]::IsNullOrWhiteSpace($env:SONAR_SECRETS_EXCLUDED_FILE_SUFFIXES)) {
+          $scannerArgs += "/d:sonar.secrets.excluded.file.suffixes=$env:SONAR_SECRETS_EXCLUDED_FILE_SUFFIXES"
         }
 
         if (-not [string]::IsNullOrWhiteSpace($env:SONAR_PROJECT_VERSION)) {
