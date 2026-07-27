@@ -114,7 +114,7 @@ title: [Task Title]
 created: [ISO 8601 date]
 clarified:
 blocked_on_user: false
-needs_review: false
+needs_review: true
 approval_required: true
 approval_record: pending
 approval_scope: "set status clarified and generate a collision-safe DEVELOP handoff from .agent/temp/CLARIFY-[task-slug].md"

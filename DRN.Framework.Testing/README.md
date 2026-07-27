@@ -125,6 +125,7 @@ Advanced unit test example with inlined values, auto-generated data, and mocked 
 - Then it provides inlined values
 - Then it auto-generates missing values with AutoFixture
 - `AutoFixture` mocks any interface parameter with `NSubstitute`
+
 ```csharp
 /// <param name="context"> Provided by DataInlineUnit even if it is not a compile time constant</param>
 /// <param name="inlineData">Provided by DataInlineUnit</param>

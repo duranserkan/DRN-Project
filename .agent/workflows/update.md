@@ -2,6 +2,8 @@
 description: Orchestrate filesystem-driven synchronization of agent instructions, loaders, workflows, and skill index
 ---
 
+# Update
+
 > **Trigger**: skill/workflow changes or `.agent` portability sync. Scope defaults to `all` only when no retained run exists.
 > See [Lifecycle](./_shared/status-lifecycle.md) and [Operating Model](./_shared/workflow-operating-model.md).
 > **Estimated context: ~2.3K tokens**
@@ -59,12 +61,12 @@ Before and after delegation, report Run ID, plan path/status, requested/effectiv
 Plan review is not apply approval. Before the first execution mutation:
 
 1. Compute the Semantic Plan digest below.
-2. Persist `.agent/temp/update-apply-preview.md` with Run ID, requested/effective scope, actions/output paths, semantic-plan digest, baseline manifest/hash, and Priority Stack risk decision.
+2. Persist `.agent/temp/update-apply-preview.md` with Run ID, requested/effective scope, actions/output paths, semantic-plan digest, baseline manifest/hash, Priority Stack risk decision, and exact expected path state plus raw-byte SHA-256 for any output not represented by a proposed diff.
 3. If an exact diff exists, persist raw bytes at `.agent/temp/update-proposed.diff` and reference its digest; otherwise remove a stale proposal and use the preview as proposal.
 4. Present the exact human-readable preview/diff, scope, and risk for explicit approval.
 5. On confirmation, recompute semantic plan, preview/diff, and baseline digests; abort on mismatch.
 6. Record the complete shared approval envelope in `## Apply Approval`: subject digest is the preview digest; preview digest is the proposed-diff digest or preview digest when no diff exists.
-7. Invalidate approval when any envelope input, semantic plan, baseline manifest/hash, preview, or diff changes.
+7. When any envelope input, semantic plan, baseline manifest/hash, preview, or diff changes, first append the complete current approval envelope with invalidation reason and time to `### Approval History`; then invalidate the current approval. Never edit or remove a history record.
 
 For a `failed` run, the Corrections Required table is the correction action list. Re-run this entire gate with a correction-labeled preview and exact diff, invalidate the prior apply approval, and restrict targets to the current run's scope and declared Stage 1-5 outputs. Scope widening or semantic-plan changes require a fresh run. After current explicit approval, `/update-execute` owns `failed -> correcting -> done`.
 
@@ -115,14 +117,33 @@ Minimum template:
 > Generated: <timestamp> | Run ID: <lowercase UUID v4> | Status: <status>
 > Requested Scope: <normalized invocation scope> | Scope: <effective scope> | Resolved Stages: <stages>
 > Repo: <path> | Baseline HEAD: <sha> | Baseline Inputs Hash: <sha256 or N/A> | Baseline Inputs Manifest: .agent/temp/update-baseline-inputs.manifest or N/A
+<!-- Include the next blockquote only when Baseline Inputs Hash is N/A; otherwise omit it. -->
+> Baseline Inputs Hash Justification: no-material-input-files
 > Custom Groups: <prefix -> workflow>
 > Custom Workflows: <route -> workflow>
 
 ## Apply Approval
+### Current Approval
 > approval_required: true
 > approval_record: pending
 > approval_scope:
 > approval_subject: .agent/temp/update-apply-preview.md
+> approval_subject_sha256:
+> approval_preview_sha256:
+> approval_producer:
+> approval_recorded_at:
+> approval_risk_decision:
+> approval_envelope_sha256:
+
+### Approval History
+<!-- Append the current approval state and its complete envelope when present before every Run ID or approval-state change. Never edit or remove prior records. -->
+#### Superseded Approval: <invalidated-at>
+> invalidation_reason:
+> run_id:
+> approval_required:
+> approval_record:
+> approval_scope:
+> approval_subject:
 > approval_subject_sha256:
 > approval_preview_sha256:
 > approval_producer:
@@ -149,7 +170,7 @@ Minimum template:
 
 Every mutating Stage 1-5 action must map to at least one exact `### Outputs` path before plan review. Deduplicate output paths bytewise; use `N/A` only for a non-mutating stage. Unlisted output mutation makes the plan stale.
 
-Compute and persist the canonical baseline manifest per [baseline-inputs-hash-spec.md](./_shared/baseline-inputs-hash-spec.md). `N/A` requires `Baseline Inputs Manifest: N/A`, no retained manifest, and exact header `Baseline Inputs Hash Justification: no-material-input-files`; omit that justification otherwise.
+Compute and persist the canonical baseline manifest per [baseline-inputs-hash-spec.md](./_shared/baseline-inputs-hash-spec.md). `N/A` requires the exact header `Baseline Inputs Hash Justification: no-material-input-files`, `Baseline Inputs Manifest: N/A`, and no `.agent/temp/update-baseline-inputs.manifest`; omit the justification otherwise.
 
 ## 6. Guarantees
 

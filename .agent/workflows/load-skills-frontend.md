@@ -2,6 +2,8 @@
 description: Load DRN buildwww and Razor frontend development skills
 ---
 
+# Frontend Skill Loader
+
 > **Estimated context: ~17.2K tokens maximum** (8 skills; load only the selected subset)
 
 Prerequisite: read `.agent/repository-profile.md` and select only the matching DRN buildwww and/or Razor skill subset. When selecting any `drn-buildwww-*` skill, read `overview-drn-framework` first.

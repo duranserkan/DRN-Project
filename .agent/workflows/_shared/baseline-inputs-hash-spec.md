@@ -58,6 +58,7 @@ When hash is `N/A`, skip comparison only after all checks pass:
 
 1. Plan header contains exactly `Baseline Inputs Hash Justification: no-material-input-files`.
 2. Plan header contains exactly `Baseline Inputs Manifest: N/A`.
-3. Exact scope paths still contain no material inputs.
+3. `.agent/temp/update-baseline-inputs.manifest` does not exist.
+4. Exact scope paths still contain no material inputs.
 
 Otherwise abort as stale.

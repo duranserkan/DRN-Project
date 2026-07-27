@@ -17,7 +17,7 @@ Run the Startup Gate once and read only targets.
 | `workflows` | `.agent/workflows/**/*.md`, including `_shared` |
 | `docs` | Root docs plus README/release notes of profile Documentation Modules; otherwise `/documentation` discovery |
 | `all` | Skills, workflows, and docs |
-| Caller | Preserve `/review`, CAD, or `/goal` gates |
+| Caller | Preserve every caller-owned gate, including `/review`, CAD, `/goal`, and `/update` mutation, approval, lifecycle, and state-transition gates |
 | None | Ask and stop |
 
 Do not optimize `AGENTS.md`, `DiSCOS.md`, or unrelated `.agent/temp/` artifacts unless explicitly scoped. Preserve lifecycle/source metadata and hashes.
@@ -37,9 +37,9 @@ For each target:
 
 1. Estimate baseline as `chars / 4`; classify and justify each candidate as optimize/defer/reject.
 2. Reject net complexity; tag additions `[COMPLEXITY WARNING]`.
-3. Validate references, metadata, gates, and similarities over 70%.
+3. Validate references, metadata, gates, and semantic consistency.
 4. For semantic workflow/skill changes, run `/review` and resolve Critical findings before preview.
-5. Persist `.agent/temp/optimize-apply-preview.md` with the bounded scope, severity, risk decision, proposed patch summary, and a target manifest. List each repository-relative target exactly once in bytewise path order with its lowercase raw-byte SHA-256.
+5. Persist `.agent/temp/optimize-apply-preview.md` with the bounded scope, severity, risk decision, proposed patch summary, and a target manifest. List each repository-relative target exactly once in bytewise path order. Record its existence, non-followed file type, mode, raw symlink target or `N/A`, and lowercase SHA-256 of regular-file bytes or raw symlink-target bytes; use `N/A` for missing targets. The target-manifest digest is the lowercase SHA-256 of the manifest block's exact raw UTF-8 bytes, excluding its digest line.
 6. Persist the exact patch bytes at `.agent/temp/optimize-proposed.diff`.
 7. Compute the raw-byte SHA-256 of both files and present the preview and exact patch for explicit approval.
 
@@ -72,12 +72,13 @@ Keep security rules, rationale, versions, runnable code, anchors, links, and sou
 
 After user approval:
 
-1. Recompute every target-manifest digest plus the preview and patch raw-byte digests; abort on mismatch.
-2. Record and verify the complete shared approval envelope in `.agent/temp/optimize-approval.md` using the canonical mapping above.
-3. Apply only the approved patch.
-4. Verify links, metadata, idempotency, and `git diff --check`.
-5. Post-review every Moderate/Significant change; workflow/skill semantics require both pre- and post-review.
-6. If a correction changes a target, scope, risk decision, preview, or patch, invalidate the active record, retain it as superseded history, and restart preview.
+1. Recheck every target with non-following filesystem metadata before hashing content. Abort on any path-state change from the approved manifest, including a previously present target now missing, a previously missing target now added, deletion, rename, type or mode change, or symlink-target change.
+2. Only after all path-state checks pass, recompute every content digest, the target-manifest digest, and the preview and patch raw-byte digests; abort on mismatch.
+3. Record and verify the complete shared approval envelope in `.agent/temp/optimize-approval.md` using the canonical mapping above.
+4. Apply only the approved patch.
+5. Verify links, metadata, idempotency, and `git diff --check`.
+6. Post-review every Moderate/Significant change; workflow/skill semantics require both pre- and post-review.
+7. If a correction changes a target, scope, risk decision, preview, or patch, invalidate the active record, retain it as superseded history, and restart preview.
 
 Report pre/post tokens, delta, severity, and a 0-100 quality score: structure 30%, conciseness 25%, heading density 25%, imperative phrasing 20%. Score zero when any action is ambiguous or omits a documented edge case.
 

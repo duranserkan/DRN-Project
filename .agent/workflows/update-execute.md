@@ -17,15 +17,18 @@ If invoked directly, run the shared Startup Gate; otherwise inherit `/update` co
 3. Require a non-empty Run ID and exact Requested Scope/effective Scope match across the invocation, plan, preview, and any correction progress.
 4. Before the first execution mutation, recompute the Semantic Plan SHA-256, preview raw-byte SHA-256, optional proposed-diff SHA-256, and full baseline manifest/hash. Abort unless the preview records the current Run ID, semantic-plan digest, baseline manifest/hash, requested/effective scope, and risk decision.
 5. Require a complete explicit record whose subject/preview digests and shared approval-envelope digest match `.agent/temp/update-apply-preview.md`, the optional `.agent/temp/update-proposed.diff`, Run ID, requested/effective scope, producer, timestamp, and risk decision.
-6. On resume, recompute the semantic-plan, preview, and optional diff hashes. Verify the persisted baseline manifest still hashes to `Baseline Inputs Hash`; reproduce current baseline records only for paths not listed as completed-stage outputs. Completed-output changes must map to completed actions and the approved preview/diff. Any unexplained run, input, output, scope, required-approval, plan, preview, or diff change aborts.
-7. Before the first mutation, abort if material in-scope inputs exist and the canonical manifest is missing, malformed, `N/A`, lists a different current material-path set, or no longer reproduces `Baseline Inputs Hash`.
-8. Allow `Baseline Inputs Hash: N/A` only when `Baseline Inputs Manifest: N/A`, the plan contains exactly `Baseline Inputs Hash Justification: no-material-input-files`, and exact scope paths still contain no material inputs.
-9. Abort if in-scope files have uncommitted changes not represented in the plan:
+6. On resume, recompute the semantic-plan, preview, and optional diff hashes. Re-enumerate tracked and untracked paths with NUL-delimited Git status, then inspect current filesystem state without following symlinks. Verify the persisted baseline manifest still hashes to `Baseline Inputs Hash`; reproduce current baseline records, including every current untracked material path and its raw bytes, only for paths not listed as completed-stage outputs. Validate every completed output, including untracked outputs, against the approved proposed diff or the preview's exact expected path state and raw-byte SHA-256. Any unapproved run, input, output, scope, required-approval, plan, preview, diff, path-state, or byte change aborts.
+7. Before the first mutation, abort if material in-scope inputs exist and the canonical manifest is missing, malformed, `N/A`, omits a current untracked material path or its bytes, lists a different current material-path set, or no longer reproduces `Baseline Inputs Hash`.
+8. Allow `Baseline Inputs Hash: N/A` only when `Baseline Inputs Manifest: N/A`, `.agent/temp/update-baseline-inputs.manifest` does not exist, the plan contains exactly `Baseline Inputs Hash Justification: no-material-input-files`, and exact scope paths still contain no material inputs.
+9. Abort if any in-scope tracked or untracked change is not represented in the plan. Parse NUL records directly, and validate each reported path with non-following filesystem metadata plus raw regular-file or symlink-target bytes:
 
    ```bash
+   git status --porcelain=v1 -z --untracked-files=all -- <scope-paths>
    git diff -- <scope-paths>
    git diff --cached -- <scope-paths>
    ```
+
+   An untracked completed output must match the approved proposed diff. When no exact diff represents it, the approved preview must contain its exact expected existence, type, mode, symlink target state, and raw-byte SHA-256; otherwise abort.
 
 | Scope | `<scope-paths>` |
 |---|---|

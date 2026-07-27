@@ -28,11 +28,18 @@ Stop when no reviewable evidence exists.
 
 | Scope | Inventory | Detail |
 |---|---|---|
-| Branch | Resolve safest profile/primary merge base; `git diff --stat <base> HEAD` | `git diff <base> HEAD` |
+| Branch | Resolve `<merge-base>` with the algorithm below; `git diff --stat <merge-base> HEAD` | `git diff <merge-base> HEAD` |
 | Staged | `git diff --cached --stat` | `git diff --cached` |
 | Unstaged | `git diff --stat` | `git diff` |
 | Untracked | `git ls-files --others --exclude-standard` | Read relevant files |
 | Path audit | Requested paths | Read files and impact-proving references |
+
+### Branch Base Algorithm
+
+1. Use only `.agent/repository-profile.md`'s `## Conventions` `Git:` entry for configured branch selection. Resolve the current symbolic branch; choose the declared integration branch for a topic branch or the declared release branch when reviewing the integration branch. A detached `HEAD`, the release branch itself, or a missing declaration has no configured base.
+2. Resolve a configured name in this order: `refs/remotes/<current-upstream-remote>/<name>`, `refs/remotes/origin/<name>`, then `refs/heads/<name>`, skipping unavailable entries.
+3. When no configured ref resolves, try the primary ref in this order: `refs/remotes/<current-upstream-remote>/HEAD`, `refs/remotes/origin/HEAD`, `refs/heads/main`, then `refs/heads/master`.
+4. Run `git merge-base HEAD <resolved-ref>` and use the returned commit SHA as `<merge-base>` in both documented diff commands. If no candidate ref or merge base exists, report branch scope unavailable and continue with the other evidence scopes.
 
 Report scopes separately, mark empty scopes, deduplicate findings without hiding membership, and check deleted-file references. Split diffs over 500 lines by logical group.
 

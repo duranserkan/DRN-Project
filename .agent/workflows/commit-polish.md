@@ -26,13 +26,15 @@ git diff --cached --stat
 ```
 
 - If nothing is staged, continue to non-pushed commit detection.
-- If staged changes exist, inspect the diff, draft a compliant message, ask for confirmation, write the exact approved message to a temporary file, then run:
+- If staged changes exist, inspect the exact raw bytes from `git diff --cached --binary --full-index --no-ext-diff --no-textconv`. Persist a commit plan with the current `HEAD`, exact staged-diff SHA-256, raw-byte SHA-256 of `git status --porcelain=v1 -z --untracked-files=all`, staged paths, split boundary and order, and proposed message; compute the plan's raw-byte SHA-256 and present the staged-diff and commit-plan digests for approval.
+- Bind approval to one staged-diff and commit-plan digest. Each split commit requires its own plan and separate approval after its exact changes are staged.
+- Immediately before every approved commit mutation, recheck `HEAD`, recompute the NUL-delimited status and staged-diff digests, regenerate the exact commit plan from those current values, and compare every digest with the approved plan. Abort on any worktree, index, path, plan, or digest change. Then write the exact approved message to a temporary file and run:
 
   ```bash
   git commit --file "$message_file"
   ```
 
-- If staged files span unrelated scopes, split them before committing: unstage selected files, commit the first scope, then stage and commit the next scope.
+- If staged files span unrelated scopes, split them before committing: stage only the first approved scope, commit it, then prepare and separately approve each remaining scope.
 
 ## 3. Select Rewrite Candidate
 
@@ -45,13 +47,14 @@ Before treating `HEAD` as unpublished:
 
 1. Require a clean worktree and index.
 2. Stop if `HEAD` is a merge commit.
-3. Ensure remote-tracking refs are current. If freshness is not established, ask the user to fetch or explicitly authorize a fetch; never infer freshness from `base..HEAD`.
+3. Ensure remote-tracking refs are current. If freshness is not established, ask the user to fetch or explicitly authorize a fetch; never infer freshness from `base..HEAD`. Record the exact remote-tracking refname/objectname snapshot and its raw-byte SHA-256.
 4. Stop if `HEAD` is reachable from any remote-tracking ref or tag.
 5. Record the original commit SHA and tree SHA.
 
 ```bash
-git status --short
+git status --porcelain=v1 -z
 git rev-list --parents -n 1 HEAD
+git for-each-ref --format='%(refname) %(objectname)' refs/remotes
 git for-each-ref --contains HEAD --format='%(refname)' refs/remotes refs/tags
 git rev-parse HEAD
 git rev-parse HEAD^{tree}
@@ -98,11 +101,17 @@ Multi-commit rewriting is unsupported. Do not use interactive rebase until a sep
 For the approved `HEAD`-only rewrite:
 
 1. Write the exact approved message to a temporary file through the platform file-write capability.
-2. Run `git commit --amend --file "$message_file"`; never interpolate the message into a shell command.
-3. Remove the temporary file.
-4. Stop and report if the resulting tree SHA differs from the recorded tree SHA.
+2. Immediately before mutation, recheck that `HEAD` and its tree SHA match the recorded values, the worktree and index are clean, the current remote-tracking-ref snapshot is unchanged and still fresh, and `HEAD` remains unreachable from every current remote-tracking ref and tag. Abort and require a new preview and approval on any mismatch.
+3. Run `git commit --amend --file "$message_file"`; never interpolate the message into a shell command.
+4. Remove the temporary file.
+5. Stop and report if the resulting tree SHA differs from the recorded tree SHA.
 
 ```bash
+git status --porcelain=v1 -z
+git rev-parse HEAD
+git rev-parse HEAD^{tree}
+git for-each-ref --format='%(refname) %(objectname)' refs/remotes
+git for-each-ref --contains HEAD --format='%(refname)' refs/remotes refs/tags
 git commit --amend --file "$message_file"
 git rev-parse HEAD^{tree}
 ```

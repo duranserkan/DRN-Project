@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-06-12
+last-updated: 2026-07-27
 difficulty: advanced
 tokens: ~3K
 ---
@@ -136,10 +136,17 @@ MFA enforced globally via `FallbackPolicy`. Any route not opted-out requires MFA
 [AllowAnonymous]                            // Fully anonymous
 [Authorize(Policy = AuthPolicy.MfaExempt)]  // Single-factor only
 
-// Disable MFA globally (retains fallback authorization):
+// Disable MFA as the default/fallback while retaining the registered MFA policies:
 protected override void ConfigureAuthorizationOptions(AuthorizationOptions options)
 {
-    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
+    base.ConfigureAuthorizationOptions(options);
+
+    var authenticatedUserPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+
+    options.DefaultPolicy = authenticatedUserPolicy;
+    options.FallbackPolicy = authenticatedUserPolicy;
 }
 ```
 
