@@ -126,8 +126,9 @@ Canonical contract in [drn-sharedkernel](../drn-sharedkernel/SKILL.md). Implemen
 | `EntityId` | `ISourceKnownEntityIdUtils` | Generate/parse/validate external GUIDs |
 | `Cancellation` | `ICancellationUtils` | Token management and merging |
 | `Pagination` | `IPaginationUtils` | Pagination logic helpers |
-| `DateTime` | `IDateTimeUtils` | Time-aware operations |
+| `DateTime` | `IEntityDateTimeUtils` | Time-aware entity filtering (CreatedAfter, CreatedBefore, etc.) |
 | `ScopedLog` | `IScopedLog` | Integrated logging |
+| `UtcNow` | `DateTimeOffset` | Current UTC timestamp from `IDateTimeProvider` |
 
 ### Custom Repository with Behavior Override
 
@@ -137,8 +138,8 @@ public interface IUserRepository : ISourceKnownRepository<User> { }
 [Scoped<IUserRepository>]
 public class UserRepository : SourceKnownRepository<QAContext, User>, IUserRepository
 {
-    protected override IQueryable<User> EntitiesWithAppliedSettings =>
-        base.EntitiesWithAppliedSettings
+    protected override IQueryable<User> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null) =>
+        base.EntitiesWithAppliedSettings(caller)
             .Include(u => u.Profile)
             .ThenInclude(p => p.Address);
 }

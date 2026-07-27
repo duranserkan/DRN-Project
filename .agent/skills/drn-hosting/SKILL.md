@@ -136,23 +136,25 @@ MFA enforced globally via `FallbackPolicy`. Any route not opted-out requires MFA
 [AllowAnonymous]                            // Fully anonymous
 [Authorize(Policy = AuthPolicy.MfaExempt)]  // Single-factor only
 
-// Disable MFA globally:
-protected override void ConfigureAuthorizationOptions(AuthorizationOptions options) { }
+// Disable MFA globally (retains fallback authorization):
+protected override void ConfigureAuthorizationOptions(AuthorizationOptions options)
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
+}
 ```
 
 ### GDPR & Consent
 
-- `ConsentCookie`: Manages user consent state via secure HttpOnly cookie
-- `ScopedUserMiddleware`: Populates `IScopedLog` with `ConsentGranted` status
+- `ConsentCookie`: Manages user consent state (script-readable under `HttpOnlyPolicy.None`)
+- `ScopedUserMiddleware`: Populates `IScopedLog` with consent flags (`Consent_Analytics`, `Consent_Marketing`) and `ScopeContext` with `ConsentCookie`
 
 ### Per-Route Security Headers
 
 ```csharp
-protected override void ConfigureSecurityHeaderPolicyBuilder(HeaderPolicyCollection policies, IAppSettings appSettings)
+protected override void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings)
 {
-    policies.AddPolicy("AllowExternalScripts", builder =>
-        builder.AddContentSecurityPolicy(csp =>
-            csp.AddScriptSrc().Self().From("https://cdn.example.com")));
+    base.ConfigureSecurityHeaderPolicyBuilder(builder, serviceProvider, appSettings);
+    // Add policies and SetPolicySelector via builder
 }
 ```
 
