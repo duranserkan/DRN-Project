@@ -69,7 +69,7 @@ Failure blocks all later stages; set them `blocked`.
 - Token estimates: compare summed skill file sizes / 4 to `Estimated context:`. If delta >15%, flag `⚠️` only.
 - Cross-references: verify against the plan drift report.
 - References: resolve `AGENTS.md` project paths, profile custom load-set entries, and `overview-skill-index` skill directories.
-- Bootstrap freshness: for `all`, verify current-filesystem discovery was rebuilt and pre-execution staleness used reproducible Baseline Inputs Hash. Do not recompute the hash against post-execution files; valid `/update` runs intentionally edit material outputs.
+- Bootstrap freshness: for `all`, verify current-filesystem discovery was rebuilt, the canonical baseline input manifest was persisted, and pre-execution staleness reproduced its Baseline Inputs Hash. Do not recompute the hash against post-execution files; valid `/update` runs intentionally edit material outputs.
 
 ---
 
@@ -134,6 +134,6 @@ Drift detected. Apply corrections and re-run `/update`.
 
 ## 5. Design Properties
 
-- Non-destructive and ephemeral: verification is read-only; cleanup requires request.
+- Source-read-only; lifecycle-mutating: verification does not edit repository source/configuration, but it updates `update-plan.md` and `update-verify-progress.md` statuses/findings. Cleanup requires request.
 - Fail-fast: Stage 0 blocks downstream checks.
 - Context-safe: checkpoint mid-stage for multi-window execution.

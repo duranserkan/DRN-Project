@@ -115,6 +115,16 @@ created: [ISO 8601 date]
 clarified:
 blocked_on_user: false
 needs_review: false
+approval_required: true
+approval_record: pending
+approval_scope: "set status clarified and generate a collision-safe DEVELOP handoff from .agent/temp/CLARIFY-[task-slug].md"
+approval_subject: .agent/temp/CLARIFY-[task-slug].md
+approval_subject_sha256:
+approval_preview_sha256:
+approval_producer:
+approval_recorded_at:
+approval_risk_decision:
+approval_envelope_sha256:
 iteration: 1
 previous_artifact:
 previous_status:
@@ -142,6 +152,6 @@ Present the `draft-self-reviewed` artifact path and route to `/answer`. `/clarif
 |---|---|
 | Default/manual | Stop after presenting the path. Tell the user to run `/answer` with it. |
 | `/clarify auto` | Invoke `/answer auto` on the new artifact only when autonomy gates allow it. |
-| Approved skip | `/answer` may skip approval only with explicit confirmation or valid `ApprovalRecord=workflow-tolerated`, no `[ASSUMPTION - unverified]`, and all approval criteria satisfied. It still must produce `DEVELOP-*` before `/develop`. |
+| Approved skip | `/answer` may skip approval only with explicit user confirmation or valid `ApprovalRecord=workflow-tolerated`, no `[ASSUMPTION - unverified]`, and all approval criteria satisfied. It still must produce `DEVELOP-*` before `/develop`. |
 
 For loop input, state the current artifact, lineage evidence, and explicit branch point under the shared supersession rule. `/clarify` does not create branches or commits; record VCS intent as guidance for `/develop` or `/commit-polish`.

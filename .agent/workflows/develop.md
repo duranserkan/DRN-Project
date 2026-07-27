@@ -1,154 +1,108 @@
 ---
-description: Implement approved DEVELOP artifacts with DiSCOS, AGENTS.md, and repository guidance
+description: Implement approved DEVELOP artifacts with repository guidance
 ---
 
-> **Pipeline**: `/clarify` -> `/answer` -> `/develop` (3/3) · [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
-> **Estimated context: ~2.0K tokens**
+> **Pipeline**: `/clarify` -> `/answer` -> `/develop` (3/3) · [Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
+> **Estimated context: ~1.5K tokens**
 
-## 1. Resolve Input
+## 1. Resolve And Validate
 
-Run Startup Gate once: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, and only needed skills.
+Run the Startup Gate once and load only needed skills.
 
 | Input | Action |
 |---|---|
-| Explicit `.agent/temp/DEVELOP-*.md` | Use it. |
-| Explicit `.agent/temp/CLARIFY-*.md` | Do not implement. Route through `/answer` Section 6 to produce `DEVELOP-*`, then rerun `/develop`. |
-| No arguments | Scan `.agent/temp/` for `DEVELOP-*.md`; use one, ask on multiple, or route to `/clarify` then `/answer` when none exists. |
-| Inline plan or generic planning file | Stop. Require a current `.agent/temp/DEVELOP-[task-slug].md`. |
+| Explicit canonical `DEVELOP-*` | Use it. |
+| Explicit `CLARIFY-*` | Route through `/answer` Section 5, then rerun. |
+| None | Select one DEVELOP artifact; ask on multiple; route through CAD on none. |
+| Inline/generic plan | Stop; require current `DEVELOP-*`. |
 
-Never bypass CAD. `/develop` mutates source only from a valid, current `DEVELOP-*` handoff.
-
-## 2. Validate Handoff
-
-Read YAML `status`:
+Never mutate source without a valid DEVELOP handoff.
 
 | Status | Action |
 |---|---|
-| `ready-to-develop` | Continue. |
-| `implementing` | Resume implementation after refreshing freshness, review, approval, and completeness gates. |
-| `implemented-pending-approval` | Verify final report state; wait for user approval before setting `implemented`. |
-| `clarified` | Run `/answer` Section 6 to create `DEVELOP-*`, then rerun `/develop`. |
-| `draft-self-reviewed` | Use the CLARIFY Skip Gate only to decide whether `/answer` may skip approval while still creating `DEVELOP-*`. |
-| `draft`, `clarifying`, or missing | Stop. Route to `/clarify` plus `/answer`. |
-| `implemented` | Warn; resume only after explicit confirmation. |
+| `ready-to-develop` | Validate and continue. |
+| `implementing` | Revalidate and resume. |
+| `implemented-pending-approval` | Verify final state; wait for user approval. |
+| `clarified` | Run `/answer` handoff generation. |
+| `draft-self-reviewed` | Apply the skip gate below; never implement directly. |
+| `draft`, `clarifying`, missing | Return to `/clarify` and `/answer`. |
+| `implemented` | Resume only on explicit confirmation. |
 
-Do not reopen product strategy by default. Prove the handoff is current, approved, and implementation-ready before edits.
+### CLARIFY Skip Gate
 
-### 2a. CLARIFY Skip Gate
+This gate authorizes only `/answer` handoff generation. Require testable criteria, unambiguous scope, addressed security, no unverified assumption, mitigated accepted assumptions, and explicit or valid workflow-tolerated approval.
 
-Use only to let `/answer` Section 6 create `DEVELOP-*` without another approval round. It never authorizes direct implementation from `CLARIFY-*`.
+### Freshness, Review, Approval
 
-Require all:
-- No `[ASSUMPTION - unverified]` tags in PBIs.
-- Accepted assumptions use `[ASSUMPTION - accepted]` with mitigation.
-- Every PBI has acceptance criteria.
-- Security implications are addressed.
-- In/out-of-scope is unambiguous.
-- Explicit user approval or valid `ApprovalRecord=workflow-tolerated` is recorded for the approval skip.
+Verify DEVELOP `source`, `source_status`, `source_updated`, and `source_sha256` against the current non-superseded CLARIFY artifact.
 
-All pass -> run `/answer` Section 6, then rerun `/develop`. Any failure -> redirect to `/answer`.
+- Missing/newer/mismatched/superseded source: set/report `stale: true`; regenerate through `/answer`.
+- `needs_review: true`: run `/review`; clear only with no Critical finding.
+- `approval_required: true`: obtain explicit approval unless the shared contract permits a workflow-tolerated record.
+- Direct `/develop <path>` may approve the reviewed artifact, persisted preview/diff when applicable, bounded scope, and risk. Compute and record the complete shared approval envelope before edits.
+- A false approval flag without a current matching envelope blocks.
 
-### 2b. Freshness, Review, Approval
+Security-sensitive, destructive, VCS, failed, unclear, or non-tolerable gates always require explicit human approval. Set `status: implementing` only after all gates pass and before source mutation.
 
-For `DEVELOP-*`, verify `source`, `source_status`, `source_updated`, and `source_sha256` against the source `CLARIFY-*`.
+### Completeness
 
-- Source missing, newer, hash-mismatched, or superseded -> set or report `stale: true`; recommend `/answer` Section 6 on the intended latest source.
-- `needs_review: true` -> run `/review` before implementation.
-- `approval_required: true` -> capture explicit approval before source mutation unless a valid shared `ApprovalRecord=workflow-tolerated` applies.
-- Direct `/develop <DEVELOP path>` may satisfy approval only for that exact artifact, bounded scope, and risk; record `approval_record: explicit approval recorded`, `approval_scope`, and `approval_required: false` before edits.
-- `/goal` may supply `ApprovalRecord=workflow-tolerated` only within shared lifecycle limits.
-- `approval_required: false` without current matching `approval_record` and `approval_scope` -> stop.
+Require:
 
-Security-sensitive, failed, unclear, destructive, VCS, or non-tolerable gates still require explicit human approval.
+- Current source metadata; no stale, review, approval, or unverified-assumption blocker.
+- Clear scope, requirements, PBIs, dependencies, and testable criteria.
+- Implementation Context with files, skills, command authorization, and static verification.
+- Lineage Notes when continuing prior work.
+- Lens/tradeoff traceability in criteria, constraints, risks, or Priority Stack.
 
-When approval is recorded and implementation starts, set `status: implementing` before source mutation.
+Route resolvable handoff defects to `/answer`; route scope or critical decision gaps to `/clarify`.
 
-### 2c. Completeness Gate
+## 2. Context And Plan
 
-Before planning edits, verify:
-- Source metadata matches the clarified `CLARIFY-*`.
-- No `[ASSUMPTION - unverified]`, `stale: true`, unresolved `needs_review: true`, unresolved `approval_required: true`, or missing approval record.
-- Scope, requirements, PBIs, and acceptance criteria are clear and testable.
-- `Implementation Context` names files/context to read, relevant skills, command execution authorization, and static verification plan.
-- `Lineage Notes` exist when source evidence continues prior artifacts or implementation.
-- Expert Lens findings and `/answer` tradeoffs appear in criteria, `Architecture Guidance` constraints, `Risk Register`, or Priority Stack Validation.
-- Expert-attributed Q&A labels remain.
-- Priority Stack Validation covers Security, Correctness, Clarity, Simplicity, and Performance.
+Read the operating model, skill index, `basic-agentic-development`, and only the handoff sections and skills needed by selected PBIs.
 
-Failure stops implementation. Route to `/answer` for stale metadata, missing handoff data, missing risk/constraint traceability, or resolvable implications. Route to `/clarify` when scope, criteria, or critical assumptions need a human decision.
-
-## 3. Load Context And Skills
-
-Read:
-- `.agent/workflows/_shared/workflow-operating-model.md`.
-- `.agent/skills/overview-skill-index/SKILL.md`.
-- `.agent/skills/basic-agentic-development/SKILL.md` for Autonomy Ladder and Development Loop.
-- `DEVELOP-*` sections: Lineage Notes, Risk Register, accepted assumptions, Architecture Guidance, relevant skills, command execution authorization, static verification plan, expert findings, tradeoffs, and constraints.
-
-Reuse context loaded by `/clarify` or `/answer`. Load only PBI-needed skills.
-
-| Need | Skills |
+| Need | Load |
 |---|---|
-| Domain/entity | `overview-ddd-architecture` plus profile domain skills |
-| API/hosting | `basic-security-checklist`, `test-integration-api`, profile hosting skills |
-| Frontend | Matching frontend skills |
-| Testing | Testing profile plus `test-unit`, `test-integration`, `test-integration-api`, `test-integration-db` |
-| Infrastructure | `overview-repository-structure`, `overview-github-actions` |
-| Docs | `basic-documentation`, `basic-documentation-diagrams` |
+| Domain/entity | DDD overview plus profile domain skills |
+| API/hosting | Security, API testing, profile hosting |
+| Frontend | Matching frontend subset |
+| Testing | Testing profile plus relevant test skills |
+| Infrastructure | Repository structure and GitHub Actions |
+| Docs | Documentation and diagram skills |
 
-Filter backlog by requested EPICs/PBIs. Warn on dependencies. With no filter, implement the full backlog.
+With no filter, implement the full backlog; otherwise include dependencies and warn on omissions.
 
-## 4. Plan And Preflight
+For each PBI:
 
-For each PBI, in priority order:
-1. Identify affected files.
-2. Map concrete tasks.
-3. Start with `Risk Register` risks and constraints; add implementation risks.
-4. Classify complexity: Trivial, Standard, Significant, or Critical.
-5. Stop on `[ASSUMPTION - unverified]`.
-6. Resolve conflicts with TRIZ, then Priority Stack.
-7. Preserve approved strategy unless discovery proves the handoff stale, contradictory, unsafe, or impossible.
+1. Map files, tasks, risks, constraints, and dependencies.
+2. Classify Trivial, Standard, Significant, or Critical.
+3. Stop on unverified assumptions.
+4. Resolve conflicts with TRIZ, then Priority Stack.
+5. Preserve approved strategy unless evidence proves it stale, contradictory, unsafe, or impossible.
 
-Presentation gate:
-- Trivial/Standard: summarize and proceed.
-- Significant: require explicit approval or accepted `ApprovalRecord=workflow-tolerated`.
-- Critical or security-sensitive: require explicit approval.
-- PBIs >=3: maintain a checklist.
+Proceed after a concise summary for Trivial/Standard. Significant requires explicit or accepted workflow-tolerated approval; Critical/security-sensitive requires explicit approval. Track PBIs when count >=3.
 
-Run VCS preflight before edits:
-- Inspect branch, dirty state, and upstream/base from profile or Git refs.
-- Create a branch only when explicitly requested; base it on the profile integration branch, or on a confirmed hotfix release branch.
-- Stop if requested branch creation fails.
-- Commit only when requested; use `basic-git-conventions`.
-- Push only when explicitly requested and approved.
-- Never let `/clarify` or `/answer` create branches or commits.
-- Before committing `.agent/temp/` CAD artifacts, verify ignore rules and require explicit tracking choice.
+VCS preflight: inspect branch, dirty state, and base. Create a branch, commit, push, or track `.agent/temp/` only when explicitly requested. Never let `/clarify` or `/answer` mutate VCS.
 
-## 5. Execute
+## 3. Execute And Verify
 
-Run the Development Loop per PBI:
-1. Discover: inspect outlines and target-read existing code.
-2. Implement the smallest testable unit using repository conventions.
-3. Enforce Clean Code Gate on new or materially touched code.
-4. Build only when explicitly allowed by the shared Command Execution Authorization Gate.
-5. Add or update required tests; run tests only when that gate allows it, unit tests first.
-6. On failure, fix and re-verify; stop after 2 attempts and escalate.
+Per PBI:
 
-## 6. Verify
+1. Read target code and established patterns.
+2. Implement the smallest complete unit.
+3. Apply Clean Code and repository conventions.
+4. Add/update required tests.
+5. Run build/tests only when the Command Execution Authorization Gate permits; unit before integration.
+6. On failure, fix and reverify; stop after two failed attempts.
 
 After all PBIs:
-1. Run only commands allowed by the shared Command Execution Authorization Gate. If not allowed, use static verification, report "not run per repo rule", and do not claim pass/fail.
-2. Run `/review` on implemented changes.
-3. Verify Priority Stack and Clean Code Gate.
-4. Update docs when behavior, contracts, or conventions changed.
-5. Run `git diff --check` unless blocked.
 
-## 7. Report And Status
+1. Use allowed commands; otherwise static verification and report `not run per repo rule`.
+2. Run `/review` on implemented changes and resolve Critical findings.
+3. Verify Priority Stack, Clean Code, compatibility, docs, and release-note impact.
+4. Run `git diff --check`.
 
-Create a walkthrough artifact with:
-- Source document and implemented PBIs.
-- Changes table: PBI -> files changed -> tests added -> status.
-- Build/test results and Priority Stack validation.
-- Notes, decisions, and deviations.
+## 4. Walkthrough And Completion
 
-Set `status: implemented-pending-approval` after changes, verification, and the walkthrough artifact are complete. Set `status: implemented` and `implemented: [ISO 8601 date]` only after user approval.
+Use the handoff's canonical `.agent/temp/WALKTHROUGH-<name>.md`; its basename must match `DEVELOP-<name>.md`. Record `develop_artifact` in walkthrough frontmatter. Stop on missing/mismatched metadata and never overwrite a walkthrough owned by another handoff.
+
+Record implemented PBIs, PBI-to-file/test status, verification, Priority Stack, decisions, and deviations. Set `status: implemented-pending-approval` only after changes, verification, and walkthrough complete. Set `implemented` and its ISO 8601 timestamp only after user approval.

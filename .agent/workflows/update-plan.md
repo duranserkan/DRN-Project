@@ -146,7 +146,9 @@ Serialize the report and plan to `.agent/temp/update-plan.md`.
 - All pending/skipped resolved: set status to `ready`.
 - Record `Baseline HEAD` as audit metadata.
 - Record `Baseline Inputs Hash` as the staleness gate per [`baseline-inputs-hash-spec.md`](./_shared/baseline-inputs-hash-spec.md).
+- Persist the exact canonical input list at `.agent/temp/update-baseline-inputs.manifest` and record that path as `Baseline Inputs Manifest`.
 - Hash every material in-scope input. For `all`, include `AGENTS.md`, profile, discovered skill/workflow files, project/solution/package manifests, CI/container/build config files, and docs/source samples used for drift detection.
-- Use `N/A` only when no material input files exist, and then record exactly `Baseline Inputs Hash Justification: no-material-input-files`.
+- Initialize `## Apply Approval` as required/pending; plan review never grants apply approval.
+- Use `N/A` only when no material input files exist; then record `Baseline Inputs Manifest: N/A`, remove any prior manifest, and record exactly `Baseline Inputs Hash Justification: no-material-input-files`.
 
-Follow the template in `update.md` §Plan File Contract.
+Follow [`update.md` §5 Plan Contract](./update.md#5-plan-contract).

@@ -1,209 +1,134 @@
 ---
-description: Answer clarification questions as co-TPO, approve CLARIFY artifacts, and produce DEVELOP handoffs using DiSCOS, AGENTS.md, and repository skills
+description: Approve CLARIFY artifacts and produce reviewed DEVELOP handoffs as co-TPO
 ---
 
-> **Pipeline**: `/clarify` -> `/answer` (2/3) -> `/develop` · [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
-> **Estimated context: ~2.4K tokens**
+> **Pipeline**: `/clarify` -> `/answer` (2/3) -> `/develop` · [Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
+> **Estimated context: ~1.6K tokens**
 
 ## 1. Mandate
 
-Act as Technical Product Owner. Apply analytical rigor, ROI framing, TRIZ, and Priority Stack. Challenge scope creep and choose leaner safe options.
+Act as Technical Product Owner. Apply ROI, TRIZ, and Priority Stack; challenge scope creep. Run the Startup Gate once and load only needed skills. Never implement, branch, commit, or bypass the required `.agent/temp/DEVELOP-*` handoff.
 
-Run Startup Gate once: read `AGENTS.md`, `.agent/rules/DiSCOS.md`, `.agent/repository-profile.md`, this workflow, and required skills.
-
-Never bypass CAD. Always generate or update `.agent/temp/DEVELOP-[task-slug].md` before `/develop`. Never implement from `/answer`.
-
-## 2. Resolve Input And Supersession
-
-Resolve the active `CLARIFY-*`:
+## 2. Resolve Input
 
 | Input | Action |
 |---|---|
-| Explicit path | Use it. Integrate inline user insights when provided. |
-| No arguments | Scan `.agent/temp/` for `CLARIFY-*.md`; stop on none; use one; ask on multiple active lineages. |
+| Explicit canonical `CLARIFY-*`, `draft-self-reviewed`, `needs_review: false` | Answer/approve it. |
+| Explicit canonical `CLARIFY-*`, `clarified`, current approval | Resume Section 5 without reopening strategy. |
+| Other path/status | Stop; route through `/clarify`. |
+| None | Select one active `draft-self-reviewed` artifact or approved `clarified` artifact lacking its handoff; stop on none and ask on multiple lineages. |
 
-Before processing:
-1. Apply the shared supersession rule. If the target is superseded, stop and redirect to the latest lineage artifact unless the user explicitly confirms branching.
-2. Record the resolved path in `DEVELOP-*` `source`.
-3. Read the document fully: raw input, enrichment context, lineage snapshot, Q&A, and previous implementation evidence.
-4. Apply lineage evidence rules. Research only gaps, conflicts, or stale freshness gates.
+Apply shared supersession rules before processing. Read the artifact fully, including raw input, enrichment, lineage, Q&A, and implementation evidence. Record its exact path as DEVELOP `source`.
 
-## 3. Enrich Context
+### Mutation And Approval Gate
 
-Review `## Enrichment Context` and the snapshot. If gaps remain, research within the default 20% budget; for stale, current, or security-sensitive correctness gaps, may extend automatically up to 40%. Beyond 40% requires explicit approval; otherwise stop and record not searched. Do not repeat `/clarify`. Append findings under matching subheadings:
+For each logical CLARIFY mutation:
 
-```markdown
-### Codebase Findings
-- (by: /answer) [Finding]
-```
+1. Set `needs_review: true`, invalidate prior approval, and apply the scoped edit.
+2. Run `/review` on the complete artifact.
+3. Continue only with no Critical finding; set `needs_review: false`.
 
-Refresh boundaries, Security/Privacy, compliance, performance, stale assumptions, prior deviations, and approval implications. Cite evidence and resolve conflicts before approval.
+After the final mutation, validate the shared semantic-subject and approval-envelope digests. Reuse only a complete current workflow-tolerated record. Otherwise set `approval_required: true` and `blocked_on_user: true`, present the artifact, bounded scope, and risk decision, then stop for explicit approval. On confirmation, recompute all digests; record the complete approval envelope with `approval_preview_sha256: N/A`, clear both flags, and continue. Content or digest changes restart this gate.
 
-## 4. Answer Questions
+An unchanged `clarified` artifact with a current envelope may proceed directly to Section 5.
 
-Read `## Clarification Q&A`. After targeted enrichment and risk refresh, run the shared [Expert Lens Pass](./_shared/workflow-operating-model.md#expert-lens-pass).
+## 3. Enrich And Decide
 
-- Always include Security/Privacy. Add product, business, domain, UX, infrastructure, database, performance, compliance, implementation-risk, or verification-fit lenses when evidence supports them.
-- Challenge scope. Apply TRIZ and Priority Stack.
-- Return to `/clarify` for major new scope.
-- Block progress on `[ASSUMPTION - unverified]`.
-- Retag accepted non-critical assumptions as `[ASSUMPTION - accepted]` only with mitigation and source; add them to `Risk Register`.
+Research only gaps, conflicts, or stale evidence. Default budget is 20%; stale/current/security-sensitive correctness gaps may reach 40%. Beyond that, obtain approval or record `not searched`.
+
+Append sourced findings to the matching `## Enrichment Context` subsection. Refresh scope, Security/Privacy, compliance, performance, prior deviations, lifecycle implications, and assumptions.
+
+Run the shared [Expert Lens Pass](./_shared/workflow-operating-model.md#expert-lens-pass) after enrichment:
+
+- Always include Security/Privacy; add only evidence-relevant lenses.
+- Return major new scope to `/clarify`.
+- Block `[ASSUMPTION - unverified]`.
+- Accept a non-critical assumption only with source and mitigation in the Risk Register.
 
 | Confidence | Action |
 |---|---|
-| >=76% | Answer decisively with PO rationale, ROI, and fit. |
-| 61-75% | Present options, tradeoffs, and recommendation; user TPO decides. |
-| <=60% | Escalate with the decision-needed template. |
+| >=76% | Decide with PO rationale, ROI, and fit. |
+| 61-75% | Present options, tradeoffs, and recommendation; user decides. |
+| <=60% | Escalate context, options, lens tradeoff, and recommendation. |
 
-```markdown
-> **Decision needed** (by: user):
-> **Context**: [why this matters]
-> **Options**: A) ... B) ...
-> **Expert-lens tradeoff**: [summary]
-> **Recommendation**: Option A because ...
-```
+Write answers under `## Clarification Q&A` with `(by: user)`, `(by: /answer)`, or `(by: user via /answer)` provenance.
 
-Write answers directly into `.agent/temp/CLARIFY-*.md`:
+## 4. Clarification Gate
 
-```markdown
-**Answers** _(by: /answer)_:
-1. [optional lens] [answer with PO rationale]
-```
+Require all:
 
-Use source tags: `(by: user)`, `(by: /answer)`, `(by: user via /answer)`.
+- Every question answered; no contradiction or unverified assumption.
+- Scope and testable criteria are complete.
+- Security and selected-lens concerns map to criteria, constraints, or risks.
+- Priority Stack and TRIZ conflicts are resolved.
+- Latest mutation review has no Critical finding.
+- Complete approval envelope matches the unchanged artifact, scope, and risk.
 
-## 5. Review And Approve
+On pass, set `status: clarified`, `clarified: <ISO 8601>`, and `blocked_on_user: false`. Otherwise retain status, record blockers, and stop. `/answer` alone owns `clarified`.
 
-Verify answers:
-- Consistent: no contradictions.
-- Complete: every question answered.
-- Actionable: a developer can act without further clarification.
-- Aligned: Priority Stack and TRIZ resolved conflicts.
-- Decisive: uses "will" and "must"; no hedging.
-- Traceable: links to original questions and user need.
-- Lens-challenged: lens findings map to risks, constraints, or criteria.
+## 5. Produce Development Handoff
 
-`/answer` alone owns `status: clarified`.
+Transform the clarified artifact into a collision-safe `.agent/temp/DEVELOP-<name>.md`:
 
-| Criterion | Pass Rule |
+- Create the canonical path when absent.
+- For the same CLARIFY lineage, update only `ready-to-develop`; set `needs_review: true` and invalidate approval first.
+- Preserve another lineage or any handoff at/after `implementing`; use the first free `-iteration-N` suffix.
+- Map `DEVELOP-<name>.md` to `.agent/temp/WALKTHROUGH-<name>.md`.
+
+Map source to target:
+
+| CLARIFY | DEVELOP |
 |---|---|
-| All questions answered | No open questions remain. |
-| No critical assumptions | No `[ASSUMPTION - unverified]`; accepted assumptions carry mitigation and source. |
-| Scope clear | In/out-of-scope is unambiguous. |
-| Criteria exist | Every requirement has testable criteria. |
-| Security addressed | Security implications are captured where relevant. |
-| Lens concerns handled | Findings are resolved, escalated, or carried into constraints and `Risk Register`. |
+| Requirements, Epics, Product Backlog | Same sections and traceability |
+| Discovery/Architecture | Implementation Context and Architecture Guidance |
+| Risks and accepted assumptions | Risk Register with source and mitigation |
+| Q&A/lens tradeoffs | Criteria, constraints, risks, or Priority Stack |
+| Enriched lineage snapshot | Lineage Notes, carried decisions, deviations, and risks |
 
-If all criteria pass and explicit approval or valid `ApprovalRecord=workflow-tolerated` exists, set `status: clarified`, `clarified: [ISO 8601 date]`, and `blocked_on_user: false`. Otherwise retain status, document blockers, and set `blocked_on_user: true`.
+Minimum frontmatter:
 
-## 6. Produce Development Document
-
-Transform the clarified artifact into `.agent/temp/DEVELOP-[task-slug].md`.
-
-Each row is one mapping route. Repeated CLARIFY sections are intentional one-to-many mappings when different source subbullets feed different DEVELOP targets.
-
-| CLARIFY Source Section | CLARIFY Source Subbullet/Path | DEVELOP Target Section | DEVELOP Target Subbullet/Path |
-|---|---|---|---|
-| `Discovery & Guidance` | `Context/Files` | `Implementation Context` | `Context/Files to Read` |
-| `Discovery & Guidance` | `Architecture` | `Architecture Guidance` | `Domain Boundaries`, `Patterns to Follow`, `Constraints` |
-| `Discovery & Guidance` | `Risks` | `Risk Register` | Rows with mitigations |
-| `Assumptions & Open Items` | Accepted items | `Risk Register` | Rows with source and mitigation |
-| `Clarification Q&A` | Expert-lens findings/tradeoffs | Multiple sections | Acceptance criteria, `Constraints`, `Risk Register`, or `Priority Stack Validation` |
-| `Enriched Lineage Snapshot` | Snapshot data | Multiple sections | `Lineage Notes`, summary, carried/superseded requirements and PBIs, constraints, risks, and validation |
-
-Document skeleton:
-
-```markdown
+```yaml
 ---
 status: ready-to-develop
-title: [Task Title]
-created: [ISO 8601 date]
-source: .agent/temp/CLARIFY-[task-slug].md
+title: <title>
+created: <ISO 8601>
+source: .agent/temp/CLARIFY-<name>.md
 source_status: clarified
-source_updated: [ISO 8601 timestamp or file mtime]
-source_sha256: [hash of source clarification document]
-needs_review: false
+source_updated: <source timestamp or mtime>
+source_sha256: <source SHA-256>
+needs_review: true
 stale: false
 approval_required: true
 approval_record: pending
-approval_scope: "/develop .agent/temp/DEVELOP-[task-slug].md"
+approval_scope: /develop .agent/temp/DEVELOP-<name>.md
+approval_subject: .agent/temp/DEVELOP-<name>.md
+approval_subject_sha256:
+approval_preview_sha256:
+approval_producer:
+approval_recorded_at:
+approval_risk_decision:
+approval_envelope_sha256:
+walkthrough: .agent/temp/WALKTHROUGH-<name>.md
 ---
-
-# [Task Title]
-
-## Executive Summary
-[2-3 sentences. What, why, success criteria.]
-
-## Lineage Notes
-> _Include when the source `CLARIFY-*` continues a previous artifact or contains enriched lineage evidence._
-- **Previous Clarify**: [path/status/hash and what carries forward]
-- **Previous Develop**: [path/status/hash and carried-forward implementation guidance]
-- **Previous Implementation**: [walkthrough path or commit/ref, changed files, verification/deviation summary]
-- **Iteration Delta**: [new changes, superseded decisions, unresolved follow-ups converted to risks or PBIs]
-
-## Requirements
-| ID | Type | Description | Acceptance Criteria | Priority |
-|---|---|---|---|---|
-
-## Epics
-> _Omit if flat backlog: <=4 PBIs and one value area._
-| ID | Title | Description | Requirements |
-|---|---|---|---|
-
-## Product Backlog
-| ID | Epic | Title | User Story | Acceptance Criteria | Priority | Size | Dependencies | Context |
-|---|---|---|---|---|---|---|---|---|
-
-## Implementation Context
-- **Context/Files to Read**: [2-4 existing files/directories]
-- **Relevant Skills**: [skills actually needed]
-- **Command Execution Authorization**: [forbidden by default, or allowed scope with user/profile source]
-- **Static Verification Plan**: [diff/source/read checks to use when command execution is forbidden]
-
-## Architecture Guidance
-- **Domain Boundaries**: [Affected aggregates, modules, layers]
-- **Patterns to Follow**: [Existing patterns to reuse]
-- **Integration Points**: [External APIs, shared state, cross-layer effects]
-- **Selected Lenses**: [Lenses selected/applied for this task]
-- **Constraints**: [Expert Lens Pass findings and tradeoffs that affect implementation]
-
-## Risk Register
-| Risk | Impact | Mitigation | Source |
-|---|---|---|---|
-
-## Dependency Map
-> _Include if PBI count > 4 or cross-PBI dependencies exist._
-
-## Priority Stack Validation
-- **Security**: [brief note]
-- **Correctness**: [brief note]
-- **Clarity**: [brief note]
-- **Simplicity**: [brief note]
-- **Performance**: [brief note]
 ```
 
-Run `/review .agent/temp/DEVELOP-*.md`. If no Critical findings remain, set `needs_review: false`; otherwise set `needs_review: true` and block handoff.
+Required body:
 
-Keep `approval_required: true` unless `ApprovalRecord=workflow-tolerated` exists for this `/develop` invocation and scope; then set `approval_required: false` and populate `approval_record` and `approval_scope`.
+1. `Executive Summary`
+2. `Lineage Notes` when prior artifacts/implementation exist
+3. `Requirements`
+4. `Epics` only when needed
+5. `Product Backlog`
+6. `Implementation Context`: files, skills, command authorization, static verification
+7. `Architecture Guidance`: boundaries, patterns, integrations, lenses, constraints
+8. `Risk Register`
+9. `Dependency Map` when backlog >4 or dependencies exist
+10. `Priority Stack Validation`
 
-## 7. Handoff
+Use the source columns and identifiers. Run `/review` on the exact resolved path. Clear `needs_review` only when no Critical finding remains. Keep `approval_required: true` unless a complete workflow-tolerated envelope already binds this exact artifact, `/develop` scope, preview if any, producer, timestamp, and risk.
 
-Present the `DEVELOP-*` path and hand off to `/develop`; `/answer` never implements, branches, or commits.
+## 6. Handoff
 
-| Mode | Action |
-|---|---|
-| Default/manual | Stop. Tell the user to run `/develop .agent/temp/DEVELOP-[task-slug].md`. |
-| `/answer auto` | Show the document and require explicit `yes` before `/develop`, unless valid `ApprovalRecord=workflow-tolerated` applies. |
-| Approved skip | `/develop` may skip approval only when `approval_required: false` and no `[ASSUMPTION - unverified]` remains. |
-| User changes | Edit `DEVELOP-*` for minor tweaks and set `needs_review: true`; return to `/clarify` for major changes. |
+Present the exact DEVELOP path. Manual mode stops for `/develop <path>`. `/answer auto` shows the document and requires `yes` unless a valid workflow-tolerated approval applies. User content changes set `needs_review: true`; major scope returns to `/clarify`.
 
-Manual and automatic modes choose how `/develop` is invoked; they never make `/develop` optional after `/clarify`.
-
-Standalone `/answer auto` prompt:
-
-```markdown
-Confirmation required: `/answer auto` is about to invoke `/develop .agent/temp/DEVELOP-[task-slug].md`.
-Review the document above. Type **yes** to proceed or **no** to stop here.
-```
-
-`/clarify auto` -> `/answer auto` -> `/develop` is only for low-risk tasks: no security, data, schema, public API, dependency, CI/CD, or infrastructure changes; small backlog; clear criteria; no `[ASSUMPTION - unverified]`. Standalone `/answer auto` requires confirmation.
+The low-risk `/clarify auto -> /answer auto -> /develop` chain excludes security, data, schema, public API, dependency, CI/CD, and infrastructure changes and requires clear criteria, a small backlog, and no unverified assumption.

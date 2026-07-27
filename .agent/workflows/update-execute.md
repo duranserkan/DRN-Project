@@ -4,7 +4,7 @@ description: Execution phase of /update — read update-plan.md, execute sync st
 
 > **Sub-workflow of `/update`**. Not invoked directly. Reads `Scope` and follows Stage Resumption Protocol.
 > See also: [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
-> **Estimated context: ~1.8K tokens**
+> **Estimated context: ~2.0K tokens**
 
 ## 0. Pre-Execution Validation
 
@@ -14,9 +14,12 @@ If invoked directly, run the shared Startup Gate; otherwise inherit `/update` co
 
 1. Warn if the plan is older than 24 hours.
 2. Warn if `Baseline HEAD` differs from current `HEAD`; it is audit metadata only.
-3. Abort if material in-scope inputs exist and `Baseline Inputs Hash` is missing, malformed, `N/A`, or no longer matches current normalized in-scope inputs.
-4. Allow `Baseline Inputs Hash: N/A` only when the plan header contains exactly `Baseline Inputs Hash Justification: no-material-input-files` and exact scope paths still contain no material inputs.
-5. Abort if in-scope files have uncommitted changes not represented in the plan:
+3. Before the first execution mutation, recompute the Semantic Plan SHA-256, preview raw-byte SHA-256, optional proposed-diff SHA-256, and full baseline manifest/hash. Abort unless the preview records the current semantic-plan digest, baseline manifest/hash, scope, and risk decision.
+4. Require a complete explicit record whose subject/preview digests and shared approval-envelope digest match `.agent/temp/update-apply-preview.md`, the optional `.agent/temp/update-proposed.diff`, scope, producer, timestamp, and risk decision.
+5. On resume, recompute the semantic-plan, preview, and optional diff hashes. Verify the persisted baseline manifest still hashes to `Baseline Inputs Hash`; reproduce current baseline records only for paths not listed as completed-stage outputs. Completed-output changes must map to completed actions and the approved preview/diff. Any unexplained input, output, scope, required-approval, plan, preview, or diff change aborts.
+6. Before the first mutation, abort if material in-scope inputs exist and the canonical manifest is missing, malformed, `N/A`, lists a different current material-path set, or no longer reproduces `Baseline Inputs Hash`.
+7. Allow `Baseline Inputs Hash: N/A` only when `Baseline Inputs Manifest: N/A`, the plan contains exactly `Baseline Inputs Hash Justification: no-material-input-files`, and exact scope paths still contain no material inputs.
+8. Abort if in-scope files have uncommitted changes not represented in the plan:
 
    ```bash
    git diff -- <scope-paths>

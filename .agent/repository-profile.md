@@ -31,7 +31,7 @@ Hosted projects: `Sample.Hosted/` for the reference app; `DRN.Nexus.Hosted/` for
 
 - DRN framework: load `overview-drn-framework`, then the relevant `drn-*` skill.
 - Testing: load `drn-testing` and `overview-drn-testing` before generic `test-*` router skills.
-- Frontend: load relevant `drn-buildwww-*` skills for DRN buildwww work and relevant `frontend-razor-*` skills for Razor UI; package root is `Sample.Hosted/`.
+- Frontend: read this profile first. For DRN buildwww work, load relevant `drn-buildwww-*` skills. For Razor UI, load `frontend-razor-pages-shared` -> `frontend-razor-pages-navigation` -> `frontend-razor-accessors`; package root is `Sample.Hosted/`.
 - Framework package docs: use `.agent/workflows/documentation.md`.
 
 ### Framework Skills
@@ -58,6 +58,8 @@ When no narrower module is requested, `/documentation` targets:
 - `DRN.Framework.Jobs`
 - `DRN.Framework.MassTransit`
 
+`/optimize docs` and `/optimize all` include the README and release-note documentation owned by these modules in addition to root documentation.
+
 ## Commands
 
 Do not run or plan build/test commands unless the user explicitly allows it.
@@ -82,7 +84,7 @@ When test execution is explicitly allowed, run unit tests before integration tes
 - CI/CD: PR workflows use split checkout: trusted workflow/composite action code from `github.event.pull_request.base.sha` at workspace root; PR source under `src`. PR jobs stay secretless, set explicit `timeout-minutes`, and join through an aggregate gatekeeper. Release workflows derive one version from `release/v...` tags, verify the tag commit equals protected source branch HEAD, keep build artifacts in the publishing job unless artifacts must cross jobs, stage Docker images with deterministic `staged-*` cleanup tags, scan the exact staged digest, publish packages, then promote Docker tags from scanned digests.
 - Security: require CSP nonces, CSRF anti-forgery, and input validation. Pin third-party GitHub Actions to full commit SHAs with version comments; verify tag-to-SHA mapping from the official upstream action repository. `.github/CODEOWNERS` owns itself, workflows, and composite actions. Branch rulesets should require code-owner review and code-scanning/gatekeeper statuses. CodeRabbit global rules come from `knowledge_base.code_guidelines.filePatterns` for `AGENTS.md` and `.agent/rules/DiSCOS.md`. See `basic-security-checklist`, `overview-github-actions`, and `drn-hosting`.
 - Containers: keep Docker SDK/runtime distro choices and `DOTNET_RUNTIME_VERSION` aligned with `RuntimeFrameworkVersion` metadata.
-- Workflow artifacts: `/clarify`, `/answer`, and `/develop` must generate or update workspace-local artifacts such as `CLARIFY-*.md` and `DEVELOP-*.md` in `.agent/temp/`. System plans must reference and link those pipeline documents.
+- Workflow artifacts: `/clarify` owns `.agent/temp/CLARIFY-*`; `/answer` accepts canonical reviewed CLARIFY input and may resume an approved `clarified` artifact solely to create its collision-safe `.agent/temp/DEVELOP-*`; `/develop` owns the basename-matched `.agent/temp/WALKTHROUGH-*`. System plans must reference and link these pipeline documents.
 
 ## DRN Framework Source Overlay
 

@@ -1,5 +1,5 @@
 ---
-description: Commit staged changes and polish non-pushed commit messages; never push or rewrite pushed history
+description: Commit staged changes and polish a verified-unpublished HEAD message; never push or rewrite published history
 ---
 
 > See also: [Operating Model](./_shared/workflow-operating-model.md)
@@ -10,9 +10,9 @@ description: Commit staged changes and polish non-pushed commit messages; never 
 Act as Commit Message Editor.
 
 - Commit only staged changes after user confirmation.
-- Polish only non-pushed commit messages after explicit approval.
+- Polish only a verified-unpublished, non-merge `HEAD` message after explicit approval.
 - Never run `git push`, including `--force`.
-- Use only local commits, `--amend`, or interactive rebase.
+- Use `--amend` only; multi-commit rewriting is blocked by Section 6.
 - Run the shared Startup Gate; load `basic-git-conventions`.
 
 Refuse push requests. Stop before any rewrite that could touch pushed history.
@@ -26,57 +26,48 @@ git diff --cached --stat
 ```
 
 - If nothing is staged, continue to non-pushed commit detection.
-- If staged changes exist, inspect the diff, draft a compliant message, ask for confirmation, then run:
+- If staged changes exist, inspect the diff, draft a compliant message, ask for confirmation, write the exact approved message to a temporary file, then run:
 
   ```bash
-  git commit -m "<compliant message>"
+  git commit --file "$message_file"
   ```
 
 - If staged files span unrelated scopes, split them before committing: unstage selected files, commit the first scope, then stage and commit the next scope.
 
-## 3. Select Non-Pushed Commits
+## 3. Select Rewrite Candidate
 
 | Invocation | Scope |
 |---|---|
-| `/commit-polish` | All non-pushed commits |
-| `/commit-polish N` | Last `N` non-pushed commits |
+| `/commit-polish` or `/commit-polish 1` | `HEAD` only |
+| `/commit-polish N`, `N > 1` | Stop under the multi-commit block in Section 6 |
 
-Find the base:
+Before treating `HEAD` as unpublished:
 
-1. Prefer upstream `@{u}`.
-2. If absent, use the repository profile's integration or release branch.
-3. If the profile is silent, inspect remotes and choose the safest primary ref.
-
-Run only the matching branch. If no upstream exists, set `base_ref` from the profile or discovered primary ref; if no safe base can be resolved, stop and ask.
+1. Require a clean worktree and index.
+2. Stop if `HEAD` is a merge commit.
+3. Ensure remote-tracking refs are current. If freshness is not established, ask the user to fetch or explicitly authorize a fetch; never infer freshness from `base..HEAD`.
+4. Stop if `HEAD` is reachable from any remote-tracking ref or tag.
+5. Record the original commit SHA and tree SHA.
 
 ```bash
-upstream_ref=$(git rev-parse --abbrev-ref @{u} 2>/dev/null || true)
-if [ -n "$upstream_ref" ]; then
-  base_ref="$upstream_ref"
-else
-  git for-each-ref --format='%(refname:short)' refs/remotes
-  base_ref="<profile-or-discovered-base-ref>"
-fi
-
-if [ -z "$base_ref" ] || [ "$base_ref" = "<profile-or-discovered-base-ref>" ] || ! git rev-parse --verify --quiet "$base_ref" >/dev/null; then
-  echo "No safe non-pushed commit base found; stop and ask."
-  exit 1
-fi
-
-git log "$base_ref"..HEAD --oneline --no-decorate
+git status --short
+git rev-list --parents -n 1 HEAD
+git for-each-ref --contains HEAD --format='%(refname)' refs/remotes refs/tags
+git rev-parse HEAD
+git rev-parse HEAD^{tree}
 ```
 
-Stop if the range is empty. Limit to `N` when supplied.
+Any output from the reachability command blocks rewriting. Absence from one selected base is not publication proof.
 
 ## 4. Analyze Messages
 
-Compare each message against `basic-git-conventions`.
+Compare the `HEAD` message against `basic-git-conventions`.
 
 If a message is vague, inspect the commit:
 
 ```bash
-git show <sha> --stat
-git show <sha>
+git show "$commit_sha" --stat
+git show "$commit_sha"
 ```
 
 Use the full diff only when the stat is insufficient.
@@ -87,40 +78,33 @@ Show the rewrite plan and wait for explicit approval:
 
 ```markdown
 ## Commit Message Changes
-| # | SHA | Current | Proposed | Fixes |
-|---|---|---|---|---|
-| 1 | `abc1234` | `fixed stuff` | `fix(Utils): resolve null reference in scanner` | type, scope, mood |
+| SHA | Current | Proposed | Fixes |
+|---|---|---|---|
+| `abc1234` | `fixed stuff` | `fix(Utils): resolve null reference in scanner` | type, scope, mood |
 ```
 
 Do not rewrite until approved.
 
 ## 6. Rewrite
 
-For `HEAD` only:
+Multi-commit rewriting is unsupported. Do not use interactive rebase until a separate reviewed specification defines all of:
+
+- Proof that every rewritten commit is unreachable from every current remote-tracking ref and tag.
+- Exact old-SHA-to-approved-message mapping across rewritten SHAs.
+- Merge-commit handling and topology preservation.
+- Pre/post tree and final topology equality checks.
+- File-based message transport without shell interpolation.
+
+For the approved `HEAD`-only rewrite:
+
+1. Write the exact approved message to a temporary file through the platform file-write capability.
+2. Run `git commit --amend --file "$message_file"`; never interpolate the message into a shell command.
+3. Remove the temporary file.
+4. Stop and report if the resulting tree SHA differs from the recorded tree SHA.
 
 ```bash
-git commit --amend -m "<new message>"
-```
-
-For multiple commits:
-
-1. Verify the tree is clean. If dirty, stop and ask before stash or rewrite.
-2. Reword only approved commits.
-3. Abort and report on conflict.
-
-```bash
-GIT_SEQUENCE_EDITOR="sed -i.bak \"s/^pick ${SHA}/reword ${SHA}/\" \"\$1\" && rm -f \"\$1.bak\"" git rebase -i <base>
-
-MSGFILE=$(mktemp)
-cat > "$MSGFILE" <<'COMMITMSG'
-<type>(<scope>): <description>
-COMMITMSG
-GIT_EDITOR="cp \"$MSGFILE\"" git rebase --continue
-rm -f "$MSGFILE"
-```
-
-```bash
-git rebase --abort
+git commit --amend --file "$message_file"
+git rev-parse HEAD^{tree}
 ```
 
 ## 7. Verify And Report
@@ -129,8 +113,8 @@ Report final messages:
 
 ```markdown
 ## Results
-| # | SHA (new) | Message | Status |
-|---|---|---|---|
+| Old SHA | New SHA | Message | Tree Equal | Status |
+|---|---|---|---|---|
 ```
 
 State: `Push status: not pushed by design`.

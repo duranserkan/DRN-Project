@@ -50,7 +50,7 @@ A direct request to change a named file or scope permits reversible `trivial`/`s
 
 `Approval-tolerable` means bounded, reversible, auditable, non-security work with no auth, secrets, privacy, tenant, data-loss, schema/migration, public-contract, production, infrastructure, CI/CD, dependency, VCS, destructive, failed-gate, unclear-gate, unresolved-input, unverified-assumption, or temp-artifact lifecycle risk.
 
-For approval-tolerable work, `/goal` may produce `ApprovalRecord=workflow-tolerated` only when the accepting workflow allows it. Record the Priority Stack decision and planned verification before mutation. Final completion still requires task-appropriate verification evidence under the shared Command Execution Authorization Gate. Stop with `Approval=explicit required` when the record cannot satisfy the gate.
+For approval-tolerable work, `/goal` may produce `ApprovalRecord=workflow-tolerated` only when the accepting workflow allows it. Persist every field in the shared Approval Records contract, bound to the target artifact/diff digests and planned verification. Final completion still requires task-appropriate verification evidence under the shared Command Execution Authorization Gate. Stop with `Approval=explicit required` when the record cannot satisfy the gate.
 
 ## 4. Route
 
