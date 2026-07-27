@@ -8,8 +8,6 @@ namespace DRN.Framework.Utils.DependencyInjection;
 
 public static class ServiceProviderExtensions
 {
-    private static readonly HashSet<Type> ServicesWithMultipleImplementations = new();
-
     /// <summary>
     /// Resolves all services registered by attributes to make sure they are resolvable at startup time.
     /// </summary>
@@ -29,6 +27,7 @@ public static class ServiceProviderExtensions
         var containers = serviceProvider.GetServices<DrnServiceContainer>().ToArray();
         var lifetimeAttributes = containers.SelectMany(container => container.LifetimeAttributes).ToArray();
         var attributeSpecifiedModules = containers.SelectMany(container => container.AttributeSpecifiedModules).ToArray();
+        var servicesWithMultipleImplementations = new HashSet<Type>();
 
         foreach (var attribute in lifetimeAttributes)
         {
@@ -38,11 +37,8 @@ public static class ServiceProviderExtensions
                 serviceProvider.GetRequiredKeyedService(attribute.ServiceType, attribute.Key);
             else if (attribute.TryAdd)
                 serviceProvider.GetRequiredService(attribute.ServiceType);
-            else if (!ServicesWithMultipleImplementations.Contains(attribute.ServiceType))
-            {
+            else if (servicesWithMultipleImplementations.Add(attribute.ServiceType))
                 _ = serviceProvider.GetServices(attribute.ServiceType).ToArray();
-                ServicesWithMultipleImplementations.Add(attribute.ServiceType);
-            }
         }
 
         foreach (var module in attributeSpecifiedModules)

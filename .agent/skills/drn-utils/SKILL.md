@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, entity-date-filter, tick-boundary, validators, extensions, http-client"
-last-updated: 2026-07-19
+last-updated: 2026-07-27
 difficulty: intermediate
 tokens: ~2.7K
 ---
@@ -62,6 +62,8 @@ public class MyService : IMyService { }
 sc.AddServicesWithAttributes();                      // Scans calling assembly
 serviceProvider.ValidateServicesAddedByAttributesAsync(); // Health check
 ```
+
+Assembly scan metadata may be cached globally, but `DrnServiceContainer` module state belongs to one service collection and validation deduplication belongs to one provider-validation invocation. Re-registering the same assembly in one collection remains idempotent.
 
 ### Module Registration & Startup Actions
 

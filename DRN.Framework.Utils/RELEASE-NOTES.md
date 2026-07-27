@@ -29,6 +29,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Dependency Injection Provider Isolation**: Attribute registration now caches only immutable assembly scan metadata. Each service collection owns its `DrnServiceContainer` and module state, and startup validation no longer shares resolved service-type state across providers.
 *   **LockUtils Reference Identity**: `TrySetIfNotEqual` now uses reference identity consistently with its `Interlocked.CompareExchange` CAS operation, so distinct value-equal records and classes no longer block an otherwise valid update.
 *   **Entity Date Filter Tick Boundaries**: Date filters now apply inclusive and exclusive boundaries to the full 250ms Source-Known ID tick, preventing nonzero app, instance, and sequence payloads from being incorrectly included or excluded at range edges.
 *   **Ambient Claim Isolation**: `ScopeContext` claim helpers now resolve every typed lookup independently by claim type, issuer, and requested target type. Issuer, type, and default-value choices can no longer contaminate later reads that use the same claim name.

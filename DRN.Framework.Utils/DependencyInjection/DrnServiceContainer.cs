@@ -10,24 +10,42 @@ namespace DRN.Framework.Utils.DependencyInjection;
 
 public class DrnServiceContainer
 {
+    private readonly List<AttributeSpecifiedServiceModule> _attributeSpecifiedModules = [];
+    private readonly IReadOnlyList<Type> _serviceRegistrationTypes;
+
     public Assembly Assembly { get; }
     public IReadOnlyList<LifetimeAttribute> LifetimeAttributes { get; }
-    public IReadOnlyList<AttributeSpecifiedServiceModule> AttributeSpecifiedModules { get; } = new List<AttributeSpecifiedServiceModule>();
+    public IReadOnlyList<AttributeSpecifiedServiceModule> AttributeSpecifiedModules { get; }
     public bool FrameworkAssembly { get; }
 
-    public DrnServiceContainer(Assembly assembly, LifetimeAttribute[] lifetimeAttributes)
+    public DrnServiceContainer(Assembly assembly, LifetimeAttribute[] lifetimeAttributes) : this(assembly, lifetimeAttributes,
+        assembly.GetTypes().Where(ServiceRegistrationAttribute.HasServiceCollectionModule).ToArray())
+    {
+    }
+
+    internal DrnServiceContainer(
+        Assembly assembly,
+        LifetimeAttribute[] lifetimeAttributes,
+        IReadOnlyList<Type> serviceRegistrationTypes)
     {
         Assembly = assembly;
-        LifetimeAttributes = lifetimeAttributes;
+        LifetimeAttributes = Array.AsReadOnly(lifetimeAttributes.ToArray());
+        _serviceRegistrationTypes = serviceRegistrationTypes;
+        AttributeSpecifiedModules = _attributeSpecifiedModules.AsReadOnly();
         FrameworkAssembly = Assembly.FullName?.StartsWith("DRN.Framework") ?? false;
     }
 
-    internal void AddServices(IServiceCollection sc)
+    internal DrnServiceContainer AddServices(IServiceCollection sc)
     {
-        if (AddedBefore(sc)) return;
+        var existingContainer = GetExistingContainer(sc);
+        if (existingContainer != null)
+            return existingContainer;
+
         sc.AddSingleton(this);
         AddLifetimesToServiceCollection(sc);
         AddAttributeSpecifiedModules(sc);
+
+        return this;
     }
 
     private void AddLifetimesToServiceCollection(IServiceCollection sc)
@@ -80,9 +98,9 @@ public class DrnServiceContainer
             var errorOnUnknownConfiguration = configKey != string.Empty && ca.ErrorOnUnknownConfiguration;
             var configObject = appSettings.InvokeGenericMethod(nameof(IAppSettings.Get), [lifetime.ImplementationType],
                 configKey, errorOnUnknownConfiguration, ca.BindNonPublicProperties);
-            if (configObject != null) 
+            if (configObject != null)
                 return configObject;
-            
+
             try
             {
                 configObject = Activator.CreateInstance(lifetime.ImplementationType);
@@ -104,8 +122,7 @@ public class DrnServiceContainer
 
     private void AddAttributeSpecifiedModules(IServiceCollection serviceCollection)
     {
-        var moduleAttributes = Assembly.GetTypes()
-            .Where(ServiceRegistrationAttribute.HasServiceCollectionModule)
+        var moduleAttributes = _serviceRegistrationTypes
             .Select(ServiceRegistrationAttribute.GetModuleAttribute)
             .Distinct().ToArray();
 
@@ -115,15 +132,17 @@ public class DrnServiceContainer
             moduleAttribute.ServiceRegistration(moduleCollection, Assembly);
             moduleAttribute.ServiceRegistration(serviceCollection, Assembly);
             var attributeModule = new AttributeSpecifiedServiceModule(moduleCollection, moduleAttribute);
-            AddAttributeModule(attributeModule);
+            _attributeSpecifiedModules.Add(attributeModule);
         }
     }
 
-    private bool AddedBefore(IServiceCollection sc) => sc.Any(x =>
-        x.Lifetime == ServiceLifetime.Singleton && x.ServiceType == typeof(DrnServiceContainer) && x.ImplementationInstance == this);
-
-    private void AddAttributeModule(AttributeSpecifiedServiceModule attributeSpecifiedModule) =>
-        ((List<AttributeSpecifiedServiceModule>)AttributeSpecifiedModules).Add(attributeSpecifiedModule);
+    private DrnServiceContainer? GetExistingContainer(IServiceCollection sc) =>
+        sc.Where(descriptor =>
+                descriptor.Lifetime == ServiceLifetime.Singleton &&
+                descriptor.ServiceType == typeof(DrnServiceContainer))
+            .Select(descriptor => descriptor.ImplementationInstance)
+            .OfType<DrnServiceContainer>()
+            .FirstOrDefault(container => ReferenceEquals(container.Assembly, Assembly));
 }
 
 public sealed class AttributeSpecifiedServiceModule(

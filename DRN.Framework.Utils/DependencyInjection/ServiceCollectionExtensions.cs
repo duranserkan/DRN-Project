@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -9,16 +9,14 @@ namespace DRN.Framework.Utils.DependencyInjection;
 
 public static class ServiceCollectionExtensions
 {
-    private static readonly ConcurrentDictionary<string, DrnServiceContainer> ContainerDictionary = new();
+    private static readonly ConditionalWeakTable<Assembly, AssemblyScanMetadata> AssemblyScanMetadataCache = new();
 
     /// <summary>
     /// Scans implementations with LifetimeAttributes in the calling assembly and adds them to the service collection.
     /// </summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static DrnServiceContainer AddServicesWithAttributes(this IServiceCollection sc)
-    {
-        return sc.AddServicesWithAttributes(Assembly.GetCallingAssembly());
-    }
+        => sc.AddServicesWithAttributes(Assembly.GetCallingAssembly());
 
     /// <summary>
     /// Scans implementations with LifetimeAttributes in the specified assembly and adds them to the service collection.
@@ -27,26 +25,32 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(assembly);
 
-        if (assembly != typeof(AppSettings).Assembly) sc.AddDrnUtils();
+        if (assembly != typeof(AppSettings).Assembly)
+            sc.AddDrnUtils();
 
         var container = CreateDrnServiceContainer(assembly);
-        container.AddServices(sc);
-
-        return container;
+        return container.AddServices(sc);
     }
 
     private static DrnServiceContainer CreateDrnServiceContainer(Assembly assembly)
     {
-        var container = ContainerDictionary.GetOrAdd(assembly.FullName!, x =>
+        var metadata = AssemblyScanMetadataCache.GetValue(assembly, static scannedAssembly =>
         {
-            var lifetimeAttributes = assembly.GetTypes()
+            var types = scannedAssembly.GetTypes();
+            var lifetimeTypes = types
                 .Where(type => LifetimeAttribute.HasLifetime(type) && !ServiceRegistrationAttribute.HasServiceCollectionModule(type))
-                .Select(LifetimeAttribute.GetLifetime).ToArray();
-            var container = new DrnServiceContainer(assembly, lifetimeAttributes);
+                .ToArray();
+            var serviceRegistrationTypes = types
+                .Where(ServiceRegistrationAttribute.HasServiceCollectionModule)
+                .ToArray();
 
-            return container;
+            return new AssemblyScanMetadata(Array.AsReadOnly(lifetimeTypes), Array.AsReadOnly(serviceRegistrationTypes));
         });
 
-        return container;
+        var lifetimeAttributes = metadata.LifetimeTypes.Select(LifetimeAttribute.GetLifetime).ToArray();
+
+        return new DrnServiceContainer(assembly, lifetimeAttributes, metadata.ServiceRegistrationTypes);
     }
+
+    private sealed record AssemblyScanMetadata(ReadOnlyCollection<Type> LifetimeTypes, ReadOnlyCollection<Type> ServiceRegistrationTypes);
 }
