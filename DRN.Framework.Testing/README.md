@@ -525,6 +525,17 @@ Following design principle is used for these attributes
 
 Resolution order is identical for integration and unit variants: optional context first, then inline/member/self-provided values, then AutoFixture-generated values, then NSubstitute mocks for interface or abstract parameters. Request `DrnTestContext` or `DrnTestContextUnit` only when the test uses it. Interface substitutes are for dependencies; instantiate the concrete class when the concrete convenience method itself is the behavior under test.
 
+### Theory Row Metadata
+
+DRN data wrappers preserve xUnit theory-row metadata after AutoFixture reconstructs the row. Metadata resolves in this order:
+
+1. Non-null metadata on an `ITheoryDataRow` returned by a member source.
+2. Metadata on the outer `DataInline*`, `DataMember*`, or `DataSelf*` attribute.
+3. Metadata on the generated row returned by the inner AutoFixture provider.
+4. Remaining null values inherit from `[Theory]`.
+
+This order applies to `DisableParallelization`, `Explicit`, `Label`, `Skip`, conditional skip settings, `TestDisplayName`, and `Timeout`. The first level with a non-null `Skip` owns `SkipType`, `SkipUnless`, and `SkipWhen` as one group, preventing conditions from different levels from being mixed. Traits combine across every level; trait names are case-insensitive and retain every distinct value. Integration and unit variants use the same rules, with or without their optional test context.
+
 Example usages for DataMember attribute
 ```csharp
 [Theory]

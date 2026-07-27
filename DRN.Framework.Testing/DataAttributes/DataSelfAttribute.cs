@@ -7,6 +7,10 @@ namespace DRN.Framework.Testing.DataAttributes;
 /// Also, if <see cref="DrnTestContext"/> is added as first parameter it automatically creates an instance and provides
 ///<b>This attribute can provide Complex Types that can not be provided by DataInline attributes</b>
 /// </summary>
+/// <remarks>
+/// This attribute's metadata takes precedence over metadata from the inner AutoFixture provider, while traits
+/// are combined.
+/// </remarks>
 public abstract class DataSelfAttribute : DataAttribute
 {
     private readonly List<object[]> _data = new(10);
@@ -28,7 +32,8 @@ public abstract class DataSelfAttribute : DataAttribute
         foreach (var values in _data)
         {
             var data = await new DataInlineAttribute(values).GetData(testMethod, disposalTracker);
-            resultData.AddRange(data);
+            resultData.AddRange(data.Select(row =>
+                TheoryDataRowMetadata.ApplyAttributeToGeneratedRow(row, this)));
         }
 
         return resultData;

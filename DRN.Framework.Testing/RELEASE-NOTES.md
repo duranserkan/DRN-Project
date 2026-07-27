@@ -16,6 +16,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Bug Fixes
 
 *   **Parallel Application Log Isolation**: `ApplicationContext` now clears logging providers for its temporary discovery host as well as the real test host, preventing parallel test lifecycle records from spilling into and interleaving on shared CI runner output.
+*   **Theory Row Metadata Preservation**: `DataInline*`, `DataMember*`, and `DataSelf*` now preserve xUnit row controls after AutoFixture reconstruction. Member-source row metadata overrides outer attributes, missing values inherit through the generated row and `[Theory]`, conditional skip settings move with their skip reason, and traits combine case-insensitively.
 
 ## Version 0.9.6
 

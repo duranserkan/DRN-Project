@@ -58,6 +58,7 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="DRN.Test.Integration" />
+        <InternalsVisibleTo Include="DRN.Test.Unit" />
     </ItemGroup>
 
     <ItemGroup>

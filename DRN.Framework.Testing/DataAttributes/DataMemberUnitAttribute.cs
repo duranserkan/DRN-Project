@@ -7,9 +7,20 @@ namespace DRN.Framework.Testing.DataAttributes;
 /// Also, if <see cref="DrnTestContextUnit"/> is added as first parameter it automatically creates an instance and provides
 ///<b>This attribute can provide Complex Types that can not be provided by DataInline attributes</b>
 /// </summary>
+/// <remarks>
+/// Source-row metadata takes precedence over this attribute when set. Missing row metadata inherits this attribute's
+/// controls, while traits are combined.
+/// </remarks>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 public class DataMemberUnitAttribute(string methodName, params object[] methodParams) : MemberDataAttributeBase(methodName, methodParams)
 {
+    /// <inheritdoc />
+    protected override ITheoryDataRow ConvertDataRow(object dataRow)
+    {
+        var convertedRow = base.ConvertDataRow(dataRow);
+        return TheoryDataRowMetadata.MergeWithAttribute(dataRow as ITheoryDataRow, convertedRow.GetData(), this);
+    }
+
     /// <inheritdoc />
     public override async ValueTask<IReadOnlyCollection<ITheoryDataRow>> GetData(MethodInfo testMethod, DisposalTracker disposalTracker)
     {
@@ -21,7 +32,8 @@ public class DataMemberUnitAttribute(string methodName, params object[] methodPa
             var rowData = row.GetData();
             
             var attributeRows = await new DataInlineUnitAttribute(rowData).GetData(testMethod, disposalTracker);
-            resultData.AddRange(attributeRows);
+            resultData.AddRange(attributeRows.Select(attributeRow =>
+                TheoryDataRowMetadata.ApplyToGeneratedRow(attributeRow, row)));
         }
 
         return resultData;
