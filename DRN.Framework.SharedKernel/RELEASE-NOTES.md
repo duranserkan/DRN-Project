@@ -7,6 +7,11 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **CancellationScopeKey Primitive**: `CancellationScopeKey` is now available in `DRN.Framework.SharedKernel.Cancellation` for defining typed or named child cancellation scope keys across domain and framework layers.
 *   **Repository Cancellation Settings**: `RepositorySettings<TEntity>` now includes `ScopeKey` for configuring child cancellation scopes on repository instances.
 
+### Breaking Changes
+
+*   **CancellationScopeKey Namespace and Formatting**: `CancellationScopeKey` moved from `DRN.Framework.Utils.Cancellation` to `DRN.Framework.SharedKernel.Cancellation`, and its custom `ToString()` override was removed in favor of standard record formatting.
+    *   *Migration*: Update imports from `using DRN.Framework.Utils.Cancellation;` to `using DRN.Framework.SharedKernel.Cancellation;`. For code expecting the previous string representation, use `key.Value` or `key.Name` explicitly instead of calling `ToString()`.
+
 ## Version 0.9.6
 
 ### Security

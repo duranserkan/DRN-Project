@@ -319,6 +319,7 @@ public class RepositorySettings<TEntity>
 {
     public bool AsNoTracking { get; set; }           // Disable change tracking
     public bool IgnoreAutoIncludes { get; set; }     // Prevent auto-loading navigations
+    public CancellationScopeKey? ScopeKey { get; set; } // Configure child cancellation scope
     public IReadOnlyDictionary<string, Expression<Func<TEntity, bool>>> Filters { get; }
 }
 ```

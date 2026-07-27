@@ -44,7 +44,7 @@ During framework package refactoring, release notes included low-value entries s
 
 ### General Rule
 
-Keep package release notes high-signal, concise, and non-redundant. Document only consumer-visible behavior changes, breaking API changes, security fixes, or new public features. Omit pure documentation/comment edits, non-functional refactorings, and redundant explanations that duplicate entries in other sections of the same release notes.
+Keep package release notes high-signal, concise, and non-redundant. Document consumer-visible behavior changes, breaking API changes, security fixes, new public features, configuration/default changes, operational behavior changes, data or migration changes, observable bug fixes, published artifacts, and relevant dependency, runtime, or container changes. Omit pure documentation/comment edits, non-functional refactorings, and redundant explanations that duplicate entries in other sections of the same release notes.
 
 ### Decision Boundary
 

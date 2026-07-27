@@ -216,6 +216,7 @@ public class RepositorySettings<TEntity>
 {
     public bool AsNoTracking { get; set; }
     public bool IgnoreAutoIncludes { get; set; }
+    public CancellationScopeKey? ScopeKey { get; set; }
     public IReadOnlyDictionary<string, Expression<Func<TEntity, bool>>> Filters { get; }
     public void AddFilter(string name, Expression<Func<TEntity, bool>> filter);
     public bool RemoveFilter(string name);

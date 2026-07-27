@@ -360,19 +360,33 @@ public class CancellationUtilsTests
         var callbackStarted = callbackEntered.Wait(TimeSpan.FromSeconds(5));
 
         Exception? disposalException = null;
-        try
+        var disposalThread = new Thread(() =>
         {
-            cancellation.Dispose();
-        }
-        catch (Exception exception)
+            try
+            {
+                cancellation.Dispose();
+            }
+            catch (Exception exception)
+            {
+                disposalException = exception;
+            }
+        })
         {
-            disposalException = exception;
-        }
+            IsBackground = true
+        };
+
+        disposalThread.Start();
+        var disposalCompleted = disposalThread.Join(TimeSpan.FromSeconds(5));
 
         releaseCallback.Set();
         var cancellationCompleted = cancellationThread.Join(TimeSpan.FromSeconds(5));
+        if (!disposalCompleted)
+        {
+            disposalThread.Join(TimeSpan.FromSeconds(5));
+        }
 
         callbackStarted.Should().BeTrue();
+        disposalCompleted.Should().BeTrue();
         cancellationCompleted.Should().BeTrue();
         cancellationException.Should().BeNull();
         disposalException.Should().BeNull();
