@@ -4,6 +4,7 @@ namespace DRN.Framework.Utils.Validators;
 
 public static class JpegValidator
 {
+    public const long DefaultMaxJpegSize = 10 * 1024 * 1024; // 10MB default safety limit for JPEG validation
     private const string InvalidJpegMessage = "JPEG image data is invalid.";
     private const string InvalidMaxLengthMessage = "Maximum length must be greater than or equal to zero.";
     private const byte MarkerPrefix = 0xFF;
@@ -13,13 +14,13 @@ public static class JpegValidator
     private const byte StartOfScan = 0xDA;
 
     public static bool IsValid(ReadOnlySpan<byte> imageData)
-        => IsValid(imageData, long.MaxValue);
+        => IsValid(imageData, DefaultMaxJpegSize);
 
     public static bool IsValid(ReadOnlySpan<byte> imageData, long maxLength)
         => TryGetValidImageLength(imageData, maxLength, out var imageLength)
            && HasOnlyTrailingPadding(imageData[imageLength..]);
 
-    public static async ValueTask<bool> IsValidAsync(Stream imageStream, long maxLength = long.MaxValue,
+    public static async ValueTask<bool> IsValidAsync(Stream imageStream, long maxLength = DefaultMaxJpegSize,
         CancellationToken cancellationToken = default)
     {
         var result = await ValidateAsync(imageStream, maxLength, cancellationToken);
@@ -27,7 +28,7 @@ public static class JpegValidator
     }
 
     //todo: evaluate proper Image library as an alternative
-    public static JpegValidationResult Validate(byte[] imageData, long maxLength = long.MaxValue)
+    public static JpegValidationResult Validate(byte[] imageData, long maxLength = DefaultMaxJpegSize)
     {
         ArgumentNullException.ThrowIfNull(imageData);
 
@@ -45,7 +46,7 @@ public static class JpegValidator
             : JpegValidationResult.Invalid(InvalidJpegMessage);
     }
 
-    public static async ValueTask<JpegValidationResult> ValidateAsync(Stream imageStream, long maxLength = long.MaxValue,
+    public static async ValueTask<JpegValidationResult> ValidateAsync(Stream imageStream, long maxLength = DefaultMaxJpegSize,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(imageStream);

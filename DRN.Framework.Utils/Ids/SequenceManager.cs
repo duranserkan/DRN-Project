@@ -19,7 +19,7 @@ namespace DRN.Framework.Utils.Ids;
 /// </remarks>
 public static class SequenceManager<TEntity> where TEntity : class
 {
-    private static DateTimeOffset _epoch = EpochTimeUtils.DefaultEpoch;
+    // ReSharper disable once StaticMemberInGenericType
     private static volatile SequenceTimeScope _timeScope = new(TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch));
 
     /// <summary>
@@ -50,13 +50,13 @@ public static class SequenceManager<TEntity> where TEntity : class
     /// Console.WriteLine($"Order ID: {id.Timestamp}-{id.Sequence}");
     /// </code>
     /// </example>
-    public static SequenceTimeScopedId GetTimeScopedId()
+    public static SequenceTimeScopedId GetTimeScopedId(DateTimeOffset epoch)
     {
-        var timeStamp = TimeStampManager.CurrentTimestamp(_epoch);
+        var timeStamp = TimeStampManager.CurrentTimestamp(epoch);
         var currentScope = _timeScope;
 
         if (currentScope.ScopeTimestamp != timeStamp)
-            UpdateTimeScope();
+            UpdateTimeScope(epoch);
 
         //todo: optionally generate instance Ids randomly to avoid predictability
         //Reassign currentScope after potential update
@@ -66,7 +66,7 @@ public static class SequenceManager<TEntity> where TEntity : class
 
         while (true)
         {
-            var newTimestamp = TimeStampManager.CurrentTimestamp(_epoch);
+            var newTimestamp = TimeStampManager.CurrentTimestamp(epoch);
             if (timeStamp == newTimestamp)
             {
                 //todo tweak TimeStampManager.UpdatePeriod
@@ -75,18 +75,18 @@ public static class SequenceManager<TEntity> where TEntity : class
                 continue;
             }
 
-            UpdateTimeScope();
+            UpdateTimeScope(epoch);
             currentScope = _timeScope;
             if (currentScope.TryGetNextId(out sequenceId))
                 return new SequenceTimeScopedId(currentScope.ScopeTimestamp, sequenceId);
-            
+
             timeStamp = newTimestamp;
         }
     }
 
-    private static void UpdateTimeScope()
+    private static void UpdateTimeScope(DateTimeOffset targetEpoch)
     {
-        var newTimestamp = TimeStampManager.CurrentTimestamp(_epoch);
+        var newTimestamp = TimeStampManager.CurrentTimestamp(targetEpoch);
         var currentScope = _timeScope;
         if (currentScope.ScopeTimestamp == newTimestamp) return;
 
@@ -98,10 +98,10 @@ public static class SequenceManager<TEntity> where TEntity : class
 #pragma warning restore CS0420
 
             currentScope = _timeScope; // Another thread updated _timeScope; check if it matches our target
-            if (currentScope.ScopeTimestamp == TimeStampManager.CurrentTimestamp(_epoch))
+            if (currentScope.ScopeTimestamp == TimeStampManager.CurrentTimestamp(targetEpoch))
                 break;
 
-            newScope = new SequenceTimeScope(TimeStampManager.CurrentTimestamp(_epoch)); // Retry with the new current scope
+            newScope = new SequenceTimeScope(TimeStampManager.CurrentTimestamp(targetEpoch)); // Retry with the new current scope
         }
     }
 }

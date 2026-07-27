@@ -29,10 +29,14 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     public const long TicksPerHalf = 1L << 32;        // 2^32 ticks per half-epoch
     public const long MaxEpochTicks = (TicksPerHalf << 1) - 1; // 2^33 - 1: full ~68-year epoch (both halves)
 
-    public static long Generate<TEntity>(byte appId, byte appInstanceId) where TEntity : class
+    public static long Generate<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class
     {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(appId, MaxAppId);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(appInstanceId, MaxAppInstanceId);
+
+        var targetEpoch = epoch ?? EpochTimeUtils.DefaultEpoch;
         var builder = NumberBuilder.GetLong();
-        var timeScopedId = SequenceManager<TEntity>.GetTimeScopedId();
+        var timeScopedId = SequenceManager<TEntity>.GetTimeScopedId(targetEpoch);
 
         //Timestamp with 250ms precision (4 ticks per second)
         //Sub-second ordering eliminates coarse-grained temporal ambiguity while preserving throughput.
@@ -62,17 +66,29 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         return builder.GetValue();
     }
 
-    private readonly byte _nexusAppId = appSettings.NexusAppSettings.AppId;
-    private readonly byte _nexusAppInstanceId = appSettings.NexusAppSettings.AppInstanceId;
+    private static byte ValidateAppId(byte appId)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(appId, MaxAppId);
+        return appId;
+    }
+
+    private static byte ValidateAppInstanceId(byte appInstanceId)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(appInstanceId, MaxAppInstanceId);
+        return appInstanceId;
+    }
+
+    private readonly byte _nexusAppId = ValidateAppId(appSettings.NexusAppSettings.AppId);
+    private readonly byte _nexusAppInstanceId = ValidateAppInstanceId(appSettings.NexusAppSettings.AppInstanceId);
     private readonly DateTimeOffset _epoch = epochTimeUtils.Epoch;
 
     public long Next<TEntity>() where TEntity : class
-        => Next<TEntity>(_nexusAppId, _nexusAppInstanceId);
+        => Next<TEntity>(_nexusAppId, _nexusAppInstanceId, _epoch);
 
     public long Next<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class
-        => Generate<TEntity>(appId, appInstanceId);
+        => Generate<TEntity>(appId, appInstanceId, epoch ?? _epoch);
 
-    public SourceKnownId Parse(long id, DateTimeOffset? epoch = null) => ParseId(id, _epoch);
+    public SourceKnownId Parse(long id, DateTimeOffset? epoch = null) => ParseId(id, epoch ?? _epoch);
 
     public static SourceKnownId ParseId(long id, DateTimeOffset epoch)
     {

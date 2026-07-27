@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npm run build:app && npm run build:appPostload && npm run build:htmx && npm run build:bootstrap && npm run build:react",
+    "type-check": "tsc --noEmit",
+    "build": "tsc --noEmit && npm run build:app && npm run build:appPostload && npm run build:htmx && npm run build:bootstrap && npm run build:react",
     "build:app": "BUILD_TYPE=app vite build",
     "build:appPostload": "BUILD_TYPE=appPostload vite build",
     "build:htmx": "BUILD_TYPE=htmx vite build",

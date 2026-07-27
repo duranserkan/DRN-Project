@@ -165,6 +165,8 @@ Reduce configuration boilerplate by using attributes directly on services. `AddS
 > [!NOTE]
 > All lifetime attributes accept an optional `tryAdd` parameter (default: `true`). When `true`, `TryAdd` is used so existing registrations are not overwritten. Set to `false` to allow multiple implementations of the same service type.
 
+Assembly scan metadata is cached, while registration modules and startup-validation state remain isolated to each service collection and provider. Repeating registration for the same assembly on one service collection is idempotent.
+
 ### Hosted Services
 
 Use `[HostedService]` to register `IHostedService`/`BackgroundService` implementations without manual `AddHostedService<T>()` calls. The class **must** implement `IHostedService`; otherwise the attribute is silently ignored.

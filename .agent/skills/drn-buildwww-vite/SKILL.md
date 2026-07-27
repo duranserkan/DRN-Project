@@ -186,14 +186,13 @@ export default defineConfig(drnUtils.deepMerge(sharedConfig, builds[buildType]))
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["buildwww/*"],
-      "@js/*": ["buildwww/app/js/*"],
-      "@css/*": ["buildwww/app/css/*"],
-      "@lib/*": ["buildwww/lib/*"],
-      "@types/*": ["buildwww/types/*"],
-      "@plugins/*": ["buildwww/plugins/*"]
+      "@/*": ["./buildwww/*"],
+      "@js/*": ["./buildwww/app/js/*"],
+      "@css/*": ["./buildwww/app/css/*"],
+      "@lib/*": ["./buildwww/lib/*"],
+      "@types/*": ["./buildwww/types/*"],
+      "@plugins/*": ["./buildwww/plugins/*"]
     },
     "typeRoots": ["./buildwww/types", "./node_modules/@types"]
   },

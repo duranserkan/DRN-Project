@@ -39,7 +39,7 @@ public class SourceKnownIdUtilsTests
             AppId = 5,
             AppInstanceId = 12
         };
-        
+
         var customSettings = new
         {
             NexusAppSettings = nexusSettings
@@ -80,6 +80,62 @@ public class SourceKnownIdUtilsTests
         (idInfo1 <= idInfo1Duplicate).Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData((byte)128, (byte)0)]
+    [InlineData((byte)255, (byte)0)]
+    public void Generate_With_AppId_Exceeding_MaxAppId_Should_Throw_ArgumentOutOfRangeException(byte appId, byte appInstanceId)
+    {
+        var act = () => SourceKnownIdUtils.Generate<object>(appId, appInstanceId);
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [InlineData((byte)0, (byte)64)]
+    [InlineData((byte)0, (byte)255)]
+    public void Generate_With_AppInstanceId_Exceeding_MaxAppInstanceId_Should_Throw_ArgumentOutOfRangeException(byte appId, byte appInstanceId)
+    {
+        var act = () => SourceKnownIdUtils.Generate<object>(appId, appInstanceId);
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void Next_And_Parse_Should_Honor_Custom_Epoch(DrnTestContextUnit context)
+    {
+        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
+        var customEpoch = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        var id = generator.Next<object>(appId: 10, appInstanceId: 5, epoch: customEpoch);
+        var parsed = generator.Parse(id, epoch: customEpoch);
+
+        parsed.Id.Should().Be(id);
+        parsed.AppId.Should().Be(10);
+        parsed.AppInstanceId.Should().Be(5);
+        parsed.CreatedAt.Year.Should().Be(2026);
+    }
+
+    [Theory]
+    [DataInlineUnit((byte)128, (byte)1)]
+    [DataInlineUnit((byte)1, (byte)64)]
+    public void Constructor_With_Invalid_AppId_Or_AppInstanceId_In_Settings_Should_Throw(
+        DrnTestContextUnit context,
+        byte appId,
+        byte appInstanceId)
+    {
+        var invalidSettings = new
+        {
+            NexusAppSettings = new NexusAppSettings
+            {
+                AppId = appId,
+                AppInstanceId = appInstanceId
+            }
+        };
+
+        context.AddToConfiguration(invalidSettings);
+        var act = () => context.GetRequiredService<ISourceKnownIdUtils>();
+        act.Should().Throw<Exception>();
+    }
+
     /// <summary>
     /// Validates that <paramref name="idInfo"/>.CreatedAt falls within the expected test execution range.
     /// Timestamps are converted to 250ms epoch ticks before assertion because TimeStampManager truncates
@@ -97,4 +153,3 @@ public class SourceKnownIdUtilsTests
         createdAtTimestamp.Should().BeLessThanOrEqualTo(EpochTimeUtils.ConvertToTicks(afterIdGenerated, epoch));
     }
 }
-
