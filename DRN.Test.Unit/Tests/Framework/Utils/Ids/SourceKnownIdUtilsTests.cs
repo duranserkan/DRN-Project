@@ -120,10 +120,7 @@ public class SourceKnownIdUtilsTests
     [DataInlineUnit((byte)128, (byte)1, "appId")]
     [DataInlineUnit((byte)1, (byte)64, "appInstanceId")]
     public void Constructor_With_Invalid_AppId_Or_AppInstanceId_In_Settings_Should_Throw(
-        DrnTestContextUnit context,
-        byte appId,
-        byte appInstanceId,
-        string paramName)
+        DrnTestContextUnit context, byte appId, byte appInstanceId, string paramName)
     {
         var invalidSettings = new
         {
@@ -136,8 +133,7 @@ public class SourceKnownIdUtilsTests
 
         context.AddToConfiguration(invalidSettings);
         var act = () => context.GetRequiredService<ISourceKnownIdUtils>();
-        act.Should().Throw<ArgumentOutOfRangeException>()
-            .WithParameterName(paramName);
+        act.Should().Throw<ConfigurationException>();
     }
 
     /// <summary>
