@@ -1,9 +1,9 @@
 ---
 name: overview-drn-framework
 description: "DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, package-dependencies"
-last-updated: 2026-07-07
+last-updated: 2026-07-19
 difficulty: basic
-tokens: ~3K
+tokens: ~3.1K
 ---
 
 # DRN.Framework Overview
@@ -280,6 +280,12 @@ dotnet run --project <integration-test-csproj>
 ```
 
 Unit tests should be listed before integration tests. Do not use `.slnx` in test-run commands.
+
+### Maintenance Reference: Entity Creation-Date Filters
+
+Source-Known IDs encode creation time at 250ms precision followed by a 31-bit app, instance, and sequence payload. `IEntityDateTimeUtils` treats every date boundary as the entire representable tick: inclusive filters include the tick's minimum-through-maximum payload range, while exclusive filters exclude that full range. `CreatedBetween` and `CreatedOutside` normalize reversed endpoints.
+
+Keep tick-bound calculations outside query expressions so providers receive scalar `long` comparisons. Regression coverage belongs in unit tests for equal, distinct, reversed, inclusive/exclusive, and epoch-half transition cases; database-backed verification is required only for provider translation or query-plan claims.
 
 ### Maintenance Reference: Release Notes Triggers
 

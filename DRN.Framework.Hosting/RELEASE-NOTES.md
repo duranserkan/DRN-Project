@@ -10,6 +10,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **File Provider Preservation**: `AddDrnSettings` now preserves the outer builder's `IFileProvider` during environment resolution, ensuring custom or composite file providers are not discarded.
 *   **Environment-Specific Configuration Discovery**: `AddDrnSettings` now discovers `Environment` without constructing full `AppSettings`, so `appsettings.{Environment}.json` can load even when required settings such as `NexusAppSettings` are supplied by the environment-specific file.
+*   **Static Asset Response Compression**: Enabled HTTPS compression (`EnableForHttps = true`), replaced default MIME types with an explicit allowlist (`text/css`, `text/javascript`, `application/javascript`, `image/svg+xml`, `font/ttf`, `application/x-font-ttf`, `font/otf`, `font/opentype`), and included `text/javascript` for static JavaScript assets.
 
 ## Version 0.9.5
 
@@ -36,7 +37,7 @@ Not every version includes changes, features or bug fixes. This project can incr
     *   Matching rules compose through .NET's native chained limiter so tenant + user + IP policies can be enforced together.
     *   Scoped rules are post-auth only, preserve global ordering with singleton rules, compose together, and same-order rules can opt into `ShortCircuitOnMatch` for allow/deny precedence.
     *   Rule-level `PolicyName` filters DRN rules by ASP.NET Core `[EnableRateLimiting("policy-name")]` endpoint metadata without replacing native named policies.
-    *   Added app-specific `RateLimitFor` pattern (e.g., `Sample.Hosted.Helpers.RateLimitFor`) for claim-based scoped partitions composed from `Get.Claim.*` primitives backed by cached `IScopedUser` claims.
+    *   Added app-specific `RateLimitFor` pattern (e.g., `Sample.Hosted.Helpers.RateLimitFor`) for claim-based scoped partitions composed from `Get.Claim.*` primitives backed by authenticated `IScopedUser` claims.
     *   Post-auth rate limiting now preserves named policies and rejection callbacks configured through `AddRateLimiter(options => ...)`, so `[EnableRateLimiting("policy-name")]` works alongside DRN's global rule chain.
     *   DRN rule rejection attribution now tracks the rule that actually failed, so native named-policy rejections do not trigger unrelated DRN rule `OnRejectedAsync` callbacks.
     *   Hot-path rule selection uses value-based rule results/matches and cached default-rule option factories to reduce avoidable per-request allocation pressure.

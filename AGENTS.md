@@ -68,6 +68,7 @@ Use the profile first. If it is missing or silent, discover by convention:
 - Prefer established local patterns over new abstractions.
 - Comment only to explain non-obvious intent.
 - Update docs and skills when code or convention changes would otherwise create drift.
+- Do not amend and commit unless explicitly approved.
 - Decide release-note impact before finishing source, packaging, or published-doc changes; record "not required" when no trigger applies.
 - Omit restore/build/run/test/benchmark/load-test steps from plans unless explicitly allowed; use static verification instead.
 - **No CAD Artifact Bypassing**: `/clarify`, `/answer`, and `/develop` must create or update workspace-local artifacts such as `CLARIFY-*.md` and `DEVELOP-*.md` in `.agent/temp/`. System plans must reference and link those documents.

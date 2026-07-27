@@ -4,7 +4,7 @@ description: Load all portable skills plus framework-scoped or profile-declared 
 
 // turbo-all
 
-> **Estimated context: ~55.6K tokens** (30 skills plus repository profile)
+> **Estimated context: ~57.9K tokens** (30 skills plus repository profile)
 
 Read all skills:
 

@@ -167,7 +167,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             else
                 logger.LogWarning("{@Logs}", scopedLog.GetLogs());
 
-            loggerProvider.Dispose();
+            await loggerProvider.DisposeAsync();
         }
     }
 
@@ -176,7 +176,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         try
         {
             var (_, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopedLog);
-            using var services = applicationBuilder.Services.BuildServiceProvider();
+            await using var services = applicationBuilder.Services.BuildServiceProvider();
             var isDevelopment = appSettings.IsDevelopmentEnvironment;
             var handler = services.GetService<IDrnExceptionHandler>();
             //todo send startup exception report to nexus in non-develop
@@ -529,9 +529,12 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         };
 
     /// <summary>
-    /// Configures static file serving with HTTPS compression enabled.
+    /// Configures static file serving with HTTPS compression enabled for static assets.
     /// <para>
-    /// <b>Cache-Control: public</b> enables server-side caching of compressed bytes via ResponseCaching middleware.
+    /// Static assets contain no per-user secrets and are immune to BREACH attacks.
+    /// Enabling <see cref="HttpsCompressionMode.Compress"/> allows static assets to be served with compression over HTTPS,
+    /// while build-time pre-compressed assets (.br/.gz) or edge CDN compression are recommended for optimal performance.
+    /// <b>Cache-Control: public</b> enables caching of static bytes via ResponseCaching middleware.
     /// </para>
     /// </summary>
     /// <remarks>
@@ -546,10 +549,10 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             options.HttpsCompression = HttpsCompressionMode.Compress;
             options.OnPrepareResponse = context =>
             {
-                // Note: This 'public' header triggers the ResponseCaching middleware placed before UseStaticFiles in the pipeline.
-                // This allows the server to cache the compressed bytes of static assets in memory.
+                // Note: This 'public' header allows ResponseCaching middleware placed before UseStaticFiles in the pipeline
+                // to cache static assets in memory.
                 context.Context.Response.Headers.CacheControl = "public,max-age=31536000"; // 1 year
-                context.Context.Response.Headers.Vary = "Accept-Encoding"; //prevents static file cache poisoning
+                context.Context.Response.Headers.Vary = "Accept-Encoding"; // prevents cache poisoning across client encoding capabilities
             };
         };
 
@@ -847,6 +850,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
     /// <summary>
     /// Configures response compression with security-first defaults.
+    /// <para>
+    /// HTTPS compression (<c>EnableForHttps = true</c>) is enabled for an explicit allowlist of safe MIME types
+    /// (CSS, JS, SVG, TTF, OTF). Dynamic response MIME types (such as <c>text/html</c> and <c>application/json</c>) are excluded
+    /// from default compression.
+    /// </para>
     /// <para><b>References:</b></para>
     /// <list type="bullet">
     ///   <item><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression">Response compression in ASP.NET Core</a></item>
@@ -857,27 +865,24 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// </summary>
     protected virtual void ConfigureResponseCompressionOptions(ResponseCompressionOptions options)
     {
-        // STATIC ASSETS (CSS, JS, fonts, images) ARE SAFELY COMPRESSED via ConfigureStaticFileOptions
-        // because they contain no per-user secrets and are identical for all users.
+        // Enable HTTPS response compression for matching MIME allowlist entries.
+        // Default response MIME types (e.g. text/html, application/json) are excluded.
         // References:
         //   - Caching exclusion conditions: https://learn.microsoft.com/en-us/aspnet/core/performance/caching/middleware#conditions-for-caching
         //   - Response compression middleware: https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression
-        options.EnableForHttps = false;
-        options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        options.EnableForHttps = true;
+        options.MimeTypes =
         [
             "text/css",
+            "text/javascript",
             "application/javascript",
             "image/svg+xml",
-            // Font MIME types: modern + legacy for maximum compatibility
+            // Raw/uncompressed font MIME types only (WOFF and WOFF2 are already compressed at binary level)
             "font/ttf",
             "application/x-font-ttf",
             "font/otf",
-            "font/opentype",
-            "font/woff",
-            "application/font-woff",
-            "font/woff2",
-            "application/font-woff2"
-        ]);
+            "font/opentype"
+        ];
         options.Providers.Add<BrotliCompressionProvider>();
         options.Providers.Add<GzipCompressionProvider>();
     }

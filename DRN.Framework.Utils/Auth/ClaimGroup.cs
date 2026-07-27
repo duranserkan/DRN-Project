@@ -4,19 +4,20 @@ using System.Text.Json.Serialization;
 
 namespace DRN.Framework.Utils.Auth;
 
-//todo: write tests
 public class ClaimGroup
 {
+    private readonly FrozenSet<Claim> _claims;
+
     public ClaimGroup(IReadOnlySet<Claim> claims, ClaimsIdentity primary)
     {
         IsSingleClaim = claims.Count == 1;
         Claim = claims.FirstOrDefault(c => c.Subject == primary) ?? claims.First();
         IsPrimaryClaim = Claim.Subject == primary;
-        Claims = claims.ToFrozenSet();
+        _claims = claims.ToFrozenSet();
     }
 
     [JsonIgnore] public Claim Claim { get; }
-    [JsonIgnore] public IReadOnlySet<Claim> Claims { get; }
+    [JsonIgnore] public IReadOnlySet<Claim> Claims => _claims;
     [JsonIgnore] public bool IsSingleClaim { get; }
 
     public bool IsPrimaryClaim { get; }
@@ -31,7 +32,18 @@ public class ClaimGroup
     /// <summary>
     /// Gets claim from primary identity if issuer is not provided
     /// </summary>
-    public string? GetValue(string? issuer = null) => GetValuesEnumerable(issuer).FirstOrDefault();
+    public string? GetValue(string? issuer = null)
+    {
+        issuer = ResolveIssuer(issuer);
+        if (IsSingleClaim)
+            return Claim.Issuer == issuer ? Claim.Value : null;
+
+        foreach (var claim in _claims)
+            if (claim.Issuer == issuer)
+                return claim.Value;
+
+        return null;
+    }
 
     /// <summary>
     /// Gets claim from primary identity if issuer is not provided
@@ -49,12 +61,34 @@ public class ClaimGroup
     /// <summary>
     /// Checks claim from primary identity if issuer is not provided
     /// </summary>
-    public bool ClaimExists(string? issuer = null) => FindClaimsEnumerable(issuer).Any();
+    public bool ClaimExists(string? issuer = null)
+    {
+        issuer = ResolveIssuer(issuer);
+        if (IsSingleClaim)
+            return Claim.Issuer == issuer;
+
+        foreach (var claim in _claims)
+            if (claim.Issuer == issuer)
+                return true;
+
+        return false;
+    }
     
     /// <summary>
     /// Gets claim from primary identity if issuer is not provided
     /// </summary>
-    public Claim? FindClaim(string value, string? issuer = null) => FindClaimsEnumerable(issuer).FirstOrDefault(c => c.Value == value);
+    public Claim? FindClaim(string value, string? issuer = null)
+    {
+        issuer = ResolveIssuer(issuer);
+        if (IsSingleClaim)
+            return Claim.Issuer == issuer && Claim.Value == value ? Claim : null;
+
+        foreach (var claim in _claims)
+            if (claim.Issuer == issuer && claim.Value == value)
+                return claim;
+
+        return null;
+    }
 
     /// <summary>
     /// Gets claim from primary identity if issuer is not provided
@@ -66,13 +100,14 @@ public class ClaimGroup
     /// </summary>
     public IEnumerable<Claim> FindClaimsEnumerable(string? issuer = null)
     {
-        if (issuer == null && IsPrimaryClaim)
-            issuer = Claim.Issuer;
+        issuer = ResolveIssuer(issuer);
         if (IsSingleClaim)
             return Claim.Issuer == issuer ? [Claim] : [];
 
-        return Claims.Where(c => c.Issuer == issuer);
+        return _claims.Where(c => c.Issuer == issuer);
     }
+
+    private string? ResolveIssuer(string? issuer) => issuer ?? (IsPrimaryClaim ? Claim.Issuer : null);
 }
 
 public record ClaimValue(string Value, string Issuer, string? Name);

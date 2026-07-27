@@ -5,6 +5,14 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Numbers;
 public class IntBuilderMixedTests
 {
     [Fact]
+    public void IntBuilder_Should_Default_To_MinValue()
+    {
+        var intBuilder = NumberBuilder.GetInt();
+
+        intBuilder.GetValue().Should().Be(int.MinValue);
+    }
+
+    [Fact]
     public void IntBuilder_Should_Build_From_UInt_Residue()
     {
         uint expectedResidue = 31092;

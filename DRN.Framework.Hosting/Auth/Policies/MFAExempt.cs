@@ -1,3 +1,4 @@
+using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Authorization;
 
@@ -10,8 +11,7 @@ public class MfaExemptHandler : AuthorizationHandler<MfaExemptRequirement>
 {
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, MfaExemptRequirement requirement)
     {
-        var authenticated = context.User.Identities.Any(i => i.IsAuthenticated);
-        if (authenticated)
+        if (AuthenticationFor.IsAuthenticated(context.User))
             context.Succeed(requirement);
 
         return Task.CompletedTask;

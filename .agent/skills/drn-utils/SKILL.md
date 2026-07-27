@@ -1,9 +1,9 @@
 ---
 name: drn-utils
-description: "DRN.Framework.Utils - Attribute-based dependency injection, IAppSettings configuration, app data roots, logging, scoped cancellation, validators, extension methods, and core utilities. Keywords: dependency-injection, di, service-registration, configuration, appsettings, appdata, logging, scoped-log, cancellation, cancellation-scope, validators, attributes, scoped, singleton, transient, config, extensions, http-client"
-last-updated: 2026-07-15
+description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, entity-date-filter, tick-boundary, validators, extensions, http-client"
+last-updated: 2026-07-19
 difficulty: intermediate
-tokens: ~2.5K
+tokens: ~2.7K
 ---
 
 # DRN.Framework.Utils
@@ -14,7 +14,7 @@ tokens: ~2.5K
 - Setting up dependency injection with attributes
 - Accessing configuration via IAppSettings
 - Using or extending logging (IScopedLog)
-- Coordinating explicit root or named scoped cancellation
+- Coordinating explicit root or keyed scoped cancellation with optional type ownership
 - Working with DRN extension methods
 - Understanding service registration patterns
 
@@ -181,7 +181,7 @@ Wrappers around [Flurl](https://flurl.dev/) with standardized JSON conventions.
 var response = await request.For("https://api.example.com", HttpVersion.Version11)
     .AppendPathSegment("v1/charges")
     .PostJsonAsync(new { Amount = 1000 })
-    .ToJsonAsync<ExternalApiResponse>();
+    .FromJsonAsync<ExternalApiResponse>();
 
 // Internal Service Mesh (Kubernetes/Linkerd)
 public interface INexusRequest { IFlurlRequest For(string path); }
@@ -193,6 +193,15 @@ public class NexusRequest(IInternalRequest request, IAppSettings settings) : INe
         .AppendPathSegment(path);
 }
 ```
+
+Buffered converters capture `HttpStatus` and `Payload`, then dispose the response even if reading fails. Use `using` for streaming wrappers; disposal releases the response and any `IDisposable` payload.
+Converters are exposed as extension methods on `Task<IFlurlResponse>` and `IFlurlResponse`; `HttpResponse` only models the converted result and its ownership.
+
+`HttpResponse.StatusClass` distinguishes `1xx`, `2xx`, `3xx`, `4xx`, and `5xx` responses, and `IsSuccessStatusCode` is true only for `2xx`. Flurl normally follows redirects, so `3xx` is observed only when a redirect remains final. Use `AllowAnyHttpStatus()` with the throwing converters to inspect non-success responses directly.
+
+The `TryToStringAsync`, `TryToBytesAsync`, `TryToStreamAsync`, and `TryFromJsonAsync<T>` converters return `HttpCallResult<T>` for inspectable failures. HTTP status and processing failure are separate: readable `4xx`/`5xx` responses retain their status and payload without a `Failure`; transport, timeout, response-read, and deserialization errors populate `Failure`. A successful HTTP status with malformed JSON preserves the status but has `IsSuccess == false`. Try converters propagate cancellation. Dispose streaming try results, and treat `HttpFailure.Message` and `HttpFailure.Exception` as local diagnostic data that may contain request details and requires redaction before logging or exposure; both are ignored by System.Text.Json serialization.
+
+Use `HttpCallResult<T>.ThrowIfFailure()` to rethrow a captured processing failure with its original stack after inspection. It does not throw for a `3xx`, `4xx`, or `5xx` result whose response was read successfully; status enforcement remains an explicit caller decision through `StatusClass` or `IsSuccessStatusCode`.
 
 ---
 
@@ -228,11 +237,26 @@ var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 > [!NOTE]
 > ID generation is automatically handled by `DrnContext` when SourceKnownEntities are saved.
 
+### Entity Creation-Date Filters
+
+`IEntityDateTimeUtils` filters `SourceKnownEntity.Id` by its 250ms Source-Known ID creation tick. Each date boundary maps to the minimum ID for that tick (payload bits cleared) and the maximum ID (all 31 app, instance, and sequence payload bits set).
+
+| Filter | Inclusive boundary | Exclusive boundary |
+|---|---|---|
+| `CreatedAfter` | `Id >= tick.Min` | `Id > tick.Max` |
+| `CreatedBefore` | `Id <= tick.Max` | `Id < tick.Min` |
+| `CreatedBetween` | `Id >= begin.Min && Id <= end.Max` | `Id > begin.Max && Id < end.Min` |
+| `CreatedOutside` | `Id <= begin.Max \|\| Id >= end.Min` | `Id < begin.Min \|\| Id > end.Max` |
+
+`CreatedBetween` and `CreatedOutside` normalize reversed endpoints before applying thresholds. Equal endpoints therefore select the whole tick for inclusive `Between`, no rows for exclusive `Between`, all rows for inclusive `Outside`, and everything except the tick for exclusive `Outside`.
+
+Keep the payload-mask calculation outside the query expression so providers receive scalar `long` comparisons. Unit regressions must cover inclusive/exclusive payload edges, equal and distinct endpoints, reversed inputs, and the negative-to-positive epoch-half transition. Use database-backed verification only when SQL translation or query-plan behavior is the subject.
+
 ---
 
 ## Scoped Cancellation
 
-`ICancellationUtils` owns a root and typed child scopes for the current DI service scope.
+`ICancellationUtils` owns a root and keyed child scopes for the current DI service scope.
 
 | Intent | Use | Propagation |
 |---|---|---|
@@ -242,14 +266,17 @@ var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 
 ```csharp
 private static readonly CancellationScopeKey ScopeKey =
-    CancellationScopeKey.For<PaymentWorkflow>("capture");
+    CancellationScopeKey.For<PaymentWorkflow>();
 
 var scope = cancellation.GetOrCreateScope(ScopeKey);
 scope.Merge(workflowLifetimeToken);
 ```
 
 - The same key returns the same scope and token; canceled scopes cannot be reset.
-- Optional names use ordinal, case-sensitive equality and must be developer-defined constants of at most 128 characters. Never use request data, user input, instance IDs, or operation IDs.
+- Every key requires a non-null name and may have an owning type. Prefer `For<T>()` or `For(Type)` for an empty-name group owned by one type. Use `For<T>(name)` or `For(Type, name)` when that type owns multiple intentional groups, and `For(name)` only when different types intentionally share one ownerless group.
+- Names use ordinal, case-sensitive equality and must be developer-defined constants of at most 128 characters. Empty and whitespace names are permitted. Never use request data, user input, instance IDs, or operation IDs to create groups.
+- Ownerless keys share one ordinal-name namespace within the current `ICancellationUtils` service scope. Although empty and whitespace names are valid, prefer qualified, centrally defined names because unrelated callers using the same ownerless name receive the same scope and can cancel each other's work.
+- Keys are opaque and factory-created; the default value is invalid.
 - `ICancellationUtils` owns child scopes. Callers own and dispose local linked sources used for operation-only cancellation.
 - Replace removed root members with their `cancellation.Root` equivalents.
 
@@ -292,7 +319,7 @@ if (scope.Acquired) { /* critical section */ }
 | **Validators** | `JpegValidator`, `JpegValidationResult`, `JpegValidationErrorReason` | Structural, stream-based, size-bounded JPEG validation with typed error reasons |
 | **App data** | `IAppData`, `AppDataPathResult`, `DrnAppDataSettings` | Validated temp/data roots with traversal-safe child path resolution |
 | **Pagination** | `IPaginationUtils` | Cursor-based via `SourceKnownEntityId` |
-| **Cancellation** | `ICancellationUtils`, `ICancellationScope`, `CancellationScopeKey` | Explicit root, stable typed named groups, and caller-owned local links |
+| **Cancellation** | `ICancellationUtils`, `ICancellationScope`, `CancellationScopeKey` | Explicit root, stable named groups with optional owners, and caller-owned local links |
 | **Diagnostics** | `DevelopmentStatus` | Track pending DB model changes at startup |
 
 ### Bit Packing (`NumberBuilder` / `NumberParser`)
@@ -317,10 +344,13 @@ ushort value = parser.ReadUShort();
 long seconds = TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
 DateTimeOffset now = TimeStampManager.UtcNow;
 
-// Lock-free async timer — prevents overlapping executions
+// Async-safe timer — prevents overlapping executions
 var worker = new RecurringAction(async () => await DoWork(), period: 1000, start: true);
 worker.Stop();
+worker.Start(); // Resume after stopping
 ```
+
+`Stop()` lets an active callback finish but prevents that callback from rescheduling the timer.
 
 `TimeProvider` singleton registered to `TimeProvider.System` by default for testable time.
 

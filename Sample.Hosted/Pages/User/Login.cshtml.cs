@@ -12,16 +12,17 @@ namespace Sample.Hosted.Pages.User;
 public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<SampleUser> userManager, IdentityConfig identityConfig) : PageModel
 {
     [BindProperty]
-    public LoginInput Input { get; set; } = null!;
-
-    public string? ReturnUrl { get; set; }
+    public LoginInput Input { get; set; } = new();
 
     public IActionResult OnGet(string? returnUrl = null)
     {
         if (ScopeContext.Authenticated)
             return RedirectToPage(Get.Page.Root.Home);
 
-        ReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : string.Empty;
+        Input = new LoginInput
+        {
+            ReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : string.Empty
+        };
         return Page();
     }
 

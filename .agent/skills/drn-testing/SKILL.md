@@ -1,9 +1,9 @@
 ---
 name: drn-testing
 description: "DRN.Framework.Testing - canonical DTT attribute/context matrix with DrnTestContext, DrnTestContextUnit, ContainerContext, ApplicationContext, DataInline/DataMember/DataSelf, MTP command guidance, AwesomeAssertions, AutoFixture, NSubstitute, Testcontainers, and xUnit v3. Keywords: testing, dtt, drntest-context, applicationcontext, testcontainers, mtp, xunit, data-attributes, unit-testing, integration-testing"
-last-updated: 2026-07-01
+last-updated: 2026-07-19
 difficulty: intermediate
-tokens: ~1.6K
+tokens: ~1.7K
 ---
 
 # DRN.Framework.Testing
@@ -40,6 +40,7 @@ Rules:
 - Interface/abstract parameters auto-mocked by NSubstitute can replace matching `ServiceCollection` registrations. Use those substitutes for dependencies, not for concrete convenience methods whose implementation is the behavior under test.
 - Assertions use `AwesomeAssertions`.
 - Unit self-data derives from `DataSelfUnitAttribute`.
+- For coarse-precision temporal ID filters, cover inclusive/exclusive payload edges, equal and distinct endpoints, reversed ranges, and ordering transitions. Keep deterministic ID comparisons in unit tests; use database integration only when provider translation or query-plan behavior is under test.
 
 ## Minimal Patterns
 

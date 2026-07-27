@@ -228,7 +228,7 @@ These hooks run while the `WebApplicationBuilder` is active, allowing you to con
 | **Infras.** | `ConfigureRequestLocalizationOptions` | Configure culture providers and supported cultures. |
 | **Infras.** | `ConfigureHostFilteringOptions` | Configure allowed hosts for host header validation. |
 | **Infras.** | `ConfigureResponseCachingOptions` | Configure server-side response caching with sensible defaults (16MB max body size, case-insensitive paths). |
-| **Infras.** | `ConfigureResponseCompressionOptions` | Configure response compression (Brotli/Gzip) for static assets. HTTPS compression disabled by default for BREACH prevention. |
+| **Infras.** | `ConfigureResponseCompressionOptions` | Configure response compression (Brotli/Gzip) for whitelisted MIME types (CSS, JS, SVG, TTF, OTF) with HTTPS compression enabled. |
 | **Infras.** | `ConfigureCompressionProviders` | Configure Brotli and Gzip compression provider options including compression levels. |
 | **Infras.** | `ConfigureBrotliCompressionLevel` | Customize Brotli compression level (default: SmallestSize for static assets). |
 | **Infras.** | `ConfigureGzipCompressionLevel` | Customize Gzip compression level (default: SmallestSize for static assets). |
@@ -614,7 +614,7 @@ The namespacing is internal. Your `EvaluatePreAuth` or `EvaluatePostAuth` method
 #### Claim-Based Partitions
 
 - Use app-specific `RateLimitFor` wrappers (e.g., `Sample.Hosted.Helpers.RateLimitFor`) with claim-access primitives from `Get.Claim.*`.
-- This reads claims from the cached scoped user model instead of repeatedly parsing `HttpContext.User`.
+- This reads claims from the request-scoped authenticated user model instead of repeatedly traversing `HttpContext.User`.
 
 > [!WARNING]
 > **Factory capture safety**: Partition option factories are cached by .NET per partition key. Do **not** capture `HttpContext` or scoped services inside the factory lambda — use only value-based parameters.

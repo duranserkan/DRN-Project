@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using DRN.Framework.SharedKernel.Cancellation;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 
 namespace DRN.Framework.SharedKernel.Domain.Repository;
@@ -19,12 +20,12 @@ public interface ISourceKnownRepository<TEntity>
     RepositorySettings<TEntity> Settings { get; set; }
 
     /// <summary>
-    /// Gets the stable token for this repository's named cancellation group.
+    /// Gets the cancellation token for this repository's active cancellation scope.
     /// </summary>
     /// <remarks>
-    /// The framework repository implementation creates one named scope per concrete repository type by default, so same-type instances share
-    /// cancellation within the parent dependency-injection scope. Cancellation remains isolated from the root cancel-all scope and unrelated
-    /// repository keys unless the root is canceled. Once cancellation is requested, the repository scope remains canceled for its lifetime.
+    /// By default, when <see cref="RepositorySettings{TEntity}.ScopeKey"/> is <see langword="null"/>, operations use the root cancellation scope.
+    /// When a specific <see cref="CancellationScopeKey"/> is configured in <see cref="Settings"/>, cancellation is isolated to repositories
+    /// sharing that key. Once cancellation is requested, the repository scope remains canceled for its lifetime.
     /// For one operation only, link the repository token locally:
     /// <code>
     /// using var operationSource = CancellationTokenSource.CreateLinkedTokenSource(
@@ -36,14 +37,15 @@ public interface ISourceKnownRepository<TEntity>
 
     /// <summary>Requests cancellation of this repository scope when <paramref name="token"/> is canceled.</summary>
     /// <remarks>
-    /// Cancellation propagates to repositories explicitly sharing the group, but not to the root cancel-all scope or unrelated repositories.
+    /// Cancellation propagates to the effective repository scope (or root scope when <see cref="RepositorySettings{TEntity}.ScopeKey"/> is <see langword="null"/>).
     /// Link operation-only tokens locally instead of merging them.
     /// </remarks>
     void CancelWhen(CancellationToken token);
 
     /// <summary>Cancels operations using this repository's cancellation scope.</summary>
     /// <remarks>
-    /// This affects other repositories only when they explicitly share the same key. It does not cancel the root or unrelated repositories.
+    /// Cancels the effective repository scope (or root scope when <see cref="RepositorySettings{TEntity}.ScopeKey"/> is <see langword="null"/>).
+    /// When a specific key is configured, only repositories sharing that key are canceled.
     /// </remarks>
     void CancelChanges();
 

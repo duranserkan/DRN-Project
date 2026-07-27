@@ -92,6 +92,7 @@ docs(skills): add security development checklist
 ```
 
 ### Rules
+- Do not amend and commit unless explicitly approved.
 - **Subject line ≤ 72 characters**
 - **Start with lowercase** after the colon
 - **No period** at the end of the subject

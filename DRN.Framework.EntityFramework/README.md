@@ -294,21 +294,21 @@ public class UserRepository(QAContext context, IEntityUtils utils)
 
 ### Repository Cancellation
 
-Repository operations use a child scope, not the cancellation root:
+Repository cancellation scope is configured via `Settings.ScopeKey`:
 
-- `CancellationToken` is read-only, and `CancelWhen(token)` links a lifetime token to the repository group.
-- `CancelChanges` cancels repositories sharing that group. By default, this means instances of the same concrete repository type in the current DI scope.
-- `cancellation.Root.Cancel()` cancels every repository group in the scope.
-- A canceled repository group cannot be reset.
-
-`RepositoryCancellationScopeKey` defaults to the concrete repository type. Override it only when a repository must join another shared group:
+- When `Settings.ScopeKey` is `null` (default), repository cancellation uses `Utils.Cancellation.Root`. `CancelChanges()` cancels `Root`, affecting all scope-wide operations.
+- When `Settings.ScopeKey` is set to a `CancellationScopeKey`, operations use that child scope:
+  - `CancellationToken` returns the child scope token.
+  - `CancelWhen(token)` links a lifetime token to the repository group.
+  - `CancelChanges()` cancels only repositories sharing that scope key.
 
 ```csharp
-protected override CancellationScopeKey RepositoryCancellationScopeKey =>
-    CancellationScopeKey.For<UserRepository>("shared-writes");
+repository.Settings.ScopeKey = CancellationScopeKey.For<UserRepository>("shared-writes");
 ```
 
-Optional key names are case-sensitive developer-defined constants limited to 128 characters. Never derive them from request data, user input, instance IDs, or operation IDs. For operation-only cancellation, link the operation token locally instead of adding it to the repository group. See [Scoped Cancellation](../DRN.Framework.Utils/README.md#scoped-cancellation) for key and lifetime rules.
+Names are optional, case-sensitive developer-defined constants limited to 128 characters. Use one only when a type owns multiple intentional groups.
+
+Never derive keys from request data, user input, instance IDs, or operation IDs. For operation-only cancellation, link the operation token locally instead of adding it to the repository group. See [Scoped Cancellation](../DRN.Framework.Utils/README.md#scoped-cancellation) for key and lifetime rules.
 
 ### RepositorySettings
 
@@ -319,6 +319,7 @@ public class RepositorySettings<TEntity>
 {
     public bool AsNoTracking { get; set; }           // Disable change tracking
     public bool IgnoreAutoIncludes { get; set; }     // Prevent auto-loading navigations
+    public CancellationScopeKey? ScopeKey { get; set; } // Configure child cancellation scope
     public IReadOnlyDictionary<string, Expression<Func<TEntity, bool>>> Filters { get; }
 }
 ```

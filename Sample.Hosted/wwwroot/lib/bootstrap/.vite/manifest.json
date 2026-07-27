@@ -1,6 +1,6 @@
 {
   "buildwww/lib/bootstrap/bootstrap.scss": {
-    "file": "bootstrap.CZ90w3cXqH1JQ64p.css",
+    "file": "bootstrap.CkYzSIUFX0e5RbEY.css",
     "name": "bootstrap",
     "names": [
       "bootstrap.css"
@@ -12,7 +12,7 @@
     ]
   },
   "buildwww/lib/bootstrap/bootstrapBundle.js": {
-    "file": "bootstrapBundle.S9WbzA1DxCb6ZVrT.js",
+    "file": "bootstrapBundle.BMnHeXeD8dafWDyd.js",
     "name": "bootstrapBundle",
     "src": "buildwww/lib/bootstrap/bootstrapBundle.js",
     "isEntry": true

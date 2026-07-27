@@ -1,5 +1,11 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.7
+
+### Breaking Changes
+
+*   **Repository Cancellation Scope Key Override Removed**: Removed protected virtual `RepositoryCancellationScopeKey` from `SourceKnownRepository`. Configure `Settings.ScopeKey` instead (defaults to `null` which uses `Utils.Cancellation.Root`).
+
 ## Version 0.9.6
 
 ### Breaking Changes

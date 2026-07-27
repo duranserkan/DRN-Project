@@ -19,7 +19,7 @@ public class ProfilePictureServiceTests
         await service.CreateProfilePictureAsync(user, stream, jpeg.Length);
 
         await repository.Received(1).UpdateProfilePictureAsync(
-            Arg.Is<ProfilePicture>(picture => picture.UserId == user.Id && picture.ImageData.SequenceEqual(jpeg)),
+            Arg.Is<ProfilePicture>(picture => picture!.UserId == user.Id && picture.ImageData.SequenceEqual(jpeg)),
             user);
     }
 
@@ -37,7 +37,7 @@ public class ProfilePictureServiceTests
         await service.CreateProfilePictureAsync(user, stream, jpegWithTrailingData.Length);
 
         await repository.Received(1).UpdateProfilePictureAsync(
-            Arg.Is<ProfilePicture>(picture => picture.UserId == user.Id && picture.ImageData.SequenceEqual(jpeg)),
+            Arg.Is<ProfilePicture>(picture => picture!.UserId == user.Id && picture.ImageData.SequenceEqual(jpeg)),
             user);
     }
 

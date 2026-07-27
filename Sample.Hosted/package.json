@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.1",
   "//": "Dependency versions are pinned exactly to prevent supply chain attacks and guarantee reproducible builds.",
+  "engines": {
+    "node": ">=24.18.0"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "npm run build:app && npm run build:appPostload && npm run build:htmx && npm run build:bootstrap && npm run build:react",
@@ -20,18 +23,18 @@
     "bootstrap-icons": "1.13.1",
     "htmx.org": "2.0.10",
     "aspnet-client-validation": "0.11.1",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
-    "tailwindcss": "4.3.2"
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "tailwindcss": "4.3.3"
   },
   "devDependencies": {
-    "globals": "17.7.0",
-    "sass": "1.101.0",
-    "typescript": "6.0.3",
-    "vite": "8.1.3",
-    "@tailwindcss/vite": "4.3.2",
+    "globals": "17.8.0",
+    "sass": "1.102.0",
+    "typescript": "7.0.2",
+    "vite": "8.1.5",
+    "@tailwindcss/vite": "4.3.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "6.0.3"
+    "@vitejs/plugin-react": "6.0.4"
   }
 }

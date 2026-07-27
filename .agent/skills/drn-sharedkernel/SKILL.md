@@ -177,8 +177,8 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 **Key Behaviors**:
 - `Get(OrDefault)Async` with `Guid` auto-validates ID format and EntityType byte before querying
 - `PaginateAllAsync` returns `IAsyncEnumerable` for efficient large dataset streaming
-- `CancellationToken` exposes the repository-group token, `CancelWhen(token)` links a lifetime token, and `CancelChanges` cancels that group.
-- Group selection is implementation-defined. The default EntityFramework implementation groups repositories by concrete type; see [drn-entityframework](../drn-entityframework/SKILL.md#repository-cancellation).
+- `CancellationToken` exposes the repository scope token (uses Root when `Settings.ScopeKey` is null, or named scope when set), `CancelWhen(token)` links a lifetime token, and `CancelChanges` cancels the effective scope.
+- Group selection is implementation-defined. The default EntityFramework implementation uses Root when `ScopeKey` is null; see [drn-entityframework](../drn-entityframework/SKILL.md#repository-cancellation).
 - See [drn-utils](../drn-utils/SKILL.md#scoped-cancellation) for root-wide and operation-only cancellation.
 
 ### Pagination

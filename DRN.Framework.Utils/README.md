@@ -20,7 +20,7 @@
 - **Configuration** — `IAppSettings` with typed access, `[Config("Section")]` bindings
 - **App data roots** — `IAppData` resolves temp/data paths with traversal-safe child paths
 - **Scoped Logging** — `IScopedLog` aggregates structured logs per request
-- **Scoped Cancellation** — Explicit root cancel-all plus stable typed named groups
+- **Scoped Cancellation** — Explicit root cancel-all plus stable keyed groups with optional type ownership
 - **Validators** — Reusable payload validators such as `JpegValidator`
 - **Monotonic Pagination** — Cursor-based pagination leveraging entity ID temporal ordering
 - **Bit Packing** — High-performance `NumberBuilder` for custom data structures
@@ -208,7 +208,7 @@ public async Task Validate_Dependencies(DrnTestContext context)
 
 ### Scoped Cancellation
 
-`ICancellationUtils` owns a root and typed child scopes within the current DI service scope.
+`ICancellationUtils` owns a root and keyed child scopes within the current DI service scope.
 
 | Intent | API | Effect |
 |---|---|---|
@@ -220,7 +220,7 @@ public async Task Validate_Dependencies(DrnTestContext context)
 public sealed class CheckoutWorkflow(ICancellationUtils cancellation)
 {
     private static readonly CancellationScopeKey ScopeKey =
-        CancellationScopeKey.For<CheckoutWorkflow>("payment");
+        CancellationScopeKey.For<CheckoutWorkflow>();
 
     public async Task RunAsync(
         CancellationToken workflowLifetimeToken,
@@ -242,7 +242,13 @@ public sealed class CheckoutWorkflow(ICancellationUtils cancellation)
 
 The same key returns the same scope and token. Root cancellation reaches every child, while child cancellation does not affect the root or other groups. Canceled scopes cannot be reset.
 
-Create keys with `CancellationScopeKey.For<T>()` or `For<T>(name)`; use `For(Type)` only when the owner type is known at runtime. Optional names use ordinal, case-sensitive equality and must be nonblank developer-defined constants of at most 128 characters. Do not derive keys from request data, user input, instance IDs, or operation IDs because each scope remains registered until its parent is disposed. `ICancellationUtils` owns returned scopes; callers own and dispose local linked sources.
+Keys can be type-owned or ownerless. Prefer `CancellationScopeKey.For<T>()` for a compile-time type or `For(Type)` for a runtime type. Add a name with `For<T>(name)` or `For(Type, name)` when one type owns multiple intentional groups. Use `CancellationScopeKey.For(name)` only when different types intentionally share one group.
+
+Names use ordinal, case-sensitive equality and must be non-null developer-defined constants of at most 128 characters (empty string and whitespace are permitted). Keys are opaque and factory-created; the default value is invalid.
+
+Ownerless keys share one ordinal-name namespace within the current `ICancellationUtils` service scope. Although empty and whitespace names are valid, prefer qualified, centrally defined names such as `"MyPackage.CheckoutShutdown"`, because unrelated callers using the same ownerless name receive the same scope and can cancel each other's work.
+
+Do not derive keys from request data, user input, instance IDs, or operation IDs because these values represent individual work rather than shared component or workflow lifetimes. `ICancellationUtils` owns returned scopes; callers own and dispose local linked sources.
 
 For root-wide migration, replace `cancellation.Cancel()`, `Merge(token)`, `Token`, and `IsCancellationRequested` with their `cancellation.Root` equivalents.
 
@@ -495,7 +501,7 @@ public class PaymentService(IExternalRequest request)
         var response = await request.For("https://api.example.com", HttpVersion.Version11)
             .AppendPathSegment("v1/charges")
             .PostJsonAsync(new { Amount = 1000 })
-            .ToJsonAsync<ExternalApiResponse>();
+            .FromJsonAsync<ExternalApiResponse>();
     }
 }
 ```
@@ -527,6 +533,44 @@ public class NexusClient(INexusRequest request) : INexusClient
 }
 ```
 
+Buffered response converters (`ToStringAsync`, `ToBytesAsync`, and `FromJsonAsync`) capture `HttpStatus` and `Payload`, then dispose the response even if reading or deserialization fails.
+Call converters as extension methods on `Task<IFlurlResponse>` or `IFlurlResponse`; `HttpResponse` models the converted result and no longer exposes static conversion entry points.
+
+`HttpResponse.StatusClass` classifies the status as `Informational`, `Success`, `Redirection`, `ClientError`, `ServerError`, or `Unknown`; `IsSuccessStatusCode` is true only for `2xx`. Flurl normally follows redirects, so a `3xx` snapshot represents a redirect that remained final. Use `AllowAnyHttpStatus()` when the throwing converters should return non-success responses for direct inspection.
+
+Use the `TryToStringAsync`, `TryToBytesAsync`, or `TryFromJsonAsync<T>` counterparts when transport, timeout, response-read, or deserialization failures must be inspected without catching exceptions:
+
+```csharp
+var result = await request.For("status").GetAsync().TryFromJsonAsync<StatusResponse>();
+if (result.StatusClass == HttpStatusClass.ClientError)
+{
+    // Handle 4xx. HttpStatus and a successfully converted Payload remain available.
+}
+else if (result.StatusClass == HttpStatusClass.ServerError)
+{
+    // Handle 5xx according to the caller's retry policy.
+}
+else if (result.Failure is { } failure)
+{
+    // Handles transport, timeout, response-read, or deserialization failures.
+    logger.LogWarning("HTTP conversion failed: {Kind}", failure.Kind);
+}
+```
+
+HTTP error statuses and processing failures are independent. For example, a `422` with readable JSON has `StatusClass.ClientError` and no `Failure`, while malformed JSON returned with `200` has `StatusClass.Success`, `IsSuccess == false`, and `Failure.Kind == Deserialization`. Try converters propagate cancellation. `HttpFailure.Message` and `HttpFailure.Exception` are available for local diagnostics, may contain request details, and must be redacted before logging or exposure; both are ignored by System.Text.Json serialization.
+
+Call `result.ThrowIfFailure()` after inspection to rethrow a captured transport, timeout, response-read, or deserialization exception with its original stack preserved. The method does not throw for a `3xx`, `4xx`, or `5xx` response without a processing failure; inspect `StatusClass` or `IsSuccessStatusCode` when status enforcement is required.
+
+Use `using` for streaming responses so the payload and response are released together:
+
+```csharp
+using var response = await request.For("export").GetAsync().ToStreamAsync();
+await response.Payload!.CopyToAsync(destination);
+```
+
+`HttpResponse<T>.Dispose()` is idempotent and disposes any `IDisposable` payload.
+`TryToStreamAsync()` transfers the same ownership to `HttpCallResult<T>`; dispose that result after consuming its stream payload.
+
 ## Scope & Ambient Context (ScopeContext)
 
 `ScopeContext` provides ambient access to request-scoped data. This simplifies cross-cutting concerns like auditing, multi-tenancy, and security by avoiding deep parameter passing especially in Razor Pages(.cshtml) files.
@@ -536,6 +580,10 @@ public class NexusClient(INexusRequest request) : INexusClient
 *   **RBAC Helpers**: Built-in support for role and claim checks.
 *   **Test Initialization**: `ScopeContext.InitializeForTest(...)` resets the async-local scope before seeding test services, user, log, and trace data.
 
+`IScopedUser` owns authenticated identity and claim state. Use `GetClaimParameter<TValue>` for typed claims; the default `ScopedUser` implementation resolves and parses the authenticated claim snapshot on each lookup without a separate parsed-value cache. `ScopeContext.GetClaimParameter<TValue>` is an ambient façade over the same contract.
+
+`ScopeData` is separate caller-owned ambient storage. It does not store roles or parsed claims. Use `SetFlag` and typed `SetParameter` values for application data. Future header, query, form, cookie, path, item, and TempData adapters must define trust and precedence explicitly before those request boundaries are managed or unified.
+
 ```csharp
 var currentUserId = ScopeContext.UserId;
 var traceId = ScopeContext.TraceId;
@@ -543,6 +591,10 @@ var settings = ScopeContext.Settings; // Static IAppSettings access
 var logger = ScopeContext.Log; // Static IScopedLog access
 
 if (ScopeContext.IsUserInRole("Admin")) { ... }
+
+var tenantId = ScopeContext.GetClaimParameter<Guid>("tenant-id");
+ScopeContext.Data.SetFlag("show-preview", true);
+ScopeContext.Data.SetParameter("page-size", 50);
 ```
 
 ## Data Utilities
@@ -577,7 +629,9 @@ High-performance hashing extensions supporting modern and legacy algorithms.
 
 ### JSON & Document Utilities
 
-*   **JSON Merge Patch**: `JsonMergePatch.SafeApplyMergePatch` follows RFC 7386 for partial updates with built-in recursion depth protection.
+*   **Safe JSON Merge Patch**: `JsonMergePatch.SafeApplyMergePatch(target, patch)` implements RFC 7396 processing semantics without mutating either input. Semantic no-ops reuse the target; changed object targets are cloned once and merged without repeated subtree cloning. `MergeResult` is a readonly record struct, `Json` is nullable for a root-level JSON `null` result, and `Changed` reports only actual document changes.
+*   **In-Place JSON Merge Patch**: `JsonMergePatch.ApplyMergePatchInPlace(ref target, patch)` and `ApplyMergePatchInPlace(targetObject, patchObject)` perform full RFC 7396 merge patch operations directly in-place, preserving existing nested object references and updating the `ref target` reference if the root type changes.
+*   **Resource Safety**: All merge methods validate the complete patch depth before applying changes. The repository unit suite includes every RFC 7396 Appendix A example.
 *   **Query String Serialization**: `QueryParameterSerializer` flattens complex nested objects/arrays into clean query strings for API clients.
 
 ### Serialization & Streams
@@ -589,6 +643,27 @@ High-performance hashing extensions supporting modern and legacy algorithms.
 
 Extensions for programmatic validation using `System.ComponentModel.DataAnnotations`.
 *   **Contextual**: Integrates with `DRN.Framework.SharedKernel.ValidationException` for standardized error reporting across layers.
+
+### Entity Creation-Date Filters (`IEntityDateTimeUtils`)
+
+`IEntityDateTimeUtils` filters `SourceKnownEntity.Id` by its 250ms Source-Known ID creation tick without requiring database timestamp columns. Each date boundary maps to minimum and maximum scalar `long` ID bounds for efficient query evaluation.
+
+```csharp
+public class OrderService(IEntityDateTimeUtils dateTimeUtils)
+{
+    public IQueryable<Order> GetOrdersInDateRange(IQueryable<Order> query, DateTimeOffset start, DateTimeOffset end)
+    {
+        return dateTimeUtils.CreatedBetween(query, start, end, inclusive: true);
+    }
+}
+```
+
+| Filter | Inclusive boundary | Exclusive boundary |
+|---|---|---|
+| `CreatedAfter` | `Id >= tick.Min` | `Id > tick.Max` |
+| `CreatedBefore` | `Id <= tick.Max` | `Id < tick.Min` |
+| `CreatedBetween` | `Id >= begin.Min && Id <= end.Max` | `Id > begin.Max && Id < end.Min` |
+| `CreatedOutside` | `Id <= begin.Max \|\| Id >= end.Min` | `Id < begin.Min \|\| Id > end.Max` |
 
 ## Pagination
 
@@ -695,7 +770,7 @@ DateTimeOffset now = TimeStampManager.UtcNow; // Cached UTC time truncated to 25
 
 ### Async-Safe Timer (`RecurringAction`)
 
-A lock-free, atomic timer implementation that prevents overlapping executions if one cycle takes longer than the period.
+An atomic timer implementation that prevents overlapping executions if one cycle takes longer than the period.
 
 ```csharp
 var worker = new RecurringAction(async () => {
@@ -703,7 +778,10 @@ var worker = new RecurringAction(async () => {
 }, period: 1000, start: true);
 
 worker.Stop();
+worker.Start(); // Resume after stopping
 ```
+
+`Stop()` prevents an active callback from rescheduling the timer after it completes. The callback itself is allowed to finish.
 
 ### ID Generation & Validation
 

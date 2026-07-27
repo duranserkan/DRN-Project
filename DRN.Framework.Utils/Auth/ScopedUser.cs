@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Extensions;
 
 namespace DRN.Framework.Utils.Auth;
 
@@ -10,8 +11,7 @@ public class ScopedUser : IScopedUser
 {
     private static readonly StringComparer ClaimTypeComparer = StringComparer.OrdinalIgnoreCase;
 
-    private static readonly IReadOnlyDictionary<string, ClaimGroup> DefaultClaimsByType =
-        new Dictionary<string, ClaimGroup>(0).ToFrozenDictionary(ClaimTypeComparer);
+    private static readonly IReadOnlyDictionary<string, ClaimGroup> DefaultClaimsByType = new Dictionary<string, ClaimGroup>(0).ToFrozenDictionary(ClaimTypeComparer);
 
     public static ScopedUser FromClaimsPrincipal(ClaimsPrincipal principal)
     {
@@ -21,20 +21,31 @@ public class ScopedUser : IScopedUser
         return scopedUser;
     }
 
-    [JsonIgnore] public ClaimsPrincipal? Principal { get; private set; }
-    [JsonIgnore] public ClaimsIdentity? PrimaryIdentity { get; private set; }
-    [JsonIgnore] public string ExemptionScheme { get; internal set; } = string.Empty;
+    [JsonIgnore]
+    public ClaimsPrincipal? Principal { get; private set; }
+
+    [JsonIgnore]
+    public ClaimsIdentity? PrimaryIdentity { get; private set; }
+
+    [JsonIgnore]
+    public string ExemptionScheme { get; internal set; } = string.Empty;
 
     public bool Authenticated { get; private set; }
 
     public string? Id => IdClaim?.GetValue();
-    [JsonIgnore] public ClaimGroup? IdClaim { get; private set; }
+
+    [JsonIgnore]
+    public ClaimGroup? IdClaim { get; private set; }
 
     public string? Name => NameClaim?.GetValue();
-    [JsonIgnore] public ClaimGroup? NameClaim { get; private set; }
+
+    [JsonIgnore]
+    public ClaimGroup? NameClaim { get; private set; }
 
     public string? Email => EmailClaim?.GetValue();
-    [JsonIgnore] public ClaimGroup? EmailClaim { get; private set; }
+
+    [JsonIgnore]
+    public ClaimGroup? EmailClaim { get; private set; }
 
     //https://datatracker.ietf.org/doc/html/rfc8176#section-2
     //https://github.com/dotnet/aspnetcore/blob/b2c348b222ffd4f5f5a49ff90f5cd237d51e5231/src/Identity/Core/src/SignInManager.cs#L501
@@ -62,16 +73,32 @@ public class ScopedUser : IScopedUser
     public IReadOnlyList<string> GetClaimValues(string claim, string? issuer = null)
         => FindClaimGroup(claim)?.GetValues(issuer) ?? Array.Empty<string>();
 
+    public TValue? GetClaimParameter<TValue>(string claim, string? issuer = null, TValue? defaultValue = default) where TValue : IParsable<TValue>
+    {
+        var claimValue = FindClaimGroup(claim)?.GetValue(issuer);
+        if (claimValue is null)
+            return defaultValue;
+
+        return claimValue.TryParse<TValue>(out var result) ? result : defaultValue;
+    }
+
     internal void SetUser(ClaimsPrincipal user)
     {
         Principal = user;
-        Authenticated = Principal.Identities.All(i => i.IsAuthenticated);
+        ResetDerivedState();
+
+        Authenticated = AuthenticationFor.IsAuthenticated(user);
         if (!Authenticated) return;
 
-        PrimaryIdentity = Principal.Identity as ClaimsIdentity;
+        var authenticatedIdentities = user.Identities
+            .Where(AuthenticationFor.IsAuthenticated)
+            .ToArray();
+        PrimaryIdentity = user.Identity as ClaimsIdentity;
+        if (!AuthenticationFor.IsAuthenticated(PrimaryIdentity))
+            PrimaryIdentity = authenticatedIdentities[0];
 
         var claimsDictionary = new Dictionary<string, HashSet<Claim>>(ClaimTypeComparer);
-        foreach (var claim in user.Claims)
+        foreach (var claim in authenticatedIdentities.SelectMany(identity => identity.Claims))
             if (claimsDictionary.TryGetValue(claim.Type, out var claimsByType))
                 claimsByType.Add(claim);
             else
@@ -87,6 +114,20 @@ public class ScopedUser : IScopedUser
         AmrClaim = FindClaimGroup(ClaimConventions.AuthenticationMethodReference);
         AuthenticationMethodClaim = FindClaimGroup(ClaimConventions.AuthenticationMethod);
         RoleClaim = FindClaimGroup(ClaimTypes.Role);
+    }
+
+    private void ResetDerivedState()
+    {
+        Authenticated = false;
+        PrimaryIdentity = null;
+        ExemptionScheme = string.Empty;
+        ClaimsByType = DefaultClaimsByType;
+        IdClaim = null;
+        NameClaim = null;
+        EmailClaim = null;
+        AmrClaim = null;
+        AuthenticationMethodClaim = null;
+        RoleClaim = null;
     }
 
     internal void SetExemptionScheme(string exemptionScheme) => ExemptionScheme = exemptionScheme;

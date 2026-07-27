@@ -18,7 +18,7 @@ jobs:
       security-events: write
       id-token: write
       attestations: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     env:
       # Docker image validation intentionally accepts lowercase registry hosts and namespace paths only.

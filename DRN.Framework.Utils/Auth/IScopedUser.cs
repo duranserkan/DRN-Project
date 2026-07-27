@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json.Serialization;
+using DRN.Framework.Utils.Extensions;
 
 namespace DRN.Framework.Utils.Auth;
 
@@ -40,4 +41,13 @@ public interface IScopedUser
     bool ValueExists(string type, string value, string? issuer = null);
     string GetClaimValue(string claim, string? issuer = null, string defaultValue = "");
     IReadOnlyList<string> GetClaimValues(string claim, string? issuer = null);
+
+    TValue? GetClaimParameter<TValue>(string claim, string? issuer = null, TValue? defaultValue = default) where TValue : IParsable<TValue>
+    {
+        var claimValue = FindClaimGroup(claim)?.GetValue(issuer);
+        if (claimValue is null)
+            return defaultValue;
+
+        return claimValue.TryParse<TValue>(out var result) ? result : defaultValue;
+    }
 }

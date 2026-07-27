@@ -19,5 +19,5 @@ public class NexusClient(INexusRequest request) : INexusClient
         await request.For("status").GetAsync().ToStringAsync();
 
     public async Task<HttpResponse<WeatherForecast[]>> GetWeatherForecastAsync() =>
-        await request.For("WeatherForecast").GetAsync().ToJsonAsync<WeatherForecast[]>();
+        await request.For("WeatherForecast").GetAsync().FromJsonAsync<WeatherForecast[]>();
 }

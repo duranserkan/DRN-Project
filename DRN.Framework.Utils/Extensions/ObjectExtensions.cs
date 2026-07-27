@@ -16,6 +16,9 @@ public static class ObjectExtensions
     /// <returns>A dictionary where each key is an object instance, and each value is a set of PropertyInfo objects for properties that are subtypes of baseType.</returns>
     public static Dictionary<object, ISet<PropertyInfo>> GetGroupedPropertiesOfSubtype(this object instance, Type baseType, int maxRecursionLevel = 5)
     {
+        if (maxRecursionLevel <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxRecursionLevel), "Max recursion level must be positive.");
+
         var groupedProperties = new Dictionary<object, ISet<PropertyInfo>>();
         baseType.FindPropertiesOfSubtype(instance, groupedProperties, [], 0, maxRecursionLevel);
 
@@ -49,7 +52,7 @@ public static class ObjectExtensions
                 && !property.PropertyType.IsAssignableTo(EnumerableType)
                 && !property.PropertyType.IsEnum)
             {
-                baseType.FindPropertiesOfSubtype(propertyValue, result, visitedInstances, recursionLevel++, maxRecursionLevel);
+                baseType.FindPropertiesOfSubtype(propertyValue, result, visitedInstances, recursionLevel + 1, maxRecursionLevel);
             }
         }
 

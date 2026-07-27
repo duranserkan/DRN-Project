@@ -4,89 +4,201 @@ namespace DRN.Framework.Utils.Data.Json;
 
 public static class JsonMergePatch
 {
-    public record MergeResult(JsonNode Json, bool Changed);
+    public readonly record struct MergeResult(JsonNode? Json, bool Changed);
 
     /// <summary>
-    /// Applies a JSON Merge Patch with optional original node modification
+    /// Applies an RFC 7396 JSON Merge Patch without mutating the target or patch.
     /// </summary>
-    /// <param name="target">Original JSON node</param>
-    /// <param name="patch">Merge patch node</param>
-    /// <param name="maxDepth">Maximum recursion depth (default: 64)</param>
-    /// <param name="changeOriginal">When true, modifies and returns original node instead of cloning</param>
-    /// <returns>Merged JsonNode (original or new instance)</returns>
-    public static MergeResult SafeApplyMergePatch(JsonNode target, JsonNode patch, bool changeOriginal, int maxDepth = 64) =>
-        maxDepth <= 0
-            ? throw new ArgumentException("Max depth must be positive", nameof(maxDepth))
-            : ApplyMergePatchImpl(target, patch, maxDepth, changeOriginal, currentDepth: 0);
-
-    private static MergeResult ApplyMergePatchImpl(JsonNode target, JsonNode patch, int maxDepth, bool changeOriginal, int currentDepth)
+    /// <param name="target">Original JSON node; <see langword="null"/> represents a JSON null or undefined target.</param>
+    /// <param name="patch">Merge patch node; <see langword="null"/> represents a root-level JSON null.</param>
+    /// <param name="maxDepth">Maximum object or array nesting depth allowed in the patch (default: 64).</param>
+    /// <returns>
+    /// The merged JSON and whether its value differs from <paramref name="target"/>. An unchanged result reuses
+    /// <paramref name="target"/>; a changed non-null result is detached from both inputs.
+    /// </returns>
+    public static MergeResult SafeApplyMergePatch(JsonNode? target, JsonNode? patch, int maxDepth = 64)
     {
-        ValidateDepth(currentDepth, maxDepth);
+        ValidateMaxDepth(maxDepth);
+        ValidatePatchDepth(patch, maxDepth);
 
-        // Handle non-object patches (RFC 7386 §2: replace entire target)
+        if (!WouldChange(target, patch))
+            return new MergeResult(target, false);
+
         if (patch is not JsonObject patchObject)
-            return new MergeResult(patch.DeepClone(), true);
+            return new MergeResult(patch?.DeepClone(), true);
 
-        // Handle non-object targets (replace with patch object)
-        if (target is not JsonObject targetObject)
-            return new MergeResult(patch.DeepClone(), true);
+        var mergedObject = target is JsonObject targetObject
+            ? targetObject.DeepClone().AsObject()
+            : new JsonObject(patchObject.Options);
 
-        currentDepth++;
-        ValidateDepth(currentDepth, maxDepth);
-
-        var mergedObject = changeOriginal // Use original or create clone based on flag
-            ? targetObject
-            : targetObject.DeepClone().AsObject();
-
-        var changed = MergeObjectsImpl(mergedObject, patchObject, maxDepth, currentDepth);
-
-        return new MergeResult(mergedObject, changed);
+        ApplyObjectMergePatchInPlaceCore(mergedObject, patchObject);
+        return new MergeResult(mergedObject, true);
     }
 
-    private static bool MergeObjectsImpl(JsonObject target, JsonObject patch, int maxDepth, int currentDepth)
+    /// <summary>
+    /// Applies an RFC 7396 JSON Merge Patch directly to <paramref name="target"/> in-place.
+    /// </summary>
+    /// <param name="target">Target JSON node to mutate in-place. May be updated to point to a new root node if root type changes.</param>
+    /// <param name="patch">Merge patch node. It is never mutated.</param>
+    /// <param name="maxDepth">Maximum object or array nesting depth allowed in the patch (default: 64).</param>
+    /// <returns><see langword="true"/> when the target document changed; otherwise <see langword="false"/>.</returns>
+    public static bool ApplyMergePatchInPlace(ref JsonNode? target, JsonNode? patch, int maxDepth = 64)
+    {
+        ValidateMaxDepth(maxDepth);
+        ValidatePatchDepth(patch, maxDepth);
+
+        if (!WouldChange(target, patch))
+            return false;
+
+        if (patch is not JsonObject patchObject)
+        {
+            target = patch?.DeepClone();
+            return true;
+        }
+
+        if (target is not JsonObject targetObject)
+        {
+            var newTarget = new JsonObject(patchObject.Options);
+            ApplyObjectMergePatchInPlaceCore(newTarget, patchObject);
+            target = newTarget;
+            return true;
+        }
+
+        var sharesTreeWithTarget = ReferenceEquals(targetObject.Root, patchObject.Root);
+        var detachedPatch = sharesTreeWithTarget ? patchObject.DeepClone().AsObject() : patchObject;
+
+        return ApplyObjectMergePatchInPlaceCore(targetObject, detachedPatch);
+    }
+
+    /// <summary>
+    /// Applies the object-to-object branch of RFC 7396 directly to an existing target object.
+    /// </summary>
+    /// <param name="target">Target object to mutate, including existing nested objects.</param>
+    /// <param name="patch">Object patch. It is never mutated.</param>
+    /// <param name="maxDepth">Maximum object or array nesting depth allowed in the patch (default: 64).</param>
+    /// <returns><see langword="true"/> when the target document changed; otherwise <see langword="false"/>.</returns>
+    public static bool ApplyMergePatchInPlace(JsonObject target, JsonObject patch, int maxDepth = 64)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(patch);
+        ValidateMaxDepth(maxDepth);
+        ValidatePatchDepth(patch, maxDepth);
+
+        var sharesTreeWithTarget = ReferenceEquals(target.Root, patch.Root);
+        if (sharesTreeWithTarget && !WouldChange(target, patch))
+            return false;
+
+        var detachedPatch = sharesTreeWithTarget ? patch.DeepClone().AsObject() : patch;
+
+        return ApplyObjectMergePatchInPlaceCore(target, detachedPatch);
+    }
+
+
+    private static bool WouldChange(JsonNode? target, JsonNode? patch)
+    {
+        if (patch is not JsonObject patchObject)
+            return !JsonNode.DeepEquals(target, patch);
+
+        if (target is not JsonObject targetObject)
+            return true;
+
+        foreach (var (key, patchValue) in patchObject)
+        {
+            if (patchValue is null)
+            {
+                if (targetObject.ContainsKey(key))
+                    return true;
+
+                continue;
+            }
+
+            targetObject.TryGetPropertyValue(key, out var targetValue);
+            if (WouldChange(targetValue, patchValue))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool ApplyObjectMergePatchInPlaceCore(JsonObject target, JsonObject patch)
     {
         var anyChanged = false;
         foreach (var (key, patchValue) in patch)
         {
             if (patchValue is null)
             {
-                target.Remove(key);
+                anyChanged |= target.Remove(key);
+                continue;
+            }
+
+            var propertyExists = target.TryGetPropertyValue(key, out var targetValue);
+            if (patchValue is JsonObject patchObject)
+            {
+                if (targetValue is JsonObject targetObject)
+                {
+                    anyChanged |= ApplyObjectMergePatchInPlaceCore(targetObject, patchObject);
+                    continue;
+                }
+
+                var mergedChild = new JsonObject(patchObject.Options);
+                ApplyObjectMergePatchInPlaceCore(mergedChild, patchObject);
+                target[key] = mergedChild;
                 anyChanged = true;
                 continue;
             }
 
-            var (newValue, changed) = HandlePropertyMerge(target, key, patchValue, maxDepth, currentDepth);
-            if (!changed) continue;
+            if (propertyExists && JsonNode.DeepEquals(targetValue, patchValue))
+                continue;
 
-            target[key] = newValue;
+            target[key] = patchValue.DeepClone();
             anyChanged = true;
         }
 
         return anyChanged;
     }
 
-    private static (JsonNode? Value, bool Changed) HandlePropertyMerge(
-        JsonObject target, string key, JsonNode patchValue, int maxDepth, int currentDepth)
+    private static void ValidateMaxDepth(int maxDepth)
     {
-        if (!target.TryGetPropertyValue(key, out var targetValue))
-            return (patchValue.DeepClone(), true); // New property - always changed
-
-        if (targetValue is not JsonObject targetObject || patchValue is not JsonObject patchObject)
-            return !JsonNode.DeepEquals(targetValue, patchValue) // Value replacement check
-                ? (patchValue.DeepClone(), true)
-                : (null, false);
-
-        ValidateDepth(currentDepth + 1, maxDepth);
-        var mergedChild = targetObject.DeepClone().AsObject();
-        var childChanged = MergeObjectsImpl(mergedChild, patchObject, maxDepth, currentDepth + 1);
-
-        return childChanged ? (mergedChild, true) : (null, false);
+        if (maxDepth <= 0)
+            throw new ArgumentException("Max depth must be positive", nameof(maxDepth));
     }
 
-    private static void ValidateDepth(int currentDepth, int maxDepth)
+    private static void ValidatePatchDepth(JsonNode? patch, int maxDepth)
+    {
+        if (patch is not JsonObject && patch is not JsonArray)
+            return;
+
+        var containers = new Stack<(JsonNode Node, int Depth)>();
+        containers.Push((patch!, 1));
+
+        while (containers.TryPop(out var container))
+        {
+            ValidateContainerDepth(container.Depth, maxDepth);
+
+            switch (container.Node)
+            {
+                case JsonObject jsonObject:
+                    foreach (var (_, child) in jsonObject)
+                        PushContainer(child, container.Depth + 1, containers);
+                    break;
+                case JsonArray jsonArray:
+                    foreach (var child in jsonArray)
+                        PushContainer(child, container.Depth + 1, containers);
+                    break;
+            }
+        }
+    }
+
+    private static void PushContainer(JsonNode? node, int depth, Stack<(JsonNode Node, int Depth)> containers)
+    {
+        if (node is JsonObject or JsonArray)
+            containers.Push((node, depth));
+    }
+
+    private static void ValidateContainerDepth(int currentDepth, int maxDepth)
     {
         if (currentDepth > maxDepth)
             throw new InvalidOperationException(
-                $"Maximum recursion depth {maxDepth} exceeded. Prevents stack overflow attacks and complex document abuse.");
+                $"Maximum patch depth {maxDepth} exceeded. Prevents stack overflow attacks and complex document abuse.");
     }
 }

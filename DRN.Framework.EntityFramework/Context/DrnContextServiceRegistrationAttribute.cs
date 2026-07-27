@@ -21,7 +21,7 @@ namespace DRN.Framework.EntityFramework.Context;
 /// <br/>
 /// when
 /// <br/>
-/// <see cref="DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes"/>
+/// <see cref="DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes(IServiceCollection)"/>
 /// <br/> is called from DbContext's assembly
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]

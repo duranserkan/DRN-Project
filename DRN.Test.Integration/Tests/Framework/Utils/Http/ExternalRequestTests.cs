@@ -20,4 +20,24 @@ public class ExternalRequestTests
         response.HttpStatus.Should().Be(201);
         response.Payload.Should().Be(responseText);
     }
+
+    [Theory]
+    [DataInline]
+    public async Task ExternalRequest_Should_Return_Client_Error_From_Try_Converter(DrnTestContext context)
+    {
+        var endpoint = "https://example.test/validation";
+        var responseText = "Validation failed.";
+        context.FlurlHttpTest.ForCallsTo(endpoint).RespondWith(responseText, 422);
+
+        var externalRequest = context.GetRequiredService<IExternalRequest>();
+        var result = await externalRequest.For(endpoint, HttpVersion.Version20).GetAsync().TryToStringAsync();
+
+        result.ResponseReceived.Should().BeTrue();
+        result.HttpStatus.Should().Be(422);
+        result.StatusClass.Should().Be(HttpStatusClass.ClientError);
+        result.IsSuccessStatusCode.Should().BeFalse();
+        result.IsSuccess.Should().BeFalse();
+        result.Payload.Should().Be(responseText);
+        result.Failure.Should().BeNull();
+    }
 }

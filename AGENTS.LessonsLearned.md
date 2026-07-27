@@ -35,3 +35,21 @@ This applies to scoped or long-lived cancellation aggregators that support incre
 ### Source To Update
 
 Keep the invariant in the owning cancellation utility, parent/child and reentrant-disposal concurrency tests, and consumer documentation that distinguishes root, named-group, and local-operation cancellation.
+
+## 3. High-Signal Package Release Notes
+
+### Case
+
+During framework package refactoring, release notes included low-value entries such as internal XML comment clarifications and duplicated descriptions of breaking API changes across both `Breaking Changes` and `Changed` sections.
+
+### General Rule
+
+Keep package release notes high-signal, concise, and non-redundant. Document consumer-visible behavior changes, breaking API changes, security fixes, new public features, configuration/default changes, operational behavior changes, data or migration changes, observable bug fixes, published artifacts, and relevant dependency, runtime, or container changes. Omit pure documentation/comment edits, non-functional refactorings, and redundant explanations that duplicate entries in other sections of the same release notes.
+
+### Decision Boundary
+
+Applies to all module and framework package `RELEASE-NOTES.md` files. Package READMEs, architecture docs, or skills should be updated when patterns change, but release notes must remain strictly focused on actionable, non-duplicative information for downstream package consumers.
+
+### Source To Update
+
+Keep the invariant in `AGENTS.md` (Release Notes discovery/rules), `basic-documentation` skill, and package release notes across the repository.
