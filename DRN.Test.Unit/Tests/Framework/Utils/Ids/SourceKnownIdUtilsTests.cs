@@ -105,22 +105,25 @@ public class SourceKnownIdUtilsTests
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
         var customEpoch = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
+        var before = DateTimeOffset.UtcNow;
         var id = generator.Next<object>(appId: 10, appInstanceId: 5, epoch: customEpoch);
+        var after = DateTimeOffset.UtcNow;
         var parsed = generator.Parse(id, epoch: customEpoch);
 
         parsed.Id.Should().Be(id);
         parsed.AppId.Should().Be(10);
         parsed.AppInstanceId.Should().Be(5);
-        parsed.CreatedAt.Year.Should().Be(2026);
+        AssertCreatedAtWithinGeneratedRange(parsed, before, after, customEpoch);
     }
 
     [Theory]
-    [DataInlineUnit((byte)128, (byte)1)]
-    [DataInlineUnit((byte)1, (byte)64)]
+    [DataInlineUnit((byte)128, (byte)1, "appId")]
+    [DataInlineUnit((byte)1, (byte)64, "appInstanceId")]
     public void Constructor_With_Invalid_AppId_Or_AppInstanceId_In_Settings_Should_Throw(
         DrnTestContextUnit context,
         byte appId,
-        byte appInstanceId)
+        byte appInstanceId,
+        string paramName)
     {
         var invalidSettings = new
         {
@@ -133,7 +136,8 @@ public class SourceKnownIdUtilsTests
 
         context.AddToConfiguration(invalidSettings);
         var act = () => context.GetRequiredService<ISourceKnownIdUtils>();
-        act.Should().Throw<Exception>();
+        act.Should().Throw<ArgumentOutOfRangeException>()
+            .WithParameterName(paramName);
     }
 
     /// <summary>
