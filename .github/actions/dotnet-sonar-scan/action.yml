@@ -32,9 +32,13 @@ inputs:
     required: false
     default: "duranserkan"
   sonar-exclusions:
-    description: "File exclusion patterns for SonarCloud analysis."
+    description: "Source-analysis exclusions; defaults to generated wwwroot output to avoid scanning built assets as source."
     required: false
-    default: "**/wwwroot/**,**/*.jpeg,**/*.jpg,**/*.png,**/*.gif,**/*.ico,**/*.bmp,**/*.webp,**/*.tiff,**/*.woff,**/*.woff2,**/*.ttf,**/*.eot,**/*.otf"
+    default: "**/wwwroot/**"
+  sonar-text-excluded-file-suffixes:
+    description: "Binary suffixes excluded from Text/Secrets decoding so valid image and font assets are not parsed as UTF-8 text."
+    required: false
+    default: ".jpeg,.jpg,.png,.gif,.ico,.bmp,.webp,.tiff,.woff,.woff2,.ttf,.eot,.otf"
   sonar-branch-name:
     description: "Optional SonarCloud branch name to attach analysis to when the workflow runs from a tag ref."
     required: false
@@ -58,6 +62,7 @@ runs:
         sonar-host-url: ${{ inputs.sonar-host-url }}
         sonar-organization: ${{ inputs.sonar-organization }}
         sonar-exclusions: ${{ inputs.sonar-exclusions }}
+        sonar-text-excluded-file-suffixes: ${{ inputs.sonar-text-excluded-file-suffixes }}
         version: ${{ inputs.version }}
         sonar-branch-name: ${{ inputs.sonar-branch-name }}
         sonar-branch-target: ${{ inputs.sonar-branch-target }}
