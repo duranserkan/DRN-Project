@@ -66,6 +66,20 @@ public class LockUtilsTests
         LockUtils.TrySetIfNotEqual(ref location, value, "other").Should().BeTrue();
         location.Should().Be(value);
     }
+
+    [Fact]
+    public void TrySetIfNotEqual_Should_Use_Reference_Identity_When_Values_Are_Equal()
+    {
+        var location = new EqualityOverridingReference(1);
+        var value = new EqualityOverridingReference(2);
+        var valueEqualComparand = new EqualityOverridingReference(1);
+
+        location.Equals(valueEqualComparand).Should().BeTrue();
+        location.Should().NotBeSameAs(valueEqualComparand);
+
+        LockUtils.TrySetIfNotEqual(ref location, value, valueEqualComparand).Should().BeTrue();
+        location.Should().BeSameAs(value);
+    }
     
     [Fact]
     public void TrySetIfNotEqual_With_Null_Comparand_Should_Set_If_Not_Null()
@@ -186,4 +200,6 @@ public class LockUtilsTests
 
         claimCount.Should().Be(1, "only one thread should successfully claim the lock");
     }
+
+    private sealed record EqualityOverridingReference(int Value);
 }

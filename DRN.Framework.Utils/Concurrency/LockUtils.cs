@@ -26,10 +26,12 @@ public static class LockUtils
     public static void ReleaseLock(ref int lockValue) => Interlocked.Exchange(ref lockValue, 0);
 
     /// <summary>
-    /// Atomically sets a reference-type value if it equals the comparand.
+    /// Atomically sets a reference-type value if it is the same reference as the comparand.
     /// </summary>
-    public static bool TrySetIfEqual<T>(ref T? location, T value, T? comparand) where T : class
-        => Interlocked.CompareExchange(ref location, value, comparand) == comparand;
+    public static bool TrySetIfEqual<T>(ref T location, T value, T comparand) where T : class?
+#pragma warning disable CS8601 // Possible null reference assignment.
+        => ReferenceEquals(Interlocked.CompareExchange(ref location, value, comparand), comparand);
+#pragma warning restore CS8601 // Possible null reference assignment.
 
     /// <summary>
     /// Atomically sets a reference-type value if the current value is null.
@@ -38,19 +40,19 @@ public static class LockUtils
         => TrySetIfEqual(ref location, value, null);
 
     /// <summary>
-    /// Atomically sets a reference-type value if it does NOT equal the comparand.
-    /// Returns false if the current value equals the comparand or if max retries are exhausted.
+    /// Atomically sets a reference-type value if it is NOT the same reference as the comparand.
+    /// Returns false if the current value is the same reference as the comparand or if max retries are exhausted.
     /// </summary>
     /// <param name="location">The reference-type variable to update.</param>
     /// <param name="value">The value to set.</param>
-    /// <param name="comparand">The value that must NOT be current for the operation to proceed.</param>
+    /// <param name="comparand">The reference that must NOT be current for the operation to proceed.</param>
     /// <param name="maxRetries">Maximum number of CAS retry attempts before giving up. Default is 100.</param>
-    public static bool TrySetIfNotEqual<T>(ref T? location, T value, T? comparand, int maxRetries = 100) where T : class
+    public static bool TrySetIfNotEqual<T>(ref T location, T value, T comparand, int maxRetries = 100) where T : class?
     {
         for (var i = 0; i < maxRetries; i++)
         {
             var snapshot = Volatile.Read(ref location);
-            if (snapshot == comparand) return false;
+            if (ReferenceEquals(snapshot, comparand)) return false;
             if (TrySetIfEqual(ref location, value, snapshot)) return true;
         }
 

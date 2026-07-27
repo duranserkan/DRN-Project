@@ -39,8 +39,7 @@ public class ScopeContext
 
     public static bool IsUserInRole(string role) => User.IsInRole(role);
 
-    public static bool IsClaimFlagEnabled(string flag, string? issuer = null, bool defaultValue = false)
-        => GetClaimParameter(flag, issuer, defaultValue) == true;
+    public static bool IsClaimFlagEnabled(string flag, string? issuer = null, bool defaultValue = false) => GetClaimParameter(flag, issuer, defaultValue);
 
     public static bool HasClaimValue<TValue>(string key, TValue expectedValue, string? issuer = null) where TValue : IParsable<TValue>
     {

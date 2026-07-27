@@ -294,8 +294,8 @@ Lock-free atomic operations via `Interlocked`:
 | `TryClaimScope(ref int)` | Disposable auto-release scope |
 | `ReleaseLock(ref int)` | Unconditionally release (→0) |
 | `TrySetIfNull<T>(ref T?, T)` | CAS set-if-null |
-| `TrySetIfEqual<T>(ref T?, T, T?)` | CAS compare-and-swap |
-| `TrySetIfNotEqual<T>(ref T?, T, T?)` | Set if current ≠ comparand (retry loop) |
+| `TrySetIfEqual<T>(ref T?, T, T?)` | CAS when current is the same reference as comparand |
+| `TrySetIfNotEqual<T>(ref T?, T, T?)` | Set if current is not the same reference as comparand (retry loop) |
 | `TrySetIfNotNull<T>(ref T?, T)` | Set if current is not null |
 
 ```csharp

@@ -94,7 +94,7 @@ public static class SequenceManager<TEntity> where TEntity : class
         while (true)
         {
 #pragma warning disable CS0420 // Interlocked provides full memory barrier
-            if (LockUtils.TrySetIfEqual(ref _timeScope!, newScope, currentScope)) break;
+            if (LockUtils.TrySetIfEqual(ref _timeScope, newScope, currentScope)) break;
 #pragma warning restore CS0420
 
             currentScope = _timeScope; // Another thread updated _timeScope; check if it matches our target

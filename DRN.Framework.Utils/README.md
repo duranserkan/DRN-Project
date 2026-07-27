@@ -900,9 +900,9 @@ SourceKnownEntityIds use epoch-based time addressing for monotonic ordering. Eac
 | `TryClaimLock(ref int)` | Atomically claims a lock (0 → 1). Returns `true` if successful. |
 | `TryClaimScope(ref int)` | Returns a disposable `LockScope` that auto-releases on dispose. |
 | `ReleaseLock(ref int)` | Unconditionally releases a lock (→ 0). |
-| `TrySetIfEqual<T>(ref T?, T, T?)` | Atomic CAS for reference types; sets value if current equals comparand. |
+| `TrySetIfEqual<T>(ref T?, T, T?)` | Atomic CAS for reference types; sets value if current is the same reference as comparand. |
 | `TrySetIfNull<T>(ref T?, T)` | Sets value only if current is `null`. |
-| `TrySetIfNotEqual<T>(ref T?, T, T?)` | Sets value only if current does **not** equal comparand (retry loop). |
+| `TrySetIfNotEqual<T>(ref T?, T, T?)` | Sets value only if current is **not** the same reference as comparand (retry loop). |
 | `TrySetIfNotNull<T>(ref T?, T)` | Sets value only if current is **not** `null`. |
 
 ```csharp

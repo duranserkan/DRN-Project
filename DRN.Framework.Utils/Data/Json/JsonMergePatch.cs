@@ -169,7 +169,7 @@ public static class JsonMergePatch
             return;
 
         var containers = new Stack<(JsonNode Node, int Depth)>();
-        containers.Push((patch!, 1));
+        containers.Push((patch, 1));
 
         while (containers.TryPop(out var container))
         {
