@@ -117,10 +117,10 @@ public class SourceKnownIdUtilsTests
     }
 
     [Theory]
-    [DataInlineUnit((byte)128, (byte)1, "appId")]
-    [DataInlineUnit((byte)1, (byte)64, "appInstanceId")]
+    [DataInlineUnit((byte)128, (byte)1)]
+    [DataInlineUnit((byte)1, (byte)64)]
     public void Constructor_With_Invalid_AppId_Or_AppInstanceId_In_Settings_Should_Throw(
-        DrnTestContextUnit context, byte appId, byte appInstanceId, string paramName)
+        DrnTestContextUnit context, byte appId, byte appInstanceId)
     {
         var invalidSettings = new
         {
