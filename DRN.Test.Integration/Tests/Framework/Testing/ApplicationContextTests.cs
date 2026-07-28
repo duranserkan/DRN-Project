@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Npgsql;
 using Sample.Hosted;
 using Sample.Hosted.Filters;
 using Sample.Hosted.Helpers;
@@ -210,6 +211,7 @@ public class ApplicationContextTests
     {
         var webApplication = context.ApplicationContext.CreateApplication<SampleProgram>();
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
+        context.HasOwnedServiceProvider.Should().BeFalse();
 
         var client = webApplication.CreateClient();
         var endpoint = Get.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
@@ -219,6 +221,7 @@ public class ApplicationContextTests
         var appSettingsFromWebApplication = webApplication.Services.GetRequiredService<IAppSettings>();
         var connectionString = appSettingsFromWebApplication.GetRequiredConnectionString(nameof(QAContext));
         connectionString.Should().NotBeNull();
+        new NpgsqlConnectionStringBuilder(connectionString).Pooling.Should().BeFalse();
 
         var appSettingsFromDrnTestContext = context.GetRequiredService<IAppSettings>();
         appSettingsFromWebApplication.Should().BeSameAs(appSettingsFromDrnTestContext); //resolved from same service provider

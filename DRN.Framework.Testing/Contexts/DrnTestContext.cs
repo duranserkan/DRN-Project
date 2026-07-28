@@ -61,6 +61,7 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
     public ServiceCollection ServiceCollection { get; internal set; } = [];
     public HttpTest FlurlHttpTest => _flurlHttpTest.Value;
     internal Lazy<HttpTest> FlurlHttpTestLazy => _flurlHttpTest;
+    internal bool HasOwnedServiceProvider => _ownedServiceProvider != null;
 
     /// <summary>
     /// Creates a service provider from test context service collection
@@ -180,6 +181,14 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
         var ownedServiceProvider = _ownedServiceProvider;
         _ownedServiceProvider = null;
         ownedServiceProvider?.Dispose();
+    }
+
+    internal async ValueTask DisposeOwnedServiceProviderAsync()
+    {
+        var ownedServiceProvider = _ownedServiceProvider;
+        _ownedServiceProvider = null;
+        if (ownedServiceProvider != null)
+            await ownedServiceProvider.DisposeAsync();
     }
 
     protected virtual void Dispose(bool disposing)

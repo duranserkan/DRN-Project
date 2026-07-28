@@ -226,6 +226,7 @@ With `ContainerContext` and conventions you can easily write effective integrati
 * `DrnTestContext`'s `ContainerContext`
   * starts/binds the shared PostgreSQL container when requested, then scans DrnTestContext's service collection for inherited DrnContexts.
   * Adds connection strings to DrnTestContext's configuration for each derived `DrnContext` according to convention.
+  * Disables Npgsql pooling in injected test connection strings so closed operations release physical sessions immediately instead of retaining them across parallel or delayed-theory hosts.
 * `DrnTestContext` acts as a ServiceProvider and when a service is requested it can build it from service collection with all dependencies.
 
 ### RabbitMQ Container
@@ -296,7 +297,7 @@ For rapid development where migrations are not yet created, use `EnsureDatabaseA
 `ApplicationContext` syncs `DrnTestContext` service collection and configuration with a `WebApplicationFactory`.
 
 - You can override configuration and services until the factory builds a host, such as when `CreateClient()` or `TestServer` is requested.
-- `DrnTestContext` owns the bootstrap and migration providers it builds, while `WebApplicationFactory` owns its host provider. While an application is active, context service resolution uses the host provider. Replacing the application or disposing `ApplicationContext` disposes the factory first, then resets the context-owned provider so later resolution uses current configuration. A factory whose shutdown fails is retained for disposal retry.
+- `DrnTestContext` owns the bootstrap providers it builds, while `WebApplicationFactory` owns its host provider. PostgreSQL migration binding creates a context-owned provider inside the serialized migration phase and disposes it before the real host starts. While an application is active, context service resolution uses the host provider. Replacing the application or disposing `ApplicationContext` disposes the factory first, then resets any remaining context-owned provider so later resolution uses current configuration. A factory whose shutdown fails is retained for disposal retry.
 - `CreateClientAsync<TProgram>()` calls `ContainerContext.BindExternalDependenciesAsync()`, which applies Postgres migrations for registered `DrnContext` types. It does not start RabbitMQ.
 - Passing `ITestOutputHelper` to `CreateApplicationAndBindDependenciesAsync` or `CreateClientAsync` captures application logs only when the debugger is attached by default.
 - Temporary discovery hosts and non-debug test hosts run without logging providers so parallel test lifecycle logs do not spill into shared runner output.
