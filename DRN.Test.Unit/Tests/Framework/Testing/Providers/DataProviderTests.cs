@@ -34,4 +34,36 @@ public class DataProviderTests
 
         dataResult.Data.Should().Be(data);
     }
+
+    [Fact]
+    public void DataProvider_Should_Prefer_Local_Convention_Data_Folder_Over_Global_Fallback()
+    {
+        var testDirectory = $"DataProviderTests_{Guid.NewGuid():N}";
+        var localDataDir = Path.Combine(testDirectory, "Data");
+        var testFileName = $"conflict_{Guid.NewGuid():N}.txt";
+        var localFilePath = Path.Combine(localDataDir, testFileName);
+        var globalFilePath = Path.Combine(DataProviderDataLookupDirectoryPaths.GlobalConventionDirectoryPath, testFileName);
+
+        try
+        {
+            Directory.CreateDirectory(localDataDir);
+            File.WriteAllText(localFilePath, "Local Content");
+            File.WriteAllText(globalFilePath, "Global Content");
+
+            var dataPathResult = DataProvider.GetDataPath(testFileName, testDirectory);
+            dataPathResult.SelectedDirectory.Should().Be(localDataDir);
+            dataPathResult.DataPath.Should().Be(localFilePath);
+
+            var getResult = DataProvider.Get(testFileName, testDirectory);
+            getResult.DataExists.Should().BeTrue();
+            getResult.Data.Should().Be("Local Content");
+        }
+        finally
+        {
+            if (File.Exists(globalFilePath))
+                File.Delete(globalFilePath);
+            if (Directory.Exists(testDirectory))
+                Directory.Delete(testDirectory, recursive: true);
+        }
+    }
 }

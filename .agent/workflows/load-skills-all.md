@@ -50,6 +50,6 @@ Read all skills:
    - Read file: `.agent/skills/test-unit/SKILL.md`
 
 **Frontend (generic Razor):**
-   - Read file: `.agent/skills/frontend-razor-accessors/SKILL.md`
-   - Read file: `.agent/skills/frontend-razor-pages-navigation/SKILL.md`
    - Read file: `.agent/skills/frontend-razor-pages-shared/SKILL.md`
+   - Read file: `.agent/skills/frontend-razor-pages-navigation/SKILL.md`
+   - Read file: `.agent/skills/frontend-razor-accessors/SKILL.md`

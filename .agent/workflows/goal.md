@@ -50,7 +50,7 @@ A direct request to change a named file or scope permits reversible `trivial`/`s
 
 `Approval-tolerable` means bounded, reversible, auditable, non-security work with no auth, secrets, privacy, tenant, data-loss, schema/migration, public-contract, production, infrastructure, CI/CD, dependency, VCS, destructive, failed-gate, unclear-gate, unresolved-input, unverified-assumption, or temp-artifact lifecycle risk.
 
-For approval-tolerable work, `/goal` may produce `ApprovalRecord=workflow-tolerated` only when the accepting workflow allows it. Record the Priority Stack decision and planned verification before mutation. Final completion still requires task-appropriate verification evidence under the shared Command Execution Authorization Gate. Stop with `Approval=explicit required` when the record cannot satisfy the gate.
+For approval-tolerable work, `/goal` may produce `ApprovalRecord=workflow-tolerated` only when the accepting workflow allows it. Persist every field in the shared Approval Records contract, bound to the target artifact/diff digests. Verification is post-mutation completion evidence under the shared Command Execution Authorization Gate, not an approval input or envelope field unless the shared Approval Records contract explicitly changes. Stop with `Approval=explicit required` when the record cannot satisfy the gate.
 
 ## 4. Route
 
@@ -82,7 +82,7 @@ Routed workflows own their gates, artifacts, and output format.
 - `DEVELOP-*` source, status, and staleness checks pass.
 - No unverified assumptions remain.
 - `needs_review=false`.
-- The `/goal` Decision records a Priority Stack pass and planned verification.
+- The `/goal` Decision records a Priority Stack pass.
 
 Create and preserve `.agent/temp/CLARIFY-*.md` and `.agent/temp/DEVELOP-*.md` unless the route stops before their owning workflow can create them. Do not claim CAD completion if either required artifact is missing. For workflow or skill improvements, CAD may compose `/review` and `/optimize` as quality gates; it does not own their rules.
 

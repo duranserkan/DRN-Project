@@ -8,6 +8,10 @@ namespace DRN.Framework.Testing.DataAttributes;
 /// Have same constraints with <see cref="InlineDataAttribute"/>. Inlined data must be compile-time constant expression
 /// <b>To provide complex types use DataMember or DataSelf attributes</b>
 /// </summary>
+/// <remarks>
+/// This attribute's metadata takes precedence over metadata from the inner AutoFixture provider, while traits
+/// are combined.
+/// </remarks>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 public sealed class DataInlineUnitAttribute(params object?[] data) : DataAttribute
 {
@@ -26,13 +30,15 @@ public sealed class DataInlineUnitAttribute(params object?[] data) : DataAttribu
                 var rowData = row.GetData();
 
                 ((DrnTestContextUnit)rowData[0]!).MethodContext.SetTestData(rowData!);
-                return row;
+                return TheoryDataRowMetadata.ApplyAttributeToGeneratedRow(row, this);
             }).ToArray();
         }
 
         var dataAttribute = new DataInlineNSubstituteAutoAttribute(data);
         var dataCollection = await dataAttribute.GetData(testMethod, disposalTracker);
-        return dataCollection;
+        return dataCollection
+            .Select(row => TheoryDataRowMetadata.ApplyAttributeToGeneratedRow(row, this))
+            .ToArray();
     }
 
     public override bool SupportsDiscoveryEnumeration() => true;

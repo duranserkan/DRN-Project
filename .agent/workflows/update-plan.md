@@ -6,15 +6,17 @@ description: Planning phase of /update — discover skills/projects, detect drif
 > See also: [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
 > [!IMPORTANT]
 > Flag drift, cross-references, stale references, and scope-widening only. Do not auto-modify them.
-> **Estimated context: ~2.0K tokens**
+> **Estimated context: ~2.2K tokens**
 
 ## 1. Resolve Scope
 
 If invoked directly, run the shared Startup Gate; otherwise inherit `/update` context.
 
+- Receive the orchestrator's normalized `Requested Scope`, effective `Scope`, and new-run/resume decision.
+- On a new or superseding run, generate one lowercase UUID v4 Run ID. Preserve it while detailing or resuming that run; never copy it from a terminal or superseded plan.
 - Known scope (`all`, `skills`, `agents`, `projects`, `infra`, `<group>`, `<skill-dir>`, `files: <paths>`, `stage-<N>`): proceed.
 - Omitted or `all`: assume `.agent/` may be copied from another repository. Rebuild discovery from the current filesystem. Treat stale profile facts as drift evidence, not authority.
-- Freeform scope: map it to the closest known scope and affected stages; ask `Proceed / adjust / clarify?`; stop until approved; then persist `Scope` and `Resolved Stages`.
+- Freeform scope: map it to the closest known scope and affected stages; ask `Proceed / adjust / clarify?`; stop until approved; then persist normalized `Requested Scope`, effective `Scope`, and `Resolved Stages`.
 
 ---
 
@@ -141,12 +143,16 @@ Wait for affirmative confirmation (`yes`, `ok`, `confirmed`) before writing the 
 
 Serialize the report and plan to `.agent/temp/update-plan.md`.
 
-- No plan: run §2-§4 in scope; write affected stages as `pending` and others as `skipped`.
+- No plan or reconciled new run: run §2-§4 in scope; write affected stages as `pending` and others as `skipped`.
 - `outlined` / `planning`: detail the next outlined stages to `pending`.
 - All pending/skipped resolved: set status to `ready`.
+- Persist Run ID, normalized Requested Scope, and effective Scope in the plan header. Before a Run ID or approval state changes, append the current approval state with reason and time to `### Approval History`, including the complete approval envelope when one exists; never edit or remove existing history. A new Run ID invalidates every prior verification-progress record, output manifest, current approval, and pass state even when paths or scopes match.
+- Declare exact repository-relative Stage 1-5 `### Outputs` paths before review. Every mutating action must map to a declared output; use `N/A` only for non-mutating stages.
 - Record `Baseline HEAD` as audit metadata.
 - Record `Baseline Inputs Hash` as the staleness gate per [`baseline-inputs-hash-spec.md`](./_shared/baseline-inputs-hash-spec.md).
+- Persist the exact canonical input list at `.agent/temp/update-baseline-inputs.manifest` and record that path as `Baseline Inputs Manifest`.
 - Hash every material in-scope input. For `all`, include `AGENTS.md`, profile, discovered skill/workflow files, project/solution/package manifests, CI/container/build config files, and docs/source samples used for drift detection.
-- Use `N/A` only when no material input files exist, and then record exactly `Baseline Inputs Hash Justification: no-material-input-files`.
+- Initialize `## Apply Approval` as required/pending; plan review never grants apply approval.
+- Use `N/A` only when no material input files exist; then record exactly `Baseline Inputs Hash Justification: no-material-input-files`, record `Baseline Inputs Manifest: N/A`, and ensure `.agent/temp/update-baseline-inputs.manifest` does not exist. Omit the justification otherwise.
 
-Follow the template in `update.md` §Plan File Contract.
+Follow [`update.md` §5 Plan Contract](./update.md#5-plan-contract).

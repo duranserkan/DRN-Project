@@ -4,7 +4,7 @@ description: Execution phase of /update — read update-plan.md, execute sync st
 
 > **Sub-workflow of `/update`**. Not invoked directly. Reads `Scope` and follows Stage Resumption Protocol.
 > See also: [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
-> **Estimated context: ~1.8K tokens**
+> **Estimated context: ~2.5K tokens**
 
 ## 0. Pre-Execution Validation
 
@@ -14,14 +14,21 @@ If invoked directly, run the shared Startup Gate; otherwise inherit `/update` co
 
 1. Warn if the plan is older than 24 hours.
 2. Warn if `Baseline HEAD` differs from current `HEAD`; it is audit metadata only.
-3. Abort if material in-scope inputs exist and `Baseline Inputs Hash` is missing, malformed, `N/A`, or no longer matches current normalized in-scope inputs.
-4. Allow `Baseline Inputs Hash: N/A` only when the plan header contains exactly `Baseline Inputs Hash Justification: no-material-input-files` and exact scope paths still contain no material inputs.
-5. Abort if in-scope files have uncommitted changes not represented in the plan:
+3. Require a non-empty Run ID and exact Requested Scope/effective Scope match across the invocation, plan, preview, and any correction progress.
+4. Before the first execution mutation, recompute the Semantic Plan SHA-256, preview raw-byte SHA-256, optional proposed-diff SHA-256, and full baseline manifest/hash. Abort unless the preview records the current Run ID, semantic-plan digest, baseline manifest/hash, requested/effective scope, and risk decision.
+5. Require a complete explicit record whose subject/preview digests and shared approval-envelope digest match `.agent/temp/update-apply-preview.md`, the optional `.agent/temp/update-proposed.diff`, Run ID, requested/effective scope, producer, timestamp, and risk decision.
+6. On resume, recompute the semantic-plan, preview, and optional diff hashes. Re-enumerate tracked and untracked paths with NUL-delimited Git status, then inspect current filesystem state without following symlinks. Verify the persisted baseline manifest still hashes to `Baseline Inputs Hash`; reproduce current baseline records, including every current untracked material path and its raw bytes, only for paths not listed as completed-stage outputs. Validate every completed output, including untracked outputs, against the approved proposed diff or the preview's exact expected path state and raw-byte SHA-256. Any unapproved run, input, output, scope, required-approval, plan, preview, diff, path-state, or byte change aborts.
+7. Before the first mutation, abort if material in-scope inputs exist and the canonical manifest is missing, malformed, `N/A`, omits a current untracked material path or its bytes, lists a different current material-path set, or no longer reproduces `Baseline Inputs Hash`.
+8. Allow `Baseline Inputs Hash: N/A` only when `Baseline Inputs Manifest: N/A`, `.agent/temp/update-baseline-inputs.manifest` does not exist, the plan contains exactly `Baseline Inputs Hash Justification: no-material-input-files`, and exact scope paths still contain no material inputs.
+9. Abort if any in-scope tracked or untracked change is not represented in the plan. Parse NUL records directly, and validate each reported path with non-following filesystem metadata plus raw regular-file or symlink-target bytes:
 
    ```bash
+   git status --porcelain=v1 -z --untracked-files=all -- <scope-paths>
    git diff -- <scope-paths>
    git diff --cached -- <scope-paths>
    ```
+
+   An untracked completed output must match the approved proposed diff. When no exact diff represents it, the approved preview must contain its exact expected existence, type, mode, symlink target state, and raw-byte SHA-256; otherwise abort.
 
 | Scope | `<scope-paths>` |
 |---|---|
@@ -36,6 +43,26 @@ If invoked directly, run the shared Startup Gate; otherwise inherit `/update` co
 | `stage-<N>` | files touched by Stage N |
 
 If dirty, abort with: `"Plan is stale — run /update again to regenerate the plan"`.
+
+### Correction Mode
+
+`/update-execute` is the sole source-mutation owner for a failed run.
+
+1. Enter only from plan status `failed` or `correcting`. Require the verification progress Run ID, requested/effective scope, Semantic Plan SHA-256, and failed Output Revision SHA-256 to match the current failed run.
+2. Read the stable finding IDs and targets from `Corrections Required`. Reject a target outside the current scope or Stage 1-5 `### Outputs`; scope or semantic-plan widening starts a fresh run.
+3. Require the correction-labeled apply preview, exact diff, and fresh explicit approval produced by `/update`. Never reuse the original apply approval.
+4. Initialize or resume `.agent/temp/update-correction-progress.md`:
+
+   ```markdown
+   # Update Correction Progress
+   > Run ID: <run-id> | Status: correcting | Correction Preview SHA-256: <sha256>
+   > Requested Scope: <scope> | Scope: <effective scope> | Semantic Plan SHA-256: <sha256>
+   ## Corrections
+   - [ ] <finding-id> | <exact target> | <action>
+   ```
+
+5. Set plan status to `correcting` before the first correction. Apply only pending approved corrections, checkpoint each item, and abort on any binding or target change.
+6. When every correction is complete, set correction progress and plan status to `done`. The caller must review changed outputs before verification; correction never transitions directly to `reviewed` or `verifying`.
 
 ### Resumption And VCS
 
@@ -156,5 +183,6 @@ Set plan status to `done` only when every stage is terminal:
 - In-scope stages are `done`.
 - Out-of-scope stages are `skipped`.
 - Any `pending`, `executing`, `blocked`, `fail`, or unresolved `Requires Approval` item blocks completion.
+- Every actual Stage 1-5 source/configuration mutation matches an exact declared `### Outputs` path; otherwise the plan is stale.
 
 `update-verify.md` owns content verification.

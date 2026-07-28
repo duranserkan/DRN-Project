@@ -19,6 +19,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
 {
     private IDisposable? _factory;
     private ITestOutputHelper? _outputHelper;
+    private ServiceDescriptor[]? _initialServiceDescriptors;
 
     /// <summary>
     /// By default, logs are written to test output when debugger is attached in order to not leak sensitive data.
@@ -36,9 +37,10 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     {
         Dispose();
 
-        var initialDrnTestContextServiceDescriptors = testContext.ServiceCollection.ToArray();
+        _initialServiceDescriptors = testContext.ServiceCollection.ToArray();
+        var initialServiceDescriptors = _initialServiceDescriptors;
         //Add program services to drnTestContext
-        var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true).WithWebHostBuilder(webHostBuilder =>
+        using (var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true).WithWebHostBuilder(webHostBuilder =>
         {
             //only need service collection descriptors, so ValidateServicesAddedByAttributes should not fail test at this stage
             var configuration = testContext.GetRequiredService<IConfiguration>();
@@ -47,26 +49,21 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
             webHostBuilder.UseSetting(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.TemporaryApplication)), "true");
             webHostBuilder.ConfigureLogging(logging => logging.ClearProviders());
 
-            webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
             webHostConfigurator?.Invoke(webHostBuilder);
-        });
-        _ = tempApplicationFactory.Server; //To trigger webHostBuilder action
-        tempApplicationFactory.Dispose();
+            webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
+        }))
+        {
+            _ = tempApplicationFactory.Server; //To trigger webHostBuilder action
+        }
 
         //register action to pass test context configuration to web application.
         //This will be triggered when TestServer or HttpClient requested until then further configurations can be added to test context configuration
         var factory = new DrnWebApplicationFactory<TEntryPoint>(testContext).WithWebHostBuilder(webHostBuilder =>
         {
-            webHostBuilder.ConfigureServices(services =>
-            {
-                services.Add(initialDrnTestContextServiceDescriptors);
-                testContext.OverrideServiceCollection(services);
-                testContext.MethodContext.ReplaceSubstitutedInterfaces(services);
-                testContext.ServiceCollection = new ServiceCollection { services };
-            });
-
             var configuration = testContext.GetRequiredService<IConfiguration>();
             webHostBuilder.UseConfiguration(configuration);
+            webHostBuilder.ConfigureServices(services => services.Add(initialServiceDescriptors));
+
             webHostBuilder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();
@@ -94,10 +91,17 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
                 };
                 logging.AddNLogWeb(logFactory, options);
             });
+
             webHostConfigurator?.Invoke(webHostBuilder);
+            webHostBuilder.ConfigureServices(services =>
+            {
+                testContext.OverrideServiceCollection(services);
+                testContext.MethodContext.ReplaceSubstitutedInterfaces(services);
+                testContext.ServiceCollection = new ServiceCollection { services };
+            });
         });
 
-        _factory = factory;
+        UseApplicationFactory(factory);
 
         return factory;
     }
@@ -137,7 +141,31 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     public WebApplicationFactory<TEntryPoint>? GetCreatedApplication<TEntryPoint>() where TEntryPoint : class
         => (WebApplicationFactory<TEntryPoint>?)_factory;
 
-    public void Dispose() => _factory?.Dispose();
+    internal bool HasCreatedApplication => _factory != null;
+
+    internal void UseApplicationFactory(IDisposable factory) => _factory = factory;
+
+    public void Dispose()
+    {
+        var factory = _factory;
+        try
+        {
+            factory?.Dispose();
+            _factory = null;
+        }
+        finally
+        {
+            if (_initialServiceDescriptors != null)
+            {
+                testContext.ServiceCollection = new ServiceCollection { _initialServiceDescriptors };
+                _initialServiceDescriptors = null;
+            }
+            testContext.ClearApplicationServiceProvider();
+        }
+
+        if (factory != null)
+            testContext.DisposeOwnedServiceProvider();
+    }
 }
 
 public class DrnWebApplicationFactory<TEntryPoint>(DrnTestContext context, bool temporary = false) : WebApplicationFactory<TEntryPoint>
@@ -147,11 +175,82 @@ public class DrnWebApplicationFactory<TEntryPoint>(DrnTestContext context, bool 
 
     protected override IHost CreateHost(IHostBuilder builder)
     {
-        var host = base.CreateHost(builder);
-        if (!Temporary)
-            context.OverrideServiceProvider(host.Services);
+        // Preserve WebApplicationFactory host setup while retaining a partially built host for failure cleanup.
+        var capturingBuilder = new CapturingHostBuilder(builder);
+        try
+        {
+            var host = base.CreateHost(capturingBuilder);
+            if (!Temporary)
+                context.UseApplicationServiceProvider(host.Services);
 
-        return host;
+            return host;
+        }
+        catch (Exception hostException)
+        {
+            var host = capturingBuilder.Host;
+            if (host == null)
+                throw;
+
+            try
+            {
+                host.Dispose();
+            }
+            catch (Exception disposalException)
+            {
+                throw new AggregateException(hostException, disposalException);
+            }
+
+            throw;
+        }
+    }
+
+    private sealed class CapturingHostBuilder(IHostBuilder builder) : IHostBuilder
+    {
+        public IHost? Host { get; private set; }
+        public IDictionary<object, object> Properties => builder.Properties;
+
+        public IHostBuilder ConfigureHostConfiguration(Action<IConfigurationBuilder> configureDelegate)
+        {
+            builder.ConfigureHostConfiguration(configureDelegate);
+            return this;
+        }
+
+        public IHostBuilder ConfigureAppConfiguration(
+            Action<HostBuilderContext, IConfigurationBuilder> configureDelegate)
+        {
+            builder.ConfigureAppConfiguration(configureDelegate);
+            return this;
+        }
+
+        public IHostBuilder ConfigureServices(Action<HostBuilderContext, IServiceCollection> configureDelegate)
+        {
+            builder.ConfigureServices(configureDelegate);
+            return this;
+        }
+
+        public IHostBuilder UseServiceProviderFactory<TContainerBuilder>(
+            IServiceProviderFactory<TContainerBuilder> factory) where TContainerBuilder : notnull
+        {
+            builder.UseServiceProviderFactory(factory);
+            return this;
+        }
+
+        public IHostBuilder UseServiceProviderFactory<TContainerBuilder>(
+            Func<HostBuilderContext, IServiceProviderFactory<TContainerBuilder>> factory)
+            where TContainerBuilder : notnull
+        {
+            builder.UseServiceProviderFactory(factory);
+            return this;
+        }
+
+        public IHostBuilder ConfigureContainer<TContainerBuilder>(
+            Action<HostBuilderContext, TContainerBuilder> configureDelegate)
+        {
+            builder.ConfigureContainer(configureDelegate);
+            return this;
+        }
+
+        public IHost Build() => Host = builder.Build();
     }
 }
 

@@ -1,5 +1,5 @@
 ---
-description: Commit staged changes and polish non-pushed commit messages; never push or rewrite pushed history
+description: Commit staged changes and polish a verified-unpublished HEAD message; never push or rewrite published history
 ---
 
 > See also: [Operating Model](./_shared/workflow-operating-model.md)
@@ -10,9 +10,9 @@ description: Commit staged changes and polish non-pushed commit messages; never 
 Act as Commit Message Editor.
 
 - Commit only staged changes after user confirmation.
-- Polish only non-pushed commit messages after explicit approval.
+- Polish only a verified-unpublished, non-merge `HEAD` message after explicit approval.
 - Never run `git push`, including `--force`.
-- Use only local commits, `--amend`, or interactive rebase.
+- Use `--amend` only; multi-commit rewriting is blocked by Section 6.
 - Run the shared Startup Gate; load `basic-git-conventions`.
 
 Refuse push requests. Stop before any rewrite that could touch pushed history.
@@ -26,57 +26,51 @@ git diff --cached --stat
 ```
 
 - If nothing is staged, continue to non-pushed commit detection.
-- If staged changes exist, inspect the diff, draft a compliant message, ask for confirmation, then run:
+- If staged changes exist, inspect the exact raw bytes from `git diff --cached --binary --full-index --no-ext-diff --no-textconv`. Persist a commit plan with the current `HEAD`, exact staged-diff SHA-256, raw-byte SHA-256 of `git status --porcelain=v1 -z --untracked-files=all`, staged paths, split boundary and order, and proposed message; compute the plan's raw-byte SHA-256 and present the staged-diff and commit-plan digests for approval.
+- Bind approval to one staged-diff and commit-plan digest. Each split commit requires its own plan and separate approval after its exact changes are staged.
+- Immediately before every approved commit mutation, recheck `HEAD`, recompute the NUL-delimited status and staged-diff digests, regenerate the exact commit plan from those current values, and compare every digest with the approved plan. Abort on any worktree, index, path, plan, or digest change. Then write the exact approved message to a temporary file and run:
 
   ```bash
-  git commit -m "<compliant message>"
+  git commit --file "$message_file"
   ```
 
-- If staged files span unrelated scopes, split them before committing: unstage selected files, commit the first scope, then stage and commit the next scope.
+- If staged files span unrelated scopes, split them before committing: stage only the first approved scope, commit it, then prepare and separately approve each remaining scope.
 
-## 3. Select Non-Pushed Commits
+## 3. Select Rewrite Candidate
 
 | Invocation | Scope |
 |---|---|
-| `/commit-polish` | All non-pushed commits |
-| `/commit-polish N` | Last `N` non-pushed commits |
+| `/commit-polish` or `/commit-polish 1` | `HEAD` only |
+| `/commit-polish N`, `N > 1` | Stop under the multi-commit block in Section 6 |
 
-Find the base:
+Before treating `HEAD` as unpublished:
 
-1. Prefer upstream `@{u}`.
-2. If absent, use the repository profile's integration or release branch.
-3. If the profile is silent, inspect remotes and choose the safest primary ref.
-
-Run only the matching branch. If no upstream exists, set `base_ref` from the profile or discovered primary ref; if no safe base can be resolved, stop and ask.
+1. Require a clean worktree and index.
+2. Stop if `HEAD` is a merge commit.
+3. Ensure remote-tracking refs are current. If freshness is not established, ask the user to fetch or explicitly authorize a fetch; never infer freshness from `base..HEAD`. Record the exact remote-tracking refname/objectname snapshot and its raw-byte SHA-256.
+4. Stop if `HEAD` is reachable from any remote-tracking ref or tag.
+5. Record the original commit SHA and tree SHA. Parse and record the ordered parent list as every token after the commit SHA in `git rev-list --parents -n 1 "$original_commit_sha"`; preserve the empty list for a root commit.
 
 ```bash
-upstream_ref=$(git rev-parse --abbrev-ref @{u} 2>/dev/null || true)
-if [ -n "$upstream_ref" ]; then
-  base_ref="$upstream_ref"
-else
-  git for-each-ref --format='%(refname:short)' refs/remotes
-  base_ref="<profile-or-discovered-base-ref>"
-fi
-
-if [ -z "$base_ref" ] || [ "$base_ref" = "<profile-or-discovered-base-ref>" ] || ! git rev-parse --verify --quiet "$base_ref" >/dev/null; then
-  echo "No safe non-pushed commit base found; stop and ask."
-  exit 1
-fi
-
-git log "$base_ref"..HEAD --oneline --no-decorate
+git status --porcelain=v1 -z
+git rev-list --parents -n 1 HEAD
+git for-each-ref --format='%(refname) %(objectname)' refs/remotes
+git for-each-ref --contains HEAD --format='%(refname)' refs/remotes refs/tags
+git rev-parse HEAD
+git rev-parse HEAD^{tree}
 ```
 
-Stop if the range is empty. Limit to `N` when supplied.
+Any output from the reachability command blocks rewriting. Absence from one selected base is not publication proof.
 
 ## 4. Analyze Messages
 
-Compare each message against `basic-git-conventions`.
+Compare the `HEAD` message against `basic-git-conventions`.
 
 If a message is vague, inspect the commit:
 
 ```bash
-git show <sha> --stat
-git show <sha>
+git show "$commit_sha" --stat
+git show "$commit_sha"
 ```
 
 Use the full diff only when the stat is insufficient.
@@ -87,40 +81,46 @@ Show the rewrite plan and wait for explicit approval:
 
 ```markdown
 ## Commit Message Changes
-| # | SHA | Current | Proposed | Fixes |
-|---|---|---|---|---|
-| 1 | `abc1234` | `fixed stuff` | `fix(Utils): resolve null reference in scanner` | type, scope, mood |
+| SHA | Current | Proposed | Fixes |
+|---|---|---|---|
+| `abc1234` | `fixed stuff` | `fix(Utils): resolve null reference in scanner` | type, scope, mood |
 ```
 
 Do not rewrite until approved.
 
 ## 6. Rewrite
 
-For `HEAD` only:
+Multi-commit rewriting is unsupported. Do not use interactive rebase until a separate reviewed specification defines all of:
+
+- Proof that every rewritten commit is unreachable from every current remote-tracking ref and tag.
+- Exact old-SHA-to-approved-message mapping across rewritten SHAs.
+- Merge-commit handling and topology preservation.
+- Pre/post tree and final topology equality checks.
+- File-based message transport without shell interpolation.
+
+For the approved `HEAD`-only rewrite, enforce the Hook Policy before execution:
+
+- **Hook Policy**: Rewriting must prevent every local Git hook from executing. Create an empty temporary hooks directory and override `core.hooksPath` for the amend command; `--no-verify` alone is insufficient because it bypasses only `pre-commit` and `commit-msg`. Also suppress `post-rewrite`.
+
+1. Write the exact approved message to a temporary file through the platform file-write capability, create an empty temporary hooks directory, and record the raw-byte digest of the clean NUL-delimited status.
+2. Immediately before mutation, recheck that `HEAD` and its tree SHA match the recorded values, the worktree and index are clean, the current remote-tracking-ref snapshot is unchanged and still fresh, and `HEAD` remains unreachable from every current remote-tracking ref and tag. Reparse the approved commit's ordered parent list, record it with the pre-mutation validation evidence, and require it to match both the recorded list and the current `HEAD` list. Abort and require a new preview and approval on any mismatch.
+3. Run `git -c core.hooksPath="$empty_hooks_dir" commit --amend --no-verify --no-post-rewrite --cleanup=verbatim --file "$message_file"`; never interpolate the message into a shell command.
+4. Record the amended commit SHA. Parse its ordered parent list and verify it matches the approved parent list. Also verify the resulting tree SHA, raw commit-message bytes, and raw-byte status digest match the recorded tree, approved message, and pre-amend status. Treat a parent mismatch like any other verification failure and enter the compare-and-swap rollback in Step 5.
+5. On any mismatch, attempt to restore the original commit with compare-and-swap protection and the same hook isolation: `git -c core.hooksPath="$empty_hooks_dir" update-ref -m "rollback failed commit-polish amend" HEAD "$original_commit_sha" "$amended_commit_sha"`. If the command fails because `HEAD` no longer equals the amended SHA, stop without further mutation; never reset or overwrite concurrent work. Otherwise verify the restored `HEAD` and tree SHA, report any remaining worktree or index difference, and stop.
+6. Remove the temporary message file and hooks directory before every successful or failed exit.
 
 ```bash
-git commit --amend -m "<new message>"
-```
-
-For multiple commits:
-
-1. Verify the tree is clean. If dirty, stop and ask before stash or rewrite.
-2. Reword only approved commits.
-3. Abort and report on conflict.
-
-```bash
-GIT_SEQUENCE_EDITOR="sed -i.bak \"s/^pick ${SHA}/reword ${SHA}/\" \"\$1\" && rm -f \"\$1.bak\"" git rebase -i <base>
-
-MSGFILE=$(mktemp)
-cat > "$MSGFILE" <<'COMMITMSG'
-<type>(<scope>): <description>
-COMMITMSG
-GIT_EDITOR="cp \"$MSGFILE\"" git rebase --continue
-rm -f "$MSGFILE"
-```
-
-```bash
-git rebase --abort
+git status --porcelain=v1 -z
+git rev-parse HEAD
+git rev-parse HEAD^{tree}
+git for-each-ref --format='%(refname) %(objectname)' refs/remotes
+git for-each-ref --contains HEAD --format='%(refname)' refs/remotes refs/tags
+git rev-list --parents -n 1 "$original_commit_sha"
+git rev-list --parents -n 1 HEAD
+git -c core.hooksPath="$empty_hooks_dir" commit --amend --no-verify --no-post-rewrite --cleanup=verbatim --file "$message_file"
+git rev-list --parents -n 1 HEAD
+git rev-parse HEAD^{tree}
+git cat-file commit HEAD
 ```
 
 ## 7. Verify And Report
@@ -129,8 +129,8 @@ Report final messages:
 
 ```markdown
 ## Results
-| # | SHA (new) | Message | Status |
-|---|---|---|---|
+| Old SHA | New SHA | Message | Tree Equal | Parents Equal | Status |
+|---|---|---|---|---|---|
 ```
 
 State: `Push status: not pushed by design`.

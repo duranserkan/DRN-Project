@@ -1,7 +1,7 @@
 ---
 name: drn-testing
 description: "DRN.Framework.Testing - canonical DTT attribute/context matrix with DrnTestContext, DrnTestContextUnit, ContainerContext, ApplicationContext, DataInline/DataMember/DataSelf, MTP command guidance, AwesomeAssertions, AutoFixture, NSubstitute, Testcontainers, and xUnit v3. Keywords: testing, dtt, drntest-context, applicationcontext, testcontainers, mtp, xunit, data-attributes, unit-testing, integration-testing"
-last-updated: 2026-07-19
+last-updated: 2026-07-28
 difficulty: intermediate
 tokens: ~1.7K
 ---
@@ -117,6 +117,8 @@ public async Task Endpoint_Should_Return_Data(DrnTestContext context, ITestOutpu
 | `ContainerContext` | real dependencies | `Postgres.ApplyMigrationsAsync()`, `Postgres.Isolated`, `RabbitMq`, `BindExternalDependenciesAsync()` |
 | `ApplicationContext` | API/E2E tests | `CreateClientAsync<TProgram>()`, `CreateApplicationAndBindDependenciesAsync<TProgram>()`, debugger-gated `ITestOutputHelper` logging through those helpers |
 | `FlurlHttpTest` | outbound HTTP mocks | `ForCallsTo(...).RespondWithJson(...)`, `ShouldHaveCalled(...)` |
+
+`DrnTestContext` owns the bootstrap and migration providers it builds. `ApplicationContext` only borrows the active host provider for service resolution; its `WebApplicationFactory` remains responsible for stopping and disposing that host before the context-owned provider is reset. Sequential applications rebuild context-owned services from current configuration, and a factory whose shutdown fails remains available for disposal retry.
 
 ## Consolidation Rule
 

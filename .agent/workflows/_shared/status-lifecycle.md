@@ -1,95 +1,87 @@
 ---
-description: Shared status lifecycle for agent workflow artifacts
+description: Shared status, approval, lineage, and assumption contract for workflow artifacts
 ---
 
 > **Estimated context: ~1.5K tokens**
-> See also: [Workflow Operating Model](./workflow-operating-model.md)
+> See [Workflow Operating Model](./workflow-operating-model.md).
 
-## Status Lifecycle
+## Lifecycle
 
 ```text
-CLARIFY-* : draft -> clarifying -> draft-self-reviewed -> clarified
-DEVELOP-* : ready-to-develop -> implementing -> implemented-pending-approval -> implemented
-UPDATE    : outlined -> planning -> ready -> plan-reviewed -> executing -> done -> reviewed -> verifying -> verified
-UPDATE    : failed -> verifying -> verified | failed
+CLARIFY: draft -> clarifying -> draft-self-reviewed -> clarified
+DEVELOP: ready-to-develop -> implementing -> implemented-pending-approval -> implemented
+UPDATE : outlined -> planning -> ready -> plan-reviewed -> executing -> done -> reviewed -> verifying -> verified
+         failed -> correcting -> done -> reviewed -> verifying -> verified | failed
 ```
 
-### Status Transitions
-
-| Status | Artifact | Advance When | Owner |
-|---|---|---|---|
-| `draft` | `CLARIFY-*` | `/clarify` creates the document | `/clarify` |
-| `clarifying` | `CLARIFY-*` | `/clarify` starts question round 1 | `/clarify` |
-| `draft-self-reviewed` | `CLARIFY-*` | `/clarify` gates and self-review pass | `/clarify` |
-| `clarified` | `CLARIFY-*` | `/answer` approval criteria pass | `/answer` |
-| `ready-to-develop` | `DEVELOP-*` | `/answer` writes the development handoff | `/answer` |
-| `implementing` | `DEVELOP-*` | `/develop` validates the handoff, records approval, and starts source mutation | `/develop` |
-| `implemented-pending-approval` | `DEVELOP-*` | `/develop` applies changes, completes verification, and writes the final report for user approval | `/develop` |
-| `implemented` | `DEVELOP-*` | User approves the `/develop` final report | `/develop` |
-| `outlined` | `update-plan.md` | Initial plan shell exists | `/update-plan` |
-| `planning` | `update-plan.md` | Discovery or detailing runs | `/update-plan` |
-| `ready` | `update-plan.md` | Stages are resolved and awaiting review | `/update-plan` |
-| `plan-reviewed` | `update-plan.md` | `/review` reports `transition_allowed: plan-reviewed` | `/update` |
-| `executing` | `update-plan.md` | First execution stage starts | `/update-execute` |
-| `done` | `update-plan.md` | All in-scope execution stages complete | `/update-execute` |
-| `reviewed` | `update-plan.md` | `/review` reports `transition_allowed: reviewed` | `/update` |
-| `verifying` | `update-plan.md`, `update-verify-progress.md` | Verification starts or resumes | `/update-verify` |
-| `verified` | `update-plan.md`, `update-verify-progress.md` | Verification verdict passes | `/update-verify` |
-| `failed` | `update-plan.md`, `update-verify-progress.md` | Verification verdict fails | `/update-verify` |
-
-### Metadata Flags
-
-Use lowercase YAML flags; never replace `status`.
-
-| Flag | Meaning | Clear When |
+| Transition | Owner | Gate |
 |---|---|---|
-| `blocked_on_user: true` | Human decision blocks status advance | Decision is recorded |
-| `needs_review: true` | Artifact changed after last review | `/review` passes with no critical findings |
-| `stale: true` | Source changed after artifact production | Artifact is regenerated or revalidated |
-| `approval_required: true` | Next step mutates source/state, VCS, or risk-bearing scope without current approval | `approval_record` and `approval_scope` cover the exact next mutation |
+| `draft` -> `clarifying` -> `draft-self-reviewed` | `/clarify` | Questions, quality gates, and self-review pass. |
+| `draft-self-reviewed` -> `clarified` | `/answer` | Current review and approval pass. |
+| `clarified` -> `ready-to-develop` | `/answer` | Collision-safe DEVELOP handoff passes review. |
+| `ready-to-develop` -> `implementing` | `/develop` | Freshness, completeness, and approval pass. |
+| `implementing` -> `implemented-pending-approval` | `/develop` | Changes, verification, and walkthrough complete. |
+| `implemented-pending-approval` -> `implemented` | `/develop` | User approves the final report. |
+| `outlined` -> `planning` -> `ready` | `/update-plan` | Discovery and plan complete. |
+| `ready` -> `plan-reviewed` | `/update` from `/review` | `transition_allowed: plan-reviewed`. |
+| `plan-reviewed` -> `executing` -> `done` | `/update-execute` | Current apply approval, then all stages terminal. |
+| `done` -> `reviewed` | `/update` from `/review` | `transition_allowed: reviewed`. |
+| `reviewed` -> `verifying` -> `verified`/`failed` | `/update-verify` | Current run/scope/plan/output binding and verification verdict. |
+| `failed` -> `correcting` -> `done` | `/update-execute` | Current correction preview, explicit approval, matching verification findings, and completed correction progress. |
 
-When clearing `approval_required`, keep matching `approval_record` and `approval_scope`. `approval_required: false` without a current matching record remains an unresolved approval gate.
+`verified` is terminal only while its complete verification binding remains current. `/update` invalidates an output-only mismatch to `done` for review; a Run ID, requested/effective scope, or semantic-plan mismatch starts a fresh plan and never reuses prior approval or verification state.
 
-### Lineage Metadata
+## Metadata
 
-`CLARIFY-*` artifacts may use these keys when a new clarification loop starts from an earlier artifact. Use them for supersession.
+Use lowercase YAML fields; never replace `status`.
 
-| Key | Meaning |
+| Field | Meaning |
 |---|---|
-| `iteration` | Current iteration number in the lineage |
-| `previous_artifact` | Prior `CLARIFY-*` input artifact |
-| `previous_status` | Prior artifact status at creation |
-| `previous_updated` | Prior artifact timestamp or filesystem mtime used for freshness |
-| `previous_sha256` | Prior artifact SHA-256 at creation |
-| `previous_develop_artifact` | Prior `DEVELOP-*` artifact summarized into the enriched lineage snapshot, if supplied/unambiguous |
-| `previous_develop_sha256` | Prior `DEVELOP-*` SHA-256 when summarized |
-| `previous_walkthrough_artifact` | Prior walkthrough artifact summarized into the enriched lineage snapshot, if supplied/unambiguous |
-| `previous_commit` | Prior commit/ref summarized into the enriched lineage snapshot, if supplied/unambiguous |
+| `blocked_on_user` | A human decision blocks progress. |
+| `needs_review` | Semantic content changed after review. |
+| `stale` | A source or baseline changed. |
+| `approval_required` | The next mutation lacks a current matching approval. |
 
-Apply these shared lineage rules unless a workflow names a stricter local gate:
+Fail closed: initialize `needs_review: true` before creating or changing reviewable content. Clear it only after `/review` reports no unresolved Critical or Major findings. `approval_required: false` is valid only with the complete current record below.
 
-- **Evidence**: Accept explicit name-versioned artifacts and commits/refs when supplied or unambiguous. Require hashes only when a listed `*_sha256` key drives freshness. Record or escalate source gaps.
-- **Supersession**: Same-lineage descendants supersede `previous_artifact` by higher `iteration`, then newer timestamp. Treat superseded artifacts as evidence or branch points only with user confirmation.
-- **Snapshot Boundary**: `### Enriched Lineage Snapshot` lets a new clarification iteration stand alone for `/answer`. It may summarize prior `CLARIFY-*`, matching `DEVELOP-*`, walkthrough, and commit evidence. It never replaces `source_*` freshness checks, approval records, `/review`, `/optimize`, or `/develop` gates.
+## Approval Record
 
-### Approval Records
+Use explicit approval unless this contract and the accepting workflow allow `ApprovalRecord=workflow-tolerated`. The latter never covers security-sensitive, destructive, VCS, failed/unclear, unresolved-input, unverified-assumption, temp-lifecycle-risk, or final user-approval gates.
 
-Use explicit approval by default. Use a substitute only when this lifecycle, the operating model, the producer, and the accepting workflow all allow the same bounded scope.
+Required fields:
 
-| Record | Valid Only When | Never Satisfies |
-|---|---|---|
-| `explicit approval recorded` | User approves the exact next mutation, scope, and risk | No record-level exclusions; still satisfy stricter gate rules |
-| `ApprovalRecord=workflow-tolerated` | Workflow opts in; route is approval-tolerable; pre-mutation record captures producer, gate, scope, Priority Stack decision, source/status/staleness checks when artifacts exist, no unverified assumptions, and planned verification | Non-opted-in, security-sensitive, VCS, destructive, failed/unclear-gate, unresolved-input, unverified-assumption, temp-artifact lifecycle-risk, or final user-approval gates, including `status: implemented`. Final completion still needs verification evidence |
+| Field | Value |
+|---|---|
+| `approval_record` | `explicit approval recorded` or `ApprovalRecord=workflow-tolerated` |
+| `approval_scope` | Exact mutation and bounded targets |
+| `approval_subject` | Approved artifact or persisted preview |
+| `approval_subject_sha256` | Semantic-subject or preview SHA-256 |
+| `approval_preview_sha256` | Exact diff/preview SHA-256; `N/A` when absent |
+| `approval_producer` | User or allowed workflow |
+| `approval_recorded_at` | ISO 8601 timestamp |
+| `approval_risk_decision` | Priority Stack result and accepted residual risk |
+| `approval_envelope_sha256` | Digest binding every field above |
 
-### Assumption Tags
+### Semantic Subject
 
-| Tag | Meaning | Handoff Rule |
-|---|---|---|
-| `[ASSUMPTION - unverified]` | Required decision or fact is unresolved | Blocks `draft-self-reviewed`, `clarified`, `ready-to-develop`, `implementing`, and `implemented-pending-approval` |
-| `[ASSUMPTION - accepted]` | User or workflow accepted a non-critical uncertainty | Allowed only in `Risk Register` with mitigation and source |
+For YAML-frontmatter artifacts that store their approval, hash raw artifact bytes after removing only top-level lifecycle fields (`status`, `clarified`, `implemented`, `blocked_on_user`, `needs_review`, `stale`) and `approval_*` lines with their indented continuations. Preserve every other byte and order. Workflow-specific projections, such as `/update`'s semantic plan, override this rule.
 
-Accepted assumptions never bypass Security, Correctness, testable acceptance criteria, or the required approval record.
+### Approval Envelope
 
-### Re-entry
+Start with ASCII `DRN-APPROVAL`, NUL, and byte `0x01`. Append, in table order excluding only `approval_envelope_sha256`, each field name and value as `name_length:uint64-be | name:utf8 | value_length:uint64-be | value:utf8`. Use lowercase hex digests and the literal `N/A`. `approval_envelope_sha256` is the lowercase SHA-256 of these bytes.
 
-Resume from the last incomplete step named by `status` and metadata flags.
+The user approves the human-readable subject/preview, scope, and risk—not a digest. On confirmation, recompute every digest, record all fields, and set `approval_required: false`. Any envelope-input change invalidates it. Set `approval_required: true`, record reason/time, retain the superseded record as append-only audit history, review changed semantic content, and obtain new approval.
+
+## Lineage
+
+CLARIFY descendants may record `iteration`, `previous_artifact`, `previous_status`, `previous_updated`, `previous_sha256`, `previous_develop_artifact`, `previous_develop_sha256`, `previous_walkthrough_artifact`, and `previous_commit`.
+
+- Accept supplied or unambiguous name-versioned artifacts and refs; require hashes only when a listed hash drives freshness.
+- Higher iteration, then newer timestamp, supersedes an ancestor. Branch only with user confirmation.
+- `### Enriched Lineage Snapshot` may summarize prior CLARIFY, DEVELOP, walkthrough, and commit evidence. It never replaces freshness, approval, review, optimize, or develop gates.
+
+## Assumptions And Re-entry
+
+`[ASSUMPTION - unverified]` blocks `draft-self-reviewed`, `clarified`, `ready-to-develop`, `implementing`, and `implemented-pending-approval`. `[ASSUMPTION - accepted]` is allowed only in the Risk Register with source and mitigation; it never bypasses Security, Correctness, criteria, or approval.
+
+Resume from `status` and flags. Revalidate source hashes, review state, approval envelope, and blockers before mutation.

@@ -127,7 +127,7 @@ Prefer repository facts and source files over external references. Use web sourc
 
 Every review finding or workflow gate failure must include `Evidence` (file/path+line, command output, or source link), `Impact`, violated `Invariant`, concrete `Recommendation`, `Confidence` (high/medium/low), and `Verification` (run, not run per rule, blocked, or not applicable).
 
-Findings are caused by changed lines or changed behavior, but reviewers may inspect unchanged context needed to prove or disprove impact.
+Diff reviews report findings caused by changed lines or changed behavior; reviewers may inspect unchanged context to prove or disprove impact. Explicit path/content audits may report pre-existing findings within the requested audit scope and must label them `pre-existing`.
 
 ## Command Execution Authorization Gate
 

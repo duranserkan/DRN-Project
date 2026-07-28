@@ -388,10 +388,15 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
     // Override authorization to remove MFA requirement from fallback policy
     protected override void ConfigureAuthorizationOptions(AuthorizationOptions options)
     {
+        base.ConfigureAuthorizationOptions(options);
+
         // Remove MFA enforcement - authenticated users can access without MFA
-        options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        var authenticatedUserPolicy = new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
             .Build();
+
+        options.DefaultPolicy = authenticatedUserPolicy;
+        options.FallbackPolicy = authenticatedUserPolicy;
     }
 }
 ```
@@ -687,12 +692,18 @@ Avoid "magic strings" in your code. DRN provides a type-safe way to reference ro
 
 ### 1. Define Your Accessors
 
-Create a class inheriting from `EndpointCollectionBase<Program>` or `PageCollectionBase<Program>`.
+Create a class inheriting from `EndpointCollectionBase<TProgram>` for controller API endpoints, or `PageCollectionBase<TPageCollection>` for Razor Pages (where `TPageCollection` derives from `PageCollectionBase<TPageCollection>`).
 
 ```csharp
 public class Get : EndpointCollectionBase<Program>
 {
     public static UserEndpoints User { get; } = new();
+}
+
+// For Razor Pages:
+public class SamplePageFor : PageCollectionBase<SamplePageFor>
+{
+    // Page accessors...
 }
 
 public class UserEndpoints : ControllerForBase<UserController>
@@ -718,7 +729,7 @@ ApiEndpoint endpoint = Get.User.Login;
 string url = endpoint.Path(); // "/Api/User/User/Login"
 
 // Generate path with route parameters
-string profileUrl = Get.User.ProfileDetail.Path(new() { ["id"] = userId.ToString() });
+string profileUrl = Get.User.Profile.Path(new() { ["id"] = userId.ToString() });
 ```
 
 ## Razor TagHelpers

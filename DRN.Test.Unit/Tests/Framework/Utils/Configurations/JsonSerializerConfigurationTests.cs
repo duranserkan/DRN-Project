@@ -1,3 +1,5 @@
+using DRN.Framework.Utils.Configurations;
+
 namespace DRN.Test.Unit.Tests.Framework.Utils.Configurations;
 
 public class JsonSerializerConfigurationTests
@@ -24,5 +26,18 @@ public class JsonSerializerConfigurationTests
 
         context.GetRequiredService<IAppSettings>().TryGetConnectionString(name, out var expectedString);
         expectedString.Should().Be(connectionString);
+    }
+
+    [Fact]
+    public void ObjectToJsonConfigurationSource_Should_Support_Multiple_Build_Calls()
+    {
+        var source = new ObjectToJsonConfigurationSource(new { TestKey = "TestValue" });
+        var builder = new ConfigurationBuilder().Add(source);
+
+        var config1 = builder.Build();
+        config1["TestKey"].Should().Be("TestValue");
+
+        var config2 = builder.Build();
+        config2["TestKey"].Should().Be("TestValue");
     }
 }

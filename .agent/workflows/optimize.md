@@ -1,105 +1,86 @@
 ---
-description: Optimize agent-consumed content for correctness per token while preserving source-owned rules and workflow gates
+description: Maximize correctness per token in agent-consumed content while preserving workflow gates
 ---
 
 > **Trigger**: `/optimize [scope]`
-> **Mission**: Maximize correct output per token.
-> **DiSCOS**: Preserve conclusions, decisions, and patterns.
-> **TRIZ**: Optimize for actionability, not shortest text.
-> See also: [Operating Model](./_shared/workflow-operating-model.md), [`/review`](./review.md)
-> **Estimated context: ~1.1K tokens**
->
-> [!IMPORTANT]
-> Be structured, evidenced, honest, and decisive.
+> See [Operating Model](./_shared/workflow-operating-model.md), [Lifecycle](./_shared/status-lifecycle.md), and [`/review`](./review.md).
+> **Estimated context: ~0.8K tokens**
 
 ## 1. Scope
 
-Run Startup Gate once. Load scoped files only.
+Run the Startup Gate once and read only targets.
 
-| Scope | Target |
+| Scope | Targets |
 |---|---|
-| File path | Exact file path |
+| Path | Exact path |
 | `skills` | `.agent/skills/*/SKILL.md` |
-| `workflows` | `.agent/workflows/**/*.md`, including `_shared/` |
-| `docs` | `README.md`, `CHANGELOG.md`, `ROADMAP.md`, `docs/**/*.md` |
+| `workflows` | `.agent/workflows/**/*.md`, including `_shared` |
+| `docs` | Root docs plus README/release notes of profile Documentation Modules; otherwise `/documentation` discovery |
 | `all` | Skills, workflows, and docs |
-| None | Ask for scope and stop |
-| Caller | From `/review`, CAD, or `/goal`: preserve caller gates and treat findings as evidence |
+| Caller | Preserve every caller-owned gate, including `/review`, CAD, `/goal`, and `/update` mutation, approval, lifecycle, and state-transition gates |
+| None | Ask and stop |
 
-Invariant: Do not optimize `AGENTS.md`, `DiSCOS.md`, or `.agent/temp/` files unless explicitly scoped. Require approval and preserve all metadata: status, hashes, source keys.
+Do not optimize `AGENTS.md`, `DiSCOS.md`, or unrelated `.agent/temp/` artifacts unless explicitly scoped. Preserve lifecycle/source metadata and hashes.
 
-## 2. Preview
+## 2. Exact Preview
 
-Preview before edits.
+Preview every edit; `apply` requests preparation, not approval of unseen changes.
 
-| Severity | Examples | Gate |
-|---|---|---|
-| Safe | Whitespace, filler, duplicate phrasing | Confirm preview |
-| Moderate | Structural condensation, text merging | Show diff, confirm |
-| Significant | Content removal, semantic change | Show diff and rationale; require approval |
-| Mixed | Varied severities | Apply confirmed changes only |
+| Severity | Gate |
+|---|---|
+| Safe: whitespace/filler/duplicate phrasing | Exact preview and confirmation |
+| Moderate: condensation/restructure | Diff and confirmation |
+| Significant: removal/semantic change | Diff, rationale, explicit approval |
+| Mixed | Apply only approved items |
 
 For each target:
-1. Estimate baseline tokens: `chars / 4`.
-2. Map candidates to Section 3 rules.
-3. Classify severity and risk.
-4. Reject net complexity; mark additions `[COMPLEXITY WARNING]`.
-5. Apply TRIZ and choose the simplest source-owned option.
-6. Report multi-file similarity >70%; consolidate only on confirmation.
-7. Validate references, metadata, and workflow gates.
-8. Label each action `optimize`, `defer`, or `reject` with one-sentence rationale.
 
-Preview summary:
+1. Estimate baseline as `chars / 4`; classify and justify each candidate as optimize/defer/reject.
+2. Reject net complexity; tag additions `[COMPLEXITY WARNING]`.
+3. Validate references, metadata, gates, and semantic consistency.
+4. For semantic workflow/skill changes, run `/review` and resolve Critical and Major findings before preview.
+5. Persist `.agent/temp/optimize-apply-preview.md` with the bounded scope, severity, risk decision, proposed patch summary, and a target manifest. Check non-following filesystem metadata for each target and reject or explicitly exclude symlink targets before generating the manifest and approval bundle, matching Apply And Verify rules. List each eligible repository-relative target (regular files and missing targets) exactly once in bytewise path order. Serialize each entry as one compact JSON array followed by LF, with fields in this exact order: `["path","existence","type","mode","raw_symlink_target","sha256"]`. Use repository-relative `/` paths; JSON-escape only control characters as lowercase `\u00xx`, `"` as `\"`, and `\` as `\\`, emitting all other characters as UTF-8 with no optional whitespace. Use `present`, `regular`, the six-digit lowercase octal non-followed mode (for example `100644`), `N/A`, and the lowercase SHA-256 of file bytes for regular files. Use `missing`, `missing`, `N/A`, `N/A`, and `N/A` for missing targets. The target-manifest digest is the lowercase SHA-256 of the manifest block's exact raw UTF-8 bytes, excluding its digest line.
+6. Persist the exact patch bytes at `.agent/temp/optimize-proposed.diff`.
+7. Compute the raw-byte SHA-256 of both files and present the preview and exact patch for explicit approval.
 
-| File | Baseline Tokens | Proposed Changes | Severity | Risk |
-|---|---|---|---|---|
+### Approval Bundle
 
-## 3. Rules
+Use one canonical mapping:
+
+| Approval Field | Value |
+|---|---|
+| `approval_scope` | Exact mutation and target paths listed in the target manifest |
+| `approval_subject` | `.agent/temp/optimize-apply-preview.md` |
+| `approval_subject_sha256` | Lowercase SHA-256 of the preview's exact raw bytes |
+| `approval_preview_sha256` | Lowercase SHA-256 of `.agent/temp/optimize-proposed.diff` exact raw bytes |
+
+Store the complete shared envelope in `.agent/temp/optimize-approval.md`, never in the preview or patch. The approval file is not part of either digest. Retain superseded records there as append-only history, and accept only the latest record whose envelope, scope, target manifest, preview, and patch all match.
+
+## 3. Optimize
 
 Apply in order:
-- Eliminate filler, hedging, placeholders, duplicate phrasing, and comment restatements.
+
+- Remove filler, hedging, placeholders, restatements, and duplication.
 - Condense tables, bullets, definitions, and examples.
-- Restructure by front-loading decisions, using parallel grammar, and limiting nesting to 2 levels.
-- Enhance only to fix errors, ambiguity, broken links, or edge cases.
-- Simplify indirection, deep nesting, redundant checks, and compensating complexity.
-- Deduplicate similarities >70%; report source and confirm consolidation.
+- Front-load decisions; use parallel grammar and at most two nesting levels.
+- Add content only to fix error, ambiguity, broken reference, or uncovered edge case.
+- Simplify indirection and compensating complexity.
 
-Keep YAML frontmatter, anchors, links, security instructions, design rationale, versions, code blocks, diagrams, metadata, and source keys (`source_status`, `source_updated`, `source_sha256`).
+Keep security rules, rationale, versions, runnable code, anchors, links, and source keys. Prefer direct conditional steps for workflows, compact tables for skills, inverted-pyramid docs, and executive-summary reports.
 
-| Type | Standard |
-|---|---|
-| Skill | Tables, alphabetical keys, minimal examples |
-| Workflow | Direct steps and conditional directives: `If X, do Y` |
-| Doc | Inverted pyramid, progressive disclosure, TOC when sections >=5 |
-| Report | Executive summary plus tables |
-| Todo | Active context only; one-line completion logs |
+## 4. Apply And Verify
 
-## 4. Apply
+After user approval:
 
-Edit only after preview confirmation or explicit apply mode.
+1. Recheck every target with non-following filesystem metadata before hashing content. Reject symlink targets or abort on any path-state or type change from the approved manifest (including a previously present target now missing, a previously missing target now added, deletion, rename, mode change, file-type transition such as regular file to symlink, or symlink-target change).
+2. Only after all path-state checks pass, recompute every content digest, the target-manifest digest, and the preview and patch raw-byte digests using no-follow reads; abort if any file-type or identity change occurs during reading or on any digest mismatch.
+3. Record and verify the complete shared approval envelope in `.agent/temp/optimize-approval.md` using the canonical mapping above.
+4. Perform an immediate, final non-following revalidation of path state, file type, and target identity immediately before mutation; abort if any target is a symlink or has changed type or identity.
+5. Apply only the approved patch.
+6. Verify links, metadata, idempotency, and `git diff --check`.
+7. Post-review every Moderate/Significant change; workflow/skill semantics require both pre- and post-review.
+8. If a correction changes a target, scope, risk decision, preview, or patch, invalidate the active record, retain it as superseded history, and restart preview.
 
-1. Record approved scope, candidates, and severity.
-2. Verify references, links, and metadata.
-3. Re-run preview checks for idempotency.
-4. Run `git diff --check`.
+Report pre/post tokens, delta, severity, and a 0-100 quality score: structure 30%, conciseness 25%, heading density 25%, imperative phrasing 20%. Score zero when any action is ambiguous or omits a documented edge case.
 
-Review integration: run `/review` on diffs for Moderate or Significant changes. Block completion on Critical findings; restart preview when blocked. Integrate minor feedback into metrics.
-
-## 5. Metrics
-
-| File | Pre-Tokens | Post-Tokens | Delta % | Quality Score | Severity |
-|---|---|---|---|---|---|
-
-Quality Score, 0-100: Layout/Structure 30%, Conciseness 25% with average bullet length <=15 words, Heading density 25%, Imperative phrasing 20%.
-
-Actionability Gate: score is 0 if any step lacks a clear action, contains ambiguity, or omits documented edge cases.
-
-## 6. Guarantees
-
-Ensure edits remain:
-- Idempotent and preview-driven.
-- Non-destructive and Git-tracked.
-- Strictly scoped.
-- Respectful of invariants.
-
-Apply Priority Stack and `/review` to Moderate and Significant changes.
+Guarantees: preview-driven, reversible, scoped, Git-tracked, and source-rule preserving.

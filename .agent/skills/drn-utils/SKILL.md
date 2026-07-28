@@ -373,7 +373,7 @@ int v = "123".Parse<int>();     bool ok = "abc".TryParse<int>(out _);
 // Casing/path helpers live in DRN.Framework.SharedKernel.Extensions.
 
 // Type & Assembly
-assembly.GetTypesAssignableTo<TInterface>();
+assembly.GetTypesAssignableTo(typeof(TInterface));
 assembly.GetSubTypes(typeof(T));
 assembly.CreateSubTypes<T>(); // Discover + instantiate parameterless ctors
 type.GetAssemblyName();
@@ -384,11 +384,11 @@ type.InvokeStaticMethod("Name", args);
 instance.InvokeGenericMethod("Name", typeArgs, args);
 
 // Flurl & HTTP Diagnostics
-await PrepareScopeLogForFlurlExceptionAsync(); // Captures request/response into IScopedLog
+await ex.PrepareScopeLogForFlurlExceptionAsync(scopedLog, appFeatures); // Captures request/response into IScopedLog
 exception.GetGatewayStatusCode();              // Maps to 502/503/504
 
 // Object & Dictionary
-object.GetGroupedPropertiesOfSubtype<T>();      // Group properties by subtype
+object.GetGroupedPropertiesOfSubtype(typeof(T));      // Group properties by subtype
 number.GetBitPositions();                       // Get set bit positions
 ```
 

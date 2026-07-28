@@ -8,7 +8,7 @@ inputs:
     description: "Docker registry username used for authentication."
     required: true
   password:
-    description: "Docker registry password or personal access token (PAT) used for authentication."
+    description: "Docker registry password or PAT with Read and Write permissions for promoting image tags."
     required: true
   image-repository-prefix:
     description: "Docker image repository namespace/path without the registry host (e.g., duranserkan, my-org/platform)."

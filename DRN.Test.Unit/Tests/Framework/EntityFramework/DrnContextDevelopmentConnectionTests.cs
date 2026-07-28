@@ -31,7 +31,6 @@ public class DrnContextDevelopmentConnectionTests
         appSettings.Environment.Returns(AppEnvironment.Development);
 
         var expectedCs = "Host=localhost;Database=ExplicitDb;";
-        string outCs = expectedCs;
         appSettings.TryGetConnectionString("TestContext", out Arg.Any<string>()!)
             .Returns(x =>
             {
@@ -51,7 +50,6 @@ public class DrnContextDevelopmentConnectionTests
         appSettings.IsDevelopmentEnvironment.Returns(true);
         appSettings.Environment.Returns(AppEnvironment.Development);
 
-        string? outCs = null;
         appSettings.TryGetConnectionString("TestContext", out Arg.Any<string>()!).Returns(false);
 
         var rawSpecialPassword = "P@ss;word=With'Quotes\"And;Semicolons!";

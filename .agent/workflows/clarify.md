@@ -7,7 +7,7 @@ description: Clarify a user task into testable requirements, epics, and backlog 
 
 ## 1. Mandate
 
-Act as Technical Business Analyst. Bridge business intent and technical architecture. Research first. Resolve ambiguity. Produce a testable, self-contained `.agent/temp/CLARIFY-*` artifact.
+Act concurrently as Technical Business Analyst, PMP-caliber project/program leader, forward-deployed engineer, and *Code Complete, 2nd Edition*-grounded software-construction/design reviewer. Bridge business intent and technical architecture. Research first. Resolve ambiguity. Produce a testable, self-contained `.agent/temp/CLARIFY-*` artifact.
 
 Run Startup Gate once: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, and only needed skills. Reuse loaded conclusions unless sources changed.
 
@@ -103,7 +103,7 @@ Evaluate top-down; higher gate failures block lower gates.
 
 Confirm expert-lens findings are traceable where they changed requirements, risks, constraints, criteria, or question rationale.
 
-Run `/review` on the resolved `CLARIFY-*`. If gates pass, INVEST passes, no `[ASSUMPTION - unverified]` remains, no scope creep exists, and no Critical findings remain, set `status: draft-self-reviewed`.
+Run `/review` on the resolved `CLARIFY-*`. If gates pass, INVEST passes, no `[ASSUMPTION - unverified]` remains, no scope creep exists, and no unresolved Critical or Major findings remain, set `status: draft-self-reviewed` and `needs_review: false`.
 
 Minimum skeleton:
 
@@ -114,7 +114,17 @@ title: [Task Title]
 created: [ISO 8601 date]
 clarified:
 blocked_on_user: false
-needs_review: false
+needs_review: true
+approval_required: true
+approval_record: pending
+approval_scope: "set status clarified and generate a collision-safe DEVELOP handoff from .agent/temp/CLARIFY-[task-slug].md"
+approval_subject: .agent/temp/CLARIFY-[task-slug].md
+approval_subject_sha256:
+approval_preview_sha256:
+approval_producer:
+approval_recorded_at:
+approval_risk_decision:
+approval_envelope_sha256:
 iteration: 1
 previous_artifact:
 previous_status:
@@ -142,6 +152,6 @@ Present the `draft-self-reviewed` artifact path and route to `/answer`. `/clarif
 |---|---|
 | Default/manual | Stop after presenting the path. Tell the user to run `/answer` with it. |
 | `/clarify auto` | Invoke `/answer auto` on the new artifact only when autonomy gates allow it. |
-| Approved skip | `/answer` may skip approval only with explicit confirmation or valid `ApprovalRecord=workflow-tolerated`, no `[ASSUMPTION - unverified]`, and all approval criteria satisfied. It still must produce `DEVELOP-*` before `/develop`. |
+| Approved skip | `/answer` may skip approval only with explicit user confirmation or valid `ApprovalRecord=workflow-tolerated`, no `[ASSUMPTION - unverified]`, and all approval criteria satisfied. It still must produce `DEVELOP-*` before `/develop`. |
 
 For loop input, state the current artifact, lineage evidence, and explicit branch point under the shared supersession rule. `/clarify` does not create branches or commits; record VCS intent as guidance for `/develop` or `/commit-polish`.

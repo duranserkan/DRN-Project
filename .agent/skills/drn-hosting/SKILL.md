@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-06-12
+last-updated: 2026-07-27
 difficulty: advanced
 tokens: ~3K
 ---
@@ -136,23 +136,32 @@ MFA enforced globally via `FallbackPolicy`. Any route not opted-out requires MFA
 [AllowAnonymous]                            // Fully anonymous
 [Authorize(Policy = AuthPolicy.MfaExempt)]  // Single-factor only
 
-// Disable MFA globally:
-protected override void ConfigureAuthorizationOptions(AuthorizationOptions options) { }
+// Disable MFA as the default/fallback while retaining the registered MFA policies:
+protected override void ConfigureAuthorizationOptions(AuthorizationOptions options)
+{
+    base.ConfigureAuthorizationOptions(options);
+
+    var authenticatedUserPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+
+    options.DefaultPolicy = authenticatedUserPolicy;
+    options.FallbackPolicy = authenticatedUserPolicy;
+}
 ```
 
 ### GDPR & Consent
 
-- `ConsentCookie`: Manages user consent state via secure HttpOnly cookie
-- `ScopedUserMiddleware`: Populates `IScopedLog` with `ConsentGranted` status
+- `ConsentCookie`: Manages user consent state (script-readable under `HttpOnlyPolicy.None`)
+- `ScopedUserMiddleware`: Populates `IScopedLog` with consent flags (`Consent_Analytics`, `Consent_Marketing`) and `ScopeContext` with `ConsentCookie`
 
 ### Per-Route Security Headers
 
 ```csharp
-protected override void ConfigureSecurityHeaderPolicyBuilder(HeaderPolicyCollection policies, IAppSettings appSettings)
+protected override void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings)
 {
-    policies.AddPolicy("AllowExternalScripts", builder =>
-        builder.AddContentSecurityPolicy(csp =>
-            csp.AddScriptSrc().Self().From("https://cdn.example.com")));
+    base.ConfigureSecurityHeaderPolicyBuilder(builder, serviceProvider, appSettings);
+    // Add policies and SetPolicySelector via builder
 }
 ```
 
