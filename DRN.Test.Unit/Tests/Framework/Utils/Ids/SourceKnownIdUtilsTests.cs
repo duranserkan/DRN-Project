@@ -105,9 +105,9 @@ public class SourceKnownIdUtilsTests
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
         var customEpoch = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-        var before = DateTimeOffset.UtcNow;
+        var before = TimeStampManager.UtcNow;
         var id = generator.Next<object>(appId: 10, appInstanceId: 5, epoch: customEpoch);
-        var after = DateTimeOffset.UtcNow;
+        var after = TimeStampManager.UtcNow;
         var parsed = generator.Parse(id, epoch: customEpoch);
 
         parsed.Id.Should().Be(id);
@@ -139,8 +139,9 @@ public class SourceKnownIdUtilsTests
     /// <summary>
     /// Validates that <paramref name="idInfo"/>.CreatedAt falls within the expected test execution range.
     /// Timestamps are converted to 250ms epoch ticks before assertion because TimeStampManager truncates
-    /// timestamps to 250ms precision boundaries. Converting all bounds to ticks normalizes sub-second
-    /// precision disparities and prevents race conditions with high-precision DateTimeOffset.UtcNow bounds.
+    /// timestamps to 250ms precision boundaries. Callers without an intentional time buffer must capture
+    /// bounds from TimeStampManager.UtcNow; converting live wall-clock bounds alone cannot prevent a race
+    /// with the periodically refreshed cache.
     /// </summary>
     private static void AssertCreatedAtWithinGeneratedRange(
         SourceKnownId idInfo,

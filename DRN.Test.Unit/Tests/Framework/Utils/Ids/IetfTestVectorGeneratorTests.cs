@@ -12,12 +12,15 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
 /// <summary>
 /// Generates and asserts concrete test vectors for the IETF SKID Internet Draft (docs/draft-skid-00.md, Appendix A).
-/// Uses well-known IETF-standard test keys (sequential bytes 0x00..0x1F) for reproducibility.
+/// Uses the draft's public sequential-byte test key for reproducibility; the same 256-bit value
+/// appears as a test-vector KEK in RFC 3394 Section 4.3.
 /// Any change to key derivation, BLAKE3 MAC, or AES encryption that would invalidate the document's
 /// Appendix A hex values will cause these assertions to fail.
 /// </summary>
 public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
 {
+    // Appendix A.1 public master/Nexus key material: sequential bytes 0x00..0x1F,
+    // also used as the AES-256 test-vector KEK in RFC 3394 Section 4.3.
     private const string TestNexusKeyMaterialHex = "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F";
     private const string TestMacKeyHex = "5E293E89136745A96B70EB8C8F81CDFCAED177BE5358BC83D3039FB6607FD8FE";
     private const string TestAesKeyHex = "4988F97FF724CD086BDFEC83497C3527B3656F35F0911BEEAA6BCE4BB92D3BC7";

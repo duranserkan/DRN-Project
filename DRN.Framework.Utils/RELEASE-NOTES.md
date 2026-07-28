@@ -16,6 +16,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **In-Place JSON Merge Patching**: Added `JsonMergePatch.ApplyMergePatchInPlace` overloads (`ref JsonNode? target` and `JsonObject target`) for executing full RFC 7396 merge patches in-place while preserving nested object references and updating root node references when necessary.
 *   **Ownerless Named Cancellation Keys**: Support creating named cancellation keys without an owner type via `CancellationScopeKey.For(name)` for intentional cross-type groups. Ownerless keys share one ordinal-name namespace within the current cancellation service scope, so qualified, centrally defined names are recommended. Empty and whitespace names are valid, but the key name must not be null.
+*   **AES-256 Single-Block Implementations**: Added `Aes256`, a disposable `Vector128<byte>` AES-256 ECB primitive with explicit x86/ARM runtime-intrinsic methods, explicit portable .NET AES methods, and default methods that use runtime intrinsics with automatic portable fallback. One live instance supports concurrent operations and clears or disposes its key state. Source-known ID encryption reuses the fallback methods without changing the encrypted ID format or requiring AES-intrinsic hardware.
 
 ### Changed
 
