@@ -21,6 +21,7 @@
 - **App data roots** — `IAppData` resolves temp/data paths with traversal-safe child paths
 - **Scoped Logging** — `IScopedLog` aggregates structured logs per request
 - **Scoped Cancellation** — Explicit root cancel-all plus stable keyed groups with optional type ownership
+- **AES-256 single block** — Explicit runtime-intrinsic and portable paths with automatic fallback
 - **Validators** — Reusable payload validators such as `JpegValidator`
 - **Monotonic Pagination** — Cursor-based pagination leveraging entity ID temporal ordering
 - **Bit Packing** — High-performance `NumberBuilder` for custom data structures
@@ -621,6 +622,33 @@ Unified API for binary-to-text encodings and model serialization-encoding.
 *   **Encodings**: Base64, Base64Url (Safe for URLs), Hex, and Utf8.
 *   **Integrated**: `model.Encode(ByteEncoding.Hex)` and `hexString.Decode<TModel>()`.
 
+### AES-256 Single-Block Encryption (`Aes256`)
+
+`Aes256` accepts and returns one `Vector128<byte>` block. It exposes explicit x86/ARM runtime-intrinsic and portable .NET AES paths; the default `Encrypt` and `Decrypt` methods select runtime intrinsics when available and otherwise use the portable provider. Construction therefore remains portable, while explicit runtime-intrinsic methods throw `PlatformNotSupportedException` on unsupported hosts.
+
+| Methods | Implementation |
+|---|---|
+| `Encrypt` / `Decrypt` | Runtime intrinsics with automatic portable fallback |
+| `EncryptRuntimeIntrinsics` / `DecryptRuntimeIntrinsics` | Explicit x86 AES-NI or ARM AES intrinsics |
+| `EncryptWithFramework` / `DecryptWithFramework` | Explicit cross-platform .NET AES provider |
+
+A live instance supports concurrent calls. Intrinsic operations read pre-expanded round keys without locks or per-call allocation. On .NET 10.0.10, framework-provider operations are also lock-free because each call creates its own cipher state without mutating the configured key. Reverify this framework-provider assumption when changing the target runtime. Dispose the instance after all callers finish to clear the intrinsic schedules and dispose portable key state.
+
+> [!WARNING]
+> `Aes256` is a deterministic, single-block ECB primitive with no authentication. Do not compose it into multi-block ECB encryption.
+
+```csharp
+using var aes = new Aes256(key);
+Vector128<byte> ciphertext = aes.Encrypt(plaintext);
+Vector128<byte> recovered = aes.Decrypt(ciphertext);
+
+Vector128<byte> portableCiphertext = aes.EncryptWithFramework(plaintext);
+if (Aes256.IsSupported)
+{
+    Vector128<byte> intrinsicPlaintext = aes.DecryptRuntimeIntrinsics(portableCiphertext);
+}
+```
+
 ### Hashing (`HashExtensions`)
 
 High-performance hashing extensions supporting modern and legacy algorithms.
@@ -803,16 +831,12 @@ The `Generate` method dispatches to secure or plain generation based on the `Use
 | `ToSecure` | Converts a plain ID to its secure form (idempotent) |
 | `ToPlain` | Converts a secure ID to its plain form (idempotent) |
 
-**Secure variant** encrypts the entire 16-byte GUID using AES-256-ECB as a pseudo-random permutation (PRP). For a single 128-bit block, ECB is mathematically identical to CBC with a zero IV — no nonce required, no nonce-reuse vulnerability. Key separation ensures BLAKE3 keyed MAC (integrity) and AES-256 (confidentiality) use cryptographically independent keys derived from the same decoded `NexusKey` material.
+**Secure variant** encrypts the entire 16-byte GUID with `Aes256` as a pseudo-random permutation (PRP). For a single 128-bit block, ECB is mathematically identical to CBC with a zero IV — no nonce required, no nonce-reuse vulnerability. Key separation ensures BLAKE3 keyed MAC (integrity) and AES-256 (confidentiality) use cryptographically independent keys derived from the same decoded `NexusKey` material.
 
 Generation uses the default `NexusKey`. Parse uses a default-first key-ring fallback, so IDs generated before key rotation can still be parsed while the previous key remains configured.
 
 > [!NOTE]
-> **Thread-Safety Verification**: Although MSDN documents `Aes` instance members as not guaranteed thread-safe, the span-based one-shot methods `EncryptEcb` and `DecryptEcb` are stateless and fully safe for concurrent execution by this singleton service:
-> - **Windows (CNG)**: Uses native `BCryptEncrypt` under thread-safe CNG key handles.
-> - **macOS (AppleCommonCrypto)**: Invokes the pure stateless `CCCrypt` function directly.
-> - **Linux (OpenSSL)**: Allocates a temporary `SafeEvpCipherCtxHandle` context inside the call, avoiding instance state mutation.
-> Concurrency has been validated via stress tests (`SourceKnownEntityIdUtils_Should_Generate_Ids_For_3_Seconds`) executing ~800,000 parallel operations without data races or corruption.
+> `SourceKnownEntityIdUtils` is a singleton and safely reuses each key-ring entry's `Aes256` instance across concurrent calls. It uses lock-free runtime intrinsics when available and automatically falls back to the lock-free .NET 10.0.10 framework provider, preserving the encrypted ID format on hosts without AES intrinsics. Reverify this framework-provider concurrency assumption when changing the target runtime.
 
 > [!NOTE]
 > **Post-quantum readiness**: AES-256 retains 128-bit security under Grover's algorithm — NIST recommended for post-quantum symmetric encryption.

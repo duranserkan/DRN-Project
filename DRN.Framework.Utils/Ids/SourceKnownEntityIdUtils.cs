@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
-using System.Security.Cryptography;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 using Blake3;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Data.Encryption;
@@ -117,7 +118,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     // Key separation: MacKey and EncryptionKey are cryptographically independent keys from the same keyring entry.
     // MacKey -> BLAKE3 keyed MAC (integrity). EncryptionKey -> AES-256-ECB (confidentiality).
     private readonly NexusKeyRing _keyRing;
-    private readonly Aes _aes;
+    private readonly Aes256 _aes;
     private readonly SecretKey32 _macKey;
     private readonly bool _useSecure;
     private readonly ISourceKnownIdUtils _sourceKnownIdUtils;
@@ -161,7 +162,6 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
 
     public SourceKnownEntityId GenerateSecure(long id, byte entityType)
     {
-
         Span<byte> hashBytes = stackalloc byte[MacHashLength];
         Span<byte> guidBytes = stackalloc byte[GuidLength];
         guidBytes.Clear();
@@ -245,9 +245,9 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         // HasValidMarkersSecure accepts RFC 9562 §4.1 variant range 0x80–0xBF (collision guard uses 0x8D–0xBF)
         DecryptGuidBlock(guidBytes, key.Aes);
 
-        if (!HasValidMarkersSecure(guidBytes)) 
+        if (!HasValidMarkersSecure(guidBytes))
             return CreateInvalid(entityId);
-        
+
         var recoveredVariant = guidBytes[SourceKnownMarkerVariantIndex];
 
         // Non-default variant → backward collision-guard verification
@@ -302,7 +302,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     public SourceKnownEntityId? ToPlain(SourceKnownEntityId? id)
         => id.HasValue ? ToPlain(id.Value) : null;
 
-    private static SourceKnownEntityId CreateInvalid(Guid entityId) 
+    private static SourceKnownEntityId CreateInvalid(Guid entityId)
         => new(default, entityId, InvalidEntityType, false, Secure: false);
 
     private static bool HasValidMarkers(ReadOnlySpan<byte> guidBytes)
@@ -453,60 +453,31 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// <summary>
     /// Writes 4-byte MAC hash into guid byte positions 12-15 (contiguous).
     /// </summary>
-    private static void WriteMacToGuid(Span<byte> guidBytes, ReadOnlySpan<byte> hashBytes) 
+    private static void WriteMacToGuid(Span<byte> guidBytes, ReadOnlySpan<byte> hashBytes)
         => hashBytes[..MacHashLength].CopyTo(guidBytes[MacHashOffset..]);
 
     /// <summary>
     /// Reads 4-byte MAC hash from guid byte positions 12-15 (contiguous).
     /// </summary>
-    private static void ReadMacFromGuid(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes) 
+    private static void ReadMacFromGuid(ReadOnlySpan<byte> guidBytes, Span<byte> hashBytes)
         => guidBytes[MacHashOffset..(MacHashOffset + MacHashLength)].CopyTo(hashBytes);
 
     /// <summary>
     /// Zeros the MAC slots (bytes 12-15) in the guid bytes for MAC re-computation.
     /// </summary>
-    private static void ClearMacSlots(Span<byte> guidBytes) 
+    private static void ClearMacSlots(Span<byte> guidBytes)
         => guidBytes[MacHashOffset..(MacHashOffset + MacHashLength)].Clear();
 
-    /// <summary>
-    /// Encrypts all 16 guid bytes in-place using AES-256-ECB (single-block PRP).
-    /// <para>
-    /// <b>Thread-Safety Verification:</b>
-    /// Although the general MSDN documentation states "Any instance members of <see cref="Aes"/> are not guaranteed to be thread safe",
-    /// the span-based one-shot methods <c>EncryptEcb</c> and <c>DecryptEcb</c> are state-free and do not mutate or store any state on the Aes instance itself.
-    /// </para>
-    /// <para>
-    /// Platform-specific implementation details:
-    /// <list type="bullet">
-    /// <item><description><b>Windows (CNG):</b> Calls BCryptEncrypt using the native CNG key handle. Under CNG, key handles are thread-safe for concurrent stateless operations.</description></item>
-    /// <item><description><b>macOS (AppleCommonCrypto):</b> Calls CCCrypt, a pure C function that is completely stateless.</description></item>
-    /// <item><description><b>Linux (OpenSSL):</b> Allocates a temporary local context (SafeEvpCipherCtxHandle) inside the call, avoiding any shared state on the Aes instance.</description></item>
-    /// </list>
-    /// </para>
-    /// <para>
-    /// Concurrency validated with <c>SourceKnownEntityIdUtils_Should_Generate_Ids_For_3_Seconds</c> generating ~800,000 IDs across 8 parallel threads without data races or corruption.
-    /// </para>
-    /// For a single 128-bit block, ECB is mathematically identical to CBC with a zero IV
-    /// (C = AES(Key, P ⊕ 0) = AES(Key, P)), but avoids the IV allocation and XOR overhead.
-    /// ECB's known weakness (identical blocks → identical ciphertexts) does not apply here
-    /// because there is only one block per encryption call.
-    /// </summary>
-    private static void EncryptGuidBlock(Span<byte> guidBytes, Aes aes)
+    private static void EncryptGuidBlock(Span<byte> guidBytes, Aes256 aes)
     {
-        Span<byte> output = stackalloc byte[GuidLength];
-        aes.EncryptEcb(guidBytes, output, PaddingMode.None);
-        output.CopyTo(guidBytes);
+        var block = Vector128.LoadUnsafe(ref MemoryMarshal.GetReference(guidBytes));
+        aes.Encrypt(block).StoreUnsafe(ref MemoryMarshal.GetReference(guidBytes));
     }
 
-    /// <summary>
-    /// Decrypts all 16 guid bytes in-place using AES-256-ECB (single-block PRP inverse).
-    /// See <see cref="EncryptGuidBlock"/> for thread-safety details and rationale on ECB vs CBC for single-block operations.
-    /// </summary>
-    private static void DecryptGuidBlock(Span<byte> guidBytes, Aes aes)
+    private static void DecryptGuidBlock(Span<byte> guidBytes, Aes256 aes)
     {
-        Span<byte> output = stackalloc byte[GuidLength];
-        aes.DecryptEcb(guidBytes, output, PaddingMode.None);
-        output.CopyTo(guidBytes);
+        var block = Vector128.LoadUnsafe(ref MemoryMarshal.GetReference(guidBytes));
+        aes.Decrypt(block).StoreUnsafe(ref MemoryMarshal.GetReference(guidBytes));
     }
 
     // SourceKnownEntityIdUtils is registered as a singleton; the DI container disposes it at shutdown.
