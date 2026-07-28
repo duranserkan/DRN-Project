@@ -40,7 +40,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
         _initialServiceDescriptors = testContext.ServiceCollection.ToArray();
         var initialServiceDescriptors = _initialServiceDescriptors;
         //Add program services to drnTestContext
-        var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true).WithWebHostBuilder(webHostBuilder =>
+        using (var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true).WithWebHostBuilder(webHostBuilder =>
         {
             //only need service collection descriptors, so ValidateServicesAddedByAttributes should not fail test at this stage
             var configuration = testContext.GetRequiredService<IConfiguration>();
@@ -51,9 +51,10 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
 
             webHostConfigurator?.Invoke(webHostBuilder);
             webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
-        });
-        _ = tempApplicationFactory.Server; //To trigger webHostBuilder action
-        tempApplicationFactory.Dispose();
+        }))
+        {
+            _ = tempApplicationFactory.Server; //To trigger webHostBuilder action
+        }
 
         //register action to pass test context configuration to web application.
         //This will be triggered when TestServer or HttpClient requested until then further configurations can be added to test context configuration
@@ -174,11 +175,82 @@ public class DrnWebApplicationFactory<TEntryPoint>(DrnTestContext context, bool 
 
     protected override IHost CreateHost(IHostBuilder builder)
     {
-        var host = base.CreateHost(builder);
-        if (!Temporary)
-            context.UseApplicationServiceProvider(host.Services);
+        // Preserve WebApplicationFactory host setup while retaining a partially built host for failure cleanup.
+        var capturingBuilder = new CapturingHostBuilder(builder);
+        try
+        {
+            var host = base.CreateHost(capturingBuilder);
+            if (!Temporary)
+                context.UseApplicationServiceProvider(host.Services);
 
-        return host;
+            return host;
+        }
+        catch (Exception hostException)
+        {
+            var host = capturingBuilder.Host;
+            if (host == null)
+                throw;
+
+            try
+            {
+                host.Dispose();
+            }
+            catch (Exception disposalException)
+            {
+                throw new AggregateException(hostException, disposalException);
+            }
+
+            throw;
+        }
+    }
+
+    private sealed class CapturingHostBuilder(IHostBuilder builder) : IHostBuilder
+    {
+        public IHost? Host { get; private set; }
+        public IDictionary<object, object> Properties => builder.Properties;
+
+        public IHostBuilder ConfigureHostConfiguration(Action<IConfigurationBuilder> configureDelegate)
+        {
+            builder.ConfigureHostConfiguration(configureDelegate);
+            return this;
+        }
+
+        public IHostBuilder ConfigureAppConfiguration(
+            Action<HostBuilderContext, IConfigurationBuilder> configureDelegate)
+        {
+            builder.ConfigureAppConfiguration(configureDelegate);
+            return this;
+        }
+
+        public IHostBuilder ConfigureServices(Action<HostBuilderContext, IServiceCollection> configureDelegate)
+        {
+            builder.ConfigureServices(configureDelegate);
+            return this;
+        }
+
+        public IHostBuilder UseServiceProviderFactory<TContainerBuilder>(
+            IServiceProviderFactory<TContainerBuilder> factory) where TContainerBuilder : notnull
+        {
+            builder.UseServiceProviderFactory(factory);
+            return this;
+        }
+
+        public IHostBuilder UseServiceProviderFactory<TContainerBuilder>(
+            Func<HostBuilderContext, IServiceProviderFactory<TContainerBuilder>> factory)
+            where TContainerBuilder : notnull
+        {
+            builder.UseServiceProviderFactory(factory);
+            return this;
+        }
+
+        public IHostBuilder ConfigureContainer<TContainerBuilder>(
+            Action<HostBuilderContext, TContainerBuilder> configureDelegate)
+        {
+            builder.ConfigureContainer(configureDelegate);
+            return this;
+        }
+
+        public IHost Build() => Host = builder.Build();
     }
 }
 

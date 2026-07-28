@@ -40,14 +40,16 @@ public class DataProviderTests
     {
         var testDirectory = $"DataProviderTests_{Guid.NewGuid():N}";
         var localDataDir = Path.Combine(testDirectory, "Data");
-        Directory.CreateDirectory(localDataDir);
-
         var testFileName = $"conflict_{Guid.NewGuid():N}.txt";
         var localFilePath = Path.Combine(localDataDir, testFileName);
-        File.WriteAllText(localFilePath, "Local Content");
+        var globalFilePath = Path.Combine(DataProviderDataLookupDirectoryPaths.GlobalConventionDirectoryPath, testFileName);
 
         try
         {
+            Directory.CreateDirectory(localDataDir);
+            File.WriteAllText(localFilePath, "Local Content");
+            File.WriteAllText(globalFilePath, "Global Content");
+
             var dataPathResult = DataProvider.GetDataPath(testFileName, testDirectory);
             dataPathResult.SelectedDirectory.Should().Be(localDataDir);
             dataPathResult.DataPath.Should().Be(localFilePath);
@@ -58,6 +60,8 @@ public class DataProviderTests
         }
         finally
         {
+            if (File.Exists(globalFilePath))
+                File.Delete(globalFilePath);
             if (Directory.Exists(testDirectory))
                 Directory.Delete(testDirectory, recursive: true);
         }

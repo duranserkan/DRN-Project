@@ -2,8 +2,13 @@ using System.Net.Http.Json;
 using DRN.Framework.Utils.Models.Sample;
 using DRN.Test.Utils.Hosting;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Sample.Hosted;
 using Sample.Hosted.Filters;
 using Sample.Hosted.Helpers;
@@ -78,10 +83,7 @@ public class ApplicationContextTests
         var exception = dispose.Should().Throw<AggregateException>().Which;
         exception.ToString().Should().Contain(StopFailureHostedService.StopFailureMessage);
         context.ApplicationContext.GetCreatedApplication<TemporaryLifecycleProgram>().Should().BeNull();
-        disposalOrder.Should().Equal(
-            "application-stop-failed",
-            "application",
-            "context");
+        disposalOrder.Should().Equal("application-stop-failed", "application", "context");
 
         context.Dispose();
 
@@ -108,10 +110,7 @@ public class ApplicationContextTests
         errors[1].Message.Should().Contain("Attempt 2");
         factory.DisposeCount.Should().Be(2);
         context.ApplicationContext.HasCreatedApplication.Should().BeTrue();
-        disposalOrder.Should().Equal(
-            "application-dispose-failed-1",
-            "application-dispose-failed-2",
-            "context");
+        disposalOrder.Should().Equal("application-dispose-failed-1", "application-dispose-failed-2", "context");
 
         context.Dispose();
 
@@ -156,6 +155,41 @@ public class ApplicationContextTests
         context.Dispose();
 
         disposalOrder.Should().Equal("application", "context");
+    }
+
+    [Theory]
+    [DataInline]
+    public void ApplicationContext_Should_Dispose_Temporary_Discovery_Factory_When_Host_Fails(DrnTestContext context)
+    {
+        var throwingOptions = new ThrowingTestServerOptions();
+
+        Action createApplication = () => context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>(builder =>
+            builder.ConfigureServices(services =>
+                services.AddSingleton<IOptions<TestServerOptions>>(_ => throwingOptions)));
+
+        createApplication.Should().ThrowExactly<InvalidOperationException>()
+            .WithMessage(ThrowingTestServerOptions.FailureMessage);
+        throwingOptions.DisposeCount.Should().Be(1);
+        context.ApplicationContext.HasCreatedApplication.Should().BeFalse();
+    }
+
+    [Theory]
+    [DataInline]
+    public void DrnWebApplicationFactory_Should_Preserve_Base_Kestrel_Port_Configuration(DrnTestContext context)
+    {
+        var addressesFeature = new ServerAddressesFeature();
+        addressesFeature.Addresses.Add("http://localhost:5000");
+        var features = new FeatureCollection();
+        features.Set<IServerAddressesFeature>(addressesFeature);
+        var server = Substitute.For<IServer>();
+        server.Features.Returns(features);
+        var builder = new HostBuilder().ConfigureServices(services => services.AddSingleton(server));
+        using var factory = new ExposedDrnWebApplicationFactory(context);
+        factory.UseKestrel(0);
+
+        using var host = factory.CreateHostForTest(builder);
+
+        addressesFeature.Addresses.Should().Equal("http://127.0.0.1:0");
     }
 
     [Theory]
@@ -267,5 +301,21 @@ public class ApplicationContextTests
             if (DisposeCount == 1)
                 throw new InvalidOperationException(FailureMessage);
         }
+    }
+
+    private sealed class ThrowingTestServerOptions : IOptions<TestServerOptions>, IDisposable
+    {
+        public const string FailureMessage = "Test server options failure.";
+        public int DisposeCount { get; private set; }
+
+        public TestServerOptions Value => throw new InvalidOperationException(FailureMessage);
+
+        public void Dispose() => DisposeCount++;
+    }
+
+    private sealed class ExposedDrnWebApplicationFactory(DrnTestContext context)
+        : DrnWebApplicationFactory<TemporaryLifecycleProgram>(context, true)
+    {
+        public IHost CreateHostForTest(IHostBuilder builder) => CreateHost(builder);
     }
 }
