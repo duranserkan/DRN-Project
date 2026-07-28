@@ -103,7 +103,7 @@ Evaluate top-down; higher gate failures block lower gates.
 
 Confirm expert-lens findings are traceable where they changed requirements, risks, constraints, criteria, or question rationale.
 
-Run `/review` on the resolved `CLARIFY-*`. If gates pass, INVEST passes, no `[ASSUMPTION - unverified]` remains, no scope creep exists, and no Critical findings remain, set `status: draft-self-reviewed` and `needs_review: false`.
+Run `/review` on the resolved `CLARIFY-*`. If gates pass, INVEST passes, no `[ASSUMPTION - unverified]` remains, no scope creep exists, and no unresolved Critical or Major findings remain, set `status: draft-self-reviewed` and `needs_review: false`.
 
 Minimum skeleton:
 

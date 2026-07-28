@@ -24,9 +24,10 @@ Apply shared supersession rules before processing. Read the artifact fully, incl
 
 For each logical CLARIFY mutation:
 
-1. Set `needs_review: true`, invalidate prior approval, and apply the scoped edit.
-2. Run `/review` on the complete artifact.
-3. Continue only with no Critical finding; set `needs_review: false`.
+1. Before every subsequent mutation following an approval invalidation, require explicit approval or a complete current workflow-tolerated envelope for the current artifact, scope, and risk. For explicit approval, recompute all digests and record the complete current envelope; otherwise validate every field and digest in the tolerated envelope. Only then clear `approval_required` and `blocked_on_user`.
+2. Immediately before the scoped edit, set `needs_review: true`, `approval_required: true`, and `blocked_on_user: true`. Record the invalidation reason and time, and preserve the prior approval as superseded append-only history.
+3. Apply only the scoped edit and run `/review` on the complete artifact.
+4. Continue only with no unresolved Critical or Major findings; set `needs_review: false`. Do not perform another logical mutation until Step 1 passes again.
 
 After the final mutation, validate the shared semantic-subject and approval-envelope digests. Reuse only a complete current workflow-tolerated record. Otherwise set `approval_required: true` and `blocked_on_user: true`, present the artifact, bounded scope, and risk decision, then stop for explicit approval. On confirmation, recompute all digests; record the complete approval envelope with `approval_preview_sha256: N/A`, clear both flags, and continue. Content or digest changes restart this gate.
 
@@ -61,7 +62,7 @@ Require all:
 - Scope and testable criteria are complete.
 - Security and selected-lens concerns map to criteria, constraints, or risks.
 - Priority Stack and TRIZ conflicts are resolved.
-- Latest mutation review has no Critical finding.
+- Latest mutation review has no unresolved Critical or Major findings.
 - Complete approval envelope matches the unchanged artifact, scope, and risk.
 
 On pass, set `status: clarified`, `clarified: <ISO 8601>`, and `blocked_on_user: false`. Otherwise retain status, record blockers, and stop. `/answer` alone owns `clarified`.
@@ -125,7 +126,7 @@ Required body:
 9. `Dependency Map` when backlog >4 or dependencies exist
 10. `Priority Stack Validation`
 
-Use the source columns and identifiers. Run `/review` on the exact resolved path. Clear `needs_review` only when no Critical finding remains. Keep `approval_required: true` unless a complete workflow-tolerated envelope already binds this exact artifact, `/develop` scope, preview if any, producer, timestamp, and risk.
+Use the source columns and identifiers. Run `/review` on the exact resolved path. Clear `needs_review` only when no unresolved Critical or Major findings remain. Keep `approval_required: true` unless a complete workflow-tolerated envelope already binds this exact artifact, `/develop` scope, preview if any, producer, timestamp, and risk.
 
 ## 6. Handoff
 

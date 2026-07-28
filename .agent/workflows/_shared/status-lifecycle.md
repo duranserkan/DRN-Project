@@ -42,7 +42,7 @@ Use lowercase YAML fields; never replace `status`.
 | `stale` | A source or baseline changed. |
 | `approval_required` | The next mutation lacks a current matching approval. |
 
-Fail closed: initialize `needs_review: true` before creating or changing reviewable content. Clear it only after `/review` reports no Critical finding. `approval_required: false` is valid only with the complete current record below.
+Fail closed: initialize `needs_review: true` before creating or changing reviewable content. Clear it only after `/review` reports no unresolved Critical or Major findings. `approval_required: false` is valid only with the complete current record below.
 
 ## Approval Record
 

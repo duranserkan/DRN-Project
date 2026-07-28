@@ -39,7 +39,7 @@ This gate authorizes only `/answer` handoff generation. Require testable criteri
 Verify DEVELOP `source`, `source_status`, `source_updated`, and `source_sha256` against the current non-superseded CLARIFY artifact.
 
 - Missing/newer/mismatched/superseded source: set/report `stale: true`; regenerate through `/answer`.
-- `needs_review: true`: run `/review`; clear only with no Critical finding.
+- `needs_review: true`: run `/review`; clear only with no unresolved Critical or Major findings.
 - `approval_required: true`: obtain explicit approval unless the shared contract permits a workflow-tolerated record.
 - Direct `/develop <path>` may approve the reviewed artifact, persisted preview/diff when applicable, bounded scope, and risk. Compute and record the complete shared approval envelope before edits.
 - A false approval flag without a current matching envelope blocks.
@@ -50,13 +50,13 @@ Security-sensitive, destructive, VCS, failed, unclear, or non-tolerable gates al
 
 Require:
 
-- Current source metadata; no stale, review, approval, or unverified-assumption blocker.
+- Current source metadata; no stale, review, approval, `blocked_on_user: true`, or unverified-assumption blocker.
 - Clear scope, requirements, PBIs, dependencies, and testable criteria.
 - Implementation Context with files, skills, command authorization, and static verification.
 - Lineage Notes when continuing prior work.
 - Lens/tradeoff traceability in criteria, constraints, risks, or Priority Stack.
 
-Route resolvable handoff defects to `/answer`; route scope or critical decision gaps to `/clarify`.
+A handoff with `blocked_on_user: true` cannot advance to `implementing`: route a fully scoped unresolved decision to explicit approval, or return incomplete scope and critical decision gaps to `/clarify`. Route other resolvable handoff defects to `/answer`.
 
 ## 2. Context And Plan
 
@@ -99,7 +99,7 @@ Per PBI:
 After all PBIs:
 
 1. Use allowed commands; otherwise static verification and report `not run per repo rule`.
-2. Run `/review` on implemented changes and resolve Critical findings.
+2. Run `/review` on implemented changes and resolve Critical and Major findings.
 3. Verify Priority Stack, Clean Code, compatibility, docs, and release-note impact.
 4. Run `git diff --check`.
 

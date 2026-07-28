@@ -50,9 +50,10 @@ Do not run restore, build, apps, tests, benchmarks, or load tests. Route explici
 
 Apply Security -> Correctness -> Clarity -> Simplicity -> Performance. Use only relevant risk lenses.
 
-Every finding must include evidence, impact, violated invariant, concrete recommendation, confidence, and verification. For Critical/Suggestion fixes:
+Every finding must include severity, evidence, impact, violated invariant, concrete recommendation, confidence, and verification. For Critical, Major, and Suggestion fixes:
 
-- If the fix costs more complexity than a non-Critical issue, tag `[COMPLEXITY WARNING]`, recommend status quo, and demote to Note.
+- Tag disproportionate fix complexity as `[COMPLEXITY WARNING]` metadata; complexity never lowers a Critical or Major severity.
+- For Suggestions only, recommend status quo and demote to Note when the fix costs more complexity than the issue.
 - Tag `[IMPROVABLE]` only when evidence shows a simpler local pattern/framework feature.
 
 Before `/optimize`, return findings and candidates only. After it, compare the applied diff with approved scope/preview; verify metadata, references, lifecycle, and source-owned rules. CAD, `/goal`, and `/update` callers own mutations and state transitions.
@@ -61,16 +62,16 @@ Before `/optimize`, return findings and candidates only. After it, compare the a
 
 | Verdict | Rule |
 |---|---|
-| ✅ Approve | No Critical finding |
-| ⚠️ Approve with Comments | Suggestions but no Critical |
-| ❌ Request Changes | Any Critical |
-| ✅ Converged | Re-review has no new Critical; remaining Suggestions accepted |
+| ✅ Approve | No unresolved Critical or Major findings and no Suggestions |
+| ⚠️ Approve with Comments | Suggestions but no unresolved Critical or Major findings |
+| ❌ Request Changes | Any unresolved Critical or Major finding |
+| ✅ Converged | Re-review has no unresolved Critical or Major findings; remaining Suggestions accepted |
 
 Maximum two cycles: initial plus one re-review.
 
 State recommendations:
 
-| Caller | Pass | Critical |
+| Caller | Pass | Unresolved Critical/Major |
 |---|---|---|
 | `/update` plan (`ready`) | `transition_allowed: plan-reviewed` | `none` |
 | `/update` changes (`done`) | `transition_allowed: reviewed` | `none` |

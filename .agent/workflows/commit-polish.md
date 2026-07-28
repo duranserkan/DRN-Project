@@ -49,7 +49,7 @@ Before treating `HEAD` as unpublished:
 2. Stop if `HEAD` is a merge commit.
 3. Ensure remote-tracking refs are current. If freshness is not established, ask the user to fetch or explicitly authorize a fetch; never infer freshness from `base..HEAD`. Record the exact remote-tracking refname/objectname snapshot and its raw-byte SHA-256.
 4. Stop if `HEAD` is reachable from any remote-tracking ref or tag.
-5. Record the original commit SHA and tree SHA.
+5. Record the original commit SHA and tree SHA. Parse and record the ordered parent list as every token after the commit SHA in `git rev-list --parents -n 1 "$original_commit_sha"`; preserve the empty list for a root commit.
 
 ```bash
 git status --porcelain=v1 -z
@@ -103,9 +103,9 @@ For the approved `HEAD`-only rewrite, enforce the Hook Policy before execution:
 - **Hook Policy**: Rewriting must prevent every local Git hook from executing. Create an empty temporary hooks directory and override `core.hooksPath` for the amend command; `--no-verify` alone is insufficient because it bypasses only `pre-commit` and `commit-msg`. Also suppress `post-rewrite`.
 
 1. Write the exact approved message to a temporary file through the platform file-write capability, create an empty temporary hooks directory, and record the raw-byte digest of the clean NUL-delimited status.
-2. Immediately before mutation, recheck that `HEAD` and its tree SHA match the recorded values, the worktree and index are clean, the current remote-tracking-ref snapshot is unchanged and still fresh, and `HEAD` remains unreachable from every current remote-tracking ref and tag. Abort and require a new preview and approval on any mismatch.
+2. Immediately before mutation, recheck that `HEAD` and its tree SHA match the recorded values, the worktree and index are clean, the current remote-tracking-ref snapshot is unchanged and still fresh, and `HEAD` remains unreachable from every current remote-tracking ref and tag. Reparse the approved commit's ordered parent list, record it with the pre-mutation validation evidence, and require it to match both the recorded list and the current `HEAD` list. Abort and require a new preview and approval on any mismatch.
 3. Run `git -c core.hooksPath="$empty_hooks_dir" commit --amend --no-verify --no-post-rewrite --cleanup=verbatim --file "$message_file"`; never interpolate the message into a shell command.
-4. Record the amended commit SHA. Verify the resulting tree SHA, raw commit-message bytes, and raw-byte status digest match the recorded tree, approved message, and pre-amend status.
+4. Record the amended commit SHA. Parse its ordered parent list and verify it matches the approved parent list. Also verify the resulting tree SHA, raw commit-message bytes, and raw-byte status digest match the recorded tree, approved message, and pre-amend status. Treat a parent mismatch like any other verification failure and enter the compare-and-swap rollback in Step 5.
 5. On any mismatch, attempt to restore the original commit with compare-and-swap protection and the same hook isolation: `git -c core.hooksPath="$empty_hooks_dir" update-ref -m "rollback failed commit-polish amend" HEAD "$original_commit_sha" "$amended_commit_sha"`. If the command fails because `HEAD` no longer equals the amended SHA, stop without further mutation; never reset or overwrite concurrent work. Otherwise verify the restored `HEAD` and tree SHA, report any remaining worktree or index difference, and stop.
 6. Remove the temporary message file and hooks directory before every successful or failed exit.
 
@@ -115,7 +115,10 @@ git rev-parse HEAD
 git rev-parse HEAD^{tree}
 git for-each-ref --format='%(refname) %(objectname)' refs/remotes
 git for-each-ref --contains HEAD --format='%(refname)' refs/remotes refs/tags
+git rev-list --parents -n 1 "$original_commit_sha"
+git rev-list --parents -n 1 HEAD
 git -c core.hooksPath="$empty_hooks_dir" commit --amend --no-verify --no-post-rewrite --cleanup=verbatim --file "$message_file"
+git rev-list --parents -n 1 HEAD
 git rev-parse HEAD^{tree}
 git cat-file commit HEAD
 ```
@@ -126,8 +129,8 @@ Report final messages:
 
 ```markdown
 ## Results
-| Old SHA | New SHA | Message | Tree Equal | Status |
-|---|---|---|---|---|
+| Old SHA | New SHA | Message | Tree Equal | Parents Equal | Status |
+|---|---|---|---|---|---|
 ```
 
 State: `Push status: not pushed by design`.

@@ -37,10 +37,10 @@ verified + current binding -> stop
 | State | Action | Post-condition |
 |---|---|---|
 | no plan / `outlined` / `planning` | Delegate discovery/planning. | Plan progresses. |
-| `ready` | `/review update-plan.md`. | No Critical -> `/update` sets `plan-reviewed`. |
+| `ready` | `/review update-plan.md`. | No unresolved Critical or Major -> `/update` sets `plan-reviewed`. |
 | `plan-reviewed` | Run apply-preview gate below. | Complete current approval. |
 | `executing` | Delegate/resume execution. | `done`. |
-| `done` | Review Stage 1-5 outputs. | No Critical -> `/update` sets `reviewed`. |
+| `done` | Review Stage 1-5 outputs. | No unresolved Critical or Major -> `/update` sets `reviewed`. |
 | `reviewed` / `verifying` | Delegate verification. | `verified` or `failed`. |
 | `failed` | Build and approve the exact correction proposal; delegate correction. | `correcting` then `done`. |
 | `correcting` | Resume correction through `/update-execute`. | `done`. |
