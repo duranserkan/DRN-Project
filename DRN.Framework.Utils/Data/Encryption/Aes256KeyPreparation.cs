@@ -51,9 +51,7 @@ internal static class Aes256KeyPreparation
         CreateDecryptionSchedule(ref encryptionRoundKeys, ref decryptionRoundKeys);
     }
 
-    private static void ExpandKey(
-        ReadOnlySpan<byte> key,
-        ref InlineArray15<Vector128<byte>> encryptionRoundKeys)
+    private static void ExpandKey(ReadOnlySpan<byte> key, ref InlineArray15<Vector128<byte>> encryptionRoundKeys)
     {
         Span<uint> words = stackalloc uint[ExpandedKeyWordCount];
         try

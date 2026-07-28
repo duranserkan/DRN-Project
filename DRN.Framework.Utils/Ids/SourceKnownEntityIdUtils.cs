@@ -214,9 +214,10 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
 
     public SourceKnownEntityId Parse(Guid entityId)
     {
-        foreach (var key in _keyRing.AllWithDefaultAsFirstItem)
+        var keys = _keyRing.AllWithDefaultAsFirstItem;
+        for (var index = 0; index < keys.Count; index++)
         {
-            var result = ParseWithKey(entityId, key);
+            var result = ParseWithKey(entityId, keys[index]);
             if (result.Valid)
                 return result;
         }

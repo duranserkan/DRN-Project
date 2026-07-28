@@ -22,7 +22,7 @@ public class Aes256Tests
     // IETF SKID Internet-Draft Appendix A: A.1 AES key derived with BLAKE3 derive-key mode from
     // sample Nexus key material 000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F;
     // A.3 plaintext; and A.4 ciphertext.
-    // also used as the AES-256 test-vector KEK in RFC 3394 Section 4.3.
+    // Nexus key material value is also used as the AES-256 test-vector KEK in RFC 3394 Section 4.3.
     // Source: DRN.Test.Unit/Tests/Framework/Utils/Ids/IetfTestVectorGeneratorTests.cs
     private const string IetfDraftKeyHex = "4988F97FF724CD086BDFEC83497C3527B3656F35F0911BEEAA6BCE4BB92D3BC7";
     private const string IetfDraftPlaintextHex = "00081B3200058D018D0C002A492C0E75";
