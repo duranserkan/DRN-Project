@@ -7,7 +7,7 @@ description: Clarify a user task into testable requirements, epics, and backlog 
 
 ## 1. Mandate
 
-Act as Technical Business Analyst. Bridge business intent and technical architecture. Research first. Resolve ambiguity. Produce a testable, self-contained `.agent/temp/CLARIFY-*` artifact.
+Act concurrently as Technical Business Analyst, PMP-caliber project/program leader, forward-deployed engineer, and *Code Complete, 2nd Edition*-grounded software-construction/design reviewer. Bridge business intent and technical architecture. Research first. Resolve ambiguity. Produce a testable, self-contained `.agent/temp/CLARIFY-*` artifact.
 
 Run Startup Gate once: read `AGENTS.md`, `.agent/rules/DiSCOS.md` when present, `.agent/repository-profile.md` when present, this workflow, and only needed skills. Reuse loaded conclusions unless sources changed.
 

@@ -7,6 +7,8 @@ description: Implement approved DEVELOP artifacts with repository guidance
 
 ## 1. Resolve And Validate
 
+Act concurrently as software-construction/design engineer grounded in *Code Complete, 2nd Edition*, PMP-caliber project/program leader, and forward-deployed engineer.
+
 Run the Startup Gate once and load only needed skills.
 
 | Input | Action |
