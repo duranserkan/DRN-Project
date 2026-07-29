@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using DRN.Framework.EntityFramework;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel.Extensions;
@@ -79,43 +80,50 @@ public class PostgresContext(DrnTestContext testContext)
         var container = await StartAsync();
 
         await MigrationLock.WaitAsync();
-        Exception? migrationException = null;
         try
         {
-            var dbContexts = SetConnectionStrings(DrnTestContext, container);
-            var toBeMigratedDbContextTypes = dbContexts.Select(x => x.GetType()).Except(MigratedDbContextTypes).ToArray();
-            var toBeMigratedDbContexts = dbContexts.Where(dbContext => toBeMigratedDbContextTypes.Contains(dbContext.GetType())).ToArray();
+            Exception? migrationException = null;
+            try
+            {
+                var dbContexts = SetConnectionStrings(DrnTestContext, container);
+                var toBeMigratedDbContextTypes = dbContexts.Select(x => x.GetType()).Except(MigratedDbContextTypes).ToArray();
+                var toBeMigratedDbContexts = dbContexts.Where(dbContext => toBeMigratedDbContextTypes.Contains(dbContext.GetType())).ToArray();
 
-            foreach (var toBeMigratedDbContext in toBeMigratedDbContexts) 
-                await toBeMigratedDbContext.Database.MigrateAsync();
+                foreach (var toBeMigratedDbContext in toBeMigratedDbContexts)
+                    await toBeMigratedDbContext.Database.MigrateAsync();
 
-            MigratedDbContextTypes.AddRange(toBeMigratedDbContextTypes);
+                MigratedDbContextTypes.AddRange(toBeMigratedDbContextTypes);
+            }
+            catch (Exception ex)
+            {
+                migrationException = ex;
+            }
 
-            return container;
-        }
-        catch (Exception ex)
-        {
-            migrationException = ex;
-            throw;
-        }
-        finally
-        {
+            Exception? disposalException = null;
             try
             {
                 // Migration DbContexts belong to a temporary provider. Do not retain it alongside the test host.
                 await DrnTestContext.DisposeOwnedServiceProviderAsync();
             }
-            catch (Exception disposalException)
+            catch (Exception ex)
             {
-                if (migrationException != null)
-                    throw new AggregateException(migrationException, disposalException);
+                disposalException = ex;
+            }
 
-                throw;
-            }
-            finally
-            {
-                MigrationLock.Release();
-            }
+            if (migrationException != null && disposalException != null)
+                throw new AggregateException(migrationException, disposalException);
+
+            if (migrationException != null)
+                ExceptionDispatchInfo.Capture(migrationException).Throw();
+
+            if (disposalException != null)
+                ExceptionDispatchInfo.Capture(disposalException).Throw();
+
+            return container;
+        }
+        finally
+        {
+            MigrationLock.Release();
         }
     }
 
