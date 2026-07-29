@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using DRN.Framework.Utils.Concurrency;
 
 namespace DRN.Framework.Testing.Contexts;
 
@@ -61,6 +62,7 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
     public ServiceCollection ServiceCollection { get; internal set; } = [];
     public HttpTest FlurlHttpTest => _flurlHttpTest.Value;
     internal Lazy<HttpTest> FlurlHttpTestLazy => _flurlHttpTest;
+    internal bool HasOwnedServiceProvider => _ownedServiceProvider != null;
 
     /// <summary>
     /// Creates a service provider from test context service collection
@@ -180,6 +182,16 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
         var ownedServiceProvider = _ownedServiceProvider;
         _ownedServiceProvider = null;
         ownedServiceProvider?.Dispose();
+    }
+
+    internal async ValueTask DisposeOwnedServiceProviderAsync()
+    {
+        var ownedServiceProvider = _ownedServiceProvider;
+        if (ownedServiceProvider != null)
+        {
+            await ownedServiceProvider.DisposeAsync();
+            LockUtils.TrySetIfEqual(ref _ownedServiceProvider, null, ownedServiceProvider);
+        }
     }
 
     protected virtual void Dispose(bool disposing)

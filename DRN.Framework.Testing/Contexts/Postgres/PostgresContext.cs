@@ -8,6 +8,7 @@ using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Testcontainers.PostgreSql;
 using ConfigurationException = DRN.Framework.SharedKernel.ConfigurationException;
 
@@ -76,11 +77,12 @@ public class PostgresContext(DrnTestContext testContext)
     public async Task<PostgreSqlContainer> ApplyMigrationsAsync()
     {
         var container = await StartAsync();
-        var dbContexts = SetConnectionStrings(DrnTestContext, container);
 
         await MigrationLock.WaitAsync();
+        Exception? migrationException = null;
         try
         {
+            var dbContexts = SetConnectionStrings(DrnTestContext, container);
             var toBeMigratedDbContextTypes = dbContexts.Select(x => x.GetType()).Except(MigratedDbContextTypes).ToArray();
             var toBeMigratedDbContexts = dbContexts.Where(dbContext => toBeMigratedDbContextTypes.Contains(dbContext.GetType())).ToArray();
 
@@ -88,20 +90,50 @@ public class PostgresContext(DrnTestContext testContext)
                 await toBeMigratedDbContext.Database.MigrateAsync();
 
             MigratedDbContextTypes.AddRange(toBeMigratedDbContextTypes);
+
+            return container;
+        }
+        catch (Exception ex)
+        {
+            migrationException = ex;
+            throw;
         }
         finally
         {
-            MigrationLock.Release();
-        }
+            try
+            {
+                // Migration DbContexts belong to a temporary provider. Do not retain it alongside the test host.
+                await DrnTestContext.DisposeOwnedServiceProviderAsync();
+            }
+            catch (Exception disposalException)
+            {
+                if (migrationException != null)
+                    throw new AggregateException(migrationException, disposalException);
 
-        return container;
+                throw;
+            }
+            finally
+            {
+                MigrationLock.Release();
+            }
+        }
     }
 
     public static DbContext[] SetConnectionStrings(DrnTestContext testContext, PostgreSqlContainer container)
     {
         var dbContextCollection = GetDbContextCollection(testContext.ServiceCollection);
-        foreach (var descriptor in dbContextCollection.ServiceDescriptors)
-            dbContextCollection.ConnectionStrings.Upsert(descriptor.Key, container.GetConnectionString());
+        if (dbContextCollection.Any)
+        {
+            var connectionStringBuilder = new NpgsqlConnectionStringBuilder(container.GetConnectionString())
+            {
+                // Parallel application hosts can outlive individual theory rows.
+                // Avoid retaining idle test sessions until host disposal.
+                Pooling = false
+            };
+
+            foreach (var descriptor in dbContextCollection.ServiceDescriptors)
+                dbContextCollection.ConnectionStrings.Upsert(descriptor.Key, connectionStringBuilder.ConnectionString);
+        }
 
         testContext.AddToConfiguration(dbContextCollection.ConnectionStrings);
 
