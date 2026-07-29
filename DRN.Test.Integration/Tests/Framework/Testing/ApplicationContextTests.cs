@@ -64,8 +64,7 @@ public class ApplicationContextTests
             .LogCritical(firstApplicationMessage);
 
         outputHelper.Received().WriteLine(
-            Arg.Is<string>(message =>
-                message is not null && message.Contains(firstApplicationMessage, StringComparison.Ordinal)));
+            Arg.Is<string>(message => message != null && message.Contains(firstApplicationMessage, StringComparison.Ordinal)));
 
         var secondApplication =
             InvokeCreateApplicationCore<TemporaryLifecycleProgram>(context.ApplicationContext, null);
@@ -74,8 +73,7 @@ public class ApplicationContextTests
             .LogCritical(secondApplicationMessage);
 
         outputHelper.DidNotReceive().WriteLine(
-            Arg.Is<string>(message =>
-                message is not null && message.Contains(secondApplicationMessage, StringComparison.Ordinal)));
+            Arg.Is<string>(message => message != null && message.Contains(secondApplicationMessage, StringComparison.Ordinal)));
     }
 
     [Theory]
@@ -202,7 +200,6 @@ public class ApplicationContextTests
         derivedHostedService.FailNextStop();
 
         var firstDispose = () => context.ApplicationContext.Dispose();
-
         var exception = firstDispose.Should().Throw<Exception>().Which;
         exception.ToString().Should().Contain(StopFailureHostedService.StopFailureMessage);
         disposalOrder.Should().Equal("application-stop-failed", "application");
