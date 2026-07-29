@@ -15,11 +15,11 @@
 
 ## TL;DR
 
-- **Secure by Default** - MFA enforced (Fail-Closed), strict CSP with nonces, HSTS outside Development
+- **Secure by Default (`DrnDefaults`)** - Fail-closed MFA, nonce-based script CSP, and HSTS outside Development
 - **Opinionated Startup** - `DrnProgramBase` with 20+ overrideable lifecycle hooks
 - **Type-Safe Routing** - Typed `Endpoint` and `Page` accessors replace magic strings
-- **Local Infrastructure** - Optional Debug-time Postgres provisioning via `DRN.Framework.Testing`
-- **Frontend Integration** - TagHelpers for Vite manifest, CSRF for HTMX, secure assets
+- **Local Infrastructure** - Opt-in local Postgres provisioning via `DRN.Framework.Testing`
+- **Frontend Integration** - Razor-activated TagHelpers for Vite manifests, HTMX CSRF, and secure assets
 
 ## Table of Contents
 
@@ -35,7 +35,9 @@
 - [Developer Diagnostics](#developer-diagnostics)
 - [Modern HTTP Standards](#modern-http-standards)
 - [GDPR & Consent Integration](#gdpr--consent-integration)
+- [Static Asset Pre-Warming](#static-asset-pre-warming)
 - [Local Development](#local-development-infrastructure)
+- [Hosting Utilities](#hosting-utilities)
 - [Global Usings](#global-usings)
 - [Related Packages](#related-packages)
 
@@ -48,24 +50,29 @@ DRN web applications inherit from `DrnProgramBase<TProgram>` to implement standa
 ```csharp
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.HealthCheck;
+using DRN.Framework.Utils.DependencyInjection;
+using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Settings;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Sample.Hosted;
 
 public class Program : DrnProgramBase<Program>, IDrnProgram
 {
-    // Entry Point (Runs the opinionated bootstrapping)
     public static async Task Main(string[] args) => await RunAsync(args);
 
-    // [Required] Service Registration Hook
-    protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
+    protected override Task AddServicesAsync(
+        WebApplicationBuilder builder,
+        IAppSettings appSettings,
+        IScopedLog scopedLog)
     {
-        builder.Services.AddSampleInfraServices(appSettings);
-        builder.Services.AddSampleApplicationServices();
+        builder.Services.AddServicesWithAttributes();
         return Task.CompletedTask;
     }
 }
 
-// Immediate API endpoint for testing and health checks (Inherits [AllowAnonymous] and Get())
+// WeatherForecastControllerBase supplies [AllowAnonymous] and [HttpGet].
 [Route("[controller]")]
 public class WeatherForecastController : WeatherForecastControllerBase;
 ```
@@ -75,25 +82,29 @@ public class WeatherForecastController : WeatherForecastControllerBase;
 Test your application using `DRN.Framework.Testing` to spin up the full pipeline including databases.
 
 ```csharp
-[Theory, DataInline]
-public async Task WeatherForecast_Should_Return_Data(DrnTestContext context, ITestOutputHelper outputHelper)
+public class WeatherForecastTests
 {
-    // Arrange
-    var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
-    
-    // Act
-    var response = await client.GetAsync("WeatherForecast");
-    
-    // Assert
-    response.StatusCode.Should().Be(HttpStatusCode.OK);
-    var data = await response.Content.ReadFromJsonAsync<IEnumerable<WeatherForecast>>();
-    data.Should().NotBeEmpty();
+    [Theory, DataInline]
+    public async Task WeatherForecast_Should_Return_Data(DrnTestContext context)
+    {
+        var client = await context.ApplicationContext.CreateClientAsync<Program>();
+        var response = await client.GetAsync("WeatherForecast");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var data = await response.Content.ReadFromJsonAsync<IEnumerable<WeatherForecast>>();
+        data.Should().NotBeEmpty();
+    }
 }
 ```
 
+`ApplicationContext` automatically uses the active xUnit v3 output helper when each application is created, but only
+while a debugger is attached to preserve the log privacy gate. Do not request `ITestOutputHelper` as a `[DataInline]`
+theory parameter for application logging: AutoFixture supplies an interface substitute, not xUnit's runner-owned
+helper.
+
 ## Directory Structure
 
-```
+```text
 DRN.Framework.Hosting/
 ├── DrnProgram/          # DrnProgramBase, options, actions, conventions
 ├── Endpoints/           # EndpointCollectionBase, PageForBase, type-safe accessors
@@ -104,10 +115,12 @@ DRN.Framework.Hosting/
 ├── HealthCheck/         # WeatherForecastControllerBase for quick health checks
 ├── Identity/            # Identity integration and scoped user middleware
 ├── Middlewares/         # HttpScopeMiddleware, exception handling, security middlewares
-├── Nexus/               # NexusClient for inter-service HTTP communication
+├── Nexus/               # Nexus HTTP request and client helpers
+├── RateLimiting/        # Pre-auth and post-auth rate-limit rules
 ├── TagHelpers/          # Razor TagHelpers (Vite, Nonce, CSRF, Auth-Only, Anon-Only)
 ├── Utils/               # AppStartupStatus, ServerSettings, Vite manifest, ResourceExtractor
 ├── Areas/               # Framework-provided Razor Pages (e.g., Error pages)
+├── buildTransitive/     # NuGet publish integration
 ├── wwwroot/             # Framework style and script assets
 ```
 
@@ -153,16 +166,15 @@ flowchart TD
             CAPR --> HSM["HttpScopeMiddleware (TraceId/Logging)"]
             HSM --> CPSS["ConfigureApplicationPostScopeStart()"]
             CPSS --> UR["UseRouting()"]
-            UR --> PRL["PreAuthRateLimitingMiddleware"]
+            UR --> PRL["PreAuthRateLimitingMiddleware (when enabled)"]
             PRL --> CAPREA["ConfigureApplicationPreAuthentication()"]
             CAPREA --> AUTH["UseAuthentication()"]
             AUTH --> SUM["ScopedUserMiddleware"]
-            SUM --> PARL["UseRateLimiter() (PostAuth)"]
+            SUM --> PARL["UseRateLimiter() (PostAuth, when enabled)"]
             PARL --> CAPOSTA["ConfigureApplicationPostAuthentication()"]
-            CAPOSTA --> MFAE["MfaExemptionMiddleware"]
-            CAPOSTA --> MFAR["MfaRedirectionMiddleware"]
-            MFAE --> UA["UseAuthorization()"]
-            MFAR --> UA
+            CAPOSTA --> MFAE["MfaExemptionMiddleware (when configured)"]
+            MFAE --> MFAR["MfaRedirectionMiddleware (when configured)"]
+            MFAR --> UA["UseAuthorization()"]
             UA --> CPSTAZ["ConfigureApplicationPostAuthorization() (Swagger UI)"]
             CPSTAZ --> MAE["MapApplicationEndpoints()"]
         end
@@ -171,7 +183,8 @@ flowchart TD
         ABA --> VE["ValidateEndpoints()"]
         VE --> VSA["ValidateServicesAsync()"]
         VSA --> AVA["ApplicationValidatedAsync (Action)"]
-        AVA --> Run(["application.RunAsync()"])
+        AVA --> StartApplication(["application.StartAsync()"])
+        StartApplication --> WaitForShutdown(["application.WaitForShutdownAsync()"])
     end
 
     %% WCAG AA Compliant Styling
@@ -194,12 +207,14 @@ flowchart TD
     class CAB,CLB,CWHB,CSO,CDSH,CDCSP,CSHPB,CCP,CSFO,CRCO,CRCMO,CCP2,CFHO,CMVCB,CAO,ASA builderNode
     class CA,CAPS,CAPR,HSM,CPSS,UR,PRL,CAPREA,AUTH,SUM,PARL,CAPOSTA,MFAE,MFAR,UA,CPSTAZ,MAE appNode
     class ABC,ABA,AVA action
-    class Start,Build,VE,VSA,Run core
+    class Start,Build,VE,VSA,StartApplication,WaitForShutdown core
     class B_NOTE,A_NOTE note
 
     %% Link Styles for Decision Paths (Grey Arrows)
     linkStyle default stroke:#666,stroke-width:2px
 ```
+
+Temporary applications build and configure the request pipeline, then enter the service-validation phase, which honors `DrnDevelopmentSettings:SkipValidation`. They skip endpoint validation and endpoint-accessor population, and return before the host calls `StartAsync`.
 
 ## DrnProgramBase Deep Dive
 
@@ -230,8 +245,8 @@ These hooks run while the `WebApplicationBuilder` is active, allowing you to con
 | **Infras.** | `ConfigureResponseCachingOptions` | Configure server-side response caching with sensible defaults (16MB max body size, case-insensitive paths). |
 | **Infras.** | `ConfigureResponseCompressionOptions` | Configure response compression (Brotli/Gzip) for MIME types (extending default types with font formats) with HTTPS compression disabled (`EnableForHttps = false`) for BREACH mitigation. Static files enable HTTPS compression via `ConfigureStaticFileOptions`. |
 | **Infras.** | `ConfigureCompressionProviders` | Configure Brotli and Gzip compression provider options including compression levels. |
-| **Infras.** | `ConfigureBrotliCompressionLevel` | Customize Brotli compression level (default: SmallestSize for static assets). |
-| **Infras.** | `ConfigureGzipCompressionLevel` | Customize Gzip compression level (default: SmallestSize for static assets). |
+| **Infras.** | `ConfigureBrotliCompressionLevel` | Customize Brotli compression level (default: SmallestSize). |
+| **Infras.** | `ConfigureGzipCompressionLevel` | Customize Gzip compression level (default: SmallestSize). |
 | **Global** | `AddServicesAsync` | **[Required]** The primary place to register your application services. |
 
 ### Razor Development
@@ -253,7 +268,7 @@ These hooks define the request processing middleware sequence.
 | **2** | `ConfigureApplicationPreScopeStart` | `UseResponseCaching`, `UseResponseCompression`, `UseStaticFiles`. Caching placed before compression for efficiency. |
 | **3** | `ConfigureApplicationPostScopeStart` | Add middleware that needs access to `IScopedLog` but runs before routing. |
 | **4** | `ConfigureApplicationPreAuthentication` | `UseRequestLocalization`. The built-in pre-auth rate limiter runs after routing and before this hook when enabled. |
-| **5** | `ConfigureApplicationPostAuthentication` | `MfaRedirectionMiddleware`, `MfaExemptionMiddleware`. The built-in post-auth `UseRateLimiter()` runs after `ScopedUserMiddleware` and before this hook when enabled. |
+| **5** | `ConfigureApplicationPostAuthentication` | `MfaExemptionMiddleware`, then `MfaRedirectionMiddleware`. The built-in post-auth `UseRateLimiter()` runs after `ScopedUserMiddleware` and before this hook when enabled. |
 | **6** | `ConfigureApplicationPostAuthorization` | `UseSwaggerUI`. Runs after access is granted but before the final endpoint. |
 | **7** | `MapApplicationEndpoints` | `MapControllers`, `MapRazorPages`, `MapHubs`. |
 
@@ -261,7 +276,7 @@ These hooks define the request processing middleware sequence.
 
 | Hook | Purpose |
 | :--- | :--- |
-| `ValidateEndpoints` | Ensures all type-safe endpoint accessors match actual mapped routes. |
+| `ValidateEndpoints` | Binds and validates controller endpoint accessors against mapped routes and records mapped page endpoints. |
 | `ValidateServicesAsync` | Scans the container for `[Attribute]` based registrations and ensures they are resolvable at startup via `ValidateServicesAddedByAttributesAsync`. |
 
 ### 4. MFA Configuration Hooks
@@ -281,7 +296,7 @@ These hooks define the request processing middleware sequence.
 
 | Property | Default | Purpose |
 |----------|---------|---------|
-| `AppBuilderType` | `DrnDefaults` | Controls builder creation. Use `Slim` for minimal APIs. |
+| `AppBuilderType` | `DrnDefaults` | `DrnDefaults` applies the complete DRN hosting and security pipeline. `Empty`, `Slim`, and `Default` are advanced opt-out modes; the application must configure its required services, middleware, and endpoints. |
 | `DrnProgramSwaggerOptions` | (Object) | Toggles Swagger generation. Defaults to `IsDevelopmentEnvironment`. |
 | `NLogOptions` | (Object) | Controls NLog bootstrapping (e.g., replace logger factory). |
 
@@ -310,7 +325,8 @@ These hooks define the request processing middleware sequence.
 
 #### NLog (Logging)
 
-Standard configuration for Console and Graylog output.
+Minimal NLog configuration for console output. Add and route a Graylog target if your deployment uses Graylog.
+
 ```json
 {
   "NLog": {
@@ -344,7 +360,7 @@ Standard configuration for Console and Graylog output.
 
 ## Security Features
 
-DRN Hosting enforces a **"Fail-Closed"** security model. If you forget to configure something, it remains locked.
+The defaults in this section apply to `AppBuilderType.DrnDefaults` when the base lifecycle hooks are preserved. Other builder modes require the application to configure its complete security and middleware pipeline.
 
 ### 1. MFA Enforcement (Fail-Closed)
 
@@ -406,10 +422,11 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
 
 ### 3. Content Security Policy (Nonce-based)
 
-DRN automatically generates a unique cryptographic nonce for every request.
-*   **Baseline**: `default-src 'none'` with explicit same-origin allowlists for styles, images, fonts, connections, media, manifests, and workers.
-*   **Automatic Protection**: Inline scripts and inline style elements without a matching nonce are blocked by the browser, stopping most XSS attacks.
-*   **Usage**: Use the `NonceTagHelper` (see below) to automatically inject these nonces.
+DRN generates a request-specific cryptographic nonce.
+
+*   **Baseline**: `default-src 'none'`; script elements require the request nonce. Other directives permit same-origin styles, images, fonts, connections, media, manifests, and workers, plus inline style attributes, `data:` images and fonts, and `blob:` workers.
+*   **Automatic Protection**: Inline scripts and inline style elements without a matching nonce are blocked. Inline style attributes remain allowed by the default policy.
+*   **Usage**: Activate and use the `NonceTagHelper` below to add the request nonce.
 
 ### 4. Transparent Security Headers
 
@@ -462,7 +479,7 @@ DRN Hosting adds two composable limiter phases:
 - **Pre-auth** runs after routing and before authentication. It evaluates singleton rules only and uses a coarse IP default to reject obvious abuse before auth and MFA work. Add a custom singleton rule for trusted-header partitioning behind a correctly configured edge proxy.
 - **Post-auth** runs after `ScopedUserMiddleware`. It can use singleton and scoped rules, including user, tenant, account, claim, or endpoint partitions.
 
-Defaults are token buckets: 1,000 tokens/minute for pre-auth IP partitions and 100 tokens/minute for post-auth authenticated users or anonymous IP fallback. Rejections return `429 Too Many Requests` with `Retry-After`.
+Defaults are token buckets: 1,000 tokens/minute for pre-auth IP partitions and 100 tokens/minute for post-auth authenticated users or the anonymous IP fallback. Rejections return `429 Too Many Requests`; `Retry-After` is included only when the rejecting limiter supplies retry metadata.
 
 > [!IMPORTANT]
 > DRN's built-in limiter state is process-local. In horizontally scaled production deployments, enforce coarse limits at the edge (WAF/CDN/API gateway/load balancer) or add a distributed/custom limiter for quotas that must hold across every application instance.
@@ -502,7 +519,7 @@ Configure defaults under `DrnAppFeatures:DrnRateLimit`. Application code reads t
 | Setting group | Default | Used by | Meaning |
 |---|---:|---|---|
 | `Disabled` | `false` | Both phases | Disables DRN pre-auth and post-auth rate limiting. |
-| `PartitionLogMode` | `KeyedHash` | Both phases | Logs deterministic keyed hashes for rejected partitions. Use `PlainText` only in controlled development or dedicated audit sinks. |
+| `PartitionLogMode` | `KeyedHash` | Both phases | Hashes rate-limit-specific rejected IP and partition fields for correlation. It does not anonymize the complete request log. Use `PlainText` only in controlled development or dedicated encrypted audit sinks. |
 | `TokenLimit`, `ReplenishmentSeconds`, `TokensPerPeriod` | `100`, `60`, `100` | Shared fallback | Base token bucket values for both phases. |
 | `PreAuthTokenLimit`, `PreAuthReplenishmentSeconds`, `PreAuthTokensPerPeriod` | `1000`, `60`, `1000` | Pre-auth | Coarse IP limits before authentication. `0` inherits the shared value. |
 | `PostAuthTokenLimit`, `PostAuthReplenishmentSeconds`, `PostAuthTokensPerPeriod` | `0`, `0`, `0` | Post-auth | Authenticated user or anonymous IP limits after `ScopedUserMiddleware`. `0` inherits the shared value. |
@@ -517,8 +534,8 @@ Rules run by ascending `Order`; framework defaults run last. Matching rules comp
 |---|---|
 | `null` | Rule does not apply. |
 | `RateLimitRuleResult.TokenBucket(key, ...)` | Applies a token bucket to this partition. |
-| `RateLimitRuleResult.AllowRequest("reason")` | Allows and skips remaining rules. |
-| `RateLimitRuleResult.DenyRequest("reason")` | Rejects immediately with 429. |
+| `RateLimitRuleResult.AllowRequest("partition-key")` | Allows and skips remaining rules. |
+| `RateLimitRuleResult.DenyRequest("partition-key")` | Rejects immediately with 429. |
 | Any result with `stopRemainingRules: true` | Applies this result and skips later rules. |
 
 Partition helpers include `TokenBucket`, `FixedWindow`, `SlidingWindow`, `ConcurrencyLimiter`, and `CustomPartition`. `RateLimitRuleResult.Action` is `Limit`, `Allow`, or `Deny`; `StopRemainingRules` only controls whether later rules compose after this result.
@@ -645,7 +662,7 @@ DRN emits OpenTelemetry-friendly metrics through the `DRN.Framework.Hosting.Rate
 ASP.NET Core's native rate limiting middleware continues to provide its built-in post-auth metrics.
 The `action` tag is `limit`, `allow`, `deny`, or `unknown`; this makes whitelist, blocklist, and quota decisions visible without inspecting rule names.
 When a native ASP.NET Core named policy rejects after DRN's global limiter succeeds, DRN records the rejection without a DRN rule tag because no DRN rule caused the failed lease.
-By default, pre-auth and post-auth rejection logs write IP and partition values as deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation for audits without exposing raw API-key, tenant-hint, service-identifier, user, or IP values. Set `DrnAppFeatures:DrnRateLimit:PartitionLogMode` to `PlainText` only for controlled development or a dedicated encrypted audit sink.
+By default, rate-limit-specific IP and partition fields are written as deterministic keyed hashes with a `blake3-keyed:` prefix. This supports correlation but does not anonymize the complete request log; standard request and user fields may still contain raw identifiers. Treat logs as sensitive, and enable `PlainText` only for controlled development or a dedicated encrypted audit sink.
 
 #### Overriding Defaults
 
@@ -679,7 +696,7 @@ protected override void ConfigurePostAuthRateLimiterOptions(
 
 - [ASP.NET Core rate limiting middleware](https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit?view=aspnetcore-10.0)
 - [RateLimiterOptions API](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.ratelimiting.ratelimiteroptions)
-- [RateLimitPartition API](https://learn.microsoft.com/en-us/dotnet/api/system.threading.ratelimiting.ratelimitpartition?view=aspnetcore-10.0)
+- [RateLimitPartition API](https://learn.microsoft.com/en-us/dotnet/api/system.threading.ratelimiting.ratelimitpartition)
 - [HybridCache library in ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/performance/caching/hybrid?view=aspnetcore-10.0)
 - [Distributed caching in ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/performance/caching/distributed?view=aspnetcore-10.0)
 - [Redis token bucket rate limiter with .NET](https://redis.io/docs/latest/develop/use-cases/rate-limiter/dotnet/)
@@ -688,51 +705,77 @@ protected override void ConfigurePostAuthRateLimiterOptions(
 
 ## Endpoint Management
 
-Avoid "magic strings" in your code. DRN provides a type-safe way to reference routes that is verified at startup.
+DRN provides compile-time-typed accessor members for controller endpoints and Razor Page paths. Controller endpoint accessors are bound to mapped routes and validated at startup. Razor Page accessors are convention-generated path strings; keep them synchronized with page routes.
 
-### 1. Define Your Accessors
+### 1. Define Accessors
 
-Create a class inheriting from `EndpointCollectionBase<TProgram>` for controller API endpoints, or `PageCollectionBase<TPageCollection>` for Razor Pages (where `TPageCollection` derives from `PageCollectionBase<TPageCollection>`).
+Create application-owned endpoint and page collections:
 
 ```csharp
-public class Get : EndpointCollectionBase<Program>
+public sealed class AppEndpoints : EndpointCollectionBase<Program>
 {
-    public static UserEndpoints User { get; } = new();
+    public UserEndpoints User { get; } = new();
 }
 
-// For Razor Pages:
-public class SamplePageFor : PageCollectionBase<SamplePageFor>
+public sealed class UserEndpoints()
+    : ControllerForBase<UserController>("/Api/User/[controller]")
 {
-    // Page accessors...
-}
-
-public class UserEndpoints : ControllerForBase<UserController>
-{
-    // Template: /Api/User/[controller]/[action]
-    public UserEndpoints() : base("/Api/User/[controller]") { }
-
-    // Properties matching Controller Action names
+    // Property names match controller action method names.
     public ApiEndpoint Login { get; private set; } = null!;
     public ApiEndpoint Profile { get; private set; } = null!;
+}
+
+public sealed class AppPages : PageCollectionBase<AppPages>
+{
+    public UserPages User { get; } = new();
+}
+
+public sealed class UserPages : PageForBase
+{
+    protected override string[] PathSegments { get; } = ["User"];
+    public string Login { get; init; } = string.Empty;
+}
+
+public static class Get
+{
+    public static AppEndpoints Endpoint { get; } =
+        (AppEndpoints)EndpointCollectionBase<Program>.EndpointCollection!;
+
+    public static AppPages Page { get; } =
+        PageCollectionBase<AppPages>.PageCollection;
 }
 ```
 
 ### 2. Usage in Code
 
-Resolve routes at compile-time with full IDE support (intellisense).
+Use the typed accessor members with IDE completion:
 
 ```csharp
 // Get the typed endpoint object
-ApiEndpoint endpoint = Get.User.Login;
+ApiEndpoint endpoint = Get.Endpoint.User.Login;
 
-// Generate the path string
-string url = endpoint.Path(); // "/Api/User/User/Login"
+// Return the mapped controller route.
+string url = endpoint.Path();
 
-// Generate path with route parameters
-string profileUrl = Get.User.Profile.Path(new() { ["id"] = userId.ToString() });
+// For an action route containing {id:guid}
+Guid userId = Guid.NewGuid();
+string profileUrl = Get.Endpoint.User.Profile.Path(userId);
+```
+
+```razor
+<a asp-page="@Get.Page.User.Login">Log in</a>
 ```
 
 ## Razor TagHelpers
+
+Activate the framework TagHelpers in `Pages/_ViewImports.cshtml`:
+
+```razor
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@addTagHelper *, DRN.Framework.Hosting
+```
+
+Without the DRN directive, Vite resolution, CSP nonces, HTMX CSRF headers, active-page marking, and visibility helpers do not run.
 
 | TagHelper | Target | Purpose |
 | :--- | :--- | :--- |
@@ -766,7 +809,9 @@ DRN Hosting provides deep observability into application failures, especially du
 
 ### Startup Exception Reports
 
-In Development, if the application fails to start during `RunAsync`, it generates a `StartupExceptionReport.html` beside the application assembly. Production and staging fail with normal logs only. Development reports include:
+In Development, if the application fails during `RunAsync`, DRN Hosting attempts to write `StartupExceptionReport.html` beside the application assembly. Report generation is best effort; when no report can be created, use the startup logs. Production and staging use normal startup logs only.
+
+When generated, the report can include:
 -   Full stack traces with source code highlighting (if symbols available).
 -   Environment details and configuration snapshots.
 -   Scoped logs leading up to the crash.
@@ -785,10 +830,10 @@ The framework includes built-in Razor Pages for developer-time exception handlin
 2. **Consumer** — `ReadBodyAsync` is called by the error page model builder (`ExceptionUtils.CreateErrorPageModelAsync`) to include the request body in diagnostic reports.
 
 **Security design**:
--   **Size gate** — requests exceeding the buffer limit are silently skipped (no buffering, no memory risk)
--   **Method filter** — only POST/PUT/PATCH are buffered; GET/HEAD/DELETE/OPTIONS carry no semantic body
--   **Chunked transfer** — requests without `Content-Length` (chunked encoding) are skipped to prevent unbounded DoS
--   **Kestrel enforcement** — Content-Length is validated per-protocol (HTTP/1.1 slicing, HTTP/2 PROTOCOL_ERROR, HTTP/3 QUIC framing)
+-   **Size gate** — requests exceeding the buffer limit are skipped by this feature
+-   **Method filter** — only POST, PUT, and PATCH requests are buffered
+-   **Unknown length** — requests without `Content-Length` are skipped to avoid buffering bodies of unknown size
+-   **Protocol and size enforcement** — HTTP/1.1 and HTTP/2 enforce declared body length according to their framing rules. HTTP/3 uses QUIC stream framing; the buffering limit and Kestrel request-size limits remain the applicable size guards.
 
 **Configuration** via `DrnAppFeatures` (in `appsettings.json`):
 
@@ -813,68 +858,87 @@ The framework includes built-in Razor Pages for developer-time exception handlin
 
 DRN Hosting enforces modern web standards to improve security and predictability:
 -   **303 See Other**: The middleware automatically converts `302 Found` redirects to `303 See Other`. This ensures that following a POST request, the browser correctly uses `GET` for the redirected URL, adhering to established web patterns.
--   **Strict Caching**: By default, `Cache-Control: no-store, no-cache, must-revalidate` is applied to all sensitive responses to prevent data leaking into shared or browser caches.
+-   **Secure Caching Default**: Dynamic responses that do not set their own `Cache-Control` receive `no-store, no-cache, must-revalidate`. Explicit response caching directives take precedence, while static assets opt into public caching.
 
 ## GDPR & Consent Integration
 
-The framework provides a structured way to handle user privacy choices:
--   **ConsentCookie**: A strongly-typed model to track analytics and marketing preferences.
--   **Middleware Integration**: `ScopedUserMiddleware` automatically extracts consent data and makes it available via `ScopeContext.Data`, allowing services to check consent status without reaching into the raw cookie.
+With the default `DrnDefaults` setup, DRN configures ASP.NET Core Cookie Policy with `CheckConsentNeeded = true` and installs Cookie Policy middleware. Until consent is granted, the middleware withholds response cookies that are not marked `IsEssential`.
 
-### Example: Secure Script Loading
+DRN also parses the policy consent cookie and exposes the current request's preferences through `ConsentContext`. Applications remain responsible for deciding when analytics or marketing scripts run, mapping category-specific preferences, and marking only strictly necessary cookies as essential.
 
-```html
-<!-- Input: Original Vite source path -->
-<script src="buildwww/app/js/appPreload.js" crossorigin="anonymous"></script>
+### Example: Enforce Analytics Consent
 
-<!-- Output after ViteScriptTagHelper and NonceTagHelper: hashed path + integrity + nonce -->
-<script src="/app/appPreload.abc123.js"
-        integrity="sha256-xyz..." 
-        nonce="random_nonce_here" 
-        crossorigin="anonymous"></script>
+```razor
+@using DRN.Framework.Hosting.Consent
+
+@if (ConsentContext.ConsentCookie.Values.AnalyticsConsent == true)
+{
+    @* Replace this with an application-owned Vite manifest entry. *@
+    <script src="buildwww/app/js/analytics.js"
+            crossorigin="anonymous"></script>
+}
 ```
 
 ## Static Asset Pre-Warming
 
-`StaticAssetWarmService` is a `[HostedService]` that populates the `ResponseCaching` middleware cache with compressed static assets immediately after application startup.
+`StaticAssetWarmService` is a best-effort hosted service that requests Vite assets after the host starts so response caching can store Brotli and Gzip variants.
 
 **How it works**:
 1. Waits for the host to fully start via `IAppStartupStatus`
 2. Reads all entries from the Vite manifest
 3. Requests each asset with `Accept-Encoding: br` and `Accept-Encoding: gzip` against the loopback address (via `IServerSettings`)
-4. `ResponseCaching` stores each compressed variant keyed on `Vary: Accept-Encoding`
+4. Eligible responses can be cached as compressed variants keyed on `Vary: Accept-Encoding`
 
 The warm-up client only accepts loopback base addresses before installing its certificate-bypass handler. Wildcard server bindings are normalized to localhost; non-loopback bindings are ignored for warm-up.
 
-**Compression defaults** — both use `CompressionLevel.SmallestSize` (maximum compression) since only static files are compressed and the cost is paid once at startup:
+**Compression defaults** — Brotli and Gzip use `CompressionLevel.SmallestSize`. Static assets explicitly allow HTTPS compression, and eligible variants can be cached. Eligible dynamic HTTP responses can also be compressed; dynamic HTTPS compression remains disabled by default.
 
 | Provider | Default Level | Override Hook |
 |----------|--------------|---------------|
 | Brotli | `SmallestSize` (Level 11) | `ConfigureBrotliCompressionLevel()` |
 | Gzip | `SmallestSize` | `ConfigureGzipCompressionLevel()` |
 
-> First request after startup returns pre-compressed content from cache — zero compression latency for end users.
+> After a successful warm-up, subsequent requests can use cached compressed variants. Warm-up runs after startup and is best effort, so early requests may perform compression themselves.
 
 ## Local Development Infrastructure
 
-Use `DRN.Framework.Testing` to provision Postgres during local development without manual Docker management.
+Use `DRN.Framework.Testing` to provision Postgres during local Development without manual Docker management. The following setup keeps Testcontainers dependencies in Debug builds and explicitly enables local dependency launch.
 
-### 1. Add Conditional Reference
+### 1. Add the Debug-Only Package
 
-Add the following to your `.csproj` file to ensure the testing library and Testcontainers dependencies are only included during development.
+NuGet consumers should reference the `DRN.Framework.Testing` version matching `DRN.Framework.Hosting`:
 
 ```xml
 <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
+    <!-- Replace VERSION with the DRN.Framework.Hosting version in use. -->
+    <PackageReference Include="DRN.Framework.Testing" Version="VERSION" />
 </ItemGroup>
 ```
 
-### 2. Configure Startup Actions
+Repository contributors may use the sibling project reference instead.
 
-Implement `DrnProgramActions` to trigger the auto-provisioning.
+### 2. Enable External Dependency Launch
+
+Add the explicit opt-in to `appsettings.Development.json`:
+
+```json
+{
+  "DrnDevelopmentSettings": {
+    "LaunchExternalDependencies": true
+  }
+}
+```
+
+External dependencies launch only for a Development host with this setting enabled. Test and temporary hosts are excluded.
+
+### 3. Configure Startup Actions
+
+Implement `DrnProgramActions` to launch the configured local dependencies.
 
 ```csharp
 #if DEBUG
+using DRN.Framework.Testing.Extensions;
+
 public class SampleProgramActions : DrnProgramActions
 {
     public override async Task ApplicationBuilderCreatedAsync<TProgram>(
@@ -890,7 +954,7 @@ public class SampleProgramActions : DrnProgramActions
             }
         };
 
-        // Auto-starts containers if not running and updates AppSettings
+        // When enabled, starts missing containers and updates AppSettings.
         await builder.LaunchExternalDependenciesAsync(scopedLog, appSettings, options);
     }
 }
@@ -904,23 +968,32 @@ public class SampleProgramActions : DrnProgramActions
 Singleton gate for background services that need to wait until the host has fully started before executing.
 
 ```csharp
-public class MyWorker(IAppStartupStatus startupStatus) : BackgroundService
+using DRN.Framework.Hosting.Utils;
+using DRN.Framework.Utils.DependencyInjection.Attributes;
+using Microsoft.Extensions.Hosting;
+
+[HostedService]
+public sealed class MyWorker(IAppStartupStatus startupStatus) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!await startupStatus.WaitForStartAsync(stoppingToken))
-            return; // Cancelled before startup completed
+            return;
 
-        // Application is fully started — safe to proceed
+        // The application has started.
     }
 }
 ```
+
+`[HostedService]` is discovered when the worker's assembly is registered with `AddServicesWithAttributes()`.
 
 ### IServerSettings
 
 Resolves bound server addresses from Kestrel. Normalizes wildcard hosts (`0.0.0.0`, `[::]`, `+`, `*`) to `localhost` for internal self-requests. Prefers HTTP over HTTPS to avoid TLS overhead.
 
 ```csharp
+using DRN.Framework.Hosting.Utils;
+
 public class MyService(IServerSettings server)
 {
     public void LogAddresses()

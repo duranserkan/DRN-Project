@@ -7,13 +7,13 @@ using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Controller.Sample;
 
-public class PrivateControllerTests(ITestOutputHelper outputHelper)
+public class PrivateControllerTests
 {
     [Theory]
     [DataInline]
     public async Task Authorized_Action_Should_Return_AuthenticatedUser(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         var user = await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
 
         var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(Get.Endpoint.Sample.Private.Authorized.RoutePattern);
@@ -25,7 +25,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task Anonymous_Action_Should_Return_AnonymousUser(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
 
         var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(Get.Endpoint.Sample.Private.Anonymous.RoutePattern);
         userSummary.Should().NotBeNull();
@@ -36,7 +36,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task Validate_Scope_Action_Should_Request_ScopeContext(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
 
         var scopeContext = await client.GetAsync(Get.Endpoint.Sample.Private.Context.RoutePattern);
@@ -47,7 +47,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task Validate_Scope_Action_Should_Validate_Scope(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
 
         var validation = await client.GetAsync(Get.Endpoint.Sample.Private.ValidateScope.RoutePattern);

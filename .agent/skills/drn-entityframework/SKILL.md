@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
 description: "DRN.Framework.EntityFramework - DrnContext, migrations, entity lifecycle tracking, Npgsql configuration, repositories, and repository cancellation groups. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, repository-cancellation, cancellation-scope, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
-last-updated: 2026-07-16
+last-updated: 2026-07-29
 difficulty: advanced
 tokens: ~2.5K
 ---
@@ -48,8 +48,9 @@ DrnContext augments entities during `OnModelCreating` and runtime:
 
 | Feature | Mechanism |
 |---------|-----------|
-| **ID Generation** | `IDrnSaveChangesInterceptor` assigns collision-free `long` IDs for new entities |
-| **Property Init** | `IDrnMaterializationInterceptor` initializes `EntityIdSource` and injects `ISourceKnownEntityIdOperations` (`EntityIdOps`) |
+| **Internal ID Generation** | `SourceKnownIdValueGenerator` assigns collision-free `long` IDs when EF begins tracking new entities; `IDrnSaveChangesInterceptor` provides a save-time fallback when `Id` remains zero |
+| **Save-Time Initialization** | `IDrnSaveChangesInterceptor` initializes `EntityIdSource` and `EntityIdOps`, sets `ModifiedAt`, and applies created lifecycle state before persistence |
+| **Materialization Init** | `IDrnMaterializationInterceptor` initializes `EntityIdSource` and injects `ISourceKnownEntityIdOperations` (`EntityIdOps`) for loaded entities |
 | **Secure ↔ Plain** | `ToSecure` / `ToPlain` on entity and repository for idempotent ID form conversion |
 | **JSON Models** | `IEntityWithModel<T>` auto-maps `.Model` to `jsonb` column |
 | **Identity Naming** | ASP.NET Core Identity tables/columns → `snake_case` for PostgreSQL |

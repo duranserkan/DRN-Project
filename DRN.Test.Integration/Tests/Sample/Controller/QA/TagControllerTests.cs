@@ -10,14 +10,14 @@ using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Controller.QA;
 
-public class TagControllerTests(ITestOutputHelper outputHelper)
+public class TagControllerTests
 {
     [Theory]
     [DataInline]
     public async Task TagController_Should_Return_Tags(DrnTestContext context)
     {
         var getEndpoint = Get.Endpoint.QA.Tag.GetAsync.Path(Guid.NewGuid());
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         var requests = GetTagPostRequests();
 
         //Unauthorized 

@@ -3,7 +3,7 @@ using DRN.Test.Utils.RateLimiting;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting.RateLimiting;
 
-public class RateLimitingIntegrationTests(ITestOutputHelper outputHelper)
+public class RateLimitingIntegrationTests
 {
     [Theory]
     [DataInline]
@@ -307,7 +307,7 @@ public class RateLimitingIntegrationTests(ITestOutputHelper outputHelper)
         bool rateLimitDisabled = false)
     {
         ConfigureRateLimits(context, preAuthTokenLimit, postAuthTokenLimit, rateLimitDisabled);
-        return await context.ApplicationContext.CreateClientAsync<RateLimitingTestProgram>(outputHelper);
+        return await context.ApplicationContext.CreateClientAsync<RateLimitingTestProgram>();
     }
 
     private static void ConfigureRateLimits(

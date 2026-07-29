@@ -6,10 +6,12 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **CancellationScopeKey Namespace And Diagnostics**: `CancellationScopeKey` moved from `DRN.Framework.Utils.Cancellation` to `DRN.Framework.SharedKernel.Cancellation`. Its public `OwnerType` and `Name` accessors and custom identity-revealing `ToString()` output were removed; default struct formatting does not expose key identity.
     *   *Migration*: Update imports from `using DRN.Framework.Utils.Cancellation;` to `using DRN.Framework.SharedKernel.Cancellation;`. Treat keys as opaque values created through the `For(...)` factories. If diagnostics require a human-readable label, keep a caller-owned label alongside the key rather than parsing or inspecting the key.
+*   **Repository Cancellation Default**: When `RepositorySettings<TEntity>.ScopeKey` is `null`, repositories use the root cancellation scope, so `CancelChanges()` and `CancelWhen(token)` affect root-linked operations.
+    *   *Migration*: Set `ScopeKey` to a stable `CancellationScopeKey` when a repository group must remain isolated.
 
 ### New Features
 
-*   **CancellationScopeKey Primitive**: `CancellationScopeKey` is now available in `DRN.Framework.SharedKernel.Cancellation` for defining typed or named child cancellation scope keys across domain and framework layers.
+*   **CancellationScopeKey Primitive**: `CancellationScopeKey` is now available in `DRN.Framework.SharedKernel.Cancellation`. Its `For(...)` factories create type-owned or ownerless named keys, `IsValid` distinguishes factory-created keys from the invalid default value, and names use ordinal equality and may be empty or whitespace but not `null`.
 *   **Repository Cancellation Settings**: `RepositorySettings<TEntity>` now includes `ScopeKey` for configuring child cancellation scopes on repository instances.
 
 ### Bug Fixes
@@ -28,6 +30,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Repository Cancellation API**: `ISourceKnownRepository<TEntity>.CancellationToken` is now read-only, and `MergeCancellationTokens(token)` was replaced by `CancelWhen(token)`. Remove direct token assignments and use `CancelWhen(token)` for lifetime cancellation links.
 *   **AppConstants TempPath Ownership**: `AppConstants.TempPath` resolves only the temp root. Use `IAppData` for directory creation, cleanup, and child paths.
 
 ## Version 0.9.5

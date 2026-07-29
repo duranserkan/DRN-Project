@@ -24,9 +24,9 @@
 - **AES-256 single block** — Explicit runtime-intrinsic and portable paths with automatic fallback
 - **Validators** — Reusable payload validators such as `JpegValidator`
 - **Monotonic Pagination** — Cursor-based pagination leveraging entity ID temporal ordering
-- **Bit Packing** — High-performance `NumberBuilder` for custom data structures
-- **Ambient Context** — `ScopeContext.UserId`, `ScopeContext.Settings` anywhere
-- **Auto-Registration** — `AddServicesWithAttributes()` scans and registers all attributed services
+- **Bit Packing** — `NumberBuilder` for compact custom data structures
+- **Ambient Context** — `ScopeContext.UserId` and `ScopeContext.Settings` within initialized DRN Hosting request scopes
+- **Auto-Registration** — `AddServicesWithAttributes()` scans and registers public, concrete attributed services
 - **SourceKnownEntityId utilities** — generation, validation, secure/plain conversion, auto-detecting `Parse`
 
 ## Table of Contents
@@ -47,7 +47,7 @@
 - [Time & Async](#time--async)
 - [Concurrency](#concurrency)
 - [Extensions](#extensions)
-- [Global Usings](#global-usings)
+- [Suggested Consumer Global Usings](#suggested-consumer-global-usings)
 - [Related Packages](#related-packages)
 
 ---
@@ -66,7 +66,7 @@ public class GreetingService : IGreetingService
     public string Greet(string name) => $"Hello, {name}!";
 }
 
-// 2. Register all attributed services in Startup
+// 2. Register public, concrete attributed services in Startup
 services.AddServicesWithAttributes();
 
 // 3. Inject and use
@@ -102,7 +102,7 @@ public class PaymentService(IAppSettings settings, IScopedLog log, PaymentSettin
         log.Add("Amount", amount);
         log.AddToActions("Processing payment");
         
-        // Access ambient data anywhere
+        // Access ambient data inside an initialized DRN Hosting request scope
         var userId = ScopeContext.UserId;
         
         // Use typed configuration
@@ -121,12 +121,14 @@ public class PaymentService(IAppSettings settings, IScopedLog log, PaymentSettin
 > [!NOTE]
 > If you are using `DRN.Framework.Hosting` (inheriting from `DrnProgramBase`), this package is **automatically registered and validated**.
 
-For manual installation (e.g. Console Apps, Workers):
+For manual registration (e.g. Console Apps, Workers):
 
 ```csharp
 // Registers attributes, HybridCache, and TimeProvider
 builder.Services.AddDrnUtils();
 ```
+
+`AddDrnUtils()` does not create an ambient `ScopeContext`; console and worker code should use injected services.
 
 ### HybridCache Registration
 
@@ -164,7 +166,7 @@ Reduce configuration boilerplate by using attributes directly on services. `AddS
 | `[ConfigRoot]` | Singleton | `[ConfigRoot] public class RootSettings` |
 
 > [!NOTE]
-> All lifetime attributes accept an optional `tryAdd` parameter (default: `true`). When `true`, `TryAdd` is used so existing registrations are not overwritten. Set to `false` to allow multiple implementations of the same service type.
+> `[Singleton<T>]`, `[Scoped<T>]`, `[Transient<T>]`, and their keyed variants accept an optional `tryAdd` parameter (default: `true`). When `true`, `TryAdd` is used so existing registrations are not overwritten. Set it to `false` to allow multiple implementations of the same service type.
 
 Assembly scan metadata is cached, while registration modules and startup-validation state remain isolated to each service collection and provider. Repeating registration for the same assembly on one service collection is idempotent.
 
@@ -261,7 +263,7 @@ Services can require complex registration logic or post-startup actions. Attribu
 
 **Example**: `DrnContext<T>` (in `DRN.Framework.EntityFramework`) is decorated with `[DrnContextServiceRegistration]`, which:
 1.  Registers the DbContext.
-2.  **Automatically triggers EF Core Migrations** when the application starts in Development environments (via `PostStartupValidationAsync`).
+2.  Runs startup migration handling; Development auto-migration occurs when `DrnDevelopmentSettings:AutoMigrateDevelopment` is enabled (default: `true`).
 
 ```csharp
 // The base class DrnContext handles the registration attributes.
@@ -285,12 +287,12 @@ public class MyService(IAppSettings settings)
         
         var conn = settings.GetRequiredConnectionString("Default");
         var value = settings.GetValue<int>("MySettings:Timeout", 30);
-        var debugSummary = settings.GetDebugView().ToSummary(); // redacts secret-looking values by default
+        var debugSummary = settings.GetDebugView().ToSummary(); // best-effort key-name redaction
     }
 }
 ```
 
-`GetDebugView(includeRawValues: true)` only includes raw values in Development. Secret-looking keys and sections are redacted by default in summaries. Child keys remain listed even when a provider also defines a scalar value for the parent section, and summary paths use the value provider's key casing. Object-based configuration helpers serialize through the framework JSON defaults and therefore use camelCase keys; explicit key/value configuration preserves the key text supplied by the caller.
+`GetDebugView(includeRawValues: true)` only includes raw values in Development. Summaries apply best-effort key-name redaction, not a complete security boundary; review them before logging or exposure. Child keys remain listed even when a provider also defines a scalar value for the parent section, and summary paths use the value provider's key casing. Object-based configuration helpers serialize through the framework JSON defaults and therefore use camelCase keys; explicit key/value configuration preserves the key text supplied by the caller.
 
 ### Configuration Attributes (`[Config]`)
 
@@ -322,7 +324,7 @@ The framework automatically loads configuration in this order:
     -   `/appconfig/json-settings/*.json`
 6.  Command-line arguments
 
-`Environment` is required and must be `Development`, `Staging`, or `Production`. DRN reads and validates this value before loading `appsettings.{Environment}.json`; missing, `NotDefined`, or unknown values fail startup with `ConfigurationException`.
+`Environment` is required and must be `Development`, `Staging`, or `Production`. DRN validates the value used to select `appsettings.{Environment}.json`; define it in `appsettings.json`, environment variables, mounted settings, or command-line arguments, and do not override it in environment-specific JSON or user secrets.
 
 Override the mount directory by registering `IMountedSettingsConventionsOverride`.
 
@@ -330,10 +332,10 @@ Override the mount directory by registering `IMountedSettingsConventionsOverride
 
 | Symptom | Cause | Solution |
 |---------|-------|----------|
-| `ConfigurationException` on startup | Missing required configuration key | Add the key to `appsettings.json` or environment variables |
+| `ConfigurationException` on startup | Missing or invalid required configuration | Inspect the reported key and correct its source value |
 | `Environment setting is missing` | Required `Environment` key not configured | Set `Environment` to `Development`, `Staging`, or `Production` in `appsettings.json`, environment variables, mounted settings, or command-line arguments |
 | `GetRequiredConnectionString` throws | Connection string not found | Verify key exists under `ConnectionStrings` section |
-| `IsDevelopmentEnvironment` always false | `ASPNETCORE_ENVIRONMENT` not set | Set environment variable or use `launchSettings.json` |
+| `IsDevelopmentEnvironment` always false | Resolved `Environment` is not `Development` | Set the `Environment` configuration key to `Development` in an applicable source |
 | Mounted settings not loading | Wrong mount path | Verify files exist at `/appconfig/json-settings/` or override via `IMountedSettingsConventionsOverride` |
 | Environment variables not binding | Wrong naming format | Use `__` (double underscore) for nested keys: `MySection__MyKey` |
 
@@ -343,8 +345,8 @@ Override the mount directory by registering `IMountedSettingsConventionsOverride
 
 | Environment variable | Purpose |
 |---|---|
-| `DrnAppDataSettings__TempPath` | Overrides the temp root used by `AppConstants.TempPath` and `IAppData.Temp`. |
-| `DrnAppDataSettings__DataPath` | Overrides data root; backs temp as `<DataPath>/Temp` when temp path is unset. |
+| `DrnAppDataSettings__TempPath` | Overrides the temp base; the resolved temp path is `<TempPath>/<EntryAssemblyNameNormalized>`. |
+| `DrnAppDataSettings__DataPath` | Overrides the resolved data root as `<DataPath>`; the resolved temp path is `<DataPath>/Temp/<EntryAssemblyNameNormalized>` when temp is unset. |
 
 Set `DrnAppDataSettings:RequireTemp` or `DrnAppDataSettings:RequireData` to fail startup when the resolved path is not valid.
 
@@ -445,14 +447,14 @@ When no default Nexus key is configured in the `Development` environment, `AppSe
 
 ## Logging (`IScopedLog`)
 
-`IScopedLog` provides request-scoped structured logging. It aggregates operational data, metrics, and checkpoints during the request lifecycle, flushing them as a single entry for efficient monitoring.
+`IScopedLog` aggregates structured operational data, metrics, checkpoints, and exceptions for a logical scope. In DRN Hosting request scopes, Hosting enriches and emits that aggregate as a single log entry.
 
 ### Core Features
 
-*   **Contextual**: Automatically captures `TraceId`, `UserId`, `RequestPath`, and custom scope data.
+*   **Contextual**: DRN Hosting request scopes add `TraceId`, `UserId`, and `RequestPath`; custom `ScopeData` remains separate unless added explicitly.
 *   **Aggregation**: Groups all actions, metrics, and exceptions into a single structured log entry.
 *   **Performance Tracking**: Built-in measurement for code block durations and execution counts.
-*   **Resilience**: Captures exceptions without interrupting the business flow unless explicitly thrown.
+*   **Exception Recording**: `AddException` records exception details without changing control flow; callers remain responsible for recovery, rethrowing, and excluding sensitive data.
 
 ### API Usage
 
@@ -462,7 +464,6 @@ public class OrderService(IScopedLog logger)
     public void ProcessOrder(int orderId)
     {
         // 1. Measure execution time and count
-        // Automatically tracks duration and increments "Stats_ProcessOrder_Count"
         using var _ = logger.Measure("ProcessOrder"); 
         
         // 2. Add structured data (Key-Value)
@@ -475,13 +476,14 @@ public class OrderService(IScopedLog logger)
         try 
         {
             // ... logic ...
-            // 4. Flatten and add complex objects
+            // 4. Flatten and add complex objects that are safe to log
             logger.AddProperties("User", new { Name = "John", Role = "Admin" });
         }
         catch(Exception ex)
         {
-            // 5. Log exception but keep the request contextual log intact
+            // 5. Record the exception, then preserve failure semantics
             logger.AddException(ex, "Failed to process order");
+            throw;
         }
     }
 }
@@ -545,6 +547,12 @@ Use the `TryToStringAsync`, `TryToBytesAsync`, or `TryFromJsonAsync<T>` counterp
 
 ```csharp
 var result = await request.For("status").GetAsync().TryFromJsonAsync<StatusResponse>();
+if (result.Failure is { } failure)
+{
+    // Apply failure policy here; Payload may be unavailable.
+    logger.LogWarning("HTTP conversion failed: {Kind}", failure.Kind);
+}
+
 if (result.StatusClass == HttpStatusClass.ClientError)
 {
     // Handle 4xx. HttpStatus and a successfully converted Payload remain available.
@@ -552,11 +560,6 @@ if (result.StatusClass == HttpStatusClass.ClientError)
 else if (result.StatusClass == HttpStatusClass.ServerError)
 {
     // Handle 5xx according to the caller's retry policy.
-}
-else if (result.Failure is { } failure)
-{
-    // Handles transport, timeout, response-read, or deserialization failures.
-    logger.LogWarning("HTTP conversion failed: {Kind}", failure.Kind);
 }
 ```
 
@@ -576,16 +579,16 @@ await response.Payload!.CopyToAsync(destination);
 
 ## Scope & Ambient Context (ScopeContext)
 
-`ScopeContext` provides ambient access to request-scoped data. This simplifies cross-cutting concerns like auditing, multi-tenancy, and security by avoiding deep parameter passing especially in Razor Pages(.cshtml) files.
+`ScopeContext` provides ambient access to request-scoped data after a DRN Hosting request scope has been initialized. Use injected services during startup, in background work, and outside request scopes.
 
-*   **Contextual Identity**: Access `UserId`, `TraceId`, and `Authenticated` status anywhere.
-*   **Static Accessors**: Provides direct access to `IAppSettings`, `IScopedLog`, and `IServiceProvider`.
+*   **Contextual Identity**: Access `UserId`, `TraceId`, and `Authenticated` status within an initialized request scope.
+*   **Static Accessors**: Provides request-scope access to `IAppSettings`, `IScopedLog`, and `IServiceProvider`.
 *   **RBAC Helpers**: Built-in support for role and claim checks.
 *   **Test Initialization**: `ScopeContext.InitializeForTest(...)` resets the async-local scope before seeding test services, user, log, and trace data.
 
-`IScopedUser` owns authenticated identity and claim state. Use `GetClaimParameter<TValue>` for typed claims; the default `ScopedUser` implementation resolves and parses the authenticated claim snapshot on each lookup without a separate parsed-value cache. `ScopeContext.GetClaimParameter<TValue>` is an ambient façade over the same contract.
+`IScopedUser` exposes authenticated identity and claim state. Use `GetClaimParameter<TValue>` for typed claims; `ScopeContext.GetClaimParameter<TValue>` provides ambient access to the same contract.
 
-`ScopeData` is separate caller-owned ambient storage. It does not store roles or parsed claims. Use `SetFlag` and typed `SetParameter` values for application data. Future header, query, form, cookie, path, item, and TempData adapters must define trust and precedence explicitly before those request boundaries are managed or unified.
+`ScopeData` is separate caller-owned ambient storage and is not automatically copied into `IScopedLog`. Use `SetFlag` and typed `SetParameter` values for validated application data.
 
 ```csharp
 var currentUserId = ScopeContext.UserId;
@@ -620,7 +623,7 @@ Use `AppDataPathResult.GetPath(...)` for traversal-safe child paths.
 
 Unified API for binary-to-text encodings and model serialization-encoding.
 *   **Encodings**: Base64, Base64Url (Safe for URLs), Hex, and Utf8.
-*   **Integrated**: `model.Encode(ByteEncoding.Hex)` and `hexString.Decode<TModel>()`.
+*   **Integrated**: `model.Encode(ByteEncoding.Hex)` and `hexString.Decode<TModel>(ByteEncoding.Hex)`.
 
 ### AES-256 Single-Block Encryption (`Aes256`)
 
@@ -697,15 +700,21 @@ public class OrderService(IEntityDateTimeUtils dateTimeUtils)
 
 ## Pagination
 
-The framework provides `IPaginationUtils` for high-performance, monotonic cursor-based pagination. It leverages the temporal sequence of `SourceKnownEntityId` to ensure stable results even as data is being added.
+The framework provides `IPaginationUtils` for cursor-based pagination ordered by the temporal sequence of `SourceKnownEntityId`.
 
 ```csharp
-public class OrderService(IPaginationUtils pagination)
+public class OrderDto(Order order) : Dto(order)
 {
-    public async Task<PaginationResult<Order>> GetRecentOrdersAsync(PaginationRequest request)
+    public bool Active { get; } = order.Active;
+}
+
+public class OrderService(IPaginationUtils pagination, OrderDbContext dbContext)
+{
+    public async Task<PaginationResultModel<OrderDto>> GetRecentOrdersAsync(PaginationRequest request)
     {
         var query = dbContext.Orders.Where(x => x.Active);
-        return await pagination.GetResultAsync(query, request);
+        var result = await pagination.GetResultAsync(query, request);
+        return result.ToModel(order => new OrderDto(order));
     }
 }
 ```
@@ -803,7 +812,7 @@ DateTimeOffset now = TimeStampManager.UtcNow; // Cached UTC time truncated to 25
 An atomic timer implementation that prevents overlapping executions if one cycle takes longer than the period.
 
 ```csharp
-var worker = new RecurringAction(async () => {
+using var worker = new RecurringAction(async () => {
     await DoHeavyWork();
 }, period: 1000, start: true);
 
@@ -838,9 +847,6 @@ Generation uses the default `NexusKey`. Parse uses a default-first key-ring fall
 > [!NOTE]
 > `SourceKnownEntityIdUtils` is a singleton and safely reuses each key-ring entry's `Aes256` instance across concurrent calls. It uses lock-free runtime intrinsics when available and automatically falls back to the lock-free .NET 10.0.10 framework provider, preserving the encrypted ID format on hosts without AES intrinsics. Reverify this framework-provider concurrency assumption when changing the target runtime.
 
-> [!NOTE]
-> **Post-quantum readiness**: AES-256 retains 128-bit security under Grover's algorithm — NIST recommended for post-quantum symmetric encryption.
-
 ```csharp
 // Generate with flag-based dispatch (secure by default)
 var entityId = sourceKnownEntityIdUtils.Generate<User>(id);
@@ -858,7 +864,7 @@ var convertedPlainId = sourceKnownEntityIdUtils.ToPlain(secureEntityId);
 
 #### Parse & Validation
 
-`Parse` auto-detects encrypted and plaintext IDs — it first checks for plaintext markers, then attempts AES-ECB decryption if markers are absent. Both paths verify MAC integrity.
+`Parse` accepts secure and plaintext IDs and verifies their integrity.
 
 > [!IMPORTANT]
 > Add rate limiting to endpoints that accept `SourceKnownEntityId` from untrusted sources to prevent brute-force attacks.
@@ -884,11 +890,11 @@ var sourceKnownId = userInstance.GetEntityId<User>(externalGuidId);
 
 #### GUID Byte Layout
 
-Each `SourceKnownEntityId` (SKEID) packs identity, integrity, time-addressing, and UUID V8 compatibility (RFC 9562 §5.8) into a single 128-bit GUID:
+The plaintext form of a `SourceKnownEntityId` (SKEID) packs identity, integrity, time-addressing, and UUID V8 compatibility (RFC 9562 §5.8) into a single 128-bit GUID. Secure IDs are opaque ciphertext and are not guaranteed to retain UUID version or variant bits.
 
 | Byte(s) | Purpose |
 |---------|---------|
-| 0 | Epoch index (8 bits — up to 256 epochs) |
+| 0 | Epoch index (8 bits; current releases support epoch 0) |
 | 1–4 | SKID upper half (32 bits, sign-toggled) |
 | 5 | SKID low byte 0 (MSB of SKID lower half / timestamp LSB) |
 | 6 | Version marker (`0x8D` — UUID V8, RFC 9562 §5.8) |
@@ -899,17 +905,16 @@ Each `SourceKnownEntityId` (SKEID) packs identity, integrity, time-addressing, a
 
 #### Epoch & Time Addressing
 
-SourceKnownEntityIds use epoch-based time addressing for monotonic ordering. Each epoch spans approximately **68 years** ($2^{31}$ seconds total coverage, split across two halves), starting from **2025-01-01**.
+SourceKnownEntityIds use epoch-based time addressing for monotonic ordering. Current releases support the first epoch, which starts on **2025-01-01** and spans approximately **68 years** ($2^{31}$ seconds total coverage, split across two halves).
 
 | Property | Value |
 |----------|-------|
 | Epoch start | 2025-01-01 |
-| Single epoch duration | ~68 years ($2^{31}$ seconds) |
-| Maximum epochs | 256 (byte 0) |
-| Total address space | ~17,421 monotonic years |
+| Supported duration | ~68 years ($2^{31}$ seconds) |
+| Supported epoch | 0 |
 
 > [!NOTE]
-> The first epoch requires no configuration and covers approximately 68 years from 2025-01-01. Epoch transitions are handled automatically.
+> Current releases support epoch 0 only; generation rejects timestamps outside its supported range.
 
 ### Time
 
@@ -931,6 +936,8 @@ SourceKnownEntityIds use epoch-based time addressing for monotonic ordering. Eac
 | `TrySetIfNotEqual<T>(ref T?, T, T?)` | Sets value only if current is **not** the same reference as comparand (retry loop). |
 | `TrySetIfNotNull<T>(ref T?, T)` | Sets value only if current is **not** `null`. |
 
+`TrySetIfNotEqual` and `TrySetIfNotNull` use bounded retries (`maxRetries`, default `100`). A `false` result can mean either that the comparison condition was not met or that retries were exhausted.
+
 ```csharp
 // Disposable lock scope (preferred) — auto-releases on dispose
 private int _lock;
@@ -950,10 +957,10 @@ Comprehensive set of extensions for standard .NET types and reflection.
 
 ### Reflection & `MethodUtils`
 
-Highly optimized reflection helpers with built-in caching for generic and non-generic method invocation.
+Reflection helpers with built-in caching for generic and non-generic method invocation.
 *   **Invoke**: `instance.InvokeMethod("Name", args)` and `type.InvokeStaticMethod("Name", args)`.
 *   **Generics**: `instance.InvokeGenericMethod("Name", typeArgs, args)` with static and uncached variations.
-*   **Caching**: Uses internal `ConcurrentDictionary` and `record struct` keys for zero-allocation cache lookups.
+*   **Caching**: Caches generic and non-generic method lookups.
 
 ### Service Collection
 
@@ -977,8 +984,8 @@ Casing and safe path helpers live in `DRN.Framework.SharedKernel.Extensions`.
 
 ### Flurl & HTTP Diagnostics
 
-*   **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` captures exhaustive request/response metadata from Flurl exceptions into `IScopedLog`.
-*   **Status Codes**: `GetGatewayStatusCode()` maps API errors to standard gateway codes (502, 503, 504).
+*   **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` adds Flurl failure diagnostics to `IScopedLog`, and DRN Hosting applies it to unhandled Flurl exceptions. Captured request and response data is not automatically redacted; catch sensitive failures before they reach Hosting, or use the `Try*` converters and log only sanitized fields.
+*   **Status Codes**: `GetGatewayStatusCode()` preserves `4xx`, `503`, and `504` statuses and maps other statuses to `502`.
 *   **Testing**: `ClearFilteredSetups()` utility for complex test scenarios.
 
 ### Object & Dictionary Extensions
@@ -1000,7 +1007,7 @@ using var body = "payload".ToStream();
 
 ---
 
-## Global Usings
+## Suggested Consumer Global Usings
 
 ```csharp
 global using DRN.Framework.SharedKernel;

@@ -4,13 +4,14 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
-*   **ApplicationContext Logging API**: `ApplicationContext.LogToTestOutput` is no longer public. Pass `ITestOutputHelper` to `CreateApplicationAndBindDependenciesAsync` or `CreateClientAsync` to enable test-output logging.
+*   **ApplicationContext Logging API**: `ApplicationContext.LogToTestOutput` is no longer public. Application creation now resolves test-output logging automatically; the existing optional helper parameters remain compatibility overrides.
 *   **Temporary Factory State**: `DrnWebApplicationFactory<TEntryPoint>.Temporary` is no longer public; temporary-factory state is now framework-owned implementation detail.
 *   **TestOutputTarget Constructor**: `TestOutputTarget` now accepts an optional test name. Source callers remain compatible through the optional parameter, but existing compiled callers must recompile for the new constructor signature.
 
 ### Changed
 
 *   **Test Output Log Identity**: Application test-output log boundaries now include the declaring test type and method name.
+*   **Automatic xUnit v3 Test Output**: `ApplicationContext` now resolves `Xunit.TestContext.Current.TestOutputHelper` once per application and captures it in that factory's logging configuration. Resolution occurs only while a debugger is attached, null ambient output keeps logging disabled, direct `CreateApplication` calls participate, and existing optional helper arguments remain explicit compatibility overrides.
 *   **Testing Dependencies**: Upgraded AwesomeAssertions to 9.5.0, NSubstitute to 6.0.0, and `xunit.v3.extensibility.core` to 4.0.0-pre.154. Removed explicit legacy `System.Net.Http` and `System.Text.RegularExpressions` package overrides.
 
 ### Bug Fixes
@@ -29,6 +30,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### New Features
 
 *   **Test-Scoped Temp Paths**: `MethodContext` now owns `GetTempPath()` for created, method-scoped temporary directories under `AppConstants.TempPath`; `DrnTestContext` and `DrnTestContextUnit` expose convenience delegates.
+
+### Changed
+
+*   **Testcontainers Image Defaults**: Updated the PostgreSQL default to `18.4-alpine3.24` and the RabbitMQ default to `4.3.2-management-alpine`.
 
 ### Bug Fixes
 

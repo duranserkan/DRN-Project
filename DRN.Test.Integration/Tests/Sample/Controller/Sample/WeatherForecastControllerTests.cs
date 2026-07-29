@@ -6,13 +6,13 @@ using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Controller.Sample;
 
-public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
+public class WeatherForecastControllerTests
 {
     [Theory]
     [DataInline]
     public async Task WeatherForecastController_Should_Return_Forecasts(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         var weatherEndpoint = Get.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
         var sampleForecasts = await client.GetFromJsonAsync<WeatherForecast[]>(weatherEndpoint);
         var appSettings = context.GetRequiredService<IAppSettings>();
@@ -28,7 +28,7 @@ public class WeatherForecastControllerTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task WeatherForecastController_Should_Return_FlurlHttpExceptionStatusCodes(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         var appSettings = context.GetRequiredService<IAppSettings>();
         var urlPattern = $"*{appSettings.NexusAppSettings.NexusAddress}/WeatherForecast";
         var nexusWeatherEndpoint = Get.Endpoint.Sample.WeatherForecast.GetNexusWeatherForecasts.RoutePattern;

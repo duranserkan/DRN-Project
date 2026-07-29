@@ -28,7 +28,7 @@ public class CompressionCachingTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task StaticAsset_CompressedResponses_Should_Be_Cached_Per_Encoding(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         var manifest = context.GetRequiredService<IViteManifest>();
         var manifestItem = manifest.GetAllManifestItems().First();
         
@@ -92,7 +92,7 @@ public class CompressionCachingTests(ITestOutputHelper outputHelper)
     [DataInline]
     public async Task IdentityRequestFirst_Should_Not_Poison_Cache_For_Compressed_Requests(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         var manifest = context.GetRequiredService<IViteManifest>();
         var manifestItem = manifest.GetAllManifestItems().First();
         

@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-07-27
+last-updated: 2026-07-29
 difficulty: advanced
 tokens: ~3K
 ---
@@ -91,7 +91,9 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 | `ConfigureMFARedirection()` | MFA page configuration |
 | `ConfigureMFAExemption()` | Route-specific MFA exemption config |
 
-**Execution order**: Builder Phase → `builder.Build()` → Pipeline Phase → ValidateEndpoints → ValidateServices → `application.RunAsync()`
+**Execution order**: Builder Phase → `builder.Build()` → Pipeline Phase → `ValidateEndpoints()` → `ValidateServicesAsync()` → `ApplicationValidatedAsync()` → `application.StartAsync()` → `application.WaitForShutdownAsync()`
+
+Temporary applications skip `ValidateEndpoints()` and endpoint-accessor population, enter `ValidateServicesAsync()` (which honors `SkipValidation`), run `ApplicationValidatedAsync()`, and return before `StartAsync()`.
 
 ### Advanced Startup (`DrnProgramActions`)
 
@@ -152,8 +154,10 @@ protected override void ConfigureAuthorizationOptions(AuthorizationOptions optio
 
 ### GDPR & Consent
 
-- `ConsentCookie`: Manages user consent state (script-readable under `HttpOnlyPolicy.None`)
-- `ScopedUserMiddleware`: Populates `IScopedLog` with consent flags (`Consent_Analytics`, `Consent_Marketing`) and `ScopeContext` with `ConsentCookie`
+- With the default `DrnDefaults` setup, Cookie Policy evaluates consent on every request and withholds non-essential response cookies until consent is granted.
+- `ConsentCookie` represents the policy consent state and is script-readable under `HttpOnlyPolicy.None`.
+- `ScopedUserMiddleware` populates `IScopedLog` with consent flags (`Consent_Analytics`, `Consent_Marketing`) and `ScopeContext` with `ConsentCookie`.
+- Applications remain responsible for analytics and marketing script activation, category-specific preferences, and accurate `IsEssential` classification.
 
 ### Per-Route Security Headers
 
@@ -236,7 +240,7 @@ public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRout
 - Singleton rules are sorted once. Pre-auth uses singleton rules only. Scoped rule existence/order is detected at startup, then scoped rules are resolved from the request provider only for post-auth. Global `Order` is preserved across singleton and scoped rules; same-order `ShortCircuitOnMatch` rules run first, and every matching rule composes. Limiter partition factories must not capture `HttpContext` or scoped services because limiter instances are cached per partition.
 - Post-auth uses DI-configured `RateLimiterOptions`, so named policies and rejection callbacks registered through `AddRateLimiter(options => ...)` remain available to `[EnableRateLimiting("policy-name")]`.
 - DRN emits metrics through the `DRN.Framework.Hosting.RateLimiting` meter; add this meter to OpenTelemetry exports when pre-auth metrics or DRN rule-level rejection metrics are needed. The action tag distinguishes `limit`, `allow`, `deny`, and `unknown`.
-- Pre-auth and post-auth rejection logs default to deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation without exposing raw API keys, tenant hints, service identifiers, user identifiers, or IPs. Use `DrnRateLimit.PartitionLogMode = PlainText` only for controlled development or dedicated encrypted audit sinks.
+- Rate-limit-specific rejected IP and partition fields default to deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation for those fields but does not anonymize the complete request log; standard request and user fields may still contain raw identifiers. Treat logs as sensitive, and use `DrnRateLimit.PartitionLogMode = PlainText` only for controlled development or dedicated encrypted audit sinks.
 - Built-in limiter state is process-local. `HybridCache` can cache policy data, but hard multi-replica quotas need edge enforcement or a Redis-backed custom `RateLimiter` returned through `RateLimitRuleResult.CustomPartition(...)`.
 
 ---
@@ -261,6 +265,15 @@ public class MyBackgroundWorker : BackgroundService
 
 ## TagHelpers
 
+Activate DRN TagHelpers for Razor Pages in `Pages/_ViewImports.cshtml`:
+
+```razor
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@addTagHelper *, DRN.Framework.Hosting
+```
+
+The automatic behaviors below apply only to views covered by the DRN directive.
+
 | TagHelper | Target | Purpose |
 |-----------|--------|---------|
 | `ViteScriptTagHelper` | `<script>` | Resolve Vite manifest + SRI |
@@ -275,9 +288,9 @@ public class MyBackgroundWorker : BackgroundService
 
 **Vite**: `<script src="buildwww/app/js/appPostload.js">` -> `<script src="/appPostload/appPostload.abc123.js" integrity="sha256-xyz">`
 
-**Nonce**: Auto-added to `<script>`, `<style>`, `<link>`, `<iframe>`. Opt-out: `<script disable-nonce="true">`
+**Nonce**: With the DRN directive active, auto-added to `<script>`, `<style>`, `<link>`, `<iframe>`. Opt-out: `<script disable-nonce="true">`
 
-**CSRF**: Auto-added to `hx-post/put/delete/patch`. Opt-out: `<button disable-csrf-token="true">`
+**CSRF**: With the DRN directive active, auto-added to `hx-post/put/delete/patch`. Opt-out: `<button disable-csrf-token="true">`
 
 **Auth visibility**:
 ```razor

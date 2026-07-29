@@ -80,7 +80,7 @@ dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test
 
 > All test projects (unit, integration, and performance) use [Microsoft Testing Platform (MTP) 2.0](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-intro) with xUnit v3 and are built as standalone executables. Use `dotnet run --project` to execute them.
 
-> **Debugging tip:** If the application fails to start in `Development` mode, `DrnProgramBase` automatically generates a `StartupExceptionReport.html` in the output directory with a detailed, browsable error report.
+> **Debugging tip:** If the application fails to start in `Development` mode, `DrnProgramBase` attempts to generate a `StartupExceptionReport.html` in the output directory with a detailed, browsable error report.
 
 ### Installation
 
@@ -99,14 +99,14 @@ dotnet add package DRN.Framework.Testing
 To create a new project from scratch:
 ```bash
 dotnet new web -n MyApp && cd MyApp && dotnet add package DRN.Framework.Hosting
-dotnet new xunit -n MyApp.Tests && cd MyApp.Tests && dotnet add package DRN.Framework.Testing
+cd .. && dotnet new xunit -n MyApp.Tests && cd MyApp.Tests && dotnet add package DRN.Framework.Testing
 ```
 
 After scaffolding, compare your `.csproj` files with the reference projects and apply the adjustments (see [Sample.Hosted.csproj](Sample.Hosted/Sample.Hosted.csproj), [DRN.Test.Integration.csproj](DRN.Test.Integration/DRN.Test.Integration.csproj), [DRN.Test.Unit.csproj](DRN.Test.Unit/DRN.Test.Unit.csproj)).
 
 Update your configuration files (see [appsettings.json](Sample.Hosted/appsettings.json), [appsettings.Development.json](Sample.Hosted/appsettings.Development.json)):
 
-**appsettings.json** — base configuration for all environments:
+**appsettings.json** — Kestrel excerpt to merge into the linked full DRN configuration:
 ```json
 {
   "Kestrel": {
@@ -153,8 +153,8 @@ Integration tests use `[DataInline]` with `DrnTestContext` and [Testcontainers](
 - [QAContextTagTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTagTests.cs) — Entity ID generation, type-safe entity type checking, date-time filtering
 - [QAContextTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTests.cs) — CRUD operations, concurrency conflict detection, extended properties
 - [TagRepositoryTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/Repositories/TagRepositoryTests.cs) — Source-Known Repository pattern, pagination, filtering
-- [SourceKnownEntityIdUtilsTests.cs](DRN.Test.Integration/Tests/Sample/Utils/SourceKnownEntityIdUtilsTests.cs) — SKID/SKEID stress test: ~6.3M concurrent IDs across 8 threads, uniqueness
-- [SourceKnownIdUtilsTests.cs](DRN.Test.Integration/Tests/Sample/Utils/SourceKnownIdUtilsTests.cs) — SKID stress test: ~6.3M concurrent IDs, sequence ordering, time-bucket distribution and cap validation
+- [SourceKnownEntityIdUtilsTests.cs](DRN.Test.Integration/Tests/Sample/Utils/SourceKnownEntityIdUtilsTests.cs) — SKID/SKEID stress test: ~786K concurrent IDs across 8 threads, uniqueness
+- [SourceKnownIdUtilsTests.cs](DRN.Test.Integration/Tests/Sample/Utils/SourceKnownIdUtilsTests.cs) — SKID stress test: ~786K concurrent IDs, sequence ordering, time-bucket distribution and cap validation
 
 > Entities use `[EntityType]` with `AggregateRoot<TModel>` — see [Tag.cs](Sample.Domain/QA/Tags/Tag.cs) for an example.
 
@@ -194,7 +194,7 @@ In DRN-Project context, reliability is defined with following characteristics:
 * Self-documenting
 
 DRN Project is not another framework that will `bite the dust.` It is more than a simple framework. It is a distilled knowledge that contains:
-- [X] A beautiful framework to work with (v0.7.0)
+- [X] A beautiful framework to work with
 - [X] Management best practices
 - [X] Engineering manifest
 - [X] Reference documents for design, architecture and microservices
@@ -209,7 +209,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 2. **Docs:** It contains project documents. This docs will be supported with articles and a YouTube playlist.
 3. **Items:** It contains file that does not belong anywhere else such as .gitignore, .dockerignore and .github workflows
 4. **Src:** It contains 3 folders that define 3 different **DRN** domain.
-   * **Nexus:** Nexus app connects all services and apis developed with **DRN.Framework**.
+   * **Nexus:** Nexus is intended to connect all services and apis developed with **DRN.Framework**.
      `The one microservice to rule them all.`
       * It is a unified web app that contains nexus api and background services.
       * It will have the following features as a start:
@@ -217,7 +217,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
         - [ ] **Migration Management:** Nexus can manage microservice database migrations which includes schema management and sharding
         - [ ] **Service Discovery:** Nexus discloses microservice network
         - [ ] **Observability, Documentation and Monitoring Hub:** Nexus provides and visualizes workflow graph and information regarding them.
-   * **Framework:** DRN.Framework source codes belongs to generalized solutions that can be used within any dotnet project as nuget packages. 
+   * **Framework:** DRN.Framework source codes belongs to generalized solutions that can be used within compatible .NET 10 projects as nuget packages.
    * **Sample:** Nexus connectable sample app demonstrates **DRN.Framework** usage. It is used for testing, presentation and documentation purposes.
 5. **Test:** It contains all the unit, integration and performance tests.
 6. **docker-compose:** Root application compose for `Sample.Hosted` plus its local PostgreSQL, RabbitMQ, and Graylog dependencies. Use root `.sample-env` as the template for root `.env`.

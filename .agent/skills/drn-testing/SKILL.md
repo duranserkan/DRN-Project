@@ -98,9 +98,9 @@ public async Task Repository_Should_Persist_Entity(DrnTestContext context)
 
 [Theory]
 [DataInline]
-public async Task Endpoint_Should_Return_Data(DrnTestContext context, ITestOutputHelper output)
+public async Task Endpoint_Should_Return_Data(DrnTestContext context)
 {
-    var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(output);
+    var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
     var result = await client.GetFromJsonAsync<WeatherForecast[]>(
         Get.Endpoint.Sample.WeatherForecast.Get.RoutePattern);
 
@@ -115,7 +115,7 @@ public async Task Endpoint_Should_Return_Data(DrnTestContext context, ITestOutpu
 | `DrnTestContextUnit` | unit tests without containers or full app startup | `ServiceCollection`, `GetRequiredService<T>()`, `BuildConfigurationRoot()`, `GetData()`, `MethodContext.GetTempPath()`, `GetTempPath()`, `ValidateServicesAsync()` |
 | `DrnTestContext` | integration tests | all unit capabilities plus `ContainerContext`, `ApplicationContext`, `FlurlHttpTest` |
 | `ContainerContext` | real dependencies | `Postgres.ApplyMigrationsAsync()`, `Postgres.Isolated`, `RabbitMq`, `BindExternalDependenciesAsync()` |
-| `ApplicationContext` | API/E2E tests | `CreateClientAsync<TProgram>()`, `CreateApplicationAndBindDependenciesAsync<TProgram>()`, debugger-gated `ITestOutputHelper` logging through those helpers |
+| `ApplicationContext` | API/E2E tests | `CreateClientAsync<TProgram>()`, `CreateApplicationAndBindDependenciesAsync<TProgram>()`, automatic debugger-gated logging through `Xunit.TestContext.Current.TestOutputHelper` |
 | `FlurlHttpTest` | outbound HTTP mocks | `ForCallsTo(...).RespondWithJson(...)`, `ShouldHaveCalled(...)` |
 
 `DrnTestContext` owns the bootstrap and migration providers it builds. `ApplicationContext` only borrows the active host provider for service resolution; its `WebApplicationFactory` remains responsible for stopping and disposing that host before the context-owned provider is reset. Sequential applications rebuild context-owned services from current configuration, and a factory whose shutdown fails remains available for disposal retry.
