@@ -522,6 +522,16 @@ public class TagRepositoryTests
             "value_only",
             value: true,
             other: 6 * PaginationFilterMinimum);
+        var boolOnlyTag = TagGenerator.New(
+            prefix,
+            "bool_only",
+            value: true,
+            other: PaginationFilterMinimum - 1);
+        var minimumOnlyTag = TagGenerator.New(
+            prefix,
+            "minimum_only",
+            value: false,
+            other: PaginationFilterMinimum);
 
         AssertMatchesActiveFilters(matchingTags, prefix);
         prefixOnlyTags.Should().OnlyContain(tag =>
@@ -529,8 +539,19 @@ public class TagRepositoryTests
         valueOnlyTag.Name.StartsWith(prefix).Should().BeFalse();
         valueOnlyTag.Model.BoolValue.Should().BeTrue();
         valueOnlyTag.Model.Other.Should().BeGreaterThanOrEqualTo(PaginationFilterMinimum);
+        boolOnlyTag.Name.StartsWith(prefix).Should().BeTrue();
+        boolOnlyTag.Model.BoolValue.Should().BeTrue();
+        boolOnlyTag.Model.Other.Should().BeLessThan(PaginationFilterMinimum);
+        minimumOnlyTag.Name.StartsWith(prefix).Should().BeTrue();
+        minimumOnlyTag.Model.BoolValue.Should().BeFalse();
+        minimumOnlyTag.Model.Other.Should().BeGreaterThanOrEqualTo(PaginationFilterMinimum);
 
-        repository.Add(matchingTags.Concat(prefixOnlyTags).Append(valueOnlyTag).ToArray());
+        repository.Add(matchingTags
+            .Concat(prefixOnlyTags)
+            .Append(valueOnlyTag)
+            .Append(boolOnlyTag)
+            .Append(minimumOnlyTag)
+            .ToArray());
 
         await repository.SaveChangesAsync();
 
@@ -575,6 +596,8 @@ public class TagRepositoryTests
         var allPaginatedItems = page1.Items.Concat(page2.Items).Concat(page3.Items).ToList();
         AssertTagOrder(allPaginatedItems, matchingTags);
         allPaginatedItems.Should().NotContain(valueOnlyTag);
+        allPaginatedItems.Should().NotContain(boolOnlyTag);
+        allPaginatedItems.Should().NotContain(minimumOnlyTag);
         allPaginatedItems.Should().NotContain(tag => prefixOnlyTags.Contains(tag));
 
         var pageDesc1 = await repository.PaginateAsync(pageSize: 2, direction: PageSortDirection.Descending, updateTotalCount: true);
@@ -612,6 +635,8 @@ public class TagRepositoryTests
 
         var allDescItems = pageDesc1.Items.Concat(pageDesc2.Items).Concat(pageDesc3.Items).ToList();
         AssertTagOrder(allDescItems, matchingTags.Reverse());
+        allDescItems.Should().NotContain(boolOnlyTag);
+        allDescItems.Should().NotContain(minimumOnlyTag);
 
         repository.Settings.AddFilter("NoMatchFilter", tag => tag.Model.Other > 99999);
         repository.Settings.Filters.Should().HaveCount(3);

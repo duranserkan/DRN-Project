@@ -73,6 +73,8 @@ public class Int64JsonConverterTests
     [DataInlineUnit("0", 0L)]
     [DataInlineUnit("-9007199254740991", IntegerSafeIntervalForJs.Min)]
     [DataInlineUnit("9007199254740991", IntegerSafeIntervalForJs.Max)]
+    [DataInlineUnit("-9007199254740992", IntegerSafeIntervalForJs.Min - 1)]
+    [DataInlineUnit("9007199254740992", IntegerSafeIntervalForJs.Max + 1)]
     [DataInlineUnit("12345", 12345L)]
     [DataInlineUnit("-12345", -12345L)]
     public void Read_Should_Deserialize_Numeric_Tokens(string json, long expected)

@@ -1,7 +1,7 @@
 ---
 name: test-integration-api
 description: Use when testing web/API request pipelines, endpoints, routing, auth, middleware, serialization, typed HTTP clients, or outbound HTTP behavior.
-last-updated: 2026-06-12
+last-updated: 2026-07-29
 difficulty: intermediate
 tokens: ~0.9K
 ---
@@ -58,6 +58,10 @@ Validate route metadata without starting the full app server only when route dat
 - Prevent tests from launching local development dependencies that would collide with containers or shared services.
 - Reset database, queue, cache, or filesystem state through deterministic helpers.
 - Avoid sleeping for eventual consistency; wait on observable conditions or use framework synchronization hooks.
+
+## Composed Request Decisions
+
+Use MC/DC for authorization, validation, tenant, middleware, and feature-gate conditions that must independently affect an API decision. Paired requests must differ only in the target condition and flip the response decision: keep other conditions true for AND and false for OR. Include a positive full-expression request, validate the fixture truth table, and assert exact status and response membership. Add broader combinations only when condition interactions produce distinct pipeline behavior.
 
 ## Related
 

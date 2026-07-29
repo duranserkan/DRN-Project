@@ -1,7 +1,7 @@
 ---
 name: test-integration-db
 description: Use when testing repositories, ORM mapping, SQL queries, migrations, transactions, concurrency, or persistence behavior with a real database or container.
-last-updated: 2026-06-12
+last-updated: 2026-07-29
 difficulty: intermediate
 tokens: ~0.6K
 ---
@@ -46,6 +46,10 @@ public async Task Repository_Should_Persist_Entity()
 ## Concurrency
 
 Verify optimistic concurrency by using separate scopes, contexts, sessions, or connections. Assert the exact conflict behavior the repository exposes, not just the ORM exception type, unless the ORM exception is the public contract.
+
+## Composed Query Predicates
+
+Use MC/DC for repository and database predicates whose conditions must independently affect membership. Paired rows must differ only in the target condition and flip inclusion: hold other conditions true for AND and false for OR. Retain a positive row for the full predicate, validate the fixture truth table before persistence, and assert exact returned membership. Add broader combinations only when provider translation or condition interactions create distinct behavior.
 
 ## Related
 

@@ -53,21 +53,3 @@ Applies to all module and framework package `RELEASE-NOTES.md` files. Package RE
 ### Source To Update
 
 Keep the invariant in `AGENTS.md` (Release Notes discovery/rules), `basic-documentation` skill, and package release notes across the repository.
-
-## 4. Multi-Predicate Tests Need Independent Counterexamples
-
-### Case
-
-A pagination test registered two repository filters, but every fixture row satisfied the first filter. The second filter alone produced the expected result, so an implementation that silently dropped the first filter could still pass.
-
-### General Rule
-
-For composed predicates, use Modified Condition/Decision Coverage (MC/DC): include a positive fixture that satisfies the full expression and a counterexample for each predicate that satisfies the other predicates but fails that predicate. Validate the fixture truth table before exercising the system, then assert exact result membership rather than relying only on a shared `OnlyContain` predicate.
-
-### Decision Boundary
-
-Apply this to authorization, tenant isolation, soft-delete, repository filters, validation chains, feature gates, and other AND/OR compositions where each condition must independently affect the result. Full combinatorial coverage is unnecessary when MC/DC counterexamples prove each condition matters; add pairwise or exhaustive cases only when condition interactions create distinct behavior.
-
-### Source To Update
-
-Keep the rule in repository and framework testing guidance, especially `test-unit`, `test-integration`, and database/API integration skills, when those sources next receive a testing-conventions update.

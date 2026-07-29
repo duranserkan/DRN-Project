@@ -140,13 +140,20 @@ public class NumberParserResetTests
     [Fact]
     public void ResetToParse_Should_Reject_Value_With_Incompatible_Signedness()
     {
-        var signedParser = NumberParser.Get(0L);
-        var unsignedParser = NumberParser.Get(0UL);
+        var signedParser = NumberParser.Get(0x1234_5678L);
+        var signedControlParser = NumberParser.Get(0x1234_5678L);
+        var unsignedParser = NumberParser.Get(0x1234_5678_9ABC_DEF0UL);
+        var unsignedControlParser = NumberParser.Get(0x1234_5678_9ABC_DEF0UL);
+
+        signedParser.ReadNibble().Should().Be(signedControlParser.ReadNibble());
+        unsignedParser.ReadNibble().Should().Be(unsignedControlParser.ReadNibble());
 
         var resetSignedParserWithUnsignedValue = () => signedParser.ResetToParse(1UL);
         var resetUnsignedParserWithSignedValue = () => unsignedParser.ResetToParse(1L);
 
         resetSignedParserWithUnsignedValue.Should().ThrowExactly<InvalidOperationException>();
         resetUnsignedParserWithSignedValue.Should().ThrowExactly<InvalidOperationException>();
+        signedParser.ReadByte().Should().Be(signedControlParser.ReadByte());
+        unsignedParser.ReadByte().Should().Be(unsignedControlParser.ReadByte());
     }
 }
