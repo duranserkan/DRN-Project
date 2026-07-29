@@ -300,7 +300,7 @@ public class RateLimitingIntegrationTests
         firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    private async Task<HttpClient> CreateClientAsync(
+    private static async Task<HttpClient> CreateClientAsync(
         DrnTestContext context,
         int preAuthTokenLimit,
         int postAuthTokenLimit,

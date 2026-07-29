@@ -64,7 +64,8 @@ public class ApplicationContextTests
             .LogCritical(firstApplicationMessage);
 
         outputHelper.Received().WriteLine(
-            Arg.Is<string>(message => message.Contains(firstApplicationMessage, StringComparison.Ordinal)));
+            Arg.Is<string>(message =>
+                message is not null && message.Contains(firstApplicationMessage, StringComparison.Ordinal)));
 
         var secondApplication =
             InvokeCreateApplicationCore<TemporaryLifecycleProgram>(context.ApplicationContext, null);
@@ -73,7 +74,8 @@ public class ApplicationContextTests
             .LogCritical(secondApplicationMessage);
 
         outputHelper.DidNotReceive().WriteLine(
-            Arg.Is<string>(message => message.Contains(secondApplicationMessage, StringComparison.Ordinal)));
+            Arg.Is<string>(message =>
+                message is not null && message.Contains(secondApplicationMessage, StringComparison.Ordinal)));
     }
 
     [Theory]
