@@ -161,7 +161,8 @@ public void TestContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
   * exposes RabbitMQ as an explicit opt-in helper; RabbitMQ is not started by Postgres binding or `CreateClientAsync`
 * provides `ApplicationContext`
   * syncs `DrnTestContext` service collection and service provider with provided application by WebApplicationFactory
-  * automatically captures application logs through the active xUnit v3 `ITestOutputHelper` while a debugger is attached
+  * automatically captures application logs only while a debugger is attached and
+    `Xunit.TestContext.Current.TestOutputHelper` is available; otherwise, automatic logging remains disabled
 * provides `FlurlHttpTest` for mocking external HTTP requests (see [FlurlHttpTest Integration](#flurlhttptest-integration))
 * provides `IConfiguration` and `IAppSettings` with SettingsProvider by using convention.
   * settings.json file can be found in the same folder with test
@@ -175,7 +176,7 @@ public void TestContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
 * provides `MethodContext.GetTempPath()` and context-level `GetTempPath()` for a created, method-scoped temporary directory under `AppConstants.TempPath`. This directory is owned by `DrnTestContext` / `DrnTestContextUnit` and is automatically deleted during disposal (even if other cleanup steps fail), preventing directory leaks.
 * triggers `StartupJobRunner` to execute one-time test setup jobs marked with `ITestStartupJob`
 * `ServiceProvider` provides utils provided with DRN.Framework.Utils' `UtilsModule`
-* Services resolved through the context use generated interface or abstract-type substitutes requested by the test.
+* Services resolved through the context use generated substitutes for interface or abstract types requested by the test.
 * `ServiceProvider` and `DrnTestContext` will be disposed by xunit when test finishes
 * **DI Health Check**: `ValidateServicesAsync()` ensures that attribute-registered services can be resolved without runtime errors.
 
@@ -298,8 +299,8 @@ or infrastructure module, then use `EnsureDatabaseAsync` to create the schema di
 - You can override configuration and services until the factory builds a host, such as when `CreateClient()` or `TestServer` is requested.
 - Creating another application first disposes the current factory; the new application uses the current test configuration and service registrations.
 - `CreateClientAsync<TProgram>()` calls `ContainerContext.BindExternalDependenciesAsync()`, which applies Postgres migrations for registered `DrnContext` types. It does not start RabbitMQ.
-- When each application is created, `ApplicationContext` automatically uses the active xUnit v3
-  `Xunit.TestContext.Current.TestOutputHelper` only while a debugger is attached.
+- When each application is created, `ApplicationContext` automatically captures logs only while a debugger is attached and
+  `Xunit.TestContext.Current.TestOutputHelper` is available; otherwise, automatic logging remains disabled.
 - The optional `ITestOutputHelper` parameters on `CreateApplicationAndBindDependenciesAsync` and `CreateClientAsync`
   remain as explicit compatibility overrides and use the same debugger-only privacy gate.
 - By default, without debugger-enabled output logging, application lifecycle logs are not written to shared test-runner output.
@@ -348,8 +349,9 @@ For most API testing scenarios, use `CreateClientAsync` which handles common set
 
 ### Test Output Logging
 
-`ApplicationContext` captures application logs through the active xUnit v3 output helper only while a debugger is
-attached. No constructor injection or helper argument is required:
+`ApplicationContext` automatically captures application logs only while a debugger is attached and
+`Xunit.TestContext.Current.TestOutputHelper` is available. If either condition is false, automatic logging remains disabled.
+No constructor injection or helper argument is required:
 
 ```csharp
     [Theory]
@@ -359,7 +361,7 @@ attached. No constructor injection or helper argument is required:
         var app = await context.ApplicationContext
             .CreateApplicationAndBindDependenciesAsync<Program>();
         
-        // Application logs will appear in test output when a debugger is attached
+        // Automatic logs appear only with a debugger and an available current xUnit output helper
     }
 ```
 
@@ -855,6 +857,7 @@ Context-assisted lookup prefers a test-local file, then its local `Settings` fol
 Without an explicit directory, `DataProvider` reads from the current working directory's `Data` folder. Context-assisted
 lookup prefers a test-local file, then its local `Data` folder, then the current working directory's `Data` folder. Paths
 include the file extension, and files must be copied to the output directory.
+
 ```csharp
     [Fact]
     public void DataProvider_Should_Return_Data_From_Test_File()

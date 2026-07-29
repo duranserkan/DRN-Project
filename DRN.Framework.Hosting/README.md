@@ -214,7 +214,7 @@ flowchart TD
     linkStyle default stroke:#666,stroke-width:2px
 ```
 
-Temporary applications complete validation without starting the host.
+Temporary applications build and configure the request pipeline, then enter the service-validation phase, which honors `DrnDevelopmentSettings:SkipValidation`. They skip endpoint validation and endpoint-accessor population, and return before the host calls `StartAsync`.
 
 ## DrnProgramBase Deep Dive
 
@@ -862,7 +862,9 @@ DRN Hosting enforces modern web standards to improve security and predictability
 
 ## GDPR & Consent Integration
 
-DRN parses the application consent cookie and exposes the current request's preferences through `ConsentContext`. It does not automatically enable or suppress analytics, marketing scripts, or non-essential cookies; the application must enforce those choices.
+With the default `DrnDefaults` setup, DRN configures ASP.NET Core Cookie Policy with `CheckConsentNeeded = true` and installs Cookie Policy middleware. Until consent is granted, the middleware withholds response cookies that are not marked `IsEssential`.
+
+DRN also parses the policy consent cookie and exposes the current request's preferences through `ConsentContext`. Applications remain responsible for deciding when analytics or marketing scripts run, mapping category-specific preferences, and marking only strictly necessary cookies as essential.
 
 ### Example: Enforce Analytics Consent
 

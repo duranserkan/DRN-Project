@@ -68,13 +68,14 @@ public class AppContext : DrnContext<AppContext>
     public DbSet<User> Users { get; set; }
 }
 
-// 3. Use in your service - IDs are generated before save
+// 3. Use in your service - internal IDs are generated when EF tracks new entities
 public class UserService(AppContext context)
 {
     public async Task CreateUserAsync(string username)
     {
-        context.Users.Add(new User { Username = username }); 
-        await context.SaveChangesAsync(); // ID generated during SaveChangesAsync
+        var user = new User { Username = username };
+        context.Users.Add(user); // Internal Id generated as EF begins tracking
+        await context.SaveChangesAsync(); // Save-time fallback plus external identity and lifecycle initialization
     }
 }
 ```
@@ -213,9 +214,10 @@ This ensures that your identity schema feels at home with the rest of your `snak
 
 ### Entity ID Generation
 
-Entities inheriting from `SourceKnownEntity` have their IDs automatically generated before being persisted to the database:
+Entities inheriting from `SourceKnownEntity` receive internal IDs when EF begins tracking them. Save processing supplies a fallback if the internal ID is still zero and initializes external identity and lifecycle state before persistence:
 
-*   **Generation**: Assigns a Source-Known ID during `SaveChangesAsync`.
+*   **Tracking-Time Generation**: `SourceKnownIdValueGenerator` assigns the internal Source-Known `long` ID when a new entity begins EF tracking.
+*   **Save-Time Fallback And Initialization**: `IDrnSaveChangesInterceptor` generates a missing internal ID, initializes `EntityIdSource` and `EntityIdOps`, and applies created lifecycle state.
 *   **External Identity**: Exposes `Guid EntityId` for public contracts and lookups.
 *   **Requirement**: Every entity must have a unique `[EntityType(n)]` attribute.
 
@@ -223,9 +225,14 @@ Entities inheriting from `SourceKnownEntity` have their IDs automatically genera
 [EntityType(1)]
 public class User : AggregateRoot
 {
-    // Id is generated during SaveChangesAsync
     public string Username { get; set; }
 }
+```
+
+```csharp
+var user = new User { Username = "Ada" };
+context.Users.Add(user); // user.Id is populated here
+await context.SaveChangesAsync(); // External identity and lifecycle state are initialized here
 ```
 
 ### Startup Validation

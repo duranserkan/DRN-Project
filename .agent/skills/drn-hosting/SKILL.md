@@ -91,7 +91,9 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 | `ConfigureMFARedirection()` | MFA page configuration |
 | `ConfigureMFAExemption()` | Route-specific MFA exemption config |
 
-**Execution order**: Builder Phase → `builder.Build()` → Pipeline Phase → ValidateEndpoints → ValidateServices → `application.RunAsync()`
+**Execution order**: Builder Phase → `builder.Build()` → Pipeline Phase → `ValidateEndpoints()` → `ValidateServicesAsync()` → `ApplicationValidatedAsync()` → `application.StartAsync()` → `application.WaitForShutdownAsync()`
+
+Temporary applications skip `ValidateEndpoints()` and endpoint-accessor population, enter `ValidateServicesAsync()` (which honors `SkipValidation`), run `ApplicationValidatedAsync()`, and return before `StartAsync()`.
 
 ### Advanced Startup (`DrnProgramActions`)
 
@@ -152,8 +154,10 @@ protected override void ConfigureAuthorizationOptions(AuthorizationOptions optio
 
 ### GDPR & Consent
 
-- `ConsentCookie`: Manages user consent state (script-readable under `HttpOnlyPolicy.None`)
-- `ScopedUserMiddleware`: Populates `IScopedLog` with consent flags (`Consent_Analytics`, `Consent_Marketing`) and `ScopeContext` with `ConsentCookie`
+- With the default `DrnDefaults` setup, Cookie Policy evaluates consent on every request and withholds non-essential response cookies until consent is granted.
+- `ConsentCookie` represents the policy consent state and is script-readable under `HttpOnlyPolicy.None`.
+- `ScopedUserMiddleware` populates `IScopedLog` with consent flags (`Consent_Analytics`, `Consent_Marketing`) and `ScopeContext` with `ConsentCookie`.
+- Applications remain responsible for analytics and marketing script activation, category-specific preferences, and accurate `IsEssential` classification.
 
 ### Per-Route Security Headers
 
@@ -261,6 +265,15 @@ public class MyBackgroundWorker : BackgroundService
 
 ## TagHelpers
 
+Activate DRN TagHelpers for Razor Pages in `Pages/_ViewImports.cshtml`:
+
+```razor
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@addTagHelper *, DRN.Framework.Hosting
+```
+
+The automatic behaviors below apply only to views covered by the DRN directive.
+
 | TagHelper | Target | Purpose |
 |-----------|--------|---------|
 | `ViteScriptTagHelper` | `<script>` | Resolve Vite manifest + SRI |
@@ -275,9 +288,9 @@ public class MyBackgroundWorker : BackgroundService
 
 **Vite**: `<script src="buildwww/app/js/appPostload.js">` -> `<script src="/appPostload/appPostload.abc123.js" integrity="sha256-xyz">`
 
-**Nonce**: Auto-added to `<script>`, `<style>`, `<link>`, `<iframe>`. Opt-out: `<script disable-nonce="true">`
+**Nonce**: With the DRN directive active, auto-added to `<script>`, `<style>`, `<link>`, `<iframe>`. Opt-out: `<script disable-nonce="true">`
 
-**CSRF**: Auto-added to `hx-post/put/delete/patch`. Opt-out: `<button disable-csrf-token="true">`
+**CSRF**: With the DRN directive active, auto-added to `hx-post/put/delete/patch`. Opt-out: `<button disable-csrf-token="true">`
 
 **Auth visibility**:
 ```razor

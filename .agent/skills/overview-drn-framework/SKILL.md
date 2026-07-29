@@ -204,7 +204,7 @@ The mounted root defaults to `/appconfig` and can be overridden by registering `
 | Setting | Default | Maintenance note |
 |---------|---------|------------------|
 | `SkipValidation` | `false` | Mostly for test contexts. |
-| `TemporaryApplication` | `false` | Marks a host intentionally created only to inspect configuration or registered services. `ApplicationContext` uses it for its temporary discovery host; it is not the general test marker. |
+| `TemporaryApplication` | `false` | Marks a host for configuration or service discovery. It builds the pipeline, skips endpoint validation and accessor population, enters service validation unless `SkipValidation` is set, and returns before `StartAsync`; `ApplicationContext` uses it for its temporary discovery host. |
 | `LaunchExternalDependencies` | `false` | Development-only local PostgreSQL Testcontainers provisioning. |
 | `AutoMigrateDevelopment` | `true` | Applies pending migrations in Development after startup validation. |
 | `AutoMigrateStaging` | `false` | Applies pending migrations in Staging only; never enables prototype recreation. |

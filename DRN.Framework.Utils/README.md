@@ -703,12 +703,18 @@ public class OrderService(IEntityDateTimeUtils dateTimeUtils)
 The framework provides `IPaginationUtils` for cursor-based pagination ordered by the temporal sequence of `SourceKnownEntityId`.
 
 ```csharp
+public class OrderDto(Order order) : Dto(order)
+{
+    public bool Active { get; } = order.Active;
+}
+
 public class OrderService(IPaginationUtils pagination, OrderDbContext dbContext)
 {
-    public async Task<PaginationResult<Order>> GetRecentOrdersAsync(PaginationRequest request)
+    public async Task<PaginationResultModel<OrderDto>> GetRecentOrdersAsync(PaginationRequest request)
     {
         var query = dbContext.Orders.Where(x => x.Active);
-        return await pagination.GetResultAsync(query, request);
+        var result = await pagination.GetResultAsync(query, request);
+        return result.ToModel(order => new OrderDto(order));
     }
 }
 ```
