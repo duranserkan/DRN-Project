@@ -1,7 +1,7 @@
 ---
 name: drn-testing
 description: "DRN.Framework.Testing - canonical DTT attribute/context matrix with DrnTestContext, DrnTestContextUnit, ContainerContext, ApplicationContext, DataInline/DataMember/DataSelf, MTP command guidance, AwesomeAssertions, AutoFixture, NSubstitute, Testcontainers, and xUnit v3. Keywords: testing, dtt, drntest-context, applicationcontext, testcontainers, mtp, xunit, data-attributes, unit-testing, integration-testing"
-last-updated: 2026-07-28
+last-updated: 2026-07-29
 difficulty: intermediate
 tokens: ~1.7K
 ---
@@ -123,6 +123,12 @@ public async Task Endpoint_Should_Return_Data(DrnTestContext context, ITestOutpu
 ## Consolidation Rule
 
 Prefer one readable test that exercises a coherent flow over many duplicate tests with the same setup. Parameterize identical bodies with multiple data rows. In integration tests, continue the same flow when assertions share container setup, migrations, or service registration. Do not combine structurally different behaviors only to reduce count.
+
+## Composed Decision Coverage
+
+For AND/OR predicates where each condition must independently affect the result, use Modified Condition/Decision Coverage (MC/DC). Paired fixtures must differ in only the target condition and must make the overall decision change. For an AND predicate, keep every other condition true while the target changes; for an OR predicate, keep every other condition false while the target changes. Include a positive fixture for the full expression, validate the fixture truth table before exercising the system, and assert exact result membership instead of relying only on a shared predicate assertion.
+
+Apply this at decision boundaries such as authorization, tenant isolation, soft-delete, repository filters, validation chains, and feature gates. Add pairwise or exhaustive cases only when condition interactions produce behavior that independent pairs do not cover.
 
 ## WebApplicationFactory Entry Points
 

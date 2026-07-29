@@ -68,8 +68,6 @@ public static class SequenceManager<TEntity> where TEntity : class
             var newTimestamp = TimeStampManager.CurrentTimestamp(epoch);
             if (timeStamp == newTimestamp)
             {
-                //todo tweak TimeStampManager.UpdatePeriod
-                //todo benchmark with update period 100ms, 10ms, 1ms, 0.1ms
                 Thread.Sleep(TimeStampManager.UpdatePeriod); //to prevent busy-waiting
                 continue;
             }

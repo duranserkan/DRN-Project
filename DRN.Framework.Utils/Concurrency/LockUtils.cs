@@ -1,6 +1,5 @@
 namespace DRN.Framework.Utils.Concurrency;
 
-//todo benchmark
 public static class LockUtils
 {
     /// <summary>

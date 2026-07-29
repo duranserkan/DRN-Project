@@ -70,15 +70,20 @@ public struct NumberParser
         return value;
     }
 
-    //todo add tests
     public void ResetToParse(long signedValue)
     {
+        if (!_signed)
+            throw new InvalidOperationException("Cannot reset an unsigned parser with a signed value.");
+
         _signedValue = signedValue;
         _currentBitOffset = 0;
     }
 
     public void ResetToParse(ulong unsignedValue)
     {
+        if (_signed)
+            throw new InvalidOperationException("Cannot reset a signed parser with an unsigned value.");
+
         _unsignedValue = unsignedValue;
         _currentBitOffset = 0;
     }

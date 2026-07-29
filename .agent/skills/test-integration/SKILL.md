@@ -1,7 +1,7 @@
 ---
 name: test-integration
 description: Use when choosing or reviewing integration tests for API pipelines, database behavior, external dependencies, containers, serialization, middleware, or end-to-end component boundaries.
-last-updated: 2026-06-12
+last-updated: 2026-07-29
 difficulty: basic
 tokens: ~0.5K
 ---
@@ -27,6 +27,10 @@ Use parameterized tests when the setup and assertions are genuinely the same acr
 - DB/component: register only the services under test and apply migrations/schema setup explicitly.
 - Unit tests run first; integration tests run only after unit tests pass and only when the user explicitly allows test execution.
 - Do not merge structurally different behaviors merely to reduce test count.
+
+## Composed Decisions
+
+Use MC/DC when an integration boundary composes conditions that must each affect the result. Paired fixtures must differ only in the target condition and flip the overall decision: hold other conditions true for AND and false for OR. Keep a positive full-expression fixture, validate the fixture truth table before invoking the boundary, and assert exact returned membership. This applies to authorization, tenant isolation, soft-delete, repository filters, validation chains, and feature gates; expand beyond independent pairs only when interactions create distinct behavior.
 
 ## Related
 

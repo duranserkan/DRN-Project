@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DRN.Framework.SharedKernel.Json;
-//todo add tests
+
 /// <summary>
 /// Emits 64-bit integers as JSON numbers if within JS-safe range;
 /// otherwise emits them as JSON strings to avoid precision loss.

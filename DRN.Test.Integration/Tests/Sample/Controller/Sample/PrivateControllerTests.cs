@@ -18,7 +18,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
 
         var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(Get.Endpoint.Sample.Private.Authorized.RoutePattern);
         userSummary.Should().NotBeNull();
-        userSummary?.Authenticated.Should().BeTrue();
+        userSummary.Authenticated.Should().BeTrue();
     }
 
     [Theory]
@@ -29,7 +29,7 @@ public class PrivateControllerTests(ITestOutputHelper outputHelper)
 
         var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(Get.Endpoint.Sample.Private.Anonymous.RoutePattern);
         userSummary.Should().NotBeNull();
-        userSummary?.Authenticated.Should().BeFalse();
+        userSummary.Authenticated.Should().BeFalse();
     }
 
     [Theory]

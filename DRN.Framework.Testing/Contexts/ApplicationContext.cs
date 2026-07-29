@@ -40,7 +40,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
         _initialServiceDescriptors = testContext.ServiceCollection.ToArray();
         var initialServiceDescriptors = _initialServiceDescriptors;
         //Add program services to drnTestContext
-        using (var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true).WithWebHostBuilder(webHostBuilder =>
+        using (var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true, webHostBuilder =>
         {
             //only need service collection descriptors, so ValidateServicesAddedByAttributes should not fail test at this stage
             var configuration = testContext.GetRequiredService<IConfiguration>();
@@ -58,9 +58,11 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
 
         //register action to pass test context configuration to web application.
         //This will be triggered when TestServer or HttpClient requested until then further configurations can be added to test context configuration
-        var factory = new DrnWebApplicationFactory<TEntryPoint>(testContext).WithWebHostBuilder(webHostBuilder =>
+        IConfiguration? factoryConfiguration = null;
+        var factory = new DrnWebApplicationFactory<TEntryPoint>(testContext, false, webHostBuilder =>
         {
-            var configuration = testContext.GetRequiredService<IConfiguration>();
+            // Derived factories replay this configurator after the active provider changes to the parent host.
+            var configuration = factoryConfiguration ??= testContext.GetRequiredService<IConfiguration>();
             webHostBuilder.UseConfiguration(configuration);
             webHostBuilder.ConfigureServices(services => services.Add(initialServiceDescriptors));
 
@@ -168,10 +170,30 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     }
 }
 
-public class DrnWebApplicationFactory<TEntryPoint>(DrnTestContext context, bool temporary = false) : WebApplicationFactory<TEntryPoint>
+public class DrnWebApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntryPoint>
     where TEntryPoint : class
 {
-    private bool Temporary { get; } = temporary;
+    private readonly DrnTestContext _context;
+    private readonly Action<IWebHostBuilder>? _webHostConfigurator;
+
+    public DrnWebApplicationFactory(DrnTestContext context, bool temporary = false)
+        : this(context, temporary, null)
+    {
+    }
+
+    internal DrnWebApplicationFactory(
+        DrnTestContext context,
+        bool temporary,
+        Action<IWebHostBuilder>? webHostConfigurator)
+    {
+        _context = context;
+        Temporary = temporary;
+        _webHostConfigurator = webHostConfigurator;
+    }
+
+    private bool Temporary { get; }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder) => _webHostConfigurator?.Invoke(builder);
 
     protected override IHost CreateHost(IHostBuilder builder)
     {
@@ -181,9 +203,9 @@ public class DrnWebApplicationFactory<TEntryPoint>(DrnTestContext context, bool 
         {
             var host = base.CreateHost(capturingBuilder);
             if (!Temporary)
-                context.UseApplicationServiceProvider(host.Services);
+                _context.UseApplicationServiceProvider(host.Services);
 
-            return host;
+            return new FailureSafeHost(host);
         }
         catch (Exception hostException)
         {
@@ -201,6 +223,47 @@ public class DrnWebApplicationFactory<TEntryPoint>(DrnTestContext context, bool 
             }
 
             throw;
+        }
+    }
+
+    private sealed class FailureSafeHost(IHost host) : IHost
+    {
+        private bool _disposedAfterStopFailure;
+
+        public IServiceProvider Services => host.Services;
+
+        public Task StartAsync(CancellationToken cancellationToken = default) =>
+            host.StartAsync(cancellationToken);
+
+        public async Task StopAsync(CancellationToken cancellationToken = default)
+        {
+            if (_disposedAfterStopFailure)
+                return;
+
+            try
+            {
+                await host.StopAsync(cancellationToken);
+            }
+            catch (Exception stopException)
+            {
+                try
+                {
+                    host.Dispose();
+                    _disposedAfterStopFailure = true;
+                }
+                catch (Exception disposalException)
+                {
+                    throw new AggregateException(stopException, disposalException);
+                }
+
+                throw;
+            }
+        }
+
+        public void Dispose()
+        {
+            if (!_disposedAfterStopFailure)
+                host.Dispose();
         }
     }
 

@@ -14,7 +14,7 @@ public class PaginationResultInfo : PaginationResultBase
     {
     }
 
-    [JsonConstructor]
+    [JsonConstructor, SetsRequiredMembers]
     public PaginationResultInfo(PaginationRequest request, Guid firstId, Guid lastId, int itemCount, bool hasNext, bool hasPrevious, PaginationTotal total)
     {
         Request = request;

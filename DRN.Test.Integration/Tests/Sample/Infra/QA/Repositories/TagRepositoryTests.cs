@@ -15,6 +15,8 @@ namespace DRN.Test.Integration.Tests.Sample.Infra.QA.Repositories;
 
 public class TagRepositoryTests
 {
+    private const long PaginationFilterMinimum = 100;
+
     [Theory]
     [DataInline]
     public async Task TagRepository_Should_Implement_SourceKnownRepository_Functionalities(DrnTestContext context)
@@ -299,6 +301,8 @@ public class TagRepositoryTests
         }
 
         index.Should().Be(1);
+
+        await AssertPaginationWithSettingsFilters(repository);
     }
 
     private static async Task AssertRepositorySettings(DrnTestContext context, string tagPrefix)
@@ -503,4 +507,201 @@ public class TagRepositoryTests
         var query = async () => await repository.AnyAsync();
         await query.Should().ThrowAsync<OperationCanceledException>();
     }
+
+    private static async Task AssertPaginationWithSettingsFilters(ITagRepository repository)
+    {
+        var prefix = $"{nameof(AssertPaginationWithSettingsFilters)}_{Guid.NewGuid():N}";
+        var matchingTags = Enumerable.Range(1, 5)
+            .Select(index => TagGenerator.New(prefix, $"match_{index}", value: true, other: index * PaginationFilterMinimum))
+            .ToArray();
+        var prefixOnlyTags = Enumerable.Range(1, 5)
+            .Select(index => TagGenerator.New(prefix, $"prefix_only_{index}", value: false, other: index * 10L))
+            .ToArray();
+        var valueOnlyTag = TagGenerator.New(
+            $"{nameof(AssertPaginationWithSettingsFilters)}_different_{Guid.NewGuid():N}",
+            "value_only",
+            value: true,
+            other: 6 * PaginationFilterMinimum);
+        var boolOnlyTag = TagGenerator.New(
+            prefix,
+            "bool_only",
+            value: true,
+            other: PaginationFilterMinimum - 1);
+        var minimumOnlyTag = TagGenerator.New(
+            prefix,
+            "minimum_only",
+            value: false,
+            other: PaginationFilterMinimum);
+
+        AssertMatchesActiveFilters(matchingTags, prefix);
+        prefixOnlyTags.Should().OnlyContain(tag =>
+            tag.Name.StartsWith(prefix) && (!tag.Model.BoolValue || tag.Model.Other < PaginationFilterMinimum));
+        valueOnlyTag.Name.StartsWith(prefix).Should().BeFalse();
+        valueOnlyTag.Model.BoolValue.Should().BeTrue();
+        valueOnlyTag.Model.Other.Should().BeGreaterThanOrEqualTo(PaginationFilterMinimum);
+        boolOnlyTag.Name.StartsWith(prefix).Should().BeTrue();
+        boolOnlyTag.Model.BoolValue.Should().BeTrue();
+        boolOnlyTag.Model.Other.Should().BeLessThan(PaginationFilterMinimum);
+        minimumOnlyTag.Name.StartsWith(prefix).Should().BeTrue();
+        minimumOnlyTag.Model.BoolValue.Should().BeFalse();
+        minimumOnlyTag.Model.Other.Should().BeGreaterThanOrEqualTo(PaginationFilterMinimum);
+
+        repository.Add(matchingTags
+            .Concat(prefixOnlyTags)
+            .Append(valueOnlyTag)
+            .Append(boolOnlyTag)
+            .Append(minimumOnlyTag)
+            .ToArray());
+
+        await repository.SaveChangesAsync();
+
+        repository.Settings.AddFilter("PrefixFilter", tag => tag.Name.StartsWith(prefix));
+        repository.Settings.AddFilter("MatchingFilter", tag => tag.Model.BoolValue && tag.Model.Other >= PaginationFilterMinimum);
+        repository.Settings.Filters.Should().HaveCount(2);
+
+        var page1 = await repository.PaginateAsync(pageSize: 2, direction: PageSortDirection.Ascending, updateTotalCount: true);
+        page1.Info.Request.PageCursor.IsFirstRequest.Should().BeTrue();
+        AssertPaginationMetadata(
+            page1,
+            pageNumber: 1,
+            itemCount: 2,
+            matchingTags.Length,
+            hasNext: true,
+            hasPrevious: false,
+            totalCountUpdated: true);
+        AssertMatchesActiveFilters(page1.Items, prefix);
+
+        var page2 = await repository.PaginateAsync(page1.Info, jumpTo: 2, pageSize: 2);
+        AssertPaginationMetadata(
+            page2,
+            pageNumber: 2,
+            itemCount: 2,
+            matchingTags.Length,
+            hasNext: true,
+            hasPrevious: true,
+            totalCountUpdated: false);
+        AssertMatchesActiveFilters(page2.Items, prefix);
+
+        var page3 = await repository.PaginateAsync(page2.Info, jumpTo: 3, pageSize: 2);
+        AssertPaginationMetadata(
+            page3,
+            pageNumber: 3,
+            itemCount: 1,
+            matchingTags.Length,
+            hasNext: false,
+            hasPrevious: true,
+            totalCountUpdated: false);
+        AssertMatchesActiveFilters(page3.Items, prefix);
+
+        var allPaginatedItems = page1.Items.Concat(page2.Items).Concat(page3.Items).ToList();
+        AssertTagOrder(allPaginatedItems, matchingTags);
+        allPaginatedItems.Should().NotContain(valueOnlyTag);
+        allPaginatedItems.Should().NotContain(boolOnlyTag);
+        allPaginatedItems.Should().NotContain(minimumOnlyTag);
+        allPaginatedItems.Should().NotContain(tag => prefixOnlyTags.Contains(tag));
+
+        var pageDesc1 = await repository.PaginateAsync(pageSize: 2, direction: PageSortDirection.Descending, updateTotalCount: true);
+        AssertPaginationMetadata(
+            pageDesc1,
+            pageNumber: 1,
+            itemCount: 2,
+            matchingTags.Length,
+            hasNext: true,
+            hasPrevious: false,
+            totalCountUpdated: true);
+        AssertMatchesActiveFilters(pageDesc1.Items, prefix);
+
+        var pageDesc2 = await repository.PaginateAsync(pageDesc1.Info, jumpTo: 2, pageSize: 2);
+        AssertPaginationMetadata(
+            pageDesc2,
+            pageNumber: 2,
+            itemCount: 2,
+            matchingTags.Length,
+            hasNext: true,
+            hasPrevious: true,
+            totalCountUpdated: false);
+        AssertMatchesActiveFilters(pageDesc2.Items, prefix);
+
+        var pageDesc3 = await repository.PaginateAsync(pageDesc2.Info, jumpTo: 3, pageSize: 2);
+        AssertPaginationMetadata(
+            pageDesc3,
+            pageNumber: 3,
+            itemCount: 1,
+            matchingTags.Length,
+            hasNext: false,
+            hasPrevious: true,
+            totalCountUpdated: false);
+        AssertMatchesActiveFilters(pageDesc3.Items, prefix);
+
+        var allDescItems = pageDesc1.Items.Concat(pageDesc2.Items).Concat(pageDesc3.Items).ToList();
+        AssertTagOrder(allDescItems, matchingTags.Reverse());
+        allDescItems.Should().NotContain(boolOnlyTag);
+        allDescItems.Should().NotContain(minimumOnlyTag);
+
+        repository.Settings.AddFilter("NoMatchFilter", tag => tag.Model.Other > 99999);
+        repository.Settings.Filters.Should().HaveCount(3);
+        var emptyPage = await repository.PaginateAsync(pageSize: 2, direction: PageSortDirection.Ascending, updateTotalCount: true);
+        emptyPage.Items.Should().BeEmpty();
+        AssertPaginationMetadata(
+            emptyPage,
+            pageNumber: 1,
+            itemCount: 0,
+            totalCount: 0,
+            hasNext: false,
+            hasPrevious: false,
+            totalCountUpdated: true);
+
+        repository.Settings.RemoveFilter("NoMatchFilter").Should().BeTrue();
+        repository.Settings.Filters.Should().HaveCount(2);
+
+        var paginateSingleRequest = PaginationRequest.DefaultWith(2);
+        var paginateAllItems = new List<Tag>();
+        var paginateAllPageCount = 0;
+        await foreach (var pageResult in repository.PaginateAllAsync(paginateSingleRequest))
+        {
+            paginateAllPageCount++;
+            pageResult.Info.Request.PageNumber.Should().Be(paginateAllPageCount);
+            pageResult.Items.Should().NotBeEmpty();
+            pageResult.Items.Count.Should().BeLessThanOrEqualTo(paginateSingleRequest.PageSize.Size);
+            AssertMatchesActiveFilters(pageResult.Items, prefix);
+            paginateAllItems.AddRange(pageResult.Items);
+        }
+
+        var expectedPageCount =
+            (matchingTags.Length + paginateSingleRequest.PageSize.Size - 1) /
+            paginateSingleRequest.PageSize.Size;
+        paginateAllPageCount.Should().Be(expectedPageCount);
+        AssertTagOrder(paginateAllItems, matchingTags);
+
+        repository.Settings.ClearFilters();
+    }
+
+    private static void AssertPaginationMetadata(
+        PaginationResultModel<Tag> page,
+        long pageNumber,
+        int itemCount,
+        long totalCount,
+        bool hasNext,
+        bool hasPrevious,
+        bool totalCountUpdated)
+    {
+        page.Info.Request.PageNumber.Should().Be(pageNumber);
+        page.Items.Should().HaveCount(itemCount);
+        page.Info.ItemCount.Should().Be(itemCount);
+        page.Info.Total.Count.Should().Be(totalCount);
+        page.Info.HasNext.Should().Be(hasNext);
+        page.Info.HasPrevious.Should().Be(hasPrevious);
+        page.Info.TotalCountUpdated.Should().Be(totalCountUpdated);
+        page.Info.Request.UpdateTotalCount.Should().Be(totalCountUpdated);
+    }
+
+    private static void AssertMatchesActiveFilters(IEnumerable<Tag> tags, string prefix)
+        => tags.Should().OnlyContain(tag =>
+            tag.Name.StartsWith(prefix) &&
+            tag.Model.BoolValue &&
+            tag.Model.Other >= PaginationFilterMinimum);
+
+    private static void AssertTagOrder(IEnumerable<Tag> actual, IEnumerable<Tag> expected)
+        => actual.Select(tag => tag.EntityIdSource)
+            .Should().Equal(expected.Select(tag => tag.EntityIdSource));
 }

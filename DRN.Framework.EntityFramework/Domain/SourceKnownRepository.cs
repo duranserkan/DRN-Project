@@ -401,7 +401,6 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         IQueryable<TEntity> query, PaginationResultInfo? resultInfo = null, long jumpTo = 1, int pageSize = -1, int maxSize = -1,
         PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)
     {
-        //todo improve test cases with additional query filter
         var request = PaginationRequest.From(resultInfo, jumpTo, pageSize, maxSize, direction, totalCount, updateTotalCount);
         var result = await PaginateAsync(query, request);
 

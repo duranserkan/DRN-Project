@@ -12,6 +12,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **CancellationScopeKey Primitive**: `CancellationScopeKey` is now available in `DRN.Framework.SharedKernel.Cancellation` for defining typed or named child cancellation scope keys across domain and framework layers.
 *   **Repository Cancellation Settings**: `RepositorySettings<TEntity>` now includes `ScopeKey` for configuring child cancellation scopes on repository instances.
 
+### Bug Fixes
+
+*   **Pagination Required-Member Construction**: `PaginationResultInfo` now marks its fully initializing JSON constructor as satisfying inherited required members, allowing direct construction without redundant object initializers.
+
 ## Version 0.9.6
 
 ### Security

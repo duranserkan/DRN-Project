@@ -16,7 +16,7 @@ public interface IIdentityConfirmationService
 {
     Task SendConfirmationEmailAsync<TUser>(TUser user, UserManager<TUser> userManager,
         HttpContext context, ApiEndpoint emailEndpoint, string email, bool isChange = false)
-        where TUser : class, new();
+        where TUser : class;
 }
 
 [Scoped<IIdentityConfirmationService>]
@@ -24,7 +24,7 @@ public class IdentityConfirmationService(IServiceProvider serviceProvider, LinkG
 {
     public async Task SendConfirmationEmailAsync<TUser>(TUser user, UserManager<TUser> userManager, HttpContext context, ApiEndpoint emailEndpoint,
         string email, bool isChange = false)
-        where TUser : class, new()
+        where TUser : class
     {
         var emailSender = serviceProvider.GetRequiredService<IEmailSender<TUser>>();
 
@@ -45,7 +45,6 @@ public class IdentityConfirmationService(IServiceProvider serviceProvider, LinkG
 
         var confirmEmailUrl = linkGenerator.GetUriByAction(context, emailEndpoint.ActionMethodName, emailEndpoint.ControllerName, routeValues)!;
 
-        //Todo: check user type. Can it be IdentityUser?
         await emailSender.SendConfirmationLinkAsync(user, email, HtmlEncoder.Default.Encode(confirmEmailUrl));
     }
 }
