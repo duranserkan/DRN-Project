@@ -58,7 +58,6 @@ public static class SequenceManager<TEntity> where TEntity : class
         if (currentScope.ScopeTimestamp != timeStamp)
             UpdateTimeScope(epoch);
 
-        //todo: optionally generate instance Ids randomly to avoid predictability
         //Reassign currentScope after potential update
         currentScope = _timeScope;
         if (currentScope.TryGetNextId(out var sequenceId))
@@ -108,7 +107,6 @@ public static class SequenceManager<TEntity> where TEntity : class
 
 public readonly record struct SequenceTimeScopedId(long TimeStamp, uint SequenceId);
 
-//todo include to SourceKnownIdUtilsPerformanceTests
 public class SequenceTimeScope(long scopeTimeStamp)
 {
     public const uint MaxValue = 262143;

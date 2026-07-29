@@ -85,7 +85,7 @@ public class SourceKnownIdUtilsBenchmark
     [Benchmark]
     public long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
 
-    [Benchmark] //todo TimeScopedId look like a bottleneck, review it for possible improvements
+    [Benchmark]
     public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<YEntity>.GetTimeScopedId(EpochTimeUtils.DefaultEpoch);
 
     // --- SourceKnownId (raw long) ---

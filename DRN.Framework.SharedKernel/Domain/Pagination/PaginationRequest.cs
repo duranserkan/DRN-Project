@@ -21,7 +21,6 @@ public class PaginationRequest
     {
     }
 
-    //todo test default values
     /// <summary>
     /// Represents pagination parameters for fetching a page of data.
     /// </summary>

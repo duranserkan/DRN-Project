@@ -4,7 +4,6 @@ using DRN.Framework.Utils.Models.Sample;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Encodings;
 
-//todo write serialization tests
 public class EncodingExtensionTests
 {
     [Fact]
