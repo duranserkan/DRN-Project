@@ -93,6 +93,70 @@ public class ApplicationContextTests
 
     [Theory]
     [DataInline]
+    public void ApplicationContext_Should_Dispose_Host_When_Stop_Fails(DrnTestContext context)
+    {
+        var disposalOrder = new List<string>();
+        var hostedService = new StopFailureHostedService(disposalOrder);
+        var application = context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>(builder =>
+            builder.ConfigureServices(services =>
+            {
+                services.AddSingleton<IHostedService>(hostedService);
+                services.AddSingleton(_ => new ApplicationOwnedDisposalTracker(disposalOrder));
+            }));
+        _ = application.Server;
+        _ = application.Services.GetRequiredService<ApplicationOwnedDisposalTracker>();
+        hostedService.FailNextStop();
+
+        var dispose = () => context.ApplicationContext.Dispose();
+
+        var exception = dispose.Should().Throw<Exception>().Which;
+        exception.ToString().Should().Contain(StopFailureHostedService.StopFailureMessage);
+        disposalOrder.Should().Equal("application-stop-failed", "application");
+        context.ApplicationContext.HasCreatedApplication.Should().BeTrue();
+
+        context.ApplicationContext.Dispose();
+
+        context.ApplicationContext.HasCreatedApplication.Should().BeFalse();
+        disposalOrder.Should().HaveCount(2);
+    }
+
+    [Theory]
+    [DataInline]
+    public void ApplicationContext_Should_Retry_Parent_After_Derived_Host_Stop_Fails(DrnTestContext context)
+    {
+        var disposalOrder = new List<string>();
+        var derivedHostedService = new StopFailureHostedService(disposalOrder);
+        var application = context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>(builder =>
+            builder.ConfigureServices(services =>
+                services.AddSingleton(_ => new ParentApplicationDisposalTracker(disposalOrder))));
+        _ = application.Server;
+        _ = application.Services.GetRequiredService<ParentApplicationDisposalTracker>();
+
+        var derivedApplication = application.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services =>
+            {
+                services.AddSingleton<IHostedService>(derivedHostedService);
+                services.AddSingleton(_ => new ApplicationOwnedDisposalTracker(disposalOrder));
+            }));
+        _ = derivedApplication.Server;
+        _ = derivedApplication.Services.GetRequiredService<ApplicationOwnedDisposalTracker>();
+        derivedHostedService.FailNextStop();
+
+        var firstDispose = () => context.ApplicationContext.Dispose();
+
+        var exception = firstDispose.Should().Throw<Exception>().Which;
+        exception.ToString().Should().Contain(StopFailureHostedService.StopFailureMessage);
+        disposalOrder.Should().Equal("application-stop-failed", "application");
+        context.ApplicationContext.HasCreatedApplication.Should().BeTrue();
+
+        context.ApplicationContext.Dispose();
+
+        context.ApplicationContext.HasCreatedApplication.Should().BeFalse();
+        disposalOrder.Should().Equal("application-stop-failed", "application", "parent-application");
+    }
+
+    [Theory]
+    [DataInline]
     public void DrnTestContext_Should_Capture_Both_Factory_Failures_Before_Remaining_Cleanup(DrnTestContext context)
     {
         var disposalOrder = new List<string>();
@@ -259,6 +323,11 @@ public class ApplicationContextTests
     private sealed class ApplicationOwnedDisposalTracker(List<string> disposalOrder) : IDisposable
     {
         public void Dispose() => disposalOrder.Add("application");
+    }
+
+    private sealed class ParentApplicationDisposalTracker(List<string> disposalOrder) : IDisposable
+    {
+        public void Dispose() => disposalOrder.Add("parent-application");
     }
 
     private sealed class StopFailureHostedService(List<string> disposalOrder) : IHostedService
