@@ -122,6 +122,32 @@ public class ApplicationContextTests
 
     [Theory]
     [DataInline]
+    public void ApplicationContext_Should_Surface_AggregateException_When_Stop_And_Dispose_Both_Fail(DrnTestContext context)
+    {
+        var disposalOrder = new List<string>();
+        var hostedService = new StopFailureHostedService(disposalOrder);
+        var application = context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>(builder =>
+            builder.ConfigureServices(services =>
+            {
+                services.AddSingleton<IHostedService>(hostedService);
+                services.AddSingleton(disposalOrder);
+                services.AddSingleton<ThrowingDisposalTracker>();
+            }));
+        _ = application.Server;
+        _ = application.Services.GetRequiredService<ThrowingDisposalTracker>();
+        hostedService.FailNextStop();
+
+        var dispose = () => context.ApplicationContext.Dispose();
+
+        var exception = dispose.Should().Throw<AggregateException>().Which;
+        exception.InnerExceptions.Should().HaveCount(2);
+        exception.InnerExceptions[0].Message.Should().Contain(StopFailureHostedService.StopFailureMessage);
+        exception.InnerExceptions[1].Message.Should().Contain(ThrowingDisposalTracker.FailureMessage);
+        disposalOrder.Should().Equal("application-stop-failed", "application-dispose-failed");
+    }
+
+    [Theory]
+    [DataInline]
     public void ApplicationContext_Should_Retry_Parent_After_Derived_Host_Stop_Fails(DrnTestContext context)
     {
         var disposalOrder = new List<string>();
@@ -383,6 +409,17 @@ public class ApplicationContextTests
         public TestServerOptions Value => throw new InvalidOperationException(FailureMessage);
 
         public void Dispose() => DisposeCount++;
+    }
+
+    private sealed class ThrowingDisposalTracker(List<string> disposalOrder) : IDisposable
+    {
+        public const string FailureMessage = "Application disposal failure.";
+
+        public void Dispose()
+        {
+            disposalOrder.Add("application-dispose-failed");
+            throw new InvalidOperationException(FailureMessage);
+        }
     }
 
     private sealed class ExposedDrnWebApplicationFactory(DrnTestContext context)

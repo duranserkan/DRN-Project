@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Runtime.ExceptionServices;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -257,7 +256,7 @@ public class DrnWebApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntr
                     throw new AggregateException(stopException, disposalException);
                 }
 
-                ExceptionDispatchInfo.Capture(stopException).Throw();
+                throw;
             }
         }
 
