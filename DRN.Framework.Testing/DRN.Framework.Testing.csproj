@@ -18,7 +18,7 @@
         <EmbedAllSources>true</EmbedAllSources>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
-        <NoWarn>$(NoWarn);1591;NU1608</NoWarn>
+        <NoWarn>$(NoWarn);1591;NU1608;NU5104</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
