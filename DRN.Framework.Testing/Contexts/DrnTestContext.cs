@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Threading;
 
 namespace DRN.Framework.Testing.Contexts;
 
@@ -186,9 +187,11 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
     internal async ValueTask DisposeOwnedServiceProviderAsync()
     {
         var ownedServiceProvider = _ownedServiceProvider;
-        _ownedServiceProvider = null;
         if (ownedServiceProvider != null)
+        {
             await ownedServiceProvider.DisposeAsync();
+            Interlocked.CompareExchange(ref _ownedServiceProvider, null, ownedServiceProvider);
+        }
     }
 
     protected virtual void Dispose(bool disposing)

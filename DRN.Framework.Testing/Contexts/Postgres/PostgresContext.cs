@@ -79,6 +79,7 @@ public class PostgresContext(DrnTestContext testContext)
         var container = await StartAsync();
 
         await MigrationLock.WaitAsync();
+        Exception? migrationException = null;
         try
         {
             var dbContexts = SetConnectionStrings(DrnTestContext, container);
@@ -92,12 +93,24 @@ public class PostgresContext(DrnTestContext testContext)
 
             return container;
         }
+        catch (Exception ex)
+        {
+            migrationException = ex;
+            throw;
+        }
         finally
         {
             try
             {
                 // Migration DbContexts belong to a temporary provider. Do not retain it alongside the test host.
                 await DrnTestContext.DisposeOwnedServiceProviderAsync();
+            }
+            catch (Exception disposalException)
+            {
+                if (migrationException != null)
+                    throw new AggregateException(migrationException, disposalException);
+
+                throw;
             }
             finally
             {
