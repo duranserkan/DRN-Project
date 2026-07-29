@@ -9,7 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Threading;
+using DRN.Framework.Utils.Concurrency;
 
 namespace DRN.Framework.Testing.Contexts;
 
@@ -190,7 +190,7 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
         if (ownedServiceProvider != null)
         {
             await ownedServiceProvider.DisposeAsync();
-            Interlocked.CompareExchange(ref _ownedServiceProvider, null, ownedServiceProvider);
+            LockUtils.TrySetIfEqual(ref _ownedServiceProvider, null, ownedServiceProvider);
         }
     }
 
