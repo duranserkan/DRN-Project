@@ -8,13 +8,13 @@ using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Pages.User;
 
-public class LoginPageTests(ITestOutputHelper outputHelper)
+public class LoginPageTests
 {
     [Theory]
     [DataInline]
     public async Task Login_Page_Should_Record_Failed_Password_Attempts_For_Lockout(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         var identity = Get.Endpoint.User.Identity;
         var endpoints = new AuthenticationEndpoints(identity.LoginController.Login.RoutePattern!, identity.RegisterController.Register.RoutePattern!);
         var registerRequest = new RegisterRequest

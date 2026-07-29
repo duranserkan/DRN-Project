@@ -18,21 +18,28 @@ namespace DRN.Framework.Testing.Contexts;
 public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
 {
     private IDisposable? _factory;
-    private ITestOutputHelper? _outputHelper;
     private ServiceDescriptor[]? _initialServiceDescriptors;
 
-    /// <summary>
-    /// By default, logs are written to test output when debugger is attached in order to not leak sensitive data.
-    /// Use test output logger cautiously.
-    /// </summary>
-    private void LogToTestOutput(ITestOutputHelper outputHelper, bool debuggerOnly = true)
+    private static ITestOutputHelper? ResolveOutputHelper(
+        ITestOutputHelper? supplied = null,
+        bool debuggerOnly = true)
     {
-        if (debuggerOnly && !Debugger.IsAttached) return;
+        if (debuggerOnly && !Debugger.IsAttached)
+            return null;
 
-        _outputHelper = outputHelper;
+        return supplied ?? Xunit.TestContext.Current.TestOutputHelper;
     }
 
     public WebApplicationFactory<TEntryPoint> CreateApplication<TEntryPoint>(Action<IWebHostBuilder>? webHostConfigurator = null)
+        where TEntryPoint : class
+    {
+        var outputHelper = ResolveOutputHelper();
+        return CreateApplicationCore<TEntryPoint>(outputHelper, webHostConfigurator);
+    }
+
+    private WebApplicationFactory<TEntryPoint> CreateApplicationCore<TEntryPoint>(
+        ITestOutputHelper? outputHelper,
+        Action<IWebHostBuilder>? webHostConfigurator = null)
         where TEntryPoint : class
     {
         Dispose();
@@ -69,7 +76,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
             webHostBuilder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();
-                if (_outputHelper == null)
+                if (outputHelper == null)
                     return;
 
                 var testMethod = testContext.MethodContext.TestMethod;
@@ -78,7 +85,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
                     : testMethod.Name;
 
                 // Create a custom NLog target that writes to the test output helper
-                var testOutputTarget = new TestOutputTarget(_outputHelper, testName);
+                var testOutputTarget = new TestOutputTarget(outputHelper, testName);
                 var config = new LoggingConfiguration();
                 config.AddTarget(testOutputTarget);
                 config.AddRule(LogLevel.Info, LogLevel.Fatal, testOutputTarget);
@@ -114,10 +121,8 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     public async Task<WebApplicationFactory<TEntryPoint>> CreateApplicationAndBindDependenciesAsync<TEntryPoint>(
         ITestOutputHelper? outputHelper = null) where TEntryPoint : class
     {
-        if (outputHelper != null)
-            LogToTestOutput(outputHelper);
-
-        var application = CreateApplication<TEntryPoint>();
+        var resolvedOutputHelper = ResolveOutputHelper(outputHelper);
+        var application = CreateApplicationCore<TEntryPoint>(resolvedOutputHelper);
         await testContext.ContainerContext.BindExternalDependenciesAsync();
         application.Server.PreserveExecutionContext = true;
 
@@ -326,7 +331,7 @@ public sealed class TestOutputTarget : TargetWithLayout
     {
         _testOutputHelper = testOutputHelper ?? throw new ArgumentNullException(nameof(testOutputHelper));
         Name = "testOutput";
-        var testTag = !string.IsNullOrWhiteSpace(testName) ? $" : {testName}" : string.Empty;
+        var testTag = !string.IsNullOrWhiteSpace(testName) ? $" :: {testName}" : string.Empty;
         Layout =
             $$"""
               [BEGIN ${date:format=HH\:mm\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}{{testTag}}]

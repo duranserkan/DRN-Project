@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -19,6 +20,62 @@ namespace DRN.Test.Integration.Tests.Framework.Testing;
 
 public class ApplicationContextTests
 {
+    [Fact]
+    public void ApplicationContext_Should_Resolve_Active_Xunit_Output_Helper()
+    {
+        var ambientOutputHelper = Xunit.TestContext.Current.TestOutputHelper;
+
+        ambientOutputHelper.Should().NotBeNull();
+        InvokeOutputHelperResolver().Should().BeSameAs(ambientOutputHelper);
+    }
+
+    [Fact]
+    public void ApplicationContext_Should_Prefer_Explicit_Output_Helper()
+    {
+        var suppliedOutputHelper = Substitute.For<ITestOutputHelper>();
+
+        InvokeOutputHelperResolver(suppliedOutputHelper).Should().BeSameAs(suppliedOutputHelper);
+    }
+
+    [Fact]
+    public async Task ApplicationContext_Should_Allow_Missing_Output_Helper_Outside_Active_Test_Context()
+    {
+        Task<ITestOutputHelper?> resolutionTask;
+        using (ExecutionContext.SuppressFlow())
+            resolutionTask = Task.Run(() => InvokeOutputHelperResolver());
+
+        var resolvedOutputHelper = await resolutionTask;
+        resolvedOutputHelper.Should().BeNull();
+    }
+
+    [Theory]
+    [DataInline]
+    public void ApplicationContext_Should_Not_Reuse_Output_Helper_Between_Sequential_Applications(
+        DrnTestContext context)
+    {
+        const string firstApplicationMessage = "first application output helper";
+        const string secondApplicationMessage = "second application without output helper";
+        var outputHelper = Substitute.For<ITestOutputHelper>();
+
+        var firstApplication =
+            InvokeCreateApplicationCore<TemporaryLifecycleProgram>(context.ApplicationContext, outputHelper);
+        _ = firstApplication.Server;
+        firstApplication.Services.GetRequiredService<ILogger<ApplicationContextTests>>()
+            .LogCritical(firstApplicationMessage);
+
+        outputHelper.Received().WriteLine(
+            Arg.Is<string>(message => message.Contains(firstApplicationMessage, StringComparison.Ordinal)));
+
+        var secondApplication =
+            InvokeCreateApplicationCore<TemporaryLifecycleProgram>(context.ApplicationContext, null);
+        _ = secondApplication.Server;
+        secondApplication.Services.GetRequiredService<ILogger<ApplicationContextTests>>()
+            .LogCritical(secondApplicationMessage);
+
+        outputHelper.DidNotReceive().WriteLine(
+            Arg.Is<string>(message => message.Contains(secondApplicationMessage, StringComparison.Ordinal)));
+    }
+
     [Theory]
     [DataInline]
     public async Task ApplicationContext_Should_Isolate_Sequential_Applications(DrnTestContext context)
@@ -389,5 +446,26 @@ public class ApplicationContextTests
         : DrnWebApplicationFactory<TemporaryLifecycleProgram>(context, true)
     {
         public IHost CreateHostForTest(IHostBuilder builder) => CreateHost(builder);
+    }
+
+    private static ITestOutputHelper? InvokeOutputHelperResolver(ITestOutputHelper? supplied = null)
+    {
+        var resolver = typeof(ApplicationContext).GetMethod(
+            "ResolveOutputHelper",
+            BindingFlags.Static | BindingFlags.NonPublic)!;
+
+        return (ITestOutputHelper?)resolver.Invoke(null, [supplied, false]);
+    }
+
+    private static WebApplicationFactory<TEntryPoint> InvokeCreateApplicationCore<TEntryPoint>(
+        ApplicationContext context,
+        ITestOutputHelper? outputHelper)
+        where TEntryPoint : class
+    {
+        var factory = typeof(ApplicationContext)
+            .GetMethod("CreateApplicationCore", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .MakeGenericMethod(typeof(TEntryPoint));
+
+        return (WebApplicationFactory<TEntryPoint>)factory.Invoke(context, [outputHelper, null])!;
     }
 }

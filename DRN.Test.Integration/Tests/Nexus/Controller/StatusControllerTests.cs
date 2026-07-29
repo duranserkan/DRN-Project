@@ -6,13 +6,13 @@ using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
 
 namespace DRN.Test.Integration.Tests.Nexus.Controller;
 
-public class StatusControllerTests(ITestOutputHelper outputHelper)
+public class StatusControllerTests
 {
     [Theory]
     [DataInline]
     public async Task StatusController_Should_Return_Status(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<NexusProgram>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
         var user = await AuthenticationHelper<NexusProgram>.AuthenticateClientAsync(client);
         var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>(Get.Endpoint.Status.Status.RoutePattern);
         var programName = typeof(NexusProgram).GetAssemblyName();

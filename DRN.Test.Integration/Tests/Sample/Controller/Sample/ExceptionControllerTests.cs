@@ -4,14 +4,14 @@ using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Controller.Sample;
 
-public class ExceptionControllerTests(ITestOutputHelper outputHelper)
+public class ExceptionControllerTests
 {
     [Theory]
     [DataInline]
     public async Task ExceptionController_Should_Return_DrnException_Status_Codes(DrnTestContext context)
     {
         var exceptionEndpoints = Get.Endpoint.Sample.Exception;
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
 
         var response = await client.GetAsync(exceptionEndpoints.ValidationException.RoutePattern);
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);

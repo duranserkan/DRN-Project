@@ -82,12 +82,12 @@ public class WeatherForecastController : WeatherForecastControllerBase;
 Test your application using `DRN.Framework.Testing` to spin up the full pipeline including databases.
 
 ```csharp
-public class WeatherForecastTests(ITestOutputHelper outputHelper)
+public class WeatherForecastTests
 {
     [Theory, DataInline]
     public async Task WeatherForecast_Should_Return_Data(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<Program>(outputHelper);
+        var client = await context.ApplicationContext.CreateClientAsync<Program>();
         var response = await client.GetAsync("WeatherForecast");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -96,6 +96,11 @@ public class WeatherForecastTests(ITestOutputHelper outputHelper)
     }
 }
 ```
+
+`ApplicationContext` automatically uses the active xUnit v3 output helper when each application is created, but only
+while a debugger is attached to preserve the log privacy gate. Do not request `ITestOutputHelper` as a `[DataInline]`
+theory parameter for application logging: AutoFixture supplies an interface substitute, not xUnit's runner-owned
+helper.
 
 ## Directory Structure
 

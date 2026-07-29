@@ -161,7 +161,7 @@ public void TestContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
   * exposes RabbitMQ as an explicit opt-in helper; RabbitMQ is not started by Postgres binding or `CreateClientAsync`
 * provides `ApplicationContext`
   * syncs `DrnTestContext` service collection and service provider with provided application by WebApplicationFactory
-  * supports `ITestOutputHelper` integration for capturing application logs in test output
+  * automatically captures application logs through the active xUnit v3 `ITestOutputHelper` while a debugger is attached
 * provides `FlurlHttpTest` for mocking external HTTP requests (see [FlurlHttpTest Integration](#flurlhttptest-integration))
 * provides `IConfiguration` and `IAppSettings` with SettingsProvider by using convention.
   * settings.json file can be found in the same folder with test
@@ -298,7 +298,10 @@ or infrastructure module, then use `EnsureDatabaseAsync` to create the schema di
 - You can override configuration and services until the factory builds a host, such as when `CreateClient()` or `TestServer` is requested.
 - Creating another application first disposes the current factory; the new application uses the current test configuration and service registrations.
 - `CreateClientAsync<TProgram>()` calls `ContainerContext.BindExternalDependenciesAsync()`, which applies Postgres migrations for registered `DrnContext` types. It does not start RabbitMQ.
-- Passing `ITestOutputHelper` to `CreateApplicationAndBindDependenciesAsync` or `CreateClientAsync` captures application logs only when the debugger is attached by default.
+- When each application is created, `ApplicationContext` automatically uses the active xUnit v3
+  `Xunit.TestContext.Current.TestOutputHelper` only while a debugger is attached.
+- The optional `ITestOutputHelper` parameters on `CreateApplicationAndBindDependenciesAsync` and `CreateClientAsync`
+  remain as explicit compatibility overrides and use the same debugger-only privacy gate.
 - By default, without debugger-enabled output logging, application lifecycle logs are not written to shared test-runner output.
 - `TestEnvironment.DrnTestContextEnabled = true` identifies test execution and prevents local development provisioning from
   colliding with integration tests. `TemporaryApplication` is not a general test marker.
@@ -333,10 +336,10 @@ For most API testing scenarios, use `CreateClientAsync` which handles common set
 ```csharp
     [Theory]
     [DataInline]
-    public async Task Simplified_API_Test(DrnTestContext context, ITestOutputHelper output)
+    public async Task Simplified_API_Test(DrnTestContext context)
     {
         // Builds the app, binds Postgres dependencies, applies migrations, and returns an HttpClient
-        var client = await context.ApplicationContext.CreateClientAsync<Program>(output);
+        var client = await context.ApplicationContext.CreateClientAsync<Program>();
         
         var response = await client.GetAsync("/api/endpoint");
         response.Should().BeSuccessful();
@@ -345,19 +348,24 @@ For most API testing scenarios, use `CreateClientAsync` which handles common set
 
 ### Test Output Logging
 
-Capture application logs in test output for debugging:
+`ApplicationContext` captures application logs through the active xUnit v3 output helper only while a debugger is
+attached. No constructor injection or helper argument is required:
 
 ```csharp
     [Theory]
     [DataInline]
-    public async Task Test_With_Logging(DrnTestContext context, ITestOutputHelper output)
+    public async Task Test_With_Logging(DrnTestContext context)
     {
         var app = await context.ApplicationContext
-            .CreateApplicationAndBindDependenciesAsync<Program>(output);
+            .CreateApplicationAndBindDependenciesAsync<Program>();
         
         // Application logs will appear in test output when a debugger is attached
     }
 ```
+
+Do not declare `ITestOutputHelper` as a `[DataInline]` theory-method parameter for this purpose. AutoFixture creates an
+NSubstitute value for interface parameters; that value is not xUnit's runner-owned helper. Existing callers may still
+pass a real helper to the optional compatibility parameters, but new and updated callers should omit it.
 
 ## Local Development Experience
 
@@ -1074,7 +1082,7 @@ DrnTestContext handles the entire lifecycle orchestration for you.
 ```csharp
 [Theory]
 [DataInline]
-public async Task DTT_Full_Integration_Magic(DrnTestContext context, ITestOutputHelper output)
+public async Task DTT_Full_Integration_Magic(DrnTestContext context)
 {
     // One line to rule them all:
     // 1. Binds Postgres dependencies
@@ -1083,7 +1091,7 @@ public async Task DTT_Full_Integration_Magic(DrnTestContext context, ITestOutput
     // 4. Bootstraps WebApplicationFactory
     // RabbitMQ is explicit: call RabbitMQContext.StartAsync() when a test needs it.
     
-    var client = await context.ApplicationContext.CreateClientAsync<Program>(output);
+    var client = await context.ApplicationContext.CreateClientAsync<Program>();
     
     // Ready to test immediately
 }
