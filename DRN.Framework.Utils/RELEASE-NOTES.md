@@ -30,6 +30,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **NumberParser Reset Type Safety**: `ResetToParse` now rejects values whose signedness does not match the parser instead of resetting the cursor while silently retaining the previous parsed value.
 *   **Object Configuration Stream Reusability**: `ObjectToJsonConfigurationProvider.Load()` now serializes its source object into a fresh stream on each configuration build, allowing reusable configuration sources (such as test context dynamic options) to be built multiple times without throwing stream-disposed `ArgumentException` errors.
 *   **Bounded Stream Materialization Defaults**: `StreamExtensions.ToArrayAsync`/`ToBinaryDataAsync` and `JpegValidator.Validate`/`ValidateAsync` methods now default to 10MB bounds (`DefaultMaxStreamSize` / `DefaultMaxJpegSize`) rather than `long.MaxValue`, preventing unconstrained stream materialization into memory when callers omit explicit bounds.
 *   **Dependency Injection Provider Isolation**: Attribute registration now caches only immutable assembly scan metadata. Each service collection owns its `DrnServiceContainer` and module state, and startup validation no longer shares resolved service-type state across providers.
