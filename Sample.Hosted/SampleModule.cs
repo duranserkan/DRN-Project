@@ -39,7 +39,7 @@ public static class SampleModule
         {
             options.ExpireTimeSpan = TimeSpan.FromHours(24);
             options.SlidingExpiration = true;
-            options.ClaimsIssuer = settings.ApplicationName.ToPascalCase(); //todo: test the issuer, test valid issuer such as TokenValidationParameters.ValidIssuer
+            options.ClaimsIssuer = settings.ApplicationName.ToPascalCase();
             options.Cookie.IsEssential = true;
             options.Cookie.Name = settings.GetAppSpecificName("Identity");
             options.Cookie.HttpOnly = true;
