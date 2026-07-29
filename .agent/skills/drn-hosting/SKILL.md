@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-07-27
+last-updated: 2026-07-29
 difficulty: advanced
 tokens: ~3K
 ---
@@ -236,7 +236,7 @@ public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRout
 - Singleton rules are sorted once. Pre-auth uses singleton rules only. Scoped rule existence/order is detected at startup, then scoped rules are resolved from the request provider only for post-auth. Global `Order` is preserved across singleton and scoped rules; same-order `ShortCircuitOnMatch` rules run first, and every matching rule composes. Limiter partition factories must not capture `HttpContext` or scoped services because limiter instances are cached per partition.
 - Post-auth uses DI-configured `RateLimiterOptions`, so named policies and rejection callbacks registered through `AddRateLimiter(options => ...)` remain available to `[EnableRateLimiting("policy-name")]`.
 - DRN emits metrics through the `DRN.Framework.Hosting.RateLimiting` meter; add this meter to OpenTelemetry exports when pre-auth metrics or DRN rule-level rejection metrics are needed. The action tag distinguishes `limit`, `allow`, `deny`, and `unknown`.
-- Pre-auth and post-auth rejection logs default to deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation without exposing raw API keys, tenant hints, service identifiers, user identifiers, or IPs. Use `DrnRateLimit.PartitionLogMode = PlainText` only for controlled development or dedicated encrypted audit sinks.
+- Rate-limit-specific rejected IP and partition fields default to deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation for those fields but does not anonymize the complete request log; standard request and user fields may still contain raw identifiers. Treat logs as sensitive, and use `DrnRateLimit.PartitionLogMode = PlainText` only for controlled development or dedicated encrypted audit sinks.
 - Built-in limiter state is process-local. `HybridCache` can cache policy data, but hard multi-replica quotas need edge enforcement or a Redis-backed custom `RateLimiter` returned through `RateLimitRuleResult.CustomPartition(...)`.
 
 ---

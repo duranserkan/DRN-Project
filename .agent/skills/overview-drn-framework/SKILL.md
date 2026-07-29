@@ -1,7 +1,7 @@
 ---
 name: overview-drn-framework
 description: "DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, package-dependencies"
-last-updated: 2026-07-19
+last-updated: 2026-07-29
 difficulty: basic
 tokens: ~3.1K
 ---
@@ -204,7 +204,7 @@ The mounted root defaults to `/appconfig` and can be overridden by registering `
 | Setting | Default | Maintenance note |
 |---------|---------|------------------|
 | `SkipValidation` | `false` | Mostly for test contexts. |
-| `TemporaryApplication` | `false` | Auto-set by tests to avoid local-development collisions. |
+| `TemporaryApplication` | `false` | Marks a host intentionally created only to inspect configuration or registered services. `ApplicationContext` uses it for its temporary discovery host; it is not the general test marker. |
 | `LaunchExternalDependencies` | `false` | Development-only local PostgreSQL Testcontainers provisioning. |
 | `AutoMigrateDevelopment` | `true` | Applies pending migrations in Development after startup validation. |
 | `AutoMigrateStaging` | `false` | Applies pending migrations in Staging only; never enables prototype recreation. |
@@ -213,7 +213,7 @@ The mounted root defaults to `/appconfig` and can be overridden by registering `
 
 ### Maintenance Reference: App Data Paths
 
-App data paths resolve before DRN configuration. `TempPath` order: `DrnAppDataSettings__TempPath` -> `DrnAppDataSettings__DataPath/Temp` -> local app data `Temp`. `LocalAppDataPath` order: `DrnAppDataSettings__DataPath` -> app-specific local app data. `IAppData` owns directory creation, temp cleanup, test temp preservation, and safe child paths.
+App data paths resolve before DRN configuration. `TempPath` appends `EntryAssemblyNameNormalized` in this order: `DrnAppDataSettings__TempPath/<EntryAssemblyNameNormalized>` -> `DrnAppDataSettings__DataPath/Temp/<EntryAssemblyNameNormalized>` -> `<LocalApplicationData>/Temp/<EntryAssemblyNameNormalized>`. `LocalAppDataPath` uses `DrnAppDataSettings__DataPath` as-is when configured, otherwise `<LocalApplicationData>/<EntryAssemblyNameNormalized>`. `IAppData` owns directory creation, temp cleanup, test temp preservation, and safe child paths.
 
 ### Maintenance Reference: Migration And Prototype Invariants
 
@@ -254,7 +254,7 @@ PostgreSQL:
 | Property | Default |
 |----------|---------|
 | `DefaultImage` | `"postgres"` |
-| `DefaultVersion` | `"18.4-alpine3.23"` |
+| `DefaultVersion` | `"18.4-alpine3.24"` |
 | `DefaultPassword` | `"drn"` |
 | `Database` | `"drn"` |
 | `Username` | `"drn"` |
@@ -264,7 +264,7 @@ RabbitMQ:
 | Property | Default |
 |----------|---------|
 | `DefaultImage` | `"rabbitmq"` |
-| `DefaultVersion` | `"4.2.3-management-alpine"` |
+| `DefaultVersion` | `"4.3.2-management-alpine"` |
 | `Username` | unset |
 | `Password` | unset |
 

@@ -4,6 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
+*   **Package Documentation Accuracy**: Corrected the packed README's onboarding prerequisites and clarified the `DrnDefaults` security boundary, rate-limit log sensitivity, TagHelper activation, typed routing guarantees, best-effort diagnostics and asset warming, consent enforcement responsibility, and local dependency opt-in.
 *   **Response Compression MIME Registration**: Response compression middleware remains disabled over HTTPS for dynamic responses, while static files continue to opt in through `StaticFileOptions.HttpsCompression`. DRN's additional MIME registrations now contain only raw TTF/OTF font formats; CSS, JavaScript, SVG, and pre-compressed WOFF/WOFF2 formats are no longer added beyond ASP.NET Core defaults.
 *   **Network Logging Dependency**: Upgraded `NLog.Targets.Network` from 6.0.4 to 6.1.4 in the published package dependency graph.
 

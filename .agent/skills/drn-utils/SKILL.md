@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, entity-date-filter, tick-boundary, validators, extensions, http-client"
-last-updated: 2026-07-27
+last-updated: 2026-07-29
 difficulty: intermediate
 tokens: ~2.7K
 ---
@@ -139,7 +139,7 @@ When grouping options into nested objects, explicitly validate child objects bef
 
 ### App Data Roots
 
-`IAppData` exposes `Temp` and `Data`. Override roots before DRN config with `DrnAppDataSettings__TempPath` and `DrnAppDataSettings__DataPath`; data path backs temp as `<DataPath>/Temp` when temp path is unset. Use `GetPath(...)` for safe child paths.
+`IAppData` exposes `Temp` and `Data`. Override roots before DRN config with `DrnAppDataSettings__TempPath` and `DrnAppDataSettings__DataPath`. `TempPath` appends `EntryAssemblyNameNormalized`: `<TempPath>/<EntryAssemblyNameNormalized>`, then `<DataPath>/Temp/<EntryAssemblyNameNormalized>`, then `<LocalApplicationData>/Temp/<EntryAssemblyNameNormalized>`. A configured data path is used as-is for `LocalAppDataPath`; its fallback is `<LocalApplicationData>/<EntryAssemblyNameNormalized>`. Use `GetPath(...)` for safe child paths.
 
 ### Nexus Keys
 
@@ -209,7 +209,7 @@ Use `HttpCallResult<T>.ThrowIfFailure()` to rethrow a captured processing failur
 
 ## ScopeContext (Ambient Context)
 
-Access scoped data anywhere without parameter passing:
+Access ambient data only after DRN Hosting initializes the current request scope or a test explicitly calls `ScopeContext.InitializeForTest(...)`. A `DrnTestContext` alone does not initialize `ScopeContext`; use injected services during startup, background work, console execution, and other uninitialized scopes.
 
 ```csharp
 ScopeContext.UserId;                      // Current user

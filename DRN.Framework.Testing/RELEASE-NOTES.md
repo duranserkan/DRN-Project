@@ -30,6 +30,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **Test-Scoped Temp Paths**: `MethodContext` now owns `GetTempPath()` for created, method-scoped temporary directories under `AppConstants.TempPath`; `DrnTestContext` and `DrnTestContextUnit` expose convenience delegates.
 
+### Changed
+
+*   **Testcontainers Image Defaults**: Updated the PostgreSQL default to `18.4-alpine3.24` and the RabbitMQ default to `4.3.2-management-alpine`.
+
 ### Bug Fixes
 
 *   **Unit Test Temp Isolation**: `DrnTestContextUnit` now enables the DRN test-environment flag during construction, preventing `IAppData` initialization in parallel unit tests from recreating the shared temp root and deleting active method-scoped directories.

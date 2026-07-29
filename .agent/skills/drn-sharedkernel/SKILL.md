@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts and cancellation semantics, pagination, JSON conventions, app constants, and shared extensions. Keywords: entity, aggregate-root, domain-event, repository, repository-cancellation, cancellation, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
-last-updated: 2026-07-15
+last-updated: 2026-07-29
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -255,7 +255,7 @@ AppConstants.LocalAppDataPath;   AppConstants.TempPath;
 AppConstants.LocalIpAddress;
 ```
 
-`TempPath` order: `DrnAppDataSettings__TempPath` -> `DrnAppDataSettings__DataPath/Temp` -> local app data `Temp`. `LocalAppDataPath` order: `DrnAppDataSettings__DataPath` -> app-specific local app data. `IAppData` creates/cleans directories and resolves safe child paths.
+`TempPath` order, with `EntryAssemblyNameNormalized` appended at every step: `DrnAppDataSettings__TempPath/<EntryAssemblyNameNormalized>` -> `DrnAppDataSettings__DataPath/Temp/<EntryAssemblyNameNormalized>` -> `<LocalApplicationData>/Temp/<EntryAssemblyNameNormalized>`. `LocalAppDataPath` uses `DrnAppDataSettings__DataPath` as-is when configured, otherwise `<LocalApplicationData>/<EntryAssemblyNameNormalized>`. `IAppData` creates/cleans directories and resolves safe child paths.
 
 ## Shared Extensions
 
