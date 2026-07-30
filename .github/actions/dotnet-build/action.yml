@@ -16,6 +16,10 @@ inputs:
     description: "Optional package/application version to pass to MSBuild."
     required: false
     default: ""
+  sonarqube-targets-imported:
+    description: "Set SonarQubeTargetsImported=true for builds that must not load a stale Sonar MSBuild hook."
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -37,6 +41,7 @@ runs:
         SOLUTION_FILE: ${{ inputs.solution-file }}
         BUILD_CONFIGURATION: ${{ inputs.configuration }}
         BUILD_VERSION: ${{ inputs.version }}
+        SONARQUBE_TARGETS_IMPORTED: ${{ inputs.sonarqube-targets-imported }}
       run: |
         set -euo pipefail
 
@@ -53,6 +58,10 @@ runs:
         # separately instead of building one shell-interpreted command string.
         if [ -n "$BUILD_VERSION" ]; then
           build_args+=(-p:Version="$BUILD_VERSION")
+        fi
+
+        if [ "$SONARQUBE_TARGETS_IMPORTED" = "true" ]; then
+          build_args+=(-p:SonarQubeTargetsImported=true)
         fi
 
         "${build_args[@]}"
