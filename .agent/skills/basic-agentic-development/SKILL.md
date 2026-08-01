@@ -1,7 +1,7 @@
 ---
 name: basic-agentic-development
 description: "Agentic development standards - Silent Partner Protocol, context economy, development loop (discovery, planning, execution, verification), and anti-patterns for efficient autonomous development. Keywords: agentic, ai-agent, development-loop, context-economy, autonomous, discovery, planning, execution, verification, anti-patterns, silent-partner"
-last-updated: 2026-06-23
+last-updated: 2026-08-01
 difficulty: basic
 tokens: ~1.5K
 ---
@@ -28,7 +28,7 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 
 | Principle | Action |
 |-----------|--------|
-| Thin loading by default | Use existing source-owned guidance with the current workflow route and scoped loaders (`/load-skills-basic`, `/load-skills-drn`, `/load-skills-test`, `/load-skills-frontend`); reserve `/load-skills-all` for explicit broad context or sync workflows |
+| Thin loading by default | Use existing source-owned guidance with the current workflow route and scoped loaders (`/load-skills-basic`, `/load-skills-drn`, `/load-skills-test`, `/load-skills-frontend`); reserve `/load-skills-all` for explicit broad context or `/update all` agent-configuration self-sync |
 | Summarize, don't echo | Never repeat file contents in conversation |
 | Batch reads | Read related files together |
 | Early exit | Stop reading when you have enough context |

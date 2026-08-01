@@ -50,6 +50,7 @@ Compose workflows by ownership, not copied rules.
 |---|---|---|
 | `/goal` | Route choice, iteration, completion audit | Delegate route details; report proof. |
 | `/clarify` -> `/answer` -> `/develop` | CAD requirements, approval, handoff, implementation status | May reference `/review` or `/optimize`; do not inline them. |
+| `/sync` | Sibling-root scope, drift, run/subscope state, approved target edits, postimage acceptance, and user-commit verification | Compose `/review`; never delegate target or VCS mutation; remain distinct from `/update`. |
 | `/review` | Read-only findings, verdicts, transition recommendations | Caller owns mutation, status, and apply steps. |
 | `/optimize` | Preview, apply approval, content optimization, metrics | Use `/review` before/after moderate or significant workflow/skill edits. |
 | Profile/custom | Repository routing, domain gates, local overlays | Compose when profile, skill index, task, route, or convention selects them. |

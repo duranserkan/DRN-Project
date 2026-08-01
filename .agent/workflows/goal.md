@@ -11,7 +11,7 @@ description: Pursue a user goal through the fastest safe route using DiSCOS, AGE
 
 Run the shared Startup Gate and Repository Extension Gate once. Load only the selected route workflow and skills. Cache conclusions. Stop discovery when the next decision has enough evidence.
 
-Use the shared Workflow Composition Contract when chaining routes. Delegate task-specific gates to routed workflows; do not inline `/search`, `/clarify`, `/answer`, `/develop`, `/review`, `/optimize`, `/test`, `/documentation`, or profile/custom route rules.
+Use the shared Workflow Composition Contract when chaining routes. Delegate task-specific gates to routed workflows; do not inline `/search`, `/clarify`, `/answer`, `/develop`, `/sync`, `/review`, `/optimize`, `/test`, `/documentation`, or profile/custom route rules.
 
 ## 2. Contract
 
@@ -21,7 +21,7 @@ Use this state mentally for trivial work and visibly for non-trivial or resumabl
 Goal=[full outcome]
 Done=[observable criteria + proof]
 Class=[trivial | standard | significant | critical]
-Route=[direct | /search | /clarify -> /answer -> /develop | /review | /optimize | /test | /documentation | profile/custom chain]
+Route=[direct | /search | /clarify -> /answer -> /develop | /sync | /review | /optimize | /test | /documentation | profile/custom chain]
 Flags=[auto | cad | ro | profile/custom]
 Approval=[none | direct scoped request | workflow-tolerated | explicit required/recorded]
 Assumptions=[accepted | rejected | blocking]
@@ -63,6 +63,7 @@ Choose the shallowest safe route.
 | `/clarify` | Requirements or acceptance are ambiguous. |
 | `/answer` | Answers, assumptions, or approval must update CAD artifacts. |
 | `/develop` | Implementation-heavy work. |
+| `/sync` | Two sibling repositories or projects require scoped drift detection and approved reconciliation from their physical common parent. |
 | `/review` | Diffs, docs, workflows, skills, or artifacts need read-only findings. |
 | `/optimize` | Agent content needs correctness-per-token, routing, or quality improvement. |
 | `/test` | Tests only. |
