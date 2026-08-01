@@ -29,11 +29,11 @@ const sharedConfig = {
     },
     resolve: {
         alias: {
-            '@css': resolve(__dirname, 'buildwww/app/css'),
-            '@js': resolve(__dirname, 'buildwww/app/js'),
-            '@lib': resolve(__dirname, 'buildwww/lib'),
-            '@types': resolve(__dirname, 'buildwww/types'),
-            '@plugins': resolve(__dirname, 'buildwww/plugins'),
+            '@css': resolve(import.meta.dirname, 'buildwww/app/css'),
+            '@js': resolve(import.meta.dirname, 'buildwww/app/js'),
+            '@lib': resolve(import.meta.dirname, 'buildwww/lib'),
+            '@types': resolve(import.meta.dirname, 'buildwww/types'),
+            '@plugins': resolve(import.meta.dirname, 'buildwww/plugins'),
         }
     }
 };
@@ -51,8 +51,8 @@ const builds = {
                 // Define entry points. These are the files Vite will bundle.
                 input: {
                     // Key is the output name (e.g., app), value is the input file path
-                    app: resolve(__dirname, 'buildwww/app/css/app.css'),
-                    appPreload: resolve(__dirname, 'buildwww/app/js/appPreload.js')
+                    app: resolve(import.meta.dirname, 'buildwww/app/css/app.css'),
+                    appPreload: resolve(import.meta.dirname, 'buildwww/app/js/appPreload.js')
                 }
             },
         },
@@ -65,7 +65,7 @@ const builds = {
             rolldownOptions: {
                 // Define entry points. These are the files Vite will bundle.
                 input: {
-                    appPostload: resolve(__dirname, 'buildwww/app/js/appPostload.js')
+                    appPostload: resolve(import.meta.dirname, 'buildwww/app/js/appPostload.js')
                 }
             },
         },
@@ -77,7 +77,7 @@ const builds = {
             outDir: 'wwwroot/lib/htmx',
             rolldownOptions: {
                 input: {
-                    htmxBundle: resolve(__dirname, 'buildwww/lib/htmx/htmxBundle.js'),
+                    htmxBundle: resolve(import.meta.dirname, 'buildwww/lib/htmx/htmxBundle.js'),
                 }
             },
         },
@@ -92,8 +92,8 @@ const builds = {
             rolldownOptions: {
                 preserveEntrySignatures: 'strict',
                 input: {
-                    bootstrap: resolve(__dirname, 'buildwww/lib/bootstrap/bootstrap.scss'),
-                    bootstrapBundle: resolve(__dirname, 'buildwww/lib/bootstrap/bootstrapBundle.js'),
+                    bootstrap: resolve(import.meta.dirname, 'buildwww/lib/bootstrap/bootstrap.scss'),
+                    bootstrapBundle: resolve(import.meta.dirname, 'buildwww/lib/bootstrap/bootstrapBundle.js'),
                 }
             }
         },
@@ -123,7 +123,7 @@ const builds = {
             rolldownOptions: {
                 input: {
                     // This outputs reactBundle.[hash].js and reactBundle.[hash].css
-                    reactBundle: resolve(__dirname, 'buildwww/lib/react/reactBundle.tsx'),
+                    reactBundle: resolve(import.meta.dirname, 'buildwww/lib/react/reactBundle.tsx'),
                 },
                 output: {
                     // React is a single JS entry, so native IIFE output is valid here.

@@ -1,9 +1,9 @@
 ---
 name: overview-skill-index
 description: Use when choosing which repository skills to load for a task, mapping work to skill families, finding related skills, or updating skill routing after skills change.
-last-updated: 2026-07-19
+last-updated: 2026-08-01
 difficulty: basic
-tokens: ~1.8K
+tokens: ~2K
 ---
 
 # Skill Cross-Reference Index
@@ -39,7 +39,8 @@ tokens: ~1.8K
 | Work as an AI agent | `basic-agentic-development` |
 | Pursue a goal through workflow routing | `/goal` workflow -> profile/custom route or skill overlays -> `basic-agentic-development` |
 | Use repository-specific custom behavior | `.agent/repository-profile.md` -> matching `.agent/workflows/<custom>.md` or `.agent/skills/<custom>-*/SKILL.md` |
-| Sync skills/workflows | `/update` workflow |
+| Synchronize two sibling repositories/projects | `/sync` -> `basic-agentic-development` -> `basic-code-review` -> `basic-security-checklist` |
+| Refresh local agent instructions/loaders from the current filesystem | `/update` workflow |
 | Port `.agent` into a new repository | `/update all` -> full new-repository self-sync -> `/update` verification |
 
 ## Framework And Convention-Specific Families
@@ -77,6 +78,7 @@ flowchart TD
     Test["test-*"]
     Frontend["frontend-* / drn-buildwww-*"]
     Custom["profile/custom workflows + skills"]
+    Sync["/sync sibling roots"]
     Workflows["task workflows"]
 
     Profile --> Index
@@ -86,11 +88,14 @@ flowchart TD
     Profile --> Test
     Profile --> Frontend
     Profile --> Custom
+    Profile --> Sync
+    Index --> Sync
     Overview --> DRN
     DRN --> Test
     Frontend --> Workflows
     Custom --> Workflows
     Basic --> Workflows
+    Basic --> Sync
 ```
 
 ## Keyword Index
@@ -106,6 +111,7 @@ Portable keywords should stay broad. Repository- or framework-specific terms bel
 | frontend / razor-ui | `frontend-razor-pages-shared`, `frontend-razor-pages-navigation`, `frontend-razor-accessors` |
 | goal / goal-mode / workflow-routing | `/goal`, profile/custom route overlays, `basic-agentic-development` |
 | repository / navigation | `overview-repository-structure` |
+| common-parent / sibling-root / cross-repository / cross-project / bidirectional-sync / drift-sync | `/sync`, `basic-agentic-development`, `basic-code-review`, `basic-security-checklist` |
 | new repository / port .agent / self-sync | `/update all`, `.agent/repository-profile.md`, `overview-skill-index` |
 | repository-specific / custom workflow / custom skill | `.agent/repository-profile.md`, matching `.agent/workflows/<custom>.md`, matching `.agent/skills/<custom>-*/SKILL.md` |
 | security | `basic-security-checklist`, `basic-code-review` |
