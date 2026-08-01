@@ -1,4 +1,4 @@
-ARG BASE_VERSION=4.3.0
+ARG BASE_VERSION=4.3.2
 
 FROM rabbitmq:${BASE_VERSION}-management-alpine
 

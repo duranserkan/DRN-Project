@@ -56,7 +56,7 @@ services:
 
   # https://hub.docker.com/_/postgres
   postgres:
-    image: postgres:18.4-alpine3.23
+    image: postgres:18.4-alpine3.24
     container_name: drn-infra-postgres
     restart: unless-stopped
     volumes:
@@ -76,7 +76,7 @@ services:
 
   # https://hub.docker.com/_/rabbitmq
   rabbit:
-    image: rabbitmq-drn:4.3.0-management-alpine
+    image: rabbitmq-drn:4.3.2-management-alpine
     build:
       context: ./Docker/Rabbitmq/Image/
     container_name: drn-infra-rabbit
