@@ -27,12 +27,14 @@ Precedence: `blocked > resolution-required > proceed`.
 
 | Rule | Condition | Decision / Gate |
 |---|---|---|
-| `equal-or-variant` | Equal or intentionally variant content | No change. |
+| `equal-or-variant` | Equal or documented/evidence-proven intentional variant | Preserve target identity & domain invariants; No change. |
 | `unilateral-addition-no-baseline` | Unilateral addition without baseline | Addition candidate (not deletion). |
-| `directional-source-change` | Directional source change with unchanged target | Adapt source intent; preserve target identity. |
+| `directional-source-change` | Directional source change with unchanged target | Adapt source intent; preserve target identity and domain invariants. |
 | `compatible-dual-change` | Both sides changed compatibly | Semantic merge with evidence. |
 | `explicit-resolution` | Divergent edit, delete/modify, or uncertain ownership | Resolution required (`resolution-required`). |
-| `protected-or-risk` | Secret, protected path, binary ambiguity, or security risk | Exclude or report (`blocked`). |
+| `protected-or-risk` | Secret, protected path, binary ambiguity, domain homogenization attempt, or security risk | Exclude or report (`blocked`). |
+
+Mandate (Non-Homogenization): `/sync` MUST NOT merge or homogenize domain-specific features, domain entities, domain invariants, or custom business rules between endpoints. Synchronization targets consistency of common infrastructure, patterns, and conventions, not making endpoints identical.
 
 Apply TRIZ before tradeoffs. Priority Stack: Security > Correctness > Clarity > Simplicity > Performance.
 
