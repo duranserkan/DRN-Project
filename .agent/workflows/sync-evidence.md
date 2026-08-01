@@ -5,7 +5,7 @@ description: Canonical binary evidence, approval subjects, and baseline storage 
 # Sync Evidence Protocol
 
 > **Owner**: Internal protocol composed by [`/sync`](./sync.md) and [`/sync-execute`](./sync-execute.md).
-> **Purpose**: keep byte-exact path and state evidence machine-stable while operational workflows remain readable.
+> See [Shared Contract](./_shared/sync-shared.md) and [Lifecycle](./_shared/status-lifecycle.md).
 
 ## Contents
 
@@ -16,7 +16,7 @@ description: Canonical binary evidence, approval subjects, and baseline storage 
 
 ## 1. Evidence Rules
 
-Persist exact manifests as binary files beneath the validated Run ID prefix in the controlling `.agent/temp/`. Human-readable views explain evidence but never replace binary companions.
+Persist exact binary manifests under the Run ID prefix in `.agent/temp/`. Human-readable views explain evidence but never replace binary artifacts.
 
 Binary format:
 
@@ -27,7 +27,7 @@ record_count:uint64-be
 record...
 ```
 
-Each record is:
+Record layout:
 
 ```text
 field_count:uint64-be
@@ -35,88 +35,61 @@ field_count:uint64-be
 ```
 
 Encoding rules:
+- Preserve raw path bytes; never normalize Unicode.
+- Integers: ASCII without leading zeros (`sequence` is 20 digits).
+- Booleans: `0`/`1`. Hashes: lowercase hex. Missing values: `N/A`.
+- Fields emit in schema order; sort records bytewise by key; reject duplicates.
+- Hash artifacts with SHA-256 and bind digests into approval subjects.
+- Store preimages/patches by hash only when exclusions permit. Never store secrets.
 
-- Preserve raw filesystem path bytes; never normalize Unicode.
-- Encode integers as standard ASCII without leading zeros, except `sequence`, which is 20 digits.
-- Encode booleans as `0`/`1`, hashes as lowercase hex, and absent values as literal `N/A`.
-- Emit fields in schema order. Sort records bytewise by the declared key; reject duplicate keys.
-- Hash each complete binary artifact with SHA-256. Bind its digest into the relevant subject.
-- Store preimage and reverse-patch blobs by content hash only when exclusions permit their content.
-- Never store secrets or unsafe file content. Report excluded evidence and block any mutation that depends on it.
-
-Use endpoint IDs `left` and `right`. Use Git-root ID `shared` in project mode or `left`/`right` in repository mode. Project mode contains two `endpoint-topology` records and one `topology-git` record.
+Endpoint IDs: `left`, `right`. Git-root IDs: `shared` (project mode) or `left`/`right` (repository mode).
 
 ## 2. Record Schemas
 
 Field order is normative.
 
-| Kind | Sort key | Ordered fields |
+| Kind | Sort Key | Ordered Fields |
 |---|---|---|
 | `control` | `physical-path` | `physical-path`, `device-id`, `mount-id`, `inode`, `file-type`, `mode`, `size`, `sha256` |
 | `endpoint-topology` | `endpoint-id` | `run-id`, `common-parent`, `common-device-id`, `common-mount-id`, `common-inode`, `endpoint-id`, `endpoint-name`, `physical-root`, `device-id`, `mount-id`, `inode`, `ancestor-chain-sha256`, `owning-git-root-id` |
 | `topology-git` | `git-root-id` | `run-id`, `git-root-id`, `git-top-level`, `topology`, `head`, `ref`, `index-sha256`, `status-sha256`, `refs-sha256` |
 | `git-admin-state` | `git-root-id`, `admin-path` | `run-id`, `git-root-id`, `admin-path`, `presence`, `device-id`, `mount-id`, `inode`, `file-type`, `mode`, `size`, `sha256` |
-| `scope-input-action` | `root-id`, `path`, `sequence` | `run-id`, `subscope-id`, `sequence`, `root-id`, `path`, `peer-root-id`, `peer-path`, `presence`, `ancestor-chain-sha256`, `device-id`, `mount-id`, `inode`, `file-type`, `mode`, `size`, `sha256`, `git-state`, `dirty-adoption`, `drift-class`, `operation`, `output-presence`, `output-type`, `output-mode`, `output-sha256` |
+| `scope-input-action` | `root-id`, `path`, `sequence` | `run-id`, `subscope-id`, `sequence`, `root-id`, `path`, `peer-root-id`, `peer-path`, `presence`, `ancestor-chain-sha256`, `device-id`, `mount-id`, `inode`, `file-type`, `mode`, `size`, `sha256`, `git-state`, `dirty-adoption`, `drift-class`, `baseline-relation`, `current-relation`, `source-ownership`, `direction`, `path-policy`, `risk-evidence-sha256`, `decision-rule`, `decision-verdict`, `operation`, `output-presence`, `output-type`, `output-mode`, `output-sha256` |
 | `preimage-rollback` | `root-id`, `path`, `sequence` | `run-id`, `subscope-id`, `sequence`, `root-id`, `path`, `preimage-presence`, `preimage-type`, `preimage-mode`, `preimage-sha256`, `preimage-blob-sha256`, `reverse-patch-sha256` |
 | `postimage` | `root-id`, `path` | `run-id`, `subscope-id`, `root-id`, `path`, `presence`, `ancestor-chain-sha256`, `device-id`, `mount-id`, `inode`, `file-type`, `mode`, `size`, `sha256`, `verification`, `residual-class` |
 | `residual-drift` | `root-id`, `path` | `run-id`, `subscope-id`, `root-id`, `path`, `relation`, `decision`, `variance-id`, `risk` |
 | `acceptance-git` | `git-root-id` | `run-id`, `subscope-id`, `git-root-id`, `accepted-base-head`, `accepted-base-ref`, `index-sha256`, `dirty-sha256`, `disjoint-state-sha256` |
-| `preapply-review` | `subscope-id` | `run-id`, `subscope-id`, `review-revision`, `reviewed-preview-sha256`, `scope-input-action-sha256`, `preimage-rollback-sha256`, `rollback-plan-sha256`, `verdict`, `critical-count`, `major-count`, `findings-sha256`, `review-report-sha256` |
-| `baseline-selector` | `record-kind`, `left`, `right` | `record-kind`, `left`, `right` |
+| `commit-changed-path` | `git-root-id`, `path` | `run-id`, `subscope-id`, `git-root-id`, `path`, `change-kind`, `post-presence`, `post-type`, `post-mode`, `post-sha256` |
+| `commit-tree-entry` | `git-root-id`, `path` | `run-id`, `subscope-id`, `git-root-id`, `path`, `file-type`, `mode`, `sha256` |
+| `commit-verification` | `git-root-id` | `run-id`, `subscope-id`, `git-root-id`, `user-commit-sha`, `parent-sha`, `parent-count`, `merge-status`, `changed-paths-sha256`, `accepted-paths-sha256`, `commit-tree-sha256`, `accepted-tree-sha256`, `verified-post-commit-head`, `verified-post-commit-ref`, `index-sha256`, `dirty-sha256`, `disjoint-state-sha256` |
+| `preapply-review` | `subscope-id` | `run-id`, `subscope-id`, `review-revision`, `reviewed-preview-sha256`, `scope-input-action-sha256`, `preimage-rollback-sha256`, `rollback-plan-sha256`, `decision-verdict`, `verdict`, `critical-count`, `major-count`, `findings-sha256`, `review-report-sha256` |
+| `baseline-selector` | `sequence`, `selector-kind`, `left`, `right` | `selector-kind`, `sequence`, `direction`, `left`, `right` |
 | `baseline-store-key` | `selector-id` | `selector-id`, `common-parent`, `common-device-id`, `common-mount-id`, `common-inode`, `left-physical-root`, `left-device-id`, `left-mount-id`, `left-inode`, `right-physical-root`, `right-device-id`, `right-mount-id`, `right-inode`, `topology`, `direction`, `baseline-selector-sha256` |
-| `baseline-checkpoint` | `root-id`, `path` | `run-id`, `baseline-store-key-sha256`, `endpoint-topology-sha256`, `topology-git-sha256`, `direction`, `scope-input-action-sha256`, `residual-drift-sha256`, `final-verification-sha256`, `origin`, `origin-commit`, `root-id`, `path`, `presence`, `file-type`, `mode`, `sha256` |
+| `cumulative-checkpoint` | `root-id`, `path` | `run-id`, `subscope-id`, `sequence`, `root-id`, `path`, `presence`, `file-type`, `mode`, `sha256`, `origin`, `origin-commit`, `commit-verification-sha256` |
+| `final-verification` | `run-id` | `run-id`, `baseline-store-key-sha256`, `endpoint-topology-sha256`, `topology-git-sha256`, `baseline-selector-sha256`, `direction`, `scope-input-action-sha256`, `cumulative-checkpoint-sha256`, `commit-verification-sha256`, `residual-drift-sha256`, `verdict` |
+| `baseline-checkpoint` | `root-id`, `path` | `run-id`, `baseline-store-key-sha256`, `endpoint-topology-sha256`, `topology-git-sha256`, `direction`, `scope-input-action-sha256`, `commit-verification-sha256`, `residual-drift-sha256`, `final-verification-sha256`, `origin`, `origin-commit`, `root-id`, `path`, `presence`, `file-type`, `mode`, `sha256` |
+
+`commit-changed-path` records exact path delta from accepted base to user commit. `commit-tree-entry` records resulting tree. Require actual/accepted tree SHA match before emitting `commit-verification`.
+
+Born branches require `parent-count=1` and `parent-sha=accepted-base-head`. `UNBORN` requires `parent-count=0` and `parent-sha=N/A`. User commit SHA must equal verified post-commit HEAD, differ from accepted base, and match tree digests. Commit verification validates the exact allowed transition: the accepted output becomes exactly the reported commit, the commit has the accepted base as its direct parent, no extra paths enter the commit, pre-existing unrelated staged work remains unchanged in the index, pre-existing unrelated unstaged work remains unchanged in the worktree dirt, accepted output is no longer left staged or dirty, and current HEAD points to the verified commit.
 
 ## 3. Approval Subjects
 
-Use UTF-8, LF endings, and a final LF. Hash the exact bytes. These subjects bind canonical evidence; the shared lifecycle owns the Approval Record and envelope.
+Bind canonical evidence into Apply and Acceptance subjects defined in [Sync Shared Approval Subjects](./_shared/sync-shared.md#4-approval-subjects).
 
-Apply subject:
-
-```text
-format="DRN-SYNC-APPLY-SUBJECT/1"
-run_id="..."
-subscope_id="SS-NNN"
-direction="..."
-endpoint_topology_sha256="..."
-topology_git_sha256="..."
-control_sha256="..."
-scope_input_action_sha256="..."
-baseline_checkpoint_sha256="..."
-preimage_rollback_sha256="..."
-preview_sha256="..."
-rollback_plan_sha256="..."
-preapply_review_sha256="..."
-priority_stack_decision="..."
-residual_risk="..."
-```
-
-Set `approval_subject_sha256` to the subject hash and `approval_preview_sha256` to the raw preview hash.
-
-Acceptance subject:
-
-```text
-format="DRN-SYNC-ACCEPTANCE-SUBJECT/1"
-run_id="..."
-subscope_id="SS-NNN"
-endpoint_topology_sha256="..."
-topology_git_sha256="..."
-control_sha256="..."
-postimage_sha256="..."
-residual_drift_sha256="..."
-acceptance_git_sha256="..."
-priority_stack_decision="..."
-residual_risk="..."
-```
-
-Set `approval_subject_sha256` to the acceptance-subject hash. Apply and acceptance records are separate and append-only.
+Hash exact subject UTF-8 bytes to compute `approval_subject_sha256`. Set `approval_preview_sha256` to the preview diff SHA-256. Persist records append-only in `.agent/temp/` via the shared Approval Envelope format.
 
 ## 4. Reusable Baseline Store
 
-Normalize the invocation into `baseline-selector` records: substitute endpoint IDs `left`/`right`, normalize `only`, preserve explicit path pairs, and default `map` to `same-relative-paths`. Generate one `baseline-store-key` record with selector ID `pair`.
+Normalize invocation into `baseline-selector` records:
+1. Sequence `00000000000000000000`: Emit `invocation` record with canonical direction (`both`, `left-to-right`, `right-to-left`) and `left=N/A`, `right=N/A`.
+2. `only` scope IDs: Canonicalize path/glob selectors to POSIX relative, deduplicate, sort bytewise, and emit `only` records with sequence assigned after sorting (`00000000000000000001`...), setting both `left` and `right` to the scope ID and `direction=N/A`.
+3. `map` rules: Explicit mappings byte-sorted by `(left, right)` emitting `map` records with assigned 20-digit sequence (`00000000000000000100`...) and `direction=N/A`. When `map` is omitted, emit one `map-default` record at sequence `00000000000000000200` with `left=same-relative-paths`, `right=same-relative-paths`, and `direction=N/A`.
+4. Hash binary artifact as `baseline-selector-sha256`.
 
-The stable store key binds physical common-parent and endpoint identities, topology, direction, and normalized selector digest. It excludes Run ID, timestamps, HEAD/refs, index/status, and enumerated file lists.
+Generate `baseline-store-key` binding parent/endpoint identities, topology, direction, and `baseline-selector-sha256`.
 
-Open every component descriptor-relative without following links. Endpoint names never enter store paths.
+Store Layout:
 
 ```text
 .agent/temp/SYNC-BASELINES/<store-key-sha256>/
@@ -126,7 +99,7 @@ Open every component descriptor-relative without following links. Endpoint names
   promotion.lock
 ```
 
-`current` is UTF-8 with LF endings and a final LF:
+`current` format:
 
 ```text
 format="DRN-SYNC-BASELINE-CURRENT/1"
@@ -134,6 +107,6 @@ baseline_sha256="<lowercase-hex>"
 variance_sha256="<lowercase-hex>"
 ```
 
-Select a version only through `current`. An absent key directory or pointer means no baseline. Reject malformed pointers, missing companions, digest mismatch, or checkpoint evidence that does not match the normalized invocation.
+Select a version only through a valid `current` pointer within an existing key directory. Treat ONLY an absent key directory (`.agent/temp/SYNC-BASELINES/<store-key-sha256>/`) as no baseline (first-comparison semantics). If the key directory exists, fail closed if `current` is absent, `promotion.lock` exists, `current` is malformed, companion version or variance files are missing or digest-mismatched, or baseline checkpoint evidence does not match the normalized invocation.
 
-Promote only after `/sync-execute` proves the complete final scope. Acquire `promotion.lock` exclusively, revalidate the prior pointer, write immutable companions durably, and conditionally replace `current`. Sync the selector directory before releasing the lock. Concurrent pointer change aborts promotion.
+Promote only after `/sync-execute` proves full final scope. Acquire `promotion.lock` (abort if lock exists), revalidate prior state, write companion version and variance files durably, update `current` atomically, and release `promotion.lock`. Concurrent changes or leftover locks abort promotion and fail closed.
