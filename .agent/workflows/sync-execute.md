@@ -34,7 +34,7 @@ Invalid state combinations fail closed.
 3. Confirm approval matches target paths, operations, outputs, and residual risk.
 4. Verify zero unresolved Critical/Major findings in `/review`.
 
-Mismatches transition unit back to `planned` or fail the run. Set status to `applying` only after all checks pass.
+If revalidation detects recoverable input or preview drift (where topology, control plane, and scope boundaries remain intact), invalidate approval append-only and transition the subscope unit back to `planned`. However, topology, control-plane, scope, ancestor, or fundamental binding mismatches MUST immediately fail the run (`syncing` -> `failed`). Fundamental binding mismatches MUST NOT return the unit to `planned`. Set status to `applying` only after all checks pass.
 
 ## 3. Apply The Active Unit
 

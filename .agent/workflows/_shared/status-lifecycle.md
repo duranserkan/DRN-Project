@@ -53,7 +53,11 @@ SYNC SS : planned -> no-change
 | `discovering`/`planned`/`syncing` -> `failed` | `/sync` run | Topology mismatch, unit failure, or corrupt baseline stops run. |
 | `syncing` -> `verified` | `/sync` run | All units terminal (`committed`/`no-change`); baseline promoted. |
 
-`verified` is terminal while binding is current. Mismatched evidence transitions to `failed`; changed live state starts a fresh `discovering` run. Never reopen a verified run as `planned` or `syncing`.
+`verified` is terminal only while its complete verification binding remains current.
+
+For `/update` artifacts, an output-only mismatch invalidates `/update` to `done` for review (`verified` -> `done`); a Run ID, requested/effective scope, or semantic-plan mismatch invalidates the plan completely and starts a fresh plan (`outlined`/`planning`), never reusing prior approval or verification state.
+
+For `/sync` run artifacts, `verified` is terminal while binding is current. Mismatched evidence transitions to `failed`; changed live state or invalid baseline/topology starts a fresh `discovering` run. Never reopen a verified SYNC run as `planned` or `syncing`.
 
 ## Metadata
 
@@ -72,11 +76,22 @@ For SYNC, set `blocked_on_user: true` while apply approval, acceptance, commit, 
 
 ## Approval Record
 
-Require explicit approval unless `ApprovalRecord=workflow-tolerated`.
+Use explicit approval by default. Use `ApprovalRecord=workflow-tolerated` ONLY when BOTH this contract and the accepting/consuming workflow explicitly opt in and allow it for the exact bounded scope.
 
-Fields:
+`ApprovalRecord=workflow-tolerated` NEVER satisfies:
+- Workflows that have not explicitly opted in and accepted workflow-tolerated approval
+- Security-sensitive gates
+- Destructive mutation gates
+- VCS gates (e.g., commit verification or acceptance)
+- Failed or unclear gates (e.g., failed test or review gates)
+- Unresolved-input gates
+- Unverified-assumption gates
+- Temp-artifact lifecycle-risk gates
+- Final user-approval gates (including `status: implemented` or final plan/output completion)
+
+Required fields:
 - `approval_record`: `explicit approval recorded` or `ApprovalRecord=workflow-tolerated`
-- `approval_scope`: Exact mutation and targets
+- `approval_scope`: Exact mutation and bounded targets
 - `approval_subject`: Approved artifact or preview path
 - `approval_subject_sha256`: Subject SHA-256
 - `approval_preview_sha256`: Diff SHA-256 (`N/A` if absent)
@@ -93,10 +108,36 @@ For YAML-frontmatter artifacts that store their approval, hash raw artifact byte
 
 Header: `DRN-APPROVAL` | NUL | `0x01`. Append each of the first 8 fields above in table order (excluding `approval_envelope_sha256`): `name_length:uint64-be | name:utf8 | value_length:uint64-be | value:utf8`. `approval_envelope_sha256` is lowercase SHA-256 of these bytes.
 
+The user approves the human-readable subject/preview, scope, and risk—not a digest. On confirmation, recompute every digest, record all fields, and set `approval_required: false`. Any envelope-input change invalidates it. Set `approval_required: true`, record reason/time, retain the superseded record as append-only audit history, review changed semantic content, and obtain new approval.
+
 `/sync` requires two separate records per mutating subscope (Apply and Acceptance subjects). Retain superseded records append-only.
 
 ## Lineage & Assumptions
 
-CLARIFY descendants record iteration and ancestor SHAs.
+### Lineage Metadata
 
-`[ASSUMPTION - unverified]` blocks all mutating and terminal states. `[ASSUMPTION - accepted]` is restricted to Risk Register with explicit mitigation.
+`CLARIFY-*` artifacts may use these keys when a new clarification loop starts from an earlier artifact. Use them for supersession and lineage tracking:
+
+| Key | Meaning |
+|---|---|
+| `iteration` | Current iteration number in the lineage |
+| `previous_artifact` | Prior `CLARIFY-*` input artifact |
+| `previous_status` | Prior artifact status at creation |
+| `previous_updated` | Prior artifact timestamp or filesystem mtime used for freshness |
+| `previous_sha256` | Prior artifact SHA-256 at creation |
+| `previous_develop_artifact` | Prior `DEVELOP-*` artifact summarized into the enriched lineage snapshot, if supplied/unambiguous |
+| `previous_develop_sha256` | Prior `DEVELOP-*` SHA-256 when summarized |
+| `previous_walkthrough_artifact` | Prior walkthrough artifact summarized into the enriched lineage snapshot, if supplied/unambiguous |
+| `previous_commit` | Prior commit/ref summarized into the enriched lineage snapshot, if supplied/unambiguous |
+
+Apply these shared lineage rules unless a workflow names a stricter local gate:
+
+- **Evidence & Selection**: Accept explicit name-versioned artifacts and commits/refs when supplied or unambiguous. Require hashes only when a listed `*_sha256` key drives freshness. Revalidate source hashes and freshness before mutation.
+- **Supersession & Branch Confirmation**: Same-lineage descendants supersede `previous_artifact` by higher `iteration`, then newer timestamp. Treat superseded artifacts as evidence or branch points only with explicit user confirmation.
+- **Snapshot Boundary**: `### Enriched Lineage Snapshot` lets a new clarification iteration stand alone for `/answer`. It may summarize prior `CLARIFY-*`, matching `DEVELOP-*`, walkthrough, and commit evidence. It never replaces `source_*` freshness checks, approval records, `/review`, `/optimize`, or `/develop` gates.
+
+### Assumptions & Re-entry
+
+`[ASSUMPTION - unverified]` blocks all mutating and terminal states across CAD, UPDATE, and SYNC lifecycles (including `draft-self-reviewed`, `clarified`, `ready-to-develop`, `implementing`, `implemented-pending-approval`, `plan-reviewed`, `executing`, `done`, `reviewed`, `verifying`, `ready-to-apply`, `applying`, `applied`, `awaiting-user-approval`, `awaiting-user-commit`, `committed`, and terminal `verified`). `[ASSUMPTION - accepted]` is allowed only in the Risk Register with explicit mitigation and source; it never bypasses Security, Correctness, testable acceptance criteria, or approval records.
+
+Resume from `status` and metadata flags. Revalidate source hashes, review state, approval envelope, and blockers before mutation.
