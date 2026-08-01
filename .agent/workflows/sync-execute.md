@@ -15,7 +15,7 @@ Inspect run status and active-subscope marker:
 | Current State | Action / Route |
 |---|---|
 | Active `planned` | Return to `/sync` planning, review, and preview. |
-| Active `ready-to-apply` | Continue to [Revalidate Approval](#2-revalidate-approval) (sole entry to apply). |
+| Active `ready-to-apply` | Continue to [Revalidate Approval](#2-revalidate-approval) (sole entry to apply upon explicit user approval). |
 | Active `applying` | Treat write set as indeterminate; proceed to [Failure And Rollback](#4-failure-and-rollback). |
 | Active `rolling-back` | Resume rollback proof in [Failure And Rollback](#4-failure-and-rollback). |
 | Active `applied` | Continue to [Verify Postimage](#5-verify-postimage). |
@@ -49,13 +49,20 @@ Stop on any output deviation, secret exposure, or non-atomic failure. Transition
 
 ## 4. Failure And Rollback
 
-On apply failure, transition to `rolling-back` and execute rollback plan.
+On apply failure, transition to `rolling-back` and execute rollback plan. Require all safety primitives (descriptor-relative no-follow opens, regular-file checks, exclusive locks, atomic pointer replacements); fail closed immediately with evidence if any safety primitive is missing.
 
 - Restore only targets matching recorded partial postimage.
 - Use compare-and-swap with partial postimage as compare operand.
 - Do not overwrite unexplained changes.
 
-If fully restored, set `failed-rolled-back` and fail run. If uncertain/partial, set `failed-partial`, log Critical finding, and request user guidance.
+If fully restored, set `failed-rolled-back` and fail run.
+
+If uncertain or partial:
+1. Transition active subscope unit to `failed-partial`.
+2. Append recovery evidence and persist a canonical recovery record in `.agent/temp/`.
+3. Set `blocked_on_user: true` and log a Critical finding.
+4. Route `failed-partial` state exclusively through an explicit recovery transition, preventing any `apply`, `acceptance`, or `commit` paths while filesystem state is uncertain.
+5. Clear `blocked_on_user: true` ONLY after either a verified clean rollback is completed or the user provides an explicit approved recovery decision.
 
 ## 5. Verify Postimage
 

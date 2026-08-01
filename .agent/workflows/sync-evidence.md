@@ -36,7 +36,7 @@ field_count:uint64-be
 
 Encoding rules:
 - Preserve raw path bytes; never normalize Unicode.
-- Integers: ASCII without leading zeros (`sequence` is 20 digits).
+- Integers: ASCII without leading zeros, except `sequence` values which MUST be exactly 20 zero-padded ASCII decimal digits (`00000000000000000000` to `18446744073709551615`). Allocate sequence values monotonically; reject sequence overflow and duplicate sequence values.
 - Booleans: `0`/`1`. Hashes: lowercase hex. Missing values: `N/A`.
 - Fields emit in schema order; sort records bytewise by key; reject duplicates.
 - Hash artifacts with SHA-256 and bind digests into approval subjects.
@@ -81,10 +81,10 @@ Hash exact subject UTF-8 bytes to compute `approval_subject_sha256`. Set `approv
 
 ## 4. Reusable Baseline Store
 
-Normalize invocation into `baseline-selector` records:
+Normalize invocation into `baseline-selector` records with one monotonically increasing sequence allocation across every selector record (including `map-default`):
 1. Sequence `00000000000000000000`: Emit `invocation` record with canonical direction (`both`, `left-to-right`, `right-to-left`) and `left=N/A`, `right=N/A`.
-2. `only` scope IDs: Canonicalize path/glob selectors to POSIX relative, deduplicate, sort bytewise, and emit `only` records with sequence assigned after sorting (`00000000000000000001`...), setting both `left` and `right` to the scope ID and `direction=N/A`.
-3. `map` rules: Explicit mappings byte-sorted by `(left, right)` emitting `map` records with assigned 20-digit sequence (`00000000000000000100`...) and `direction=N/A`. When `map` is omitted, emit one `map-default` record at sequence `00000000000000000200` with `left=same-relative-paths`, `right=same-relative-paths`, and `direction=N/A`.
+2. `only` scope IDs: Canonicalize path/glob selectors to POSIX relative, deduplicate, sort bytewise, and emit `only` records with 20-digit sequence numbers allocated monotonically starting immediately after `invocation` (`00000000000000000001`, `00000000000000000002`...), setting both `left` and `right` to the scope ID and `direction=N/A`.
+3. `map` rules: Explicit mappings byte-sorted by `(left, right)` emitting `map` records with 20-digit sequence numbers allocated monotonically continuing directly from the previous allocation (`only` or `invocation`), with `direction=N/A`. When `map` is omitted, emit one `map-default` record with the next monotonically allocated 20-digit sequence number, with `left=same-relative-paths`, `right=same-relative-paths`, and `direction=N/A`. (Eliminates fixed sequence offsets and collisions; zero, one, and more than 100 mappings serialize deterministically with unique sequence values.)
 4. Hash binary artifact as `baseline-selector-sha256`.
 
 Generate `baseline-store-key` binding parent/endpoint identities, topology, direction, and `baseline-selector-sha256`.

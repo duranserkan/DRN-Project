@@ -40,8 +40,8 @@ SYNC SS : planned -> no-change
 | `failed` -> `correcting` -> `done` | `/update-execute` | Correction preview, approval, findings resolution. |
 | `discovering` -> `planned` -> `syncing` | `/sync` run | Physical parent/pair, scope, ordered subscopes bound. |
 | `planned` -> `no-change` | `/sync` subscope | Static evidence proves zero output. |
-| `planned` -> `ready-to-apply` | `/sync` subscope | Active drift, preview, preimages, rollback, passing `/review`. |
-| `ready-to-apply` -> `applying` -> `applied` | `/sync` subscope | Apply approval passes freshness; actual outputs match manifest. |
+| `planned` -> `ready-to-apply` | `/sync` subscope | Active drift, preview, preimages, rollback plan, and passing `/review` complete; awaiting Apply approval. |
+| `ready-to-apply` -> `applying` -> `applied` | `/sync` subscope | Explicit Apply approval granted and revalidated; actual outputs match manifest. |
 | `ready-to-apply` -> `planned` | `/sync` subscope | Input/non-output changed; invalidate approval append-only. |
 | `applying` -> `rolling-back` -> `failed-*` | `/sync` subscope | Apply failed; safe rollback executed or partial failure logged. |
 | `applied` -> `awaiting-user-approval` | `/sync` subscope | Verification and postimage evidence pass `/review`. |
@@ -76,10 +76,10 @@ For SYNC, set `blocked_on_user: true` while apply approval, acceptance, commit, 
 
 ## Approval Record
 
-Use explicit approval by default. Use `ApprovalRecord=workflow-tolerated` ONLY when BOTH this contract and the accepting/consuming workflow explicitly opt in and allow it for the exact bounded scope.
+Use explicit approval by default. Use `ApprovalRecord=workflow-tolerated` ONLY when BOTH this contract and the accepting/consuming workflow explicitly opt in and declare the exception for the exact bounded scope. `/sync` explicitly rejects `ApprovalRecord=workflow-tolerated` and requires explicit user approval for both Apply and Acceptance records; rejected or non-explicit records MUST remain blocked (`blocked_on_user: true`) and MUST NEVER transition to `applying` or `awaiting-user-commit`.
 
 `ApprovalRecord=workflow-tolerated` NEVER satisfies:
-- Workflows that have not explicitly opted in and accepted workflow-tolerated approval
+- Workflows that have not explicitly opted in and accepted workflow-tolerated approval (including `/sync`, which strictly rejects it)
 - Security-sensitive gates
 - Destructive mutation gates
 - VCS gates (e.g., commit verification or acceptance)

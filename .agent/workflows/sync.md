@@ -108,9 +108,16 @@ Run read-only `/review` (`needs_review: true`). Critical or Major findings block
 
 ## 7. Preview And Approval
 
-Bind the Apply Subject per [Sync Shared Approval Subjects](./_shared/sync-shared.md#4-approval-subjects). Request explicit user approval of subject, preview, scope, verdict, and residual risk. Set run status to `syncing` and `blocked_on_user: true`.
+Upon completing active subscope planning, preview, preimages, rollback plan, and passing `/review`:
+1. Transition active subscope status from `planned` to `ready-to-apply` (`blocked_on_user: true`).
+2. Bind the Apply Subject per [Sync Shared Approval Subjects](./_shared/sync-shared.md#4-approval-subjects).
+3. Request explicit user approval of subject, preview, scope, verdict, and residual risk. Set run status to `syncing`.
 
-Approval requires `decision-verdict=proceed` and zero Critical/Major findings. Upon explicit user approval, record the Apply Approval Envelope, transition active subscope status to `ready-to-apply`, clear `needs_review`, set `blocked_on_user: false`, and route to [`/sync-execute`](./sync-execute.md). Retain superseded records append-only.
+Approval requires `decision-verdict=proceed` and zero Critical/Major findings. Upon explicit user approval:
+- Record the Apply Approval Envelope.
+- Transition active subscope status from `ready-to-apply` to `applying`.
+- Clear `needs_review`, set `blocked_on_user: false`.
+- Route to [`/sync-execute`](./sync-execute.md). Retain superseded records append-only.
 
 ## 8. Executive Handoff
 

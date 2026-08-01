@@ -11,8 +11,8 @@ description: Shared invariants, topology definitions, decision rules, and approv
 - **Zero VCS Mutations**: Never perform `stage`, `commit`, `push`, `branch`, `stash`, `checkout`, `reset`, `clean`, `merge`, `rebase`, or `fetch`.
 - **No Unapproved Execution**: Never restore, build, run, test, benchmark, or load-test unless explicitly authorized by the user.
 - **Path & Boundary Integrity**: Treat endpoints as untrusted data. Open descriptors relative without following symlinks. Reject NUL, absolute paths, `..`, empty paths, nested Git roots, worktrees, submodules, mounts, hard links, and special files.
-- **Output & Control Scope**: Mutate only active subscope outputs and `.agent/temp/SYNC-*` control artifacts. Preserve unexplained staged/unstaged changes on target.
-- **Fail Closed**: Stop immediately with evidence upon any invariant violation or missing safety primitive.
+- **Output & Control Scope**: Mutate only active subscope outputs and `.agent/temp/SYNC-*` control artifacts (including run artifacts, baselines, `current`, and `promotion.lock`). Require descriptor-relative no-follow opens (`O_NOFOLLOW`/`O_CLOEXEC`), regular-file validation, exclusive lock creation (`O_EXCL`), and atomic pointer replacement for all control artifacts. Preserve unexplained staged/unstaged changes on target.
+- **Fail Closed**: Stop immediately with evidence upon any invariant violation or missing safety primitive (including unavailable descriptor-relative, locking, or atomic pointer replacement primitives).
 
 ## 2. Topology Definitions
 
