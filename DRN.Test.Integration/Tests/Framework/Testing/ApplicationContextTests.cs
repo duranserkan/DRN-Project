@@ -179,10 +179,33 @@ public class ApplicationContextTests
 
     [Theory]
     [DataInline]
-    public void ApplicationContext_Should_Retry_Parent_After_Derived_Host_Stop_Fails(DrnTestContext context)
+    public void ApplicationContext_Should_Retry_Parent_After_Derived_Disposal_Fails(DrnTestContext context)
     {
         var disposalOrder = new List<string>();
-        var derivedHostedService = new StopFailureHostedService(disposalOrder);
+        // ApplicationContext owns only the parent factory. Model nested cleanup explicitly so this test covers
+        // its retry contract without depending on WebApplicationFactory's internal derived-factory traversal.
+        var factory = new ParentApplicationFactoryWithDerivedDisposalFailure(disposalOrder);
+        context.ApplicationContext.UseApplicationFactory(factory);
+
+        var firstDispose = () => context.ApplicationContext.Dispose();
+        var exception = firstDispose.Should().Throw<Exception>().Which;
+        exception.ToString().Should().Contain(DerivedApplicationFactoryWithOneShotDisposalFailure.FailureMessage);
+        disposalOrder.Should().Equal("derived-application-dispose-failed", "derived-application");
+        context.ApplicationContext.HasCreatedApplication.Should().BeTrue();
+
+        context.ApplicationContext.Dispose();
+
+        context.ApplicationContext.HasCreatedApplication.Should().BeFalse();
+        disposalOrder.Should().Equal(
+            "derived-application-dispose-failed", "derived-application", "parent-application");
+    }
+
+    [Theory]
+    [DataInline]
+    public void ApplicationContext_Should_Dispose_Derived_Factory_Before_Parent(DrnTestContext context)
+    {
+        var disposalOrder = new List<string>();
+        var derivedHostedService = new StopTrackingHostedService(disposalOrder);
         var application = context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>(builder =>
             builder.ConfigureServices(services =>
                 services.AddSingleton(_ => new ParentApplicationDisposalTracker(disposalOrder))));
@@ -197,18 +220,12 @@ public class ApplicationContextTests
             }));
         _ = derivedApplication.Server;
         _ = derivedApplication.Services.GetRequiredService<ApplicationOwnedDisposalTracker>();
-        derivedHostedService.FailNextStop();
-
-        var firstDispose = () => context.ApplicationContext.Dispose();
-        var exception = firstDispose.Should().Throw<Exception>().Which;
-        exception.ToString().Should().Contain(StopFailureHostedService.StopFailureMessage);
-        disposalOrder.Should().Equal("application-stop-failed", "application");
-        context.ApplicationContext.HasCreatedApplication.Should().BeTrue();
+        application.Factories.Should().ContainSingle().Which.Should().BeSameAs(derivedApplication);
 
         context.ApplicationContext.Dispose();
 
         context.ApplicationContext.HasCreatedApplication.Should().BeFalse();
-        disposalOrder.Should().Equal("application-stop-failed", "application", "parent-application");
+        disposalOrder.Should().Equal("derived-application-stop", "application", "parent-application");
     }
 
     [Theory]
@@ -386,6 +403,39 @@ public class ApplicationContextTests
         public void Dispose() => disposalOrder.Add("parent-application");
     }
 
+    private sealed class ParentApplicationFactoryWithDerivedDisposalFailure(List<string> disposalOrder) : IDisposable
+    {
+        private readonly DerivedApplicationFactoryWithOneShotDisposalFailure _derivedApplication = new(disposalOrder);
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            _derivedApplication.Dispose();
+            disposalOrder.Add("parent-application");
+            _disposed = true;
+        }
+    }
+
+    private sealed class DerivedApplicationFactoryWithOneShotDisposalFailure(List<string> disposalOrder) : IDisposable
+    {
+        public const string FailureMessage = "Derived application disposal failure.";
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+            disposalOrder.Add("derived-application-dispose-failed");
+            disposalOrder.Add("derived-application");
+            throw new InvalidOperationException(FailureMessage);
+        }
+    }
+
     private sealed class StopFailureHostedService(List<string> disposalOrder) : IHostedService
     {
         public const string StopFailureMessage = "Application stop failure.";
@@ -403,6 +453,23 @@ public class ApplicationContextTests
             _failNextStop = false;
             disposalOrder.Add("application-stop-failed");
             throw new InvalidOperationException(StopFailureMessage);
+        }
+    }
+
+    private sealed class StopTrackingHostedService(List<string> disposalOrder) : IHostedService
+    {
+        private bool _stopped;
+
+        public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            if (_stopped)
+                return Task.CompletedTask;
+
+            _stopped = true;
+            disposalOrder.Add("derived-application-stop");
+            return Task.CompletedTask;
         }
     }
 
