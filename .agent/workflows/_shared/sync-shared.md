@@ -31,8 +31,8 @@ Precedence: `blocked > resolution-required > proceed`.
 | `unilateral-addition-no-baseline` | Unilateral addition without baseline | Addition candidate (not deletion). |
 | `directional-source-change` | Directional source change with unchanged target | Adapt source intent; preserve target identity and domain invariants. |
 | `compatible-dual-change` | Both sides changed compatibly | Semantic merge with evidence. |
-| `explicit-resolution` | Divergent edit, delete/modify, or uncertain ownership | Resolution required (`resolution-required`). |
-| `protected-or-risk` | Secret, protected path, binary ambiguity, domain homogenization attempt, or security risk | Exclude or report (`blocked`). |
+| `explicit-resolution` | Divergent edit, target-only deletion, delete/modify, or uncertain ownership | Resolution required (`resolution-required`). Recorded user resolution via `user-resolution` evidence transitions verdict to `proceed`. |
+| `protected-or-risk` | Secret, protected path, binary ambiguity, conflict marker output, domain homogenization attempt, or security risk | Exclude or report (`blocked`). |
 
 Mandate (Non-Homogenization): `/sync` MUST NOT merge or homogenize domain-specific features, domain entities, domain invariants, or custom business rules between endpoints. Synchronization targets consistency of common infrastructure, patterns, and conventions, not making endpoints identical.
 
@@ -53,6 +53,7 @@ endpoint_topology_sha256="..."
 topology_git_sha256="..."
 control_sha256="..."
 scope_input_action_sha256="..."
+user_resolution_sha256="..."
 baseline_checkpoint_sha256="..."
 preimage_rollback_sha256="..."
 preview_sha256="..."

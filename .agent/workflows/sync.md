@@ -77,13 +77,13 @@ Apply the [Sync Shared Decision Rules](./_shared/sync-shared.md#3-decision-model
 
 | Verdict | Condition | Gate |
 |---|---|---|
-| `blocked` | Unresolved risk, secret/unsafe path, invalid boundary, or domain homogenization attempt. | Stop run. |
-| `resolution-required` | Divergent edit, unproven ownership, or ambiguous relation. | Require user resolution. |
+| `blocked` | Unresolved risk, secret/unsafe path, invalid boundary, conflict marker output, or domain merging/homogenization attempt (permanently blocked regardless of authorization). | Stop run. |
+| `resolution-required` | Divergent edit, unproven ownership, ambiguous relation, or target-only deletion. | Require user resolution and authorization. |
 | `proceed` | Single non-blocking rule applies, ownership/direction proven, evidence current. | Permit review (does not authorize apply). |
 
 Subscope verdict precedence: `blocked > resolution-required > proceed`. Persist in `preapply-review`.
 
-Retain root-specific names, namespaces, ports, URLs, environment variables, extensions, profile facts, domain invariants, and domain-specific features. Categorize target domain differences as intentional variants (`equal-or-variant`) only when supported by variance ledger, profile, baseline evidence, or explicit user resolution. Divergent or unproven domain edits require user resolution (`resolution-required`). Never merge or homogenize domain-specific code, output conflict markers, or delete target-only content without authorization. Record non-trivial friction via TRIZ and Priority Stack.
+Retain root-specific names, namespaces, ports, URLs, environment variables, extensions, profile facts, domain invariants, and domain-specific features. Categorize target domain differences as intentional variants (`equal-or-variant`) only when supported by variance ledger, profile, baseline evidence, or explicit user resolution. Divergent edits and target-only deletions require explicit user resolution (`resolution-required`). Persist user authorization as canonical `user-resolution` evidence records (`user_resolution_sha256`) to transition path verdicts in `scope-input-action` to `proceed` and permit preapply review and Apply approval. Domain-specific merging or homogenization is permanently prohibited (`blocked`), regardless of authorization. Outputting conflict markers is unconditionally prohibited (`blocked`). Record non-trivial friction via TRIZ and Priority Stack.
 
 ## 5. Bind Pair And Scope
 
