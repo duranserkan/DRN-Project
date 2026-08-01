@@ -21,6 +21,7 @@ SYNC SS : planned -> no-change
           ready-to-apply -> planned
           applied | awaiting-user-approval | awaiting-user-commit -> planned
           applying -> rolling-back -> failed-rolled-back | failed-partial
+          failed-partial -> recovering -> failed-rolled-back | failed-partial
           awaiting-user-commit -> partially-committed -> committed | failed
 ```
 
@@ -41,9 +42,10 @@ SYNC SS : planned -> no-change
 | `discovering` -> `planned` -> `syncing` | `/sync` run | Physical parent/pair, scope, ordered subscopes bound. |
 | `planned` -> `no-change` | `/sync` subscope | Static evidence proves zero output. |
 | `planned` -> `ready-to-apply` | `/sync` subscope | Active drift, preview, preimages, rollback plan, and passing `/review` complete; awaiting Apply approval. |
-| `ready-to-apply` -> `applying` -> `applied` | `/sync` subscope | Explicit Apply approval granted and revalidated; actual outputs match manifest. |
-| `ready-to-apply` -> `planned` | `/sync` subscope | Input/non-output changed; invalidate approval append-only. |
+| `ready-to-apply` -> `applying` -> `applied` | `/sync` subscope | Explicit Apply approval granted; `/sync-execute` revalidates it, persists the pre-write marker, and actual outputs match manifest. |
+| `ready-to-apply`/pre-write `applying` -> `planned` | `/sync` subscope | Input/non-output changed before the pre-write marker; invalidate approval append-only. |
 | `applying` -> `rolling-back` -> `failed-*` | `/sync` subscope | Apply failed; safe rollback executed or partial failure logged. |
+| `failed-partial` -> `recovering` -> `failed-rolled-back`/`failed-partial` | `/sync` subscope | Explicit Recovery approval binds an exact recovery plan; verified rollback terminates safely, while residual uncertainty reblocks recovery. |
 | `applied` -> `awaiting-user-approval` | `/sync` subscope | Verification and postimage evidence pass `/review`. |
 | `awaiting-user-approval` -> `awaiting-user-commit` | `/sync` subscope | Postimage acceptance record current. |
 | `applied`/`awaiting-*` -> `planned` | `/sync` subscope | Pre-commit change invalidates approval before commit. |
@@ -76,7 +78,7 @@ For SYNC, set `blocked_on_user: true` while apply approval, acceptance, commit, 
 
 ## Approval Record
 
-Use explicit approval by default. Use `ApprovalRecord=workflow-tolerated` ONLY when BOTH this contract and the accepting/consuming workflow explicitly opt in and declare the exception for the exact bounded scope. `/sync` explicitly rejects `ApprovalRecord=workflow-tolerated` and requires explicit user approval for both Apply and Acceptance records; rejected or non-explicit records MUST remain blocked (`blocked_on_user: true`) and MUST NEVER transition to `applying` or `awaiting-user-commit`.
+Use explicit approval by default. Use `ApprovalRecord=workflow-tolerated` ONLY when BOTH this contract and the accepting/consuming workflow explicitly opt in and declare the exception for the exact bounded scope. `/sync` explicitly rejects `ApprovalRecord=workflow-tolerated` and requires explicit user approval for Apply, Acceptance, and Recovery records; rejected or non-explicit records MUST remain blocked (`blocked_on_user: true`) and MUST NEVER transition to `applying`, `awaiting-user-commit`, or `recovering`.
 
 `ApprovalRecord=workflow-tolerated` NEVER satisfies:
 - Workflows that have not explicitly opted in and accepted workflow-tolerated approval (including `/sync`, which strictly rejects it)

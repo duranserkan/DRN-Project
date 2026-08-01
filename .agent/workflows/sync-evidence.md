@@ -63,6 +63,8 @@ Field order is normative.
 | `commit-tree-entry` | `git-root-id`, `path` | `run-id`, `subscope-id`, `git-root-id`, `path`, `file-type`, `mode`, `sha256` |
 | `commit-verification` | `git-root-id` | `run-id`, `subscope-id`, `git-root-id`, `user-commit-sha`, `parent-sha`, `parent-count`, `merge-status`, `changed-paths-sha256`, `accepted-paths-sha256`, `commit-tree-sha256`, `accepted-tree-sha256`, `verified-post-commit-head`, `verified-post-commit-ref`, `index-sha256`, `dirty-sha256`, `disjoint-state-sha256` |
 | `preapply-review` | `subscope-id` | `run-id`, `subscope-id`, `review-revision`, `reviewed-preview-sha256`, `scope-input-action-sha256`, `preimage-rollback-sha256`, `rollback-plan-sha256`, `decision-verdict`, `verdict`, `critical-count`, `major-count`, `findings-sha256`, `review-report-sha256` |
+| `apply-progress` | `subscope-id` | `run-id`, `subscope-id`, `approval-envelope-sha256`, `state`, `operation-count`, `completed-operation-count`, `actual-postimage-sha256` |
+| `recovery` | `subscope-id`, `sequence` | `run-id`, `subscope-id`, `sequence`, `apply-progress-sha256`, `partial-postimage-sha256`, `recovery-plan-sha256`, `recovery-decision`, `approval-envelope-sha256`, `outcome`, `residual-state-sha256` |
 | `baseline-selector` | `sequence`, `selector-kind`, `left`, `right` | `selector-kind`, `sequence`, `direction`, `left`, `right` |
 | `baseline-store-key` | `selector-id` | `selector-id`, `common-parent`, `common-device-id`, `common-mount-id`, `common-inode`, `left-physical-root`, `left-device-id`, `left-mount-id`, `left-inode`, `right-physical-root`, `right-device-id`, `right-mount-id`, `right-inode`, `topology`, `direction`, `baseline-selector-sha256` |
 | `cumulative-checkpoint` | `root-id`, `path` | `run-id`, `subscope-id`, `sequence`, `root-id`, `path`, `presence`, `file-type`, `mode`, `sha256`, `origin`, `origin-commit`, `commit-verification-sha256` |
@@ -73,9 +75,13 @@ Field order is normative.
 
 Born branches require `parent-count=1` and `parent-sha=accepted-base-head`. `UNBORN` requires `parent-count=0` and `parent-sha=N/A`. User commit SHA must equal verified post-commit HEAD, differ from accepted base, and match tree digests. Commit verification validates the exact allowed transition: the accepted output becomes exactly the reported commit, the commit has the accepted base as its direct parent, no extra paths enter the commit, pre-existing unrelated staged work remains unchanged in the index, pre-existing unrelated unstaged work remains unchanged in the worktree dirt, accepted output is no longer left staged or dirty, and current HEAD points to the verified commit.
 
+`apply-progress` state is `started` or `completed`. Persist `started` atomically before the first output mutation; its existence makes a resumed `applying` unit indeterminate and routes it to rollback. Persist `completed` only after every actual output matches the manifest.
+
+`recovery` outcome is `pending`, `recovering`, `rolled-back`, `partial`, or `terminated-partial`. Pending records use `N/A` for approval fields until explicit Recovery approval is recorded. Recovery records are append-only and use the same 20-digit monotonically increasing `sequence` rules.
+
 ## 3. Approval Subjects
 
-Bind canonical evidence into Apply and Acceptance subjects defined in [Sync Shared Approval Subjects](./_shared/sync-shared.md#4-approval-subjects).
+Bind canonical evidence into Apply, Acceptance, and Recovery subjects defined in [Sync Shared Approval Subjects](./_shared/sync-shared.md#4-approval-subjects).
 
 Hash exact subject UTF-8 bytes to compute `approval_subject_sha256`. Set `approval_preview_sha256` to the preview diff SHA-256. Persist records append-only in `.agent/temp/` via the shared Approval Envelope format.
 

@@ -76,3 +76,21 @@ acceptance_git_sha256="..."
 priority_stack_decision="..."
 residual_risk="..."
 ```
+
+### Recovery Subject (`DRN-SYNC-RECOVERY-SUBJECT/1`)
+
+```text
+format="DRN-SYNC-RECOVERY-SUBJECT/1"
+run_id="..."
+subscope_id="SS-NNN"
+endpoint_topology_sha256="..."
+control_sha256="..."
+apply_progress_sha256="..."
+partial_postimage_sha256="..."
+recovery_plan_sha256="..."
+recovery_decision="retry-rollback|terminate-partial"
+priority_stack_decision="..."
+residual_risk="..."
+```
+
+Recovery approval is always explicit. `retry-rollback` authorizes only the bound rollback operations. `terminate-partial` authorizes no mutation, terminates the run as failed, and preserves the partial-state evidence. Neither decision authorizes apply, acceptance, or commit paths.
