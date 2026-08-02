@@ -33,9 +33,9 @@ shasum -a 256 -b -- .agent/temp/update-baseline-status.z <existing-regular-input
 shasum -a 256 -b -- .agent/temp/update-baseline-inputs.manifest
 ```
 
-The final digest is `Baseline Inputs Hash`. Preserve `Baseline HEAD` as part of the binding. Revalidation recomputes status and verifies the manifest after repeating the no-follow path identity checks from Lines 11–16:
+The final digest is `Baseline Inputs Hash`. Preserve `Baseline HEAD` as part of the binding. Revalidation recomputes status and verifies the manifest after repeating the no-follow path safety checks from Lines 11–16:
 
-Immediately before consuming the manifest, extend the revalidation flow around the Git status and `shasum` commands to independently verify each resolved input's presence, single-link regular-file type, link count, and physical identity (failing closed on any missing path, symlink, directory, special file, hard link, or identity mismatch):
+Immediately before consuming the manifest, extend the revalidation flow around the Git status and `shasum` commands to independently verify each resolved input's presence, single-link regular-file type, and link count (failing closed on any missing path, symlink, directory, special file, or hard link):
 
 ```bash
 git status --porcelain=v1 -z --untracked-files=all -- <input-pathspecs> > .agent/temp/update-baseline-status.current.z
@@ -44,7 +44,7 @@ shasum -a 256 -c .agent/temp/update-baseline-inputs.manifest
 shasum -a 256 -b -- .agent/temp/update-baseline-inputs.manifest
 ```
 
-Require the same `HEAD`, every command and path identity check to succeed independently, successful status comparison, and exact digest before and after manifest consumption. Fail closed on any mismatch before accepting the baseline; otherwise the plan is stale.
+Require the same `HEAD`, every command and path safety check to succeed independently, successful status comparison, and exact digest before and after manifest consumption. Fail closed on any mismatch before accepting the baseline; otherwise the plan is stale.
 
 ## Approved Output Preimages
 

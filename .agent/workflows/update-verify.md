@@ -24,12 +24,12 @@ Before initializing or resuming:
 3. Resolve the exact bytewise-deduplicated Stage 1-5 `### Outputs` path set. Reject undeclared mutation, an in-scope mutating stage with `N/A`, absolute paths, or repository escapes.
 4. Persist the output status and checksum artifacts defined by [baseline-inputs-hash-spec.md](./_shared/baseline-inputs-hash-spec.md). For an empty output set, use its explicit empty-artifact contract.
 5. Set Output Revision SHA-256 based on output existence: hash `.agent/temp/update-verify-outputs.manifest` for non-empty outputs, and hash `.agent/temp/update-verify-output-status.z` (the zero-byte status artifact required by the shared empty-artifact contract) when outputs are empty. Record the selected artifact path in the progress record (`Output Revision Manifest`), and keep the SHA-256 value lowercase without using `N/A`.
-6. Bind progress to Run ID, requested/effective scopes, Semantic Plan SHA-256, output-manifest path, and Output Revision SHA-256.
+6. Bind progress to Run ID, requested/effective scopes, Semantic Plan SHA-256, the selected output-revision artifact path, and Output Revision SHA-256.
 
 If the progress file is missing, initialize it from the template. If it exists:
 
 - A Run ID, requested/effective scope, or Semantic Plan SHA-256 mismatch supersedes the progress file; reinitialize every verification stage and never reuse its pass/skipped states.
-- An Output Revision SHA-256 or exact manifest mismatch resets every non-skipped stage and Final to `pending`, clears checkpoints, and records the new binding before verification.
+- An Output Revision SHA-256 or exact selected-artifact mismatch resets every non-skipped stage and Final to `pending`, clears checkpoints, and records the new binding before verification.
 - A fully matching binding resumes from the first actionable stage:
 
 - `pending` / `executing`: continue.
@@ -42,7 +42,7 @@ If the progress file is missing, initialize it from the template. If it exists:
 > Generated: <timestamp> | Run ID: <run-id> | Status: verifying | verified | failed
 > Plan: .agent/temp/update-plan.md | Requested Scope: <scope> | Scope: <effective scope>
 > Semantic Plan SHA-256: <sha256>
-> Output Revision Manifest: .agent/temp/update-verify-outputs.manifest | Output Revision SHA-256: <sha256>
+> Output Revision Manifest: <selected-output-revision-artifact-path> | Output Revision SHA-256: <sha256>
 
 ## Stage 0: Structural Integrity
 > Status: pending | skipped | executing | pass | fail | blocked
