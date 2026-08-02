@@ -96,11 +96,13 @@ Required fields:
 - `approval_scope`: Exact mutation and bounded targets
 - `approval_subject`: Approved artifact or preview path
 - `approval_subject_sha256`: Subject SHA-256
-- `approval_preview_sha256`: Diff SHA-256 (`N/A` if absent)
+- `approval_preview_sha256`: Workflow-mapped human-readable preview or diff
+  artifact SHA-256 (`N/A` only when the workflow has no separate preview
+  evidence)
 - `approval_producer`: User or allowed workflow
 - `approval_recorded_at`: ISO 8601 timestamp
 - `approval_risk_decision`: Priority Stack result & residual risk
-- `approval_envelope_sha256`: Digest binding all fields
+- `approval_envelope_sha256`: Digest binding the eight envelope-input fields
 
 ### Semantic Subject
 
@@ -108,11 +110,16 @@ For YAML-frontmatter artifacts that store their approval, hash raw artifact byte
 
 ### Envelope Calculation
 
-Header: `DRN-APPROVAL` | NUL | `0x01`. Append each of the first 8 fields above in table order (excluding `approval_envelope_sha256`): `name_length:uint64-be | name:utf8 | value_length:uint64-be | value:utf8`. `approval_envelope_sha256` is lowercase SHA-256 of these bytes.
+Calculate approval-envelope SHA-256 from the first eight fields above in listed order.
+- Validate raw field values before serialization. Every value must be valid UTF-8 and contain no CR, LF, or NUL characters.
+- Encode structured risk information as compact single-line JSON when needed.
+- Serialize each field as exact UTF-8 `name=value` bytes followed by one LF (`\n`). Include exactly one LF after the eighth field and perform no other value normalization.
 
-The user approves the human-readable subject/preview, scope, and risk—not a digest. On confirmation, recompute every digest, record all fields, and set `approval_required: false`. Any envelope-input change invalidates it. Set `approval_required: true`, record reason/time, retain the superseded record as append-only audit history, review changed semantic content, and obtain new approval.
+Retain the recorded envelope SHA-256 directly in the approval record. Never hash the containing approval record or history.
 
-`/sync` requires two separate records per mutating subscope (Apply and Acceptance subjects). Retain superseded records append-only.
+The user approves the human-readable subject/preview, scope, and risk—not a digest. On confirmation, recompute every digest, record all fields, and set `approval_required: false`. Any envelope-input change invalidates it. Set `approval_required: true`, record reason/time, retain superseded records as append-only audit history, review changed semantic content, and obtain new approval.
+
+`/sync` requires separate Apply and Acceptance records per mutating subscope, and a Recovery record when applicable. Retain superseded records append-only.
 
 ## Lineage & Assumptions
 

@@ -22,8 +22,8 @@ Before initializing or resuming:
 1. Read the plan's Run ID, Requested Scope, effective Scope, and Semantic Plan SHA-256.
 2. Require the current reviewed transition and latest apply/correction approval to cover that same Run ID, requested/effective scope, and semantic plan; otherwise return to the owning review or preview gate.
 3. Resolve the exact bytewise-deduplicated Stage 1-5 `### Outputs` path set. Reject undeclared mutation, an in-scope mutating stage with `N/A`, absolute paths, or repository escapes.
-4. Persist `.agent/temp/update-verify-outputs.manifest` using the path resolution, file-content hashing, modes, record kinds, sorting, and record encoding from [baseline-inputs-hash-spec.md](./_shared/baseline-inputs-hash-spec.md), but replace its header with ASCII `DRN-UPDATE-OUTPUTS`, NUL, and version byte `0x01`.
-5. Set Output Revision SHA-256 to the lowercase SHA-256 of those exact manifest bytes. Use a header-only manifest for an empty legitimate output set; never use `N/A`.
+4. Persist the output status and checksum artifacts defined by [baseline-inputs-hash-spec.md](./_shared/baseline-inputs-hash-spec.md). For an empty output set, use its explicit empty-artifact contract.
+5. Set Output Revision SHA-256 to the lowercase SHA-256 of `.agent/temp/update-verify-outputs.manifest`. Never use `N/A`.
 6. Bind progress to Run ID, requested/effective scopes, Semantic Plan SHA-256, output-manifest path, and Output Revision SHA-256.
 
 If the progress file is missing, initialize it from the template. If it exists:
@@ -89,7 +89,7 @@ Failure blocks all later stages; set them `blocked`.
 - Token estimates: compare summed skill file sizes / 4 to `Estimated context:`. If delta >15%, flag `⚠️` only.
 - Cross-references: verify against the plan drift report.
 - References: resolve `AGENTS.md` project paths, profile custom load-set entries, and `overview-skill-index` skill directories.
-- Bootstrap freshness: for `all`, verify current-filesystem discovery was rebuilt, the canonical baseline input manifest was persisted, and pre-execution staleness reproduced its Baseline Inputs Hash. Do not recompute the hash against post-execution files; valid `/update` runs intentionally edit material outputs.
+- Bootstrap freshness: for `all`, verify current-filesystem discovery was rebuilt, the baseline artifacts were persisted, and pre-execution staleness reproduced its Baseline Inputs Hash. Do not recompute the baseline against post-execution output files.
 
 ---
 
@@ -157,7 +157,7 @@ Drift detected. `/update-execute` owns source correction after `/update` produce
 
 ## 5. Design Properties
 
-- Source-read-only; lifecycle-mutating: verification does not edit repository source/configuration, but it writes the output-revision manifest and updates `update-plan.md` and `update-verify-progress.md` statuses/findings. Cleanup requires request.
-- Revision-bound: no pass, skip, or final verdict survives a Run ID, scope, semantic-plan, output-path-set, or output-byte change.
+- Source-read-only; lifecycle-mutating: verification does not edit repository source/configuration, but it writes the output path-state/manifest artifacts and updates `update-plan.md` and `update-verify-progress.md` statuses/findings. Cleanup requires request.
+- Revision-bound: no pass, skip, or final verdict survives a Run ID, scope, semantic-plan, output presence, supported type, path-set, or byte change. Canonical mode remains apply/resume safety evidence rather than Output Revision identity.
 - Fail-fast: Stage 0 blocks downstream checks.
 - Context-safe: checkpoint mid-stage for multi-window execution.

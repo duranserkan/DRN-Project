@@ -1,64 +1,79 @@
 ---
-description: Canonical Baseline Inputs Hash spec for /update staleness gates
+description: Baseline and output hashing for /update staleness gates
 ---
+
+## Shared Path-State Snapshot
+
+Resolve one exact path set in deterministic order. The plan and Semantic Plan
+SHA-256 bind that set; changing it invalidates the snapshot. For an empty set, never
+invoke `git status` or `git diff`: Approved Output Preimages and Output Revision create an explicit zero-byte status artifact and hash it. Baseline Inputs `N/A` Guard creates no artifacts.
+
+For a non-empty set, pass literal operands safely without globs or word splitting.
+For every path:
+- Require a UTF-8, repository-relative, control-character-free path. Reject CR, LF, NUL, absolute paths, and repository escapes during scope resolution.
+- Existing paths must be single-link regular files. Reject symlinks (`test -L`), directories used as file records, and special files.
+
+Approved output transitions record canonical mode as `100755` when executable bit is set and `100644` otherwise. Baseline Inputs Hash and Output Revision SHA-256 bind path presence and content, not mode; mode is an immediate apply/resume safety check.
+
+Persist two artifacts per snapshot:
+1. Raw NUL-delimited status: `git status --porcelain=v1 -z --untracked-files=all`.
+2. Standard `shasum` manifest over the status artifact and existing regular files.
 
 ## Baseline Inputs Hash
 
-Use the SHA-256 of the canonical binary input manifest below for `/update` plan staleness. Persist the exact manifest at `.agent/temp/update-baseline-inputs.manifest`; a material-input plan without that file is stale.
+Use these paths:
+- `.agent/temp/update-baseline-status.z`
+- `.agent/temp/update-baseline-inputs.manifest`
 
-### Resolve Raw Paths
+Declared Stage 1-5 outputs are excluded because the approved output preimage contract below binds them. Create the artifacts from the repository root:
 
-1. Use repository-root-relative path bytes. Never trim whitespace or apply Unicode, case, or text normalization.
-2. For tracked and deleted paths, use raw NUL-delimited Git output such as `git ls-files -z` or `git diff --name-status -z`; never parse quoted display output. For discovered untracked paths, join raw relative path components with `/`.
-3. Resolve `.` and `..` structurally during discovery; reject absolute paths, root escapes, directories used as file records, and paths containing NUL.
-4. Include renamed-from and renamed-to paths as separate deletion/current records when both affect drift detection.
-
-### Hash File Content
-
-- Inspect each existing working-tree path with a non-following metadata operation before hashing. Abort if its type changes during the read; never dereference a symlink.
-- Hash current working-tree bytes, not index/blob content, and treat every regular file as binary.
-- Do not normalize content, line endings, or timestamps.
-- For tracked regular files, use record kind `F` and current canonical mode `100755` when any executable bit is set or `100644` otherwise. Do not reuse a stale index mode.
-- For tracked symlinks, use record kind `L`, mode `120000`, and hash the current raw `readlink` payload. Never use the link payload stored in the Git index as current-content evidence.
-- Classify tracked entries by their current working-tree type, so regular-file/symlink transitions change the record kind and mode.
-- For untracked symlinks, hash the raw link-target bytes without dereferencing. Use mode `0` for every untracked entry.
-- Deletions have mode `0` and a 32-byte all-zero content digest.
-
-### Canonical Binary Manifest
-
-Start the manifest with ASCII bytes `DRN-UPDATE-BASELINE`, followed by NUL and version byte `0x01`.
-
-Collect one record per material path, sort by raw path bytes ascending and then record kind, and append records without separators:
-
-```text
-kind:1 | mode:uint32-be | path_length:uint64-be | path:raw-bytes | content_sha256:32
+```bash
+git status --porcelain=v1 -z --untracked-files=all -- <input-pathspecs> > .agent/temp/update-baseline-status.z
+shasum -a 256 -b -- .agent/temp/update-baseline-status.z <existing-regular-input-files> > .agent/temp/update-baseline-inputs.manifest
+shasum -a 256 -b -- .agent/temp/update-baseline-inputs.manifest
 ```
 
-Record kinds are `F` tracked regular file, `L` tracked symlink, `U` untracked regular file, `S` untracked symlink, and `D` deletion. Numeric fields are unsigned big-endian integers; parse Git's six-digit mode as octal before serialization. Use mode `0` for untracked entries and deletions. The length-prefixed raw path preserves every valid Git filename, including whitespace, newlines, and non-UTF-8 bytes, without aliases.
+The final digest is `Baseline Inputs Hash`. Preserve `Baseline HEAD` as part of the binding. Revalidation recomputes status and verifies the manifest:
 
-`Baseline Inputs Hash` is the lowercase hexadecimal SHA-256 of the complete manifest bytes. The manifest is the canonical input list: staleness validation must reproduce both the current material-path set and every record, then compare the resulting manifest hash.
+```bash
+git status --porcelain=v1 -z --untracked-files=all -- <input-pathspecs> > .agent/temp/update-baseline-status.current.z
+cmp -s .agent/temp/update-baseline-status.z .agent/temp/update-baseline-status.current.z
+shasum -a 256 -c .agent/temp/update-baseline-inputs.manifest
+shasum -a 256 -b -- .agent/temp/update-baseline-inputs.manifest
+```
 
-### Required Scope
+Require the same `HEAD`, every command to succeed independently, successful status comparison, and exact digest before and after manifest consumption. Otherwise the plan is stale.
 
-Hash every material in-scope input:
+## Approved Output Preimages
 
-- Existing files that influence discovery, planning, execution, or verification.
-- Deleted files through deletion markers.
-- Renamed files, including renamed-from paths when needed for drift detection.
+Before Apply approval, record one exact transition per Stage 1-5 output path in `.agent/temp/update-apply-preview.md`. The preview's raw-byte SHA-256 binds the complete tuple list.
 
-Use `N/A` only when the resolved scope has no material inputs. Then record this exact plan header:
+Encode output transitions as unambiguous JSON objects (one per line):
 
-`Baseline Inputs Hash Justification: no-material-input-files`
+```json
+{"path": "docs/example.md", "pre": {"presence": 0, "mode": "0", "sha256": "N/A"}, "post": {"presence": 1, "mode": "100644", "sha256": "<raw-byte-sha256>"}}
+```
 
-For `N/A`, set `Baseline Inputs Manifest: N/A` and do not retain a manifest from an earlier plan.
+Use `presence: 0`, `mode: "0"`, `sha256: "N/A"` for a missing side. A present side must have `presence: 1`, `mode: "100644"` or `"100755"`, and `<raw-byte-sha256>`. Record every preimage and postimage even when a proposed diff exists.
 
-### N/A Guard
+The tuple list is the sole output-preimage binding; no separate output-preimage snapshot or manifest exists.
 
-When hash is `N/A`, skip comparison only after all checks pass:
+Immediately before the first write to each pending output, verify its exact approved preimage. On resume, an output matching its preimage is pending; one matching its postimage is completed.
 
-1. Plan header contains exactly `Baseline Inputs Hash Justification: no-material-input-files`.
-2. Plan header contains exactly `Baseline Inputs Manifest: N/A`.
-3. `.agent/temp/update-baseline-inputs.manifest` does not exist.
-4. Exact scope paths still contain no material inputs.
+## Output Revision Hash
 
-Otherwise abort as stale.
+After execution, create the shared snapshot with these paths:
+- `.agent/temp/update-verify-output-status.z`
+- `.agent/temp/update-verify-outputs.manifest`
+
+Generate the standard `shasum` manifest over the status artifact and existing regular output files. The final manifest digest is `Output Revision SHA-256`. Before using a cached result, revalidate status and require the recorded digest.
+
+For an empty output set, use `Output Revision SHA-256` calculated from the empty status artifact. Output Revision is never `N/A`.
+
+## N/A Guard
+
+Use `Baseline Inputs Hash: N/A` only when the resolved non-output input scope has no material paths. Record:
+- `Baseline Inputs Hash Justification: no-material-input-files`
+- `Baseline Inputs Manifest: N/A`
+
+Do not retain any baseline status or manifest artifact. Reconfirm empty scope before mutation.

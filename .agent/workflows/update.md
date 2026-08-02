@@ -61,12 +61,12 @@ Before and after delegation, report Run ID, plan path/status, requested/effectiv
 Plan review is not apply approval. Before the first execution mutation:
 
 1. Compute the Semantic Plan digest below.
-2. Persist `.agent/temp/update-apply-preview.md` with Run ID, requested/effective scope, actions/output paths, semantic-plan digest, baseline manifest/hash, Priority Stack risk decision, and exact expected path state plus raw-byte SHA-256 for any output not represented by a proposed diff.
-3. If an exact diff exists, persist raw bytes at `.agent/temp/update-proposed.diff` and reference its digest; otherwise remove a stale proposal and use the preview as proposal.
+2. Persist `.agent/temp/update-apply-preview.md` with Run ID, requested/effective scope, actions/output paths, semantic-plan digest, baseline manifest/hash, Priority Stack risk decision, and every output's exact preimage and expected postimage presence, canonical mode, and raw-byte SHA-256. The preview's raw-byte SHA-256 binds the complete tuple list.
+3. If an exact diff exists, persist raw bytes at `.agent/temp/update-proposed.diff` and reference its digest; otherwise remove a stale proposal and use the preview as proposal. The diff is human-readable change evidence and never replaces an output preimage.
 4. Present the exact human-readable preview/diff, scope, and risk for explicit approval.
-5. On confirmation, recompute semantic plan, preview/diff, and baseline digests; abort on mismatch.
+5. On confirmation, recompute semantic plan, preview/diff, baseline digests, and every current output preimage; abort on mismatch.
 6. Record the complete shared approval envelope in `## Apply Approval`: subject digest is the preview digest; preview digest is the proposed-diff digest or preview digest when no diff exists.
-7. When any envelope input, semantic plan, baseline manifest/hash, preview, or diff changes, first append the complete current approval envelope with invalidation reason and time to `### Approval History`; then invalidate the current approval. Never edit or remove a history record.
+7. When any envelope input, semantic plan, baseline manifest/hash, output preimage/postimage tuple, preview, or diff changes, first append the complete current approval envelope with invalidation reason and time to `### Approval History`; then invalidate the current approval. Never edit or remove a history record.
 
 For a `failed` run, the Corrections Required table is the correction action list. Re-run this entire gate with a correction-labeled preview and exact diff, invalidate the prior apply approval, and restrict targets to the current run's scope and declared Stage 1-5 outputs. Scope widening or semantic-plan changes require a fresh run. After current explicit approval, `/update-execute` owns `failed -> correcting -> done`.
 
@@ -171,7 +171,7 @@ Minimum template:
 
 Every mutating Stage 1-5 action must map to at least one exact `### Outputs` path before plan review. Deduplicate output paths bytewise; use `N/A` only for a non-mutating stage. Unlisted output mutation makes the plan stale.
 
-Compute and persist the canonical baseline manifest per [baseline-inputs-hash-spec.md](./_shared/baseline-inputs-hash-spec.md). `N/A` requires the exact header `Baseline Inputs Hash Justification: no-material-input-files`, `Baseline Inputs Manifest: N/A`, and no `.agent/temp/update-baseline-inputs.manifest`; omit the justification otherwise.
+Compute and persist the baseline checksum manifest per [baseline-inputs-hash-spec.md](./_shared/baseline-inputs-hash-spec.md). `N/A` requires the exact header `Baseline Inputs Hash Justification: no-material-input-files`, `Baseline Inputs Manifest: N/A`, and no baseline artifacts; omit the justification otherwise.
 
 ## 6. Guarantees
 

@@ -33,13 +33,13 @@ Invalid state combinations fail closed.
 ## 2. Revalidate Approval
 
 1. Recompute approval envelope, apply-subject hash, preview hash, and evidence hashes.
-2. Revalidate roots, topology, control plane, Git state, ancestors, scope, subscope `SS-NNN`, inputs, and preimages.
+2. Revalidate roots, topology, control plane, Git state, supported paths, the user-owned quiescent endpoint boundary, and the recorded baseline. Then revalidate ancestors, scope, subscope `SS-NNN`, inputs, and preimages.
 3. Confirm approval matches target paths, operations, outputs, and residual risk.
 4. Verify zero unresolved Critical/Major findings in `/review`.
 
 Enter only from `applying` with no `apply-progress` record. If revalidation detects recoverable input or preview drift (where topology, control plane, and scope boundaries remain intact), invalidate approval append-only and transition the subscope unit back to `planned`. However, topology, control-plane, scope, ancestor, or fundamental binding mismatches MUST immediately fail the run (`syncing` -> `failed`). Fundamental binding mismatches MUST NOT return the unit to `planned`.
 
-After all checks pass, atomically persist the canonical `apply-progress` record with `state=started` before the first output mutation. If this persistence fails or an `apply-progress` record appears concurrently, perform no output mutation and fail closed. On resume, any `apply-progress` record makes the write set indeterminate and requires rollback handling.
+After all checks pass, write and verify a temporary canonical `apply-progress` record with `state=started`, replace it with a same-directory `mv`, and reread it before the first output mutation. If persistence fails or state changes unexpectedly, perform no output mutation and fail closed. On resume, any `apply-progress` record makes the write set indeterminate and requires rollback handling.
 
 ## 3. Apply The Active Unit
 
@@ -47,18 +47,17 @@ Enter exclusively from `applying` after successful revalidation and atomic persi
 
 For each approved operation:
 1. Recheck ancestor, identity, type, mode, size, and preimage hash without following links.
-2. Perform race-resistant compare-and-swap using approved preimage.
-3. Record actual postimage metadata and SHA-256.
+2. Immediately reproduce the exact approved preimage with standard checks. Under the quiescent endpoint boundary, perform only the approved edit with a built-in edit capability.
+3. Immediately verify and record exact postimage metadata and SHA-256.
 
-Stop on any output deviation, secret exposure, or non-atomic failure. Atomically persist `apply-progress` with `state=completed`, then transition to `applied`, only when all actual outputs match manifest.
+Stop on any output deviation, failed command, observed drift, or secret exposure. Persist and verify `apply-progress` with `state=completed`, then transition to `applied`, only when all actual outputs match the manifest.
 
 ## 4. Failure And Rollback
 
-On apply failure, transition to `rolling-back` and execute rollback plan. Require all safety primitives (descriptor-relative no-follow opens, regular-file checks, exclusive locks, atomic pointer replacements); fail closed immediately with evidence if any safety primitive is missing.
+On apply failure, persist `rolling-back` before executing the rollback plan. Use only the supported-path and standard-check capabilities from the shared contract; unavailable checks fail closed with evidence.
 
-- Restore only targets matching recorded partial postimage.
-- Use compare-and-swap with partial postimage as compare operand.
-- Do not overwrite unexplained changes.
+- Restore only a target whose exact recorded partial postimage still matches immediately before the write; skip unchanged preimages.
+- Verify every restored preimage and never overwrite unexplained state.
 
 If fully restored, set `failed-rolled-back` and fail run.
 
@@ -75,11 +74,11 @@ For `failed-partial`, bind the exact partial postimage and recovery plan into th
 - `retry-rollback`: Record the current explicit Recovery Approval Envelope, append `outcome=recovering`, transition to `recovering`, and clear the block only to execute the bound recovery plan.
 - `terminate-partial`: Record the current explicit Recovery Approval Envelope, append `outcome=terminated-partial`, set the run to `failed`, and clear the block. Preserve the unit as `failed-partial` and perform no mutation.
 
-For `recovering`, revalidate the Recovery Approval Envelope, partial postimage, recovery plan, roots, control plane, and every safety primitive. Execute only rollback operations whose targets still match the recorded partial postimage. Never enter apply, acceptance, or commit paths.
+For `recovering`, re-establish the quiescent endpoint boundary and revalidate the Recovery Approval Envelope, partial postimage, recovery plan, roots, control plane, and required standard checks. Immediately compare each partial postimage before its approved recovery write. Never enter apply, acceptance, or commit paths.
 
 - Verified clean rollback: Append `outcome=rolled-back`, transition to `failed-rolled-back`, set the run to `failed`, and clear `blocked_on_user`.
 - Residual uncertainty or any failed recovery operation: Append `outcome=partial`, transition to `failed-partial`, set `blocked_on_user: true`, and request a new explicit Recovery decision.
-- Missing or mismatched approval, evidence, boundary, or safety primitive: Perform no mutation, transition to `failed-partial`, preserve or set `blocked_on_user: true`, and fail closed with evidence.
+- Missing or mismatched approval, evidence, supported-path boundary, quiescence, or required standard-check capability: Perform no mutation, transition to `failed-partial`, preserve or set `blocked_on_user: true`, and fail closed with evidence.
 
 ## 6. Verify Postimage
 

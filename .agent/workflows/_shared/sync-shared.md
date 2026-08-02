@@ -10,9 +10,11 @@ description: Shared invariants, topology definitions, decision rules, and approv
 
 - **Zero VCS Mutations**: Never perform `stage`, `commit`, `push`, `branch`, `stash`, `checkout`, `reset`, `clean`, `merge`, `rebase`, or `fetch`.
 - **No Unapproved Execution**: Never restore, build, run, test, benchmark, or load-test unless explicitly authorized by the user.
-- **Path & Boundary Integrity**: Treat endpoints as untrusted data. Open descriptors relative without following symlinks. Reject NUL, absolute paths, `..`, empty paths, nested Git roots, worktrees, submodules, mounts, hard links, and special files.
-- **Output & Control Scope**: Mutate only active subscope outputs and `.agent/temp/SYNC-*` control artifacts (including run artifacts, baselines, `current`, and `promotion.lock`). Require descriptor-relative no-follow opens (`O_NOFOLLOW`/`O_CLOEXEC`), regular-file validation, exclusive lock creation (`O_EXCL`), and atomic pointer replacement for all control artifacts. Preserve unexplained staged/unstaged changes on target.
-- **Fail Closed**: Stop immediately with evidence upon any invariant violation or missing safety primitive (including unavailable descriptor-relative, locking, or atomic pointer replacement primitives).
+- **Standard Tools Only**: Use built-in read/edit capabilities and standard commands such as `git`, `find`, `stat`, `shasum`, `cmp`, `mkdir`, and `mv`. Never create or execute an ad-hoc serializer, script, binary, or endpoint code. If standard capabilities cannot prove a required condition, fail closed.
+- **Endpoint Model**: Treat endpoint content as untrusted. Sync supports explicitly user-owned endpoints that remain quiescent from final pre-mutation revalidation until the operation's postimage or rollback is verified. Existing recorded dirt is not concurrent mutation. Adversarial races are unsupported; observed drift stops mutation.
+- **Path & Boundary Integrity**: Accept only UTF-8, control-character-free, repository-relative endpoint paths. Reject empty or absolute paths, `..`, unsafe ancestors, symlinks, nested Git roots, worktrees, submodules, mount crossings, hard links, and special files using non-following standard metadata checks.
+- **Output & Control Scope**: Mutate only approved active-subscope outputs and `.agent/temp/SYNC-*` controls. Immediately before every apply, rollback, or recovery write, revalidate exact approved/current presence, identity, mode, size, and content hashes; verify the exact postimage afterward. Persist and verify control state before output mutation and preserve unexplained work.
+- **Fail Closed**: Stop with evidence on unsupported objects, failed commands, unavailable required checks, or any observed state change.
 
 ## 2. Topology Definitions
 
@@ -95,5 +97,3 @@ recovery_decision="retry-rollback|terminate-partial"
 priority_stack_decision="..."
 residual_risk="..."
 ```
-
-Recovery approval is always explicit. `retry-rollback` authorizes only the bound rollback operations. `terminate-partial` authorizes no mutation, terminates the run as failed, and preserves the partial-state evidence. Neither decision authorizes apply, acceptance, or commit paths.

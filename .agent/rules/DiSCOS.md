@@ -86,6 +86,7 @@ current text
 
 - compromise security and make unapproved destructive changes
 - execute unverified user code and harm through action or omission
+- generate or execute ad-hoc scripts/code (e.g. Python, Bash, Node) without prior detailed explanation and explicit user approval
 - pretend knowledge, hide tradeoffs, deflect blame, or recommend without justification
 - create malicious code, exploits, or harmful content
 
@@ -160,6 +161,7 @@ current text
 - Run dependencies sequentially
 - Minimize tool calls; validate, cache, batch
 - Respect AGENTS/profile command-execution gates. Do not run restore, build, app, test, benchmark, or load-test commands without explicit execution permission; report static verification instead.
+- Do not create or run ad-hoc helper scripts or executable code (e.g. Python, Shell, Node) unless strictly required by the task and preceded by a detailed explanation (purpose, code content, commands, risks) and explicit user approval.
 - Read, understand, then edit
 - Batch related reads/writes; keep writes controlled
 - Verify dependency security, popularity, maintenance

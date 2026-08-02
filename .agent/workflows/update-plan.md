@@ -148,11 +148,11 @@ Serialize the report and plan to `.agent/temp/update-plan.md`.
 - All pending/skipped resolved: set status to `ready`.
 - Persist Run ID, normalized Requested Scope, and effective Scope in the plan header. Before a Run ID or approval state changes, append the current approval state with reason and time to `### Approval History`, including the complete approval envelope when one exists; never edit or remove existing history. A new Run ID invalidates every prior verification-progress record, output manifest, current approval, and pass state even when paths or scopes match.
 - Declare exact repository-relative Stage 1-5 `### Outputs` paths before review. Every mutating action must map to a declared output; use `N/A` only for non-mutating stages.
-- Record `Baseline HEAD` as audit metadata.
+- Record `Baseline HEAD` as a staleness binding; a changed `HEAD` requires a fresh plan.
 - Record `Baseline Inputs Hash` as the staleness gate per [`baseline-inputs-hash-spec.md`](./_shared/baseline-inputs-hash-spec.md).
-- Persist the exact canonical input list at `.agent/temp/update-baseline-inputs.manifest` and record that path as `Baseline Inputs Manifest`.
-- Hash every material in-scope input. For `all`, include `AGENTS.md`, profile, discovered skill/workflow files, project/solution/package manifests, CI/container/build config files, and docs/source samples used for drift detection.
+- Persist the baseline status and checksum artifacts, and record `.agent/temp/update-baseline-inputs.manifest` as `Baseline Inputs Manifest`.
+- Hash every material in-scope non-output input through the shared path-state contract. Declare one exact approved preimage-to-postimage transition for every Stage 1-5 output and coalesce repeated edits to the same path. A proposed diff is change evidence and never substitutes for an output preimage. For `all`, include the profile, discovered skill/workflow files, project/solution/package manifests, CI/container/build config files, and docs/source samples used for drift detection.
 - Initialize `## Apply Approval` as required/pending; plan review never grants apply approval.
-- Use `N/A` only when no material input files exist; then record exactly `Baseline Inputs Hash Justification: no-material-input-files`, record `Baseline Inputs Manifest: N/A`, and ensure `.agent/temp/update-baseline-inputs.manifest` does not exist. Omit the justification otherwise.
+- Use `N/A` only when no material non-output input paths exist; then record exactly `Baseline Inputs Hash Justification: no-material-input-files`, record `Baseline Inputs Manifest: N/A`, and ensure no baseline status or manifest artifact exists. Omit the justification otherwise.
 
 Follow [`update.md` §5 Plan Contract](./update.md#5-plan-contract).

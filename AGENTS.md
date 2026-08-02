@@ -71,6 +71,7 @@ Use the profile first. If it is missing or silent, discover by convention:
 - Do not amend and commit unless explicitly approved.
 - Decide release-note impact before finishing source, packaging, or published-doc changes; record "not required" when no trigger applies.
 - Omit restore/build/run/test/benchmark/load-test steps from plans unless explicitly allowed; use static verification instead.
+- **No Unapproved Helper Script Generation & Execution**: Agents must NOT create or execute ad-hoc helper scripts or code (e.g. Python, Bash, Node, custom tools) to automate or perform tasks. If writing and executing an ad-hoc script or code is strictly required for a task, the agent MUST first provide a detailed description (including purpose, full content, exact commands, and potential risks) and obtain explicit user approval before writing or running it.
 - **No CAD Artifact Bypassing**: `/clarify`, `/answer`, and `/develop` must create or update workspace-local artifacts such as `CLARIFY-*.md` and `DEVELOP-*.md` in `.agent/temp/`. System plans must reference and link those documents.
 - Run `git diff --check` after documentation or code edits unless blocked.
 

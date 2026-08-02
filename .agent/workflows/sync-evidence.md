@@ -1,5 +1,5 @@
 ---
-description: Canonical binary evidence, approval subjects, and baseline storage protocol for sync workflows
+description: Canonical text evidence, approval subjects, and baseline storage protocol for sync workflows
 ---
 
 # Sync Evidence Protocol
@@ -16,30 +16,25 @@ description: Canonical binary evidence, approval subjects, and baseline storage 
 
 ## 1. Evidence Rules
 
-Persist exact binary manifests under the Run ID prefix in `.agent/temp/`. Human-readable views explain evidence but never replace binary artifacts.
-
-Binary format:
+Persist evidence as UTF-8 text with LF endings under the Run ID prefix in `.agent/temp/`.
 
 ```text
-ASCII "DRN-SYNC-EVIDENCE" | NUL | 0x01
-kind_length:uint64-be | kind:ascii
-record_count:uint64-be
-record...
+format=DRN-SYNC-EVIDENCE
+kind=<kind>
+record
+<field>=<value>
+end
 ```
 
-Record layout:
-
-```text
-field_count:uint64-be
-(name_length:uint64-be | name:ascii | value_length:uint64-be | value:raw-bytes)...
-```
+This protocol has one supported evidence format. Do not perform legacy-format
+discovery, migration, or compatibility branching.
 
 Encoding rules:
-- Preserve raw path bytes; never normalize Unicode.
+- Reject values containing control characters. All paths must be UTF-8. Endpoint, selector, scope-input, and output paths must be repository-relative. Only canonical physical-identity fields—including `physical-path`, `common-parent`, `physical-root` and its left/right variants, `git-top-level`, and an absolute `admin-path`—may be absolute.
 - Integers: ASCII without leading zeros, except `sequence` values which MUST be exactly 20 zero-padded ASCII decimal digits (`00000000000000000000` to `18446744073709551615`). Allocate sequence values monotonically; reject sequence overflow and duplicate sequence values.
 - Booleans: `0`/`1`. Hashes: lowercase hex. Missing values: `N/A`.
 - Fields emit in schema order; sort records bytewise by key; reject duplicates.
-- Hash artifacts with SHA-256 and bind digests into approval subjects.
+- Hash each artifact with `shasum -a 256 -b -- <artifact>` and bind the digest into approval subjects.
 - Store preimages/patches by hash only when exclusions permit. Never store secrets.
 
 Endpoint IDs: `left`, `right`. Git-root IDs: `shared` (project mode) or `left`/`right` (repository mode).
@@ -84,15 +79,17 @@ Born branches require `parent-count=1` and `parent-sha=accepted-base-head`. `UNB
 
 Bind canonical evidence into Apply, Acceptance, and Recovery subjects defined in [Sync Shared Approval Subjects](./_shared/sync-shared.md#4-approval-subjects).
 
-Hash exact subject UTF-8 bytes to compute `approval_subject_sha256`. Set `approval_preview_sha256` to the preview diff SHA-256. Persist records append-only in `.agent/temp/` via the shared Approval Envelope format.
+Hash exact subject UTF-8 bytes to compute `approval_subject_sha256`. Set `approval_preview_sha256` to the preview diff SHA-256 when a diff exists and to `N/A` otherwise. Persist records append-only in `.agent/temp/` via the shared Approval Envelope format.
 
 ## 4. Reusable Baseline Store
+
+`baseline-selector` and `baseline-store-key` are frozen address artifacts. Always serialize both with the canonical `DRN-SYNC-EVIDENCE` framing, ordered fields, record ordering, LF endings, and trailing LF. Hash their exact bytes as `baseline-selector-sha256` and `baseline-store-key-sha256`.
 
 Normalize invocation into `baseline-selector` records with one monotonically increasing sequence allocation across every selector record (including `map-default`):
 1. Sequence `00000000000000000000`: Emit `invocation` record with canonical direction (`both`, `left-to-right`, `right-to-left`) and `left=N/A`, `right=N/A`.
 2. `only` scope IDs: Canonicalize path/glob selectors to POSIX relative, deduplicate, sort bytewise, and emit `only` records with 20-digit sequence numbers allocated monotonically starting immediately after `invocation` (`00000000000000000001`, `00000000000000000002`...), setting both `left` and `right` to the scope ID and `direction=N/A`.
-3. `map` rules: Explicit mappings byte-sorted by `(left, right)` emitting `map` records with 20-digit sequence numbers allocated monotonically continuing directly from the previous allocation (`only` or `invocation`), with `direction=N/A`. When `map` is omitted, emit one `map-default` record with the next monotonically allocated 20-digit sequence number, with `left=same-relative-paths`, `right=same-relative-paths`, and `direction=N/A`. (Eliminates fixed sequence offsets and collisions; zero, one, and more than 100 mappings serialize deterministically with unique sequence values.)
-4. Hash binary artifact as `baseline-selector-sha256`.
+3. `map` rules: Explicit mappings byte-sorted by `(left, right)` emitting `map` records with 20-digit sequence numbers allocated monotonically continuing directly from the previous allocation (`only` or `invocation`), with `direction=N/A`. When `map` is omitted, emit one `map-default` record with the next monotonically allocated 20-digit sequence number, with `left=same-relative-paths`, `right=same-relative-paths`, and `direction=N/A`.
+4. Hash the text artifact as `baseline-selector-sha256`.
 
 Generate `baseline-store-key` binding parent/endpoint identities, topology, direction, and `baseline-selector-sha256`.
 
@@ -100,8 +97,8 @@ Store Layout:
 
 ```text
 .agent/temp/SYNC-BASELINES/<store-key-sha256>/
-  versions/<baseline-checkpoint-sha256>.bin
-  variances/<residual-drift-sha256>.bin
+  versions/<baseline-checkpoint-sha256>.txt
+  variances/<residual-drift-sha256>.txt
   current
   promotion.lock
 ```
@@ -109,11 +106,11 @@ Store Layout:
 `current` format:
 
 ```text
-format="DRN-SYNC-BASELINE-CURRENT/1"
+format="DRN-SYNC-BASELINE-CURRENT"
 baseline_sha256="<lowercase-hex>"
 variance_sha256="<lowercase-hex>"
 ```
 
-Select a version only through a valid `current` pointer within an existing key directory. Treat ONLY an absent key directory (`.agent/temp/SYNC-BASELINES/<store-key-sha256>/`) as no baseline (first-comparison semantics). If the key directory exists, fail closed if `current` is absent, `promotion.lock` exists, `current` is malformed, companion version or variance files are missing or digest-mismatched, or baseline checkpoint evidence does not match the normalized invocation.
+Select a baseline through a valid `current` pointer in the baseline key directory. Only an absent baseline key directory is a first comparison. If the directory exists, fail closed when `promotion.lock` exists, `current` is absent or malformed, companions are missing or digest-mismatched, or checkpoint evidence does not match the normalized invocation.
 
-Promote only after `/sync-execute` proves full final scope. Acquire `promotion.lock` (abort if lock exists), revalidate prior state, write companion version and variance files durably, update `current` atomically, and release `promotion.lock`. Concurrent changes or leftover locks abort promotion and fail closed.
+Promote only after `/sync-execute` proves full final scope. Acquire `promotion.lock` with a standard exclusive operation; abort if it exists. Write and `shasum`-verify companions; write and verify a temporary `current` in the same directory; then replace `current` with a same-directory `mv`. Revalidate the resulting pointer and companions before releasing the owned lock. Any failure, observed change, or leftover lock fails closed.

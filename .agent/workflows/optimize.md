@@ -54,7 +54,7 @@ Use one canonical mapping:
 | `approval_subject_sha256` | Lowercase SHA-256 of the preview's exact raw bytes |
 | `approval_preview_sha256` | Lowercase SHA-256 of `.agent/temp/optimize-proposed.diff` exact raw bytes |
 
-Store the complete shared envelope in `.agent/temp/optimize-approval.md`, never in the preview or patch. The approval file is not part of either digest. Retain superseded records there as append-only history, and accept only the latest record whose envelope, scope, target manifest, preview, and patch all match.
+Store complete current and superseded records in `.agent/temp/optimize-approval.md`, never in the preview or patch. Compute each envelope digest only from the shared eight-line preimage; the complete approval file is never that preimage. Retain superseded records as append-only history, and accept only the latest record whose envelope, scope, target manifest, preview, and patch all match.
 
 ## 3. Optimize
 
@@ -74,7 +74,7 @@ After user approval:
 
 1. Recheck every target with non-following filesystem metadata before hashing content. Reject symlink targets or abort on any path-state or type change from the approved manifest (including a previously present target now missing, a previously missing target now added, deletion, rename, mode change, file-type transition such as regular file to symlink, or symlink-target change).
 2. Only after all path-state checks pass, recompute every content digest, the target-manifest digest, and the preview and patch raw-byte digests using no-follow reads; abort if any file-type or identity change occurs during reading or on any digest mismatch.
-3. Record and verify the complete shared approval envelope in `.agent/temp/optimize-approval.md` using the canonical mapping above.
+3. Record the complete shared approval in `.agent/temp/optimize-approval.md` and verify its digest from the shared eight-line preimage using the canonical mapping above.
 4. Perform an immediate, final non-following revalidation of path state, file type, and target identity immediately before mutation; abort if any target is a symlink or has changed type or identity.
 5. Apply only the approved patch.
 6. Verify links, metadata, idempotency, and `git diff --check`.
