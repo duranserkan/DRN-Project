@@ -79,7 +79,7 @@ Born branches require `parent-count=1` and `parent-sha=accepted-base-head`. `UNB
 
 Bind canonical evidence into Apply, Acceptance, and Recovery subjects defined in [Sync Shared Approval Subjects](./_shared/sync-shared.md#4-approval-subjects).
 
-Hash exact subject UTF-8 bytes to compute `approval_subject_sha256`. Set `approval_preview_sha256` to the preview diff SHA-256 when a diff exists and to `N/A` otherwise. Persist records append-only in `.agent/temp/` via the shared Approval Envelope format.
+Hash exact subject UTF-8 bytes to compute `approval_subject_sha256`. Mutating `/sync` subscopes MUST always hash their required preview artifact (or textual preview diff when present) to compute `approval_preview_sha256`; reserve `approval_preview_sha256: N/A` only for workflows without separate preview evidence. Keep hashing the textual preview diff when present and persist the resulting hash through the shared Approval Envelope format.
 
 ## 4. Reusable Baseline Store
 

@@ -18,7 +18,7 @@ The agent operates as a **silent partner** — it works autonomously, does not a
 1. **Trivial** (formatting, imports, lint): Act immediately
 2. **Standard** (new files, tests, refactors): Act, then report
 3. **Significant** (architecture, schema, API breaking): Plan, seek approval, then act
-4. **Critical** (security, data migration, production, ad-hoc helper script creation/execution): Always discuss/explain and obtain approval first
+4. **Critical** (security, data migration, production, ad-hoc helper script writing or execution): Prohibited under the sync safety contract; for non-sync tasks, always provide a detailed description (purpose, full content, exact commands, potential risks) and obtain explicit user approval first
 
 ---
 
@@ -60,7 +60,7 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 - Validate after each change (build, lint, test) only when the active instructions allow those commands
 - Follow existing patterns in the codebase
 - Follow the repository profile's dependency-injection and configuration conventions
-- **No Unapproved Helper Scripts**: Do NOT create or execute ad-hoc helper scripts or code (e.g. Python, Bash, Node, custom tools) without providing a prior detailed explanation (purpose, code content, exact commands, risks) and obtaining explicit user approval
+- **No Unapproved Helper Scripts**: Do NOT create, write, or execute ad-hoc helper scripts or code (e.g. Python, Bash, Node, custom tools). Ad-hoc scripts are strictly prohibited under the sync safety contract. For non-sync tasks, writing or executing an ad-hoc script requires a prior detailed description (purpose, full content, exact commands, potential risks) and explicit user approval before writing or running it.
 
 ### 4. Verification
 
@@ -101,7 +101,7 @@ Capture only durable, generalizable insights discovered during the task into `AG
 | Over-engineering simple requests | Match complexity to problem (Gall's Law) |
 | Skipping security considerations | Always check against security checklist |
 | Creating placeholder implementations | Deliver complete, runnable code |
-| Generating or executing ad-hoc helper scripts/code without prior approval | Provide detailed explanation (purpose, code content, exact commands, potential risks) and obtain explicit user approval before creating or running any ad-hoc script or executable code |
+| Creating, writing, or executing ad-hoc helper scripts/code without prior approval | Ad-hoc scripts are prohibited under the sync safety contract. For non-sync tasks, provide a detailed description (purpose, full content, exact commands, potential risks) and obtain explicit user approval before writing or executing any ad-hoc script or code |
 | Using namespaces/names from assumption | Verify with text search, outline/symbol inspection when supported, and `GlobalUsings.cs` |
 | Importing uninstalled libraries | Check `*.csproj`/`package.json` before using; ask user before adding |
 
@@ -118,7 +118,7 @@ Capture only durable, generalizable insights discovered during the task into `AG
 | Reading/analysis | Proceed |
 | Testing your own work | Proceed only when current instructions allow build/test commands |
 | Ambiguous architecture | Ask first |
-| Ad-hoc helper script generation or execution | Provide detailed explanation & obtain explicit approval first |
+| Ad-hoc helper script writing or execution | Prohibited under the sync safety contract; for non-sync tasks, provide a detailed description (purpose, full content, exact commands, potential risks) & obtain explicit user approval first |
 | Routine refactoring following patterns | Proceed |
 
 ---

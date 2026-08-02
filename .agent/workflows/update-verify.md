@@ -23,7 +23,7 @@ Before initializing or resuming:
 2. Require the current reviewed transition and latest apply/correction approval to cover that same Run ID, requested/effective scope, and semantic plan; otherwise return to the owning review or preview gate.
 3. Resolve the exact bytewise-deduplicated Stage 1-5 `### Outputs` path set. Reject undeclared mutation, an in-scope mutating stage with `N/A`, absolute paths, or repository escapes.
 4. Persist the output status and checksum artifacts defined by [baseline-inputs-hash-spec.md](./_shared/baseline-inputs-hash-spec.md). For an empty output set, use its explicit empty-artifact contract.
-5. Set Output Revision SHA-256 to the lowercase SHA-256 of `.agent/temp/update-verify-outputs.manifest`. Never use `N/A`.
+5. Set Output Revision SHA-256 based on output existence: hash `.agent/temp/update-verify-outputs.manifest` for non-empty outputs, and hash `.agent/temp/update-verify-output-status.z` (the zero-byte status artifact required by the shared empty-artifact contract) when outputs are empty. Record the selected artifact path in the progress record (`Output Revision Manifest`), and keep the SHA-256 value lowercase without using `N/A`.
 6. Bind progress to Run ID, requested/effective scopes, Semantic Plan SHA-256, output-manifest path, and Output Revision SHA-256.
 
 If the progress file is missing, initialize it from the template. If it exists:

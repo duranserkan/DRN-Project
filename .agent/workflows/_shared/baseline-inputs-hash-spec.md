@@ -33,7 +33,9 @@ shasum -a 256 -b -- .agent/temp/update-baseline-status.z <existing-regular-input
 shasum -a 256 -b -- .agent/temp/update-baseline-inputs.manifest
 ```
 
-The final digest is `Baseline Inputs Hash`. Preserve `Baseline HEAD` as part of the binding. Revalidation recomputes status and verifies the manifest:
+The final digest is `Baseline Inputs Hash`. Preserve `Baseline HEAD` as part of the binding. Revalidation recomputes status and verifies the manifest after repeating the no-follow path identity checks from Lines 11–16:
+
+Immediately before consuming the manifest, extend the revalidation flow around the Git status and `shasum` commands to independently verify each resolved input's presence, single-link regular-file type, link count, and physical identity (failing closed on any missing path, symlink, directory, special file, hard link, or identity mismatch):
 
 ```bash
 git status --porcelain=v1 -z --untracked-files=all -- <input-pathspecs> > .agent/temp/update-baseline-status.current.z
@@ -42,21 +44,21 @@ shasum -a 256 -c .agent/temp/update-baseline-inputs.manifest
 shasum -a 256 -b -- .agent/temp/update-baseline-inputs.manifest
 ```
 
-Require the same `HEAD`, every command to succeed independently, successful status comparison, and exact digest before and after manifest consumption. Otherwise the plan is stale.
+Require the same `HEAD`, every command and path identity check to succeed independently, successful status comparison, and exact digest before and after manifest consumption. Fail closed on any mismatch before accepting the baseline; otherwise the plan is stale.
 
 ## Approved Output Preimages
 
-Before Apply approval, record one exact transition per Stage 1-5 output path in `.agent/temp/update-apply-preview.md`. The preview's raw-byte SHA-256 binds the complete tuple list.
+Before Apply approval, record the canonical output-transition list in `.agent/temp/update-apply-preview.md`. The preview's raw-byte SHA-256 binds the complete tuple list.
 
-Encode output transitions as unambiguous JSON objects (one per line):
+Require exactly one record per output path, reject duplicate paths, and sort records by a deterministic bytewise path order. Encode each output transition as a canonical, single-line JSON object formatted with exact key order `path`, `pre`, `post` (and nested key order `presence`, `mode`, `sha256`), standard JSON string escaping, exact separators `": "` and `", "`, and an LF (`\n`) line termination:
 
 ```json
 {"path": "docs/example.md", "pre": {"presence": 0, "mode": "0", "sha256": "N/A"}, "post": {"presence": 1, "mode": "100644", "sha256": "<raw-byte-sha256>"}}
 ```
 
-Use `presence: 0`, `mode: "0"`, `sha256: "N/A"` for a missing side. A present side must have `presence: 1`, `mode: "100644"` or `"100755"`, and `<raw-byte-sha256>`. Record every preimage and postimage even when a proposed diff exists.
+Use `presence: 0`, `mode: "0"`, `sha256: "N/A"` for a missing side. A present side must have `presence: 1`, `mode: "100644"` or `"100755"`, and `<raw-byte-sha256>`. Apply this canonical serialization to the complete tuple list, recording every preimage and postimage even when a proposed diff exists.
 
-The tuple list is the sole output-preimage binding; no separate output-preimage snapshot or manifest exists.
+The canonical tuple list is the sole output-preimage binding; no separate output-preimage snapshot or manifest exists.
 
 Immediately before the first write to each pending output, verify its exact approved preimage. On resume, an output matching its preimage is pending; one matching its postimage is completed.
 

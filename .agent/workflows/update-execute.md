@@ -23,14 +23,12 @@ If invoked directly, run the shared Startup Gate; otherwise inherit `/update` co
 9. Abort if any in-scope tracked or untracked change is not represented in the plan. Resolve and bytewise-deduplicate the exact literal `<scope-paths>` operands first. If that set is empty, record explicit zero-dirt evidence and skip all three Git commands; never pass bare `--`. Otherwise parse NUL records directly, validate single-link regular files without following links, and reject symlinks, hard links, or special files:
 
    ```bash
-   git status --porcelain=v1 -z --untracked-files=all -- <scope-paths>
-   git diff -- <scope-paths>
-   git diff --cached -- <scope-paths>
+   GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.pager=cat -c diff.external= -c diff.noprefix=false status --porcelain=v1 -z --untracked-files=all -- <scope-paths>
+   GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.pager=cat -c diff.external= -c diff.noprefix=false diff --no-ext-diff --no-textconv -- <scope-paths>
+   GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.pager=cat -c diff.external= -c diff.noprefix=false diff --cached --no-ext-diff --no-textconv -- <scope-paths>
    ```
 
-   Run each command as a separate invocation and require its exit status to be
-   successful before continuing; a later successful command must not mask an
-   earlier failure.
+   Run each command as a separate invocation using the fixed Git environment (disabling external diff, textconv, pagers, aliases, filters, prompts, credentials, fsmonitor, and network access) and require its exit status to be successful before continuing; a later successful command must not mask an earlier failure.
 
    Scope dirt inspection never substitutes for the shared type/mode/content or approved-preimage guards.
 
