@@ -6,7 +6,6 @@ using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Users;
-using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.Pages.User;
 
@@ -50,7 +49,7 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager, MfaRedirectio
                 return url.QueryParams.Count == 0
                     ? RedirectToPage(url.Path)
                     : RedirectToPage(url.Path, url.QueryParams.ToDictionary(tuple => tuple.Name, tuple => tuple.Value));
-            
+
             return LocalRedirect(returnUrl);
         }
 
