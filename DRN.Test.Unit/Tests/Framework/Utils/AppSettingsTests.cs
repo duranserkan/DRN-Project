@@ -160,7 +160,7 @@ public class AppSettingsTests
     
     private static object GetCustomSettings(byte appId, byte appInstanceId)
     {
-        var custom = new { NexusAppSettings = new NexusAppSettings { AppId = appId, AppInstanceId = appInstanceId } };
+        var custom = new { NexusAppSettings = new NexusAppSettings { AppId = appId, AppInstanceId = appInstanceId, MacType = NexusMacType.Blake3 } };
         return custom;
     }
 

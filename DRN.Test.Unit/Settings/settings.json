@@ -9,6 +9,7 @@
     "Foo": "Bar"
   },
   "NexusAppSettings": {
+    "MacType": "blake3",
     "Keys": [
       {
         "KeyMaterial": "SFnefTwiLUfxc_RCX54vHROJQ50TDvqDdHImA2rvrso",

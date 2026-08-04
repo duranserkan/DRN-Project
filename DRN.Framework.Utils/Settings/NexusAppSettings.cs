@@ -30,6 +30,8 @@ public sealed class NexusAppSettings : IDisposable
     /// </summary>
     public bool UseSecureSourceKnownIds { get; init; } = true;
 
+    public NexusMacType MacType { get; init; } = NexusMacType.Blake3;
+
     public IReadOnlyList<NexusKey> Keys
     {
         get => _keys;
@@ -49,6 +51,9 @@ public sealed class NexusAppSettings : IDisposable
 
     public void Validate()
     {
+        if (!Enum.IsDefined(MacType))
+            throw ExceptionFor.Configuration($"{nameof(NexusAppSettings)}.{nameof(MacType)} '{(int)MacType}' is invalid");
+
         if (Keys.Count == 0)
             throw ExceptionFor.Configuration($"{nameof(NexusAppSettings)}.{nameof(Keys)} must contain at least 1 {nameof(NexusKey)}");
 

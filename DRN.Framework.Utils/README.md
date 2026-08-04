@@ -416,6 +416,7 @@ Nested option objects must be validated explicitly before relying on child data 
 ```json
 {
   "NexusAppSettings": {
+    "MacType": "blake3",
     "NexusAddress": "localhost:5988",
     "AppId": 5,
     "AppInstanceId": 12,

@@ -199,6 +199,7 @@ public class NexusKeyTests
         var configuration = new ConfigurationManager()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["NexusAppSettings:MacType"] = "blake3",
                 ["NexusAppSettings:Keys:0:KeyMaterial"] = key,
                 ["NexusAppSettings:Keys:0:Format"] = nameof(ByteEncoding.Base64UrlEncoded),
                 ["NexusAppSettings:Keys:0:Default"] = bool.TrueString
