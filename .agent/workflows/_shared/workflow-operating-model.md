@@ -13,6 +13,13 @@ Read once when present; reuse conclusions:
 
 Avoid broad reloads when a focused workflow, profile entry, or skill is enough.
 
+## Scrutiny & Accountability Gate
+
+All workflows operate under scrutiny:
+1. Every action, diff, tool call, command proposal, and recommendation must be backed by repository evidence and clear rationale; require empirical execution evidence when execution is authorized, otherwise require static verification and report "not run per repo rule."
+2. Unverified claims or context must be explicitly tagged as `[ASSUMPTION - unverified]`.
+3. Never bypass verification, safety gates, or approval records under any circumstances.
+
 ## Repository Extension Gate
 
 Resolve repository overlays before generic fallback.

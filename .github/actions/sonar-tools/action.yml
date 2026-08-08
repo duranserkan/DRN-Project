@@ -5,40 +5,50 @@ inputs:
     description: "Repository directory where Sonar tools should be installed."
     required: false
     default: "."
+  sonar-scanner-version:
+    description: "Pinned dotnet-sonarscanner version."
+    required: false
+    default: "11.2.1"
+  dotnet-coverage-version:
+    description: "Pinned dotnet-coverage version."
+    required: false
+    default: "18.9.0"
 runs:
   using: "composite"
   steps:
     - name: Cache SonarCloud scanner
       id: cache-sonar-scanner
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
       with:
         path: ${{ inputs.working-directory }}/.sonar/scanner
-        key: ${{ runner.os }}-sonar-scanner
-        restore-keys: ${{ runner.os }}-sonar-scanner
+        key: ${{ runner.os }}-sonar-scanner-${{ inputs.sonar-scanner-version }}
     - name: Install SonarCloud scanner
       if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
       shell: pwsh
       working-directory: ${{ inputs.working-directory }}
+      env:
+        SONAR_SCANNER_VERSION: ${{ inputs.sonar-scanner-version }}
       run: |
         New-Item -Path ./.sonar/scanner -ItemType Directory -Force
-        dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner
+        dotnet tool update dotnet-sonarscanner --tool-path ./.sonar/scanner --version "$env:SONAR_SCANNER_VERSION"
     - name: Cache dotnet-coverage
       id: cache-dotnet-coverage
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
       with:
         path: ${{ inputs.working-directory }}/.sonar/coverage
-        key: ${{ runner.os }}-sonar-dotnet-coverage
-        restore-keys: ${{ runner.os }}-sonar-dotnet-coverage
+        key: ${{ runner.os }}-sonar-dotnet-coverage-${{ inputs.dotnet-coverage-version }}
     - name: Install dotnet-coverage
       if: steps.cache-dotnet-coverage.outputs.cache-hit != 'true'
       shell: pwsh
       working-directory: ${{ inputs.working-directory }}
+      env:
+        DOTNET_COVERAGE_VERSION: ${{ inputs.dotnet-coverage-version }}
       run: |
         New-Item -Path ./.sonar/coverage -ItemType Directory -Force
-        dotnet tool update dotnet-coverage --tool-path ./.sonar/coverage
+        dotnet tool update dotnet-coverage --tool-path ./.sonar/coverage --version "$env:DOTNET_COVERAGE_VERSION"
     - name: Use sonar cache
       id: cache-sonar
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
       with:
         path: ~/.sonar/cache
         key: ${{ runner.os }}-sonar

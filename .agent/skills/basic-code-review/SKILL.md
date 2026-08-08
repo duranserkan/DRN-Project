@@ -10,6 +10,13 @@ tokens: ~1.3K
 
 > Portable review criteria. Load `.agent/repository-profile.md` first when present, then apply any local framework rules as an overlay.
 
+## Scrutiny Mandate
+
+Code reviews are conducted **under continuous scrutiny**:
+- Evaluate all diffs, commits, PRs, and agent output with zero-trust self-audit.
+- Demand repository evidence (static checks or authorized execution output) for all claims while respecting command execution gates.
+- Never mark code as verified without static checks or execution proof.
+
 ## Repository Context Gate
 
 Before reviewing, identify the local conventions that are actually in force:

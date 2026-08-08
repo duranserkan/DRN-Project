@@ -234,6 +234,7 @@ public class DrnWebApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntr
     private sealed class FailureSafeHost(IHost host) : IHost
     {
         private bool _disposedAfterStopFailure;
+        private bool _stopped;
 
         public IServiceProvider Services => host.Services;
 
@@ -242,9 +243,10 @@ public class DrnWebApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntr
 
         public async Task StopAsync(CancellationToken cancellationToken = default)
         {
-            if (_disposedAfterStopFailure)
+            if (_disposedAfterStopFailure || _stopped)
                 return;
 
+            _stopped = true;
             try
             {
                 await host.StopAsync(cancellationToken);
