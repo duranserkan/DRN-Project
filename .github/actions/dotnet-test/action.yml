@@ -24,7 +24,7 @@ runs:
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
         TEST_CONFIGURATION: ${{ inputs.configuration }}
         TEST_VERBOSITY: ${{ inputs.verbosity }}
-      run: dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity "$TEST_VERBOSITY" --configuration "$TEST_CONFIGURATION"
+      run: dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity "$TEST_VERBOSITY" --configuration "$TEST_CONFIGURATION" -- --report-gh
     - name: Test Integration
       shell: bash
       working-directory: ${{ inputs.working-directory }}
@@ -33,4 +33,4 @@ runs:
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
         TEST_CONFIGURATION: ${{ inputs.configuration }}
         TEST_VERBOSITY: ${{ inputs.verbosity }}
-      run: dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity "$TEST_VERBOSITY" --configuration "$TEST_CONFIGURATION"
+      run: dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity "$TEST_VERBOSITY" --configuration "$TEST_CONFIGURATION" -- --report-gh
