@@ -53,6 +53,22 @@ runs:
         while IFS= read -r tag; do
           [[ -n "$tag" ]] || continue
           docker buildx imagetools create --tag "$tag" "$source_image"
+          promoted_digest=""
+          for attempt in 1 2 3; do
+            if promoted_digest="$(
+              docker buildx imagetools inspect "$tag" --format '{{json .Manifest}}' |
+                jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))'
+            )" && [[ "$promoted_digest" == "$IMAGE_DIGEST" ]]; then
+              break
+            fi
+            if [[ "$attempt" -lt 3 ]]; then
+              sleep 2
+            fi
+          done
+          if [[ "$promoted_digest" != "$IMAGE_DIGEST" ]]; then
+            echo "Promoted Docker tag resolved to $promoted_digest instead of expected digest $IMAGE_DIGEST: $tag"
+            exit 1
+          fi
         done <<'TAGS'
         ${{ steps.metadata.outputs.tags }}
         TAGS

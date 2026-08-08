@@ -20,6 +20,9 @@ outputs:
   labels:
     description: "Docker image labels derived from the release version and GitHub context."
     value: ${{ steps.meta.outputs.labels }}
+  annotations:
+    description: "Docker image annotations derived from the release version and GitHub context."
+    value: ${{ steps.meta.outputs.annotations }}
 runs:
   using: "composite"
   steps:
@@ -67,6 +70,8 @@ runs:
     - name: Extract Docker release metadata
       id: meta
       uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+      env:
+        DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
       with:
         images: ${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}
         flavor: |

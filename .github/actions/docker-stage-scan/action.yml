@@ -38,24 +38,31 @@ runs:
     - name: Build and stage Docker image
       id: container-build-digest
       uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      env:
+        BUILDX_GIT_LABELS: full
       with:
         context: .
         file: ./${{ inputs.project-name }}/Dockerfile
         labels: ${{ steps.metadata.outputs.labels }}
+        annotations: ${{ steps.metadata.outputs.annotations }}
         build-args: |
           APP_VERSION=${{ inputs.version }}
         platforms: ${{ inputs.platforms }}
         tags: ${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}:staged-${{ inputs.version }}-run-${{ github.run_id }}-${{ github.run_attempt }}
         push: true
         sbom: true
-        provenance: true
+        provenance: mode=max
         cache-from: type=gha,scope=${{ inputs.image-repository-name }}
         cache-to: type=gha,mode=max,scope=${{ inputs.image-repository-name }},ignore-error=true
-    - name: Validate staged Docker image digest
+    - name: Verify staged Docker image digest
       id: validate-image-digest
       shell: bash
       env:
+        DOCKER_REGISTRY: ${{ inputs.registry }}
         IMAGE_DIGEST: ${{ steps.container-build-digest.outputs.digest }}
+        IMAGE_REPOSITORY_NAME: ${{ inputs.image-repository-name }}
+        IMAGE_REPOSITORY_PREFIX: ${{ inputs.image-repository-prefix }}
+        RELEASE_VERSION: ${{ inputs.version }}
       run: |
         set -euo pipefail
 
@@ -63,22 +70,62 @@ runs:
           echo "Expected staged Docker image digest to be a sha256 digest, got: $IMAGE_DIGEST"
           exit 1
         fi
-    - name: Docker Scout
-      id: docker-scout
+
+        staged_image="${DOCKER_REGISTRY}/${IMAGE_REPOSITORY_PREFIX}/${IMAGE_REPOSITORY_NAME}:staged-${RELEASE_VERSION}-run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+        resolved_digest=""
+        for attempt in 1 2 3; do
+          if resolved_digest="$(
+            docker buildx imagetools inspect "$staged_image" --format '{{json .Manifest}}' |
+              jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))'
+          )" && [[ "$resolved_digest" == "$IMAGE_DIGEST" ]]; then
+            break
+          fi
+          if [[ "$attempt" -lt 3 ]]; then
+            sleep 2
+          fi
+        done
+
+        if [[ "$resolved_digest" != "$IMAGE_DIGEST" ]]; then
+          echo "Staged Docker tag resolved to $resolved_digest instead of expected digest $IMAGE_DIGEST: $staged_image"
+          exit 1
+        fi
+    - name: Docker Scout (linux/amd64)
+      id: docker-scout-amd64
       if: ${{ steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}
       uses: docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d # v1.24.0
       with:
         command: cves
         image: registry://${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}@${{ steps.container-build-digest.outputs.digest }}
-        sarif-file: sarif.${{ inputs.image-repository-name }}.output.json
+        platform: linux/amd64
+        sarif-file: sarif.${{ inputs.image-repository-name }}.linux-amd64.output.json
         summary: true
         only-severities: critical,high,medium,low
         exit-code: true
         ignore-base: false
-    - name: Upload Docker Scout SARIF result
-      id: upload-container-sarif
-      if: ${{ always() && steps.docker-scout.outcome != 'skipped' && hashFiles(format('sarif.{0}.output.json', inputs.image-repository-name)) != '' }}
+    - name: Docker Scout (linux/arm64)
+      id: docker-scout-arm64
+      if: ${{ always() && steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}
+      uses: docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d # v1.24.0
+      with:
+        command: cves
+        image: registry://${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}@${{ steps.container-build-digest.outputs.digest }}
+        platform: linux/arm64
+        sarif-file: sarif.${{ inputs.image-repository-name }}.linux-arm64.output.json
+        summary: true
+        only-severities: critical,high,medium,low
+        exit-code: true
+        ignore-base: false
+    - name: Upload Docker Scout SARIF result (linux/amd64)
+      id: upload-container-sarif-amd64
+      if: ${{ always() && steps.docker-scout-amd64.outcome != 'skipped' && hashFiles(format('sarif.{0}.linux-amd64.output.json', inputs.image-repository-name)) != '' }}
       uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
       with:
-        sarif_file: sarif.${{ inputs.image-repository-name }}.output.json
-        category: docker-scout-${{ inputs.image-repository-name }}
+        sarif_file: sarif.${{ inputs.image-repository-name }}.linux-amd64.output.json
+        category: docker-scout-${{ inputs.image-repository-name }}-linux-amd64
+    - name: Upload Docker Scout SARIF result (linux/arm64)
+      id: upload-container-sarif-arm64
+      if: ${{ always() && steps.docker-scout-arm64.outcome != 'skipped' && hashFiles(format('sarif.{0}.linux-arm64.output.json', inputs.image-repository-name)) != '' }}
+      uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+      with:
+        sarif_file: sarif.${{ inputs.image-repository-name }}.linux-arm64.output.json
+        category: docker-scout-${{ inputs.image-repository-name }}-linux-arm64

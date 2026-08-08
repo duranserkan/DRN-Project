@@ -76,15 +76,15 @@ jobs:
       # enable "Require code scanning results", add CodeQL, then choose thresholds.
       # https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/set-merge-protection
 
-      # DOCKER_PASSWORD must be a Docker Hub PAT with Read, Write, and Delete permissions.
-      # Staging and promotion require Read/Write; best-effort staged-tag cleanup requires Delete.
+      # Personal Docker Hub publishing uses separate least-privilege PATs because trusted OIDC publishing
+      # is unavailable for personal namespaces. DOCKER_PUBLISH_TOKEN requires Read/Write permissions.
       - name: Stage and scan Docker images
         id: docker-images
         uses: ./.github/actions/docker-stage-scan-all
         with:
           registry: ${{ env.DOCKER_REGISTRY }}
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
+          password: ${{ secrets.DOCKER_PUBLISH_TOKEN }}
           image-repository-prefix: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
           version: ${{ steps.version.outputs.version }}
 
@@ -109,8 +109,8 @@ jobs:
         uses: ./.github/actions/docker-promote-all
         with:
           registry: ${{ env.DOCKER_REGISTRY }}
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
+          password: ${{ secrets.DOCKER_PUBLISH_TOKEN }}
           image-repository-prefix: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
           version: ${{ steps.version.outputs.version }}
           sample-image-digest: ${{ steps.docker-images.outputs.sample-image-digest }}
@@ -120,7 +120,7 @@ jobs:
         if: ${{ always() && steps.version.outcome == 'success' && steps.docker-images.outcome != 'skipped' && env.DOCKER_REGISTRY == 'docker.io' }}
         uses: ./.github/actions/docker-cleanup-staged-all
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
+          password: ${{ secrets.DOCKER_CLEANUP_TOKEN }}
           image-repository-prefix: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
           version: ${{ steps.version.outputs.version }}
