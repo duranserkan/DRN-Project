@@ -19,7 +19,7 @@ runs:
         # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
         TEST_CONFIGURATION: ${{ inputs.configuration }}
-      run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity minimal --configuration ${TEST_CONFIGURATION}" -f xml -o "coverage-unit.xml"
+      run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity minimal --configuration ${TEST_CONFIGURATION} -- --report-gh" -f xml -o "coverage-unit.xml"
     - name: Test Integration Coverage
       shell: bash
       working-directory: ${{ inputs.working-directory }}
@@ -27,4 +27,4 @@ runs:
         # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
         TEST_CONFIGURATION: ${{ inputs.configuration }}
-      run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity minimal --configuration ${TEST_CONFIGURATION}" -f xml -o "coverage-integration.xml"
+      run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity minimal --configuration ${TEST_CONFIGURATION} -- --report-gh" -f xml -o "coverage-integration.xml"
