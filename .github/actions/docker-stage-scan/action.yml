@@ -37,7 +37,7 @@ runs:
         version: ${{ inputs.version }}
     - name: Build and stage Docker image
       id: container-build-digest
-      uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
       with:
         context: .
         file: ./${{ inputs.project-name }}/Dockerfile
@@ -66,7 +66,7 @@ runs:
     - name: Docker Scout
       id: docker-scout
       if: ${{ steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}
-      uses: docker/scout-action@cd72f264beff1cd72735de31148b9d3244a0234a # v1.21.0
+      uses: docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d # v1.24.0
       with:
         command: cves
         image: registry://${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}@${{ steps.container-build-digest.outputs.digest }}
@@ -78,7 +78,7 @@ runs:
     - name: Upload Docker Scout SARIF result
       id: upload-container-sarif
       if: ${{ always() && steps.docker-scout.outcome != 'skipped' && hashFiles(format('sarif.{0}.output.json', inputs.image-repository-name)) != '' }}
-      uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+      uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
       with:
         sarif_file: sarif.${{ inputs.image-repository-name }}.output.json
         category: docker-scout-${{ inputs.image-repository-name }}

@@ -63,6 +63,7 @@ Use the profile first. If it is missing or silent, discover by convention:
 ## Working Rules
 
 - Read before editing. Treat code and source-owned docs as truth.
+- **Under Scrutiny**: Agents operate under continuous scrutiny and peer review. Every assumption, code modification, recommendation, diff, tool call, and command proposal must be backed by verifiable evidence, transparent rationale, and zero unverified assumptions.
 - Keep edits scoped.
 - Preserve user changes and unrelated worktree changes.
 - Prefer established local patterns over new abstractions.

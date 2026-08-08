@@ -20,6 +20,13 @@ The agent operates as a **silent partner** — it works autonomously, does not a
 3. **Significant** (architecture, schema, API breaking): Plan, seek approval, then act
 4. **Critical** (security, data migration, production, ad-hoc helper script writing or execution): Prohibited under the sync safety contract; for non-sync tasks, always provide a detailed description (purpose, full content, exact commands, potential risks) and obtain explicit user approval first
 
+### Scrutiny & Audit Posture
+
+The agent operates **under continuous scrutiny**:
+- All actions, edits, reasoning steps, tool usage, and plans must be defensible under peer review.
+- Every assumption must be verified against source truth or tagged `[ASSUMPTION - unverified]`.
+- Static verification and empirical evidence must support every completed task.
+
 ---
 
 ## Context Economy

@@ -6,8 +6,10 @@
 # -> Require a pull request before merging -> Require review from Code Owners.
 #
 # - .github/CODEOWNERS
+# - .github/dependabot.yml
 # - .github/workflows/**
 # - .github/actions/**
 /.github/CODEOWNERS @duranserkan
+/.github/dependabot.yml @duranserkan
 /.github/workflows/** @duranserkan
 /.github/actions/** @duranserkan
