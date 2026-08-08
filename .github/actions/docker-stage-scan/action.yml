@@ -117,14 +117,14 @@ runs:
         ignore-base: false
     - name: Upload Docker Scout SARIF result (linux/amd64)
       id: upload-container-sarif-amd64
-      if: ${{ always() && steps.docker-scout-amd64.outcome != 'skipped' && hashFiles(format('sarif.{0}.linux-amd64.output.json', inputs.image-repository-name)) != '' }}
+      if: ${{ always() && steps.docker-scout-amd64.outcome != 'skipped' }}
       uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
       with:
         sarif_file: sarif.${{ inputs.image-repository-name }}.linux-amd64.output.json
         category: docker-scout-${{ inputs.image-repository-name }}-linux-amd64
     - name: Upload Docker Scout SARIF result (linux/arm64)
       id: upload-container-sarif-arm64
-      if: ${{ always() && steps.docker-scout-arm64.outcome != 'skipped' && hashFiles(format('sarif.{0}.linux-arm64.output.json', inputs.image-repository-name)) != '' }}
+      if: ${{ always() && steps.docker-scout-arm64.outcome != 'skipped' }}
       uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
       with:
         sarif_file: sarif.${{ inputs.image-repository-name }}.linux-arm64.output.json
