@@ -1,5 +1,11 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.8
+
+### New Features
+
+*   **NexusAppSettings MacType Configuration**: Added `NexusMacType` enum (`Blake3 = 1`) and `MacType` property on `NexusAppSettings` (defaulting to `NexusMacType.Blake3`) with configuration validation to explicitly specify MAC hashing algorithms.
+
 ## Version 0.9.7
 
 ### Breaking Changes
