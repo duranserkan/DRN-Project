@@ -46,7 +46,7 @@ runs:
         dotnet pack "${PROJECT_NAME}/${PROJECT_NAME}.csproj" --configuration Release "/p:Version=${PACKAGE_VERSION}" --no-build --output artifacts/packages
     - name: Push
       shell: bash
-      working-directory: ${{ github.workspace }}
+      working-directory: ${{ github.workspace }}/artifacts/packages
       env:
         # Same rationale as the Pack step above — env var indirection for injection safety.
         PROJECT_NAME: ${{ inputs.project-name }}
@@ -66,5 +66,15 @@ runs:
           exit 1
         fi
 
-        dotnet nuget push "artifacts/packages/${PROJECT_NAME}.${PACKAGE_VERSION}.nupkg" --skip-duplicate --api-key "$NUGET_API_KEY" --source "$PACKAGE_SOURCE_URL"
-        dotnet nuget push "artifacts/packages/${PROJECT_NAME}.${PACKAGE_VERSION}.snupkg" --skip-duplicate --api-key "$NUGET_API_KEY" --source "$PACKAGE_SOURCE_URL"
+        PACKAGE_BASENAME="${PROJECT_NAME}.${PACKAGE_VERSION}"
+        if [[ ! -f "${PACKAGE_BASENAME}.nupkg" || ! -f "${PACKAGE_BASENAME}.snupkg" ]]; then
+          echo "Expected ${PACKAGE_BASENAME}.nupkg and ${PACKAGE_BASENAME}.snupkg in ${PWD}."
+          exit 1
+        fi
+
+        # Publish the artifacts independently so a retry can repair a missing symbol package
+        # when the primary package already exists at the source.
+        # https://learn.microsoft.com/nuget/create-packages/symbol-packages-snupkg#publishing-a-symbol-package
+        # https://learn.microsoft.com/dotnet/core/tools/dotnet-nuget-push#options
+        dotnet nuget push "${PACKAGE_BASENAME}.nupkg" --no-symbols --skip-duplicate --api-key "$NUGET_API_KEY" --source "$PACKAGE_SOURCE_URL"
+        dotnet nuget push "${PACKAGE_BASENAME}.snupkg" --skip-duplicate --api-key "$NUGET_API_KEY" --source "$PACKAGE_SOURCE_URL"

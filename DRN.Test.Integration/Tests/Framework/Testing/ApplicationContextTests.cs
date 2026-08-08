@@ -134,7 +134,7 @@ public class ApplicationContextTests
             }));
         _ = application.Server;
         _ = application.Services.GetRequiredService<ApplicationOwnedDisposalTracker>();
-        hostedService.FailNextStop();
+        hostedService.FailAllStops();
 
         var dispose = () => context.Dispose();
 
@@ -162,7 +162,7 @@ public class ApplicationContextTests
             }));
         _ = application.Server;
         _ = application.Services.GetRequiredService<ApplicationOwnedDisposalTracker>();
-        hostedService.FailNextStop();
+        hostedService.FailAllStops();
 
         var dispose = () => context.ApplicationContext.Dispose();
 
@@ -491,19 +491,34 @@ public class ApplicationContextTests
     private sealed class StopFailureHostedService(List<string> disposalOrder) : IHostedService
     {
         public const string StopFailureMessage = "Application stop failure.";
-        private bool _failNextStop;
+        private readonly object _sync = new();
+        private bool _failAllStops;
+        private bool _failureRecorded;
 
-        public void FailNextStop() => _failNextStop = true;
+        public void FailAllStops()
+        {
+            lock (_sync)
+                _failAllStops = true;
+        }
 
         public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            if (!_failNextStop)
-                return Task.CompletedTask;
+            lock (_sync)
+            {
+                if (!_failAllStops)
+                    return Task.CompletedTask;
 
-            _failNextStop = false;
-            disposalOrder.Add("application-stop-failed");
+                // WebApplicationFactory and the entry point's WaitForShutdownAsync can stop the same host
+                // concurrently. Keep the failure armed for both callers, but record the event only once.
+                if (!_failureRecorded)
+                {
+                    disposalOrder.Add("application-stop-failed");
+                    _failureRecorded = true;
+                }
+            }
+
             throw new InvalidOperationException(StopFailureMessage);
         }
     }
