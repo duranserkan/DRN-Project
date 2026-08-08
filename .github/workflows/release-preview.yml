@@ -24,7 +24,7 @@ jobs:
     env:
       # Docker image validation intentionally accepts lowercase registry hosts and namespace paths only.
       DOCKER_REGISTRY: docker.io
-      DOCKER_IMAGE_REPOSITORY_PREFIX: duranserkan
+      DOCKER_IMAGE_REPOSITORY_PREFIX: ${{ secrets.DOCKER_USERNAME }}
       SOLUTION_FILE: DRN.slnx
       # NuGet source validation intentionally requires the canonical lowercase https:// scheme.
       NUGET_PACKAGE_SOURCE_URL: https://api.nuget.org/v3/index.json
