@@ -68,7 +68,7 @@ runs:
       if: ${{ steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}
       uses: docker/scout-action@cd72f264beff1cd72735de31148b9d3244a0234a # v1.21.0
       with:
-        command: quickview,cves
+        command: cves
         image: registry://${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}@${{ steps.container-build-digest.outputs.digest }}
         sarif-file: sarif.${{ inputs.image-repository-name }}.output.json
         summary: true
@@ -77,7 +77,7 @@ runs:
         ignore-base: false
     - name: Upload Docker Scout SARIF result
       id: upload-container-sarif
-      if: ${{ always() && steps.docker-scout.outcome != 'skipped' }}
+      if: ${{ always() && steps.docker-scout.outcome != 'skipped' && hashFiles(format('sarif.{0}.output.json', inputs.image-repository-name)) != '' }}
       uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
       with:
         sarif_file: sarif.${{ inputs.image-repository-name }}.output.json
