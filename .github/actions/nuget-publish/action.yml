@@ -1,5 +1,5 @@
 name: Nuget Publish
-description: Packs and publishes a single NuGet package to a configured NuGet source.
+description: Packs and publishes a single NuGet package to a configured NuGet source using a pre-authenticated API key.
 inputs:
   project-name:
     description: The project directory and csproj base name (e.g. DRN.Framework.Utils).
@@ -10,8 +10,8 @@ inputs:
   package-source-url:
     description: NuGet package source URL used for package push.
     required: true
-  nuget-token:
-    description: NuGet package source API token used only for package push.
+  nuget-api-key:
+    description: Pre-authenticated short-lived API key from a parent NuGet login step.
     required: true
 runs:
   using: "composite"
@@ -30,6 +30,7 @@ runs:
 
     - name: Pack
       shell: bash
+      working-directory: ${{ github.workspace }}
       env:
         # Assigned to an env var to avoid direct expression interpolation in the
         # shell script — prevents script injection (GitHub Actions security advisory).
@@ -45,12 +46,13 @@ runs:
         dotnet pack "${PROJECT_NAME}/${PROJECT_NAME}.csproj" --configuration Release "/p:Version=${PACKAGE_VERSION}" --no-build --output artifacts/packages
     - name: Push
       shell: bash
+      working-directory: ${{ github.workspace }}
       env:
         # Same rationale as the Pack step above — env var indirection for injection safety.
         PROJECT_NAME: ${{ inputs.project-name }}
         PACKAGE_VERSION: ${{ inputs.version }}
         PACKAGE_SOURCE_URL: ${{ inputs.package-source-url }}
-        NUGET_TOKEN: ${{ inputs.nuget-token }}
+        NUGET_API_KEY: ${{ inputs.nuget-api-key }}
       run: |
         set -euo pipefail
 
@@ -59,5 +61,10 @@ runs:
           exit 1
         fi
 
-        dotnet nuget push "artifacts/packages/${PROJECT_NAME}.${PACKAGE_VERSION}.nupkg" --skip-duplicate --api-key "$NUGET_TOKEN" --source "$PACKAGE_SOURCE_URL"
-        dotnet nuget push "artifacts/packages/${PROJECT_NAME}.${PACKAGE_VERSION}.snupkg" --skip-duplicate --api-key "$NUGET_TOKEN" --source "$PACKAGE_SOURCE_URL"
+        if [[ -z "$NUGET_API_KEY" ]]; then
+          echo "Expected nuget-api-key to be provided for package push, got empty string."
+          exit 1
+        fi
+
+        dotnet nuget push "artifacts/packages/${PROJECT_NAME}.${PACKAGE_VERSION}.nupkg" --skip-duplicate --api-key "$NUGET_API_KEY" --source "$PACKAGE_SOURCE_URL"
+        dotnet nuget push "artifacts/packages/${PROJECT_NAME}.${PACKAGE_VERSION}.snupkg" --skip-duplicate --api-key "$NUGET_API_KEY" --source "$PACKAGE_SOURCE_URL"

@@ -1,5 +1,5 @@
 name: Nuget Publish All
-description: "Packs and publishes all DRN.Framework NuGet packages."
+description: "Packs and publishes all DRN.Framework NuGet packages using OIDC Trusted Publishing."
 inputs:
   version:
     description: "Package version extracted from the release tag."
@@ -7,44 +7,50 @@ inputs:
   package-source-url:
     description: "NuGet package source URL used for package push."
     required: true
-  nuget-token:
-    description: "NuGet package source API token used only for package push steps."
+  nuget-user:
+    description: "NuGet account username used for OIDC Trusted Publishing."
     required: true
 runs:
   using: "composite"
   steps:
+    - name: NuGet login (OIDC trusted publishing)
+      id: nuget-login
+      uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+      with:
+        user: ${{ inputs.nuget-user }}
+
     - name: Publish SharedKernel
       uses: ./.github/actions/nuget-publish
       with:
         project-name: DRN.Framework.SharedKernel
         version: ${{ inputs.version }}
         package-source-url: ${{ inputs.package-source-url }}
-        nuget-token: ${{ inputs.nuget-token }}
+        nuget-api-key: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
     - name: Publish Utils
       uses: ./.github/actions/nuget-publish
       with:
         project-name: DRN.Framework.Utils
         version: ${{ inputs.version }}
         package-source-url: ${{ inputs.package-source-url }}
-        nuget-token: ${{ inputs.nuget-token }}
+        nuget-api-key: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
     - name: Publish EntityFramework
       uses: ./.github/actions/nuget-publish
       with:
         project-name: DRN.Framework.EntityFramework
         version: ${{ inputs.version }}
         package-source-url: ${{ inputs.package-source-url }}
-        nuget-token: ${{ inputs.nuget-token }}
+        nuget-api-key: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
     - name: Publish Hosting
       uses: ./.github/actions/nuget-publish
       with:
         project-name: DRN.Framework.Hosting
         version: ${{ inputs.version }}
         package-source-url: ${{ inputs.package-source-url }}
-        nuget-token: ${{ inputs.nuget-token }}
+        nuget-api-key: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
     - name: Publish Testing
       uses: ./.github/actions/nuget-publish
       with:
         project-name: DRN.Framework.Testing
         version: ${{ inputs.version }}
         package-source-url: ${{ inputs.package-source-url }}
-        nuget-token: ${{ inputs.nuget-token }}
+        nuget-api-key: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
