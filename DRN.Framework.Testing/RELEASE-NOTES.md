@@ -7,6 +7,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Default RabbitMQ Container Version**: Upgraded `RabbitMQContainerSettings.DefaultVersion` to `4.3.4-management-alpine`.
 *   **Testing Package Dependencies**: Upgraded AutoFixture dependencies (`AutoFixture.AutoNSubstitute` and `AutoFixture.Xunit3`) to `5.0.0-rc.1`. Added package references for `Microsoft.Testing.Platform` (2.3.3) and `Microsoft.Testing.Extensions.GitHubActionsReport` (1.0.0-alpha.26377.5).
 
+### Bug Fixes
+
+*   **Application Host Disposal Retry**: Host shutdown now preserves both stop and disposal failures while retrying disposal without rerunning a failed stop operation.
+
 ## Version 0.9.7
 
 ### Breaking Changes

@@ -332,6 +332,58 @@ public class ApplicationContextTests
 
     [Theory]
     [DataInline]
+    public async Task DrnWebApplicationFactory_Host_Disposal_Should_Preserve_Stop_And_Disposal_Failures(
+        DrnTestContext context)
+    {
+        const string stopFailureMessage = "Host stop failure.";
+        const string disposalFailureMessage = "Host disposal failure";
+        var server = Substitute.For<IServer>();
+        server.Features.Returns(new FeatureCollection());
+        var serviceProvider = Substitute.For<IServiceProvider>();
+        serviceProvider.GetService(typeof(IServer)).Returns(server);
+
+        var host = Substitute.For<IHost>();
+        host.Services.Returns(serviceProvider);
+        host.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        host.StopAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException(stopFailureMessage)));
+
+        var disposalAttempts = 0;
+        host.When(candidate => candidate.Dispose()).Do(_ =>
+        {
+            disposalAttempts++;
+            if (disposalAttempts <= 2)
+                throw new InvalidOperationException($"{disposalFailureMessage} {disposalAttempts}.");
+        });
+
+        var hostBuilder = Substitute.For<IHostBuilder>();
+        hostBuilder.Properties.Returns(new Dictionary<object, object>());
+        hostBuilder.Build().Returns(host);
+        using var factory = new ExposedDrnWebApplicationFactory(context);
+        factory.UseKestrel(0);
+        var failureSafeHost = factory.CreateHostForTest(hostBuilder);
+        Func<Task> stop = () => failureSafeHost.StopAsync();
+        Action dispose = failureSafeHost.Dispose;
+
+        var firstException = (await stop.Should().ThrowAsync<AggregateException>()).Which;
+
+        firstException.Flatten().InnerExceptions.Should().HaveCount(2);
+        firstException.ToString().Should().Contain(stopFailureMessage).And.Contain($"{disposalFailureMessage} 1.");
+        disposalAttempts.Should().Be(1);
+
+        await stop();
+        disposalAttempts.Should().Be(1);
+
+        var retryException = dispose.Should().Throw<InvalidOperationException>().Which;
+        retryException.Message.Should().Be($"{disposalFailureMessage} 2.");
+        disposalAttempts.Should().Be(2);
+
+        dispose();
+        disposalAttempts.Should().Be(3);
+    }
+
+    [Theory]
+    [DataInline]
     public void ApplicationContext_Hosts_Should_Not_Emit_Lifecycle_Logs(DrnTestContext context)
     {
         TemporaryLifecycleProgram.Reset();
