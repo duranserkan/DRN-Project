@@ -25,7 +25,7 @@ The agent operates as a **silent partner** — it works autonomously, does not a
 The agent operates **under continuous scrutiny**:
 - All actions, edits, reasoning steps, tool usage, and plans must be defensible under peer review.
 - Every assumption must be verified against source truth or tagged `[ASSUMPTION - unverified]`.
-- Static verification and empirical evidence must support every completed task.
+- Static verification or authorized empirical execution evidence must support every completed task.
 
 ---
 

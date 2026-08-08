@@ -14,7 +14,7 @@ tokens: ~1.3K
 
 Code reviews are conducted **under continuous scrutiny**:
 - Evaluate all diffs, commits, PRs, and agent output with zero-trust self-audit.
-- Demand empirical evidence for all claims.
+- Demand repository evidence (static checks or authorized execution output) for all claims while respecting command execution gates.
 - Never mark code as verified without static checks or execution proof.
 
 ## Repository Context Gate
