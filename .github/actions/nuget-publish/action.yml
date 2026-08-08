@@ -30,6 +30,7 @@ runs:
 
     - name: Pack
       shell: bash
+      working-directory: ${{ github.workspace }}
       env:
         # Assigned to an env var to avoid direct expression interpolation in the
         # shell script — prevents script injection (GitHub Actions security advisory).
@@ -45,6 +46,7 @@ runs:
         dotnet pack "${PROJECT_NAME}/${PROJECT_NAME}.csproj" --configuration Release "/p:Version=${PACKAGE_VERSION}" --no-build --output artifacts/packages
     - name: Push
       shell: bash
+      working-directory: ${{ github.workspace }}
       env:
         # Same rationale as the Pack step above — env var indirection for injection safety.
         PROJECT_NAME: ${{ inputs.project-name }}
