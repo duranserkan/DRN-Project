@@ -12,6 +12,7 @@ concurrency:
 
 jobs:
   publish:
+    environment: production
     permissions:
       actions: read
       contents: read
@@ -92,7 +93,7 @@ jobs:
         with:
           version: ${{ steps.version.outputs.version }}
           package-source-url: ${{ env.NUGET_PACKAGE_SOURCE_URL }}
-          nuget-token: ${{ secrets.NUGET_TOKEN }}
+          nuget-user: ${{ secrets.NUGET_USER }}
 
       - name: Generate artifact attestation #https://andrewlock.net/creating-provenance-attestations-for-nuget-packages-in-github-actions/
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
