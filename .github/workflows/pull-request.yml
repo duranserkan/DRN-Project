@@ -16,6 +16,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dependency_policy:
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted CI code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+
+      - name: Checkout PR source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: src
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require trusted dependency policy
+        shell: bash
+        run: |
+          test -f .github/actions/dependency-policy/action.yml || {
+            echo 'Trusted dependency policy is unavailable from the PR base.' >&2
+            echo 'Land .github/actions/dependency-policy on the protected branch before requiring this job.' >&2
+            exit 1
+          }
+
+      - name: Enforce dependency policy
+        uses: ./.github/actions/dependency-policy
+        with:
+          working-directory: src
+          base-sha: ${{ github.event.pull_request.base.sha }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
+
   frontend:
     permissions:
       contents: read
@@ -123,18 +159,21 @@ jobs:
     # Keep this aggregate gate in sync with every required validation job.
     # Add new jobs to both `needs` and the result check below.
     needs:
+      - dependency_policy
       - frontend
       - backend
       - codeql
     steps:
       - name: Verify required jobs completed successfully
         env:
+          DEPENDENCY_POLICY_RESULT: ${{ needs.dependency_policy.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
         run: |
-          if [ "$FRONTEND_RESULT" != "success" ] || [ "$BACKEND_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ]; then
+          if [ "$DEPENDENCY_POLICY_RESULT" != "success" ] || [ "$FRONTEND_RESULT" != "success" ] || [ "$BACKEND_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ]; then
             echo "One or more required checks failed."
+            echo "dependency_policy: $DEPENDENCY_POLICY_RESULT"
             echo "frontend: $FRONTEND_RESULT"
             echo "backend: $BACKEND_RESULT"
             echo "codeql: $CODEQL_RESULT"

@@ -23,12 +23,34 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Reject repository-controlled NuGet restore overrides
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+
+        if git grep -n -i -E \
+          'RestoreSources|RestoreAdditionalProjectSources|RestoreFallbackFolders|RestoreAdditionalProjectFallbackFolders|RestorePackagesPath|RestoreConfigFile|TreatAsLocalProperty' \
+          -- . ':(exclude).github/actions/dotnet-build/action.yml'; then
+          echo 'Repository-controlled NuGet restore overrides are not allowed.' >&2
+          exit 1
+        fi
+
     - name: Restore dependencies
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
         SOLUTION_FILE: ${{ inputs.solution-file }}
-      run: dotnet restore "$SOLUTION_FILE" --locked-mode
+      # This composite action comes from the trusted checkout in PR workflows;
+      # do not take package sources from PR-controlled configuration.
+      run: |
+        dotnet restore "$SOLUTION_FILE" \
+          --locked-mode \
+          --configfile "$GITHUB_ACTION_PATH/NuGet.Config" \
+          --packages "$RUNNER_TEMP/drn-nuget-packages" \
+          -p:RestoreAdditionalProjectSources= \
+          -p:RestoreFallbackFolders= \
+          -p:RestoreAdditionalProjectFallbackFolders=
     - name: Scan vulnerabilities
       uses: ./.github/actions/scan-nuget-vulnerabilities
       with:

@@ -1,0 +1,112 @@
+# PR workflows must execute this action only from the trusted base checkout.
+name: Dependency Policy
+description: "Validate approved dependency sources and produce a concise dependency change summary."
+inputs:
+  working-directory:
+    description: "PR source checkout containing dependency manifests and lockfiles."
+    required: true
+  base-sha:
+    description: "Trusted PR base commit SHA."
+    required: true
+  head-sha:
+    description: "PR head commit SHA."
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Validate dependency sources and summarize changes
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        BASE_SHA: ${{ inputs.base-sha }}
+        HEAD_SHA: ${{ inputs.head-sha }}
+      run: |
+        set -euo pipefail
+
+        fail() {
+          echo "Dependency policy violation: $1" >&2
+          exit 1
+        }
+
+        validate_npm_manifest() {
+          local manifest="$1"
+
+          jq -e '
+            [(.dependencies // {}), (.devDependencies // {}), (.optionalDependencies // {}), (.peerDependencies // {})]
+            | add | all(.[]; type == "string" and
+                test("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$"))
+          ' "$manifest" >/dev/null || fail "$manifest must use exact dependency versions"
+        }
+
+        validate_npm_lock() {
+          local lockfile="$1"
+
+          jq -e '
+            .lockfileVersion == 3 and (.packages | type == "object") and
+            (.packages[""] | type == "object") and
+            all(.packages | to_entries[];
+              (.key == "") or (.value.link == true) or (.value.inBundle == true) or
+              (
+                (.value.version | type == "string") and
+                (.value.integrity | type == "string" and test("^sha512-[A-Za-z0-9+/]+={0,2}$")) and
+                ((.value.resolved? == null) or
+                 (.value.resolved | type == "string" and startswith("https://registry.npmjs.org/")))
+              ))
+          ' "$lockfile" >/dev/null || fail "$lockfile violates the npm lock policy"
+        }
+
+        validate_npmrc() {
+          local npmrc="$1"
+          local expected content
+          expected=$'ignore-scripts=true\nengine-strict=true\nsave-exact=true\nregistry=https://registry.npmjs.org/'
+          content="$(sed $'s/\r$//' "$npmrc")"
+          [[ "$content" == "$expected" ]] ||
+            fail "$npmrc must contain only the approved npm policy settings"
+        }
+
+        [[ -f NuGet.Config ]] || fail 'NuGet.Config is required.'
+        cmp -s NuGet.Config "$GITHUB_ACTION_PATH/../dotnet-build/NuGet.Config" ||
+          fail 'NuGet.Config must exactly match the trusted restore source policy.'
+
+        [[ -f global.json ]] || fail 'global.json is required.'
+        jq -e '
+          type == "object" and (keys | sort) == ["sdk"] and (.sdk | type == "object") and
+          (.sdk | keys | sort) == ["allowPrerelease", "rollForward", "version"] and
+          (.sdk.version | type == "string" and test("^10\\.0\\.(0|[1-9][0-9]*)$")) and
+          (.sdk.rollForward == "latestFeature") and (.sdk.allowPrerelease == false)
+        ' global.json >/dev/null || fail 'global.json violates the pinned SDK policy'
+
+        while IFS= read -r -d '' npmrc; do
+          validate_npmrc "$npmrc"
+        done < <(find . -path '*/node_modules' -prune -o -path '*/bin' -prune -o -path '*/obj' -prune -o -path '*/.git' -prune -o -name .npmrc -print0)
+
+        while IFS= read -r -d '' manifest; do
+          npmrc="$(dirname "$manifest")/.npmrc"
+          lockfile="$(dirname "$manifest")/package-lock.json"
+          [[ -f "$npmrc" ]] || fail "$manifest has no sibling .npmrc"
+          [[ -f "$lockfile" ]] || fail "$manifest has no sibling package-lock.json"
+          validate_npmrc "$npmrc"
+          validate_npm_manifest "$manifest"
+          validate_npm_lock "$lockfile"
+        done < <(find . -path '*/node_modules' -prune -o -path '*/bin' -prune -o -path '*/obj' -prune -o -path '*/.git' -prune -o -name package.json -print0)
+
+        echo 'Dependency change summary:'
+        git diff --name-status "$BASE_SHA" "$HEAD_SHA" -- \
+          ':(glob)**/*.csproj' \
+          ':(glob)**/*.fsproj' \
+          ':(glob)**/*.vbproj' \
+          ':(glob)**/*.proj' \
+          ':(glob)**/*.props' \
+          ':(glob)**/*.targets' \
+          ':(glob)**/*.rsp' \
+          ':(glob)**/*.slnx' \
+          ':(glob)**/packages.lock.json' \
+          ':(glob)**/packages.config' \
+          ':(glob)**/package.json' \
+          ':(glob)**/package-lock.json' \
+          ':(glob)**/.npmrc' \
+          NuGet.Config \
+          global.json || true
+
+        echo 'Direct npm dependency changes:'
+        git diff --unified=0 "$BASE_SHA" "$HEAD_SHA" -- ':(glob)**/package.json' || true

@@ -13,3 +13,21 @@
 /.github/dependabot.yml @duranserkan
 /.github/workflows/** @duranserkan
 /.github/actions/** @duranserkan
+
+# Dependency declarations and resolution data are a supply-chain control plane.
+# Branch rulesets must require code-owner review for these patterns.
+*.csproj @duranserkan
+*.fsproj @duranserkan
+*.vbproj @duranserkan
+*.proj @duranserkan
+*.props @duranserkan
+*.targets @duranserkan
+*.rsp @duranserkan
+*.slnx @duranserkan
+packages.lock.json @duranserkan
+packages.config @duranserkan
+package.json @duranserkan
+package-lock.json @duranserkan
+.npmrc @duranserkan
+NuGet.Config @duranserkan
+/global.json @duranserkan
