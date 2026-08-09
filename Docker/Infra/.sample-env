@@ -22,5 +22,5 @@ GRAYLOG_PASSWORD_SECRET="kXgSJ3898pP9x4ddYnNPXIpmkYSeENcQMRmHcT3v4BdGQ4sBTzhMOS1
 GRAYLOG_ROOT_PASSWORD_SHA2="0b0f409cd36ec892ddd8db5dcd95453d0c1c7f7667894d3e4adcd138549a222c"
 
 # You can optionally specify the image versions
-GRAYLOG_IMAGE="graylog/graylog:7.1.6"
-DATANODE_IMAGE="graylog/graylog-datanode:7.1.6"
+GRAYLOG_IMAGE="graylog/graylog:7.1.6@sha256:b9a4fd841e4c49c148043265f579554a3bdadf8137ff381b686c194ccb9a3365"
+DATANODE_IMAGE="graylog/graylog-datanode:7.1.6@sha256:4867cd8ad09ee7a129c0898fe326b0b638928d984789072eb3640fef42fccf5d"

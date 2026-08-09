@@ -73,6 +73,7 @@ Use the profile first. If it is missing or silent, discover by convention:
 - Decide release-note impact before finishing source, packaging, or published-doc changes; record "not required" when no trigger applies.
 - Omit restore/build/run/test/benchmark/load-test steps from plans unless explicitly allowed; use static verification instead.
 - **No Unapproved Helper Script Generation or Execution**: Agents must NOT create, write, or execute ad-hoc helper scripts or code (e.g. Python, Bash, Node, custom tools) to automate or perform tasks. Ad-hoc scripts are strictly prohibited under the sync safety contract. If writing or executing an ad-hoc script or code is strictly required for a non-sync task, the agent MUST first provide a detailed description (including purpose, full content, exact commands, and potential risks) and obtain explicit user approval before writing or running it.
+- **Digest Verification on Version Updates**: Whenever container base images, Docker/Docker Compose services, GitHub Actions, or package dependency versions are added or updated, their SHA-256 digests (or provenance hashes) must be verified against canonical registry manifests or repository metadata prior to committing.
 - **No CAD Artifact Bypassing**: `/clarify`, `/answer`, and `/develop` must create or update workspace-local artifacts such as `CLARIFY-*.md` and `DEVELOP-*.md` in `.agent/temp/`. System plans must reference and link those documents.
 - Run `git diff --check` after documentation or code edits unless blocked.
 

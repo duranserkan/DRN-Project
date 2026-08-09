@@ -71,6 +71,7 @@ public class CreateItemRequest
 - Check vulnerability and maintenance signals before adding packages.
 - Prefer maintained packages with clear provenance.
 - Follow the repository pinning policy for NuGet, npm, GitHub Actions, containers, and language-specific package managers.
+- Whenever container base images, Docker services, GitHub Actions, or package versions are added or updated, verify their SHA-256 digests against canonical registry manifests or package repository metadata before committing.
 - Review transitive dependencies when adding security-sensitive packages.
 - Do not add dependency upgrades to release notes unless they create a breaking or user-facing behavior change.
 
@@ -99,7 +100,7 @@ Rules:
 - [ ] State-changing browser requests include CSRF protection.
 - [ ] Raw SQL, dynamic filters, and database commands are parameterized or allowlisted.
 - [ ] No raw HTML rendering of user-controlled data.
-- [ ] New dependencies follow the repository supply-chain policy.
+- [ ] New dependencies follow the repository supply-chain policy, and container/package version updates include verified SHA-256 digests.
 - [ ] Security headers and browser controls are not weakened.
 
 ## Related Skills

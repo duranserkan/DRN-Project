@@ -6,6 +6,8 @@ ARG PROJECT=Sample.Hosted
 ARG DOTNET_RUNTIME_VERSION=10.0.10
 ARG DOTNET_SDK_VERSION=10.0.302
 ARG DOTNET_DISTRO=resolute
+ARG DOTNET_RUNTIME_DIGEST=sha256:4762b78e42e22a325e4a6492a5ac5dd55449ba744088842a1a1ea239d16e1027
+ARG DOTNET_SDK_DIGEST=sha256:c43f711c3ba4e621fe8570660f16abb31bbffda372fd2690eb917a85162a4281
 ARG APP_VERSION=0.0.1
 
 #https://www.mytechramblings.com/posts/testing-chiseled-ubuntu-containers-with-dotnet/
@@ -13,7 +15,7 @@ ARG APP_VERSION=0.0.1
 #https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/ enable buildkit to build multiplatform images
 #https://mcr.microsoft.com/en-us/artifact/mar/dotnet/aspnet/tags alternative registry for ubuntu/dotnet-aspnet
 #https://github.com/dotnet/dotnet-docker
-FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_RUNTIME_VERSION}-${DOTNET_DISTRO}-chiseled-extra AS base
+FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_RUNTIME_VERSION}-${DOTNET_DISTRO}-chiseled-extra@${DOTNET_RUNTIME_DIGEST} AS base
 
 ARG APP_VERSION
 ARG TARGETARCH
@@ -41,7 +43,7 @@ LABEL org.opencontainers.image.version=${APP_VERSION} \
 #https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
 #https://mcr.microsoft.com/en-us/artifact/mar/dotnet/sdk/tags
 #build image should use same distro with base image to prevent mismatches such as Alpine (Musl) vs. Ubuntu (Glibc)
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${DOTNET_SDK_VERSION}-${DOTNET_DISTRO} AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${DOTNET_SDK_VERSION}-${DOTNET_DISTRO}@${DOTNET_SDK_DIGEST} AS build
 ARG PROJECT
 ARG TARGETARCH
 ARG DOTNET_RUNTIME_VERSION

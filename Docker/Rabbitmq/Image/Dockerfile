@@ -1,6 +1,7 @@
 ARG BASE_VERSION=4.3.4
+ARG BASE_DIGEST=sha256:44bf7eb50fe1765885659e49ccfdc775f8e531964d979321aee380a071f49f94
 
-FROM rabbitmq:${BASE_VERSION}-management-alpine
+FROM rabbitmq:${BASE_VERSION}-management-alpine@${BASE_DIGEST}
 
 COPY definitions.json /etc/rabbitmq/
 COPY rabbitmq.conf /etc/rabbitmq/

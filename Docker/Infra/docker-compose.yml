@@ -2,7 +2,7 @@ name: drn-infra
 services:
   # https://hub.docker.com/_/postgres
   postgres:
-    image: postgres:18.4-alpine3.24
+    image: postgres:18.4-alpine3.24@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
     container_name: drn-infra-postgres
     restart: unless-stopped
     volumes:
@@ -45,7 +45,7 @@ services:
   # Source codes under this folder is obtained/derived from https://github.com/Graylog2/docker-compose/blob/main/open-core/docker-compose.yml
   # and have same license restrictions with original source codes.
   mongodb:
-    image: "mongo:7.0.37"
+    image: "mongo:7.0.37@sha256:340c1c56fb10e95cf79ff547f8664b96bc6ead9909bc355238cbf865a9695a6f"
     restart: "on-failure"
     container_name: drn-infra-graylog-mongo
     networks:
@@ -67,7 +67,7 @@ services:
   # Please take a look at the README at the top of this repo or the regular docs for more info.
   # Graylog Data Node: https://hub.docker.com/r/graylog/graylog-datanode
   datanode:
-    image: "${DATANODE_IMAGE:-graylog/graylog-datanode:7.1.6}"
+    image: "${DATANODE_IMAGE:-graylog/graylog-datanode:7.1.6@sha256:4867cd8ad09ee7a129c0898fe326b0b638928d984789072eb3640fef42fccf5d}"
     container_name: drn-infra-graylog-datanode
     hostname: "datanode"
     environment:
@@ -113,7 +113,7 @@ services:
   # drn-infra-graylog     | Try clicking on http://admin:vwtxJbPxqM@0.0.0.0:9000
 
   graylog:
-    image: "${GRAYLOG_IMAGE:-graylog/graylog:7.1.6}"
+    image: "${GRAYLOG_IMAGE:-graylog/graylog:7.1.6@sha256:b9a4fd841e4c49c148043265f579554a3bdadf8137ff381b686c194ccb9a3365}"
     container_name: drn-infra-graylog
     hostname: "server"
     depends_on:
