@@ -1,6 +1,6 @@
 // vite.config.js
 import {defineConfig} from 'vite';
-import {resolve} from 'path'; // Import resolve for path management
+import {resolve} from 'node:path'; // Import resolve for path management
 import drnUtils from './buildwww/app/js/drn/drnUtils.js';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';

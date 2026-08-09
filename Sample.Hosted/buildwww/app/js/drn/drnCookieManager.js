@@ -109,7 +109,7 @@ class DrnCookieManager {
         const ca = document.cookie.split(';');
         for (const item of ca) {
             const c = item.trimStart();
-            if (c.indexOf(nameEQ) === 0) {
+            if (c.startsWith(nameEQ)) {
                 return c.substring(nameEQ.length);
             }
         }

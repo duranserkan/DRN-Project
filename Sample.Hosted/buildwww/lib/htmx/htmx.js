@@ -1,10 +1,10 @@
-import htmx from '../../../node_modules/htmx.org/dist/htmx.esm.js'
+import htmx from 'htmx.org';
 
 //https://htmx.org/docs/#config
 let config = htmx.config;
 config.selfRequestsOnly = true;
-config.allowEval = false
+config.allowEval = false;
 config.refreshOnHistoryMiss = true;
 config.historyCacheSize = 0;
 
-export {htmx}
+export { htmx };

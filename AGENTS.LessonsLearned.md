@@ -72,3 +72,21 @@ Applies to all frontend components (React TSX, Razor partials, HTMX elements, an
 
 Keep the invariant in `basic-security-checklist`, `modern-web-guidance`, `drn-buildwww-react`, and frontend UI development skills across the repository.
 - TODO: Create dedicated accessibility skill or knowledge item in agent files (e.g. `.agent/skills/basic-accessibility/` or knowledge artifact) covering WCAG compliance, SonarQube accessibility rules (S6848/S6847), ARIA role patterns, and native HTML interactive element standards.
+
+## 5. Dependency Imports via Package Specifiers (SonarQube S6544)
+
+### Case
+
+Importing installed third-party dependencies using relative file paths into `node_modules` (e.g. `import htmx from '../../../node_modules/htmx.org/dist/htmx.esm.js'`) was flagged as a SonarQube static code smell (*"Do not use internal APIs of your dependencies"* / `S6544`). Refactoring to import by package specifier (`import htmx from 'htmx.org';`) allowed Node.js and Vite module resolution to resolve the official entry point configured in `package.json` (`"main": "dist/htmx.esm.js"`).
+
+### General Rule
+
+Always import installed npm dependencies using bare package specifiers (e.g. `import htmx from 'htmx.org';`) rather than reaching into `node_modules/` via relative directory paths or internal file subpaths. Rely on the library author's `package.json` configuration (`main`, `module`, `exports`). This respects package abstraction boundaries, prevents build breakage when internal package file layouts shift during minor/patch dependency updates, and ensures static analysis rule compliance.
+
+### Decision Boundary
+
+Applies to all JavaScript, TypeScript, SCSS, and CSS imports referencing third-party dependencies in `buildwww/` and frontend asset pipelines. Subpath imports are permissible only when declared as public subpath entry points by the package manifest (e.g. `import 'bootstrap/scss/mixins'` or `exports` fields). Relative path traversals into `node_modules/` (e.g. `../../../node_modules/...`) are prohibited.
+
+### Source To Update
+
+Keep the invariant in `drn-buildwww-libraries`, `drn-buildwww-packages`, `drn-buildwww-vite`, and `basic-code-review` skills.
