@@ -60,6 +60,8 @@ runs:
   steps:
     - name: Setup SDK
       uses: ./.github/actions/setup-sdk-and-tools
+      with:
+        working-directory: ${{ inputs.working-directory }}
 
     - name: Sonar Scan Begin
       uses: ./.github/actions/sonar-begin

@@ -31,6 +31,8 @@ runs:
   steps:
     - name: Setup SDK
       uses: ./.github/actions/setup-sdk-and-tools
+      with:
+        working-directory: ${{ inputs.working-directory }}
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
