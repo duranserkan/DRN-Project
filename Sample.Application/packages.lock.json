@@ -611,6 +611,30 @@
           "DRN.Framework.Utils": "[1.0.0, )"
         }
       }
+    },
+    "net10.0/linux-arm64": {
+      "Blake3.Native": {
+        "type": "Transitive",
+        "resolved": "3.0.0",
+        "contentHash": "k4Frwv9LrAEN3BRi2Ll1E4lMVmJm/eGq+gD6sK1zs2yD0ggkyBo8m3lbjDQt7G7db+gARSc+peeh/tiaTlsKuQ=="
+      },
+      "System.Security.Cryptography.Pkcs": {
+        "type": "Transitive",
+        "resolved": "10.0.10",
+        "contentHash": "KG8t5RHczdgB3IWvRndpI0nE1DSo7ikDYSDbITxfgRFyIvnYiKzuPjaZOsPnwFQ1aOGUl9sEulJul9wlHLEUoA=="
+      }
+    },
+    "net10.0/linux-x64": {
+      "Blake3.Native": {
+        "type": "Transitive",
+        "resolved": "3.0.0",
+        "contentHash": "k4Frwv9LrAEN3BRi2Ll1E4lMVmJm/eGq+gD6sK1zs2yD0ggkyBo8m3lbjDQt7G7db+gARSc+peeh/tiaTlsKuQ=="
+      },
+      "System.Security.Cryptography.Pkcs": {
+        "type": "Transitive",
+        "resolved": "10.0.10",
+        "contentHash": "KG8t5RHczdgB3IWvRndpI0nE1DSo7ikDYSDbITxfgRFyIvnYiKzuPjaZOsPnwFQ1aOGUl9sEulJul9wlHLEUoA=="
+      }
     }
   }
 }

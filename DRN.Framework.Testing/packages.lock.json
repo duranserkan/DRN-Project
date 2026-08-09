@@ -985,6 +985,30 @@
           "System.Memory.Data": "[10.0.10, )"
         }
       }
+    },
+    "net10.0/linux-arm64": {
+      "Blake3.Native": {
+        "type": "Transitive",
+        "resolved": "3.0.0",
+        "contentHash": "k4Frwv9LrAEN3BRi2Ll1E4lMVmJm/eGq+gD6sK1zs2yD0ggkyBo8m3lbjDQt7G7db+gARSc+peeh/tiaTlsKuQ=="
+      },
+      "System.Diagnostics.EventLog": {
+        "type": "Transitive",
+        "resolved": "10.0.10",
+        "contentHash": "OvGz3PrzuAI/Sj7LTcXcCe3FClRI1IyRMZjNONcZtFh+Ww7nAtSh4kh08r8KVe/xxkXJPjR0Y1jF7H+N42d4xQ=="
+      }
+    },
+    "net10.0/linux-x64": {
+      "Blake3.Native": {
+        "type": "Transitive",
+        "resolved": "3.0.0",
+        "contentHash": "k4Frwv9LrAEN3BRi2Ll1E4lMVmJm/eGq+gD6sK1zs2yD0ggkyBo8m3lbjDQt7G7db+gARSc+peeh/tiaTlsKuQ=="
+      },
+      "System.Diagnostics.EventLog": {
+        "type": "Transitive",
+        "resolved": "10.0.10",
+        "contentHash": "OvGz3PrzuAI/Sj7LTcXcCe3FClRI1IyRMZjNONcZtFh+Ww7nAtSh4kh08r8KVe/xxkXJPjR0Y1jF7H+N42d4xQ=="
+      }
     }
   }
 }

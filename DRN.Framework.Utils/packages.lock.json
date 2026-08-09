@@ -290,6 +290,22 @@
       "drn.framework.sharedkernel": {
         "type": "Project"
       }
+    },
+    "net10.0/linux-arm64": {
+      "Blake3.Native": {
+        "type": "Direct",
+        "requested": "[3.0.0, )",
+        "resolved": "3.0.0",
+        "contentHash": "k4Frwv9LrAEN3BRi2Ll1E4lMVmJm/eGq+gD6sK1zs2yD0ggkyBo8m3lbjDQt7G7db+gARSc+peeh/tiaTlsKuQ=="
+      }
+    },
+    "net10.0/linux-x64": {
+      "Blake3.Native": {
+        "type": "Direct",
+        "requested": "[3.0.0, )",
+        "resolved": "3.0.0",
+        "contentHash": "k4Frwv9LrAEN3BRi2Ll1E4lMVmJm/eGq+gD6sK1zs2yD0ggkyBo8m3lbjDQt7G7db+gARSc+peeh/tiaTlsKuQ=="
+      }
     }
   }
 }
