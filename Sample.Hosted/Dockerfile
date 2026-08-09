@@ -53,7 +53,9 @@ WORKDIR /app
 COPY . ./
 
 # The final-stage copy (COPY --chown=app:app) is the authoritative ownership fix.
-RUN mkdir -p /appdata && touch /appdata/.keep && mkdir -p /apptemp && touch /apptemp/.keep && mkdir -p /applogs && touch /applogs/.keep
+RUN mkdir -p /appdata && touch /appdata/.keep \
+    && mkdir -p /apptemp && touch /apptemp/.keep \
+    && mkdir -p /applogs && touch /applogs/.keep
 
 #https://learn.microsoft.com/en-us/dotnet/core/rid-catalog
 # Keep generated .deps.json framework metadata aligned with the runtime image patch level.
@@ -72,7 +74,8 @@ RUN dotnet build "./${PROJECT}/${PROJECT}.csproj" -c Release --no-restore -a "$T
     -p:PreserveCompilationContext=false \
     -p:PreserveCompilationReferences=false \
     -p:CopyRefAssembliesToPublishDirectory=false
-RUN dotnet publish "./${PROJECT}/${PROJECT}.csproj" -c Release -o /app/publish --no-restore --no-build -a "$TARGETARCH" \
+RUN dotnet publish "./${PROJECT}/${PROJECT}.csproj" -c Release \
+    -o /app/publish --no-restore --no-build -a "$TARGETARCH" \
     -p:RuntimeFrameworkVersion="$DOTNET_RUNTIME_VERSION" \
     -p:SelfContained=false \
     -p:UseAppHost=false \

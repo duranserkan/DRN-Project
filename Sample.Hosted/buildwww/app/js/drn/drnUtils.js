@@ -17,8 +17,8 @@ const drnUtils = {
         try {
             const base64 = btoa(str);
             return base64
-                .replace(/\+/g, '-')  // Replace '+' with '-'
-                .replace(/\//g, '_')  // Replace '/' with '_'
+                .replaceAll('+', '-')  // Replace '+' with '-'
+                .replaceAll('/', '_')  // Replace '/' with '_'
                 .replace(/={1,2}$/, '');
         } catch (e) {
             console.error("urlSafeBase64Encode: Base64 encoding failed", e);
@@ -38,8 +38,8 @@ const drnUtils = {
         }
 
         const base64 = str
-            .replace(/-/g, '+')  // Replace '-' with '+'
-            .replace(/_/g, '/')  // Replace '_' with '/'
+            .replaceAll('-', '+')  // Replace '-' with '+'
+            .replaceAll('_', '/')  // Replace '_' with '/'
             .padEnd(str.length + (4 - str.length % 4) % 4, '=');  // Add padding if necessary
 
         return atob(base64);
@@ -112,7 +112,7 @@ const drnUtils = {
         for (const key in overrides) {
             if (key === '__proto__' || key === 'constructor' || key === 'prototype')
                 continue;
-            if (Object.prototype.hasOwnProperty.call(overrides, key)) {
+            if (Object.hasOwn(overrides, key)) {
                 const overrideValue = overrides[key];
                 const baseValue = output[key];
 

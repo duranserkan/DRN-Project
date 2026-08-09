@@ -71,7 +71,7 @@ ${requestData}
 // HTMX integration: listen for showToast event from HX-Trigger response headers
 document.addEventListener('showToast', function (evt) {
     const detail = evt.detail;
-    const canToast = detail && window.DRN && window.DRN.Toast;
+    const canToast = detail && window.DRN?.Toast;
     if (!canToast)
         return;
     window.DRN.Toast.show({

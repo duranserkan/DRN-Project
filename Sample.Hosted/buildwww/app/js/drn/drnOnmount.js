@@ -16,7 +16,7 @@ const drnOnmount = {
      * in appPostload.js will call onmount() after the swap completes.
      */
     _isHtmxSwapping() {
-        return document.body != null && document.body.classList.contains('htmx-swapping');
+        return document.body?.classList.contains('htmx-swapping') ?? false;
     },
     /**
      * Default unregister function for onmount.

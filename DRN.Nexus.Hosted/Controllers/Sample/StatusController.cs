@@ -1,4 +1,6 @@
+using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Settings;
+using Microsoft.AspNetCore.Http;
 
 namespace DRN.Nexus.Hosted.Controllers.Sample;
 
@@ -7,8 +9,8 @@ namespace DRN.Nexus.Hosted.Controllers.Sample;
 public class StatusController(IAppSettings appSettings) : ControllerBase
 {
     [HttpGet]
-    [ProducesResponseType(200)]
-    [ProducesResponseType(404)]
+    [ProducesResponseType(typeof(ConfigurationDebugViewSummary), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public ActionResult Status()
     {
         if (!appSettings.IsDevelopmentEnvironment)

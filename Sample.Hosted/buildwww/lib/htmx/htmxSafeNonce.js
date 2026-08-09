@@ -26,7 +26,7 @@ htmx.defineExtension('safe-nonce', {
                 nonce = '' // ignore nonce header if request is not some domain
         }
 
-        text = text.replace(/ignore:safe-nonce/g, '')
+        text = text.replaceAll('ignore:safe-nonce', '')
         if (!window.__globalDOMParser)
             window.__globalDOMParser = new DOMParser();
 

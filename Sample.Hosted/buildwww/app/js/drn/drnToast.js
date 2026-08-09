@@ -81,9 +81,7 @@ function createToastElement(type, message, duration) {
 function enforceLimit() {
     while (activeToasts.length >= MAX_VISIBLE) {
         const oldest = activeToasts.shift();
-        if (oldest && oldest.bsToast) {
-            oldest.bsToast.hide();
-        }
+        oldest?.bsToast?.hide();
     }
 }
 
@@ -95,7 +93,7 @@ function enforceLimit() {
  * @param {number} [options.duration] - Auto-dismiss duration in ms (default 5000)
  */
 function show(options) {
-    if (!options || !options.message) return;
+    if (!options?.message) return;
 
     const type = options.type || 'info';
     const message = options.message;

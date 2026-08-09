@@ -11,7 +11,7 @@
 
 <aside class="d-flex p-1 bg-body-tertiary flex-column align-items-center">
     <!-- Scrollable Navigation Section -->
-    <nav class="flex-grow-1" style="overflow-y:auto; overflow-x: hidden">
+    <nav class="flex-grow-1" aria-label="Main Navigation" style="overflow-y:auto; overflow-x: hidden">
         <ul class="nav nav-pills nav-flush flex-column mt-1 mb-auto">
             @foreach (var navItem in sidebarNavigationCollection.Items)
             {
@@ -19,11 +19,11 @@
                 var titleAsTooltip = isSlim ? navItem.Title : string.Empty;
                 var borderBottom = ++index == sidebarNavigationCollection.Items.Count ? "border-bottom" : "";
                 <li class="nav-item">
-                    <a href="@navItem.Href"
+                    <a href="@navItem.Href" aria-label="@navItem.Title"
                        class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0"
                        title="@titleAsTooltip" data-bs-toggle="tooltip" data-bs-placement="right">
                         <i class="bi @navItem.Icon @iconStyle" style="font-size: 1.25rem;"
-                           role="img" aria-label="@navItem.Title"></i>
+                           aria-hidden="true"></i>
                         @titleAsText
                     </a>
                 </li>
@@ -31,7 +31,7 @@
         </ul>
     </nav>
     <!-- Fixed Sidebar Settings Section -->
-    <nav>
+    <nav aria-label="Sidebar Settings">
         <ul id="SidebarSettings" class="nav nav-pills nav-flush flex-column">
             <li id="SidebarSettingsItem" class="nav-item">
                 <div class="dropup d-flex" title="@settingsTitle" data-bs-toggle="tooltip" data-bs-placement="right">

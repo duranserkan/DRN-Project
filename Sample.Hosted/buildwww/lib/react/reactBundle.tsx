@@ -46,7 +46,7 @@ class IslandErrorBoundary extends React.Component<{ children: React.ReactNode },
     }
 }
 
-if (!window.DRN || !window.DRN.React) {
+if (!window.DRN?.React) {
     console.error("Critical Error: 'appPreload.js' has not been loaded. DRN namespace is missing.");
 }
 
@@ -58,7 +58,7 @@ if (window.CSSStyleSheet)
         drnSharedSheet.replaceSync(bundleStyles);
     } catch (e) {
         drnSharedSheet = null;
-        console.warn("[DRN] Constructable stylesheets not supported, falling back to <style> tags");
+        console.warn("[DRN] Constructable stylesheets not supported, falling back to <style> tags", e);
     }
 
 function setupShadowDomContainer(domElement: HTMLElement): HTMLElement {

@@ -10,7 +10,7 @@
 }
 
 <aside class="d-flex p-1 bg-body-tertiary flex-column align-items-center">
-    <nav class="flex-grow-1" style="overflow-y:auto; overflow-x: hidden">
+    <nav class="flex-grow-1" aria-label="Sidebar actions" style="overflow-y:auto; overflow-x: hidden">
         <ul id="ActionbarActionList" class="nav nav-pills nav-flush flex-column mt-1 mb-auto">
             @foreach (var navItem in sidebarActionCollection.Items)
             {
@@ -18,10 +18,10 @@
 
                 <li class="nav-item" id="@navItem.ActionItemId" data-js-actionbar-item>
                     <div title="@navItem.Title" data-bs-toggle="tooltip" data-bs-placement="left">
-                        <button class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0" type="button"
+                        <button class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0" type="button" aria-label="@navItem.Title"
                                 data-bs-toggle="offcanvas" data-bs-target="#@navItem.ActionItemCanvasId">
                             <span class="position-relative">
-                                <i class="bi @navItem.Icon" style="font-size: 1.25em;" role="img" aria-label="@navItem.Title"></i>
+                                <i class="bi @navItem.Icon" style="font-size: 1.25em;" aria-hidden="true"></i>
                                 @if (navItem.BadgeContentGenerator != null || !string.IsNullOrWhiteSpace(navItem.BadgeContent))
                                 {
                                     var badgeContent = navItem.GetBadgeContent();
@@ -43,7 +43,7 @@
             }
         </ul>
     </nav>
-    <nav style="overflow-y:auto; overflow-x: hidden">
+    <nav aria-label="Sidebar actionbar status badges" style="overflow-y:auto; overflow-x: hidden">
         <ul id="ActionBarBadgeList" class="nav nav-pills nav-flush flex-column mt-1 mb-auto">
             @if (AppSettings.Environment == AppEnvironment.Development)
             {
@@ -55,13 +55,13 @@
 
 @foreach (var navItem in SidebarActionCollection.DefaultItems)
 {
-    <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="@navItem.ActionItemCanvasId" role="dialog" aria-modal="true"
+    <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="@navItem.ActionItemCanvasId" aria-modal="true"
          aria-labelledby="@navItem.ActionItemCanvasLabelId">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="@navItem.ActionItemCanvasLabelId">
                 <div class="d-flex gap-3 text-primary">
                     <h4 class="position-relative">
-                        <i class="bi @navItem.Icon" role="img" aria-label="@navItem.Title"></i>
+                        <i class="bi @navItem.Icon" aria-hidden="true"></i>
                         @if (navItem.BadgeContentGenerator != null || !string.IsNullOrWhiteSpace(navItem.BadgeContent))
                         {
                             var badgeContent = navItem.GetBadgeContent();

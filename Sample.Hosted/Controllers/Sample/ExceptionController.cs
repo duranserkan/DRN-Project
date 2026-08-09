@@ -9,6 +9,8 @@ namespace Sample.Hosted.Controllers.Sample;
 [Route(SampleApiFor.ControllerRouteTemplate)]
 public class ExceptionController(IExceptionUtils exceptionUtils, IAppSettings appSettings) : ControllerBase
 {
+    private const string ExceptionMessage = "DrnTest";
+
     [HttpGet(nameof(ValidationException))]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -17,7 +19,7 @@ public class ExceptionController(IExceptionUtils exceptionUtils, IAppSettings ap
         if (!appSettings.IsDevelopmentEnvironment)
             return NotFound();
 
-        throw new ValidationException("DrnTest");
+        throw new ValidationException(ExceptionMessage);
     }
 
     [HttpGet(nameof(UnauthorizedException))]
@@ -28,7 +30,7 @@ public class ExceptionController(IExceptionUtils exceptionUtils, IAppSettings ap
         if (!appSettings.IsDevelopmentEnvironment)
             return NotFound();
 
-        throw new UnauthorizedException("DrnTest");
+        throw new UnauthorizedException(ExceptionMessage);
     }
 
     [HttpGet(nameof(ForbiddenException))]
@@ -39,7 +41,7 @@ public class ExceptionController(IExceptionUtils exceptionUtils, IAppSettings ap
         if (!appSettings.IsDevelopmentEnvironment)
             return NotFound();
 
-        throw new ForbiddenException("DrnTest");
+        throw new ForbiddenException(ExceptionMessage);
     }
 
     [HttpGet(nameof(NotFoundException))]
@@ -49,7 +51,7 @@ public class ExceptionController(IExceptionUtils exceptionUtils, IAppSettings ap
         if (!appSettings.IsDevelopmentEnvironment)
             return NotFound();
 
-        throw new NotFoundException("DrnTest");
+        throw new NotFoundException(ExceptionMessage);
     }
 
     [HttpGet(nameof(ConflictException))]
@@ -60,7 +62,7 @@ public class ExceptionController(IExceptionUtils exceptionUtils, IAppSettings ap
         if (!appSettings.IsDevelopmentEnvironment)
             return NotFound();
 
-        throw new ConflictException("DrnTest");
+        throw new ConflictException(ExceptionMessage);
     }
 
     [HttpGet(nameof(ExpiredException))]
@@ -71,7 +73,7 @@ public class ExceptionController(IExceptionUtils exceptionUtils, IAppSettings ap
         if (!appSettings.IsDevelopmentEnvironment)
             return NotFound();
 
-        throw new ExpiredException("DrnTest");
+        throw new ExpiredException(ExceptionMessage);
     }
 
     [HttpGet(nameof(ConfigurationException))]
@@ -82,7 +84,7 @@ public class ExceptionController(IExceptionUtils exceptionUtils, IAppSettings ap
         if (!appSettings.IsDevelopmentEnvironment)
             return NotFound();
 
-        throw new ConfigurationException("DrnTest");
+        throw new ConfigurationException(ExceptionMessage);
     }
 
     [HttpGet(nameof(UnprocessableEntityException))]
@@ -93,7 +95,7 @@ public class ExceptionController(IExceptionUtils exceptionUtils, IAppSettings ap
         if (!appSettings.IsDevelopmentEnvironment)
             return NotFound();
 
-        throw new UnprocessableEntityException("DrnTest");
+        throw new UnprocessableEntityException(ExceptionMessage);
     }
 
     [HttpGet(nameof(MaliciousRequestException))]
@@ -104,7 +106,7 @@ public class ExceptionController(IExceptionUtils exceptionUtils, IAppSettings ap
         if (!appSettings.IsDevelopmentEnvironment)
             return NotFound();
 
-        throw new MaliciousRequestException("DrnTest");
+        throw new MaliciousRequestException(ExceptionMessage);
     }
 
 
@@ -118,7 +120,7 @@ public class ExceptionController(IExceptionUtils exceptionUtils, IAppSettings ap
 
         try
         {
-            throw new ConfigurationException("DrnTest");
+            throw new ConfigurationException(ExceptionMessage);
         }
         catch (Exception e)
         {

@@ -29,7 +29,7 @@ class DrnCookieManager {
         return document.cookie
             .split(';')
             .map(c => c.trimStart())
-            .filter(c => c)
+            .filter(Boolean)
             .map(raw => {
                 const eqIndex = raw.indexOf('=');
                 return eqIndex > 0
@@ -55,7 +55,7 @@ class DrnCookieManager {
         if (!this._validateName(name)) return;
 
         const config = {...this.defaults, ...options};
-        let stringValue = value;
+        let stringValue;
 
         if (typeof value === 'object' && value != null) {
             try {
@@ -64,6 +64,8 @@ class DrnCookieManager {
                 console.error(`DrnCookieManager: Serialization failed for '${name}'`, e);
                 return;
             }
+        } else {
+            stringValue = String(value);
         }
         // Encoding (String -> Safe String)
         let encodedValue = stringValue;
@@ -105,8 +107,8 @@ class DrnCookieManager {
     _findRawCookieValue(name) {
         const nameEQ = encodeURIComponent(name) + '=';
         const ca = document.cookie.split(';');
-        for (let i = 0; i < ca.length; i++) {
-            const c = ca[i].trimStart();
+        for (const item of ca) {
+            const c = item.trimStart();
             if (c.indexOf(nameEQ) === 0) {
                 return c.substring(nameEQ.length);
             }

@@ -109,7 +109,7 @@ function install() {
         const source = event.filename || '';
         const line = event.lineno || 0;
         const column = event.colno || 0;
-        const stack = event.error && event.error.stack ? event.error.stack : '';
+        const stack = event.error?.stack || '';
         const key = message + '|' + source + '|' + line;
 
         if (shouldReport(key)) {

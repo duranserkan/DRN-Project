@@ -80,7 +80,7 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager, MfaRedirectio
         return updatedCount;
     }
 
-    public void ResetInvalidCodeAttempts(HttpContext context) => context.Response.Cookies.Delete(InvalidCodeAttempts);
+    public static void ResetInvalidCodeAttempts(HttpContext context) => context.Response.Cookies.Delete(InvalidCodeAttempts);
 
     private static int ReadInvalidCodeAttempts(HttpContext context)
     {

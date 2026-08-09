@@ -29,13 +29,13 @@
         {
             <partial name="_SubNavigation"/>
         }
-        <aside>
+        <aside aria-label="Main top content">
             @await RenderSectionAsync("MainTop", required: false)
         </aside>
 
         @if (!string.IsNullOrWhiteSpace(statusMessage))
         {
-            <aside class="alert alert-success alert-dismissible mb-0 mt-1 mx-3">
+            <aside class="alert alert-success alert-dismissible mb-0 mt-1 mx-3" aria-label="Status message">
                 <div role="alert">
                     @TempData[Get.TempDataKeys.StatusMessage]
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -81,7 +81,7 @@
             </main>
         </div>
 
-        <aside>
+        <aside aria-label="Main bottom content">
             @await RenderSectionAsync("MainBottom", required: false)
         </aside>
     </div>

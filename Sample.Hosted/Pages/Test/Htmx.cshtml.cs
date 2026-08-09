@@ -7,6 +7,9 @@ namespace Sample.Hosted.Pages.Test;
 [Authorize(Roles = UserRoles.SystemAdmin)]
 public class Htmx(IAntiforgery antiForgery) : PageModel
 {
+    private const string TimestampFormat = "HH:mm:ss";
+    private const string ResultMessageView = "_ResultMessage";
+
     public void OnGet()
     {
         // Intentionally empty: GET request initializes default page view.
@@ -19,9 +22,9 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
         {
             Message = message,
             TokenValidation = "Success (Automatic Razor Pages Validation)",
-            Timestamp = DateTime.Now.ToString("HH:mm:ss")
+            Timestamp = DateTime.Now.ToString(TimestampFormat)
         };
-        return Partial("_ResultMessage", model);
+        return Partial(ResultMessageView, model);
     }
 
     // GET requests don't validate CSRF by default
@@ -31,9 +34,9 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
         {
             Message = string.Empty,
             TokenValidation = "Not Required (GET Request)",
-            Timestamp = DateTime.Now.ToString("HH:mm:ss")
+            Timestamp = DateTime.Now.ToString(TimestampFormat)
         };
-        return Partial("_ResultMessage", model);
+        return Partial(ResultMessageView, model);
     }
 
     // Manually validate the token
@@ -53,9 +56,9 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
         {
             Message = query,
             TokenValidation = "Success (Explicit Validation)",
-            Timestamp = DateTime.Now.ToString("HH:mm:ss")
+            Timestamp = DateTime.Now.ToString(TimestampFormat)
         };
-        return Partial("_ResultMessage", model);
+        return Partial(ResultMessageView, model);
     }
 
     // PUT method with automatic CSRF validation
@@ -65,9 +68,9 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
         {
             Message = message,
             TokenValidation = "Success (PUT with Automatic Validation)",
-            Timestamp = DateTime.Now.ToString("HH:mm:ss")
+            Timestamp = DateTime.Now.ToString(TimestampFormat)
         };
-        return Partial("_ResultMessage", model);
+        return Partial(ResultMessageView, model);
     }
 
     // PATCH method with automatic CSRF validation
@@ -77,9 +80,9 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
         {
             Message = message,
             TokenValidation = "Success (PATCH with Automatic Validation)",
-            Timestamp = DateTime.Now.ToString("HH:mm:ss")
+            Timestamp = DateTime.Now.ToString(TimestampFormat)
         };
-        return Partial("_ResultMessage", model);
+        return Partial(ResultMessageView, model);
     }
 
     // DELETE method with automatic CSRF validation
@@ -89,8 +92,8 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
         {
             Message = message,
             TokenValidation = "Success (DELETE with Automatic Validation)",
-            Timestamp = DateTime.Now.ToString("HH:mm:ss")
+            Timestamp = DateTime.Now.ToString(TimestampFormat)
         };
-        return Partial("_ResultMessage", model);
+        return Partial(ResultMessageView, model);
     }
 }
