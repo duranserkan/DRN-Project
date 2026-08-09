@@ -14,7 +14,7 @@ htmx.defineExtension('safe-nonce', {
         if (!nonce) {
             const csp = xhr.getResponseHeader('content-security-policy')
             if (csp) {
-                const cspMatch = csp.match(/(default|script)-src[^;]*'nonce-([^']*)'/i)
+                const cspMatch = /(default|script)-src[^;]*'nonce-([^']*)'/i.exec(csp)
                 if (cspMatch)
                     nonce = cspMatch[2]
             }
