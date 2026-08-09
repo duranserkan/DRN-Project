@@ -4,6 +4,7 @@
     <NuGetAuditMode>all</NuGetAuditMode>
     <NuGetAuditLevel>low</NuGetAuditLevel>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(RestoreLockedMode)' == '' And ('$(CI)' == 'true' Or '$(ContinuousIntegrationBuild)' == 'true')">true</RestoreLockedMode>
     <!-- Keep one locked restore graph for both published Linux architectures. -->
     <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
