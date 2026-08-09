@@ -18,7 +18,7 @@ runs:
           type == "object" and (keys | sort) == ["sdk"] and (.sdk | type == "object") and
           (.sdk | keys | sort) == ["allowPrerelease", "rollForward", "version"] and
           (.sdk.version | type == "string" and test("^10\\.0\\.(0|[1-9][0-9]*)$")) and
-          (.sdk.rollForward == "latestPatch") and (.sdk.allowPrerelease == false)
+          (.sdk.rollForward == "latestFeature") and (.sdk.allowPrerelease == false)
         ' global.json >/dev/null || { echo "global.json violates the pinned SDK policy" >&2; exit 1; }
 
     - name: Setup .NET

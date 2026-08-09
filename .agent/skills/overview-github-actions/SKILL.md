@@ -1,7 +1,7 @@
 ---
 name: overview-github-actions
 description: Use when reviewing or modifying GitHub Actions workflows, composite actions, CI gates, release pipelines, Docker publishing, package publishing, or security scanning.
-last-updated: 2026-06-14
+last-updated: 2026-08-09
 difficulty: intermediate
 tokens: ~1.4K
 ---
@@ -28,7 +28,7 @@ Common workflow families:
 - Keep PR workflows secretless unless the workflow is carefully split between trusted and untrusted code.
 - For split-checkout PR workflows, checkout trusted CI/control-plane code at the immutable event base SHA and checkout PR-controlled source into a separate path.
 - Set explicit `timeout-minutes` on jobs that run untrusted or expensive code, and keep aggregate gatekeeper jobs short.
-- Pin third-party actions according to repository policy. When the profile requires full commit SHAs with version comments, verify both the SHA and the explanatory version comment from the official upstream repository; annotated tags require the dereferenced tag commit.
+- Pin third-party actions according to repository policy using full immutable Git commit SHAs with version comments; verify both the SHA and the explanatory version comment from the official upstream repository; annotated tags require the dereferenced tag commit. Container base images must use verified registry content digests.
 - Protect `.github/workflows/**`, `.github/actions/**`, and `CODEOWNERS` with code-owner review.
 - Gate publishing credentials behind build/test/security-scan success.
 - Upload SARIF or code-scanning results when the repository uses supported scanners. If a custom SARIF verifier is used, missing, empty, malformed, or unparsable SARIF is a failed security gate; if platform code-scanning merge protection replaces it, require that protection in branch rulesets.
