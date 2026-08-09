@@ -71,7 +71,7 @@ public class CreateItemRequest
 - Check vulnerability and maintenance signals before adding packages.
 - Prefer maintained packages with clear provenance.
 - Follow the repository pinning policy for NuGet, npm, GitHub Actions, containers, and language-specific package managers.
-- Whenever container base images, Docker services, GitHub Actions, or package versions are added or updated, verify their SHA-256 digests against canonical registry manifests or package repository metadata before committing.
+- Whenever container base images, Docker/Docker Compose services, or package versions are added or updated, verify their SHA-256 digests against canonical registry manifests or package repository metadata before committing. Require GitHub Actions to use full 40-character commit SHAs, documenting tag-to-commit verification separately according to the repository profile.
 - Review transitive dependencies when adding security-sensitive packages.
 - Do not add dependency upgrades to release notes unless they create a breaking or user-facing behavior change.
 

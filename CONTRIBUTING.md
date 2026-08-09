@@ -75,9 +75,10 @@ To refresh NuGet lock files from the CLI:
 dotnet restore DRN.slnx
 ```
 
-CI restores in locked mode and rejects missing or stale lock files. Frontend dependency changes in `Sample.Hosted` or `DRN.Nexus.Hosted` must update `package-lock.json` using:
+CI restores in locked mode and rejects missing or stale lock files. Frontend dependency changes in `Sample.Hosted` (or any frontend project with a `package.json`) must update `package-lock.json` from within that project directory:
 
 ```bash
+cd Sample.Hosted
 npm install --package-lock-only --ignore-scripts
 ```
 

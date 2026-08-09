@@ -120,7 +120,8 @@ Before approving, ask: "If this causes an incident in 6 months, what was the roo
 | Data loss | Destructive migration, overwrite path, missing backup/rollback |
 | Broken contract | Removed member, changed response shape, renamed config key |
 | False confidence | Test asserts plumbing only, mock hides integration failure |
-| Supply-chain risk | New package/action/image without provenance, verified SHA-256 digest, or pinning policy |
+| Supply-chain risk | New package/action/image without immutable reference, verified SHA-256 digest, or provenance metadata |
+| Pinning policy drift | New or updated dependency, action, or base image that violates repository pinning policy |
 | Unverified digest drift | Container image or dependency version updated without verifying SHA-256 digest against canonical registry manifests |
 | Runtime drift | Container image/runtime version no longer matches repository profile or project metadata |
 
