@@ -20,11 +20,11 @@ runs:
       # Keep dependency restore deterministic and prevent dependency lifecycle
       # hooks from executing in CI. The explicit build step below runs the
       # project-owned scripts after audit.
-      run: npm ci --ignore-scripts
+      run: npm ci --ignore-scripts --registry=https://registry.npmjs.org/
     - name: Audit npm dependencies
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: npm audit --audit-level=high
+      run: npm audit --audit-level=high --registry=https://registry.npmjs.org/
     - name: Build Vite assets
       shell: bash
       working-directory: ${{ inputs.working-directory }}

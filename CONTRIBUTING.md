@@ -65,6 +65,23 @@ Open an issue with the `enhancement` label. Describe:
 dotnet build DRN.slnx
 ```
 
+### Dependency lock files
+
+Commit `packages.lock.json` and `package-lock.json` whenever dependencies change. Supporting IDEs (e.g., Rider) update NuGet lock files automatically on restore.
+
+To refresh NuGet lock files from the CLI:
+
+```bash
+dotnet restore DRN.slnx
+```
+
+CI restores in locked mode and rejects missing or stale lock files. Frontend dependency changes in `Sample.Hosted` (or any frontend project with a `package.json`) must update `package-lock.json` from within that project directory:
+
+```bash
+cd Sample.Hosted
+npm install --package-lock-only --ignore-scripts
+```
+
 ### Testing
 
 ```bash

@@ -23,12 +23,44 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # This nested action resolves from the trusted composite-action checkout in
+    # split-checkout PR workflows. Landing it here makes policy enforcement
+    # self-activating after the action first reaches each protected base branch.
+    - name: Enforce dependency policy
+      uses: ./.github/actions/dependency-policy
+      with:
+        working-directory: ${{ inputs.working-directory }}
+        base-sha: ${{ github.event.pull_request.base.sha }}
+        head-sha: ${{ github.event.pull_request.head.sha }}
+
+    - name: Reject repository-controlled NuGet restore overrides
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+
+        if git grep -n -i -E \
+          'RestoreSources|RestoreAdditionalProjectSources|RestoreFallbackFolders|RestoreAdditionalProjectFallbackFolders|RestorePackagesPath|RestoreConfigFile|TreatAsLocalProperty' \
+          -- . ':(exclude).github/actions/dotnet-build/action.yml'; then
+          echo 'Repository-controlled NuGet restore overrides are not allowed.' >&2
+          exit 1
+        fi
+
     - name: Restore dependencies
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
         SOLUTION_FILE: ${{ inputs.solution-file }}
-      run: dotnet restore "$SOLUTION_FILE"
+      # This composite action comes from the trusted checkout in PR workflows;
+      # do not take package sources from PR-controlled configuration.
+      run: |
+        dotnet restore "$SOLUTION_FILE" \
+          --locked-mode \
+          --configfile "$GITHUB_ACTION_PATH/NuGet.Config" \
+          --packages "$RUNNER_TEMP/drn-nuget-packages" \
+          -p:RestoreAdditionalProjectSources= \
+          -p:RestoreFallbackFolders= \
+          -p:RestoreAdditionalProjectFallbackFolders=
     - name: Scan vulnerabilities
       uses: ./.github/actions/scan-nuget-vulnerabilities
       with:

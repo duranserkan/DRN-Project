@@ -42,10 +42,15 @@ runs:
         # already absent from a future solution layout.
         dotnet sln "$scan_solution" remove docker-compose.dcproj || true
 
+        # Reuse assets from the preceding trusted locked-mode restore. On .NET
+        # 10, dotnet list restores implicitly unless --no-restore is specified,
+        # which would allow repository-controlled NuGet configuration back into
+        # the dependency resolution path.
+        #
         # Capture output and exit code manually. With set -e, an unhandled
         # non-zero command would exit before we can print dotnet's diagnostics.
         status=0
-        packages=$(dotnet list "$scan_solution" package --include-transitive --vulnerable) || status=$?
+        packages=$(dotnet list "$scan_solution" package --no-restore --include-transitive --vulnerable) || status=$?
         if [ "$status" -ne 0 ]; then
           echo "$packages"
           exit "$status"

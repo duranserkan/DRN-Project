@@ -1,7 +1,7 @@
 ---
 name: basic-code-review
 description: Use when reviewing code changes, pull requests, staged diffs, or self-reviewing work for security, correctness, clarity, simplicity, performance, breaking changes, and missing verification.
-last-updated: 2026-06-14
+last-updated: 2026-08-09
 difficulty: intermediate
 tokens: ~1.3K
 ---
@@ -120,7 +120,9 @@ Before approving, ask: "If this causes an incident in 6 months, what was the roo
 | Data loss | Destructive migration, overwrite path, missing backup/rollback |
 | Broken contract | Removed member, changed response shape, renamed config key |
 | False confidence | Test asserts plumbing only, mock hides integration failure |
-| Supply-chain risk | New package/action/image without provenance or pinning policy |
+| Supply-chain risk | New package, container image, or third-party GitHub action without immutable reference (full Git commit SHA for actions, verified registry digest for container base images), or provenance metadata |
+| Pinning policy drift | New or updated dependency, action, or base image that violates repository pinning policy |
+| Unverified digest drift | Container base image or package dependency version updated without verifying content digest against canonical registry manifests |
 | Runtime drift | Container image/runtime version no longer matches repository profile or project metadata |
 
 ## Related Skills
