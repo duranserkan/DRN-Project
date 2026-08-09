@@ -18,4 +18,6 @@ RUN chown -R rabbitmq:rabbitmq /etc/rabbitmq/ "$RABBITMQ_HOME"/plugins/ && \
     rabbitmq_shovel \
     rabbitmq_shovel_management
 
+# USER is intentionally omitted: the official entrypoint starts as root, repairs ownership
+# under /var/lib/rabbitmq, then re-executes rabbitmq-server as user 'rabbitmq'.
 CMD ["rabbitmq-server"]
