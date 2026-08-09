@@ -22,12 +22,10 @@ runs:
     # This nested action resolves from the trusted composite-action checkout in
     # split-checkout PR workflows. Landing it here makes policy enforcement
     # self-activating after the action first reaches each protected base branch.
-    - name: Enforce dependency policy
-      uses: ./.github/actions/dependency-policy
+    - name: Enforce NuGet dependency policy
+      uses: ./.github/actions/nuget-dependency-policy
       with:
         working-directory: ${{ inputs.working-directory }}
-        base-sha: ${{ github.event.pull_request.base.sha }}
-        head-sha: ${{ github.event.pull_request.head.sha }}
 
     - name: Reject repository-controlled NuGet restore overrides
       shell: bash
@@ -47,13 +45,13 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       env:
         SOLUTION_FILE: ${{ inputs.solution-file }}
-      # This composite action comes from the trusted checkout in PR workflows;
-      # do not take package sources from PR-controlled configuration.
+      # GITHUB_WORKSPACE is the trusted base checkout in split-checkout PR workflows.
+      # Its root NuGet.Config is the canonical package-source policy.
       run: |
         dotnet restore "$SOLUTION_FILE" \
           --locked-mode \
           -p:Configuration=Release \
-          --configfile "$GITHUB_ACTION_PATH/NuGet.Config" \
+          --configfile "$GITHUB_WORKSPACE/NuGet.Config" \
           --packages "$RUNNER_TEMP/drn-nuget-packages" \
           -p:RestoreAdditionalProjectSources= \
           -p:RestoreFallbackFolders= \

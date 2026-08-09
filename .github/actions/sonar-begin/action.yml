@@ -5,14 +5,6 @@ inputs:
     description: "Repository directory to analyze."
     required: false
     default: "."
-  sonar-scanner-version:
-    description: "Pinned dotnet-sonarscanner version."
-    required: false
-    default: "11.2.1"
-  dotnet-coverage-version:
-    description: "Pinned dotnet-coverage version."
-    required: false
-    default: "18.9.0"
   sonar-token:
     description: "SonarCloud token."
     required: true
@@ -55,8 +47,6 @@ runs:
       uses: ./.github/actions/sonar-tools
       with:
         working-directory: ${{ inputs.working-directory }}
-        sonar-scanner-version: ${{ inputs.sonar-scanner-version }}
-        dotnet-coverage-version: ${{ inputs.dotnet-coverage-version }}
     - name: Sonar Scan Begin # Sonar Begin
       shell: pwsh
       working-directory: ${{ inputs.working-directory }}
@@ -106,4 +96,4 @@ runs:
           $scannerArgs += "/d:sonar.branch.target=$env:SONAR_BRANCH_TARGET"
         }
 
-        ./.sonar/scanner/dotnet-sonarscanner @scannerArgs
+        dotnet tool run dotnet-sonarscanner @scannerArgs
