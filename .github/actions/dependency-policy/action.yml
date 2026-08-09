@@ -6,11 +6,13 @@ inputs:
     description: "PR source checkout containing dependency manifests and lockfiles."
     required: true
   base-sha:
-    description: "Trusted PR base commit SHA."
-    required: true
+    description: "Optional trusted PR base commit SHA used for the change summary."
+    required: false
+    default: ""
   head-sha:
-    description: "PR head commit SHA."
-    required: true
+    description: "Optional PR head commit SHA used for the change summary."
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -90,23 +92,25 @@ runs:
           validate_npm_lock "$lockfile"
         done < <(find . -path '*/node_modules' -prune -o -path '*/bin' -prune -o -path '*/obj' -prune -o -path '*/.git' -prune -o -name package.json -print0)
 
-        echo 'Dependency change summary:'
-        git diff --name-status "$BASE_SHA" "$HEAD_SHA" -- \
-          ':(glob)**/*.csproj' \
-          ':(glob)**/*.fsproj' \
-          ':(glob)**/*.vbproj' \
-          ':(glob)**/*.proj' \
-          ':(glob)**/*.props' \
-          ':(glob)**/*.targets' \
-          ':(glob)**/*.rsp' \
-          ':(glob)**/*.slnx' \
-          ':(glob)**/packages.lock.json' \
-          ':(glob)**/packages.config' \
-          ':(glob)**/package.json' \
-          ':(glob)**/package-lock.json' \
-          ':(glob)**/.npmrc' \
-          NuGet.Config \
-          global.json || true
+        if [[ -n "$BASE_SHA" && -n "$HEAD_SHA" ]]; then
+          echo 'Dependency change summary:'
+          git diff --name-status "$BASE_SHA" "$HEAD_SHA" -- \
+            ':(glob)**/*.csproj' \
+            ':(glob)**/*.fsproj' \
+            ':(glob)**/*.vbproj' \
+            ':(glob)**/*.proj' \
+            ':(glob)**/*.props' \
+            ':(glob)**/*.targets' \
+            ':(glob)**/*.rsp' \
+            ':(glob)**/*.slnx' \
+            ':(glob)**/packages.lock.json' \
+            ':(glob)**/packages.config' \
+            ':(glob)**/package.json' \
+            ':(glob)**/package-lock.json' \
+            ':(glob)**/.npmrc' \
+            NuGet.Config \
+            global.json || true
 
-        echo 'Direct npm dependency changes:'
-        git diff --unified=0 "$BASE_SHA" "$HEAD_SHA" -- ':(glob)**/package.json' || true
+          echo 'Direct npm dependency changes:'
+          git diff --unified=0 "$BASE_SHA" "$HEAD_SHA" -- ':(glob)**/package.json' || true
+        fi
