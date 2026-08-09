@@ -28,7 +28,7 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       env:
         SOLUTION_FILE: ${{ inputs.solution-file }}
-      run: dotnet restore "$SOLUTION_FILE"
+      run: dotnet restore "$SOLUTION_FILE" --locked-mode
     - name: Scan vulnerabilities
       uses: ./.github/actions/scan-nuget-vulnerabilities
       with:
