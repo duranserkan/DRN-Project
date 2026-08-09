@@ -1,5 +1,5 @@
 name: Dotnet Validate
-description: "Set up .NET, build, and run unit and integration tests in Debug mode."
+description: "Set up .NET, build, and run unit and integration tests in Release mode."
 inputs:
   working-directory:
     description: "Repository directory containing the solution file."

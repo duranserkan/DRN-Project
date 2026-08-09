@@ -1,5 +1,5 @@
 name: Dotnet Build
-description: "Restore dependencies, scan NuGet vulnerabilities, and build solution in the selected configuration."
+description: "Restore dependencies, scan NuGet vulnerabilities, and build solution in Release configuration."
 inputs:
   working-directory:
     description: "Repository directory containing the solution file."
@@ -8,10 +8,6 @@ inputs:
   solution-file:
     description: "Solution file to restore, scan, and build."
     required: true
-  configuration:
-    description: "Build configuration."
-    required: false
-    default: Debug
   version:
     description: "Optional package/application version to pass to MSBuild."
     required: false
@@ -56,6 +52,7 @@ runs:
       run: |
         dotnet restore "$SOLUTION_FILE" \
           --locked-mode \
+          -p:Configuration=Release \
           --configfile "$GITHUB_ACTION_PATH/NuGet.Config" \
           --packages "$RUNNER_TEMP/drn-nuget-packages" \
           -p:RestoreAdditionalProjectSources= \
@@ -71,7 +68,6 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       env:
         SOLUTION_FILE: ${{ inputs.solution-file }}
-        BUILD_CONFIGURATION: ${{ inputs.configuration }}
         BUILD_VERSION: ${{ inputs.version }}
         SONARQUBE_TARGETS_IMPORTED: ${{ inputs.sonarqube-targets-imported }}
       run: |
@@ -81,7 +77,7 @@ runs:
           dotnet build "$SOLUTION_FILE"
           --no-restore
           --no-incremental
-          --configuration "$BUILD_CONFIGURATION"
+          --configuration Release
           -p:ContinuousIntegrationBuild=true
         )
 

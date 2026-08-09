@@ -16,10 +16,6 @@ inputs:
   solution-file:
     description: "Solution file to build during SonarCloud analysis."
     required: true
-  configuration:
-    description: "Build and test configuration used during SonarCloud analysis."
-    required: false
-    default: Debug
   version:
     description: "Optional package/application version to pass to SonarCloud analysis and MSBuild."
     required: false
@@ -84,14 +80,12 @@ runs:
       with:
         working-directory: ${{ inputs.working-directory }}
         solution-file: ${{ inputs.solution-file }}
-        configuration: ${{ inputs.configuration }}
         version: ${{ inputs.version }}
 
     - name: Test with Coverage
       uses: ./.github/actions/dotnet-test-coverage
       with:
         working-directory: ${{ inputs.working-directory }}
-        configuration: ${{ inputs.configuration }}
 
     - name: Sonar Scan End
       uses: ./.github/actions/sonar-end

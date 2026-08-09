@@ -18,10 +18,6 @@ inputs:
     description: "Comma-separated CodeQL languages."
     required: false
     default: "csharp,javascript"
-  configuration:
-    description: "Build configuration used for CodeQL tracing."
-    required: false
-    default: Debug
   version:
     description: "Optional package/application version to pass to MSBuild."
     required: false
@@ -45,7 +41,6 @@ runs:
       with:
         working-directory: ${{ inputs.working-directory }}
         solution-file: ${{ inputs.solution-file }}
-        configuration: ${{ inputs.configuration }}
         version: ${{ inputs.version }}
         sonarqube-targets-imported: "true"
 
