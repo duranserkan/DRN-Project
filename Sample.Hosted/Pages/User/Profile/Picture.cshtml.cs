@@ -21,6 +21,7 @@ public class ProfilePictureModel(
 
     public void OnGet()
     {
+        // Intentionally empty: GET request initializes profile picture upload form.
     }
 
     public async Task<IActionResult> OnPostAsync()

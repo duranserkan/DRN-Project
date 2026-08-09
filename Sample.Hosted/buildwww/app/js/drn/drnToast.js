@@ -61,7 +61,7 @@ function createToastElement(type, message, duration) {
     el.setAttribute('role', 'alert');
     el.setAttribute('aria-live', 'assertive');
     el.setAttribute('aria-atomic', 'true');
-    el.setAttribute('data-bs-delay', String(duration));
+    el.dataset.bsDelay = String(duration);
 
     el.innerHTML = [
         '<div class="toast-header">',

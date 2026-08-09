@@ -61,6 +61,43 @@ if (window.CSSStyleSheet)
         console.warn("[DRN] Constructable stylesheets not supported, falling back to <style> tags");
     }
 
+function setupShadowDomContainer(domElement: HTMLElement): HTMLElement {
+    const shadow = domElement.shadowRoot || domElement.attachShadow({mode: 'open'});
+    if (drnSharedSheet && shadow.adoptedStyleSheets) {
+        if (!shadow.adoptedStyleSheets.includes(drnSharedSheet))
+            shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, drnSharedSheet];
+    } else {
+        const styleId = 'drn-shadow-dom-styles';
+        if (!shadow.querySelector(`#${styleId}`)) {
+            const styleTag = document.createElement('style');
+            styleTag.id = styleId;
+            const nonce = getInlineStyleNonce();
+            if (nonce)
+                styleTag.nonce = nonce;
+            styleTag.textContent = bundleStyles;
+            shadow.appendChild(styleTag);
+        }
+    }
+
+    let portalHost = shadow.querySelector('#drn-portal-root') as HTMLDivElement;
+    if (!portalHost) {
+        portalHost = document.createElement('div');
+        portalHost.id = 'drn-portal-root';
+        portalHost.className = 'drn-react-root drn-react-portal-root';
+        shadow.appendChild(portalHost);
+    }
+    return portalHost;
+}
+
+function resolveMountContainer(domElement: HTMLElement, useShadow: boolean): HTMLElement {
+    if (useShadow) {
+        return setupShadowDomContainer(domElement);
+    }
+    if (!domElement.classList.contains('drn-react-root'))
+        domElement.classList.add('drn-react-root');
+    return domElement;
+}
+
 window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
     name: K,
     domElement: HTMLElement | null,
@@ -96,44 +133,8 @@ window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
         domElement.innerHTML = '';
     }
 
-    let mountNode: HTMLElement | ShadowRoot = domElement;
-    let portalHost: HTMLDivElement | null = null;
-    // -----------------------------------------------------------
-    // SHADOW DOM SETUP
-    // -----------------------------------------------------------
-    if (useShadow) {
-        const shadow = domElement.shadowRoot || domElement.attachShadow({mode: 'open'});
-        if (drnSharedSheet && shadow.adoptedStyleSheets) {
-            if (!shadow.adoptedStyleSheets.includes(drnSharedSheet)) // Avoid adding it duplicate times
-                shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, drnSharedSheet];
-        } else {
-            // Fallback for older browsers: <style> tag
-            const styleId = 'drn-shadow-dom-styles';
-            if (!shadow.querySelector(`#${styleId}`)) {
-                const styleTag = document.createElement('style');
-                styleTag.id = styleId;
-                const nonce = getInlineStyleNonce();
-                if (nonce)
-                    styleTag.nonce = nonce;
-                styleTag.textContent = bundleStyles;
-                shadow.appendChild(styleTag);
-            }
-        }
+    const mountNode = resolveMountContainer(domElement, useShadow);
 
-        portalHost = shadow.querySelector('#drn-portal-root') as HTMLDivElement;
-        if (!portalHost) {
-            portalHost = document.createElement('div');
-            portalHost.id = 'drn-portal-root';
-            portalHost.className = 'drn-react-root drn-react-portal-root';
-            shadow.appendChild(portalHost);
-        }
-        mountNode = portalHost;
-    } else {
-        // Light DOM: add scoping class so .drn-react-root selectors match
-        if (!domElement.classList.contains('drn-react-root'))
-            domElement.classList.add('drn-react-root');
-    }
-    // -----------------------------------------------------------
     if (record) {
         root = record.root;
         record.currentProps = initialProps;

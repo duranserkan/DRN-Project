@@ -9,6 +9,7 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
 {
     public void OnGet()
     {
+        // Intentionally empty: GET request initializes default page view.
     }
 
     // POST methods in Razor Pages automatically validate CSRF tokens

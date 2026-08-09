@@ -7,5 +7,6 @@ public class LockoutModel : PageModel
 {
     public void OnGet()
     {
+        // Intentionally empty: GET request renders lockout page.
     }
 }

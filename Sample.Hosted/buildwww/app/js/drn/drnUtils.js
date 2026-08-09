@@ -19,7 +19,7 @@ const drnUtils = {
             return base64
                 .replace(/\+/g, '-')  // Replace '+' with '-'
                 .replace(/\//g, '_')  // Replace '/' with '_'
-                .replace(/=+$/, '');
+                .replace(/={1,2}$/, '');
         } catch (e) {
             console.error("urlSafeBase64Encode: Base64 encoding failed", e);
             return str;

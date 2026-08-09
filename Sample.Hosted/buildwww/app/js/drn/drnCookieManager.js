@@ -57,7 +57,7 @@ class DrnCookieManager {
         const config = {...this.defaults, ...options};
         let stringValue = value;
 
-        if (typeof value === 'object' && value !== null) {
+        if (typeof value === 'object' && value != null) {
             try {
                 stringValue = JSON.stringify(value);
             } catch (e) {
@@ -102,48 +102,60 @@ class DrnCookieManager {
      * @param {'uri'|'base64'|'none'} [options.encoding='uri'] - Decoding strategy matching the set strategy.
      * @returns {string|object|null} The value or null if not found.
      */
-    get(name, options = {}) {
-        if (!this._validateName(name)) return null;
-        // Use default encoding if not specified, or explicit override
-        const encoding = options.encoding || this.defaults.encoding;
-        const deserialize = options.deserialize || true;
-
-        const encodedName = encodeURIComponent(name);
-        const nameEQ = encodedName + '=';
-
-        // Note: If document.cookie is empty, split returns [""]
+    _findRawCookieValue(name) {
+        const nameEQ = encodeURIComponent(name) + '=';
         const ca = document.cookie.split(';');
         for (let i = 0; i < ca.length; i++) {
-            let c = ca[i].trimStart();
-
+            const c = ca[i].trimStart();
             if (c.indexOf(nameEQ) === 0) {
-                let value = c.substring(nameEQ.length, c.length);
-
-                // 3. Decoding Strategy
-                try {
-                    if (encoding === 'uri')
-                        value = decodeURIComponent(value);
-                    else if (encoding === 'base64')
-                        value = drnUtils.urlSafeBase64Decode?.(value) ?? value;
-                } catch (e) {
-                    console.warn(`Cookie read error [${name}]:`, e);
-                    return null;
-                }
-
-                // 4. Deserialization
-                if (deserialize) {
-                    try {
-                        return JSON.parse(value);
-                    } catch (e) {
-                        // Return raw value if JSON parse fails (graceful degradation)
-                        return value;
-                    }
-                }
-                return value;
+                return c.substring(nameEQ.length);
             }
         }
-
         return null;
+    }
+
+    _decodeCookieValue(value, encoding, name) {
+        try {
+            if (encoding === 'uri')
+                return decodeURIComponent(value);
+            if (encoding === 'base64')
+                return drnUtils.urlSafeBase64Decode?.(value) ?? value;
+            return value;
+        } catch (e) {
+            console.warn(`Cookie read error [${name}]:`, e);
+            return null;
+        }
+    }
+
+    _parseCookieValue(value, deserialize) {
+        if (!deserialize) return value;
+        try {
+            return JSON.parse(value);
+        } catch (e) {
+            return value;
+        }
+    }
+
+    /**
+     * Retrieves a cookie value by name.
+     * @param {string} name - The name of the cookie.
+     * @param {object} [options] - Retrieval options.
+     * @param {boolean} [options.deserialize=true] - If true, attempts to JSON.parse.
+     * @param {'uri'|'base64'|'none'} [options.encoding='uri'] - Decoding strategy matching the set strategy.
+     * @returns {string|object|null} The value or null if not found.
+     */
+    get(name, options = {}) {
+        if (!this._validateName(name)) return null;
+        const encoding = options.encoding || this.defaults.encoding;
+        const deserialize = options.deserialize ?? true;
+
+        const rawValue = this._findRawCookieValue(name);
+        if (rawValue === null) return null;
+
+        const decodedValue = this._decodeCookieValue(rawValue, encoding, name);
+        if (decodedValue === null) return null;
+
+        return this._parseCookieValue(decodedValue, deserialize);
     }
 
     /**

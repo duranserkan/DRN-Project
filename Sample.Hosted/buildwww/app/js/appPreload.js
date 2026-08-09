@@ -26,6 +26,6 @@ if (typeof window !== 'undefined') {
 
     // Handle back/forward navigation by forcing a fresh request
     document.addEventListener('popstate', () => {
-        window.location.href = window.location.href;
+        window.location.reload();
     });
 }

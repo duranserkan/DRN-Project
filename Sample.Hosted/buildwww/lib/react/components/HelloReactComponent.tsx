@@ -59,39 +59,39 @@ export const HelloReactComponent = ({ title, versions, onReady, onCardClick }: H
             </div>
 
             <div className="hello-react-grid">
-                <div className="hello-react-card" onClick={onCardClick}>
+                <button type="button" className="hello-react-card" onClick={onCardClick}>
                     <div className="hello-react-card-icon">⚡</div>
                     <h3 className="hello-react-card-title">Blazing Performance</h3>
                     <p className="hello-react-card-text">
                         Server-rendered Razor Pages with targeted React {v.react} mounted islands for interactive components. No SPA overhead.
                     </p>
-                </div>
+                </button>
 
-                <div className="hello-react-card" onClick={onCardClick}>
+                <button type="button" className="hello-react-card" onClick={onCardClick}>
                     <div className="hello-react-card-icon">🎨</div>
                     <h3 className="hello-react-card-title">Dual Styling</h3>
                     <p className="hello-react-card-text">
                         Bootstrap {v.bootstrap} drives the host layout while Tailwind CSS {v.tailwind} powers mounted islands, scoped via Shadow DOM
                         with zero cascade leaks or class collisions.
                     </p>
-                </div>
+                </button>
 
-                <div className="hello-react-card" onClick={onCardClick}>
+                <button type="button" className="hello-react-card" onClick={onCardClick}>
                     <div className="hello-react-card-icon">🔒</div>
                     <h3 className="hello-react-card-title">Secure by Default</h3>
                     <p className="hello-react-card-text">
                         CSP nonces, CSRF protection, and anti-forgery tokens built into every request automatically.
                     </p>
-                </div>
+                </button>
 
-                <div className="hello-react-card" onClick={onCardClick}>
+                <button type="button" className="hello-react-card" onClick={onCardClick}>
                     <div className="hello-react-card-icon">🧩</div>
                     <h3 className="hello-react-card-title">Islands & Micro-Frontends</h3>
                     <p className="hello-react-card-text">
                         React {v.react} mounted islands render client-side inside Shadow DOM with adopted stylesheets, fully isolated
                         from the Bootstrap {v.bootstrap} host. Micro-frontends support is planned...
                     </p>
-                </div>
+                </button>
             </div>
 
             <div className="hello-react-cta">

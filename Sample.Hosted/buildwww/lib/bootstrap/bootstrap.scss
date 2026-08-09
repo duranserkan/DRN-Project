@@ -10,7 +10,6 @@ $enable-gradients: true;
 $min-contrast-ratio: 4.5;
 
 @import "../../../node_modules/bootstrap/scss/mixins/banner";
-@include bsBanner("");
 
 // 1. Include functions first (required)
 @import "../../../node_modules/bootstrap/scss/functions";
@@ -79,3 +78,5 @@ $min-contrast-ratio: 4.5;
 $bootstrap-icons-font-dir: "../../../node_modules/bootstrap-icons/font/fonts";
 $bootstrap-icons-font-src: url("#{$bootstrap-icons-font-dir}/bootstrap-icons.woff2") format("woff2");
 @import "../../../node_modules/bootstrap-icons/font/bootstrap-icons";
+
+@include bsBanner("");

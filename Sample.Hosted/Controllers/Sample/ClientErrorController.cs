@@ -37,8 +37,8 @@ public record ClientErrorPayload
     [StringLength(200)]
     public string Source { get; init; } = string.Empty;
 
-    public int Line { get; init; }
-    public int Column { get; init; }
+    public int? Line { get; init; }
+    public int? Column { get; init; }
 
     [StringLength(2000)]
     public string Stack { get; init; } = string.Empty;

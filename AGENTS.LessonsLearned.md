@@ -53,3 +53,22 @@ Applies to all module and framework package `RELEASE-NOTES.md` files. Package RE
 ### Source To Update
 
 Keep the invariant in `AGENTS.md` (Release Notes discovery/rules), `basic-documentation` skill, and package release notes across the repository.
+
+## 4. Native HTML Elements for Interactive UI Accessibility (SonarQube S6848)
+
+### Case
+
+Non-interactive HTML elements (`<div>`, `<span>`) assigned `onClick` event handlers were flagged as SonarQube accessibility code smells (`S6848` / `jsx-a11y/no-static-element-interactions`). Replacing them with native `<button>` elements fixed the accessibility finding, but converting `<div>` to `<button>` required explicit `type="button"` attributes to prevent default form submission side-effects, plus CSS styling (`text-left`, `w-full`, `font-family: inherit`) to preserve visual alignment and width parity.
+
+### General Rule
+
+Prefer native interactive HTML elements (`<button type="button">`, `<a>`) over non-native elements (`<div onClick=...>`, `<span onClick=...>`) for interactive UI controls. When converting non-native elements to `<button>`, always explicitly set `type="button"` (to avoid defaulting to `type="submit"` inside forms) and ensure CSS resets or utility rules handle element-specific defaults (`text-align`, `width`, `font-family`). Note that React/JSX `onClick={fn}` handlers compile to programmatic `addEventListener` calls inside external script bundles and remain fully CSP-compliant without requiring inline script permissions.
+
+### Decision Boundary
+
+Applies to all frontend components (React TSX, Razor partials, HTMX elements, and vanilla JS UI components) where click or tap handlers trigger client-side actions. When a non-native element cannot be replaced with a native `<button>` or `<a>` (e.g. specialized custom drag-and-drop handles), explicitly add ARIA roles (`role="button"`), keyboard navigation (`tabIndex={0}`, `onKeyDown`/`onKeyUp`), and focus indicators.
+
+### Source To Update
+
+Keep the invariant in `basic-security-checklist`, `modern-web-guidance`, `drn-buildwww-react`, and frontend UI development skills across the repository.
+- TODO: Create dedicated accessibility skill or knowledge item in agent files (e.g. `.agent/skills/basic-accessibility/` or knowledge artifact) covering WCAG compliance, SonarQube accessibility rules (S6848/S6847), ARIA role patterns, and native HTML interactive element standards.

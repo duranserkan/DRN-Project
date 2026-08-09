@@ -67,18 +67,14 @@ function sendReport(payload) {
     }
 
     // Fetch fallback
-    try {
-        fetch(REPORT_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: json,
-            keepalive: true
-        }).catch(function () { /* silently ignore reporting failures */ });
-    } catch (_) {
-        /* silently ignore */
-    }
+    fetch(REPORT_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: json,
+        keepalive: true
+    }).catch(function () { /* silently ignore reporting failures */ });
 }
 
 /**
@@ -109,12 +105,12 @@ function buildPayload(message, source, line, column, stack) {
  */
 function install() {
     window.addEventListener('error', function (event) {
-        var message = event.message || '';
-        var source = event.filename || '';
-        var line = event.lineno || 0;
-        var column = event.colno || 0;
-        var stack = event.error && event.error.stack ? event.error.stack : '';
-        var key = message + '|' + source + '|' + line;
+        const message = event.message || '';
+        const source = event.filename || '';
+        const line = event.lineno || 0;
+        const column = event.colno || 0;
+        const stack = event.error && event.error.stack ? event.error.stack : '';
+        const key = message + '|' + source + '|' + line;
 
         if (shouldReport(key)) {
             sendReport(buildPayload(message, source, line, column, stack));
@@ -122,10 +118,10 @@ function install() {
     });
 
     window.addEventListener('unhandledrejection', function (event) {
-        var reason = event.reason;
-        var message = reason instanceof Error ? reason.message : String(reason || 'Unhandled Promise Rejection');
-        var stack = reason instanceof Error ? reason.stack : '';
-        var key = 'promise|' + message;
+        const reason = event.reason;
+        const message = reason instanceof Error ? reason.message : String(reason || 'Unhandled Promise Rejection');
+        const stack = reason instanceof Error ? reason.stack : '';
+        const key = 'promise|' + message;
 
         if (shouldReport(key)) {
             sendReport(buildPayload(message, 'unhandledrejection', 0, 0, stack));
