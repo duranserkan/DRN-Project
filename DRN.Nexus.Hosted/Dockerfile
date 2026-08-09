@@ -56,7 +56,7 @@ RUN mkdir -p /appdata && touch /appdata/.keep && mkdir -p /apptemp && touch /app
 #https://learn.microsoft.com/en-us/dotnet/core/rid-catalog
 # Keep generated .deps.json framework metadata aligned with the runtime image patch level.
 # https://learn.microsoft.com/en-us/dotnet/core/project-sdk/msbuild-props
-RUN dotnet restore "./${PROJECT}/${PROJECT}.csproj" -a "$TARGETARCH" \
+RUN dotnet restore "./${PROJECT}/${PROJECT}.csproj" --locked-mode -a "$TARGETARCH" \
     -p:Configuration=Release \
     -p:RuntimeFrameworkVersion="$DOTNET_RUNTIME_VERSION" \
     -p:SelfContained=false \
