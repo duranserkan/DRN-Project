@@ -1,6 +1,10 @@
 name: Frontend Build
 description: "Install, audit, and build Sample.Hosted Vite frontend assets."
 inputs:
+  repository-directory:
+    description: "Repository checkout containing all npm policy files and projects."
+    required: false
+    default: "."
   working-directory:
     description: "Directory containing the frontend package.json and package-lock.json."
     required: false
@@ -8,12 +12,18 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # This nested action resolves from the trusted composite-action checkout in
+    # split-checkout PR workflows while inspecting the PR-controlled repository.
+    - name: Enforce npm dependency policy
+      uses: ./.github/actions/npm-dependency-policy
+      with:
+        working-directory: ${{ inputs.repository-directory }}
+
     - name: Setup Node
       uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: 24.x
-        cache: npm
-        cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+        package-manager-cache: false
     - name: Install npm dependencies
       shell: bash
       working-directory: ${{ inputs.working-directory }}

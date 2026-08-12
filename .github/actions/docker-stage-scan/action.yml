@@ -52,8 +52,6 @@ runs:
         push: true
         sbom: true
         provenance: mode=max
-        cache-from: type=gha,scope=${{ inputs.image-repository-name }}
-        cache-to: type=gha,mode=max,scope=${{ inputs.image-repository-name }},ignore-error=true
     - name: Verify staged Docker image digest
       id: validate-image-digest
       shell: bash

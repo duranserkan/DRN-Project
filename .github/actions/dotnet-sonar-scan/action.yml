@@ -5,14 +5,6 @@ inputs:
     description: "Repository directory containing the solution file."
     required: false
     default: "."
-  sonar-scanner-version:
-    description: "Pinned dotnet-sonarscanner version."
-    required: false
-    default: "11.2.1"
-  dotnet-coverage-version:
-    description: "Pinned dotnet-coverage version."
-    required: false
-    default: "18.9.0"
   solution-file:
     description: "Solution file to build during SonarCloud analysis."
     required: true
@@ -63,8 +55,6 @@ runs:
       uses: ./.github/actions/sonar-begin
       with:
         working-directory: ${{ inputs.working-directory }}
-        sonar-scanner-version: ${{ inputs.sonar-scanner-version }}
-        dotnet-coverage-version: ${{ inputs.dotnet-coverage-version }}
         sonar-token: ${{ inputs.sonar-token }}
         sonar-project-key: ${{ inputs.sonar-project-key }}
         sonar-host-url: ${{ inputs.sonar-host-url }}

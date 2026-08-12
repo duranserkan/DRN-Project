@@ -38,6 +38,7 @@ jobs:
       - name: Build frontend
         uses: ./.github/actions/frontend-build
         with:
+          repository-directory: src
           working-directory: src/Sample.Hosted
 
   backend:
@@ -114,6 +115,32 @@ jobs:
       # enable "Require code scanning results", add CodeQL, then choose thresholds.
       # https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/set-merge-protection
 
+  dependency-review:
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted CI code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+
+      - name: Checkout PR source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: src
+          persist-credentials: false
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          base-ref: ${{ github.event.pull_request.base.sha }}
+          head-ref: ${{ github.event.pull_request.head.sha }}
+
   gatekeeper:
     permissions: {}
     runs-on: ubuntu-24.04
@@ -127,18 +154,21 @@ jobs:
       - frontend
       - backend
       - codeql
+      - dependency-review
     steps:
       - name: Verify required jobs completed successfully
         env:
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
+          DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
         run: |
-          if [ "$FRONTEND_RESULT" != "success" ] || [ "$BACKEND_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ]; then
+          if [ "$FRONTEND_RESULT" != "success" ] || [ "$BACKEND_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ] || [ "$DEPENDENCY_REVIEW_RESULT" != "success" ]; then
             echo "One or more required checks failed."
             echo "frontend: $FRONTEND_RESULT"
             echo "backend: $BACKEND_RESULT"
             echo "codeql: $CODEQL_RESULT"
+            echo "dependency-review: $DEPENDENCY_REVIEW_RESULT"
             exit 1
           fi
           echo "Required jobs passed successfully."

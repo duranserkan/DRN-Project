@@ -1,0 +1,26 @@
+# PR workflows must execute this action only from the trusted base checkout.
+name: NuGet Dependency Policy
+description: "Validate that NuGet uses the trusted restore-source configuration."
+inputs:
+  working-directory:
+    description: "Repository checkout containing NuGet.Config."
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Validate NuGet source policy
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+
+        # In split-checkout PR jobs, the working directory is PR-controlled but
+        # GITHUB_WORKSPACE/NuGet.Config comes from the trusted base checkout.
+        [[ -f NuGet.Config ]] || {
+          echo 'NuGet dependency policy violation: NuGet.Config is required.' >&2
+          exit 1
+        }
+        cmp -s NuGet.Config "$GITHUB_WORKSPACE/NuGet.Config" || {
+          echo 'NuGet dependency policy violation: NuGet.Config must exactly match the trusted restore source policy.' >&2
+          exit 1
+        }

@@ -14,7 +14,7 @@
 /.github/workflows/** @duranserkan
 /.github/actions/** @duranserkan
 
-# Dependency declarations and resolution data are a supply-chain control plane.
+# Dependency declarations, toolchain manifests, and container configurations are a supply-chain control plane.
 # Branch rulesets must require code-owner review for these patterns.
 *.csproj @duranserkan
 *.fsproj @duranserkan
@@ -31,3 +31,11 @@ package-lock.json @duranserkan
 .npmrc @duranserkan
 NuGet.Config @duranserkan
 /global.json @duranserkan
+/.config/dotnet-tools.json @duranserkan
+.node-version @duranserkan
+.nvmrc @duranserkan
+.tool-versions @duranserkan
+Dockerfile @duranserkan
+**/Dockerfile @duranserkan
+docker-compose*.yml @duranserkan
+docker-compose*.yaml @duranserkan

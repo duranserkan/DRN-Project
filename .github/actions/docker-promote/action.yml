@@ -46,6 +46,7 @@ runs:
         DOCKER_REGISTRY: ${{ inputs.registry }}
         IMAGE_REPOSITORY_PREFIX: ${{ inputs.image-repository-prefix }}
         IMAGE_REPOSITORY_NAME: ${{ inputs.image-repository-name }}
+        PROMOTION_TAGS: ${{ steps.metadata.outputs.tags }}
       run: |
         set -euo pipefail
 
@@ -69,6 +70,4 @@ runs:
             echo "Promoted Docker tag resolved to $promoted_digest instead of expected digest $IMAGE_DIGEST: $tag"
             exit 1
           fi
-        done <<'TAGS'
-        ${{ steps.metadata.outputs.tags }}
-        TAGS
+        done <<< "$PROMOTION_TAGS"

@@ -2,7 +2,7 @@ name: Dotnet Test Coverage
 description: "Run unit and integration tests in Release mode through dotnet-coverage for SonarCloud."
 inputs:
   working-directory:
-    description: "Repository directory containing the test projects and the .sonar tools."
+    description: "Repository directory containing the test projects and .NET tool manifest."
     required: false
     default: "."
 runs:
@@ -14,11 +14,11 @@ runs:
       env:
         # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
-      run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity minimal --configuration Release -- --report-gh" -f xml -o "coverage-unit.xml"
+      run: dotnet tool run dotnet-coverage collect "dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity minimal --configuration Release -- --report-gh" -f xml -o "coverage-unit.xml"
     - name: Test Integration Coverage
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
         # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
-      run: ./.sonar/coverage/dotnet-coverage collect "dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity minimal --configuration Release -- --report-gh" -f xml -o "coverage-integration.xml"
+      run: dotnet tool run dotnet-coverage collect "dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity minimal --configuration Release -- --report-gh" -f xml -o "coverage-integration.xml"

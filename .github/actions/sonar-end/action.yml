@@ -17,4 +17,4 @@ runs:
       env:
         SONAR_TOKEN: ${{ inputs.sonar-token }}
       run: |
-        ./.sonar/scanner/dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
+        dotnet tool run dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
