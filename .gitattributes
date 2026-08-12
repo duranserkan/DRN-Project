@@ -1,0 +1,21 @@
+# Keep Git's text normalization aligned with .editorconfig.
+* text=auto eol=lf
+
+# -------------------------------------------------------------------------------
+# Binary Files (Prevent Line-Ending Normalization & Corruption)
+# -------------------------------------------------------------------------------
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text eol=lf
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.dll binary
+*.exe binary
+*.zip binary
+*.tar.gz binary
