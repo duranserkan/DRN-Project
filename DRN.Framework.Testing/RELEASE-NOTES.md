@@ -2,10 +2,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.9.8
 
-### Changed
-
-*   **Default RabbitMQ Container Version**: Upgraded `RabbitMQContainerSettings.DefaultVersion` to `4.3.4-management-alpine`.
-*   **Testing Package Dependencies**: Upgraded AutoFixture dependencies (`AutoFixture.AutoNSubstitute` and `AutoFixture.Xunit3`) to `5.0.0-rc.1`. Added package references for `Microsoft.Testing.Platform` (2.3.3) and `Microsoft.Testing.Extensions.GitHubActionsReport` (1.0.0-alpha.26377.5).
+Dependencies upgraded to dotnet 10.0.11
 
 ### Bug Fixes
 

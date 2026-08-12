@@ -491,7 +491,7 @@ RabbitMQ defaults used when a test explicitly calls `RabbitMQContext.StartAsync(
 | Property | Default |
 |----------|---------|
 | `DefaultImage` | `"rabbitmq"` |
-| `DefaultVersion` | `"4.3.2-management-alpine"` |
+| `DefaultVersion` | `"4.3.4-management-alpine"` |
 | `Username` | unset |
 | `Password` | unset |
 
