@@ -14,4 +14,4 @@ ${l}
 ------- 
 ${a}
 -------
-`;alert(u.trim())}),document.addEventListener(`showToast`,function(e){let t=e.detail;t&&window.DRN&&window.DRN.Toast&&window.DRN.Toast.show({type:t.type||`info`,message:t.message||``,duration:t.duration})})})();
+`;alert(u.trim())}),document.addEventListener(`showToast`,function(e){let t=e.detail;t&&window.DRN?.Toast&&window.DRN.Toast.show({type:t.type||`info`,message:t.message||``,duration:t.duration})})})();
