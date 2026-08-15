@@ -35,6 +35,7 @@ tokens: ~0.7K
 
 ```text
 DRN.Test.Unit/         # isolated logic and service validation
+DRN.Test.Analyzer/     # Roslyn analyzer regression tests
 DRN.Test.Integration/  # Testcontainers, repositories, API/E2E
 DRN.Test.Performance/  # BenchmarkDotNet and K6
 ```

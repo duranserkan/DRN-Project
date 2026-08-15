@@ -1,0 +1,11 @@
+<Project>
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'
+                        and '$(MSBuildProjectName)' != 'DRN.Framework.SharedKernel.Analyzers'
+                        and '$(MSBuildProjectName)' != 'DRN.Framework.SharedKernel'
+                        and '$(MSBuildProjectName)' != 'DRN.Test.Analyzer'
+                        and Exists('$(MSBuildThisFileDirectory)../../DRN.Framework.SharedKernel.Analyzers/DRN.Framework.SharedKernel.Analyzers.csproj')">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../../DRN.Framework.SharedKernel.Analyzers/DRN.Framework.SharedKernel.Analyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

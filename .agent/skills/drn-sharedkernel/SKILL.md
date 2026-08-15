@@ -58,7 +58,7 @@ public abstract class SourceKnownEntity(long id = 0)
 ```
 
 > [!WARNING]
-> Each entity requires unique `[EntityType(byte)]`. DrnContext validates at startup.
+> Each non-abstract entity requires unique `[EntityType(byte)]`. Enforced at compile time by `DRN.Framework.SharedKernel.Analyzers` (DRN0001, DRN0002) and at runtime by `DrnContext` / `SourceKnownEntity`.
 
 ### AggregateRoot
 

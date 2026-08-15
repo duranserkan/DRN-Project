@@ -9,5 +9,6 @@ public enum SampleEntityTypes : byte
     QuestionComment = 5,
     Tag = 6,
     User = 7,
+    Author = 8,
     TestEntity = 255
 }

@@ -67,10 +67,11 @@ Do not run or plan build/test commands unless the user explicitly allows it.
 ```bash
 dotnet build DRN.slnx
 dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
+dotnet run --project DRN.Test.Analyzer/DRN.Test.Analyzer.csproj
 dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 ```
 
-When test execution is explicitly allowed, run unit tests before integration tests.
+When test execution is explicitly allowed, run unit and analyzer tests before integration tests.
 
 ## Conventions
 

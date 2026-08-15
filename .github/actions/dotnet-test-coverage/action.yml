@@ -1,5 +1,5 @@
 name: Dotnet Test Coverage
-description: "Run unit and integration tests in Release mode through dotnet-coverage for SonarCloud."
+description: "Run unit, analyzer, and integration tests in Release mode through dotnet-coverage for SonarCloud."
 inputs:
   working-directory:
     description: "Repository directory containing the test projects and .NET tool manifest."
@@ -15,6 +15,13 @@ runs:
         # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
       run: dotnet tool run dotnet-coverage collect "dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity minimal --configuration Release -- --report-gh" -f xml -o "coverage-unit.xml"
+    - name: Test Analyzer Coverage
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
+        TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
+      run: dotnet tool run dotnet-coverage collect "dotnet run --project DRN.Test.Analyzer/DRN.Test.Analyzer.csproj --no-build --verbosity minimal --configuration Release -- --report-gh" -f xml -o "coverage-analyzer.xml"
     - name: Test Integration Coverage
       shell: bash
       working-directory: ${{ inputs.working-directory }}

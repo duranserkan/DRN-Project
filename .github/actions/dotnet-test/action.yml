@@ -1,5 +1,5 @@
 name: Dotnet Test
-description: "Run Dotnet unit and integration tests in Release mode without rebuilding."
+description: "Run Dotnet unit, analyzer, and integration tests in Release mode without rebuilding."
 inputs:
   working-directory:
     description: "Repository directory containing the test projects."
@@ -20,6 +20,14 @@ runs:
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
         TEST_VERBOSITY: ${{ inputs.verbosity }}
       run: dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj --no-build --verbosity "$TEST_VERBOSITY" --configuration Release -- --report-gh
+    - name: Test Analyzer
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        # Intentionally, telemetry is not disabled to support MS Testing Platform development in this CI pipeline
+        TESTINGPLATFORM_TELEMETRY_OPTOUT: "0"
+        TEST_VERBOSITY: ${{ inputs.verbosity }}
+      run: dotnet run --project DRN.Test.Analyzer/DRN.Test.Analyzer.csproj --no-build --verbosity "$TEST_VERBOSITY" --configuration Release -- --report-gh
     - name: Test Integration
       shell: bash
       working-directory: ${{ inputs.working-directory }}

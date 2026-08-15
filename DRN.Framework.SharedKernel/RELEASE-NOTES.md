@@ -1,5 +1,17 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.9.9
+
+### Breaking Changes
+
+*   **Compile-Time Roslyn Analyzers**: Added `DRN.Framework.SharedKernel.Analyzers` with error-level diagnostics delivered transitively to all referencing projects and NuGet consumers. Builds will fail for existing codebases if entities violate annotation, uniqueness, or inheritance constraints:
+    *   `DRN0001` (*Error*): Enforces that all non-abstract classes descending from `SourceKnownEntity` declare the `[EntityType(byte)]` attribute.
+        *   *Migration*: Annotate every concrete (non-abstract) class inheriting from `SourceKnownEntity` with `[EntityType(value)]` specifying an explicit byte value (0–255).
+    *   `DRN0002` (*Error*): Enforces that `EntityType` byte values are unique across all entities within a compilation.
+        *   *Migration*: Ensure every concrete `SourceKnownEntity` subclass within the compilation is assigned a distinct `EntityType` byte value.
+    *   `DRN0003` (*Error*): Prohibits applying `[EntityType]` to abstract classes or non-`SourceKnownEntity` types.
+        *   *Migration*: Remove `[EntityType]` attributes from abstract base classes (apply only to concrete descendants) and from classes that do not derive from `SourceKnownEntity`.
+
 ## Version 0.9.8
 
 Version alignment release; no package-specific behavior changes.

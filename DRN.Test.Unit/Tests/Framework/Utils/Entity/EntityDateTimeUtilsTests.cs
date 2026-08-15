@@ -1,10 +1,13 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Entity;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
+using Sample.Infra.QB;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Entity;
 
+[SuppressMessage("ReSharper", "PossibleUnintendedQueryableAsEnumerable")]
 public class EntityDateTimeUtilsTests
 {
     private const long PayloadMask = 0x7FFF_FFFF;
@@ -131,5 +134,6 @@ public class EntityDateTimeUtilsTests
     private static long ConvertToTickMin(DateTimeOffset date) =>
         EpochTimeUtils.ConvertToSourceKnownIdTimeStamp(date, EpochTimeUtils.DefaultEpoch);
 
+    [EntityType((byte)TestEntityTypes.TestEntity)]
     private sealed class TestEntity(long id) : SourceKnownEntity(id);
 }

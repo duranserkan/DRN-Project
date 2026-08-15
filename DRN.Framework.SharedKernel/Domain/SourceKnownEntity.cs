@@ -14,7 +14,6 @@ namespace DRN.Framework.SharedKernel.Domain;
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class EntityTypeAttribute(byte entityType) : Attribute
 {
-    //todo add roselyn analyzer to check for conflicts and missing attributes
     /// <summary>
     /// Application wide Unique Entity Type
     /// </summary>

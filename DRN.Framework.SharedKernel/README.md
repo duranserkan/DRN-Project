@@ -106,7 +106,17 @@ Core primitives provide conventions for rapid and effective domain design and en
 
 - **`SourceKnownEntity`**: The base class for all entities. Handles identity (`long Id` internal, `Guid EntityId` external), domain events, and auditing.
 - **`AggregateRoot`**: Marker class for DDD aggregate roots.
-- **`[EntityType(byte)]`**: Attribute defining a stable, unique byte identifier for each entity type. **Required** for ID generation and `DrnContext` startup validation.
+- **`[EntityType(byte)]`**: Attribute defining a stable, unique byte identifier for each entity type. **Required** for ID generation, `DrnContext` startup validation, and compile-time analyzer verification.
+
+### Compile-Time Roslyn Analyzers
+
+`DRN.Framework.SharedKernel` includes built-in Roslyn analyzers (`DRN.Framework.SharedKernel.Analyzers`) delivering compile-time domain validation transitively to referencing projects and NuGet consumers:
+
+| Diagnostic ID | Severity | Title | Description |
+|---|---|---|---|
+| **DRN0001** | Error | Missing `[EntityType]` attribute | Non-abstract classes deriving from `SourceKnownEntity` must declare `[EntityType(byte)]`. |
+| **DRN0002** | Error | Duplicate `EntityType` value | Every entity class in the domain compilation must have a unique `EntityType` byte value. |
+| **DRN0003** | Error | Invalid `[EntityType]` usage | `[EntityType]` attribute must not be placed on abstract classes or non-`SourceKnownEntity` types. |
 
 > [!IMPORTANT]
 > **Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must **never** be exposed outside the infrastructure/domain boundaries.
