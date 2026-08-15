@@ -131,6 +131,12 @@ StyleCopReport.xml
 *.log
 *.aux
 *.out
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc
+*.xdv
 *.tlog
 *.vspscc
 *.vssscc
@@ -473,3 +479,7 @@ cmake*.*
 # Agent-generated process artifacts (should never be committed)
 CLARIFY-*.md
 DEVELOP-*.md
+
+# Windows-only command scripts are excluded to preserve cross-platform tooling.
+*.bat
+*.cmd
