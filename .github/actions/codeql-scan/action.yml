@@ -32,6 +32,8 @@ runs:
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+      env:
+        CODEQL_OVERLAY_DATABASE_MODE: "none"
       with:
         languages: ${{ inputs.languages }}
         source-root: ${{ inputs.source-root }}
