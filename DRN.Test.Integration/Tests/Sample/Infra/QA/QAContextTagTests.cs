@@ -170,6 +170,7 @@ public class QAContextTagTests
         
 
         firstTagFromDb.GetEntityId((Guid?)null, 255).Should().BeNull();
+        firstTagFromDb.GetEntityId((long?)null, 255).Should().BeNull();
         firstTagFromDb.GetEntityId<TestEntity>((Guid?)null).Should().BeNull();
         firstTagFromDb.GetEntityId<TestEntity>((long?)null).Should().BeNull();
         firstTagFromDb.GetEntityId(null, false).Should().BeNull();

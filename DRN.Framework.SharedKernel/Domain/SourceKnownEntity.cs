@@ -165,13 +165,9 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
 
     public SourceKnownEntityId? GetEntityId(long? id, byte entityType) => id == null ? null : GetEntityId(id.Value, entityType);
 
-    public SourceKnownEntityId GetEntityId(long id, byte entityType)
-    {
-        if (IsPendingInsert)
-            throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
-
-        return Ops.Generate(id, entityType);
-    }
+    public SourceKnownEntityId GetEntityId(long id, byte entityType) => IsPendingInsert
+        ? throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids")
+        : Ops.Generate(id, entityType);
 
     // ReSharper disable once MemberCanBePrivate.Global
     protected void AddDomainEvent(DomainEvent? e)
