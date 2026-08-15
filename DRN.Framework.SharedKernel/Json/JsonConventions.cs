@@ -7,6 +7,7 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace DRN.Framework.SharedKernel.Json;
 
+[SuppressMessage("SonarQube", "S3011", Justification = "Initialize default JsonSerializerOptions")]
 public static class JsonConventions
 {
     private const BindingFlags StaticPrivate = BindingFlags.Static | BindingFlags.NonPublic;
@@ -19,7 +20,6 @@ public static class JsonConventions
 
     public static readonly JsonSerializerOptions DefaultOptions = SetJsonDefaults();
 
-    [SuppressMessage("SonarQube", "S3011", Justification = "Initialize default JsonSerializerOptions")]
     private static void UpdateDefaultJsonSerializerOptions()
     {
         var fields = typeof(JsonSerializerOptions).GetFields(StaticPrivate)
