@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -12,11 +13,18 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
     private const string SourceKnownEntityMetadataName = "DRN.Framework.SharedKernel.Domain.SourceKnownEntity";
     private const string EntityTypeAttributeMetadataName = "DRN.Framework.SharedKernel.Domain.EntityTypeAttribute";
 
+    private sealed record EntityTypeDeclaration(
+        byte EntityTypeValue,
+        INamedTypeSymbol Symbol,
+        Location Location,
+        bool IsPrivate);
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             DiagnosticDescriptors.MissingEntityTypeAttribute,
             DiagnosticDescriptors.DuplicateEntityTypeValue,
-            DiagnosticDescriptors.InvalidEntityTypeAttributeUsage);
+            DiagnosticDescriptors.InvalidEntityTypeAttributeUsage,
+            DiagnosticDescriptors.DuplicateEntityName);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -31,7 +39,13 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             if (sourceKnownEntitySymbol == null || entityTypeAttributeSymbol == null)
                 return;
 
-            var entityTypeMap = new ConcurrentDictionary<byte, INamedTypeSymbol>();
+            var collectedEntityTypeDeclarations = new ConcurrentBag<EntityTypeDeclaration>();
+            var localEntityNameMap = new ConcurrentDictionary<string, INamedTypeSymbol>(StringComparer.OrdinalIgnoreCase);
+
+            var (referencedEntityTypeMap, referencedEntityNameMap) = ScanReferencedAssemblies(
+                compilationContext.Compilation,
+                sourceKnownEntitySymbol,
+                entityTypeAttributeSymbol);
 
             compilationContext.RegisterSymbolAction(symbolContext =>
             {
@@ -44,6 +58,38 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
                 if (inheritsSourceKnownEntity && !namedType.IsAbstract)
                 {
+                    var isPrivate = namedType.DeclaredAccessibility == Accessibility.Private;
+
+                    // 1. Check duplicate entity class name (DRN0004 - Warning)
+                    if (!isPrivate)
+                    {
+                        var entityName = namedType.Name;
+                        if (!localEntityNameMap.TryAdd(entityName, namedType))
+                        {
+                            if (localEntityNameMap.TryGetValue(entityName, out var existingType) &&
+                                !SymbolEqualityComparer.Default.Equals(existingType, namedType))
+                            {
+                                var location = namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None;
+                                symbolContext.ReportDiagnostic(Diagnostic.Create(
+                                    DiagnosticDescriptors.DuplicateEntityName,
+                                    location,
+                                    namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                                    existingType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                            }
+                        }
+                        else if (referencedEntityNameMap.TryGetValue(entityName, out var referencedType) &&
+                                 !SymbolEqualityComparer.Default.Equals(referencedType, namedType))
+                        {
+                            var location = namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None;
+                            symbolContext.ReportDiagnostic(Diagnostic.Create(
+                                DiagnosticDescriptors.DuplicateEntityName,
+                                location,
+                                namedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                                referencedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                        }
+                    }
+
+                    // 2. Check EntityType attribute presence (DRN0001) & collect for compilation end (DRN0002)
                     if (entityTypeAttribute == null)
                     {
                         var location = namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None;
@@ -52,33 +98,12 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                             location,
                             namedType.Name));
                     }
-                    else if (entityTypeAttribute.ConstructorArguments.Length > 0 &&
-                             entityTypeAttribute.ConstructorArguments[0].Value is IConvertible convertible)
+                    else if (TryGetEntityTypeValue(entityTypeAttribute, out var entityTypeValue))
                     {
-                        try
-                        {
-                            var entityTypeValue = Convert.ToByte(convertible);
-                            if (!entityTypeMap.TryAdd(entityTypeValue, namedType))
-                            {
-                                var existingType = entityTypeMap[entityTypeValue];
-                                if (!SymbolEqualityComparer.Default.Equals(existingType, namedType))
-                                {
-                                    var location = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax().GetLocation()
-                                                   ?? (namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None);
+                        var location = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax().GetLocation()
+                                       ?? (namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None);
 
-                                    symbolContext.ReportDiagnostic(Diagnostic.Create(
-                                        DiagnosticDescriptors.DuplicateEntityTypeValue,
-                                        location,
-                                        entityTypeValue,
-                                        namedType.Name,
-                                        existingType.Name));
-                                }
-                            }
-                        }
-                        catch (OverflowException)
-                        {
-                            // Out of byte range, compiler reports type error
-                        }
+                        collectedEntityTypeDeclarations.Add(new EntityTypeDeclaration(entityTypeValue, namedType, location, isPrivate));
                     }
                 }
                 else if (entityTypeAttribute != null)
@@ -93,7 +118,155 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                         namedType.Name));
                 }
             }, SymbolKind.NamedType);
+
+            compilationContext.RegisterCompilationEndAction(endContext =>
+            {
+                var groupedByValue = collectedEntityTypeDeclarations.GroupBy(d => d.EntityTypeValue);
+
+                foreach (var group in groupedByValue)
+                {
+                    var entityTypeValue = group.Key;
+
+                    var orderedDeclarations = group
+                        .OrderBy(d => d.Location.SourceTree?.FilePath, StringComparer.Ordinal)
+                        .ThenBy(d => d.Location.SourceSpan.Start)
+                        .ThenBy(d => d.Location.SourceSpan.Length)
+                        .ToList();
+
+                    if (referencedEntityTypeMap.TryGetValue(entityTypeValue, out var referencedType) && referencedType != null)
+                    {
+                        var referencedTargetName = $"{referencedType.ContainingAssembly.Name}::{referencedType.Name}";
+                        foreach (var decl in orderedDeclarations)
+                        {
+                            if (!decl.IsPrivate && !SymbolEqualityComparer.Default.Equals(referencedType, decl.Symbol))
+                            {
+                                endContext.ReportDiagnostic(Diagnostic.Create(
+                                    DiagnosticDescriptors.DuplicateEntityTypeValue,
+                                    decl.Location,
+                                    entityTypeValue,
+                                    decl.Symbol.Name,
+                                    referencedTargetName));
+                            }
+                        }
+                    }
+                    else if (orderedDeclarations.Count > 1)
+                    {
+                        var firstDecl = orderedDeclarations[0];
+                        for (var i = 1; i < orderedDeclarations.Count; i++)
+                        {
+                            var duplicateDecl = orderedDeclarations[i];
+                            if (!SymbolEqualityComparer.Default.Equals(firstDecl.Symbol, duplicateDecl.Symbol))
+                            {
+                                endContext.ReportDiagnostic(Diagnostic.Create(
+                                    DiagnosticDescriptors.DuplicateEntityTypeValue,
+                                    duplicateDecl.Location,
+                                    entityTypeValue,
+                                    duplicateDecl.Symbol.Name,
+                                    firstDecl.Symbol.Name));
+                            }
+                        }
+                    }
+                }
+            });
         });
+    }
+
+    private static (ConcurrentDictionary<byte, INamedTypeSymbol> EntityTypes, ConcurrentDictionary<string, INamedTypeSymbol> EntityNames)
+        ScanReferencedAssemblies(
+            Compilation compilation,
+            INamedTypeSymbol sourceKnownEntitySymbol,
+            INamedTypeSymbol entityTypeAttributeSymbol)
+    {
+        var typeMap = new ConcurrentDictionary<byte, INamedTypeSymbol>();
+        var nameMap = new ConcurrentDictionary<string, INamedTypeSymbol>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var referencedAssembly in compilation.SourceModule.ReferencedAssemblySymbols)
+        {
+            var name = referencedAssembly.Name;
+            if (name.StartsWith("System.", StringComparison.OrdinalIgnoreCase) ||
+                name.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("System", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("mscorlib", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("netstandard", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            ScanNamespace(referencedAssembly.GlobalNamespace, sourceKnownEntitySymbol, entityTypeAttributeSymbol, typeMap, nameMap);
+        }
+
+        return (typeMap, nameMap);
+    }
+
+    private static void ScanNamespace(
+        INamespaceSymbol namespaceSymbol,
+        INamedTypeSymbol sourceKnownEntitySymbol,
+        INamedTypeSymbol entityTypeAttributeSymbol,
+        ConcurrentDictionary<byte, INamedTypeSymbol> typeMap,
+        ConcurrentDictionary<string, INamedTypeSymbol> nameMap)
+    {
+        foreach (var type in namespaceSymbol.GetTypeMembers())
+        {
+            ScanType(type, sourceKnownEntitySymbol, entityTypeAttributeSymbol, typeMap, nameMap);
+        }
+
+        foreach (var nestedNamespace in namespaceSymbol.GetNamespaceMembers())
+        {
+            ScanNamespace(nestedNamespace, sourceKnownEntitySymbol, entityTypeAttributeSymbol, typeMap, nameMap);
+        }
+    }
+
+    private static void ScanType(
+        INamedTypeSymbol typeSymbol,
+        INamedTypeSymbol sourceKnownEntitySymbol,
+        INamedTypeSymbol entityTypeAttributeSymbol,
+        ConcurrentDictionary<byte, INamedTypeSymbol> typeMap,
+        ConcurrentDictionary<string, INamedTypeSymbol> nameMap)
+    {
+        if (typeSymbol.TypeKind == TypeKind.Class && !typeSymbol.IsAbstract && DerivesFrom(typeSymbol, sourceKnownEntitySymbol))
+        {
+            nameMap.TryAdd(typeSymbol.Name, typeSymbol);
+
+            var entityTypeAttribute = FindAttribute(typeSymbol, entityTypeAttributeSymbol);
+            if (entityTypeAttribute != null && TryGetEntityTypeValue(entityTypeAttribute, out var entityTypeValue))
+            {
+                typeMap.TryAdd(entityTypeValue, typeSymbol);
+            }
+        }
+
+        foreach (var nestedType in typeSymbol.GetTypeMembers())
+        {
+            ScanType(nestedType, sourceKnownEntitySymbol, entityTypeAttributeSymbol, typeMap, nameMap);
+        }
+    }
+
+    private static bool TryGetEntityTypeValue(AttributeData attributeData, out byte entityTypeValue)
+    {
+        if (attributeData.ConstructorArguments.Length > 0)
+        {
+            var rawValue = attributeData.ConstructorArguments[0].Value;
+            if (rawValue is byte b)
+            {
+                entityTypeValue = b;
+                return true;
+            }
+
+            if (rawValue is IConvertible convertible and not (string or bool or char))
+            {
+                try
+                {
+                    entityTypeValue = Convert.ToByte(convertible);
+                    return true;
+                }
+                catch (OverflowException)
+                {
+                    // Ignored - value outside byte range
+                }
+            }
+        }
+
+        entityTypeValue = 0;
+        return false;
     }
 
     private static bool DerivesFrom(INamedTypeSymbol typeSymbol, INamedTypeSymbol baseTargetSymbol)
@@ -101,7 +274,8 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         var current = typeSymbol.BaseType;
         while (current != null)
         {
-            if (SymbolEqualityComparer.Default.Equals(current, baseTargetSymbol))
+            if (SymbolEqualityComparer.Default.Equals(current, baseTargetSymbol) ||
+                current.ToDisplayString() == SourceKnownEntityMetadataName)
                 return true;
 
             current = current.BaseType;
@@ -114,7 +288,8 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
     {
         foreach (var attribute in typeSymbol.GetAttributes())
         {
-            if (SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, attributeSymbol))
+            if (SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, attributeSymbol) ||
+                attribute.AttributeClass?.ToDisplayString() == EntityTypeAttributeMetadataName)
                 return attribute;
         }
 

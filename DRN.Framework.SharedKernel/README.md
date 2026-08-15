@@ -115,8 +115,9 @@ Core primitives provide conventions for rapid and effective domain design and en
 | Diagnostic ID | Severity | Title | Description |
 |---|---|---|---|
 | **DRN0001** | Error | Missing `[EntityType]` attribute | Non-abstract classes deriving from `SourceKnownEntity` must declare `[EntityType(byte)]`. |
-| **DRN0002** | Error | Duplicate `EntityType` value | Every entity class in the domain compilation must have a unique `EntityType` byte value. |
+| **DRN0002** | Error | Duplicate `EntityType` value | Every entity class in the domain compilation and referenced assemblies must have a unique `EntityType` byte value. |
 | **DRN0003** | Error | Invalid `[EntityType]` usage | `[EntityType]` attribute must not be placed on abstract classes or non-`SourceKnownEntity` types. |
+| **DRN0004** | Warning | Duplicate entity class name | Warns when multiple entities across the domain model share identical unqualified class names to prevent EF Core and messaging collisions. |
 
 > [!IMPORTANT]
 > **Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must **never** be exposed outside the infrastructure/domain boundaries.

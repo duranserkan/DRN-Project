@@ -9,7 +9,7 @@
 | Type | .NET 10 framework plus DDD reference app |
 | Architecture | Domain -> Infrastructure/Application -> Hosted |
 | Frontend | Razor Pages + htmx + Bootstrap 5; Vite-built assets |
-| Testing | DTT; integration-first with Testcontainers |
+| Testing | DTT; unit, analyzer, then integration tests |
 
 ## Layout
 
