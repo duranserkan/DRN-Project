@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -18,6 +19,7 @@ public static class JsonConventions
 
     public static readonly JsonSerializerOptions DefaultOptions = SetJsonDefaults();
 
+    [SuppressMessage("SonarQube", "S3011", Justification = "Initialize default JsonSerializerOptions")]
     private static void UpdateDefaultJsonSerializerOptions()
     {
         var fields = typeof(JsonSerializerOptions).GetFields(StaticPrivate)
