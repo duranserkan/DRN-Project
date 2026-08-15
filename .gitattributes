@@ -13,8 +13,6 @@
 *.css diff=css
 *.scss diff=css
 *.md diff=markdown
-*.sh diff=bash
-*.bash diff=bash
 *.tex diff=tex
 *.cls diff=tex
 *.bib diff=bibtex

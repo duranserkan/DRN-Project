@@ -8,7 +8,7 @@ public static class StringExtensions
     public static string ToSnakeCase(this string text)
     {
         if (string.IsNullOrWhiteSpace(text))
-            return text;
+            return string.Empty;
 
         var builder = new StringBuilder(text.Length + Math.Min(2, text.Length / 5));
         var previousCategory = default(UnicodeCategory?);
@@ -61,7 +61,6 @@ public static class StringExtensions
         if (currentCategory is UnicodeCategory.UppercaseLetter or UnicodeCategory.TitlecaseLetter)
         {
             return previousCategory == UnicodeCategory.LowercaseLetter ||
-                   previousCategory != UnicodeCategory.DecimalDigitNumber &&
                    previousCategory != null &&
                    currentIndex + 1 < text.Length &&
                    char.IsLower(text[currentIndex + 1]);
