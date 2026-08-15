@@ -7,6 +7,10 @@ public class StringExtensionTests
 {
     [Theory]
     [DataInlineUnit("George Carlin: Everyone smiles in the same Language", "george_carlin_everyone_smiles_in_the_same_language")]
+    [DataInlineUnit("OrderHistory", "order_history")]
+    [DataInlineUnit("HTMLParser", "html_parser")]
+    [DataInlineUnit("__DataProtectionContext", "__data_protection_context")]
+    [DataInlineUnit("already_snake_case", "already_snake_case")]
     public void ToSnakeCaseTest(string input, string output)
     {
         input.ToSnakeCase().Should().Be(output);

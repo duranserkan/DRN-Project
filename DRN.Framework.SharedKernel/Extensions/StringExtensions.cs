@@ -28,26 +28,16 @@ public static class StringExtensions
             {
                 case UnicodeCategory.UppercaseLetter:
                 case UnicodeCategory.TitlecaseLetter:
-                    if (previousCategory == UnicodeCategory.SpaceSeparator ||
-                        previousCategory == UnicodeCategory.LowercaseLetter ||
-                        previousCategory != UnicodeCategory.DecimalDigitNumber &&
-                        previousCategory != null &&
-                        currentIndex + 1 < text.Length &&
-                        char.IsLower(text[currentIndex + 1]))
+                case UnicodeCategory.LowercaseLetter:
+                case UnicodeCategory.DecimalDigitNumber:
+                    if (NeedsUnderscore(currentCategory, previousCategory, text, currentIndex))
                     {
                         builder.Append('_');
                     }
 
                     currentChar = char.ToLower(currentChar, CultureInfo.InvariantCulture);
-                    break;
-
-                case UnicodeCategory.LowercaseLetter:
-                case UnicodeCategory.DecimalDigitNumber:
-                    if (previousCategory == UnicodeCategory.SpaceSeparator)
-                    {
-                        builder.Append('_');
-                    }
-
+                    builder.Append(currentChar);
+                    previousCategory = currentCategory;
                     break;
 
                 default:
@@ -56,14 +46,28 @@ public static class StringExtensions
                         previousCategory = UnicodeCategory.SpaceSeparator;
                     }
 
-                    continue;
+                    break;
             }
-
-            builder.Append(currentChar);
-            previousCategory = currentCategory;
         }
 
         return builder.ToString();
+    }
+
+    private static bool NeedsUnderscore(UnicodeCategory currentCategory, UnicodeCategory? previousCategory, string text, int currentIndex)
+    {
+        if (previousCategory == UnicodeCategory.SpaceSeparator)
+            return true;
+
+        if (currentCategory is UnicodeCategory.UppercaseLetter or UnicodeCategory.TitlecaseLetter)
+        {
+            return previousCategory == UnicodeCategory.LowercaseLetter ||
+                   previousCategory != UnicodeCategory.DecimalDigitNumber &&
+                   previousCategory != null &&
+                   currentIndex + 1 < text.Length &&
+                   char.IsLower(text[currentIndex + 1]);
+        }
+
+        return false;
     }
 
     public static string ToCamelCase(this string text)

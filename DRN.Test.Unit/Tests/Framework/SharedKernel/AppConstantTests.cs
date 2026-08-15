@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using DRN.Framework.SharedKernel.Extensions;
 
 namespace DRN.Test.Unit.Tests.Framework.SharedKernel;
@@ -5,9 +7,15 @@ namespace DRN.Test.Unit.Tests.Framework.SharedKernel;
 public class AppConstantTests
 {
     [Fact]
-    public void LocalIpAddress_Should_Be_Obtained()
+    public void LocalIpAddress_Should_Be_Obtained_And_Valid_IPv4()
     {
         AppConstants.LocalIpAddress.Should().NotBeNullOrWhiteSpace();
+        AppConstants.GetLocalIpAddress().Should().Be(AppConstants.LocalIpAddress);
+
+        var isValidIp = IPAddress.TryParse(AppConstants.LocalIpAddress, out var ipAddress);
+        isValidIp.Should().BeTrue();
+        ipAddress.Should().NotBeNull();
+        ipAddress.AddressFamily.Should().Be(AddressFamily.InterNetwork);
     }
 
     [Fact]
