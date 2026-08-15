@@ -7,6 +7,15 @@ public class StringExtensionTests
 {
     [Theory]
     [DataInlineUnit("George Carlin: Everyone smiles in the same Language", "george_carlin_everyone_smiles_in_the_same_language")]
+    [DataInlineUnit("OrderHistory", "order_history")]
+    [DataInlineUnit("Order2History", "order2_history")]
+    [DataInlineUnit("Order23", "order23")]
+    [DataInlineUnit("HTMLParser", "html_parser")]
+    [DataInlineUnit("URL", "url")]
+    [DataInlineUnit("__DataProtectionContext", "__data_protection_context")]
+    [DataInlineUnit("already_snake_case", "already_snake_case")]
+    [DataInlineUnit("", "")]
+    [DataInlineUnit("   ", "")]
     public void ToSnakeCaseTest(string input, string output)
     {
         input.ToSnakeCase().Should().Be(output);
@@ -38,6 +47,7 @@ public class StringExtensionTests
             CultureInfo.CurrentCulture = turkishCulture;
             CultureInfo.CurrentUICulture = turkishCulture;
 
+            "IDENTITY information".ToSnakeCase().Should().Be("identity_information");
             "IDENTITY information".ToCamelCase().Should().Be("identityInformation");
             "identity information".ToPascalCase().Should().Be("IdentityInformation");
         }

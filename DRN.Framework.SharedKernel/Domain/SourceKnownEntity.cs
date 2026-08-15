@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -54,6 +55,7 @@ public abstract class SourceKnownEntity<TModel>(long id = 0) : SourceKnownEntity
 /// comparison by reference or identifier and includes mechanisms for state tracking
 /// through domain events.
 /// </remarks>
+[SuppressMessage("SonarQube", "S4035", Justification = "DDD identity equality")]
 public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<SourceKnownEntity>, IComparable<SourceKnownEntity>
 {
     public const int IdColumnOrder = 0;

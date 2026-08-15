@@ -45,13 +45,15 @@ public class AppSettingsLifecycleTests
         StartupExceptionReportProgram.ReportServiceDisposeCount.Should().Be(1);
     }
 
+    // DrnProgramBase requires an "NLog" configuration section during bootstrap.
+    // Configure a Null target with minLevel=Off so expected test startup exceptions do not pollute test console output.
     private static string[] CreateTemporaryApplicationArgs() =>
     [
         "--Environment=Development",
         "--DrnDevelopmentSettings:TemporaryApplication=true",
-        "--NLog:targets:console:type=Console",
+        "--NLog:targets:null:type=Null",
         "--NLog:rules:0:logger=*",
-        "--NLog:rules:0:minLevel=Trace",
-        "--NLog:rules:0:writeTo=console"
+        "--NLog:rules:0:minLevel=Off",
+        "--NLog:rules:0:writeTo=null"
     ];
 }

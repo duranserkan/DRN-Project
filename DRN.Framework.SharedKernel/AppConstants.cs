@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Reflection;
 using DRN.Framework.SharedKernel.Extensions;
@@ -92,22 +93,37 @@ public static class AppConstants
         }
     }
 
-    private static string GetLocalIpAddress()
+    internal static string GetLocalIpAddress()
     {
-        //how to get local IP address https://stackoverflow.com/posts/27376368/revisions
-        using var dataGramSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Unspecified);
         try
         {
-            dataGramSocket.Connect("192.168.0.0", 59999);
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Unspecified);
+            socket.Connect(new IPAddress(new byte[] { 8, 8, 8, 8 }), 65530);
+
+            if (socket.LocalEndPoint is IPEndPoint endPoint && !IPAddress.IsLoopback(endPoint.Address))
+                return endPoint.Address.ToString();
         }
-        catch (SocketException e)
+        catch
         {
-            _ = e;
-            dataGramSocket.Connect("localhost", 59999);
+            // Routing to default gateway failed (e.g. air-gapped / isolated network)
         }
 
-        var localEndPoint = dataGramSocket.LocalEndPoint as IPEndPoint;
+        try
+        {
+            var activeInterface = NetworkInterface.GetAllNetworkInterfaces()
+                .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+                .OrderByDescending(n => n.GetIPProperties().GatewayAddresses.Count > 0)
+                .SelectMany(n => n.GetIPProperties().UnicastAddresses)
+                .FirstOrDefault(u => u.Address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(u.Address));
 
-        return localEndPoint?.Address.ToString() ?? string.Empty;
+            if (activeInterface != null)
+                return activeInterface.Address.ToString();
+        }
+        catch
+        {
+            // Ignored
+        }
+
+        return IPAddress.Loopback.ToString();
     }
 }

@@ -1,21 +1,61 @@
-# Keep Git's text normalization aligned with .editorconfig.
+# -------------------------------------------------------------------------------
+# 1. Global Default (Normalize all text files to LF in Git index)
+# -------------------------------------------------------------------------------
 * text=auto eol=lf
 
 # -------------------------------------------------------------------------------
-# Binary Files (Prevent Line-Ending Normalization & Corruption)
+# 2. Semantic Diff Drivers
 # -------------------------------------------------------------------------------
+*.cs diff=csharp
+*.cshtml diff=html
+*.razor diff=html
+*.html diff=html
+*.css diff=css
+*.scss diff=css
+*.md diff=markdown
+*.tex diff=tex
+*.cls diff=tex
+*.bib diff=bibtex
+
+# -------------------------------------------------------------------------------
+# 3. Binary Files (Prevent Line-Ending Normalization & Corruption)
+# -------------------------------------------------------------------------------
+# Images & Media
 *.png binary
 *.jpg binary
 *.jpeg binary
 *.gif binary
 *.ico binary
-*.svg text eol=lf
+*.webp binary
+*.avif binary
 *.pdf binary
+
+# Audio & Video
+*.mp3 binary
+*.wav binary
+*.mp4 binary
+*.webm binary
+
+# Fonts
 *.woff binary
 *.woff2 binary
 *.ttf binary
 *.eot binary
+*.otf binary
+
+# Compiled Binaries & Native Libraries
 *.dll binary
 *.exe binary
+*.pdb binary
+*.so binary
+*.dylib binary
+*.wasm binary
+
+# Archives & Packages
 *.zip binary
 *.tar.gz binary
+*.tgz binary
+*.gz binary
+*.7z binary
+*.nupkg binary
+*.snupkg binary
