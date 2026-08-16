@@ -26,7 +26,7 @@ public static class DiagnosticDescriptors
         isEnabledByDefault: true,
         description: "Every domain entity inheriting from SourceKnownEntity must declare a unique EntityType byte value per AppId across the domain dependency graph.",
         helpLinkUri: HelpLinkUri,
-        customTags: [WellKnownDiagnosticTags.CompilationEnd]);
+        WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor InvalidEntityTypeAttributeUsage = new(
         id: "DRN0003",
@@ -47,5 +47,5 @@ public static class DiagnosticDescriptors
         isEnabledByDefault: true,
         description: "Domain entities inheriting from SourceKnownEntity should have unique class names per AppId across the domain model to avoid mapping and messaging ambiguity.",
         helpLinkUri: HelpLinkUri,
-        customTags: [WellKnownDiagnosticTags.CompilationEnd]);
+        WellKnownDiagnosticTags.CompilationEnd);
 }

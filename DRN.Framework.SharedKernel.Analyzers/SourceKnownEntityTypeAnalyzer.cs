@@ -13,6 +13,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 {
     private const string SourceKnownEntityMetadataName = "DRN.Framework.SharedKernel.Domain.SourceKnownEntity";
     private const string EntityTypeAttributeMetadataName = "DRN.Framework.SharedKernel.Domain.EntityTypeAttribute";
+    private const string AppIdName = "AppId";
 
     private sealed record EntityTypeDeclaration(
         byte EntityTypeValue,
@@ -178,18 +179,15 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                         var firstRefSymbol = refSymbols[0];
                         var referencedTargetName = $"{firstRefSymbol.ContainingAssembly.Name}::{firstRefSymbol.Name}";
 
-                        foreach (var decl in orderedDeclarations)
+                        foreach (var decl in orderedDeclarations.Where(decl => !SymbolEqualityComparer.Default.Equals(firstRefSymbol, decl.Symbol)))
                         {
-                            if (!SymbolEqualityComparer.Default.Equals(firstRefSymbol, decl.Symbol))
-                            {
-                                endContext.ReportDiagnostic(Diagnostic.Create(
-                                    DiagnosticDescriptors.DuplicateEntityTypeValue,
-                                    decl.Location,
-                                    entityTypeValue,
-                                    groupKey.AppId,
-                                    decl.Symbol.Name,
-                                    referencedTargetName));
-                            }
+                            endContext.ReportDiagnostic(Diagnostic.Create(
+                                DiagnosticDescriptors.DuplicateEntityTypeValue,
+                                decl.Location,
+                                entityTypeValue,
+                                groupKey.AppId,
+                                decl.Symbol.Name,
+                                referencedTargetName));
                         }
                     }
                     else if (orderedDeclarations.Count > 1)
@@ -345,19 +343,14 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         var targetIdentity = targetAssembly.Identity;
         foreach (var module in assembly.Modules)
         {
-            foreach (var referencedAssemblySymbol in module.ReferencedAssemblySymbols)
-            {
-                if (SymbolEqualityComparer.Default.Equals(referencedAssemblySymbol, targetAssembly))
-                    return true;
-            }
+            if (module.ReferencedAssemblySymbols.Any(referencedAssemblySymbol => SymbolEqualityComparer.Default.Equals(referencedAssemblySymbol, targetAssembly)))
+                return true;
 
-            foreach (var referencedIdentity in module.ReferencedAssemblies)
+            if (module.ReferencedAssemblies.Any(referencedIdentity =>
+                    AssemblyIdentityComparer.Default.ReferenceMatchesDefinition(referencedIdentity, targetIdentity) ||
+                    string.Equals(referencedIdentity.Name, targetIdentity.Name, StringComparison.OrdinalIgnoreCase)))
             {
-                if (AssemblyIdentityComparer.Default.ReferenceMatchesDefinition(referencedIdentity, targetIdentity) ||
-                    string.Equals(referencedIdentity.Name, targetIdentity.Name, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
+                return true;
             }
         }
 
@@ -422,7 +415,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
             foreach (var namedArg in attributeData.NamedArguments)
             {
-                if (namedArg.Key == "AppId" &&
+                if (namedArg.Key == AppIdName &&
                     TryExtractByte(namedArg.Value.Value, out var namedAppId))
                 {
                     appId = namedAppId;
@@ -479,7 +472,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         foreach (var member in appTypeSymbol.GetMembers())
         {
             if (member is IFieldSymbol field && field.HasConstantValue &&
-                (field.Name == "AppId" || field.Name == "Value") &&
+                (field.Name == AppIdName || field.Name == "Value") &&
                 TryExtractByte(field.ConstantValue, out appId))
             {
                 return true;
@@ -488,7 +481,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
         foreach (var attr in appTypeSymbol.GetAttributes())
         {
-            if ((attr.AttributeClass?.Name is "AppIdAttribute" or "AppId") &&
+            if ((attr.AttributeClass?.Name is "AppIdAttribute" or AppIdName) &&
                 attr.ConstructorArguments.Length > 0 &&
                 TryExtractByte(attr.ConstructorArguments[0].Value, out appId))
             {
@@ -496,7 +489,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             }
         }
 
-        foreach (var member in appTypeSymbol.GetMembers("AppId"))
+        foreach (var member in appTypeSymbol.GetMembers(AppIdName))
         {
             if (member is IPropertySymbol prop)
             {
