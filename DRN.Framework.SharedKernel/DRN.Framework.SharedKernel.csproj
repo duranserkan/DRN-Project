@@ -56,7 +56,8 @@
     <ItemGroup>
         <ProjectReference Include="..\DRN.Framework.SharedKernel.Analyzers\DRN.Framework.SharedKernel.Analyzers.csproj"
                           OutputItemType="Analyzer"
-                          ReferenceOutputAssembly="false" />
+                          ReferenceOutputAssembly="false"
+                          UndefineProperties="RuntimeIdentifier;TargetArchitecture;PlatformTarget;SelfContained;PublishReadyToRun" />
     </ItemGroup>
 
     <ItemGroup>

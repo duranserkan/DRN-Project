@@ -8,6 +8,9 @@
         <IsPackable>false</IsPackable>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <NoWarn>$(NoWarn);RS1041</NoWarn>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <RuntimeIdentifier />
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     </PropertyGroup>
 
     <ItemGroup>

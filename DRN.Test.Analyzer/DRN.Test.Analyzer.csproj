@@ -13,7 +13,8 @@
 
     <ItemGroup>
         <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj"/>
-        <ProjectReference Include="..\DRN.Framework.SharedKernel.Analyzers\DRN.Framework.SharedKernel.Analyzers.csproj"/>
+        <ProjectReference Include="..\DRN.Framework.SharedKernel.Analyzers\DRN.Framework.SharedKernel.Analyzers.csproj"
+                          UndefineProperties="RuntimeIdentifier;TargetArchitecture;PlatformTarget;SelfContained;PublishReadyToRun" />
     </ItemGroup>
 
     <ItemGroup>
