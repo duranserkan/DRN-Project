@@ -66,10 +66,10 @@ public abstract class SourceKnownEntity(long id = 0)
 
 ### Application Partitions & Attributes
 
-- **`IAppId`**: Interface requiring `static abstract byte AppId { get; }` (valid range `0..127`).
-- **`DefaultApp` (`AppId = 0`)**: Built-in default application partition for standalone domains and single-application systems (`[EntityType<DefaultApp>(byte)]`).
-- **`NexusApp` (`AppId = 126`)**: Built-in Nexus service partition (`[EntityType<NexusApp>(byte)]` or domain-derived `[NexusEntityType(NexusEntityTypes)]`).
-- **`TestApp` (`AppId = 127`)**: Built-in partition for test entities to isolate test fixtures.
+- **`IAppId`**: Interface requiring `static abstract byte AppId { get; }` (valid range `0..127`). Exposes partition constants `IAppId.DefaultAppId` (0), `IAppId.NexusAppId` (126), `IAppId.TestAppId` (127), and `IAppId.MaxAppId` (127).
+- **`DefaultApp` (`AppId = 0`, `Value = 0`)**: Built-in default application partition for standalone domains and single-application systems (`[EntityType<DefaultApp>(byte)]`).
+- **`NexusApp` (`AppId = 126`, `Value = 126`)**: Built-in Nexus service partition (`[EntityType<NexusApp>(byte)]` or domain-derived `[NexusEntityType(NexusEntityTypes)]`).
+- **`TestApp` (`AppId = 127`, `Value = 127`)**: Built-in partition for test entities to isolate test fixtures.
 - **`[TestEntityType(byte)]`**: Convenience attribute (`TestEntityTypeAttribute`) binding directly to `TestApp` (`AppId = 127`) without generic type boilerplate in test projects.
 
 ### AggregateRoot
@@ -287,7 +287,9 @@ using DRN.Framework.SharedKernel.Extensions;
 |-----------|---------|
 | `[IgnoreLog]` | Exclude properties from scoped logging |
 | `[SecureKey]` | Validate string meets secure key requirements |
-| `[EntityType(byte)]` | Unique entity type ID for Source-Known IDs |
+| `[EntityType<TApp>(byte)]` | Unique entity type ID bound to application partition `TApp : IAppId` |
+| `[TestEntityType(byte)]` | Convenience entity type attribute bound directly to `TestApp` (`AppId = 127`) |
+| `[NexusEntityType(enum)]` | Nexus domain entity type attribute bound directly to `NexusApp` (`AppId = 126`) |
 
 ---
 

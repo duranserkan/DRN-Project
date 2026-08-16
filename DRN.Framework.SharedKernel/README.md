@@ -106,10 +106,10 @@ Core primitives provide conventions for rapid and effective domain design and en
 
 - **`SourceKnownEntity`**: The base class for all entities. Handles identity (`long Id` internal, `Guid EntityId` external), domain events, and auditing.
 - **`AggregateRoot`**: Marker class for DDD aggregate roots.
-- **`IAppId` & `[EntityType<TApp>(byte)]`**: Strongly-typed application partition interface (`IAppId.AppId`) and generic attribute that binds entity types to application partitions. Domain projects can also derive custom attributes.
-- **`DefaultApp` (`AppId = 0`)**: Built-in default application partition for standalone applications and general domains (`[EntityType<DefaultApp>(byte)]`).
-- **`NexusApp` (`AppId = 126`)**: Built-in Nexus service partition for Nexus domain entities (`[EntityType<NexusApp>(byte)]` or domain-derived `[NexusEntityType(NexusEntityTypes)]`).
-- **`TestApp` (`AppId = 127`) & `[TestEntityType(byte)]`**: Built-in test application partition and convenience attribute (`TestEntityTypeAttribute`) for test entities, isolating test fixtures from domain entity type collisions.
+- **`IAppId` & `[EntityType<TApp>(byte)]`**: Strongly-typed application partition interface (`IAppId.AppId`) and generic attribute that binds entity types to application partitions. Exposes partition constants `IAppId.DefaultAppId` (0), `IAppId.NexusAppId` (126), `IAppId.TestAppId` (127), and `IAppId.MaxAppId` (127). Domain projects can also derive custom attributes.
+- **`DefaultApp` (`AppId = 0`, `Value = 0`)**: Built-in default application partition for standalone applications and general domains (`[EntityType<DefaultApp>(byte)]`).
+- **`NexusApp` (`AppId = 126`, `Value = 126`)**: Built-in Nexus service partition for Nexus domain entities (`[EntityType<NexusApp>(byte)]` or domain-derived `[NexusEntityType(NexusEntityTypes)]`).
+- **`TestApp` (`AppId = 127`, `Value = 127`) & `[TestEntityType(byte)]`**: Built-in test application partition and convenience attribute (`TestEntityTypeAttribute`) for test entities, isolating test fixtures from domain entity type collisions.
 
 ### Compile-Time Roslyn Analyzers
 

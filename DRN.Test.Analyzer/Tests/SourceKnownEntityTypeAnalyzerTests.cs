@@ -9,22 +9,29 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             public interface IAppId
             {
+                public const byte DefaultAppId = 0;
+                public const byte NexusAppId = 126;
+                public const byte TestAppId = 127;
+                public const byte MaxAppId = 127;
                 static abstract byte AppId { get; }
             }
 
             public readonly struct DefaultApp : IAppId
             {
-                public static byte AppId => 0;
+                public const byte Value = IAppId.DefaultAppId;
+                public static byte AppId => Value;
             }
 
             public readonly struct NexusApp : IAppId
             {
-                public static byte AppId => 126;
+                public const byte Value = IAppId.NexusAppId;
+                public static byte AppId => Value;
             }
 
             public readonly struct TestApp : IAppId
             {
-                public static byte AppId => 127;
+                public const byte Value = IAppId.TestAppId;
+                public static byte AppId => Value;
             }
 
             [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
@@ -1070,6 +1077,135 @@ public class SourceKnownEntityTypeAnalyzerTests
         var diagnostics = await RunAnalyzerAsync(testCode);
 
         diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ReferencedAssembly_WithSameCustomAppId_ProducesDRN0002()
+    {
+        var referencedSources = new (string AssemblyName, string Source)[]
+        {
+            ("ReferencedAssembly", """
+                using DRN.Framework.SharedKernel.Domain;
+
+                namespace ExternalDomain
+                {
+                    public readonly struct App5 : IAppId
+                    {
+                        public const byte AppId = 5;
+                        static byte IAppId.AppId => AppId;
+                    }
+
+                    [EntityType<App5>(42)]
+                    public class ExternalEntity : SourceKnownEntity;
+                }
+                """)
+        };
+
+        const string consumingSource = """
+            using DRN.Framework.SharedKernel.Domain;
+            using ExternalDomain;
+
+            namespace LocalDomain
+            {
+                [EntityType<App5>(42)]
+                public class LocalEntity : SourceKnownEntity;
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(referencedSources, consumingSource);
+
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].Id.Should().Be("DRN0002");
+        diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Error);
+        diagnostics[0].GetMessage().Should().Contain("42");
+        diagnostics[0].GetMessage().Should().Contain("5");
+        diagnostics[0].GetMessage().Should().Contain("ExternalEntity");
+    }
+
+    [Fact]
+    public async Task ReferencedAssembly_WithDifferentCustomAppId_ProducesNoDiagnostics()
+    {
+        var referencedSources = new (string AssemblyName, string Source)[]
+        {
+            ("ReferencedAssembly", """
+                using DRN.Framework.SharedKernel.Domain;
+
+                namespace ExternalDomain
+                {
+                    public readonly struct App5 : IAppId
+                    {
+                        public const byte AppId = 5;
+                        static byte IAppId.AppId => AppId;
+                    }
+
+                    [EntityType<App5>(42)]
+                    public class ExternalEntity : SourceKnownEntity;
+                }
+                """)
+        };
+
+        const string consumingSource = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            namespace LocalDomain
+            {
+                public readonly struct App6 : IAppId
+                {
+                    public static byte AppId => 6;
+                }
+
+                [EntityType<App6>(42)]
+                public class LocalEntity : SourceKnownEntity;
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(referencedSources, consumingSource);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ReferencedAssembly_WithDerivedEntityTypeAttribute_ProducesDRN0002_WhenAppIdMatches()
+    {
+        var referencedSources = new (string AssemblyName, string Source)[]
+        {
+            ("ReferencedAssembly", """
+                using DRN.Framework.SharedKernel.Domain;
+
+                namespace ExternalDomain
+                {
+                    public readonly struct App5 : IAppId
+                    {
+                        public const byte AppId = 5;
+                        static byte IAppId.AppId => AppId;
+                    }
+
+                    public sealed class App5EntityTypeAttribute(byte entityType) : EntityTypeAttribute<App5>(entityType);
+
+                    [App5EntityType(42)]
+                    public class ExternalEntity : SourceKnownEntity;
+                }
+                """)
+        };
+
+        const string consumingSource = """
+            using DRN.Framework.SharedKernel.Domain;
+            using ExternalDomain;
+
+            namespace LocalDomain
+            {
+                [EntityType<App5>(42)]
+                public class LocalEntity : SourceKnownEntity;
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(referencedSources, consumingSource);
+
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].Id.Should().Be("DRN0002");
+        diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Error);
+        diagnostics[0].GetMessage().Should().Contain("42");
+        diagnostics[0].GetMessage().Should().Contain("5");
     }
 
     private static async Task<ImmutableArray<Diagnostic>> RunAnalyzerWithMultipleReferencesAsync(

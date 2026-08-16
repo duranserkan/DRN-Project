@@ -12,17 +12,24 @@ namespace DRN.Framework.SharedKernel.Domain;
 /// Base EntityType attribute. Must be specialized per application partition.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public abstract class EntityTypeAttribute(byte entityType, byte appId) : Attribute
+public abstract class EntityTypeAttribute : Attribute
 {
     /// <summary>
     /// Application wide Unique Entity Type
     /// </summary>
-    public byte EntityType { get; } = entityType;
+    public byte EntityType { get; }
 
     /// <summary>
     /// Application Identifier (0..127) for domain/application partitioning
     /// </summary>
-    public byte AppId { get; } = appId;
+    public byte AppId { get; }
+
+    protected EntityTypeAttribute(byte entityType, byte appId)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(appId, IAppId.MaxAppId);
+        EntityType = entityType;
+        AppId = appId;
+    }
 }
 
 /// <summary>
@@ -91,13 +98,16 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         return attribute.EntityType;
     });
 
-    private static void EnsureUniqueEntityType(Type newType, byte newEntityType, byte newAppId) =>
+    private static void EnsureUniqueEntityType(Type newType, byte newEntityType, byte newAppId)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(newAppId, IAppId.MaxAppId);
         IdToTypeMap.AddOrUpdate( // Thread-safe check-or-add with value factory
             new EntityTypeId(newEntityType, newAppId),
             addValueFactory: _ => newType,
             updateValueFactory: (key, existingType) => existingType != newType
                 ? throw new InvalidOperationException($"Entity type value: {key.EntityType} with AppId: {key.AppId} is used by both {existingType.FullName} and {newType.FullName}")
                 : existingType);
+    }
 
     private List<IDomainEvent> DomainEvents { get; } = new(2); //todo transactional outbox, pre and post publish events
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;

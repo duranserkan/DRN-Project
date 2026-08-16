@@ -5,6 +5,11 @@ namespace DRN.Framework.SharedKernel.Domain;
 /// </summary>
 public interface IAppId
 {
+    public const byte DefaultAppId = 0;
+    public const byte NexusAppId = 126;
+    public const byte TestAppId = 127;
+    public const byte MaxAppId = 127;
+
     /// <summary>
     /// Application Identifier (0..127) for domain/application partitioning.
     /// </summary>
@@ -16,7 +21,8 @@ public interface IAppId
 /// </summary>
 public readonly struct DefaultApp : IAppId
 {
-    public static byte AppId => 0;
+    public const byte Value = IAppId.DefaultAppId;
+    public static byte AppId => Value;
 }
 
 /// <summary>
@@ -24,7 +30,8 @@ public readonly struct DefaultApp : IAppId
 /// </summary>
 public readonly struct NexusApp : IAppId
 {
-    public static byte AppId => 126;
+    public const byte Value = IAppId.NexusAppId;
+    public static byte AppId => Value;
 }
 
 /// <summary>
@@ -32,7 +39,8 @@ public readonly struct NexusApp : IAppId
 /// </summary>
 public readonly struct TestApp : IAppId
 {
-    public static byte AppId => 127;
+    public const byte Value = IAppId.TestAppId;
+    public static byte AppId => Value;
 }
 
 /// <summary>

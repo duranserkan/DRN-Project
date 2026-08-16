@@ -29,11 +29,12 @@ Open an issue with the `enhancement` label. Describe:
    git checkout -b feature/your-feature develop
    ```
 3. **Make your changes** following the conventions below
-4. **Write or update tests** — integration-first (DTT philosophy)
+4. **Write or update tests** — unit and analyzer tests before integration tests (DTT philosophy)
 5. **Run the test suite**:
 
    ```bash
    dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
+   dotnet run --project DRN.Test.Analyzer/DRN.Test.Analyzer.csproj
    dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
    ```
 6. **Commit** with a clear message following [Conventional Commits](https://www.conventionalcommits.org/):
@@ -86,6 +87,7 @@ npm install --package-lock-only --ignore-scripts
 
 ```bash
 dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
+dotnet run --project DRN.Test.Analyzer/DRN.Test.Analyzer.csproj
 dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 ```
 
@@ -98,7 +100,7 @@ Tests use **Testcontainers** — Docker must be running for integration tests.
 | **DI** | Attribute-based: `[Scoped<T>]`, `[Singleton<T>]`, `[Transient<T>]` |
 | **Entities** | Source-Known ID pattern; `[EntityType<TApp>(byte)]` or derived attribute required |
 | **DTOs** | Derive from `Dto`; live in `*.Contract` projects |
-| **Testing** | DTT — integration-first; `[Fact]` for no-data tests, data attributes request context only when needed |
+| **Testing** | DTT — unit and analyzer tests before integration; `[Fact]` for no-data tests, data attributes request context only when needed |
 | **Git** | GitFlow-inspired: `develop` → `master` → tag `v*.*.*` |
 
 ### Testing Attribute Examples

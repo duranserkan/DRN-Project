@@ -16,9 +16,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### New Features
 
 *   **Application Partitioning (`IAppId`)**: Added strongly-typed application partition metadata via `IAppId` (`AppId` 0..127) and `EntityTypeAttribute<TApp>` to namespace entity type discrimination values and class names across domain modules.
-    *   `DefaultApp` (`AppId = 0`): Built-in default application partition for standalone domains and single-application systems (`[EntityType<DefaultApp>(byte)]`).
-    *   `NexusApp` (`AppId = 126`): Built-in Nexus service partition (`[EntityType<NexusApp>(byte)]` or domain-derived `[NexusEntityType(NexusEntityTypes)]`).
-    *   `TestApp` (`AppId = 127`): Built-in test application partition isolating test entities from production domain entity types.
+    *   Exposes `IAppId.DefaultAppId` (0), `IAppId.NexusAppId` (126), `IAppId.TestAppId` (127), and `IAppId.MaxAppId` (127) partition constants.
+    *   `DefaultApp` (`AppId = 0`, `Value = 0`): Built-in default application partition for standalone domains and single-application systems (`[EntityType<DefaultApp>(byte)]`).
+    *   `NexusApp` (`AppId = 126`, `Value = 126`): Built-in Nexus service partition (`[EntityType<NexusApp>(byte)]` or domain-derived `[NexusEntityType(NexusEntityTypes)]`).
+    *   `TestApp` (`AppId = 127`, `Value = 127`): Built-in test application partition isolating test entities from production domain entity types.
     *   `[TestEntityType(byte)]`: Convenience attribute (`TestEntityTypeAttribute`) binding test entities directly to `TestApp` (`AppId = 127`) without generic type boilerplate.
     *   `EntityTypeId`: Immutable 2-byte composite identifier (`(EntityType, AppId)`) record struct with `IComparable<EntityTypeId>` support for partition-scoped entity type mappings and validation.
 
