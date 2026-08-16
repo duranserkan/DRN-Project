@@ -134,5 +134,5 @@ public class SourceKnownIdUtilsBenchmark
     public SourceKnownEntityId ToSecure() => EntityIdUtils.ToSecure(PlainEntityId);
 }
 
-[EntityType(92)]
+[TestEntityType(92)]
 public class YEntity(long id) : SourceKnownEntity(id);

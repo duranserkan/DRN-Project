@@ -16,11 +16,13 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
     private sealed record EntityTypeDeclaration(
         byte EntityTypeValue,
+        byte AppId,
         INamedTypeSymbol Symbol,
         Location Location);
 
     private sealed record EntityNameDeclaration(
         string Name,
+        byte AppId,
         INamedTypeSymbol Symbol,
         Location Location);
 
@@ -64,9 +66,13 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
                 if (inheritsSourceKnownEntity && !namedType.IsAbstract && !isPrivate)
                 {
+                    var entityTypeValue = (byte)0;
+                    var declaredAppId = (byte)0;
+                    var hasValidAttribute = entityTypeAttribute != null && TryGetEntityType(entityTypeAttribute, out entityTypeValue, out declaredAppId);
+
                     // 1. Buffer non-private entity class names for compilation end analysis (DRN0004 - Warning)
                     var location = namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None;
-                    collectedEntityNameDeclarations.Add(new EntityNameDeclaration(namedType.Name, namedType, location));
+                    collectedEntityNameDeclarations.Add(new EntityNameDeclaration(namedType.Name, declaredAppId, namedType, location));
 
                     // 2. Check EntityType attribute presence (DRN0001) & collect for compilation end (DRN0002)
                     if (entityTypeAttribute == null)
@@ -76,12 +82,12 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                             location,
                             namedType.Name));
                     }
-                    else if (TryGetEntityTypeValue(entityTypeAttribute, out var entityTypeValue))
+                    else if (hasValidAttribute)
                     {
                         var attrLocation = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax().GetLocation()
                                            ?? location;
 
-                        collectedEntityTypeDeclarations.Add(new EntityTypeDeclaration(entityTypeValue, namedType, attrLocation));
+                        collectedEntityTypeDeclarations.Add(new EntityTypeDeclaration(entityTypeValue, declaredAppId, namedType, attrLocation));
                     }
                 }
                 else if (entityTypeAttribute != null)
@@ -109,27 +115,27 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                     .Select(s =>
                     {
                         var attr = FindAttribute(s, entityTypeAttributeSymbol);
-                        if (attr != null && TryGetEntityTypeValue(attr, out var val))
+                        if (attr != null && TryGetEntityType(attr, out var val, out var refAppId))
                         {
-                            return (Symbol: s, HasValue: true, Value: val);
+                            return (Symbol: s, HasValue: true, Value: val, AppId: refAppId);
                         }
 
-                        return (Symbol: s, HasValue: false, Value: (byte)0);
+                        return (Symbol: s, HasValue: false, Value: (byte)0, AppId: (byte)0);
                     })
                     .Where(x => x.HasValue)
-                    .GroupBy(x => x.Value);
+                    .GroupBy(x => (x.AppId, x.Value));
 
-                var referencedEntityTypeMap = new System.Collections.Generic.Dictionary<byte, System.Collections.Generic.List<INamedTypeSymbol>>();
+                var referencedEntityTypeMap = new System.Collections.Generic.Dictionary<(byte AppId, byte EntityTypeValue), System.Collections.Generic.List<INamedTypeSymbol>>();
                 foreach (var refGroup in referencedByValue)
                 {
-                    var entityTypeValue = refGroup.Key;
+                    var groupKey = refGroup.Key; // (AppId, Value)
                     var orderedRefGroup = refGroup
                         .Select(x => x.Symbol)
                         .OrderBy(s => s.ContainingAssembly.Name, StringComparer.Ordinal)
                         .ThenBy(s => s.ToDisplayString(), StringComparer.Ordinal)
                         .ToList();
 
-                    referencedEntityTypeMap[entityTypeValue] = orderedRefGroup;
+                    referencedEntityTypeMap[groupKey] = orderedRefGroup;
 
                     // Report collisions between distinct referenced assemblies (DRN0002)
                     if (orderedRefGroup.Count > 1)
@@ -145,7 +151,8 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                             endContext.ReportDiagnostic(Diagnostic.Create(
                                 DiagnosticDescriptors.DuplicateEntityTypeValue,
                                 Location.None,
-                                entityTypeValue,
+                                groupKey.Value,
+                                groupKey.AppId,
                                 duplicateTargetName,
                                 firstTargetName));
                         }
@@ -153,11 +160,12 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                 }
 
                 // Check local declarations against each other and against referenced assemblies (DRN0002)
-                var localGroupedByValue = collectedEntityTypeDeclarations.GroupBy(d => d.EntityTypeValue);
+                var localGroupedByValue = collectedEntityTypeDeclarations.GroupBy(d => (d.AppId, d.EntityTypeValue));
 
                 foreach (var group in localGroupedByValue)
                 {
-                    var entityTypeValue = group.Key;
+                    var groupKey = group.Key; // (AppId, EntityTypeValue)
+                    var entityTypeValue = groupKey.EntityTypeValue;
 
                     var orderedDeclarations = group
                         .OrderBy(d => d.Location.SourceTree?.FilePath, StringComparer.Ordinal)
@@ -165,7 +173,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                         .ThenBy(d => d.Location.SourceSpan.Length)
                         .ToList();
 
-                    if (referencedEntityTypeMap.TryGetValue(entityTypeValue, out var refSymbols) && refSymbols.Count > 0)
+                    if (referencedEntityTypeMap.TryGetValue(groupKey, out var refSymbols) && refSymbols.Count > 0)
                     {
                         var firstRefSymbol = refSymbols[0];
                         var referencedTargetName = $"{firstRefSymbol.ContainingAssembly.Name}::{firstRefSymbol.Name}";
@@ -178,6 +186,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                                     DiagnosticDescriptors.DuplicateEntityTypeValue,
                                     decl.Location,
                                     entityTypeValue,
+                                    groupKey.AppId,
                                     decl.Symbol.Name,
                                     referencedTargetName));
                             }
@@ -195,6 +204,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                                     DiagnosticDescriptors.DuplicateEntityTypeValue,
                                     duplicateDecl.Location,
                                     entityTypeValue,
+                                    groupKey.AppId,
                                     duplicateDecl.Symbol.Name,
                                     firstDecl.Symbol.Name));
                             }
@@ -204,18 +214,24 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
                 // 2. Process duplicate entity class names (DRN0004)
                 var referencedByName = distinctReferencedEntities
-                    .GroupBy(s => s.Name, StringComparer.OrdinalIgnoreCase);
+                    .Select(s =>
+                    {
+                        var attr = FindAttribute(s, entityTypeAttributeSymbol);
+                        var refAppId = attr != null && TryGetEntityType(attr, out _, out var app) ? app : (byte)0;
+                        return (Symbol: s, AppId: refAppId);
+                    })
+                    .GroupBy(x => (x.AppId, Name: x.Symbol.Name), x => x.Symbol);
 
-                var referencedEntityNameMap = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<INamedTypeSymbol>>(StringComparer.OrdinalIgnoreCase);
+                var referencedEntityNameMap = new System.Collections.Generic.Dictionary<(byte AppId, string Name), System.Collections.Generic.List<INamedTypeSymbol>>();
                 foreach (var refNameGroup in referencedByName)
                 {
-                    var entityName = refNameGroup.Key;
+                    var groupKey = refNameGroup.Key; // (AppId, Name)
                     var orderedRefGroup = refNameGroup
                         .OrderBy(s => s.ContainingAssembly.Name, StringComparer.Ordinal)
                         .ThenBy(s => s.ToDisplayString(), StringComparer.Ordinal)
                         .ToList();
 
-                    referencedEntityNameMap[entityName] = orderedRefGroup;
+                    referencedEntityNameMap[groupKey] = orderedRefGroup;
 
                     // Report collisions between distinct referenced assemblies (DRN0004)
                     if (orderedRefGroup.Count > 1)
@@ -232,17 +248,18 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                                 DiagnosticDescriptors.DuplicateEntityName,
                                 Location.None,
                                 duplicateName,
-                                firstName));
+                                firstName,
+                                groupKey.AppId));
                         }
                     }
                 }
 
                 // Check local declarations against each other and against referenced assemblies (DRN0004)
-                var localGroupedByName = collectedEntityNameDeclarations.GroupBy(d => d.Name, StringComparer.OrdinalIgnoreCase);
+                var localGroupedByName = collectedEntityNameDeclarations.GroupBy(d => (d.AppId, d.Name));
 
                 foreach (var group in localGroupedByName)
                 {
-                    var entityName = group.Key;
+                    var groupKey = group.Key; // (AppId, Name)
 
                     var orderedDeclarations = group
                         .OrderBy(d => d.Location.SourceTree?.FilePath, StringComparer.Ordinal)
@@ -255,14 +272,15 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
                     var firstDecl = orderedDeclarations[0];
 
-                    if (referencedEntityNameMap.TryGetValue(entityName, out var refSymbols) && refSymbols.Count > 0 &&
+                    if (referencedEntityNameMap.TryGetValue(groupKey, out var refSymbols) && refSymbols.Count > 0 &&
                         !SymbolEqualityComparer.Default.Equals(refSymbols[0], firstDecl.Symbol))
                     {
                         endContext.ReportDiagnostic(Diagnostic.Create(
                             DiagnosticDescriptors.DuplicateEntityName,
                             firstDecl.Location,
                             firstDecl.Symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
-                            refSymbols[0].ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                            refSymbols[0].ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                            groupKey.AppId));
                     }
 
                     for (var i = 1; i < orderedDeclarations.Count; i++)
@@ -274,7 +292,8 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                                 DiagnosticDescriptors.DuplicateEntityName,
                                 duplicateDecl.Location,
                                 duplicateDecl.Symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
-                                firstDecl.Symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                                firstDecl.Symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                                groupKey.AppId));
                         }
                     }
                 }
@@ -386,32 +405,238 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static bool TryGetEntityTypeValue(AttributeData attributeData, out byte entityTypeValue)
+    private static bool TryGetEntityType(AttributeData attributeData, out byte entityTypeValue, out byte appId)
     {
-        if (attributeData.ConstructorArguments.Length > 0)
+        entityTypeValue = 0;
+        appId = 0;
+
+        if (attributeData.ConstructorArguments.Length > 0 &&
+            TryExtractByte(attributeData.ConstructorArguments[0].Value, out entityTypeValue))
         {
-            var rawValue = attributeData.ConstructorArguments[0].Value;
-            if (rawValue is byte b)
+            if (attributeData.ConstructorArguments.Length > 1 &&
+                TryExtractByte(attributeData.ConstructorArguments[1].Value, out var parsedAppId))
             {
-                entityTypeValue = b;
+                appId = parsedAppId;
                 return true;
             }
 
-            if (rawValue is sbyte or short or ushort or int or uint or long or ulong)
+            foreach (var namedArg in attributeData.NamedArguments)
             {
-                try
+                if (namedArg.Key == "AppId" &&
+                    TryExtractByte(namedArg.Value.Value, out var namedAppId))
                 {
-                    entityTypeValue = Convert.ToByte(rawValue);
+                    appId = namedAppId;
                     return true;
                 }
-                catch (Exception ex) when (ex is OverflowException or InvalidCastException)
+            }
+
+            // Check generic type argument or base class generic type argument (e.g. EntityTypeAttribute<TApp>)
+            var current = attributeData.AttributeClass;
+            while (current != null)
+            {
+                if (current.IsGenericType && current.TypeArguments.Length > 0)
                 {
-                    // Ignored - value outside byte range or unsupported cast
+                    var appType = current.TypeArguments[0];
+                    if (TryExtractAppIdFromType(appType, out var extractedAppId))
+                    {
+                        appId = extractedAppId;
+                        return true;
+                    }
+                }
+
+                current = current.BaseType;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryExtractAppIdFromType(ITypeSymbol appTypeSymbol, out byte appId)
+    {
+        appId = 0;
+
+        var fullName = appTypeSymbol.ToDisplayString();
+        if (fullName == "DRN.Framework.SharedKernel.Domain.DefaultApp")
+        {
+            appId = 0;
+            return true;
+        }
+
+        if (fullName == "DRN.Framework.SharedKernel.Domain.NexusApp")
+        {
+            appId = 126;
+            return true;
+        }
+
+        if (fullName == "DRN.Framework.SharedKernel.Domain.TestApp")
+        {
+            appId = 127;
+            return true;
+        }
+
+        foreach (var member in appTypeSymbol.GetMembers())
+        {
+            if (member is IFieldSymbol field && field.HasConstantValue &&
+                (field.Name == "AppId" || field.Name == "Value") &&
+                TryExtractByte(field.ConstantValue, out appId))
+            {
+                return true;
+            }
+        }
+
+        foreach (var attr in appTypeSymbol.GetAttributes())
+        {
+            if ((attr.AttributeClass?.Name is "AppIdAttribute" or "AppId") &&
+                attr.ConstructorArguments.Length > 0 &&
+                TryExtractByte(attr.ConstructorArguments[0].Value, out appId))
+            {
+                return true;
+            }
+        }
+
+        foreach (var member in appTypeSymbol.GetMembers("AppId"))
+        {
+            if (member is IPropertySymbol prop)
+            {
+                foreach (var syntaxRef in prop.DeclaringSyntaxReferences)
+                {
+                    var syntax = syntaxRef.GetSyntax();
+                    if (syntax is Microsoft.CodeAnalysis.CSharp.Syntax.PropertyDeclarationSyntax propSyntax)
+                    {
+                        var expr = propSyntax.ExpressionBody?.Expression
+                                   ?? propSyntax.Initializer?.Value;
+
+                        if (expr == null && propSyntax.AccessorList != null)
+                        {
+                            foreach (var accessor in propSyntax.AccessorList.Accessors)
+                            {
+                                expr = accessor.ExpressionBody?.Expression;
+                                if (expr != null)
+                                    break;
+
+                                if (accessor.Body != null)
+                                {
+                                    foreach (var stmt in accessor.Body.Statements)
+                                    {
+                                        if (stmt is Microsoft.CodeAnalysis.CSharp.Syntax.ReturnStatementSyntax returnStmt &&
+                                            returnStmt.Expression != null)
+                                        {
+                                            expr = returnStmt.Expression;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (expr != null)
+                                    break;
+                            }
+                        }
+
+                        if (expr != null && TryExtractByteFromSyntax(expr, appTypeSymbol, out appId))
+                        {
+                            return true;
+                        }
+                    }
                 }
             }
         }
 
-        entityTypeValue = 0;
+        return false;
+    }
+
+    private static bool TryExtractByteFromSyntax(
+        Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expr,
+        ITypeSymbol appTypeSymbol,
+        out byte byteValue)
+    {
+        if (expr is Microsoft.CodeAnalysis.CSharp.Syntax.LiteralExpressionSyntax literal &&
+            literal.Token.Value is object val)
+        {
+            return TryExtractByte(val, out byteValue);
+        }
+
+        if (expr is Microsoft.CodeAnalysis.CSharp.Syntax.CastExpressionSyntax cast)
+        {
+            return TryExtractByteFromSyntax(cast.Expression, appTypeSymbol, out byteValue);
+        }
+
+        if (expr is Microsoft.CodeAnalysis.CSharp.Syntax.IdentifierNameSyntax idName)
+        {
+            var memberName = idName.Identifier.Text;
+            if (TryExtractConstantFromTypeOrContainers(appTypeSymbol, memberName, out byteValue))
+            {
+                return true;
+            }
+        }
+
+        if (expr is Microsoft.CodeAnalysis.CSharp.Syntax.MemberAccessExpressionSyntax memberAccess)
+        {
+            var memberName = memberAccess.Name.Identifier.Text;
+            if (TryExtractConstantFromTypeOrContainers(appTypeSymbol, memberName, out byteValue))
+            {
+                return true;
+            }
+        }
+
+        byteValue = 0;
+        return false;
+    }
+
+    private static bool TryExtractConstantFromTypeOrContainers(
+        ITypeSymbol appTypeSymbol,
+        string memberName,
+        out byte byteValue)
+    {
+        foreach (var member in appTypeSymbol.GetMembers(memberName))
+        {
+            if (member is IFieldSymbol field && field.HasConstantValue && TryExtractByte(field.ConstantValue, out byteValue))
+            {
+                return true;
+            }
+        }
+
+        var containingType = appTypeSymbol.ContainingType;
+        while (containingType != null)
+        {
+            foreach (var member in containingType.GetMembers(memberName))
+            {
+                if (member is IFieldSymbol field && field.HasConstantValue && TryExtractByte(field.ConstantValue, out byteValue))
+                {
+                    return true;
+                }
+            }
+
+            containingType = containingType.ContainingType;
+        }
+
+        byteValue = 0;
+        return false;
+    }
+
+    private static bool TryExtractByte(object? rawValue, out byte byteValue)
+    {
+        if (rawValue is byte b)
+        {
+            byteValue = b;
+            return true;
+        }
+
+        if (rawValue is sbyte or short or ushort or int or uint or long or ulong)
+        {
+            try
+            {
+                byteValue = Convert.ToByte(rawValue);
+                return true;
+            }
+            catch (Exception ex) when (ex is OverflowException or InvalidCastException)
+            {
+                // Ignored - value outside byte range or unsupported cast
+            }
+        }
+
+        byteValue = 0;
         return false;
     }
 
@@ -434,11 +659,36 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
     {
         foreach (var attribute in typeSymbol.GetAttributes())
         {
-            if (SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, attributeSymbol) ||
-                attribute.AttributeClass?.ToDisplayString() == EntityTypeAttributeMetadataName)
+            var attrClass = attribute.AttributeClass;
+            if (attrClass == null)
+                continue;
+
+            if (SymbolEqualityComparer.Default.Equals(attrClass, attributeSymbol) ||
+                attrClass.ToDisplayString() == EntityTypeAttributeMetadataName ||
+                IsOrDerivesFromEntityTypeAttribute(attrClass, attributeSymbol))
+            {
                 return attribute;
+            }
         }
 
         return null;
+    }
+
+    private static bool IsOrDerivesFromEntityTypeAttribute(INamedTypeSymbol attrClass, INamedTypeSymbol baseAttributeSymbol)
+    {
+        var current = attrClass;
+        while (current != null)
+        {
+            if (SymbolEqualityComparer.Default.Equals(current, baseAttributeSymbol) ||
+                current.ToDisplayString() == EntityTypeAttributeMetadataName ||
+                (current.IsGenericType && current.ConstructedFrom.ToDisplayString().StartsWith("DRN.Framework.SharedKernel.Domain.EntityTypeAttribute<", StringComparison.Ordinal)))
+            {
+                return true;
+            }
+
+            current = current.BaseType;
+        }
+
+        return false;
     }
 }

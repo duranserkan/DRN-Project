@@ -7,11 +7,40 @@ public class SourceKnownEntityTypeAnalyzerTests
         {
             using System;
 
+            public interface IAppId
+            {
+                static abstract byte AppId { get; }
+            }
+
+            public readonly struct DefaultApp : IAppId
+            {
+                public static byte AppId => 0;
+            }
+
+            public readonly struct NexusApp : IAppId
+            {
+                public static byte AppId => 126;
+            }
+
+            public readonly struct TestApp : IAppId
+            {
+                public static byte AppId => 127;
+            }
+
             [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-            public sealed class EntityTypeAttribute(byte entityType) : Attribute
+            public class TestEntityTypeAttribute(byte entityType) : EntityTypeAttribute<TestApp>(entityType);
+
+            [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+            public abstract class EntityTypeAttribute(byte entityType, byte appId) : Attribute
             {
                 public byte EntityType { get; } = entityType;
+                public byte AppId { get; } = appId;
             }
+
+            [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+            public class EntityTypeAttribute<TApp>(byte entityType)
+                : EntityTypeAttribute(entityType, TApp.AppId)
+                where TApp : IAppId;
 
             public abstract class SourceKnownEntity(long id = 0)
             {
@@ -147,7 +176,7 @@ public class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
             using DRN.Framework.SharedKernel.Domain;
 
-            [EntityType(1)]
+            [EntityType<DefaultApp>(1)]
             public class ValidEntity : SourceKnownEntity;
             """;
 
@@ -212,10 +241,10 @@ public class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
             using DRN.Framework.SharedKernel.Domain;
 
-            [EntityType(5)]
+            [EntityType<DefaultApp>(5)]
             public class FirstEntity : SourceKnownEntity;
 
-            [EntityType(5)]
+            [EntityType<DefaultApp>(5)]
             public class SecondEntity : SourceKnownEntity;
             """;
 
@@ -233,13 +262,13 @@ public class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
             using DRN.Framework.SharedKernel.Domain;
 
-            [EntityType(1)]
+            [EntityType<DefaultApp>(1)]
             public class FirstEntity : SourceKnownEntity;
 
-            [EntityType(2)]
+            [EntityType<DefaultApp>(2)]
             public class SecondEntity : SourceKnownEntity;
 
-            [EntityType(3)]
+            [EntityType<DefaultApp>(3)]
             public class ThirdEntity : AggregateRoot;
             """;
 
@@ -254,7 +283,7 @@ public class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
             using DRN.Framework.SharedKernel.Domain;
 
-            [EntityType(1)]
+            [EntityType<DefaultApp>(1)]
             public abstract class AbstractEntityWithAttribute : SourceKnownEntity;
             """;
 
@@ -272,7 +301,7 @@ public class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
             using DRN.Framework.SharedKernel.Domain;
 
-            [EntityType(1)]
+            [EntityType<DefaultApp>(1)]
             public class RegularNonEntityClass;
             """;
 
@@ -292,7 +321,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             public class Fixture
             {
-                [EntityType(1)]
+                [EntityType<DefaultApp>(1)]
                 private class PrivateEntity : SourceKnownEntity;
             }
             """;
@@ -334,10 +363,10 @@ public class SourceKnownEntityTypeAnalyzerTests
                 ItemDuplicate = 10
             }
 
-            [EntityType((byte)DomainEntityTypes.ItemOne)]
+            [EntityType<DefaultApp>((byte)DomainEntityTypes.ItemOne)]
             public class EntityA : SourceKnownEntity;
 
-            [EntityType((byte)DomainEntityTypes.ItemDuplicate)]
+            [EntityType<DefaultApp>((byte)DomainEntityTypes.ItemDuplicate)]
             public class EntityB : SourceKnownEntity;
             """;
 
@@ -357,13 +386,13 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             namespace DomainA
             {
-                [EntityType(1)]
+                [EntityType<DefaultApp>(1)]
                 public class User : SourceKnownEntity;
             }
 
             namespace DomainB
             {
-                [EntityType(2)]
+                [EntityType<DefaultApp>(2)]
                 public class User : SourceKnownEntity;
             }
             """;
@@ -384,7 +413,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             namespace DomainA
             {
-                [EntityType(1)]
+                [EntityType<DefaultApp>(1)]
                 public class User : SourceKnownEntity;
             }
 
@@ -392,7 +421,6 @@ public class SourceKnownEntityTypeAnalyzerTests
             {
                 public class TestFixture
                 {
-                    [EntityType(2)]
                     private class User : SourceKnownEntity;
                 }
             }
@@ -411,7 +439,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             namespace ExternalDomain
             {
-                [EntityType(42)]
+                [EntityType<DefaultApp>(42)]
                 public class ExternalEntity : SourceKnownEntity;
             }
             """;
@@ -421,7 +449,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             namespace LocalDomain
             {
-                [EntityType(42)]
+                [EntityType<DefaultApp>(42)]
                 public class LocalEntity : SourceKnownEntity;
             }
             """;
@@ -443,7 +471,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             namespace ExternalDomain
             {
-                [EntityType(1)]
+                [EntityType<DefaultApp>(1)]
                 public class Order : SourceKnownEntity;
             }
             """;
@@ -453,7 +481,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             namespace LocalDomain
             {
-                [EntityType(2)]
+                [EntityType<DefaultApp>(2)]
                 public class Order : SourceKnownEntity;
             }
             """;
@@ -474,7 +502,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             namespace ExternalDomain
             {
-                [EntityType(42)]
+                [EntityType<DefaultApp>(42)]
                 public class ExternalEntity : SourceKnownEntity;
             }
             """;
@@ -516,7 +544,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             namespace LocalDomain
             {
-                [EntityType(42)]
+                [EntityType<DefaultApp>(42)]
                 public class ConflictingEntity : SourceKnownEntity;
             }
             """;
@@ -546,7 +574,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             namespace LocalDomain
             {
-                [EntityType(2)]
+                [EntityType<DefaultApp>(2)]
                 public class ConflictingEntity : SourceKnownEntity;
             }
             """;
@@ -573,17 +601,17 @@ public class SourceKnownEntityTypeAnalyzerTests
         const string source1 = """
             using DRN.Framework.SharedKernel.Domain;
 
-            [EntityType(7)]
+            [EntityType<DefaultApp>(7)]
             public class AlphaEntity : SourceKnownEntity;
             """;
 
         const string source2 = """
             using DRN.Framework.SharedKernel.Domain;
 
-            [EntityType(7)]
+            [EntityType<DefaultApp>(7)]
             public class BetaEntity : SourceKnownEntity;
 
-            [EntityType(7)]
+            [EntityType<DefaultApp>(7)]
             public class GammaEntity : SourceKnownEntity;
             """;
 
@@ -608,7 +636,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             namespace DomainA
             {
-                [EntityType(1)]
+                [EntityType<DefaultApp>(1)]
                 public class Customer : SourceKnownEntity;
             }
             """;
@@ -618,13 +646,13 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             namespace DomainB
             {
-                [EntityType(2)]
+                [EntityType<DefaultApp>(2)]
                 public class Customer : SourceKnownEntity;
             }
 
             namespace DomainC
             {
-                [EntityType(3)]
+                [EntityType<DefaultApp>(3)]
                 public class Customer : SourceKnownEntity;
             }
             """;
@@ -652,7 +680,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
                 namespace DomainA
                 {
-                    [EntityType(42)]
+                    [EntityType<DefaultApp>(42)]
                     public class EntityA : SourceKnownEntity;
                 }
                 """),
@@ -661,7 +689,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
                 namespace DomainB
                 {
-                    [EntityType(42)]
+                    [EntityType<DefaultApp>(42)]
                     public class EntityB : SourceKnownEntity;
                 }
                 """)
@@ -688,7 +716,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
                 namespace DomainA
                 {
-                    [EntityType(1)]
+                    [EntityType<DefaultApp>(1)]
                     public class Product : SourceKnownEntity;
                 }
                 """),
@@ -697,7 +725,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
                 namespace DomainB
                 {
-                    [EntityType(2)]
+                    [EntityType<DefaultApp>(2)]
                     public class Product : SourceKnownEntity;
                 }
                 """)
@@ -724,7 +752,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
                 namespace CommonDomain
                 {
-                    [EntityType(10)]
+                    [EntityType<DefaultApp>(10)]
                     public class SharedEntity : SourceKnownEntity;
                 }
                 """),
@@ -734,7 +762,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
                 namespace DomainA
                 {
-                    [EntityType(20)]
+                    [EntityType<DefaultApp>(20)]
                     public class EntityA : SourceKnownEntity
                     {
                         public SharedEntity? Shared { get; set; }
@@ -747,7 +775,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
                 namespace DomainB
                 {
-                    [EntityType(30)]
+                    [EntityType<DefaultApp>(30)]
                     public class EntityB : SourceKnownEntity
                     {
                         public SharedEntity? Shared { get; set; }
@@ -757,6 +785,289 @@ public class SourceKnownEntityTypeAnalyzerTests
         };
 
         var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(referencedSources);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DuplicateEntityType_WithDifferentAppId_ProducesNoDiagnostics()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App5 : IAppId
+            {
+                public static byte AppId => 5;
+            }
+
+            public readonly struct App6 : IAppId
+            {
+                public static byte AppId => 6;
+            }
+
+            [EntityType<App5>(1)]
+            public class FirstEntity : SourceKnownEntity;
+
+            [EntityType<App6>(1)]
+            public class SecondEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DuplicateEntityType_WithSameAppId_ProducesDRN0002()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App5 : IAppId
+            {
+                public static byte AppId => 5;
+            }
+
+            [EntityType<App5>(1)]
+            public class FirstEntity : SourceKnownEntity;
+
+            [EntityType<App5>(1)]
+            public class SecondEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].Id.Should().Be("DRN0002");
+        diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Error);
+        diagnostics[0].GetMessage().Should().Contain("1").And.Contain("5");
+    }
+
+    [Fact]
+    public async Task DuplicateEntityName_WithDifferentAppId_ProducesNoDiagnostics()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App5 : IAppId
+            {
+                public static byte AppId => 5;
+            }
+
+            public readonly struct App6 : IAppId
+            {
+                public static byte AppId => 6;
+            }
+
+            namespace DomainA
+            {
+                [EntityType<App5>(1)]
+                public class Customer : SourceKnownEntity;
+            }
+
+            namespace DomainB
+            {
+                [EntityType<App6>(1)]
+                public class Customer : SourceKnownEntity;
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DuplicateEntityName_WithSameAppId_ProducesDRN0004()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App5 : IAppId
+            {
+                public static byte AppId => 5;
+            }
+
+            namespace DomainA
+            {
+                [EntityType<App5>(1)]
+                public class Customer : SourceKnownEntity;
+            }
+
+            namespace DomainB
+            {
+                [EntityType<App5>(2)]
+                public class Customer : SourceKnownEntity;
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].Id.Should().Be("DRN0004");
+        diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Warning);
+        diagnostics[0].GetMessage().Should().Contain("Customer").And.Contain("5");
+    }
+
+    [Fact]
+    public async Task GenericEntityTypeAttribute_WithDifferentIAppId_ProducesNoDiagnostics()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct NexusApp : IAppId
+            {
+                public static byte AppId => 5;
+            }
+
+            public readonly struct SampleApp : IAppId
+            {
+                public static byte AppId => 6;
+            }
+
+            [EntityType<NexusApp>(1)]
+            public class NexusDevice : SourceKnownEntity;
+
+            [EntityType<SampleApp>(1)]
+            public class SampleAuthor : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GenericEntityTypeAttribute_WithSameIAppId_ProducesDRN0002()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct NexusApp : IAppId
+            {
+                public static byte AppId => 5;
+            }
+
+            [EntityType<NexusApp>(1)]
+            public class FirstDevice : SourceKnownEntity;
+
+            [EntityType<NexusApp>(1)]
+            public class SecondDevice : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].Id.Should().Be("DRN0002");
+        diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Error);
+        diagnostics[0].GetMessage().Should().Contain("1").And.Contain("5");
+    }
+
+    [Fact]
+    public async Task DerivedEntityTypeAttribute_FromGenericEntityType_WorksAndSeparatesAppId()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct NexusApp : IAppId
+            {
+                public static byte AppId => 5;
+            }
+
+            public sealed class NexusEntityTypeAttribute(byte entityType) : EntityTypeAttribute<NexusApp>(entityType);
+
+            public readonly struct SampleApp : IAppId
+            {
+                public static byte AppId => 6;
+            }
+
+            public sealed class SampleEntityTypeAttribute(byte entityType) : EntityTypeAttribute<SampleApp>(entityType);
+
+            [NexusEntityType(1)]
+            public class NexusDevice : SourceKnownEntity;
+
+            [SampleEntityType(1)]
+            public class SampleAuthor : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DerivedEntityTypeAttribute_WithSameAppId_ProducesDRN0002()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct NexusApp : IAppId
+            {
+                public static byte AppId => 5;
+            }
+
+            public sealed class NexusEntityTypeAttribute(byte entityType) : EntityTypeAttribute<NexusApp>(entityType);
+
+            [NexusEntityType(1)]
+            public class FirstDevice : SourceKnownEntity;
+
+            [NexusEntityType(1)]
+            public class SecondDevice : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].Id.Should().Be("DRN0002");
+        diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Error);
+        diagnostics[0].GetMessage().Should().Contain("1").And.Contain("5");
+    }
+
+    [Fact]
+    public async Task AppId_FromOuterClassConstField_ResolvesCorrectly()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public class TestContainer
+            {
+                private const byte TestAppId = 5;
+
+                public readonly struct NestedApp : IAppId
+                {
+                    public static byte AppId => TestAppId;
+                }
+
+                [EntityType<NestedApp>(1)]
+                public class NestedEntity : SourceKnownEntity;
+
+                [EntityType<DefaultApp>(1)]
+                public class DefaultEntity : SourceKnownEntity;
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task BuiltInAppPartitions_DefaultApp_NexusApp_TestApp_SeparateCleanly()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            [EntityType<DefaultApp>(1)]
+            public class DefaultEntity : SourceKnownEntity;
+
+            [EntityType<NexusApp>(1)]
+            public class NexusEntity : SourceKnownEntity;
+
+            [TestEntityType(1)]
+            public class TestEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
 
         diagnostics.Should().BeEmpty();
     }

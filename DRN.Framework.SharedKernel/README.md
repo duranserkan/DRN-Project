@@ -47,7 +47,7 @@ Define your first domain entity with automatic ID generation and collected domai
 ```csharp
 using DRN.Framework.SharedKernel.Domain;
 
-[EntityType(1)] // Unique byte identifier for this entity type
+[EntityType<DefaultApp>(1)] // Unique byte identifier for this entity type
 public class User : AggregateRoot
 {
     public string Name { get; private set; }
@@ -106,7 +106,10 @@ Core primitives provide conventions for rapid and effective domain design and en
 
 - **`SourceKnownEntity`**: The base class for all entities. Handles identity (`long Id` internal, `Guid EntityId` external), domain events, and auditing.
 - **`AggregateRoot`**: Marker class for DDD aggregate roots.
-- **`[EntityType(byte)]`**: Attribute defining a stable, unique byte identifier for each entity type. **Required** for ID generation, `DrnContext` startup validation, and compile-time analyzer verification.
+- **`IAppId` & `[EntityType<TApp>(byte)]`**: Strongly-typed application partition interface (`IAppId.AppId`) and generic attribute that binds entity types to application partitions. Domain projects can also derive custom attributes.
+- **`DefaultApp` (`AppId = 0`)**: Built-in default application partition for standalone applications and general domains (`[EntityType<DefaultApp>(byte)]`).
+- **`NexusApp` (`AppId = 126`)**: Built-in Nexus service partition for Nexus domain entities (`[EntityType<NexusApp>(byte)]` or domain-derived `[NexusEntityType(NexusEntityTypes)]`).
+- **`TestApp` (`AppId = 127`) & `[TestEntityType(byte)]`**: Built-in test application partition and convenience attribute (`TestEntityTypeAttribute`) for test entities, isolating test fixtures from domain entity type collisions.
 
 ### Compile-Time Roslyn Analyzers
 
@@ -114,13 +117,14 @@ Core primitives provide conventions for rapid and effective domain design and en
 
 | Diagnostic ID | Severity | Title | Description |
 |---|---|---|---|
-| **DRN0001** | Error | Missing `[EntityType]` attribute | Non-abstract classes deriving from `SourceKnownEntity` must declare `[EntityType(byte)]`. |
-| **DRN0002** | Error | Duplicate `EntityType` value | Every entity class in the domain compilation and referenced assemblies must have a unique `EntityType` byte value. |
+| **DRN0001** | Error | Missing `[EntityType]` attribute | Non-abstract classes deriving from `SourceKnownEntity` must declare `[EntityType<TApp>(byte)]` or a derived domain attribute. |
+| **DRN0002** | Error | Duplicate `EntityType` value | Every entity class in the domain compilation and referenced assemblies must have a unique `EntityType` byte value per `AppId`. |
 | **DRN0003** | Error | Invalid `[EntityType]` usage | `[EntityType]` attribute must not be placed on abstract classes, private classes, or non-`SourceKnownEntity` types. |
-| **DRN0004** | Warning | Duplicate entity class name | Warns when multiple entities across the domain model share identical unqualified class names to prevent EF Core and messaging collisions. |
+| **DRN0004** | Warning | Duplicate entity class name | Warns when multiple entities across the domain model share identical unqualified class names within the same `AppId` to prevent EF Core and messaging collisions. |
 
 - **Aggregator Compilation**: In multi-module hosts or integration test projects, the analyzer inspects the entire domain dependency graph, catching cross-referenced assembly collisions (`DRN0002` / `DRN0004`) across distinct external modules at compilation end.
 - **Diamond Dependency Deduplication**: Shared base models imported through multiple transitive reference paths (e.g. `A → B → Common` and `A → C → Common`) are deduplicated using Roslyn symbol equality, preventing false-positive duplicate diagnostics.
+- **AppId Scoping**: Entities partition identifier namespaces via `IAppId` generic attributes (`[EntityType<NexusApp>(1)]`), domain-derived attributes (`[NexusEntityType(1)]`), `DefaultApp` (`[EntityType<DefaultApp>(1)]`), or `TestApp` / `[TestEntityType(1)]` for tests.
 
 > [!IMPORTANT]
 > **Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must **never** be exposed outside the infrastructure/domain boundaries.
@@ -132,7 +136,7 @@ Core primitives provide conventions for rapid and effective domain design and en
 ```csharp
 using DRN.Framework.SharedKernel.Domain;
 
-[EntityType(1)] // Mandatory: Unique byte identifier for this entity type
+[EntityType<DefaultApp>(1)] // Mandatory: Unique byte identifier for this entity type
 public class User : AggregateRoot 
 {
     public string Name { get; private set; }

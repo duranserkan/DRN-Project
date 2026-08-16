@@ -58,11 +58,19 @@ public abstract class SourceKnownEntity(long id = 0)
 ```
 
 > [!WARNING]
-> Each non-abstract entity requires unique `[EntityType(byte)]`. Enforced at compile time by `DRN.Framework.SharedKernel.Analyzers`:
-> - `DRN0001` (Error): Mandatory `[EntityType(byte)]` on concrete `SourceKnownEntity` descendants.
-> - `DRN0002` (Error): Duplicate `EntityType` byte values across local compilation and referenced assemblies. In aggregator projects (host apps, integration tests), flags cross-referenced assembly collisions at compilation end while deduplicating shared diamond dependencies.
+> Each non-abstract entity requires unique `[EntityType<TApp>(byte)]` (where `TApp : IAppId`) or a derived domain attribute. Enforced at compile time by `DRN.Framework.SharedKernel.Analyzers`:
+> - `DRN0001` (Error): Mandatory `[EntityType]` on concrete `SourceKnownEntity` descendants.
+> - `DRN0002` (Error): Duplicate `EntityType` byte values per `AppId` across local compilation and referenced assemblies. In aggregator projects (host apps, integration tests), flags cross-referenced assembly collisions at compilation end while deduplicating shared diamond dependencies.
 > - `DRN0003` (Error): Invalid `[EntityType]` on abstract classes, private classes, or non-`SourceKnownEntity` types.
-> - `DRN0004` (Warning): Duplicate entity class names across the domain model (local and referenced).
+> - `DRN0004` (Warning): Duplicate entity class names per `AppId` across the domain model (local and referenced).
+
+### Application Partitions & Attributes
+
+- **`IAppId`**: Interface requiring `static abstract byte AppId { get; }` (valid range `0..127`).
+- **`DefaultApp` (`AppId = 0`)**: Built-in default application partition for standalone domains and single-application systems (`[EntityType<DefaultApp>(byte)]`).
+- **`NexusApp` (`AppId = 126`)**: Built-in Nexus service partition (`[EntityType<NexusApp>(byte)]` or domain-derived `[NexusEntityType(NexusEntityTypes)]`).
+- **`TestApp` (`AppId = 127`)**: Built-in partition for test entities to isolate test fixtures.
+- **`[TestEntityType(byte)]`**: Convenience attribute (`TestEntityTypeAttribute`) binding directly to `TestApp` (`AppId = 127`) without generic type boilerplate in test projects.
 
 ### AggregateRoot
 

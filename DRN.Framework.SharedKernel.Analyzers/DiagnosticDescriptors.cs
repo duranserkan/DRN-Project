@@ -14,17 +14,17 @@ public static class DiagnosticDescriptors
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "All non-abstract classes that derive from SourceKnownEntity must declare an [EntityType] attribute with a unique byte identifier.",
+        description: "All non-abstract classes that derive from SourceKnownEntity must declare an [EntityType<TApp>] or derived domain attribute with a unique byte identifier per AppId.",
         helpLinkUri: HelpLinkUri);
 
     public static readonly DiagnosticDescriptor DuplicateEntityTypeValue = new(
         id: "DRN0002",
         title: "Duplicate EntityType value",
-        messageFormat: "EntityType value '{0}' on '{1}' is already used by '{2}'. EntityType values must be unique across the domain dependency graph, including referenced assemblies.",
+        messageFormat: "EntityType value '{0}' with AppId '{1}' on '{2}' is already used by '{3}'. EntityType values must be unique per AppId across the domain dependency graph, including referenced assemblies.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Every domain entity inheriting from SourceKnownEntity must declare a unique EntityType byte value across the domain dependency graph.",
+        description: "Every domain entity inheriting from SourceKnownEntity must declare a unique EntityType byte value per AppId across the domain dependency graph.",
         helpLinkUri: HelpLinkUri,
         customTags: [WellKnownDiagnosticTags.CompilationEnd]);
 
@@ -41,11 +41,11 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor DuplicateEntityName = new(
         id: "DRN0004",
         title: "Duplicate entity class name",
-        messageFormat: "Entity class name '{0}' is already used by '{1}'. Duplicate entity names across the domain model can cause EF Core mapping or messaging ambiguity.",
+        messageFormat: "Entity class name '{0}' is already used by '{1}' within AppId '{2}'. Duplicate entity names within the same AppId can cause EF Core mapping or messaging ambiguity.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "Domain entities inheriting from SourceKnownEntity should have unique class names across the domain model to avoid mapping and messaging ambiguity.",
+        description: "Domain entities inheriting from SourceKnownEntity should have unique class names per AppId across the domain model to avoid mapping and messaging ambiguity.",
         helpLinkUri: HelpLinkUri,
         customTags: [WellKnownDiagnosticTags.CompilationEnd]);
 }

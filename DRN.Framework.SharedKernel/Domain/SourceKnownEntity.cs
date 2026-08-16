@@ -9,16 +9,28 @@ using System.Text.Json.Serialization;
 namespace DRN.Framework.SharedKernel.Domain;
 
 /// <summary>
-/// Application wide Unique Entity Type
+/// Base EntityType attribute. Must be specialized per application partition.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class EntityTypeAttribute(byte entityType) : Attribute
+public abstract class EntityTypeAttribute(byte entityType, byte appId) : Attribute
 {
     /// <summary>
     /// Application wide Unique Entity Type
     /// </summary>
     public byte EntityType { get; } = entityType;
+
+    /// <summary>
+    /// Application Identifier (0..127) for domain/application partitioning
+    /// </summary>
+    public byte AppId { get; } = appId;
 }
+
+/// <summary>
+/// Generic EntityType attribute bound to a strongly typed application identifier.
+/// </summary>
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public class EntityTypeAttribute<TApp>(byte entityType): EntityTypeAttribute(entityType, TApp.AppId)
+    where TApp : IAppId;
 
 public interface IEntityETag
 {
@@ -62,9 +74,10 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     private const string EmptyJson = "{}";
 
     private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
-    private static readonly ConcurrentDictionary<byte, Type> IdToTypeMap = new();
+    private static readonly ConcurrentDictionary<EntityTypeId, Type> IdToTypeMap = new();
 
-    public static Type? GetEntityType(byte entityType) => IdToTypeMap.GetValueOrDefault(entityType);
+    public static Type? GetEntityType(EntityTypeId key) => IdToTypeMap.GetValueOrDefault(key);
+    public static Type? GetEntityType(byte entityType, byte appId = 0) => GetEntityType(new EntityTypeId(entityType, appId));
     public static byte GetEntityType<TEntity>() where TEntity : SourceKnownEntity => GetEntityType(typeof(TEntity));
     public static byte GetEntityType<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetEntityType(entity.GetType());
 
@@ -74,16 +87,16 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         if (attribute == null)
             throw new InvalidOperationException($"{type.Name} must use {nameof(EntityTypeAttribute)}");
 
-        EnsureUniqueEntityType(type, attribute.EntityType);
+        EnsureUniqueEntityType(type, attribute.EntityType, attribute.AppId);
         return attribute.EntityType;
     });
 
-    private static void EnsureUniqueEntityType(Type newType, byte newEntityType) =>
+    private static void EnsureUniqueEntityType(Type newType, byte newEntityType, byte newAppId) =>
         IdToTypeMap.AddOrUpdate( // Thread-safe check-or-add with value factory
-            newEntityType,
+            new EntityTypeId(newEntityType, newAppId),
             addValueFactory: _ => newType,
-            updateValueFactory: (entityType, existingType) => existingType != newType
-                ? throw new InvalidOperationException($"Entity type value: {entityType} is used by both {existingType.FullName} and {newType.FullName}")
+            updateValueFactory: (key, existingType) => existingType != newType
+                ? throw new InvalidOperationException($"Entity type value: {key.EntityType} with AppId: {key.AppId} is used by both {existingType.FullName} and {newType.FullName}")
                 : existingType);
 
     private List<IDomainEvent> DomainEvents { get; } = new(2); //todo transactional outbox, pre and post publish events

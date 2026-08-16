@@ -5,13 +5,22 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Breaking Changes
 
 *   **Compile-Time Roslyn Analyzers**: Added `DRN.Framework.SharedKernel.Analyzers` with error-level diagnostics delivered transitively to all referencing projects and NuGet consumers. Builds will fail for existing codebases if entities violate annotation, uniqueness, or inheritance constraints:
-    *   `DRN0001` (*Error*): Enforces that all non-abstract classes descending from `SourceKnownEntity` declare the `[EntityType(byte)]` attribute.
-        *   *Migration*: Annotate every concrete (non-abstract) class inheriting from `SourceKnownEntity` with `[EntityType(value)]` specifying an explicit byte value (0–255).
-    *   `DRN0002` (*Error*): Enforces that `EntityType` byte values are unique across all entities within the local compilation and referenced assemblies. In aggregator projects (such as host apps and integration test suites), reports cross-referenced assembly byte collisions at compilation end while deduplicating shared diamond dependencies.
-        *   *Migration*: Ensure every concrete `SourceKnownEntity` subclass within the domain dependency graph is assigned a distinct `EntityType` byte value.
+    *   `DRN0001` (*Error*): Enforces that all non-abstract classes descending from `SourceKnownEntity` declare `[EntityType<TApp>(byte)]` (where `TApp : IAppId`) or a domain-derived attribute.
+        *   *Migration*: Annotate every concrete (non-abstract) class inheriting from `SourceKnownEntity` with `[EntityType<TApp>(value)]` (using `IAppId` such as `DefaultApp`) or a domain-derived attribute (e.g. `[NexusEntityType(value)]`).
+    *   `DRN0002` (*Error*): Enforces that `EntityType` byte values are unique across all entities within the local compilation and referenced assemblies for the same `AppId`. In aggregator projects (such as host apps and integration test suites), reports cross-referenced assembly byte collisions at compilation end while deduplicating shared diamond dependencies.
+        *   *Migration*: Ensure every concrete `SourceKnownEntity` subclass within the domain dependency graph is assigned a distinct `EntityType` byte value per `AppId`.
     *   `DRN0003` (*Error*): Prohibits applying `[EntityType]` to abstract classes, private classes, or non-`SourceKnownEntity` types.
         *   *Migration*: Remove `[EntityType]` attributes from abstract base classes (apply only to concrete descendants), private classes, and classes that do not derive from `SourceKnownEntity`.
-    *   `DRN0004` (*Warning*): Detects duplicate entity class names across the domain model (including cross-referenced assemblies) to guard against EF Core table mapping conflicts and event serialization ambiguity.
+    *   `DRN0004` (*Warning*): Detects duplicate entity class names across the domain model within the same `AppId` (including cross-referenced assemblies) to guard against EF Core table mapping conflicts and event serialization ambiguity.
+
+### New Features
+
+*   **Application Partitioning (`IAppId`)**: Added strongly-typed application partition metadata via `IAppId` (`AppId` 0..127) and `EntityTypeAttribute<TApp>` to namespace entity type discrimination values and class names across domain modules.
+    *   `DefaultApp` (`AppId = 0`): Built-in default application partition for standalone domains and single-application systems (`[EntityType<DefaultApp>(byte)]`).
+    *   `NexusApp` (`AppId = 126`): Built-in Nexus service partition (`[EntityType<NexusApp>(byte)]` or domain-derived `[NexusEntityType(NexusEntityTypes)]`).
+    *   `TestApp` (`AppId = 127`): Built-in test application partition isolating test entities from production domain entity types.
+    *   `[TestEntityType(byte)]`: Convenience attribute (`TestEntityTypeAttribute`) binding test entities directly to `TestApp` (`AppId = 127`) without generic type boilerplate.
+    *   `EntityTypeId`: Immutable 2-byte composite identifier (`(EntityType, AppId)`) record struct with `IComparable<EntityTypeId>` support for partition-scoped entity type mappings and validation.
 
 ## Version 0.9.8
 

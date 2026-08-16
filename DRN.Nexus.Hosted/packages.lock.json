@@ -391,8 +391,15 @@
           "DRN.Nexus.Infra": "[1.0.0, )"
         }
       },
-      "drn.nexus.domain": {
+      "drn.nexus.contract": {
         "type": "Project"
+      },
+      "drn.nexus.domain": {
+        "type": "Project",
+        "dependencies": {
+          "DRN.Nexus.Contract": "[1.0.0, )",
+          "DRN.Nexus.Utils": "[1.0.0, )"
+        }
       },
       "drn.nexus.infra": {
         "type": "Project",
