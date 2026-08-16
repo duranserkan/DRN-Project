@@ -48,10 +48,9 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             var collectedEntityTypeDeclarations = new ConcurrentBag<EntityTypeDeclaration>();
             var collectedEntityNameDeclarations = new ConcurrentBag<EntityNameDeclaration>();
 
-            var (referencedEntityTypeMap, referencedEntityNameMap) = ScanReferencedAssemblies(
+            var referencedEntitySymbols = ScanReferencedAssemblies(
                 compilationContext.Compilation,
                 sourceKnownEntitySymbol,
-                entityTypeAttributeSymbol,
                 compilationContext.CancellationToken);
 
             compilationContext.RegisterSymbolAction(symbolContext =>
@@ -106,10 +105,63 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
             compilationContext.RegisterCompilationEndAction(endContext =>
             {
-                // Process duplicate EntityType values (DRN0002)
-                var groupedByValue = collectedEntityTypeDeclarations.GroupBy(d => d.EntityTypeValue);
+                // 1. Process distinct referenced entities (deduplicated by SymbolEqualityComparer for diamond dependencies)
+                var distinctReferencedEntities = referencedEntitySymbols
+                    .Distinct(SymbolEqualityComparer.Default)
+                    .OfType<INamedTypeSymbol>()
+                    .ToList();
 
-                foreach (var group in groupedByValue)
+                var referencedByValue = distinctReferencedEntities
+                    .Select(s =>
+                    {
+                        var attr = FindAttribute(s, entityTypeAttributeSymbol);
+                        if (attr != null && TryGetEntityTypeValue(attr, out var val))
+                        {
+                            return (Symbol: s, HasValue: true, Value: val);
+                        }
+
+                        return (Symbol: s, HasValue: false, Value: (byte)0);
+                    })
+                    .Where(x => x.HasValue)
+                    .GroupBy(x => x.Value);
+
+                var referencedEntityTypeMap = new System.Collections.Generic.Dictionary<byte, System.Collections.Generic.List<INamedTypeSymbol>>();
+                foreach (var refGroup in referencedByValue)
+                {
+                    var entityTypeValue = refGroup.Key;
+                    var orderedRefGroup = refGroup
+                        .Select(x => x.Symbol)
+                        .OrderBy(s => s.ContainingAssembly.Name, StringComparer.Ordinal)
+                        .ThenBy(s => s.ToDisplayString(), StringComparer.Ordinal)
+                        .ToList();
+
+                    referencedEntityTypeMap[entityTypeValue] = orderedRefGroup;
+
+                    // Report collisions between distinct referenced assemblies (DRN0002)
+                    if (orderedRefGroup.Count > 1)
+                    {
+                        var firstRefSymbol = orderedRefGroup[0];
+                        var firstTargetName = $"{firstRefSymbol.ContainingAssembly.Name}::{firstRefSymbol.Name}";
+
+                        for (var i = 1; i < orderedRefGroup.Count; i++)
+                        {
+                            var duplicateRefSymbol = orderedRefGroup[i];
+                            var duplicateTargetName = $"{duplicateRefSymbol.ContainingAssembly.Name}::{duplicateRefSymbol.Name}";
+
+                            endContext.ReportDiagnostic(Diagnostic.Create(
+                                DiagnosticDescriptors.DuplicateEntityTypeValue,
+                                Location.None,
+                                entityTypeValue,
+                                duplicateTargetName,
+                                firstTargetName));
+                        }
+                    }
+                }
+
+                // Check local declarations against each other and against referenced assemblies (DRN0002)
+                var localGroupedByValue = collectedEntityTypeDeclarations.GroupBy(d => d.EntityTypeValue);
+
+                foreach (var group in localGroupedByValue)
                 {
                     var entityTypeValue = group.Key;
 
@@ -119,12 +171,14 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                         .ThenBy(d => d.Location.SourceSpan.Length)
                         .ToList();
 
-                    if (referencedEntityTypeMap.TryGetValue(entityTypeValue, out var referencedType) && referencedType != null)
+                    if (referencedEntityTypeMap.TryGetValue(entityTypeValue, out var refSymbols) && refSymbols.Count > 0)
                     {
-                        var referencedTargetName = $"{referencedType.ContainingAssembly.Name}::{referencedType.Name}";
+                        var firstRefSymbol = refSymbols[0];
+                        var referencedTargetName = $"{firstRefSymbol.ContainingAssembly.Name}::{firstRefSymbol.Name}";
+
                         foreach (var decl in orderedDeclarations)
                         {
-                            if (!decl.IsPrivate && !SymbolEqualityComparer.Default.Equals(referencedType, decl.Symbol))
+                            if (!decl.IsPrivate && !SymbolEqualityComparer.Default.Equals(firstRefSymbol, decl.Symbol))
                             {
                                 endContext.ReportDiagnostic(Diagnostic.Create(
                                     DiagnosticDescriptors.DuplicateEntityTypeValue,
@@ -154,10 +208,45 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                     }
                 }
 
-                // Process duplicate entity class names (DRN0004)
-                var groupedByName = collectedEntityNameDeclarations.GroupBy(d => d.Name, StringComparer.OrdinalIgnoreCase);
+                // 2. Process duplicate entity class names (DRN0004)
+                var referencedByName = distinctReferencedEntities
+                    .GroupBy(s => s.Name, StringComparer.OrdinalIgnoreCase);
 
-                foreach (var group in groupedByName)
+                var referencedEntityNameMap = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<INamedTypeSymbol>>(StringComparer.OrdinalIgnoreCase);
+                foreach (var refNameGroup in referencedByName)
+                {
+                    var entityName = refNameGroup.Key;
+                    var orderedRefGroup = refNameGroup
+                        .OrderBy(s => s.ContainingAssembly.Name, StringComparer.Ordinal)
+                        .ThenBy(s => s.ToDisplayString(), StringComparer.Ordinal)
+                        .ToList();
+
+                    referencedEntityNameMap[entityName] = orderedRefGroup;
+
+                    // Report collisions between distinct referenced assemblies (DRN0004)
+                    if (orderedRefGroup.Count > 1)
+                    {
+                        var firstRefSymbol = orderedRefGroup[0];
+                        var firstName = firstRefSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+
+                        for (var i = 1; i < orderedRefGroup.Count; i++)
+                        {
+                            var duplicateRefSymbol = orderedRefGroup[i];
+                            var duplicateName = duplicateRefSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+
+                            endContext.ReportDiagnostic(Diagnostic.Create(
+                                DiagnosticDescriptors.DuplicateEntityName,
+                                Location.None,
+                                duplicateName,
+                                firstName));
+                        }
+                    }
+                }
+
+                // Check local declarations against each other and against referenced assemblies (DRN0004)
+                var localGroupedByName = collectedEntityNameDeclarations.GroupBy(d => d.Name, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var group in localGroupedByName)
                 {
                     var entityName = group.Key;
 
@@ -172,14 +261,14 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
                     var firstDecl = orderedDeclarations[0];
 
-                    if (referencedEntityNameMap.TryGetValue(entityName, out var referencedType) &&
-                        !SymbolEqualityComparer.Default.Equals(referencedType, firstDecl.Symbol))
+                    if (referencedEntityNameMap.TryGetValue(entityName, out var refSymbols) && refSymbols.Count > 0 &&
+                        !SymbolEqualityComparer.Default.Equals(refSymbols[0], firstDecl.Symbol))
                     {
                         endContext.ReportDiagnostic(Diagnostic.Create(
                             DiagnosticDescriptors.DuplicateEntityName,
                             firstDecl.Location,
                             firstDecl.Symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
-                            referencedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+                            refSymbols[0].ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
                     }
 
                     for (var i = 1; i < orderedDeclarations.Count; i++)
@@ -199,15 +288,12 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         });
     }
 
-    private static (ConcurrentDictionary<byte, INamedTypeSymbol> EntityTypes, ConcurrentDictionary<string, INamedTypeSymbol> EntityNames)
-        ScanReferencedAssemblies(
-            Compilation compilation,
-            INamedTypeSymbol sourceKnownEntitySymbol,
-            INamedTypeSymbol entityTypeAttributeSymbol,
-            CancellationToken cancellationToken)
+    private static ConcurrentBag<INamedTypeSymbol> ScanReferencedAssemblies(
+        Compilation compilation,
+        INamedTypeSymbol sourceKnownEntitySymbol,
+        CancellationToken cancellationToken)
     {
-        var typeMap = new ConcurrentDictionary<byte, INamedTypeSymbol>();
-        var nameMap = new ConcurrentDictionary<string, INamedTypeSymbol>(StringComparer.OrdinalIgnoreCase);
+        var collectedEntities = new ConcurrentBag<INamedTypeSymbol>();
         var targetAssembly = sourceKnownEntitySymbol.ContainingAssembly;
 
         foreach (var referencedAssembly in compilation.SourceModule.ReferencedAssemblySymbols)
@@ -229,10 +315,10 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                 continue;
             }
 
-            ScanNamespace(referencedAssembly.GlobalNamespace, sourceKnownEntitySymbol, entityTypeAttributeSymbol, typeMap, nameMap, cancellationToken);
+            ScanNamespace(referencedAssembly.GlobalNamespace, sourceKnownEntitySymbol, collectedEntities, cancellationToken);
         }
 
-        return (typeMap, nameMap);
+        return collectedEntities;
     }
 
     private static bool ReferencesAssembly(IAssemblySymbol assembly, IAssemblySymbol? targetAssembly)
@@ -268,30 +354,26 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
     private static void ScanNamespace(
         INamespaceSymbol namespaceSymbol,
         INamedTypeSymbol sourceKnownEntitySymbol,
-        INamedTypeSymbol entityTypeAttributeSymbol,
-        ConcurrentDictionary<byte, INamedTypeSymbol> typeMap,
-        ConcurrentDictionary<string, INamedTypeSymbol> nameMap,
+        ConcurrentBag<INamedTypeSymbol> collectedEntities,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         foreach (var type in namespaceSymbol.GetTypeMembers())
         {
-            ScanType(type, sourceKnownEntitySymbol, entityTypeAttributeSymbol, typeMap, nameMap, cancellationToken);
+            ScanType(type, sourceKnownEntitySymbol, collectedEntities, cancellationToken);
         }
 
         foreach (var nestedNamespace in namespaceSymbol.GetNamespaceMembers())
         {
-            ScanNamespace(nestedNamespace, sourceKnownEntitySymbol, entityTypeAttributeSymbol, typeMap, nameMap, cancellationToken);
+            ScanNamespace(nestedNamespace, sourceKnownEntitySymbol, collectedEntities, cancellationToken);
         }
     }
 
     private static void ScanType(
         INamedTypeSymbol typeSymbol,
         INamedTypeSymbol sourceKnownEntitySymbol,
-        INamedTypeSymbol entityTypeAttributeSymbol,
-        ConcurrentDictionary<byte, INamedTypeSymbol> typeMap,
-        ConcurrentDictionary<string, INamedTypeSymbol> nameMap,
+        ConcurrentBag<INamedTypeSymbol> collectedEntities,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -301,18 +383,12 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
         if (typeSymbol.TypeKind == TypeKind.Class && !typeSymbol.IsAbstract && DerivesFrom(typeSymbol, sourceKnownEntitySymbol))
         {
-            nameMap.TryAdd(typeSymbol.Name, typeSymbol);
-
-            var entityTypeAttribute = FindAttribute(typeSymbol, entityTypeAttributeSymbol);
-            if (entityTypeAttribute != null && TryGetEntityTypeValue(entityTypeAttribute, out var entityTypeValue))
-            {
-                typeMap.TryAdd(entityTypeValue, typeSymbol);
-            }
+            collectedEntities.Add(typeSymbol);
         }
 
         foreach (var nestedType in typeSymbol.GetTypeMembers())
         {
-            ScanType(nestedType, sourceKnownEntitySymbol, entityTypeAttributeSymbol, typeMap, nameMap, cancellationToken);
+            ScanType(nestedType, sourceKnownEntitySymbol, collectedEntities, cancellationToken);
         }
     }
 

@@ -575,4 +575,171 @@ public class SourceKnownEntityTypeAnalyzerTests
         diagnostics[0].GetMessage().Should().Contain("DomainB.Customer").And.Contain("DomainA.Customer");
         diagnostics[1].GetMessage().Should().Contain("DomainC.Customer").And.Contain("DomainA.Customer");
     }
+
+    [Fact]
+    public async Task DuplicateEntityType_AcrossMultipleReferencedAssemblies_ProducesDRN0002AtCompilationEnd()
+    {
+        var referencedSources = new (string AssemblyName, string Source)[]
+        {
+            ("ReferencedAssemblyA", """
+                using DRN.Framework.SharedKernel.Domain;
+
+                namespace DomainA
+                {
+                    [EntityType(42)]
+                    public class EntityA : SourceKnownEntity;
+                }
+                """),
+            ("ReferencedAssemblyB", """
+                using DRN.Framework.SharedKernel.Domain;
+
+                namespace DomainB
+                {
+                    [EntityType(42)]
+                    public class EntityB : SourceKnownEntity;
+                }
+                """)
+        };
+
+        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(referencedSources);
+
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].Id.Should().Be("DRN0002");
+        diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Error);
+        diagnostics[0].Location.Should().Be(Location.None);
+        diagnostics[0].GetMessage().Should().Contain("42");
+        diagnostics[0].GetMessage().Should().Contain("ReferencedAssemblyA::EntityA");
+        diagnostics[0].GetMessage().Should().Contain("ReferencedAssemblyB::EntityB");
+    }
+
+    [Fact]
+    public async Task DuplicateEntityName_AcrossMultipleReferencedAssemblies_ProducesDRN0004AtCompilationEnd()
+    {
+        var referencedSources = new (string AssemblyName, string Source)[]
+        {
+            ("ReferencedAssemblyA", """
+                using DRN.Framework.SharedKernel.Domain;
+
+                namespace DomainA
+                {
+                    [EntityType(1)]
+                    public class Product : SourceKnownEntity;
+                }
+                """),
+            ("ReferencedAssemblyB", """
+                using DRN.Framework.SharedKernel.Domain;
+
+                namespace DomainB
+                {
+                    [EntityType(2)]
+                    public class Product : SourceKnownEntity;
+                }
+                """)
+        };
+
+        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(referencedSources);
+
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].Id.Should().Be("DRN0004");
+        diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Warning);
+        diagnostics[0].Location.Should().Be(Location.None);
+        diagnostics[0].GetMessage().Should().Contain("Product");
+        diagnostics[0].GetMessage().Should().Contain("DomainA.Product");
+        diagnostics[0].GetMessage().Should().Contain("DomainB.Product");
+    }
+
+    [Fact]
+    public async Task DiamondReferencedAssembly_DoesNotProduceDuplicateDiagnostics()
+    {
+        var referencedSources = new (string AssemblyName, string Source)[]
+        {
+            ("CommonDomainAssembly", """
+                using DRN.Framework.SharedKernel.Domain;
+
+                namespace CommonDomain
+                {
+                    [EntityType(10)]
+                    public class SharedEntity : SourceKnownEntity;
+                }
+                """),
+            ("ReferencedAssemblyA", """
+                using DRN.Framework.SharedKernel.Domain;
+                using CommonDomain;
+
+                namespace DomainA
+                {
+                    [EntityType(20)]
+                    public class EntityA : SourceKnownEntity;
+                }
+                """),
+            ("ReferencedAssemblyB", """
+                using DRN.Framework.SharedKernel.Domain;
+                using CommonDomain;
+
+                namespace DomainB
+                {
+                    [EntityType(30)]
+                    public class EntityB : SourceKnownEntity;
+                }
+                """)
+        };
+
+        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(referencedSources);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    private static async Task<ImmutableArray<Diagnostic>> RunAnalyzerWithMultipleReferencesAsync(
+        (string AssemblyName, string Source)[] referencedSources,
+        string consumingSource = "")
+    {
+        var baseReferences = GetBaseReferences();
+        var additionalReferences = new List<MetadataReference>();
+
+        foreach (var (assemblyName, source) in referencedSources)
+        {
+            var refSyntaxTree = CSharpSyntaxTree.ParseText(source, path: $"{assemblyName}.cs");
+            var refCompilation = CSharpCompilation.Create(
+                assemblyName,
+                [refSyntaxTree],
+                baseReferences.Concat(additionalReferences),
+                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+            using var stream = new MemoryStream();
+            var emitResult = refCompilation.Emit(stream);
+            if (!emitResult.Success)
+            {
+                var errors = string.Join(Environment.NewLine, emitResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+                throw new InvalidOperationException($"Referenced assembly '{assemblyName}' compilation failed:{Environment.NewLine}{errors}");
+            }
+
+            stream.Seek(0, SeekOrigin.Begin);
+            additionalReferences.Add(MetadataReference.CreateFromImage(stream.ToArray()));
+        }
+
+        var consumingTrees = string.IsNullOrWhiteSpace(consumingSource)
+            ? []
+            : new[] { CSharpSyntaxTree.ParseText(consumingSource, path: "ConsumingSource.cs") };
+
+        var consumingCompilation = CSharpCompilation.Create(
+            "ConsumingAssembly",
+            consumingTrees,
+            baseReferences.Concat(additionalReferences),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var compilerErrors = consumingCompilation
+            .GetDiagnostics()
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToImmutableArray();
+
+        if (!compilerErrors.IsEmpty)
+        {
+            var errorMessages = string.Join(Environment.NewLine, compilerErrors.Select(d => d.ToString()));
+            throw new InvalidOperationException($"Consuming compilation failed with compiler errors:{Environment.NewLine}{errorMessages}");
+        }
+
+        var analyzer = new SourceKnownEntityTypeAnalyzer();
+        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
+        return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
+    }
 }

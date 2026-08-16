@@ -58,7 +58,11 @@ public abstract class SourceKnownEntity(long id = 0)
 ```
 
 > [!WARNING]
-> Each non-abstract entity requires unique `[EntityType(byte)]`. Enforced at compile time by `DRN.Framework.SharedKernel.Analyzers` (DRN0001, DRN0002) and at runtime by `DrnContext` / `SourceKnownEntity`.
+> Each non-abstract entity requires unique `[EntityType(byte)]`. Enforced at compile time by `DRN.Framework.SharedKernel.Analyzers`:
+> - `DRN0001` (Error): Mandatory `[EntityType(byte)]` on concrete `SourceKnownEntity` descendants.
+> - `DRN0002` (Error): Duplicate `EntityType` byte values across local compilation and referenced assemblies. In aggregator projects (host apps, integration tests), flags cross-referenced assembly collisions at compilation end while deduplicating shared diamond dependencies.
+> - `DRN0003` (Error): Invalid `[EntityType]` on abstract classes or non-`SourceKnownEntity` types.
+> - `DRN0004` (Warning): Duplicate entity class names across the domain model (local and referenced).
 
 ### AggregateRoot
 

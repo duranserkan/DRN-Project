@@ -7,11 +7,11 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Compile-Time Roslyn Analyzers**: Added `DRN.Framework.SharedKernel.Analyzers` with error-level diagnostics delivered transitively to all referencing projects and NuGet consumers. Builds will fail for existing codebases if entities violate annotation, uniqueness, or inheritance constraints:
     *   `DRN0001` (*Error*): Enforces that all non-abstract classes descending from `SourceKnownEntity` declare the `[EntityType(byte)]` attribute.
         *   *Migration*: Annotate every concrete (non-abstract) class inheriting from `SourceKnownEntity` with `[EntityType(value)]` specifying an explicit byte value (0–255).
-    *   `DRN0002` (*Error*): Enforces that `EntityType` byte values are unique across all entities within a compilation and referenced assemblies.
+    *   `DRN0002` (*Error*): Enforces that `EntityType` byte values are unique across all entities within the local compilation and referenced assemblies. In aggregator projects (such as host apps and integration test suites), reports cross-referenced assembly byte collisions at compilation end while deduplicating shared diamond dependencies.
         *   *Migration*: Ensure every concrete `SourceKnownEntity` subclass within the domain dependency graph is assigned a distinct `EntityType` byte value.
     *   `DRN0003` (*Error*): Prohibits applying `[EntityType]` to abstract classes or non-`SourceKnownEntity` types.
         *   *Migration*: Remove `[EntityType]` attributes from abstract base classes (apply only to concrete descendants) and from classes that do not derive from `SourceKnownEntity`.
-    *   `DRN0004` (*Warning*): Detects duplicate entity class names across the domain model to guard against EF Core table mapping conflicts and event serialization ambiguity.
+    *   `DRN0004` (*Warning*): Detects duplicate entity class names across the domain model (including cross-referenced assemblies) to guard against EF Core table mapping conflicts and event serialization ambiguity.
 
 ## Version 0.9.8
 

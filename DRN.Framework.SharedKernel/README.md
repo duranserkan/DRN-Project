@@ -119,6 +119,9 @@ Core primitives provide conventions for rapid and effective domain design and en
 | **DRN0003** | Error | Invalid `[EntityType]` usage | `[EntityType]` attribute must not be placed on abstract classes or non-`SourceKnownEntity` types. |
 | **DRN0004** | Warning | Duplicate entity class name | Warns when multiple entities across the domain model share identical unqualified class names to prevent EF Core and messaging collisions. |
 
+- **Aggregator Compilation**: In multi-module hosts or integration test projects, the analyzer inspects the entire domain dependency graph, catching cross-referenced assembly collisions (`DRN0002` / `DRN0004`) across distinct external modules at compilation end.
+- **Diamond Dependency Deduplication**: Shared base models imported through multiple transitive reference paths (e.g. `A → B → Common` and `A → C → Common`) are deduplicated using Roslyn symbol equality, preventing false-positive duplicate diagnostics.
+
 > [!IMPORTANT]
 > **Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must **never** be exposed outside the infrastructure/domain boundaries.
 >

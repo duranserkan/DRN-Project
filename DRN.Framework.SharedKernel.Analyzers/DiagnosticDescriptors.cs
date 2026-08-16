@@ -20,11 +20,11 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor DuplicateEntityTypeValue = new(
         id: "DRN0002",
         title: "Duplicate EntityType value",
-        messageFormat: "EntityType value '{0}' on '{1}' is already used by '{2}'. EntityType values must be unique within the current compilation.",
+        messageFormat: "EntityType value '{0}' on '{1}' is already used by '{2}'. EntityType values must be unique across the domain dependency graph, including referenced assemblies.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "Every domain entity inheriting from SourceKnownEntity must declare a unique EntityType byte value.",
+        description: "Every domain entity inheriting from SourceKnownEntity must declare a unique EntityType byte value across the domain dependency graph.",
         helpLinkUri: HelpLinkUri,
         customTags: [WellKnownDiagnosticTags.CompilationEnd]);
 
