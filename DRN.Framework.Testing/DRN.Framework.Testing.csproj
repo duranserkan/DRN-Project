@@ -5,6 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>true</IsPackable>
+        <IsTestProject>false</IsTestProject>
         <SonarQubeTestProject>false</SonarQubeTestProject>
         <Authors>Duran Serkan KILIÇ</Authors>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

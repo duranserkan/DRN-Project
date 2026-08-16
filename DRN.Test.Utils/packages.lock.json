@@ -61,15 +61,15 @@
       },
       "NLog": {
         "type": "Transitive",
-        "resolved": "6.1.4",
-        "contentHash": "ft6Lv17uoFuHTGWiY47FEXH7VA5HMHp973zodaOZAJyFg6mHL9RdXjqdNkRJXFo5plQJR+LPt5e6aAZU8KSDog=="
+        "resolved": "6.2.0",
+        "contentHash": "CxK6AjM1Wy3hM8YeBpLJJuB/JdoeIVvX0/fMTWeIXD917UozCtzv6cZDamevugeEaBBF0TIatfcNX2iJHI0Cew=="
       },
       "NLog.Extensions.Logging": {
         "type": "Transitive",
-        "resolved": "6.1.4",
-        "contentHash": "gDJjgF9LjG1Zsy3o/3BVUk5gFcCozYzrzKTZjcnE43FghchoQ9Xi4ra2dGEU+ftJf9oM0Kzs06y1r2SjfhDBGQ==",
+        "resolved": "6.2.0",
+        "contentHash": "ZNitUMsNUir+P4A87OhfItgeIiodwSG3Iq15LuNk/Wqjjm2ho3OptjykpWJmFs/Zlgr41XmUB3XbNvhBoCBUrg==",
         "dependencies": {
-          "NLog": "6.1.4"
+          "NLog": "6.2.0"
         }
       },
       "NLog.Targets.Network": {
@@ -82,10 +82,10 @@
       },
       "NLog.Web.AspNetCore": {
         "type": "Transitive",
-        "resolved": "6.1.4",
-        "contentHash": "kM79afVMCJx5Nb3nyponqOTKPjFNVKNzCPCyMKJXRVUv+BLOCjFGpAzMfriO8u0skc3kZwLUY2ZJUb5SGNZ9Ug==",
+        "resolved": "6.2.0",
+        "contentHash": "YdXkeY7nvzTUmZR5+tHNMNhmHopepFMGRrkkLNbAiZI3Bd7kz6wTIfegAga4FLKjZryXilDAwx+Rk1JEeiHn/w==",
         "dependencies": {
-          "NLog.Extensions.Logging": "6.1.4"
+          "NLog.Extensions.Logging": "6.2.0"
         }
       },
       "Swashbuckle.AspNetCore": {
@@ -135,7 +135,7 @@
         "dependencies": {
           "DRN.Framework.Utils": "[1.0.0, )",
           "NLog.Targets.Network": "[6.1.4, )",
-          "NLog.Web.AspNetCore": "[6.1.4, )",
+          "NLog.Web.AspNetCore": "[6.2.0, )",
           "NetEscapades.AspNetCore.SecurityHeaders": "[1.3.1, )",
           "Swashbuckle.AspNetCore": "[10.2.3, )"
         }
