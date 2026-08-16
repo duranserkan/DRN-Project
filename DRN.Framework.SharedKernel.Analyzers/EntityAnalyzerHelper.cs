@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -135,9 +136,7 @@ internal static class EntityAnalyzerHelper
             if (SymbolEqualityComparer.Default.Equals(attrClass, attributeSymbol) ||
                 attrClass.ToDisplayString() == EntityTypeAttributeMetadataName ||
                 IsOrDerivesFromEntityTypeAttribute(attrClass, attributeSymbol))
-            {
                 return attribute;
-            }
         }
 
         return null;
@@ -166,54 +165,69 @@ internal static class EntityAnalyzerHelper
         entityTypeValue = 0;
         appId = 0;
 
-        if (attributeData.ConstructorArguments.Length > 0 &&
-            TryExtractByte(attributeData.ConstructorArguments[0].Value, out entityTypeValue))
-        {
-            if (attributeData.ConstructorArguments.Length > 1 &&
-                TryExtractByte(attributeData.ConstructorArguments[1].Value, out var parsedAppId))
-            {
-                appId = parsedAppId;
-                return true;
-            }
+        if (attributeData.ConstructorArguments.Length == 0 || !TryExtractByte(attributeData.ConstructorArguments[0].Value, out entityTypeValue))
+            return false;
 
-            foreach (var namedArg in attributeData.NamedArguments)
-            {
-                if (namedArg.Key == AppIdName &&
-                    TryExtractByte(namedArg.Value.Value, out var namedAppId))
-                {
-                    appId = namedAppId;
-                    return true;
-                }
-            }
+        if (TryExtractAppIdFromAttribute(attributeData, out var extractedAppId))
+            appId = extractedAppId;
 
-            // Check generic type argument or base class generic type argument (e.g. EntityTypeAttribute<TApp>)
-            var current = attributeData.AttributeClass;
-            while (current != null)
-            {
-                if (current is { IsGenericType: true, TypeArguments.Length: > 0 })
-                {
-                    var appType = current.TypeArguments[0];
-                    if (TryExtractAppIdFromType(appType, out var extractedAppId))
-                    {
-                        appId = extractedAppId;
-                        return true;
-                    }
-                }
+        return true;
+    }
 
-                current = current.BaseType;
-            }
-
+    private static bool TryExtractAppIdFromAttribute(AttributeData attributeData, out byte appId)
+    {
+        if (attributeData.ConstructorArguments.Length > 1 && TryExtractByte(attributeData.ConstructorArguments[1].Value, out appId))
             return true;
+
+        if (TryExtractAppIdFromNamedArguments(attributeData.NamedArguments, out appId))
+            return true;
+
+        return TryExtractAppIdFromClassHierarchy(attributeData.AttributeClass, out appId);
+    }
+
+    private static bool TryExtractAppIdFromNamedArguments(ImmutableArray<KeyValuePair<string, TypedConstant>> namedArguments, out byte appId)
+    {
+        foreach (var namedArg in namedArguments)
+        {
+            if (namedArg.Key == AppIdName && TryExtractByte(namedArg.Value.Value, out appId))
+                return true;
         }
 
+        appId = 0;
+        return false;
+    }
+
+    private static bool TryExtractAppIdFromClassHierarchy(INamedTypeSymbol? attributeClass, out byte appId)
+    {
+        var current = attributeClass;
+        while (current != null)
+        {
+            if (current is { IsGenericType: true, TypeArguments.Length: > 0 } && TryExtractAppIdFromType(current.TypeArguments[0], out appId))
+                return true;
+
+            current = current.BaseType;
+        }
+
+        appId = 0;
         return false;
     }
 
     private static bool TryExtractAppIdFromType(ITypeSymbol appTypeSymbol, out byte appId)
     {
-        appId = 0;
+        if (TryExtractAppIdFromKnownTypeName(appTypeSymbol.ToDisplayString(), out appId))
+            return true;
 
-        var fullName = appTypeSymbol.ToDisplayString();
+        if (TryExtractAppIdFromConstantMembers(appTypeSymbol, out appId))
+            return true;
+
+        if (TryExtractAppIdFromTypeAttributes(appTypeSymbol, out appId))
+            return true;
+
+        return TryExtractAppIdFromPropertySyntax(appTypeSymbol, out appId);
+    }
+
+    private static bool TryExtractAppIdFromKnownTypeName(string fullName, out byte appId)
+    {
         switch (fullName)
         {
             case "DRN.Framework.SharedKernel.Domain.DefaultApp":
@@ -225,69 +239,109 @@ internal static class EntityAnalyzerHelper
             case "DRN.Framework.SharedKernel.Domain.TestApp":
                 appId = 127;
                 return true;
+            default:
+                appId = 0;
+                return false;
         }
+    }
 
+    private static bool TryExtractAppIdFromConstantMembers(ITypeSymbol appTypeSymbol, out byte appId)
+    {
         foreach (var member in appTypeSymbol.GetMembers())
         {
-            if (member is IFieldSymbol { HasConstantValue: true, Name: AppIdName or "Value" } field &&
-                TryExtractByte(field.ConstantValue, out appId))
+            if (member is IFieldSymbol { HasConstantValue: true, Name: AppIdName or "Value" } field && TryExtractByte(field.ConstantValue, out appId))
                 return true;
         }
 
+        appId = 0;
+        return false;
+    }
+
+    private static bool TryExtractAppIdFromTypeAttributes(ITypeSymbol appTypeSymbol, out byte appId)
+    {
         foreach (var attr in appTypeSymbol.GetAttributes())
         {
-            if (attr.AttributeClass?.Name is "AppIdAttribute" or AppIdName &&
-                attr.ConstructorArguments.Length > 0 &&
+            if (attr.AttributeClass?.Name is "AppIdAttribute" or AppIdName && attr.ConstructorArguments.Length > 0 &&
                 TryExtractByte(attr.ConstructorArguments[0].Value, out appId))
                 return true;
         }
 
+        appId = 0;
+        return false;
+    }
+
+    private static bool TryExtractAppIdFromPropertySyntax(ITypeSymbol appTypeSymbol, out byte appId)
+    {
         foreach (var member in appTypeSymbol.GetMembers(AppIdName))
         {
-            if (member is not IPropertySymbol prop) continue;
+            if (member is not IPropertySymbol prop)
+                continue;
 
-            foreach (var syntax in prop.DeclaringSyntaxReferences.Select(syntaxRef => syntaxRef.GetSyntax()))
-            {
-                if (syntax is not PropertyDeclarationSyntax propSyntax) continue;
-
-                var expr = propSyntax.ExpressionBody?.Expression ?? propSyntax.Initializer?.Value;
-
-                if (expr == null && propSyntax.AccessorList != null)
-                {
-                    foreach (var accessor in propSyntax.AccessorList.Accessors)
-                    {
-                        expr = accessor.ExpressionBody?.Expression;
-                        if (expr != null)
-                            break;
-
-                        if (accessor.Body != null)
-                        {
-                            foreach (var stmt in accessor.Body.Statements)
-                            {
-                                if (stmt is not ReturnStatementSyntax { Expression: not null } returnStmt)
-                                    continue;
-                                expr = returnStmt.Expression;
-                                break;
-                            }
-                        }
-
-                        if (expr != null)
-                            break;
-                    }
-                }
-
-                if (expr != null && TryExtractByteFromSyntax(expr, appTypeSymbol, out appId))
-                    return true;
-            }
+            if (TryExtractAppIdFromPropertySymbol(prop, appTypeSymbol, out appId))
+                return true;
         }
+
+        appId = 0;
+        return false;
+    }
+
+    private static bool TryExtractAppIdFromPropertySymbol(IPropertySymbol prop, ITypeSymbol appTypeSymbol, out byte appId)
+    {
+        foreach (var syntaxRef in prop.DeclaringSyntaxReferences)
+        {
+            if (syntaxRef.GetSyntax() is PropertyDeclarationSyntax propSyntax &&
+                TryExtractExpressionFromProperty(propSyntax, out var expr) &&
+                TryExtractByteFromSyntax(expr!, appTypeSymbol, out appId))
+                return true;
+        }
+
+        appId = 0;
+        return false;
+    }
+
+    private static bool TryExtractExpressionFromProperty(PropertyDeclarationSyntax propSyntax, out ExpressionSyntax? expression)
+    {
+        expression = propSyntax.ExpressionBody?.Expression ?? propSyntax.Initializer?.Value;
+        if (expression != null)
+            return true;
+
+        if (propSyntax.AccessorList != null)
+            return TryExtractExpressionFromAccessors(propSyntax.AccessorList.Accessors, out expression);
 
         return false;
     }
 
-    private static bool TryExtractByteFromSyntax(
-        ExpressionSyntax expr,
-        ITypeSymbol appTypeSymbol,
-        out byte byteValue)
+    private static bool TryExtractExpressionFromAccessors(SyntaxList<AccessorDeclarationSyntax> accessors, out ExpressionSyntax? expression)
+    {
+        foreach (var accessor in accessors)
+        {
+            expression = accessor.ExpressionBody?.Expression;
+            if (expression != null)
+                return true;
+
+            if (accessor.Body != null && TryExtractReturnExpression(accessor.Body.Statements, out expression))
+                return true;
+        }
+
+        expression = null;
+        return false;
+    }
+
+    private static bool TryExtractReturnExpression(SyntaxList<StatementSyntax> statements, out ExpressionSyntax? expression)
+    {
+        foreach (var stmt in statements)
+        {
+            if (stmt is not ReturnStatementSyntax { Expression: not null } returnStmt)
+                continue;
+            expression = returnStmt.Expression;
+            return true;
+        }
+
+        expression = null;
+        return false;
+    }
+
+    private static bool TryExtractByteFromSyntax(ExpressionSyntax expr, ITypeSymbol appTypeSymbol, out byte byteValue)
     {
         switch (expr)
         {
@@ -317,10 +371,7 @@ internal static class EntityAnalyzerHelper
         return false;
     }
 
-    private static bool TryExtractConstantFromTypeOrContainers(
-        ITypeSymbol appTypeSymbol,
-        string memberName,
-        out byte byteValue)
+    private static bool TryExtractConstantFromTypeOrContainers(ITypeSymbol appTypeSymbol, string memberName, out byte byteValue)
     {
         foreach (var member in appTypeSymbol.GetMembers(memberName))
         {
@@ -369,16 +420,13 @@ internal static class EntityAnalyzerHelper
         return false;
     }
 
-    internal static List<INamedTypeSymbol> OrderSymbols(IEnumerable<INamedTypeSymbol> symbols) =>
-        symbols
-            .OrderBy(s => s.ContainingAssembly.Name, StringComparer.Ordinal)
-            .ThenBy(s => s.ToDisplayString(), StringComparer.Ordinal)
-            .ToList();
+    internal static List<INamedTypeSymbol> OrderSymbols(IEnumerable<INamedTypeSymbol> symbols) => symbols
+        .OrderBy(s => s.ContainingAssembly.Name, StringComparer.Ordinal)
+        .ThenBy(s => s.ToDisplayString(), StringComparer.Ordinal).ToList();
 
-    internal static List<T> OrderByLocation<T>(IEnumerable<T> items, Func<T, Location> locationSelector) =>
-        items
-            .OrderBy(d => locationSelector(d).SourceTree?.FilePath, StringComparer.Ordinal)
-            .ThenBy(d => locationSelector(d).SourceSpan.Start)
-            .ThenBy(d => locationSelector(d).SourceSpan.Length)
-            .ToList();
+    internal static List<T> OrderByLocation<T>(IEnumerable<T> items, Func<T, Location> locationSelector) => items
+        .OrderBy(d => locationSelector(d).SourceTree?.FilePath, StringComparer.Ordinal)
+        .ThenBy(d => locationSelector(d).SourceSpan.Start)
+        .ThenBy(d => locationSelector(d).SourceSpan.Length)
+        .ToList();
 }
