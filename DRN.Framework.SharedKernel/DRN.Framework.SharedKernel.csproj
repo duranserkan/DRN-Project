@@ -42,6 +42,17 @@
         </PropertyGroup>
     </Target>
 
+    <PropertyGroup>
+        <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_PackSharedKernelAnalyzers</TargetsForTfmSpecificContentInPackage>
+    </PropertyGroup>
+
+    <Target Name="_PackSharedKernelAnalyzers">
+        <ItemGroup>
+            <TfmSpecificPackageFile Include="..\DRN.Framework.SharedKernel.Analyzers\bin\$(Configuration)\net10.0\DRN.Framework.SharedKernel.Analyzers.dll"
+                                    PackagePath="analyzers/dotnet/cs" />
+        </ItemGroup>
+    </Target>
+
     <ItemGroup>
         <ProjectReference Include="..\DRN.Framework.SharedKernel.Analyzers\DRN.Framework.SharedKernel.Analyzers.csproj"
                           OutputItemType="Analyzer"

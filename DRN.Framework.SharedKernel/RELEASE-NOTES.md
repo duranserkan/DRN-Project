@@ -9,8 +9,8 @@ Not every version includes changes, features or bug fixes. This project can incr
         *   *Migration*: Annotate every concrete (non-abstract) class inheriting from `SourceKnownEntity` with `[EntityType(value)]` specifying an explicit byte value (0–255).
     *   `DRN0002` (*Error*): Enforces that `EntityType` byte values are unique across all entities within the local compilation and referenced assemblies. In aggregator projects (such as host apps and integration test suites), reports cross-referenced assembly byte collisions at compilation end while deduplicating shared diamond dependencies.
         *   *Migration*: Ensure every concrete `SourceKnownEntity` subclass within the domain dependency graph is assigned a distinct `EntityType` byte value.
-    *   `DRN0003` (*Error*): Prohibits applying `[EntityType]` to abstract classes or non-`SourceKnownEntity` types.
-        *   *Migration*: Remove `[EntityType]` attributes from abstract base classes (apply only to concrete descendants) and from classes that do not derive from `SourceKnownEntity`.
+    *   `DRN0003` (*Error*): Prohibits applying `[EntityType]` to abstract classes, private classes, or non-`SourceKnownEntity` types.
+        *   *Migration*: Remove `[EntityType]` attributes from abstract base classes (apply only to concrete descendants), private classes, and classes that do not derive from `SourceKnownEntity`.
     *   `DRN0004` (*Warning*): Detects duplicate entity class names across the domain model (including cross-referenced assemblies) to guard against EF Core table mapping conflicts and event serialization ambiguity.
 
 ## Version 0.9.8

@@ -17,8 +17,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
     private sealed record EntityTypeDeclaration(
         byte EntityTypeValue,
         INamedTypeSymbol Symbol,
-        Location Location,
-        bool IsPrivate);
+        Location Location);
 
     private sealed record EntityNameDeclaration(
         string Name,
@@ -61,22 +60,17 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
                 var inheritsSourceKnownEntity = DerivesFrom(namedType, sourceKnownEntitySymbol);
                 var entityTypeAttribute = FindAttribute(namedType, entityTypeAttributeSymbol);
+                var isPrivate = namedType.DeclaredAccessibility == Accessibility.Private;
 
-                if (inheritsSourceKnownEntity && !namedType.IsAbstract)
+                if (inheritsSourceKnownEntity && !namedType.IsAbstract && !isPrivate)
                 {
-                    var isPrivate = namedType.DeclaredAccessibility == Accessibility.Private;
-
                     // 1. Buffer non-private entity class names for compilation end analysis (DRN0004 - Warning)
-                    if (!isPrivate)
-                    {
-                        var location = namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None;
-                        collectedEntityNameDeclarations.Add(new EntityNameDeclaration(namedType.Name, namedType, location));
-                    }
+                    var location = namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None;
+                    collectedEntityNameDeclarations.Add(new EntityNameDeclaration(namedType.Name, namedType, location));
 
                     // 2. Check EntityType attribute presence (DRN0001) & collect for compilation end (DRN0002)
                     if (entityTypeAttribute == null)
                     {
-                        var location = namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None;
                         symbolContext.ReportDiagnostic(Diagnostic.Create(
                             DiagnosticDescriptors.MissingEntityTypeAttribute,
                             location,
@@ -84,15 +78,15 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                     }
                     else if (TryGetEntityTypeValue(entityTypeAttribute, out var entityTypeValue))
                     {
-                        var location = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax().GetLocation()
-                                       ?? (namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None);
+                        var attrLocation = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax().GetLocation()
+                                           ?? location;
 
-                        collectedEntityTypeDeclarations.Add(new EntityTypeDeclaration(entityTypeValue, namedType, location, isPrivate));
+                        collectedEntityTypeDeclarations.Add(new EntityTypeDeclaration(entityTypeValue, namedType, attrLocation));
                     }
                 }
                 else if (entityTypeAttribute != null)
                 {
-                    // EntityTypeAttribute applied to abstract class or non-SourceKnownEntity
+                    // EntityTypeAttribute applied to abstract class, private class, or non-SourceKnownEntity (DRN0003)
                     var location = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax().GetLocation()
                                    ?? (namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None);
 
@@ -178,7 +172,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
                         foreach (var decl in orderedDeclarations)
                         {
-                            if (!decl.IsPrivate && !SymbolEqualityComparer.Default.Equals(firstRefSymbol, decl.Symbol))
+                            if (!SymbolEqualityComparer.Default.Equals(firstRefSymbol, decl.Symbol))
                             {
                                 endContext.ReportDiagnostic(Diagnostic.Create(
                                     DiagnosticDescriptors.DuplicateEntityTypeValue,

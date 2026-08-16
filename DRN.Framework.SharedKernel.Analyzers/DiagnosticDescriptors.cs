@@ -31,11 +31,11 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor InvalidEntityTypeAttributeUsage = new(
         id: "DRN0003",
         title: "Invalid [EntityType] attribute usage",
-        messageFormat: "Class '{0}' is decorated with [EntityType] attribute but is abstract or does not inherit from SourceKnownEntity",
+        messageFormat: "Class '{0}' is decorated with [EntityType] attribute but is abstract, private, or does not inherit from SourceKnownEntity",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "The [EntityType] attribute should only be applied to non-abstract classes that inherit from SourceKnownEntity.",
+        description: "The [EntityType] attribute should only be applied to non-abstract, non-private classes that inherit from SourceKnownEntity.",
         helpLinkUri: HelpLinkUri);
 
     public static readonly DiagnosticDescriptor DuplicateEntityName = new(

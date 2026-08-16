@@ -292,5 +292,5 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
     };
 
     [EntityType(TestEntityType)]
-    private class TestVectorEntity(long id) : SourceKnownEntity(id);
+    internal class TestVectorEntity(long id) : SourceKnownEntity(id);
 }

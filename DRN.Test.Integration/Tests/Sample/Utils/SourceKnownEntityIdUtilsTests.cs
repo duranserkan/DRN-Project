@@ -86,5 +86,5 @@ public class SourceKnownEntityIdUtilsTests
     }
 
     [EntityType(200)]
-    class XEntity(long id) : SourceKnownEntity(id);
+    internal class XEntity(long id) : SourceKnownEntity(id);
 }

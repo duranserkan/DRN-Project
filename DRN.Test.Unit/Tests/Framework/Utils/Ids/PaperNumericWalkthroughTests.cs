@@ -323,5 +323,5 @@ public class PaperNumericWalkthroughTests
     }
 
     [EntityType(WalkthroughEntityType)]
-    class WalkthroughEntity(long id) : SourceKnownEntity(id);
+    internal class WalkthroughEntity(long id) : SourceKnownEntity(id);
 }

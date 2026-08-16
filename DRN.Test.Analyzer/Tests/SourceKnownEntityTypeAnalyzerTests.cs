@@ -285,6 +285,44 @@ public class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Fact]
+    public async Task InvalidUsage_EntityTypeOnPrivateClass_ProducesDRN0003()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public class Fixture
+            {
+                [EntityType(1)]
+                private class PrivateEntity : SourceKnownEntity;
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].Id.Should().Be("DRN0003");
+        diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Error);
+        diagnostics[0].GetMessage().Should().Contain("PrivateEntity");
+    }
+
+    [Fact]
+    public async Task PrivateClass_WithoutEntityType_DoesNotProduceDiagnostics()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public class Fixture
+            {
+                private class PrivateEntity : SourceKnownEntity;
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task EnumCastInEntityType_WorksAndDetectsDuplicates()
     {
         const string testCode = """
@@ -429,7 +467,7 @@ public class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Fact]
-    public async Task PrivateNestedEntity_DoesNotCollideWithReferencedAssembly()
+    public async Task PrivateNestedEntity_WithoutAttribute_DoesNotCollideWithReferencedAssembly()
     {
         const string referencedSource = """
             using DRN.Framework.SharedKernel.Domain;
@@ -448,7 +486,6 @@ public class SourceKnownEntityTypeAnalyzerTests
             {
                 public class Fixture
                 {
-                    [EntityType(42)]
                     private class ExternalEntity : SourceKnownEntity;
                 }
             }
@@ -469,7 +506,6 @@ public class SourceKnownEntityTypeAnalyzerTests
             {
                 public class ExternalFixture
                 {
-                    [EntityType(42)]
                     private class ConflictingEntity : SourceKnownEntity;
                 }
             }
@@ -481,6 +517,36 @@ public class SourceKnownEntityTypeAnalyzerTests
             namespace LocalDomain
             {
                 [EntityType(42)]
+                public class ConflictingEntity : SourceKnownEntity;
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerWithReferenceAsync(referencedSource, consumingSource);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PublicConsumingEntity_DoesNotProduceDRN0004_ForPrivateNestedEntityInReferencedAssembly()
+    {
+        const string referencedSource = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            namespace ExternalDomain
+            {
+                public class ExternalFixture
+                {
+                    private class ConflictingEntity : SourceKnownEntity;
+                }
+            }
+            """;
+
+        const string consumingSource = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            namespace LocalDomain
+            {
+                [EntityType(2)]
                 public class ConflictingEntity : SourceKnownEntity;
             }
             """;
@@ -669,7 +735,10 @@ public class SourceKnownEntityTypeAnalyzerTests
                 namespace DomainA
                 {
                     [EntityType(20)]
-                    public class EntityA : SourceKnownEntity;
+                    public class EntityA : SourceKnownEntity
+                    {
+                        public SharedEntity? Shared { get; set; }
+                    }
                 }
                 """),
             ("ReferencedAssemblyB", """
@@ -679,7 +748,10 @@ public class SourceKnownEntityTypeAnalyzerTests
                 namespace DomainB
                 {
                     [EntityType(30)]
-                    public class EntityB : SourceKnownEntity;
+                    public class EntityB : SourceKnownEntity
+                    {
+                        public SharedEntity? Shared { get; set; }
+                    }
                 }
                 """)
         };
