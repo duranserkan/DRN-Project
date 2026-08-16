@@ -1,4 +1,4 @@
-﻿LICENSE
+LICENSE
 README.md
 **/node_modules
 **/npm-debug.log
@@ -41,3 +41,5 @@ README.md
 !NuGet.config
 !global.json
 !Directory.build.props
+!**/AnalyzerReleases.Shipped.md
+!**/AnalyzerReleases.Unshipped.md
