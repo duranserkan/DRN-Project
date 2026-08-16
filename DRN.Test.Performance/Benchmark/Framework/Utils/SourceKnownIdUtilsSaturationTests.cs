@@ -132,5 +132,5 @@ public class SourceKnownIdUtilsSaturationBenchmark
     public SourceKnownEntityId ToSecure() => EntityIdUtils.ToSecure(PlainEntityId);
 }
 
-[EntityType(93)]
+[TestEntityType(93)]
 public class ZEntity(long id) : SourceKnownEntity(id);

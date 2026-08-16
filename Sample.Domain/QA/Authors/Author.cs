@@ -2,6 +2,7 @@ using Sample.Domain.QA.Questions;
 
 namespace Sample.Domain.QA.Authors;
 
+[SampleEntityType(SampleEntityTypes.Author)]
 public class Author : AggregateRoot
 {
     private Author()

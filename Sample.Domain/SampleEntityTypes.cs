@@ -1,5 +1,9 @@
 namespace Sample.Domain;
 
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public sealed class SampleEntityTypeAttribute(SampleEntityTypes entityType)
+    : EntityTypeAttribute<DefaultApp>((byte)entityType);
+
 public enum SampleEntityTypes : byte
 {
     Answer = 1,
@@ -9,5 +13,6 @@ public enum SampleEntityTypes : byte
     QuestionComment = 5,
     Tag = 6,
     User = 7,
+    Author = 8,
     TestEntity = 255
 }

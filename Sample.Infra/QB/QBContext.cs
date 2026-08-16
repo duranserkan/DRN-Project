@@ -6,6 +6,8 @@ using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Entity;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
+using Sample.Domain;
+
 namespace Sample.Infra.QB;
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
@@ -38,7 +40,7 @@ public enum TestEntityTypes : byte
     TestEntity = 255
 }
 
-[EntityType((byte)TestEntityTypes.TestEntity)]
+[TestEntityType((byte)TestEntityTypes.TestEntity)]
 public class TestEntity : AggregateRoot
 {
     public long TestValue { get; init; }

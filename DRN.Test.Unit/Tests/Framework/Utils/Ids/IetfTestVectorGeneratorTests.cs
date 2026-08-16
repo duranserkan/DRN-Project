@@ -291,6 +291,11 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         _ => "unknown"
     };
 
-    [EntityType(TestEntityType)]
-    private class TestVectorEntity(long id) : SourceKnownEntity(id);
+    public readonly struct IetfTestApp : IAppId
+    {
+        public static byte AppId => TestAppId;
+    }
+
+    [EntityType<IetfTestApp>(TestEntityType)]
+    internal class TestVectorEntity(long id) : SourceKnownEntity(id);
 }

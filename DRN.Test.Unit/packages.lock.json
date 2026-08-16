@@ -1128,7 +1128,6 @@
           "DRN.Framework.Hosting": "[1.0.0, )",
           "Microsoft.AspNetCore.Mvc.Testing": "[10.0.11, )",
           "Microsoft.Testing.Extensions.GitHubActionsReport": "[1.0.0-alpha.26377.5, )",
-          "Microsoft.Testing.Platform": "[2.3.3, )",
           "NSubstitute.Analyzers.CSharp": "[1.0.17, )",
           "Testcontainers.PostgreSql": "[4.14.0, )",
           "Testcontainers.RabbitMq": "[4.14.0, )",
@@ -1158,9 +1157,14 @@
           "DRN.Nexus.Infra": "[1.0.0, )"
         }
       },
+      "drn.nexus.contract": {
+        "type": "Project"
+      },
       "drn.nexus.domain": {
         "type": "Project",
         "dependencies": {
+          "DRN.Nexus.Contract": "[1.0.0, )",
+          "DRN.Nexus.Utils": "[1.0.0, )",
           "Microsoft.Extensions.Identity.Stores": "[10.0.11, )"
         }
       },

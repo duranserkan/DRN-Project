@@ -42,6 +42,42 @@
         </PropertyGroup>
     </Target>
 
+    <PropertyGroup>
+        <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_PackSharedKernelAnalyzers</TargetsForTfmSpecificContentInPackage>
+    </PropertyGroup>
+
+    <Target Name="_PackSharedKernelAnalyzers">
+        <ItemGroup>
+            <TfmSpecificPackageFile Include="..\DRN.Framework.SharedKernel.Analyzers\bin\$(Configuration)\net10.0\DRN.Framework.SharedKernel.Analyzers.dll"
+                                    PackagePath="analyzers/dotnet/cs" />
+        </ItemGroup>
+    </Target>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DRN.Framework.SharedKernel.Analyzers\DRN.Framework.SharedKernel.Analyzers.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="buildTransitive/DRN.Framework.SharedKernel.props">
+            <Pack>true</Pack>
+            <PackagePath>buildTransitive/$(PackageId).props</PackagePath>
+        </None>
+        <None Update="buildTransitive/DRN.Framework.SharedKernel.targets">
+            <Pack>true</Pack>
+            <PackagePath>buildTransitive/$(PackageId).targets</PackagePath>
+        </None>
+        <None Update="build/DRN.Framework.SharedKernel.props">
+            <Pack>true</Pack>
+            <PackagePath>build/$(PackageId).props</PackagePath>
+        </None>
+        <None Update="build/DRN.Framework.SharedKernel.targets">
+            <Pack>true</Pack>
+            <PackagePath>build/$(PackageId).targets</PackagePath>
+        </None>
+    </ItemGroup>
+
     <ItemGroup>
         <InternalsVisibleTo Include="DRN.Test.Unit" />
         <InternalsVisibleTo Include="DRN.Test.Integration"/>

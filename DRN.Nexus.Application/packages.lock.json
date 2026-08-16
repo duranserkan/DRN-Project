@@ -543,9 +543,14 @@
           "System.Memory.Data": "[10.0.11, )"
         }
       },
+      "drn.nexus.contract": {
+        "type": "Project"
+      },
       "drn.nexus.domain": {
         "type": "Project",
         "dependencies": {
+          "DRN.Nexus.Contract": "[1.0.0, )",
+          "DRN.Nexus.Utils": "[1.0.0, )",
           "Microsoft.Extensions.Identity.Stores": "[10.0.11, )"
         }
       },

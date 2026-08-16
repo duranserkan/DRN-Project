@@ -85,6 +85,6 @@ public class SourceKnownEntityIdUtilsTests
         uniqueGuids.Should().Be(entityIds.Length);
     }
 
-    [EntityType(200)]
-    class XEntity(long id) : SourceKnownEntity(id);
+    [TestEntityType(200)]
+    internal class XEntity(long id) : SourceKnownEntity(id);
 }

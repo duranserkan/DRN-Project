@@ -69,7 +69,7 @@ runs:
           "/k:$env:SONAR_PROJECT_KEY",
           "/o:$env:SONAR_ORGANIZATION",
           "/d:sonar.token=$env:SONAR_TOKEN",
-          "/d:sonar.cs.vscoveragexml.reportsPaths=coverage-unit.xml,coverage-integration.xml",
+          "/d:sonar.cs.vscoveragexml.reportsPaths=coverage-unit.xml,coverage-analyzer.xml,coverage-integration.xml",
           "/d:sonar.host.url=$env:SONAR_HOST_URL",
           "/d:sonar.sourceEncoding=UTF-8",
           "/d:sonar.qualitygate.wait=true",

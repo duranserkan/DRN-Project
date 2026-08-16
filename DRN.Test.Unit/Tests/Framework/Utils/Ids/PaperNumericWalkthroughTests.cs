@@ -322,6 +322,11 @@ public class PaperNumericWalkthroughTests
         sorted.Should().Equal(skeidStrings, "SKEIDs with same timestamp but increasing sequence should sort lexicographically in sequence order");
     }
 
-    [EntityType(WalkthroughEntityType)]
-    class WalkthroughEntity(long id) : SourceKnownEntity(id);
+    public readonly struct WalkthroughApp : IAppId
+    {
+        public static byte AppId => WalkthroughAppId;
+    }
+
+    [EntityType<WalkthroughApp>(WalkthroughEntityType)]
+    internal class WalkthroughEntity(long id) : SourceKnownEntity(id);
 }

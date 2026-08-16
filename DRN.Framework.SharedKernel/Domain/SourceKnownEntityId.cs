@@ -26,6 +26,8 @@ public interface ISourceKnownEntityIdOperations
 
 public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid EntityId, byte EntityType, bool Valid, bool Secure) : IComparable<SourceKnownEntityId>
 {
+    public EntityTypeId EntityTypeId => new(EntityType, Source.AppId);
+
     public bool HasSameEntityType(byte other) => EntityType == other;
     public bool HasSameEntityType(SourceKnownEntityId other) => HasSameEntityType(other.EntityType);
     public bool HasSameEntityType<TEntity>() where TEntity : SourceKnownEntity => HasSameEntityType(SourceKnownEntity.GetEntityType<TEntity>());
@@ -43,10 +45,10 @@ public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid Ent
         if (HasSameEntityType(entityType))
             return;
 
-        var expectedType = SourceKnownEntity.GetEntityType(entityType);
+        var expectedType = SourceKnownEntity.GetEntityType(new EntityTypeId(entityType, Source.AppId));
         var expectedName = expectedType == null ? entityType.ToString() : expectedType.FullName ?? expectedType.Name;
 
-        var actualType = SourceKnownEntity.GetEntityType(EntityType);
+        var actualType = SourceKnownEntity.GetEntityType(EntityTypeId);
         var actualName = actualType == null ? EntityType.ToString() : actualType.FullName ?? actualType.Name;
 
         var ex = new ValidationException($"Invalid Entity Type: EntityId:{EntityId:N}");

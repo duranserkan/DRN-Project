@@ -1,0 +1,6 @@
+<Project>
+  <ItemGroup>
+    <Analyzer Include="$(MSBuildThisFileDirectory)../analyzers/dotnet/cs/DRN.Framework.SharedKernel.Analyzers.dll"
+              Condition="Exists('$(MSBuildThisFileDirectory)../analyzers/dotnet/cs/DRN.Framework.SharedKernel.Analyzers.dll')" />
+  </ItemGroup>
+</Project>

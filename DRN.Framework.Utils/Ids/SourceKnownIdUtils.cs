@@ -24,7 +24,7 @@ public interface ISourceKnownIdUtils
 [Singleton<ISourceKnownIdUtils>]
 public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochTimeUtils) : ISourceKnownIdUtils
 {
-    public const byte MaxAppId = 127;
+    public const byte MaxAppId = IAppId.MaxAppId;
     public const byte MaxAppInstanceId = 63;
     public const long TicksPerHalf = 1L << 32;        // 2^32 ticks per half-epoch
     public const long MaxEpochTicks = (TicksPerHalf << 1) - 1; // 2^33 - 1: full ~68-year epoch (both halves)
