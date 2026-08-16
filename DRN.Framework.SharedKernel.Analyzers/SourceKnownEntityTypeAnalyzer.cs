@@ -95,7 +95,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         else if (entityTypeAttribute != null)
         {
             // EntityTypeAttribute applied to abstract class, private class, or non-SourceKnownEntity (DRN0003)
-            var location = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax().GetLocation()
+            var location = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax(symbolContext.CancellationToken).GetLocation()
                            ?? (namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None);
 
             symbolContext.ReportDiagnostic(Diagnostic.Create(
@@ -131,7 +131,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         }
         else if (hasValidAttribute)
         {
-            var attrLocation = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax().GetLocation() ?? location;
+            var attrLocation = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax(symbolContext.CancellationToken).GetLocation() ?? location;
             collectedEntityTypeDeclarations.Add(new EntityTypeDeclaration(entityTypeValue, declaredAppId, namedType, attrLocation));
         }
     }
