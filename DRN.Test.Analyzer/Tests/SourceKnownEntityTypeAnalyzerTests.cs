@@ -22,13 +22,9 @@ public class SourceKnownEntityTypeAnalyzerTests
         }
         """;
 
-    private static async Task<ImmutableArray<Diagnostic>> RunAnalyzerAsync(params string[] sources)
+    private static readonly Lazy<MetadataReference> SharedKernelReference = new(() =>
     {
-        var syntaxTrees = sources
-            .Select((s, i) => CSharpSyntaxTree.ParseText(s, path: $"Source{i}.cs"))
-            .Concat([CSharpSyntaxTree.ParseText(SharedKernelDomainStubs, path: "SharedKernelDomainStubs.cs")])
-            .ToArray();
-
+        var syntaxTree = CSharpSyntaxTree.ParseText(SharedKernelDomainStubs, path: "SharedKernelDomainStubs.cs");
         var coreAssemblyPath = typeof(object).Assembly.Location;
         var runtimeAssemblyPath = Path.Combine(Path.GetDirectoryName(coreAssemblyPath)!, "System.Runtime.dll");
 
@@ -36,14 +32,52 @@ public class SourceKnownEntityTypeAnalyzerTests
         {
             MetadataReference.CreateFromFile(coreAssemblyPath),
             MetadataReference.CreateFromFile(runtimeAssemblyPath),
-            MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Console).Assembly.Location)
+            MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location)
         };
+
+        var compilation = CSharpCompilation.Create(
+            "DRN.Framework.SharedKernel",
+            [syntaxTree],
+            references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        using var stream = new MemoryStream();
+        var emitResult = compilation.Emit(stream);
+        if (!emitResult.Success)
+        {
+            var errors = string.Join(Environment.NewLine, emitResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+            throw new InvalidOperationException($"SharedKernel stub compilation failed:{Environment.NewLine}{errors}");
+        }
+
+        stream.Seek(0, SeekOrigin.Begin);
+        return MetadataReference.CreateFromImage(stream.ToArray());
+    });
+
+    private static MetadataReference[] GetBaseReferences()
+    {
+        var coreAssemblyPath = typeof(object).Assembly.Location;
+        var runtimeAssemblyPath = Path.Combine(Path.GetDirectoryName(coreAssemblyPath)!, "System.Runtime.dll");
+
+        return
+        [
+            MetadataReference.CreateFromFile(coreAssemblyPath),
+            MetadataReference.CreateFromFile(runtimeAssemblyPath),
+            MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
+            SharedKernelReference.Value
+        ];
+    }
+
+    private static async Task<ImmutableArray<Diagnostic>> RunAnalyzerAsync(params string[] sources)
+    {
+        var syntaxTrees = sources
+            .Select((s, i) => CSharpSyntaxTree.ParseText(s, path: $"Source{i}.cs"))
+            .ToArray();
 
         var compilation = CSharpCompilation.Create(
             "TestAssembly",
             syntaxTrees,
-            references,
+            GetBaseReferences(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var compilerErrors = compilation
@@ -59,6 +93,51 @@ public class SourceKnownEntityTypeAnalyzerTests
 
         var analyzer = new SourceKnownEntityTypeAnalyzer();
         var compilationWithAnalyzers = compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
+        return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
+    }
+
+    private static async Task<ImmutableArray<Diagnostic>> RunAnalyzerWithReferenceAsync(string referencedSource, string consumingSource)
+    {
+        var refSyntaxTree = CSharpSyntaxTree.ParseText(referencedSource, path: "ReferencedSource.cs");
+        var baseReferences = GetBaseReferences();
+
+        var refCompilation = CSharpCompilation.Create(
+            "ReferencedDomainAssembly",
+            [refSyntaxTree],
+            baseReferences,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        using var stream = new MemoryStream();
+        var emitResult = refCompilation.Emit(stream);
+        if (!emitResult.Success)
+        {
+            var errors = string.Join(Environment.NewLine, emitResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+            throw new InvalidOperationException($"Referenced assembly compilation failed:{Environment.NewLine}{errors}");
+        }
+
+        stream.Seek(0, SeekOrigin.Begin);
+        var referencedMetadata = MetadataReference.CreateFromImage(stream.ToArray());
+
+        var consumingTree = CSharpSyntaxTree.ParseText(consumingSource, path: "ConsumingSource.cs");
+        var consumingCompilation = CSharpCompilation.Create(
+            "ConsumingAssembly",
+            [consumingTree],
+            baseReferences.Append(referencedMetadata),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var compilerErrors = consumingCompilation
+            .GetDiagnostics()
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToImmutableArray();
+
+        if (!compilerErrors.IsEmpty)
+        {
+            var errorMessages = string.Join(Environment.NewLine, compilerErrors.Select(d => d.ToString()));
+            throw new InvalidOperationException($"Consuming compilation failed with compiler errors:{Environment.NewLine}{errorMessages}");
+        }
+
+        var analyzer = new SourceKnownEntityTypeAnalyzer();
+        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
         return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
     }
 
@@ -299,8 +378,6 @@ public class SourceKnownEntityTypeAnalyzerTests
             }
             """;
 
-        var (referencedMetadata, references) = CreateReferencedAssemblyMetadata(referencedSource);
-
         const string consumingSource = """
             using DRN.Framework.SharedKernel.Domain;
 
@@ -311,16 +388,7 @@ public class SourceKnownEntityTypeAnalyzerTests
             }
             """;
 
-        var consumingTree = CSharpSyntaxTree.ParseText(consumingSource + "\n" + SharedKernelDomainStubs);
-        var consumingCompilation = CSharpCompilation.Create(
-            "ConsumingAssembly",
-            [consumingTree],
-            references.Append(referencedMetadata),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var analyzer = new SourceKnownEntityTypeAnalyzer();
-        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
-        var diagnostics = await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
+        var diagnostics = await RunAnalyzerWithReferenceAsync(referencedSource, consumingSource);
 
         diagnostics.Should().HaveCount(1);
         diagnostics[0].Id.Should().Be("DRN0002");
@@ -342,8 +410,6 @@ public class SourceKnownEntityTypeAnalyzerTests
             }
             """;
 
-        var (referencedMetadata, references) = CreateReferencedAssemblyMetadata(referencedSource);
-
         const string consumingSource = """
             using DRN.Framework.SharedKernel.Domain;
 
@@ -354,16 +420,7 @@ public class SourceKnownEntityTypeAnalyzerTests
             }
             """;
 
-        var consumingTree = CSharpSyntaxTree.ParseText(consumingSource + "\n" + SharedKernelDomainStubs);
-        var consumingCompilation = CSharpCompilation.Create(
-            "ConsumingAssembly",
-            [consumingTree],
-            references.Append(referencedMetadata),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var analyzer = new SourceKnownEntityTypeAnalyzer();
-        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
-        var diagnostics = await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
+        var diagnostics = await RunAnalyzerWithReferenceAsync(referencedSource, consumingSource);
 
         diagnostics.Should().HaveCount(1);
         diagnostics[0].Id.Should().Be("DRN0004");
@@ -384,8 +441,6 @@ public class SourceKnownEntityTypeAnalyzerTests
             }
             """;
 
-        var (referencedMetadata, references) = CreateReferencedAssemblyMetadata(referencedSource);
-
         const string consumingSource = """
             using DRN.Framework.SharedKernel.Domain;
 
@@ -399,16 +454,7 @@ public class SourceKnownEntityTypeAnalyzerTests
             }
             """;
 
-        var consumingTree = CSharpSyntaxTree.ParseText(consumingSource + "\n" + SharedKernelDomainStubs);
-        var consumingCompilation = CSharpCompilation.Create(
-            "ConsumingAssembly",
-            [consumingTree],
-            references.Append(referencedMetadata),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var analyzer = new SourceKnownEntityTypeAnalyzer();
-        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
-        var diagnostics = await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
+        var diagnostics = await RunAnalyzerWithReferenceAsync(referencedSource, consumingSource);
 
         diagnostics.Should().BeEmpty();
     }
@@ -421,6 +467,7 @@ public class SourceKnownEntityTypeAnalyzerTests
         DiagnosticDescriptors.DuplicateEntityTypeValue.CustomTags.Should().Contain(WellKnownDiagnosticTags.CompilationEnd);
         DiagnosticDescriptors.InvalidEntityTypeAttributeUsage.HelpLinkUri.Should().Be(DiagnosticDescriptors.HelpLinkUri);
         DiagnosticDescriptors.DuplicateEntityName.HelpLinkUri.Should().Be(DiagnosticDescriptors.HelpLinkUri);
+        DiagnosticDescriptors.DuplicateEntityName.CustomTags.Should().Contain(WellKnownDiagnosticTags.CompilationEnd);
     }
 
     [Fact]
@@ -443,7 +490,12 @@ public class SourceKnownEntityTypeAnalyzerTests
             public class GammaEntity : SourceKnownEntity;
             """;
 
-        var diagnostics = await RunAnalyzerAsync(source1, source2);
+        var rawDiagnostics = await RunAnalyzerAsync(source1, source2);
+        var diagnostics = rawDiagnostics
+            .OrderBy(d => d.Location.SourceTree?.FilePath, StringComparer.Ordinal)
+            .ThenBy(d => d.Location.SourceSpan.Start)
+            .ThenBy(d => d.Location.SourceSpan.Length)
+            .ToImmutableArray();
 
         diagnostics.Should().HaveCount(2);
         diagnostics.Should().OnlyContain(d => d.Id == "DRN0002" && d.Severity == DiagnosticSeverity.Error);
@@ -451,31 +503,45 @@ public class SourceKnownEntityTypeAnalyzerTests
         diagnostics[1].GetMessage().Should().Contain("GammaEntity").And.Contain("AlphaEntity");
     }
 
-    private static (MetadataReference Metadata, MetadataReference[] BaseReferences) CreateReferencedAssemblyMetadata(string source)
+    [Fact]
+    public async Task DuplicateEntityName_MultipleEntities_ReportsDeterministicallyOnSubsequentDeclarations()
     {
-        var refSyntaxTree = CSharpSyntaxTree.ParseText(source + "\n" + SharedKernelDomainStubs);
-        var coreAssemblyPath = typeof(object).Assembly.Location;
-        var runtimeAssemblyPath = Path.Combine(Path.GetDirectoryName(coreAssemblyPath)!, "System.Runtime.dll");
+        const string source1 = """
+            using DRN.Framework.SharedKernel.Domain;
 
-        var references = new MetadataReference[]
-        {
-            MetadataReference.CreateFromFile(coreAssemblyPath),
-            MetadataReference.CreateFromFile(runtimeAssemblyPath),
-            MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location)
-        };
+            namespace DomainA
+            {
+                [EntityType(1)]
+                public class Customer : SourceKnownEntity;
+            }
+            """;
 
-        var refCompilation = CSharpCompilation.Create(
-            "ReferencedDomainAssembly",
-            [refSyntaxTree],
-            references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        const string source2 = """
+            using DRN.Framework.SharedKernel.Domain;
 
-        using var stream = new MemoryStream();
-        var emitResult = refCompilation.Emit(stream);
-        emitResult.Success.Should().BeTrue();
-        stream.Seek(0, SeekOrigin.Begin);
+            namespace DomainB
+            {
+                [EntityType(2)]
+                public class Customer : SourceKnownEntity;
+            }
 
-        var metadata = MetadataReference.CreateFromImage(stream.ToArray());
-        return (metadata, references);
+            namespace DomainC
+            {
+                [EntityType(3)]
+                public class Customer : SourceKnownEntity;
+            }
+            """;
+
+        var rawDiagnostics = await RunAnalyzerAsync(source1, source2);
+        var diagnostics = rawDiagnostics
+            .OrderBy(d => d.Location.SourceTree?.FilePath, StringComparer.Ordinal)
+            .ThenBy(d => d.Location.SourceSpan.Start)
+            .ThenBy(d => d.Location.SourceSpan.Length)
+            .ToImmutableArray();
+
+        diagnostics.Should().HaveCount(2);
+        diagnostics.Should().OnlyContain(d => d.Id == "DRN0004" && d.Severity == DiagnosticSeverity.Warning);
+        diagnostics[0].GetMessage().Should().Contain("DomainB.Customer").And.Contain("DomainA.Customer");
+        diagnostics[1].GetMessage().Should().Contain("DomainC.Customer").And.Contain("DomainA.Customer");
     }
 }

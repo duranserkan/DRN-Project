@@ -46,5 +46,6 @@ public static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description: "Domain entities inheriting from SourceKnownEntity should have unique class names across the domain model to avoid mapping and messaging ambiguity.",
-        helpLinkUri: HelpLinkUri);
+        helpLinkUri: HelpLinkUri,
+        customTags: [WellKnownDiagnosticTags.CompilationEnd]);
 }
