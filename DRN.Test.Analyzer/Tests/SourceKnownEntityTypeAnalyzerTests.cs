@@ -460,6 +460,37 @@ public class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Fact]
+    public async Task PublicConsumingEntity_DoesNotCollideWithPrivateNestedEntityInReferencedAssembly()
+    {
+        const string referencedSource = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            namespace ExternalDomain
+            {
+                public class ExternalFixture
+                {
+                    [EntityType(42)]
+                    private class ConflictingEntity : SourceKnownEntity;
+                }
+            }
+            """;
+
+        const string consumingSource = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            namespace LocalDomain
+            {
+                [EntityType(42)]
+                public class ConflictingEntity : SourceKnownEntity;
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerWithReferenceAsync(referencedSource, consumingSource);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
     public void DiagnosticDescriptors_AllHaveHelpLinkUri()
     {
         DiagnosticDescriptors.MissingEntityTypeAttribute.HelpLinkUri.Should().Be(DiagnosticDescriptors.HelpLinkUri);

@@ -296,6 +296,9 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (typeSymbol.DeclaredAccessibility == Accessibility.Private)
+            return;
+
         if (typeSymbol.TypeKind == TypeKind.Class && !typeSymbol.IsAbstract && DerivesFrom(typeSymbol, sourceKnownEntitySymbol))
         {
             nameMap.TryAdd(typeSymbol.Name, typeSymbol);
