@@ -139,24 +139,24 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             referencedEntityTypeMap[groupKey] = orderedRefGroup;
 
             // Report collisions between distinct referenced assemblies (DRN0002)
-            if (orderedRefGroup.Count > 1)
+            if (orderedRefGroup.Count <= 1)
+                continue;
+
+            var firstRefSymbol = orderedRefGroup[0];
+            var firstTargetName = $"{firstRefSymbol.ContainingAssembly.Name}::{firstRefSymbol.Name}";
+
+            for (var i = 1; i < orderedRefGroup.Count; i++)
             {
-                var firstRefSymbol = orderedRefGroup[0];
-                var firstTargetName = $"{firstRefSymbol.ContainingAssembly.Name}::{firstRefSymbol.Name}";
+                var duplicateRefSymbol = orderedRefGroup[i];
+                var duplicateTargetName = $"{duplicateRefSymbol.ContainingAssembly.Name}::{duplicateRefSymbol.Name}";
 
-                for (var i = 1; i < orderedRefGroup.Count; i++)
-                {
-                    var duplicateRefSymbol = orderedRefGroup[i];
-                    var duplicateTargetName = $"{duplicateRefSymbol.ContainingAssembly.Name}::{duplicateRefSymbol.Name}";
-
-                    endContext.ReportDiagnostic(Diagnostic.Create(
-                        DiagnosticDescriptors.DuplicateEntityTypeValue,
-                        Location.None,
-                        groupKey.Value,
-                        groupKey.AppId,
-                        duplicateTargetName,
-                        firstTargetName));
-                }
+                endContext.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.DuplicateEntityTypeValue,
+                    Location.None,
+                    groupKey.Value,
+                    groupKey.AppId,
+                    duplicateTargetName,
+                    firstTargetName));
             }
         }
 
@@ -228,23 +228,23 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             referencedEntityNameMap[groupKey] = orderedRefGroup;
 
             // Report collisions between distinct referenced assemblies (DRN0004)
-            if (orderedRefGroup.Count > 1)
+            if (orderedRefGroup.Count <= 1)
+                continue;
+
+            var firstRefSymbol = orderedRefGroup[0];
+            var firstName = firstRefSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+
+            for (var i = 1; i < orderedRefGroup.Count; i++)
             {
-                var firstRefSymbol = orderedRefGroup[0];
-                var firstName = firstRefSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+                var duplicateRefSymbol = orderedRefGroup[i];
+                var duplicateName = duplicateRefSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
 
-                for (var i = 1; i < orderedRefGroup.Count; i++)
-                {
-                    var duplicateRefSymbol = orderedRefGroup[i];
-                    var duplicateName = duplicateRefSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
-
-                    endContext.ReportDiagnostic(Diagnostic.Create(
-                        DiagnosticDescriptors.DuplicateEntityName,
-                        Location.None,
-                        duplicateName,
-                        firstName,
-                        groupKey.AppId));
-                }
+                endContext.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.DuplicateEntityName,
+                    Location.None,
+                    duplicateName,
+                    firstName,
+                    groupKey.AppId));
             }
         }
 

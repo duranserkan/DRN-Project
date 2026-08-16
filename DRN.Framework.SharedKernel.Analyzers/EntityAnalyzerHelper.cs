@@ -1,8 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -12,7 +8,7 @@ internal static class EntityAnalyzerHelper
 {
     internal const string SourceKnownEntityMetadataName = "DRN.Framework.SharedKernel.Domain.SourceKnownEntity";
     internal const string EntityTypeAttributeMetadataName = "DRN.Framework.SharedKernel.Domain.EntityTypeAttribute";
-    internal const string AppIdName = "AppId";
+    private const string AppIdName = "AppId";
 
     internal static ConcurrentBag<INamedTypeSymbol> ScanReferencedAssemblies(
         Compilation compilation,
@@ -102,7 +98,7 @@ internal static class EntityAnalyzerHelper
         if (typeSymbol.DeclaredAccessibility == Accessibility.Private)
             return;
 
-        if (typeSymbol.TypeKind == TypeKind.Class && !typeSymbol.IsAbstract && DerivesFrom(typeSymbol, sourceKnownEntitySymbol))
+        if (typeSymbol is { TypeKind: TypeKind.Class, IsAbstract: false } && DerivesFrom(typeSymbol, sourceKnownEntitySymbol))
         {
             collectedEntities.Add(typeSymbol);
         }
@@ -194,7 +190,7 @@ internal static class EntityAnalyzerHelper
             var current = attributeData.AttributeClass;
             while (current != null)
             {
-                if (current.IsGenericType && current.TypeArguments.Length > 0)
+                if (current is { IsGenericType: true, TypeArguments.Length: > 0 })
                 {
                     var appType = current.TypeArguments[0];
                     if (TryExtractAppIdFromType(appType, out var extractedAppId))
@@ -218,88 +214,70 @@ internal static class EntityAnalyzerHelper
         appId = 0;
 
         var fullName = appTypeSymbol.ToDisplayString();
-        if (fullName == "DRN.Framework.SharedKernel.Domain.DefaultApp")
+        switch (fullName)
         {
-            appId = 0;
-            return true;
-        }
-
-        if (fullName == "DRN.Framework.SharedKernel.Domain.NexusApp")
-        {
-            appId = 126;
-            return true;
-        }
-
-        if (fullName == "DRN.Framework.SharedKernel.Domain.TestApp")
-        {
-            appId = 127;
-            return true;
+            case "DRN.Framework.SharedKernel.Domain.DefaultApp":
+                appId = 0;
+                return true;
+            case "DRN.Framework.SharedKernel.Domain.NexusApp":
+                appId = 126;
+                return true;
+            case "DRN.Framework.SharedKernel.Domain.TestApp":
+                appId = 127;
+                return true;
         }
 
         foreach (var member in appTypeSymbol.GetMembers())
         {
-            if (member is IFieldSymbol field && field.HasConstantValue &&
-                (field.Name == AppIdName || field.Name == "Value") &&
+            if (member is IFieldSymbol { HasConstantValue: true, Name: AppIdName or "Value" } field &&
                 TryExtractByte(field.ConstantValue, out appId))
-            {
                 return true;
-            }
         }
 
         foreach (var attr in appTypeSymbol.GetAttributes())
         {
-            if ((attr.AttributeClass?.Name is "AppIdAttribute" or AppIdName) &&
+            if (attr.AttributeClass?.Name is "AppIdAttribute" or AppIdName &&
                 attr.ConstructorArguments.Length > 0 &&
                 TryExtractByte(attr.ConstructorArguments[0].Value, out appId))
-            {
                 return true;
-            }
         }
 
         foreach (var member in appTypeSymbol.GetMembers(AppIdName))
         {
-            if (member is IPropertySymbol prop)
+            if (member is not IPropertySymbol prop) continue;
+
+            foreach (var syntax in prop.DeclaringSyntaxReferences.Select(syntaxRef => syntaxRef.GetSyntax()))
             {
-                foreach (var syntaxRef in prop.DeclaringSyntaxReferences)
+                if (syntax is not PropertyDeclarationSyntax propSyntax) continue;
+
+                var expr = propSyntax.ExpressionBody?.Expression ?? propSyntax.Initializer?.Value;
+
+                if (expr == null && propSyntax.AccessorList != null)
                 {
-                    var syntax = syntaxRef.GetSyntax();
-                    if (syntax is PropertyDeclarationSyntax propSyntax)
+                    foreach (var accessor in propSyntax.AccessorList.Accessors)
                     {
-                        var expr = propSyntax.ExpressionBody?.Expression
-                                   ?? propSyntax.Initializer?.Value;
+                        expr = accessor.ExpressionBody?.Expression;
+                        if (expr != null)
+                            break;
 
-                        if (expr == null && propSyntax.AccessorList != null)
+                        if (accessor.Body != null)
                         {
-                            foreach (var accessor in propSyntax.AccessorList.Accessors)
+                            foreach (var stmt in accessor.Body.Statements)
                             {
-                                expr = accessor.ExpressionBody?.Expression;
-                                if (expr != null)
-                                    break;
-
-                                if (accessor.Body != null)
-                                {
-                                    foreach (var stmt in accessor.Body.Statements)
-                                    {
-                                        if (stmt is ReturnStatementSyntax returnStmt &&
-                                            returnStmt.Expression != null)
-                                        {
-                                            expr = returnStmt.Expression;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if (expr != null)
-                                    break;
+                                if (stmt is not ReturnStatementSyntax { Expression: not null } returnStmt)
+                                    continue;
+                                expr = returnStmt.Expression;
+                                break;
                             }
                         }
 
-                        if (expr != null && TryExtractByteFromSyntax(expr, appTypeSymbol, out appId))
-                        {
-                            return true;
-                        }
+                        if (expr != null)
+                            break;
                     }
                 }
+
+                if (expr != null && TryExtractByteFromSyntax(expr, appTypeSymbol, out appId))
+                    return true;
             }
         }
 
@@ -311,32 +289,27 @@ internal static class EntityAnalyzerHelper
         ITypeSymbol appTypeSymbol,
         out byte byteValue)
     {
-        if (expr is LiteralExpressionSyntax literal &&
-            literal.Token.Value is object val)
+        switch (expr)
         {
-            return TryExtractByte(val, out byteValue);
-        }
-
-        if (expr is CastExpressionSyntax cast)
-        {
-            return TryExtractByteFromSyntax(cast.Expression, appTypeSymbol, out byteValue);
-        }
-
-        if (expr is IdentifierNameSyntax idName)
-        {
-            var memberName = idName.Identifier.Text;
-            if (TryExtractConstantFromTypeOrContainers(appTypeSymbol, memberName, out byteValue))
+            case LiteralExpressionSyntax { Token.Value: { } val }:
+                return TryExtractByte(val, out byteValue);
+            case CastExpressionSyntax cast:
+                return TryExtractByteFromSyntax(cast.Expression, appTypeSymbol, out byteValue);
+            case IdentifierNameSyntax idName:
             {
-                return true;
+                var memberName = idName.Identifier.Text;
+                if (TryExtractConstantFromTypeOrContainers(appTypeSymbol, memberName, out byteValue))
+                    return true;
+
+                break;
             }
-        }
-
-        if (expr is MemberAccessExpressionSyntax memberAccess)
-        {
-            var memberName = memberAccess.Name.Identifier.Text;
-            if (TryExtractConstantFromTypeOrContainers(appTypeSymbol, memberName, out byteValue))
+            case MemberAccessExpressionSyntax memberAccess:
             {
-                return true;
+                var memberName = memberAccess.Name.Identifier.Text;
+                if (TryExtractConstantFromTypeOrContainers(appTypeSymbol, memberName, out byteValue))
+                    return true;
+
+                break;
             }
         }
 
@@ -351,10 +324,8 @@ internal static class EntityAnalyzerHelper
     {
         foreach (var member in appTypeSymbol.GetMembers(memberName))
         {
-            if (member is IFieldSymbol field && field.HasConstantValue && TryExtractByte(field.ConstantValue, out byteValue))
-            {
+            if (member is IFieldSymbol { HasConstantValue: true } field && TryExtractByte(field.ConstantValue, out byteValue))
                 return true;
-            }
         }
 
         var containingType = appTypeSymbol.ContainingType;
@@ -362,10 +333,8 @@ internal static class EntityAnalyzerHelper
         {
             foreach (var member in containingType.GetMembers(memberName))
             {
-                if (member is IFieldSymbol field && field.HasConstantValue && TryExtractByte(field.ConstantValue, out byteValue))
-                {
+                if (member is IFieldSymbol { HasConstantValue: true } field && TryExtractByte(field.ConstantValue, out byteValue))
                     return true;
-                }
             }
 
             containingType = containingType.ContainingType;
@@ -377,23 +346,23 @@ internal static class EntityAnalyzerHelper
 
     private static bool TryExtractByte(object? rawValue, out byte byteValue)
     {
-        if (rawValue is byte b)
+        switch (rawValue)
         {
-            byteValue = b;
-            return true;
-        }
-
-        if (rawValue is sbyte or short or ushort or int or uint or long or ulong)
-        {
-            try
-            {
-                byteValue = Convert.ToByte(rawValue);
+            case byte b:
+                byteValue = b;
                 return true;
-            }
-            catch (Exception ex) when (ex is OverflowException or InvalidCastException)
-            {
-                // Ignored - value outside byte range or unsupported cast
-            }
+            case sbyte or short or ushort or int or uint or long or ulong:
+                try
+                {
+                    byteValue = Convert.ToByte(rawValue);
+                    return true;
+                }
+                catch (Exception ex) when (ex is OverflowException or InvalidCastException)
+                {
+                    // Ignored - value outside byte range or unsupported cast
+                }
+
+                break;
         }
 
         byteValue = 0;
