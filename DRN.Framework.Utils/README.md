@@ -539,6 +539,10 @@ public class NexusClient(INexusRequest request) : INexusClient
 }
 ```
 
+### Primary Handler Injection
+
+`InternalRequest` and `ExternalRequest` accept an optional `HttpMessageHandler?` via constructor dependency injection. When an `HttpMessageHandler` is registered in DI (such as `ApplicationContextRouterHandler` during integration testing), `FlurlClient` instances use the injected handler for in-memory routing and interception without modifying global static Flurl state.
+
 Buffered response converters (`ToStringAsync`, `ToBytesAsync`, and `FromJsonAsync`) capture `HttpStatus` and `Payload`, then dispose the response even if reading or deserialization fails.
 Call converters as extension methods on `Task<IFlurlResponse>` or `IFlurlResponse`; `HttpResponse` models the converted result and no longer exposes static conversion entry points.
 

@@ -1,7 +1,6 @@
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Identity.Controllers;
 using DRN.Nexus.Domain.User;
-using DRN.Nexus.Hosted.Helpers;
 
 namespace DRN.Nexus.Hosted.Controllers.User;
 

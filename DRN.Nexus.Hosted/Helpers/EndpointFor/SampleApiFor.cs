@@ -1,27 +1,27 @@
 using DRN.Framework.Hosting.Endpoints;
+using DRN.Framework.Hosting.Nexus;
 using DRN.Nexus.Hosted.Controllers.Sample;
 
-namespace DRN.Nexus.Hosted.Controllers;
+namespace DRN.Nexus.Hosted.Helpers.EndpointFor;
 
-public class NexusEndpointFor : EndpointCollectionBase<NexusProgram>
+public class SampleApiFor
 {
-    public const string Prefix = "/Api";
+    public const string Prefix = $"/{NexusEndpoints.Prefix}";
     public const string ControllerRouteTemplate = $"{Prefix}/[controller]";
 
-    public UserApiFor User { get; } = new();
     public StatusFor Status { get; } = new();
     public WeatherForecastFor WeatherForecast { get; } = new();
 }
 
 public class StatusFor()
-    : ControllerForBase<StatusController>(NexusEndpointFor.ControllerRouteTemplate)
+    : ControllerForBase<StatusController>(SampleApiFor.ControllerRouteTemplate)
 {
     //By convention Endpoint name should match Action name and property should have setter;
     public ApiEndpoint Status { get; private set; } = null!;
 }
 
 public class WeatherForecastFor()
-    : ControllerForBase<WeatherForecastController>(NexusEndpointFor.ControllerRouteTemplate)
+    : ControllerForBase<WeatherForecastController>(SampleApiFor.ControllerRouteTemplate)
 {
     //By convention Endpoint name should match Action name and property should have setter;
     public ApiEndpoint Get { get; private set; } = null!;

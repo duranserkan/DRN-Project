@@ -1,11 +1,10 @@
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Settings;
-using Microsoft.AspNetCore.Http;
 
 namespace DRN.Nexus.Hosted.Controllers.Sample;
 
 [ApiController]
-[Route(NexusEndpointFor.ControllerRouteTemplate)]
+[Route(SampleApiFor.ControllerRouteTemplate)]
 public class StatusController(IAppSettings appSettings) : ControllerBase
 {
     [HttpGet]

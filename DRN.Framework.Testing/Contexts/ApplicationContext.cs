@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -17,17 +18,17 @@ namespace DRN.Framework.Testing.Contexts;
 
 public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
 {
-    private IDisposable? _factory;
+    private readonly Dictionary<Type, IDisposable> _factories = [];
     private ServiceDescriptor[]? _initialServiceDescriptors;
 
-    private static ITestOutputHelper? ResolveOutputHelper(
-        ITestOutputHelper? supplied = null,
-        bool debuggerOnly = true)
+    public ApplicationContextRouterHandler RouterHandler { get; } = new();
+
+    internal static ITestOutputHelper? ResolveOutputHelper(ITestOutputHelper? supplied = null, bool debuggerOnly = true)
     {
         if (debuggerOnly && !Debugger.IsAttached)
             return null;
 
-        return supplied ?? Xunit.TestContext.Current.TestOutputHelper;
+        return supplied ?? TestContext.Current.TestOutputHelper;
     }
 
     public WebApplicationFactory<TEntryPoint> CreateApplication<TEntryPoint>(Action<IWebHostBuilder>? webHostConfigurator = null)
@@ -37,41 +38,68 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
         return CreateApplicationCore<TEntryPoint>(outputHelper, webHostConfigurator);
     }
 
-    private WebApplicationFactory<TEntryPoint> CreateApplicationCore<TEntryPoint>(
-        ITestOutputHelper? outputHelper,
-        Action<IWebHostBuilder>? webHostConfigurator = null)
+    public WebApplicationFactory<TEntryPoint> CreateApplication<TEntryPoint>(Action<IWebHostBuilder>? webHostConfigurator, params string[] additionalAddresses)
         where TEntryPoint : class
     {
-        Dispose();
+        var outputHelper = ResolveOutputHelper();
+        return CreateApplicationCore<TEntryPoint>(outputHelper, webHostConfigurator, additionalAddresses);
+    }
 
-        _initialServiceDescriptors = testContext.ServiceCollection.ToArray();
+    /// <summary>
+    /// Creates an application and registers custom service names or address aliases in the in-memory router.
+    /// </summary>
+    public WebApplicationFactory<TEntryPoint> CreateApplicationForService<TEntryPoint>(string serviceName, params string[] additionalServiceNames)
+        where TEntryPoint : class
+    {
+        string[] allAddresses = [serviceName, .. additionalServiceNames];
+        return CreateApplication<TEntryPoint>(webHostConfigurator: null, additionalAddresses: allAddresses);
+    }
+
+    internal WebApplicationFactory<TEntryPoint> CreateApplicationCore<TEntryPoint>(
+        ITestOutputHelper? outputHelper,
+        Action<IWebHostBuilder>? webHostConfigurator = null,
+        IEnumerable<string>? additionalAddresses = null)
+        where TEntryPoint : class
+    {
+        DisposeFactory(typeof(TEntryPoint));
+
+        _initialServiceDescriptors ??= testContext.ServiceCollection.ToArray();
         var initialServiceDescriptors = _initialServiceDescriptors;
-        //Add program services to drnTestContext
-        using (var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true, webHostBuilder =>
-        {
-            //only need service collection descriptors, so ValidateServicesAddedByAttributes should not fail test at this stage
-            var configuration = testContext.GetRequiredService<IConfiguration>();
-            webHostBuilder.UseConfiguration(configuration);
-            webHostBuilder.UseSetting(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.SkipValidation)), "true");
-            webHostBuilder.UseSetting(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.TemporaryApplication)), "true");
-            webHostBuilder.ConfigureLogging(logging => logging.ClearProviders());
 
-            webHostConfigurator?.Invoke(webHostBuilder);
-            webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
-        }))
+        // Add program services to drnTestContext
+        using (var tempApplicationFactory = new DrnWebApplicationFactory<TEntryPoint>(testContext, true, webHostBuilder =>
+               {
+                   // only need service collection descriptors, so ValidateServicesAddedByAttributes should not fail test at this stage
+                   var configuration = testContext.BuildConfigurationRoot();
+                   webHostBuilder.UseConfiguration(configuration);
+                   webHostBuilder.UseSetting(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.SkipValidation)), "true");
+                   webHostBuilder.UseSetting(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.TemporaryApplication)), "true");
+                   webHostBuilder.ConfigureLogging(logging => logging.ClearProviders());
+
+                   webHostConfigurator?.Invoke(webHostBuilder);
+                   webHostBuilder.ConfigureServices(services => testContext.ServiceCollection.Add(services));
+               }))
         {
-            _ = tempApplicationFactory.Server; //To trigger webHostBuilder action
+            _ = tempApplicationFactory.Server; // To trigger webHostBuilder action
         }
 
-        //register action to pass test context configuration to web application.
-        //This will be triggered when TestServer or HttpClient requested until then further configurations can be added to test context configuration
+        // register action to pass test context configuration to web application.
+        // This will be triggered when TestServer or HttpClient requested until then further configurations can be added to test context configuration
         IConfiguration? factoryConfiguration = null;
         var factory = new DrnWebApplicationFactory<TEntryPoint>(testContext, false, webHostBuilder =>
         {
             // Derived factories replay this configurator after the active provider changes to the parent host.
-            var configuration = factoryConfiguration ??= testContext.GetRequiredService<IConfiguration>();
+            var configuration = factoryConfiguration ??= testContext.BuildConfigurationRoot();
             webHostBuilder.UseConfiguration(configuration);
-            webHostBuilder.ConfigureServices(services => services.Add(initialServiceDescriptors));
+            webHostBuilder.ConfigureServices(services =>
+            {
+                services.Add(initialServiceDescriptors);
+                services.AddSingleton<HttpMessageHandler>(_ => RouterHandler.CreateForwardingHandler());
+                services.ConfigureAll<Microsoft.Extensions.Http.HttpClientFactoryOptions>(options =>
+                {
+                    options.HttpMessageHandlerBuilderActions.Add(builder => { builder.PrimaryHandler = RouterHandler.CreateForwardingHandler(); });
+                });
+            });
 
             webHostBuilder.ConfigureLogging(logging =>
             {
@@ -110,10 +138,74 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
             });
         });
 
-        UseApplicationFactory(factory);
+        _factories[typeof(TEntryPoint)] = factory;
+
+        var extraAddresses = new List<string>(additionalAddresses ?? []);
+        var config = testContext.BuildConfigurationRoot();
+        DiscoverConfiguredAddresses(config, typeof(TEntryPoint), extraAddresses);
+
+        RouterHandler.Register(typeof(TEntryPoint), () => factory.Server.CreateHandler(), extraAddresses);
 
         return factory;
     }
+
+    internal void RegisterConfiguredAddresses(Type entryPointType, IConfiguration configuration)
+    {
+        var addresses = new List<string>();
+        DiscoverConfiguredAddresses(configuration, entryPointType, addresses);
+        foreach (var address in addresses)
+            RouterHandler.RegisterAddress(address, entryPointType);
+    }
+
+    private static void DiscoverConfiguredAddresses(IConfiguration configuration, Type entryPointType, List<string> addresses)
+    {
+        var typeName = entryPointType.Name;
+        var shortName = GetShortName(typeName);
+
+        var kestrelEndpoints = configuration.GetSection("Kestrel:Endpoints");
+        if (kestrelEndpoints.Exists())
+        {
+            foreach (var endpoint in kestrelEndpoints.GetChildren())
+            {
+                var url = endpoint["Url"];
+                if (!string.IsNullOrWhiteSpace(url))
+                    addresses.Add(url);
+            }
+        }
+
+        foreach (var kvp in configuration.AsEnumerable())
+        {
+            if (string.IsNullOrWhiteSpace(kvp.Value))
+                continue;
+
+            var key = kvp.Key;
+            var isAddressKey = key.EndsWith("Address", StringComparison.OrdinalIgnoreCase) ||
+                               key.EndsWith("Url", StringComparison.OrdinalIgnoreCase) ||
+                               key.EndsWith("Uri", StringComparison.OrdinalIgnoreCase);
+
+            if (!isAddressKey)
+                continue;
+
+            var matchesTypeName = key.Contains(typeName, StringComparison.OrdinalIgnoreCase);
+            var matchesShortName = !string.IsNullOrEmpty(shortName) && key.Contains(shortName, StringComparison.OrdinalIgnoreCase);
+
+            if (matchesTypeName || matchesShortName) addresses.Add(kvp.Value);
+        }
+    }
+
+    private static string GetShortName(string typeName) => ApplicationContextRouterHandler.GetShortName(typeName);
+
+    /// <summary>
+    /// Explicitly maps a hostname, port, or base URL to a registered application's in-memory <see cref="HttpMessageHandler"/>.
+    /// </summary>
+    public void MapAddress<TEntryPoint>(string address) where TEntryPoint : class =>
+        RouterHandler.RegisterAddress(address, typeof(TEntryPoint));
+
+    /// <summary>
+    /// Explicitly maps a hostname, port, or base URL to a specific <see cref="HttpMessageHandler"/>.
+    /// </summary>
+    public void MapAddress(string address, HttpMessageHandler handler) =>
+        RouterHandler.RegisterAddress(address, handler);
 
     /// <summary>
     /// Most used defaults and bindings for testing an api endpoint gathered together
@@ -130,10 +222,37 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     }
 
     /// <summary>
+    /// Most used defaults and bindings for testing an api endpoint gathered together with custom address bindings.
+    /// </summary>
+    public async Task<WebApplicationFactory<TEntryPoint>> CreateApplicationAndBindDependenciesAsync<TEntryPoint>(
+        ITestOutputHelper? outputHelper,
+        params string[] additionalAddresses) where TEntryPoint : class
+    {
+        var resolvedOutputHelper = ResolveOutputHelper(outputHelper);
+        var application = CreateApplicationCore<TEntryPoint>(resolvedOutputHelper, additionalAddresses: additionalAddresses);
+        await testContext.ContainerContext.BindExternalDependenciesAsync();
+        application.Server.PreserveExecutionContext = true;
+
+        return application;
+    }
+
+    /// <summary>
+    /// Most used defaults and bindings for testing an api endpoint gathered together with custom service names.
+    /// </summary>
+    public async Task<WebApplicationFactory<TEntryPoint>> CreateApplicationAndBindDependenciesForServiceAsync<TEntryPoint>(
+        string serviceName,
+        params string[] additionalServiceNames) where TEntryPoint : class
+    {
+        string[] allAddresses = [serviceName, .. additionalServiceNames];
+        return await CreateApplicationAndBindDependenciesAsync<TEntryPoint>(outputHelper: null, additionalAddresses: allAddresses);
+    }
+
+    /// <summary>
     /// Most used defaults and bindings for testing an api endpoint gathered together
     /// </summary>
     /// <returns>HttpClient instead of FlurlClient to prevent flurl http test server collision</returns>
-    public async Task<HttpClient> CreateClientAsync<TEntryPoint>(ITestOutputHelper? outputHelper = null,
+    public async Task<HttpClient> CreateClientAsync<TEntryPoint>(
+        ITestOutputHelper? outputHelper = null,
         WebApplicationFactoryClientOptions? clientOptions = null) where TEntryPoint : class
     {
         clientOptions ??= new WebApplicationFactoryClientOptions();
@@ -145,33 +264,112 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
         return client;
     }
 
+    /// <summary>
+    /// Most used defaults and bindings for testing an api endpoint gathered together with custom address bindings.
+    /// </summary>
+    /// <returns>HttpClient instead of FlurlClient to prevent flurl http test server collision</returns>
+    public async Task<HttpClient> CreateClientAsync<TEntryPoint>(
+        ITestOutputHelper? outputHelper,
+        WebApplicationFactoryClientOptions? clientOptions,
+        params string[] additionalAddresses) where TEntryPoint : class
+    {
+        clientOptions ??= new WebApplicationFactoryClientOptions();
+        clientOptions.BaseAddress = new Uri(TestEnvironment.TestContextAddress);
+
+        var application = await CreateApplicationAndBindDependenciesAsync<TEntryPoint>(outputHelper, additionalAddresses);
+        var client = application.CreateClient(clientOptions);
+
+        return client;
+    }
+
+    /// <summary>
+    /// Most used defaults and bindings for testing an api endpoint gathered together with custom service names.
+    /// </summary>
+    public async Task<HttpClient> CreateClientForServiceAsync<TEntryPoint>(
+        string serviceName,
+        params string[] additionalServiceNames) where TEntryPoint : class
+    {
+        string[] allAddresses = [serviceName, .. additionalServiceNames];
+        return await CreateClientAsync<TEntryPoint>(outputHelper: null, clientOptions: null, additionalAddresses: allAddresses);
+    }
+
     public WebApplicationFactory<TEntryPoint>? GetCreatedApplication<TEntryPoint>() where TEntryPoint : class
-        => (WebApplicationFactory<TEntryPoint>?)_factory;
+        => _factories.TryGetValue(typeof(TEntryPoint), out var factory) ? (WebApplicationFactory<TEntryPoint>?)factory : null;
 
-    internal bool HasCreatedApplication => _factory != null;
+    public IReadOnlyCollection<IDisposable> GetCreatedApplications() => _factories.Values.ToArray();
 
-    internal void UseApplicationFactory(IDisposable factory) => _factory = factory;
+    internal bool HasCreatedApplication => _factories.Count > 0;
+
+    internal void UseApplicationFactory(IDisposable factory) => _factories[factory.GetType()] = factory;
+
+    private void DisposeFactory(Type type)
+    {
+        if (!_factories.Remove(type, out var factory))
+            return;
+
+        RouterHandler.Unregister(type);
+        try
+        {
+            factory.Dispose();
+        }
+        catch
+        {
+            _factories[type] = factory;
+            throw;
+        }
+    }
 
     public void Dispose()
     {
-        var factory = _factory;
+        var factories = _factories.ToArray();
+        _factories.Clear();
+        RouterHandler.Clear();
+        var exceptions = new List<Exception>();
+
+        foreach (var (type, factory) in factories)
+        {
+            try
+            {
+                factory.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _factories[type] = factory;
+                exceptions.Add(ex);
+            }
+        }
+
         try
         {
-            factory?.Dispose();
-            _factory = null;
-        }
-        finally
-        {
-            if (_initialServiceDescriptors != null)
+            if (_initialServiceDescriptors != null && _factories.Count == 0)
             {
                 testContext.ServiceCollection = new ServiceCollection { _initialServiceDescriptors };
                 _initialServiceDescriptors = null;
             }
+
             testContext.ClearApplicationServiceProvider();
         }
+        catch (Exception ex)
+        {
+            exceptions.Add(ex);
+        }
 
-        if (factory != null)
-            testContext.DisposeOwnedServiceProvider();
+        if (_factories.Count == 0 && factories.Length > 0)
+        {
+            try
+            {
+                testContext.DisposeOwnedServiceProvider();
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        }
+
+        if (exceptions.Count == 1)
+            ExceptionDispatchInfo.Capture(exceptions[0]).Throw();
+        if (exceptions.Count > 1)
+            throw new AggregateException("One or more errors occurred during ApplicationContext disposal.", exceptions);
     }
 }
 
@@ -207,8 +405,12 @@ public class DrnWebApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntr
         try
         {
             var host = base.CreateHost(capturingBuilder);
-            if (!Temporary)
-                _context.UseApplicationServiceProvider(host.Services);
+            if (Temporary)
+                return new FailureSafeHost(host);
+
+            _context.UseApplicationServiceProvider(host.Services);
+            if (host.Services.GetService(typeof(IConfiguration)) is IConfiguration configuration)
+                _context.ApplicationContext.RegisterConfiguredAddresses(typeof(TEntryPoint), configuration);
 
             return new FailureSafeHost(host);
         }

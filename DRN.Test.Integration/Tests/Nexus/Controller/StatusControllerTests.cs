@@ -14,7 +14,7 @@ public class StatusControllerTests
     {
         var client = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
         var user = await AuthenticationHelper<NexusProgram>.AuthenticateClientAsync(client);
-        var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>(Get.Endpoint.Status.Status.RoutePattern);
+        var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>(Get.Endpoint.Sample.Status.Status.RoutePattern);
         var programName = typeof(NexusProgram).GetAssemblyName();
 
         status?.ApplicationName.Should().Be(programName);

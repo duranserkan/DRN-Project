@@ -18,12 +18,26 @@ public interface IExternalRequest
 public class ExternalRequest : IExternalRequest
 {
     private static readonly DefaultJsonSerializer JsonSerializer = new(JsonConventions.DefaultOptions);
+    private readonly IFlurlClient? _flurlClient;
+
+    public ExternalRequest() : this(null)
+    {
+    }
+
+    public ExternalRequest(HttpMessageHandler? httpMessageHandler)
+    {
+        _flurlClient = httpMessageHandler != null ? new FlurlClient(new HttpClient(httpMessageHandler, disposeHandler: false)) : null;
+    }
 
     public IFlurlRequest For(Url endpoint, Version httpVersion) => For(endpoint, httpVersion.ToString());
 
-    private static IFlurlRequest For(Url endpoint, string httpVersion)
+    private IFlurlRequest For(Url endpoint, string httpVersion)
     {
-        var flurlRequest = endpoint.WithSettings(x =>
+        var flurlRequest = _flurlClient != null
+            ? _flurlClient.Request(endpoint)
+            : new FlurlRequest(endpoint);
+
+        flurlRequest.WithSettings(x =>
         {
             x.HttpVersion = httpVersion;
             x.JsonSerializer = JsonSerializer;

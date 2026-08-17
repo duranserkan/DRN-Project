@@ -196,6 +196,8 @@ public class NexusRequest(IInternalRequest request, IAppSettings settings) : INe
 }
 ```
 
+`InternalRequest` and `ExternalRequest` accept an optional `HttpMessageHandler?` via constructor dependency injection, enabling in-memory routing and test interception (such as `ApplicationContextRouterHandler`) without mutating global Flurl static state.
+
 Buffered converters capture `HttpStatus` and `Payload`, then dispose the response even if reading fails. Use `using` for streaming wrappers; disposal releases the response and any `IDisposable` payload.
 Converters are exposed as extension methods on `Task<IFlurlResponse>` and `IFlurlResponse`; `HttpResponse` only models the converted result and its ownership.
 

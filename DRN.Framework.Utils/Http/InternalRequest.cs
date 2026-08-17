@@ -1,6 +1,7 @@
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Settings;
+using Flurl;
 using Flurl.Http;
 using Flurl.Http.Configuration;
 
@@ -41,14 +42,27 @@ public interface IInternalRequest
 }
 
 [Singleton<IInternalRequest>]
-public class InternalRequest(IAppSettings appSettings) : IInternalRequest
+public class InternalRequest : IInternalRequest
 {
     private const string Http = "http://";
     private const string Https = "https://";
 
     private static readonly DefaultJsonSerializer JsonSerializer = new(JsonConventions.DefaultOptions);
-    private readonly string _httpVersionDefault = new Version(appSettings.Features.InternalRequestHttpVersion).ToString();
-    private readonly bool _securityDefault = appSettings.Features.InternalRequestProtocol.StartsWith("https", StringComparison.OrdinalIgnoreCase);
+    private readonly string _httpVersionDefault;
+    private readonly bool _securityDefault;
+    private readonly IFlurlClient? _flurlClient;
+
+    public InternalRequest(IAppSettings appSettings)
+        : this(appSettings, null)
+    {
+    }
+
+    public InternalRequest(IAppSettings appSettings, HttpMessageHandler? httpMessageHandler)
+    {
+        _httpVersionDefault = new Version(appSettings.Features.InternalRequestHttpVersion).ToString();
+        _securityDefault = appSettings.Features.InternalRequestProtocol.StartsWith("https", StringComparison.OrdinalIgnoreCase);
+        _flurlClient = httpMessageHandler != null ? new FlurlClient(new HttpClient(httpMessageHandler, disposeHandler: false)) : null;
+    }
 
     public IFlurlRequest For(string service) => For(service, _securityDefault, _httpVersionDefault);
     public IFlurlRequest For(string service, bool secure) => For(service, secure, _httpVersionDefault);
@@ -59,10 +73,15 @@ public class InternalRequest(IAppSettings appSettings) : IInternalRequest
     /// <param name="httpVersion">1.1 or 2.0</param>
     public IFlurlRequest For(string service, bool secure, Version httpVersion) => For(service, secure, httpVersion.ToString());
 
-    private static IFlurlRequest For(string service, bool secure, string httpVersion)
+    private IFlurlRequest For(string service, bool secure, string httpVersion)
     {
         var protocol = secure ? Https : Http;
-        var flurlRequest = $"{protocol}{service}".WithSettings(x =>
+        var url = $"{protocol}{service}";
+        var flurlRequest = _flurlClient != null
+            ? _flurlClient.Request(url)
+            : new FlurlRequest(url);
+
+        flurlRequest.WithSettings(x =>
         {
             x.HttpVersion = httpVersion;
             x.JsonSerializer = JsonSerializer;
