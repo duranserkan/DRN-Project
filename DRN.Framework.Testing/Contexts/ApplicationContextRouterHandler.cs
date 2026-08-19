@@ -16,7 +16,6 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
     private readonly ConcurrentDictionary<Type, Func<HttpMessageHandler>> _typeResolvers = new();
     private readonly ConcurrentDictionary<HttpMessageHandler, HttpMessageInvoker> _invokers = new();
     private Func<HttpMessageHandler>? _singleAppHandler;
-    private int _appCount;
 
     /// <summary>
     /// Registers an application entry point and its lazy <see cref="HttpMessageHandler"/> factory with canonical and custom address mappings.
@@ -65,7 +64,6 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
         }
 
         Interlocked.Exchange(ref _singleAppHandler, resolver);
-        Interlocked.Increment(ref _appCount);
     }
 
     /// <summary>
@@ -197,7 +195,6 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
 
         if (_typeHandlers.TryRemove(entryPointType, out var handler))
         {
-            Interlocked.Decrement(ref _appCount);
             foreach (var kvp in _addressHandlers)
             {
                 if (ReferenceEquals(kvp.Value, handler))
@@ -219,7 +216,6 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
         _typeResolvers.Clear();
         _invokers.Clear();
         _singleAppHandler = null;
-        _appCount = 0;
     }
 
     /// <summary>
@@ -264,7 +260,7 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
         else if (request.Headers.Host != null && _addressHandlers.TryGetValue(request.Headers.Host, out var headerHandler))
             resolver = headerHandler;
         // 6. Fallback for single registered application targeting localhost
-        else if (_appCount == 1 && _singleAppHandler != null && (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)))
+        else if (_typeHandlers.Count == 1 && _singleAppHandler != null && (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)))
             resolver = _singleAppHandler;
 
         if (resolver != null)
