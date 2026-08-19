@@ -188,7 +188,8 @@ public class ApplicationContextTests
         // ApplicationContext owns only the parent factory. Model nested cleanup explicitly so this test covers
         // its retry contract without depending on WebApplicationFactory's internal derived-factory traversal.
         var factory = new ParentApplicationFactoryWithDerivedDisposalFailure(disposalOrder);
-        context.ApplicationContext.UseApplicationFactory(factory);
+        context.ApplicationContext.UseApplicationFactory<TemporaryLifecycleProgram>(factory);
+        context.ApplicationContext.GetCreatedApplication<TemporaryLifecycleProgram>().Should().BeNull();
 
         var firstDispose = () => context.ApplicationContext.Dispose();
         var exception = firstDispose.Should().Throw<Exception>().Which;
@@ -240,7 +241,7 @@ public class ApplicationContextTests
         _ = context.GetRequiredService<ContextOwnedDisposalTracker>();
 
         var factory = new RepeatedApplicationFactoryDisposeFailure(disposalOrder);
-        context.ApplicationContext.UseApplicationFactory(factory);
+        context.ApplicationContext.UseApplicationFactory<TemporaryLifecycleProgram>(factory);
 
         var dispose = context.Dispose;
 

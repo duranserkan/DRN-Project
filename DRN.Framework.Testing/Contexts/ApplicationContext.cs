@@ -281,13 +281,16 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     }
 
     public WebApplicationFactory<TEntryPoint>? GetCreatedApplication<TEntryPoint>() where TEntryPoint : class
-        => _factories.TryGetValue(typeof(TEntryPoint), out var factory) ? (WebApplicationFactory<TEntryPoint>?)factory : null;
+        => _factories.TryGetValue(typeof(TEntryPoint), out var factory) && factory is WebApplicationFactory<TEntryPoint> application
+            ? application
+            : null;
 
     public IReadOnlyCollection<IDisposable> GetCreatedApplications() => _factories.Values.ToArray();
 
     internal bool HasCreatedApplication => _factories.Count > 0;
 
-    internal void UseApplicationFactory(IDisposable factory) => _factories[factory.GetType()] = factory;
+    internal void UseApplicationFactory<TEntryPoint>(IDisposable factory) where TEntryPoint : class
+        => _factories[typeof(TEntryPoint)] = factory;
 
     private void DisposeFactory(Type type)
     {
