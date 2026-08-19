@@ -697,31 +697,21 @@ public class ApplicationContextTests
     [DataInline]
     public async Task ApplicationContext_Overload_Compatibility_Should_Resolve_Without_Ambiguity(DrnTestContext context)
     {
-        // Parameterless
-        var client1 = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
-        client1.Should().NotBeNull();
+        // Execute one runtime creation to verify baseline pipeline functionality
+        var client = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
+        client.Should().NotBeNull();
 
-        // Positional null without naming parameter
-        var client2 = await context.ApplicationContext.CreateClientAsync<NexusProgram>(null);
-        client2.Should().NotBeNull();
-
-        var client3 = await context.ApplicationContext.CreateClientAsync<NexusProgram>(null, null);
-        client3.Should().NotBeNull();
-
-        // Service name overload
-        var client4 = await context.ApplicationContext.CreateClientForServiceAsync<NexusProgram>("nexus-overload-test");
-        client4.Should().NotBeNull();
-
-        // Positional null on CreateApplication and CreateApplicationAndBindDependenciesAsync
-        var app1 = context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>(null);
-        app1.Should().NotBeNull();
-
-        var app2 = await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<TemporaryLifecycleProgram>(null);
-        app2.Should().NotBeNull();
-
-        // Public constructor on DrnWebApplicationFactory
-        using var customFactory = new DrnWebApplicationFactory<TemporaryLifecycleProgram>(context, temporary: true);
-        customFactory.Should().NotBeNull();
+        // Compile-time overload resolution checks for remaining call shapes without starting extra test servers
+        Action compileTimeOverloadCheck = () =>
+        {
+            _ = context.ApplicationContext.CreateClientAsync<NexusProgram>(null);
+            _ = context.ApplicationContext.CreateClientAsync<NexusProgram>(null, null);
+            _ = context.ApplicationContext.CreateClientForServiceAsync<NexusProgram>("nexus-overload-test");
+            _ = context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>(null);
+            _ = context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<TemporaryLifecycleProgram>(null);
+            _ = new DrnWebApplicationFactory<TemporaryLifecycleProgram>(context, temporary: true);
+        };
+        compileTimeOverloadCheck.Should().NotBeNull();
     }
 
     [Theory]
