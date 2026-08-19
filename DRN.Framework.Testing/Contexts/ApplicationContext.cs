@@ -21,6 +21,11 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     private readonly Dictionary<Type, IDisposable> _factories = [];
     private ServiceDescriptor[]? _initialServiceDescriptors;
 
+    /// <summary>
+    /// In-memory router handler that dispatches HTTP requests across hosted applications.
+    /// Owned and disposed by <see cref="ApplicationContext"/>. When creating custom <see cref="HttpClient"/>
+    /// instances wrapping this handler directly, specify <c>disposeHandler: false</c> to prevent premature router disposal.
+    /// </summary>
     public ApplicationContextRouterHandler RouterHandler { get; } = new();
 
     internal static ITestOutputHelper? ResolveOutputHelper(ITestOutputHelper? supplied = null, bool debuggerOnly = true)

@@ -459,7 +459,7 @@ public class ApplicationContextTests
         _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
         await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<SampleProgram>();
 
-        using var client = new HttpClient(context.ApplicationContext.RouterHandler);
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
 
         // Call Nexus via configured address (e.g. localhost:5988 or nexus)
         var appSettings = context.GetRequiredService<IAppSettings>();
@@ -498,7 +498,7 @@ public class ApplicationContextTests
         appSettings.NexusAppSettings.NexusAddress.Should().Be("custom-nexus-host");
 
         // RouterHandler can route to Nexus using configured address
-        using var client = new HttpClient(context.ApplicationContext.RouterHandler);
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
         var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
         var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>($"http://custom-nexus-host/{endpoint?.TrimStart('/')}");
         forecasts.Should().NotBeNull();
@@ -524,7 +524,7 @@ public class ApplicationContextTests
 
         _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
 
-        using var client = new HttpClient(context.ApplicationContext.RouterHandler);
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
         var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
 
         // Valid segment matches route successfully
@@ -576,7 +576,7 @@ public class ApplicationContextTests
 
         context.ApplicationContext.MapAddress<NexusProgram>("weather-service");
 
-        using var client = new HttpClient(context.ApplicationContext.RouterHandler);
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
         var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
         var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>($"http://weather-service/{endpoint?.TrimStart('/')}");
         forecasts.Should().NotBeNull();
@@ -606,7 +606,7 @@ public class ApplicationContextTests
         _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
         _ = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
 
-        using var client = new HttpClient(context.ApplicationContext.RouterHandler);
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
         Func<Task> call = () => client.GetAsync("http://unmapped-unknown-service/api/test");
 
         var ex = await call.Should().ThrowAsync<InvalidOperationException>();
@@ -621,7 +621,7 @@ public class ApplicationContextTests
     {
         _ = await context.ApplicationContext.CreateClientForServiceAsync<NexusProgram>("[::1]:5999");
 
-        using var client = new HttpClient(context.ApplicationContext.RouterHandler);
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
         var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
 
         // Route via bracketed IPv6 + port
@@ -641,7 +641,7 @@ public class ApplicationContextTests
     {
         _ = await context.ApplicationContext.CreateClientForServiceAsync<NexusProgram>("http://nexus:80");
 
-        using var client = new HttpClient(context.ApplicationContext.RouterHandler);
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
         Func<Task> callUnrelatedHttp = () => client.GetAsync("http://unrelated-domain/api/test");
         Func<Task> callUnrelatedHttps = () => client.GetAsync("https://unrelated-domain/api/test");
 
@@ -678,7 +678,7 @@ public class ApplicationContextTests
         _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
         context.ApplicationContext.MapAddress<NexusProgram>("weather-alias");
 
-        using var client = new HttpClient(context.ApplicationContext.RouterHandler);
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
         var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
         var forecasts1 = await client.GetFromJsonAsync<WeatherForecast[]>($"http://weather-alias/{endpoint?.TrimStart('/')}");
         forecasts1.Should().NotBeNull();
@@ -731,7 +731,7 @@ public class ApplicationContextTests
         _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
         context.ApplicationContext.MapAddress<NexusProgram>("https://custom-nexus-host:5988/api/v1");
 
-        using var client = new HttpClient(context.ApplicationContext.RouterHandler);
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
         var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
         var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>($"http://custom-nexus-host:5988/{endpoint?.TrimStart('/')}");
         forecasts.Should().NotBeNull();

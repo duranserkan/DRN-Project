@@ -9,10 +9,6 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Custom Service Aliases & Address Mapping**: Added `CreateClientForServiceAsync<TEntryPoint>("service-alias")` and `ApplicationContext.MapAddress<TEntryPoint>("address")` enabling explicit mapping of custom domain names, Kubernetes service names, and ports to hosted applications.
 *   **Automatic Configuration Address Discovery**: `ApplicationContext` automatically discovers and registers service hostnames, ports, and aliases from configuration (`Kestrel:Endpoints`, `*Address`, `*Url`, `*Uri`), enabling seamless in-memory routing between microservices and platform dependencies without manual boilerplate.
 
-### Bug Fixes
-
-*   **Application Factory Lookup Safety**: `ApplicationContext` now keys injected factories by their application entry-point type and returns `null` instead of throwing when a stored factory is incompatible with the requested entry point.
-
 ## Version 0.9.8
 
 Dependencies upgraded to dotnet 10.0.11
