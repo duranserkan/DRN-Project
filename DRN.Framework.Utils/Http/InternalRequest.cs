@@ -42,26 +42,18 @@ public interface IInternalRequest
 }
 
 [Singleton<IInternalRequest>]
-public class InternalRequest : IInternalRequest
+public class InternalRequest(IAppSettings appSettings, HttpMessageHandler? httpMessageHandler) : IInternalRequest
 {
     private const string Http = "http://";
     private const string Https = "https://";
 
     private static readonly DefaultJsonSerializer JsonSerializer = new(JsonConventions.DefaultOptions);
-    private readonly string _httpVersionDefault;
-    private readonly bool _securityDefault;
-    private readonly IFlurlClient? _flurlClient;
+    private readonly string _httpVersionDefault = new Version(appSettings.Features.InternalRequestHttpVersion).ToString();
+    private readonly bool _securityDefault = appSettings.Features.InternalRequestProtocol.StartsWith("https", StringComparison.OrdinalIgnoreCase);
+    private readonly IFlurlClient? _flurlClient = httpMessageHandler != null ? new FlurlClient(new HttpClient(httpMessageHandler, disposeHandler: false)) : null;
 
-    public InternalRequest(IAppSettings appSettings)
-        : this(appSettings, null)
+    public InternalRequest(IAppSettings appSettings) : this(appSettings, null)
     {
-    }
-
-    public InternalRequest(IAppSettings appSettings, HttpMessageHandler? httpMessageHandler)
-    {
-        _httpVersionDefault = new Version(appSettings.Features.InternalRequestHttpVersion).ToString();
-        _securityDefault = appSettings.Features.InternalRequestProtocol.StartsWith("https", StringComparison.OrdinalIgnoreCase);
-        _flurlClient = httpMessageHandler != null ? new FlurlClient(new HttpClient(httpMessageHandler, disposeHandler: false)) : null;
     }
 
     public IFlurlRequest For(string service) => For(service, _securityDefault, _httpVersionDefault);
@@ -77,18 +69,6 @@ public class InternalRequest : IInternalRequest
     {
         var protocol = secure ? Https : Http;
         var url = $"{protocol}{service}";
-        var flurlRequest = _flurlClient != null
-            ? _flurlClient.Request(url)
-            : new FlurlRequest(url);
-
-        flurlRequest.WithSettings(x =>
-        {
-            x.HttpVersion = httpVersion;
-            x.JsonSerializer = JsonSerializer;
-        });
-
-        flurlRequest.BeforeCall(x => x.HttpRequestMessage.VersionPolicy = HttpVersionPolicy.RequestVersionExact);
-
-        return flurlRequest;
+        return FlurlRequestFactory.Create(_flurlClient, url, httpVersion, JsonSerializer);
     }
 }
