@@ -636,6 +636,22 @@ public class ApplicationContextTests
 
     [Theory]
     [DataInline]
+    public async Task ApplicationContext_RouterHandler_Should_Not_Route_Unrelated_Host_When_Default_Port_Is_Registered(DrnTestContext context)
+    {
+        _ = await context.ApplicationContext.CreateClientForServiceAsync<NexusProgram>("http://nexus:80");
+
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler);
+        Func<Task> callUnrelatedHttp = () => client.GetAsync("http://unrelated-domain/api/test");
+        Func<Task> callUnrelatedHttps = () => client.GetAsync("https://unrelated-domain/api/test");
+
+        await callUnrelatedHttp.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No application registered in ApplicationContext matches host 'unrelated-domain'*");
+        await callUnrelatedHttps.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No application registered in ApplicationContext matches host 'unrelated-domain'*");
+    }
+
+    [Theory]
+    [DataInline]
     public async Task ApplicationContext_Replacing_One_Application_Should_Not_Disrupt_Remaining_Application_Routing(DrnTestContext context)
     {
         // 1. Create two independent nodes

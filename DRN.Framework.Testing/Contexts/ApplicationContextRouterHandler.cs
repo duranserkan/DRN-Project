@@ -253,8 +253,8 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
         // 3. Match by host (e.g. "nexus", "sample")
         else if (_addressHandlers.TryGetValue(uri.Host, out var hostHandler))
             resolver = hostHandler;
-        // 4. Match by port alone (e.g. "5988")
-        else if (uri.Port > 0 && _addressHandlers.TryGetValue(uri.Port.ToString(), out var portHandler))
+        // 4. Match by port alone for non-default ports (e.g. "5988")
+        else if (uri.Port > 0 && !uri.IsDefaultPort && _addressHandlers.TryGetValue(uri.Port.ToString(), out var portHandler))
             resolver = portHandler;
         // 5. Match by Host header if present
         else if (request.Headers.Host != null && _addressHandlers.TryGetValue(request.Headers.Host, out var headerHandler))
