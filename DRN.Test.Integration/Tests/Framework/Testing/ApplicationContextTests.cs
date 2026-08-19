@@ -506,6 +506,55 @@ public class ApplicationContextTests
 
     [Theory]
     [DataInline]
+    public async Task ApplicationContext_Should_Discover_Addresses_Only_From_Matching_Key_Segments(DrnTestContext context)
+    {
+        // 1. Exact short-name segment match in hierarchical key
+        context.AddToConfiguration("Services:Nexus:Url", "http://nexus-segment-url");
+        // 2. Exact type-name segment match
+        context.AddToConfiguration("NexusProgram:Address", "http://nexus-program-address");
+        // 3. Suffix on short-name (NexusAddress)
+        context.AddToConfiguration("Custom:NexusAddress", "http://nexus-suffix-address");
+        // 4. Substring in segment (should NOT match)
+        context.AddToConfiguration("ExternalNexusAddress", "http://external-nexus-address");
+        context.AddToConfiguration("ExternalPaymentUrl", "http://external-payment-url");
+        context.AddToConfiguration("ExternalNexusSettings:ServiceUrl", "http://external-nexus-service-url");
+        // 5. Non-address key matching short name (should NOT match)
+        context.AddToConfiguration("Nexus:Name", "ignored-value");
+
+        _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
+
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler);
+        var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
+
+        // Valid segment matches route successfully
+        var r1 = await client.GetFromJsonAsync<WeatherForecast[]>($"http://nexus-segment-url/{endpoint?.TrimStart('/')}");
+        r1.Should().NotBeNull();
+        r1.Length.Should().BePositive();
+
+        var r2 = await client.GetFromJsonAsync<WeatherForecast[]>($"http://nexus-program-address/{endpoint?.TrimStart('/')}");
+        r2.Should().NotBeNull();
+        r2.Length.Should().BePositive();
+
+        var r3 = await client.GetFromJsonAsync<WeatherForecast[]>($"http://nexus-suffix-address/{endpoint?.TrimStart('/')}");
+        r3.Should().NotBeNull();
+        r3.Length.Should().BePositive();
+
+        // Substring / non-segment matches are not registered and throw unmapped host
+        Func<Task> callExternal = () => client.GetAsync("http://external-nexus-address/api/test");
+        await callExternal.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No application registered in ApplicationContext matches host 'external-nexus-address'*");
+
+        Func<Task> callPayment = () => client.GetAsync("http://external-payment-url/api/test");
+        await callPayment.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No application registered in ApplicationContext matches host 'external-payment-url'*");
+
+        Func<Task> callSettings = () => client.GetAsync("http://external-nexus-service-url/api/test");
+        await callSettings.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No application registered in ApplicationContext matches host 'external-nexus-service-url'*");
+    }
+
+    [Theory]
+    [DataInline]
     public async Task ApplicationContext_Should_Support_MultiHop_Chained_Applications(DrnTestContext context)
     {
         // Setup 3 chained apps: Node A -> Node B -> Node C with service names assigned at creation

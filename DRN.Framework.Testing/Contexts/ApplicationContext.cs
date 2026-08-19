@@ -157,6 +157,8 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
             RouterHandler.RegisterAddress(address, entryPointType);
     }
 
+    private static readonly string[] AddressSuffixes = ["Address", "Url", "Uri"];
+
     private static void DiscoverConfiguredAddresses(IConfiguration configuration, Type entryPointType, List<string> addresses)
     {
         var typeName = entryPointType.Name;
@@ -186,12 +188,33 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
             if (!isAddressKey)
                 continue;
 
-            var matchesTypeName = key.Contains(typeName, StringComparison.OrdinalIgnoreCase);
-            var matchesShortName = !string.IsNullOrEmpty(shortName) && key.Contains(shortName, StringComparison.OrdinalIgnoreCase);
-
-            if (matchesTypeName || matchesShortName) addresses.Add(kvp.Value);
+            var segments = key.Split(':');
+            if (segments.Any(segment => MatchesAddressSegment(segment, typeName, shortName)))
+                addresses.Add(kvp.Value);
         }
     }
+
+    private static bool MatchesAddressSegment(string segment, string typeName, string shortName)
+    {
+        if (IsExactMatch(segment, typeName, shortName))
+            return true;
+
+        foreach (var suffix in AddressSuffixes)
+        {
+            if (segment.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) && segment.Length > suffix.Length)
+            {
+                var prefix = segment[..^suffix.Length];
+                if (IsExactMatch(prefix, typeName, shortName))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsExactMatch(string value, string typeName, string shortName) =>
+        value.Equals(typeName, StringComparison.OrdinalIgnoreCase) ||
+        (!string.IsNullOrEmpty(shortName) && value.Equals(shortName, StringComparison.OrdinalIgnoreCase));
 
     private static string GetShortName(string typeName) => ApplicationContextRouterHandler.GetShortName(typeName);
 
