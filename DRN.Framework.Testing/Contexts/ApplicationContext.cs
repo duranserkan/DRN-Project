@@ -31,14 +31,9 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
         return supplied ?? TestContext.Current.TestOutputHelper;
     }
 
-    public WebApplicationFactory<TEntryPoint> CreateApplication<TEntryPoint>(Action<IWebHostBuilder>? webHostConfigurator = null)
-        where TEntryPoint : class
-    {
-        var outputHelper = ResolveOutputHelper();
-        return CreateApplicationCore<TEntryPoint>(outputHelper, webHostConfigurator);
-    }
-
-    public WebApplicationFactory<TEntryPoint> CreateApplication<TEntryPoint>(Action<IWebHostBuilder>? webHostConfigurator, params string[] additionalAddresses)
+    public WebApplicationFactory<TEntryPoint> CreateApplication<TEntryPoint>(
+        Action<IWebHostBuilder>? webHostConfigurator = null,
+        params string[] additionalAddresses)
         where TEntryPoint : class
     {
         var outputHelper = ResolveOutputHelper();
@@ -231,24 +226,10 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
         RouterHandler.RegisterAddress(address, handler);
 
     /// <summary>
-    /// Most used defaults and bindings for testing an api endpoint gathered together
-    /// </summary>
-    public async Task<WebApplicationFactory<TEntryPoint>> CreateApplicationAndBindDependenciesAsync<TEntryPoint>(
-        ITestOutputHelper? outputHelper = null) where TEntryPoint : class
-    {
-        var resolvedOutputHelper = ResolveOutputHelper(outputHelper);
-        var application = CreateApplicationCore<TEntryPoint>(resolvedOutputHelper);
-        await testContext.ContainerContext.BindExternalDependenciesAsync();
-        application.Server.PreserveExecutionContext = true;
-
-        return application;
-    }
-
-    /// <summary>
     /// Most used defaults and bindings for testing an api endpoint gathered together with custom address bindings.
     /// </summary>
     public async Task<WebApplicationFactory<TEntryPoint>> CreateApplicationAndBindDependenciesAsync<TEntryPoint>(
-        ITestOutputHelper? outputHelper,
+        ITestOutputHelper? outputHelper = null,
         params string[] additionalAddresses) where TEntryPoint : class
     {
         var resolvedOutputHelper = ResolveOutputHelper(outputHelper);
@@ -271,29 +252,12 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     }
 
     /// <summary>
-    /// Most used defaults and bindings for testing an api endpoint gathered together
-    /// </summary>
-    /// <returns>HttpClient instead of FlurlClient to prevent flurl http test server collision</returns>
-    public async Task<HttpClient> CreateClientAsync<TEntryPoint>(
-        ITestOutputHelper? outputHelper = null,
-        WebApplicationFactoryClientOptions? clientOptions = null) where TEntryPoint : class
-    {
-        clientOptions ??= new WebApplicationFactoryClientOptions();
-        clientOptions.BaseAddress = new Uri(TestEnvironment.TestContextAddress);
-
-        var application = await CreateApplicationAndBindDependenciesAsync<TEntryPoint>(outputHelper);
-        var client = application.CreateClient(clientOptions);
-
-        return client;
-    }
-
-    /// <summary>
     /// Most used defaults and bindings for testing an api endpoint gathered together with custom address bindings.
     /// </summary>
     /// <returns>HttpClient instead of FlurlClient to prevent flurl http test server collision</returns>
     public async Task<HttpClient> CreateClientAsync<TEntryPoint>(
-        ITestOutputHelper? outputHelper,
-        WebApplicationFactoryClientOptions? clientOptions,
+        ITestOutputHelper? outputHelper = null,
+        WebApplicationFactoryClientOptions? clientOptions = null,
         params string[] additionalAddresses) where TEntryPoint : class
     {
         clientOptions ??= new WebApplicationFactoryClientOptions();
