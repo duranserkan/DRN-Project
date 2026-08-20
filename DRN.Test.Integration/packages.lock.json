@@ -42,8 +42,8 @@
       },
       "AwesomeAssertions": {
         "type": "Transitive",
-        "resolved": "9.5.0",
-        "contentHash": "F92MsjoF8B7IdcWETru4QGZx6VAl38qQPKNGS3kwPwlLB5lb0O4bhFqG8a8sz2estQJWkKmZkVy1r19HTaFcpg=="
+        "resolved": "9.6.0",
+        "contentHash": "8kdtgI+tZIgP46ncnk650/dU4JSrn+n2Dkic8FvjIFn72P6Nv1Afyr5F8F3PsokHg1GBSBVo1/Z+eZOrU5esSA=="
       },
       "Blake3.Native": {
         "type": "Transitive",
@@ -800,8 +800,8 @@
       },
       "NLog.Targets.Network": {
         "type": "Transitive",
-        "resolved": "6.1.4",
-        "contentHash": "9JGMwZu0NZ30NO56FYQ3i4/2zzsmxWE/WMtB6WJEtzr4ixMCevzTCrslgEA3A02HeZtDJfln/+9FB6pV1ERG0Q==",
+        "resolved": "6.1.5",
+        "contentHash": "mCJgN0ghcLcMEpTnMwxDD+QbwxaqdltTwi7T6J2poykbPxhZRuu+5f3spXU2DKzh3WM9RK6weYRFji+CBGk6FA==",
         "dependencies": {
           "NLog": "6.1.4"
         }
@@ -1109,7 +1109,7 @@
         "type": "Project",
         "dependencies": {
           "DRN.Framework.Utils": "[1.0.0, )",
-          "NLog.Targets.Network": "[6.1.4, )",
+          "NLog.Targets.Network": "[6.1.5, )",
           "NLog.Web.AspNetCore": "[6.2.0, )",
           "NetEscapades.AspNetCore.SecurityHeaders": "[1.3.1, )",
           "Swashbuckle.AspNetCore": "[10.2.3, )"
@@ -1123,7 +1123,7 @@
         "dependencies": {
           "AutoFixture.AutoNSubstitute": "[5.0.0-rc.1, )",
           "AutoFixture.Xunit3": "[5.0.0-rc.1, )",
-          "AwesomeAssertions": "[9.5.0, )",
+          "AwesomeAssertions": "[9.6.0, )",
           "DRN.Framework.EntityFramework": "[1.0.0, )",
           "DRN.Framework.Hosting": "[1.0.0, )",
           "Microsoft.AspNetCore.Mvc.Testing": "[10.0.11, )",
