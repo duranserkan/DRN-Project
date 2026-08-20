@@ -27,7 +27,7 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
         ArgumentNullException.ThrowIfNull(handlerFactory);
 
         var lazyHandler = new Lazy<HttpMessageHandler>(handlerFactory);
-        Func<HttpMessageHandler> resolver = () => lazyHandler.Value;
+        var resolver = () => lazyHandler.Value;
 
         _typeHandlers[entryPointType] = resolver;
 
@@ -66,7 +66,7 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
     /// <summary>
     /// Explicitly maps a hostname, port, or base URL to a lazy <see cref="HttpMessageHandler"/> factory.
     /// </summary>
-    public void RegisterAddress(string addressOrHost, Func<HttpMessageHandler> handlerFactory)
+    private void RegisterAddress(string addressOrHost, Func<HttpMessageHandler> handlerFactory)
     {
         ArgumentNullException.ThrowIfNull(addressOrHost);
         ArgumentNullException.ThrowIfNull(handlerFactory);
@@ -95,8 +95,7 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
     /// <summary>
     /// Explicitly maps a hostname, port, or base URL to a specific <see cref="HttpMessageHandler"/>.
     /// </summary>
-    public void RegisterAddress(string addressOrHost, HttpMessageHandler handler) =>
-        RegisterAddress(addressOrHost, () => handler);
+    public void RegisterAddress(string addressOrHost, HttpMessageHandler handler) => RegisterAddress(addressOrHost, () => handler);
 
     private void RegisterAssemblySegments(string? assemblyName, Func<HttpMessageHandler> resolver)
     {
@@ -104,15 +103,11 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
             return;
 
         RegisterAddress(assemblyName, resolver);
-        var parts = assemblyName.Split('.');
+        var parts = assemblyName.Split('.')
+            .Where(part => !string.IsNullOrWhiteSpace(part) &&
+                           !GenericSegments.Any(g => part.Equals(g, StringComparison.OrdinalIgnoreCase)));
         foreach (var part in parts)
-        {
-            if (!string.IsNullOrWhiteSpace(part) &&
-                !GenericSegments.Any(g => part.Equals(g, StringComparison.OrdinalIgnoreCase)))
-            {
-                RegisterAddress(part, resolver);
-            }
-        }
+            RegisterAddress(part, resolver);
     }
 
     private void RegisterAdditionalAddresses(IEnumerable<string>? additionalAddresses, Func<HttpMessageHandler> resolver)
@@ -120,11 +115,8 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
         if (additionalAddresses == null)
             return;
 
-        foreach (var addr in additionalAddresses)
-        {
-            if (!string.IsNullOrWhiteSpace(addr))
-                RegisterAddress(addr, resolver);
-        }
+        foreach (var addr in additionalAddresses.Where(addr => !string.IsNullOrWhiteSpace(addr)))
+            RegisterAddress(addr, resolver);
     }
 
     private void RegisterHostAndPort(string hostPart, string? portPart, Func<HttpMessageHandler> handlerFactory)
@@ -141,7 +133,7 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
         if (!int.TryParse(portPart, out var portNum) || portNum <= 0)
             return;
 
-        RegisterPortAliases(portPart!, handlerFactory);
+        RegisterPortAliases(portPart, handlerFactory);
 
         if (hasNamedHost)
             _addressHandlers[$"{hostPart}:{portPart}"] = handlerFactory;
@@ -179,26 +171,23 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
         if (normalized.StartsWith('[') && normalized.IndexOf(']') is var closingIndex and > 0)
         {
             hostPart = normalized[..(closingIndex + 1)];
-            if (closingIndex + 1 < normalized.Length && normalized[closingIndex + 1] == ':')
-            {
-                portPart = normalized[(closingIndex + 2)..].TrimEnd('/');
-                return true;
-            }
+            if (closingIndex + 1 >= normalized.Length || normalized[closingIndex + 1] != ':')
+                return false;
 
-            return false;
+            portPart = normalized[(closingIndex + 2)..].TrimEnd('/');
+            return true;
         }
 
         var firstColon = normalized.IndexOf(':');
         var lastColon = normalized.LastIndexOf(':');
 
-        if (firstColon >= 0 && firstColon == lastColon)
-        {
-            hostPart = normalized[..lastColon].Trim().TrimStart('/', '*');
-            portPart = normalized[(lastColon + 1)..].Trim().TrimEnd('/');
-            return true;
-        }
+        if (firstColon < 0 || firstColon != lastColon)
+            return false;
 
-        return false;
+        hostPart = normalized[..lastColon].Trim().TrimStart('/', '*');
+        portPart = normalized[(lastColon + 1)..].Trim().TrimEnd('/');
+
+        return true;
     }
 
     private HttpMessageHandler ResolveTypeHandler(Type entryPointType)
@@ -216,18 +205,14 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
     public void Unregister(Type entryPointType)
     {
         ArgumentNullException.ThrowIfNull(entryPointType);
+        if (!_typeHandlers.TryRemove(entryPointType, out var handler))
+            return;
 
-        if (_typeHandlers.TryRemove(entryPointType, out var handler))
-        {
-            foreach (var kvp in _addressHandlers)
-            {
-                if (ReferenceEquals(kvp.Value, handler))
-                    _addressHandlers.TryRemove(kvp.Key, out _);
-            }
+        foreach (var kvp in _addressHandlers.Where(kvp => ReferenceEquals(kvp.Value, handler)))
+            _addressHandlers.TryRemove(kvp.Key, out _);
 
-            if (ReferenceEquals(_singleAppHandler, handler))
-                _singleAppHandler = _typeHandlers.Values.FirstOrDefault();
-        }
+        if (ReferenceEquals(_singleAppHandler, handler))
+            _singleAppHandler = _typeHandlers.Values.FirstOrDefault();
     }
 
     /// <summary>
@@ -247,8 +232,7 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
     /// </summary>
     public HttpMessageHandler CreateForwardingHandler() => new NonDisposingForwardingHandler(this);
 
-    internal Task<HttpResponseMessage> SendRoutedAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
-        SendAsync(request, cancellationToken);
+    private Task<HttpResponseMessage> SendRoutedAsync(HttpRequestMessage request, CancellationToken cancellationToken) => SendAsync(request, cancellationToken);
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -292,7 +276,7 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
             return true;
 
         // 4. Match by port alone for non-default ports (e.g. "5988")
-        if (uri.Port > 0 && !uri.IsDefaultPort && _addressHandlers.TryGetValue(uri.Port.ToString(), out resolver))
+        if (uri is { Port: > 0, IsDefaultPort: false } && _addressHandlers.TryGetValue(uri.Port.ToString(), out resolver))
             return true;
 
         // 5. Match by Host header if present
@@ -319,10 +303,8 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
     public static string GetShortName(string typeName)
     {
         foreach (var suffix in Suffixes)
-        {
             if (typeName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) && typeName.Length > suffix.Length)
                 return typeName[..^suffix.Length];
-        }
 
         return typeName;
     }
@@ -354,11 +336,5 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             routerHandler.SendRoutedAsync(request, cancellationToken);
-
-        protected override void Dispose(bool disposing)
-        {
-            // Non-owning wrapper; do not dispose or clear the shared routerHandler.
-            base.Dispose(disposing);
-        }
     }
 }
