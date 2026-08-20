@@ -519,6 +519,7 @@ public class ApplicationContextTests
         context.AddToConfiguration("ExternalNexusAddress", "http://external-nexus-address");
         context.AddToConfiguration("ExternalPaymentUrl", "http://external-payment-url");
         context.AddToConfiguration("ExternalNexusSettings:ServiceUrl", "http://external-nexus-service-url");
+        context.AddToConfiguration("Nexus:ExternalPaymentUrl", "http://nested-external-payment-url");
         // 5. Non-address key matching short name (should NOT match)
         context.AddToConfiguration("Nexus:Name", "ignored-value");
 
@@ -552,6 +553,10 @@ public class ApplicationContextTests
         Func<Task> callSettings = () => client.GetAsync("http://external-nexus-service-url/api/test");
         await callSettings.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*No application registered in ApplicationContext matches host 'external-nexus-service-url'*");
+
+        Func<Task> callNestedPayment = () => client.GetAsync("http://nested-external-payment-url/api/test");
+        await callNestedPayment.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No application registered in ApplicationContext matches host 'nested-external-payment-url'*");
     }
 
     [Theory]

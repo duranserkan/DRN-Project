@@ -189,16 +189,31 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
                 continue;
 
             var segments = key.Split(':');
-            if (segments.Any(segment => MatchesAddressSegment(segment, typeName, shortName)))
+            if (MatchesAddressKey(segments, typeName, shortName))
                 addresses.Add(kvp.Value);
         }
     }
 
-    private static bool MatchesAddressSegment(string segment, string typeName, string shortName)
+    private static bool MatchesAddressKey(string[] segments, string typeName, string shortName)
     {
-        if (IsExactMatch(segment, typeName, shortName))
+        if (segments.Length == 0)
+            return false;
+
+        var leaf = segments[^1];
+        if (MatchesAddressSegment(leaf, typeName, shortName))
             return true;
 
+        if (segments.Length > 1 && AddressSuffixes.Any(suffix => leaf.Equals(suffix, StringComparison.OrdinalIgnoreCase)))
+        {
+            var parent = segments[^2];
+            return IsExactMatch(parent, typeName, shortName);
+        }
+
+        return false;
+    }
+
+    private static bool MatchesAddressSegment(string segment, string typeName, string shortName)
+    {
         foreach (var suffix in AddressSuffixes)
         {
             if (segment.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) && segment.Length > suffix.Length)
