@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DRN.Framework.Testing.Contexts;
 
@@ -39,29 +40,9 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
             RegisterAddress(shortName, resolver);
 
         // Register assembly name and meaningful segments
-        var assemblyName = entryPointType.Assembly.GetName().Name;
-        if (!string.IsNullOrWhiteSpace(assemblyName))
-        {
-            RegisterAddress(assemblyName, resolver);
-            var parts = assemblyName.Split('.');
-            foreach (var part in parts)
-            {
-                if (!string.IsNullOrWhiteSpace(part) &&
-                    !GenericSegments.Any(g => part.Equals(g, StringComparison.OrdinalIgnoreCase)))
-                {
-                    RegisterAddress(part, resolver);
-                }
-            }
-        }
+        RegisterAssemblySegments(entryPointType.Assembly.GetName().Name, resolver);
 
-        if (additionalAddresses != null)
-        {
-            foreach (var addr in additionalAddresses)
-            {
-                if (!string.IsNullOrWhiteSpace(addr))
-                    RegisterAddress(addr, resolver);
-            }
-        }
+        RegisterAdditionalAddresses(additionalAddresses, resolver);
 
         Interlocked.Exchange(ref _singleAppHandler, resolver);
     }
@@ -98,47 +79,17 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
 
         if (int.TryParse(normalized, out var purePort) && purePort > 0)
         {
-            _addressHandlers[normalized] = handlerFactory;
-            _addressHandlers[$"localhost:{normalized}"] = handlerFactory;
-            _addressHandlers[$"127.0.0.1:{normalized}"] = handlerFactory;
-            _addressHandlers[$"[::1]:{normalized}"] = handlerFactory;
+            RegisterPortAliases(normalized, handlerFactory);
             return;
         }
 
         if (TryExtractHostAndPort(normalized, out var hostPart, out var portPart))
         {
-            var isWildcardHost = string.IsNullOrWhiteSpace(hostPart) ||
-                                 hostPart.Equals("*", StringComparison.OrdinalIgnoreCase) ||
-                                 hostPart.Equals("+", StringComparison.OrdinalIgnoreCase) ||
-                                 hostPart.Equals("0.0.0.0", StringComparison.OrdinalIgnoreCase);
-
-            if (!isWildcardHost && !string.IsNullOrWhiteSpace(hostPart))
-            {
-                _addressHandlers[hostPart] = handlerFactory;
-                if (hostPart.StartsWith('[') && hostPart.EndsWith(']'))
-                {
-                    var unbracketed = hostPart[1..^1];
-                    if (!string.IsNullOrWhiteSpace(unbracketed))
-                        _addressHandlers[unbracketed] = handlerFactory;
-                }
-            }
-
-            if (int.TryParse(portPart, out var portNum) && portNum > 0)
-            {
-                _addressHandlers[portPart!] = handlerFactory;
-                _addressHandlers[$"localhost:{portPart}"] = handlerFactory;
-                _addressHandlers[$"127.0.0.1:{portPart}"] = handlerFactory;
-                _addressHandlers[$"[::1]:{portPart}"] = handlerFactory;
-                if (!isWildcardHost && !string.IsNullOrWhiteSpace(hostPart))
-                    _addressHandlers[$"{hostPart}:{portPart}"] = handlerFactory;
-            }
+            RegisterHostAndPort(hostPart!, portPart, handlerFactory);
+            return;
         }
-        else if (normalized.StartsWith('[') && normalized.EndsWith(']'))
-        {
-            var unbracketed = normalized[1..^1];
-            if (!string.IsNullOrWhiteSpace(unbracketed))
-                _addressHandlers[unbracketed] = handlerFactory;
-        }
+
+        RegisterBracketedHostAlias(normalized, handlerFactory);
     }
 
     /// <summary>
@@ -146,6 +97,79 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
     /// </summary>
     public void RegisterAddress(string addressOrHost, HttpMessageHandler handler) =>
         RegisterAddress(addressOrHost, () => handler);
+
+    private void RegisterAssemblySegments(string? assemblyName, Func<HttpMessageHandler> resolver)
+    {
+        if (string.IsNullOrWhiteSpace(assemblyName))
+            return;
+
+        RegisterAddress(assemblyName, resolver);
+        var parts = assemblyName.Split('.');
+        foreach (var part in parts)
+        {
+            if (!string.IsNullOrWhiteSpace(part) &&
+                !GenericSegments.Any(g => part.Equals(g, StringComparison.OrdinalIgnoreCase)))
+            {
+                RegisterAddress(part, resolver);
+            }
+        }
+    }
+
+    private void RegisterAdditionalAddresses(IEnumerable<string>? additionalAddresses, Func<HttpMessageHandler> resolver)
+    {
+        if (additionalAddresses == null)
+            return;
+
+        foreach (var addr in additionalAddresses)
+        {
+            if (!string.IsNullOrWhiteSpace(addr))
+                RegisterAddress(addr, resolver);
+        }
+    }
+
+    private void RegisterHostAndPort(string hostPart, string? portPart, Func<HttpMessageHandler> handlerFactory)
+    {
+        var isWildcard = IsWildcardHost(hostPart);
+        var hasNamedHost = !isWildcard && !string.IsNullOrWhiteSpace(hostPart);
+
+        if (hasNamedHost)
+        {
+            _addressHandlers[hostPart] = handlerFactory;
+            RegisterBracketedHostAlias(hostPart, handlerFactory);
+        }
+
+        if (!int.TryParse(portPart, out var portNum) || portNum <= 0)
+            return;
+
+        RegisterPortAliases(portPart!, handlerFactory);
+
+        if (hasNamedHost)
+            _addressHandlers[$"{hostPart}:{portPart}"] = handlerFactory;
+    }
+
+    private void RegisterPortAliases(string port, Func<HttpMessageHandler> handlerFactory)
+    {
+        _addressHandlers[port] = handlerFactory;
+        _addressHandlers[$"localhost:{port}"] = handlerFactory;
+        _addressHandlers[$"127.0.0.1:{port}"] = handlerFactory;
+        _addressHandlers[$"[::1]:{port}"] = handlerFactory;
+    }
+
+    private void RegisterBracketedHostAlias(string host, Func<HttpMessageHandler> handlerFactory)
+    {
+        if (!host.StartsWith('[') || !host.EndsWith(']'))
+            return;
+
+        var unbracketed = host[1..^1];
+        if (!string.IsNullOrWhiteSpace(unbracketed))
+            _addressHandlers[unbracketed] = handlerFactory;
+    }
+
+    private static bool IsWildcardHost(string? host) =>
+        string.IsNullOrWhiteSpace(host) ||
+        host.Equals("*", StringComparison.OrdinalIgnoreCase) ||
+        host.Equals("+", StringComparison.OrdinalIgnoreCase) ||
+        host.Equals("0.0.0.0", StringComparison.OrdinalIgnoreCase);
 
     private static bool TryExtractHostAndPort(string normalized, out string? hostPart, out string? portPart)
     {
@@ -242,28 +266,7 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
         if (uri == null)
             throw new InvalidOperationException("HttpRequestMessage RequestUri cannot be null.");
 
-        Func<HttpMessageHandler>? resolver = null;
-
-        // 1. Match by authority (host:port, e.g. "localhost:5988" or "nexus:80")
-        if (_addressHandlers.TryGetValue(uri.Authority, out var authorityHandler))
-            resolver = authorityHandler;
-        // 2. Match by host:port
-        else if (uri.Port > 0 && _addressHandlers.TryGetValue($"{uri.Host}:{uri.Port}", out var hostPortHandler))
-            resolver = hostPortHandler;
-        // 3. Match by host (e.g. "nexus", "sample")
-        else if (_addressHandlers.TryGetValue(uri.Host, out var hostHandler))
-            resolver = hostHandler;
-        // 4. Match by port alone for non-default ports (e.g. "5988")
-        else if (uri.Port > 0 && !uri.IsDefaultPort && _addressHandlers.TryGetValue(uri.Port.ToString(), out var portHandler))
-            resolver = portHandler;
-        // 5. Match by Host header if present
-        else if (request.Headers.Host != null && _addressHandlers.TryGetValue(request.Headers.Host, out var headerHandler))
-            resolver = headerHandler;
-        // 6. Fallback for single registered application targeting localhost
-        else if (_typeHandlers.Count == 1 && _singleAppHandler != null && (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)))
-            resolver = _singleAppHandler;
-
-        if (resolver != null)
+        if (TryFindResolver(request, uri, out var resolver))
             return resolver();
 
         var registered = string.Join(", ", _addressHandlers.Keys);
@@ -273,6 +276,45 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
             $"No application registered in ApplicationContext matches host '{uri.Host}' (Authority: '{uri.Authority}', Port: {uri.Port}). " +
             $"Registered addresses: [{registered}]. Registered applications: [{registeredTypes}].");
     }
+
+    private bool TryFindResolver(HttpRequestMessage request, Uri uri, [NotNullWhen(true)] out Func<HttpMessageHandler>? resolver)
+    {
+        // 1. Match by authority (host:port, e.g. "localhost:5988" or "nexus:80")
+        if (_addressHandlers.TryGetValue(uri.Authority, out resolver))
+            return true;
+
+        // 2. Match by host:port
+        if (uri.Port > 0 && _addressHandlers.TryGetValue($"{uri.Host}:{uri.Port}", out resolver))
+            return true;
+
+        // 3. Match by host (e.g. "nexus", "sample")
+        if (_addressHandlers.TryGetValue(uri.Host, out resolver))
+            return true;
+
+        // 4. Match by port alone for non-default ports (e.g. "5988")
+        if (uri.Port > 0 && !uri.IsDefaultPort && _addressHandlers.TryGetValue(uri.Port.ToString(), out resolver))
+            return true;
+
+        // 5. Match by Host header if present
+        if (request.Headers.Host != null && _addressHandlers.TryGetValue(request.Headers.Host, out resolver))
+            return true;
+
+        // 6. Fallback for single registered application targeting localhost
+        if (IsSingleLocalhostFallback(uri.Host))
+        {
+            resolver = _singleAppHandler;
+            return resolver != null;
+        }
+
+        resolver = null;
+        return false;
+    }
+
+    private bool IsSingleLocalhostFallback(string host) =>
+        _typeHandlers.Count == 1 &&
+        _singleAppHandler != null &&
+        (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+         host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase));
 
     public static string GetShortName(string typeName)
     {
