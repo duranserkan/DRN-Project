@@ -5,7 +5,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### New Features
 
 *   **Multi-Application Integration Testing**: `ApplicationContext` now supports running multiple distinct `WebApplicationFactory<TEntryPoint>` instances concurrently within a single test context.
-*   **In-Memory HTTP Routing**: Added `ApplicationContextRouterHandler` which intercepts outbound requests from `IInternalRequest`, `IExternalRequest`, Flurl, and `IHttpClientFactory` and routes them by host, port, alias, and configured addresses directly to target in-memory `TestServer` instances across multi-tier chains (e.g. A -> B -> C -> B -> A).
+*   **In-Memory HTTP Routing**: Added `ApplicationContextRouterHandler` which intercepts outbound requests from `IInternalRequest`, `IExternalRequest`, and `IHttpClientFactory` (including Flurl calls made through request wrappers) and routes them by host, port, alias, and configured addresses directly to target in-memory `TestServer` instances across multi-tier chains (e.g. A -> B -> C -> B -> A).
 *   **Custom Service Aliases & Address Mapping**: Added `CreateClientForServiceAsync<TEntryPoint>("service-alias")` and `ApplicationContext.MapAddress<TEntryPoint>("address")` enabling explicit mapping of custom domain names, Kubernetes service names, and ports to hosted applications.
 *   **Automatic Configuration Address Discovery**: `ApplicationContext` automatically discovers and registers service hostnames, ports, and aliases from configuration (`Kestrel:Endpoints`, `*Address`, `*Url`, `*Uri`), enabling seamless in-memory routing between microservices and platform dependencies without manual boilerplate.
 

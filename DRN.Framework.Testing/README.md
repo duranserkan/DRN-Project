@@ -302,7 +302,7 @@ or infrastructure module, then use `EnsureDatabaseAsync` to create the schema di
 - **Using Factory and Client Together for the Same Application**:
   - **Pattern 1 (Recommended)**: Call `var client = await context.ApplicationContext.CreateClientAsync<T>();` and retrieve the underlying factory via `var factory = context.ApplicationContext.GetCreatedApplication<T>();`.
   - **Pattern 2**: Call `var app = await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<T>();` and call `var client = app.CreateClient();`.
-- Outbound HTTP requests between hosted applications (via `IInternalRequest`, `IExternalRequest`, Flurl, and `IHttpClientFactory`) are automatically routed in-memory via `ApplicationContextRouterHandler` using hostnames, ports, and aliases (e.g. `nexus`, `localhost:5988`). Requests to unregistered hosts fail with `InvalidOperationException` rather than reaching the network; handle external endpoints using in-memory mock applications (`ApplicationContext.MapAddress`) or declarative Flurl mocking (`FlurlHttpTest`).
+- Outbound HTTP requests between hosted applications (via `IInternalRequest`, `IExternalRequest`, and `IHttpClientFactory`) are automatically routed in-memory via `ApplicationContextRouterHandler` using hostnames, ports, and aliases (e.g. `nexus`, `localhost:5988`). Flurl calls made via `IInternalRequest` and `IExternalRequest` use the injected router handler; direct/unbound Flurl calls bypass the router and should be intercepted using `FlurlHttpTest` or custom router-backed clients. Requests to unregistered hosts fail with `InvalidOperationException` rather than reaching the network; handle external endpoints using in-memory mock applications (`ApplicationContext.MapAddress`) or declarative Flurl mocking (`FlurlHttpTest`).
 - `CreateClientForServiceAsync<TProgram>("service-alias")` and `ApplicationContext.MapAddress<TProgram>("service-alias")` allow registering custom DNS names or service aliases for an application.
 - `CreateClientAsync<TProgram>()` calls `ContainerContext.BindExternalDependenciesAsync()`, which applies Postgres migrations for registered `DrnContext` types. It does not start RabbitMQ.
 - When each application is created, `ApplicationContext` automatically captures logs only while a debugger is attached and
@@ -339,6 +339,83 @@ public async Task MultiApp_Should_Route_Between_Services(DrnTestContext context)
 }
 ```
 
+#### Address Resolution & Routing Architecture
+
+`ApplicationContextRouterHandler` intercepts outbound HTTP calls (`IHttpClientFactory`, `IInternalRequest`, `IExternalRequest`, and Flurl calls made through request wrappers) and resolves targets through three complementary mechanisms:
+
+```mermaid
+flowchart TD
+    Req["Outbound HTTP Request"] --> Router{"ApplicationContextRouterHandler"}
+    Router -->|"1. Type & Assembly Conventions"| App["Target Application (TestServer)"]
+    Router -->|"2. Configuration Discovery"| App
+    Router -->|"3. Explicit MapAddress"| App
+    Router -->|"Unmatched Target"| Fail["Fail-Fast InvalidOperationException"]
+```
+
+##### 1. Automatic Type & Assembly Conventions
+
+When an application is created (e.g., `CreateApplication<NexusProgram>()`), the router automatically registers convention-based aliases:
+
+| Convention | Rule | Input Example | Generated Route Aliases |
+|---|---|---|---|
+| **Simple Type Name** | Exact class name | `NexusProgram` | `http://NexusProgram/...` |
+| **Short Name** | Strips suffixes `Program`, `App`, `Host`, `Hosted`, `Server`, `Service` | `NexusProgram`<br>`OrderService` | `http://nexus/...`<br>`http://order/...` |
+| **Assembly Segments** | Registers meaningful assembly-name segments (filters out `DRN`, `Framework`, `Hosted`, `Host`, `App`, `Server`, `Service`, `Test`, `Utils`, `Integration`, `Unit`) | `DRN.Nexus.Hosted`<br>`Company.Billing.Service` | `http://Nexus/...`<br>`http://Company/...`, `http://Billing/...` |
+| **Single-App Fallback** | When exactly one application is hosted, catches all `localhost` / `127.0.0.1` traffic | `SampleProgram` | `http://localhost/...`, `http://127.0.0.1/...` |
+
+##### 2. Configuration Discovery Rules
+
+When an application starts, `ApplicationContext` inspects `IConfiguration` and binds configured endpoints to that application's handler:
+
+1. **Kestrel Endpoints**: Any URL defined under `Kestrel:Endpoints:*:Url` (e.g., `http://localhost:5988`).
+2. **Settings Keys**: Keys ending with `Address`, `Url`, or `Uri` where the key segment matches the target entry point type name or short name:
+
+| Configuration Key | Config Value | Entry Point | Match Status | Bound Host / Port |
+|---|---|---|---|---|
+| `NexusAppSettings:NexusAddress` | `localhost:5988` | `NexusProgram` | **Match** (suffix `NexusAddress`) | `localhost:5988`, `127.0.0.1:5988`, `5988` |
+| `Services:Nexus:Url` | `http://nexus-host` | `NexusProgram` | **Match** (parent segment `Nexus`) | `nexus-host` |
+| `NexusProgram:Address` | `http://nexus-prog` | `NexusProgram` | **Match** (parent segment `NexusProgram`) | `nexus-prog` |
+| `Custom:NexusUrl` | `http://nexus-custom` | `NexusProgram` | **Match** (suffix `NexusUrl`) | `nexus-custom` |
+| `ExternalNexusAddress` | `http://ext-nexus` | `NexusProgram` | **No Match** (substring in segment) | Unregistered (fails fast) |
+| `ExternalPaymentUrl` | `http://ext-pay` | `NexusProgram` | **No Match** (unrelated segment) | Unregistered (fails fast) |
+| `Nexus:Name` | `nexus-instance` | `NexusProgram` | **No Match** (not an address/URL key) | Ignored |
+
+##### 3. Address Normalization & Port Aliasing
+
+When any address is registered (via discovery, conventions, or `MapAddress`), it is normalized:
+
+* **Scheme and Path Stripping**: `https://custom-host:5988/api/v1` → normalized to `custom-host:5988`.
+* **Port Aliasing**: Registering a port (e.g., `5988`) automatically registers `5988`, `localhost:5988`, `127.0.0.1:5988`, and `[::1]:5988`.
+* **IPv6 Support**: IPv6 addresses (e.g., `[::1]:5988`) register bracketed and unbracketed host aliases.
+* **Wildcard Hosts**: Bindings on `*`, `+`, or `0.0.0.0` (e.g., `http://*:5988`) register port aliases without mapping the wildcard literal as a host.
+
+##### 4. Explicit Overrides (`MapAddress` & `CreateClientForServiceAsync`)
+
+Use explicit mappings for custom service aliases or third-party provider simulation:
+
+```csharp
+// 1. Alias an in-memory application at creation
+await context.ApplicationContext.CreateClientForServiceAsync<NexusProgram>("nexus-service");
+
+// 2. Map an additional alias to an already-created application
+context.ApplicationContext.MapAddress<NexusProgram>("custom-nexus-host");
+
+// 3. Map a third-party host to an in-memory mock handler
+context.ApplicationContext.MapAddress("api.stripe.com", mockStripeHandler);
+```
+
+##### 5. Router Resolution Priority
+
+When an HTTP request is sent, `ApplicationContextRouterHandler` resolves the target in the following order:
+
+1. **Exact Authority**: Matches `uri.Authority` (e.g. `localhost:5988` or `nexus:80`).
+2. **Host + Port**: Matches `uri.Host:uri.Port`.
+3. **Host Name**: Matches `uri.Host` (e.g. `nexus`, `sample-service`).
+4. **Port Alone**: Matches non-default port `uri.Port` (e.g. `5988`).
+5. **Host Header**: Matches HTTP `Host` header if present.
+6. **Single-App Fallback**: Routes `localhost` / `127.0.0.1` to the single hosted app.
+7. **Unregistered Host**: Throws `InvalidOperationException` listing all registered addresses and application types.
+
 #### Handling External & Third-Party Requests
 
 For outbound calls to external dependencies (e.g. `IExternalRequest`, payment gateways, OAuth providers, notification services), two testing approaches are supported:
@@ -361,7 +438,7 @@ For outbound calls to external dependencies (e.g. `IExternalRequest`, payment ga
    ```
 
 > [!NOTE]
-> Requests to unmapped and unmocked external hosts fail immediately with `InvalidOperationException`, ensuring integration tests never accidentally leak physical network calls over the wire.
+> Outbound requests routed through `IHttpClientFactory`, `IInternalRequest`, or `IExternalRequest` to unmapped external hosts fail immediately with `InvalidOperationException`, ensuring integration tests never accidentally leak physical network calls over the wire. For direct, standalone Flurl calls that do not resolve DI handlers, use `context.FlurlHttpTest` for network isolation and mock stubs.
 
 ### Basic Usage
 
