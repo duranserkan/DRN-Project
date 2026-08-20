@@ -13,22 +13,22 @@ public static class NexusEndpoints
 
     public static class Identity
     {
-        public const string Prefix = $"{User}";
+        public const string UserPrefix = $"{User}";
 
         public const string LoginController = "NexusIdentityLogin";
         public const string RegisterController = "NexusIdentityRegister";
         public const string PasswordController = "NexusIdentityPassword";
         public const string ManagementController = "NexusIdentityManagement";
 
-        public const string Login = $"{Prefix}/{LoginController}/Login";
-        public const string Refresh = $"{Prefix}/{LoginController}/Refresh";
-        public const string Register = $"{Prefix}/{RegisterController}/Register";
-        public const string ConfirmEmail = $"{Prefix}/{RegisterController}/ConfirmEmail";
-        public const string ResendConfirmationEmail = $"{Prefix}/{RegisterController}/ResendConfirmationEmail";
-        public const string ForgotPassword = $"{Prefix}/{PasswordController}/Forgot";
-        public const string ResetPassword = $"{Prefix}/{PasswordController}/Reset";
-        public const string TwoFactorAuth = $"{Prefix}/{ManagementController}/TwoFactorAuth";
-        public const string GetInfo = $"{Prefix}/{ManagementController}/GetInfo";
-        public const string PostInfo = $"{Prefix}/{ManagementController}/PostInfo";
+        public const string Login = $"{UserPrefix}/{LoginController}/Login";
+        public const string Refresh = $"{UserPrefix}/{LoginController}/Refresh";
+        public const string Register = $"{UserPrefix}/{RegisterController}/Register";
+        public const string ConfirmEmail = $"{UserPrefix}/{RegisterController}/ConfirmEmail";
+        public const string ResendConfirmationEmail = $"{UserPrefix}/{RegisterController}/ResendConfirmationEmail";
+        public const string ForgotPassword = $"{UserPrefix}/{PasswordController}/Forgot";
+        public const string ResetPassword = $"{UserPrefix}/{PasswordController}/Reset";
+        public const string TwoFactorAuth = $"{UserPrefix}/{ManagementController}/TwoFactorAuth";
+        public const string GetInfo = $"{UserPrefix}/{ManagementController}/GetInfo";
+        public const string PostInfo = $"{UserPrefix}/{ManagementController}/PostInfo";
     }
 }
