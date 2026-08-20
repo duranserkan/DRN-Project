@@ -272,9 +272,7 @@ public class DataAttributeMetadataTests
         };
 
     private static MethodInfo GetMetadataTarget(string methodName = nameof(MetadataTarget)) =>
-        typeof(DataAttributeMetadataTests).GetMethod(
-            methodName,
-            BindingFlags.NonPublic | BindingFlags.Static)!;
+        typeof(DataAttributeMetadataTests).GetMethod(methodName, BindingFlag.StaticNonPublic)!;
 
     private static void MetadataTarget(int value)
     {

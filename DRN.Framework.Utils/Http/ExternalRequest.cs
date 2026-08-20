@@ -15,22 +15,16 @@ public interface IExternalRequest
 }
 
 [Singleton<IExternalRequest>]
-public class ExternalRequest : IExternalRequest
+public class ExternalRequest(HttpMessageHandler? httpMessageHandler) : IExternalRequest
 {
     private static readonly DefaultJsonSerializer JsonSerializer = new(JsonConventions.DefaultOptions);
+    private readonly IFlurlClient? _flurlClient = httpMessageHandler != null ? new FlurlClient(new HttpClient(httpMessageHandler, disposeHandler: false)) : null;
+
+    public ExternalRequest() : this(null)
+    {
+    }
 
     public IFlurlRequest For(Url endpoint, Version httpVersion) => For(endpoint, httpVersion.ToString());
 
-    private static IFlurlRequest For(Url endpoint, string httpVersion)
-    {
-        var flurlRequest = endpoint.WithSettings(x =>
-        {
-            x.HttpVersion = httpVersion;
-            x.JsonSerializer = JsonSerializer;
-        });
-
-        flurlRequest.BeforeCall(x => x.HttpRequestMessage.VersionPolicy = HttpVersionPolicy.RequestVersionExact);
-
-        return flurlRequest;
-    }
+    private IFlurlRequest For(Url endpoint, string httpVersion) => FlurlRequestFactory.Create(_flurlClient, endpoint, httpVersion, JsonSerializer);
 }

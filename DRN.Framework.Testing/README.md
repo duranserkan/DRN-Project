@@ -297,7 +297,13 @@ or infrastructure module, then use `EnsureDatabaseAsync` to create the schema di
 `ApplicationContext` syncs `DrnTestContext` service collection and configuration with a `WebApplicationFactory`.
 
 - You can override configuration and services until the factory builds a host, such as when `CreateClient()` or `TestServer` is requested.
-- Creating another application first disposes the current factory; the new application uses the current test configuration and service registrations.
+- `ApplicationContext` supports hosting multiple distinct application entry points concurrently (e.g. `SampleProgram` and `NexusProgram`).
+- **Single Instance Per Type Lifecycle**: `ApplicationContext` manages one active instance per application type. Re-creating the same entry point type (via `CreateApplication` or `CreateClientAsync`) disposes and replaces only that specific application instance.
+- **Using Factory and Client Together for the Same Application**:
+  - **Pattern 1 (Recommended)**: Call `var client = await context.ApplicationContext.CreateClientAsync<T>();` and retrieve the underlying factory via `var factory = context.ApplicationContext.GetCreatedApplication<T>();`.
+  - **Pattern 2**: Call `var app = await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<T>();` and call `var client = app.CreateClient();`.
+- Outbound HTTP requests between hosted applications (via `IInternalRequest`, `IExternalRequest`, Flurl, and `IHttpClientFactory`) are automatically routed in-memory via `ApplicationContextRouterHandler` using hostnames, ports, and aliases (e.g. `nexus`, `localhost:5988`). Requests to unregistered hosts fail with `InvalidOperationException` rather than reaching the network; handle external endpoints using in-memory mock applications (`ApplicationContext.MapAddress`) or declarative Flurl mocking (`FlurlHttpTest`).
+- `CreateClientForServiceAsync<TProgram>("service-alias")` and `ApplicationContext.MapAddress<TProgram>("service-alias")` allow registering custom DNS names or service aliases for an application.
 - `CreateClientAsync<TProgram>()` calls `ContainerContext.BindExternalDependenciesAsync()`, which applies Postgres migrations for registered `DrnContext` types. It does not start RabbitMQ.
 - When each application is created, `ApplicationContext` automatically captures logs only while a debugger is attached and
   `Xunit.TestContext.Current.TestOutputHelper` is available; otherwise, automatic logging remains disabled.
@@ -306,6 +312,56 @@ or infrastructure module, then use `EnsureDatabaseAsync` to create the schema di
 - By default, without debugger-enabled output logging, application lifecycle logs are not written to shared test-runner output.
 - `TestEnvironment.DrnTestContextEnabled = true` identifies test execution and prevents local development provisioning from
   colliding with integration tests. `TemporaryApplication` is not a general test marker.
+
+### Multi-Application & In-Memory Service Routing
+
+Run multiple applications and route HTTP calls between them in-memory without physical network sockets or port allocation:
+
+```csharp
+[Theory]
+[DataInline]
+public async Task MultiApp_Should_Route_Between_Services(DrnTestContext context)
+{
+    // Host Nexus and Sample concurrently with service aliases
+    var nexusClient = await context.ApplicationContext.CreateClientForServiceAsync<NexusProgram>("nexus-service");
+    var sampleClient = await context.ApplicationContext.CreateClientForServiceAsync<SampleProgram>("sample-service");
+
+    // Access the underlying factory for DI inspection if needed
+    var sampleApp = context.ApplicationContext.GetCreatedApplication<SampleProgram>();
+    using var scope = sampleApp!.Services.CreateScope();
+
+    // Map additional address aliases at any time:
+    context.ApplicationContext.MapAddress<NexusProgram>("custom-nexus-host");
+
+    // Outbound requests via IInternalRequest or HttpClient in SampleProgram route to NexusProgram in-memory
+    var forecasts = await sampleClient.GetFromJsonAsync<WeatherForecast[]>("/Api/Sample/WeatherForecast/Nexus");
+    forecasts.Should().NotBeNull();
+}
+```
+
+#### Handling External & Third-Party Requests
+
+For outbound calls to external dependencies (e.g. `IExternalRequest`, payment gateways, OAuth providers, notification services), two testing approaches are supported:
+
+1. **In-Memory Mock Applications (`ApplicationContext.MapAddress` / `CreateClientForServiceAsync`)**:
+   - Host a lightweight mock application or Minimal API mapped directly to the external hostname (e.g. `api.stripe.com`).
+   - Ideal for stateful provider simulation, complete HTTP pipeline fidelity (real headers, status codes, payload negotiation), and bidirectional webhook callbacks without altering production code or URLs.
+   ```csharp
+   // Map an in-memory mock app directly to the third-party domain:
+   await context.ApplicationContext.CreateClientForServiceAsync<MockPaymentProviderProgram>("api.stripe.com");
+   // Outbound requests to "https://api.stripe.com/..." route in-memory to MockPaymentProviderProgram
+   ```
+
+2. **Declarative Flurl Mocking (`FlurlHttpTest`)**:
+   - Intercept and stub responses declaratively via `context.FlurlHttpTest.ForCallsTo(...)`.
+   - Ideal for fast, stateless payload assertions, error status simulation (e.g. 422, 500), and call count verification without extra application overhead.
+   ```csharp
+   context.FlurlHttpTest.ForCallsTo("https://api.stripe.com/*")
+       .RespondWithJson(new { id = "ch_123", status = "succeeded" }, 200);
+   ```
+
+> [!NOTE]
+> Requests to unmapped and unmocked external hosts fail immediately with `InvalidOperationException`, ensuring integration tests never accidentally leak physical network calls over the wire.
 
 ### Basic Usage
 

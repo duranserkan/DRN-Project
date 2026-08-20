@@ -14,7 +14,7 @@ public class WeatherForecastControllerTests
     public async Task WeatherForecastController_Should_Return_Forecasts(DrnTestContext context)
     {
         var client = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
-        var weatherEndpoint = Get.Endpoint.WeatherForecast.Get.RoutePattern;
+        var weatherEndpoint = Get.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
         var sampleForecasts = await client.GetFromJsonAsync<WeatherForecast[]>(weatherEndpoint);
 
         sampleForecasts!.Length.Should().BePositive();
@@ -25,7 +25,7 @@ public class WeatherForecastControllerTests
     public async Task PrivateAction_Should_Not_Allow_Unauthorized(DrnTestContext context)
     {
         var client = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
-        var status = await client.GetAsync(Get.Endpoint.WeatherForecast.Private.RoutePattern);
+        var status = await client.GetAsync(Get.Endpoint.Sample.WeatherForecast.Private.RoutePattern);
 
         status.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
@@ -37,7 +37,7 @@ public class WeatherForecastControllerTests
         var client = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
         var user = await AuthenticationHelper<NexusProgram>.AuthenticateClientAsync(client);
 
-        var authorized = await client.GetStringAsync(Get.Endpoint.WeatherForecast.Private.RoutePattern);
+        var authorized = await client.GetStringAsync(Get.Endpoint.Sample.WeatherForecast.Private.RoutePattern);
         authorized.Should().Be("authorized");
     }
 }

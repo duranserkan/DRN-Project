@@ -29,7 +29,7 @@ public class DataAttributeMetadataIntegrationTests
         };
         var testMethod = typeof(DataAttributeMetadataIntegrationTests).GetMethod(
             nameof(MetadataContextTarget),
-            BindingFlags.NonPublic | BindingFlags.Static)!;
+            BindingFlag.StaticNonPublic)!;
         await using var disposalTracker = new DisposalTracker();
 
         var row = (await attribute.GetData(testMethod, disposalTracker)).Single();

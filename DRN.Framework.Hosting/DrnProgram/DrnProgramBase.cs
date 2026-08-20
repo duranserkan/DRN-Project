@@ -83,6 +83,7 @@ public interface IDrnProgram
 //todo: add csp manager
 //todo: review page for and endpoint for
 //todo: unify reports - startup, middleware, StaticAssetWarm, endpoint list etc
+//todo: add support for minimal apis (MapMinimalEndpoints, HttpJsonOptions, DrnEndpointSource discovery)
 /// <summary>
 /// <li><a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host">Generic host model</a></li>
 /// <li><a href="https://learn.microsoft.com/en-us/aspnet/core/migration/50-to-60">WebApplication - new hosting model</a></li>
@@ -697,6 +698,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         application.UseSwaggerUI(DrnProgramSwaggerOptions.ConfigureSwaggerUIOptionsAction);
     }
 
+    //todo: evaluate and add native support for Minimal APIs in DrnProgramBase:
+    // - MapMinimalEndpoints(WebApplication application, IAppSettings appSettings) extension point
+    // - Configure HttpJsonOptions with JsonConventions.SetHtmlSafeWebJsonDefaults
+    // - Extend EndpointCollectionBase<TProgram> and DrnEndpointSource to discover and index RouteEndpoints with MethodInfo/Delegate metadata
+    // - Ensure MFA requirements and authorization policies seamlessly evaluate minimal endpoint metadata
     protected virtual void MapApplicationEndpoints(WebApplication application, IAppSettings appSettings)
     {
         application.MapControllers();

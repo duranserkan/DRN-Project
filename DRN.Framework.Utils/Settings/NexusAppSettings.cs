@@ -15,9 +15,11 @@ public sealed class NexusAppSettings : IDisposable
 {
     private IReadOnlyList<NexusKey> _keys = [];
 
+    public const string DefaultNexusAddress = "nexus";
+
     public static string GetKey(string shortKey) => $"{nameof(NexusAppSettings)}:{shortKey}";
 
-    public string NexusAddress { get; init; } = "nexus";
+    public string NexusAddress { get; init; } = DefaultNexusAddress;
 
     //Nexus App will generate ids randomly in production
     public byte AppId { get; init; }

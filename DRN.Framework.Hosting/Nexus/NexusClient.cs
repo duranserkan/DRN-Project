@@ -1,6 +1,5 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Http;
-using DRN.Framework.Utils.Models;
 using DRN.Framework.Utils.Models.Sample;
 using Flurl.Http;
 
@@ -16,8 +15,8 @@ public interface INexusClient
 public class NexusClient(INexusRequest request) : INexusClient
 {
     public async Task<HttpResponse<string>> GetStatusAsync() =>
-        await request.For("status").GetAsync().ToStringAsync();
+        await request.For(NexusEndpoints.Status).GetAsync().ToStringAsync();
 
     public async Task<HttpResponse<WeatherForecast[]>> GetWeatherForecastAsync() =>
-        await request.For("WeatherForecast").GetAsync().FromJsonAsync<WeatherForecast[]>();
+        await request.For(NexusEndpoints.WeatherForecast).GetAsync().FromJsonAsync<WeatherForecast[]>();
 }

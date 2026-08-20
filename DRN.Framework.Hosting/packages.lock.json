@@ -10,9 +10,9 @@
       },
       "NLog.Targets.Network": {
         "type": "Direct",
-        "requested": "[6.1.4, )",
-        "resolved": "6.1.4",
-        "contentHash": "9JGMwZu0NZ30NO56FYQ3i4/2zzsmxWE/WMtB6WJEtzr4ixMCevzTCrslgEA3A02HeZtDJfln/+9FB6pV1ERG0Q==",
+        "requested": "[6.1.5, )",
+        "resolved": "6.1.5",
+        "contentHash": "mCJgN0ghcLcMEpTnMwxDD+QbwxaqdltTwi7T6J2poykbPxhZRuu+5f3spXU2DKzh3WM9RK6weYRFji+CBGk6FA==",
         "dependencies": {
           "NLog": "6.1.4"
         }

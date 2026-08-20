@@ -115,10 +115,10 @@ public async Task Endpoint_Should_Return_Data(DrnTestContext context)
 | `DrnTestContextUnit` | unit tests without containers or full app startup | `ServiceCollection`, `GetRequiredService<T>()`, `BuildConfigurationRoot()`, `GetData()`, `MethodContext.GetTempPath()`, `GetTempPath()`, `ValidateServicesAsync()` |
 | `DrnTestContext` | integration tests | all unit capabilities plus `ContainerContext`, `ApplicationContext`, `FlurlHttpTest` |
 | `ContainerContext` | real dependencies | `Postgres.ApplyMigrationsAsync()`, `Postgres.Isolated`, `RabbitMq`, `BindExternalDependenciesAsync()` |
-| `ApplicationContext` | API/E2E tests | `CreateClientAsync<TProgram>()`, `CreateApplicationAndBindDependenciesAsync<TProgram>()`, automatic debugger-gated logging through `Xunit.TestContext.Current.TestOutputHelper` |
+| `ApplicationContext` | API/E2E tests | `CreateClientAsync<T>()`, `CreateClientForServiceAsync<T>()`, `CreateApplicationAndBindDependenciesAsync<T>()`, `MapAddress<T>()`, in-memory routing via `ApplicationContextRouterHandler`, automatic debugger-gated logging through `Xunit.TestContext.Current.TestOutputHelper` |
 | `FlurlHttpTest` | outbound HTTP mocks | `ForCallsTo(...).RespondWithJson(...)`, `ShouldHaveCalled(...)` |
 
-`DrnTestContext` owns the bootstrap and migration providers it builds. `ApplicationContext` only borrows the active host provider for service resolution; its `WebApplicationFactory` remains responsible for stopping and disposing that host before the context-owned provider is reset. Sequential applications rebuild context-owned services from current configuration, and a factory whose shutdown fails remains available for disposal retry.
+`DrnTestContext` owns the bootstrap and migration providers it builds. `ApplicationContext` manages one active `WebApplicationFactory` per application type and routes outbound HTTP calls between hosted services in-memory via `ApplicationContextRouterHandler`. Re-creating an application instance disposes and updates that specific factory and route bindings. Sequential applications rebuild context-owned services from current configuration, and a factory whose shutdown fails remains available for disposal retry.
 
 ## Consolidation Rule
 

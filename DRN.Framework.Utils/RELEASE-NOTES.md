@@ -2,7 +2,9 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.9.9
 
-Version alignment release; no package-specific behavior changes.
+### New Features
+
+*   **HttpMessageHandler DI Injection**: `InternalRequest` and `ExternalRequest` now accept an optional `HttpMessageHandler?` via dependency injection, allowing in-memory routing handlers (such as `ApplicationContextRouterHandler` during integration testing) to intercept and route Flurl calls without global static cache mutation.
 
 ## Version 0.9.8
 

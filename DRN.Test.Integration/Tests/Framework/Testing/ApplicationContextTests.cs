@@ -1,11 +1,11 @@
 using System.Net.Http.Json;
 using DRN.Framework.Utils.Models.Sample;
+using DRN.Nexus.Hosted;
 using DRN.Test.Utils.Hosting;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,6 +15,9 @@ using Sample.Hosted;
 using Sample.Hosted.Filters;
 using Sample.Hosted.Helpers;
 using Sample.Infra.QA;
+using NexusGet = DRN.Nexus.Hosted.Helpers.Get;
+// ReSharper disable AccessToDisposedClosure
+// ReSharper disable ShortLivedHttpClient
 
 namespace DRN.Test.Integration.Tests.Framework.Testing;
 
@@ -23,10 +26,10 @@ public class ApplicationContextTests
     [Fact]
     public void ApplicationContext_Should_Resolve_Active_Xunit_Output_Helper()
     {
-        var ambientOutputHelper = Xunit.TestContext.Current.TestOutputHelper;
+        var ambientOutputHelper = TestContext.Current.TestOutputHelper;
 
         ambientOutputHelper.Should().NotBeNull();
-        InvokeOutputHelperResolver().Should().BeSameAs(ambientOutputHelper);
+        ApplicationContext.ResolveOutputHelper(debuggerOnly: false).Should().BeSameAs(ambientOutputHelper);
     }
 
     [Fact]
@@ -34,7 +37,7 @@ public class ApplicationContextTests
     {
         var suppliedOutputHelper = Substitute.For<ITestOutputHelper>();
 
-        InvokeOutputHelperResolver(suppliedOutputHelper).Should().BeSameAs(suppliedOutputHelper);
+        ApplicationContext.ResolveOutputHelper(suppliedOutputHelper, debuggerOnly: false).Should().BeSameAs(suppliedOutputHelper);
     }
 
     [Fact]
@@ -42,7 +45,7 @@ public class ApplicationContextTests
     {
         Task<ITestOutputHelper?> resolutionTask;
         using (ExecutionContext.SuppressFlow())
-            resolutionTask = Task.Run(() => InvokeOutputHelperResolver());
+            resolutionTask = Task.Run(() => ApplicationContext.ResolveOutputHelper(debuggerOnly: false));
 
         var resolvedOutputHelper = await resolutionTask;
         resolvedOutputHelper.Should().BeNull();
@@ -58,7 +61,7 @@ public class ApplicationContextTests
         var outputHelper = Substitute.For<ITestOutputHelper>();
 
         var firstApplication =
-            InvokeCreateApplicationCore<TemporaryLifecycleProgram>(context.ApplicationContext, outputHelper);
+            context.ApplicationContext.CreateApplicationCore<TemporaryLifecycleProgram>(outputHelper);
         _ = firstApplication.Server;
         firstApplication.Services.GetRequiredService<ILogger<ApplicationContextTests>>()
             .LogCritical(firstApplicationMessage);
@@ -67,7 +70,7 @@ public class ApplicationContextTests
             Arg.Is<string>(message => message != null && message.Contains(firstApplicationMessage, StringComparison.Ordinal)));
 
         var secondApplication =
-            InvokeCreateApplicationCore<TemporaryLifecycleProgram>(context.ApplicationContext, null);
+            context.ApplicationContext.CreateApplicationCore<TemporaryLifecycleProgram>(null);
         _ = secondApplication.Server;
         secondApplication.Services.GetRequiredService<ILogger<ApplicationContextTests>>()
             .LogCritical(secondApplicationMessage);
@@ -136,7 +139,7 @@ public class ApplicationContextTests
         _ = application.Services.GetRequiredService<ApplicationOwnedDisposalTracker>();
         hostedService.FailAllStops();
 
-        var dispose = () => context.Dispose();
+        var dispose = context.Dispose;
 
         var exception = dispose.Should().Throw<AggregateException>().Which;
         exception.ToString().Should().Contain(StopFailureHostedService.StopFailureMessage);
@@ -185,7 +188,8 @@ public class ApplicationContextTests
         // ApplicationContext owns only the parent factory. Model nested cleanup explicitly so this test covers
         // its retry contract without depending on WebApplicationFactory's internal derived-factory traversal.
         var factory = new ParentApplicationFactoryWithDerivedDisposalFailure(disposalOrder);
-        context.ApplicationContext.UseApplicationFactory(factory);
+        context.ApplicationContext.UseApplicationFactory<TemporaryLifecycleProgram>(factory);
+        context.ApplicationContext.GetCreatedApplication<TemporaryLifecycleProgram>().Should().BeNull();
 
         var firstDispose = () => context.ApplicationContext.Dispose();
         var exception = firstDispose.Should().Throw<Exception>().Which;
@@ -237,9 +241,9 @@ public class ApplicationContextTests
         _ = context.GetRequiredService<ContextOwnedDisposalTracker>();
 
         var factory = new RepeatedApplicationFactoryDisposeFailure(disposalOrder);
-        context.ApplicationContext.UseApplicationFactory(factory);
+        context.ApplicationContext.UseApplicationFactory<TemporaryLifecycleProgram>(factory);
 
-        var dispose = () => context.Dispose();
+        var dispose = context.Dispose;
 
         var exception = dispose.Should().Throw<AggregateException>().Which;
         var errors = exception.Flatten().InnerExceptions;
@@ -359,7 +363,7 @@ public class ApplicationContextTests
         var hostBuilder = Substitute.For<IHostBuilder>();
         hostBuilder.Properties.Returns(new Dictionary<object, object>());
         hostBuilder.Build().Returns(host);
-        using var factory = new ExposedDrnWebApplicationFactory(context);
+        await using var factory = new ExposedDrnWebApplicationFactory(context);
         factory.UseKestrel(0);
         var failureSafeHost = factory.CreateHostForTest(hostBuilder);
         Func<Task> stop = () => failureSafeHost.StopAsync();
@@ -428,11 +432,313 @@ public class ApplicationContextTests
         appSettingsFromDrnTestContext.GetValue("PhilosophicalRazor", "").Should().Be(philosophicalRazor);
     }
 
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_Should_Host_Multiple_Concurrent_Applications(DrnTestContext context)
+    {
+        var nexusClient = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
+        var sampleClient = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
+
+        context.ApplicationContext.GetCreatedApplication<NexusProgram>().Should().NotBeNull();
+        context.ApplicationContext.GetCreatedApplication<SampleProgram>().Should().NotBeNull();
+        context.ApplicationContext.GetCreatedApplications().Should().HaveCount(2);
+
+        var nexusForecasts = await nexusClient.GetFromJsonAsync<WeatherForecast[]>(NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern);
+        nexusForecasts.Should().NotBeNull();
+        nexusForecasts.Length.Should().BePositive();
+
+        var sampleForecasts = await sampleClient.GetFromJsonAsync<WeatherForecast[]>(Get.Endpoint.Sample.WeatherForecast.Get.RoutePattern);
+        sampleForecasts.Should().NotBeNull();
+        sampleForecasts.Length.Should().BePositive();
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_Should_Route_Requests_Across_Applications_Via_RouterHandler(DrnTestContext context)
+    {
+        _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
+        await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<SampleProgram>();
+
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
+
+        // Call Nexus via configured address (e.g. localhost:5988 or nexus)
+        var appSettings = context.GetRequiredService<IAppSettings>();
+        var nexusEndpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
+        var nexusUri = $"http://{appSettings.NexusAppSettings.NexusAddress}/{nexusEndpoint?.TrimStart('/')}";
+        var nexusForecasts = await client.GetFromJsonAsync<WeatherForecast[]>(nexusUri);
+        nexusForecasts.Should().NotBeNull();
+        nexusForecasts.Length.Should().BePositive();
+
+        // Call Sample via sample hostname
+        var sampleEndpoint = Get.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
+        var sampleUri = $"http://sample/{sampleEndpoint?.TrimStart('/')}";
+        var sampleForecasts = await client.GetFromJsonAsync<WeatherForecast[]>(sampleUri);
+        sampleForecasts.Should().NotBeNull();
+        sampleForecasts.Length.Should().BePositive();
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_Should_Route_To_Configured_Custom_Nexus_Address(DrnTestContext context)
+    {
+        var customNexusSettings = new NexusAppSettings
+        {
+            AppId = 7,
+            AppInstanceId = 14,
+            NexusAddress = "custom-nexus-host"
+        };
+
+        context.AddToConfiguration(new { NexusAppSettings = customNexusSettings });
+        var nexusClient = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
+        nexusClient.Should().NotBeNull();
+
+        var appSettings = context.GetRequiredService<IAppSettings>();
+        appSettings.NexusAppSettings.AppId.Should().Be(7);
+        appSettings.NexusAppSettings.AppInstanceId.Should().Be(14);
+        appSettings.NexusAppSettings.NexusAddress.Should().Be("custom-nexus-host");
+
+        // RouterHandler can route to Nexus using configured address
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
+        var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
+        var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>($"http://custom-nexus-host/{endpoint?.TrimStart('/')}");
+        forecasts.Should().NotBeNull();
+        forecasts.Length.Should().BePositive();
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_Should_Discover_Addresses_Only_From_Matching_Key_Segments(DrnTestContext context)
+    {
+        // 1. Exact short-name segment match in hierarchical key
+        context.AddToConfiguration("Services:Nexus:Url", "http://nexus-segment-url");
+        // 2. Exact type-name segment match
+        context.AddToConfiguration("NexusProgram:Address", "http://nexus-program-address");
+        // 3. Suffix on short-name (NexusAddress)
+        context.AddToConfiguration("Custom:NexusAddress", "http://nexus-suffix-address");
+        // 4. Substring in segment (should NOT match)
+        context.AddToConfiguration("ExternalNexusAddress", "http://external-nexus-address");
+        context.AddToConfiguration("ExternalPaymentUrl", "http://external-payment-url");
+        context.AddToConfiguration("ExternalNexusSettings:ServiceUrl", "http://external-nexus-service-url");
+        context.AddToConfiguration("Nexus:ExternalPaymentUrl", "http://nested-external-payment-url");
+        // 5. Non-address key matching short name (should NOT match)
+        context.AddToConfiguration("Nexus:Name", "ignored-value");
+
+        _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
+
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
+        var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
+
+        // Valid segment matches route successfully
+        var r1 = await client.GetFromJsonAsync<WeatherForecast[]>($"http://nexus-segment-url/{endpoint?.TrimStart('/')}");
+        r1.Should().NotBeNull();
+        r1.Length.Should().BePositive();
+
+        var r2 = await client.GetFromJsonAsync<WeatherForecast[]>($"http://nexus-program-address/{endpoint?.TrimStart('/')}");
+        r2.Should().NotBeNull();
+        r2.Length.Should().BePositive();
+
+        var r3 = await client.GetFromJsonAsync<WeatherForecast[]>($"http://nexus-suffix-address/{endpoint?.TrimStart('/')}");
+        r3.Should().NotBeNull();
+        r3.Length.Should().BePositive();
+
+        // Substring / non-segment matches are not registered and throw unmapped host
+        Func<Task> callExternal = () => client.GetAsync("http://external-nexus-address/api/test");
+        await callExternal.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No application registered in ApplicationContext matches host 'external-nexus-address'*");
+
+        Func<Task> callPayment = () => client.GetAsync("http://external-payment-url/api/test");
+        await callPayment.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No application registered in ApplicationContext matches host 'external-payment-url'*");
+
+        Func<Task> callSettings = () => client.GetAsync("http://external-nexus-service-url/api/test");
+        await callSettings.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No application registered in ApplicationContext matches host 'external-nexus-service-url'*");
+
+        Func<Task> callNestedPayment = () => client.GetAsync("http://nested-external-payment-url/api/test");
+        await callNestedPayment.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No application registered in ApplicationContext matches host 'nested-external-payment-url'*");
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_Should_Support_MultiHop_Chained_Applications(DrnTestContext context)
+    {
+        // Setup 3 chained apps: Node A -> Node B -> Node C with service names assigned at creation
+        _ = await context.ApplicationContext.CreateClientForServiceAsync<ChainedNodeCProgram>(ChainedNodeCProgram.NodeName);
+        _ = await context.ApplicationContext.CreateClientForServiceAsync<ChainedNodeBProgram>(ChainedNodeBProgram.NodeName);
+        var nodeAClient = await context.ApplicationContext.CreateClientForServiceAsync<ChainedNodeAProgram>(ChainedNodeAProgram.NodeName);
+
+        // Call Node A -> Node A calls Node B -> Node B calls Node C -> Node C returns "C" -> Node B returns "B -> C" -> Node A returns "A -> B -> C"
+        var response = await nodeAClient.GetStringAsync("/api/chain/start");
+        response.Should().Contain("A -> B -> C");
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_Should_Support_Explicit_MapAddress(DrnTestContext context)
+    {
+        _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
+
+        context.ApplicationContext.MapAddress<NexusProgram>("weather-service");
+
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
+        var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
+        var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>($"http://weather-service/{endpoint?.TrimStart('/')}");
+        forecasts.Should().NotBeNull();
+        forecasts.Length.Should().BePositive();
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_Should_Support_Bidirectional_Service_Communication(DrnTestContext context)
+    {
+        var node1Client = await context.ApplicationContext.CreateClientForServiceAsync<BidirectionalNode1Program>(BidirectionalNode1Program.NodeName);
+        var node2Client = await context.ApplicationContext.CreateClientForServiceAsync<BidirectionalNode2Program>(BidirectionalNode2Program.NodeName);
+
+        // Node 1 calls Node 2
+        var node1Response = await node1Client.GetStringAsync("/api/node1/ping");
+        node1Response.Should().Contain("1-ping(2-pong)");
+
+        // Node 2 calls Node 1
+        var node2Response = await node2Client.GetStringAsync("/api/node2/ping");
+        node2Response.Should().Contain("2-ping(1-pong)");
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_RouterHandler_Should_Throw_Detailed_Exception_On_Unmapped_Host(DrnTestContext context)
+    {
+        _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
+        _ = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
+
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
+        Func<Task> call = () => client.GetAsync("http://unmapped-unknown-service/api/test");
+
+        var ex = await call.Should().ThrowAsync<InvalidOperationException>();
+        ex.WithMessage("*No application registered in ApplicationContext matches host 'unmapped-unknown-service'*")
+            .WithMessage("*Registered addresses:*")
+            .WithMessage("*Registered applications:*");
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_RouterHandler_Should_Route_IPv6_Addresses_And_Ports(DrnTestContext context)
+    {
+        _ = await context.ApplicationContext.CreateClientForServiceAsync<NexusProgram>("[::1]:5999");
+
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
+        var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
+
+        // Route via bracketed IPv6 + port
+        var forecasts1 = await client.GetFromJsonAsync<WeatherForecast[]>($"http://[::1]:5999/{endpoint?.TrimStart('/')}");
+        forecasts1.Should().NotBeNull();
+        forecasts1.Length.Should().BePositive();
+
+        // Route via port alone
+        var forecasts2 = await client.GetFromJsonAsync<WeatherForecast[]>($"http://localhost:5999/{endpoint?.TrimStart('/')}");
+        forecasts2.Should().NotBeNull();
+        forecasts2.Length.Should().BePositive();
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_RouterHandler_Should_Not_Route_Unrelated_Host_When_Default_Port_Is_Registered(DrnTestContext context)
+    {
+        _ = await context.ApplicationContext.CreateClientForServiceAsync<NexusProgram>("http://nexus:80");
+
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
+        Func<Task> callUnrelatedHttp = () => client.GetAsync("http://unrelated-domain/api/test");
+        Func<Task> callUnrelatedHttps = () => client.GetAsync("https://unrelated-domain/api/test");
+
+        await callUnrelatedHttp.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No application registered in ApplicationContext matches host 'unrelated-domain'*");
+        await callUnrelatedHttps.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*No application registered in ApplicationContext matches host 'unrelated-domain'*");
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_Replacing_One_Application_Should_Not_Disrupt_Remaining_Application_Routing(DrnTestContext context)
+    {
+        // 1. Create two independent nodes
+        var node1Client = await context.ApplicationContext.CreateClientForServiceAsync<BidirectionalNode1Program>(BidirectionalNode1Program.NodeName);
+        _ = await context.ApplicationContext.CreateClientForServiceAsync<BidirectionalNode2Program>(BidirectionalNode2Program.NodeName);
+
+        // Verify initial routing from node-1 to node-2
+        var initialResponse = await node1Client.GetStringAsync("/api/node1/ping");
+        initialResponse.Should().Contain("1-ping(2-pong)");
+
+        // 2. Replace node-1 (recreation disposes the old node-1 application)
+        var newNode1Client = await context.ApplicationContext.CreateClientForServiceAsync<BidirectionalNode1Program>(BidirectionalNode1Program.NodeName);
+
+        // 3. Verify node-2 is still routable from the new node-1 instance and router handler is intact
+        var postReplacementResponse = await newNode1Client.GetStringAsync("/api/node1/ping");
+        postReplacementResponse.Should().Contain("1-ping(2-pong)");
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_MapAddress_Recreated_Application_Should_Route_To_New_Instance(DrnTestContext context)
+    {
+        _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
+        context.ApplicationContext.MapAddress<NexusProgram>("weather-alias");
+
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
+        var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
+        var forecasts1 = await client.GetFromJsonAsync<WeatherForecast[]>($"http://weather-alias/{endpoint?.TrimStart('/')}");
+        forecasts1.Should().NotBeNull();
+        forecasts1.Length.Should().BePositive();
+
+        // Recreate NexusProgram (disposes old factory and registers new one)
+        _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
+
+        // Mapped address should resolve to the newly registered instance without errors
+        var forecasts2 = await client.GetFromJsonAsync<WeatherForecast[]>($"http://weather-alias/{endpoint?.TrimStart('/')}");
+        forecasts2.Should().NotBeNull();
+        forecasts2.Length.Should().BePositive();
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_Overload_Compatibility_Should_Resolve_Without_Ambiguity(DrnTestContext context)
+    {
+        // Execute one runtime creation to verify baseline pipeline functionality
+        var client = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
+        client.Should().NotBeNull();
+
+        // Compile-time overload resolution checks for remaining call shapes without starting extra test servers
+        Action compileTimeOverloadCheck = () =>
+        {
+            _ = context.ApplicationContext.CreateClientAsync<NexusProgram>(null);
+            _ = context.ApplicationContext.CreateClientAsync<NexusProgram>(null, null);
+            _ = context.ApplicationContext.CreateClientForServiceAsync<NexusProgram>("nexus-overload-test");
+            _ = context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>(null);
+            _ = context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<TemporaryLifecycleProgram>(null);
+            _ = new DrnWebApplicationFactory<TemporaryLifecycleProgram>(context, temporary: true);
+        };
+        compileTimeOverloadCheck.Should().NotBeNull();
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_MapAddress_With_Url_Path_Should_Route_To_Authority(DrnTestContext context)
+    {
+        _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
+        context.ApplicationContext.MapAddress<NexusProgram>("https://custom-nexus-host:5988/api/v1");
+
+        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
+        var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
+        var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>($"http://custom-nexus-host:5988/{endpoint?.TrimStart('/')}");
+        forecasts.Should().NotBeNull();
+        forecasts.Length.Should().BePositive();
+    }
+
     private sealed class ContextOwnedDisposalTracker(List<string> disposalOrder) : IDisposable
     {
         public void Dispose() => disposalOrder.Add("context");
     }
 
+    // ReSharper disable once NotAccessedPositionalProperty.Local
     private sealed record HostConfiguratorRegistration(string Source);
 
     private sealed class CallerLoggingProvider : ILoggerProvider
@@ -491,7 +797,7 @@ public class ApplicationContextTests
     private sealed class StopFailureHostedService(List<string> disposalOrder) : IHostedService
     {
         public const string StopFailureMessage = "Application stop failure.";
-        private readonly object _sync = new();
+        private readonly Lock _sync = new();
         private bool _failAllStops;
         private bool _failureRecorded;
 
@@ -579,26 +885,5 @@ public class ApplicationContextTests
         : DrnWebApplicationFactory<TemporaryLifecycleProgram>(context, true)
     {
         public IHost CreateHostForTest(IHostBuilder builder) => CreateHost(builder);
-    }
-
-    private static ITestOutputHelper? InvokeOutputHelperResolver(ITestOutputHelper? supplied = null)
-    {
-        var resolver = typeof(ApplicationContext).GetMethod(
-            "ResolveOutputHelper",
-            BindingFlags.Static | BindingFlags.NonPublic)!;
-
-        return (ITestOutputHelper?)resolver.Invoke(null, [supplied, false]);
-    }
-
-    private static WebApplicationFactory<TEntryPoint> InvokeCreateApplicationCore<TEntryPoint>(
-        ApplicationContext context,
-        ITestOutputHelper? outputHelper)
-        where TEntryPoint : class
-    {
-        var factory = typeof(ApplicationContext)
-            .GetMethod("CreateApplicationCore", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .MakeGenericMethod(typeof(TEntryPoint));
-
-        return (WebApplicationFactory<TEntryPoint>)factory.Invoke(context, [outputHelper, null])!;
     }
 }
