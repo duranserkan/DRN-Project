@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Hosting;
@@ -329,6 +330,8 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
         }
     }
 
+    [SuppressMessage("SonarQube", "S3877", Justification = "ApplicationContext intentionally surfaces disposal exceptions to ensure test teardown failures are not silently swallowed.")]
+    [SuppressMessage("Design", "CA1065:Do not raise exceptions in unexpected locations", Justification = "ApplicationContext intentionally surfaces disposal exceptions to ensure test teardown failures are not silently swallowed.")]
     public void Dispose()
     {
         var factories = _factories.ToArray();
