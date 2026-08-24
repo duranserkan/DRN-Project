@@ -11,26 +11,38 @@ const COMPONENT_REGISTRY: ReactComponentRegistry = {
     'HelloReact': HelloReactComponent
 };
 
-const getInlineStyleNonce = () => {
-    let nonce = '';
-    const meta = document.querySelector<HTMLMetaElement>('meta[name="htmx-config"]');
-    if (meta) {
-        nonce = meta.getAttribute('inlineStyleNonce') || meta.getAttribute('inlineScriptNonce') || '';
-
-        if (!nonce && meta.content) {
-            try {
-                const parsed = JSON.parse(meta.content);
-                nonce = typeof parsed.inlineStyleNonce === 'string' ? parsed.inlineStyleNonce : (typeof parsed.inlineScriptNonce === 'string' ? parsed.inlineScriptNonce : '');
-            } catch {
-                // ignore
-            }
+const getNonceFromHtmxContent = (content: string): string => {
+    try {
+        const parsed = JSON.parse(content);
+        if (typeof parsed?.inlineStyleNonce === 'string' && parsed.inlineStyleNonce) {
+            return parsed.inlineStyleNonce;
         }
+        if (typeof parsed?.inlineScriptNonce === 'string') {
+            return parsed.inlineScriptNonce;
+        }
+    } catch {
+        // ignore JSON parse errors
     }
+    return '';
+};
 
-    if (!nonce) {
-        const nonceElement = document.querySelector<HTMLElement>('script[nonce], style[nonce]');
-        nonce = nonceElement?.nonce || nonceElement?.getAttribute('nonce') || '';
-    }
+const getNonceFromHtmxMeta = (): string => {
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="htmx-config"]');
+    if (!meta) return '';
+
+    const attrNonce = meta.getAttribute('inlineStyleNonce') || meta.getAttribute('inlineScriptNonce');
+    if (attrNonce) return attrNonce;
+
+    return meta.content ? getNonceFromHtmxContent(meta.content) : '';
+};
+
+const getNonceFromDomElements = (): string => {
+    const nonceElement = document.querySelector<HTMLElement>('script[nonce], style[nonce]');
+    return nonceElement?.nonce || nonceElement?.getAttribute('nonce') || '';
+};
+
+const getInlineStyleNonce = (): string => {
+    const nonce = getNonceFromHtmxMeta() || getNonceFromDomElements();
 
     if (nonce && typeof window !== 'undefined') {
         (window as any).__webpack_nonce__ = nonce;
