@@ -12,15 +12,31 @@ const COMPONENT_REGISTRY: ReactComponentRegistry = {
 };
 
 const getInlineStyleNonce = () => {
-    const config = document.querySelector<HTMLMetaElement>('meta[name="htmx-config"]')?.content;
-    if (!config) return '';
+    let nonce = '';
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="htmx-config"]');
+    if (meta) {
+        nonce = meta.getAttribute('inlineStyleNonce') || meta.getAttribute('inlineScriptNonce') || '';
 
-    try {
-        const parsed = JSON.parse(config);
-        return typeof parsed.inlineStyleNonce === 'string' ? parsed.inlineStyleNonce : '';
-    } catch {
-        return '';
+        if (!nonce && meta.content) {
+            try {
+                const parsed = JSON.parse(meta.content);
+                nonce = typeof parsed.inlineStyleNonce === 'string' ? parsed.inlineStyleNonce : (typeof parsed.inlineScriptNonce === 'string' ? parsed.inlineScriptNonce : '');
+            } catch {
+                // ignore
+            }
+        }
     }
+
+    if (!nonce) {
+        const nonceElement = document.querySelector<HTMLElement>('script[nonce], style[nonce]');
+        nonce = nonceElement?.nonce || nonceElement?.getAttribute('nonce') || '';
+    }
+
+    if (nonce && typeof window !== 'undefined') {
+        (window as any).__webpack_nonce__ = nonce;
+    }
+
+    return nonce;
 };
 
 class IslandErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
@@ -61,7 +77,37 @@ if (window.CSSStyleSheet)
         console.warn("[DRN] Constructable stylesheets not supported, falling back to <style> tags", e);
     }
 
+function ensureDocumentStyles(): void {
+    getInlineStyleNonce();
+
+    if (drnSharedSheet && document.adoptedStyleSheets) {
+        if (!document.adoptedStyleSheets.includes(drnSharedSheet)) {
+            document.adoptedStyleSheets = [...document.adoptedStyleSheets, drnSharedSheet];
+        }
+        return;
+    }
+
+    const styleId = 'drn-react-bundle-styles';
+    if (document.getElementById(styleId)) return;
+
+    const styleTag = document.createElement('style');
+    styleTag.id = styleId;
+    const nonce = getInlineStyleNonce();
+    if (nonce) {
+        styleTag.nonce = nonce;
+        styleTag.setAttribute('nonce', nonce);
+    }
+    styleTag.textContent = bundleStyles;
+    document.head.appendChild(styleTag);
+}
+
+if (typeof document !== 'undefined') {
+    getInlineStyleNonce();
+    ensureDocumentStyles();
+}
+
 function setupShadowDomContainer(domElement: HTMLElement): HTMLElement {
+    getInlineStyleNonce();
     const shadow = domElement.shadowRoot || domElement.attachShadow({mode: 'open'});
     if (drnSharedSheet && shadow.adoptedStyleSheets) {
         if (!shadow.adoptedStyleSheets.includes(drnSharedSheet))
@@ -72,8 +118,10 @@ function setupShadowDomContainer(domElement: HTMLElement): HTMLElement {
             const styleTag = document.createElement('style');
             styleTag.id = styleId;
             const nonce = getInlineStyleNonce();
-            if (nonce)
+            if (nonce) {
                 styleTag.nonce = nonce;
+                styleTag.setAttribute('nonce', nonce);
+            }
             styleTag.textContent = bundleStyles;
             shadow.appendChild(styleTag);
         }
@@ -90,6 +138,8 @@ function setupShadowDomContainer(domElement: HTMLElement): HTMLElement {
 }
 
 function resolveMountContainer(domElement: HTMLElement, useShadow: boolean): HTMLElement {
+    getInlineStyleNonce();
+    ensureDocumentStyles();
     if (useShadow) {
         return setupShadowDomContainer(domElement);
     }
