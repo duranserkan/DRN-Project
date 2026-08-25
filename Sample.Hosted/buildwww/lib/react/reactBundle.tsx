@@ -82,7 +82,7 @@ window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
     // React.createElement avoids TS2769 from JSX spreading generic indexed-access component types
     const renderApp = (props: Props) => (
         <React.StrictMode>
-            <IslandErrorBoundary>
+            <IslandErrorBoundary resetKey={props}>
                 <PortalContext.Provider value={portalContainer}>
                     {React.createElement(Component as React.ElementType, props)}
                 </PortalContext.Provider>

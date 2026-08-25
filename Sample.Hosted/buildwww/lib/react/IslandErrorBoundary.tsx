@@ -1,22 +1,33 @@
 // IslandErrorBoundary.tsx
 import React, { Component, type ReactNode, type ErrorInfo } from 'react';
+import type { IslandErrorBoundaryProps, IslandErrorBoundaryState } from '@/types/DrnReactTypes.ts';
 
-export interface IslandErrorBoundaryProps {
-    children: ReactNode;
-}
-
-export interface IslandErrorBoundaryState {
-    hasError: boolean;
-}
+export type { IslandErrorBoundaryProps, IslandErrorBoundaryState };
 
 export class IslandErrorBoundary extends Component<IslandErrorBoundaryProps, IslandErrorBoundaryState> {
     constructor(props: IslandErrorBoundaryProps) {
         super(props);
-        this.state = { hasError: false };
+        this.state = {
+            hasError: false,
+            prevResetKey: props.resetKey
+        };
     }
 
-    static getDerivedStateFromError(): IslandErrorBoundaryState {
+    static getDerivedStateFromError(): Partial<IslandErrorBoundaryState> {
         return { hasError: true };
+    }
+
+    static getDerivedStateFromProps(
+        props: IslandErrorBoundaryProps,
+        state: IslandErrorBoundaryState
+    ): IslandErrorBoundaryState | null {
+        if (props.resetKey !== undefined && state.prevResetKey !== props.resetKey) {
+            return {
+                hasError: false,
+                prevResetKey: props.resetKey
+            };
+        }
+        return null;
     }
 
     override componentDidCatch(error: Error, info: ErrorInfo): void {
