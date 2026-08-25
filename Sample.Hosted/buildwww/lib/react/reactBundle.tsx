@@ -2,171 +2,40 @@
 import bundleStyles from './reactBundle.css?inline';
 
 import React from 'react';
-import {createRoot, type Root} from 'react-dom/client';
-import type {ReactComponentRegistry, RootData, ReactMountOptions} from "@/types/DrnReactTypes.ts";
-import {HelloReactComponent} from './components/HelloReactComponent';
+import { createRoot, type Root } from 'react-dom/client';
+import type { ReactComponentRegistry, RootData, ReactMountOptions } from "@/types/DrnReactTypes.ts";
+import { HelloReactComponent } from './components/HelloReactComponent';
+import { IslandErrorBoundary } from './IslandErrorBoundary';
+import { getGlobalPortalContainer } from './portalHost';
+import { PortalContext } from './PortalContext';
+import { getInlineStyleNonce } from './nonceHelper';
+import { initSharedStyleSheet, ensureDocumentStyles, resolveMountContainer } from './styleManager';
 
 const rootMap = new WeakMap<HTMLElement, RootData>();
+
 const COMPONENT_REGISTRY: ReactComponentRegistry = {
     'HelloReact': HelloReactComponent
 };
 
-const getNonceFromHtmxContent = (content: string): string => {
-    try {
-        const parsed = JSON.parse(content);
-        if (typeof parsed?.inlineStyleNonce === 'string' && parsed.inlineStyleNonce) {
-            return parsed.inlineStyleNonce;
-        }
-        if (typeof parsed?.inlineScriptNonce === 'string') {
-            return parsed.inlineScriptNonce;
-        }
-    } catch {
-        // ignore JSON parse errors
-    }
-    return '';
-};
-
-const getNonceFromHtmxMeta = (): string => {
-    const meta = document.querySelector<HTMLMetaElement>('meta[name="htmx-config"]');
-    if (!meta) return '';
-
-    const attrNonce = meta.getAttribute('inlineStyleNonce') || meta.getAttribute('inlineScriptNonce');
-    if (attrNonce) return attrNonce;
-
-    return meta.content ? getNonceFromHtmxContent(meta.content) : '';
-};
-
-const getNonceFromDomElements = (): string => {
-    const nonceElement = document.querySelector<HTMLElement>('script[nonce], style[nonce]');
-    return nonceElement?.nonce || nonceElement?.getAttribute('nonce') || '';
-};
-
-const getInlineStyleNonce = (): string => {
-    const nonce = getNonceFromHtmxMeta() || getNonceFromDomElements();
-
-    if (nonce && typeof window !== 'undefined') {
-        (window as any).__webpack_nonce__ = nonce;
-    }
-
-    return nonce;
-};
-
-class IslandErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
-    constructor(props: { children: React.ReactNode }) {
-        super(props);
-        this.state = {hasError: false};
-    }
-
-    static getDerivedStateFromError() {
-        return {hasError: true};
-    }
-
-    override componentDidCatch(error: Error, info: React.ErrorInfo) {
-        console.error("DRN Island crashed:", error, info);
-    }
-
-    override render() {
-        if (this.state.hasError) {
-            return <div className="drn-error-fallback">Failed to load component</div>;
-        }
-
-        return this.props.children;
-    }
-}
-
+// --- Namespace Verification & Initialization ---
 if (!window.DRN?.React) {
-    console.error("Critical Error: 'appPreload.js' has not been loaded. DRN namespace is missing.");
+    throw new Error("[DRN] Critical Error: 'appPreload.js' has not been loaded. DRN namespace is missing.");
 }
 
-// --- Initialize Stylesheet Once ---
-let drnSharedSheet: CSSStyleSheet | null = null;
-if (window.CSSStyleSheet)
-    try {
-        drnSharedSheet = new CSSStyleSheet();
-        drnSharedSheet.replaceSync(bundleStyles);
-    } catch (e) {
-        drnSharedSheet = null;
-        console.warn("[DRN] Constructable stylesheets not supported, falling back to <style> tags", e);
-    }
-
-function ensureDocumentStyles(): void {
-    getInlineStyleNonce();
-
-    if (drnSharedSheet && document.adoptedStyleSheets) {
-        if (!document.adoptedStyleSheets.includes(drnSharedSheet)) {
-            document.adoptedStyleSheets = [...document.adoptedStyleSheets, drnSharedSheet];
-        }
-        return;
-    }
-
-    const styleId = 'drn-react-bundle-styles';
-    if (document.getElementById(styleId)) return;
-
-    const styleTag = document.createElement('style');
-    styleTag.id = styleId;
-    const nonce = getInlineStyleNonce();
-    if (nonce) {
-        styleTag.nonce = nonce;
-        styleTag.setAttribute('nonce', nonce);
-    }
-    styleTag.textContent = bundleStyles;
-    document.head.appendChild(styleTag);
-}
-
+// --- Initialize Shared Stylesheet & Document Styles ---
+const drnSharedSheet = initSharedStyleSheet(bundleStyles);
 if (typeof document !== 'undefined') {
-    getInlineStyleNonce();
-    ensureDocumentStyles();
+    ensureDocumentStyles(bundleStyles);
 }
 
-function setupShadowDomContainer(domElement: HTMLElement): HTMLElement {
-    getInlineStyleNonce();
-    const shadow = domElement.shadowRoot || domElement.attachShadow({mode: 'open'});
-    if (drnSharedSheet && shadow.adoptedStyleSheets) {
-        if (!shadow.adoptedStyleSheets.includes(drnSharedSheet))
-            shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, drnSharedSheet];
-    } else {
-        const styleId = 'drn-shadow-dom-styles';
-        if (!shadow.querySelector(`#${styleId}`)) {
-            const styleTag = document.createElement('style');
-            styleTag.id = styleId;
-            const nonce = getInlineStyleNonce();
-            if (nonce) {
-                styleTag.nonce = nonce;
-                styleTag.setAttribute('nonce', nonce);
-            }
-            styleTag.textContent = bundleStyles;
-            shadow.appendChild(styleTag);
-        }
-    }
-
-    let portalHost = shadow.querySelector('#drn-portal-root') as HTMLDivElement;
-    if (!portalHost) {
-        portalHost = document.createElement('div');
-        portalHost.id = 'drn-portal-root';
-        portalHost.className = 'drn-react-root drn-react-portal-root';
-        shadow.appendChild(portalHost);
-    }
-    return portalHost;
-}
-
-function resolveMountContainer(domElement: HTMLElement, useShadow: boolean): HTMLElement {
-    getInlineStyleNonce();
-    ensureDocumentStyles();
-    if (useShadow) {
-        return setupShadowDomContainer(domElement);
-    }
-    if (!domElement.classList.contains('drn-react-root'))
-        domElement.classList.add('drn-react-root');
-    return domElement;
-}
-
+// --- Mount API ---
 window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
     name: K,
     domElement: HTMLElement | null,
     initialProps: React.ComponentProps<ReactComponentRegistry[K]>,
     options: ReactMountOptions = {}
 ) => {
-    //  Safety Checks
+    // Safety Checks
     if (!domElement) {
         console.warn(`DRN.React: DOM element is null for component '${name}'`);
         return null;
@@ -179,39 +48,44 @@ window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
     }
 
     type Props = React.ComponentProps<ReactComponentRegistry[K]>;
+    const { useShadow = true } = options;
 
-    const {useShadow = true} = options; // Default to TRUE — Shadow DOM provides style isolation from Bootstrap
     let record = rootMap.get(domElement) as RootData<Props> | undefined;
-    // Clean up existing roots if re-mounting different component
+
+    // Clean up existing roots if re-mounting a different component or changing shadow mode
     if (record && (record.name !== name || record.isShadow !== useShadow)) {
         record.root.unmount();
         rootMap.delete(domElement);
         record = undefined;
     }
 
-    let root: Root;
     if (!record) {
-        // Clear pre-rendered/fallback content from the Light DOM before mounting React
         domElement.innerHTML = '';
     }
 
-    const mountNode = resolveMountContainer(domElement, useShadow);
+    const mountNode = resolveMountContainer(domElement, useShadow, bundleStyles);
 
+    let root: Root;
     if (record) {
         root = record.root;
         record.currentProps = initialProps;
     } else {
-        root = createRoot(mountNode); // createRoot takes the container (either shadowRoot or the element itself)
-        record = {root, name, isShadow: useShadow, currentProps: initialProps};
+        root = createRoot(mountNode);
+        record = { root, name, isShadow: useShadow, currentProps: initialProps };
         rootMap.set(domElement, record);
     }
 
-    // React.createElement on the line below avoids TS2769 from JSX spreading
-    // generic indexed-access component types; the outer JSX wrappers are fine.
+    const portalContainer = typeof document !== 'undefined'
+        ? getGlobalPortalContainer(drnSharedSheet, bundleStyles, getInlineStyleNonce())
+        : null;
+
+    // React.createElement avoids TS2769 from JSX spreading generic indexed-access component types
     const renderApp = (props: Props) => (
         <React.StrictMode>
-            <IslandErrorBoundary>
-                {React.createElement(Component as React.ElementType, props)}
+            <IslandErrorBoundary resetKey={props}>
+                <PortalContext.Provider value={portalContainer}>
+                    {React.createElement(Component as React.ElementType, props)}
+                </PortalContext.Provider>
             </IslandErrorBoundary>
         </React.StrictMode>
     );
@@ -223,12 +97,12 @@ window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
     return {
         update: (newProps: Partial<Props>) => {
             if (rootMap.get(domElement) !== capturedRecord) return;
-            capturedRecord.currentProps = {...capturedRecord.currentProps, ...newProps} as Props;
+            capturedRecord.currentProps = { ...capturedRecord.currentProps, ...newProps } as Props;
             capturedRecord.root.render(renderApp(capturedRecord.currentProps));
         },
         getProps: () => {
             if (rootMap.get(domElement) !== capturedRecord) return null;
-            return {...capturedRecord.currentProps} as Props;
+            return { ...capturedRecord.currentProps } as Props;
         },
         dispose: () => {
             if (rootMap.get(domElement) !== capturedRecord) return;

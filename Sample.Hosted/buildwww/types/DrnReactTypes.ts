@@ -32,3 +32,19 @@ export interface ReactMountOptions {
      */
     useShadow?: boolean;
 }
+
+/** Props for the <IslandErrorBoundary> component wrapping mounted islands. */
+export interface IslandErrorBoundaryProps {
+    children: React.ReactNode;
+    resetKey?: unknown;
+}
+
+export interface IslandErrorBoundaryState {
+    hasError: boolean;
+    prevResetKey?: unknown;
+}
+
+/** Props for the <IslandPortal> component targeting the global shadow portal container. */
+export interface IslandPortalProps {
+    children: React.ReactNode;
+}

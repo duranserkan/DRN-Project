@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-react
 description: "DRN buildwww React 19 mounted islands - Shadow DOM, Tailwind CSS 4, typed registry, DRN.React mount/update/dispose API, Razor integration, and Vite IIFE build. Keywords: drn, buildwww, react, islands-architecture, onmount, components, shadow-dom, typescript, tailwind, mount-api, iife"
-last-updated: 2026-06-23
+last-updated: 2026-08-25
 difficulty: advanced
 tokens: ~4K
 ---
@@ -59,8 +59,13 @@ Treat `DRN`, `Drn*`, and `DRN.Framework.*` names as shared framework API, not pl
 ```
 <frontend-package>/buildwww/
 ├── lib/react/
-│   ├── reactBundle.tsx          # Entry point — registry, mount API, Shadow DOM, ErrorBoundary
+│   ├── reactBundle.tsx          # Entry point — registry and mount API
 │   ├── reactBundle.css          # CSS aggregator — @reference tailwind, @import components
+│   ├── IslandErrorBoundary.tsx  # Per-island render failure boundary
+│   ├── PortalContext.tsx        # Global portal context, hook, and IslandPortal
+│   ├── nonceHelper.ts           # Memoized document CSP nonce discovery
+│   ├── portalHost.ts            # Shared Shadow DOM portal host lifecycle
+│   ├── styleManager.ts          # Document and Shadow DOM stylesheet lifecycle
 │   └── components/              # One file pair per component (add more here)
 │       ├── HelloReactComponent.tsx   # Reference implementation
 │       └── HelloReactComponent.css   # Scoped styles (.drn-react-root prefix)
@@ -110,6 +115,11 @@ export interface ReactMountedIsland<P> extends Disposable {
 // Shadow DOM toggle (default: true)
 export interface ReactMountOptions {
     useShadow?: boolean;  // @default true
+}
+
+// Children rendered by IslandPortal into the shared global Shadow DOM host
+export interface IslandPortalProps {
+    children: React.ReactNode;
 }
 ```
 
@@ -187,6 +197,8 @@ All component CSS is scoped under `.drn-react-root`:
 .drn-react-root .hello-react { ... }
 .drn-react-root .hello-react-card { ... }
 ```
+
+The same bundle stylesheet is also adopted into `document` for light-DOM islands. Keep every document-visible selector scoped to `.drn-react-root`; reserve `:host` selectors for Shadow DOM host behavior. Scope resets to React descendants explicitly instead of using document-wide selectors such as `*`.
 
 `.drn-react-root` is applied to:
 - **Shadow DOM**: the portal host `<div>` inside the shadow root
@@ -279,12 +291,30 @@ Every mounted component is wrapped in:
 ```tsx
 <React.StrictMode>
     <IslandErrorBoundary>
-        {React.createElement(Component, props)}
+        <PortalContext.Provider value={portalContainer}>
+            {React.createElement(Component, props)}
+        </PortalContext.Provider>
     </IslandErrorBoundary>
 </React.StrictMode>
 ```
 
 `IslandErrorBoundary` catches render failures per-island — one crashed island does **not** affect other islands or the host page.
+
+### Global Portal Host
+
+`getGlobalPortalContainer()` creates one `#drn-global-portals` host under `document.body`, attaches an open Shadow DOM root, and reuses the shared React stylesheet. The cached container is reused while connected and recreated on the next island mount after an HTMX body swap detaches it.
+
+Components render overlays through `IslandPortal`, which reads the shared container from `PortalContext`:
+
+```tsx
+import { IslandPortal } from '../PortalContext';
+
+<IslandPortal>
+    <div className="my-component-dialog">Dialog content</div>
+</IslandPortal>
+```
+
+Keep portal component styles under `.drn-react-root` so the same rules work in island and global-portal Shadow DOM roots. Dispose the owning island through the standard onmount lifecycle; React then removes that island's portal children.
 
 ---
 
