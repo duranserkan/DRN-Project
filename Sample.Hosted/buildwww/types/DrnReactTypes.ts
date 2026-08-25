@@ -32,3 +32,8 @@ export interface ReactMountOptions {
      */
     useShadow?: boolean;
 }
+
+/** Props for the <IslandPortal> component targeting the global shadow portal container. */
+export interface IslandPortalProps {
+    children: React.ReactNode;
+}

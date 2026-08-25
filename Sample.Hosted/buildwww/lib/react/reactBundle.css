@@ -7,6 +7,37 @@
 @reference "tailwindcss/theme";
 @reference "tailwindcss/utilities";
 
+/* ── Shadow Host Boundary ── */
+:host {
+    display: block;
+    box-sizing: border-box;
+}
+
+:host([hidden]) {
+    display: none;
+}
+
+:host *, :host *::before, :host *::after {
+    box-sizing: border-box;
+}
+
+.drn-react-root,
+.drn-react-root *,
+.drn-react-root *::before,
+.drn-react-root *::after {
+    box-sizing: border-box;
+}
+
+/* ── Portal Container & Layout Isolation ── */
+.drn-react-root {
+    pointer-events: auto;
+}
+
 .drn-react-root.drn-react-portal-root {
     display: contents;
+}
+
+/* ── Graceful Degradation Error Fallback ── */
+.drn-react-root .drn-error-fallback {
+    @apply p-3 rounded text-sm text-red-600 bg-red-50 border border-red-200;
 }
