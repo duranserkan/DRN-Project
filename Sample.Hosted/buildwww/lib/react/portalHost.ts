@@ -12,7 +12,7 @@ export function getGlobalPortalContainer(
     }
 
     let host = document.getElementById('drn-global-portals');
-    if (!host || !host.isConnected) {
+    if (!host?.isConnected) {
         host = document.createElement('div');
         host.id = 'drn-global-portals';
         // Zero-box host to avoid altering document.body flow
