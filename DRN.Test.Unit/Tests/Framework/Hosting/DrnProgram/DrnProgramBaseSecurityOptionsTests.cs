@@ -2,6 +2,7 @@ using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HostFiltering;
+using Microsoft.AspNetCore.HttpOverrides;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.DrnProgram;
 
@@ -59,13 +60,60 @@ public class DrnProgramBaseSecurityOptionsTests
         options.AllowedHosts.Should().Equal("example.com", "api.example.com");
     }
 
+    [Fact]
+    public void ConfigureForwardedHeadersOptions_Should_Use_Default_Trusted_Networks_And_ForwardLimit_Of_Two()
+    {
+        var appSettings = CreateAppSettings(isDevelopment: true);
+        var options = new ForwardedHeadersOptions();
+        var configure = new TestProgram().ExposeConfigureForwardedHeadersOptions(appSettings);
+
+        configure(options);
+
+        options.ForwardedHeaders.Should().Be(ForwardedHeaders.All);
+        options.ForwardLimit.Should().Be(2);
+        options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "127.0.0.0" && n.PrefixLength == 8);
+        options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "::1" && n.PrefixLength == 128);
+        options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "10.0.0.0" && n.PrefixLength == 8);
+        options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "172.16.0.0" && n.PrefixLength == 12);
+        options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "192.168.0.0" && n.PrefixLength == 16);
+    }
+
+    [Fact]
+    public void ConfigureForwardedHeadersOptions_Should_Bind_Configuration_Section_When_Present()
+    {
+        var appSettings = CreateAppSettings(isDevelopment: false, ("ForwardedHeaders:ForwardLimit", "3"));
+        var options = new ForwardedHeadersOptions();
+        var configure = new TestProgram().ExposeConfigureForwardedHeadersOptions(appSettings);
+
+        configure(options);
+
+        options.ForwardedHeaders.Should().Be(ForwardedHeaders.All);
+        options.ForwardLimit.Should().Be(3);
+        options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "10.0.0.0" && n.PrefixLength == 8);
+    }
+
     private static IAppSettings CreateAppSettings(bool isDevelopment, params (string Key, string Value)[] settings)
     {
         var appSettings = Substitute.For<IAppSettings>();
         appSettings.IsDevelopmentEnvironment.Returns(isDevelopment);
-        appSettings.Configuration.Returns(new ConfigurationBuilder()
+        var config = new ConfigurationBuilder()
             .AddInMemoryCollection(settings.Select(pair => new KeyValuePair<string, string?>(pair.Key, pair.Value)))
-            .Build());
+            .Build();
+        appSettings.Configuration.Returns(config);
+        appSettings.TryGetSection(Arg.Any<string>(), out Arg.Any<IConfigurationSection>())
+            .Returns(callInfo =>
+            {
+                var key = callInfo.Arg<string>();
+                var section = config.GetSection(key);
+                if (section.Exists())
+                {
+                    callInfo[1] = section;
+                    return true;
+                }
+
+                callInfo[1] = null!;
+                return false;
+            });
 
         return appSettings;
     }
@@ -76,6 +124,9 @@ public class DrnProgramBaseSecurityOptionsTests
 
         public Action<HostFilteringOptions> ExposeConfigureHostFilteringOptions(IAppSettings appSettings)
             => ConfigureHostFilteringOptions(appSettings);
+
+        public Action<ForwardedHeadersOptions> ExposeConfigureForwardedHeadersOptions(IAppSettings appSettings)
+            => ConfigureForwardedHeadersOptions(appSettings);
 
         protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
             => Task.CompletedTask;
