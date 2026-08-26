@@ -25,6 +25,12 @@ public interface IAppSecuritySettings
     string AppEncryptionKey { get; }
 
     long AppSeed { get; }
+
+    /// <summary>
+    /// Derives a context-specific 32-byte key from <see cref="AppEncryptionKey"/> using BLAKE3
+    /// and initializes an <see cref="AesGcm"/> cipher with 128-bit authentication tags.
+    /// </summary>
+    AesGcm CreateAesGcm(string context);
 }
 
 [Singleton<IAppSecuritySettings>]
@@ -39,9 +45,13 @@ public class AppSecuritySettings : IAppSecuritySettings
     private const string AppSeedDerivationContext =
         "DRN.Framework.Utils AppSecuritySettings 1923 DRN 2923 AppSeed 2026-06-29 21:57:43 v1";
 
-    public AppSecuritySettings(DrnAppFeatures features)
+    public AppSecuritySettings(DrnAppFeatures? features = null)
     {
-        var seedKey = Encoding.UTF8.GetBytes(features.SeedKey);
+        features ??= new DrnAppFeatures();
+        var rawSeedKey = string.IsNullOrWhiteSpace(features.SeedKey)
+            ? new DrnAppFeatures().SeedKey
+            : features.SeedKey;
+        var seedKey = Encoding.UTF8.GetBytes(rawSeedKey);
 
         try
         {
@@ -72,6 +82,22 @@ public class AppSecuritySettings : IAppSecuritySettings
     public string AppEncryptionKey { get; }
 
     public long AppSeed { get; }
+
+    public AesGcm CreateAesGcm(string context)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(context);
+
+        var keyMaterial = Encoding.UTF8.GetBytes(AppEncryptionKey);
+        try
+        {
+            using var derivedKey = Blake3KeyDerivation.Derive32ByteKey(keyMaterial, context);
+            return new AesGcm(derivedKey.Span, AesGcm.TagByteSizes.MaxSize);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(keyMaterial);
+        }
+    }
 
     private static string DeriveBase64UrlKey(ReadOnlySpan<byte> keyMaterial, string context)
     {

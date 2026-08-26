@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Security.Cryptography;
 using System.Text;
 using Blake3;
 using DRN.Framework.Utils.Data.Encodings;
@@ -24,10 +25,10 @@ public class AppSecuritySettingsTests
 
         var decodedEncryptionKey = securitySettings.AppEncryptionKey.Decode();
         decodedEncryptionKey.Length.Should().Be(32);
-        
+
         var decodedHashKey = securitySettings.AppHashKey.Decode();
         decodedHashKey.Length.Should().Be(32);
-        
+
         var decodedAppKey = securitySettings.AppKey;
         decodedAppKey.Length.Should().Be(8);
     }
@@ -42,6 +43,76 @@ public class AppSecuritySettingsTests
         securitySettings.AppEncryptionKey.Should().Be(DeriveBase64UrlKey(features.SeedKey, AppEncryptionKeyDerivationContext));
         securitySettings.AppKey.Should().Be(DeriveBase64UrlKey(features.SeedKey, AppKeyDerivationContext)[..8]);
         securitySettings.AppSeed.Should().Be(DeriveSeed(features.SeedKey));
+    }
+
+    [Fact]
+    public void SecuritySettings_Should_Support_Null_Features_And_Default_Constructor()
+    {
+        var defaultFeatures = new DrnAppFeatures();
+        var securitySettingsWithNull = new AppSecuritySettings(null);
+        var securitySettingsDefault = new AppSecuritySettings();
+
+        securitySettingsWithNull.AppHashKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppHashKeyDerivationContext));
+        securitySettingsWithNull.AppEncryptionKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppEncryptionKeyDerivationContext));
+        securitySettingsWithNull.AppKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppKeyDerivationContext)[..8]);
+        securitySettingsWithNull.AppSeed.Should().Be(DeriveSeed(defaultFeatures.SeedKey));
+
+        securitySettingsDefault.AppHashKey.Should().Be(securitySettingsWithNull.AppHashKey);
+        securitySettingsDefault.AppEncryptionKey.Should().Be(securitySettingsWithNull.AppEncryptionKey);
+        securitySettingsDefault.AppKey.Should().Be(securitySettingsWithNull.AppKey);
+        securitySettingsDefault.AppSeed.Should().Be(securitySettingsWithNull.AppSeed);
+    }
+
+    [Theory]
+    [DataInlineUnit(null!)]
+    [DataInlineUnit("")]
+    [DataInlineUnit("   ")]
+    public void SecuritySettings_Should_Fallback_To_Default_SeedKey_When_SeedKey_Is_NullOrWhiteSpace(string? invalidSeedKey)
+    {
+        var defaultFeatures = new DrnAppFeatures();
+        var features = new DrnAppFeatures { SeedKey = invalidSeedKey! };
+        var securitySettings = new AppSecuritySettings(features);
+
+        securitySettings.AppHashKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppHashKeyDerivationContext));
+        securitySettings.AppEncryptionKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppEncryptionKeyDerivationContext));
+        securitySettings.AppKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppKeyDerivationContext)[..8]);
+        securitySettings.AppSeed.Should().Be(DeriveSeed(defaultFeatures.SeedKey));
+    }
+
+    [Fact]
+    public void CreateAesGcm_Should_Initialize_AesGcm_With_Context_Derivation()
+    {
+        var features = new DrnAppFeatures { SeedKey = "TestSeedForAesGcmCreation_1234567890" };
+        var securitySettings = new AppSecuritySettings(features);
+
+        using var aesGcm = securitySettings.CreateAesGcm("TestAesGcmContext v1");
+        aesGcm.Should().NotBeNull();
+
+        var nonce = new byte[AesGcm.NonceByteSizes.MaxSize];
+        RandomNumberGenerator.Fill(nonce);
+
+        var plaintext = Encoding.UTF8.GetBytes("HelloWorldDataProtection");
+        var ciphertext = new byte[plaintext.Length];
+        var tag = new byte[AesGcm.TagByteSizes.MaxSize];
+
+        aesGcm.Encrypt(nonce, plaintext, ciphertext, tag);
+
+        var decrypted = new byte[plaintext.Length];
+        aesGcm.Decrypt(nonce, ciphertext, tag, decrypted);
+
+        Encoding.UTF8.GetString(decrypted).Should().Be("HelloWorldDataProtection");
+    }
+
+    [Theory]
+    [DataInlineUnit(null!)]
+    [DataInlineUnit("")]
+    [DataInlineUnit("   ")]
+    public void CreateAesGcm_Should_Throw_On_NullOrWhiteSpace_Context(string? invalidContext)
+    {
+        var securitySettings = new AppSecuritySettings(new DrnAppFeatures());
+
+        var act = () => securitySettings.CreateAesGcm(invalidContext!);
+        act.Should().Throw<ArgumentException>();
     }
 
     private static string DeriveBase64UrlKey(string seedKey, string context)

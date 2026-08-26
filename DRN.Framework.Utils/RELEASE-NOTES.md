@@ -4,6 +4,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
+*   **AesGcmEncryptorBase Cryptographic Primitive**: Added `AesGcmEncryptorBase` and `AesGcmEncryptedData` under `DRN.Framework.Utils.Data.Encryption` for clean, context-separated AES-256-GCM symmetric encryption and decryption with automatic BLAKE3 subkey derivation from `IAppSecuritySettings`.
+*   **Context-Aware AesGcm Key Derivation**: Added `CreateAesGcm(string context)` on `IAppSecuritySettings` / `AppSecuritySettings` to derive a dedicated 32-byte key from `AppEncryptionKey` via BLAKE3 with automatic intermediate memory zeroing and return an initialized `AesGcm` cipher.
 *   **HttpMessageHandler DI Injection**: `InternalRequest` and `ExternalRequest` now accept an optional `HttpMessageHandler?` via dependency injection, allowing in-memory routing handlers (such as `ApplicationContextRouterHandler` during integration testing) to intercept and route Flurl calls without global static cache mutation.
 
 ## Version 0.9.8
