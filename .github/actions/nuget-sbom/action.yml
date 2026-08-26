@@ -25,8 +25,8 @@ runs:
       run: |
         set -euo pipefail
 
-        dotnet tool install --global Microsoft.Sbom.DotNetTool || true
-        sbom-tool generate \
+        dotnet tool restore --configfile "$GITHUB_WORKSPACE/NuGet.Config"
+        dotnet tool run sbom-tool generate \
           -b "$PACKAGES_DIR" \
           -bc . \
           -pn DRN.Framework \

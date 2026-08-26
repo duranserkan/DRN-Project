@@ -19,6 +19,7 @@ jobs:
       security-events: write
       id-token: write
       attestations: write
+      artifact-metadata: write
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -76,7 +77,7 @@ jobs:
 
       # Personal Docker Hub publishing uses separate least-privilege PATs because trusted OIDC publishing
       # is unavailable for personal namespaces. DOCKER_PUBLISH_TOKEN requires Read/Write permissions.
-      # Builds and attaches OCI SLSA Level 3 provenance and SPDX SBOM attestations to the image manifest index.
+      # Builds and attaches OCI SLSA-format provenance and SPDX SBOM attestations to the image manifest index.
       - name: Stage and scan Docker images
         id: docker-images
         uses: ./.github/actions/docker-stage-scan-all

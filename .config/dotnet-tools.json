@@ -9,9 +9,15 @@
       ]
     },
     "dotnet-coverage": {
-      "version": "18.9.0",
+      "version": "18.10.0",
       "commands": [
         "dotnet-coverage"
+      ]
+    },
+    "microsoft.sbom.dotnettool": {
+      "version": "4.1.5",
+      "commands": [
+        "sbom-tool"
       ]
     }
   }

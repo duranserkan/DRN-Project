@@ -50,7 +50,7 @@ runs:
         platforms: ${{ inputs.platforms }}
         tags: ${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}:staged-${{ inputs.version }}-run-${{ github.run_id }}-${{ github.run_attempt }}
         push: true
-        # Attaches OCI-standard SLSA Level 3 build provenance and SPDX SBOM attestations.
+        # Attaches OCI-standard SLSA-format build provenance and SPDX SBOM attestations.
         # Unlike NuGet, OCI registries preserve content-addressable blobs and index manifests,
         # ensuring attestations remain verifiable directly from the registry without hash mutation.
         sbom: true
