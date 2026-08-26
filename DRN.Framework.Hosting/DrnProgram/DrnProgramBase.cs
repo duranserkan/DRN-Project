@@ -583,12 +583,27 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("172.16.0.0"), 12));
             options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("192.168.0.0"), 16));
 
-            if (appSettings.TryGetSection("ForwardedHeaders", out var section))
-            {
-                if (section.GetSection(nameof(ForwardedHeadersOptions.KnownIPNetworks)).GetChildren().Any())
-                    options.KnownIPNetworks.Clear();
+            if (!appSettings.TryGetSection("ForwardedHeaders", out var section))
+                return;
 
-                section.Bind(options);
+            section.Bind(options);
+
+            var customNetworks = section.GetSection(nameof(ForwardedHeadersOptions.KnownIPNetworks)).GetChildren().ToList();
+            if (customNetworks.Count > 0)
+            {
+                options.KnownIPNetworks.Clear();
+                foreach (var net in customNetworks)
+                {
+                    options.KnownIPNetworks.Add(net.Value is { } cidr
+                        ? IPNetwork.Parse(cidr)
+                        : new IPNetwork(IPAddress.Parse(net["BaseAddress"]!), int.Parse(net["PrefixLength"]!)));
+                }
+            }
+
+            foreach (var proxy in section.GetSection(nameof(ForwardedHeadersOptions.KnownProxies)).GetChildren())
+            {
+                if (proxy.Value is { } ip)
+                    options.KnownProxies.Add(IPAddress.Parse(ip));
             }
         };
     }

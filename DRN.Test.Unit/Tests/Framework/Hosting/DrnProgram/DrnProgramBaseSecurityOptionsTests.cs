@@ -107,6 +107,34 @@ public class DrnProgramBaseSecurityOptionsTests
         options.KnownIPNetworks.Should().ContainSingle(n => n.BaseAddress.ToString() == "198.51.100.0" && n.PrefixLength == 24);
     }
 
+    [Fact]
+    public void ConfigureForwardedHeadersOptions_Should_Support_CIDR_Notation_In_KnownIPNetworks()
+    {
+        var appSettings = CreateAppSettings(
+            isDevelopment: false,
+            ("ForwardedHeaders:KnownIPNetworks:0", "203.0.113.0/24"));
+        var options = new ForwardedHeadersOptions();
+        var configure = new TestProgram().ExposeConfigureForwardedHeadersOptions(appSettings);
+
+        configure(options);
+
+        options.KnownIPNetworks.Should().ContainSingle(n => n.BaseAddress.ToString() == "203.0.113.0" && n.PrefixLength == 24);
+    }
+
+    [Fact]
+    public void ConfigureForwardedHeadersOptions_Should_Support_KnownProxies_Configuration()
+    {
+        var appSettings = CreateAppSettings(
+            isDevelopment: false,
+            ("ForwardedHeaders:KnownProxies:0", "198.51.100.50"));
+        var options = new ForwardedHeadersOptions();
+        var configure = new TestProgram().ExposeConfigureForwardedHeadersOptions(appSettings);
+
+        configure(options);
+
+        options.KnownProxies.Should().ContainSingle(ip => ip.ToString() == "198.51.100.50");
+    }
+
     private static IAppSettings CreateAppSettings(bool isDevelopment, params (string Key, string Value)[] settings)
     {
         var appSettings = Substitute.For<IAppSettings>();
