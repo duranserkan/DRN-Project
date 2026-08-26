@@ -17,7 +17,7 @@ public static class SampleModule
 {
     public static IServiceCollection AddSampleHostedServices(this IServiceCollection services, IAppSettings settings)
     {
-        var securitySettings = new AppSecuritySettings(settings.Features);
+        var securitySettings = new AppSecuritySettings(settings.Features ?? new DrnAppFeatures());
 
         services
             .AddSampleInfraServices()

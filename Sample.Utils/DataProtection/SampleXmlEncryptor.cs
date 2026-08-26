@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Linq;
 using DRN.Framework.Utils.Data.Encryption;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,10 +11,9 @@ namespace Sample.Utils.DataProtection;
 // https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/extensibility/key-management#ixmldecryptor
 // ASP.NET Core Data Protection requires IXmlDecryptor implementations to provide either a public .ctor(IServiceProvider)
 // or a public parameterless .ctor() so that persisted XML keys can be activated dynamically across application restarts.
-[Singleton<SampleXmlEncryptor>]
 public sealed class SampleXmlEncryptor : AesGcmEncryptorBase, IXmlEncryptor, IXmlDecryptor
 {
-    public SampleXmlEncryptor(IAppSecuritySettings securitySettings)
+    internal SampleXmlEncryptor(IAppSecuritySettings securitySettings)
         : base(securitySettings)
     {
     }

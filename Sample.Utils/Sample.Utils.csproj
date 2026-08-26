@@ -14,4 +14,10 @@
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="10.0.11" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sample.Hosted" />
+    <InternalsVisibleTo Include="DRN.Test.Unit" />
+    <InternalsVisibleTo Include="DRN.Test.Integration" />
+  </ItemGroup>
+
 </Project>

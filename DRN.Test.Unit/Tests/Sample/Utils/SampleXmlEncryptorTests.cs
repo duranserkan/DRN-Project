@@ -55,7 +55,7 @@ public class SampleXmlEncryptorTests
         services.AddSingleton<IAppSecuritySettings>(securitySettings);
         var serviceProvider = services.BuildServiceProvider();
 
-        // Simulate ASP.NET Core DataProtection reflection activation of IXmlDecryptor
+        // Simulate ASP.NET Core DataProtection reflection activation of IXmlDecryptor (.ctor(IServiceProvider))
         var decryptorInstance = Activator.CreateInstance(typeof(SampleXmlEncryptor), serviceProvider) as IXmlDecryptor;
         decryptorInstance.Should().NotBeNull();
 
