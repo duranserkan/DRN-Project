@@ -30,7 +30,24 @@ public interface IAppSecuritySettings
     /// Derives a context-specific 32-byte key from <see cref="AppEncryptionKey"/> using BLAKE3
     /// and initializes an <see cref="AesGcm"/> cipher with 128-bit authentication tags.
     /// </summary>
-    AesGcm CreateAesGcm(string context);
+    /// <param name="context">
+    /// Globally unique, application-specific domain separation context (e.g. <c>"MyApp.DataProtection 2026-08-26 UserTokens v1"</c>).
+    /// </param>
+    AesGcm CreateAesGcm(string context)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(context);
+
+        var keyMaterial = Encoding.UTF8.GetBytes(AppEncryptionKey);
+        try
+        {
+            using var derivedKey = Blake3KeyDerivation.Derive32ByteKey(keyMaterial, context);
+            return new AesGcm(derivedKey.Span, AesGcm.TagByteSizes.MaxSize);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(keyMaterial);
+        }
+    }
 }
 
 [Singleton<IAppSecuritySettings>]
@@ -45,13 +62,12 @@ public class AppSecuritySettings : IAppSecuritySettings
     private const string AppSeedDerivationContext =
         "DRN.Framework.Utils AppSecuritySettings 1923 DRN 2923 AppSeed 2026-06-29 21:57:43 v1";
 
-    public AppSecuritySettings(DrnAppFeatures? features = null)
+    public AppSecuritySettings(DrnAppFeatures features)
     {
-        features ??= new DrnAppFeatures();
-        var rawSeedKey = string.IsNullOrWhiteSpace(features.SeedKey)
-            ? new DrnAppFeatures().SeedKey
-            : features.SeedKey;
-        var seedKey = Encoding.UTF8.GetBytes(rawSeedKey);
+        ArgumentNullException.ThrowIfNull(features);
+        ArgumentException.ThrowIfNullOrWhiteSpace(features.SeedKey, nameof(features.SeedKey));
+
+        var seedKey = Encoding.UTF8.GetBytes(features.SeedKey);
 
         try
         {
@@ -64,6 +80,13 @@ public class AppSecuritySettings : IAppSecuritySettings
         {
             CryptographicOperations.ZeroMemory(seedKey);
         }
+    }
+
+    /// <summary>
+    /// Initializes an instance with default <see cref="DrnAppFeatures"/> settings. For testing and internal use only.
+    /// </summary>
+    internal AppSecuritySettings() : this(new DrnAppFeatures())
+    {
     }
 
     /// <summary>
@@ -83,6 +106,13 @@ public class AppSecuritySettings : IAppSecuritySettings
 
     public long AppSeed { get; }
 
+    /// <summary>
+    /// Derives a context-specific 32-byte key from <see cref="AppEncryptionKey"/> using BLAKE3
+    /// and initializes an <see cref="AesGcm"/> cipher with 128-bit authentication tags.
+    /// </summary>
+    /// <param name="context">
+    /// Globally unique, application-specific domain separation context (e.g. <c>"MyApp.DataProtection 2026-08-26 UserTokens v1"</c>).
+    /// </param>
     public AesGcm CreateAesGcm(string context)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(context);

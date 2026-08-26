@@ -92,6 +92,21 @@ public class DrnProgramBaseSecurityOptionsTests
         options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "10.0.0.0" && n.PrefixLength == 8);
     }
 
+    [Fact]
+    public void ConfigureForwardedHeadersOptions_Should_Override_Default_Networks_When_KnownIPNetworks_Configured()
+    {
+        var appSettings = CreateAppSettings(
+            isDevelopment: false,
+            ("ForwardedHeaders:KnownIPNetworks:0:BaseAddress", "198.51.100.0"),
+            ("ForwardedHeaders:KnownIPNetworks:0:PrefixLength", "24"));
+        var options = new ForwardedHeadersOptions();
+        var configure = new TestProgram().ExposeConfigureForwardedHeadersOptions(appSettings);
+
+        configure(options);
+
+        options.KnownIPNetworks.Should().ContainSingle(n => n.BaseAddress.ToString() == "198.51.100.0" && n.PrefixLength == 24);
+    }
+
     private static IAppSettings CreateAppSettings(bool isDevelopment, params (string Key, string Value)[] settings)
     {
         var appSettings = Substitute.For<IAppSettings>();

@@ -584,7 +584,12 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("192.168.0.0"), 16));
 
             if (appSettings.TryGetSection("ForwardedHeaders", out var section))
+            {
+                if (section.GetSection(nameof(ForwardedHeadersOptions.KnownIPNetworks)).GetChildren().Any())
+                    options.KnownIPNetworks.Clear();
+
                 section.Bind(options);
+            }
         };
     }
 

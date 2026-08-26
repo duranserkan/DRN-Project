@@ -46,37 +46,43 @@ public class AppSecuritySettingsTests
     }
 
     [Fact]
-    public void SecuritySettings_Should_Support_Null_Features_And_Default_Constructor()
+    public void SecuritySettings_Should_Support_Internal_Default_Constructor_For_Testing()
     {
         var defaultFeatures = new DrnAppFeatures();
-        var securitySettingsWithNull = new AppSecuritySettings(null);
         var securitySettingsDefault = new AppSecuritySettings();
 
-        securitySettingsWithNull.AppHashKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppHashKeyDerivationContext));
-        securitySettingsWithNull.AppEncryptionKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppEncryptionKeyDerivationContext));
-        securitySettingsWithNull.AppKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppKeyDerivationContext)[..8]);
-        securitySettingsWithNull.AppSeed.Should().Be(DeriveSeed(defaultFeatures.SeedKey));
+        securitySettingsDefault.AppHashKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppHashKeyDerivationContext));
+        securitySettingsDefault.AppEncryptionKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppEncryptionKeyDerivationContext));
+        securitySettingsDefault.AppKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppKeyDerivationContext)[..8]);
+        securitySettingsDefault.AppSeed.Should().Be(DeriveSeed(defaultFeatures.SeedKey));
+    }
 
-        securitySettingsDefault.AppHashKey.Should().Be(securitySettingsWithNull.AppHashKey);
-        securitySettingsDefault.AppEncryptionKey.Should().Be(securitySettingsWithNull.AppEncryptionKey);
-        securitySettingsDefault.AppKey.Should().Be(securitySettingsWithNull.AppKey);
-        securitySettingsDefault.AppSeed.Should().Be(securitySettingsWithNull.AppSeed);
+    [Fact]
+    public void SecuritySettings_Should_Throw_When_Features_Is_Null()
+    {
+        var act = () => new AppSecuritySettings(null!);
+
+        act.Should().Throw<ArgumentNullException>();
     }
 
     [Theory]
     [DataInlineUnit(null!)]
     [DataInlineUnit("")]
     [DataInlineUnit("   ")]
-    public void SecuritySettings_Should_Fallback_To_Default_SeedKey_When_SeedKey_Is_NullOrWhiteSpace(string? invalidSeedKey)
+    public void SecuritySettings_Should_Throw_When_Supplied_SeedKey_Is_NullOrWhiteSpace(string? invalidSeedKey)
     {
-        var defaultFeatures = new DrnAppFeatures();
         var features = new DrnAppFeatures { SeedKey = invalidSeedKey! };
-        var securitySettings = new AppSecuritySettings(features);
+        var act = () => new AppSecuritySettings(features);
 
-        securitySettings.AppHashKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppHashKeyDerivationContext));
-        securitySettings.AppEncryptionKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppEncryptionKeyDerivationContext));
-        securitySettings.AppKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppKeyDerivationContext)[..8]);
-        securitySettings.AppSeed.Should().Be(DeriveSeed(defaultFeatures.SeedKey));
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Default_Interface_CreateAesGcm_Should_Succeed_For_Custom_Implementations()
+    {
+        IAppSecuritySettings customSettings = new CustomSecuritySettings();
+        using var aesGcm = customSettings.CreateAesGcm("CustomContext");
+        aesGcm.Should().NotBeNull();
     }
 
     [Fact]
@@ -129,5 +135,13 @@ public class AppSecuritySettingsTests
         hasher.Finalize(derived);
 
         return derived.ToArray();
+    }
+
+    private sealed class CustomSecuritySettings : IAppSecuritySettings
+    {
+        public string AppKey => "12345678";
+        public string AppHashKey => "AppHashKeyMaterial32BytesLength12";
+        public string AppEncryptionKey => "AppEncryptionKey32BytesLength123";
+        public long AppSeed => 123456789L;
     }
 }

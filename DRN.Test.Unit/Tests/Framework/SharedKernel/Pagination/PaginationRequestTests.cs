@@ -10,6 +10,7 @@ public class PaginationRequestTests
     [DataInlineUnit(1L, 100L, 11L)]
     [DataInlineUnit(11L, 1L, 1L)]
     [DataInlineUnit(1L, 11L, 11L)]
+    [DataInlineUnit(1L, long.MinValue, 1L)]
     public void From_Should_Limit_Page_Jump_In_Requested_Direction(long currentPage, long requestedPage, long expectedPage)
     {
         var currentRequest = new PaginationRequest(currentPage);

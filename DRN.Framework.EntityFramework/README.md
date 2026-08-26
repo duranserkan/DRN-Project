@@ -51,8 +51,13 @@
 Define a DbContext and entity with automatic ID generation:
 
 ```csharp
-// 1. Define your entity inheriting from AggregateRoot (which derives from SourceKnownEntity)
-[EntityType(1)] // Unique byte within the entity's AppId partition
+// 1. Define your application partition and entity
+public readonly struct MyApp : IAppId
+{
+    public static byte AppId => 1;
+}
+
+[EntityType<MyApp>(1)] // Unique byte within MyApp partition
 public class User : AggregateRoot
 {
     public string Username { get; set; } = "";
