@@ -2,21 +2,6 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
-      "Microsoft.AspNetCore.DataProtection": {
-        "type": "Direct",
-        "requested": "[10.0.11, )",
-        "resolved": "10.0.11",
-        "contentHash": "1m+CJd0mookt7PzOqOv+ADZtEzS6530xYPjm2kwrI+yJILxNtD6+r80fZczYy1kAf6cwxtp+eSSFrouZ+bCBDA==",
-        "dependencies": {
-          "Microsoft.AspNetCore.Cryptography.Internal": "10.0.11",
-          "Microsoft.AspNetCore.DataProtection.Abstractions": "10.0.11",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.11",
-          "Microsoft.Extensions.Hosting.Abstractions": "10.0.11",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.11",
-          "Microsoft.Extensions.Options": "10.0.11",
-          "System.Security.Cryptography.Xml": "10.0.11"
-        }
-      },
       "Blake3.Native": {
         "type": "Transitive",
         "resolved": "3.0.2",
@@ -47,11 +32,6 @@
         "dependencies": {
           "Microsoft.AspNetCore.Cryptography.Internal": "10.0.11"
         }
-      },
-      "Microsoft.AspNetCore.DataProtection.Abstractions": {
-        "type": "Transitive",
-        "resolved": "10.0.11",
-        "contentHash": "nqpcXNw0g8nlFep5IQKEGRXyXi596uM8WNydR7VikKlokUkAr1cOZh1qstc6AotdfJg1oWUfFS+lY7wlbW3YnA=="
       },
       "Microsoft.EntityFrameworkCore": {
         "type": "Transitive",
@@ -296,19 +276,6 @@
         "resolved": "10.0.11",
         "contentHash": "XJm7L8ie8wOGuPsu4+26Cr2Jk1kxRi1Z2AAuXhqvQBWGA/52/Nrt+UQwFud685rugPuZvwUP0FXdDTVwns1y4Q=="
       },
-      "System.Security.Cryptography.Pkcs": {
-        "type": "Transitive",
-        "resolved": "10.0.11",
-        "contentHash": "8IV+rI3xN/Mkq9MsSX7VZTv9T9Wt+tyhHLwBX9VNZBk8m8kknEs1JeTSjI2x9M2L/fSja+c2WSE5n5Yy0GXdoQ=="
-      },
-      "System.Security.Cryptography.Xml": {
-        "type": "Transitive",
-        "resolved": "10.0.11",
-        "contentHash": "TokfVsaU2fmcwvsU6ihLCkseVfwhLX6Tmbl3qh3nOBIqHSX4yqFllpslA+PuHERH/ENu3kwqo4deZiyT0Wvh3Q==",
-        "dependencies": {
-          "System.Security.Cryptography.Pkcs": "10.0.11"
-        }
-      },
       "drn.framework.sharedkernel": {
         "type": "Project"
       },
@@ -335,11 +302,6 @@
         "type": "Transitive",
         "resolved": "3.0.2",
         "contentHash": "Yq4rCmvgPsjJhB4reD98RwxFWq51BvnSrnNlcFq8aA+6da6atTJTdgAhxN4UqcwpDsa8wBqbgGf/52thhbSEjA=="
-      },
-      "System.Security.Cryptography.Pkcs": {
-        "type": "Transitive",
-        "resolved": "10.0.11",
-        "contentHash": "8IV+rI3xN/Mkq9MsSX7VZTv9T9Wt+tyhHLwBX9VNZBk8m8kknEs1JeTSjI2x9M2L/fSja+c2WSE5n5Yy0GXdoQ=="
       }
     },
     "net10.0/linux-x64": {
@@ -347,11 +309,6 @@
         "type": "Transitive",
         "resolved": "3.0.2",
         "contentHash": "Yq4rCmvgPsjJhB4reD98RwxFWq51BvnSrnNlcFq8aA+6da6atTJTdgAhxN4UqcwpDsa8wBqbgGf/52thhbSEjA=="
-      },
-      "System.Security.Cryptography.Pkcs": {
-        "type": "Transitive",
-        "resolved": "10.0.11",
-        "contentHash": "8IV+rI3xN/Mkq9MsSX7VZTv9T9Wt+tyhHLwBX9VNZBk8m8kknEs1JeTSjI2x9M2L/fSja+c2WSE5n5Yy0GXdoQ=="
       }
     }
   }

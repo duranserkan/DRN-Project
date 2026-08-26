@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Sample.Hosted;
-using Sample.Utils.DataProtection;
+using Sample.Infra.DataProtection;
 
 namespace DRN.Test.Unit.Tests.Sample;
 

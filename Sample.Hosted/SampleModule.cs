@@ -8,7 +8,6 @@ using Sample.Domain.Users;
 using Sample.Hosted.Settings;
 using Sample.Infra;
 using Sample.Infra.DataProtection;
-using Sample.Utils.DataProtection;
 
 namespace Sample.Hosted;
 

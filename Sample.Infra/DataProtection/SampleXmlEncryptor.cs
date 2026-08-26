@@ -6,7 +6,7 @@ using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Sample.Utils.DataProtection;
+namespace Sample.Infra.DataProtection;
 
 // https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/extensibility/key-management#ixmldecryptor
 // ASP.NET Core Data Protection requires IXmlDecryptor implementations to provide either a public .ctor(IServiceProvider)
@@ -23,7 +23,7 @@ public sealed class SampleXmlEncryptor : AesGcmEncryptorBase, IXmlEncryptor, IXm
     {
     }
 
-    protected override string Context => "Sample.Utils DataProtection SampleXmlEncryptor 2026-08-26 v1";
+    protected override string Context => "Sample.Infra DataProtection SampleXmlEncryptor 2026-08-26 v1";
 
     public EncryptedXmlInfo Encrypt(XElement plaintextElement)
     {

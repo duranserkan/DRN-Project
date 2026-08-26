@@ -21,4 +21,10 @@
     <Folder Include="QA\Migrations\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sample.Hosted" />
+    <InternalsVisibleTo Include="DRN.Test.Unit" />
+    <InternalsVisibleTo Include="DRN.Test.Integration" />
+  </ItemGroup>
+
 </Project>
