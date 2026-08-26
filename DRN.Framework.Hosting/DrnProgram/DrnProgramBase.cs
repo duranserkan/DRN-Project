@@ -594,16 +594,32 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
                 options.KnownIPNetworks.Clear();
                 foreach (var net in customNetworks)
                 {
-                    options.KnownIPNetworks.Add(net.Value is { } cidr
-                        ? IPNetwork.Parse(cidr)
-                        : new IPNetwork(IPAddress.Parse(net["BaseAddress"]!), int.Parse(net["PrefixLength"]!)));
+                    try
+                    {
+                        options.KnownIPNetworks.Add(net.Value is { } cidr
+                            ? IPNetwork.Parse(cidr)
+                            : new IPNetwork(IPAddress.Parse(net["BaseAddress"]!), int.Parse(net["PrefixLength"]!)));
+                    }
+                    catch (Exception e) when (e is FormatException or ArgumentException or OverflowException)
+                    {
+                        throw new ConfigurationException($"Invalid ForwardedHeaders:{nameof(ForwardedHeadersOptions.KnownIPNetworks)} configuration.", e);
+                    }
                 }
             }
 
             foreach (var proxy in section.GetSection(nameof(ForwardedHeadersOptions.KnownProxies)).GetChildren())
             {
                 if (proxy.Value is { } ip)
-                    options.KnownProxies.Add(IPAddress.Parse(ip));
+                {
+                    try
+                    {
+                        options.KnownProxies.Add(IPAddress.Parse(ip));
+                    }
+                    catch (Exception e) when (e is FormatException or ArgumentException or OverflowException)
+                    {
+                        throw new ConfigurationException($"Invalid ForwardedHeaders:{nameof(ForwardedHeadersOptions.KnownProxies)} configuration.", e);
+                    }
+                }
             }
         };
     }

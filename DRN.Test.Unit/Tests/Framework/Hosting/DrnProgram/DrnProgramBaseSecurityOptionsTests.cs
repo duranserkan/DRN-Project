@@ -104,6 +104,7 @@ public class DrnProgramBaseSecurityOptionsTests
 
         configure(options);
 
+        options.KnownIPNetworks.Should().HaveCount(1);
         options.KnownIPNetworks.Should().ContainSingle(n => n.BaseAddress.ToString() == "198.51.100.0" && n.PrefixLength == 24);
     }
 
@@ -118,6 +119,7 @@ public class DrnProgramBaseSecurityOptionsTests
 
         configure(options);
 
+        options.KnownIPNetworks.Should().HaveCount(1);
         options.KnownIPNetworks.Should().ContainSingle(n => n.BaseAddress.ToString() == "203.0.113.0" && n.PrefixLength == 24);
     }
 
@@ -133,6 +135,54 @@ public class DrnProgramBaseSecurityOptionsTests
         configure(options);
 
         options.KnownProxies.Should().ContainSingle(ip => ip.ToString() == "198.51.100.50");
+    }
+
+    [Theory]
+    [DataInlineUnit("invalid-cidr")]
+    [DataInlineUnit("192.168.1.1/33")]
+    public void ConfigureForwardedHeadersOptions_Should_Throw_ConfigurationException_When_KnownIPNetworks_CIDR_Is_Invalid(string cidr)
+    {
+        var appSettings = CreateAppSettings(
+            isDevelopment: false,
+            ("ForwardedHeaders:KnownIPNetworks:0", cidr));
+        var options = new ForwardedHeadersOptions();
+        var configure = new TestProgram().ExposeConfigureForwardedHeadersOptions(appSettings);
+
+        var act = () => configure(options);
+
+        act.Should().Throw<ConfigurationException>()
+            .WithMessage("Invalid ForwardedHeaders:KnownIPNetworks configuration.");
+    }
+
+    [Fact]
+    public void ConfigureForwardedHeadersOptions_Should_Throw_ConfigurationException_When_KnownIPNetworks_Object_Is_Invalid()
+    {
+        var appSettings = CreateAppSettings(
+            isDevelopment: false,
+            ("ForwardedHeaders:KnownIPNetworks:0:BaseAddress", "invalid-ip"),
+            ("ForwardedHeaders:KnownIPNetworks:0:PrefixLength", "24"));
+        var options = new ForwardedHeadersOptions();
+        var configure = new TestProgram().ExposeConfigureForwardedHeadersOptions(appSettings);
+
+        var act = () => configure(options);
+
+        act.Should().Throw<ConfigurationException>()
+            .WithMessage("Invalid ForwardedHeaders:KnownIPNetworks configuration.");
+    }
+
+    [Fact]
+    public void ConfigureForwardedHeadersOptions_Should_Throw_ConfigurationException_When_KnownProxies_Is_Invalid()
+    {
+        var appSettings = CreateAppSettings(
+            isDevelopment: false,
+            ("ForwardedHeaders:KnownProxies:0", "invalid-proxy-ip"));
+        var options = new ForwardedHeadersOptions();
+        var configure = new TestProgram().ExposeConfigureForwardedHeadersOptions(appSettings);
+
+        var act = () => configure(options);
+
+        act.Should().Throw<ConfigurationException>()
+            .WithMessage("Invalid ForwardedHeaders:KnownProxies configuration.");
     }
 
     private static IAppSettings CreateAppSettings(bool isDevelopment, params (string Key, string Value)[] settings)
