@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts and cancellation semantics, pagination, JSON conventions, app constants, and shared extensions. Keywords: entity, aggregate-root, domain-event, repository, repository-cancellation, cancellation, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
-last-updated: 2026-07-29
+last-updated: 2026-08-25
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -214,6 +214,7 @@ public class PaginationResultModel<TModel>
 
 - **Stable Navigation**: `PageCursor` with `FirstId`/`LastId` prevents data inconsistencies during concurrent viewing
 - **Bi-directional**: `RequestNextPage()`, `RequestPreviousPage()`, `RequestPage(n)` on `PaginationResultInfo`
+- **Bounded Jumps**: Page jumps move at most ten pages per request while preserving the requested direction
 - **URL-Serializable**: `PaginationRequest` natively works with `[FromQuery]`
 - **Filtering**: `EntityCreatedFilter.After(date)` for date-based filtering
 

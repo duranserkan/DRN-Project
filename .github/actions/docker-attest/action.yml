@@ -1,0 +1,58 @@
+name: Docker Attest
+description: "Generates cryptographic artifact attestations for a Docker image digest and publishes them to GitHub and the registry."
+inputs:
+  registry:
+    description: "Docker registry host used for image names (e.g., docker.io, ghcr.io, registry.example.com)."
+    required: false
+    default: "docker.io"
+  image-repository-prefix:
+    description: "Docker image repository namespace/path without the registry host (e.g., duranserkan, my-org/platform)."
+    required: true
+  image-repository-name:
+    description: "The name of the Docker repository target (e.g., drn-project-nexus)."
+    required: true
+  image-digest:
+    description: "The staged and scanned Docker image digest to attest."
+    required: true
+  push-to-registry:
+    description: "Whether to push the generated attestation to the container registry alongside the image."
+    required: false
+    default: "true"
+runs:
+  using: "composite"
+  steps:
+    - name: Validate Docker image digest
+      shell: bash
+      env:
+        IMAGE_DIGEST: ${{ inputs.image-digest }}
+      run: |
+        set -euo pipefail
+
+        if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+          echo "Expected image-digest to be a sha256 digest, got: $IMAGE_DIGEST"
+          exit 1
+        fi
+
+    - name: Format fully qualified subject name
+      id: subject
+      shell: bash
+      env:
+        DOCKER_REGISTRY: ${{ inputs.registry }}
+        IMAGE_PREFIX: ${{ inputs.image-repository-prefix }}
+        IMAGE_NAME: ${{ inputs.image-repository-name }}
+      run: |
+        set -euo pipefail
+
+        # Docker Hub requires 'index.docker.io' as registry host for GitHub Actions artifact attestations.
+        if [[ "$DOCKER_REGISTRY" == "docker.io" ]]; then
+          echo "name=index.docker.io/${IMAGE_PREFIX}/${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+        else
+          echo "name=${DOCKER_REGISTRY}/${IMAGE_PREFIX}/${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Generate Docker image attestation
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+      with:
+        subject-name: ${{ steps.subject.outputs.name }}
+        subject-digest: ${{ inputs.image-digest }}
+        push-to-registry: ${{ inputs.push-to-registry == 'true' }}

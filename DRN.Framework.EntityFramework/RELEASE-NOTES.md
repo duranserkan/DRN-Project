@@ -2,7 +2,9 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.9.9
 
-Version alignment release; no package-specific behavior changes.
+### Bug Fixes
+
+*   **Partition-Scoped Entity Type Validation**: Runtime startup validation now treats `(EntityType, AppId)` as the uniqueness key, allowing different application partitions to reuse the same entity type byte consistently with SharedKernel analyzers.
 
 ## Version 0.9.8
 

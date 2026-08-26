@@ -20,10 +20,12 @@ htmx.defineExtension('safe-nonce', {
             }
         }
 
-        if (window.location.hostname) {
-            const responseURL = new URL(xhr.responseURL)
-            if (responseURL.hostname !== window.location.hostname)
-                nonce = '' // ignore nonce header if request is not some domain
+        try {
+            const responseURL = new URL(xhr.responseURL, window.location.href)
+            if (responseURL.origin !== window.location.origin)
+                nonce = ''
+        } catch {
+            nonce = ''
         }
 
         text = text.replaceAll('ignore:safe-nonce', '')

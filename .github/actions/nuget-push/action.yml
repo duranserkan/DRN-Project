@@ -1,5 +1,5 @@
-name: Nuget Publish
-description: Packs and publishes a single NuGet package to a configured NuGet source using a pre-authenticated API key.
+name: Nuget Push
+description: Pushes a single staged NuGet package and symbol package to a configured NuGet source using a pre-authenticated API key.
 inputs:
   project-name:
     description: The project directory and csproj base name (e.g. DRN.Framework.Utils).
@@ -28,27 +28,12 @@ runs:
           exit 1
         fi
 
-    - name: Pack
-      shell: bash
-      working-directory: ${{ github.workspace }}
-      env:
-        # Assigned to an env var to avoid direct expression interpolation in the
-        # shell script — prevents script injection (GitHub Actions security advisory).
-        PROJECT_NAME: ${{ inputs.project-name }}
-        PACKAGE_VERSION: ${{ inputs.version }}
-      run: |
-        set -euo pipefail
-
-        mkdir -p artifacts/packages
-        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H" >> "${PROJECT_NAME}/PACKAGE-DESCRIPTION"
-        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H" >> "${PROJECT_NAME}/README.md"
-        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H" >> "${PROJECT_NAME}/RELEASE-NOTES.md"
-        dotnet pack "${PROJECT_NAME}/${PROJECT_NAME}.csproj" --configuration Release "/p:Version=${PACKAGE_VERSION}" --no-build --output artifacts/packages
     - name: Push
       shell: bash
       working-directory: ${{ github.workspace }}/artifacts/packages
       env:
-        # Same rationale as the Pack step above — env var indirection for injection safety.
+        # Assigned to an env var to avoid direct expression interpolation in the
+        # shell script — prevents script injection (GitHub Actions security advisory).
         PROJECT_NAME: ${{ inputs.project-name }}
         PACKAGE_VERSION: ${{ inputs.version }}
         PACKAGE_SOURCE_URL: ${{ inputs.package-source-url }}

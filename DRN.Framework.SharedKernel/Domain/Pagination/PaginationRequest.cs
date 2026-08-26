@@ -7,11 +7,6 @@ namespace DRN.Framework.SharedKernel.Domain.Pagination;
 /// </summary>
 public class PaginationRequest
 {
-    private readonly long _pageNumber = 1;
-    private readonly PageSize _pageSize = PageSize.Default;
-    private readonly PageCursor _pageCursor = PageCursor.Initial;
-    private readonly long _totalCount = -1;
-
     /// <summary>
     /// Required for ASP.NET Core model binding from query strings and form data.
     /// The framework needs a parameterless constructor to instantiate the object
@@ -65,16 +60,21 @@ public class PaginationRequest
             return DefaultWith(pageSize, maxSize, direction, totalCount: totalCount, updateTotalCount: updateTotalCount);
 
         var pageNumber = resultInfo.Request.PageNumber;
-        var pageDifference = pageNumber - jumpTo;
-        if (pageDifference > 10)
-            jumpTo = pageNumber + 10;
-        else if (pageDifference < -10)
-            jumpTo = pageNumber - 10;
+        if (jumpTo > pageNumber)
+        {
+            if (jumpTo - pageNumber > 10)
+                jumpTo = pageNumber + 10;
+        }
+        else if (jumpTo < pageNumber)
+        {
+            if (jumpTo < pageNumber - 10)
+                jumpTo = pageNumber - 10;
+        }
 
         if (jumpTo < 1)
             jumpTo = 1;
 
-        var request = pageDifference == 0
+        var request = jumpTo == pageNumber
             ? resultInfo.RequestRefresh(updateTotalCount)
             : resultInfo.RequestPage(jumpTo, updateTotalCount);
 
@@ -83,27 +83,27 @@ public class PaginationRequest
 
     public long PageNumber
     {
-        get => _pageNumber;
-        init => _pageNumber = value < 1 ? 1 : value;
-    }
+        get;
+        init => field = value < 1 ? 1 : value;
+    } = 1;
 
     public PageSize PageSize
     {
-        get => _pageSize;
-        init => _pageSize = value.Valid() ? value : PageSize.Default;
-    }
+        get;
+        init => field = value.Valid() ? value : PageSize.Default;
+    } = PageSize.Default;
 
     public PageCursor PageCursor
     {
-        get => _pageCursor;
-        init => _pageCursor = value.Valid() ? value : PageCursor.Initial;
-    }
+        get;
+        init => field = value.Valid() ? value : PageCursor.Initial;
+    } = PageCursor.Initial;
 
     public long TotalCount
     {
-        get => _totalCount;
-        init => _totalCount = value < -1 ? -1 : value;
-    }
+        get;
+        init => field = value < -1 ? -1 : value;
+    } = -1;
 
     public bool UpdateTotalCount { get; init; }
     public bool MarkAsHasNextOnRefresh { get; init; }

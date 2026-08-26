@@ -38,6 +38,9 @@ runs:
         image-repository-prefix: ${{ inputs.image-repository-prefix }}
         image-repository-name: ${{ inputs.image-repository-name }}
         version: ${{ inputs.version }}
+    # Promotes the exact staged OCI image manifest/index by digest using 'buildx imagetools create'.
+    # Re-tagging by digest avoids rebuilding or re-compressing layers, preserving attached SLSA
+    # provenance and SBOM attestations across all promoted tags (e.g. vX.Y.Z, latest).
     - name: Promote Docker image tags
       id: container-push
       shell: bash

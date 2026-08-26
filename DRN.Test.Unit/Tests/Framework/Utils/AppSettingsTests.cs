@@ -92,13 +92,75 @@ public class AppSettingsTests
             .AddObjectToJsonConfiguration(new
             {
                 Environment = "Staging",
+                DrnAppFeatures = new
+                {
+                    SeedKey = "Our true mentor in life is science! - Mustafa Kemal Atatürk (1924)"
+                },
                 NexusAppSettings = new NexusAppSettings { AppId = 1, AppInstanceId = 1 }
             })
             .Build();
 
         var action = () => new AppSettings(configuration);
 
-        action.Should().ThrowExactly<ConfigurationException>();
+        var exception = action.Should().ThrowExactly<ConfigurationException>().Which;
+        exception.Message.Should().Contain("Default Nexus key not found for the environment: Staging");
+    }
+
+    [Theory]
+    [DataInlineUnit(AppEnvironment.Staging)]
+    [DataInlineUnit(AppEnvironment.Production)]
+    [DataInlineUnit(AppEnvironment.NotDefined)]
+    public void AppSettings_Should_Throw_Configuration_Exception_When_Default_SeedKey_Used_Outside_Development(AppEnvironment environment)
+    {
+        var configuration = new ConfigurationManager()
+            .AddObjectToJsonConfiguration(new
+            {
+                Environment = environment.ToString(),
+                NexusAppSettings = new NexusAppSettings
+                {
+                    AppId = 1,
+                    AppInstanceId = 1,
+                    Keys = [new NexusKey(new string('A', 32)) { Default = true }]
+                }
+            })
+            .Build();
+
+        var action = () => new AppSettings(configuration);
+
+        var exception = action.Should().ThrowExactly<ConfigurationException>().Which;
+        exception.Message.Should().Contain($"Default DrnAppFeatures.SeedKey is not allowed for the environment: {environment}");
+    }
+
+    [Theory]
+    [DataInlineUnit(AppEnvironment.Development)]
+    [DataInlineUnit(AppEnvironment.Staging)]
+    [DataInlineUnit(AppEnvironment.Production)]
+    [DataInlineUnit(AppEnvironment.NotDefined)]
+    public void AppSettings_Should_Throw_Configuration_Exception_When_Sample_SeedKey_Used_Outside_Tests(AppEnvironment environment)
+    {
+        using var _ = TestEnvironment.SetTestContextEnabledScope(false);
+
+        var configuration = new ConfigurationManager()
+            .AddObjectToJsonConfiguration(new
+            {
+                Environment = environment.ToString(),
+                DrnAppFeatures = new
+                {
+                    SeedKey = DrnAppFeatures.SampleSeedKey
+                },
+                NexusAppSettings = new NexusAppSettings
+                {
+                    AppId = 1,
+                    AppInstanceId = 1,
+                    Keys = [new NexusKey(new string('A', 32)) { Default = true }]
+                }
+            })
+            .Build();
+
+        var action = () => new AppSettings(configuration);
+
+        var exception = action.Should().ThrowExactly<ConfigurationException>().Which;
+        exception.Message.Should().Contain("Sample DrnAppFeatures.SeedKey is not allowed outside test execution");
     }
 
     [Fact]

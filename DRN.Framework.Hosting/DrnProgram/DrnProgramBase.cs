@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Net;
 using System.Reflection;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
@@ -46,6 +47,7 @@ using NLog;
 using NLog.Extensions.Logging;
 using NLog.Web;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
+using IPNetwork = System.Net.IPNetwork;
 
 namespace DRN.Framework.Hosting.DrnProgram;
 
@@ -56,7 +58,7 @@ namespace DRN.Framework.Hosting.DrnProgram;
 // RateLimitRuleResult.CustomPartition(...) or an optional DRN.Framework.Hosting.Redis companion package.
 // Keep DRN.Framework.Hosting core Redis-free unless a concrete cross-cutting dependency is justified.
 
-//todo: 
+//todo:
 // Extract composable classes such as:
 // - `DrnSecurityConfigurator` (CSP, security headers, cookie policies, MFA)
 // - `DrnCompressionConfigurator` (compression providers, response caching)
@@ -570,7 +572,56 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
     protected virtual Action<ForwardedHeadersOptions> ConfigureForwardedHeadersOptions(IAppSettings appSettings)
     {
-        return options => { options.ForwardedHeaders = ForwardedHeaders.All; };
+        return options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.All;
+            options.ForwardLimit = 2;
+
+            options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("127.0.0.0"), 8));
+            options.KnownIPNetworks.Add(new IPNetwork(IPAddress.IPv6Loopback, 128));
+            options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("10.0.0.0"), 8));
+            options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("172.16.0.0"), 12));
+            options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("192.168.0.0"), 16));
+
+            if (!appSettings.TryGetSection("ForwardedHeaders", out var section))
+                return;
+
+            section.Bind(options);
+
+            var customNetworks = section.GetSection(nameof(ForwardedHeadersOptions.KnownIPNetworks)).GetChildren().ToList();
+            if (customNetworks.Count > 0)
+            {
+                options.KnownIPNetworks.Clear();
+                foreach (var net in customNetworks)
+                {
+                    try
+                    {
+                        options.KnownIPNetworks.Add(net.Value is { } cidr
+                            ? IPNetwork.Parse(cidr)
+                            : new IPNetwork(IPAddress.Parse(net["BaseAddress"]!), int.Parse(net["PrefixLength"]!)));
+                    }
+                    catch (Exception e) when (e is FormatException or ArgumentException or OverflowException)
+                    {
+                        throw new ConfigurationException($"Invalid ForwardedHeaders:{nameof(ForwardedHeadersOptions.KnownIPNetworks)} configuration.", e);
+                    }
+                }
+            }
+
+            foreach (var proxy in section.GetSection(nameof(ForwardedHeadersOptions.KnownProxies)).GetChildren())
+            {
+                if (proxy.Value is { } ip)
+                {
+                    try
+                    {
+                        options.KnownProxies.Add(IPAddress.Parse(ip));
+                    }
+                    catch (Exception e) when (e is FormatException or ArgumentException or OverflowException)
+                    {
+                        throw new ConfigurationException($"Invalid ForwardedHeaders:{nameof(ForwardedHeadersOptions.KnownProxies)} configuration.", e);
+                    }
+                }
+            }
+        };
     }
 
     protected virtual Action<RequestLocalizationOptions> ConfigureRequestLocalizationOptions(IAppSettings appSettings)
@@ -578,8 +629,10 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         var locOptions = appSettings.Localization;
         return options =>
         {
-            var cookieRequestCultureProvider = new CookieRequestCultureProvider();
-            cookieRequestCultureProvider.CookieName = appSettings.GetAppSpecificName("Culture");
+            var cookieRequestCultureProvider = new CookieRequestCultureProvider
+            {
+                CookieName = appSettings.GetAppSpecificName("Culture")
+            };
 
             options.RequestCultureProviders.Clear();
             options.RequestCultureProviders.Add(cookieRequestCultureProvider);
@@ -952,7 +1005,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
         mvcBuilder.AddControllersAsServices();
         mvcBuilder.AddJsonOptions(options => JsonConventions.SetHtmlSafeWebJsonDefaults(options.JsonSerializerOptions));
-        
+
         //learn.microsoft.com/en-us/aspnet/core/breaking-changes/10/razor-runtime-compilation-obsolete
         //learn.microsoft.com/en-us/aspnet/core/test/hot-reload
     }

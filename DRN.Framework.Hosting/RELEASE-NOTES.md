@@ -2,7 +2,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.9.9
 
-Version alignment release; no package-specific behavior changes.
+### Security
+
+*   **Reverse Proxy Trust & Forwarded Headers**: `ConfigureForwardedHeadersOptions` now automatically binds the `ForwardedHeaders` configuration section from `IAppSettings` when present. When unconfigured, it defaults to trusting standard RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) alongside loopback and sets `ForwardLimit = 2`. This ensures originating client IP resolution, scheme detection, and pre-auth rate limiting function correctly out-of-the-box in Kubernetes, Linkerd service mesh, and containerized reverse-proxy environments.
+*   **Request Query Log Minimization**: `HttpScopeMiddleware` no longer records raw query strings. Structured request logs retain only the query-parameter count, preventing confirmation codes, tokens, personal data, and attacker-controlled query content from entering logs.
 
 ## Version 0.9.8
 

@@ -23,6 +23,10 @@ Not every version includes changes, features or bug fixes. This project can incr
     *   `[TestEntityType(byte)]`: Convenience attribute (`TestEntityTypeAttribute`) binding test entities directly to `TestApp` (`AppId = 127`) without generic type boilerplate.
     *   `EntityTypeId`: Immutable 2-byte composite identifier (`(EntityType, AppId)`) record struct with `IComparable<EntityTypeId>` support for partition-scoped entity type mappings and validation.
 
+### Bug Fixes
+
+*   **Pagination Jump Direction**: Large page jumps now retain the requested direction while remaining limited to ten pages per request.
+
 ## Version 0.9.8
 
 Version alignment release; no package-specific behavior changes.

@@ -25,6 +25,29 @@ public interface IAppSecuritySettings
     string AppEncryptionKey { get; }
 
     long AppSeed { get; }
+
+    /// <summary>
+    /// Derives a context-specific 32-byte key from <see cref="AppEncryptionKey"/> using BLAKE3
+    /// and initializes an <see cref="AesGcm"/> cipher with 128-bit authentication tags.
+    /// </summary>
+    /// <param name="context">
+    /// Globally unique, application-specific domain separation context (e.g. <c>"MyApp.DataProtection 2026-08-26 UserTokens v1"</c>).
+    /// </param>
+    AesGcm CreateAesGcm(string context)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(context);
+
+        var keyMaterial = Encoding.UTF8.GetBytes(AppEncryptionKey);
+        try
+        {
+            using var derivedKey = Blake3KeyDerivation.Derive32ByteKey(keyMaterial, context);
+            return new AesGcm(derivedKey.Span, AesGcm.TagByteSizes.MaxSize);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(keyMaterial);
+        }
+    }
 }
 
 [Singleton<IAppSecuritySettings>]
@@ -41,6 +64,9 @@ public class AppSecuritySettings : IAppSecuritySettings
 
     public AppSecuritySettings(DrnAppFeatures features)
     {
+        ArgumentNullException.ThrowIfNull(features);
+        ArgumentException.ThrowIfNullOrWhiteSpace(features.SeedKey, nameof(features.SeedKey));
+
         var seedKey = Encoding.UTF8.GetBytes(features.SeedKey);
 
         try
@@ -54,6 +80,13 @@ public class AppSecuritySettings : IAppSecuritySettings
         {
             CryptographicOperations.ZeroMemory(seedKey);
         }
+    }
+
+    /// <summary>
+    /// Initializes an instance with default <see cref="DrnAppFeatures"/> settings. For testing and internal use only.
+    /// </summary>
+    internal AppSecuritySettings() : this(new DrnAppFeatures())
+    {
     }
 
     /// <summary>
@@ -72,6 +105,29 @@ public class AppSecuritySettings : IAppSecuritySettings
     public string AppEncryptionKey { get; }
 
     public long AppSeed { get; }
+
+    /// <summary>
+    /// Derives a context-specific 32-byte key from <see cref="AppEncryptionKey"/> using BLAKE3
+    /// and initializes an <see cref="AesGcm"/> cipher with 128-bit authentication tags.
+    /// </summary>
+    /// <param name="context">
+    /// Globally unique, application-specific domain separation context (e.g. <c>"MyApp.DataProtection 2026-08-26 UserTokens v1"</c>).
+    /// </param>
+    public AesGcm CreateAesGcm(string context)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(context);
+
+        var keyMaterial = Encoding.UTF8.GetBytes(AppEncryptionKey);
+        try
+        {
+            using var derivedKey = Blake3KeyDerivation.Derive32ByteKey(keyMaterial, context);
+            return new AesGcm(derivedKey.Span, AesGcm.TagByteSizes.MaxSize);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(keyMaterial);
+        }
+    }
 
     private static string DeriveBase64UrlKey(ReadOnlySpan<byte> keyMaterial, string context)
     {

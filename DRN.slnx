@@ -95,11 +95,17 @@
   <Folder Name="/Items/.github/actions/frontend-build/">
     <File Path=".github\actions\frontend-build\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/actions/nuget-publish-all/">
-    <File Path=".github\actions\nuget-publish-all\action.yml" />
+  <Folder Name="/Items/.github/actions/nuget-pack-all/">
+    <File Path=".github\actions\nuget-pack-all\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/actions/nuget-publish/">
-    <File Path=".github\actions\nuget-publish\action.yml" />
+  <Folder Name="/Items/.github/actions/nuget-pack/">
+    <File Path=".github\actions\nuget-pack\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/actions/nuget-push-all/">
+    <File Path=".github\actions\nuget-push-all\action.yml" />
+  </Folder>
+  <Folder Name="/Items/.github/actions/nuget-push/">
+    <File Path=".github\actions\nuget-push\action.yml" />
   </Folder>
   <Folder Name="/Items/.github/actions/scan-nuget-vulnerabilities/">
     <File Path=".github\actions\scan-nuget-vulnerabilities\action.yml" />

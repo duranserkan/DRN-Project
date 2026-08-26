@@ -19,6 +19,8 @@ public class DevelopmentStatusTests
         context.AddToConfiguration(section, nameof(DrnDevelopmentSettings.AutoMigrateDevelopment), autoMigrateDevelopment.ToString());
         context.AddToConfiguration(section, nameof(DrnDevelopmentSettings.AutoMigrateStaging), autoMigrateStaging.ToString());
         context.AddToConfiguration(section, nameof(DrnDevelopmentSettings.Prototype), prototype.ToString());
+        if (environment != AppEnvironment.Development)
+            context.AddToConfiguration(nameof(DrnAppFeatures), nameof(DrnAppFeatures.SeedKey), DrnAppFeatures.SampleSeedKey);
     }
 
     [Theory]

@@ -1,0 +1,36 @@
+name: Docker Attest All
+description: "Generates artifact attestations for all staged and scanned Docker container image digests."
+inputs:
+  registry:
+    description: "Docker registry host used for image names (e.g., docker.io, ghcr.io, registry.example.com)."
+    required: false
+    default: "docker.io"
+  image-repository-prefix:
+    description: "Docker image repository namespace/path without the registry host (e.g., duranserkan, my-org/platform)."
+    required: true
+  sample-image-digest:
+    description: "The staged and scanned Sample image digest to attest."
+    required: true
+  nexus-image-digest:
+    description: "The staged and scanned Nexus image digest to attest."
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Attest Sample Docker image
+      uses: ./.github/actions/docker-attest
+      with:
+        registry: ${{ inputs.registry }}
+        image-repository-prefix: ${{ inputs.image-repository-prefix }}
+        image-repository-name: drn-project-sample
+        image-digest: ${{ inputs.sample-image-digest }}
+        push-to-registry: "true"
+
+    - name: Attest Nexus Docker image
+      uses: ./.github/actions/docker-attest
+      with:
+        registry: ${{ inputs.registry }}
+        image-repository-prefix: ${{ inputs.image-repository-prefix }}
+        image-repository-name: drn-project-nexus
+        image-digest: ${{ inputs.nexus-image-digest }}
+        push-to-registry: "true"

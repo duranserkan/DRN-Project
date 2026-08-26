@@ -1,0 +1,43 @@
+name: NuGet SBOM
+description: "Generates an SPDX 2.2 SBOM manifest for packed NuGet packages using Microsoft SbomTool."
+inputs:
+  version:
+    description: "Package version extracted from the release tag."
+    required: true
+  packages-directory:
+    description: "Directory containing the built .nupkg and .snupkg packages."
+    required: false
+    default: "artifacts/packages"
+outputs:
+  sbom-path:
+    description: "Path to the generated SPDX 2.2 SBOM JSON manifest."
+    value: "${{ steps.generate-sbom.outputs.sbom-path }}"
+runs:
+  using: "composite"
+  steps:
+    - name: Generate NuGet SBOM
+      id: generate-sbom
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        PACKAGE_VERSION: ${{ inputs.version }}
+        PACKAGES_DIR: ${{ inputs.packages-directory }}
+      run: |
+        set -euo pipefail
+
+        dotnet tool restore --configfile "$GITHUB_WORKSPACE/NuGet.Config"
+        dotnet tool run sbom-tool generate \
+          -b "$PACKAGES_DIR" \
+          -bc . \
+          -pn DRN.Framework \
+          -pv "$PACKAGE_VERSION" \
+          -ps "Duran Serkan KILIC" \
+          -nsb "https://github.com/duranserkan/DRN-Project"
+
+        manifest_path="${PACKAGES_DIR}/_manifest/spdx_2.2/manifest.spdx.json"
+        if [[ ! -f "$manifest_path" ]]; then
+          echo "Expected SBOM manifest at $manifest_path, but file not found" >&2
+          exit 1
+        fi
+
+        echo "sbom-path=$manifest_path" >> "$GITHUB_OUTPUT"

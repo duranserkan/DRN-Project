@@ -407,6 +407,8 @@ var result = await repository.PaginateAsync(request, filter);
 
 The framework provides a robust **cursor-based** pagination system to balance performance and usability.
 
+Page jumps are limited to ten pages per request while preserving the requested direction. For example, a request from page 100 to page 1 targets page 90, and a request from page 1 to page 100 targets page 11.
+
 ### API Integration
 
 `PaginationRequest` is natively **URL-serializable**. In Controllers, simply bind it from the query string.
