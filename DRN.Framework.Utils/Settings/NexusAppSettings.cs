@@ -96,6 +96,9 @@ public sealed class NexusAppSettings : IDisposable
 /// </remarks>
 public sealed class NexusKey : IDisposable
 {
+    public const string SampleKeyMaterial = "sample-nexus-key-material-000000";
+    private static readonly byte[] SampleKeyBytes = Encoding.UTF8.GetBytes(SampleKeyMaterial);
+
     private const int RequiredKeyByteLength = 32;
     private const string MacKeyDerivationContext =
         "DRN.Framework.Utils NexusKey 1881 1919 1923 193∞ derive_key mackey 2026-06-29 21:57:43 v1";
@@ -114,6 +117,10 @@ public sealed class NexusKey : IDisposable
         SecretKey32? derivedEncryptionKey = null;
         try
         {
+            if (decodedKeyMaterial.AsSpan().SequenceEqual(SampleKeyBytes))
+                throw ExceptionFor.Configuration(
+                    $"Sample {nameof(NexusKey)}.{nameof(KeyMaterial)} is an example only and is forbidden from use in all environments");
+
             derivedMacKey = Blake3KeyDerivation.Derive32ByteKey(decodedKeyMaterial, MacKeyDerivationContext);
             derivedEncryptionKey = Blake3KeyDerivation.Derive32ByteKey(decodedKeyMaterial, EncryptionKeyDerivationContext);
 

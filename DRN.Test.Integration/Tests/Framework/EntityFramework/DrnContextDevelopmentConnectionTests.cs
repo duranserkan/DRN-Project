@@ -1,6 +1,7 @@
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Testing.Contexts.Postgres;
+using DRN.Framework.Utils.Data.Encodings;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Sample.Infra;
@@ -31,6 +32,14 @@ public class DrnContextDevelopmentConnectionTests
             { DbContextConventions.DevPortKey, csBuilder.Port },
             { DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.AutoMigrateDevelopment)), migrate }
         };
+
+        if (environment != AppEnvironment.Development)
+        {
+            developmentDbSettings.Add("DrnAppFeatures:SeedKey", "Our true mentor in life is science! - Mustafa Kemal Atatürk (1924)");
+            developmentDbSettings.Add("NexusAppSettings:Keys:0:KeyMaterial", new string('A', 32));
+            developmentDbSettings.Add("NexusAppSettings:Keys:0:Format", nameof(ByteEncoding.Utf8));
+            developmentDbSettings.Add("NexusAppSettings:Keys:0:Default", true);
+        }
 
         testContext.AddToConfiguration(developmentDbSettings);
         testContext.ServiceCollection.AddSampleInfraServices();

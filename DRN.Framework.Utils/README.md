@@ -382,13 +382,15 @@ Shared values apply to both DRN Hosting rate limiting phases. Phase-specific val
 
 Nested option objects must be validated explicitly before relying on child data annotations for startup safety. `DrnAppFeatures` validates `DrnRateLimit` as part of root validation because plain `Validator.TryValidateObject` does not recursively walk nested objects by itself.
 
-`DrnAppFeatures.SeedKey` feeds `AppSecuritySettings`. `AppSecuritySettings` derives `AppHashKey`, `AppEncryptionKey`, `AppKey`, and `AppSeed` through BLAKE3 derive-key mode with distinct DRN Framework context strings. `AppHashKey` and `AppEncryptionKey` remain Base64Url-encoded 32-byte values, `AppKey` remains an 8-character public discriminator, and `AppSeed` remains a signed 64-bit seed value. Changing `SeedKey` changes app-specific names, rate-limit keyed hash outputs, Development default Nexus key material, and seed-dependent operations.
+`DrnAppFeatures.SeedKey` feeds `AppSecuritySettings`. `AppSecuritySettings` derives `AppHashKey`, `AppEncryptionKey`, `AppKey`, and `AppSeed` through BLAKE3 derive-key mode with distinct DRN Framework context strings. `AppHashKey` and `AppEncryptionKey` remain Base64Url-encoded 32-byte values, `AppKey` remains an 8-character public discriminator, and `AppSeed` remains a signed 64-bit seed value. Changing `SeedKey` changes app-specific names, rate-limit keyed hash outputs, Development default Nexus key material, and seed-dependent operations. `AppSettings` enforces strict security constraints on `SeedKey` at startup:
+- The built-in default `SeedKey` (`DrnAppFeatures.DefaultSeedKey`) is only permitted in the `Development` environment and is rejected in `Staging`, `Production`, or `NotDefined`.
+- The sample `SeedKey` (`DrnAppFeatures.SampleSeedKey`) is only permitted during test execution (`TestEnvironment.DrnTestContextEnabled == true`) and is rejected in all non-test application runs.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `ApplicationStartedBy` | `string?` | `null` | Identifies which test started the application (set automatically by `DrnTestContext`). |
 | `SeedData` | `bool` | `false` | Enables data seeding on startup. |
-| `SeedKey` | `string` | `"Peace at home!…"` | Secret key for seed operations. Enforced `[SecureKey(MinLength = 58)]`. |
+| `SeedKey` | `string` | `"Peace at home!…"` | Secret key for seed operations. Enforced `[SecureKey(MinLength = 58)]`. Built-in default is permitted only in `Development`; sample key is permitted only during test execution. |
 | `InternalRequestHttpVersion` | `string` | `"1.1"` | HTTP version used by `IInternalRequest`. |
 | `InternalRequestProtocol` | `string` | `"http"` | Protocol scheme used by `IInternalRequest` (e.g., `http`, `https`). |
 | `UseMonotonicDateTimeProvider` | `bool` | `false` | Reserved experimental flag for monotonic time-provider behavior data; it is not wired as a provider switch. |

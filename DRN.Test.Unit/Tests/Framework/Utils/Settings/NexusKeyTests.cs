@@ -261,4 +261,23 @@ public class NexusKeyTests
         yield return ["ğ123456789abcdef0123456789abcdef", ByteEncoding.Utf8];
         yield return ["not-a-valid-base64", ByteEncoding.Base64];
     }
+
+    [Theory]
+    [DataMemberUnit(nameof(SampleKeysInAllEncodings))]
+    public void NexusKey_Should_Reject_Sample_Key_Material_In_All_Encodings(string key, ByteEncoding format)
+    {
+        var action = () => new NexusKey(key, format);
+
+        var exception = action.Should().ThrowExactly<ConfigurationException>().Which;
+        exception.Message.Should().Be("Sample NexusKey.KeyMaterial is an example only and is forbidden from use in all environments");
+    }
+
+    public static IEnumerable<object[]> SampleKeysInAllEncodings()
+    {
+        var sampleBytes = Encoding.UTF8.GetBytes(NexusKey.SampleKeyMaterial);
+        yield return [NexusKey.SampleKeyMaterial, ByteEncoding.Utf8];
+        yield return [sampleBytes.Encode(ByteEncoding.Hex), ByteEncoding.Hex];
+        yield return [sampleBytes.Encode(ByteEncoding.Base64), ByteEncoding.Base64];
+        yield return [sampleBytes.Encode(ByteEncoding.Base64UrlEncoded), ByteEncoding.Base64UrlEncoded];
+    }
 }

@@ -12,6 +12,8 @@ namespace DRN.Framework.Utils.Settings;
 [Config(validateAnnotations: true, errorOnUnknownConfiguration: false)]
 public class DrnAppFeatures : IValidatableObject
 {
+    public const string DefaultSeedKey = "Peace at home! Peace in the world! - Mustafa Kemal Atatürk (1931)";
+    public const string SampleSeedKey = "Our true mentor in life is science! - Mustafa Kemal Atatürk (1924)";
     private const string RateLimitConfigurationKey = "DrnRateLimit";
 
     public static string GetKey(string shortKey) => $"{nameof(DrnAppFeatures)}:{shortKey}";
@@ -24,7 +26,7 @@ public class DrnAppFeatures : IValidatableObject
     public bool SeedData { get; init; }
 
     [SecureKey(MinLength = 58)]
-    public string SeedKey { get; init; } = "Peace at home! Peace in the world! - Mustafa Kemal Atatürk (1931)";
+    public string SeedKey { get; init; } = DefaultSeedKey;
     public string InternalRequestHttpVersion { get; init; } = "1.1";
     public string InternalRequestProtocol { get; init; } = "http";
 

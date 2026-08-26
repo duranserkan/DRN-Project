@@ -87,6 +87,7 @@ public sealed class AppSettings : IAppSettings, IDisposable
         try
         {
             ThrowIfLegacyNexusMacKeysConfigured();
+            ThrowIfInvalidSeedKeyConfigured();
             var securitySettings = new AppSecuritySettings(Features);
             AppKey = securitySettings.AppKey;
 
@@ -199,6 +200,15 @@ public sealed class AppSettings : IAppSettings, IDisposable
             $"{LegacyNexusMacKeysSection} is no longer supported. " +
             $"Migrate {LegacyNexusMacKeysSection}[*].Key to {NexusKeysSection}[*].KeyMaterial, " +
             $"and move Format and Default to the matching {NexusKeysSection}[*].Format and {NexusKeysSection}[*].Default entries.");
+    }
+
+    private void ThrowIfInvalidSeedKeyConfigured()
+    {
+        if (Environment != AppEnvironment.Development && Features.SeedKey == DrnAppFeatures.DefaultSeedKey)
+            throw ExceptionFor.Configuration($"Default {nameof(DrnAppFeatures)}.{nameof(DrnAppFeatures.SeedKey)} is not allowed for the environment: {Environment.ToString()}");
+
+        if (!TestEnvironment.DrnTestContextEnabled && Features.SeedKey == DrnAppFeatures.SampleSeedKey)
+            throw ExceptionFor.Configuration($"Sample {nameof(DrnAppFeatures)}.{nameof(DrnAppFeatures.SeedKey)} is not allowed outside test execution");
     }
 
     private static string DeriveDevelopmentNexusKeyMaterial(AppSecuritySettings securitySettings)

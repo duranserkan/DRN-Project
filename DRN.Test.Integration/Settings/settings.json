@@ -7,6 +7,9 @@
   "ConnectionStrings": {
     "Foo": "Bar"
   },
+  "DrnAppFeatures": {
+    "SeedKey": "Our true mentor in life is science! - Mustafa Kemal Atatürk (1924)"
+  },
   "NexusAppSettings": {
     "MacType": "blake3",
     "Keys": [
