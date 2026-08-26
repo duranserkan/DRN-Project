@@ -17,7 +17,7 @@ public static class SampleModule
 {
     public static IServiceCollection AddSampleHostedServices(this IServiceCollection services, IAppSettings settings)
     {
-        var securitySettings = new AppSecuritySettings(settings.Features ?? new DrnAppFeatures());
+        var securitySettings = new AppSecuritySettings(settings.Features ?? throw ExceptionFor.Configuration("DrnAppFeatures configuration is required for security settings."));
 
         services
             .AddSampleInfraServices()
