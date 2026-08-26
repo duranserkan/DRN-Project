@@ -8,6 +8,7 @@ using Sample.Domain.Users;
 using Sample.Hosted.Settings;
 using Sample.Infra;
 using Sample.Infra.DataProtection;
+using Sample.Utils.DataProtection;
 
 namespace Sample.Hosted;
 
@@ -16,6 +17,8 @@ public static class SampleModule
 {
     public static IServiceCollection AddSampleHostedServices(this IServiceCollection services, IAppSettings settings)
     {
+        var securitySettings = new AppSecuritySettings(settings.Features);
+
         services
             .AddSampleInfraServices()
             .AddSampleApplicationServices()
@@ -25,7 +28,10 @@ public static class SampleModule
 
         //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
         //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/
-        services.AddDataProtection().PersistKeysToDbContext<DrnDataProtectionContext>();
+        services.AddDataProtection()
+            .PersistKeysToDbContext<DrnDataProtectionContext>()
+            .SetApplicationName(settings.GetAppSpecificName("DataProtection"))
+            .AddKeyManagementOptions(options => options.XmlEncryptor = new SampleXmlEncryptor(securitySettings));
 
         //.AddPersonalDataProtection<>()
         services.AddServicesWithAttributes();

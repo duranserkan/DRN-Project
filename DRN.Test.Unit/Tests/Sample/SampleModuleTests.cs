@@ -3,9 +3,12 @@ using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Sample.Hosted;
+using Sample.Utils.DataProtection;
 
 namespace DRN.Test.Unit.Tests.Sample;
 
@@ -41,5 +44,20 @@ public class SampleModuleTests
         ScopeContext.UserId.Should().Be("user-42");
         ScopeContext.GetClaimParameter<string>(ClaimTypes.NameIdentifier, claimsIssuer).Should().Be("user-42");
         ScopeContext.GetClaimParameter<string>(ClaimTypes.NameIdentifier, "another issuer").Should().BeNull();
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void AddSampleHostedServices_Should_Configure_DataProtection_Application_Discriminator_And_XmlEncryptor(
+        DrnTestContextUnit context, IAppSettings settings)
+    {
+        settings.GetAppSpecificName("DataProtection").Returns("_SampleIssuer.DataProtection.Unit");
+        context.ServiceCollection.AddSampleHostedServices(settings);
+
+        var dataProtectionOptions = context.GetRequiredService<IOptions<DataProtectionOptions>>().Value;
+        dataProtectionOptions.ApplicationDiscriminator.Should().Be("_SampleIssuer.DataProtection.Unit");
+
+        var keyManagementOptions = context.GetRequiredService<IOptions<KeyManagementOptions>>().Value;
+        keyManagementOptions.XmlEncryptor.Should().BeOfType<SampleXmlEncryptor>();
     }
 }

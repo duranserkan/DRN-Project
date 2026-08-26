@@ -1237,7 +1237,8 @@
       "sample.utils": {
         "type": "Project",
         "dependencies": {
-          "DRN.Framework.Utils": "[1.0.0, )"
+          "DRN.Framework.Utils": "[1.0.0, )",
+          "Microsoft.AspNetCore.DataProtection": "[10.0.11, )"
         }
       }
     },
