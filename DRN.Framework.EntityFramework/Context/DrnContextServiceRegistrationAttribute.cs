@@ -127,15 +127,10 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
     {
         var entityTypes = context.Model.GetEntityTypes().Select(entityType => entityType.ClrType).ToArray();
         var domainTypes = entityTypes.Where(type => type.IsAssignableTo(typeof(SourceKnownEntity))).ToArray();
-        var entityTypePairs = domainTypes.ToDictionary(t => t, t => t.GetCustomAttribute<EntityTypeAttribute>());
-        var missingAttributes = entityTypePairs.Where(pair => pair.Value == null).Select(pair => pair.Key.FullName!).ToArray();
-        var duplicateAttributePairs = entityTypePairs.Where(pair => pair.Value != null)
-            .GroupBy(pair => pair.Value?.EntityType)
-            .Where(group => group.Count() > 1)
-            .OrderBy(group => group.Key)
-            .SelectMany(group => group.Select(pair => new DuplicateEntityTypeValue(pair.Key.FullName!, pair.Value!.EntityType))).ToArray();
+        var idValidation = GetEntityTypeValidationResult(domainTypes);
+        var missingAttributes = idValidation.MissingEntityTypes;
+        var duplicateAttributePairs = idValidation.DuplicateEntityTypes;
 
-        var idValidation = new EntityTypeValidationResult(missingAttributes, duplicateAttributePairs);
         if (missingAttributes.Length > 0)
             scopedLog?.Add("EntityTypesMissing", idValidation.MissingEntityTypes);
         if (duplicateAttributePairs.Length > 0)
@@ -161,6 +156,19 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         //This will catch application wide inconsistencies. Previous validation was module-wide;
         var entityTypeValues = domainTypes.Select(SourceKnownEntity.GetEntityType).ToArray();
         _ = entityTypeValues;
+    }
+
+    internal static EntityTypeValidationResult GetEntityTypeValidationResult(IReadOnlyCollection<Type> domainTypes)
+    {
+        var entityTypePairs = domainTypes.ToDictionary(t => t, t => t.GetCustomAttribute<EntityTypeAttribute>());
+        var missingAttributes = entityTypePairs.Where(pair => pair.Value == null).Select(pair => pair.Key.FullName!).ToArray();
+        var duplicateAttributePairs = entityTypePairs.Where(pair => pair.Value != null)
+            .GroupBy(pair => new EntityTypeId(pair.Value!.EntityType, pair.Value.AppId))
+            .Where(group => group.Count() > 1)
+            .OrderBy(group => group.Key)
+            .SelectMany(group => group.Select(pair => new DuplicateEntityTypeValue(pair.Key.FullName!, pair.Value!.EntityType))).ToArray();
+
+        return new EntityTypeValidationResult(missingAttributes, duplicateAttributePairs);
     }
 }
 

@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
 description: "DRN.Framework.EntityFramework - DrnContext, migrations, entity lifecycle tracking, Npgsql configuration, repositories, and repository cancellation groups. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, repository-cancellation, cancellation-scope, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
-last-updated: 2026-07-29
+last-updated: 2026-08-25
 difficulty: advanced
 tokens: ~2.5K
 ---
@@ -54,7 +54,7 @@ DrnContext augments entities during `OnModelCreating` and runtime:
 | **Secure ↔ Plain** | `ToSecure` / `ToPlain` on entity and repository for idempotent ID form conversion |
 | **JSON Models** | `IEntityWithModel<T>` auto-maps `.Model` to `jsonb` column |
 | **Identity Naming** | ASP.NET Core Identity tables/columns → `snake_case` for PostgreSQL |
-| **Startup Validation** | Validates all entities have valid, unique `[EntityType]` attributes |
+| **Startup Validation** | Validates all entities have valid, unique `(EntityType, AppId)` pairs while permitting the same entity byte in different application partitions |
 
 ---
 

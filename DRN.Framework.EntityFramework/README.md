@@ -52,7 +52,7 @@ Define a DbContext and entity with automatic ID generation:
 
 ```csharp
 // 1. Define your entity inheriting from AggregateRoot (which derives from SourceKnownEntity)
-[EntityType(1)] // Unique byte per entity type
+[EntityType(1)] // Unique byte within the entity's AppId partition
 public class User : AggregateRoot
 {
     public string Username { get; set; } = "";
@@ -219,7 +219,7 @@ Entities inheriting from `SourceKnownEntity` receive internal IDs when EF begins
 *   **Tracking-Time Generation**: `SourceKnownIdValueGenerator` assigns the internal Source-Known `long` ID when a new entity begins EF tracking.
 *   **Save-Time Fallback And Initialization**: `IDrnSaveChangesInterceptor` generates a missing internal ID, initializes `EntityIdSource` and `EntityIdOps`, and applies created lifecycle state.
 *   **External Identity**: Exposes `Guid EntityId` for public contracts and lookups.
-*   **Requirement**: Every entity must have a unique `[EntityType(n)]` attribute.
+*   **Requirement**: Every entity must have a unique `(EntityType, AppId)` pair. The same entity type byte may be reused by a different application partition.
 
 ```csharp
 [EntityType(1)]
@@ -240,7 +240,7 @@ await context.SaveChangesAsync(); // External identity and lifecycle state are i
 When the framework startup validation lifecycle runs, registered contexts are validated:
 
 *   **Context Validation**: Validates that registered contexts can be resolved.
-*   **Entity Type Check**: Ensures Source-Known entity types have unique `[EntityType]` attributes.
+*   **Entity Type Check**: Ensures Source-Known entities have unique `(EntityType, AppId)` pairs while allowing the same entity byte in different application partitions.
 *   **Auto-Migration & Seeding**:
     *   Applies pending migrations when automatic migration is enabled for the current environment.
     *   Runs `SeedAsync` after this package applies migrations or creates or recreates a prototype database. Seed implementations must be idempotent. See [EF Core Data Seeding Guidance](https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding).
@@ -553,7 +553,7 @@ Participates in attribute-based registration and lifecycle management for your `
 **Features:**
 - Registers the context when its assembly is scanned
 - During framework startup validation:
-    - Validates entity type uniqueness
+    - Validates entity type uniqueness within each `AppId` partition
     - Applies pending migrations if configured
     - Runs seed data after automatic migrations or prototype database creation/recreation
 
