@@ -13,7 +13,60 @@
 
 import { ValidationService } from 'aspnet-client-validation';
 
-const validationService = new ValidationService();
+/**
+ * aspnet-client-validation 0.11.1 removes listeners for detached inputs but
+ * retains the corresponding DOM nodes in its UID indexes. The service is
+ * page-scoped, so those strong references would otherwise survive every htmx
+ * swap. Keep the package behavior while releasing all indexes for the removed
+ * subtree after its normal cleanup completes.
+ */
+class DrnValidationService extends ValidationService {
+    remove(root) {
+        const removalRoot = root ?? this.options?.root ?? document.body;
+        const elementUIDs = Array.isArray(this.elementUIDs) ? this.elementUIDs : [];
+        const removedUIDs = new Set(
+            elementUIDs
+                .filter(entry => entry?.node === removalRoot || removalRoot?.contains?.(entry?.node))
+                .map(entry => entry.uid)
+        );
+
+        super.remove(removalRoot);
+
+        if (removedUIDs.size === 0)
+            return;
+
+        // Remove detached input UIDs from forms that remain outside the swapped subtree.
+        for (const [formUID, inputUIDs] of Object.entries(this.formInputs || {})) {
+            const remainingInputUIDs = inputUIDs.filter(uid => !removedUIDs.has(uid));
+            if (remainingInputUIDs.length > 0) {
+                this.formInputs[formUID] = remainingInputUIDs;
+                continue;
+            }
+
+            this.formEvents?.[formUID]?.remove?.();
+            delete this.formEvents?.[formUID];
+            delete this.formInputs[formUID];
+            delete this.messageFor?.[formUID];
+            removedUIDs.add(formUID);
+        }
+
+        for (const uid of removedUIDs) {
+            this.formEvents?.[uid]?.remove?.();
+            this.inputEvents?.[uid]?.remove?.();
+            delete this.formEvents?.[uid];
+            delete this.formInputs?.[uid];
+            delete this.messageFor?.[uid];
+            delete this.inputEvents?.[uid];
+            delete this.validators?.[uid];
+            delete this.summary?.[uid];
+            delete this.elementByUID?.[uid];
+        }
+
+        this.elementUIDs = elementUIDs.filter(entry => !removedUIDs.has(entry.uid));
+    }
+}
+
+const validationService = new DrnValidationService();
 
 // Expose hook for custom validation providers
 // Register providers BEFORE bootstrap() — call from appPostload.js or page scripts
