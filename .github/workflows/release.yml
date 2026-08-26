@@ -76,6 +76,7 @@ jobs:
 
       # Personal Docker Hub publishing uses separate least-privilege PATs because trusted OIDC publishing
       # is unavailable for personal namespaces. DOCKER_PUBLISH_TOKEN requires Read/Write permissions.
+      # Builds and attaches OCI SLSA Level 3 provenance and SPDX SBOM attestations to the image manifest index.
       - name: Stage and scan Docker images
         id: docker-images
         uses: ./.github/actions/docker-stage-scan-all
@@ -86,22 +87,57 @@ jobs:
           image-repository-prefix: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
           version: ${{ steps.version.outputs.version }}
 
-      - name: Publish Packages
-        uses: ./.github/actions/nuget-publish-all
+      - name: Pack Packages
+        uses: ./.github/actions/nuget-pack-all
         with:
           version: ${{ steps.version.outputs.version }}
-          package-source-url: ${{ env.NUGET_PACKAGE_SOURCE_URL }}
-          nuget-user: ${{ secrets.NUGET_USER }}
 
-      - name: Generate artifact attestation #https://andrewlock.net/creating-provenance-attestations-for-nuget-packages-in-github-actions/
+      - name: Generate NuGet packages SBOM
+        id: nuget-sbom
+        uses: ./.github/actions/nuget-sbom
+        with:
+          version: ${{ steps.version.outputs.version }}
+
+      # Attestations record SLSA provenance for the pre-push build artifacts.
+      # Note: NuGet.org injects a repository signature (.signature.p7s) on ingestion, which alters the package SHA.
+      # Verifying packages downloaded from nuget.org requires stripping .signature.p7s (e.g. zip -d <pkg>.nupkg .signature.p7s)
+      # or verifying against the unmodified build packages preserved in the 'packages' artifact below.
+      # https://andrewlock.net/creating-provenance-attestations-for-nuget-packages-in-github-actions/
+      # https://github.com/NuGet/NuGetGallery/issues/10026
+      - name: Generate artifact attestation (NuGet Provenance)
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: "artifacts/packages/*.nupkg"
+          subject-path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+
+      - name: Generate artifact attestation (NuGet SBOM)
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+          sbom-path: ${{ steps.nuget-sbom.outputs.sbom-path }}
+
+      - name: Attest Docker images
+        uses: ./.github/actions/docker-attest-all
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          image-repository-prefix: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
+          sample-image-digest: ${{ steps.docker-images.outputs.sample-image-digest }}
+          nexus-image-digest: ${{ steps.docker-images.outputs.nexus-image-digest }}
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: packages
           path: artifacts/packages
+
+      - name: Push Packages
+        uses: ./.github/actions/nuget-push-all
+        with:
+          version: ${{ steps.version.outputs.version }}
+          package-source-url: ${{ env.NUGET_PACKAGE_SOURCE_URL }}
+          nuget-user: ${{ secrets.NUGET_USER }}
 
       - name: Promote Docker image tags
         uses: ./.github/actions/docker-promote-all

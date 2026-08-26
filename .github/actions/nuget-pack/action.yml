@@ -1,0 +1,42 @@
+name: Nuget Pack
+description: Packs a single DRN.Framework project into the artifacts/packages directory.
+inputs:
+  project-name:
+    description: The project directory and csproj base name (e.g. DRN.Framework.Utils).
+    required: true
+  version:
+    description: Package version extracted from the release tag.
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Validate package version
+      shell: bash
+      env:
+        PACKAGE_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        if [[ ! "$PACKAGE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+          echo "Expected version to be semver-like, got: $PACKAGE_VERSION"
+          exit 1
+        fi
+
+    - name: Pack
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        # Assigned to an env var to avoid direct expression interpolation in the
+        # shell script — prevents script injection (GitHub Actions security advisory).
+        PROJECT_NAME: ${{ inputs.project-name }}
+        PACKAGE_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        mkdir -p artifacts/packages
+        git checkout -- "${PROJECT_NAME}/PACKAGE-DESCRIPTION" "${PROJECT_NAME}/README.md" "${PROJECT_NAME}/RELEASE-NOTES.md" 2>/dev/null || true
+        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H" >> "${PROJECT_NAME}/PACKAGE-DESCRIPTION"
+        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H" >> "${PROJECT_NAME}/README.md"
+        git --no-pager log -1 --format="  %n  %n## Commit Info  %nAuthor: %an  %nDate: %ai  %nHash: %C(auto)%H" >> "${PROJECT_NAME}/RELEASE-NOTES.md"
+        dotnet pack "${PROJECT_NAME}/${PROJECT_NAME}.csproj" --configuration Release "/p:Version=${PACKAGE_VERSION}" --no-build --output artifacts/packages
+        git checkout -- "${PROJECT_NAME}/PACKAGE-DESCRIPTION" "${PROJECT_NAME}/README.md" "${PROJECT_NAME}/RELEASE-NOTES.md" 2>/dev/null || true

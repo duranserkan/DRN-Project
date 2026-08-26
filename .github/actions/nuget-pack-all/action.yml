@@ -1,0 +1,34 @@
+name: Nuget Pack All
+description: "Packs all DRN.Framework NuGet packages into the artifacts/packages directory."
+inputs:
+  version:
+    description: "Package version extracted from the release tag."
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Pack SharedKernel
+      uses: ./.github/actions/nuget-pack
+      with:
+        project-name: DRN.Framework.SharedKernel
+        version: ${{ inputs.version }}
+    - name: Pack Utils
+      uses: ./.github/actions/nuget-pack
+      with:
+        project-name: DRN.Framework.Utils
+        version: ${{ inputs.version }}
+    - name: Pack EntityFramework
+      uses: ./.github/actions/nuget-pack
+      with:
+        project-name: DRN.Framework.EntityFramework
+        version: ${{ inputs.version }}
+    - name: Pack Hosting
+      uses: ./.github/actions/nuget-pack
+      with:
+        project-name: DRN.Framework.Hosting
+        version: ${{ inputs.version }}
+    - name: Pack Testing
+      uses: ./.github/actions/nuget-pack
+      with:
+        project-name: DRN.Framework.Testing
+        version: ${{ inputs.version }}
