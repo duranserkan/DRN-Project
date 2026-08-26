@@ -50,15 +50,46 @@ runs:
         # Capture output and exit code manually. With set -e, an unhandled
         # non-zero command would exit before we can print dotnet's diagnostics.
         status=0
-        packages=$(dotnet list "$scan_solution" package --no-restore --include-transitive --vulnerable) || status=$?
+        package_report=$(dotnet list "$scan_solution" package --no-restore --include-transitive --vulnerable --format json --output-version 1) || status=$?
         if [ "$status" -ne 0 ]; then
-          echo "$packages"
+          echo "$package_report"
           exit "$status"
         fi
 
-        # dotnet list can complete successfully while reporting vulnerable
-        # packages, so treat that report text as a CI failure.
-        if [[ "$packages" == *"has the following vulnerable packages"* ]]; then
-          echo "$packages"
+        # Treat absent, malformed, or structurally unexpected output as a scan
+        # failure. Version 1 keeps the small contract below stable across SDKs.
+        if [[ -z "${package_report//[[:space:]]/}" ]]; then
+          echo "NuGet vulnerability scan returned an empty report." >&2
+          exit 1
+        fi
+
+        if ! jq -e '
+          type == "object" and
+          .version == 1 and
+          (.projects | type == "array" and length > 0) and
+          all(.projects[]; (.frameworks | type == "array"))
+        ' <<< "$package_report" >/dev/null; then
+          echo "NuGet vulnerability scan returned malformed or unexpected JSON." >&2
+          echo "$package_report"
+          exit 1
+        fi
+
+        # The CLI succeeds even when it reports vulnerabilities. Capture the
+        # count so a jq error cannot be mistaken for a clean report.
+        if ! vulnerability_count=$(jq -er '
+          [
+            .projects[].frameworks[]
+            | ((.topLevelPackages // []) + (.transitivePackages // []))[]
+            | (.vulnerabilities // [])[]
+          ]
+          | length
+        ' <<< "$package_report"); then
+          echo "NuGet vulnerability scan report could not be evaluated." >&2
+          echo "$package_report"
+          exit 1
+        fi
+
+        if [ "$vulnerability_count" -gt 0 ]; then
+          echo "$package_report"
           exit 1
         fi
