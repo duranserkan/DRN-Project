@@ -67,7 +67,17 @@ runs:
           type == "object" and
           .version == 1 and
           (.projects | type == "array" and length > 0) and
-          all(.projects[]; (.frameworks | type == "array"))
+          all(.projects[];
+            (.path | type == "string") and
+            (.frameworks == null or (
+              .frameworks | type == "array" and
+              all(.frameworks[];
+                (.framework | type == "string") and
+                (.topLevelPackages == null or (.topLevelPackages | type == "array")) and
+                (.transitivePackages == null or (.transitivePackages | type == "array"))
+              )
+            ))
+          )
         ' <<< "$package_report" >/dev/null; then
           echo "NuGet vulnerability scan returned malformed or unexpected JSON." >&2
           echo "$package_report"
@@ -78,7 +88,8 @@ runs:
         # count so a jq error cannot be mistaken for a clean report.
         if ! vulnerability_count=$(jq -er '
           [
-            .projects[].frameworks[]
+            .projects[]
+            | (.frameworks // [])[]
             | ((.topLevelPackages // []) + (.transitivePackages // []))[]
             | (.vulnerabilities // [])[]
           ]
