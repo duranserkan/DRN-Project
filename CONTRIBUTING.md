@@ -21,32 +21,36 @@ Open an issue with the `enhancement` label. Describe:
 - Your proposed solution
 - Alternative approaches you considered
 
+Wait for maintainer discussion and approval on the issue before beginning work.
+
 ### Submitting Changes
 
-1. **Fork** the repository
-2. **Create a branch** from `develop`:
+1. **Get issue approval first** — before writing code or opening a pull request, ensure there is an open issue describing your proposed change and that a maintainer has explicitly approved it. This ensures alignment with the project roadmap and prevents wasted effort.
+2. **Fork** the repository
+3. **Create a branch** from `develop`:
    ```bash
    git checkout -b feature/your-feature develop
    ```
-3. **Make your changes** following the conventions below
-4. **Write or update tests** — unit and analyzer tests before integration tests (DTT philosophy)
-5. **Run the test suite**:
+4. **Make your changes** following the conventions below
+5. **Write or update tests** — unit and analyzer tests before integration tests (DTT philosophy)
+6. **Run the test suite**:
 
    ```bash
    dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
    dotnet run --project DRN.Test.Analyzer/DRN.Test.Analyzer.csproj
    dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
    ```
-6. **Commit** with a clear message following [Conventional Commits](https://www.conventionalcommits.org/):
+7. **Commit** with a clear message following [Conventional Commits](https://www.conventionalcommits.org/):
    ```
    feat(SharedKernel): add new entity base class
    fix(Utils): correct SKID timestamp overflow handling
    ```
-7. **Push** your branch and open a **Pull Request** against `develop`
+8. **Push** your branch and open a **Pull Request** against `develop`
 
 ### Pull Request Guidelines
 
-- Reference any related issues
+- Link and reference the approved issue (e.g., `Fixes #123` or `Closes #123`)
+- Do not open pull requests without prior issue discussion and maintainer approval
 - Describe what changes you made and why
 - Ensure CI passes (build + tests)
 - Keep PRs focused — one logical change per PR
