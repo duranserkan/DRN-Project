@@ -24,6 +24,18 @@ outputs:
   image-digest:
     description: "The staged Docker image digest that passed Docker Scout scans."
     value: ${{ steps.container-build-digest.outputs.digest }}
+  linux-amd64-image-digest:
+    description: "The staged linux/amd64 image manifest digest."
+    value: ${{ steps.validate-image-digest.outputs.linux-amd64-image-digest }}
+  linux-amd64-sbom-path:
+    description: "Path to the extracted linux/amd64 SPDX 2.3 SBOM JSON manifest."
+    value: ${{ steps.extract-sbom.outputs.linux-amd64-sbom-path }}
+  linux-arm64-image-digest:
+    description: "The staged linux/arm64 image manifest digest."
+    value: ${{ steps.validate-image-digest.outputs.linux-arm64-image-digest }}
+  linux-arm64-sbom-path:
+    description: "Path to the extracted linux/arm64 SPDX 2.3 SBOM JSON manifest."
+    value: ${{ steps.extract-sbom.outputs.linux-arm64-sbom-path }}
 runs:
   using: "composite"
   steps:
@@ -53,7 +65,7 @@ runs:
         # Attaches OCI-standard SLSA-format build provenance and SPDX SBOM attestations.
         # Unlike NuGet, OCI registries preserve content-addressable blobs and index manifests,
         # ensuring attestations remain verifiable directly from the registry without hash mutation.
-        sbom: true
+        sbom: generator=docker.io/docker/buildkit-syft-scanner:1.12.0@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9
         provenance: mode=max
     - name: Verify staged Docker image digest
       id: validate-image-digest
@@ -73,12 +85,14 @@ runs:
         fi
 
         staged_image="${DOCKER_REGISTRY}/${IMAGE_REPOSITORY_PREFIX}/${IMAGE_REPOSITORY_NAME}:staged-${RELEASE_VERSION}-run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+        manifest_json=""
         resolved_digest=""
         for attempt in 1 2 3; do
-          if resolved_digest="$(
-            docker buildx imagetools inspect "$staged_image" --format '{{json .Manifest}}' |
-              jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))'
-          )" && [[ "$resolved_digest" == "$IMAGE_DIGEST" ]]; then
+          if manifest_json="$(docker buildx imagetools inspect "$staged_image" --format '{{json .Manifest}}')" &&
+            resolved_digest="$(
+              printf '%s\n' "$manifest_json" |
+                jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))'
+            )" && [[ "$resolved_digest" == "$IMAGE_DIGEST" ]]; then
             break
           fi
           if [[ "$attempt" -lt 3 ]]; then
@@ -90,6 +104,67 @@ runs:
           echo "Staged Docker tag resolved to $resolved_digest instead of expected digest $IMAGE_DIGEST: $staged_image"
           exit 1
         fi
+
+        linux_amd64_digest="$(
+          printf '%s\n' "$manifest_json" |
+            jq -er '
+              [.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest] as $digests
+              | if ($digests | length) == 1 then $digests[0] else error("Expected exactly one linux/amd64 image manifest") end
+              | select(test("^sha256:[0-9a-f]{64}$"))
+            '
+        )"
+        linux_arm64_digest="$(
+          printf '%s\n' "$manifest_json" |
+            jq -er '
+              [.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64") | .digest] as $digests
+              | if ($digests | length) == 1 then $digests[0] else error("Expected exactly one linux/arm64 image manifest") end
+              | select(test("^sha256:[0-9a-f]{64}$"))
+            '
+        )"
+
+        echo "linux-amd64-image-digest=$linux_amd64_digest" >> "$GITHUB_OUTPUT"
+        echo "linux-arm64-image-digest=$linux_arm64_digest" >> "$GITHUB_OUTPUT"
+    - name: Extract Docker image SPDX SBOM
+      id: extract-sbom
+      if: ${{ steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}
+      shell: bash
+      env:
+        DOCKER_REGISTRY: ${{ inputs.registry }}
+        IMAGE_DIGEST: ${{ steps.container-build-digest.outputs.digest }}
+        IMAGE_REPOSITORY_NAME: ${{ inputs.image-repository-name }}
+        IMAGE_REPOSITORY_PREFIX: ${{ inputs.image-repository-prefix }}
+      run: |
+        set -euo pipefail
+
+        immutable_image="${DOCKER_REGISTRY}/${IMAGE_REPOSITORY_PREFIX}/${IMAGE_REPOSITORY_NAME}@${IMAGE_DIGEST}"
+        mkdir -p artifacts/sbom
+        linux_amd64_sbom_file="artifacts/sbom/${IMAGE_REPOSITORY_NAME}.linux-amd64.spdx.json"
+        linux_arm64_sbom_file="artifacts/sbom/${IMAGE_REPOSITORY_NAME}.linux-arm64.spdx.json"
+
+        raw_sbom="$(docker buildx imagetools inspect "$immutable_image" --format '{{json .SBOM}}')"
+
+        if ! printf '%s\n' "$raw_sbom" |
+          jq -e '
+            ."linux/amd64".SPDX
+            | select(type == "object")
+            | select(.spdxVersion == "SPDX-2.3" and (.SPDXID | type) == "string")
+          ' > "$linux_amd64_sbom_file"; then
+          echo "Failed to extract a valid linux/amd64 SPDX 2.3 SBOM from immutable image: $immutable_image" >&2
+          exit 1
+        fi
+
+        if ! printf '%s\n' "$raw_sbom" |
+          jq -e '
+            ."linux/arm64".SPDX
+            | select(type == "object")
+            | select(.spdxVersion == "SPDX-2.3" and (.SPDXID | type) == "string")
+          ' > "$linux_arm64_sbom_file"; then
+          echo "Failed to extract a valid linux/arm64 SPDX 2.3 SBOM from immutable image: $immutable_image" >&2
+          exit 1
+        fi
+
+        echo "linux-amd64-sbom-path=$linux_amd64_sbom_file" >> "$GITHUB_OUTPUT"
+        echo "linux-arm64-sbom-path=$linux_arm64_sbom_file" >> "$GITHUB_OUTPUT"
     - name: Docker Scout (linux/amd64)
       id: docker-scout-amd64
       if: ${{ steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}

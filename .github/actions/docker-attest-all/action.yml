@@ -9,10 +9,34 @@ inputs:
     description: "Docker image repository namespace/path without the registry host (e.g., duranserkan, my-org/platform)."
     required: true
   sample-image-digest:
-    description: "The staged and scanned Sample image digest to attest."
+    description: "The staged and scanned Sample multi-platform image index digest to attest."
+    required: true
+  sample-linux-amd64-image-digest:
+    description: "The staged and scanned Sample linux/amd64 image manifest digest to attest."
+    required: true
+  sample-linux-amd64-sbom-path:
+    description: "Path to the Sample linux/amd64 SPDX 2.3 SBOM JSON manifest to attest."
+    required: true
+  sample-linux-arm64-image-digest:
+    description: "The staged and scanned Sample linux/arm64 image manifest digest to attest."
+    required: true
+  sample-linux-arm64-sbom-path:
+    description: "Path to the Sample linux/arm64 SPDX 2.3 SBOM JSON manifest to attest."
     required: true
   nexus-image-digest:
-    description: "The staged and scanned Nexus image digest to attest."
+    description: "The staged and scanned Nexus multi-platform image index digest to attest."
+    required: true
+  nexus-linux-amd64-image-digest:
+    description: "The staged and scanned Nexus linux/amd64 image manifest digest to attest."
+    required: true
+  nexus-linux-amd64-sbom-path:
+    description: "Path to the Nexus linux/amd64 SPDX 2.3 SBOM JSON manifest to attest."
+    required: true
+  nexus-linux-arm64-image-digest:
+    description: "The staged and scanned Nexus linux/arm64 image manifest digest to attest."
+    required: true
+  nexus-linux-arm64-sbom-path:
+    description: "Path to the Nexus linux/arm64 SPDX 2.3 SBOM JSON manifest to attest."
     required: true
 runs:
   using: "composite"
@@ -24,6 +48,10 @@ runs:
         image-repository-prefix: ${{ inputs.image-repository-prefix }}
         image-repository-name: drn-project-sample
         image-digest: ${{ inputs.sample-image-digest }}
+        linux-amd64-image-digest: ${{ inputs.sample-linux-amd64-image-digest }}
+        linux-amd64-sbom-path: ${{ inputs.sample-linux-amd64-sbom-path }}
+        linux-arm64-image-digest: ${{ inputs.sample-linux-arm64-image-digest }}
+        linux-arm64-sbom-path: ${{ inputs.sample-linux-arm64-sbom-path }}
         push-to-registry: "true"
 
     - name: Attest Nexus Docker image
@@ -33,4 +61,8 @@ runs:
         image-repository-prefix: ${{ inputs.image-repository-prefix }}
         image-repository-name: drn-project-nexus
         image-digest: ${{ inputs.nexus-image-digest }}
+        linux-amd64-image-digest: ${{ inputs.nexus-linux-amd64-image-digest }}
+        linux-amd64-sbom-path: ${{ inputs.nexus-linux-amd64-sbom-path }}
+        linux-arm64-image-digest: ${{ inputs.nexus-linux-arm64-image-digest }}
+        linux-arm64-sbom-path: ${{ inputs.nexus-linux-arm64-sbom-path }}
         push-to-registry: "true"

@@ -51,6 +51,8 @@ TL;DR: You can
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Verify Published NuGet Packages](#verify-published-nuget-packages)
+- [Verify Published Container Images](#verify-published-container-images)
 - [About Project](#about-project)
 - [Solution Structure](#solution-structure)
 - [About Design and Architecture](#about-design-and-architecture)
@@ -176,6 +178,73 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 # Opt out of .NET Testing Platform telemetry
 export TESTINGPLATFORM_TELEMETRY_OPTOUT=1
 ```
+
+## Verify Published NuGet Packages
+
+Published packages are available from two locations:
+
+- For normal consumption, open the [NuGet.org profile](https://www.nuget.org/profiles/duranserkan), select the package and version, then use **Download package**.
+- For the exact pre-publish files, open the [stable release](https://github.com/duranserkan/DRN-Project/actions/workflows/release.yml) or [preview release](https://github.com/duranserkan/DRN-Project/actions/workflows/release-preview.yml) workflow, select the matching release run, then download the `packages` entry under **Artifacts**. It contains the original `.nupkg` and `.snupkg` files plus the generated SBOM for the repository's configured artifact-retention period.
+
+Replace `RELEASE_VERSION` in the example path, then verify an original workflow artifact's provenance and SPDX 2.2 SBOM attestation directly (for preview packages, replace `release.yml` with `release-preview.yml`):
+
+```bash
+gh attestation verify \
+  artifacts/packages/DRN.Framework.Hosting.RELEASE_VERSION.nupkg \
+  -R duranserkan/DRN-Project \
+  --signer-workflow duranserkan/DRN-Project/.github/workflows/release.yml
+
+gh attestation verify \
+  artifacts/packages/DRN.Framework.Hosting.RELEASE_VERSION.nupkg \
+  -R duranserkan/DRN-Project \
+  --signer-workflow duranserkan/DRN-Project/.github/workflows/release.yml \
+  --predicate-type https://spdx.dev/Document/v2.2
+```
+
+NuGet.org adds `.signature.p7s`, changing the package digest. [Verify the repository signature](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-nuget-verify) first, then remove it from a copy before verifying GitHub provenance and SBOM attestations:
+
+```bash
+dotnet nuget verify DRN.Framework.Hosting.RELEASE_VERSION.nupkg --all
+
+mkdir -p attestation
+cp DRN.Framework.Hosting.RELEASE_VERSION.nupkg attestation/
+
+zip -d attestation/DRN.Framework.Hosting.RELEASE_VERSION.nupkg .signature.p7s
+
+gh attestation verify \
+  attestation/DRN.Framework.Hosting.RELEASE_VERSION.nupkg \
+  -R duranserkan/DRN-Project \
+  --signer-workflow duranserkan/DRN-Project/.github/workflows/release.yml
+
+gh attestation verify \
+  attestation/DRN.Framework.Hosting.RELEASE_VERSION.nupkg \
+  -R duranserkan/DRN-Project \
+  --signer-workflow duranserkan/DRN-Project/.github/workflows/release.yml \
+  --predicate-type https://spdx.dev/Document/v2.2
+```
+
+Repeat for each package. If verification fails, use the exact package from the workflow's `packages` artifact.
+
+## Verify Published Container Images
+
+Stable and preview releases publish provenance for each multi-platform image index and a separate SPDX 2.3 SBOM attestation for each `linux/amd64` and `linux/arm64` manifest. Separate platform bindings prevent one architecture's inventory from representing another. Replace `RELEASE_VERSION`, inspect the image, then replace `PLATFORM_MANIFEST_HEX_DIGEST` with the hexadecimal part of the corresponding platform digest (for preview images, replace `release.yml` with `release-preview.yml`):
+
+```bash
+docker buildx imagetools inspect docker.io/duranserkan/drn-project-sample:RELEASE_VERSION
+
+gh attestation verify \
+  oci://index.docker.io/duranserkan/drn-project-sample:RELEASE_VERSION \
+  -R duranserkan/DRN-Project \
+  --signer-workflow duranserkan/DRN-Project/.github/workflows/release.yml
+
+gh attestation verify \
+  oci://index.docker.io/duranserkan/drn-project-sample@sha256:PLATFORM_MANIFEST_HEX_DIGEST \
+  -R duranserkan/DRN-Project \
+  --signer-workflow duranserkan/DRN-Project/.github/workflows/release.yml \
+  --predicate-type https://spdx.dev/Document/v2.3
+```
+
+Replace `drn-project-sample` with `drn-project-nexus` to verify the Nexus image.
 
 ## About Project
 
