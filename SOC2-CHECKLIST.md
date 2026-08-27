@@ -1,9 +1,10 @@
-# DRN Project SOC 2 Preparedness Checklist
+# DRN Project SOC 2 Preparedness Checklist (Draft)
 
-> **Preparedness notice:** This checklist is not legally binding, is not legal or audit advice, and does not represent a SOC 2 examination, certification, or assurance opinion. It is a point-in-time preparedness assessment. Management should agree the scope with an independent licensed CPA firm, which performs the examination.
+> **Preparedness notice:** This checklist is an open self-assessment draft, is not legally binding, is not legal or audit advice, and does not represent a SOC 2 examination, certification, or assurance opinion. It is a point-in-time preparedness assessment. Management should agree the scope with an independent licensed CPA firm, which performs the examination.
 
 | Assessment field | Value |
 |---|---|
+| Document status | **Draft** (Work in progress / pre-audit assessment) |
 | Assessment date | 2026-08-26 |
 | Application repository | `DRN-Project`, reviewed at `a69dcf8693c9`; working tree was clean before this document was added |
 | Deployment repository | `DRN-Project-Argo-CD-Gitops`, reviewed at committed base `7a8a340f6d53` plus existing uncommitted work |
@@ -59,6 +60,14 @@ Primary framework references:
 - [AICPA SOC 2 reporting guide](https://www.aicpa-cima.com/cpe-learning/publication/soc-2-reporting-on-an-examination-of-controls-at-a-service-organization-relevant-to-security-availability-processing-integrity-confidentiality-or-privacy)
 
 ## 2. How to use this checklist
+
+### Intended audience and adaptability
+
+This checklist is provided as an open-access preparation and self-assessment resource:
+
+- **Who can use this:** Any team, project, or organization preparing for SOC 2 compliance can use or adapt this framework to evaluate technical and operational controls.
+- **Reference material only:** The criteria, status marks, and recommendations reflect point-in-time gap analysis and reference patterns; they are not exhaustive and may require tailoring for your specific system boundary, cloud providers, and business commitments.
+- **Auditor alignment:** Final audit criteria, testing procedures, and evidence packages must be established in collaboration with your independent licensed CPA firm.
 
 ### Status marks
 
