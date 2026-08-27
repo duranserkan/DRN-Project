@@ -60,16 +60,10 @@ public class PaginationRequest
             return DefaultWith(pageSize, maxSize, direction, totalCount: totalCount, updateTotalCount: updateTotalCount);
 
         var pageNumber = resultInfo.Request.PageNumber;
-        if (jumpTo > pageNumber)
-        {
-            if (jumpTo - pageNumber > 10)
-                jumpTo = pageNumber + 10;
-        }
-        else if (jumpTo < pageNumber)
-        {
-            if (jumpTo < pageNumber - 10)
-                jumpTo = pageNumber - 10;
-        }
+        if (jumpTo > pageNumber + 10)
+            jumpTo = pageNumber + 10;
+        else if (jumpTo < pageNumber - 10)
+            jumpTo = pageNumber - 10;
 
         if (jumpTo < 1)
             jumpTo = 1;
