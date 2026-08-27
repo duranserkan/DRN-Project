@@ -12,28 +12,46 @@ inputs:
     description: "The name of the Docker repository target (e.g., drn-project-nexus)."
     required: true
   image-digest:
-    description: "The staged and scanned Docker image digest to attest."
+    description: "The staged and scanned multi-platform Docker image index digest to attest."
+    required: true
+  linux-amd64-image-digest:
+    description: "The staged and scanned linux/amd64 image manifest digest described by linux-amd64-sbom-path."
+    required: true
+  linux-amd64-sbom-path:
+    description: "Path to the linux/amd64 SPDX 2.3 SBOM JSON manifest to attest."
+    required: true
+  linux-arm64-image-digest:
+    description: "The staged and scanned linux/arm64 image manifest digest described by linux-arm64-sbom-path."
+    required: true
+  linux-arm64-sbom-path:
+    description: "Path to the linux/arm64 SPDX 2.3 SBOM JSON manifest to attest."
     required: true
   push-to-registry:
     description: "Whether to push the generated attestation to the container registry alongside the image."
     required: false
     default: "true"
-  sbom-path:
-    description: "Optional path to the SPDX/CycloneDX SBOM JSON manifest to attest."
-    required: false
-    default: ""
 runs:
   using: "composite"
   steps:
-    - name: Validate Docker image digest
+    - name: Validate Docker image digests
       shell: bash
       env:
         IMAGE_DIGEST: ${{ inputs.image-digest }}
+        LINUX_AMD64_IMAGE_DIGEST: ${{ inputs.linux-amd64-image-digest }}
+        LINUX_ARM64_IMAGE_DIGEST: ${{ inputs.linux-arm64-image-digest }}
       run: |
         set -euo pipefail
 
         if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-          echo "Expected image-digest to be a sha256 digest, got: $IMAGE_DIGEST"
+          echo "Expected multi-platform image-digest to be a sha256 digest, got: $IMAGE_DIGEST"
+          exit 1
+        fi
+        if [[ ! "$LINUX_AMD64_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+          echo "Expected linux-amd64-image-digest to be a sha256 digest, got: $LINUX_AMD64_IMAGE_DIGEST"
+          exit 1
+        fi
+        if [[ ! "$LINUX_ARM64_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+          echo "Expected linux-arm64-image-digest to be a sha256 digest, got: $LINUX_ARM64_IMAGE_DIGEST"
           exit 1
         fi
 
@@ -61,11 +79,18 @@ runs:
         subject-digest: ${{ inputs.image-digest }}
         push-to-registry: ${{ inputs.push-to-registry == 'true' }}
 
-    - name: Generate Docker image SBOM attestation
-      if: ${{ inputs.sbom-path != '' }}
+    - name: Generate linux/amd64 Docker image SBOM attestation
       uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
       with:
         subject-name: ${{ steps.subject.outputs.name }}
-        subject-digest: ${{ inputs.image-digest }}
-        sbom-path: ${{ inputs.sbom-path }}
+        subject-digest: ${{ inputs.linux-amd64-image-digest }}
+        sbom-path: ${{ inputs.linux-amd64-sbom-path }}
+        push-to-registry: ${{ inputs.push-to-registry == 'true' }}
+
+    - name: Generate linux/arm64 Docker image SBOM attestation
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+      with:
+        subject-name: ${{ steps.subject.outputs.name }}
+        subject-digest: ${{ inputs.linux-arm64-image-digest }}
+        sbom-path: ${{ inputs.linux-arm64-sbom-path }}
         push-to-registry: ${{ inputs.push-to-registry == 'true' }}

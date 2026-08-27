@@ -78,7 +78,7 @@ jobs:
 
       # Personal Docker Hub publishing uses separate least-privilege PATs because trusted OIDC publishing
       # is unavailable for personal namespaces. DOCKER_PUBLISH_TOKEN requires Read/Write permissions.
-      # Builds and attaches OCI SLSA-format provenance and SPDX SBOM attestations to the image manifest index.
+      # Builds the multi-platform index with OCI SLSA provenance and per-platform SPDX SBOM attestations.
       - name: Stage and scan Docker images
         id: docker-images
         uses: ./.github/actions/docker-stage-scan-all
@@ -127,9 +127,15 @@ jobs:
           registry: ${{ env.DOCKER_REGISTRY }}
           image-repository-prefix: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
           sample-image-digest: ${{ steps.docker-images.outputs.sample-image-digest }}
+          sample-linux-amd64-image-digest: ${{ steps.docker-images.outputs.sample-linux-amd64-image-digest }}
+          sample-linux-amd64-sbom-path: ${{ steps.docker-images.outputs.sample-linux-amd64-sbom-path }}
+          sample-linux-arm64-image-digest: ${{ steps.docker-images.outputs.sample-linux-arm64-image-digest }}
+          sample-linux-arm64-sbom-path: ${{ steps.docker-images.outputs.sample-linux-arm64-sbom-path }}
           nexus-image-digest: ${{ steps.docker-images.outputs.nexus-image-digest }}
-          sample-sbom-path: ${{ steps.docker-images.outputs.sample-sbom-path }}
-          nexus-sbom-path: ${{ steps.docker-images.outputs.nexus-sbom-path }}
+          nexus-linux-amd64-image-digest: ${{ steps.docker-images.outputs.nexus-linux-amd64-image-digest }}
+          nexus-linux-amd64-sbom-path: ${{ steps.docker-images.outputs.nexus-linux-amd64-sbom-path }}
+          nexus-linux-arm64-image-digest: ${{ steps.docker-images.outputs.nexus-linux-arm64-image-digest }}
+          nexus-linux-arm64-sbom-path: ${{ steps.docker-images.outputs.nexus-linux-arm64-sbom-path }}
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

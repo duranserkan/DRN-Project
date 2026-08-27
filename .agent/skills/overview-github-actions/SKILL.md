@@ -1,7 +1,7 @@
 ---
 name: overview-github-actions
 description: Use when reviewing or modifying GitHub Actions workflows, composite actions, CI gates, release pipelines, Docker publishing, package publishing, or security scanning.
-last-updated: 2026-08-09
+last-updated: 2026-08-27
 difficulty: intermediate
 tokens: ~1.4K
 ---
@@ -51,8 +51,10 @@ Composite actions reduce duplication, but they are part of the CI control plane.
 - Tag filters, version extraction guards, and package/image metadata rules agree on the same stable and preview tag shapes.
 - Branch ancestry checks resolve exact refs and use `git merge-base --is-ancestor`; do not rely on branch list output or substring matching.
 - Build artifacts used for packaging are the same artifacts that were scanned or tested.
+- When a package registry mutates published artifacts, preserve the exact attested build artifacts and direct consumers to verify those bytes. If the registry has a documented reversible signing mutation, verify the registry signature first, modify only a copy, and fail closed unless the reconstructed artifact matches the attested digest; never assume a content-equivalent repack has the original digest.
 - Parallelize only when generated-file boundaries are explicit. If package build output, frontend assets, or Docker context files cross job boundaries, add artifact upload/download or keep dependent steps in one job.
 - Docker images are built with SBOM/provenance when supported.
+- For multi-platform images, bind each platform-specific SBOM to that platform's immutable image manifest digest. Bind an SBOM to the index digest only when the SBOM deliberately and verifiably covers the complete index.
 - Package publishing and Docker tag promotion happen after security gates and staged-image CVE scans, not before.
 - Registry and package publishing secrets are scoped to the steps or composite actions that need them.
 - Dependency-only upgrades are not listed in release notes unless they are breaking, security-relevant, user-facing, or alter published package artifacts.
@@ -66,6 +68,7 @@ When Docker publishing is in scope, verify:
 - Base images are pinned or governed by a documented update policy.
 - CVE gates match the repository's risk tolerance.
 - Promotion reuses scanned image digests when the pipeline supports it.
+- SBOM extraction uses the immutable image or platform digest, not a mutable tag that can move after validation.
 - Scanner inputs identify the exact image under review, preferably by repository plus staged digest, not runner-local defaults.
 - CVE severity filters are explicit; include `unspecified` only when unknown-severity findings are intentionally release-blocking.
 - Preview metadata must not overwrite stable tags such as `latest` or `major.minor`; derive Docker tags from the already-extracted release version.
