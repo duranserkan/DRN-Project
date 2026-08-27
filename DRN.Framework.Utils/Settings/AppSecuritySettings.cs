@@ -65,7 +65,7 @@ public class AppSecuritySettings : IAppSecuritySettings
     public AppSecuritySettings(DrnAppFeatures features)
     {
         ArgumentNullException.ThrowIfNull(features);
-        ArgumentException.ThrowIfNullOrWhiteSpace(features.SeedKey, nameof(features.SeedKey));
+        ArgumentException.ThrowIfNullOrWhiteSpace(features.SeedKey);
 
         var seedKey = Encoding.UTF8.GetBytes(features.SeedKey);
 

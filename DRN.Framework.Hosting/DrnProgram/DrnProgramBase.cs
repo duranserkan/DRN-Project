@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Net;
 using System.Reflection;
@@ -584,16 +585,17 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         };
     }
 
+    [SuppressMessage("SonarQube", "S1313", Justification = "Standard RFC 1918 private network ranges and loopback for default forwarded headers.")]
     private static void ApplyDefaultForwardedHeaders(ForwardedHeadersOptions options)
     {
         options.ForwardedHeaders = ForwardedHeaders.All;
         options.ForwardLimit = 2;
 
-        options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("127.0.0.0"), 8));
+        options.KnownIPNetworks.Add(new IPNetwork(new IPAddress([127, 0, 0, 0]), 8));
         options.KnownIPNetworks.Add(new IPNetwork(IPAddress.IPv6Loopback, 128));
-        options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("10.0.0.0"), 8));
-        options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("172.16.0.0"), 12));
-        options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("192.168.0.0"), 16));
+        options.KnownIPNetworks.Add(new IPNetwork(new IPAddress([10, 0, 0, 0]), 8));
+        options.KnownIPNetworks.Add(new IPNetwork(new IPAddress([172, 16, 0, 0]), 12));
+        options.KnownIPNetworks.Add(new IPNetwork(new IPAddress([192, 168, 0, 0]), 16));
     }
 
     private static void ApplyCustomKnownIpNetworks(ForwardedHeadersOptions options, IConfigurationSection section)
