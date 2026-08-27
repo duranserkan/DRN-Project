@@ -72,7 +72,13 @@ public abstract class AesGcmEncryptorBase : IDisposable
 
     public void Dispose()
     {
-        if (_aesGcm.IsValueCreated)
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing && _aesGcm.IsValueCreated)
             _aesGcm.Value.Dispose();
     }
 }

@@ -76,4 +76,34 @@ public class AesGcmEncryptorBaseTests
         var act = () => new TestAesGcmEncryptor(null!);
         act.Should().Throw<ArgumentNullException>();
     }
+
+    [Fact]
+    public void Dispose_WhenCipherNotCreated_ShouldNotThrow()
+    {
+        var features = new DrnAppFeatures { SeedKey = "AesGcmEncryptorBaseDisposeSeed_1234567890" };
+        var securitySettings = new AppSecuritySettings(features);
+        var encryptor = new TestAesGcmEncryptor(securitySettings);
+
+        var act = () =>
+        {
+            encryptor.Dispose();
+            encryptor.Dispose();
+        };
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Dispose_WhenCipherCreated_ShouldDisposeCipher()
+    {
+        var features = new DrnAppFeatures { SeedKey = "AesGcmEncryptorBaseDisposeSeed_1234567890" };
+        var securitySettings = new AppSecuritySettings(features);
+        var encryptor = new TestAesGcmEncryptor(securitySettings);
+
+        _ = encryptor.Encrypt("Test"u8);
+        encryptor.Dispose();
+
+        var act = () => encryptor.Encrypt("Test"u8);
+        act.Should().Throw<ObjectDisposedException>();
+    }
 }
