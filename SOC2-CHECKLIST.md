@@ -524,7 +524,7 @@ Tool choice does not create SOC 2 compliance. The control objective, ownership, 
 - [`DRN.Nexus.Hosted/Program.cs`](DRN.Nexus.Hosted/Program.cs), Nexus bearer exemption and incomplete MFA redirection.
 - [`DRN.Framework.Hosting/DrnProgram/DrnProgramBase.cs`](DRN.Framework.Hosting/DrnProgram/DrnProgramBase.cs), security headers, CSP, cookie policy, host filtering, MFA fallback, rate limiting, and pipeline defaults.
 - [`Sample.Hosted/SampleModule.cs`](Sample.Hosted/SampleModule.cs), Identity and encrypted, database-persisted Data Protection keys.
-- [`Sample.Utils/DataProtection/SampleXmlEncryptor.cs`](Sample.Utils/DataProtection/SampleXmlEncryptor.cs), AES-GCM Data Protection key encryption.
+- [`Sample.Infra/DataProtection/SampleXmlEncryptor.cs`](Sample.Infra/DataProtection/SampleXmlEncryptor.cs), AES-GCM Data Protection key encryption.
 - [`Sample.Hosted/appsettings.Staging.json`](Sample.Hosted/appsettings.Staging.json), staging examples requiring production replacement.
 - [`.coderabbit.yaml`](.coderabbit.yaml), automated advisory review and path-specific DRN security and architecture instructions.
 - [`.github/workflows/pull-request.yml`](.github/workflows/pull-request.yml), secretless PR trust boundary, CodeQL, dependency review, and gatekeeper.
