@@ -24,6 +24,9 @@ outputs:
   image-digest:
     description: "The staged Docker image digest that passed Docker Scout scans."
     value: ${{ steps.container-build-digest.outputs.digest }}
+  sbom-path:
+    description: "Path to the extracted SPDX SBOM JSON manifest."
+    value: ${{ steps.extract-sbom.outputs.sbom-path }}
 runs:
   using: "composite"
   steps:
@@ -90,6 +93,36 @@ runs:
           echo "Staged Docker tag resolved to $resolved_digest instead of expected digest $IMAGE_DIGEST: $staged_image"
           exit 1
         fi
+    - name: Extract Docker image SPDX SBOM
+      id: extract-sbom
+      if: ${{ steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}
+      shell: bash
+      env:
+        DOCKER_REGISTRY: ${{ inputs.registry }}
+        IMAGE_REPOSITORY_NAME: ${{ inputs.image-repository-name }}
+        IMAGE_REPOSITORY_PREFIX: ${{ inputs.image-repository-prefix }}
+        RELEASE_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        staged_image="${DOCKER_REGISTRY}/${IMAGE_REPOSITORY_PREFIX}/${IMAGE_REPOSITORY_NAME}:staged-${RELEASE_VERSION}-run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+        mkdir -p artifacts/sbom
+        sbom_file="artifacts/sbom/${IMAGE_REPOSITORY_NAME}.spdx.json"
+
+        raw_sbom="$(docker buildx imagetools inspect "$staged_image" --format '{{json .SBOM}}')"
+
+        if echo "$raw_sbom" | jq -e '.SPDX != null' >/dev/null 2>&1; then
+          echo "$raw_sbom" | jq '.SPDX' > "$sbom_file"
+        else
+          echo "$raw_sbom" | jq 'to_entries | .[0].value.SPDX // empty' > "$sbom_file"
+        fi
+
+        if [[ ! -s "$sbom_file" ]] || ! jq -e '.spdxVersion // .SPDXID' "$sbom_file" >/dev/null 2>&1; then
+          echo "Failed to extract a valid SPDX SBOM from staged image: $staged_image" >&2
+          exit 1
+        fi
+
+        echo "sbom-path=$sbom_file" >> "$GITHUB_OUTPUT"
     - name: Docker Scout (linux/amd64)
       id: docker-scout-amd64
       if: ${{ steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}

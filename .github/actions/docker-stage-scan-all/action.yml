@@ -24,9 +24,15 @@ outputs:
   sample-image-digest:
     description: "The staged Sample Docker image digest that passed Docker Scout scans."
     value: ${{ steps.sample.outputs.image-digest }}
+  sample-sbom-path:
+    description: "Path to the extracted Sample SPDX SBOM JSON manifest."
+    value: ${{ steps.sample.outputs.sbom-path }}
   nexus-image-digest:
     description: "The staged Nexus Docker image digest that passed Docker Scout scans."
     value: ${{ steps.nexus.outputs.image-digest }}
+  nexus-sbom-path:
+    description: "Path to the extracted Nexus SPDX SBOM JSON manifest."
+    value: ${{ steps.nexus.outputs.sbom-path }}
 runs:
   using: "composite"
   steps:

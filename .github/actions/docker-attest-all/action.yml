@@ -11,9 +11,17 @@ inputs:
   sample-image-digest:
     description: "The staged and scanned Sample image digest to attest."
     required: true
+  sample-sbom-path:
+    description: "Optional path to the Sample SPDX SBOM JSON manifest to attest."
+    required: false
+    default: ""
   nexus-image-digest:
     description: "The staged and scanned Nexus image digest to attest."
     required: true
+  nexus-sbom-path:
+    description: "Optional path to the Nexus SPDX SBOM JSON manifest to attest."
+    required: false
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -24,6 +32,7 @@ runs:
         image-repository-prefix: ${{ inputs.image-repository-prefix }}
         image-repository-name: drn-project-sample
         image-digest: ${{ inputs.sample-image-digest }}
+        sbom-path: ${{ inputs.sample-sbom-path }}
         push-to-registry: "true"
 
     - name: Attest Nexus Docker image
@@ -33,4 +42,5 @@ runs:
         image-repository-prefix: ${{ inputs.image-repository-prefix }}
         image-repository-name: drn-project-nexus
         image-digest: ${{ inputs.nexus-image-digest }}
+        sbom-path: ${{ inputs.nexus-sbom-path }}
         push-to-registry: "true"
