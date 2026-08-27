@@ -80,7 +80,6 @@ public interface IDrnProgram
     static abstract Task Main(string[] args);
 }
 
-
 //todo: add cookie manager
 //todo: add csp manager
 //todo: review page for and endpoint for
@@ -574,55 +573,74 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     {
         return options =>
         {
-            options.ForwardedHeaders = ForwardedHeaders.All;
-            options.ForwardLimit = 2;
-
-            options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("127.0.0.0"), 8));
-            options.KnownIPNetworks.Add(new IPNetwork(IPAddress.IPv6Loopback, 128));
-            options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("10.0.0.0"), 8));
-            options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("172.16.0.0"), 12));
-            options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("192.168.0.0"), 16));
+            ApplyDefaultForwardedHeaders(options);
 
             if (!appSettings.TryGetSection("ForwardedHeaders", out var section))
                 return;
 
             section.Bind(options);
-
-            var customNetworks = section.GetSection(nameof(ForwardedHeadersOptions.KnownIPNetworks)).GetChildren().ToList();
-            if (customNetworks.Count > 0)
-            {
-                options.KnownIPNetworks.Clear();
-                foreach (var net in customNetworks)
-                {
-                    try
-                    {
-                        options.KnownIPNetworks.Add(net.Value is { } cidr
-                            ? IPNetwork.Parse(cidr)
-                            : new IPNetwork(IPAddress.Parse(net["BaseAddress"]!), int.Parse(net["PrefixLength"]!)));
-                    }
-                    catch (Exception e) when (e is FormatException or ArgumentException or OverflowException)
-                    {
-                        throw new ConfigurationException($"Invalid ForwardedHeaders:{nameof(ForwardedHeadersOptions.KnownIPNetworks)} configuration.", e);
-                    }
-                }
-            }
-
-            foreach (var proxy in section.GetSection(nameof(ForwardedHeadersOptions.KnownProxies)).GetChildren())
-            {
-                if (proxy.Value is { } ip)
-                {
-                    try
-                    {
-                        options.KnownProxies.Add(IPAddress.Parse(ip));
-                    }
-                    catch (Exception e) when (e is FormatException or ArgumentException or OverflowException)
-                    {
-                        throw new ConfigurationException($"Invalid ForwardedHeaders:{nameof(ForwardedHeadersOptions.KnownProxies)} configuration.", e);
-                    }
-                }
-            }
+            ApplyCustomKnownIpNetworks(options, section);
+            ApplyCustomKnownProxies(options, section);
         };
     }
+
+    private static void ApplyDefaultForwardedHeaders(ForwardedHeadersOptions options)
+    {
+        options.ForwardedHeaders = ForwardedHeaders.All;
+        options.ForwardLimit = 2;
+
+        options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("127.0.0.0"), 8));
+        options.KnownIPNetworks.Add(new IPNetwork(IPAddress.IPv6Loopback, 128));
+        options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("10.0.0.0"), 8));
+        options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("172.16.0.0"), 12));
+        options.KnownIPNetworks.Add(new IPNetwork(IPAddress.Parse("192.168.0.0"), 16));
+    }
+
+    private static void ApplyCustomKnownIpNetworks(ForwardedHeadersOptions options, IConfigurationSection section)
+    {
+        var customNetworks = section.GetSection(nameof(ForwardedHeadersOptions.KnownIPNetworks)).GetChildren().ToList();
+        if (customNetworks.Count == 0)
+            return;
+
+        options.KnownIPNetworks.Clear();
+        foreach (var net in customNetworks)
+            options.KnownIPNetworks.Add(ParseIpNetwork(net));
+    }
+
+    private static IPNetwork ParseIpNetwork(IConfigurationSection net)
+    {
+        try
+        {
+            return net.Value is { } cidr
+                ? IPNetwork.Parse(cidr)
+                : new IPNetwork(IPAddress.Parse(net["BaseAddress"]!), int.Parse(net["PrefixLength"]!));
+        }
+        catch (Exception e) when (IsIpParsingException(e))
+        {
+            throw new ConfigurationException($"Invalid ForwardedHeaders:{nameof(ForwardedHeadersOptions.KnownIPNetworks)} configuration.", e);
+        }
+    }
+
+    private static void ApplyCustomKnownProxies(ForwardedHeadersOptions options, IConfigurationSection section)
+    {
+        foreach (var proxy in section.GetSection(nameof(ForwardedHeadersOptions.KnownProxies)).GetChildren())
+            if (proxy.Value is { } ip)
+                options.KnownProxies.Add(ParseProxyIp(ip));
+    }
+
+    private static IPAddress ParseProxyIp(string ip)
+    {
+        try
+        {
+            return IPAddress.Parse(ip);
+        }
+        catch (Exception e) when (IsIpParsingException(e))
+        {
+            throw new ConfigurationException($"Invalid ForwardedHeaders:{nameof(ForwardedHeadersOptions.KnownProxies)} configuration.", e);
+        }
+    }
+
+    private static bool IsIpParsingException(Exception e) => e is FormatException or ArgumentException or OverflowException;
 
     protected virtual Action<RequestLocalizationOptions> ConfigureRequestLocalizationOptions(IAppSettings appSettings)
     {
