@@ -5,11 +5,13 @@ namespace DRN.Framework.Testing.Contexts.Postgres;
 public class PostgresContainerSettings
 {
     public static string DefaultImage { get; set; } = "postgres";
-    public static string DefaultVersion { get; set; } = "18.4-alpine3.24";
+    public static string DefaultVersion { get; set; } = "18.6-alpine3.24";
+    public static string DefaultDigest { get; set; } = "sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2";
     public static string DefaultPassword { get; set; } = "drn";
 
     public string? Image { get; init; } = DefaultImage;
     public string? Version { get; init; } = DefaultVersion;
+    public string? Digest { get; init; }
 
     public string? Database { get; init; } = DbContextConventions.DefaultDatabase;
     public bool HasDatabase => !string.IsNullOrWhiteSpace(Database);
@@ -33,8 +35,15 @@ public class PostgresContainerSettings
     {
         var image = Image ?? DefaultImage;
         var version = Version ?? DefaultVersion;
+        var imageTag = $"{image}:{version}";
+        var digest = Digest;
 
-        return $"{image}:{version}";
+        if (string.IsNullOrWhiteSpace(digest) &&
+            string.Equals(image, DefaultImage, StringComparison.Ordinal) &&
+            string.Equals(version, DefaultVersion, StringComparison.Ordinal))
+            digest = DefaultDigest;
+
+        return string.IsNullOrWhiteSpace(digest) ? imageTag : $"{imageTag}@{digest}";
     }
 
     public PostgresContainerSettings Clone(int? hostPort = null) =>
@@ -42,6 +51,7 @@ public class PostgresContainerSettings
         {
             Image = Image,
             Version = Version,
+            Digest = Digest,
             Database = Database,
             Username = Username,
             Password = Password,

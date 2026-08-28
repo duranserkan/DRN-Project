@@ -9,6 +9,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Custom Service Aliases & Address Mapping**: Added `CreateClientForServiceAsync<TEntryPoint>("service-alias")` and `ApplicationContext.MapAddress<TEntryPoint>("address")` enabling explicit mapping of custom domain names, Kubernetes service names, and ports to hosted applications.
 *   **Automatic Configuration Address Discovery**: `ApplicationContext` automatically discovers and registers service hostnames, ports, and aliases from configuration (`Kestrel:Endpoints`, `*Address`, `*Url`, `*Uri`), enabling seamless in-memory routing between microservices and platform dependencies without manual boilerplate.
 
+### Security
+
+*   **Digest-Pinned Testcontainers Defaults**: Updated PostgreSQL to `18.6-alpine3.24` and RabbitMQ to `4.3.5-management-alpine`, and pinned both default image references to verified Docker Hub index digests. Explicit custom image tags remain supported and can supply their own digest.
+
 ## Version 0.9.8
 
 Dependencies upgraded to dotnet 10.0.11

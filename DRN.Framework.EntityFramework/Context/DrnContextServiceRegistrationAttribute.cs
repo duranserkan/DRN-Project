@@ -109,7 +109,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
     {
         var contextName = context.GetType().FullName ?? context.GetType().Name;
         var migrations = context.Database.GetMigrations().ToArray();
-        var appliedMigrations = migrations.Length > 0 ? (await context.Database.GetAppliedMigrationsAsync()).ToArray() : [];
+        var appliedMigrations = (await context.Database.GetAppliedMigrationsAsync()).ToArray();
         var hasPendingModelChanges = context.Database.HasPendingModelChanges();
         var optionsAttributes = DbContextConventions.GetContextAttributes(context);
         var contextOptionsUsePrototypeModeFlag = optionsAttributes.Any(a => a.UsePrototypeMode);

@@ -2,9 +2,14 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.9.9
 
+### Changed
+
+*   **PostgreSQL Defaults**: DRN's Npgsql context defaults now target PostgreSQL 18.6, matching the digest-pinned Testcontainers and Docker Compose runtime default.
+
 ### Bug Fixes
 
 *   **Partition-Scoped Entity Type Validation**: Runtime startup validation now treats `(EntityType, AppId)` as the uniqueness key, allowing different application partitions to reuse the same entity type byte consistently with SharedKernel analyzers.
+*   **Prototype Migration-History Guard**: Startup validation now always reads applied migrations from the target database, preventing missing local migration files or snapshots from making a migrated database appear safe for prototype recreation.
 
 ## Version 0.9.8
 

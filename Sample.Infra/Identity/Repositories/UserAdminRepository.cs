@@ -13,6 +13,7 @@ public class UserAdminRepository(
     SampleIdentityContext identityContext,
     IMemoryCache cache) : IUserAdminRepository
 {
+    private const long BootstrapLockId = 0x53414D504C454144L;
     private const string SystemAdminUserCacheKey = "SystemAdminUserExists";
 
     public async Task<bool> AnySystemAdminExistsAsync()
@@ -34,6 +35,22 @@ public class UserAdminRepository(
         await using var transaction = await identityContext.Database.BeginTransactionAsync();
         try
         {
+            await identityContext.Database.ExecuteSqlRawAsync(
+                "SELECT pg_advisory_xact_lock({0})",
+                BootstrapLockId);
+
+            var admins = await userManager.GetUsersInRoleAsync(UserRoles.SystemAdmin);
+            if (admins.Count > 0)
+            {
+                await transaction.RollbackAsync();
+
+                return IdentityResult.Failed(new IdentityError
+                {
+                    Code = "InitialSetupCompleted",
+                    Description = "Initial setup has already been completed."
+                });
+            }
+
             var adminCreatedResult = await AddSystemAdminAsync(user, inputPassword);
             if (adminCreatedResult.Succeeded)
             {
