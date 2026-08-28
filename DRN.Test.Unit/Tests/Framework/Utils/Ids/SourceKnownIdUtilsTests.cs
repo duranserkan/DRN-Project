@@ -1,8 +1,18 @@
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
+
+public readonly struct CustomUtilsTestApp : IAppId
+{
+    public const byte Value = 77;
+    public static byte AppId => Value;
+}
+
+[EntityType<CustomUtilsTestApp>(1)]
+public class CustomTestEntityForUtils : SourceKnownEntity;
 
 public class SourceKnownIdUtilsTests
 {
@@ -134,6 +144,26 @@ public class SourceKnownIdUtilsTests
         context.AddToConfiguration(invalidSettings);
         var act = () => context.GetRequiredService<ISourceKnownIdUtils>();
         act.Should().Throw<ConfigurationException>();
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void Next_With_SourceKnownEntity_Should_Use_Entity_AppId(DrnTestContextUnit context)
+    {
+        var nexusSettings = new NexusAppSettings
+        {
+            AppId = 5,
+            AppInstanceId = 12
+        };
+
+        context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
+        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
+
+        var id = generator.Next<CustomTestEntityForUtils>();
+        var parsed = generator.Parse(id);
+
+        parsed.AppId.Should().Be(77);
+        parsed.AppInstanceId.Should().Be(12);
     }
 
     /// <summary>

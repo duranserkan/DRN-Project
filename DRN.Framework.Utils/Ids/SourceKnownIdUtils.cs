@@ -83,7 +83,13 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     private readonly DateTimeOffset _epoch = epochTimeUtils.Epoch;
 
     public long Next<TEntity>() where TEntity : class
-        => Next<TEntity>(_nexusAppId, _nexusAppInstanceId, _epoch);
+    {
+        var appId = typeof(SourceKnownEntity).IsAssignableFrom(typeof(TEntity))
+            ? SourceKnownEntity.GetAppId(typeof(TEntity))
+            : _nexusAppId;
+
+        return Next<TEntity>(appId, _nexusAppInstanceId, _epoch);
+    }
 
     public long Next<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class
         => Generate<TEntity>(appId, appInstanceId, epoch ?? _epoch);

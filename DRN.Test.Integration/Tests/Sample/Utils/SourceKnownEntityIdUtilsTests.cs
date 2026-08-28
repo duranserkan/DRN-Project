@@ -85,6 +85,12 @@ public class SourceKnownEntityIdUtilsTests
         uniqueGuids.Should().Be(entityIds.Length);
     }
 
-    [TestEntityType(200)]
+    public readonly struct SampleApp7 : IAppId
+    {
+        public const byte Value = 7;
+        public static byte AppId => Value;
+    }
+
+    [EntityType<SampleApp7>(200)]
     internal class XEntity(long id) : SourceKnownEntity(id);
 }

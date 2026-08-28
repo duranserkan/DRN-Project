@@ -1,5 +1,10 @@
 using DRN.Framework.EntityFramework.Context;
+using DRN.Framework.EntityFramework.Extensions;
+using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.Utils.Settings;
+using Microsoft.EntityFrameworkCore;
+using NSubstitute;
 
 namespace DRN.Test.Unit.Tests.Framework.EntityFramework;
 
@@ -39,6 +44,56 @@ public class DrnContextServiceRegistrationAttributeTests
         result.MissingEntityTypes.Should().BeEmpty();
         result.DuplicateEntityTypes.Should().BeEmpty();
         result.MultipleAppIds.Should().BeEmpty();
+        result.NonTestAppIds.Should().BeEquivalentTo([121]);
+    }
+
+    [Fact]
+    public void ValidateEntityTypes_With_Mismatched_Configured_AppId_Should_Throw_ConfigurationException()
+    {
+        var options = new DbContextOptionsBuilder<TestValidationDbContext>()
+            .UseNpgsql("Host=localhost;Database=test")
+            .Options;
+        using var dbContext = new TestValidationDbContext(options);
+
+        var appSettings = Substitute.For<IAppSettings>();
+        appSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = 55 });
+
+        var act = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(dbContext, scopedLog: null, appSettings);
+
+        act.Should().ThrowExactly<ConfigurationException>()
+            .WithMessage("*NexusAppSettings:AppId (55) does not match TestValidationDbContext domain partition AppId (121)*");
+    }
+
+    [Fact]
+    public void ValidateEntityTypes_With_Matching_Or_Zero_Configured_AppId_Should_Succeed()
+    {
+        var options = new DbContextOptionsBuilder<TestValidationDbContext>()
+            .UseNpgsql("Host=localhost;Database=test")
+            .Options;
+        using var dbContext = new TestValidationDbContext(options);
+
+        var matchingAppSettings = Substitute.For<IAppSettings>();
+        matchingAppSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = 121 });
+
+        var zeroAppSettings = Substitute.For<IAppSettings>();
+        zeroAppSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = 0 });
+
+        var actMatching = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(dbContext, scopedLog: null, matchingAppSettings);
+        var actZero = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(dbContext, scopedLog: null, zeroAppSettings);
+
+        actMatching.Should().NotThrow();
+        actZero.Should().NotThrow();
+    }
+}
+
+public class TestValidationDbContext(DbContextOptions<TestValidationDbContext> options) : DbContext(options)
+{
+    public DbSet<FirstPartitionEntity> Entities => Set<FirstPartitionEntity>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        this.ModelCreatingDefaults(modelBuilder);
     }
 }
 

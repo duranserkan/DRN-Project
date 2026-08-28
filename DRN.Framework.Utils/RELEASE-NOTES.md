@@ -9,6 +9,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **SeedKey Security Enforcements**: `AppSettings` now rejects the default `DrnAppFeatures.DefaultSeedKey` when `Environment` is not `Development` (`Staging`, `Production`, `NotDefined`), and rejects the well-known `DrnAppFeatures.SampleSeedKey` whenever `TestEnvironment.DrnTestContextEnabled` is not set, throwing a `ConfigurationException` at startup to prevent insecure key material in live deployments.
 *   **Sample NexusKey Material Forbidden**: `NexusKey` now unconditionally forbids the sample key material (`sample-nexus-key-material-000000`) across all environments and test executions, throwing a `ConfigurationException` at construction time.
 *   **HttpMessageHandler DI Injection**: `InternalRequest` and `ExternalRequest` now accept an optional `HttpMessageHandler?` via dependency injection, allowing in-memory routing handlers (such as `ApplicationContextRouterHandler` during integration testing) to intercept and route Flurl calls without global static cache mutation.
+*   **Entity-Aware AppId Derivation**: `SourceKnownIdUtils.Next<TEntity>()` now automatically derives `AppId` from `SourceKnownEntity.GetAppId` when `TEntity` derives from `SourceKnownEntity`, ensuring generated 64-bit IDs always match the domain entity's declared partition while falling back to `NexusAppSettings.AppId` for non-entity types.
 
 ## Version 0.9.8
 

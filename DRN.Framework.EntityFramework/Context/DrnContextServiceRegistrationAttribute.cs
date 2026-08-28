@@ -96,7 +96,8 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             scopedProvider.ServiceProvider.GetRequiredService(context.GetType());
         }
 
-        ValidateEntityTypes(context, scopedLog);
+        var appSettings = serviceProvider.GetService<IAppSettings>();
+        ValidateEntityTypes(context, scopedLog, appSettings);
         serviceProvider.GetRequiredService(context.GetType());
     }
 
@@ -142,7 +143,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         return changeModel;
     }
 
-    private static void ValidateEntityTypes(DbContext context, IScopedLog? scopedLog)
+    internal static void ValidateEntityTypes(DbContext context, IScopedLog? scopedLog, IAppSettings? appSettings = null)
     {
         var entityTypes = context.Model.GetEntityTypes().Select(entityType => entityType.ClrType).ToArray();
         var domainTypes = entityTypes.Where(type => type.IsAssignableTo(typeof(SourceKnownEntity))).ToArray();
@@ -176,6 +177,10 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             throw new UnprocessableEntityException($"Invalid Entity Type Configuration: {validationDetails}");
         }
 
+        var configuredAppId = appSettings?.NexusAppSettings.AppId ?? 0;
+        if (configuredAppId != 0 && idValidation.NonTestAppIds.Length == 1 && configuredAppId != idValidation.NonTestAppIds[0])
+            throw new ConfigurationException($"NexusAppSettings:AppId ({configuredAppId}) does not match {context.GetType().Name} domain partition AppId ({idValidation.NonTestAppIds[0]}).");
+
         //Validates Entity Type Ids implicitly by calling GetEntityType on Entity
         //This will catch application wide inconsistencies. Previous validation was module-wide;
         var entityTypeValues = domainTypes.Select(SourceKnownEntity.GetEntityType).ToArray();
@@ -201,7 +206,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
 
         var multipleAppIds = nonTestAppIds.Length > 1 ? nonTestAppIds : [];
 
-        return new EntityTypeValidationResult(missingAttributes, duplicateAttributePairs, multipleAppIds);
+        return new EntityTypeValidationResult(missingAttributes, duplicateAttributePairs, multipleAppIds, nonTestAppIds);
     }
 }
 
@@ -210,9 +215,14 @@ public record DuplicateEntityTypeValue(string EntityName, ushort EntityType)
     public override string ToString() => $"{EntityType}: {EntityName}";
 }
 
-public record EntityTypeValidationResult(string[] MissingEntityTypes, DuplicateEntityTypeValue[] DuplicateEntityTypes, byte[]? MultipleAppIds = null)
+public record EntityTypeValidationResult(
+    string[] MissingEntityTypes,
+    DuplicateEntityTypeValue[] DuplicateEntityTypes,
+    byte[]? MultipleAppIds = null,
+    byte[]? NonTestAppIds = null)
 {
     public byte[] MultipleAppIds { get; init; } = MultipleAppIds ?? [];
+    public byte[] NonTestAppIds { get; init; } = NonTestAppIds ?? [];
     public string GetMissingEntityTypes() => string.Join(',', MissingEntityTypes);
     public string GetDuplicateEntityTypes() => string.Join(',', DuplicateEntityTypes.Select(p => p.ToString()));
     public string GetMultipleAppIds() => string.Join(',', MultipleAppIds);

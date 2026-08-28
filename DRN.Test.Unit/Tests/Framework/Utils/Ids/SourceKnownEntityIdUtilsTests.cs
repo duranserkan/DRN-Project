@@ -471,8 +471,14 @@ public class SourceKnownEntityIdUtilsTests
     }
 
 
-    [TestEntityType(200)]
+    public readonly struct SampleApp5 : IAppId
+    {
+        public const byte Value = 5;
+        public static byte AppId => Value;
+    }
+
+    [EntityType<SampleApp5>(200)]
     internal class XEntity(long id) : SourceKnownEntity(id);
-    [TestEntityType(201)]
+    [EntityType<SampleApp5>(201)]
     internal class YEntity(long id) : SourceKnownEntity(id);
 }

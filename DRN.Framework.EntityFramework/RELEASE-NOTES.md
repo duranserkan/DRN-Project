@@ -8,7 +8,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
-*   **Partition-Scoped Entity Type Validation**: Runtime startup validation now treats `(EntityType, AppId)` as the uniqueness key, allowing different application partitions to reuse the same entity type byte consistently with SharedKernel analyzers.
+*   **Partition-Scoped Entity Type Validation**: Runtime startup validation now treats `(EntityType, AppId)` as the uniqueness key, allowing different application partitions to reuse the same entity type byte consistently with SharedKernel analyzers, while enforcing that single `DbContext` instances do not combine multiple production `AppId` partitions, and verifying that configured `NexusAppSettings.AppId` matches the DbContext's domain partition.
 *   **Prototype Migration-History Guard**: Startup validation now always reads applied migrations from the target database, preventing missing local migration files or snapshots from making a migrated database appear safe for prototype recreation.
 *   **Design-Time Data-Source Hooks**: `DbContextExtensions.CreateDbContext` now invokes `ConfigureNpgsqlDataSource` for registered context attributes when building design-time `NpgsqlDataSource` instances. Made `serviceProvider` nullable across data-source hooks with safe fallback handling when running outside DI.
 

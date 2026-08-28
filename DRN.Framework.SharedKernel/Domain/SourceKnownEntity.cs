@@ -80,23 +80,30 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public const int ModifiedAtColumnOrder = 1;
     private const string EmptyJson = "{}";
 
-    private static readonly ConcurrentDictionary<Type, byte> TypeToIdMap = new();
+    private static readonly ConcurrentDictionary<Type, EntityTypeId> TypeToEntityTypeIdMap = new();
     private static readonly ConcurrentDictionary<EntityTypeId, Type> IdToTypeMap = new();
 
     public static Type? GetEntityType(EntityTypeId key) => IdToTypeMap.GetValueOrDefault(key);
     public static Type? GetEntityType(byte entityType, byte appId = 0) => GetEntityType(new EntityTypeId(entityType, appId));
     public static byte GetEntityType<TEntity>() where TEntity : SourceKnownEntity => GetEntityType(typeof(TEntity));
     public static byte GetEntityType<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetEntityType(entity.GetType());
+    public static byte GetEntityType(Type entityType) => GetEntityTypeId(entityType).EntityType;
 
-    public static byte GetEntityType(Type entityType) => TypeToIdMap.GetOrAdd(entityType, type =>
+    public static EntityTypeId GetEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => GetEntityTypeId(typeof(TEntity));
+    public static EntityTypeId GetEntityTypeId<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetEntityTypeId(entity.GetType());
+    public static EntityTypeId GetEntityTypeId(Type entityType) => TypeToEntityTypeIdMap.GetOrAdd(entityType, type =>
     {
         var attribute = type.GetCustomAttribute<EntityTypeAttribute>();
         if (attribute == null)
             throw new InvalidOperationException($"{type.Name} must use {nameof(EntityTypeAttribute)}");
 
         EnsureUniqueEntityType(type, attribute.EntityType, attribute.AppId);
-        return attribute.EntityType;
+        return new EntityTypeId(attribute.EntityType, attribute.AppId);
     });
+
+    public static byte GetAppId<TEntity>() where TEntity : SourceKnownEntity => GetAppId(typeof(TEntity));
+    public static byte GetAppId<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetAppId(entity.GetType());
+    public static byte GetAppId(Type entityType) => GetEntityTypeId(entityType).AppId;
 
     private static void EnsureUniqueEntityType(Type newType, byte newEntityType, byte newAppId)
     {
@@ -135,6 +142,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public DateTimeOffset ModifiedAt { get; protected internal set; }
 
     [JsonIgnore]
+    [NotMapped]
     public SourceKnownEntityId EntityIdSource { get; internal set; }
 
     [JsonIgnore]
