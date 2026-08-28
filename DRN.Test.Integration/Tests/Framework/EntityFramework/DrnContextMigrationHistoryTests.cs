@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Npgsql;
 
 namespace DRN.Test.Integration.Tests.Framework.EntityFramework;
 
@@ -64,6 +65,41 @@ public class DrnContextMigrationHistoryTests
 
         dbContext.ChangeTracker.Clear();
         (await dbContext.Sentinels.SingleAsync()).Value.Should().Be(SentinelValue);
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task PostStartupValidation_Should_Create_Prototype_Database_When_Target_Database_Does_Not_Exist(DrnTestContext testContext)
+    {
+        testContext.AddToConfiguration(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.AutoMigrateDevelopment)), bool.TrueString);
+        testContext.AddToConfiguration(DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.Prototype)), bool.TrueString);
+
+        testContext.ServiceCollection.AddDbContextWithConventions<MigrationHistoryGuardContext>();
+        testContext.ServiceCollection.TryAddSingleton<IDrnMaterializationInterceptor, DrnMaterializationInterceptor>();
+        testContext.ServiceCollection.TryAddSingleton<IDrnSaveChangesInterceptor, DrnSaveChangesInterceptor>();
+        testContext.ServiceCollection.TryAddSingleton<IPaginationUtils, PaginationUtils>();
+
+        var container = await testContext.ContainerContext.Postgres.Isolated.StartAsync();
+        var csBuilder = new NpgsqlConnectionStringBuilder(container.GetConnectionString())
+        {
+            Database = $"absent_proto_{Guid.NewGuid():N}",
+            Pooling = false
+        };
+
+        testContext.AddToConfiguration(new Dictionary<string, string?>
+        {
+            [$"ConnectionStrings:{nameof(MigrationHistoryGuardContext)}"] = csBuilder.ConnectionString
+        });
+
+        var serviceProvider = testContext.BuildServiceProvider();
+        var dbContext = serviceProvider.GetRequiredService<MigrationHistoryGuardContext>();
+
+        (await dbContext.Database.CanConnectAsync()).Should().BeFalse();
+
+        var registration = new DrnContextServiceRegistrationAttribute();
+        await registration.PostStartupValidationAsync(dbContext, serviceProvider);
+
+        (await dbContext.Database.CanConnectAsync()).Should().BeTrue();
     }
 
     [MigrationHistoryGuardContextOptions]

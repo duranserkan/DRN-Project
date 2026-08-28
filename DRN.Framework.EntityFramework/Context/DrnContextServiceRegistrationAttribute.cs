@@ -13,6 +13,7 @@ using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Npgsql;
 
 namespace DRN.Framework.EntityFramework.Context;
 
@@ -118,7 +119,16 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         // If we only query the DB when the assembly contains migrations, an assembly with missing/deleted migration files
         // would record 0 applied migrations, causing pending-model detection to treat the database as unmigrated and execute
         // EnsureDeletedAsync(), wiping a populated database.
-        var appliedMigrations = (await context.Database.GetAppliedMigrationsAsync()).ToArray();
+        // If the target database does not exist yet (e.g., initial prototype startup), treat as 0 applied migrations so EnsureCreatedAsync can run.
+        string[] appliedMigrations;
+        try
+        {
+            appliedMigrations = (await context.Database.GetAppliedMigrationsAsync()).ToArray();
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InvalidCatalogName)
+        {
+            appliedMigrations = [];
+        }
         var hasPendingModelChanges = context.Database.HasPendingModelChanges();
         var optionsAttributes = DbContextConventions.GetContextAttributes(context);
         var contextOptionsUsePrototypeModeFlag = optionsAttributes.Any(a => a.UsePrototypeMode);

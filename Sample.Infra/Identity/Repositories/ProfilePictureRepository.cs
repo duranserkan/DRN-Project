@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Sample.Domain.Identity;
 using Sample.Domain.Identity.ProfilePictures;
@@ -24,7 +25,13 @@ public class ProfilePictureRepository(SampleIdentityContext context, IUserClaimR
 
             var claimResult = await claimRepository.UpdateProfilePictureVersionClaimAsync(user, existingProfilePicture?.Version ?? picture.Version);
             if (!claimResult.Succeeded)
-                throw new InvalidOperationException("Failed to update the profile-picture version claim.");
+            {
+                var failureDetails = string.Join("; ", claimResult.Errors.Select(e => e.Description));
+                var message = string.IsNullOrWhiteSpace(failureDetails)
+                    ? "Failed to update the profile-picture version claim."
+                    : $"Failed to update the profile-picture version claim: {failureDetails}";
+                throw ExceptionFor.Validation(message);
+            }
 
             await transaction.CommitAsync();
         }
