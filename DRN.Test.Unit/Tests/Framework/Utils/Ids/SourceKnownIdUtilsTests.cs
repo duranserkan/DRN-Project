@@ -143,7 +143,7 @@ public class SourceKnownIdUtilsTests
 
         context.AddToConfiguration(invalidSettings);
         var act = () => context.GetRequiredService<ISourceKnownIdUtils>();
-        act.Should().Throw<ConfigurationException>();
+        act.Should().Throw<ValidationException>();
     }
 
     [Theory]

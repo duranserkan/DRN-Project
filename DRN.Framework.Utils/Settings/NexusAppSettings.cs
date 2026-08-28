@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -5,6 +6,7 @@ using DRN.Framework.Utils.Data.Encryption;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.Data.Validation;
+using DRN.Framework.Utils.Ids;
 
 namespace DRN.Framework.Utils.Settings;
 
@@ -22,7 +24,10 @@ public sealed class NexusAppSettings : IDisposable
     public string NexusAddress { get; init; } = DefaultNexusAddress;
 
     //Nexus App will generate ids randomly in production
+    [Range(0, SourceKnownIdUtils.MaxAppId)]
     public byte AppId { get; init; }
+
+    [Range(0, SourceKnownIdUtils.MaxAppInstanceId)]
     public byte AppInstanceId { get; init; }
 
     /// <summary>

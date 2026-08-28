@@ -5,6 +5,7 @@ using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Data.Serialization;
+using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Entity;
 using DRN.Framework.Utils.Logging;
@@ -97,8 +98,29 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         }
 
         var appSettings = serviceProvider.GetService<IAppSettings>();
-        ValidateEntityTypes(context, scopedLog, appSettings);
+        PreValidateAllDbContexts(serviceProvider, scopedLog, appSettings);
+        ValidateEntityTypes(context, scopedLog, appSettings, serviceProvider);
         serviceProvider.GetRequiredService(context.GetType());
+    }
+
+    private static void PreValidateAllDbContexts(IServiceProvider serviceProvider, IScopedLog? scopedLog, IAppSettings? appSettings)
+    {
+        var containers = serviceProvider.GetServices<DrnServiceContainer>();
+        foreach (var container in containers)
+        {
+            foreach (var module in container.AttributeSpecifiedModules)
+            {
+                if (module.ModuleAttribute is not DrnContextServiceRegistrationAttribute) continue;
+                foreach (var descriptor in module.ServiceDescriptors)
+                {
+                    if (descriptor.ServiceType.IsAssignableTo(typeof(DbContext)))
+                    {
+                        var dbContext = (DbContext)serviceProvider.GetRequiredService(descriptor.ServiceType);
+                        ValidateEntityTypes(dbContext, scopedLog, appSettings, serviceProvider);
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -143,10 +165,9 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         return changeModel;
     }
 
-    internal static void ValidateEntityTypes(DbContext context, IScopedLog? scopedLog, IAppSettings? appSettings = null)
+    internal static void ValidateEntityTypes(DbContext context, IScopedLog? scopedLog, IAppSettings? appSettings = null, IServiceProvider? serviceProvider = null)
     {
-        var entityTypes = context.Model.GetEntityTypes().Select(entityType => entityType.ClrType).ToArray();
-        var domainTypes = entityTypes.Where(type => type.IsAssignableTo(typeof(SourceKnownEntity))).ToArray();
+        var domainTypes = GetAllDomainEntityTypes(context, serviceProvider);
         var idValidation = GetEntityTypeValidationResult(domainTypes);
         var missingAttributes = idValidation.MissingEntityTypes;
         var duplicateAttributePairs = idValidation.DuplicateEntityTypes;
@@ -177,14 +198,42 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             throw new UnprocessableEntityException($"Invalid Entity Type Configuration: {validationDetails}");
         }
 
-        var configuredAppId = appSettings?.NexusAppSettings.AppId ?? 0;
-        if (configuredAppId != 0 && idValidation.NonTestAppIds.Length == 1 && configuredAppId != idValidation.NonTestAppIds[0])
-            throw new ConfigurationException($"NexusAppSettings:AppId ({configuredAppId}) does not match {context.GetType().Name} domain partition AppId ({idValidation.NonTestAppIds[0]}).");
-
         //Validates Entity Type Ids implicitly by calling GetEntityType on Entity
-        //This will catch application wide inconsistencies. Previous validation was module-wide;
+        //This will catch application wide inconsistencies and populates SourceKnownEntity registry.
         var entityTypeValues = domainTypes.Select(SourceKnownEntity.GetEntityType).ToArray();
         _ = entityTypeValues;
+
+        var configuredAppId = appSettings?.NexusAppSettings.AppId ?? 0;
+        if (idValidation.NonTestAppIds.Length == 1)
+        {
+            var domainAppId = idValidation.NonTestAppIds[0];
+            var hostAppIds = GetHostDomainAppIds(serviceProvider, context.GetType().Assembly);
+            var isMatched = configuredAppId == domainAppId || (configuredAppId != 0 && hostAppIds.Contains(configuredAppId));
+            if (!isMatched)
+                throw new ConfigurationException($"NexusAppSettings:AppId ({configuredAppId}) does not match {context.GetType().Name} domain partition AppId ({domainAppId}) or any registered domain partition in the host.");
+        }
+    }
+
+    private static byte[] GetHostDomainAppIds(IServiceProvider? serviceProvider, Assembly contextAssembly)
+    {
+        if (serviceProvider == null)
+            return [];
+
+        var containers = serviceProvider.GetServices<DrnServiceContainer>();
+        var assemblies = containers
+            .Select(c => c.Assembly)
+            .Append(contextAssembly)
+            .Distinct();
+
+        return assemblies
+            .SelectMany(a => a.GetTypes())
+            .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false } &&
+                        t.IsAssignableTo(typeof(SourceKnownEntity)))
+            .Select(t => t.GetCustomAttribute<EntityTypeAttribute>())
+            .Where(attr => attr != null && attr.AppId != IAppId.TestAppId)
+            .Select(attr => attr!.AppId)
+            .Distinct()
+            .ToArray();
     }
 
     internal static EntityTypeValidationResult GetEntityTypeValidationResult(IReadOnlyCollection<Type> domainTypes)
@@ -207,6 +256,36 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         var multipleAppIds = nonTestAppIds.Length > 1 ? nonTestAppIds : [];
 
         return new EntityTypeValidationResult(missingAttributes, duplicateAttributePairs, multipleAppIds, nonTestAppIds);
+    }
+
+    internal static Type[] GetAllDomainEntityTypes(DbContext context, IServiceProvider? serviceProvider = null)
+    {
+        var modelTypes = context.Model.GetEntityTypes()
+            .Select(e => e.ClrType)
+            .Where(t => t.IsAssignableTo(typeof(SourceKnownEntity)));
+
+        var contextAssembly = context.GetType().Assembly;
+        var assemblies = serviceProvider?.GetServices<DrnServiceContainer>()
+            .Select(c => c.Assembly)
+            .Append(contextAssembly)
+            .Where(a => !IsTestAssembly(a))
+            .Distinct() ?? (IsTestAssembly(contextAssembly) ? [] : [contextAssembly]);
+
+        var assemblyTypes = assemblies
+            .SelectMany(a => a.GetTypes())
+            .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false } &&
+                        t.IsAssignableTo(typeof(SourceKnownEntity)));
+
+        return modelTypes.Concat(assemblyTypes).Distinct().ToArray();
+    }
+
+    private static bool IsTestAssembly(Assembly assembly)
+    {
+        var name = assembly.GetName().Name ?? string.Empty;
+        return name.EndsWith(".Test", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(".Test.", StringComparison.OrdinalIgnoreCase) ||
+               name.EndsWith(".Tests", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(".Tests.", StringComparison.OrdinalIgnoreCase);
     }
 }
 

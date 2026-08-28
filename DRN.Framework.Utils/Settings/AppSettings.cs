@@ -86,6 +86,7 @@ public sealed class AppSettings : IAppSettings, IDisposable
         NexusAppSettings = Get<NexusAppSettings>(nameof(NexusAppSettings)) ?? new NexusAppSettings();
         try
         {
+            NexusAppSettings.ValidateDataAnnotationsThrowIfInvalid();
             ThrowIfLegacyNexusMacKeysConfigured();
             ThrowIfInvalidSeedKeyConfigured();
             var securitySettings = new AppSecuritySettings(Features);
