@@ -614,19 +614,25 @@ PostgreSQL defaults used by `ContainerContext.Postgres` and `LaunchExternalDepen
 | Property | Default |
 |----------|---------|
 | `DefaultImage` | `"postgres"` |
-| `DefaultVersion` | `"18.4-alpine3.24"` |
+| `DefaultVersion` | `"18.6-alpine3.24"` |
+| `DefaultDigest` | `"sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2"` |
 | `DefaultPassword` | `"drn"` |
 | `Database` | `"drn"` |
 | `Username` | `"drn"` |
+
+The default image/tag pair is resolved with `DefaultDigest`. Custom image tags remain tag-based unless `Digest` is set explicitly.
 
 RabbitMQ defaults used when a test explicitly calls `RabbitMQContext.StartAsync()`:
 
 | Property | Default |
 |----------|---------|
 | `DefaultImage` | `"rabbitmq"` |
-| `DefaultVersion` | `"4.3.4-management-alpine"` |
+| `DefaultVersion` | `"4.3.5-management-alpine"` |
+| `DefaultDigest` | `"sha256:e2f08f846de10bb09649a8b020f286ed362a8f72ee45e5a8d043851f1533fda8"` |
 | `Username` | unset |
 | `Password` | unset |
+
+The default image/tag pair is resolved with `DefaultDigest`. Set `Digest` when a custom RabbitMQ image must also be immutable.
 
 RabbitMQ is explicit: it is not started by `CreateClientAsync`, `BindExternalDependenciesAsync`, or PostgreSQL binding.
 

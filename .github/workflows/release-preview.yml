@@ -102,8 +102,9 @@ jobs:
 
       # Attestations record SLSA provenance for the pre-push build artifacts.
       # Note: NuGet.org injects a repository signature (.signature.p7s) on ingestion, which alters the package SHA.
-      # Verifying packages downloaded from nuget.org requires stripping .signature.p7s (e.g. zip -d <pkg>.nupkg .signature.p7s)
-      # or verifying against the unmodified build packages preserved in the 'packages' artifact below.
+      # First verify the NuGet.org repository signature (dotnet nuget verify --all <pkg>.nupkg). Then strip
+      # .signature.p7s from a copy for attestation verification, or verify the unmodified build package
+      # preserved in the 'packages' artifact below.
       # https://andrewlock.net/creating-provenance-attestations-for-nuget-packages-in-github-actions/
       # https://github.com/NuGet/NuGetGallery/issues/10026
       - name: Generate artifact attestation (NuGet Provenance)

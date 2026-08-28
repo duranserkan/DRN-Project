@@ -13,6 +13,7 @@ using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Npgsql;
 
 namespace DRN.Framework.EntityFramework.Context;
 
@@ -77,7 +78,12 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         }
 
         if (changeModel.Flags.HasPendingModelChanges)
+        {
+            if (changeModel.Flags.DevelopmentSettingsPrototypeFlag && changeModel.AppliedMigrations.Count > 0 && !changeModel.Flags.UsePrototypeModeWhenMigrationExists)
+                throw new ConfigurationException($"{changeModel.Name} has pending model changes, but prototype recreation is blocked because migrations are applied to the database. Create migration or enable UsePrototypeModeWhenMigrationExists.");
+
             throw new ConfigurationException($"{changeModel.Name} has pending model changes. Create migration or enable Prototype Mode in DrnDevelopmentSettings.");
+        }
     }
 
     private static void Validate(IServiceProvider serviceProvider, IScopedLog? scopedLog, DbContext context)
@@ -109,7 +115,20 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
     {
         var contextName = context.GetType().FullName ?? context.GetType().Name;
         var migrations = context.Database.GetMigrations().ToArray();
-        var appliedMigrations = migrations.Length > 0 ? (await context.Database.GetAppliedMigrationsAsync()).ToArray() : [];
+        // Always query target database migration history directly rather than conditioning on assembly migrations (e.g., migrations.Length > 0).
+        // If we only query the DB when the assembly contains migrations, an assembly with missing/deleted migration files
+        // would record 0 applied migrations, causing pending-model detection to treat the database as unmigrated and execute
+        // EnsureDeletedAsync(), wiping a populated database.
+        // If the target database does not exist yet (e.g., initial prototype startup), treat as 0 applied migrations so EnsureCreatedAsync can run.
+        string[] appliedMigrations;
+        try
+        {
+            appliedMigrations = (await context.Database.GetAppliedMigrationsAsync()).ToArray();
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InvalidCatalogName)
+        {
+            appliedMigrations = [];
+        }
         var hasPendingModelChanges = context.Database.HasPendingModelChanges();
         var optionsAttributes = DbContextConventions.GetContextAttributes(context);
         var contextOptionsUsePrototypeModeFlag = optionsAttributes.Any(a => a.UsePrototypeMode);

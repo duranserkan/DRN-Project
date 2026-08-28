@@ -20,15 +20,17 @@ public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
         .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
         .MigrationsAssembly(typeof(TContext).Assembly.FullName)
         .MigrationsHistoryTable($"{typeof(TContext).Name.ToSnakeCase()}_history", "__entity_migrations")
-        .SetPostgresVersion(18,4);
+        .SetPostgresVersion(18,6);
 
-    public override void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider serviceProvider)
+    public override void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider? serviceProvider)
     {
         builder.EnableParameterLogging(false);
         builder.ConfigureJsonOptions(JsonConventions.DefaultOptions);
 
-        var appSettings = serviceProvider.GetRequiredService<IAppSettings>();
-        var defaultApplicationName = $"{appSettings.ApplicationName}_{typeof(TContext).Name}";
+        var appSettings = serviceProvider?.GetService<IAppSettings>();
+        var defaultApplicationName = appSettings != null
+            ? $"{appSettings.ApplicationName}_{typeof(TContext).Name}"
+            : typeof(TContext).Name;
 
         builder.ConnectionStringBuilder.ApplicationName ??= defaultApplicationName;
     }

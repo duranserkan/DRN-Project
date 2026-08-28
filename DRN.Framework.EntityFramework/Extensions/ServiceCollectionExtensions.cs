@@ -28,11 +28,8 @@ public static class ServiceCollectionExtensions
             var connectionString = appSettings.Environment == AppEnvironment.Development
                 ? DrnContextDevelopmentConnection.GetConnectionString(appSettings, contextName)
                 : appSettings.GetRequiredConnectionString(contextName);
-            var attributes = DbContextConventions.GetContextAttributes<TContext>();
-
             dataSourceBuilderBuilder.ConnectionStringBuilder.ConnectionString = connectionString;
-            foreach (var attribute in attributes)
-                attribute.ConfigureNpgsqlDataSource<TContext>(dataSourceBuilderBuilder, serviceProvider);
+            dataSourceBuilderBuilder.ConfigureNpgsqlDataSourceBuilder<TContext>(serviceProvider);
         }, serviceKey: contextName);
 
 
@@ -51,7 +48,7 @@ public static class ServiceCollectionExtensions
     {
         assembly ??= Assembly.GetCallingAssembly();
         var contextTypes = assembly.GetTypesAssignableTo(typeof(IDrnContext))
-            .Where(t => t is { IsClass: true, IsAbstract: false });
+            .Where(t => t is { IsClass: true, IsAbstract: false, IsVisible: true });
 
         foreach (var contextType in contextTypes)
             typeof(ServiceCollectionExtensions).InvokeStaticGenericMethod(nameof(AddDbContextWithConventions), [contextType], sc);

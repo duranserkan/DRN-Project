@@ -79,11 +79,11 @@ public static class BootstrapCssClassExtensions
 {
     const string TextStart = "text-start", TextCenter = "text-center", TextEnd = "text-end";
 
-    const string Col = "col", ColXs = "col-xs", ColSm = "col-sm", ColMd = "col-md";
-    const string ColLg = "col-lg", ColXl = "col-lg", ColXxl = "col-xxl";
+    const string Col = "col", ColSm = "col-sm", ColMd = "col-md";
+    const string ColLg = "col-lg", ColXl = "col-xl", ColXxl = "col-xxl";
 
     const string One = "1", Two = "2", Three = "3", Four = "4", Five = "5", Six = "6", Seven = "7";
-    const string Eight = "8", Nine = "9", Ten = "10", Eleven = "11", Twelve = "5", Auto = "auto", None = "";
+    const string Eight = "8", Nine = "9", Ten = "10", Eleven = "11", Twelve = "12", Auto = "auto", None = "";
 
     public static string CssTextAlignment(this MainContentLayoutOptions options) => options.TextAlignment switch
     {
@@ -97,7 +97,7 @@ public static class BootstrapCssClassExtensions
     public static string CssColumnTier(this MainContentLayoutOptions options) => options.GridTier switch
     {
         BootstrapGridTier.None => Col,
-        BootstrapGridTier.Xs => ColXs,
+        BootstrapGridTier.Xs => Col,
         BootstrapGridTier.Sm => ColSm,
         BootstrapGridTier.Md => ColMd,
         BootstrapGridTier.Lg => ColLg,

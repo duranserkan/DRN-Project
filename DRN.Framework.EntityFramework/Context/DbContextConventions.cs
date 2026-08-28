@@ -33,6 +33,16 @@ public static class DbContextConventions
             .ConfigureDbContextOptions<TContext>(serviceProvider)
             .UseNpgsql(dataSource, npgsqlOptions => npgsqlOptions.ConfigureNpgsqlDbContextOptions<TContext>(serviceProvider));
 
+    public static NpgsqlDataSourceBuilder ConfigureNpgsqlDataSourceBuilder<TContext>(
+        this NpgsqlDataSourceBuilder dataSourceBuilder, IServiceProvider? serviceProvider = null)
+        where TContext : DbContext
+    {
+        foreach (var attribute in GetContextAttributes<TContext>())
+            attribute.ConfigureNpgsqlDataSource<TContext>(dataSourceBuilder, serviceProvider);
+
+        return dataSourceBuilder;
+    }
+
     private static DbContextOptionsBuilder ConfigureDbContextOptions<TContext>(
         this DbContextOptionsBuilder optionsBuilder, IServiceProvider? serviceProvider)
         where TContext : DbContext

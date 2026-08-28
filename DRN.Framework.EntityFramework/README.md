@@ -227,7 +227,7 @@ Entities inheriting from `SourceKnownEntity` receive internal IDs when EF begins
 *   **Requirement**: Every entity must have a unique `(EntityType, AppId)` pair. The same entity type byte may be reused by a different application partition.
 
 ```csharp
-[EntityType(1)]
+[EntityType<DefaultApp>(1)]
 public class User : AggregateRoot
 {
     public string Username { get; set; }
@@ -469,7 +469,7 @@ The framework supports both attribute-based and Fluent API configuration.
 Use attributes for simple, standard configurations:
 
 ```csharp
-[EntityType(1)]
+[EntityType<DefaultApp>(1)]
 [Table("users")]
 [Index(nameof(Username), IsUnique = true)]
 public class User : SourceKnownEntity
@@ -570,7 +570,7 @@ Provides framework defaults for Npgsql and EF Core:
 - Query splitting behavior: `SplitQuery`
 - Migrations assembly: Context's assembly
 - Migrations history table: `{context_name}_history` in `__entity_migrations` schema
-- PostgreSQL version: 18.4
+- PostgreSQL version: 18.6
 - **Database History**: Automatically placed in the `__entity_migrations` schema (e.g., `__entity_migrations.mycontext_history`) to keep the public schema focused on domain data.
 
 **Data Source Defaults:**
@@ -620,7 +620,7 @@ public class MyContextOptions : NpgsqlDbContextOptionsAttribute
 
     public override void ConfigureNpgsqlDataSource<TContext>(
         NpgsqlDataSourceBuilder builder,
-        IServiceProvider serviceProvider)
+        IServiceProvider? serviceProvider)
     {
         // Configure Npgsql data-source features here.
     }
@@ -724,6 +724,8 @@ The database is recreated **only** when:
 > [!TIP]
 > If `DrnDevelopmentSettings.Prototype` is `false`, the database is **never** recreated, even if `UsePrototypeMode` is enabled and model changes are detected. Prototype mode is intended for disposable Development databases; `LaunchExternalDependencies` is recommended for container isolation, but it is not itself a prototype-recreate condition.
 
+Applied migrations are read from the target database independently of the local migration assembly. If migration files or the model snapshot are missing while the database still contains migration history, the database is treated as migrated and prototype recreation remains blocked unless `UsePrototypeModeWhenMigrationExists = true`.
+
 ### Prototype Mode with Applied Migrations
 
 By default, prototype mode is disabled once migrations have been applied. Declared migrations that have not been applied do not block empty-database prototyping. To override the applied-migration guard:
@@ -806,7 +808,7 @@ When `DrnDevelopmentSettings:LaunchExternalDependencies = true`, the framework u
 
 ```xml
 <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <PackageReference Include="DRN.Framework.Testing" Version="0.9.7" />
+    <PackageReference Include="DRN.Framework.Testing" Version="0.9.9" />
 </ItemGroup>
 ```
 
@@ -873,7 +875,7 @@ services:
         condition: service_healthy
       
   postgres:
-    image: postgres:18.4-alpine3.24
+    image: postgres:18.6-alpine3.24@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
     environment:
       POSTGRES_USER: drn
       POSTGRES_PASSWORD: dev-password
@@ -974,9 +976,12 @@ When using `LaunchExternalDependencies` or `ContainerContext`, these PostgreSQL 
 |----------|---------|-------|
 | `DefaultPassword` | `"drn"` | Container password |
 | `DefaultImage` | `"postgres"` | Docker image |
-| `DefaultVersion` | `"18.4-alpine3.24"` | Image tag |
+| `DefaultVersion` | `"18.6-alpine3.24"` | Image tag |
+| `DefaultDigest` | `"sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2"` | Immutable image index digest |
 | `Database` | `"drn"` | Container database |
 | `Username` | `"drn"` | Container user |
+
+The default image/tag pair is resolved with `DefaultDigest`. Custom image tags remain tag-based unless `Digest` is set explicitly.
 
 > [!WARNING]
 > **Prototype Mode Requirements**:
