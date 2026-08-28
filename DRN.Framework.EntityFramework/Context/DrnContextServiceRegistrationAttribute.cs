@@ -77,7 +77,12 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         }
 
         if (changeModel.Flags.HasPendingModelChanges)
+        {
+            if (changeModel.Flags.DevelopmentSettingsPrototypeFlag && changeModel.AppliedMigrations.Count > 0 && !changeModel.Flags.UsePrototypeModeWhenMigrationExists)
+                throw new ConfigurationException($"{changeModel.Name} has pending model changes, but prototype recreation is blocked because migrations are applied to the database. Create migration or enable UsePrototypeModeWhenMigrationExists.");
+
             throw new ConfigurationException($"{changeModel.Name} has pending model changes. Create migration or enable Prototype Mode in DrnDevelopmentSettings.");
+        }
     }
 
     private static void Validate(IServiceProvider serviceProvider, IScopedLog? scopedLog, DbContext context)
@@ -109,6 +114,10 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
     {
         var contextName = context.GetType().FullName ?? context.GetType().Name;
         var migrations = context.Database.GetMigrations().ToArray();
+        // Always query target database migration history directly rather than conditioning on assembly migrations (e.g., migrations.Length > 0).
+        // If we only query the DB when the assembly contains migrations, an assembly with missing/deleted migration files
+        // would record 0 applied migrations, causing pending-model detection to treat the database as unmigrated and execute
+        // EnsureDeletedAsync(), wiping a populated database.
         var appliedMigrations = (await context.Database.GetAppliedMigrationsAsync()).ToArray();
         var hasPendingModelChanges = context.Database.HasPendingModelChanges();
         var optionsAttributes = DbContextConventions.GetContextAttributes(context);
