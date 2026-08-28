@@ -18,12 +18,22 @@ public class UserProfileRepository(UserManager<SampleUser> userManager, IUserCla
             user.PhoneNumber = model.PhoneNumber;
 
             var identityResult = await userManager.UpdateAsync(user);
-            var result = new UserProfileEditResult(identityResult, user);
+            if (!identityResult.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                return new UserProfileEditResult(identityResult, user);
+            }
 
-            await userClaimRepository.UpdateSlimUiClaimAsync(user, model.SlimUI);
+            var claimResult = await userClaimRepository.UpdateSlimUiClaimAsync(user, model.SlimUI);
+            if (!claimResult.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                return new UserProfileEditResult(claimResult, user);
+            }
+
             await transaction.CommitAsync();
 
-            return result;
+            return new UserProfileEditResult(identityResult, user);
         }
         catch (Exception)
         {

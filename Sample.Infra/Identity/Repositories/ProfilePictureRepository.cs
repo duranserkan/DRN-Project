@@ -20,7 +20,12 @@ public class ProfilePictureRepository(SampleIdentityContext context, IUserClaimR
             else
                 context.ProfilePictures.Add(picture);
 
-            await claimRepository.UpdateProfilePictureVersionClaimAsync(user, existingProfilePicture?.Version ?? picture.Version);
+            await context.SaveChangesAsync();
+
+            var claimResult = await claimRepository.UpdateProfilePictureVersionClaimAsync(user, existingProfilePicture?.Version ?? picture.Version);
+            if (!claimResult.Succeeded)
+                throw new InvalidOperationException("Failed to update the profile-picture version claim.");
+
             await transaction.CommitAsync();
         }
         catch (Exception)
