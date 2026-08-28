@@ -104,14 +104,35 @@ public class SourceKnownEntityTypeAnalyzerTests
         ];
     }
 
+    private sealed class CustomOptionsProvider(Dictionary<string, string> globalOptions) : AnalyzerConfigOptionsProvider
+    {
+        private readonly AnalyzerConfigOptions _options = new CustomConfigOptions(globalOptions);
+
+        public override AnalyzerConfigOptions GlobalOptions => _options;
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => _options;
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => _options;
+    }
+
+    private sealed class CustomConfigOptions(Dictionary<string, string> options) : AnalyzerConfigOptions
+    {
+        public override bool TryGetValue(string key, out string value)
+            => options.TryGetValue(key, out value!);
+    }
+
     private static async Task<ImmutableArray<Diagnostic>> RunAnalyzerAsync(params string[] sources)
+        => await RunAnalyzerAsync(sources, assemblyName: "TestAssembly");
+
+    private static async Task<ImmutableArray<Diagnostic>> RunAnalyzerAsync(
+        string[] sources,
+        string assemblyName = "TestAssembly",
+        Dictionary<string, string>? buildProperties = null)
     {
         var syntaxTrees = sources
             .Select((s, i) => CSharpSyntaxTree.ParseText(s, path: $"Source{i}.cs"))
             .ToArray();
 
         var compilation = CSharpCompilation.Create(
-            "TestAssembly",
+            assemblyName,
             syntaxTrees,
             GetBaseReferences(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
@@ -128,11 +149,22 @@ public class SourceKnownEntityTypeAnalyzerTests
         }
 
         var analyzer = new SourceKnownEntityTypeAnalyzer();
-        var compilationWithAnalyzers = compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
+        var analyzerOptions = buildProperties != null
+            ? new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty, new CustomOptionsProvider(buildProperties))
+            : null;
+
+        var compilationWithAnalyzers = compilation.WithAnalyzers(
+            ImmutableArray.Create<DiagnosticAnalyzer>(analyzer),
+            analyzerOptions);
+
         return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
     }
 
-    private static async Task<ImmutableArray<Diagnostic>> RunAnalyzerWithReferenceAsync(string referencedSource, string consumingSource)
+    private static async Task<ImmutableArray<Diagnostic>> RunAnalyzerWithReferenceAsync(
+        string referencedSource,
+        string consumingSource,
+        string consumingAssemblyName = "ConsumingAssembly",
+        Dictionary<string, string>? buildProperties = null)
     {
         var refSyntaxTree = CSharpSyntaxTree.ParseText(referencedSource, path: "ReferencedSource.cs");
         var baseReferences = GetBaseReferences();
@@ -156,7 +188,7 @@ public class SourceKnownEntityTypeAnalyzerTests
 
         var consumingTree = CSharpSyntaxTree.ParseText(consumingSource, path: "ConsumingSource.cs");
         var consumingCompilation = CSharpCompilation.Create(
-            "ConsumingAssembly",
+            consumingAssemblyName,
             [consumingTree],
             baseReferences.Append(referencedMetadata),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
@@ -173,7 +205,14 @@ public class SourceKnownEntityTypeAnalyzerTests
         }
 
         var analyzer = new SourceKnownEntityTypeAnalyzer();
-        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
+        var analyzerOptions = buildProperties != null
+            ? new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty, new CustomOptionsProvider(buildProperties))
+            : null;
+
+        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers(
+            ImmutableArray.Create<DiagnosticAnalyzer>(analyzer),
+            analyzerOptions);
+
         return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
     }
 
@@ -819,7 +858,7 @@ public class SourceKnownEntityTypeAnalyzerTests
             public class SecondEntity : SourceKnownEntity;
             """;
 
-        var diagnostics = await RunAnalyzerAsync(testCode);
+        var diagnostics = await RunAnalyzerAsync([testCode], assemblyName: "Sample.Test.Unit");
 
         diagnostics.Should().BeEmpty();
     }
@@ -879,7 +918,7 @@ public class SourceKnownEntityTypeAnalyzerTests
             }
             """;
 
-        var diagnostics = await RunAnalyzerAsync(testCode);
+        var diagnostics = await RunAnalyzerAsync([testCode], assemblyName: "Sample.Test.Unit");
 
         diagnostics.Should().BeEmpty();
     }
@@ -939,7 +978,7 @@ public class SourceKnownEntityTypeAnalyzerTests
             public class SampleAuthor : SourceKnownEntity;
             """;
 
-        var diagnostics = await RunAnalyzerAsync(testCode);
+        var diagnostics = await RunAnalyzerAsync([testCode], assemblyName: "Sample.Test.Unit");
 
         diagnostics.Should().BeEmpty();
     }
@@ -997,7 +1036,7 @@ public class SourceKnownEntityTypeAnalyzerTests
             public class SampleAuthor : SourceKnownEntity;
             """;
 
-        var diagnostics = await RunAnalyzerAsync(testCode);
+        var diagnostics = await RunAnalyzerAsync([testCode], assemblyName: "Sample.Test.Unit");
 
         diagnostics.Should().BeEmpty();
     }
@@ -1053,7 +1092,7 @@ public class SourceKnownEntityTypeAnalyzerTests
             }
             """;
 
-        var diagnostics = await RunAnalyzerAsync(testCode);
+        var diagnostics = await RunAnalyzerAsync([testCode], assemblyName: "Sample.Test.Unit");
 
         diagnostics.Should().BeEmpty();
     }
@@ -1074,7 +1113,7 @@ public class SourceKnownEntityTypeAnalyzerTests
             public class TestEntity : SourceKnownEntity;
             """;
 
-        var diagnostics = await RunAnalyzerAsync(testCode);
+        var diagnostics = await RunAnalyzerAsync([testCode], assemblyName: "Sample.Test.Unit");
 
         diagnostics.Should().BeEmpty();
     }
@@ -1159,7 +1198,10 @@ public class SourceKnownEntityTypeAnalyzerTests
             }
             """;
 
-        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(referencedSources, consumingSource);
+        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(
+            referencedSources,
+            consumingSource,
+            consumingAssemblyName: "Sample.Test.Unit");
 
         diagnostics.Should().BeEmpty();
     }
@@ -1210,7 +1252,9 @@ public class SourceKnownEntityTypeAnalyzerTests
 
     private static async Task<ImmutableArray<Diagnostic>> RunAnalyzerWithMultipleReferencesAsync(
         (string AssemblyName, string Source)[] referencedSources,
-        string consumingSource = "")
+        string consumingSource = "",
+        string consumingAssemblyName = "ConsumingAssembly",
+        Dictionary<string, string>? buildProperties = null)
     {
         var baseReferences = GetBaseReferences();
         var additionalReferences = new List<MetadataReference>();
@@ -1241,7 +1285,7 @@ public class SourceKnownEntityTypeAnalyzerTests
             : new[] { CSharpSyntaxTree.ParseText(consumingSource, path: "ConsumingSource.cs") };
 
         var consumingCompilation = CSharpCompilation.Create(
-            "ConsumingAssembly",
+            consumingAssemblyName,
             consumingTrees,
             baseReferences.Concat(additionalReferences),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
@@ -1258,7 +1302,227 @@ public class SourceKnownEntityTypeAnalyzerTests
         }
 
         var analyzer = new SourceKnownEntityTypeAnalyzer();
-        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
+        var analyzerOptions = buildProperties != null
+            ? new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty, new CustomOptionsProvider(buildProperties))
+            : null;
+
+        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers(
+            ImmutableArray.Create<DiagnosticAnalyzer>(analyzer),
+            analyzerOptions);
+
         return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task MultipleAppIds_InProductionAssembly_ProducesDRN0005()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App1 : IAppId
+            {
+                public static byte AppId => 1;
+            }
+
+            public readonly struct App2 : IAppId
+            {
+                public static byte AppId => 2;
+            }
+
+            [EntityType<App1>(1)]
+            public class FirstEntity : SourceKnownEntity;
+
+            [EntityType<App2>(2)]
+            public class SecondEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].Id.Should().Be("DRN0005");
+        diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Error);
+        diagnostics[0].GetMessage().Should().Contain("TestAssembly").And.Contain("1, 2");
+    }
+
+    [Fact]
+    public async Task MultipleAppIds_InTestAssembly_ProducesNoDRN0005()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App1 : IAppId
+            {
+                public static byte AppId => 1;
+            }
+
+            public readonly struct App2 : IAppId
+            {
+                public static byte AppId => 2;
+            }
+
+            [EntityType<App1>(1)]
+            public class FirstEntity : SourceKnownEntity;
+
+            [EntityType<App2>(2)]
+            public class SecondEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync([testCode], assemblyName: "Sample.Test.Unit");
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task MultipleAppIds_WithAllowMultipleAppIdsBuildProperty_ProducesNoDRN0005()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App1 : IAppId
+            {
+                public static byte AppId => 1;
+            }
+
+            public readonly struct App2 : IAppId
+            {
+                public static byte AppId => 2;
+            }
+
+            [EntityType<App1>(1)]
+            public class FirstEntity : SourceKnownEntity;
+
+            [EntityType<App2>(2)]
+            public class SecondEntity : SourceKnownEntity;
+            """;
+
+        var buildProperties = new Dictionary<string, string>
+        {
+            ["build_property.AllowMultipleAppIds"] = "true"
+        };
+
+        var diagnostics = await RunAnalyzerAsync([testCode], assemblyName: "ProductionAssembly", buildProperties: buildProperties);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task MultipleAppIds_WithIsTestProjectBuildProperty_ProducesNoDRN0005()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App1 : IAppId
+            {
+                public static byte AppId => 1;
+            }
+
+            public readonly struct App2 : IAppId
+            {
+                public static byte AppId => 2;
+            }
+
+            [EntityType<App1>(1)]
+            public class FirstEntity : SourceKnownEntity;
+
+            [EntityType<App2>(2)]
+            public class SecondEntity : SourceKnownEntity;
+            """;
+
+        var buildProperties = new Dictionary<string, string>
+        {
+            ["build_property.IsTestProject"] = "true"
+        };
+
+        var diagnostics = await RunAnalyzerAsync([testCode], assemblyName: "CustomTestRunner", buildProperties: buildProperties);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task MultipleAppIds_WithMtpRunnerBuildProperty_ProducesNoDRN0005()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App1 : IAppId
+            {
+                public static byte AppId => 1;
+            }
+
+            public readonly struct App2 : IAppId
+            {
+                public static byte AppId => 2;
+            }
+
+            [EntityType<App1>(1)]
+            public class FirstEntity : SourceKnownEntity;
+
+            [EntityType<App2>(2)]
+            public class SecondEntity : SourceKnownEntity;
+            """;
+
+        var buildProperties = new Dictionary<string, string>
+        {
+            ["build_property.UseMicrosoftTestingPlatformRunner"] = "true"
+        };
+
+        var diagnostics = await RunAnalyzerAsync([testCode], assemblyName: "MtpRunnerAssembly", buildProperties: buildProperties);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task TestAppId_WithProductionAppId_ProducesNoDRN0005()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            [EntityType<DefaultApp>(1)]
+            public class ProdEntity : SourceKnownEntity;
+
+            [TestEntityType(2)]
+            public class TestEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync([testCode], assemblyName: "ProductionAssembly");
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task MultipleAppIds_AcrossReferencedAssembly_ProducesDRN0005()
+    {
+        const string referencedCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App1 : IAppId
+            {
+                public const byte Value = 1;
+                public static byte AppId => Value;
+            }
+
+            [EntityType<App1>(1)]
+            public class RefEntity : SourceKnownEntity;
+            """;
+
+        const string consumingCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App2 : IAppId
+            {
+                public const byte Value = 2;
+                public static byte AppId => Value;
+            }
+
+            [EntityType<App2>(2)]
+            public class ConsumingEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerWithReferenceAsync(referencedCode, consumingCode);
+
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].Id.Should().Be("DRN0005");
+        diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Error);
+        diagnostics[0].GetMessage().Should().Contain("ConsumingAssembly").And.Contain("1, 2");
     }
 }

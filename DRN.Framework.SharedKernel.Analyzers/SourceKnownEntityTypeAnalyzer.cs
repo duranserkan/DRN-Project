@@ -25,7 +25,8 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         DiagnosticDescriptors.MissingEntityTypeAttribute,
         DiagnosticDescriptors.DuplicateEntityTypeValue,
         DiagnosticDescriptors.InvalidEntityTypeAttributeUsage,
-        DiagnosticDescriptors.DuplicateEntityName
+        DiagnosticDescriptors.DuplicateEntityName,
+        DiagnosticDescriptors.MultipleAppIdsNotPermitted
     ];
 
     public override void Initialize(AnalysisContext context)
@@ -150,6 +151,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
         AnalyzeDuplicateEntityTypeValues(endContext, distinctReferencedEntities, collectedEntityTypeDeclarations, entityTypeAttributeSymbol);
         AnalyzeDuplicateEntityNames(endContext, distinctReferencedEntities, collectedEntityNameDeclarations, entityTypeAttributeSymbol);
+        AnalyzeMultipleAppIds(endContext, distinctReferencedEntities, collectedEntityTypeDeclarations, entityTypeAttributeSymbol);
     }
 
     private static void AnalyzeDuplicateEntityTypeValues(
@@ -423,5 +425,89 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                     appId));
             }
         }
+    }
+
+    private const byte TestAppId = 127;
+
+    private static void AnalyzeMultipleAppIds(
+        CompilationAnalysisContext endContext,
+        IReadOnlyList<INamedTypeSymbol> distinctReferencedEntities,
+        ConcurrentBag<EntityTypeDeclaration> collectedEntityTypeDeclarations,
+        INamedTypeSymbol entityTypeAttributeSymbol)
+    {
+        if (IsMultiAppPermitted(endContext))
+            return;
+
+        var localAppIds = collectedEntityTypeDeclarations
+            .Select(d => d.AppId);
+
+        var referencedAppIds = distinctReferencedEntities
+            .Select(s => ExtractEntityTypeInfo(s, entityTypeAttributeSymbol))
+            .Where(x => x.HasValue)
+            .Select(x => x.AppId);
+
+        var distinctNonTestAppIds = localAppIds
+            .Concat(referencedAppIds)
+            .Where(appId => appId != TestAppId)
+            .Distinct()
+            .OrderBy(appId => appId)
+            .ToList();
+
+        if (distinctNonTestAppIds.Count <= 1)
+            return;
+
+        var assemblyName = endContext.Compilation.AssemblyName ?? "Assembly";
+        var appIdsSummary = string.Join(", ", distinctNonTestAppIds);
+
+        var location = EntityAnalyzerHelper.OrderByLocation(collectedEntityTypeDeclarations, d => d.Location)
+            .FirstOrDefault()?.Location ?? Location.None;
+
+        endContext.ReportDiagnostic(Diagnostic.Create(
+            DiagnosticDescriptors.MultipleAppIdsNotPermitted,
+            location,
+            assemblyName,
+            appIdsSummary));
+    }
+
+    private static bool IsMultiAppPermitted(CompilationAnalysisContext context)
+    {
+        var options = context.Options.AnalyzerConfigOptionsProvider.GlobalOptions;
+
+        if (options.TryGetValue("build_property.AllowMultipleAppIds", out var allowMulti) &&
+            string.Equals(allowMulti, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (options.TryGetValue("build_property.IsTestProject", out var isTest) &&
+            string.Equals(isTest, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (options.TryGetValue("build_property.UseMicrosoftTestingPlatformRunner", out var isMtp) &&
+            string.Equals(isMtp, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var assemblyName = context.Compilation.AssemblyName;
+        if (assemblyName != null &&
+            (assemblyName.Contains(".Test.", StringComparison.OrdinalIgnoreCase) ||
+             assemblyName.StartsWith("Test.", StringComparison.OrdinalIgnoreCase) ||
+             assemblyName.EndsWith(".Tests", StringComparison.OrdinalIgnoreCase) ||
+             assemblyName.EndsWith(".Test", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        var referencedAssemblies = context.Compilation.ReferencedAssemblyNames;
+        if (referencedAssemblies.Any(r => r.Name.Equals("DRN.Framework.Testing", StringComparison.OrdinalIgnoreCase) ||
+                                          r.Name.StartsWith("xunit", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

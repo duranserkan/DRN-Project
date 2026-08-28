@@ -48,4 +48,15 @@ public static class DiagnosticDescriptors
         description: "Domain entities inheriting from SourceKnownEntity should have unique class names per AppId across the domain model to avoid mapping and messaging ambiguity.",
         helpLinkUri: HelpLinkUri,
         WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor MultipleAppIdsNotPermitted = new(
+        id: "DRN0005",
+        title: "Multiple AppIds in single application compilation",
+        messageFormat: "Project '{0}' contains entity types declaring multiple distinct AppIds ({1}). Production projects must only declare a single AppId unless <AllowMultipleAppIds>true</AllowMultipleAppIds> is set in the project file.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Domain entity types within a single application project graph must belong to the same AppId partition to prevent ID collisions and cross-partition entity substitution.",
+        helpLinkUri: HelpLinkUri,
+        WellKnownDiagnosticTags.CompilationEnd);
 }

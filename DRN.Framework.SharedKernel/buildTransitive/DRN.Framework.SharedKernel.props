@@ -2,5 +2,8 @@
   <ItemGroup>
     <Analyzer Include="$(MSBuildThisFileDirectory)../analyzers/dotnet/cs/DRN.Framework.SharedKernel.Analyzers.dll"
               Condition="Exists('$(MSBuildThisFileDirectory)../analyzers/dotnet/cs/DRN.Framework.SharedKernel.Analyzers.dll')" />
+    <CompilerVisibleProperty Include="IsTestProject" />
+    <CompilerVisibleProperty Include="AllowMultipleAppIds" />
+    <CompilerVisibleProperty Include="UseMicrosoftTestingPlatformRunner" />
   </ItemGroup>
 </Project>

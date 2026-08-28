@@ -149,13 +149,16 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         var idValidation = GetEntityTypeValidationResult(domainTypes);
         var missingAttributes = idValidation.MissingEntityTypes;
         var duplicateAttributePairs = idValidation.DuplicateEntityTypes;
+        var multipleAppIds = idValidation.MultipleAppIds;
 
         if (missingAttributes.Length > 0)
             scopedLog?.Add("EntityTypesMissing", idValidation.MissingEntityTypes);
         if (duplicateAttributePairs.Length > 0)
             scopedLog?.Add("EntityTypesDuplicate", idValidation.DuplicateEntityTypes);
+        if (multipleAppIds.Length > 0)
+            scopedLog?.Add("EntityTypesMultipleAppIds", idValidation.MultipleAppIds);
 
-        if (missingAttributes.Length > 0 || duplicateAttributePairs.Length > 0)
+        if (missingAttributes.Length > 0 || duplicateAttributePairs.Length > 0 || multipleAppIds.Length > 0)
         {
             var validationDetails = string.Empty;
             if (scopedLog == null)
@@ -166,6 +169,8 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
                     validationDetails += " Check: EntityTypeMissingIds.";
                 if (duplicateAttributePairs.Length > 0)
                     validationDetails += " Check: EntityTypeDuplicateIds.";
+                if (multipleAppIds.Length > 0)
+                    validationDetails += $" Check: MultipleAppIds ({string.Join(", ", multipleAppIds)}).";
             }
 
             throw new UnprocessableEntityException($"Invalid Entity Type Configuration: {validationDetails}");
@@ -187,7 +192,16 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             .OrderBy(group => group.Key)
             .SelectMany(group => group.Select(pair => new DuplicateEntityTypeValue(pair.Key.FullName!, pair.Value!.EntityType))).ToArray();
 
-        return new EntityTypeValidationResult(missingAttributes, duplicateAttributePairs);
+        var nonTestAppIds = entityTypePairs.Values
+            .Where(attr => attr != null && attr.AppId != IAppId.TestAppId)
+            .Select(attr => attr!.AppId)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToArray();
+
+        var multipleAppIds = nonTestAppIds.Length > 1 ? nonTestAppIds : [];
+
+        return new EntityTypeValidationResult(missingAttributes, duplicateAttributePairs, multipleAppIds);
     }
 }
 
@@ -196,8 +210,10 @@ public record DuplicateEntityTypeValue(string EntityName, ushort EntityType)
     public override string ToString() => $"{EntityType}: {EntityName}";
 }
 
-public record EntityTypeValidationResult(string[] MissingEntityTypes, DuplicateEntityTypeValue[] DuplicateEntityTypes)
+public record EntityTypeValidationResult(string[] MissingEntityTypes, DuplicateEntityTypeValue[] DuplicateEntityTypes, byte[]? MultipleAppIds = null)
 {
+    public byte[] MultipleAppIds { get; init; } = MultipleAppIds ?? [];
     public string GetMissingEntityTypes() => string.Join(',', MissingEntityTypes);
-    public string GetDuplicateEntityTypes() => string.Join(',', string.Join(',', DuplicateEntityTypes.Select(p => p.ToString())));
+    public string GetDuplicateEntityTypes() => string.Join(',', DuplicateEntityTypes.Select(p => p.ToString()));
+    public string GetMultipleAppIds() => string.Join(',', MultipleAppIds);
 }
