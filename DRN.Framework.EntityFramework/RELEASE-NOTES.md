@@ -10,6 +10,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **Partition-Scoped Entity Type Validation**: Runtime startup validation now treats `(EntityType, AppId)` as the uniqueness key, allowing different application partitions to reuse the same entity type byte consistently with SharedKernel analyzers.
 *   **Prototype Migration-History Guard**: Startup validation now always reads applied migrations from the target database, preventing missing local migration files or snapshots from making a migrated database appear safe for prototype recreation.
+*   **Design-Time Data-Source Hooks**: `DbContextExtensions.CreateDbContext` now invokes `ConfigureNpgsqlDataSource` for registered context attributes when building design-time `NpgsqlDataSource` instances. Made `serviceProvider` nullable across data-source hooks with safe fallback handling when running outside DI.
 
 ## Version 0.9.8
 

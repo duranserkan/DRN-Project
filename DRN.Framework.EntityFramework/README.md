@@ -620,7 +620,7 @@ public class MyContextOptions : NpgsqlDbContextOptionsAttribute
 
     public override void ConfigureNpgsqlDataSource<TContext>(
         NpgsqlDataSourceBuilder builder,
-        IServiceProvider serviceProvider)
+        IServiceProvider? serviceProvider)
     {
         // Configure Npgsql data-source features here.
     }

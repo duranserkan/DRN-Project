@@ -70,7 +70,9 @@ internal static class DbContextExtensions
         var optionsBuilder = string.IsNullOrWhiteSpace(connectionString)
             ? DbContextConventions.UpdateDbContextOptionsBuilder<TContext>()
             : DbContextConventions.UpdateDbContextOptionsBuilder<TContext>(
-                new NpgsqlDataSourceBuilder(connectionString).Build());
+                new NpgsqlDataSourceBuilder(connectionString)
+                    .ConfigureNpgsqlDataSourceBuilder<TContext>()
+                    .Build());
 
         return (TContext)Activator.CreateInstance(typeof(TContext), optionsBuilder.Options)!;
     }
