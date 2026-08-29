@@ -338,7 +338,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         return modelTypes.Concat(assemblyTypes).Distinct().ToArray();
     }
 
-    private static Type[] GetAssemblyDomainEntityTypes(Assembly assembly)
+    internal static Type[] GetAssemblyDomainEntityTypes(Assembly assembly)
     {
         try
         {
@@ -346,7 +346,21 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         }
         catch (ReflectionTypeLoadException ex)
         {
-            return ex.Types.Where(t => t != null).Cast<Type>().ToArray();
+            var loaderMessages = ex.LoaderExceptions
+                .Where(e => e != null)
+                .Select(e => e!.Message)
+                .Distinct()
+                .ToArray();
+
+            var diagnostics = loaderMessages.Length > 0
+                ? string.Join("; ", loaderMessages)
+                : ex.Message;
+
+            var assemblyName = assembly.GetName().Name ?? assembly.FullName ?? "Unknown";
+
+            throw new InvalidOperationException(
+                $"Failed to load types from assembly '{assemblyName}' for domain entity validation. Loader exceptions: {diagnostics}",
+                ex);
         }
     }
 

@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel.Domain;
@@ -266,6 +267,59 @@ public class DrnContextServiceRegistrationAttributeTests
         EntityTypeRegistry.Register(hostEntities);
         var entityTypeId = new EntityTypeId(2, DRN.MultiApp.Testing.CoLocatedFirstApp.AppId);
         EntityTypeRegistry.GetEntityType(entityTypeId).Should().Be(typeof(DRN.MultiApp.Testing.CoLocatedNonModelDomainEntity));
+    }
+
+    [Fact]
+    public void GetAssemblyDomainEntityTypes_When_ReflectionTypeLoadException_Thrown_Should_Wrap_With_Loader_Diagnostics()
+    {
+        var assembly = Substitute.For<Assembly>();
+        var loaderException = new TypeLoadException("Could not load type 'BrokenType'.");
+        var reflectionException = new ReflectionTypeLoadException([null], [loaderException]);
+        assembly.GetTypes().Returns(_ => throw reflectionException);
+        assembly.GetName().Returns(new AssemblyName("BrokenTestAssembly"));
+
+        var act = () => DrnContextServiceRegistrationAttribute.GetAssemblyDomainEntityTypes(assembly);
+
+        act.Should().ThrowExactly<InvalidOperationException>()
+            .WithMessage("*Failed to load types from assembly 'BrokenTestAssembly' for domain entity validation*")
+            .WithMessage("*Could not load type 'BrokenType'*")
+            .WithInnerExceptionExactly<ReflectionTypeLoadException>();
+    }
+
+    [Fact]
+    public void GetAssemblyDomainEntityTypes_When_ReflectionTypeLoadException_With_Empty_LoaderExceptions_Should_Include_Exception_Message()
+    {
+        var assembly = Substitute.For<Assembly>();
+        var reflectionException = new ReflectionTypeLoadException([], []);
+        assembly.GetTypes().Returns(_ => throw reflectionException);
+        assembly.GetName().Returns(new AssemblyName("BrokenTestAssemblyWithoutLoaders"));
+
+        var act = () => DrnContextServiceRegistrationAttribute.GetAssemblyDomainEntityTypes(assembly);
+
+        act.Should().ThrowExactly<InvalidOperationException>()
+            .WithMessage("*Failed to load types from assembly 'BrokenTestAssemblyWithoutLoaders' for domain entity validation*")
+            .WithInnerExceptionExactly<ReflectionTypeLoadException>();
+    }
+
+    [Fact]
+    public void GetHostDomainEntityTypes_When_Host_Container_Assembly_Throws_ReflectionTypeLoadException_Should_Propagate_Loader_Diagnostics()
+    {
+        var assembly = Substitute.For<Assembly>();
+        var loaderException = new TypeLoadException("Could not load type 'HostBrokenType'.");
+        var reflectionException = new ReflectionTypeLoadException([null], [loaderException]);
+        assembly.GetTypes().Returns(_ => throw reflectionException);
+        assembly.GetName().Returns(new AssemblyName("BrokenHostAssembly"));
+
+        var serviceProvider = Substitute.For<IServiceProvider>();
+        var container = new DrnServiceContainer(assembly, lifetimeAttributes: [], serviceRegistrationTypes: []);
+        serviceProvider.GetService(typeof(IEnumerable<DrnServiceContainer>)).Returns(new[] { container });
+
+        var act = () => DrnContextServiceRegistrationAttribute.GetHostDomainEntityTypes(serviceProvider, []);
+
+        act.Should().ThrowExactly<InvalidOperationException>()
+            .WithMessage("*Failed to load types from assembly 'BrokenHostAssembly' for domain entity validation*")
+            .WithMessage("*Could not load type 'HostBrokenType'*")
+            .WithInnerExceptionExactly<ReflectionTypeLoadException>();
     }
 }
 
