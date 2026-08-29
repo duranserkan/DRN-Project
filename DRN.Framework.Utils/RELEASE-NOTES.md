@@ -2,6 +2,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.9.9
 
+### Breaking Changes
+
+*   **Strict Entity-Bound ID Generation**: Constrained `ISourceKnownIdUtils.Next<TEntity>()` to `where TEntity : SourceKnownEntity` and required all dynamic `Next(Type)` invocations to target `SourceKnownEntity` subclasses, eliminating ambient `_nexusAppId` fallback and ensuring 100% of generated IDs are derived from domain `[EntityType]` attributes. Consumers generating IDs for non-entity types or unannotated classes must derive their types from `SourceKnownEntity` and annotate them with `[EntityType<TApp>]` or use explicit `SourceKnownIdUtils.Generate<TEntity>(byte appId, byte appInstanceId)`.
+
 ### New Features
 
 *   **AesGcmEncryptorBase Cryptographic Primitive**: Added `AesGcmEncryptorBase` and `AesGcmEncryptedData` under `DRN.Framework.Utils.Data.Encryption` for clean, context-separated AES-256-GCM symmetric encryption and decryption with automatic BLAKE3 subkey derivation from `IAppSecuritySettings`.
@@ -11,7 +15,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **HttpMessageHandler DI Injection**: `InternalRequest` and `ExternalRequest` now accept an optional `HttpMessageHandler?` via dependency injection, allowing in-memory routing handlers (such as `ApplicationContextRouterHandler` during integration testing) to intercept and route Flurl calls without global static cache mutation.
 *   **Non-Generic Next(Type) & Generate(Type) ID Generation**: Added `Next(Type entityType)` and `Next(Type entityType, byte appId, byte appInstanceId, DateTimeOffset? epoch)` overloads on `ISourceKnownIdUtils` and `SourceKnownIdUtils`, along with `Generate(Type entityType, ...)` and `Warmup(IEnumerable<Type> entityTypes)` static helpers and interface defaults. Implementations use high-performance compiled expression delegates (`ConcurrentDictionary<Type, Func<...>>`) to eliminate runtime `MethodInfo.Invoke` reflection on dynamic type ID generation paths with zero heap allocations on steady-state and zero cold-start JIT delay via startup pre-warming.
 *   **MethodUtils Fast Invocation API**: Added `InvokeFast`, `InvokeMethodFast`, `InvokeStaticMethodFast`, `InvokeGenericMethodFast`, and `InvokeStaticGenericMethodFast` extension methods on `MethodUtils`. Fast invocation compiles dynamically discovered methods into `Func<object?, object?[], object?>` delegates via `System.Linq.Expressions.Expression`, caching them in a concurrent dictionary to eliminate `MethodInfo.Invoke` late-bound signature checks and overhead on warm reflection paths.
-*   **Composite EntityTypeId Validation & Generation**: Added `Validate(Guid, EntityTypeId)` and `Generate(long, EntityTypeId)` overloads on `ISourceKnownEntityIdUtils` and `SourceKnownEntityIdUtils` with non-breaking default interface method implementations. Generic `Generate<TEntity>(long)` and `Generate(SourceKnownEntity)` now enforce composite `(EntityType, AppId)` partition validation at generation time to prevent cross-partition ID construction.
+*   **Self-Generating EntityId Overloads**: Added parameterless `Generate<TEntity>()`, `GeneratePlain<TEntity>()`, and `GenerateSecure<TEntity>()` overloads on `ISourceKnownEntityIdUtils` and `SourceKnownEntityIdUtils` (`where TEntity : SourceKnownEntity`) to generate IDs and produce `SourceKnownEntityId` in a single type-safe invocation with zero intermediate type duplication.
 *   **DrnServiceContainer Backward Compatibility**: Preserved the original 2-parameter public constructor `DrnServiceContainer(Assembly, LifetimeAttribute[])` alongside the 3-parameter overload to maintain binary compatibility and prevent `MissingMethodException` for precompiled consumers.
 
 ## Version 0.9.8

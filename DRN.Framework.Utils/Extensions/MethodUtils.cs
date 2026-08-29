@@ -66,7 +66,7 @@ public static class MethodUtils
     private static Func<object?, object?[], object?> CompileMethodInvoker(MethodInfo method)
     {
         var instanceParam = Expression.Parameter(typeof(object), "instance");
-        var argsParam = Expression.Parameter(typeof(object?[]), "args");
+        var argsParam = Expression.Parameter(typeof(object[]), "args");
 
         var methodParams = method.GetParameters();
         var callArgs = new Expression[methodParams.Length];

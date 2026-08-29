@@ -93,6 +93,16 @@ public class SourceKnownEntityIdUtilsTests
 
         var plainGeneric = entityIdUtils.GeneratePlain<XEntity>(longId1);
         AssertValidEntityId(plainGeneric, longId1, nexusSettings, xEntityType, expectedSecure: false);
+
+        // Self-generating parameterless overloads
+        var selfGeneratedPlain = entityIdUtils.GeneratePlain<XEntity>();
+        AssertValidEntityId(selfGeneratedPlain, selfGeneratedPlain.Source.Id, nexusSettings, xEntityType, expectedSecure: false);
+
+        var selfGeneratedSecure = entityIdUtils.GenerateSecure<XEntity>();
+        AssertValidEntityId(selfGeneratedSecure, selfGeneratedSecure.Source.Id, nexusSettings, xEntityType, expectedSecure: true);
+
+        var selfGeneratedDispatched = entityIdUtils.Generate<XEntity>();
+        AssertValidEntityId(selfGeneratedDispatched, selfGeneratedDispatched.Source.Id, nexusSettings, xEntityType, expectedSecure: nexusSettings.UseSecureSourceKnownIds);
     }
 
     [Theory]
@@ -117,6 +127,11 @@ public class SourceKnownEntityIdUtilsTests
         var entityId = entityIdUtils.Generate(new XEntity(longId));
         AssertValidEntityId(entityId, longId, nexusSettings, SourceKnownEntity.GetEntityType<XEntity>(), expectedSecure: secure);
         AssertParseRoundTrip(entityIdUtils, entityId);
+
+        // Parameterless generic Generate<TEntity>() should also dispatch based on flag
+        var entityIdGeneric = entityIdUtils.Generate<XEntity>();
+        AssertValidEntityId(entityIdGeneric, entityIdGeneric.Source.Id, nexusSettings, SourceKnownEntity.GetEntityType<XEntity>(), expectedSecure: secure);
+        AssertParseRoundTrip(entityIdUtils, entityIdGeneric);
 
         // Explicit methods should always bypass the flag
         var explicitPlain = entityIdUtils.GeneratePlain(new XEntity(longId));

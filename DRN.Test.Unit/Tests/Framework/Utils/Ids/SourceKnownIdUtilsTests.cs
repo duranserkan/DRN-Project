@@ -63,7 +63,7 @@ public class SourceKnownIdUtilsTests
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
         await Task.Delay(1100); // 100ms buffer added to compensate caching effect
-        var id1 = generator.Next<SourceKnownIdUtilsTests>();
+        var id1 = generator.Next<CustomTestEntityForUtils>();
         await Task.Delay(1100);
 
         var afterIdGenerated = DateTimeOffset.UtcNow;
@@ -73,12 +73,12 @@ public class SourceKnownIdUtilsTests
 
         var idInfo1 = generator.Parse(id1);
         var idInfo1Duplicate = generator.Parse(id1);
-        idInfo1.AppId.Should().Be(nexusSettings.AppId);
+        idInfo1.AppId.Should().Be(77);
         idInfo1.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
 
         AssertCreatedAtWithinGeneratedRange(idInfo1, beforeIdGenerated, afterIdGenerated, epoch);
 
-        var id2 = generator.Next<SourceKnownIdUtilsTests>();
+        var id2 = generator.Next<CustomTestEntityForUtils>();
         (id2 > id1).Should().BeTrue();
 
         var idInfo2 = generator.Parse(id2);
@@ -117,7 +117,7 @@ public class SourceKnownIdUtilsTests
         var customEpoch = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
         var before = TimeStampManager.UtcNow;
-        var id = generator.Next<object>(appId: 10, appInstanceId: 5, epoch: customEpoch);
+        var id = generator.Next<CustomTestEntityForUtils>(appId: 10, appInstanceId: 5, epoch: customEpoch);
         var after = TimeStampManager.UtcNow;
         var parsed = generator.Parse(id, epoch: customEpoch);
 
@@ -180,15 +180,15 @@ public class SourceKnownIdUtilsTests
         context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
 
-        var idGeneric = generator.Next<SourceKnownIdUtilsTests>();
-        var idType = generator.Next(typeof(SourceKnownIdUtilsTests));
+        var idGeneric = generator.Next<CustomTestEntityForUtils>();
+        var idType = generator.Next(typeof(CustomTestEntityForUtils));
 
         var parsedGeneric = generator.Parse(idGeneric);
         var parsedType = generator.Parse(idType);
 
-        parsedType.AppId.Should().Be(nexusSettings.AppId);
+        parsedType.AppId.Should().Be(77);
         parsedType.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
-        parsedGeneric.AppId.Should().Be(nexusSettings.AppId);
+        parsedGeneric.AppId.Should().Be(77);
         parsedGeneric.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
     }
 
@@ -219,7 +219,7 @@ public class SourceKnownIdUtilsTests
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
         var customEpoch = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-        var id = generator.Next(typeof(SourceKnownIdUtilsTests), appId: 42, appInstanceId: 18, epoch: customEpoch);
+        var id = generator.Next(typeof(CustomTestEntityForUtils), appId: 42, appInstanceId: 18, epoch: customEpoch);
         var parsed = generator.Parse(id, epoch: customEpoch);
 
         parsed.Id.Should().Be(id);
@@ -234,7 +234,7 @@ public class SourceKnownIdUtilsTests
         byte appInstanceId = 7;
         var epoch = EpochTimeUtils.Epoch2025;
 
-        var id = SourceKnownIdUtils.Generate(typeof(SourceKnownIdUtilsTests), appId, appInstanceId, epoch);
+        var id = SourceKnownIdUtils.Generate(typeof(CustomTestEntityForUtils), appId, appInstanceId, epoch);
         var parsed = SourceKnownIdUtils.ParseId(id, epoch);
 
         parsed.Id.Should().Be(id);
@@ -244,17 +244,28 @@ public class SourceKnownIdUtilsTests
 
     [Theory]
     [DataInlineUnit]
-    public void Next_WithType_With_NonClass_Type_Should_Throw_ArgumentException(DrnTestContextUnit context)
+    public void Next_WithType_With_NonEntity_Type_Should_Throw_ArgumentException(DrnTestContextUnit context)
     {
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
-        var act = () => generator.Next(typeof(int));
-        act.Should().Throw<ArgumentException>();
 
-        var actExplicit = () => generator.Next(typeof(int), 1, 1);
-        actExplicit.Should().Throw<ArgumentException>();
+        // Value types must throw ArgumentException
+        var actValueType = () => generator.Next(typeof(int));
+        actValueType.Should().Throw<ArgumentException>();
 
-        var actGenerate = () => SourceKnownIdUtils.Generate(typeof(int), 1, 1);
-        actGenerate.Should().Throw<ArgumentException>();
+        var actValueTypeExplicit = () => generator.Next(typeof(int), 1, 1);
+        actValueTypeExplicit.Should().Throw<ArgumentException>();
+
+        var actValueTypeGenerate = () => SourceKnownIdUtils.Generate(typeof(int), 1, 1);
+        actValueTypeGenerate.Should().Throw<ArgumentException>();
+
+        // Non-entity class types must throw ArgumentException on Next(Type)
+        var actNonEntityClass = () => generator.Next(typeof(SourceKnownIdUtilsTests));
+        actNonEntityClass.Should().Throw<ArgumentException>()
+            .WithMessage($"Type '{typeof(SourceKnownIdUtilsTests).FullName}' must inherit from '{nameof(SourceKnownEntity)}'.*");
+
+        var actNonEntityClassExplicit = () => generator.Next(typeof(SourceKnownIdUtilsTests), 1, 1);
+        actNonEntityClassExplicit.Should().Throw<ArgumentException>()
+            .WithMessage($"Type '{typeof(SourceKnownIdUtilsTests).FullName}' must inherit from '{nameof(SourceKnownEntity)}'.*");
     }
 
     [Theory]
@@ -297,7 +308,7 @@ public class SourceKnownIdUtilsTests
         var parsed = generator.Parse(id);
         parsed.AppId.Should().Be(77);
 
-        var generated = SourceKnownIdUtils.Generate(typeof(SourceKnownIdUtilsTests), 10, 5);
+        var generated = SourceKnownIdUtils.Generate(typeof(CustomTestEntityForUtils), 10, 5);
         var parsedGenerated = SourceKnownIdUtils.ParseId(generated, EpochTimeUtils.DefaultEpoch);
         parsedGenerated.AppId.Should().Be(10);
         parsedGenerated.AppInstanceId.Should().Be(5);
@@ -313,7 +324,7 @@ public class SourceKnownIdUtilsTests
     [Fact]
     public void Warmup_With_Mixed_Nulls_And_ValueTypes_Should_Safely_Ignore_Them()
     {
-        var act = () => SourceKnownIdUtils.Warmup([null!, typeof(int), typeof(SourceKnownIdUtilsTests)]);
+        var act = () => SourceKnownIdUtils.Warmup([null!, typeof(int), typeof(SourceKnownIdUtilsTests), typeof(CustomTestEntityForUtils)]);
         act.Should().NotThrow();
     }
 

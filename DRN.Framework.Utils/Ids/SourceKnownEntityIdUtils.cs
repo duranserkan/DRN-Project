@@ -18,6 +18,9 @@ namespace DRN.Framework.Utils.Ids;
 /// </summary>
 public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
 {
+    /// <summary>Generates a new ID via <see cref="ISourceKnownIdUtils.Next{TEntity}()"/> and dispatches to <c>GenerateSecure</c> or <c>GeneratePlain</c> based on <c>AppSettings.NexusAppSettings.UseSecureSourceKnownIds</c>.</summary>
+    SourceKnownEntityId Generate<TEntity>() where TEntity : SourceKnownEntity;
+
     /// <summary>Dispatches to <c>GenerateSecure</c> or <c>GeneratePlain</c> based on <c>AppSettings.NexusAppSettings.UseSecureSourceKnownIds</c>.</summary>
     SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity;
 
@@ -35,6 +38,9 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
         return result;
     }
 
+    /// <summary>Generates a new ID via <see cref="ISourceKnownIdUtils.Next{TEntity}()"/> and produces a Secure <see cref="SourceKnownEntityId"/>.</summary>
+    SourceKnownEntityId GenerateSecure<TEntity>() where TEntity : SourceKnownEntity;
+
     SourceKnownEntityId GenerateSecure<TEntity>(long id) where TEntity : SourceKnownEntity;
     SourceKnownEntityId GenerateSecure(SourceKnownEntity entity);
     SourceKnownEntityId GenerateSecure(long id, byte entityType);
@@ -44,6 +50,9 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
         result.Validate(entityTypeId);
         return result;
     }
+
+    /// <summary>Generates a new ID via <see cref="ISourceKnownIdUtils.Next{TEntity}()"/> and produces a Plain <see cref="SourceKnownEntityId"/>.</summary>
+    SourceKnownEntityId GeneratePlain<TEntity>() where TEntity : SourceKnownEntity;
 
     SourceKnownEntityId GeneratePlain<TEntity>(long id) where TEntity : SourceKnownEntity;
     SourceKnownEntityId GeneratePlain(SourceKnownEntity entity);
@@ -164,6 +173,9 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         _useSecure = appSettings.NexusAppSettings.UseSecureSourceKnownIds;
     }
 
+    public SourceKnownEntityId Generate<TEntity>() where TEntity : SourceKnownEntity
+        => Generate<TEntity>(_sourceKnownIdUtils.Next<TEntity>());
+
     public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity
         => Generate(id, SourceKnownEntity.GetEntityTypeId<TEntity>());
 
@@ -178,6 +190,9 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     }
 
     public SourceKnownEntityId Generate(long id, byte entityType) => _useSecure ? GenerateSecure(id, entityType) : GeneratePlain(id, entityType);
+
+    public SourceKnownEntityId GeneratePlain<TEntity>() where TEntity : SourceKnownEntity
+        => GeneratePlain<TEntity>(_sourceKnownIdUtils.Next<TEntity>());
 
     public SourceKnownEntityId GeneratePlain<TEntity>(long id) where TEntity : SourceKnownEntity
         => GeneratePlain(id, SourceKnownEntity.GetEntityTypeId<TEntity>());
@@ -207,6 +222,9 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
 
         return new SourceKnownEntityId(sourceKnownId, entityId, entityType, true, Secure: false);
     }
+
+    public SourceKnownEntityId GenerateSecure<TEntity>() where TEntity : SourceKnownEntity
+        => GenerateSecure<TEntity>(_sourceKnownIdUtils.Next<TEntity>());
 
     public SourceKnownEntityId GenerateSecure<TEntity>(long id) where TEntity : SourceKnownEntity
         => GenerateSecure(id, SourceKnownEntity.GetEntityTypeId<TEntity>());

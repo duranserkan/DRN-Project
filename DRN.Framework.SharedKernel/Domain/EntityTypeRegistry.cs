@@ -60,6 +60,9 @@ public static class EntityTypeRegistry
         lock (SyncLock)
         {
             var current = _snapshot;
+            if (current.DynamicTypeToId.IsEmpty && current.DynamicIdToType.IsEmpty && AllRegistered(current.TypeToId, entityTypes))
+                return;
+
             var typeToIdMap = new Dictionary<Type, EntityTypeId>(current.TypeToId);
             var idToTypeMap = new Dictionary<EntityTypeId, Type>(current.IdToType);
 
@@ -100,6 +103,17 @@ public static class EntityTypeRegistry
                 new ConcurrentDictionary<Type, EntityTypeId>(),
                 new ConcurrentDictionary<EntityTypeId, Type>());
         }
+    }
+
+    private static bool AllRegistered(FrozenDictionary<Type, EntityTypeId> registered, IEnumerable<Type> types)
+    {
+        if (registered.Count == 0) return false;
+        foreach (var type in types)
+        {
+            if (!registered.ContainsKey(type))
+                return false;
+        }
+        return true;
     }
 
     /// <summary>
