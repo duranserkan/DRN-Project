@@ -266,6 +266,10 @@ public class SourceKnownIdUtilsTests
         var actNonEntityClassExplicit = () => generator.Next(typeof(SourceKnownIdUtilsTests), 1, 1);
         actNonEntityClassExplicit.Should().Throw<ArgumentException>()
             .WithMessage($"Type '{typeof(SourceKnownIdUtilsTests).FullName}' must inherit from '{nameof(SourceKnownEntity)}'.*");
+
+        var actNonEntityClassGenerate = () => SourceKnownIdUtils.Generate(typeof(SourceKnownIdUtilsTests), 1, 1);
+        actNonEntityClassGenerate.Should().Throw<ArgumentException>()
+            .WithMessage($"Type '{typeof(SourceKnownIdUtilsTests).FullName}' must inherit from '{nameof(SourceKnownEntity)}'.*");
     }
 
     [Theory]

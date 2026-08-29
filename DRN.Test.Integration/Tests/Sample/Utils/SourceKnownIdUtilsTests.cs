@@ -17,8 +17,8 @@ public class CustomIntegrationTestEntity : SourceKnownEntity;
 public class SourceKnownIdUtilsTests
 {
     [Theory]
-    [DataInlineUnit]
-    public async Task SourceKnownIdUtils_Should_Generate_Ids_For_3_Seconds(DrnTestContextUnit context)
+    [DataInline]
+    public async Task SourceKnownIdUtils_Should_Generate_Ids_For_3_Seconds(DrnTestContext context)
     {
         var nexusSettings = new NexusAppSettings
         {

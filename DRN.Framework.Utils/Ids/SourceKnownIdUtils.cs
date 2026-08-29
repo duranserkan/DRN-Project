@@ -117,8 +117,8 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     public static long Generate(Type entityType, byte appId, byte appInstanceId, DateTimeOffset? epoch = null)
     {
         ArgumentNullException.ThrowIfNull(entityType);
-        if (!entityType.IsClass)
-            throw new ArgumentException($"Type '{entityType.FullName}' must be a reference type (class).", nameof(entityType));
+        if (!typeof(SourceKnownEntity).IsAssignableFrom(entityType))
+            throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
 
         var invoker = TypeGenerateDelegateCache.GetOrAdd(entityType, static type => CompileGenerateDelegate(type));
 
