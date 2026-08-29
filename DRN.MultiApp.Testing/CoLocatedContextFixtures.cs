@@ -24,6 +24,13 @@ public sealed class CoLocatedSecondEntity : SourceKnownEntity;
 [EntityType<CoLocatedFirstApp>(2)]
 public sealed class CoLocatedNonModelDomainEntity : SourceKnownEntity;
 
+public static class CoLocatedPrivateEntityFixture
+{
+    public static Type EntityType => typeof(PrivateEntity);
+
+    private sealed class PrivateEntity : SourceKnownEntity;
+}
+
 public class CoLocatedFirstContext(DbContextOptions<CoLocatedFirstContext> options) : DbContext(options)
 {
     public DbSet<CoLocatedFirstEntity> FirstEntities => Set<CoLocatedFirstEntity>();

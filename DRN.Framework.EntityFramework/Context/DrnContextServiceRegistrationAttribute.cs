@@ -332,7 +332,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
 
         var assemblyTypes = assemblies
             .SelectMany(GetAssemblyDomainEntityTypes)
-            .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false } &&
+            .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false, IsNestedPrivate: false } &&
                         t.IsAssignableTo(typeof(SourceKnownEntity)));
 
         return modelTypes.Concat(assemblyTypes).Distinct().ToArray();

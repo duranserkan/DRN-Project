@@ -54,7 +54,7 @@ DrnContext augments entities during `OnModelCreating` and runtime:
 | **Secure ↔ Plain** | `ToSecure` / `ToPlain` on entity and repository for idempotent ID form conversion |
 | **JSON Models** | `IEntityWithModel<T>` auto-maps `.Model` to `jsonb` column |
 | **Identity Naming** | ASP.NET Core Identity tables/columns → `snake_case` for PostgreSQL |
-| **Startup Validation** | Validates all SourceKnownEntity entities have valid, unique `(EntityType, AppId)` pairs while permitting the same entity byte in different application partitions |
+| **Startup Validation** | Validates non-private SourceKnownEntity entities have valid, unique `(EntityType, AppId)` pairs while permitting the same entity byte in different application partitions; nested private helper entities are ignored |
 
 ---
 

@@ -263,6 +263,7 @@ public class DrnContextServiceRegistrationAttributeTests
         hostEntities.Should().Contain(typeof(DRN.MultiApp.Testing.CoLocatedFirstEntity));
         hostEntities.Should().Contain(typeof(DRN.MultiApp.Testing.CoLocatedSecondEntity));
         hostEntities.Should().Contain(typeof(DRN.MultiApp.Testing.CoLocatedNonModelDomainEntity));
+        hostEntities.Should().NotContain(DRN.MultiApp.Testing.CoLocatedPrivateEntityFixture.EntityType);
 
         EntityTypeRegistry.Register(hostEntities);
         var entityTypeId = new EntityTypeId(2, DRN.MultiApp.Testing.CoLocatedFirstApp.AppId);
