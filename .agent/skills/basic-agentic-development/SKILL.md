@@ -59,6 +59,7 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 - Identify affected files and dependencies
 - Consider security implications (Priority Stack)
 - For significant changes: write plan, seek approval
+- Design and optimize for pit of success
 - Omit restore/build/run/test/benchmark/load-test steps from plans unless explicitly allowed.
 
 ### 3. Execution

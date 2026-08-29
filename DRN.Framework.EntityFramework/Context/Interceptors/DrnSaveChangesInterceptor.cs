@@ -1,6 +1,5 @@
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
 using Microsoft.EntityFrameworkCore;
@@ -13,8 +12,6 @@ public interface IDrnSaveChangesInterceptor : ISaveChangesInterceptor, ISingleto
 [Singleton<IDrnSaveChangesInterceptor>]
 public class DrnSaveChangesInterceptor(ISourceKnownIdUtils idUtils, ISourceKnownEntityIdUtils entityIdUtils) : IDrnSaveChangesInterceptor
 {
-    private const string NextId = nameof(SourceKnownIdUtils.Next);
-
     public ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
     {
         MarkEntities(eventData, idUtils, entityIdUtils);
@@ -40,7 +37,7 @@ public class DrnSaveChangesInterceptor(ISourceKnownIdUtils idUtils, ISourceKnown
             {
                 case EntityState.Added:
                     if (entity.Id == 0)
-                        entity.Id = (long)idUtils.InvokeGenericMethod(NextId, entity.GetType())!;
+                        entity.Id = idUtils.Next(entity);
                     if (entity.EntityId == Guid.Empty)
                         entity.EntityIdSource = entityIdUtils.Generate(entity);
 

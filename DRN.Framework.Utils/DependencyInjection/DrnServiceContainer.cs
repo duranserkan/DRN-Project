@@ -18,19 +18,35 @@ public class DrnServiceContainer
     public IReadOnlyList<AttributeSpecifiedServiceModule> AttributeSpecifiedModules { get; }
     public bool FrameworkAssembly { get; }
 
-    public DrnServiceContainer(Assembly assembly, LifetimeAttribute[] lifetimeAttributes) : this(assembly, lifetimeAttributes,
-        assembly.GetTypes().Where(ServiceRegistrationAttribute.HasServiceCollectionModule).ToArray())
+    public DrnServiceContainer(Assembly assembly, LifetimeAttribute[] lifetimeAttributes) : this(
+        assembly,
+        lifetimeAttributes,
+        (AttributeSpecifiedServiceModule[]?)null)
+    {
+    }
+
+    public DrnServiceContainer(
+        Assembly assembly,
+        LifetimeAttribute[] lifetimeAttributes,
+        AttributeSpecifiedServiceModule[]? attributeSpecifiedModules) : this(
+        assembly,
+        lifetimeAttributes,
+        assembly.GetTypes().Where(ServiceRegistrationAttribute.HasServiceCollectionModule).ToArray(),
+        attributeSpecifiedModules)
     {
     }
 
     internal DrnServiceContainer(
         Assembly assembly,
         LifetimeAttribute[] lifetimeAttributes,
-        IReadOnlyList<Type> serviceRegistrationTypes)
+        IReadOnlyList<Type> serviceRegistrationTypes,
+        AttributeSpecifiedServiceModule[]? attributeSpecifiedModules = null)
     {
         Assembly = assembly;
         LifetimeAttributes = Array.AsReadOnly(lifetimeAttributes.ToArray());
         _serviceRegistrationTypes = serviceRegistrationTypes;
+        if (attributeSpecifiedModules != null)
+            _attributeSpecifiedModules.AddRange(attributeSpecifiedModules);
         AttributeSpecifiedModules = _attributeSpecifiedModules.AsReadOnly();
         FrameworkAssembly = Assembly.FullName?.StartsWith("DRN.Framework") ?? false;
     }

@@ -70,6 +70,34 @@ public class MethodUtilsStaticTests
     }
 
     [Fact]
+    public void MethodUtils_Should_Invoke_Static_Method_Fast()
+    {
+        var value = Type.InvokeStaticMethodFast(StaticMethodName);
+        value.Should().Be(2);
+    }
+
+    [Fact]
+    public void MethodUtils_Should_Invoke_Static_Method_Fast_With_Parameter()
+    {
+        var value = Type.InvokeStaticMethodFast(StaticMethodName, 9);
+        value.Should().Be(9);
+    }
+
+    [Fact]
+    public void MethodUtils_Should_Invoke_Static_Generic_Method_Fast()
+    {
+        var value = Type.InvokeStaticGenericMethodFast(StaticMethodName, Type);
+        value.Should().Be(3);
+    }
+
+    [Fact]
+    public void MethodUtils_Should_Invoke_Static_Generic_Method_Fast_With_Parameter()
+    {
+        var value = Type.InvokeStaticGenericMethodFast(StaticMethodName, [Type], 12);
+        value.Should().Be(12);
+    }
+
+    [Fact]
     public void MethodUtils_Validate_ExtensionMethod()
     {
         typeof(ExtensionMethodContainer).GetMethod(nameof(ExtensionMethodContainer.ExtensionMethod))!

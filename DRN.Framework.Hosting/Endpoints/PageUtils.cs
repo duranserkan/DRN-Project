@@ -1,4 +1,4 @@
-using System.Reflection;
+using System.Runtime.CompilerServices;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -58,12 +58,11 @@ public class PageUtils(
             var viewContext = new ViewContext(actionContext, razorView, model.PageContext.ViewData, tempDictionary, writer, new HtmlHelperOptions());
             viewContext.HttpContext = context;
 
-            razorView.GetType().GetProperty("OnAfterPageActivated", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .SetValue(razorView, (IRazorPage rp, ViewContext vc) =>
-                {
-                    var p = (Page)rp;
-                    _ = p;
-                });
+            SetOnAfterPageActivated(razorView, static (rp, vc) =>
+            {
+                var p = (Page)rp;
+                _ = p;
+            });
 
             await razorView.RenderAsync(viewContext);
 
@@ -81,4 +80,7 @@ public class PageUtils(
             context.Uninitialize();
         }
     }
+
+    [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "set_OnAfterPageActivated")]
+    private static extern void SetOnAfterPageActivated(RazorView view, Action<IRazorPage, ViewContext>? value);
 }

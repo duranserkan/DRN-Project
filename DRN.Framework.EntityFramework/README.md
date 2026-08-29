@@ -54,7 +54,8 @@ Define a DbContext and entity with automatic ID generation:
 // 1. Define your application partition and entity
 public readonly struct MyApp : IAppId
 {
-    public static byte AppId => 1;
+    public const byte Value = 1;
+    public static byte AppId => Value;
 }
 
 [EntityType<MyApp>(1)] // Unique byte within MyApp partition
@@ -85,10 +86,18 @@ public class UserService(AppContext context)
 }
 ```
 
-Register the assembly containing the context during application startup:
+Register the assembly containing the context during application startup and configure the matching `AppId` in `appsettings.json`:
 
 ```csharp
 builder.Services.AddServicesWithAttributes(typeof(AppContext).Assembly);
+```
+
+```json
+{
+  "NexusAppSettings": {
+    "AppId": 1
+  }
+}
 ```
 
 `DRN.Framework.Hosting` runs startup validation, migration, and seeding automatically. Standalone hosts must integrate the framework startup validation lifecycle explicitly.
@@ -245,7 +254,7 @@ await context.SaveChangesAsync(); // External identity and lifecycle state are i
 When the framework startup validation lifecycle runs, registered contexts are validated:
 
 *   **Context Validation**: Validates that registered contexts can be resolved.
-*   **Entity Type Check**: Ensures Source-Known entities have unique `(EntityType, AppId)` pairs while allowing the same entity byte in different application partitions.
+*   **Entity Type Check**: Ensures non-private Source-Known entities have unique `(EntityType, AppId)` pairs while allowing the same entity byte in different application partitions. Nested private helper entities are ignored, matching compile-time analyzer eligibility.
 *   **Auto-Migration & Seeding**:
     *   Applies pending migrations when automatic migration is enabled for the current environment.
     *   Runs `SeedAsync` after this package applies migrations or creates or recreates a prototype database. Seed implementations must be idempotent. See [EF Core Data Seeding Guidance](https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding).

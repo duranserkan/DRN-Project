@@ -1,4 +1,4 @@
-using DRN.Framework.Utils.Extensions;
+using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -10,24 +10,26 @@ public static class AppBuilderExtensions
 {
     //Todo implement application dependency summary as well(Packages, projects etc)
     
+    [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "get_ApplicationBuilder")]
+    private static extern ApplicationBuilder GetApplicationBuilder(WebApplication app);
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_components")]
+    private static extern ref List<Func<RequestDelegate, RequestDelegate>> GetComponents(ApplicationBuilder builder);
+
     public static RequestPipelineSummary GetRequestPipelineSummary(this WebApplication app)
     {
         IList<string> startupFilters = [];
         IList<string> middlewares; //todo get middleware details such as in which stage added in the ConfigureApplication pipeline
         try
         {
-            var applicationBuilder = (ApplicationBuilder)typeof(WebApplication)
-                .GetProperty(nameof(ApplicationBuilder), BindingFlag.InstanceNonPublic)
-                !.GetValue(app)!;
+            var applicationBuilder = GetApplicationBuilder(app);
 
             var filters = app.Services.GetServices<IStartupFilter>();
             startupFilters = filters.Select(f => f.GetType().FullName ?? string.Empty).ToList();
 
-            var components = (List<Func<RequestDelegate, RequestDelegate>>?)typeof(ApplicationBuilder)
-                .GetField("_components",BindingFlag.InstanceNonPublic)?
-                .GetValue(applicationBuilder)?? [];
+            var components = GetComponents(applicationBuilder) ?? [];
             
-            middlewares = components.Select(x=>x.Target?.ToString() ?? string.Empty).ToList();
+            middlewares = components.Select(x => x.Target?.ToString() ?? string.Empty).ToList();
         }
         catch (Exception e)
         {

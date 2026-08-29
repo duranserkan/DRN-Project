@@ -293,7 +293,8 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
 
     public readonly struct IetfTestApp : IAppId
     {
-        public static byte AppId => TestAppId;
+        public const byte Value = TestAppId;
+        public static byte AppId => Value;
     }
 
     [EntityType<IetfTestApp>(TestEntityType)]

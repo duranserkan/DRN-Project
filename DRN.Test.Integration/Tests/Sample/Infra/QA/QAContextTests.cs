@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Domain;
 using Microsoft.EntityFrameworkCore;
 using Sample.Domain;
 using Sample.Domain.QA.Categories;
@@ -15,9 +16,8 @@ public class QAContextTests
     [DataInline]
     public async Task QAContext_Should_Add_And_Remove_Question(DrnTestContext context)
     {
-        byte heroCount = 33;
         byte destinationId = 12;
-        context.AddToConfiguration(new { NexusAppSettings = new NexusAppSettings { AppId = heroCount, AppInstanceId = destinationId } });
+        context.AddToConfiguration(new { NexusAppSettings = new NexusAppSettings { AppId = DefaultApp.AppId, AppInstanceId = destinationId } });
         context.ServiceCollection.AddSampleInfraServices();
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
 
@@ -40,7 +40,7 @@ public class QAContextTests
         category.EntityIdSource.Valid.Should().BeTrue();
         category.EntityIdSource.EntityType.Should().Be((byte)SampleEntityTypes.Category);
         category.EntityIdSource.Source.Id.Should().Be(category.Id);
-        category.EntityIdSource.Source.AppId.Should().Be(appSettings.NexusAppSettings.AppId);
+        category.EntityIdSource.Source.AppId.Should().Be(DefaultApp.AppId);
         category.EntityIdSource.Source.AppInstanceId.Should().Be(appSettings.NexusAppSettings.AppInstanceId);
         category.CreatedAt.Should().BeAfter(beforeCategoryCreation);
         category.ModifiedAt.Should().BeAfter(beforeCategoryCreation);

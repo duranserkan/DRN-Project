@@ -413,7 +413,7 @@ Nested option objects must be validated explicitly before relying on child data 
 
 ### NexusAppSettings and Nexus Keys
 
-`NexusAppSettings` provides Nexus routing, source-known ID generator identity, secure/plain ID mode, and the Nexus key ring used by `SourceKnownEntityIdUtils`.
+`NexusAppSettings` provides Nexus routing, source-known ID generator instance configuration, secure/plain ID mode, and the Nexus key ring used by `SourceKnownEntityIdUtils`. Domain entity ID generation automatically derives application partition identity (`AppId`) from entity `[EntityType<TApp>]` metadata, while configured `NexusAppSettings.AppId` defines the host's client routing partition and host domain partition alignment in Entity Framework.
 
 ```json
 {

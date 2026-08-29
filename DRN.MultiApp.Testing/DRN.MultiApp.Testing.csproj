@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AllowMultipleAppIds>true</AllowMultipleAppIds>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="DRN.Test.Unit" />
+        <InternalsVisibleTo Include="DRN.Test.Integration" />
+    </ItemGroup>
+
+</Project>

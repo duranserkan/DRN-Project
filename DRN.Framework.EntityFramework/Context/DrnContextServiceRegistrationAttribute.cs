@@ -5,8 +5,10 @@ using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Data.Serialization;
+using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Entity;
+using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Models;
 using DRN.Framework.Utils.Settings;
@@ -96,8 +98,67 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             scopedProvider.ServiceProvider.GetRequiredService(context.GetType());
         }
 
-        ValidateEntityTypes(context, scopedLog);
+        var appSettings = serviceProvider.GetService<IAppSettings>();
+        PreValidateAllDbContexts(serviceProvider, scopedLog, appSettings, context);
+        ValidateEntityTypes(context, scopedLog, appSettings, serviceProvider);
         serviceProvider.GetRequiredService(context.GetType());
+    }
+
+    private static void PreValidateAllDbContexts(IServiceProvider serviceProvider, IScopedLog? scopedLog, IAppSettings? appSettings, DbContext? currentContext = null)
+    {
+        var allDbContexts = new List<DbContext>();
+        var containers = serviceProvider.GetServices<DrnServiceContainer>();
+        foreach (var container in containers)
+        {
+            foreach (var module in container.AttributeSpecifiedModules)
+            {
+                if (module.ModuleAttribute is not DrnContextServiceRegistrationAttribute) continue;
+                foreach (var descriptor in module.ServiceDescriptors)
+                {
+                    if (descriptor.ServiceType.IsAssignableTo(typeof(DbContext)))
+                    {
+                        if (serviceProvider.GetRequiredService(descriptor.ServiceType) is DbContext dbContext)
+                            allDbContexts.Add(dbContext);
+                    }
+                }
+            }
+        }
+
+        if (currentContext != null && !allDbContexts.Any(c => c.GetType() == currentContext.GetType()))
+            allDbContexts.Add(currentContext);
+
+        var allDomainTypes = GetHostDomainEntityTypes(serviceProvider, allDbContexts);
+
+        var hostValidation = GetEntityTypeValidationResult(allDomainTypes);
+        var missingAttributes = hostValidation.MissingEntityTypes;
+        var duplicateAttributePairs = hostValidation.DuplicateEntityTypes;
+
+        if (missingAttributes.Length > 0)
+            scopedLog?.Add("HostEntityTypesMissing", hostValidation.MissingEntityTypes);
+        if (duplicateAttributePairs.Length > 0)
+            scopedLog?.Add("HostEntityTypesDuplicate", hostValidation.DuplicateEntityTypes);
+
+        if (missingAttributes.Length > 0 || duplicateAttributePairs.Length > 0)
+        {
+            var validationDetails = string.Empty;
+            if (scopedLog == null)
+                validationDetails = hostValidation.Serialize();
+            else
+            {
+                if (missingAttributes.Length > 0)
+                    validationDetails += " Check: EntityTypeMissingIds.";
+                if (duplicateAttributePairs.Length > 0)
+                    validationDetails += " Check: EntityTypeDuplicateIds.";
+            }
+
+            throw new UnprocessableEntityException($"Invalid Host Entity Type Configuration: {validationDetails}");
+        }
+
+        EntityTypeRegistry.Register(allDomainTypes);
+        SourceKnownIdUtils.Warmup(allDomainTypes);
+
+        foreach (var dbContext in allDbContexts)
+            ValidateEntityTypes(dbContext, scopedLog, appSettings, serviceProvider);
     }
 
     /// <summary>
@@ -142,20 +203,22 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         return changeModel;
     }
 
-    private static void ValidateEntityTypes(DbContext context, IScopedLog? scopedLog)
+    internal static void ValidateEntityTypes(DbContext context, IScopedLog? scopedLog, IAppSettings? appSettings = null, IServiceProvider? serviceProvider = null)
     {
-        var entityTypes = context.Model.GetEntityTypes().Select(entityType => entityType.ClrType).ToArray();
-        var domainTypes = entityTypes.Where(type => type.IsAssignableTo(typeof(SourceKnownEntity))).ToArray();
+        var domainTypes = GetModelDomainEntityTypes(context);
         var idValidation = GetEntityTypeValidationResult(domainTypes);
         var missingAttributes = idValidation.MissingEntityTypes;
         var duplicateAttributePairs = idValidation.DuplicateEntityTypes;
+        var multipleAppIds = idValidation.MultipleAppIds;
 
         if (missingAttributes.Length > 0)
             scopedLog?.Add("EntityTypesMissing", idValidation.MissingEntityTypes);
         if (duplicateAttributePairs.Length > 0)
             scopedLog?.Add("EntityTypesDuplicate", idValidation.DuplicateEntityTypes);
+        if (multipleAppIds.Length > 0)
+            scopedLog?.Add("EntityTypesMultipleAppIds", idValidation.MultipleAppIds);
 
-        if (missingAttributes.Length > 0 || duplicateAttributePairs.Length > 0)
+        if (missingAttributes.Length > 0 || duplicateAttributePairs.Length > 0 || multipleAppIds.Length > 0)
         {
             var validationDetails = string.Empty;
             if (scopedLog == null)
@@ -166,15 +229,139 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
                     validationDetails += " Check: EntityTypeMissingIds.";
                 if (duplicateAttributePairs.Length > 0)
                     validationDetails += " Check: EntityTypeDuplicateIds.";
+                if (multipleAppIds.Length > 0)
+                    validationDetails += $" Check: MultipleAppIds ({string.Join(", ", multipleAppIds)}).";
             }
 
             throw new UnprocessableEntityException($"Invalid Entity Type Configuration: {validationDetails}");
         }
 
-        //Validates Entity Type Ids implicitly by calling GetEntityType on Entity
-        //This will catch application wide inconsistencies. Previous validation was module-wide;
-        var entityTypeValues = domainTypes.Select(SourceKnownEntity.GetEntityType).ToArray();
-        _ = entityTypeValues;
+        // Validates and bulk registers domain entity types into the immutable EntityTypeRegistry.
+        // This catches application-wide inconsistencies and freezes the lookup snapshot.
+        EntityTypeRegistry.Register(domainTypes);
+
+        var configuredAppId = appSettings?.NexusAppSettings.AppId ?? 0;
+        if (idValidation.NonTestAppIds.Length == 1)
+        {
+            var domainAppId = idValidation.NonTestAppIds[0];
+            var hostAppIds = GetHostDomainAppIds(serviceProvider, context);
+            var isMatched = configuredAppId == domainAppId || hostAppIds.Contains(configuredAppId);
+            if (!isMatched)
+                throw new ConfigurationException($"NexusAppSettings:AppId ({configuredAppId}) does not match {context.GetType().Name} domain partition AppId ({domainAppId}) or any registered domain partition in the host.");
+        }
+    }
+
+    private static byte[] GetHostDomainAppIds(IServiceProvider? serviceProvider, DbContext context)
+    {
+        if (serviceProvider == null)
+            return [];
+
+        var hostAppIds = new HashSet<byte>();
+        var containers = serviceProvider.GetServices<DrnServiceContainer>();
+        foreach (var container in containers)
+        {
+            foreach (var module in container.AttributeSpecifiedModules)
+            {
+                if (module.ModuleAttribute is not DrnContextServiceRegistrationAttribute) continue;
+                foreach (var descriptor in module.ServiceDescriptors)
+                {
+                    if (descriptor.ServiceType.IsAssignableTo(typeof(DbContext)))
+                    {
+                        if (serviceProvider.GetService(descriptor.ServiceType) is DbContext dbContext)
+                        {
+                            var domainTypes = GetModelDomainEntityTypes(dbContext);
+                            foreach (var type in domainTypes)
+                            {
+                                var attr = type.GetCustomAttribute<EntityTypeAttribute>();
+                                if (attr != null && attr.AppId != IAppId.TestAppId)
+                                    hostAppIds.Add(attr.AppId);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach (var type in GetModelDomainEntityTypes(context))
+        {
+            var attr = type.GetCustomAttribute<EntityTypeAttribute>();
+            if (attr != null && attr.AppId != IAppId.TestAppId)
+                hostAppIds.Add(attr.AppId);
+        }
+
+        return hostAppIds.ToArray();
+    }
+
+    internal static Type[] GetModelDomainEntityTypes(DbContext context) =>
+        context.Model.GetEntityTypes()
+            .Select(e => e.ClrType)
+            .Where(t => t.IsAssignableTo(typeof(SourceKnownEntity)))
+            .Distinct()
+            .ToArray();
+
+    internal static Type[] GetHostDomainEntityTypes(IServiceProvider? serviceProvider, IReadOnlyCollection<DbContext>? dbContexts = null)
+    {
+        var contexts = dbContexts ?? [];
+        var modelTypes = contexts.SelectMany(GetModelDomainEntityTypes).Distinct().ToArray();
+
+        var assemblies = new HashSet<Assembly>();
+
+        if (serviceProvider != null)
+        {
+            var containers = serviceProvider.GetServices<DrnServiceContainer>();
+            foreach (var container in containers)
+            {
+                if (!IsTestAssembly(container.Assembly))
+                    assemblies.Add(container.Assembly);
+            }
+        }
+
+        foreach (var context in contexts)
+        {
+            var contextAssembly = context.GetType().Assembly;
+            if (!IsTestAssembly(contextAssembly))
+                assemblies.Add(contextAssembly);
+        }
+
+        foreach (var modelType in modelTypes)
+        {
+            var modelAssembly = modelType.Assembly;
+            if (!IsTestAssembly(modelAssembly))
+                assemblies.Add(modelAssembly);
+        }
+
+        var assemblyTypes = assemblies
+            .SelectMany(GetAssemblyDomainEntityTypes)
+            .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false, IsNestedPrivate: false } &&
+                        t.IsAssignableTo(typeof(SourceKnownEntity)));
+
+        return modelTypes.Concat(assemblyTypes).Distinct().ToArray();
+    }
+
+    internal static Type[] GetAssemblyDomainEntityTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            var loaderMessages = ex.LoaderExceptions
+                .Where(e => e != null)
+                .Select(e => e!.Message)
+                .Distinct()
+                .ToArray();
+
+            var diagnostics = loaderMessages.Length > 0
+                ? string.Join("; ", loaderMessages)
+                : ex.Message;
+
+            var assemblyName = assembly.GetName().Name ?? assembly.FullName ?? "Unknown";
+
+            throw new InvalidOperationException(
+                $"Failed to load types from assembly '{assemblyName}' for domain entity validation. Loader exceptions: {diagnostics}",
+                ex);
+        }
     }
 
     internal static EntityTypeValidationResult GetEntityTypeValidationResult(IReadOnlyCollection<Type> domainTypes)
@@ -185,19 +372,46 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             .GroupBy(pair => new EntityTypeId(pair.Value!.EntityType, pair.Value.AppId))
             .Where(group => group.Count() > 1)
             .OrderBy(group => group.Key)
-            .SelectMany(group => group.Select(pair => new DuplicateEntityTypeValue(pair.Key.FullName!, pair.Value!.EntityType))).ToArray();
+            .SelectMany(group => group.Select(pair => new DuplicateEntityTypeValue(pair.Key.FullName!, pair.Value!.EntityType, pair.Value.AppId))).ToArray();
 
-        return new EntityTypeValidationResult(missingAttributes, duplicateAttributePairs);
+        var nonTestAppIds = entityTypePairs.Values
+            .Where(attr => attr != null && attr.AppId != IAppId.TestAppId)
+            .Select(attr => attr!.AppId)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToArray();
+
+        var multipleAppIds = nonTestAppIds.Length > 1 ? nonTestAppIds : [];
+
+        return new EntityTypeValidationResult(missingAttributes, duplicateAttributePairs, multipleAppIds, nonTestAppIds);
+    }
+
+    internal static Type[] GetAllDomainEntityTypes(DbContext context) => GetModelDomainEntityTypes(context);
+
+    private static bool IsTestAssembly(Assembly assembly)
+    {
+        var name = assembly.GetName().Name ?? string.Empty;
+        return name.EndsWith(".Test", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(".Test.", StringComparison.OrdinalIgnoreCase) ||
+               name.EndsWith(".Tests", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(".Tests.", StringComparison.OrdinalIgnoreCase);
     }
 }
 
-public record DuplicateEntityTypeValue(string EntityName, ushort EntityType)
+public record DuplicateEntityTypeValue(string EntityName, ushort EntityType, byte AppId)
 {
-    public override string ToString() => $"{EntityType}: {EntityName}";
+    public override string ToString() => $"AppId {AppId}, EntityType {EntityType}: {EntityName}";
 }
 
-public record EntityTypeValidationResult(string[] MissingEntityTypes, DuplicateEntityTypeValue[] DuplicateEntityTypes)
+public record EntityTypeValidationResult(
+    string[] MissingEntityTypes,
+    DuplicateEntityTypeValue[] DuplicateEntityTypes,
+    byte[]? MultipleAppIds = null,
+    byte[]? NonTestAppIds = null)
 {
+    public byte[] MultipleAppIds { get; init; } = MultipleAppIds ?? [];
+    public byte[] NonTestAppIds { get; init; } = NonTestAppIds ?? [];
     public string GetMissingEntityTypes() => string.Join(',', MissingEntityTypes);
-    public string GetDuplicateEntityTypes() => string.Join(',', string.Join(',', DuplicateEntityTypes.Select(p => p.ToString())));
+    public string GetDuplicateEntityTypes() => string.Join(',', DuplicateEntityTypes.Select(p => p.ToString()));
+    public string GetMultipleAppIds() => string.Join(',', MultipleAppIds);
 }

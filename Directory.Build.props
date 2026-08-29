@@ -8,4 +8,10 @@
     <!-- Keep one locked restore graph for both published Linux architectures. -->
     <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="IsTestProject" />
+    <CompilerVisibleProperty Include="AllowMultipleAppIds" />
+    <CompilerVisibleProperty Include="UseMicrosoftTestingPlatformRunner" />
+  </ItemGroup>
 </Project>

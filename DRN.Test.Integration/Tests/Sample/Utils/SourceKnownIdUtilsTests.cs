@@ -1,13 +1,24 @@
+using DRN.Framework.SharedKernel.Attributes;
+using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
 
 namespace DRN.Test.Integration.Tests.Sample.Utils;
 
+public readonly struct CustomIntegrationTestApp : IAppId
+{
+    public const byte Value = 7;
+    public static byte AppId => Value;
+}
+
+[EntityType<CustomIntegrationTestApp>(1)]
+public class CustomIntegrationTestEntity : SourceKnownEntity;
+
 public class SourceKnownIdUtilsTests
 {
     [Theory]
-    [DataInlineUnit]
-    public async Task SourceKnownIdUtils_Should_Generate_Ids_For_3_Seconds(DrnTestContextUnit context)
+    [DataInline]
+    public async Task SourceKnownIdUtils_Should_Generate_Ids_For_3_Seconds(DrnTestContext context)
     {
         var nexusSettings = new NexusAppSettings
         {
@@ -36,7 +47,7 @@ public class SourceKnownIdUtilsTests
             .WithExecutionMode(ParallelExecutionMode.ForceParallelism)
             .Select((_, index) =>
             {
-                ids[index] = generator.Next<ISourceKnownIdUtils>();
+                ids[index] = generator.Next<CustomIntegrationTestEntity>();
                 return index;
             }).ToArray();
         await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay); // wait for tick boundary

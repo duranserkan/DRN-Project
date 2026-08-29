@@ -63,6 +63,9 @@ public abstract class SourceKnownEntity(long id = 0)
 > - `DRN0002` (Error): Duplicate `EntityType` byte values per `AppId` across local compilation and referenced assemblies. In aggregator projects (host apps, integration tests), flags cross-referenced assembly collisions at compilation end while deduplicating shared diamond dependencies.
 > - `DRN0003` (Error): Invalid `[EntityType]` on abstract classes, private classes, or non-`SourceKnownEntity` types.
 > - `DRN0004` (Warning): Duplicate entity class names per `AppId` across the domain model (local and referenced).
+> - `DRN0005` (Error): Multiple production `AppId` partitions in a single application compilation (unless `<AllowMultipleAppIds>true</AllowMultipleAppIds>`, `<IsTestProject>true</IsTestProject>`, or `<UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>` is configured).
+> - `DRN0006` (Error): Unresolvable or non-constant `AppId` on `IAppId` implementations in `[EntityType]` declarations.
+> - `DRN0007` (Error): Statically resolved `AppId` outside the supported `0..127` range in local or referenced `[EntityType]` declarations.
 
 ### Application Partitions & Attributes
 

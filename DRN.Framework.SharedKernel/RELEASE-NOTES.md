@@ -12,6 +12,14 @@ Not every version includes changes, features or bug fixes. This project can incr
     *   `DRN0003` (*Error*): Prohibits applying `[EntityType]` to abstract classes, private classes, or non-`SourceKnownEntity` types.
         *   *Migration*: Remove `[EntityType]` attributes from abstract base classes (apply only to concrete descendants), private classes, and classes that do not derive from `SourceKnownEntity`.
     *   `DRN0004` (*Warning*): Detects duplicate entity class names across the domain model within the same `AppId` (including cross-referenced assemblies) to guard against EF Core table mapping conflicts and event serialization ambiguity.
+    *   `DRN0005` (*Error*): Enforces that non-test application project graphs declare a single `AppId` partition unless `<AllowMultipleAppIds>true</AllowMultipleAppIds>`, `<IsTestProject>true</IsTestProject>`, or `<UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>` is configured.
+        *   *Migration*: Ensure domain models within a single production application project graph share a single `AppId` partition, or configure `<AllowMultipleAppIds>true</AllowMultipleAppIds>` in the project file for multi-application aggregator hosts.
+    *   `DRN0006` (*Error*): Enforces that all `IAppId` implementations declare a constant value (`public const byte Value = ...;` or `public const byte AppId = ...;`) to ensure partition identities are metadata-readable across referenced assemblies.
+        *   *Migration*: Add a `public const byte Value = <AppId>;` or `public const byte AppId = <AppId>;` constant to custom `IAppId` structs.
+    *   `DRN0007` (*Error*): Enforces that statically resolved `IAppId` values used by `[EntityType]` declarations are within the supported range of 0 through 127 in local and referenced assemblies.
+        *   *Migration*: Change custom `IAppId` constants to an unused value between `IAppId.DefaultAppId` (0) and `IAppId.MaxAppId` (127).
+*   **Partition-Scoped Entity Type Validation**: Entity type uniqueness is now scoped per `(AppId, EntityType)` partition rather than globally across all entity types (0..255). Concrete `SourceKnownEntity` types require explicit `[EntityType<TApp>]` binding to an `IAppId` partition (e.g., `DefaultApp`, `NexusApp`, `TestApp`, or custom domain `IAppId`). Entities in different `AppId` partitions can reuse the same entity type byte values, while multi-partition domain graphs within a single production assembly are restricted by `DRN0005`.
+    *   *Migration*: Annotate entities with `[EntityType<TApp>(byte)]` using their owning domain partition's `IAppId`. For aggregator hosts referencing multiple partitions, configure `<AllowMultipleAppIds>true</AllowMultipleAppIds>` in the project file.
 
 ### New Features
 
@@ -22,9 +30,12 @@ Not every version includes changes, features or bug fixes. This project can incr
     *   `TestApp` (`AppId = 127`, `Value = 127`): Built-in test application partition isolating test entities from production domain entity types.
     *   `[TestEntityType(byte)]`: Convenience attribute (`TestEntityTypeAttribute`) binding test entities directly to `TestApp` (`AppId = 127`) without generic type boilerplate.
     *   `EntityTypeId`: Immutable 2-byte composite identifier (`(EntityType, AppId)`) record struct with `IComparable<EntityTypeId>` support for partition-scoped entity type mappings and validation.
+    *   **Self-Describing Entity AppId Helpers**: Added `SourceKnownEntity.GetAppId<TEntity>()`, `SourceKnownEntity.GetAppId(Type)`, `SourceKnownEntity.GetEntityTypeId<TEntity>()`, `SourceKnownEntity.GetEntityTypeId(Type)`, and `SourceKnownEntity.GetEntityId(long, EntityTypeId)` for cached, allocation-free retrieval and partition-validated generation of domain partition metadata.
+    *   **EntityTypeRegistry Primitive**: Introduced `EntityTypeRegistry` providing centralized, immutable `FrozenDictionary`-backed storage for entity type discrimination mappings (`Type <-> EntityTypeId`) with thread-safe dynamic fallback. Decoupled static dictionary caching logic from `SourceKnownEntity` to enhance domain model purity and improve read lookup throughput.
 
 ### Bug Fixes
 
+*   **IgnoredLog Null Handling**: `IgnoredLog(this object? obj)` returns `false` when given `null` input instead of throwing a `NullReferenceException`.
 *   **Pagination Jump Direction**: Large page jumps now retain the requested direction while remaining limited to ten pages per request.
 
 ## Version 0.9.8

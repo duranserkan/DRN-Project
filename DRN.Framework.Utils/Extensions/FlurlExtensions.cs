@@ -1,4 +1,4 @@
-using System.Reflection;
+using System.Runtime.CompilerServices;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Flurl.Http;
@@ -41,13 +41,12 @@ public static class FlurlExtensions
         }
     }
 
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_filteredSetups")]
+    private static extern ref List<FilteredHttpTestSetup> GetFilteredSetups(HttpTest httpTest);
+
     public static HttpTest ClearFilteredSetups(this HttpTest httpTest)
     {
-        var bindingFlags = BindingFlags.Instance | BindingFlags.NonPublic;
-        var fieldInfo = httpTest.GetType().GetField("_filteredSetups", bindingFlags)!;
-        var setups = (List<FilteredHttpTestSetup>)fieldInfo.GetValue(httpTest)!;
-        setups.Clear();
-
+        GetFilteredSetups(httpTest).Clear();
         return httpTest;
     }
 }

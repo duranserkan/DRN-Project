@@ -67,6 +67,7 @@ Use the profile first. If it is missing or silent, discover by convention:
 - Keep edits scoped.
 - Preserve user changes and unrelated worktree changes.
 - Prefer established local patterns over new abstractions.
+- Design and optimize for pit of success
 - Comment only to explain non-obvious intent.
 - Update docs and skills when code or convention changes would otherwise create drift.
 - Do not amend and commit unless explicitly approved.

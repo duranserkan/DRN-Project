@@ -47,6 +47,7 @@ A change that is fast but incorrect fails. A change that is clever but unreadabl
 - DTOs, API models, and persistence entities stay separated when the repository uses that boundary.
 - New abstractions remove real complexity or match an established local pattern.
 - Public behavior changes are documented and classified as breaking or non-breaking.
+- Prefer pit of success.
 
 ## Dependency Injection And Configuration
 

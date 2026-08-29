@@ -60,16 +60,17 @@ public class SourceKnownIdUtilsBenchmark
         EntityIdUtils = new(appSettings, IdUtils);
 
         // Pre-generate GUIDs for Parse benchmarks — avoids measuring ID generation in parse benchmarks
-        var id = IdUtils.Next<SourceKnownIdUtilsBenchmark>();
+        var id = IdUtils.Next<YEntity>();
         SecureEntityId = EntityIdUtils.GenerateSecure<YEntity>(id);
         PlainEntityId = EntityIdUtils.GeneratePlain<YEntity>(id);
+        Entity = new(IdUtils.Next<YEntity>());
     }
 
     private static SourceKnownIdUtils IdUtils { get; }
     private static SourceKnownEntityIdUtils EntityIdUtils { get; }
     private static SourceKnownEntityId SecureEntityId { get; }
     private static SourceKnownEntityId PlainEntityId { get; }
-    private static YEntity Entity { get; } = new(5);
+    private static YEntity Entity { get; }
 
     // --- Baseline benchmarks ---
 
@@ -91,7 +92,7 @@ public class SourceKnownIdUtilsBenchmark
     // --- SourceKnownId (raw long) ---
 
     [Benchmark]
-    public long SourceKnownId() => IdUtils.Next<SourceKnownIdUtilsBenchmark>();
+    public long SourceKnownId() => IdUtils.Next<YEntity>();
 
     // --- Non-secure SourceKnownEntityId: BLAKE3 MAC only (explicit call variants) ---
 
@@ -101,17 +102,17 @@ public class SourceKnownIdUtilsBenchmark
 
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdWithSkidGeneration()
-        => EntityIdUtils.GeneratePlain<YEntity>(IdUtils.Next<SourceKnownIdUtilsBenchmark>());
+        => EntityIdUtils.GeneratePlain<YEntity>(IdUtils.Next<YEntity>());
 
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdWithEntityAllocation()
-        => EntityIdUtils.GeneratePlain(new YEntity(IdUtils.Next<SourceKnownIdUtilsBenchmark>()));
+        => EntityIdUtils.GeneratePlain(new YEntity(IdUtils.Next<YEntity>()));
 
     // --- Secure SourceKnownEntityId: BLAKE3 MAC + AES-256-ECB encryption ---
 
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdSecure()
-        => EntityIdUtils.GenerateSecure<YEntity>(IdUtils.Next<SourceKnownIdUtilsBenchmark>());
+        => EntityIdUtils.GenerateSecure<YEntity>(IdUtils.Next<YEntity>());
 
     // --- Parse: non-secure GUID (MAC verify only) ---
 
