@@ -150,6 +150,7 @@
     <Project Path="Sample.Utils\Sample.Utils.csproj" />
   </Folder>
   <Folder Name="/Test/">
+    <Project Path="DRN.MultiApp.Testing/DRN.MultiApp.Testing.csproj" />
     <Project Path="DRN.Test.Analyzer\DRN.Test.Analyzer.csproj" />
     <Project Path="DRN.Test.Integration\DRN.Test.Integration.csproj" />
     <Project Path="DRN.Test.Performance\DRN.Test.Performance.csproj" />

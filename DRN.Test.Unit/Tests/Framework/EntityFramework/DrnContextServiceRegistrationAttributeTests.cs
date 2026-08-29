@@ -219,6 +219,54 @@ public class DrnContextServiceRegistrationAttributeTests
         modelTypes.Should().Contain(typeof(FirstPartitionEntity));
         modelTypes.Should().NotContain(typeof(SecondPartitionEntity));
     }
+
+    [Fact]
+    public void ValidateEntityTypes_With_CoLocated_SinglePartition_Contexts_In_NonTest_Assembly_Should_Succeed()
+    {
+        var firstOptions = new DbContextOptionsBuilder<DRN.MultiApp.Testing.CoLocatedFirstContext>()
+            .UseNpgsql("Host=localhost;Database=test")
+            .Options;
+        using var firstDbContext = new DRN.MultiApp.Testing.CoLocatedFirstContext(firstOptions);
+
+        var secondOptions = new DbContextOptionsBuilder<DRN.MultiApp.Testing.CoLocatedSecondContext>()
+            .UseNpgsql("Host=localhost;Database=test")
+            .Options;
+        using var secondDbContext = new DRN.MultiApp.Testing.CoLocatedSecondContext(secondOptions);
+
+        // Both contexts are co-located in DRN.MultiApp.Testing (non-test assembly)
+        typeof(DRN.MultiApp.Testing.CoLocatedFirstContext).Assembly.FullName
+            .Should().Be(typeof(DRN.MultiApp.Testing.CoLocatedSecondContext).Assembly.FullName);
+
+        var firstAppSettings = Substitute.For<IAppSettings>();
+        firstAppSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = DRN.MultiApp.Testing.CoLocatedFirstApp.AppId });
+
+        var secondAppSettings = Substitute.For<IAppSettings>();
+        secondAppSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = DRN.MultiApp.Testing.CoLocatedSecondApp.AppId });
+
+        var actFirst = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(firstDbContext, scopedLog: null, firstAppSettings);
+        var actSecond = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(secondDbContext, scopedLog: null, secondAppSettings);
+
+        actFirst.Should().NotThrow();
+        actSecond.Should().NotThrow();
+    }
+
+    [Fact]
+    public void GetHostDomainEntityTypes_Should_Discover_Entities_From_Explicitly_Registered_Host_Assembly()
+    {
+        var serviceProvider = Substitute.For<IServiceProvider>();
+        var testingContainer = new DrnServiceContainer(typeof(DRN.MultiApp.Testing.CoLocatedNonModelDomainEntity).Assembly, []);
+        serviceProvider.GetService(typeof(IEnumerable<DrnServiceContainer>)).Returns(new[] { testingContainer });
+
+        var hostEntities = DrnContextServiceRegistrationAttribute.GetHostDomainEntityTypes(serviceProvider, []);
+
+        hostEntities.Should().Contain(typeof(DRN.MultiApp.Testing.CoLocatedFirstEntity));
+        hostEntities.Should().Contain(typeof(DRN.MultiApp.Testing.CoLocatedSecondEntity));
+        hostEntities.Should().Contain(typeof(DRN.MultiApp.Testing.CoLocatedNonModelDomainEntity));
+
+        EntityTypeRegistry.Register(hostEntities);
+        var entityTypeId = new EntityTypeId(2, DRN.MultiApp.Testing.CoLocatedFirstApp.AppId);
+        EntityTypeRegistry.GetEntityType(entityTypeId).Should().Be(typeof(DRN.MultiApp.Testing.CoLocatedNonModelDomainEntity));
+    }
 }
 
 public class TestValidationDbContext(DbContextOptions<TestValidationDbContext> options) : DbContext(options)

@@ -99,12 +99,12 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         }
 
         var appSettings = serviceProvider.GetService<IAppSettings>();
-        PreValidateAllDbContexts(serviceProvider, scopedLog, appSettings);
+        PreValidateAllDbContexts(serviceProvider, scopedLog, appSettings, context);
         ValidateEntityTypes(context, scopedLog, appSettings, serviceProvider);
         serviceProvider.GetRequiredService(context.GetType());
     }
 
-    private static void PreValidateAllDbContexts(IServiceProvider serviceProvider, IScopedLog? scopedLog, IAppSettings? appSettings)
+    private static void PreValidateAllDbContexts(IServiceProvider serviceProvider, IScopedLog? scopedLog, IAppSettings? appSettings, DbContext? currentContext = null)
     {
         var allDbContexts = new List<DbContext>();
         var containers = serviceProvider.GetServices<DrnServiceContainer>();
@@ -124,7 +124,36 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             }
         }
 
-        var allDomainTypes = allDbContexts.SelectMany(GetAllDomainEntityTypes).Distinct().ToArray();
+        if (currentContext != null && !allDbContexts.Any(c => c.GetType() == currentContext.GetType()))
+            allDbContexts.Add(currentContext);
+
+        var allDomainTypes = GetHostDomainEntityTypes(serviceProvider, allDbContexts);
+
+        var hostValidation = GetEntityTypeValidationResult(allDomainTypes);
+        var missingAttributes = hostValidation.MissingEntityTypes;
+        var duplicateAttributePairs = hostValidation.DuplicateEntityTypes;
+
+        if (missingAttributes.Length > 0)
+            scopedLog?.Add("HostEntityTypesMissing", hostValidation.MissingEntityTypes);
+        if (duplicateAttributePairs.Length > 0)
+            scopedLog?.Add("HostEntityTypesDuplicate", hostValidation.DuplicateEntityTypes);
+
+        if (missingAttributes.Length > 0 || duplicateAttributePairs.Length > 0)
+        {
+            var validationDetails = string.Empty;
+            if (scopedLog == null)
+                validationDetails = hostValidation.Serialize();
+            else
+            {
+                if (missingAttributes.Length > 0)
+                    validationDetails += " Check: EntityTypeMissingIds.";
+                if (duplicateAttributePairs.Length > 0)
+                    validationDetails += " Check: EntityTypeDuplicateIds.";
+            }
+
+            throw new UnprocessableEntityException($"Invalid Host Entity Type Configuration: {validationDetails}");
+        }
+
         EntityTypeRegistry.Register(allDomainTypes);
         SourceKnownIdUtils.Warmup(allDomainTypes);
 
@@ -176,7 +205,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
 
     internal static void ValidateEntityTypes(DbContext context, IScopedLog? scopedLog, IAppSettings? appSettings = null, IServiceProvider? serviceProvider = null)
     {
-        var domainTypes = GetAllDomainEntityTypes(context);
+        var domainTypes = GetModelDomainEntityTypes(context);
         var idValidation = GetEntityTypeValidationResult(domainTypes);
         var missingAttributes = idValidation.MissingEntityTypes;
         var duplicateAttributePairs = idValidation.DuplicateEntityTypes;
@@ -270,6 +299,57 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             .Distinct()
             .ToArray();
 
+    internal static Type[] GetHostDomainEntityTypes(IServiceProvider? serviceProvider, IReadOnlyCollection<DbContext>? dbContexts = null)
+    {
+        var contexts = dbContexts ?? [];
+        var modelTypes = contexts.SelectMany(GetModelDomainEntityTypes).Distinct().ToArray();
+
+        var assemblies = new HashSet<Assembly>();
+
+        if (serviceProvider != null)
+        {
+            var containers = serviceProvider.GetServices<DrnServiceContainer>();
+            foreach (var container in containers)
+            {
+                if (!IsTestAssembly(container.Assembly))
+                    assemblies.Add(container.Assembly);
+            }
+        }
+
+        foreach (var context in contexts)
+        {
+            var contextAssembly = context.GetType().Assembly;
+            if (!IsTestAssembly(contextAssembly))
+                assemblies.Add(contextAssembly);
+        }
+
+        foreach (var modelType in modelTypes)
+        {
+            var modelAssembly = modelType.Assembly;
+            if (!IsTestAssembly(modelAssembly))
+                assemblies.Add(modelAssembly);
+        }
+
+        var assemblyTypes = assemblies
+            .SelectMany(GetAssemblyDomainEntityTypes)
+            .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false } &&
+                        t.IsAssignableTo(typeof(SourceKnownEntity)));
+
+        return modelTypes.Concat(assemblyTypes).Distinct().ToArray();
+    }
+
+    private static Type[] GetAssemblyDomainEntityTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            return ex.Types.Where(t => t != null).Cast<Type>().ToArray();
+        }
+    }
+
     internal static EntityTypeValidationResult GetEntityTypeValidationResult(IReadOnlyCollection<Type> domainTypes)
     {
         var entityTypePairs = domainTypes.ToDictionary(t => t, t => t.GetCustomAttribute<EntityTypeAttribute>());
@@ -292,22 +372,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         return new EntityTypeValidationResult(missingAttributes, duplicateAttributePairs, multipleAppIds, nonTestAppIds);
     }
 
-    internal static Type[] GetAllDomainEntityTypes(DbContext context)
-    {
-        var modelTypes = context.Model.GetEntityTypes()
-            .Select(e => e.ClrType)
-            .Where(t => t.IsAssignableTo(typeof(SourceKnownEntity)));
-
-        var contextAssembly = context.GetType().Assembly;
-        var assemblies = IsTestAssembly(contextAssembly) ? [] : new[] { contextAssembly };
-
-        var assemblyTypes = assemblies
-            .SelectMany(a => a.GetTypes())
-            .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false } &&
-                        t.IsAssignableTo(typeof(SourceKnownEntity)));
-
-        return modelTypes.Concat(assemblyTypes).Distinct().ToArray();
-    }
+    internal static Type[] GetAllDomainEntityTypes(DbContext context) => GetModelDomainEntityTypes(context);
 
     private static bool IsTestAssembly(Assembly assembly)
     {

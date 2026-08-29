@@ -1151,6 +1151,12 @@
           "System.Memory.Data": "[10.0.11, )"
         }
       },
+      "drn.multiapp.testing": {
+        "type": "Project",
+        "dependencies": {
+          "DRN.Framework.EntityFramework": "[1.0.0, )"
+        }
+      },
       "drn.nexus.application": {
         "type": "Project",
         "dependencies": {
@@ -1172,7 +1178,6 @@
         "type": "Project",
         "dependencies": {
           "DRN.Framework.Hosting": "[1.0.0, )",
-          "DRN.Framework.Testing": "[1.0.0, )",
           "DRN.Nexus.Application": "[1.0.0, )"
         }
       },
@@ -1220,7 +1225,6 @@
         "type": "Project",
         "dependencies": {
           "DRN.Framework.Hosting": "[1.0.0, )",
-          "DRN.Framework.Testing": "[1.0.0, )",
           "Microsoft.AspNetCore.Authentication.MicrosoftAccount": "[10.0.11, )",
           "QRCoder": "[1.8.0, )",
           "Sample.Application": "[1.0.0, )"
@@ -1237,8 +1241,7 @@
       "sample.utils": {
         "type": "Project",
         "dependencies": {
-          "DRN.Framework.Utils": "[1.0.0, )",
-          "Microsoft.AspNetCore.DataProtection": "[10.0.11, )"
+          "DRN.Framework.Utils": "[1.0.0, )"
         }
       }
     },
