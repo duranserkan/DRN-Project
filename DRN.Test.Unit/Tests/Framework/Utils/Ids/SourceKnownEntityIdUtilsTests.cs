@@ -460,13 +460,21 @@ public class SourceKnownEntityIdUtilsTests
         entityInstance.EntityIdSource = entityIdUtils.Generate(entityInstance);
         entityInstance.EntityIdOps = entityIdUtils;
 
-        // Same partition succeeds
+        // Same partition succeeds (Guid and long overloads)
         var validEntityGet = entityInstance.GetEntityId<XEntity>(id5.EntityId);
         validEntityGet.Valid.Should().BeTrue();
+        var validEntityGetLong = entityInstance.GetEntityId<XEntity>(id5.Source.Id);
+        validEntityGetLong.Valid.Should().BeTrue();
+        entityInstance.GetEntityId((long?)id5.Source.Id, SourceKnownEntity.GetEntityTypeId<XEntity>())!.Value.Valid.Should().BeTrue();
+        entityInstance.GetEntityId(id5.Source.Id, SourceKnownEntity.GetEntityTypeId<XEntity>()).Valid.Should().BeTrue();
 
-        // Cross-partition GetEntityId<TEntity> throws ValidationException
+        // Cross-partition GetEntityId<TEntity> throws ValidationException (Guid and long)
         var actEntityGet = () => entityInstance.GetEntityId<XEntityInApp6>(id5.EntityId);
         actEntityGet.Should().Throw<ValidationException>();
+        var actEntityGetLong = () => entityInstance.GetEntityId<XEntityInApp6>(id5.Source.Id);
+        actEntityGetLong.Should().Throw<ValidationException>();
+        var actCompositeLong = () => entityInstance.GetEntityId(id5.Source.Id, new EntityTypeId(200, 6));
+        actCompositeLong.Should().Throw<ValidationException>();
 
         // Generic Generate<TEntity>(long) must throw if long ID belongs to a different AppId partition
         var longIdApp6 = idUtils.Next<XEntityInApp6>();

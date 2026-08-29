@@ -69,6 +69,34 @@ public class MethodUtilsInstanceTests
         value.Should().Be(12);
     }
 
+    [Fact]
+    public void MethodUtils_Should_Invoke_Instance_Method_Fast()
+    {
+        var value = this.InvokeMethodFast(InstanceMethodName);
+        value.Should().Be(2);
+    }
+
+    [Fact]
+    public void MethodUtils_Should_Invoke_Instance_Method_Fast_With_Parameter()
+    {
+        var value = this.InvokeMethodFast(InstanceMethodName, 9);
+        value.Should().Be(9);
+    }
+
+    [Fact]
+    public void MethodUtils_Should_Invoke_Instance_Generic_Method_Fast()
+    {
+        var value = this.InvokeGenericMethodFast(InstanceMethodName, Type);
+        value.Should().Be(3);
+    }
+
+    [Fact]
+    public void MethodUtils_Should_Invoke_Instance_Generic_Method_Fast_With_Parameter()
+    {
+        var value = this.InvokeGenericMethodFast(InstanceMethodName, [Type], 12);
+        value.Should().Be(12);
+    }
+
     public object GetInstance() => 2;
     public object GetInstance(int a) => a;
     public object GetInstance<T>() => 3;

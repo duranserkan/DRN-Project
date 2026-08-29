@@ -26,10 +26,12 @@ Not every version includes changes, features or bug fixes. This project can incr
     *   `TestApp` (`AppId = 127`, `Value = 127`): Built-in test application partition isolating test entities from production domain entity types.
     *   `[TestEntityType(byte)]`: Convenience attribute (`TestEntityTypeAttribute`) binding test entities directly to `TestApp` (`AppId = 127`) without generic type boilerplate.
     *   `EntityTypeId`: Immutable 2-byte composite identifier (`(EntityType, AppId)`) record struct with `IComparable<EntityTypeId>` support for partition-scoped entity type mappings and validation.
-    *   **Self-Describing Entity AppId Helpers**: Added `SourceKnownEntity.GetAppId<TEntity>()`, `SourceKnownEntity.GetAppId(Type)`, `SourceKnownEntity.GetEntityTypeId<TEntity>()`, and `SourceKnownEntity.GetEntityTypeId(Type)` for cached, allocation-free retrieval of domain partition metadata.
+    *   **Self-Describing Entity AppId Helpers**: Added `SourceKnownEntity.GetAppId<TEntity>()`, `SourceKnownEntity.GetAppId(Type)`, `SourceKnownEntity.GetEntityTypeId<TEntity>()`, `SourceKnownEntity.GetEntityTypeId(Type)`, and `SourceKnownEntity.GetEntityId(long, EntityTypeId)` for cached, allocation-free retrieval and partition-validated generation of domain partition metadata.
+    *   **EntityTypeRegistry Primitive**: Introduced `EntityTypeRegistry` providing centralized, immutable `FrozenDictionary`-backed storage for entity type discrimination mappings (`Type <-> EntityTypeId`) with thread-safe dynamic fallback. Decoupled static dictionary caching logic from `SourceKnownEntity` to enhance domain model purity and improve read lookup throughput.
 
 ### Bug Fixes
 
+*   **IgnoredLog Null Handling**: `IgnoredLog(this object? obj)` returns `false` when given `null` input instead of throwing a `NullReferenceException`.
 *   **Pagination Jump Direction**: Large page jumps now retain the requested direction while remaining limited to ten pages per request.
 
 ## Version 0.9.8

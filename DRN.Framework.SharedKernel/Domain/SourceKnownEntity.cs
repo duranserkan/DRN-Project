@@ -1,8 +1,6 @@
-using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -74,54 +72,33 @@ public abstract class SourceKnownEntity<TModel>(long id = 0) : SourceKnownEntity
 /// through domain events.
 /// </remarks>
 [SuppressMessage("SonarQube", "S4035", Justification = "DDD identity equality")]
+[SuppressMessage("ReSharper", "StaticMemberInGenericType")]
 public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<SourceKnownEntity>, IComparable<SourceKnownEntity>
 {
     public const int IdColumnOrder = 0;
     public const int ModifiedAtColumnOrder = 1;
     private const string EmptyJson = "{}";
 
-    private static readonly ConcurrentDictionary<Type, EntityTypeId> TypeToEntityTypeIdMap = new();
-    private static readonly ConcurrentDictionary<EntityTypeId, Type> IdToTypeMap = new();
-
     private static class EntityMetadataCache<TEntity> where TEntity : SourceKnownEntity
     {
-        public static readonly EntityTypeId EntityTypeId = GetEntityTypeId(typeof(TEntity));
+        public static readonly EntityTypeId EntityTypeId = EntityTypeRegistry.GetEntityTypeId(typeof(TEntity));
         public static readonly byte EntityType = EntityTypeId.EntityType;
         public static readonly byte AppId = EntityTypeId.AppId;
     }
 
-    public static Type? GetEntityType(EntityTypeId key) => IdToTypeMap.GetValueOrDefault(key);
-    public static Type? GetEntityType(byte entityType, byte appId = 0) => GetEntityType(new EntityTypeId(entityType, appId));
+    public static Type? GetEntityType(EntityTypeId key) => EntityTypeRegistry.GetEntityType(key);
+    public static Type? GetEntityType(byte entityType, byte appId = 0) => EntityTypeRegistry.GetEntityType(new EntityTypeId(entityType, appId));
     public static byte GetEntityType<TEntity>() where TEntity : SourceKnownEntity => EntityMetadataCache<TEntity>.EntityType;
     public static byte GetEntityType<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetEntityType(entity.GetType());
-    public static byte GetEntityType(Type entityType) => GetEntityTypeId(entityType).EntityType;
+    public static byte GetEntityType(Type entityType) => EntityTypeRegistry.GetEntityTypeId(entityType).EntityType;
 
     public static EntityTypeId GetEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => EntityMetadataCache<TEntity>.EntityTypeId;
     public static EntityTypeId GetEntityTypeId<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetEntityTypeId(entity.GetType());
-    public static EntityTypeId GetEntityTypeId(Type entityType) => TypeToEntityTypeIdMap.GetOrAdd(entityType, static type =>
-    {
-        var attribute = type.GetCustomAttribute<EntityTypeAttribute>();
-        if (attribute == null)
-            throw new InvalidOperationException($"{type.Name} must use {nameof(EntityTypeAttribute)}");
-
-        EnsureUniqueEntityType(type, attribute.EntityType, attribute.AppId);
-        return new EntityTypeId(attribute.EntityType, attribute.AppId);
-    });
+    public static EntityTypeId GetEntityTypeId(Type entityType) => EntityTypeRegistry.GetEntityTypeId(entityType);
 
     public static byte GetAppId<TEntity>() where TEntity : SourceKnownEntity => EntityMetadataCache<TEntity>.AppId;
     public static byte GetAppId<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetAppId(entity.GetType());
-    public static byte GetAppId(Type entityType) => GetEntityTypeId(entityType).AppId;
-
-    private static void EnsureUniqueEntityType(Type newType, byte newEntityType, byte newAppId)
-    {
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(newAppId, IAppId.MaxAppId);
-        IdToTypeMap.AddOrUpdate( // Thread-safe check-or-add with value factory
-            new EntityTypeId(newEntityType, newAppId),
-            addValueFactory: _ => newType,
-            updateValueFactory: (key, existingType) => existingType != newType
-                ? throw new InvalidOperationException($"Entity type value: {key.EntityType} with AppId: {key.AppId} is used by both {existingType.FullName} and {newType.FullName}")
-                : existingType);
-    }
+    public static byte GetAppId(Type entityType) => EntityTypeRegistry.GetEntityTypeId(entityType).AppId;
 
     private List<IDomainEvent> DomainEvents { get; } = new(2); //todo transactional outbox, pre and post publish events
     public IReadOnlyList<IDomainEvent> GetDomainEvents() => DomainEvents;
@@ -207,8 +184,18 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         return entityId;
     }
 
-    public SourceKnownEntityId? GetEntityId<TEntity>(long? id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
-    public SourceKnownEntityId GetEntityId<TEntity>(long id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
+    public SourceKnownEntityId? GetEntityId<TEntity>(long? id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityTypeId<TEntity>());
+    public SourceKnownEntityId GetEntityId<TEntity>(long id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityTypeId<TEntity>());
+
+    public SourceKnownEntityId? GetEntityId(long? id, EntityTypeId entityTypeId) => id == null ? null : GetEntityId(id.Value, entityTypeId);
+
+    public SourceKnownEntityId GetEntityId(long id, EntityTypeId entityTypeId)
+    {
+        var sourceKnownId = GetEntityId(id, entityTypeId.EntityType);
+        sourceKnownId.Validate(entityTypeId);
+
+        return sourceKnownId;
+    }
 
     public SourceKnownEntityId? GetEntityId(long? id, byte entityType) => id == null ? null : GetEntityId(id.Value, entityType);
 

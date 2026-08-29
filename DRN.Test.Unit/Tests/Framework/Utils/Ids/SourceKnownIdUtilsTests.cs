@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
@@ -164,6 +165,156 @@ public class SourceKnownIdUtilsTests
 
         parsed.AppId.Should().Be(77);
         parsed.AppInstanceId.Should().Be(12);
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void Next_WithType_Should_Generate_Valid_Id_Matching_Generic_Contract(DrnTestContextUnit context)
+    {
+        var nexusSettings = new NexusAppSettings
+        {
+            AppId = 8,
+            AppInstanceId = 20
+        };
+
+        context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
+        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
+
+        var idGeneric = generator.Next<SourceKnownIdUtilsTests>();
+        var idType = generator.Next(typeof(SourceKnownIdUtilsTests));
+
+        var parsedGeneric = generator.Parse(idGeneric);
+        var parsedType = generator.Parse(idType);
+
+        parsedType.AppId.Should().Be(nexusSettings.AppId);
+        parsedType.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
+        parsedGeneric.AppId.Should().Be(nexusSettings.AppId);
+        parsedGeneric.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void Next_WithType_With_SourceKnownEntity_Should_Use_Entity_AppId(DrnTestContextUnit context)
+    {
+        var nexusSettings = new NexusAppSettings
+        {
+            AppId = 5,
+            AppInstanceId = 12
+        };
+
+        context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
+        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
+
+        var id = generator.Next(typeof(CustomTestEntityForUtils));
+        var parsed = generator.Parse(id);
+
+        parsed.AppId.Should().Be(77);
+        parsed.AppInstanceId.Should().Be(12);
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void Next_WithType_And_Explicit_Parameters_Should_Honor_Parameters(DrnTestContextUnit context)
+    {
+        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
+        var customEpoch = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        var id = generator.Next(typeof(SourceKnownIdUtilsTests), appId: 42, appInstanceId: 18, epoch: customEpoch);
+        var parsed = generator.Parse(id, epoch: customEpoch);
+
+        parsed.Id.Should().Be(id);
+        parsed.AppId.Should().Be(42);
+        parsed.AppInstanceId.Should().Be(18);
+    }
+
+    [Fact]
+    public void Generate_WithType_Should_Generate_Valid_Id()
+    {
+        byte appId = 33;
+        byte appInstanceId = 7;
+        var epoch = EpochTimeUtils.Epoch2025;
+
+        var id = SourceKnownIdUtils.Generate(typeof(SourceKnownIdUtilsTests), appId, appInstanceId, epoch);
+        var parsed = SourceKnownIdUtils.ParseId(id, epoch);
+
+        parsed.Id.Should().Be(id);
+        parsed.AppId.Should().Be(appId);
+        parsed.AppInstanceId.Should().Be(appInstanceId);
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void Next_WithType_With_NonClass_Type_Should_Throw_ArgumentException(DrnTestContextUnit context)
+    {
+        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
+        var act = () => generator.Next(typeof(int));
+        act.Should().Throw<ArgumentException>();
+
+        var actExplicit = () => generator.Next(typeof(int), 1, 1);
+        actExplicit.Should().Throw<ArgumentException>();
+
+        var actGenerate = () => SourceKnownIdUtils.Generate(typeof(int), 1, 1);
+        actGenerate.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void Next_WithType_Should_Be_ThreadSafe_Under_Concurrent_Load(DrnTestContextUnit context)
+    {
+        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
+        const int threadCount = 8;
+        const int iterationsPerThread = 500;
+        var generatedIds = new ConcurrentBag<long>();
+
+        Parallel.For(0, threadCount, _ =>
+        {
+            for (var i = 0; i < iterationsPerThread; i++)
+            {
+                var id = generator.Next(typeof(CustomTestEntityForUtils));
+                generatedIds.Add(id);
+            }
+        });
+
+        generatedIds.Count.Should().Be(threadCount * iterationsPerThread);
+        generatedIds.Distinct().Count().Should().Be(threadCount * iterationsPerThread);
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void Warmup_With_EntityTypes_Should_Precompile_Delegates_And_Generate_Valid_Ids(DrnTestContextUnit context)
+    {
+        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
+
+        var actWarmup = () => SourceKnownIdUtils.Warmup([typeof(CustomTestEntityForUtils), typeof(SourceKnownIdUtilsTests)]);
+        actWarmup.Should().NotThrow();
+
+        // Warmup via interface default implementation
+        var actInterfaceWarmup = () => generator.Warmup([typeof(CustomTestEntityForUtils)]);
+        actInterfaceWarmup.Should().NotThrow();
+
+        // Verify ID generation after warmup
+        var id = generator.Next(typeof(CustomTestEntityForUtils));
+        var parsed = generator.Parse(id);
+        parsed.AppId.Should().Be(77);
+
+        var generated = SourceKnownIdUtils.Generate(typeof(SourceKnownIdUtilsTests), 10, 5);
+        var parsedGenerated = SourceKnownIdUtils.ParseId(generated, EpochTimeUtils.DefaultEpoch);
+        parsedGenerated.AppId.Should().Be(10);
+        parsedGenerated.AppInstanceId.Should().Be(5);
+    }
+
+    [Fact]
+    public void Warmup_With_Null_Should_Throw_ArgumentNullException()
+    {
+        var act = () => SourceKnownIdUtils.Warmup(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Warmup_With_Mixed_Nulls_And_ValueTypes_Should_Safely_Ignore_Them()
+    {
+        var act = () => SourceKnownIdUtils.Warmup([null!, typeof(int), typeof(SourceKnownIdUtilsTests)]);
+        act.Should().NotThrow();
     }
 
     /// <summary>

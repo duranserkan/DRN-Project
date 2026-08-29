@@ -67,4 +67,68 @@ public class SourceKnownEntityTests
         var actDefault = () => customId.Validate<DefaultAppTestEntity>();
         actDefault.Should().Throw<ValidationException>();
     }
+
+    [Fact]
+    public void EntityTypeRegistry_Register_Should_Bulk_Register_And_Return_Correct_Values()
+    {
+        EntityTypeRegistry.Register([typeof(CustomTestEntity), typeof(DefaultAppTestEntity)]);
+
+        var customId = EntityTypeRegistry.GetEntityTypeId(typeof(CustomTestEntity));
+        customId.EntityType.Should().Be(7);
+        customId.AppId.Should().Be(42);
+
+        var retrievedType = EntityTypeRegistry.GetEntityType(customId);
+        retrievedType.Should().Be(typeof(CustomTestEntity));
+    }
+
+    [Fact]
+    public void EntityTypeRegistry_GetEntityTypeId_With_Null_Should_Throw()
+    {
+        var act = () => EntityTypeRegistry.GetEntityTypeId(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void EntityTypeRegistry_Register_With_Null_Should_Throw()
+    {
+        var act = () => EntityTypeRegistry.Register(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void EntityTypeRegistry_Register_When_Called_Repeatedly_Should_Be_Idempotent()
+    {
+        EntityTypeRegistry.Register([typeof(CustomTestEntity)]);
+        var actSecond = () => EntityTypeRegistry.Register([typeof(CustomTestEntity)]);
+        actSecond.Should().NotThrow();
+
+        var entityTypeId = EntityTypeRegistry.GetEntityTypeId(typeof(CustomTestEntity));
+        entityTypeId.EntityType.Should().Be(7);
+        entityTypeId.AppId.Should().Be(42);
+    }
+
+    [Fact]
+    public void EntityTypeRegistry_Concurrent_Registrations_And_Reads_Should_Be_ThreadSafe()
+    {
+        const int threadCount = 10;
+        const int iterations = 200;
+
+        Parallel.For(0, threadCount, _ =>
+        {
+            for (var i = 0; i < iterations; i++)
+            {
+                EntityTypeRegistry.Register([typeof(CustomTestEntity), typeof(DefaultAppTestEntity)]);
+                var customId = EntityTypeRegistry.GetEntityTypeId(typeof(CustomTestEntity));
+                customId.EntityType.Should().Be(7);
+                customId.AppId.Should().Be(42);
+
+                var defaultId = EntityTypeRegistry.GetEntityTypeId(typeof(DefaultAppTestEntity));
+                defaultId.EntityType.Should().Be(101);
+                defaultId.AppId.Should().Be(0);
+
+                EntityTypeRegistry.GetEntityType(customId).Should().Be(typeof(CustomTestEntity));
+                EntityTypeRegistry.GetEntityType(defaultId).Should().Be(typeof(DefaultAppTestEntity));
+            }
+        });
+    }
 }

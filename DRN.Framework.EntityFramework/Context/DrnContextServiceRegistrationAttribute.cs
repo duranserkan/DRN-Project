@@ -8,6 +8,7 @@ using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Entity;
+using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Models;
 using DRN.Framework.Utils.Settings;
@@ -105,6 +106,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
 
     private static void PreValidateAllDbContexts(IServiceProvider serviceProvider, IScopedLog? scopedLog, IAppSettings? appSettings)
     {
+        var allDbContexts = new List<DbContext>();
         var containers = serviceProvider.GetServices<DrnServiceContainer>();
         foreach (var container in containers)
         {
@@ -115,12 +117,19 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
                 {
                     if (descriptor.ServiceType.IsAssignableTo(typeof(DbContext)))
                     {
-                        var dbContext = (DbContext)serviceProvider.GetRequiredService(descriptor.ServiceType);
-                        ValidateEntityTypes(dbContext, scopedLog, appSettings, serviceProvider);
+                        if (serviceProvider.GetRequiredService(descriptor.ServiceType) is DbContext dbContext)
+                            allDbContexts.Add(dbContext);
                     }
                 }
             }
         }
+
+        var allDomainTypes = allDbContexts.SelectMany(GetAllDomainEntityTypes).Distinct().ToArray();
+        EntityTypeRegistry.Register(allDomainTypes);
+        SourceKnownIdUtils.Warmup(allDomainTypes);
+
+        foreach (var dbContext in allDbContexts)
+            ValidateEntityTypes(dbContext, scopedLog, appSettings, serviceProvider);
     }
 
     /// <summary>
@@ -198,10 +207,9 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             throw new UnprocessableEntityException($"Invalid Entity Type Configuration: {validationDetails}");
         }
 
-        //Validates Entity Type Ids implicitly by calling GetEntityType on Entity
-        //This will catch application wide inconsistencies and populates SourceKnownEntity registry.
-        var entityTypeValues = domainTypes.Select(SourceKnownEntity.GetEntityType).ToArray();
-        _ = entityTypeValues;
+        // Validates and bulk registers domain entity types into the immutable EntityTypeRegistry.
+        // This catches application-wide inconsistencies and freezes the lookup snapshot.
+        EntityTypeRegistry.Register(domainTypes);
 
         var configuredAppId = appSettings?.NexusAppSettings.AppId ?? 0;
         if (idValidation.NonTestAppIds.Length == 1)

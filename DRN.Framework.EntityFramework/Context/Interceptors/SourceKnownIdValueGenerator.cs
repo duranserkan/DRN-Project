@@ -1,5 +1,4 @@
 using DRN.Framework.SharedKernel.Domain;
-using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Ids;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -9,8 +8,6 @@ namespace DRN.Framework.EntityFramework.Context.Interceptors;
 
 public class SourceKnownIdValueGenerator : ValueGenerator<long>
 {
-    private const string NextId = nameof(SourceKnownIdUtils.Next);
-
     private ISourceKnownIdUtils? _idUtils;
     private readonly Lock _lock = new();
 
@@ -23,7 +20,7 @@ public class SourceKnownIdValueGenerator : ValueGenerator<long>
                 _idUtils ??= entry.Context.GetService<ISourceKnownIdUtils>();
 
         if (entity.Id == 0)
-            entity.Id = (long)_idUtils.InvokeGenericMethod(NextId, entity.GetType())!;
+            entity.Id = _idUtils.Next(entity.GetType());
 
         return entity.Id;
     }

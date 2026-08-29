@@ -42,17 +42,20 @@ public class PostgresContainerSettings
         var imageTag = $"{image}:{version}";
         var digest = Digest;
 
-        if (string.IsNullOrWhiteSpace(digest) &&
-            string.Equals(image, DefaultImage, StringComparison.Ordinal) &&
-            string.Equals(version, DefaultVersion, StringComparison.Ordinal))
-        {
-            if (!string.Equals(DefaultDigest, InitialDefaultDigest, StringComparison.Ordinal) ||
-                (string.Equals(DefaultImage, InitialDefaultImage, StringComparison.Ordinal) &&
-                 string.Equals(DefaultVersion, InitialDefaultVersion, StringComparison.Ordinal)))
-            {
-                digest = DefaultDigest;
-            }
-        }
+        var matchesCurrentDefaults = string.Equals(image, DefaultImage, StringComparison.Ordinal) &&
+                                     string.Equals(version, DefaultVersion, StringComparison.Ordinal);
+
+        var matchesInitialDefaults = string.Equals(DefaultImage, InitialDefaultImage, StringComparison.Ordinal) &&
+                                     string.Equals(DefaultVersion, InitialDefaultVersion, StringComparison.Ordinal);
+
+        var hasCustomDefaultDigest = !string.Equals(DefaultDigest, InitialDefaultDigest, StringComparison.Ordinal);
+
+        var shouldApplyDefaultDigest = string.IsNullOrWhiteSpace(digest) &&
+                                       matchesCurrentDefaults &&
+                                       (hasCustomDefaultDigest || matchesInitialDefaults);
+
+        if (shouldApplyDefaultDigest)
+            digest = DefaultDigest;
 
         return string.IsNullOrWhiteSpace(digest) ? imageTag : $"{imageTag}@{digest}";
     }

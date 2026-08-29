@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using Blake3;
@@ -89,6 +90,7 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
 /// If still not enough, don't use source known ids, consider using a different id generation strategy such as true guid v4.
 /// </summary>
 [Singleton<ISourceKnownEntityIdUtils>]
+[SuppressMessage("ReSharper", "ForCanBeConvertedToForeach")]
 public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDisposable
 {
     // RFC 9562 V8 big-endian byte layout (network byte order):
