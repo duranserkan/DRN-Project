@@ -162,13 +162,23 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     public long Next<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : SourceKnownEntity
         => Generate<TEntity>(appId, appInstanceId, epoch ?? _epoch);
 
-    public long Next(Type entityType) => typeof(SourceKnownEntity).IsAssignableFrom(entityType)
-        ? Generate(entityType, SourceKnownEntity.GetAppId(entityType), _nexusAppInstanceId, _epoch)
-        : throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
+    public long Next(Type entityType)
+    {
+        ArgumentNullException.ThrowIfNull(entityType);
+        if (!typeof(SourceKnownEntity).IsAssignableFrom(entityType))
+            throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
 
-    public long Next(Type entityType, byte appId, byte appInstanceId, DateTimeOffset? epoch = null) => typeof(SourceKnownEntity).IsAssignableFrom(entityType)
-        ? Generate(entityType, appId, appInstanceId, epoch ?? _epoch)
-        : throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
+        return Generate(entityType, SourceKnownEntity.GetAppId(entityType), _nexusAppInstanceId, _epoch);
+    }
+
+    public long Next(Type entityType, byte appId, byte appInstanceId, DateTimeOffset? epoch = null)
+    {
+        ArgumentNullException.ThrowIfNull(entityType);
+        if (!typeof(SourceKnownEntity).IsAssignableFrom(entityType))
+            throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
+
+        return Generate(entityType, appId, appInstanceId, epoch ?? _epoch);
+    }
 
     public SourceKnownId Parse(long id, DateTimeOffset? epoch = null) => ParseId(id, epoch ?? _epoch);
 

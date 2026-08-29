@@ -274,6 +274,25 @@ public class SourceKnownIdUtilsTests
 
     [Theory]
     [DataInlineUnit]
+    public void Next_With_Null_EntityType_Should_Throw_ArgumentNullException(DrnTestContextUnit context)
+    {
+        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
+
+        var actNext = () => generator.Next(null!);
+        actNext.Should().ThrowExactly<ArgumentNullException>()
+            .WithParameterName("entityType");
+
+        var actNextExplicit = () => generator.Next(null!, 1, 1);
+        actNextExplicit.Should().ThrowExactly<ArgumentNullException>()
+            .WithParameterName("entityType");
+
+        var actGenerate = () => SourceKnownIdUtils.Generate(null!, 1, 1);
+        actGenerate.Should().ThrowExactly<ArgumentNullException>()
+            .WithParameterName("entityType");
+    }
+
+    [Theory]
+    [DataInlineUnit]
     public void Next_WithType_Should_Be_ThreadSafe_Under_Concurrent_Load(DrnTestContextUnit context)
     {
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
