@@ -53,9 +53,11 @@ public static class EntityTypeRegistry
     /// Bulk registers and freezes domain entity types discovered at startup.
     /// Called during startup validation (e.g. by DrnContextServiceRegistrationAttribute).
     /// </summary>
-    public static void Register(IEnumerable<Type> entityTypes)
+    public static void Register(IReadOnlyCollection<Type> entityTypes)
     {
         ArgumentNullException.ThrowIfNull(entityTypes);
+        if (entityTypes.Count == 0)
+            return;
 
         lock (SyncLock)
         {
@@ -105,9 +107,9 @@ public static class EntityTypeRegistry
         }
     }
 
-    private static bool AllRegistered(FrozenDictionary<Type, EntityTypeId> registered, IEnumerable<Type> types)
+    private static bool AllRegistered(FrozenDictionary<Type, EntityTypeId> registered, IReadOnlyCollection<Type> types)
     {
-        if (registered.Count == 0) return false;
+        if (registered.Count == 0 || types.Count == 0) return false;
         foreach (var type in types)
         {
             if (!registered.ContainsKey(type))
