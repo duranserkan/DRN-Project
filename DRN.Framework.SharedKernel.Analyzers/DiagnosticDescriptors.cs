@@ -70,4 +70,15 @@ public static class DiagnosticDescriptors
         description: "Application partition identifiers (IAppId) must declare a constant value to allow static compile-time validation across assembly boundaries.",
         helpLinkUri: HelpLinkUri,
         WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor AppIdOutOfRange = new(
+        id: "DRN0007",
+        title: "AppId is outside the supported range",
+        messageFormat: "AppId value '{1}' on entity '{0}' must be between 0 and 127",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Application partition identifiers (IAppId) must be between 0 and 127 so they fit the Source-Known ID partition field.",
+        helpLinkUri: HelpLinkUri,
+        WellKnownDiagnosticTags.CompilationEnd);
 }

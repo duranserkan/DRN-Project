@@ -27,7 +27,8 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         DiagnosticDescriptors.InvalidEntityTypeAttributeUsage,
         DiagnosticDescriptors.DuplicateEntityName,
         DiagnosticDescriptors.MultipleAppIdsNotPermitted,
-        DiagnosticDescriptors.UnresolvableAppId
+        DiagnosticDescriptors.UnresolvableAppId,
+        DiagnosticDescriptors.AppIdOutOfRange
     ];
 
     public override void Initialize(AnalysisContext context)
@@ -135,6 +136,17 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        if (declaredAppId > EntityAnalyzerHelper.MaxAppId)
+        {
+            var attrLocation = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax(symbolContext.CancellationToken).GetLocation() ?? location;
+            symbolContext.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.AppIdOutOfRange,
+                attrLocation,
+                namedType.Name,
+                declaredAppId));
+            return;
+        }
+
         // 1. Buffer non-private entity class names for compilation end analysis (DRN0004 - Warning)
         collectedEntityNameDeclarations.Add(new EntityNameDeclaration(namedType.Name, declaredAppId, namedType, location));
 
@@ -195,10 +207,18 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                     Location.None,
                     $"{info.Symbol.ContainingAssembly.Name}::{info.Symbol.Name}"));
             }
+            else if (info.HasValue && info.AppId > EntityAnalyzerHelper.MaxAppId)
+            {
+                endContext.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.AppIdOutOfRange,
+                    Location.None,
+                    $"{info.Symbol.ContainingAssembly.Name}::{info.Symbol.Name}",
+                    info.AppId));
+            }
         }
 
         var referencedByValue = extractedInfo
-            .Where(x => x.HasValue)
+            .Where(x => x.HasValue && x.AppId <= EntityAnalyzerHelper.MaxAppId)
             .GroupBy(x => (x.AppId, x.Value));
 
         var referencedEntityTypeMap = new Dictionary<(byte AppId, byte EntityTypeValue), List<INamedTypeSymbol>>();
@@ -362,7 +382,9 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         Compilation? compilation)
     {
         var attr = EntityAnalyzerHelper.FindAttribute(symbol, entityTypeAttributeSymbol);
-        if (attr != null && EntityAnalyzerHelper.TryGetEntityType(attr, compilation, out _, out var app))
+        if (attr != null &&
+            EntityAnalyzerHelper.TryGetEntityType(attr, compilation, out _, out var app) &&
+            app <= EntityAnalyzerHelper.MaxAppId)
             return (Symbol: symbol, AppId: app);
 
         return (Symbol: symbol, AppId: null);
@@ -471,7 +493,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
         var referencedAppIds = distinctReferencedEntities
             .Select(s => ExtractEntityTypeInfo(s, entityTypeAttributeSymbol, endContext.Compilation))
-            .Where(x => x.HasValue)
+            .Where(x => x.HasValue && x.AppId <= EntityAnalyzerHelper.MaxAppId)
             .Select(x => x.AppId);
 
         var distinctNonTestAppIds = localAppIds

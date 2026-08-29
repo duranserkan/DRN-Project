@@ -639,6 +639,10 @@ public class SourceKnownEntityTypeAnalyzerTests
         DiagnosticDescriptors.InvalidEntityTypeAttributeUsage.HelpLinkUri.Should().Be(DiagnosticDescriptors.HelpLinkUri);
         DiagnosticDescriptors.DuplicateEntityName.HelpLinkUri.Should().Be(DiagnosticDescriptors.HelpLinkUri);
         DiagnosticDescriptors.DuplicateEntityName.CustomTags.Should().Contain(WellKnownDiagnosticTags.CompilationEnd);
+        DiagnosticDescriptors.MultipleAppIdsNotPermitted.HelpLinkUri.Should().Be(DiagnosticDescriptors.HelpLinkUri);
+        DiagnosticDescriptors.UnresolvableAppId.HelpLinkUri.Should().Be(DiagnosticDescriptors.HelpLinkUri);
+        DiagnosticDescriptors.AppIdOutOfRange.HelpLinkUri.Should().Be(DiagnosticDescriptors.HelpLinkUri);
+        DiagnosticDescriptors.AppIdOutOfRange.CustomTags.Should().Contain(WellKnownDiagnosticTags.CompilationEnd);
     }
 
     [Fact]
@@ -1884,5 +1888,55 @@ public class SourceKnownEntityTypeAnalyzerTests
         var diagnostics = await RunAnalyzerAsync(testCode);
 
         diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task LocalEntity_WithOutOfRangeAppId_ProducesDRN0007()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct OutOfRangeApp : IAppId
+            {
+                public const byte Value = 128;
+                public static byte AppId => Value;
+            }
+
+            [EntityType<OutOfRangeApp>(1)]
+            public class BadEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0007" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0007").GetMessage().Should().Contain("BadEntity").And.Contain("128");
+    }
+
+    [Fact]
+    public async Task ReferencedEntity_WithOutOfRangeAppId_ProducesDRN0007()
+    {
+        var referencedSources = new (string AssemblyName, string Source)[]
+        {
+            ("ReferencedAssembly", """
+                using DRN.Framework.SharedKernel.Domain;
+
+                namespace ExternalDomain
+                {
+                    public readonly struct OutOfRangeApp : IAppId
+                    {
+                        public const byte Value = 255;
+                        public static byte AppId => Value;
+                    }
+
+                    [EntityType<OutOfRangeApp>(1)]
+                    public class ExternalEntity : SourceKnownEntity;
+                }
+                """)
+        };
+
+        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(referencedSources);
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0007" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0007").GetMessage().Should().Contain("ExternalEntity").And.Contain("255");
     }
 }

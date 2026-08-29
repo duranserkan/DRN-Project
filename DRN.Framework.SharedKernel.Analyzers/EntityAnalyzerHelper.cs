@@ -9,6 +9,7 @@ internal static class EntityAnalyzerHelper
 {
     internal const string SourceKnownEntityMetadataName = "DRN.Framework.SharedKernel.Domain.SourceKnownEntity";
     internal const string EntityTypeAttributeMetadataName = "DRN.Framework.SharedKernel.Domain.EntityTypeAttribute";
+    internal const byte MaxAppId = 127;
     private const string AppIdName = "AppId";
 
     internal static ConcurrentBag<INamedTypeSymbol> ScanReferencedAssemblies(

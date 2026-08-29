@@ -16,6 +16,8 @@ Not every version includes changes, features or bug fixes. This project can incr
         *   *Migration*: Ensure domain models within a single production application project graph share a single `AppId` partition, or configure `<AllowMultipleAppIds>true</AllowMultipleAppIds>` in the project file for multi-application aggregator hosts.
     *   `DRN0006` (*Error*): Enforces that all `IAppId` implementations declare a constant value (`public const byte Value = ...;` or `public const byte AppId = ...;`) to ensure partition identities are metadata-readable across referenced assemblies.
         *   *Migration*: Add a `public const byte Value = <AppId>;` or `public const byte AppId = <AppId>;` constant to custom `IAppId` structs.
+    *   `DRN0007` (*Error*): Enforces that statically resolved `IAppId` values used by `[EntityType]` declarations are within the supported range of 0 through 127 in local and referenced assemblies.
+        *   *Migration*: Change custom `IAppId` constants to an unused value between `IAppId.DefaultAppId` (0) and `IAppId.MaxAppId` (127).
 
 ### New Features
 
