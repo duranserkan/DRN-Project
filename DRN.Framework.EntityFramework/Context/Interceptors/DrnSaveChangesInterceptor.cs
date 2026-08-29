@@ -37,7 +37,7 @@ public class DrnSaveChangesInterceptor(ISourceKnownIdUtils idUtils, ISourceKnown
             {
                 case EntityState.Added:
                     if (entity.Id == 0)
-                        entity.Id = idUtils.Next(entity.GetType());
+                        entity.Id = idUtils.Next(entity);
                     if (entity.EntityId == Guid.Empty)
                         entity.EntityIdSource = entityIdUtils.Generate(entity);
 

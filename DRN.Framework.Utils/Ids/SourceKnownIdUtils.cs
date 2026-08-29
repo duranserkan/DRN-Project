@@ -24,12 +24,12 @@ public interface ISourceKnownIdUtils
     long Next<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : SourceKnownEntity;
 
     /// <summary>
-    /// Generates Ids for the specified entity type.
+    /// Generates Ids for the specified entity.
     /// Resolves appId from the entity's [EntityType] attribute, and appInstanceId from appsettings.
-    /// Uses <see cref="IEpochTimeUtils.Epoch"/>"
+    /// Uses <see cref="IEpochTimeUtils.Epoch"/>
     /// </summary>
-    /// <param name="entityType">The entity type for which Ids are generated. Must derive from <see cref="SourceKnownEntity"/>.</param>
-    long Next(Type entityType);
+    /// <param name="entity">The entity for which Ids are generated. Must derive from <see cref="SourceKnownEntity"/>.</param>
+    long Next(SourceKnownEntity entity);
 
     /// <summary>
     /// Generates Ids for the specified entity type using the provided appId, appInstanceId, and epoch.
@@ -138,7 +138,7 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         return true;
     }
 
-    public static long Generate<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class
+    public static long Generate<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : SourceKnownEntity
     {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(appId, MaxAppId);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(appInstanceId, MaxAppInstanceId);
@@ -217,12 +217,11 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     public long Next<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : SourceKnownEntity
         => Generate<TEntity>(appId, appInstanceId, epoch ?? _epoch);
 
-    public long Next(Type entityType)
+    public long Next(SourceKnownEntity entity)
     {
-        ArgumentNullException.ThrowIfNull(entityType);
-        return typeof(SourceKnownEntity).IsAssignableFrom(entityType)
-            ? Generate(entityType, SourceKnownEntity.GetAppId(entityType), _nexusAppInstanceId, _epoch)
-            : throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
+        ArgumentNullException.ThrowIfNull(entity);
+        var type = entity.GetType();
+        return Generate(type, SourceKnownEntity.GetAppId(type), _nexusAppInstanceId, _epoch);
     }
 
     public long Next(Type entityType, byte appId, byte appInstanceId, DateTimeOffset? epoch = null)

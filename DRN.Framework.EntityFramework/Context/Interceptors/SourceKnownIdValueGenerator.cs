@@ -20,7 +20,7 @@ public class SourceKnownIdValueGenerator : ValueGenerator<long>
                 _idUtils ??= entry.Context.GetService<ISourceKnownIdUtils>();
 
         if (entity.Id == 0)
-            entity.Id = _idUtils.Next(entity.GetType());
+            entity.Id = _idUtils.Next(entity);
 
         return entity.Id;
     }

@@ -9,7 +9,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Changed
 
 *   **PostgreSQL Defaults**: DRN's Npgsql context defaults now target PostgreSQL 18.6, matching the digest-pinned Testcontainers and Docker Compose runtime default.
-*   **SaveChanges & ValueGenerator Reflection Elimination**: Replaced dynamic `MethodUtils.InvokeGenericMethod` reflection in `DrnSaveChangesInterceptor` and `SourceKnownIdValueGenerator` with direct compiled delegate dispatch via `ISourceKnownIdUtils.Next(Type)`, eliminating runtime `MethodInfo.Invoke` and parameter array allocations on entity insertion hot paths, with upfront `SourceKnownIdUtils.Warmup` pre-compilation during startup DbContext validation.
+*   **SaveChanges & ValueGenerator Reflection Elimination**: Replaced dynamic `MethodUtils.InvokeGenericMethod` reflection in `DrnSaveChangesInterceptor` and `SourceKnownIdValueGenerator` with direct compiled delegate dispatch via `ISourceKnownIdUtils.Next(SourceKnownEntity)`, eliminating runtime `MethodInfo.Invoke` and parameter array allocations on entity insertion hot paths, with upfront `SourceKnownIdUtils.Warmup` pre-compilation during startup DbContext validation.
 
 ### Bug Fixes
 

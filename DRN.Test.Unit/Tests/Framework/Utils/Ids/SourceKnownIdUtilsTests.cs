@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using DRN.Framework.SharedKernel.Attributes;
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
@@ -15,6 +15,7 @@ public readonly struct CustomUtilsTestApp : IAppId
 [EntityType<CustomUtilsTestApp>(1)]
 public class CustomTestEntityForUtils : SourceKnownEntity;
 
+[SuppressMessage("ReSharper", "RedundantCast")]
 public class SourceKnownIdUtilsTests
 {
     [Fact]
@@ -27,7 +28,7 @@ public class SourceKnownIdUtilsTests
         var beforeIdGenerated = DateTimeOffset.UtcNow;
 
         await Task.Delay(1200);
-        var id = SourceKnownIdUtils.Generate<object>(appId, appInstanceId);
+        var id = SourceKnownIdUtils.Generate<CustomTestEntityForUtils>(appId, appInstanceId);
         await Task.Delay(1200);
 
         var afterIdGenerated = DateTimeOffset.UtcNow;
@@ -96,7 +97,7 @@ public class SourceKnownIdUtilsTests
     [InlineData((byte)255, (byte)0)]
     public void Generate_With_AppId_Exceeding_MaxAppId_Should_Throw_ArgumentOutOfRangeException(byte appId, byte appInstanceId)
     {
-        var act = () => SourceKnownIdUtils.Generate<object>(appId, appInstanceId);
+        var act = () => SourceKnownIdUtils.Generate<CustomTestEntityForUtils>(appId, appInstanceId);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
@@ -105,7 +106,7 @@ public class SourceKnownIdUtilsTests
     [InlineData((byte)0, (byte)255)]
     public void Generate_With_AppInstanceId_Exceeding_MaxAppInstanceId_Should_Throw_ArgumentOutOfRangeException(byte appId, byte appInstanceId)
     {
-        var act = () => SourceKnownIdUtils.Generate<object>(appId, appInstanceId);
+        var act = () => SourceKnownIdUtils.Generate<CustomTestEntityForUtils>(appId, appInstanceId);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
@@ -169,7 +170,7 @@ public class SourceKnownIdUtilsTests
 
     [Theory]
     [DataInlineUnit]
-    public void Next_WithType_Should_Generate_Valid_Id_Matching_Generic_Contract(DrnTestContextUnit context)
+    public void Next_WithEntity_Should_Generate_Valid_Id_Matching_Generic_Contract(DrnTestContextUnit context)
     {
         var nexusSettings = new NexusAppSettings
         {
@@ -181,20 +182,21 @@ public class SourceKnownIdUtilsTests
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
 
         var idGeneric = generator.Next<CustomTestEntityForUtils>();
-        var idType = generator.Next(typeof(CustomTestEntityForUtils));
+        var entity = new CustomTestEntityForUtils();
+        var idEntity = generator.Next(entity);
 
         var parsedGeneric = generator.Parse(idGeneric);
-        var parsedType = generator.Parse(idType);
+        var parsedEntity = generator.Parse(idEntity);
 
-        parsedType.AppId.Should().Be(77);
-        parsedType.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
+        parsedEntity.AppId.Should().Be(77);
+        parsedEntity.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
         parsedGeneric.AppId.Should().Be(77);
         parsedGeneric.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
     }
 
     [Theory]
     [DataInlineUnit]
-    public void Next_WithType_With_SourceKnownEntity_Should_Use_Entity_AppId(DrnTestContextUnit context)
+    public void Next_WithEntity_With_SourceKnownEntity_Should_Use_Entity_AppId(DrnTestContextUnit context)
     {
         var nexusSettings = new NexusAppSettings
         {
@@ -205,7 +207,8 @@ public class SourceKnownIdUtilsTests
         context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
 
-        var id = generator.Next(typeof(CustomTestEntityForUtils));
+        var entity = new CustomTestEntityForUtils();
+        var id = generator.Next(entity);
         var parsed = generator.Parse(id);
 
         parsed.AppId.Should().Be(77);
@@ -249,20 +252,13 @@ public class SourceKnownIdUtilsTests
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
 
         // Value types must throw ArgumentException
-        var actValueType = () => generator.Next(typeof(int));
-        actValueType.Should().Throw<ArgumentException>();
-
         var actValueTypeExplicit = () => generator.Next(typeof(int), 1, 1);
         actValueTypeExplicit.Should().Throw<ArgumentException>();
 
         var actValueTypeGenerate = () => SourceKnownIdUtils.Generate(typeof(int), 1, 1);
         actValueTypeGenerate.Should().Throw<ArgumentException>();
 
-        // Non-entity class types must throw ArgumentException on Next(Type)
-        var actNonEntityClass = () => generator.Next(typeof(SourceKnownIdUtilsTests));
-        actNonEntityClass.Should().Throw<ArgumentException>()
-            .WithMessage($"Type '{typeof(SourceKnownIdUtilsTests).FullName}' must inherit from '{nameof(SourceKnownEntity)}'.*");
-
+        // Non-entity class types must throw ArgumentException on Next(Type, ...) and Generate(Type, ...)
         var actNonEntityClassExplicit = () => generator.Next(typeof(SourceKnownIdUtilsTests), 1, 1);
         actNonEntityClassExplicit.Should().Throw<ArgumentException>()
             .WithMessage($"Type '{typeof(SourceKnownIdUtilsTests).FullName}' must inherit from '{nameof(SourceKnownEntity)}'.*");
@@ -274,15 +270,15 @@ public class SourceKnownIdUtilsTests
 
     [Theory]
     [DataInlineUnit]
-    public void Next_With_Null_EntityType_Should_Throw_ArgumentNullException(DrnTestContextUnit context)
+    public void Next_With_Null_Entity_Or_EntityType_Should_Throw_ArgumentNullException(DrnTestContextUnit context)
     {
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
 
-        var actNext = () => generator.Next(null!);
-        actNext.Should().ThrowExactly<ArgumentNullException>()
-            .WithParameterName("entityType");
+        var actNextEntity = () => generator.Next((SourceKnownEntity)null!);
+        actNextEntity.Should().ThrowExactly<ArgumentNullException>()
+            .WithParameterName("entity");
 
-        var actNextExplicit = () => generator.Next(null!, 1, 1);
+        var actNextExplicit = () => generator.Next((Type)null!, 1, 1);
         actNextExplicit.Should().ThrowExactly<ArgumentNullException>()
             .WithParameterName("entityType");
 
@@ -293,18 +289,19 @@ public class SourceKnownIdUtilsTests
 
     [Theory]
     [DataInlineUnit]
-    public void Next_WithType_Should_Be_ThreadSafe_Under_Concurrent_Load(DrnTestContextUnit context)
+    public void Next_WithEntity_Should_Be_ThreadSafe_Under_Concurrent_Load(DrnTestContextUnit context)
     {
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
         const int threadCount = 8;
         const int iterationsPerThread = 500;
         var generatedIds = new ConcurrentBag<long>();
+        var entity = new CustomTestEntityForUtils();
 
         Parallel.For(0, threadCount, _ =>
         {
             for (var i = 0; i < iterationsPerThread; i++)
             {
-                var id = generator.Next(typeof(CustomTestEntityForUtils));
+                var id = generator.Next(entity);
                 generatedIds.Add(id);
             }
         });
@@ -327,7 +324,8 @@ public class SourceKnownIdUtilsTests
         actInterfaceWarmup.Should().NotThrow();
 
         // Verify ID generation after warmup
-        var id = generator.Next(typeof(CustomTestEntityForUtils));
+        var entity = new CustomTestEntityForUtils();
+        var id = generator.Next(entity);
         var parsed = generator.Parse(id);
         parsed.AppId.Should().Be(77);
 
