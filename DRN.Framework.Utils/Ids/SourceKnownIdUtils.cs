@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DRN.Framework.SharedKernel.Domain;
@@ -50,6 +51,8 @@ public interface ISourceKnownIdUtils
 }
 
 [Singleton<ISourceKnownIdUtils>]
+[SuppressMessage("ReSharper", "InconsistentlySynchronizedField")]
+[SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
 public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochTimeUtils) : ISourceKnownIdUtils
 {
     public const byte MaxAppId = IAppId.MaxAppId;
@@ -57,11 +60,23 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     public const long TicksPerHalf = 1L << 32; // 2^32 ticks per half-epoch
     public const long MaxEpochTicks = (TicksPerHalf << 1) - 1; // 2^33 - 1: full ~68-year epoch (both halves)
 
+    private sealed class DelegateCacheSnapshot(
+        FrozenDictionary<Type, Func<byte, byte, DateTimeOffset?, long>> frozenDelegates,
+        ConcurrentDictionary<Type, Func<byte, byte, DateTimeOffset?, long>> dynamicDelegates)
+    {
+        public readonly FrozenDictionary<Type, Func<byte, byte, DateTimeOffset?, long>> FrozenDelegates = frozenDelegates;
+        public readonly ConcurrentDictionary<Type, Func<byte, byte, DateTimeOffset?, long>> DynamicDelegates = dynamicDelegates;
+    }
+
+    private static readonly Lock SyncLock = new();
+
+    private static volatile DelegateCacheSnapshot _delegateCache = new(
+        FrozenDictionary<Type, Func<byte, byte, DateTimeOffset?, long>>.Empty,
+        new ConcurrentDictionary<Type, Func<byte, byte, DateTimeOffset?, long>>());
+
     private static readonly MethodInfo GenerateGenericMethodDefinition = typeof(SourceKnownIdUtils)
         .GetMethods(BindingFlag.StaticPublic)
         .First(m => m is { Name: nameof(Generate), IsGenericMethodDefinition: true } && m.GetParameters().Length == 3);
-
-    private static readonly ConcurrentDictionary<Type, Func<byte, byte, DateTimeOffset?, long>> TypeGenerateDelegateCache = new();
 
     /// <summary>
     /// Pre-compiles and warms up ID generation delegates for the specified entity types.
@@ -72,14 +87,55 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     public static void Warmup(ICollection<Type> entityTypes)
     {
         ArgumentNullException.ThrowIfNull(entityTypes);
+        if (entityTypes.Count == 0)
+            return;
 
-        foreach (var type in entityTypes)
+        lock (SyncLock)
         {
-            if (type is null || !type.IsClass || !typeof(SourceKnownEntity).IsAssignableFrom(type))
-                continue;
+            var current = _delegateCache;
+            if (current.DynamicDelegates.IsEmpty && AllWarmedUp(current.FrozenDelegates, entityTypes))
+                return;
 
-            TypeGenerateDelegateCache.GetOrAdd(type, static t => CreateGenerateDelegate(t));
+            var map = new Dictionary<Type, Func<byte, byte, DateTimeOffset?, long>>(current.FrozenDelegates);
+            var anyNew = false;
+
+            // Merge any previously recorded dynamic entries
+            foreach (var (k, v) in current.DynamicDelegates)
+            {
+                map[k] = v;
+                anyNew = true;
+            }
+
+            foreach (var type in entityTypes)
+            {
+                if (type is null || !type.IsClass || !typeof(SourceKnownEntity).IsAssignableFrom(type))
+                    continue;
+
+                if (map.ContainsKey(type))
+                    continue;
+
+                anyNew = true;
+                map[type] = CreateGenerateDelegate(type);
+            }
+
+            if (!anyNew && current.FrozenDelegates.Count > 0)
+                return;
+
+            _delegateCache = new DelegateCacheSnapshot(
+                map.ToFrozenDictionary(),
+                new ConcurrentDictionary<Type, Func<byte, byte, DateTimeOffset?, long>>());
         }
+    }
+
+    private static bool AllWarmedUp(FrozenDictionary<Type, Func<byte, byte, DateTimeOffset?, long>> frozen, ICollection<Type> types)
+    {
+        if (frozen.Count == 0 || types.Count == 0) return false;
+        foreach (var type in types)
+        {
+            if (type is not null && type.IsClass && typeof(SourceKnownEntity).IsAssignableFrom(type) && !frozen.ContainsKey(type))
+                return false;
+        }
+        return true;
     }
 
     public static long Generate<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : class
@@ -125,7 +181,12 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         if (!typeof(SourceKnownEntity).IsAssignableFrom(entityType))
             throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
 
-        var invoker = TypeGenerateDelegateCache.GetOrAdd(entityType, static type => CreateGenerateDelegate(type));
+        var cache = _delegateCache;
+        if (!cache.FrozenDelegates.TryGetValue(entityType, out var invoker) &&
+            !cache.DynamicDelegates.TryGetValue(entityType, out invoker))
+        {
+            invoker = cache.DynamicDelegates.GetOrAdd(entityType, static t => CreateGenerateDelegate(t));
+        }
 
         return invoker(appId, appInstanceId, epoch);
     }
