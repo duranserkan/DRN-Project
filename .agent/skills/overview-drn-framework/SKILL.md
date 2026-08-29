@@ -254,7 +254,7 @@ PostgreSQL:
 | Property | Default |
 |----------|---------|
 | `DefaultImage` | `"postgres"` |
-| `DefaultVersion` | `"18.4-alpine3.24"` |
+| `DefaultVersion` | `"18.6-alpine3.24"` |
 | `DefaultPassword` | `"drn"` |
 | `Database` | `"drn"` |
 | `Username` | `"drn"` |
@@ -264,7 +264,7 @@ RabbitMQ:
 | Property | Default |
 |----------|---------|
 | `DefaultImage` | `"rabbitmq"` |
-| `DefaultVersion` | `"4.3.2-management-alpine"` |
+| `DefaultVersion` | `"4.3.5-management-alpine"` |
 | `Username` | unset |
 | `Password` | unset |
 

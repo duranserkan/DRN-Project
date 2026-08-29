@@ -26,19 +26,48 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
     /// <inheritdoc cref="Generate{TEntity}(long)"/>
     new SourceKnownEntityId Generate(long id, byte entityType);
 
+    /// <inheritdoc cref="Generate{TEntity}(long)"/>
+    SourceKnownEntityId Generate(long id, EntityTypeId entityTypeId)
+    {
+        var result = Generate(id, entityTypeId.EntityType);
+        result.Validate(entityTypeId);
+        return result;
+    }
+
     SourceKnownEntityId GenerateSecure<TEntity>(long id) where TEntity : SourceKnownEntity;
     SourceKnownEntityId GenerateSecure(SourceKnownEntity entity);
     SourceKnownEntityId GenerateSecure(long id, byte entityType);
+    SourceKnownEntityId GenerateSecure(long id, EntityTypeId entityTypeId)
+    {
+        var result = GenerateSecure(id, entityTypeId.EntityType);
+        result.Validate(entityTypeId);
+        return result;
+    }
 
     SourceKnownEntityId GeneratePlain<TEntity>(long id) where TEntity : SourceKnownEntity;
     SourceKnownEntityId GeneratePlain(SourceKnownEntity entity);
     SourceKnownEntityId GeneratePlain(long id, byte entityType);
+    SourceKnownEntityId GeneratePlain(long id, EntityTypeId entityTypeId)
+    {
+        var result = GeneratePlain(id, entityTypeId.EntityType);
+        result.Validate(entityTypeId);
+        return result;
+    }
 
     SourceKnownEntityId? Parse(Guid? entityId);
     new SourceKnownEntityId Parse(Guid entityId);
 
     SourceKnownEntityId? Validate(Guid? entityId, byte entityType);
     SourceKnownEntityId Validate(Guid entityId, byte entityType);
+
+    SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId)
+        => entityId.HasValue ? Validate(entityId.Value, entityTypeId) : null;
+    SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId)
+    {
+        var sourceKnownId = Parse(entityId);
+        sourceKnownId.Validate(entityTypeId);
+        return sourceKnownId;
+    }
 
     SourceKnownEntityId? Validate<TEntity>(Guid? entityId) where TEntity : SourceKnownEntity;
     SourceKnownEntityId Validate<TEntity>(Guid entityId) where TEntity : SourceKnownEntity;
@@ -133,13 +162,33 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         _useSecure = appSettings.NexusAppSettings.UseSecureSourceKnownIds;
     }
 
-    public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity => Generate(id, SourceKnownEntity.GetEntityType<TEntity>());
-    public SourceKnownEntityId Generate(SourceKnownEntity entity) => Generate(entity.Id, SourceKnownEntity.GetEntityType(entity));
+    public SourceKnownEntityId Generate<TEntity>(long id) where TEntity : SourceKnownEntity
+        => Generate(id, SourceKnownEntity.GetEntityTypeId<TEntity>());
+
+    public SourceKnownEntityId Generate(SourceKnownEntity entity)
+        => Generate(entity.Id, SourceKnownEntity.GetEntityTypeId(entity));
+
+    public SourceKnownEntityId Generate(long id, EntityTypeId entityTypeId)
+    {
+        var result = _useSecure ? GenerateSecure(id, entityTypeId.EntityType) : GeneratePlain(id, entityTypeId.EntityType);
+        result.Validate(entityTypeId);
+        return result;
+    }
 
     public SourceKnownEntityId Generate(long id, byte entityType) => _useSecure ? GenerateSecure(id, entityType) : GeneratePlain(id, entityType);
 
-    public SourceKnownEntityId GeneratePlain<TEntity>(long id) where TEntity : SourceKnownEntity => GeneratePlain(id, SourceKnownEntity.GetEntityType<TEntity>());
-    public SourceKnownEntityId GeneratePlain(SourceKnownEntity entity) => GeneratePlain(entity.Id, SourceKnownEntity.GetEntityType(entity));
+    public SourceKnownEntityId GeneratePlain<TEntity>(long id) where TEntity : SourceKnownEntity
+        => GeneratePlain(id, SourceKnownEntity.GetEntityTypeId<TEntity>());
+
+    public SourceKnownEntityId GeneratePlain(SourceKnownEntity entity)
+        => GeneratePlain(entity.Id, SourceKnownEntity.GetEntityTypeId(entity));
+
+    public SourceKnownEntityId GeneratePlain(long id, EntityTypeId entityTypeId)
+    {
+        var result = GeneratePlain(id, entityTypeId.EntityType);
+        result.Validate(entityTypeId);
+        return result;
+    }
 
     public SourceKnownEntityId GeneratePlain(long id, byte entityType)
     {
@@ -157,8 +206,18 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         return new SourceKnownEntityId(sourceKnownId, entityId, entityType, true, Secure: false);
     }
 
-    public SourceKnownEntityId GenerateSecure<TEntity>(long id) where TEntity : SourceKnownEntity => GenerateSecure(id, SourceKnownEntity.GetEntityType<TEntity>());
-    public SourceKnownEntityId GenerateSecure(SourceKnownEntity entity) => GenerateSecure(entity.Id, SourceKnownEntity.GetEntityType(entity));
+    public SourceKnownEntityId GenerateSecure<TEntity>(long id) where TEntity : SourceKnownEntity
+        => GenerateSecure(id, SourceKnownEntity.GetEntityTypeId<TEntity>());
+
+    public SourceKnownEntityId GenerateSecure(SourceKnownEntity entity)
+        => GenerateSecure(entity.Id, SourceKnownEntity.GetEntityTypeId(entity));
+
+    public SourceKnownEntityId GenerateSecure(long id, EntityTypeId entityTypeId)
+    {
+        var result = GenerateSecure(id, entityTypeId.EntityType);
+        result.Validate(entityTypeId);
+        return result;
+    }
 
     public SourceKnownEntityId GenerateSecure(long id, byte entityType)
     {
@@ -270,6 +329,17 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     {
         var sourceKnownId = Parse(entityId);
         sourceKnownId.Validate(entityType);
+
+        return sourceKnownId;
+    }
+
+    public SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId)
+        => entityId.HasValue ? Validate(entityId.Value, entityTypeId) : null;
+
+    public SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId)
+    {
+        var sourceKnownId = Parse(entityId);
+        sourceKnownId.Validate(entityTypeId);
 
         return sourceKnownId;
     }

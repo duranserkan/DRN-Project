@@ -83,15 +83,22 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     private static readonly ConcurrentDictionary<Type, EntityTypeId> TypeToEntityTypeIdMap = new();
     private static readonly ConcurrentDictionary<EntityTypeId, Type> IdToTypeMap = new();
 
+    private static class EntityMetadataCache<TEntity> where TEntity : SourceKnownEntity
+    {
+        public static readonly EntityTypeId EntityTypeId = GetEntityTypeId(typeof(TEntity));
+        public static readonly byte EntityType = EntityTypeId.EntityType;
+        public static readonly byte AppId = EntityTypeId.AppId;
+    }
+
     public static Type? GetEntityType(EntityTypeId key) => IdToTypeMap.GetValueOrDefault(key);
     public static Type? GetEntityType(byte entityType, byte appId = 0) => GetEntityType(new EntityTypeId(entityType, appId));
-    public static byte GetEntityType<TEntity>() where TEntity : SourceKnownEntity => GetEntityType(typeof(TEntity));
+    public static byte GetEntityType<TEntity>() where TEntity : SourceKnownEntity => EntityMetadataCache<TEntity>.EntityType;
     public static byte GetEntityType<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetEntityType(entity.GetType());
     public static byte GetEntityType(Type entityType) => GetEntityTypeId(entityType).EntityType;
 
-    public static EntityTypeId GetEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => GetEntityTypeId(typeof(TEntity));
+    public static EntityTypeId GetEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => EntityMetadataCache<TEntity>.EntityTypeId;
     public static EntityTypeId GetEntityTypeId<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetEntityTypeId(entity.GetType());
-    public static EntityTypeId GetEntityTypeId(Type entityType) => TypeToEntityTypeIdMap.GetOrAdd(entityType, type =>
+    public static EntityTypeId GetEntityTypeId(Type entityType) => TypeToEntityTypeIdMap.GetOrAdd(entityType, static type =>
     {
         var attribute = type.GetCustomAttribute<EntityTypeAttribute>();
         if (attribute == null)
@@ -101,7 +108,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         return new EntityTypeId(attribute.EntityType, attribute.AppId);
     });
 
-    public static byte GetAppId<TEntity>() where TEntity : SourceKnownEntity => GetAppId(typeof(TEntity));
+    public static byte GetAppId<TEntity>() where TEntity : SourceKnownEntity => EntityMetadataCache<TEntity>.AppId;
     public static byte GetAppId<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => GetAppId(entity.GetType());
     public static byte GetAppId(Type entityType) => GetEntityTypeId(entityType).AppId;
 
@@ -164,8 +171,18 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public SourceKnownEntityId ToPlain(SourceKnownEntityId id) => Ops.ToPlain(id);
     public SourceKnownEntityId? ToPlain(SourceKnownEntityId? id) => id.HasValue ? Ops.ToPlain(id.Value) : null;
 
-    public SourceKnownEntityId GetEntityId<TEntity>(Guid id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
-    public SourceKnownEntityId? GetEntityId<TEntity>(Guid? id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityType<TEntity>());
+    public SourceKnownEntityId GetEntityId<TEntity>(Guid id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityTypeId<TEntity>());
+    public SourceKnownEntityId? GetEntityId<TEntity>(Guid? id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityTypeId<TEntity>());
+
+    public SourceKnownEntityId? GetEntityId(Guid? id, EntityTypeId entityTypeId) => id == null ? null : GetEntityId(id.Value, entityTypeId);
+
+    public SourceKnownEntityId GetEntityId(Guid id, EntityTypeId entityTypeId)
+    {
+        var sourceKnownId = GetEntityId(id, false);
+        sourceKnownId.Validate(entityTypeId);
+
+        return sourceKnownId;
+    }
 
     public SourceKnownEntityId? GetEntityId(Guid? id, byte entityType) => id == null ? null : GetEntityId(id.Value, entityType);
 

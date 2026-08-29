@@ -2,7 +2,6 @@ using System.Buffers.Binary;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Numbers;
-using DRN.Framework.Utils.Time;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
@@ -324,7 +323,8 @@ public class PaperNumericWalkthroughTests
 
     public readonly struct WalkthroughApp : IAppId
     {
-        public static byte AppId => WalkthroughAppId;
+        public const byte Value = WalkthroughAppId;
+        public static byte AppId => Value;
     }
 
     [EntityType<WalkthroughApp>(WalkthroughEntityType)]

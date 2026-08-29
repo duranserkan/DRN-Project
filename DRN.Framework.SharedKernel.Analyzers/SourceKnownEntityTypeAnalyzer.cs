@@ -26,7 +26,8 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         DiagnosticDescriptors.DuplicateEntityTypeValue,
         DiagnosticDescriptors.InvalidEntityTypeAttributeUsage,
         DiagnosticDescriptors.DuplicateEntityName,
-        DiagnosticDescriptors.MultipleAppIdsNotPermitted
+        DiagnosticDescriptors.MultipleAppIdsNotPermitted,
+        DiagnosticDescriptors.UnresolvableAppId
     ];
 
     public override void Initialize(AnalysisContext context)
@@ -113,28 +114,33 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         ConcurrentBag<EntityTypeDeclaration> collectedEntityTypeDeclarations,
         ConcurrentBag<EntityNameDeclaration> collectedEntityNameDeclarations)
     {
-        var entityTypeValue = (byte)0;
-        var declaredAppId = (byte)0;
-        var hasValidAttribute = entityTypeAttribute != null &&
-                                EntityAnalyzerHelper.TryGetEntityType(entityTypeAttribute, out entityTypeValue, out declaredAppId);
-
-        // 1. Buffer non-private entity class names for compilation end analysis (DRN0004 - Warning)
         var location = namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None;
-        collectedEntityNameDeclarations.Add(new EntityNameDeclaration(namedType.Name, declaredAppId, namedType, location));
 
-        // 2. Check EntityType attribute presence (DRN0001) & collect for compilation end (DRN0002)
         if (entityTypeAttribute == null)
         {
             symbolContext.ReportDiagnostic(Diagnostic.Create(
                 DiagnosticDescriptors.MissingEntityTypeAttribute,
                 location,
                 namedType.Name));
+            return;
         }
-        else if (hasValidAttribute)
+
+        if (!EntityAnalyzerHelper.TryGetEntityType(entityTypeAttribute, symbolContext.Compilation, out var entityTypeValue, out var declaredAppId))
         {
             var attrLocation = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax(symbolContext.CancellationToken).GetLocation() ?? location;
-            collectedEntityTypeDeclarations.Add(new EntityTypeDeclaration(entityTypeValue, declaredAppId, namedType, attrLocation));
+            symbolContext.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.UnresolvableAppId,
+                attrLocation,
+                namedType.Name));
+            return;
         }
+
+        // 1. Buffer non-private entity class names for compilation end analysis (DRN0004 - Warning)
+        collectedEntityNameDeclarations.Add(new EntityNameDeclaration(namedType.Name, declaredAppId, namedType, location));
+
+        // 2. Collect for compilation end (DRN0002 & DRN0005)
+        var validAttrLocation = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax(symbolContext.CancellationToken).GetLocation() ?? location;
+        collectedEntityTypeDeclarations.Add(new EntityTypeDeclaration(entityTypeValue, declaredAppId, namedType, validAttrLocation));
     }
 
     private static void AnalyzeCompilationEnd(
@@ -176,8 +182,22 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         IReadOnlyList<INamedTypeSymbol> distinctReferencedEntities,
         INamedTypeSymbol entityTypeAttributeSymbol)
     {
-        var referencedByValue = distinctReferencedEntities
-            .Select(s => ExtractEntityTypeInfo(s, entityTypeAttributeSymbol))
+        var extractedInfo = distinctReferencedEntities
+            .Select(s => ExtractEntityTypeInfo(s, entityTypeAttributeSymbol, endContext.Compilation))
+            .ToList();
+
+        foreach (var info in extractedInfo)
+        {
+            if (info.Unresolvable)
+            {
+                endContext.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.UnresolvableAppId,
+                    Location.None,
+                    $"{info.Symbol.ContainingAssembly.Name}::{info.Symbol.Name}"));
+            }
+        }
+
+        var referencedByValue = extractedInfo
             .Where(x => x.HasValue)
             .GroupBy(x => (x.AppId, x.Value));
 
@@ -194,15 +214,19 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         return referencedEntityTypeMap;
     }
 
-    private static (INamedTypeSymbol Symbol, bool HasValue, byte Value, byte AppId) ExtractEntityTypeInfo(
+    private static (INamedTypeSymbol Symbol, bool HasValue, byte Value, byte AppId, bool Unresolvable) ExtractEntityTypeInfo(
         INamedTypeSymbol symbol,
-        INamedTypeSymbol entityTypeAttributeSymbol)
+        INamedTypeSymbol entityTypeAttributeSymbol,
+        Compilation? compilation)
     {
         var attr = EntityAnalyzerHelper.FindAttribute(symbol, entityTypeAttributeSymbol);
-        if (attr != null && EntityAnalyzerHelper.TryGetEntityType(attr, out var val, out var refAppId))
-            return (Symbol: symbol, HasValue: true, Value: val, AppId: refAppId);
+        if (attr == null)
+            return (Symbol: symbol, HasValue: false, Value: 0, AppId: 0, Unresolvable: false);
 
-        return (Symbol: symbol, HasValue: false, Value: 0, AppId: 0);
+        if (EntityAnalyzerHelper.TryGetEntityType(attr, compilation, out var val, out var refAppId))
+            return (Symbol: symbol, HasValue: true, Value: val, AppId: refAppId, Unresolvable: false);
+
+        return (Symbol: symbol, HasValue: false, Value: 0, AppId: 0, Unresolvable: true);
     }
 
     private static void ReportReferencedEntityTypeCollisions(
@@ -315,8 +339,9 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         INamedTypeSymbol entityTypeAttributeSymbol)
     {
         var referencedByName = distinctReferencedEntities
-            .Select(s => ExtractEntityNameInfo(s, entityTypeAttributeSymbol))
-            .GroupBy(x => (x.AppId, x.Symbol.Name), x => x.Symbol);
+            .Select(s => ExtractEntityNameInfo(s, entityTypeAttributeSymbol, endContext.Compilation))
+            .Where(x => x.AppId.HasValue)
+            .GroupBy(x => (AppId: x.AppId!.Value, x.Symbol.Name), x => x.Symbol);
 
         var referencedEntityNameMap = new Dictionary<(byte AppId, string Name), List<INamedTypeSymbol>>();
         foreach (var refNameGroup in referencedByName)
@@ -331,13 +356,16 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         return referencedEntityNameMap;
     }
 
-    private static (INamedTypeSymbol Symbol, byte AppId) ExtractEntityNameInfo(
+    private static (INamedTypeSymbol Symbol, byte? AppId) ExtractEntityNameInfo(
         INamedTypeSymbol symbol,
-        INamedTypeSymbol entityTypeAttributeSymbol)
+        INamedTypeSymbol entityTypeAttributeSymbol,
+        Compilation? compilation)
     {
         var attr = EntityAnalyzerHelper.FindAttribute(symbol, entityTypeAttributeSymbol);
-        var refAppId = attr != null && EntityAnalyzerHelper.TryGetEntityType(attr, out _, out var app) ? app : (byte)0;
-        return (Symbol: symbol, AppId: refAppId);
+        if (attr != null && EntityAnalyzerHelper.TryGetEntityType(attr, compilation, out _, out var app))
+            return (Symbol: symbol, AppId: app);
+
+        return (Symbol: symbol, AppId: null);
     }
 
     private static void ReportReferencedEntityNameCollisions(
@@ -442,7 +470,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             .Select(d => d.AppId);
 
         var referencedAppIds = distinctReferencedEntities
-            .Select(s => ExtractEntityTypeInfo(s, entityTypeAttributeSymbol))
+            .Select(s => ExtractEntityTypeInfo(s, entityTypeAttributeSymbol, endContext.Compilation))
             .Where(x => x.HasValue)
             .Select(x => x.AppId);
 
@@ -497,13 +525,6 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
              assemblyName.StartsWith("Test.", StringComparison.OrdinalIgnoreCase) ||
              assemblyName.EndsWith(".Tests", StringComparison.OrdinalIgnoreCase) ||
              assemblyName.EndsWith(".Test", StringComparison.OrdinalIgnoreCase)))
-        {
-            return true;
-        }
-
-        var referencedAssemblies = context.Compilation.ReferencedAssemblyNames;
-        if (referencedAssemblies.Any(r => r.Name.Equals("DRN.Framework.Testing", StringComparison.OrdinalIgnoreCase) ||
-                                          r.Name.StartsWith("xunit", StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }

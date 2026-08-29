@@ -1,13 +1,13 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Extensions;
-using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
-using DRN.Framework.Utils.Settings;
+using DRN.Framework.Utils.Logging;
 using Microsoft.EntityFrameworkCore;
-using NSubstitute;
 
 namespace DRN.Test.Unit.Tests.Framework.EntityFramework;
 
+[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public class DrnContextServiceRegistrationAttributeTests
 {
     [Fact]
@@ -125,14 +125,73 @@ public class DrnContextServiceRegistrationAttributeTests
         var primaryAppSettings = Substitute.For<IAppSettings>();
         primaryAppSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = 121 });
 
+        var primaryOptions = new DbContextOptionsBuilder<TestValidationDbContext>()
+            .UseNpgsql("Host=localhost;Database=test")
+            .Options;
+        using var primaryDbContext = new TestValidationDbContext(primaryOptions);
+
         var serviceProvider = Substitute.For<IServiceProvider>();
-        var container = new DrnServiceContainer(typeof(FirstPartitionEntity).Assembly, []);
+        var descriptor = new ServiceDescriptor(typeof(TestValidationDbContext), primaryDbContext);
+        var module = new AttributeSpecifiedServiceModule([descriptor], new DrnContextServiceRegistrationAttribute());
+        var container = new DrnServiceContainer(typeof(TestValidationDbContext).Assembly, [], [module]);
         serviceProvider.GetService(typeof(IEnumerable<DrnServiceContainer>)).Returns(new[] { container });
+        serviceProvider.GetService(typeof(TestValidationDbContext)).Returns(primaryDbContext);
 
         // Secondary partition (122) in DbContext should succeed because primary partition (121) is registered in host containers
         var act = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(dbContext, scopedLog: null, primaryAppSettings, serviceProvider);
 
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void ValidateEntityTypes_With_MultiApp_Host_Should_Allow_Secondary_Partition_When_Primary_AppId_Is_Zero()
+    {
+        var options = new DbContextOptionsBuilder<TestSecondaryValidationDbContext>()
+            .UseNpgsql("Host=localhost;Database=test")
+            .Options;
+        using var dbContext = new TestSecondaryValidationDbContext(options);
+
+        // AppSettings is configured with primary partition (0 - DefaultApp)
+        var zeroAppSettings = Substitute.For<IAppSettings>();
+        zeroAppSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = 0 });
+
+        var defaultOptions = new DbContextOptionsBuilder<TestDefaultValidationDbContext>()
+            .UseNpgsql("Host=localhost;Database=test")
+            .Options;
+        using var defaultDbContext = new TestDefaultValidationDbContext(defaultOptions);
+
+        var serviceProvider = Substitute.For<IServiceProvider>();
+        var descriptor = new ServiceDescriptor(typeof(TestDefaultValidationDbContext), defaultDbContext);
+        var module = new AttributeSpecifiedServiceModule([descriptor], new DrnContextServiceRegistrationAttribute());
+        var container = new DrnServiceContainer(typeof(TestDefaultValidationDbContext).Assembly, [], [module]);
+        serviceProvider.GetService(typeof(IEnumerable<DrnServiceContainer>)).Returns(new[] { container });
+        serviceProvider.GetService(typeof(TestDefaultValidationDbContext)).Returns(defaultDbContext);
+
+        // Secondary partition (122) in DbContext should succeed because primary partition (0) is registered in host containers
+        var act = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(dbContext, scopedLog: null, zeroAppSettings, serviceProvider);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void ValidateEntityTypes_With_Multiple_Production_AppIds_In_Same_DbContext_Should_Throw_UnprocessableEntityException()
+    {
+        var options = new DbContextOptionsBuilder<TestMultiAppValidationDbContext>()
+            .UseNpgsql("Host=localhost;Database=test")
+            .Options;
+        using var dbContext = new TestMultiAppValidationDbContext(options);
+
+        var matchingAppSettings = Substitute.For<IAppSettings>();
+        matchingAppSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = 121 });
+
+        var actNullLog = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(dbContext, scopedLog: null, matchingAppSettings);
+        actNullLog.Should().ThrowExactly<UnprocessableEntityException>()
+            .WithMessage("*multipleAppIds*");
+
+        var scopedLog = Substitute.For<IScopedLog>();
+        var actWithLog = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(dbContext, scopedLog, matchingAppSettings);
+        actWithLog.Should().ThrowExactly<UnprocessableEntityException>()
+            .WithMessage("*MultipleAppIds (121, 122)*");
     }
 
     [Fact]
@@ -147,11 +206,36 @@ public class DrnContextServiceRegistrationAttributeTests
 
         domainTypes.Should().Contain(typeof(FirstPartitionEntity));
     }
+
+    [Fact]
+    public void GetModelDomainEntityTypes_Should_Include_Only_Model_Entities()
+    {
+        var options = new DbContextOptionsBuilder<TestValidationDbContext>()
+            .UseNpgsql("Host=localhost;Database=test")
+            .Options;
+        using var dbContext = new TestValidationDbContext(options);
+
+        var modelTypes = DrnContextServiceRegistrationAttribute.GetModelDomainEntityTypes(dbContext);
+        modelTypes.Should().Contain(typeof(FirstPartitionEntity));
+        modelTypes.Should().NotContain(typeof(SecondPartitionEntity));
+    }
 }
 
 public class TestValidationDbContext(DbContextOptions<TestValidationDbContext> options) : DbContext(options)
 {
     public DbSet<FirstPartitionEntity> Entities => Set<FirstPartitionEntity>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        this.ModelCreatingDefaults(modelBuilder);
+    }
+}
+
+public class TestMultiAppValidationDbContext(DbContextOptions<TestMultiAppValidationDbContext> options) : DbContext(options)
+{
+    public DbSet<FirstPartitionEntity> FirstEntities => Set<FirstPartitionEntity>();
+    public DbSet<SecondPartitionEntity> SecondEntities => Set<SecondPartitionEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -184,12 +268,14 @@ public class TestDefaultValidationDbContext(DbContextOptions<TestDefaultValidati
 
 public readonly struct FirstValidationApp : IAppId
 {
-    public static byte AppId => 121;
+    public const byte Value = 121;
+    public static byte AppId => Value;
 }
 
 public readonly struct SecondValidationApp : IAppId
 {
-    public static byte AppId => 122;
+    public const byte Value = 122;
+    public static byte AppId => Value;
 }
 
 [EntityType<FirstValidationApp>(250)]

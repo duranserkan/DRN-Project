@@ -29,8 +29,12 @@ public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid Ent
     public EntityTypeId EntityTypeId => new(EntityType, Source.AppId);
 
     public bool HasSameEntityType(byte other) => EntityType == other;
-    public bool HasSameEntityType(SourceKnownEntityId other) => HasSameEntityType(other.EntityType);
-    public bool HasSameEntityType<TEntity>() where TEntity : SourceKnownEntity => HasSameEntityType(SourceKnownEntity.GetEntityType<TEntity>());
+    public bool HasSameEntityType(SourceKnownEntityId other) => HasSameEntityTypeId(other.EntityTypeId);
+    public bool HasSameEntityType<TEntity>() where TEntity : SourceKnownEntity => HasSameEntityTypeId(SourceKnownEntity.GetEntityTypeId<TEntity>());
+
+    public bool HasSameEntityTypeId(EntityTypeId other) => EntityTypeId == other;
+    public bool HasSameEntityTypeId(SourceKnownEntityId other) => HasSameEntityTypeId(other.EntityTypeId);
+    public bool HasSameEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => HasSameEntityTypeId(SourceKnownEntity.GetEntityTypeId<TEntity>());
 
     public void ValidateId()
     {
@@ -38,18 +42,19 @@ public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid Ent
             throw ExceptionFor.Validation($"Invalid EntityId: {EntityId}");
     }
 
-    public void Validate<TEntity>() where TEntity : SourceKnownEntity => Validate(SourceKnownEntity.GetEntityType<TEntity>());
-    public void Validate(byte entityType)
+    public void Validate<TEntity>() where TEntity : SourceKnownEntity => Validate(SourceKnownEntity.GetEntityTypeId<TEntity>());
+    public void Validate(byte entityType) => Validate(new EntityTypeId(entityType, Source.AppId));
+    public void Validate(EntityTypeId expected)
     {
         ValidateId();
-        if (HasSameEntityType(entityType))
+        if (HasSameEntityTypeId(expected))
             return;
 
-        var expectedType = SourceKnownEntity.GetEntityType(new EntityTypeId(entityType, Source.AppId));
-        var expectedName = expectedType == null ? entityType.ToString() : expectedType.FullName ?? expectedType.Name;
+        var expectedType = SourceKnownEntity.GetEntityType(expected);
+        var expectedName = expectedType == null ? expected.ToString() : expectedType.FullName ?? expectedType.Name;
 
         var actualType = SourceKnownEntity.GetEntityType(EntityTypeId);
-        var actualName = actualType == null ? EntityType.ToString() : actualType.FullName ?? actualType.Name;
+        var actualName = actualType == null ? EntityTypeId.ToString() : actualType.FullName ?? actualType.Name;
 
         var ex = new ValidationException($"Invalid Entity Type: EntityId:{EntityId:N}");
         ex.Data.Add($"Expected_{nameof(EntityType)}", expectedName);

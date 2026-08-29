@@ -10,6 +10,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Sample NexusKey Material Forbidden**: `NexusKey` now unconditionally forbids the sample key material (`sample-nexus-key-material-000000`) across all environments and test executions, throwing a `ConfigurationException` at construction time.
 *   **HttpMessageHandler DI Injection**: `InternalRequest` and `ExternalRequest` now accept an optional `HttpMessageHandler?` via dependency injection, allowing in-memory routing handlers (such as `ApplicationContextRouterHandler` during integration testing) to intercept and route Flurl calls without global static cache mutation.
 *   **Entity-Aware AppId Derivation**: `SourceKnownIdUtils.Next<TEntity>()` now automatically derives `AppId` from `SourceKnownEntity.GetAppId` when `TEntity` derives from `SourceKnownEntity`, ensuring generated 64-bit IDs always match the domain entity's declared partition while falling back to `NexusAppSettings.AppId` for non-entity types.
+*   **Composite EntityTypeId Validation & Generation**: Added `Validate(Guid, EntityTypeId)` and `Generate(long, EntityTypeId)` overloads on `ISourceKnownEntityIdUtils` and `SourceKnownEntityIdUtils` with non-breaking default interface method implementations. Generic `Generate<TEntity>(long)` and `Generate(SourceKnownEntity)` now enforce composite `(EntityType, AppId)` partition validation at generation time to prevent cross-partition ID construction.
+*   **DrnServiceContainer Backward Compatibility**: Preserved the original 2-parameter public constructor `DrnServiceContainer(Assembly, LifetimeAttribute[])` alongside the 3-parameter overload to maintain binary compatibility and prevent `MissingMethodException` for precompiled consumers.
 
 ## Version 0.9.8
 

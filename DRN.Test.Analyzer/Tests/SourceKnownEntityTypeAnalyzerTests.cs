@@ -843,12 +843,14 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             public readonly struct App5 : IAppId
             {
-                public static byte AppId => 5;
+                public const byte Value = 5;
+                public static byte AppId => Value;
             }
 
             public readonly struct App6 : IAppId
             {
-                public static byte AppId => 6;
+                public const byte Value = 6;
+                public static byte AppId => Value;
             }
 
             [EntityType<App5>(1)]
@@ -871,7 +873,8 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             public readonly struct App5 : IAppId
             {
-                public static byte AppId => 5;
+                public const byte Value = 5;
+                public static byte AppId => Value;
             }
 
             [EntityType<App5>(1)]
@@ -897,12 +900,14 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             public readonly struct App5 : IAppId
             {
-                public static byte AppId => 5;
+                public const byte Value = 5;
+                public static byte AppId => Value;
             }
 
             public readonly struct App6 : IAppId
             {
-                public static byte AppId => 6;
+                public const byte Value = 6;
+                public static byte AppId => Value;
             }
 
             namespace DomainA
@@ -931,7 +936,8 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             public readonly struct App5 : IAppId
             {
-                public static byte AppId => 5;
+                public const byte Value = 5;
+                public static byte AppId => Value;
             }
 
             namespace DomainA
@@ -961,17 +967,19 @@ public class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
             using DRN.Framework.SharedKernel.Domain;
 
-            public readonly struct NexusApp : IAppId
+            public readonly struct CustomNexusApp : IAppId
             {
-                public static byte AppId => 5;
+                public const byte Value = 5;
+                public static byte AppId => Value;
             }
 
             public readonly struct SampleApp : IAppId
             {
-                public static byte AppId => 6;
+                public const byte Value = 6;
+                public static byte AppId => Value;
             }
 
-            [EntityType<NexusApp>(1)]
+            [EntityType<CustomNexusApp>(1)]
             public class NexusDevice : SourceKnownEntity;
 
             [EntityType<SampleApp>(1)]
@@ -989,15 +997,16 @@ public class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
             using DRN.Framework.SharedKernel.Domain;
 
-            public readonly struct NexusApp : IAppId
+            public readonly struct CustomNexusApp : IAppId
             {
-                public static byte AppId => 5;
+                public const byte Value = 5;
+                public static byte AppId => Value;
             }
 
-            [EntityType<NexusApp>(1)]
+            [EntityType<CustomNexusApp>(1)]
             public class FirstDevice : SourceKnownEntity;
 
-            [EntityType<NexusApp>(1)]
+            [EntityType<CustomNexusApp>(1)]
             public class SecondDevice : SourceKnownEntity;
             """;
 
@@ -1015,21 +1024,23 @@ public class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
             using DRN.Framework.SharedKernel.Domain;
 
-            public readonly struct NexusApp : IAppId
+            public readonly struct CustomNexusApp : IAppId
             {
-                public static byte AppId => 5;
+                public const byte Value = 5;
+                public static byte AppId => Value;
             }
 
-            public sealed class NexusEntityTypeAttribute(byte entityType) : EntityTypeAttribute<NexusApp>(entityType);
+            public sealed class CustomNexusEntityTypeAttribute(byte entityType) : EntityTypeAttribute<CustomNexusApp>(entityType);
 
             public readonly struct SampleApp : IAppId
             {
-                public static byte AppId => 6;
+                public const byte Value = 6;
+                public static byte AppId => Value;
             }
 
             public sealed class SampleEntityTypeAttribute(byte entityType) : EntityTypeAttribute<SampleApp>(entityType);
 
-            [NexusEntityType(1)]
+            [CustomNexusEntityType(1)]
             public class NexusDevice : SourceKnownEntity;
 
             [SampleEntityType(1)]
@@ -1047,17 +1058,18 @@ public class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
             using DRN.Framework.SharedKernel.Domain;
 
-            public readonly struct NexusApp : IAppId
+            public readonly struct CustomNexusApp : IAppId
             {
-                public static byte AppId => 5;
+                public const byte Value = 5;
+                public static byte AppId => Value;
             }
 
-            public sealed class NexusEntityTypeAttribute(byte entityType) : EntityTypeAttribute<NexusApp>(entityType);
+            public sealed class CustomNexusEntityTypeAttribute(byte entityType) : EntityTypeAttribute<CustomNexusApp>(entityType);
 
-            [NexusEntityType(1)]
+            [CustomNexusEntityType(1)]
             public class FirstDevice : SourceKnownEntity;
 
-            [NexusEntityType(1)]
+            [CustomNexusEntityType(1)]
             public class SecondDevice : SourceKnownEntity;
             """;
 
@@ -1081,7 +1093,8 @@ public class SourceKnownEntityTypeAnalyzerTests
 
                 public readonly struct NestedApp : IAppId
                 {
-                    public static byte AppId => TestAppId;
+                    public const byte Value = TestAppId;
+                    public static byte AppId => Value;
                 }
 
                 [EntityType<NestedApp>(1)]
@@ -1190,7 +1203,8 @@ public class SourceKnownEntityTypeAnalyzerTests
             {
                 public readonly struct App6 : IAppId
                 {
-                    public static byte AppId => 6;
+                    public const byte Value = 6;
+                    public static byte AppId => Value;
                 }
 
                 [EntityType<App6>(42)]
@@ -1321,12 +1335,14 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             public readonly struct App1 : IAppId
             {
-                public static byte AppId => 1;
+                public const byte Value = 1;
+                public static byte AppId => Value;
             }
 
             public readonly struct App2 : IAppId
             {
-                public static byte AppId => 2;
+                public const byte Value = 2;
+                public static byte AppId => Value;
             }
 
             [EntityType<App1>(1)]
@@ -1352,12 +1368,14 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             public readonly struct App1 : IAppId
             {
-                public static byte AppId => 1;
+                public const byte Value = 1;
+                public static byte AppId => Value;
             }
 
             public readonly struct App2 : IAppId
             {
-                public static byte AppId => 2;
+                public const byte Value = 2;
+                public static byte AppId => Value;
             }
 
             [EntityType<App1>(1)]
@@ -1380,12 +1398,14 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             public readonly struct App1 : IAppId
             {
-                public static byte AppId => 1;
+                public const byte Value = 1;
+                public static byte AppId => Value;
             }
 
             public readonly struct App2 : IAppId
             {
-                public static byte AppId => 2;
+                public const byte Value = 2;
+                public static byte AppId => Value;
             }
 
             [EntityType<App1>(1)]
@@ -1413,12 +1433,14 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             public readonly struct App1 : IAppId
             {
-                public static byte AppId => 1;
+                public const byte Value = 1;
+                public static byte AppId => Value;
             }
 
             public readonly struct App2 : IAppId
             {
-                public static byte AppId => 2;
+                public const byte Value = 2;
+                public static byte AppId => Value;
             }
 
             [EntityType<App1>(1)]
@@ -1446,12 +1468,14 @@ public class SourceKnownEntityTypeAnalyzerTests
 
             public readonly struct App1 : IAppId
             {
-                public static byte AppId => 1;
+                public const byte Value = 1;
+                public static byte AppId => Value;
             }
 
             public readonly struct App2 : IAppId
             {
-                public static byte AppId => 2;
+                public const byte Value = 2;
+                public static byte AppId => Value;
             }
 
             [EntityType<App1>(1)]
@@ -1524,5 +1548,341 @@ public class SourceKnownEntityTypeAnalyzerTests
         diagnostics[0].Id.Should().Be("DRN0005");
         diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Error);
         diagnostics[0].GetMessage().Should().Contain("ConsumingAssembly").And.Contain("1, 2");
+    }
+
+    [Fact]
+    public async Task MultipleAppIds_WithTestingReferenceInProductionAssembly_ProducesDRN0005()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App1 : IAppId
+            {
+                public const byte Value = 1;
+                public static byte AppId => Value;
+            }
+
+            public readonly struct App2 : IAppId
+            {
+                public const byte Value = 2;
+                public static byte AppId => Value;
+            }
+
+            [EntityType<App1>(1)]
+            public class FirstEntity : SourceKnownEntity;
+
+            [EntityType<App2>(2)]
+            public class SecondEntity : SourceKnownEntity;
+            """;
+
+        const string testingCode = "public class DummyTesting;";
+        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(
+            [("DRN.Framework.Testing", testingCode)],
+            testCode,
+            consumingAssemblyName: "ProductionAssembly");
+
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].Id.Should().Be("DRN0005");
+        diagnostics[0].Severity.Should().Be(DiagnosticSeverity.Error);
+        diagnostics[0].GetMessage().Should().Contain("ProductionAssembly").And.Contain("1, 2");
+    }
+
+    [Fact]
+    public async Task ReferencedAssembly_WithPropertyOnlyIAppId_ProducesDRN0006()
+    {
+        var referencedSources = new (string AssemblyName, string Source)[]
+        {
+            ("ReferencedAssembly", """
+                using DRN.Framework.SharedKernel.Domain;
+
+                namespace ExternalDomain
+                {
+                    public readonly struct PropertyOnlyApp : IAppId
+                    {
+                        public static byte AppId => 5;
+                    }
+
+                    [EntityType<PropertyOnlyApp>(42)]
+                    public class ExternalEntity : SourceKnownEntity;
+                }
+                """)
+        };
+
+        const string consumingSource = """
+            using DRN.Framework.SharedKernel.Domain;
+            using ExternalDomain;
+
+            namespace LocalDomain
+            {
+                [EntityType<DefaultApp>(1)]
+                public class LocalEntity : SourceKnownEntity;
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(
+            referencedSources,
+            consumingSource,
+            consumingAssemblyName: "ConsumingAssembly");
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0006" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0006").GetMessage().Should().Contain("ExternalEntity");
+    }
+
+    [Fact]
+    public async Task LocalEntity_WithUnresolvableIAppId_ProducesDRN0006()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct UnresolvableApp : IAppId
+            {
+                private static byte Compute() => 5;
+                public static byte AppId => Compute();
+            }
+
+            [EntityType<UnresolvableApp>(1)]
+            public class BadEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0006" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0006").GetMessage().Should().Contain("BadEntity");
+    }
+
+    [Fact]
+    public async Task LocalEntity_WithPropertyOnlyIAppId_ProducesDRN0006()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct PropertyOnlyApp : IAppId
+            {
+                public static byte AppId => 5;
+            }
+
+            [EntityType<PropertyOnlyApp>(1)]
+            public class BadEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0006" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0006").GetMessage().Should().Contain("BadEntity");
+    }
+
+    [Fact]
+    public async Task LocalEntity_WithConflictingConstantAndProperty_ProducesDRN0006()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct ConflictingApp : IAppId
+            {
+                public const byte Value = 5;
+                public static byte AppId => 6;
+            }
+
+            [EntityType<ConflictingApp>(1)]
+            public class BadEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0006" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0006").GetMessage().Should().Contain("BadEntity");
+    }
+
+    [Fact]
+    public async Task LocalEntity_WithMatchingConstantAndProperty_CompilesCleanly()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct GoodApp : IAppId
+            {
+                public const byte Value = 5;
+                public static byte AppId => Value;
+            }
+
+            [EntityType<GoodApp>(1)]
+            public class GoodEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task LocalEntity_WithQualifiedConstantProperty_MatchingConstant_CompilesCleanly()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public static class Other
+            {
+                public const byte Value = 6;
+            }
+
+            public readonly struct App : IAppId
+            {
+                public const byte Value = Other.Value;
+                public static byte AppId => Other.Value;
+            }
+
+            [EntityType<App>(1)]
+            public class GoodEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task LocalEntity_WithQualifiedConstantProperty_MismatchedConstant_ProducesDRN0006()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public static class Other
+            {
+                public const byte Value = 6;
+            }
+
+            public readonly struct App : IAppId
+            {
+                public const byte Value = 5;
+                public static byte AppId => Other.Value;
+            }
+
+            [EntityType<App>(1)]
+            public class BadEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0006" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0006").GetMessage().Should().Contain("BadEntity");
+    }
+
+    [Fact]
+    public async Task LocalEntity_WithSelfRecursiveProperty_ProducesDRN0006()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct RecursiveApp : IAppId
+            {
+                public const byte Value = 5;
+                public static byte AppId => AppId;
+            }
+
+            [EntityType<RecursiveApp>(1)]
+            public class BadEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0006" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0006").GetMessage().Should().Contain("BadEntity");
+    }
+
+    [Fact]
+    public async Task LocalEntity_WithMutuallyRecursiveProperties_ProducesDRN0006()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct MutualApp : IAppId
+            {
+                public const byte Value = 5;
+                public static byte OtherProp => AppId;
+                public static byte AppId => OtherProp;
+            }
+
+            [EntityType<MutualApp>(1)]
+            public class BadEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0006" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0006").GetMessage().Should().Contain("BadEntity");
+    }
+
+    [Fact]
+    public async Task LocalEntity_WithNestedIAppId_UsingOuterConstantWithoutOwnConstant_ProducesDRN0006()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public static class OuterScope
+            {
+                public const byte Value = 5;
+
+                public readonly struct NestedApp : IAppId
+                {
+                    public static byte AppId => Value;
+                }
+            }
+
+            [EntityType<OuterScope.NestedApp>(1)]
+            public class BadEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0006" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0006").GetMessage().Should().Contain("BadEntity");
+    }
+
+    [Fact]
+    public async Task LocalEntity_WithNonPublicConstant_ProducesDRN0006()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct PrivateConstApp : IAppId
+            {
+                private const byte Value = 5;
+                public static byte AppId => Value;
+            }
+
+            [EntityType<PrivateConstApp>(1)]
+            public class BadEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0006" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0006").GetMessage().Should().Contain("BadEntity");
+    }
+
+    [Fact]
+    public async Task LocalEntity_WithNestedIAppId_WithOwnPublicConstant_CompilesCleanly()
+    {
+        const string testCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public static class OuterScope
+            {
+                public const byte Value = 99;
+
+                public readonly struct NestedApp : IAppId
+                {
+                    public const byte Value = 5;
+                    public static byte AppId => Value;
+                }
+            }
+
+            [EntityType<OuterScope.NestedApp>(1)]
+            public class GoodEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(testCode);
+
+        diagnostics.Should().BeEmpty();
     }
 }

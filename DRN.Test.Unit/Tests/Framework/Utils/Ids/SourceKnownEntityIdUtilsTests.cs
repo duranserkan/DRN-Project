@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
@@ -5,6 +6,7 @@ using DRN.Framework.Utils.Time;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class SourceKnownEntityIdUtilsTests
 {
     [Theory]
@@ -36,7 +38,7 @@ public class SourceKnownEntityIdUtilsTests
         // Assert both are valid with correct properties
         AssertValidEntityId(plainId1, longId1, nexusSettings, xEntityType, expectedSecure: false);
         AssertValidEntityId(secureId1, longId1, nexusSettings, xEntityType, expectedSecure: true);
-        
+
         // Parse roundtrip — both variants
         entityIdUtils.Parse(null).Should().BeNull();
         AssertParseRoundTrip(entityIdUtils, plainId1);
@@ -185,18 +187,25 @@ public class SourceKnownEntityIdUtilsTests
         validatedY.Secure.Should().BeTrue("validated secure id should preserve Secure=true");
         validatedY.EntityType.Should().Be(SourceKnownEntity.GetEntityType<YEntity>());
 
-        // HasSameEntityType should work correctly after parsing
+        // HasSameEntityType and HasSameEntityTypeId should work correctly after parsing
         var parsedX = entityIdUtils.Parse(secureX.EntityId);
         var parsedY = entityIdUtils.Parse(secureY.EntityId);
         parsedX.Secure.Should().BeTrue("parsed secure id should have Secure=true");
         parsedY.Secure.Should().BeTrue("parsed secure id should have Secure=true");
         parsedX.HasSameEntityType(parsedY).Should().BeFalse();
         parsedX.HasSameEntityType<XEntity>().Should().BeTrue();
+        parsedX.HasSameEntityType<XEntityInApp6>().Should().BeFalse("same entity byte from different AppId must not match");
+        parsedX.HasSameEntityTypeId<XEntity>().Should().BeTrue();
+        parsedX.HasSameEntityTypeId<XEntityInApp6>().Should().BeFalse("same entity byte from different AppId must not match EntityTypeId");
         parsedY.HasSameEntityType<YEntity>().Should().BeTrue();
 
         // Cross-type validation should throw
         var act = () => entityIdUtils.Validate<YEntity>(secureX.EntityId);
         act.Should().Throw<ValidationException>();
+
+        // Cross-partition validation with same EntityType byte should throw
+        var actCrossPartition = () => entityIdUtils.Validate<XEntityInApp6>(secureX.EntityId);
+        actCrossPartition.Should().Throw<ValidationException>();
     }
 
     [Theory]
@@ -241,8 +250,8 @@ public class SourceKnownEntityIdUtilsTests
         plainAgain.Should().Be(plainId, "ToPlain on plain id should return same id");
 
         // Nullable overloads
-        entityIdUtils.ToSecure((SourceKnownEntityId?)null).Should().BeNull();
-        entityIdUtils.ToPlain((SourceKnownEntityId?)null).Should().BeNull();
+        entityIdUtils.ToSecure(null).Should().BeNull();
+        entityIdUtils.ToPlain(null).Should().BeNull();
         entityIdUtils.ToSecure((SourceKnownEntityId?)plainId).Should().Be(convertedToSecure);
         entityIdUtils.ToPlain((SourceKnownEntityId?)secureId).Should().Be(convertedToPlain);
 
@@ -307,7 +316,7 @@ public class SourceKnownEntityIdUtilsTests
 
         await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay);
         var longId = idUtils.Next<XEntity>();
-        
+
         // Generate a Plain SKEID so we can directly modify the byte layout and test MAC verification.
         var plainId = entityIdUtils.GeneratePlain(new XEntity(longId));
         var originalBytes = plainId.EntityId.ToByteArray(bigEndian: true);
@@ -409,6 +418,62 @@ public class SourceKnownEntityIdUtilsTests
         parsed.Source.Id.Should().Be(id);
     }
 
+    [Fact]
+    public void Validate_With_Same_EntityType_Byte_Across_Different_AppIds_Should_Throw_ValidationException()
+    {
+        var settings = AppSettings.Development(new
+        {
+            NexusAppSettings = new NexusAppSettings
+            {
+                AppId = 5,
+                AppInstanceId = 1
+            }
+        });
+        var idUtils = new SourceKnownIdUtils(settings, new EpochTimeUtils());
+        using var entityIdUtils = new SourceKnownEntityIdUtils(settings, idUtils);
+
+        // Generate ID for XEntity (AppId=5, EntityType=200)
+        var entity5 = new XEntity(idUtils.Next<XEntity>());
+        var id5 = entityIdUtils.Generate(entity5);
+
+        // Validation against AppId=5 entity type succeeds
+        var validResult = entityIdUtils.Validate<XEntity>(id5.EntityId);
+        validResult.Valid.Should().BeTrue();
+        validResult.EntityType.Should().Be(200);
+        validResult.Source.AppId.Should().Be(5);
+
+        // Direct EntityTypeId validation against (EntityType=200, AppId=5) succeeds
+        var validComposite = entityIdUtils.Validate(id5.EntityId, new EntityTypeId(200, 5));
+        validComposite.Valid.Should().BeTrue();
+
+        // Cross-partition validation: XEntityInApp6 has (EntityType=200, AppId=6)
+        // Must throw ValidationException because AppId differs even though EntityType byte matches
+        var actGeneric = () => entityIdUtils.Validate<XEntityInApp6>(id5.EntityId);
+        actGeneric.Should().Throw<ValidationException>();
+
+        // Direct EntityTypeId validation against (EntityType=200, AppId=6) must throw
+        var actComposite = () => entityIdUtils.Validate(id5.EntityId, new EntityTypeId(200, 6));
+        actComposite.Should().Throw<ValidationException>();
+
+        // SourceKnownEntity.GetEntityId<TEntity> partition validation
+        var entityInstance = new XEntity(idUtils.Next<XEntity>());
+        entityInstance.EntityIdSource = entityIdUtils.Generate(entityInstance);
+        entityInstance.EntityIdOps = entityIdUtils;
+
+        // Same partition succeeds
+        var validEntityGet = entityInstance.GetEntityId<XEntity>(id5.EntityId);
+        validEntityGet.Valid.Should().BeTrue();
+
+        // Cross-partition GetEntityId<TEntity> throws ValidationException
+        var actEntityGet = () => entityInstance.GetEntityId<XEntityInApp6>(id5.EntityId);
+        actEntityGet.Should().Throw<ValidationException>();
+
+        // Generic Generate<TEntity>(long) must throw if long ID belongs to a different AppId partition
+        var longIdApp6 = idUtils.Next<XEntityInApp6>();
+        var actGenerateMismatch = () => entityIdUtils.Generate<XEntity>(longIdApp6);
+        actGenerateMismatch.Should().Throw<ValidationException>();
+    }
+
     private static void AssertValidEntityId(SourceKnownEntityId entityId, long expectedId,
         NexusAppSettings nexusSettings, byte expectedEntityType, bool expectedSecure)
     {
@@ -424,7 +489,7 @@ public class SourceKnownEntityIdUtilsTests
         // Secure:   AES-encrypted GUID — markers/V8 assertions skipped because ciphertext can
         //           coincidentally produce 8D8D marker bytes (~1/65536, see SourceKnownEntityIdUtils L169)
         if (expectedSecure) return;
-        
+
         AssertPlaintextMarkers(entityId, true, "Plain EntityId must contain plaintext 8D8D markers");
     }
 
@@ -477,8 +542,17 @@ public class SourceKnownEntityIdUtilsTests
         public static byte AppId => Value;
     }
 
+    public readonly struct SampleApp6 : IAppId
+    {
+        public const byte Value = 6;
+        public static byte AppId => Value;
+    }
+
     [EntityType<SampleApp5>(200)]
     internal class XEntity(long id) : SourceKnownEntity(id);
     [EntityType<SampleApp5>(201)]
     internal class YEntity(long id) : SourceKnownEntity(id);
+
+    [EntityType<SampleApp6>(200)]
+    internal class XEntityInApp6(long id) : SourceKnownEntity(id);
 }

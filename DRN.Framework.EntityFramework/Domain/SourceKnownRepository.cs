@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel;
-using DRN.Framework.SharedKernel.Cancellation;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
@@ -24,7 +23,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     where TContext : DbContext, IDrnContext
     where TEntity : AggregateRoot
 {
-    private static readonly byte EntityType = SourceKnownEntity.GetEntityType<TEntity>();
+    private static readonly EntityTypeId EntityTypeId = SourceKnownEntity.GetEntityTypeId<TEntity>();
     private static readonly string ChangeCountKey = $"Count.{nameof(SaveChangesAsync)}.{typeof(TEntity).Name}";
     private static readonly string GetCountKey = $"Count.{nameof(GetAsync)}.{typeof(TEntity).Name}";
     private static readonly string CreateCountKey = $"Count.{nameof(CreateAsync)}.{typeof(TEntity).Name}";
@@ -271,7 +270,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public SourceKnownEntityId GetEntityId(Guid id, bool validate = true)
     {
         using var _ = ScopedLog.Measure(this);
-        return validate ? Utils.EntityId.Validate(id, EntityType) : Utils.EntityId.Parse(id);
+        return validate ? Utils.EntityId.Validate(id, EntityTypeId) : Utils.EntityId.Parse(id);
     }
 
     public SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id) where TOtherEntity : SourceKnownEntity
@@ -280,7 +279,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity
     {
         using var _ = ScopedLog.Measure(this);
-        return Utils.EntityId.Validate(id, SourceKnownEntity.GetEntityType<TOtherEntity>());
+        return Utils.EntityId.Validate(id, SourceKnownEntity.GetEntityTypeId<TOtherEntity>());
     }
 
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
@@ -328,13 +327,13 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// </param>
     /// <param name="pageSize">
     ///     The number of items per page for the initial pagination request.
-    ///     If a positive value is not provided, <see cref="PageSize"/>'s default value (10) will be used. 
+    ///     If a positive value is not provided, <see cref="PageSize"/>'s default value (10) will be used.
     ///     If this value is positive and differs from the page size specified in <paramref name="resultInfo" />,
     ///     the current page number will be reset to 1.
     /// </param>
     /// <param name="maxSize">
     ///     The max size value needs to be preserved when it is above the default max size
-    ///     If a positive value is not provided, <see cref="PageSize"/>'s default max value(100) will be used. 
+    ///     If a positive value is not provided, <see cref="PageSize"/>'s default max value(100) will be used.
     /// </param>
     /// <param name="direction">
     ///     The sort direction for the initial pagination request. Default behavior preserve resultInfo's or use Ascending when info is null.
@@ -374,13 +373,13 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// </param>
     /// <param name="pageSize">
     ///     The number of items per page for the initial pagination request.
-    ///     If a positive value is not provided, <see cref="PageSize"/>'s default value (10) will be used. 
+    ///     If a positive value is not provided, <see cref="PageSize"/>'s default value (10) will be used.
     ///     If this value is positive and differs from the page size specified in <paramref name="resultInfo" />,
     ///     the current page number will be reset to 1.
     /// </param>
     /// <param name="maxSize">
     ///     The max size value needs to be preserved when it is above the default max size
-    ///     If a positive value is not provided, <see cref="PageSize"/>'s default max value(100) will be used. 
+    ///     If a positive value is not provided, <see cref="PageSize"/>'s default max value(100) will be used.
     /// </param>
     /// <param name="direction">
     ///     The sort direction for the initial pagination request. Default behavior preserve resultInfo's or use Ascending when info is null.

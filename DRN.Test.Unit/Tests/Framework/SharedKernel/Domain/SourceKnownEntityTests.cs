@@ -46,4 +46,25 @@ public class SourceKnownEntityTests
         SourceKnownEntity.GetEntityType<CustomTestEntity>().Should().Be(7);
         SourceKnownEntity.GetEntityType(typeof(DefaultAppTestEntity)).Should().Be(101);
     }
+
+    [Fact]
+    public void Validate_When_EntityType_Matches_But_AppId_Differs_Should_Throw_ValidationException()
+    {
+        // Entity in AppId 42 with EntityType 7
+        var entityType = (byte)7;
+        var customSkid = new SourceKnownId(12345, DateTimeOffset.UtcNow, 1, 42, 1);
+        var customId = new SourceKnownEntityId(customSkid, Guid.NewGuid(), entityType, true, false);
+
+        // Validating against AppId 42, EntityType 7 succeeds
+        var actValid = () => customId.Validate<CustomTestEntity>();
+        actValid.Should().NotThrow();
+
+        // Validating against AppId 0, EntityType 7 fails even if entity type byte were to match
+        var actInvalidApp = () => customId.Validate(new EntityTypeId(7, 0));
+        actInvalidApp.Should().Throw<ValidationException>();
+
+        // Validating against DefaultAppTestEntity (AppId 0, EntityType 101) fails
+        var actDefault = () => customId.Validate<DefaultAppTestEntity>();
+        actDefault.Should().Throw<ValidationException>();
+    }
 }

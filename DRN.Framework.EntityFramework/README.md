@@ -54,7 +54,8 @@ Define a DbContext and entity with automatic ID generation:
 // 1. Define your application partition and entity
 public readonly struct MyApp : IAppId
 {
-    public static byte AppId => 1;
+    public const byte Value = 1;
+    public static byte AppId => Value;
 }
 
 [EntityType<MyApp>(1)] // Unique byte within MyApp partition
@@ -85,10 +86,18 @@ public class UserService(AppContext context)
 }
 ```
 
-Register the assembly containing the context during application startup:
+Register the assembly containing the context during application startup and configure the matching `AppId` in `appsettings.json`:
 
 ```csharp
 builder.Services.AddServicesWithAttributes(typeof(AppContext).Assembly);
+```
+
+```json
+{
+  "NexusAppSettings": {
+    "AppId": 1
+  }
+}
 ```
 
 `DRN.Framework.Hosting` runs startup validation, migration, and seeding automatically. Standalone hosts must integrate the framework startup validation lifecycle explicitly.

@@ -78,16 +78,21 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         return appInstanceId;
     }
 
+    private static class EntityIdCache<TEntity> where TEntity : class
+    {
+        public static readonly bool IsSourceKnownEntity = typeof(SourceKnownEntity).IsAssignableFrom(typeof(TEntity));
+        public static readonly byte? DeclaredAppId = IsSourceKnownEntity
+            ? SourceKnownEntity.GetAppId(typeof(TEntity))
+            : null;
+    }
+
     private readonly byte _nexusAppId = ValidateAppId(appSettings.NexusAppSettings.AppId);
     private readonly byte _nexusAppInstanceId = ValidateAppInstanceId(appSettings.NexusAppSettings.AppInstanceId);
     private readonly DateTimeOffset _epoch = epochTimeUtils.Epoch;
 
     public long Next<TEntity>() where TEntity : class
     {
-        var appId = typeof(SourceKnownEntity).IsAssignableFrom(typeof(TEntity))
-            ? SourceKnownEntity.GetAppId(typeof(TEntity))
-            : _nexusAppId;
-
+        var appId = EntityIdCache<TEntity>.DeclaredAppId ?? _nexusAppId;
         return Next<TEntity>(appId, _nexusAppInstanceId, _epoch);
     }
 

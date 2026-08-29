@@ -12,8 +12,10 @@ Not every version includes changes, features or bug fixes. This project can incr
     *   `DRN0003` (*Error*): Prohibits applying `[EntityType]` to abstract classes, private classes, or non-`SourceKnownEntity` types.
         *   *Migration*: Remove `[EntityType]` attributes from abstract base classes (apply only to concrete descendants), private classes, and classes that do not derive from `SourceKnownEntity`.
     *   `DRN0004` (*Warning*): Detects duplicate entity class names across the domain model within the same `AppId` (including cross-referenced assemblies) to guard against EF Core table mapping conflicts and event serialization ambiguity.
-    *   `DRN0005` (*Error*): Enforces that non-test application project graphs declare a single `AppId` partition unless `<AllowMultipleAppIds>true</AllowMultipleAppIds>` or `<IsTestProject>true</IsTestProject>` is configured.
+    *   `DRN0005` (*Error*): Enforces that non-test application project graphs declare a single `AppId` partition unless `<AllowMultipleAppIds>true</AllowMultipleAppIds>`, `<IsTestProject>true</IsTestProject>`, or `<UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>` is configured.
         *   *Migration*: Ensure domain models within a single production application project graph share a single `AppId` partition, or configure `<AllowMultipleAppIds>true</AllowMultipleAppIds>` in the project file for multi-application aggregator hosts.
+    *   `DRN0006` (*Error*): Enforces that all `IAppId` implementations declare a constant value (`public const byte Value = ...;` or `public const byte AppId = ...;`) to ensure partition identities are metadata-readable across referenced assemblies.
+        *   *Migration*: Add a `public const byte Value = <AppId>;` or `public const byte AppId = <AppId>;` constant to custom `IAppId` structs.
 
 ### New Features
 

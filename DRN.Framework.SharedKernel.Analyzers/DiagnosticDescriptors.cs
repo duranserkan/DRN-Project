@@ -59,4 +59,15 @@ public static class DiagnosticDescriptors
         description: "Domain entity types within a single application project graph must belong to the same AppId partition to prevent ID collisions and cross-partition entity substitution.",
         helpLinkUri: HelpLinkUri,
         WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor UnresolvableAppId = new(
+        id: "DRN0006",
+        title: "Unresolvable or non-constant AppId in [EntityType] declaration",
+        messageFormat: "AppId on entity '{0}' could not be statically determined. Types implementing IAppId must declare a constant value ('public const byte Value = ...;' or 'public const byte AppId = ...;') so they can be read from metadata across assemblies.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Application partition identifiers (IAppId) must declare a constant value to allow static compile-time validation across assembly boundaries.",
+        helpLinkUri: HelpLinkUri,
+        WellKnownDiagnosticTags.CompilationEnd);
 }
