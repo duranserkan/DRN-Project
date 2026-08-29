@@ -372,7 +372,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
             .GroupBy(pair => new EntityTypeId(pair.Value!.EntityType, pair.Value.AppId))
             .Where(group => group.Count() > 1)
             .OrderBy(group => group.Key)
-            .SelectMany(group => group.Select(pair => new DuplicateEntityTypeValue(pair.Key.FullName!, pair.Value!.EntityType))).ToArray();
+            .SelectMany(group => group.Select(pair => new DuplicateEntityTypeValue(pair.Key.FullName!, pair.Value!.EntityType, pair.Value.AppId))).ToArray();
 
         var nonTestAppIds = entityTypePairs.Values
             .Where(attr => attr != null && attr.AppId != IAppId.TestAppId)
@@ -398,9 +398,9 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
     }
 }
 
-public record DuplicateEntityTypeValue(string EntityName, ushort EntityType)
+public record DuplicateEntityTypeValue(string EntityName, ushort EntityType, byte AppId)
 {
-    public override string ToString() => $"{EntityType}: {EntityName}";
+    public override string ToString() => $"AppId {AppId}, EntityType {EntityType}: {EntityName}";
 }
 
 public record EntityTypeValidationResult(

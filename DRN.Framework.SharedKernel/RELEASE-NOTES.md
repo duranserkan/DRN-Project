@@ -18,6 +18,8 @@ Not every version includes changes, features or bug fixes. This project can incr
         *   *Migration*: Add a `public const byte Value = <AppId>;` or `public const byte AppId = <AppId>;` constant to custom `IAppId` structs.
     *   `DRN0007` (*Error*): Enforces that statically resolved `IAppId` values used by `[EntityType]` declarations are within the supported range of 0 through 127 in local and referenced assemblies.
         *   *Migration*: Change custom `IAppId` constants to an unused value between `IAppId.DefaultAppId` (0) and `IAppId.MaxAppId` (127).
+*   **Partition-Scoped Entity Type Validation**: Entity type uniqueness is now scoped per `(AppId, EntityType)` partition rather than globally across all entity types (0..255). Concrete `SourceKnownEntity` types require explicit `[EntityType<TApp>]` binding to an `IAppId` partition (e.g., `DefaultApp`, `NexusApp`, `TestApp`, or custom domain `IAppId`). Entities in different `AppId` partitions can reuse the same entity type byte values, while multi-partition domain graphs within a single production assembly are restricted by `DRN0005`.
+    *   *Migration*: Annotate entities with `[EntityType<TApp>(byte)]` using their owning domain partition's `IAppId`. For aggregator hosts referencing multiple partitions, configure `<AllowMultipleAppIds>true</AllowMultipleAppIds>` in the project file.
 
 ### New Features
 

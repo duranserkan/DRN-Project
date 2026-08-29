@@ -24,17 +24,13 @@ internal static class EntityAnalyzerHelper
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var name = referencedAssembly.Name;
-            if (name.StartsWith("System.", StringComparison.OrdinalIgnoreCase) ||
-                name.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("System", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("mscorlib", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("netstandard", StringComparison.OrdinalIgnoreCase))
+            if (IsFrameworkAssembly(referencedAssembly.Name))
             {
                 continue;
             }
 
-            if (!ReferencesAssembly(referencedAssembly, targetAssembly))
+            var visitedAssemblies = new HashSet<IAssemblySymbol>(SymbolEqualityComparer.Default);
+            if (!ReferencesAssembly(referencedAssembly, targetAssembly, visitedAssemblies))
             {
                 continue;
             }
@@ -45,9 +41,16 @@ internal static class EntityAnalyzerHelper
         return collectedEntities;
     }
 
-    private static bool ReferencesAssembly(IAssemblySymbol assembly, IAssemblySymbol? targetAssembly)
+    private static bool IsFrameworkAssembly(string name) =>
+        name.StartsWith("System.", StringComparison.OrdinalIgnoreCase) ||
+        name.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("System", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("mscorlib", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("netstandard", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ReferencesAssembly(IAssemblySymbol assembly, IAssemblySymbol? targetAssembly, HashSet<IAssemblySymbol> visitedAssemblies)
     {
-        if (targetAssembly == null)
+        if (targetAssembly == null || !visitedAssemblies.Add(assembly))
             return false;
 
         if (SymbolEqualityComparer.Default.Equals(assembly, targetAssembly))
@@ -64,6 +67,15 @@ internal static class EntityAnalyzerHelper
                     string.Equals(referencedIdentity.Name, targetIdentity.Name, StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
+            }
+
+            foreach (var referencedAssemblySymbol in module.ReferencedAssemblySymbols)
+            {
+                if (IsFrameworkAssembly(referencedAssemblySymbol.Name))
+                    continue;
+
+                if (ReferencesAssembly(referencedAssemblySymbol, targetAssembly, visitedAssemblies))
+                    return true;
             }
         }
 

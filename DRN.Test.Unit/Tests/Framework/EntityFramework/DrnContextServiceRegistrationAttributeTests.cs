@@ -32,6 +32,12 @@ public class DrnContextServiceRegistrationAttributeTests
 
         result.MissingEntityTypes.Should().BeEmpty();
         result.DuplicateEntityTypes.Should().HaveCount(2);
+        result.DuplicateEntityTypes.Should().AllSatisfy(d =>
+        {
+            d.AppId.Should().Be(121);
+            d.EntityType.Should().Be(250);
+            d.ToString().Should().StartWith("AppId 121, EntityType 250:");
+        });
         result.MultipleAppIds.Should().BeEmpty();
     }
 

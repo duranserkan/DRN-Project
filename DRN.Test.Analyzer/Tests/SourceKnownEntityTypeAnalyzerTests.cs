@@ -1939,4 +1939,102 @@ public class SourceKnownEntityTypeAnalyzerTests
         diagnostics.Should().ContainSingle(d => d.Id == "DRN0007" && d.Severity == DiagnosticSeverity.Error);
         diagnostics.First(d => d.Id == "DRN0007").GetMessage().Should().Contain("ExternalEntity").And.Contain("255");
     }
+
+    [Fact]
+    public async Task MultipleAppIds_AcrossThreeLevelTransitiveAssembly_ProducesDRN0005()
+    {
+        var referencedSources = new (string AssemblyName, string Source)[]
+        {
+            ("DomainBaseAssembly", """
+                using DRN.Framework.SharedKernel.Domain;
+
+                namespace DomainBase
+                {
+                    public readonly struct TransitiveApp1 : IAppId
+                    {
+                        public const byte Value = 10;
+                        public static byte AppId => Value;
+                    }
+
+                    public abstract class BaseDomainEntity : SourceKnownEntity;
+
+                    public sealed class CustomEntityTypeAttribute(byte entityType) : EntityTypeAttribute<TransitiveApp1>(entityType);
+                }
+                """),
+            ("DomainSubmoduleAssembly", """
+                namespace DomainSubmodule
+                {
+                    [DomainBase.CustomEntityType(1)]
+                    public class TransitiveEntity : DomainBase.BaseDomainEntity;
+                }
+                """)
+        };
+
+        const string consumingCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            public readonly struct App2 : IAppId
+            {
+                public const byte Value = 20;
+                public static byte AppId => Value;
+            }
+
+            [EntityType<App2>(2)]
+            public class ConsumingEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(
+            referencedSources,
+            consumingSource: consumingCode,
+            consumingAssemblyName: "ProductionAssembly");
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0005" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0005").GetMessage().Should().Contain("ProductionAssembly").And.Contain("10, 20");
+    }
+
+    [Fact]
+    public async Task DuplicateEntityType_AcrossThreeLevelTransitiveAssembly_ProducesDRN0002()
+    {
+        var referencedSources = new (string AssemblyName, string Source)[]
+        {
+            ("DomainBaseAssembly", """
+                using DRN.Framework.SharedKernel.Domain;
+
+                namespace DomainBase
+                {
+                    public readonly struct SharedApp : IAppId
+                    {
+                        public const byte Value = 42;
+                        public static byte AppId => Value;
+                    }
+
+                    public abstract class BaseDomainEntity : SourceKnownEntity;
+
+                    public sealed class CustomEntityTypeAttribute(byte entityType) : EntityTypeAttribute<SharedApp>(entityType);
+                }
+                """),
+            ("DomainSubmoduleAssembly", """
+                namespace DomainSubmodule
+                {
+                    [DomainBase.CustomEntityType(5)]
+                    public class TransitiveEntity : DomainBase.BaseDomainEntity;
+                }
+                """)
+        };
+
+        const string consumingCode = """
+            using DRN.Framework.SharedKernel.Domain;
+
+            [EntityType<DomainBase.SharedApp>(5)]
+            public class LocalCollidingEntity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerWithMultipleReferencesAsync(
+            referencedSources,
+            consumingSource: consumingCode,
+            consumingAssemblyName: "ProductionAssembly");
+
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0002" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.First(d => d.Id == "DRN0002").GetMessage().Should().Contain("5").And.Contain("42");
+    }
 }
