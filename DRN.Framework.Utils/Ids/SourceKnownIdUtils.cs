@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq.Expressions;
 using System.Reflection;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Numbers;
 using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Time;
@@ -40,11 +40,11 @@ public interface ISourceKnownIdUtils
     long Next(Type entityType, byte appId, byte appInstanceId, DateTimeOffset? epoch = null);
 
     /// <summary>
-    /// Pre-compiles and warms up ID generation expression delegates for the specified entity types.
-    /// Eliminates cold-start JIT and expression compilation overhead during application startup.
+    /// Pre-compiles and warms up ID generation delegates for the specified entity types.
+    /// Eliminates cold-start JIT and reflection overhead during application startup.
     /// </summary>
     /// <param name="entityTypes">Collection of entity class types to warm up.</param>
-    void Warmup(IEnumerable<Type> entityTypes) => SourceKnownIdUtils.Warmup(entityTypes);
+    void Warmup(ICollection<Type> entityTypes) => SourceKnownIdUtils.Warmup(entityTypes);
 
     SourceKnownId Parse(long id, DateTimeOffset? epoch = null);
 }
@@ -57,23 +57,28 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     public const long TicksPerHalf = 1L << 32; // 2^32 ticks per half-epoch
     public const long MaxEpochTicks = (TicksPerHalf << 1) - 1; // 2^33 - 1: full ~68-year epoch (both halves)
 
+    private static readonly MethodInfo GenerateGenericMethodDefinition = typeof(SourceKnownIdUtils)
+        .GetMethods(BindingFlag.StaticPublic)
+        .First(m => m is { Name: nameof(Generate), IsGenericMethodDefinition: true } && m.GetParameters().Length == 3);
+
     private static readonly ConcurrentDictionary<Type, Func<byte, byte, DateTimeOffset?, long>> TypeGenerateDelegateCache = new();
 
     /// <summary>
-    /// Pre-compiles and warms up ID generation expression delegates for the specified entity types.
-    /// Eliminates cold-start JIT and expression compilation overhead during application startup.
+    /// Pre-compiles and warms up ID generation delegates for the specified entity types.
+    /// Eliminates cold-start JIT and reflection overhead during application startup.
     /// </summary>
     /// <param name="entityTypes">Collection of entity class types to warm up.</param>
     [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-    public static void Warmup(IEnumerable<Type> entityTypes)
+    public static void Warmup(ICollection<Type> entityTypes)
     {
         ArgumentNullException.ThrowIfNull(entityTypes);
 
         foreach (var type in entityTypes)
         {
-            if (type is null || !type.IsClass || !typeof(SourceKnownEntity).IsAssignableFrom(type)) continue;
+            if (type is null || !type.IsClass || !typeof(SourceKnownEntity).IsAssignableFrom(type))
+                continue;
 
-            TypeGenerateDelegateCache.GetOrAdd(type, static t => CompileGenerateDelegate(t));
+            TypeGenerateDelegateCache.GetOrAdd(type, static t => CreateGenerateDelegate(t));
         }
     }
 
@@ -120,26 +125,15 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         if (!typeof(SourceKnownEntity).IsAssignableFrom(entityType))
             throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
 
-        var invoker = TypeGenerateDelegateCache.GetOrAdd(entityType, static type => CompileGenerateDelegate(type));
+        var invoker = TypeGenerateDelegateCache.GetOrAdd(entityType, static type => CreateGenerateDelegate(type));
 
         return invoker(appId, appInstanceId, epoch);
     }
 
-    private static Func<byte, byte, DateTimeOffset?, long> CompileGenerateDelegate(Type type)
+    private static Func<byte, byte, DateTimeOffset?, long> CreateGenerateDelegate(Type type)
     {
-        var method = typeof(SourceKnownIdUtils)
-            .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .First(m => m is { Name: nameof(Generate), IsGenericMethodDefinition: true } && m.GetParameters().Length == 3)
-            .MakeGenericMethod(type);
-
-        var appIdParam = Expression.Parameter(typeof(byte), "appId");
-        var appInstanceIdParam = Expression.Parameter(typeof(byte), "appInstanceId");
-        var epochParam = Expression.Parameter(typeof(DateTimeOffset?), "epoch");
-
-        var call = Expression.Call(method, appIdParam, appInstanceIdParam, epochParam);
-        return Expression
-            .Lambda<Func<byte, byte, DateTimeOffset?, long>>(call, appIdParam, appInstanceIdParam, epochParam)
-            .Compile();
+        var method = GenerateGenericMethodDefinition.MakeGenericMethod(type);
+        return method.CreateDelegate<Func<byte, byte, DateTimeOffset?, long>>();
     }
 
     private static byte ValidateAppInstanceId(byte appInstanceId)
@@ -165,19 +159,17 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     public long Next(Type entityType)
     {
         ArgumentNullException.ThrowIfNull(entityType);
-        if (!typeof(SourceKnownEntity).IsAssignableFrom(entityType))
-            throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
-
-        return Generate(entityType, SourceKnownEntity.GetAppId(entityType), _nexusAppInstanceId, _epoch);
+        return typeof(SourceKnownEntity).IsAssignableFrom(entityType)
+            ? Generate(entityType, SourceKnownEntity.GetAppId(entityType), _nexusAppInstanceId, _epoch)
+            : throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
     }
 
     public long Next(Type entityType, byte appId, byte appInstanceId, DateTimeOffset? epoch = null)
     {
         ArgumentNullException.ThrowIfNull(entityType);
-        if (!typeof(SourceKnownEntity).IsAssignableFrom(entityType))
-            throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
-
-        return Generate(entityType, appId, appInstanceId, epoch ?? _epoch);
+        return typeof(SourceKnownEntity).IsAssignableFrom(entityType)
+            ? Generate(entityType, appId, appInstanceId, epoch ?? _epoch)
+            : throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
     }
 
     public SourceKnownId Parse(long id, DateTimeOffset? epoch = null) => ParseId(id, epoch ?? _epoch);
