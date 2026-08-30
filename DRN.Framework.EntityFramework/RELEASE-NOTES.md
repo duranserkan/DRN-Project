@@ -1,23 +1,29 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
-## Version 0.9.9
+## Version 0.10.0
 
 ### Breaking Changes
 
-*   **Partition-Scoped Entity Type Validation**: Runtime startup validation now enforces partition cardinality using model-owned entity types per DbContext, allowing co-located single-partition contexts in the same assembly, while discovering both `DbSet` and non-`DbSet` domain entities across explicitly registered host assemblies, treating `(EntityType, AppId)` as the host-wide uniqueness key, allowing different application partitions to reuse the same entity type byte consistently with SharedKernel analyzers, while enforcing that single `DbContext` instances do not combine multiple production `AppId` partitions, and verifying that configured `NexusAppSettings.AppId` matches either the DbContext's direct domain partition or a recognized primary partition registered in the host. Migration guidance: users must split DbContexts that combine multiple production `AppId` partitions into dedicated single-partition contexts and align `NexusAppSettings.AppId` with the DbContext's direct domain partition or a recognized registered host partition.
+*   **Partition-Scoped Entity Type Validation**: Startup validation enforces partition cardinality per `DbContext`.
+    *   Treats `(EntityType, AppId)` as the uniqueness key, aligning with SharedKernel analyzers.
+    *   Single `DbContext` instances cannot combine multiple production `AppId` partitions.
+    *   Configured `NexusAppSettings.AppId` must match the context's partition or a recognized registered host partition.
+    *   *Migration*: Split multi-partition DbContexts into dedicated single-partition contexts and align `NexusAppSettings.AppId` with the registered partition.
 
 ### Changed
 
-*   **PostgreSQL Defaults**: DRN's Npgsql context defaults now target PostgreSQL 18.6, matching the digest-pinned Testcontainers and Docker Compose runtime default.
-*   **SaveChanges & ValueGenerator Reflection Elimination**: Replaced dynamic `MethodUtils.InvokeGenericMethod` reflection in `DrnSaveChangesInterceptor` and `SourceKnownIdValueGenerator` with direct compiled delegate dispatch via `ISourceKnownIdUtils.Next(SourceKnownEntity)`, eliminating runtime `MethodInfo.Invoke` and parameter array allocations on entity insertion hot paths, with upfront `SourceKnownIdUtils.Warmup` pre-compilation during startup DbContext validation.
+*   **PostgreSQL Defaults**: Updated Npgsql context defaults to PostgreSQL 18.6, matching digest-pinned container defaults.
+*   **Compiled Delegate ID Dispatch**: Replaced dynamic reflection in `DrnSaveChangesInterceptor` and `SourceKnownIdValueGenerator` with compiled delegate dispatch via `ISourceKnownIdUtils.Next(SourceKnownEntity)` and startup `SourceKnownIdUtils.Warmup`, eliminating allocations on entity insertion hot paths.
 
 ### Bug Fixes
 
-*   **Prototype Migration-History Guard**: Startup validation now always reads applied migrations from the target database, preventing missing local migration files or snapshots from making a migrated database appear safe for prototype recreation.
-*   **Assembly Type Load Failure Diagnostics**: `DrnContextServiceRegistrationAttribute` no longer silently discards types that fail to load during host domain entity discovery. It now wraps and throws `ReflectionTypeLoadException` with assembly details and loader exception diagnostics in `InvalidOperationException`, ensuring complete entity validation without hidden type loading failures.
-*   **Private Entity Discovery Alignment**: Host assembly discovery now excludes nested private `SourceKnownEntity` helper classes, matching compile-time analyzer eligibility and preventing analyzer-clean applications from failing startup validation for private fixtures.
-*   **Duplicate Entity Type Partition Diagnostics**: `DuplicateEntityTypeValue` now retains `AppId` alongside `EntityType` and `EntityName`, providing clear partition-qualified collision messages during startup entity validation for multi-partition hosts.
-*   **Design-Time Data-Source Hooks**: `DbContextExtensions.CreateDbContext` now invokes `ConfigureNpgsqlDataSource` for registered context attributes when building design-time `NpgsqlDataSource` instances. Made `serviceProvider` nullable across data-source hooks with safe fallback handling when running outside DI.
+*   **Startup Pending Model Changes Validation**: `PostStartupValidationAsync` verifies pending EF Core model changes regardless of whether auto-migration is enabled, failing fast on unmigrated schema drift.
+*   **Prototype Migration-History Guard**: Reads applied migrations directly from the target database, safely handling missing databases (`InvalidCatalogName`), preventing unmigrated databases from being dropped during prototype checks.
+*   **Assembly Type Load Failure Diagnostics**: Wraps and throws `ReflectionTypeLoadException` with aggregated loader diagnostics in `InvalidOperationException` instead of silently ignoring failed types during host domain discovery.
+*   **Private Entity Discovery Alignment**: Excludes nested private `SourceKnownEntity` fixtures from domain discovery, matching compile-time analyzer rules.
+*   **Duplicate Entity Type Partition Diagnostics**: Retains `AppId` in `DuplicateEntityTypeValue` for clear collision messages during multi-partition startup validation.
+*   **Design-Time Data-Source Hooks**: `DbContextExtensions.CreateDbContext` invokes `ConfigureNpgsqlDataSource` with safe null fallback when running outside DI.
+*   **Visible DbContext Discovery**: `AddDbContextsWithConventions` filters domain scanning to public/visible `DbContext` types (`IsVisible: true`).
 
 ## Version 0.9.8
 

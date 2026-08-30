@@ -12,6 +12,7 @@ benchmark and run. Report files from the same run stay together.
 | `SourceKnownIdUtils/Standard/<run>/` | Standard `SourceKnownIdUtilsBenchmark` history |
 | `SourceKnownIdUtils/Saturation/<run>/` | Saturation benchmark history |
 | `DateTimeProvider/` | `DateTimeProviderBenchmark` reports |
+| `EqualityComparison/` | `EqualityComparisonBenchmark` reports |
 | `MethodUtils/` | `MethodUtilsBenchmark` reports |
 | `Hash/General/` | General hash benchmark reports |
 | `Hash/SmallPayload/<run>/` | Small-payload reports and implementation variants |

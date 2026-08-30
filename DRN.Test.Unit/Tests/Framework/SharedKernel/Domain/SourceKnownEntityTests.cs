@@ -22,10 +22,12 @@ public class SourceKnownEntityTests
     public void GetAppId_Generic_And_Type_Overloads_Should_Return_Declared_AppId()
     {
         SourceKnownEntity.GetAppId<CustomTestEntity>().Should().Be(42);
-        SourceKnownEntity.GetAppId(typeof(CustomTestEntity)).Should().Be(42);
+        var customType = typeof(CustomTestEntity);
+        SourceKnownEntity.GetAppId(customType).Should().Be(42);
 
         SourceKnownEntity.GetAppId<DefaultAppTestEntity>().Should().Be(0);
-        SourceKnownEntity.GetAppId(typeof(DefaultAppTestEntity)).Should().Be(0);
+        var defaultType = typeof(DefaultAppTestEntity);
+        SourceKnownEntity.GetAppId(defaultType).Should().Be(0);
     }
 
     [Fact]
@@ -35,7 +37,8 @@ public class SourceKnownEntityTests
         customId.EntityType.Should().Be(7);
         customId.AppId.Should().Be(42);
 
-        var defaultId = SourceKnownEntity.GetEntityTypeId(typeof(DefaultAppTestEntity));
+        var defaultType = typeof(DefaultAppTestEntity);
+        var defaultId = SourceKnownEntity.GetEntityTypeId(defaultType);
         defaultId.EntityType.Should().Be(101);
         defaultId.AppId.Should().Be(0);
     }
@@ -44,7 +47,8 @@ public class SourceKnownEntityTests
     public void GetEntityType_Should_Return_EntityType_Byte()
     {
         SourceKnownEntity.GetEntityType<CustomTestEntity>().Should().Be(7);
-        SourceKnownEntity.GetEntityType(typeof(DefaultAppTestEntity)).Should().Be(101);
+        var defaultType = typeof(DefaultAppTestEntity);
+        SourceKnownEntity.GetEntityType(defaultType).Should().Be(101);
     }
 
     [Fact]
@@ -78,7 +82,7 @@ public class SourceKnownEntityTests
         customId.AppId.Should().Be(42);
 
         var retrievedType = EntityTypeRegistry.GetEntityType(customId);
-        retrievedType.Should().Be(typeof(CustomTestEntity));
+        retrievedType.Should().Be<CustomTestEntity>();
     }
 
     [Fact]
@@ -126,8 +130,8 @@ public class SourceKnownEntityTests
                 defaultId.EntityType.Should().Be(101);
                 defaultId.AppId.Should().Be(0);
 
-                EntityTypeRegistry.GetEntityType(customId).Should().Be(typeof(CustomTestEntity));
-                EntityTypeRegistry.GetEntityType(defaultId).Should().Be(typeof(DefaultAppTestEntity));
+                EntityTypeRegistry.GetEntityType(customId).Should().Be<CustomTestEntity>();
+                EntityTypeRegistry.GetEntityType(defaultId).Should().Be<DefaultAppTestEntity>();
             }
         });
     }

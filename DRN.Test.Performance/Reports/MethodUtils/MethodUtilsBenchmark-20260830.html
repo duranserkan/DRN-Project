@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DRN.Test.Performance.Benchmark.Framework.Utils.MethodUtilsBenchmark-20260830-204348</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.8, macOS Tahoe 26.6.2 (25G83) [Darwin 25.6.0]
+Apple M2, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 10.0.400
+  [Host]     : .NET 10.0.11 (10.0.11, 10.0.1126.37416), Arm64 RyuJIT armv8.0-a
+  Job-JEHOQG : .NET 10.0.11 (10.0.11, 10.0.1126.37416), Arm64 RyuJIT armv8.0-a
+</code></pre>
+<pre><code>InvocationCount=100000  IterationCount=30  UnrollFactor=1
+WarmupCount=30
+</code></pre>
+
+<table>
+<thead><tr><th>Method                                                 </th><th>Categories   </th><th>Mean </th><th>Error</th><th>StdDev</th><th>Median</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>&#39;MethodUtils: Type.FindMethod&lt;T&gt; (Cached)&#39;</td><td>DiscoveryGeneric</td><td>3.7236 ns</td><td>0.1403 ns</td><td>0.2013 ns</td><td>3.6688 ns</td><td>1.00</td><td>0.07</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;MethodUtils: Type.FindMethodUncached&lt;T&gt;&#39;</td><td>DiscoveryGeneric</td><td>400.9647 ns</td><td>78.1636 ns</td><td>114.5711 ns</td><td>339.1475 ns</td><td>107.97</td><td>30.87</td><td>0.0700</td><td>624 B</td><td>NA</td>
+</tr><tr><td>&#39;MethodUtils: Type.FindMethod (Cached)&#39;</td><td>DiscoveryNonGeneric</td><td>1.2751 ns</td><td>0.0403 ns</td><td>0.0538 ns</td><td>1.2512 ns</td><td>1.00</td><td>0.06</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;MethodUtils: Type.FindMethodUncached&#39;</td><td>DiscoveryNonGeneric</td><td>102.3903 ns</td><td>1.6585 ns</td><td>2.3249 ns</td><td>101.9783 ns</td><td>80.43</td><td>3.57</td><td>0.0500</td><td>424 B</td><td>NA</td>
+</tr><tr><td>&#39;Baseline (C#): Direct Call instance.GetInstance&lt;T&gt;(arg)&#39;</td><td>InstanceGeneric</td><td>1.4937 ns</td><td>0.0472 ns</td><td>0.0630 ns</td><td>1.4671 ns</td><td>1.00</td><td>0.06</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;MethodUtils: instance.InvokeMethod&lt;T&gt;&#39;</td><td>InstanceGeneric</td><td>10.7824 ns</td><td>0.5090 ns</td><td>0.7619 ns</td><td>10.5885 ns</td><td>7.23</td><td>0.58</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Baseline (.NET): Pre-Resolved MethodInvoker.Invoke&lt;T&gt;&#39;</td><td>InstanceGeneric</td><td>9.7671 ns</td><td>0.0552 ns</td><td>0.0736 ns</td><td>9.7492 ns</td><td>6.55</td><td>0.26</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Alternative (Reflection): MethodInfo.Invoke&lt;T&gt;(cachedArray)&#39;</td><td>InstanceGeneric</td><td>32.6314 ns</td><td>0.8199 ns</td><td>1.1494 ns</td><td>32.2367 ns</td><td>21.88</td><td>1.15</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Alternative (Reflection): MethodInfo.Invoke&lt;T&gt;(new array)&#39;</td><td>InstanceGeneric</td><td>36.2755 ns</td><td>0.3551 ns</td><td>0.4861 ns</td><td>36.2050 ns</td><td>24.33</td><td>1.01</td><td>-</td><td>32 B</td><td>NA</td>
+</tr><tr><td>&#39;Baseline (C#): Direct Call instance.GetInstance(arg)&#39;</td><td>InstanceNonGeneric</td><td>1.1738 ns</td><td>0.0131 ns</td><td>0.0166 ns</td><td>1.1671 ns</td><td>1.00</td><td>0.02</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;MethodUtils: instance.InvokeMethod&#39;</td><td>InstanceNonGeneric</td><td>9.8435 ns</td><td>0.1362 ns</td><td>0.1953 ns</td><td>9.7483 ns</td><td>8.39</td><td>0.20</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Baseline (.NET): Pre-Resolved MethodInvoker.Invoke&#39;</td><td>InstanceNonGeneric</td><td>10.0032 ns</td><td>0.2405 ns</td><td>0.3450 ns</td><td>9.8750 ns</td><td>8.52</td><td>0.31</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Alternative (Reflection): MethodInfo.Invoke(cachedArray)&#39;</td><td>InstanceNonGeneric</td><td>32.1988 ns</td><td>0.3799 ns</td><td>0.5448 ns</td><td>32.1802 ns</td><td>27.44</td><td>0.59</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Alternative (Reflection): MethodInfo.Invoke(new array)&#39;</td><td>InstanceNonGeneric</td><td>37.4435 ns</td><td>0.9580 ns</td><td>1.4338 ns</td><td>37.1794 ns</td><td>31.91</td><td>1.28</td><td>-</td><td>32 B</td><td>NA</td>
+</tr><tr><td>&#39;Baseline (C#): Direct Call GetStatic&lt;T&gt;(arg)&#39;</td><td>StaticGeneric</td><td>0.7001 ns</td><td>0.0783 ns</td><td>0.1172 ns</td><td>0.6494 ns</td><td>1.03</td><td>0.24</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;MethodUtils: Type.InvokeStaticMethod&lt;T&gt;&#39;</td><td>StaticGeneric</td><td>8.6832 ns</td><td>0.1398 ns</td><td>0.1960 ns</td><td>8.6108 ns</td><td>12.74</td><td>2.08</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Baseline (.NET): Pre-Resolved MethodInvoker.Invoke&lt;T&gt;&#39;</td><td>StaticGeneric</td><td>5.6912 ns</td><td>0.1015 ns</td><td>0.1389 ns</td><td>5.6660 ns</td><td>8.35</td><td>1.37</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Alternative (Reflection): MethodInfo.Invoke&lt;T&gt;(cachedArray)&#39;</td><td>StaticGeneric</td><td>27.9962 ns</td><td>0.3652 ns</td><td>0.5238 ns</td><td>27.9902 ns</td><td>41.07</td><td>6.69</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Alternative (Reflection): MethodInfo.Invoke&lt;T&gt;(new array)&#39;</td><td>StaticGeneric</td><td>29.0635 ns</td><td>6.2825 ns</td><td>9.0102 ns</td><td>32.7356 ns</td><td>42.64</td><td>14.86</td><td>-</td><td>32 B</td><td>NA</td>
+</tr><tr><td>&#39;Baseline (C#): Direct Call GetStatic(arg)&#39;</td><td>StaticNonGeneric</td><td>0.6025 ns</td><td>0.0201 ns</td><td>0.0268 ns</td><td>0.5871 ns</td><td>1.00</td><td>0.06</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;MethodUtils: Type.InvokeStaticMethod&#39;</td><td>StaticNonGeneric</td><td>8.5832 ns</td><td>0.2476 ns</td><td>0.3551 ns</td><td>8.4296 ns</td><td>14.27</td><td>0.82</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Baseline (.NET): Pre-Resolved MethodInvoker.Invoke&#39;</td><td>StaticNonGeneric</td><td>5.5841 ns</td><td>0.0407 ns</td><td>0.0570 ns</td><td>5.5650 ns</td><td>9.28</td><td>0.38</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Baseline (.NET): Strongly-Typed Delegate&#39;</td><td>StaticNonGeneric</td><td>1.8963 ns</td><td>0.1091 ns</td><td>0.1564 ns</td><td>1.8396 ns</td><td>3.15</td><td>0.29</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Alternative (Reflection): MethodInfo.Invoke(cachedArray)&#39;</td><td>StaticNonGeneric</td><td>38.9788 ns</td><td>0.8116 ns</td><td>1.1640 ns</td><td>38.5254 ns</td><td>64.81</td><td>3.23</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Alternative (Reflection): MethodInfo.Invoke(new array)&#39;</td><td>StaticNonGeneric</td><td>45.1731 ns</td><td>0.9707 ns</td><td>1.3608 ns</td><td>45.1971 ns</td><td>75.11</td><td>3.75</td><td>-</td><td>32 B</td><td>NA</td>
+</tr></tbody></table>
+</body>
+</html>

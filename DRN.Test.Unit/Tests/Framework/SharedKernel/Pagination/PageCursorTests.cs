@@ -6,9 +6,9 @@ namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Pagination;
 public class PageCursorTests
 {
     [Theory]
-    [InlineData(null)]
-    [InlineData(PageSortDirection.Ascending)]
-    [InlineData(PageSortDirection.Descending)]
+    [DataInlineUnit(null!)]
+    [DataInlineUnit(PageSortDirection.Ascending)]
+    [DataInlineUnit(PageSortDirection.Descending)]
     public void PageCursor_FirstRequest_Defaults(PageSortDirection? direction)
     {
         var cursor = direction == null ? PageCursor.Initial : PageCursor.InitialWith(direction.Value);
@@ -23,8 +23,8 @@ public class PageCursorTests
     }
 
     [Theory]
-    [InlineData(PageSortDirection.Ascending)]
-    [InlineData(PageSortDirection.Descending)]
+    [DataInlineUnit(PageSortDirection.Ascending)]
+    [DataInlineUnit(PageSortDirection.Descending)]
     public void PageCursor_SecondRequest_Defaults(PageSortDirection direction)
     {
         var lastId = Guid.NewGuid();

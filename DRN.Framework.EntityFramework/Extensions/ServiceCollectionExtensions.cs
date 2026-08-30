@@ -51,6 +51,6 @@ public static class ServiceCollectionExtensions
             .Where(t => t is { IsClass: true, IsAbstract: false, IsVisible: true });
 
         foreach (var contextType in contextTypes)
-            typeof(ServiceCollectionExtensions).InvokeStaticGenericMethod(nameof(AddDbContextWithConventions), [contextType], sc);
+            typeof(ServiceCollectionExtensions).InvokeStaticMethod(nameof(AddDbContextWithConventions), [contextType], sc);
     }
 }

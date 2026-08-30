@@ -18,10 +18,10 @@ public class HashExtensionTests
 
     [Theory]
     [SuppressMessage("ReSharper", "RedundantArgumentDefaultValue")]
-    [InlineData(HashAlgorithm.XxHash3_64, HelloWorldXxHash3_64Hash)]
-    [InlineData(HashAlgorithm.Blake3, HelloWorldBlake3Hash)]
-    [InlineData(HashAlgorithm.Sha256, HelloWorldSha256Hash)]
-    [InlineData(HashAlgorithm.Sha512, HelloWorldSha512Hash)]
+    [DataInlineUnit(HashAlgorithm.XxHash3_64, HelloWorldXxHash3_64Hash)]
+    [DataInlineUnit(HashAlgorithm.Blake3, HelloWorldBlake3Hash)]
+    [DataInlineUnit(HashAlgorithm.Sha256, HelloWorldSha256Hash)]
+    [DataInlineUnit(HashAlgorithm.Sha512, HelloWorldSha512Hash)]
     public void String_Should_Be_Hashed_With_Different_Algorithms_And_Encodings(HashAlgorithm algorithm, string expectedHashHex)
     {
         var hashHex = HelloWorld.Hash(algorithm, ByteEncoding.Hex);

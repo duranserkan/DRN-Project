@@ -25,15 +25,11 @@ internal static class EntityAnalyzerHelper
             cancellationToken.ThrowIfCancellationRequested();
 
             if (IsFrameworkAssembly(referencedAssembly.Name))
-            {
                 continue;
-            }
 
             var visitedAssemblies = new HashSet<IAssemblySymbol>(SymbolEqualityComparer.Default);
             if (!ReferencesAssembly(referencedAssembly, targetAssembly, visitedAssemblies))
-            {
                 continue;
-            }
 
             ScanNamespace(referencedAssembly.GlobalNamespace, sourceKnownEntitySymbol, collectedEntities, cancellationToken);
         }
@@ -56,27 +52,39 @@ internal static class EntityAnalyzerHelper
         if (SymbolEqualityComparer.Default.Equals(assembly, targetAssembly))
             return true;
 
-        var targetIdentity = targetAssembly.Identity;
         foreach (var module in assembly.Modules)
         {
-            if (module.ReferencedAssemblySymbols.Any(referencedAssemblySymbol => SymbolEqualityComparer.Default.Equals(referencedAssemblySymbol, targetAssembly)))
+            if (ModuleDirectlyReferencesTarget(module, targetAssembly))
                 return true;
 
-            if (module.ReferencedAssemblies.Any(referencedIdentity =>
-                    AssemblyIdentityComparer.Default.ReferenceMatchesDefinition(referencedIdentity, targetIdentity) ||
-                    string.Equals(referencedIdentity.Name, targetIdentity.Name, StringComparison.OrdinalIgnoreCase)))
-            {
+            if (ModuleTransitivelyReferencesTarget(module, targetAssembly, visitedAssemblies))
                 return true;
-            }
+        }
 
-            foreach (var referencedAssemblySymbol in module.ReferencedAssemblySymbols)
-            {
-                if (IsFrameworkAssembly(referencedAssemblySymbol.Name))
-                    continue;
+        return false;
+    }
 
-                if (ReferencesAssembly(referencedAssemblySymbol, targetAssembly, visitedAssemblies))
-                    return true;
-            }
+    private static bool ModuleDirectlyReferencesTarget(IModuleSymbol module, IAssemblySymbol targetAssembly)
+    {
+        if (module.ReferencedAssemblySymbols.Any(referencedAssemblySymbol => SymbolEqualityComparer.Default.Equals(referencedAssemblySymbol, targetAssembly)))
+            return true;
+
+        var targetIdentity = targetAssembly.Identity;
+
+        return module.ReferencedAssemblies.Any(referencedIdentity =>
+            AssemblyIdentityComparer.Default.ReferenceMatchesDefinition(referencedIdentity, targetIdentity) ||
+            string.Equals(referencedIdentity.Name, targetIdentity.Name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool ModuleTransitivelyReferencesTarget(IModuleSymbol module, IAssemblySymbol targetAssembly, HashSet<IAssemblySymbol> visitedAssemblies)
+    {
+        foreach (var referencedAssemblySymbol in module.ReferencedAssemblySymbols)
+        {
+            if (IsFrameworkAssembly(referencedAssemblySymbol.Name))
+                continue;
+
+            if (ReferencesAssembly(referencedAssemblySymbol, targetAssembly, visitedAssemblies))
+                return true;
         }
 
         return false;
@@ -91,14 +99,10 @@ internal static class EntityAnalyzerHelper
         cancellationToken.ThrowIfCancellationRequested();
 
         foreach (var type in namespaceSymbol.GetTypeMembers())
-        {
             ScanType(type, sourceKnownEntitySymbol, collectedEntities, cancellationToken);
-        }
 
         foreach (var nestedNamespace in namespaceSymbol.GetNamespaceMembers())
-        {
             ScanNamespace(nestedNamespace, sourceKnownEntitySymbol, collectedEntities, cancellationToken);
-        }
     }
 
     private static void ScanType(
@@ -113,14 +117,10 @@ internal static class EntityAnalyzerHelper
             return;
 
         if (typeSymbol is { TypeKind: TypeKind.Class, IsAbstract: false } && DerivesFrom(typeSymbol, sourceKnownEntitySymbol))
-        {
             collectedEntities.Add(typeSymbol);
-        }
 
         foreach (var nestedType in typeSymbol.GetTypeMembers())
-        {
             ScanType(nestedType, sourceKnownEntitySymbol, collectedEntities, cancellationToken);
-        }
     }
 
     internal static bool DerivesFrom(INamedTypeSymbol typeSymbol, INamedTypeSymbol baseTargetSymbol)
@@ -236,13 +236,11 @@ internal static class EntityAnalyzerHelper
             return false;
         }
 
-        if (HasPropertySyntax(appTypeSymbol))
+        if (HasPropertySyntax(appTypeSymbol) &&
+            (!TryExtractAppIdFromPropertySyntax(appTypeSymbol, compilation, out var propertyAppId) || propertyAppId != constantAppId))
         {
-            if (!TryExtractAppIdFromPropertySyntax(appTypeSymbol, compilation, out var propertyAppId) || propertyAppId != constantAppId)
-            {
-                appId = 0;
-                return false;
-            }
+            appId = 0;
+            return false;
         }
 
         appId = constantAppId;
@@ -256,9 +254,7 @@ internal static class EntityAnalyzerHelper
             if (member is IPropertySymbol prop &&
                 (prop.Name == AppIdName || prop.Name.EndsWith("." + AppIdName, StringComparison.Ordinal)) &&
                 prop.DeclaringSyntaxReferences.Length > 0)
-            {
                 return true;
-            }
         }
 
         return false;
@@ -293,9 +289,7 @@ internal static class EntityAnalyzerHelper
                     DeclaredAccessibility: Accessibility.Public,
                     Name: AppIdName or "Value"
                 } field && TryExtractByte(field.ConstantValue, out appId))
-            {
                 return true;
-            }
         }
 
         appId = 0;
@@ -341,74 +335,88 @@ internal static class EntityAnalyzerHelper
             if (syntaxRef.GetSyntax() is PropertyDeclarationSyntax propSyntax &&
                 TryExtractExpressionFromProperty(propSyntax, out var expr) &&
                 TryExtractByteFromSyntax(expr!, appTypeSymbol, compilation, nextVisited, out appId))
-            {
                 return true;
-            }
         }
 
         appId = 0;
         return false;
+    }
 
-        static bool TryExtractByteFromSyntax(
-            ExpressionSyntax expr,
-            ITypeSymbol appTypeSymbol,
-            Compilation? compilation,
-            ImmutableHashSet<IPropertySymbol> visitedProps,
-            out byte byteValue)
+    private static bool TryExtractByteFromSyntax(
+        ExpressionSyntax expr,
+        ITypeSymbol appTypeSymbol,
+        Compilation? compilation,
+        ImmutableHashSet<IPropertySymbol> visitedProps,
+        out byte byteValue)
+    {
+        if (compilation != null && TryExtractByteFromSemanticModel(expr, appTypeSymbol, compilation, visitedProps, out byteValue))
+            return true;
+
+        switch (expr)
         {
-            if (compilation != null && compilation.ContainsSyntaxTree(expr.SyntaxTree))
-            {
-                var semanticModel = compilation.GetSemanticModel(expr.SyntaxTree);
-                var constantVal = semanticModel.GetConstantValue(expr);
-                if (constantVal.HasValue && TryExtractByte(constantVal.Value, out byteValue))
-                    return true;
+            case LiteralExpressionSyntax { Token.Value: { } val }:
+                return TryExtractByte(val, out byteValue);
+            case ParenthesizedExpressionSyntax paren:
+                return TryExtractByteFromSyntax(paren.Expression, appTypeSymbol, compilation, visitedProps, out byteValue);
+            case CastExpressionSyntax cast:
+                return TryExtractByteFromSyntax(cast.Expression, appTypeSymbol, compilation, visitedProps, out byteValue);
+            case IdentifierNameSyntax idName:
+                return TryExtractConstantFromTypeOrContainers(appTypeSymbol, idName.Identifier.Text, out byteValue);
+            case MemberAccessExpressionSyntax memberAccess:
+                return TryExtractByteFromMemberAccess(memberAccess, appTypeSymbol, out byteValue);
+            default:
+                byteValue = 0;
+                return false;
+        }
+    }
 
-                var symbolInfo = semanticModel.GetSymbolInfo(expr);
-                switch (symbolInfo.Symbol)
-                {
-                    case IFieldSymbol { HasConstantValue: true } field when TryExtractByte(field.ConstantValue, out byteValue):
-                    case ILocalSymbol { HasConstantValue: true } local when TryExtractByte(local.ConstantValue, out byteValue):
-                    case IPropertySymbol prop when TryExtractAppIdFromPropertySymbol(prop, prop.ContainingType ?? appTypeSymbol, compilation, visitedProps, out byteValue):
-                        return true;
-                }
-            }
-
-            switch (expr)
-            {
-                case LiteralExpressionSyntax { Token.Value: { } val }:
-                    return TryExtractByte(val, out byteValue);
-                case ParenthesizedExpressionSyntax paren:
-                    return TryExtractByteFromSyntax(paren.Expression, appTypeSymbol, compilation, visitedProps, out byteValue);
-                case CastExpressionSyntax cast:
-                    return TryExtractByteFromSyntax(cast.Expression, appTypeSymbol, compilation, visitedProps, out byteValue);
-                case IdentifierNameSyntax idName:
-                {
-                    var memberName = idName.Identifier.Text;
-                    if (TryExtractConstantFromTypeOrContainers(appTypeSymbol, memberName, out byteValue))
-                        return true;
-
-                    break;
-                }
-                case MemberAccessExpressionSyntax memberAccess:
-                {
-                    var memberName = memberAccess.Name.Identifier.Text;
-                    if (memberAccess.Expression is IdentifierNameSyntax typeIdentifier)
-                    {
-                        var targetTypeName = typeIdentifier.Identifier.Text;
-                        if (TryFindTypeInNamespaceOrContainers(appTypeSymbol, targetTypeName, out var targetType) &&
-                            TryExtractConstantFromType(targetType, memberName, out byteValue))
-                        {
-                            return true;
-                        }
-                    }
-
-                    break;
-                }
-            }
-
+    private static bool TryExtractByteFromSemanticModel(
+        ExpressionSyntax expr,
+        ITypeSymbol appTypeSymbol,
+        Compilation compilation,
+        ImmutableHashSet<IPropertySymbol> visitedProps,
+        out byte byteValue)
+    {
+        if (!compilation.ContainsSyntaxTree(expr.SyntaxTree))
+        {
             byteValue = 0;
             return false;
         }
+
+        var semanticModel = compilation.GetSemanticModel(expr.SyntaxTree);
+        var constantVal = semanticModel.GetConstantValue(expr);
+        if (constantVal.HasValue && TryExtractByte(constantVal.Value, out byteValue))
+            return true;
+
+        var symbolInfo = semanticModel.GetSymbolInfo(expr);
+        switch (symbolInfo.Symbol)
+        {
+            case IFieldSymbol { HasConstantValue: true } field when TryExtractByte(field.ConstantValue, out byteValue):
+            case ILocalSymbol { HasConstantValue: true } local when TryExtractByte(local.ConstantValue, out byteValue):
+            case IPropertySymbol prop when TryExtractAppIdFromPropertySymbol(prop, prop.ContainingType ?? appTypeSymbol, compilation, visitedProps, out byteValue):
+                return true;
+            default:
+                byteValue = 0;
+                return false;
+        }
+    }
+
+    private static bool TryExtractByteFromMemberAccess(
+        MemberAccessExpressionSyntax memberAccess,
+        ITypeSymbol appTypeSymbol,
+        out byte byteValue)
+    {
+        if (memberAccess.Expression is IdentifierNameSyntax typeIdentifier)
+        {
+            var targetTypeName = typeIdentifier.Identifier.Text;
+            var memberName = memberAccess.Name.Identifier.Text;
+            if (TryFindTypeInNamespaceOrContainers(appTypeSymbol, targetTypeName, out var targetType) &&
+                TryExtractConstantFromType(targetType, memberName, out byteValue))
+                return true;
+        }
+
+        byteValue = 0;
+        return false;
     }
 
     private static bool TryExtractExpressionFromProperty(PropertyDeclarationSyntax propSyntax, out ExpressionSyntax? expression)
@@ -461,9 +469,10 @@ internal static class EntityAnalyzerHelper
                 return true;
             }
 
-            foreach (var member in containingType.GetTypeMembers(typeName))
+            var typeMembers = containingType.GetTypeMembers(typeName);
+            if (typeMembers.Length > 0)
             {
-                targetType = member;
+                targetType = typeMembers[0];
                 return true;
             }
 
@@ -473,9 +482,10 @@ internal static class EntityAnalyzerHelper
         var ns = appTypeSymbol.ContainingNamespace;
         while (ns != null)
         {
-            foreach (var member in ns.GetTypeMembers(typeName))
+            var typeMembers = ns.GetTypeMembers(typeName);
+            if (typeMembers.Length > 0)
             {
-                targetType = member;
+                targetType = typeMembers[0];
                 return true;
             }
 

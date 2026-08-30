@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DRN.Test.Performance.Benchmark.Framework.Utils.EqualityComparisonBenchmark-20260830-204102</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.8, macOS Tahoe 26.6.2 (25G83) [Darwin 25.6.0]
+Apple M2, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 10.0.400
+  [Host]     : .NET 10.0.11 (10.0.11, 10.0.1126.37416), Arm64 RyuJIT armv8.0-a
+  Job-YGIBXZ : .NET 10.0.11 (10.0.11, 10.0.1126.37416), Arm64 RyuJIT armv8.0-a
+</code></pre>
+<pre><code>InvocationCount=100000  IterationCount=20  UnrollFactor=1
+WarmupCount=20
+</code></pre>
+
+<table>
+<thead><tr><th>Method                                                                 </th><th>Categories       </th><th>Mean </th><th>Error</th><th>StdDev</th><th>Median</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>&#39;MethodCacheKey: NonGeneric Equal (==)&#39;</td><td>MethodCacheKey_Equality</td><td>15.9006 ns</td><td>0.1776 ns</td><td>0.1745 ns</td><td>15.8544 ns</td><td>1.00</td><td>0.01</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;MethodCacheKey: NonGeneric Diff MethodName (==) [Short-Circuit]&#39;</td><td>MethodCacheKey_Equality</td><td>12.4254 ns</td><td>0.2046 ns</td><td>0.2189 ns</td><td>12.3940 ns</td><td>0.78</td><td>0.02</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;MethodCacheKey: NonGeneric Diff ParameterCount (==) [Short-Circuit]&#39;</td><td>MethodCacheKey_Equality</td><td>6.9089 ns</td><td>0.0804 ns</td><td>0.0789 ns</td><td>6.8738 ns</td><td>0.43</td><td>0.01</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;* MethodCacheKey: Generic Equal with EquatableSequence (==)&#39;</td><td>MethodCacheKey_Equality</td><td>39.2371 ns</td><td>0.6257 ns</td><td>0.6954 ns</td><td>38.9242 ns</td><td>2.47</td><td>0.05</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;* MethodCacheKey: Generic Diff TypeArgs (==)&#39;</td><td>MethodCacheKey_Equality</td><td>39.4778 ns</td><td>0.7451 ns</td><td>0.7972 ns</td><td>39.2867 ns</td><td>2.48</td><td>0.06</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;MethodCacheKey: NonGeneric .GetHashCode()&#39;</td><td>MethodCacheKey_Hashing</td><td>57.5987 ns</td><td>1.1716 ns</td><td>1.3492 ns</td><td>57.3713 ns</td><td>1.00</td><td>0.03</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;* MethodCacheKey: Generic .GetHashCode() (EquatableSequence)&#39;</td><td>MethodCacheKey_Hashing</td><td>31.9135 ns</td><td>0.7248 ns</td><td>0.8346 ns</td><td>31.9669 ns</td><td>0.55</td><td>0.02</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;long: ==&#39;</td><td>Primitives_Long</td><td>0.0221 ns</td><td>0.0245 ns</td><td>0.0262 ns</td><td>0.0000 ns</td><td>?</td><td>?</td><td>-</td><td>-</td><td>?</td>
+</tr><tr><td>&#39;long: .Equals()&#39;</td><td>Primitives_Long</td><td>0.8220 ns</td><td>0.0247 ns</td><td>0.0242 ns</td><td>0.8092 ns</td><td>?</td><td>?</td><td>-</td><td>-</td><td>?</td>
+</tr><tr><td>&#39;long: EqualityComparer&lt;long&gt;.Default.Equals&#39;</td><td>Primitives_Long</td><td>12.5904 ns</td><td>0.2224 ns</td><td>0.2561 ns</td><td>12.5360 ns</td><td>?</td><td>?</td><td>-</td><td>-</td><td>?</td>
+</tr><tr><td>&#39;long: object.Equals (Boxed 48 B)&#39;</td><td>Primitives_Long</td><td>9.4194 ns</td><td>0.4623 ns</td><td>0.5139 ns</td><td>9.3029 ns</td><td>?</td><td>?</td><td>-</td><td>48 B</td><td>?</td>
+</tr><tr><td>&#39;MethodInfo: ==&#39;</td><td>Reference_MethodInfo</td><td>2.0326 ns</td><td>0.0659 ns</td><td>0.0705 ns</td><td>2.0015 ns</td><td>1.00</td><td>0.05</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;MethodInfo: .Equals()&#39;</td><td>Reference_MethodInfo</td><td>3.9585 ns</td><td>0.2299 ns</td><td>0.2555 ns</td><td>3.8275 ns</td><td>1.95</td><td>0.14</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;MethodInfo: ReferenceEquals&#39;</td><td>Reference_MethodInfo</td><td>1.4820 ns</td><td>0.0963 ns</td><td>0.1109 ns</td><td>1.4263 ns</td><td>0.73</td><td>0.06</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;MethodInfo: EqualityComparer&lt;MethodInfo&gt;.Default.Equals (Diff Ref)&#39;</td><td>Reference_MethodInfo</td><td>6.8495 ns</td><td>0.1318 ns</td><td>0.1465 ns</td><td>6.7648 ns</td><td>3.37</td><td>0.13</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;string: == (Same Reference)&#39;</td><td>Reference_String</td><td>2.8812 ns</td><td>0.0293 ns</td><td>0.0288 ns</td><td>2.8708 ns</td><td>1.00</td><td>0.01</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;string: == (Distinct Reference, Equal Value)&#39;</td><td>Reference_String</td><td>6.2794 ns</td><td>0.1912 ns</td><td>0.2046 ns</td><td>6.2929 ns</td><td>2.18</td><td>0.07</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;string: .Equals(Ordinal)&#39;</td><td>Reference_String</td><td>5.9475 ns</td><td>0.0508 ns</td><td>0.0543 ns</td><td>5.9588 ns</td><td>2.06</td><td>0.03</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;string: ReferenceEquals&#39;</td><td>Reference_String</td><td>1.4654 ns</td><td>0.0871 ns</td><td>0.0968 ns</td><td>1.4069 ns</td><td>0.51</td><td>0.03</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;string: EqualityComparer&lt;string&gt;.Default.Equals&#39;</td><td>Reference_String</td><td>8.5075 ns</td><td>0.1643 ns</td><td>0.1758 ns</td><td>8.4771 ns</td><td>2.95</td><td>0.07</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Type: ==&#39;</td><td>Reference_Type</td><td>2.1565 ns</td><td>0.0484 ns</td><td>0.0497 ns</td><td>2.1304 ns</td><td>1.00</td><td>0.03</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Type: .Equals()&#39;</td><td>Reference_Type</td><td>2.6346 ns</td><td>0.0892 ns</td><td>0.0991 ns</td><td>2.5737 ns</td><td>1.22</td><td>0.05</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Type: ReferenceEquals&#39;</td><td>Reference_Type</td><td>1.4468 ns</td><td>0.0822 ns</td><td>0.0946 ns</td><td>1.4333 ns</td><td>0.67</td><td>0.05</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Type: EqualityComparer&lt;Type&gt;.Default.Equals (Diff Ref)&#39;</td><td>Reference_Type</td><td>4.0901 ns</td><td>0.0502 ns</td><td>0.0515 ns</td><td>4.0687 ns</td><td>1.90</td><td>0.05</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;* EquatableSequence&lt;int&gt;: .GetHashCode() (Span ref readonly)&#39;</td><td>Sequence_Hashing</td><td>68.7415 ns</td><td>36.9842 ns</td><td>42.5911 ns</td><td>103.1617 ns</td><td>1.84</td><td>2.00</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;* EquatableImmutableSequence&lt;Type&gt;: .GetHashCode()&#39;</td><td>Sequence_Hashing</td><td>13.9330 ns</td><td>0.5280 ns</td><td>0.6080 ns</td><td>13.8396 ns</td><td>0.37</td><td>0.29</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;IStructuralEquatable: .GetHashCode() (Allocates 192 B)&#39;</td><td>Sequence_Hashing</td><td>54.5534 ns</td><td>0.4992 ns</td><td>0.5127 ns</td><td>54.4292 ns</td><td>1.46</td><td>1.13</td><td>0.0200</td><td>192 B</td><td>NA</td>
+</tr><tr><td>&#39;LINQ Aggregate: HashCode.Combine() (Delegate Overhead)&#39;</td><td>Sequence_Hashing</td><td>126.7288 ns</td><td>28.3213 ns</td><td>32.6148 ns</td><td>132.4121 ns</td><td>3.40</td><td>2.83</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Size 16: EquatableSequence&lt;int&gt;.Equals (SIMD)&#39;</td><td>Sequence_Scaling_Size16</td><td>26.3303 ns</td><td>0.4493 ns</td><td>0.4994 ns</td><td>26.3750 ns</td><td>1.00</td><td>0.03</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Size 16: For-Loop Non-SIMD&#39;</td><td>Sequence_Scaling_Size16</td><td>6.2627 ns</td><td>0.1717 ns</td><td>0.1764 ns</td><td>6.1921 ns</td><td>0.24</td><td>0.01</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Size 16: LINQ Enumerable.SequenceEqual&#39;</td><td>Sequence_Scaling_Size16</td><td>8.2026 ns</td><td>0.3754 ns</td><td>0.4173 ns</td><td>8.0917 ns</td><td>0.31</td><td>0.02</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Size 4: EquatableSequence&lt;int&gt;.Equals (SIMD)&#39;</td><td>Sequence_Scaling_Size4</td><td>23.5784 ns</td><td>0.3029 ns</td><td>0.3241 ns</td><td>23.4790 ns</td><td>1.00</td><td>0.02</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Size 4: For-Loop Non-SIMD&#39;</td><td>Sequence_Scaling_Size4</td><td>2.7524 ns</td><td>0.0323 ns</td><td>0.0331 ns</td><td>2.7446 ns</td><td>0.12</td><td>0.00</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Size 4: LINQ Enumerable.SequenceEqual&#39;</td><td>Sequence_Scaling_Size4</td><td>6.8081 ns</td><td>0.1013 ns</td><td>0.1167 ns</td><td>6.7542 ns</td><td>0.29</td><td>0.01</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;* Size 64: EquatableSequence&lt;int&gt;.Equals (SIMD Scaling)&#39;</td><td>Sequence_Scaling_Size64</td><td>29.8400 ns</td><td>0.6964 ns</td><td>0.8020 ns</td><td>29.5846 ns</td><td>1.00</td><td>0.04</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Size 64: For-Loop Non-SIMD&#39;</td><td>Sequence_Scaling_Size64</td><td>20.0881 ns</td><td>0.1458 ns</td><td>0.1498 ns</td><td>20.0842 ns</td><td>0.67</td><td>0.02</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;Size 64: LINQ Enumerable.SequenceEqual&#39;</td><td>Sequence_Scaling_Size64</td><td>17.8759 ns</td><td>1.8057 ns</td><td>2.0794 ns</td><td>18.6115 ns</td><td>0.60</td><td>0.07</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;* TypeArgs: EquatableSequence&lt;Type&gt;.Equals (SIMD + RefCheck)&#39;</td><td>Sequence_TypeArgs</td><td>28.0928 ns</td><td>0.2026 ns</td><td>0.2081 ns</td><td>28.0604 ns</td><td>1.00</td><td>0.01</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;* TypeArgs: EquatableImmutableSequence&lt;Type&gt;.Equals (ImmutableArray + SIMD)&#39;</td><td>Sequence_TypeArgs</td><td>31.8364 ns</td><td>0.3800 ns</td><td>0.4224 ns</td><td>31.7492 ns</td><td>1.13</td><td>0.02</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;* TypeArgs: ReadOnlySpan&lt;Type&gt;.SequenceEqual (Native SIMD)&#39;</td><td>Sequence_TypeArgs</td><td>18.6836 ns</td><td>0.1886 ns</td><td>0.1937 ns</td><td>18.6233 ns</td><td>0.67</td><td>0.01</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;TypeArgs: For-Loop Non-SIMD Element Comparison&#39;</td><td>Sequence_TypeArgs</td><td>58.1197 ns</td><td>1.0643 ns</td><td>1.1388 ns</td><td>57.6558 ns</td><td>2.07</td><td>0.04</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;TypeArgs: LINQ Enumerable.SequenceEqual (Non-SIMD)&#39;</td><td>Sequence_TypeArgs</td><td>14.8198 ns</td><td>0.1812 ns</td><td>0.1939 ns</td><td>14.7719 ns</td><td>0.53</td><td>0.01</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>&#39;TypeArgs: IStructuralEquatable.Equals (Non-SIMD)&#39;</td><td>Sequence_TypeArgs</td><td>52.9966 ns</td><td>0.6185 ns</td><td>0.6351 ns</td><td>52.8833 ns</td><td>1.89</td><td>0.03</td><td>-</td><td>-</td><td>NA</td>
+</tr></tbody></table>
+</body>
+</html>

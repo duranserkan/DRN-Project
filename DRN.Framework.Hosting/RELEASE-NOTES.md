@@ -1,11 +1,15 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
-## Version 0.9.9
+## Version 0.10.0
 
 ### Security
 
-*   **Reverse Proxy Trust & Forwarded Headers**: `ConfigureForwardedHeadersOptions` now automatically binds the `ForwardedHeaders` configuration section from `IAppSettings` when present. When unconfigured, it defaults to trusting standard RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) alongside loopback and sets `ForwardLimit = 2`. This ensures originating client IP resolution, scheme detection, and pre-auth rate limiting function correctly out-of-the-box in Kubernetes, Linkerd service mesh, and containerized reverse-proxy environments.
-*   **Request Query Log Minimization**: `HttpScopeMiddleware` no longer records raw query strings. Structured request logs retain only the query-parameter count, preventing confirmation codes, tokens, personal data, and attacker-controlled query content from entering logs.
+*   **Reverse Proxy Trust & Forwarded Headers**: `ConfigureForwardedHeadersOptions` automatically binds the `ForwardedHeaders` configuration section from `IAppSettings` with CIDR and `KnownProxies` support. When unconfigured, it defaults to trusting RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) alongside loopback and sets `ForwardLimit = 2` for secure IP resolution and rate limiting behind reverse proxies.
+*   **Request Query Log Minimization**: `HttpScopeMiddleware` records only the query-parameter count instead of raw query strings, preventing credentials, tokens, and PII from entering structured logs.
+
+### Bug Fixes
+
+*   **ForwardedHeaders Configuration Validation**: Validates custom network and proxy formats during startup.
 
 ## Version 0.9.8
 
