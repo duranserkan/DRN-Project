@@ -13,6 +13,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Startup Pending Model Changes Validation**: `DrnContextServiceRegistrationAttribute.PostStartupValidationAsync` now enforces pending model changes validation regardless of whether `Migrate` is enabled or disabled. When auto-migration is disabled (e.g. in staging/production where migrations are applied out-of-band), the application will still fail fast at startup if compiled entity models have unmigrated schema drift.
 *   **Prototype Migration-History Guard**: Startup validation now always reads applied migrations from the target database, preventing missing local migration files or snapshots from making a migrated database appear safe for prototype recreation.
 *   **Assembly Type Load Failure Diagnostics**: `DrnContextServiceRegistrationAttribute` no longer silently discards types that fail to load during host domain entity discovery. It now wraps and throws `ReflectionTypeLoadException` with assembly details and loader exception diagnostics in `InvalidOperationException`, ensuring complete entity validation without hidden type loading failures.
 *   **Private Entity Discovery Alignment**: Host assembly discovery now excludes nested private `SourceKnownEntity` helper classes, matching compile-time analyzer eligibility and preventing analyzer-clean applications from failing startup validation for private fixtures.

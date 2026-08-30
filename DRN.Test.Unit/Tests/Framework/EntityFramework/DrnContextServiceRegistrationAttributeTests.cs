@@ -3,7 +3,9 @@ using System.Reflection;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.Testing.DataAttributes;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace DRN.Test.Unit.Tests.Framework.EntityFramework;
@@ -327,6 +329,112 @@ public class DrnContextServiceRegistrationAttributeTests
             .WithMessage("*Failed to load types from assembly 'BrokenHostAssembly' for domain entity validation*")
             .WithMessage("*Could not load type 'HostBrokenType'*")
             .WithInnerExceptionExactly<ReflectionTypeLoadException>();
+    }
+
+    [Theory]
+    [DataInlineUnit(true)]
+    [DataInlineUnit(false)]
+    public async Task ProcessChangeModelAsync_With_Pending_Model_Changes_Should_Throw_Regardless_Of_Migrate_Flag(bool migrate)
+    {
+        var options = new DbContextOptionsBuilder<TestValidationDbContext>()
+            .UseNpgsql("Host=localhost;Database=test")
+            .Options;
+        using var dbContext = new TestValidationDbContext(options);
+
+        var serviceProvider = Substitute.For<IServiceProvider>();
+        var appSettings = Substitute.For<IAppSettings>();
+
+        var flags = new DbContextChangeModelFlags(
+            HasPendingModelChanges: true,
+            NpgsqlDbContextOptionsPrototypeFlag: false,
+            UsePrototypeModeWhenMigrationExists: false)
+        {
+            Migrate = migrate,
+            DevelopmentSettingsPrototypeFlag = false
+        };
+
+        var changeModel = new DbContextChangeModel(
+            name: "TestContext",
+            migrations: ["Migration1"],
+            appliedMigrations: ["Migration1"],
+            flags: flags);
+
+        var act = () => DrnContextServiceRegistrationHelper.ProcessChangeModelAsync(
+            dbContext, serviceProvider, appSettings, changeModel, scopedLog: null);
+
+        await act.Should().ThrowExactlyAsync<ConfigurationException>()
+            .WithMessage("*TestContext has pending model changes. Create migration or enable Prototype Mode in DrnDevelopmentSettings.*");
+    }
+
+    [Fact]
+    public void VerifyPendingModelChanges_Without_Pending_Model_Changes_Should_Not_Throw()
+    {
+        var flags = new DbContextChangeModelFlags(
+            HasPendingModelChanges: false,
+            NpgsqlDbContextOptionsPrototypeFlag: false,
+            UsePrototypeModeWhenMigrationExists: false);
+
+        var changeModel = new DbContextChangeModel(
+            name: "TestContext",
+            migrations: ["Migration1"],
+            appliedMigrations: ["Migration1"],
+            flags: flags);
+
+        var act = () => DrnContextServiceRegistrationHelper.VerifyPendingModelChanges(changeModel);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void VerifyPendingModelChanges_When_Prototype_Blocked_By_Applied_Migrations_Should_Throw_ConfigurationException()
+    {
+        var flags = new DbContextChangeModelFlags(
+            HasPendingModelChanges: true,
+            NpgsqlDbContextOptionsPrototypeFlag: true,
+            UsePrototypeModeWhenMigrationExists: false)
+        {
+            Migrate = true,
+            DevelopmentSettingsPrototypeFlag = true
+        };
+
+        var changeModel = new DbContextChangeModel(
+            name: "TestContext",
+            migrations: ["Migration1"],
+            appliedMigrations: ["Migration1"],
+            flags: flags);
+
+        var act = () => DrnContextServiceRegistrationHelper.VerifyPendingModelChanges(changeModel);
+
+        act.Should().ThrowExactly<ConfigurationException>()
+            .WithMessage("*TestContext has pending model changes, but prototype recreation is blocked because migrations are applied to the database. Create migration or enable UsePrototypeModeWhenMigrationExists.*");
+    }
+
+    [Theory]
+    [DataInlineUnit("Production", false)]
+    [DataInlineUnit("Development", true)]
+    public void LogChanges_Should_Log_Auto_Migration_Status(string environment, bool migrate)
+    {
+        var scopedLog = Substitute.For<IScopedLog>();
+        var flags = new DbContextChangeModelFlags(
+            HasPendingModelChanges: false,
+            NpgsqlDbContextOptionsPrototypeFlag: false,
+            UsePrototypeModeWhenMigrationExists: false)
+        {
+            Migrate = migrate
+        };
+
+        var changeModel = new DbContextChangeModel(
+            name: "TestContext",
+            migrations: ["Migration1"],
+            appliedMigrations: ["Migration1"],
+            flags: flags);
+
+        changeModel.LogChanges(scopedLog, environment);
+
+        if (!migrate)
+            scopedLog.Received(1).AddToActions($"TestContext auto migration disabled in {environment}");
+        else
+            scopedLog.DidNotReceive().AddToActions(Arg.Is<string>(s => s.Contains("auto migration disabled")));
     }
 }
 

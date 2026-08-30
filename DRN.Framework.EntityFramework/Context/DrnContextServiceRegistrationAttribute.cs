@@ -42,21 +42,7 @@ public class DrnContextServiceRegistrationAttribute : ServiceRegistrationAttribu
         var changeModel = await DrnContextServiceRegistrationHelper.GetChangeModelAsync(serviceProvider, context);
         changeModel.LogChanges(scopedLog, appSettings.Environment.ToString());
 
-        if (changeModel.Flags is { Migrate: false })
-            return;
-
-        if (changeModel.Flags.RecreatePrototypeDatabaseForPendingModelChanges)
-        {
-            await DrnContextServiceRegistrationHelper.RecreatePrototypeDatabaseAsync(context, serviceProvider, appSettings, changeModel, scopedLog);
-            return;
-        }
-
-        if (changeModel.Flags.HasPendingMigrationsWithoutPendingModelChanges)
-        {
-            await DrnContextServiceRegistrationHelper.ApplyPendingMigrationsAsync(context, serviceProvider, appSettings, changeModel, scopedLog);
-        }
-
-        DrnContextServiceRegistrationHelper.VerifyPendingModelChanges(changeModel);
+        await DrnContextServiceRegistrationHelper.ProcessChangeModelAsync(context, serviceProvider, appSettings, changeModel, scopedLog);
     }
 
     private static void Validate(IServiceProvider serviceProvider, IScopedLog? scopedLog, DbContext context)

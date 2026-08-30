@@ -50,7 +50,7 @@ public class SourceKnownIdUtilsPerformanceTests(ITestOutputHelper output)
 public class SourceKnownIdUtilsBenchmark
 {
     [IterationSetup]
-    public static void IterationWait() => Thread.Sleep(TimeStampManager.PrecisionUnitInMsSafeDelay); // Let SequenceTimeScope reset between iterations (one tick)
+    public void IterationWait() => Thread.Sleep(TimeStampManager.PrecisionUnitInMsSafeDelay); // Let SequenceTimeScope reset between iterations (one tick)
 
     static SourceKnownIdUtilsBenchmark()
     {
@@ -75,64 +75,64 @@ public class SourceKnownIdUtilsBenchmark
     // --- Baseline benchmarks ---
 
     [Benchmark]
-    public static long RandomLong() => BinaryPrimitives.ReadInt64LittleEndian(RandomNumberGenerator.GetBytes(8));
+    public long RandomLong() => BinaryPrimitives.ReadInt64LittleEndian(RandomNumberGenerator.GetBytes(8));
 
     [Benchmark]
-    public static Guid RandomGuidV4() => Guid.NewGuid();
+    public Guid RandomGuidV4() => Guid.NewGuid();
 
     [Benchmark]
-    public static Guid RandomGuidV7() => Guid.CreateVersion7();
+    public Guid RandomGuidV7() => Guid.CreateVersion7();
 
     [Benchmark]
-    public static long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
+    public long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
 
     [Benchmark]
-    public static SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<YEntity>.GetTimeScopedId(EpochTimeUtils.DefaultEpoch);
+    public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<YEntity>.GetTimeScopedId(EpochTimeUtils.DefaultEpoch);
 
     // --- SourceKnownId (raw long) ---
 
     [Benchmark]
-    public static long SourceKnownId() => IdUtils.Next<YEntity>();
+    public long SourceKnownId() => IdUtils.Next<YEntity>();
 
     // --- Non-secure SourceKnownEntityId: BLAKE3 MAC only (explicit call variants) ---
 
     [Benchmark]
-    public static SourceKnownEntityId SourceKnownEntityIdWithProvidedSkid()
+    public SourceKnownEntityId SourceKnownEntityIdWithProvidedSkid()
         => EntityIdUtils.GeneratePlain(Entity);
 
     [Benchmark]
-    public static SourceKnownEntityId SourceKnownEntityIdWithSkidGeneration()
+    public SourceKnownEntityId SourceKnownEntityIdWithSkidGeneration()
         => EntityIdUtils.GeneratePlain<YEntity>(IdUtils.Next<YEntity>());
 
     [Benchmark]
-    public static SourceKnownEntityId SourceKnownEntityIdWithEntityAllocation()
+    public SourceKnownEntityId SourceKnownEntityIdWithEntityAllocation()
         => EntityIdUtils.GeneratePlain(new YEntity(IdUtils.Next<YEntity>()));
 
     // --- Secure SourceKnownEntityId: BLAKE3 MAC + AES-256-ECB encryption ---
 
     [Benchmark]
-    public static SourceKnownEntityId SourceKnownEntityIdSecure()
+    public SourceKnownEntityId SourceKnownEntityIdSecure()
         => EntityIdUtils.GenerateSecure<YEntity>(IdUtils.Next<YEntity>());
 
     // --- Parse: non-secure GUID (MAC verify only) ---
 
     [Benchmark]
-    public static SourceKnownEntityId ParseSourceKnownEntityId()
+    public SourceKnownEntityId ParseSourceKnownEntityId()
         => EntityIdUtils.Parse(PlainEntityId.EntityId);
 
     // --- Parse: secure GUID (AES-ECB decrypt + MAC verify) ---
 
     [Benchmark]
-    public static SourceKnownEntityId ParseSecureSourceKnownEntityId()
+    public SourceKnownEntityId ParseSecureSourceKnownEntityId()
         => EntityIdUtils.Parse(SecureEntityId.EntityId);
 
     // --- Tier conversion: measures encryption/decryption cost independently ---
 
     [Benchmark]
-    public static SourceKnownEntityId ToPlain() => EntityIdUtils.ToPlain(SecureEntityId);
+    public SourceKnownEntityId ToPlain() => EntityIdUtils.ToPlain(SecureEntityId);
 
     [Benchmark]
-    public static SourceKnownEntityId ToSecure() => EntityIdUtils.ToSecure(PlainEntityId);
+    public SourceKnownEntityId ToSecure() => EntityIdUtils.ToSecure(PlainEntityId);
 }
 
 [TestEntityType(92)]

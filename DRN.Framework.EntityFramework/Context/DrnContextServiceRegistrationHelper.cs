@@ -73,6 +73,30 @@ internal static class DrnContextServiceRegistrationHelper
             await optionsAttribute.SeedAsync(serviceProvider, appSettings);
     }
 
+    internal static async Task ProcessChangeModelAsync(
+        DbContext context,
+        IServiceProvider serviceProvider,
+        IAppSettings appSettings,
+        DbContextChangeModel changeModel,
+        IScopedLog? scopedLog)
+    {
+        if (changeModel.Flags.Migrate)
+        {
+            if (changeModel.Flags.RecreatePrototypeDatabaseForPendingModelChanges)
+            {
+                await RecreatePrototypeDatabaseAsync(context, serviceProvider, appSettings, changeModel, scopedLog);
+                return;
+            }
+
+            if (changeModel.Flags.HasPendingMigrationsWithoutPendingModelChanges)
+            {
+                await ApplyPendingMigrationsAsync(context, serviceProvider, appSettings, changeModel, scopedLog);
+            }
+        }
+
+        VerifyPendingModelChanges(changeModel);
+    }
+
     internal static async Task RecreatePrototypeDatabaseAsync(
         DbContext context,
         IServiceProvider serviceProvider,
