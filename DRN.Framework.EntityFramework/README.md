@@ -817,7 +817,7 @@ When `DrnDevelopmentSettings:LaunchExternalDependencies = true`, the framework u
 
 ```xml
 <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <PackageReference Include="DRN.Framework.Testing" Version="0.9.9" />
+    <PackageReference Include="DRN.Framework.Testing" Version="0.10.0" />
 </ItemGroup>
 ```
 

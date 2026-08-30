@@ -5,6 +5,8 @@ public class MethodUtilsInstanceTests
     private static readonly Type Type = typeof(MethodUtilsInstanceTests);
     private const string InstanceMethodName = nameof(GetInstance);
 
+    private const string TypeMethodName = nameof(GetWithType);
+
     [Fact]
     public void FindMethod_Should_Find_NonGeneric_Method()
     {
@@ -72,7 +74,7 @@ public class MethodUtilsInstanceTests
     [Fact]
     public void MethodUtils_Should_Invoke_Instance_Generic_Method_Parameterless()
     {
-        var value = this.InvokeMethod(InstanceMethodName, Type);
+        var value = this.InvokeMethod(InstanceMethodName, [Type]);
         value.Should().Be(3);
     }
 
@@ -84,17 +86,17 @@ public class MethodUtilsInstanceTests
     }
 
     [Fact]
-    public void MethodUtils_Should_InvokeFast_Directly()
+    public void MethodUtils_Should_Invoke_Instance_NonGeneric_Method_With_Type_Parameter()
     {
-        var method = Type.FindMethod(InstanceMethodName, 1, BindingFlag.Instance);
-        var value = method.InvokeFast(this, 42);
-        value.Should().Be(42);
+        var value = this.InvokeMethod(TypeMethodName, Type);
+        value.Should().Be(10);
     }
 
     public object GetInstance() => 2;
     public object GetInstance(int a) => a;
     public object GetInstance(int a, int b) => a + b;
     public object GetInstance(int a, int b, int c) => a + b + c;
+    public object GetWithType(Type t) => 10;
     public object GetInstance<T>() => 3;
     public object GetInstance<T>(int b) => b;
 }

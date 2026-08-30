@@ -408,9 +408,9 @@ var result = await repository.PaginateAsync(request, filter);
 
 ## Pagination
 
-The framework provides a robust **cursor-based** pagination system to balance performance and usability.
+SharedKernel provides a cursor-based pagination system with stable bidirectional navigation and bounded jumps.
 
-Page jumps are limited to ten pages per request while preserving the requested direction. For example, a request from page 100 to page 1 targets page 90, and a request from page 1 to page 100 targets page 11.
+Page jumps are limited to ten pages per request while preserving the requested direction (e.g. page 100 to page 1 targets page 90, and page 1 to page 100 targets page 11).
 
 ### API Integration
 

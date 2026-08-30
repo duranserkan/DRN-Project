@@ -5,6 +5,8 @@ public class MethodUtilsStaticTests
     private static readonly Type Type = typeof(MethodUtilsStaticTests);
     private const string StaticMethodName = nameof(GetStatic);
 
+    private const string TypeMethodName = nameof(GetWithTypeStatic);
+
     [Fact]
     public void FindMethod_Should_Find_NonGeneric_Method()
     {
@@ -72,7 +74,7 @@ public class MethodUtilsStaticTests
     [Fact]
     public void MethodUtils_Should_Invoke_Static_Generic_Method_Parameterless()
     {
-        var value = Type.InvokeStaticMethod(StaticMethodName, Type);
+        var value = Type.InvokeStaticMethod(StaticMethodName, [Type]);
         value.Should().Be(3);
     }
 
@@ -84,11 +86,10 @@ public class MethodUtilsStaticTests
     }
 
     [Fact]
-    public void MethodUtils_Should_InvokeFast_Directly()
+    public void MethodUtils_Should_Invoke_Static_NonGeneric_Method_With_Type_Parameter()
     {
-        var method = Type.FindMethod(StaticMethodName, 1, BindingFlag.StaticPublic);
-        var value = method.InvokeFast(null, 42);
-        value.Should().Be(42);
+        var value = Type.InvokeStaticMethod(TypeMethodName, Type);
+        value.Should().Be(10);
     }
 
     [Fact]
@@ -104,6 +105,7 @@ public class MethodUtilsStaticTests
     public static object? GetStatic(int a) => a;
     public static object? GetStatic(int a, int b) => a + b;
     public static object? GetStatic(int a, int b, int c) => a + b + c;
+    public static object? GetWithTypeStatic(Type t) => 10;
     public static object? GetStatic<T>() => 3;
     public static object? GetStatic<T>(int b) => b;
 }

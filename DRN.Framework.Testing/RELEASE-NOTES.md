@@ -1,17 +1,21 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
-## Version 0.9.9
+## Version 0.10.0
 
 ### New Features
 
-*   **Multi-Application Integration Testing**: `ApplicationContext` now supports running multiple distinct `WebApplicationFactory<TEntryPoint>` instances concurrently within a single test context.
-*   **In-Memory HTTP Routing**: Added `ApplicationContextRouterHandler` which intercepts outbound requests from `IInternalRequest`, `IExternalRequest`, and `IHttpClientFactory` (including Flurl calls made through request wrappers) and routes them by host, port, alias, and configured addresses directly to target in-memory `TestServer` instances across multi-tier chains (e.g. A -> B -> C -> B -> A).
-*   **Custom Service Aliases & Address Mapping**: Added `CreateClientForServiceAsync<TEntryPoint>("service-alias")` and `ApplicationContext.MapAddress<TEntryPoint>("address")` enabling explicit mapping of custom domain names, Kubernetes service names, and ports to hosted applications.
-*   **Automatic Configuration Address Discovery**: `ApplicationContext` automatically discovers and registers service hostnames, ports, and aliases from configuration (`Kestrel:Endpoints`, `*Address`, `*Url`, `*Uri`), enabling seamless in-memory routing between microservices and platform dependencies without manual boilerplate.
+*   **Multi-Application Integration Testing**: `ApplicationContext` supports running multiple distinct `WebApplicationFactory<TEntryPoint>` instances concurrently within a single test context.
+*   **In-Memory HTTP Routing**: Added `ApplicationContextRouterHandler` to intercept outbound HTTP calls (`IInternalRequest`, `IExternalRequest`, `IHttpClientFactory`, and Flurl request wrappers) and route them by host, port, alias, and configuration directly to target in-memory `TestServer` instances across multi-tier service chains.
+*   **Service Aliases & Address Mapping**: Added `CreateClientForServiceAsync<TEntryPoint>("service-alias")` and `ApplicationContext.MapAddress<TEntryPoint>("address")` for explicit mapping of custom hostnames and service aliases.
+*   **Automatic Configuration Address Discovery**: `ApplicationContext` discovers and registers service hostnames, ports, and aliases from configuration (`Kestrel:Endpoints`, `*Address`, `*Url`, `*Uri`), enabling in-memory routing between dependencies without boilerplate.
 
 ### Security
 
-*   **Digest-Pinned Testcontainers Defaults**: Updated PostgreSQL to `18.6-alpine3.24` and RabbitMQ to `4.3.5-management-alpine`, and pinned both default image references to verified Docker Hub index digests. Explicit custom image tags remain supported and can supply their own digest.
+*   **Digest-Pinned Testcontainers Defaults**: Updated PostgreSQL default to `18.6-alpine3.24` and RabbitMQ to `4.3.5-management-alpine`, pinned to verified Docker Hub index digests.
+
+### Bug Fixes
+
+*   **Container Settings Digest Isolation**: Isolated `InitialDefault` constants in `PostgresContainerSettings` and `RabbitMQContainerSettings` so custom image or version overrides do not inherit the default digest.
 
 ## Version 0.9.8
 
