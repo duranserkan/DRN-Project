@@ -5,10 +5,10 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Numbers;
 public class LongBuilderUnsignedIntegerTests
 {
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, false)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Max_With_Ints_Without_Residue(NumberBuildDirection direction, bool setResidue)
     {
         var maxAvailable = 0x0000_0000_FFFF_FFFF;
@@ -28,10 +28,10 @@ public class LongBuilderUnsignedIntegerTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, false)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Zero_With_Ints(NumberBuildDirection direction, bool setResidue)
     {
         var builder = NumberBuilder.GetLong(direction, 31);
@@ -49,8 +49,8 @@ public class LongBuilderUnsignedIntegerTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, 0x0000_0000_FFFF_FFFF)] // Mask for first 4 MSBs
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, 0x0000_0000_FFFF_FFFF)] // Mask for first 4 LSBs
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x0000_0000_FFFF_FFFF)] // Mask for first 4 MSBs
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 0x0000_0000_FFFF_FFFF)] // Mask for first 4 LSBs
     public void LongBuilder_Should_Build_First_32_Significant_Bits_With_Ints(NumberBuildDirection direction, long mask)
     {
         var expected = long.MinValue + (long.MaxValue & mask);
@@ -65,8 +65,8 @@ public class LongBuilderUnsignedIntegerTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_TryAddByte_Should_Return_False_When_All_Available_Slots_Filled_With_Ints(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 31);
@@ -82,8 +82,8 @@ public class LongBuilderUnsignedIntegerTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Max_With_Ints(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 31);
@@ -105,8 +105,8 @@ public class LongBuilderUnsignedIntegerTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min_With_Ints(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 31);

@@ -93,8 +93,8 @@ public class SourceKnownIdUtilsTests
     }
 
     [Theory]
-    [InlineData((byte)128, (byte)0)]
-    [InlineData((byte)255, (byte)0)]
+    [DataInlineUnit((byte)128, (byte)0)]
+    [DataInlineUnit((byte)255, (byte)0)]
     public void Generate_With_AppId_Exceeding_MaxAppId_Should_Throw_ArgumentOutOfRangeException(byte appId, byte appInstanceId)
     {
         var act = () => SourceKnownIdUtils.Generate<CustomTestEntityForUtils>(appId, appInstanceId);
@@ -102,8 +102,8 @@ public class SourceKnownIdUtilsTests
     }
 
     [Theory]
-    [InlineData((byte)0, (byte)64)]
-    [InlineData((byte)0, (byte)255)]
+    [DataInlineUnit((byte)0, (byte)64)]
+    [DataInlineUnit((byte)0, (byte)255)]
     public void Generate_With_AppInstanceId_Exceeding_MaxAppInstanceId_Should_Throw_ArgumentOutOfRangeException(byte appId, byte appInstanceId)
     {
         var act = () => SourceKnownIdUtils.Generate<CustomTestEntityForUtils>(appId, appInstanceId);

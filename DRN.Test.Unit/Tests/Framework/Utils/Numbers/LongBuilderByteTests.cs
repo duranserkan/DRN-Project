@@ -5,10 +5,10 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Numbers;
 public class LongBuilderByteTests
 {
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, false)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Max_With_Bytes_Without_Residue(NumberBuildDirection direction, bool setResidue)
     {
         var maxAvailable = 0x00FF_FFFF_FFFF_FFFF;
@@ -28,10 +28,10 @@ public class LongBuilderByteTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, false)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Zero_With_Bytes(NumberBuildDirection direction, bool setResidue)
     {
         var builder = NumberBuilder.GetLong(direction, 7);
@@ -50,8 +50,8 @@ public class LongBuilderByteTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, 0x00FF_0000_0000_0000)] // Mask for first 4 MSBs
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, 255L)] // Mask for first 4 LSBs
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x00FF_0000_0000_0000)] // Mask for first 4 MSBs
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 255L)] // Mask for first 4 LSBs
     public void LongBuilder_Should_Build_First_8_Significant_Bits_With_Bytes(NumberBuildDirection direction, long mask)
     {
         var expected = long.MinValue + (long.MaxValue & mask);
@@ -66,8 +66,8 @@ public class LongBuilderByteTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, 0x00FF_FF00_0000_0000)] // Mask for first 8 MSBs
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, 65535L)] // Mask for first 8 LSBs
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x00FF_FF00_0000_0000)] // Mask for first 8 MSBs
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 65535L)] // Mask for first 8 LSBs
     public void LongBuilder_Should_Build_First_16_Significant_Bits_With_Bytes(NumberBuildDirection direction, long mask)
     {
         var expected = long.MinValue + (long.MaxValue & mask);
@@ -83,8 +83,8 @@ public class LongBuilderByteTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_TryAddByte_Should_Return_False_When_All_Available_Slots_Filled_With_Bytes(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 7);
@@ -102,8 +102,8 @@ public class LongBuilderByteTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Max_With_Bytes(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 7);
@@ -127,8 +127,8 @@ public class LongBuilderByteTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min_With_Bytes(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 7);

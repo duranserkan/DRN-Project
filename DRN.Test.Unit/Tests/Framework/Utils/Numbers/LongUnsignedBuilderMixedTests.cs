@@ -134,10 +134,10 @@ public class LongUnsignedBuilderMixedTests
     }
 
     [Theory]
-    [InlineData(7_756_421, 5, 130, 60_001)]
-    [InlineData(0, 0, 0, 0)]
-    [InlineData(1, 1, 1, 1)]
-    [InlineData(int.MaxValue, byte.MaxValue, byte.MaxValue, ushort.MaxValue)]
+    [DataInlineUnit(7_756_421, 5, 130, 60_001)]
+    [DataInlineUnit(0, 0, 0, 0)]
+    [DataInlineUnit(1, 1, 1, 1)]
+    [DataInlineUnit(int.MaxValue, byte.MaxValue, byte.MaxValue, ushort.MaxValue)]
     public void LongBuilder_Should_Build_From_Mixed_Numbers(
         uint expectedUInt, byte expectedByte1, byte expectedByte2, ushort expectedUShort)
     {

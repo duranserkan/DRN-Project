@@ -7,10 +7,10 @@ public class LongBuilderCrumbTests
     private const byte AvailableBits = 31;
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, false)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Max_Without_Residue(NumberBuildDirection direction, bool setResidue)
     {
         var maxAvailable = 0x3FFF_FFFF_FFFF_FFFF; //1 bit reserved for sign, 1 bit is for the residue remaining 2 bit can build max 3
@@ -29,10 +29,10 @@ public class LongBuilderCrumbTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, false)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Zero(NumberBuildDirection direction, bool setResidue)
     {
         var builder = NumberBuilder.GetLong(direction, 1);
@@ -51,8 +51,8 @@ public class LongBuilderCrumbTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, 0x3000_0000_0000_0000)] // Mask for first 2 MSBs
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, 3)] // Mask for first 2 LSBs
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x3000_0000_0000_0000)] // Mask for first 2 MSBs
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 3)] // Mask for first 2 LSBs
     public void LongBuilder_Should_Build_First_2_Significant_Bits(NumberBuildDirection direction, long mask)
     {
         var expected = long.MinValue + (long.MaxValue & mask);
@@ -67,8 +67,8 @@ public class LongBuilderCrumbTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, 0x3C00_0000_0000_0000)] // Mask for first 4 MSBs
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, 15)] // Mask for first 4 LSBs
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x3C00_0000_0000_0000)] // Mask for first 4 MSBs
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 15)] // Mask for first 4 LSBs
     public void LongBuilder_Should_Build_First_4_Significant_Bits(NumberBuildDirection direction, long mask)
     {
         var expected = long.MinValue + (long.MaxValue & mask);
@@ -84,8 +84,8 @@ public class LongBuilderCrumbTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_TryAddCrumb_Should_Return_False_When_All_Available_Slots_Filled(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 1);
@@ -103,8 +103,8 @@ public class LongBuilderCrumbTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Max(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 1);
@@ -127,8 +127,8 @@ public class LongBuilderCrumbTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 1);

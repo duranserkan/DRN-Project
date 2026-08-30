@@ -7,10 +7,10 @@ public class LongBuilderBitTests
     private const byte AvailableBits = 63;
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, false)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Max_With_Bits_Without_Residue(NumberBuildDirection direction, bool setResidue)
     {
         var maxAvailable = long.MaxValue;
@@ -30,10 +30,10 @@ public class LongBuilderBitTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, false)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, true)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, false)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, true)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, false)]
     public void LongBuilder_Should_Build_Zero_With_Bits(NumberBuildDirection direction, bool setResidue)
     {
         var builder = NumberBuilder.GetLong(direction, 0);
@@ -52,8 +52,8 @@ public class LongBuilderBitTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, 0x4000_0000_0000_0000)] // Mask for first MSB including sign bit
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, 1)] // Mask for first bit
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x4000_0000_0000_0000)] // Mask for first MSB including sign bit
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 1)] // Mask for first bit
     public void LongBuilder_Should_Build_First_1_Significant_Bit(NumberBuildDirection direction, long mask)
     {
         var expected = long.MinValue + (long.MaxValue & mask);
@@ -68,8 +68,8 @@ public class LongBuilderBitTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst, 0x6000_0000_0000_0000)] // Mask for first 2 MSBs
-    [InlineData(NumberBuildDirection.LeastSignificantFirst, 3)] // Mask for first 2 LSBs
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x6000_0000_0000_0000)] // Mask for first 2 MSBs
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 3)] // Mask for first 2 LSBs
     public void LongBuilder_Should_Build_First_2_Significant_Bits_With_Bytes(NumberBuildDirection direction, long mask)
     {
         var expected = long.MinValue + (long.MaxValue & mask);
@@ -85,8 +85,8 @@ public class LongBuilderBitTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_TryAddByte_Should_Return_False_When_All_Available_Slots_Filled_With_Bits(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 0);
@@ -104,8 +104,8 @@ public class LongBuilderBitTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Max_With_Bits(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 0);
@@ -129,8 +129,8 @@ public class LongBuilderBitTests
     }
 
     [Theory]
-    [InlineData(NumberBuildDirection.MostSignificantFirst)]
-    [InlineData(NumberBuildDirection.LeastSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min_With_Bits(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 0);
