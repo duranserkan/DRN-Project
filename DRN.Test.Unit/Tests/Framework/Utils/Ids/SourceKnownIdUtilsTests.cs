@@ -233,11 +233,12 @@ public class SourceKnownIdUtilsTests
     [Fact]
     public void Generate_WithType_Should_Generate_Valid_Id()
     {
+        var entityType = typeof(CustomTestEntityForUtils);
         byte appId = 33;
         byte appInstanceId = 7;
         var epoch = EpochTimeUtils.Epoch2025;
 
-        var id = SourceKnownIdUtils.Generate(typeof(CustomTestEntityForUtils), appId, appInstanceId, epoch);
+        var id = SourceKnownIdUtils.Generate(entityType, appId, appInstanceId, epoch);
         var parsed = SourceKnownIdUtils.ParseId(id, epoch);
 
         parsed.Id.Should().Be(id);
@@ -329,7 +330,8 @@ public class SourceKnownIdUtilsTests
         var parsed = generator.Parse(id);
         parsed.AppId.Should().Be(77);
 
-        var generated = SourceKnownIdUtils.Generate(typeof(CustomTestEntityForUtils), 10, 5);
+        var entityType = typeof(CustomTestEntityForUtils);
+        var generated = SourceKnownIdUtils.Generate(entityType, 10, 5);
         var parsedGenerated = SourceKnownIdUtils.ParseId(generated, EpochTimeUtils.DefaultEpoch);
         parsedGenerated.AppId.Should().Be(10);
         parsedGenerated.AppInstanceId.Should().Be(5);

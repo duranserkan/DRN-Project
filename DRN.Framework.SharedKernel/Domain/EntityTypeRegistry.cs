@@ -107,16 +107,8 @@ public static class EntityTypeRegistry
         }
     }
 
-    private static bool AllRegistered(FrozenDictionary<Type, EntityTypeId> registered, IReadOnlyCollection<Type> types)
-    {
-        if (registered.Count == 0 || types.Count == 0) return false;
-        foreach (var type in types)
-        {
-            if (!registered.ContainsKey(type))
-                return false;
-        }
-        return true;
-    }
+    private static bool AllRegistered(FrozenDictionary<Type, EntityTypeId> registered, IReadOnlyCollection<Type> types) =>
+        registered.Count > 0 && types.Count > 0 && types.All(registered.ContainsKey);
 
     /// <summary>
     /// Retrieves EntityTypeId for a Type. Uses FrozenDictionary with dynamic fallback.

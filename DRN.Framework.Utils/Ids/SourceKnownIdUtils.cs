@@ -138,6 +138,13 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         return true;
     }
 
+    /// <summary>
+    /// Generates a numeric 64-bit Source-Known ID for the specified entity type using explicit partition and instance identifiers.
+    /// </summary>
+    /// <typeparam name="TEntity">The entity type for which IDs are generated. Must derive from <see cref="SourceKnownEntity"/>.</typeparam>
+    /// <param name="appId">Application Identifier (0..127)</param>
+    /// <param name="appInstanceId">Application Instance Identifier (0..63)</param>
+    /// <param name="epoch">Custom epoch if overriding default</param>
     public static long Generate<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : SourceKnownEntity
     {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(appId, MaxAppId);
@@ -175,6 +182,13 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         return builder.GetValue();
     }
 
+    /// <summary>
+    /// Generates a numeric 64-bit Source-Known ID for the specified entity type using explicit partition and instance identifiers.
+    /// </summary>
+    /// <param name="entityType">The entity type for which IDs are generated. Must derive from <see cref="SourceKnownEntity"/>.</param>
+    /// <param name="appId">Application Identifier (0..127)</param>
+    /// <param name="appInstanceId">Application Instance Identifier (0..63)</param>
+    /// <param name="epoch">Custom epoch if overriding default</param>
     public static long Generate(Type entityType, byte appId, byte appInstanceId, DateTimeOffset? epoch = null)
     {
         ArgumentNullException.ThrowIfNull(entityType);

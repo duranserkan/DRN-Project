@@ -79,6 +79,8 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public const int ModifiedAtColumnOrder = 1;
     private const string EmptyJson = "{}";
 
+    [SuppressMessage("SonarQube", "S2743", Justification = "Generic cache per entity type")]
+    [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
     private static class EntityMetadataCache<TEntity> where TEntity : SourceKnownEntity
     {
         public static readonly EntityTypeId EntityTypeId = EntityTypeRegistry.GetEntityTypeId(typeof(TEntity));
