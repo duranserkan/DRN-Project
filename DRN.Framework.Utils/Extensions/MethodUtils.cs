@@ -6,6 +6,10 @@ using DRN.Framework.Utils.Models;
 
 namespace DRN.Framework.Utils.Extensions;
 
+/// <summary>
+/// High-performance reflection discovery and invocation utilities backed by unified <see cref="FrozenDictionary{TKey, TValue}"/> caching
+/// and runtime <see cref="MethodInvoker"/> dispatch. Designed for runtime-provided types and methods.
+/// </summary>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public static class MethodUtils
 {
