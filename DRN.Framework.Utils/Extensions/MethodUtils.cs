@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using DRN.Framework.Utils.Models;
@@ -8,148 +7,182 @@ namespace DRN.Framework.Utils.Extensions;
 
 public static class MethodUtils
 {
-    private static readonly ConcurrentDictionary<GenericCacheKey, MethodInfo> GenericMethodCache = new();
-    private static readonly ConcurrentDictionary<NonGenericCacheKey, MethodInfo> NonGenericMethodCache = new();
-    private static readonly ConcurrentDictionary<MethodInfo, Func<object?, object?[], object?>> FastInvokerCache = new();
+    private static readonly ConcurrentDictionary<MethodCacheKey, MethodInfo> MethodCache = new();
+    private static readonly ConcurrentDictionary<MethodInfo, MethodInvoker> InvokerCache = new();
 
-    public static object? InvokeMethod(this object instance, string methodName, params object[] parameters)
-    {
-        var type = instance.GetType();
-        var methodInfo = type.FindNonGenericMethod(methodName, parameters.Length, BindingFlag.Instance);
-        return methodInfo.Invoke(instance, parameters);
-    }
+    // ==========================================
+    // 1. High-Level Standardized Invocation APIs
+    // ==========================================
 
-    public static object? InvokeMethodFast(this object instance, string methodName, params object?[] parameters)
-    {
-        var type = instance.GetType();
-        var methodInfo = type.FindNonGenericMethod(methodName, parameters.Length, BindingFlag.Instance);
-        return methodInfo.InvokeFast(instance, parameters);
-    }
+    // --- Instance Invocations ---
 
-    public static object? InvokeStaticMethod(this Type type, string methodName, params object[] parameters) =>
-        type.FindNonGenericMethod(methodName, parameters.Length, BindingFlag.Static).Invoke(null, parameters);
+    public static object? InvokeMethod(this object instance, string methodName) =>
+        instance.GetType().FindMethod(methodName, 0, BindingFlag.Instance).InvokeFast(instance);
 
-    public static object? InvokeStaticMethodFast(this Type type, string methodName, params object?[] parameters) =>
-        type.FindNonGenericMethod(methodName, parameters.Length, BindingFlag.Static).InvokeFast(null, parameters);
+    public static object? InvokeMethod(this object instance, string methodName, object? arg1) =>
+        instance.GetType().FindMethod(methodName, 1, BindingFlag.Instance).InvokeFast(instance, arg1);
 
-    public static object? InvokeGenericMethod(this object instance, string methodName, params Type[] typeArguments) =>
-        InvokeGenericMethod(instance, methodName, typeArguments, []);
+    public static object? InvokeMethod(this object instance, string methodName, object? arg1, object? arg2) =>
+        instance.GetType().FindMethod(methodName, 2, BindingFlag.Instance).InvokeFast(instance, arg1, arg2);
 
-    public static object? InvokeGenericMethod(this object instance, string methodName, Type[] typeArguments, params object[] parameters) =>
-        instance.GetType().FindGenericMethod(methodName, typeArguments, parameters.Length, BindingFlag.Instance).Invoke(instance, parameters);
+    public static object? InvokeMethod(this object instance, string methodName, object? arg1, object? arg2, object? arg3) =>
+        instance.GetType().FindMethod(methodName, 3, BindingFlag.Instance).InvokeFast(instance, arg1, arg2, arg3);
 
-    public static object? InvokeGenericMethodFast(this object instance, string methodName, params Type[] typeArguments) =>
-        InvokeGenericMethodFast(instance, methodName, typeArguments, []);
+    public static object? InvokeMethod(this object instance, string methodName, Span<object?> arguments) =>
+        instance.GetType().FindMethod(methodName, arguments.Length, BindingFlag.Instance).InvokeFast(instance, arguments);
 
-    public static object? InvokeGenericMethodFast(this object instance, string methodName, Type[] typeArguments, params object?[] parameters) =>
-        instance.GetType().FindGenericMethod(methodName, typeArguments, parameters.Length, BindingFlag.Instance).InvokeFast(instance, parameters);
+    public static object? InvokeMethod(this object instance, string methodName, params object?[] parameters) =>
+        instance.GetType().FindMethod(methodName, parameters.Length, BindingFlag.Instance).InvokeFast(instance, parameters.AsSpan());
 
-    public static object? InvokeStaticGenericMethod(this Type type, string methodName, params Type[] typeArguments) =>
-        InvokeStaticGenericMethod(type, methodName, typeArguments, []);
+    // --- Instance Generic Invocations ---
 
-    public static object? InvokeStaticGenericMethod(this Type type, string methodName, Type[] typeArguments, params object[] parameters) =>
-        type.FindGenericMethod(methodName, typeArguments, parameters.Length, BindingFlag.Static).Invoke(null, parameters);
+    public static object? InvokeMethod(this object instance, string methodName, params Type[] typeArguments) =>
+        instance.GetType().FindMethod(methodName, typeArguments, 0, BindingFlag.Instance).InvokeFast(instance);
 
-    public static object? InvokeStaticGenericMethodFast(this Type type, string methodName, params Type[] typeArguments) =>
-        InvokeStaticGenericMethodFast(type, methodName, typeArguments, []);
+    public static object? InvokeMethod(this object instance, string methodName, Type[] typeArguments, object? arg1) =>
+        instance.GetType().FindMethod(methodName, typeArguments, 1, BindingFlag.Instance).InvokeFast(instance, arg1);
 
-    public static object? InvokeStaticGenericMethodFast(this Type type, string methodName, Type[] typeArguments, params object?[] parameters) =>
-        type.FindGenericMethod(methodName, typeArguments, parameters.Length, BindingFlag.Static).InvokeFast(null, parameters);
+    public static object? InvokeMethod(this object instance, string methodName, Type[] typeArguments, object? arg1, object? arg2) =>
+        instance.GetType().FindMethod(methodName, typeArguments, 2, BindingFlag.Instance).InvokeFast(instance, arg1, arg2);
+
+    public static object? InvokeMethod(this object instance, string methodName, Type[] typeArguments, object? arg1, object? arg2, object? arg3) =>
+        instance.GetType().FindMethod(methodName, typeArguments, 3, BindingFlag.Instance).InvokeFast(instance, arg1, arg2, arg3);
+
+    public static object? InvokeMethod(this object instance, string methodName, Type[] typeArguments, Span<object?> arguments) =>
+        instance.GetType().FindMethod(methodName, typeArguments, arguments.Length, BindingFlag.Instance).InvokeFast(instance, arguments);
+
+    public static object? InvokeMethod(this object instance, string methodName, Type[] typeArguments, params object?[] parameters) =>
+        instance.GetType().FindMethod(methodName, typeArguments, parameters.Length, BindingFlag.Instance).InvokeFast(instance, parameters.AsSpan());
+
+    // --- Static Invocations ---
+
+    public static object? InvokeStaticMethod(this Type type, string methodName) =>
+        type.FindMethod(methodName, 0, BindingFlag.Static).InvokeFast(null);
+
+    public static object? InvokeStaticMethod(this Type type, string methodName, object? arg1) =>
+        type.FindMethod(methodName, 1, BindingFlag.Static).InvokeFast(null, arg1);
+
+    public static object? InvokeStaticMethod(this Type type, string methodName, object? arg1, object? arg2) =>
+        type.FindMethod(methodName, 2, BindingFlag.Static).InvokeFast(null, arg1, arg2);
+
+    public static object? InvokeStaticMethod(this Type type, string methodName, object? arg1, object? arg2, object? arg3) =>
+        type.FindMethod(methodName, 3, BindingFlag.Static).InvokeFast(null, arg1, arg2, arg3);
+
+    public static object? InvokeStaticMethod(this Type type, string methodName, Span<object?> arguments) =>
+        type.FindMethod(methodName, arguments.Length, BindingFlag.Static).InvokeFast(null, arguments);
+
+    public static object? InvokeStaticMethod(this Type type, string methodName, params object?[] parameters) =>
+        type.FindMethod(methodName, parameters.Length, BindingFlag.Static).InvokeFast(null, parameters.AsSpan());
+
+    // --- Static Generic Invocations ---
+
+    public static object? InvokeStaticMethod(this Type type, string methodName, params Type[] typeArguments) =>
+        type.FindMethod(methodName, typeArguments, 0, BindingFlag.Static).InvokeFast(null);
+
+    public static object? InvokeStaticMethod(this Type type, string methodName, Type[] typeArguments, object? arg1) =>
+        type.FindMethod(methodName, typeArguments, 1, BindingFlag.Static).InvokeFast(null, arg1);
+
+    public static object? InvokeStaticMethod(this Type type, string methodName, Type[] typeArguments, object? arg1, object? arg2) =>
+        type.FindMethod(methodName, typeArguments, 2, BindingFlag.Static).InvokeFast(null, arg1, arg2);
+
+    public static object? InvokeStaticMethod(this Type type, string methodName, Type[] typeArguments, object? arg1, object? arg2, object? arg3) =>
+        type.FindMethod(methodName, typeArguments, 3, BindingFlag.Static).InvokeFast(null, arg1, arg2, arg3);
+
+    public static object? InvokeStaticMethod(this Type type, string methodName, Type[] typeArguments, Span<object?> arguments) =>
+        type.FindMethod(methodName, typeArguments, arguments.Length, BindingFlag.Static).InvokeFast(null, arguments);
+
+    public static object? InvokeStaticMethod(this Type type, string methodName, Type[] typeArguments, params object?[] parameters) =>
+        type.FindMethod(methodName, typeArguments, parameters.Length, BindingFlag.Static).InvokeFast(null, parameters.AsSpan());
+
+    // ==========================================
+    // 2. High-Performance Zero-Allocation Invokers
+    // ==========================================
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static object? InvokeFast(this MethodInfo method, object? instance, params object?[] parameters)
-    {
-        var invoker = FastInvokerCache.GetOrAdd(method, static m => CompileMethodInvoker(m));
-        return invoker(instance, parameters);
-    }
+    internal static object? InvokeFast(this MethodInfo method, object? instance = null) =>
+        InvokerCache.GetOrAdd(method, static m => MethodInvoker.Create(m)).Invoke(instance);
 
-    private static Func<object?, object?[], object?> CompileMethodInvoker(MethodInfo method)
-    {
-        var instanceParam = Expression.Parameter(typeof(object), "instance");
-        var argsParam = Expression.Parameter(typeof(object[]), "args");
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static object? InvokeFast(this MethodInfo method, object? instance, object? arg1) =>
+        InvokerCache.GetOrAdd(method, static m => MethodInvoker.Create(m)).Invoke(instance, arg1);
 
-        var methodParams = method.GetParameters();
-        var callArgs = new Expression[methodParams.Length];
-        for (var i = 0; i < methodParams.Length; i++)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static object? InvokeFast(this MethodInfo method, object? instance, object? arg1, object? arg2) =>
+        InvokerCache.GetOrAdd(method, static m => MethodInvoker.Create(m)).Invoke(instance, arg1, arg2);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static object? InvokeFast(this MethodInfo method, object? instance, object? arg1, object? arg2, object? arg3) =>
+        InvokerCache.GetOrAdd(method, static m => MethodInvoker.Create(m)).Invoke(instance, arg1, arg2, arg3);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static object? InvokeFast(this MethodInfo method, object? instance, Span<object?> arguments) =>
+        InvokerCache.GetOrAdd(method, static m => MethodInvoker.Create(m)).Invoke(instance, arguments);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static object? InvokeFast(this MethodInfo method, object? instance, params object?[] parameters) =>
+        InvokerCache.GetOrAdd(method, static m => MethodInvoker.Create(m)).Invoke(instance, parameters.AsSpan());
+
+    // ==========================================
+    // 3. Public Discovery APIs (Cached & Uncached)
+    // ==========================================
+
+    public static MethodInfo FindMethod(this Type type, string methodName, int parameterCount, BindingFlags bindingFlags) =>
+        MethodCache.GetOrAdd(new MethodCacheKey(type, methodName, parameterCount, bindingFlags), static key => FindMethodUncached(key));
+
+    public static MethodInfo FindMethod(this Type type, string methodName, Type[] typeArguments, int parameterCount, BindingFlags bindingFlags) =>
+        MethodCache.GetOrAdd(new MethodCacheKey(type, methodName, parameterCount, bindingFlags, new EquatableSequence<Type>(typeArguments)), static key => FindMethodUncached(key));
+
+    public static MethodInfo FindMethodUncached(this Type type, string methodName, int parameterCount, BindingFlags bindingFlags) =>
+        FindMethodUncached(new MethodCacheKey(type, methodName, parameterCount, bindingFlags));
+
+    public static MethodInfo FindMethodUncached(this Type type, string methodName, Type[] typeArguments, int parameterCount, BindingFlags bindingFlags) =>
+        FindMethodUncached(new MethodCacheKey(type, methodName, parameterCount, bindingFlags, new EquatableSequence<Type>(typeArguments)));
+
+    internal static MethodInfo FindMethodUncached(MethodCacheKey key)
+    {
+        MethodInfo? match = null;
+        var count = 0;
+        var hasTypeArgs = key.TypeArgs.Items is { Length: > 0 };
+
+        foreach (var m in key.Type.GetMethods(key.BindingFlags))
         {
-            var index = Expression.Constant(i);
-            var arrayAccess = Expression.ArrayIndex(argsParam, index);
-            callArgs[i] = Expression.Convert(arrayAccess, methodParams[i].ParameterType);
+            if (m.Name != key.MethodName || m.GetParameters().Length != key.ParameterCount)
+                continue;
+
+            if (hasTypeArgs)
+            {
+                if (m.IsGenericMethodDefinition && m.GetGenericArguments().Length == key.TypeArgs.Items.Length)
+                {
+                    match = m;
+                    count++;
+                }
+            }
+            else if (!m.IsGenericMethod)
+            {
+                match = m;
+                count++;
+            }
         }
 
-        var instanceCast = method.IsStatic ? null : Expression.Convert(instanceParam, method.DeclaringType ?? typeof(object));
-        var call = Expression.Call(instanceCast, method, callArgs);
-        Expression body = method.ReturnType == typeof(void)
-            ? Expression.Block(call, Expression.Constant(null, typeof(object)))
-            : Expression.Convert(call, typeof(object));
-
-        return Expression.Lambda<Func<object?, object?[], object?>>(body, instanceParam, argsParam).Compile();
+        var kind = hasTypeArgs ? "Generic" : "Non-generic";
+        return count switch
+        {
+            1 => hasTypeArgs ? match!.MakeGenericMethod(key.TypeArgs.Items) : match!,
+            0 => throw new ArgumentException($"{kind} method '{key.MethodName}' not found with specified criteria"),
+            _ => throw new ArgumentException($"{count} {kind.ToLowerInvariant()} methods '{key.MethodName}' found with specified criteria")
+        };
     }
 
-    public static MethodInfo FindGenericMethod(this Type type, string methodName, Type[] typeArguments, int parameterCount, BindingFlags bindingFlags)
-    {
-        var cacheKey = new GenericCacheKey(type, methodName, new EquatableSequence<Type>(typeArguments), parameterCount, bindingFlags);
-        var methodInfo = GenericMethodCache.GetOrAdd(cacheKey, FindGenericMethodUncached);
-
-        return methodInfo;
-    }
-
-    public static MethodInfo FindNonGenericMethod(this Type type, string methodName, int parameterCount, BindingFlags bindingFlags)
-    {
-        var cacheKey = new NonGenericCacheKey(type, methodName, parameterCount, bindingFlags);
-        var methodInfo = NonGenericMethodCache.GetOrAdd(cacheKey, FindNonGenericMethodUncached);
-
-        return methodInfo;
-    }
-
-    public static MethodInfo FindGenericMethodUncached(this Type type, string methodName, Type[] typeArguments, int parameterCount, BindingFlags bindingFlags)
-    {
-        var methods = type.GetMethods(bindingFlags)
-            .Where(m => m.Name == methodName
-                        && m.IsGenericMethodDefinition
-                        && m.GetParameters().Length == parameterCount
-                        && m.GetGenericArguments().Length == typeArguments.Length).ToArray();
-
-        if (methods.Length == 1)
-            return methods[0].MakeGenericMethod(typeArguments);
-
-        if (methods.Length == 0)
-            throw new ArgumentException($"Generic method '{methodName}' not found with specified criteria");
-
-        throw new ArgumentException($"{methods.Length} generic method '{methodName}' found with specified criteria");
-    }
-    
-    public static MethodInfo FindNonGenericMethodUncached(this Type type, string methodName, int parameterCount, BindingFlags bindingFlags)
-    {
-        var methods = type.GetMethods(bindingFlags)
-            .Where(m => m.Name == methodName && !m.IsGenericMethod && m.GetParameters().Length == parameterCount).ToArray();
-
-        if (methods.Length == 1)
-            return methods[0];
-
-        if (methods.Length == 0)
-            throw new ArgumentException($"Non-generic method '{methodName}' not found with specified criteria");
-
-        throw new ArgumentException($"{methods.Length} non-generic methods '{methodName}' found with specified criteria");
-    }
-
-    private static MethodInfo FindGenericMethodUncached(GenericCacheKey key) =>
-        FindGenericMethodUncached(key.Type, key.MethodName, key.TypeArgs.Items, key.ParameterCount, key.BindingFlags);
-
-    private static MethodInfo FindNonGenericMethodUncached(NonGenericCacheKey key) =>
-        FindNonGenericMethodUncached(key.Type, key.MethodName, key.ParameterCount, key.BindingFlags);
-
-    public static bool IsExtensionMethod(this MethodInfo method)
-    {
-        //The ExtensionAttribute is automatically applied by the compiler when you use this keyword
-        //https://learn.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.extensionattribute
-        return method.IsStatic &&
-               (method.DeclaringType?.IsSealed ?? false) &&
-               method.DeclaringType.IsAbstract && // static classes are abstract and sealed
-               method.IsDefined(typeof(ExtensionAttribute), false);
-    }
+    public static bool IsExtensionMethod(this MethodInfo method) =>
+        method.IsStatic &&
+        (method.DeclaringType?.IsSealed ?? false) &&
+        method.DeclaringType.IsAbstract &&
+        method.IsDefined(typeof(ExtensionAttribute), false);
 }
 
-public readonly record struct GenericCacheKey(Type Type, string MethodName, EquatableSequence<Type> TypeArgs, int ParameterCount, BindingFlags BindingFlags);
-
-public readonly record struct NonGenericCacheKey(Type Type, string MethodName, int ParameterCount, BindingFlags BindingFlags);
+internal readonly record struct MethodCacheKey(
+    Type Type,
+    string MethodName,
+    int ParameterCount,
+    BindingFlags BindingFlags,
+    EquatableSequence<Type> TypeArgs = default);

@@ -90,7 +90,7 @@ public class DrnServiceContainer
             var extensionClass = typeof(ServiceCollectionHostedServiceExtensions);
             var extensionMethod = nameof(ServiceCollectionHostedServiceExtensions.AddHostedService);
 
-            extensionClass.InvokeStaticGenericMethod(extensionMethod, [lifetime.ImplementationType], sc);
+            extensionClass.InvokeStaticMethod(extensionMethod, [lifetime.ImplementationType], sc);
 
             return true;
         }
@@ -112,7 +112,7 @@ public class DrnServiceContainer
         {
             var configKey = ca.ConfigKey ?? ca.ImplementationType.Name;
             var errorOnUnknownConfiguration = configKey != string.Empty && ca.ErrorOnUnknownConfiguration;
-            var configObject = appSettings.InvokeGenericMethod(nameof(IAppSettings.Get), [lifetime.ImplementationType],
+            var configObject = appSettings.InvokeMethod(nameof(IAppSettings.Get), [lifetime.ImplementationType],
                 configKey, errorOnUnknownConfiguration, ca.BindNonPublicProperties);
             if (configObject != null)
                 return configObject;

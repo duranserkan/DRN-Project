@@ -6,95 +6,89 @@ public class MethodUtilsStaticTests
     private const string StaticMethodName = nameof(GetStatic);
 
     [Fact]
-    public void FindNonGenericMethod_Should_Find_Method()
+    public void FindMethod_Should_Find_NonGeneric_Method()
     {
-        var method = Type.FindNonGenericMethod(StaticMethodName, 0, BindingFlag.StaticPublic);
+        var method = Type.FindMethod(StaticMethodName, 0, BindingFlag.StaticPublic);
         method.Should().NotBeNull();
         method.Name.Should().Be(StaticMethodName);
         method.IsGenericMethod.Should().BeFalse();
     }
 
     [Fact]
-    public void FindNonGenericMethodUncached_Should_Find_Method()
+    public void FindMethodUncached_Should_Find_NonGeneric_Method()
     {
-        var method = Type.FindNonGenericMethodUncached(StaticMethodName, 0, BindingFlag.StaticPublic);
+        var method = Type.FindMethodUncached(StaticMethodName, 0, BindingFlag.StaticPublic);
         method.Should().NotBeNull();
         method.Name.Should().Be(StaticMethodName);
         method.IsGenericMethod.Should().BeFalse();
     }
 
     [Fact]
-    public void FindGenericMethod_Should_Find_Method()
+    public void FindMethod_Should_Find_Generic_Method()
     {
-        var method = Type.FindGenericMethod(StaticMethodName, [Type], 0, BindingFlag.StaticPublic);
+        var method = Type.FindMethod(StaticMethodName, [Type], 0, BindingFlag.StaticPublic);
         method.Should().NotBeNull();
         method.Name.Should().Be(StaticMethodName);
         method.IsGenericMethod.Should().BeTrue();
     }
 
     [Fact]
-    public void FindGenericMethodUncached_Should_Find_Method()
+    public void FindMethodUncached_Should_Find_Generic_Method()
     {
-        var method = Type.FindGenericMethodUncached(StaticMethodName, [Type], 0, BindingFlag.StaticPublic);
+        var method = Type.FindMethodUncached(StaticMethodName, [Type], 0, BindingFlag.StaticPublic);
         method.Should().NotBeNull();
         method.Name.Should().Be(StaticMethodName);
         method.IsGenericMethod.Should().BeTrue();
     }
 
     [Fact]
-    public void MethodUtils_Should_Invoke_Static_Method()
+    public void MethodUtils_Should_Invoke_Static_Method_Parameterless()
     {
         var value = Type.InvokeStaticMethod(StaticMethodName);
         value.Should().Be(2);
     }
 
     [Fact]
-    public void MethodUtils_Should_Invoke_Static_Method_With_Parameter()
+    public void MethodUtils_Should_Invoke_Static_Method_With_1_Parameter()
     {
         var value = Type.InvokeStaticMethod(StaticMethodName, 9);
         value.Should().Be(9);
     }
 
     [Fact]
-    public void MethodUtils_Should_Invoke_Static_Generic_Method()
+    public void MethodUtils_Should_Invoke_Static_Method_With_2_Parameters()
     {
-        var value = Type.InvokeStaticGenericMethod(StaticMethodName, Type);
-        value.Should().Be(3);
-    }
-
-    [Fact]
-    public void MethodUtils_Should_Invoke_Static_Generic_Method_With_Parameter()
-    {
-        var value = Type.InvokeStaticGenericMethod(StaticMethodName, [Type], 12);
-        value.Should().Be(12);
-    }
-
-    [Fact]
-    public void MethodUtils_Should_Invoke_Static_Method_Fast()
-    {
-        var value = Type.InvokeStaticMethodFast(StaticMethodName);
-        value.Should().Be(2);
-    }
-
-    [Fact]
-    public void MethodUtils_Should_Invoke_Static_Method_Fast_With_Parameter()
-    {
-        var value = Type.InvokeStaticMethodFast(StaticMethodName, 9);
+        var value = Type.InvokeStaticMethod(StaticMethodName, 4, 5);
         value.Should().Be(9);
     }
 
     [Fact]
-    public void MethodUtils_Should_Invoke_Static_Generic_Method_Fast()
+    public void MethodUtils_Should_Invoke_Static_Method_With_3_Parameters()
     {
-        var value = Type.InvokeStaticGenericMethodFast(StaticMethodName, Type);
+        var value = Type.InvokeStaticMethod(StaticMethodName, 1, 2, 3);
+        value.Should().Be(6);
+    }
+
+    [Fact]
+    public void MethodUtils_Should_Invoke_Static_Generic_Method_Parameterless()
+    {
+        var value = Type.InvokeStaticMethod(StaticMethodName, Type);
         value.Should().Be(3);
     }
 
     [Fact]
-    public void MethodUtils_Should_Invoke_Static_Generic_Method_Fast_With_Parameter()
+    public void MethodUtils_Should_Invoke_Static_Generic_Method_With_1_Parameter()
     {
-        var value = Type.InvokeStaticGenericMethodFast(StaticMethodName, [Type], 12);
+        var value = Type.InvokeStaticMethod(StaticMethodName, [Type], 12);
         value.Should().Be(12);
+    }
+
+    [Fact]
+    public void MethodUtils_Should_InvokeFast_Directly()
+    {
+        var method = Type.FindMethod(StaticMethodName, 1, BindingFlag.StaticPublic);
+        var value = method.InvokeFast(null, 42);
+        value.Should().Be(42);
     }
 
     [Fact]
@@ -108,6 +102,8 @@ public class MethodUtilsStaticTests
 
     public static object? GetStatic() => 2;
     public static object? GetStatic(int a) => a;
+    public static object? GetStatic(int a, int b) => a + b;
+    public static object? GetStatic(int a, int b, int c) => a + b + c;
     public static object? GetStatic<T>() => 3;
     public static object? GetStatic<T>(int b) => b;
 }

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DRN.Test.Performance.Benchmark.Framework.Utils.MethodUtilsBenchmark-20260830-131539</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.8, macOS Tahoe 26.6.2 (25G83) [Darwin 25.6.0]
+Apple M2, 1 CPU, 8 logical and 8 physical cores
+.NET SDK 10.0.400
+  [Host]     : .NET 10.0.11 (10.0.11, 10.0.1126.37416), Arm64 RyuJIT armv8.0-a
+  Job-JEHOQG : .NET 10.0.11 (10.0.11, 10.0.1126.37416), Arm64 RyuJIT armv8.0-a
+</code></pre>
+<pre><code>InvocationCount=100000  IterationCount=30  UnrollFactor=1  
+WarmupCount=30  
+</code></pre>
+
+<table>
+<thead><tr><th>Method                             </th><th>Categories  </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Median</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>InstanceGeneric_Direct</td><td>InstanceGeneric</td><td>3.603 ns</td><td>0.0969 ns</td><td>0.1420 ns</td><td>3.522 ns</td><td>1.00</td><td>0.05</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>InstanceGeneric_Preresolved_InvokeFast</td><td>InstanceGeneric</td><td>15.047 ns</td><td>0.2028 ns</td><td>0.2908 ns</td><td>14.986 ns</td><td>4.18</td><td>0.18</td><td>-</td><td>48 B</td><td>2.00</td>
+</tr><tr><td>InstanceGeneric_Preresolved_Invoke</td><td>InstanceGeneric</td><td>16.022 ns</td><td>0.1169 ns</td><td>0.1601 ns</td><td>15.941 ns</td><td>4.45</td><td>0.17</td><td>-</td><td>80 B</td><td>3.33</td>
+</tr><tr><td>InstanceGeneric_Invoke</td><td>InstanceGeneric</td><td>41.485 ns</td><td>0.6397 ns</td><td>0.9376 ns</td><td>40.979 ns</td><td>11.53</td><td>0.50</td><td>0.0100</td><td>104 B</td><td>4.33</td>
+</tr><tr><td>InstanceNonGeneric_Direct</td><td>InstanceNonGeneric</td><td>3.556 ns</td><td>0.0839 ns</td><td>0.1203 ns</td><td>3.496 ns</td><td>1.00</td><td>0.05</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>InstanceNonGeneric_Preresolved_InvokeFast</td><td>InstanceNonGeneric</td><td>14.889 ns</td><td>0.4143 ns</td><td>0.5808 ns</td><td>14.620 ns</td><td>4.19</td><td>0.21</td><td>-</td><td>48 B</td><td>2.00</td>
+</tr><tr><td>InstanceNonGeneric_Preresolved_Invoke</td><td>InstanceNonGeneric</td><td>38.652 ns</td><td>8.9577 ns</td><td>12.2614 ns</td><td>44.891 ns</td><td>10.88</td><td>3.41</td><td>-</td><td>80 B</td><td>3.33</td>
+</tr><tr><td>InstanceNonGeneric_Invoke</td><td>InstanceNonGeneric</td><td>33.670 ns</td><td>0.3821 ns</td><td>0.5601 ns</td><td>33.521 ns</td><td>9.48</td><td>0.34</td><td>-</td><td>80 B</td><td>3.33</td>
+</tr><tr><td>FindNonGenericCached</td><td>MethodDiscovery</td><td>8.075 ns</td><td>0.1006 ns</td><td>0.1410 ns</td><td>8.033 ns</td><td>1.00</td><td>0.02</td><td>-</td><td>-</td><td>NA</td>
+</tr><tr><td>FindNonGenericUncached</td><td>MethodDiscovery</td><td>60.744 ns</td><td>1.5361 ns</td><td>2.2991 ns</td><td>60.172 ns</td><td>7.52</td><td>0.31</td><td>0.0400</td><td>360 B</td><td>NA</td>
+</tr><tr><td>FindGenericCached</td><td>MethodDiscovery</td><td>29.205 ns</td><td>0.3016 ns</td><td>0.4325 ns</td><td>29.085 ns</td><td>3.62</td><td>0.08</td><td>-</td><td>24 B</td><td>NA</td>
+</tr><tr><td>FindGenericUncached</td><td>MethodDiscovery</td><td>284.268 ns</td><td>2.0962 ns</td><td>3.1375 ns</td><td>283.737 ns</td><td>35.21</td><td>0.70</td><td>0.0600</td><td>584 B</td><td>NA</td>
+</tr><tr><td>StaticGeneric_Direct</td><td>StaticGeneric</td><td>2.895 ns</td><td>0.0542 ns</td><td>0.0760 ns</td><td>2.867 ns</td><td>1.00</td><td>0.04</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>StaticGeneric_Preresolved_InvokeFast</td><td>StaticGeneric</td><td>48.466 ns</td><td>0.9061 ns</td><td>1.3562 ns</td><td>48.052 ns</td><td>16.75</td><td>0.62</td><td>-</td><td>48 B</td><td>2.00</td>
+</tr><tr><td>StaticGeneric_Preresolved_Invoke</td><td>StaticGeneric</td><td>37.351 ns</td><td>0.6935 ns</td><td>0.9947 ns</td><td>36.904 ns</td><td>12.91</td><td>0.47</td><td>-</td><td>80 B</td><td>3.33</td>
+</tr><tr><td>StaticGeneric_Invoke</td><td>StaticGeneric</td><td>39.290 ns</td><td>0.9059 ns</td><td>1.3559 ns</td><td>38.789 ns</td><td>13.58</td><td>0.57</td><td>0.0100</td><td>104 B</td><td>4.33</td>
+</tr><tr><td>StaticNonGeneric_Direct</td><td>StaticNonGeneric</td><td>4.045 ns</td><td>0.0853 ns</td><td>0.1251 ns</td><td>3.980 ns</td><td>1.00</td><td>0.04</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>StaticNonGeneric_StronglyTypedDelegate</td><td>StaticNonGeneric</td><td>4.332 ns</td><td>0.1992 ns</td><td>0.2982 ns</td><td>4.214 ns</td><td>1.07</td><td>0.08</td><td>-</td><td>24 B</td><td>1.00</td>
+</tr><tr><td>StaticNonGeneric_Preresolved_InvokeFast</td><td>StaticNonGeneric</td><td>46.189 ns</td><td>5.5060 ns</td><td>7.8966 ns</td><td>47.847 ns</td><td>11.43</td><td>1.95</td><td>-</td><td>48 B</td><td>2.00</td>
+</tr><tr><td>StaticNonGeneric_Preresolved_Invoke</td><td>StaticNonGeneric</td><td>15.729 ns</td><td>0.6636 ns</td><td>0.9518 ns</td><td>15.521 ns</td><td>3.89</td><td>0.26</td><td>-</td><td>80 B</td><td>3.33</td>
+</tr><tr><td>StaticNonGeneric_Invoke</td><td>StaticNonGeneric</td><td>25.712 ns</td><td>0.3283 ns</td><td>0.4602 ns</td><td>25.565 ns</td><td>6.36</td><td>0.22</td><td>-</td><td>80 B</td><td>3.33</td>
+</tr></tbody></table>
+</body>
+</html>

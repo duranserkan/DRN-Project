@@ -6,7 +6,7 @@ namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Pagination;
 public class PageCursorTests
 {
     [Theory]
-    [DataInlineUnit(null)]
+    [DataInlineUnit(null!)]
     [DataInlineUnit(PageSortDirection.Ascending)]
     [DataInlineUnit(PageSortDirection.Descending)]
     public void PageCursor_FirstRequest_Defaults(PageSortDirection? direction)

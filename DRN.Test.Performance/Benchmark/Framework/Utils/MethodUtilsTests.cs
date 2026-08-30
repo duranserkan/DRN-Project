@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using AwesomeAssertions;
 using BenchmarkDotNet.Attributes;
@@ -8,7 +9,6 @@ using DRN.Framework.Utils.Extensions;
 
 namespace DRN.Test.Performance.Benchmark.Framework.Utils;
 
-[MemoryDiagnoser]
 public class MethodUtilsPerformanceTests(ITestOutputHelper output)
 {
 #if !DEBUG
@@ -44,133 +44,119 @@ public class MethodUtilsPerformanceTests(ITestOutputHelper output)
 [WarmupCount(30)]
 [IterationCount(30)]
 [InvocationCount(100_000)]
+[SuppressMessage("ReSharper", "UnusedTypeParameter")]
 public class MethodUtilsBenchmark
 {
-    private static readonly Type Type = typeof(MethodUtilsBenchmark);
-    private static readonly MethodUtilsBenchmark Instance = new();
+    private static readonly Type TargetType = typeof(MethodUtilsBenchmark);
+    private static readonly Type[] TypeArgs = [TargetType];
+    private static readonly MethodUtilsBenchmark TargetInstance = new();
 
-    private static readonly MethodInfo StaticNonGenericMethodInfo = Type.FindNonGenericMethod(nameof(GetStatic), 1, BindingFlag.StaticPublic);
-    private static readonly MethodInfo StaticGenericMethodInfo = Type.FindGenericMethod(nameof(GetStatic), [Type], 1, BindingFlag.StaticPublic);
-    private static readonly MethodInfo InstanceNonGenericMethodInfo = Type.FindNonGenericMethod(nameof(GetInstance), 1, BindingFlag.InstancePublic);
-    private static readonly MethodInfo InstanceGenericMethodInfo = Type.FindGenericMethod(nameof(GetInstance), [Type], 1, BindingFlag.InstancePublic);
+    private static readonly MethodInfo StaticNonGenericMethodInfo = TargetType.FindMethod(nameof(GetStatic), 1, BindingFlag.StaticPublic);
+    private static readonly MethodInfo StaticGenericMethodInfo = TargetType.FindMethod(nameof(GetStatic), TypeArgs, 1, BindingFlag.StaticPublic);
+    private static readonly MethodInfo InstanceNonGenericMethodInfo = TargetType.FindMethod(nameof(GetInstance), 1, BindingFlag.InstancePublic);
+    private static readonly MethodInfo InstanceGenericMethodInfo = TargetType.FindMethod(nameof(GetInstance), TypeArgs, 1, BindingFlag.InstancePublic);
 
     private static readonly Func<int, object?> StronglyTypedDelegate = StaticNonGenericMethodInfo.CreateDelegate<Func<int, object?>>();
 
-    // --- Method Resolution Category ---
+    // --- 1. Method Discovery ---
 
     [Benchmark(Baseline = true)]
-    [BenchmarkCategory("MethodDiscovery")]
-    public MethodInfo FindNonGenericCached() => Type.FindNonGenericMethod(nameof(GetStatic), 1, BindingFlag.StaticPublic);
+    [BenchmarkCategory("Discovery")]
+    public MethodInfo Discovery_NonGeneric_Cached() => TargetType.FindMethod(nameof(GetStatic), 1, BindingFlag.StaticPublic);
 
     [Benchmark]
-    [BenchmarkCategory("MethodDiscovery")]
-    public MethodInfo FindNonGenericUncached() => Type.FindNonGenericMethodUncached(nameof(GetStatic), 1, BindingFlag.StaticPublic);
+    [BenchmarkCategory("Discovery")]
+    public MethodInfo Discovery_NonGeneric_Uncached() => TargetType.FindMethodUncached(nameof(GetStatic), 1, BindingFlag.StaticPublic);
 
     [Benchmark]
-    [BenchmarkCategory("MethodDiscovery")]
-    public MethodInfo FindGenericCached() => Type.FindGenericMethod(nameof(GetStatic), [Type], 1, BindingFlag.StaticPublic);
+    [BenchmarkCategory("Discovery")]
+    public MethodInfo Discovery_Generic_Cached() => TargetType.FindMethod(nameof(GetStatic), TypeArgs, 1, BindingFlag.StaticPublic);
 
     [Benchmark]
-    [BenchmarkCategory("MethodDiscovery")]
-    public MethodInfo FindGenericUncached() => Type.FindGenericMethodUncached(nameof(GetStatic), [Type], 1, BindingFlag.StaticPublic);
+    [BenchmarkCategory("Discovery")]
+    public MethodInfo Discovery_Generic_Uncached() => TargetType.FindMethodUncached(nameof(GetStatic), TypeArgs, 1, BindingFlag.StaticPublic);
 
-    // --- Static Non-Generic Category ---
+    // --- 2. Static Non-Generic Invocation ---
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("StaticNonGeneric")]
-    public object? StaticNonGeneric_Direct() => GetStatic(42);
+    public object Static_NonGeneric_Direct() => GetStatic(42);
 
     [Benchmark]
     [BenchmarkCategory("StaticNonGeneric")]
-    public object? StaticNonGeneric_StronglyTypedDelegate() => StronglyTypedDelegate(42);
+    public object? Static_NonGeneric_Delegate() => StronglyTypedDelegate(42);
 
     [Benchmark]
     [BenchmarkCategory("StaticNonGeneric")]
-    public object? StaticNonGeneric_Preresolved_InvokeFast() => StaticNonGenericMethodInfo.InvokeFast(null, 42);
+    public object? Static_NonGeneric_InvokeFast() => StaticNonGenericMethodInfo.InvokeFast(null, 42);
 
     [Benchmark]
     [BenchmarkCategory("StaticNonGeneric")]
-    public object? StaticNonGeneric_Preresolved_Invoke() => StaticNonGenericMethodInfo.Invoke(null, [42]);
+    public object? Static_NonGeneric_ReflectionInvoke() => StaticNonGenericMethodInfo.Invoke(null, [42]);
 
     [Benchmark]
     [BenchmarkCategory("StaticNonGeneric")]
-    public object? StaticNonGeneric_InvokeFast() => Type.InvokeStaticMethodFast(nameof(GetStatic), 42);
+    public object? Static_NonGeneric_InvokeMethod() => TargetType.InvokeStaticMethod(nameof(GetStatic), 42);
 
-    [Benchmark]
-    [BenchmarkCategory("StaticNonGeneric")]
-    public object? StaticNonGeneric_Invoke() => Type.InvokeStaticMethod(nameof(GetStatic), 42);
-
-    // --- Static Generic Category ---
+    // --- 3. Static Generic Invocation ---
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("StaticGeneric")]
-    public object? StaticGeneric_Direct() => GetStatic<MethodUtilsBenchmark>(42);
+    public object Static_Generic_Direct() => GetStatic<MethodUtilsBenchmark>(42);
 
     [Benchmark]
     [BenchmarkCategory("StaticGeneric")]
-    public object? StaticGeneric_Preresolved_InvokeFast() => StaticGenericMethodInfo.InvokeFast(null, 42);
+    public object? Static_Generic_InvokeFast() => StaticGenericMethodInfo.InvokeFast(null, 42);
 
     [Benchmark]
     [BenchmarkCategory("StaticGeneric")]
-    public object? StaticGeneric_Preresolved_Invoke() => StaticGenericMethodInfo.Invoke(null, [42]);
+    public object? Static_Generic_ReflectionInvoke() => StaticGenericMethodInfo.Invoke(null, [42]);
 
     [Benchmark]
     [BenchmarkCategory("StaticGeneric")]
-    public object? StaticGeneric_InvokeFast() => Type.InvokeStaticGenericMethodFast(nameof(GetStatic), [Type], 42);
+    public object? Static_Generic_InvokeMethod() => TargetType.InvokeStaticMethod(nameof(GetStatic), TypeArgs, 42);
 
-    [Benchmark]
-    [BenchmarkCategory("StaticGeneric")]
-    public object? StaticGeneric_Invoke() => Type.InvokeStaticGenericMethod(nameof(GetStatic), [Type], 42);
-
-    // --- Instance Non-Generic Category ---
+    // --- 4. Instance Non-Generic Invocation ---
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("InstanceNonGeneric")]
-    public object? InstanceNonGeneric_Direct() => Instance.GetInstance(42);
+    public object Instance_NonGeneric_Direct() => TargetInstance.GetInstance(42);
 
     [Benchmark]
     [BenchmarkCategory("InstanceNonGeneric")]
-    public object? InstanceNonGeneric_Preresolved_InvokeFast() => InstanceNonGenericMethodInfo.InvokeFast(Instance, 42);
+    public object? Instance_NonGeneric_InvokeFast() => InstanceNonGenericMethodInfo.InvokeFast(TargetInstance, 42);
 
     [Benchmark]
     [BenchmarkCategory("InstanceNonGeneric")]
-    public object? InstanceNonGeneric_Preresolved_Invoke() => InstanceNonGenericMethodInfo.Invoke(Instance, [42]);
+    public object? Instance_NonGeneric_ReflectionInvoke() => InstanceNonGenericMethodInfo.Invoke(TargetInstance, [42]);
 
     [Benchmark]
     [BenchmarkCategory("InstanceNonGeneric")]
-    public object? InstanceNonGeneric_InvokeFast() => Instance.InvokeMethodFast(nameof(GetInstance), 42);
+    public object? Instance_NonGeneric_InvokeMethod() => TargetInstance.InvokeMethod(nameof(GetInstance), 42);
 
-    [Benchmark]
-    [BenchmarkCategory("InstanceNonGeneric")]
-    public object? InstanceNonGeneric_Invoke() => Instance.InvokeMethod(nameof(GetInstance), 42);
-
-    // --- Instance Generic Category ---
+    // --- 5. Instance Generic Invocation ---
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("InstanceGeneric")]
-    public object? InstanceGeneric_Direct() => Instance.GetInstance<MethodUtilsBenchmark>(42);
+    public object Instance_Generic_Direct() => TargetInstance.GetInstance<MethodUtilsBenchmark>(42);
 
     [Benchmark]
     [BenchmarkCategory("InstanceGeneric")]
-    public object? InstanceGeneric_Preresolved_InvokeFast() => InstanceGenericMethodInfo.InvokeFast(Instance, 42);
+    public object? Instance_Generic_InvokeFast() => InstanceGenericMethodInfo.InvokeFast(TargetInstance, 42);
 
     [Benchmark]
     [BenchmarkCategory("InstanceGeneric")]
-    public object? InstanceGeneric_Preresolved_Invoke() => InstanceGenericMethodInfo.Invoke(Instance, [42]);
+    public object? Instance_Generic_ReflectionInvoke() => InstanceGenericMethodInfo.Invoke(TargetInstance, [42]);
 
     [Benchmark]
     [BenchmarkCategory("InstanceGeneric")]
-    public object? InstanceGeneric_InvokeFast() => Instance.InvokeGenericMethodFast(nameof(GetInstance), [Type], 42);
-
-    [Benchmark]
-    [BenchmarkCategory("InstanceGeneric")]
-    public object? InstanceGeneric_Invoke() => Instance.InvokeGenericMethod(nameof(GetInstance), [Type], 42);
+    public object? Instance_Generic_InvokeMethod() => TargetInstance.InvokeMethod(nameof(GetInstance), TypeArgs, 42);
 
     // --- Target Methods ---
 
-    public static object? GetStatic(int a) => a;
-    public static object? GetStatic<T>(int b) => b;
+    public static object GetStatic(int a) => a;
+    public static object GetStatic<T>(int b) => b;
 
-    public object? GetInstance(int a) => a;
-    public object? GetInstance<T>(int b) => b;
+    public object GetInstance(int a) => a;
+    public object GetInstance<T>(int b) => b;
 }

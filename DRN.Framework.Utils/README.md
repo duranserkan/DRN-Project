@@ -964,10 +964,12 @@ Comprehensive set of extensions for standard .NET types and reflection.
 
 ### Reflection & `MethodUtils`
 
-Reflection helpers with built-in caching for generic and non-generic method invocation.
+High-performance reflection helpers with unified caching for generic and non-generic method discovery and execution.
 *   **Invoke**: `instance.InvokeMethod("Name", args)` and `type.InvokeStaticMethod("Name", args)`.
-*   **Generics**: `instance.InvokeGenericMethod("Name", typeArgs, args)` with static and uncached variations.
-*   **Caching**: Caches generic and non-generic method lookups.
+*   **Generics**: `instance.InvokeMethod("Name", typeArgs, args)` and `type.InvokeStaticMethod("Name", typeArgs, args)`.
+*   **Zero-Alloc Overloads**: Specialized 0, 1, 2, 3 argument and `Span<object?>` overloads eliminate `params` array allocation.
+*   **Caching & Execution**: Unified `FindMethod` cache with `MethodCacheKey` and zero-allocation execution powered by runtime `MethodInvoker`.
+*   **Uncached Discovery**: `type.FindMethodUncached(...)` for explicit cache-bypassing scenarios (e.g. one-off startup discovery).
 
 ### Service Collection
 
