@@ -31,7 +31,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **Dynamic Next Entity Type Guard**: Added explicit `ArgumentNullException.ThrowIfNull` checks for `entityType` in dynamic `SourceKnownIdUtils.Next` overloads.
 *   **Generic Method Reflection Hijacking**: Removed `params` modifier on 0-argument generic `InvokeMethod` and `InvokeStaticMethod` overloads to prevent single-`Type` arguments from erroneously resolving non-generic overloads.
-*   **EquatableSequence Sequence Equality and Boundary Safety**: Fixed `EquatableSequence<T>.Equals` and `EquatableImmutableSequence<T>.Equals` to evaluate `default` and empty sequences as equal, aligned `EquatableImmutableSequence<T>` indexer to throw `IndexOutOfRangeException` on default instances, and streamlined span enumerator construction.
+*   **EquatableSequence Sequence Equality and Boundary Safety**: Fixed `EquatableSequence<T>.Equals` and `EquatableImmutableSequence<T>.Equals` to evaluate `default` and empty sequences as equal, aligned `EquatableSequence<T>` and `EquatableImmutableSequence<T>` indexers to throw `ArgumentOutOfRangeException` on default instances, and streamlined span enumerator construction.
 
 ## Version 0.9.8
 

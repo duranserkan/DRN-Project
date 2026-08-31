@@ -132,7 +132,7 @@ public class EquatableSequenceTests
 
         EquatableSequence<string> defaultSeq = default;
         var actDefault = () => _ = defaultSeq[0];
-        actDefault.Should().Throw<IndexOutOfRangeException>();
+        actDefault.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]
