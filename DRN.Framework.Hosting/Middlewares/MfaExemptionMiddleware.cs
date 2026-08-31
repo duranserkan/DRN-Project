@@ -10,17 +10,44 @@ public class MfaExemptionMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext httpContext, IScopedUser scopedUser, MfaExemptionOptions exemptionOptions)
     {
-        if (!MfaFor.MfaCompleted && exemptionOptions.ExemptAuthSchemes.Any())
-        {
+        if (exemptionOptions.ExemptAuthSchemes.Count > 0)
             foreach (var exemptAuthScheme in exemptionOptions.ExemptAuthSchemes)
             {
                 var result = await httpContext.AuthenticateAsync(exemptAuthScheme);
-                if (result is not { Succeeded: true, Principal: not null }) continue;
+                if (result is not { Succeeded: true, Principal: not null })
+                    continue;
 
-                ((ScopedUser)scopedUser).SetExemptionScheme(exemptAuthScheme);
+                var hasAuthenticatedIdentity = false;
+                var isSetupRequired = false;
+
+                foreach (var identity in result.Principal.Identities)
+                {
+                    if (!identity.IsAuthenticated)
+                        continue;
+
+                    hasAuthenticatedIdentity = true;
+
+                    foreach (var claim in identity.Claims)
+                    {
+                        if (!string.Equals(claim.Type, ClaimConventions.AuthenticationMethod, StringComparison.OrdinalIgnoreCase) || claim.Value != MfaClaimValues.MfaSetupRequired)
+                            continue;
+                        isSetupRequired = true;
+                        break;
+                    }
+
+                    if (isSetupRequired)
+                        break;
+                }
+
+                if (!hasAuthenticatedIdentity || isSetupRequired)
+                    continue;
+
+                if (scopedUser is not ScopedUser concreteScopedUser)
+                    continue;
+
+                concreteScopedUser.SetExemption(exemptAuthScheme, result.Principal);
                 break;
             }
-        }
 
         await next(httpContext);
     }

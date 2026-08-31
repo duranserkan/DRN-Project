@@ -2,14 +2,27 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.0
 
+### New Features
+
+*   **Programmatic Application Builder Hook**: Added a four-argument `CreateApplicationAsync` overload for host integrations while retaining the existing three-argument overload for binary compatibility.
+*   **Provider-Neutral MFA Claim Configuration**: Added `ConfigureMFAClaim` with the backward-compatible `MfaClaimConfig.AspNetIdentity` default (`amr=mfa`). Applications can select the exact claim type and value emitted by Keycloak or another identity provider without changing DRN authorization, redirection, or UI enforcement code.
+
+### Breaking Changes
+
+*   **Identity MFA Setup Response**: When MFA is globally enforced, password-valid accounts without two-factor authentication now receive an HTTP 200 five-minute setup credential instead of the ordinary authenticated credential returned previously. Cookie requests receive an empty response with a non-persistent, non-refreshable setup cookie; bearer requests receive an `AccessTokenResponse` with `ExpiresIn = 300` and an empty `RefreshToken`. Clients must use the setup credential with `TwoFactorAuth`, enable two-factor authentication, discard the setup credential, and log in again with an authenticator or recovery code.
+
 ### Security
 
 *   **Reverse Proxy Trust & Forwarded Headers**: `ConfigureForwardedHeadersOptions` automatically binds the `ForwardedHeaders` configuration section from `IAppSettings` with CIDR and `KnownProxies` support. When unconfigured, it defaults to trusting RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) alongside loopback and sets `ForwardLimit = 2` for secure IP resolution and rate limiting behind reverse proxies.
 *   **Request Query Log Minimization**: `HttpScopeMiddleware` records only the query-parameter count instead of raw query strings, preventing credentials, tokens, and PII from entering structured logs.
-
-### Bug Fixes
-
-*   **ForwardedHeaders Configuration Validation**: Validates custom network and proxy formats during startup.
+*   **MFA Authorization & Identity Boundary Hardening**:
+    *   **Bearer MFA Enforcement & Claim Preservation**: `IdentityLoginControllerBase.Refresh` validates the security stamp and preserves `amr` (Authentication Method Reference) claims and the exact configured `MfaClaimConfig` (type/value pair) across bearer token refreshes, preventing unrelated same-type claims from being copied from the refresh token.
+    *   **MFA Setup Credential Isolation**: An `MfaSetupRequired` credential cannot satisfy an MFA requirement through either a configured authentication-scheme exemption or a simultaneously present completed-MFA claim.
+    *   **Identity Management MFA Boundary**: MFA exemption moved from `IdentityManagementControllerBase` to its `TwoFactorAuth` endpoint. Initial enrollment accepts the short-lived `MfaSetupRequired` credential when MFA is enforced and an ordinary authenticated credential when MFA is optional. Once two-factor authentication is enabled, subsequent management requires completed MFA. `GetInfo`, `PostInfo`, and other identity management operations use the application's default or fallback policy and require completed MFA under the default configuration.
+    *   **Login Failure Disclosure Minimization**: Login failures return the same generic unauthorized problem for unknown accounts, invalid passwords, and incomplete MFA, preventing account and enrollment-state disclosure through response details.
+    *   **Authorization Metadata MFA Closure**: Global MFA enforcement is rechecked at the authorization middleware result boundary, preventing role-only and direct policy metadata from bypassing MFA while retaining explicit `MfaExempt` and configured authentication-scheme exemptions. Named policies also retain their configured authentication schemes when combined with the MFA default.
+    *   **MFA Claim Authentication Identity Scoping**: `MfaAuthorization.IsMfaSatisfied` filters claims strictly to authenticated identities on the principal, preventing unauthenticated secondary identities from supplying completed MFA or setup claims.
+    *   **Policy-Scheme Exemption Binding & Active Scheme Proof Discovery**: `MfaExemptionMiddleware` discovers the active configured exempt authentication scheme present on the request without suppression from ambient session state, short-circuiting on the first matching scheme and recording verified proof on `IScopedUser.ExemptionScheme` and `IScopedUser.ExemptionPrincipal`. `MfaAuthorization.IsMfaSatisfied`, `RequireMfaHandler`, and `MfaEnforcingAuthorizationMiddlewareResultHandler` bind exemptions strictly to the effective policy's authentication schemes, supporting claims transformations while eliminating claim-similarity heuristics and preventing non-selected credentials from waiving MFA on unrelated schemes.
 
 ## Version 0.9.8
 

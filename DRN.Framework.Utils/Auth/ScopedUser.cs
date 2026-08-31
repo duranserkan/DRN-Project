@@ -28,7 +28,13 @@ public class ScopedUser : IScopedUser
     public ClaimsIdentity? PrimaryIdentity { get; private set; }
 
     [JsonIgnore]
-    public string ExemptionScheme { get; internal set; } = string.Empty;
+    public ExemptionProof? Exemption { get; private set; }
+
+    [JsonIgnore]
+    public string? ExemptionScheme => Exemption?.Scheme;
+
+    [JsonIgnore]
+    public ClaimsPrincipal? ExemptionPrincipal => Exemption?.Principal;
 
     public bool Authenticated { get; private set; }
 
@@ -98,11 +104,14 @@ public class ScopedUser : IScopedUser
             PrimaryIdentity = authenticatedIdentities[0];
 
         var claimsDictionary = new Dictionary<string, HashSet<Claim>>(ClaimTypeComparer);
-        foreach (var claim in authenticatedIdentities.SelectMany(identity => identity.Claims))
+        foreach (var identity in authenticatedIdentities)
+        foreach (var claim in identity.Claims)
+        {
             if (claimsDictionary.TryGetValue(claim.Type, out var claimsByType))
                 claimsByType.Add(claim);
             else
                 claimsDictionary.Add(claim.Type, [claim]);
+        }
         ClaimsByType = claimsDictionary.ToFrozenDictionary(
             pair => pair.Key,
             pair => new ClaimGroup(pair.Value, PrimaryIdentity!),
@@ -120,7 +129,7 @@ public class ScopedUser : IScopedUser
     {
         Authenticated = false;
         PrimaryIdentity = null;
-        ExemptionScheme = string.Empty;
+        Exemption = null;
         ClaimsByType = DefaultClaimsByType;
         IdClaim = null;
         NameClaim = null;
@@ -130,6 +139,18 @@ public class ScopedUser : IScopedUser
         RoleClaim = null;
     }
 
-    internal void SetExemptionScheme(string exemptionScheme) => ExemptionScheme = exemptionScheme;
-    internal bool HasExemptionScheme => Authenticated && !string.IsNullOrWhiteSpace(ExemptionScheme);
+    internal void SetExemption(string? exemptionScheme, ClaimsPrincipal? exemptionPrincipal = null)
+    {
+        if (string.IsNullOrWhiteSpace(exemptionScheme) ||
+            exemptionPrincipal == null ||
+            !exemptionPrincipal.Identities.Any(AuthenticationFor.IsAuthenticated))
+        {
+            Exemption = null;
+            return;
+        }
+
+        Exemption = new ExemptionProof(exemptionScheme, exemptionPrincipal);
+    }
+
+    public bool HasExemptionScheme => Exemption != null;
 }

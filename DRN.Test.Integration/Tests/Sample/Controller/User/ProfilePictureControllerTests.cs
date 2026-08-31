@@ -15,7 +15,10 @@ public class ProfilePictureControllerTests
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         var identity = Get.Endpoint.User.Identity;
-        var endpoints = new AuthenticationEndpoints(identity.LoginController.Login.RoutePattern!, identity.RegisterController.Register.RoutePattern!);
+        var endpoints = new AuthenticationEndpoints(
+            identity.LoginController.Login.RoutePattern!,
+            identity.RegisterController.Register.RoutePattern!,
+            identity.ManagementController.TwoFactorAuth.RoutePattern!);
         var currentCredentials = CredentialsProvider.GenerateCredentials();
         var currentUser = await AuthenticationHelper.AuthenticateClientAsync(client, currentCredentials, endpoints);
         using var scope = context.CreateScope();

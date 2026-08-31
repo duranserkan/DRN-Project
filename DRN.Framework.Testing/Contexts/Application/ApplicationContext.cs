@@ -1,21 +1,19 @@
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
+using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NLog;
 using NLog.Config;
-using NLog.Targets;
 using NLog.Web;
 using LogLevel = NLog.LogLevel;
 
-namespace DRN.Framework.Testing.Contexts;
+namespace DRN.Framework.Testing.Contexts.Application;
 
 public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
 {
@@ -29,18 +27,13 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     /// </summary>
     public ApplicationContextRouterHandler RouterHandler { get; } = new();
 
-    internal static ITestOutputHelper? ResolveOutputHelper(ITestOutputHelper? supplied = null, bool debuggerOnly = true)
-    {
-        if (debuggerOnly && !Debugger.IsAttached)
-            return null;
-
-        return supplied ?? TestContext.Current.TestOutputHelper;
-    }
+    internal static ITestOutputHelper? ResolveOutputHelper(ITestOutputHelper? supplied = null, bool debuggerOnly = true) =>
+        ApplicationContextHelper.ResolveOutputHelper(supplied, debuggerOnly);
 
     public WebApplicationFactory<TEntryPoint> CreateApplication<TEntryPoint>(
         Action<IWebHostBuilder>? webHostConfigurator = null,
         params string[] additionalAddresses)
-        where TEntryPoint : class
+        where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()
     {
         var outputHelper = ResolveOutputHelper();
         return CreateApplicationCore<TEntryPoint>(outputHelper, webHostConfigurator, additionalAddresses);
@@ -50,7 +43,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     /// Creates an application and registers custom service names or address aliases in the in-memory router.
     /// </summary>
     public WebApplicationFactory<TEntryPoint> CreateApplicationForService<TEntryPoint>(string serviceName, params string[] additionalServiceNames)
-        where TEntryPoint : class
+        where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()
     {
         string[] allAddresses = [serviceName, .. additionalServiceNames];
         return CreateApplication<TEntryPoint>(webHostConfigurator: null, additionalAddresses: allAddresses);
@@ -60,7 +53,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
         ITestOutputHelper? outputHelper,
         Action<IWebHostBuilder>? webHostConfigurator = null,
         IEnumerable<string>? additionalAddresses = null)
-        where TEntryPoint : class
+        where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()
     {
         DisposeFactory(typeof(TEntryPoint));
 
@@ -143,7 +136,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
 
         var extraAddresses = new List<string>(additionalAddresses ?? []);
         var config = testContext.BuildConfigurationRoot();
-        DiscoverConfiguredAddresses(config, typeof(TEntryPoint), extraAddresses);
+        ApplicationContextHelper.DiscoverConfiguredAddresses(config, typeof(TEntryPoint), extraAddresses);
 
         RouterHandler.Register(typeof(TEntryPoint), () => factory.Server.CreateHandler(), extraAddresses);
 
@@ -153,91 +146,15 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     internal void RegisterConfiguredAddresses(Type entryPointType, IConfiguration configuration)
     {
         var addresses = new List<string>();
-        DiscoverConfiguredAddresses(configuration, entryPointType, addresses);
+        ApplicationContextHelper.DiscoverConfiguredAddresses(configuration, entryPointType, addresses);
         foreach (var address in addresses)
             RouterHandler.RegisterAddress(address, entryPointType);
     }
 
-    private static readonly string[] AddressSuffixes = ["Address", "Url", "Uri"];
-
-    private static void DiscoverConfiguredAddresses(IConfiguration configuration, Type entryPointType, List<string> addresses)
-    {
-        var typeName = entryPointType.Name;
-        var shortName = GetShortName(typeName);
-
-        var kestrelEndpoints = configuration.GetSection("Kestrel:Endpoints");
-        if (kestrelEndpoints.Exists())
-        {
-            foreach (var endpoint in kestrelEndpoints.GetChildren())
-            {
-                var url = endpoint["Url"];
-                if (!string.IsNullOrWhiteSpace(url))
-                    addresses.Add(url);
-            }
-        }
-
-        foreach (var kvp in configuration.AsEnumerable())
-        {
-            if (string.IsNullOrWhiteSpace(kvp.Value))
-                continue;
-
-            var key = kvp.Key;
-            var isAddressKey = key.EndsWith("Address", StringComparison.OrdinalIgnoreCase) ||
-                               key.EndsWith("Url", StringComparison.OrdinalIgnoreCase) ||
-                               key.EndsWith("Uri", StringComparison.OrdinalIgnoreCase);
-
-            if (!isAddressKey)
-                continue;
-
-            var segments = key.Split(':');
-            if (MatchesAddressKey(segments, typeName, shortName))
-                addresses.Add(kvp.Value);
-        }
-    }
-
-    private static bool MatchesAddressKey(string[] segments, string typeName, string shortName)
-    {
-        if (segments.Length == 0)
-            return false;
-
-        var leaf = segments[^1];
-        if (MatchesAddressSegment(leaf, typeName, shortName))
-            return true;
-
-        if (segments.Length > 1 && AddressSuffixes.Any(suffix => leaf.Equals(suffix, StringComparison.OrdinalIgnoreCase)))
-        {
-            var parent = segments[^2];
-            return IsExactMatch(parent, typeName, shortName);
-        }
-
-        return false;
-    }
-
-    private static bool MatchesAddressSegment(string segment, string typeName, string shortName)
-    {
-        foreach (var suffix in AddressSuffixes)
-        {
-            if (segment.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) && segment.Length > suffix.Length)
-            {
-                var prefix = segment[..^suffix.Length];
-                if (IsExactMatch(prefix, typeName, shortName))
-                    return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool IsExactMatch(string value, string typeName, string shortName) =>
-        value.Equals(typeName, StringComparison.OrdinalIgnoreCase) ||
-        (!string.IsNullOrEmpty(shortName) && value.Equals(shortName, StringComparison.OrdinalIgnoreCase));
-
-    private static string GetShortName(string typeName) => ApplicationContextRouterHandler.GetShortName(typeName);
-
     /// <summary>
     /// Explicitly maps a hostname, port, or base URL to a registered application's in-memory <see cref="HttpMessageHandler"/>.
     /// </summary>
-    public void MapAddress<TEntryPoint>(string address) where TEntryPoint : class =>
+    public void MapAddress<TEntryPoint>(string address) where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new() =>
         RouterHandler.RegisterAddress(address, typeof(TEntryPoint));
 
     /// <summary>
@@ -251,7 +168,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     /// </summary>
     public async Task<WebApplicationFactory<TEntryPoint>> CreateApplicationAndBindDependenciesAsync<TEntryPoint>(
         ITestOutputHelper? outputHelper = null,
-        params string[] additionalAddresses) where TEntryPoint : class
+        params string[] additionalAddresses) where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()
     {
         var resolvedOutputHelper = ResolveOutputHelper(outputHelper);
         var application = CreateApplicationCore<TEntryPoint>(resolvedOutputHelper, additionalAddresses: additionalAddresses);
@@ -266,7 +183,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     /// </summary>
     public async Task<WebApplicationFactory<TEntryPoint>> CreateApplicationAndBindDependenciesForServiceAsync<TEntryPoint>(
         string serviceName,
-        params string[] additionalServiceNames) where TEntryPoint : class
+        params string[] additionalServiceNames) where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()
     {
         string[] allAddresses = [serviceName, .. additionalServiceNames];
         return await CreateApplicationAndBindDependenciesAsync<TEntryPoint>(outputHelper: null, additionalAddresses: allAddresses);
@@ -279,7 +196,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     public async Task<HttpClient> CreateClientAsync<TEntryPoint>(
         ITestOutputHelper? outputHelper = null,
         WebApplicationFactoryClientOptions? clientOptions = null,
-        params string[] additionalAddresses) where TEntryPoint : class
+        params string[] additionalAddresses) where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()
     {
         clientOptions ??= new WebApplicationFactoryClientOptions();
         clientOptions.BaseAddress = new Uri(TestEnvironment.TestContextAddress);
@@ -295,13 +212,13 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     /// </summary>
     public async Task<HttpClient> CreateClientForServiceAsync<TEntryPoint>(
         string serviceName,
-        params string[] additionalServiceNames) where TEntryPoint : class
+        params string[] additionalServiceNames) where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()
     {
         string[] allAddresses = [serviceName, .. additionalServiceNames];
         return await CreateClientAsync<TEntryPoint>(outputHelper: null, clientOptions: null, additionalAddresses: allAddresses);
     }
 
-    public WebApplicationFactory<TEntryPoint>? GetCreatedApplication<TEntryPoint>() where TEntryPoint : class
+    public WebApplicationFactory<TEntryPoint>? GetCreatedApplication<TEntryPoint>() where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()
         => _factories.TryGetValue(typeof(TEntryPoint), out var factory) && factory is WebApplicationFactory<TEntryPoint> application
             ? application
             : null;
@@ -310,7 +227,7 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
 
     internal bool HasCreatedApplication => _factories.Count > 0;
 
-    internal void UseApplicationFactory<TEntryPoint>(IDisposable factory) where TEntryPoint : class
+    internal void UseApplicationFactory<TEntryPoint>(IDisposable factory) where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()
         => _factories[typeof(TEntryPoint)] = factory;
 
     private void DisposeFactory(Type type)
@@ -383,192 +300,5 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
             ExceptionDispatchInfo.Capture(exceptions[0]).Throw();
         if (exceptions.Count > 1)
             throw new AggregateException("One or more errors occurred during ApplicationContext disposal.", exceptions);
-    }
-}
-
-public class DrnWebApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntryPoint>
-    where TEntryPoint : class
-{
-    private readonly DrnTestContext _context;
-    private readonly Action<IWebHostBuilder>? _webHostConfigurator;
-
-    public DrnWebApplicationFactory(DrnTestContext context, bool temporary = false)
-        : this(context, temporary, null)
-    {
-    }
-
-    internal DrnWebApplicationFactory(
-        DrnTestContext context,
-        bool temporary,
-        Action<IWebHostBuilder>? webHostConfigurator)
-    {
-        _context = context;
-        Temporary = temporary;
-        _webHostConfigurator = webHostConfigurator;
-    }
-
-    private bool Temporary { get; }
-
-    protected override void ConfigureWebHost(IWebHostBuilder builder) => _webHostConfigurator?.Invoke(builder);
-
-    protected override IHost CreateHost(IHostBuilder builder)
-    {
-        // Preserve WebApplicationFactory host setup while retaining a partially built host for failure cleanup.
-        var capturingBuilder = new CapturingHostBuilder(builder);
-        try
-        {
-            var host = base.CreateHost(capturingBuilder);
-            if (Temporary)
-                return new FailureSafeHost(host);
-
-            _context.UseApplicationServiceProvider(host.Services);
-            if (host.Services.GetService(typeof(IConfiguration)) is IConfiguration configuration)
-                _context.ApplicationContext.RegisterConfiguredAddresses(typeof(TEntryPoint), configuration);
-
-            return new FailureSafeHost(host);
-        }
-        catch (Exception hostException)
-        {
-            var host = capturingBuilder.Host;
-            if (host == null)
-                throw;
-
-            try
-            {
-                host.Dispose();
-            }
-            catch (Exception disposalException)
-            {
-                throw new AggregateException(hostException, disposalException);
-            }
-
-            throw;
-        }
-    }
-
-    private sealed class FailureSafeHost(IHost host) : IHost
-    {
-        private bool _disposedAfterStopFailure;
-        private bool _stopped;
-
-        public IServiceProvider Services => host.Services;
-
-        public Task StartAsync(CancellationToken cancellationToken = default) =>
-            host.StartAsync(cancellationToken);
-
-        public async Task StopAsync(CancellationToken cancellationToken = default)
-        {
-            if (_disposedAfterStopFailure || _stopped)
-                return;
-
-            _stopped = true;
-            try
-            {
-                await host.StopAsync(cancellationToken);
-            }
-            catch (Exception stopException)
-            {
-                try
-                {
-                    host.Dispose();
-                    _disposedAfterStopFailure = true;
-                }
-                catch (Exception disposalException)
-                {
-                    throw new AggregateException(stopException, disposalException);
-                }
-
-                throw;
-            }
-        }
-
-        public void Dispose()
-        {
-            if (!_disposedAfterStopFailure)
-                host.Dispose();
-        }
-    }
-
-    private sealed class CapturingHostBuilder(IHostBuilder builder) : IHostBuilder
-    {
-        public IHost? Host { get; private set; }
-        public IDictionary<object, object> Properties => builder.Properties;
-
-        public IHostBuilder ConfigureHostConfiguration(Action<IConfigurationBuilder> configureDelegate)
-        {
-            builder.ConfigureHostConfiguration(configureDelegate);
-            return this;
-        }
-
-        public IHostBuilder ConfigureAppConfiguration(
-            Action<HostBuilderContext, IConfigurationBuilder> configureDelegate)
-        {
-            builder.ConfigureAppConfiguration(configureDelegate);
-            return this;
-        }
-
-        public IHostBuilder ConfigureServices(Action<HostBuilderContext, IServiceCollection> configureDelegate)
-        {
-            builder.ConfigureServices(configureDelegate);
-            return this;
-        }
-
-        public IHostBuilder UseServiceProviderFactory<TContainerBuilder>(
-            IServiceProviderFactory<TContainerBuilder> factory) where TContainerBuilder : notnull
-        {
-            builder.UseServiceProviderFactory(factory);
-            return this;
-        }
-
-        public IHostBuilder UseServiceProviderFactory<TContainerBuilder>(
-            Func<HostBuilderContext, IServiceProviderFactory<TContainerBuilder>> factory)
-            where TContainerBuilder : notnull
-        {
-            builder.UseServiceProviderFactory(factory);
-            return this;
-        }
-
-        public IHostBuilder ConfigureContainer<TContainerBuilder>(
-            Action<HostBuilderContext, TContainerBuilder> configureDelegate)
-        {
-            builder.ConfigureContainer(configureDelegate);
-            return this;
-        }
-
-        public IHost Build() => Host = builder.Build();
-    }
-}
-
-// Custom NLog target for writing to ITestOutputHelper
-public sealed class TestOutputTarget : TargetWithLayout
-{
-    private readonly ITestOutputHelper _testOutputHelper;
-
-    public TestOutputTarget(ITestOutputHelper testOutputHelper, string? testName = null)
-    {
-        _testOutputHelper = testOutputHelper ?? throw new ArgumentNullException(nameof(testOutputHelper));
-        Name = "testOutput";
-        var testTag = !string.IsNullOrWhiteSpace(testName) ? $" :: {testName}" : string.Empty;
-        Layout =
-            $$"""
-              [BEGIN ${date:format=HH\:mm\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}{{testTag}}]
-              ${message}
-              [END ${date:format=HH\:mm\:ss.fffffff} ${level:format=Name:padding=-3:uppercase=true} ${logger}{{testTag}}]${newline}
-              """;
-    }
-
-    protected override void Write(LogEventInfo logEvent)
-    {
-        try
-        {
-            var logMessage = RenderLogEvent(Layout, logEvent);
-            _testOutputHelper.WriteLine(logMessage);
-        }
-        catch (Exception ex)
-        {
-            // Avoid throwing exceptions from logging infrastructure
-            // In test scenarios, we might want to output to debug instead
-            Debug.WriteLine($"Failed to write to test output: {ex.Message}");
-        }
     }
 }

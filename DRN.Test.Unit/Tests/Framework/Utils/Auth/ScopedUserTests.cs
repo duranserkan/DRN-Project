@@ -124,6 +124,43 @@ public class ScopedUserTests
         scopedUser.GetClaimParameter<int>(ClaimType, NumericIssuer).Should().Be(42);
     }
 
+    [Fact]
+    public void ScopedUser_Should_Track_Exemption_Scheme_And_Principal()
+    {
+        var scopedUser = ScopedUser.FromClaimsPrincipal(new ClaimsPrincipal());
+        scopedUser.HasExemptionScheme.Should().BeFalse();
+        scopedUser.ExemptionScheme.Should().BeNull();
+        scopedUser.ExemptionPrincipal.Should().BeNull();
+
+        var certPrincipal = new ClaimsPrincipal(new ClaimsIdentity([new Claim("thumbprint", "abc")], "ClientCert"));
+        scopedUser.SetExemption("ClientCert", certPrincipal);
+
+        scopedUser.HasExemptionScheme.Should().BeTrue();
+        scopedUser.Exemption.Should().Be(new ExemptionProof("ClientCert", certPrincipal));
+        scopedUser.ExemptionScheme.Should().Be("ClientCert");
+        scopedUser.ExemptionPrincipal.Should().BeSameAs(certPrincipal);
+
+        var apiKeyPrincipal = new ClaimsPrincipal(new ClaimsIdentity([new Claim("key", "xyz")], "CustomApiKey"));
+        scopedUser.SetExemption("CustomApiKey", apiKeyPrincipal);
+
+        scopedUser.HasExemptionScheme.Should().BeTrue();
+        scopedUser.Exemption.Should().Be(new ExemptionProof("CustomApiKey", apiKeyPrincipal));
+        scopedUser.ExemptionScheme.Should().Be("CustomApiKey");
+        scopedUser.ExemptionPrincipal.Should().BeSameAs(apiKeyPrincipal);
+
+        scopedUser.SetExemption("UnauthenticatedScheme", new ClaimsPrincipal());
+        scopedUser.HasExemptionScheme.Should().BeFalse();
+        scopedUser.Exemption.Should().BeNull();
+        scopedUser.ExemptionScheme.Should().BeNull();
+        scopedUser.ExemptionPrincipal.Should().BeNull();
+
+        scopedUser.SetExemption(null);
+        scopedUser.HasExemptionScheme.Should().BeFalse();
+        scopedUser.Exemption.Should().BeNull();
+        scopedUser.ExemptionScheme.Should().BeNull();
+        scopedUser.ExemptionPrincipal.Should().BeNull();
+    }
+
     private static ScopedUser CreateScopedUser(params Claim[] claims) =>
         ScopedUser.FromClaimsPrincipal(new ClaimsPrincipal(new ClaimsIdentity(claims, authenticationType: "Test")));
 
@@ -183,6 +220,10 @@ public class ScopedUserTests
         public string? AuthenticationMethod => user.AuthenticationMethod;
         public ClaimGroup? AuthenticationMethodClaim => user.AuthenticationMethodClaim;
         public ClaimGroup? RoleClaim => user.RoleClaim;
+        public ExemptionProof? Exemption => user.Exemption;
+        public string? ExemptionScheme => user.ExemptionScheme;
+        public ClaimsPrincipal? ExemptionPrincipal => user.ExemptionPrincipal;
+        public bool HasExemptionScheme => user.HasExemptionScheme;
         public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType => user.ClaimsByType;
 
         public bool IsInRole(string role) => user.IsInRole(role);

@@ -1,6 +1,4 @@
-using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.Pages;
 

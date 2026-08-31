@@ -1,0 +1,7 @@
+{
+  "test-asset.txt": {
+    "file": "test-asset.txt",
+    "src": "test-asset.txt",
+    "isEntry": true
+  }
+}

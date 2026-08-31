@@ -1,8 +1,11 @@
 // This file is licensed to you under the MIT license.
 
+using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Identity.Services;
+using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.Scope;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
@@ -27,6 +30,8 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
     public abstract ApiEndpoint EmailEndpoint { get; }
 
     [HttpPost(nameof(TwoFactorAuth))]
+    [Authorize(AuthPolicy.MfaExempt)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(TwoFactorResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -34,10 +39,15 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
     {
         if (!ModelState.IsValid)
             return TypedResults.BadRequest();
-        
+
         var userManager = _signInManager.UserManager;
         if (await userManager.GetUserAsync(User) is not { } user)
             return TypedResults.NotFound();
+
+        // Initial enrollment is available to authenticated users; an enabled factor requires MFA to manage.
+        var isTwoFactorEnabled = await userManager.GetTwoFactorEnabledAsync(user);
+        if (isTwoFactorEnabled && !MfaFor.MfaCompleted)
+            return TypedResults.Challenge();
 
         if (tfaRequest.Enable == true)
         {
@@ -112,7 +122,7 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
     {
         if (!ModelState.IsValid)
             return TypedResults.BadRequest();
-        
+
         var userManager = _signInManager.UserManager;
         if (await userManager.GetUserAsync(User) is not { } user)
         {

@@ -1,6 +1,8 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Identity.Data;
 
@@ -18,7 +20,7 @@ public abstract class AuthenticationHelper<TProgram> : AuthenticationHelper wher
 
         if (TestUser != null)
         {
-            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {TestUser.Token}");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestUser.Token);
             return TestUser;
         }
 
@@ -50,7 +52,7 @@ public abstract class AuthenticationHelper
         };
 
         var token = await GetAccessTokenAsync(client, registerRequest, endpoints);
-        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         return new AuthenticatedUserModel
         {
@@ -63,15 +65,53 @@ public abstract class AuthenticationHelper
 
     public static async Task<string> GetAccessTokenAsync(HttpClient client, RegisterRequest registerRequest, AuthenticationEndpoints endpoints)
     {
+        if (string.IsNullOrWhiteSpace(endpoints.TwoFactorAuthUrl))
+            throw ExceptionFor.Validation($"{nameof(endpoints.TwoFactorAuthUrl)} can not be null or whitespace");
+
         await RegisterUserAsync(client, registerRequest, endpoints);
 
-        var responseMessage = await client.PostAsJsonAsync(endpoints.LoginUrl, registerRequest);
-        responseMessage.StatusCode.Should().Be(HttpStatusCode.OK);
+        var setupLoginResponse = await client.PostAsJsonAsync(endpoints.LoginUrl, new LoginRequest
+        {
+            Email = registerRequest.Email,
+            Password = registerRequest.Password
+        });
+        setupLoginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var tokenResponse = await responseMessage.Content.ReadFromJsonAsync<AccessTokenResponse>();
-        tokenResponse?.AccessToken.Should().NotBeNull();
+        var setupTokenResponse = await setupLoginResponse.Content.ReadFromJsonAsync<AccessTokenResponse>();
+        setupTokenResponse.Should().NotBeNull();
+        setupTokenResponse!.AccessToken.Should().NotBeNullOrWhiteSpace();
+        setupTokenResponse.RefreshToken.Should().BeEmpty();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", setupTokenResponse.AccessToken);
 
-        return tokenResponse?.AccessToken!;
+        var setupResponse = await client.PostAsJsonAsync(endpoints.TwoFactorAuthUrl, new TwoFactorRequest());
+        setupResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var twoFactorResponse = await setupResponse.Content.ReadFromJsonAsync<TwoFactorResponse>();
+        twoFactorResponse.Should().NotBeNull();
+        twoFactorResponse!.SharedKey.Should().NotBeNullOrWhiteSpace();
+
+        var twoFactorCode = TotpUtils.GenerateTotpCode(twoFactorResponse.SharedKey);
+        var enableResponse = await client.PostAsJsonAsync(endpoints.TwoFactorAuthUrl, new TwoFactorRequest
+        {
+            Enable = true,
+            TwoFactorCode = twoFactorCode
+        });
+        enableResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        client.DefaultRequestHeaders.Authorization = null;
+        var loginResponse = await client.PostAsJsonAsync(endpoints.LoginUrl, new LoginRequest
+        {
+            Email = registerRequest.Email,
+            Password = registerRequest.Password,
+            TwoFactorCode = TotpUtils.GenerateTotpCode(twoFactorResponse.SharedKey)
+        });
+        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var tokenResponse = await loginResponse.Content.ReadFromJsonAsync<AccessTokenResponse>();
+        tokenResponse.Should().NotBeNull();
+        tokenResponse!.AccessToken.Should().NotBeNullOrWhiteSpace();
+
+        return tokenResponse.AccessToken;
     }
 
     public static async Task RegisterUserAsync(HttpClient client, RegisterRequest registerRequest, AuthenticationEndpoints endpoints)
@@ -81,4 +121,4 @@ public abstract class AuthenticationHelper
     }
 }
 
-public record AuthenticationEndpoints(string LoginUrl, string RegisterUrl);
+public record AuthenticationEndpoints(string LoginUrl, string RegisterUrl, string? TwoFactorAuthUrl = null);

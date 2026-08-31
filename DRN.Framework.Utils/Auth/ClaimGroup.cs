@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 
@@ -6,14 +5,14 @@ namespace DRN.Framework.Utils.Auth;
 
 public class ClaimGroup
 {
-    private readonly FrozenSet<Claim> _claims;
+    private readonly IReadOnlySet<Claim> _claims;
 
     public ClaimGroup(IReadOnlySet<Claim> claims, ClaimsIdentity primary)
     {
         IsSingleClaim = claims.Count == 1;
         Claim = claims.FirstOrDefault(c => c.Subject == primary) ?? claims.First();
         IsPrimaryClaim = Claim.Subject == primary;
-        _claims = claims.ToFrozenSet();
+        _claims = claims;
     }
 
     [JsonIgnore] public Claim Claim { get; }

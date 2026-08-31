@@ -1,9 +1,7 @@
-﻿using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
-using Microsoft.AspNetCore.Identity;
 
 namespace Sample.Hosted;
 
@@ -19,11 +17,8 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
         => Task.FromResult(builder.Services.AddSampleHostedServices(appSettings));
 
     protected override MfaRedirectionConfig ConfigureMFARedirection()
-        => new(Get.Page.User.Management.EnableAuthenticator, Get.Page.User.LoginWith2Fa,
-            Get.Page.User.Login, Get.Page.User.Logout, Get.Page.All);
-
-    //todo: Re-evaluate Identity bearer MFA semantics in isolation. Decide whether bearer should stay
-    // as an MFA exemption or satisfy MFA only through ambient ScopeContext.User.Amr.
-    protected override MfaExemptionConfig ConfigureMFAExemption()
-        => new() { ExemptAuthSchemes = [IdentityConstants.BearerScheme] };
+        => new(Get.Page.User.Management.EnableAuthenticator,
+            Get.Page.User.LoginWith2Fa,
+            Get.Page.User.Login,
+            Get.Page.User.Logout, Get.Page.All);
 }

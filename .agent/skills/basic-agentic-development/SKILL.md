@@ -1,7 +1,7 @@
 ---
 name: basic-agentic-development
 description: "Agentic development standards - Silent Partner Protocol, context economy, development loop (discovery, planning, execution, verification), and anti-patterns for efficient autonomous development. Keywords: agentic, ai-agent, development-loop, context-economy, autonomous, discovery, planning, execution, verification, anti-patterns, silent-partner"
-last-updated: 2026-08-02
+last-updated: 2026-09-03
 difficulty: basic
 tokens: ~1.5K
 ---
@@ -112,6 +112,9 @@ Capture only durable, generalizable insights discovered during the task into `AG
 | Creating, writing, or executing ad-hoc helper scripts/code without prior approval | Ad-hoc scripts are prohibited under the sync safety contract. For non-sync tasks, provide a detailed description (purpose, full content, exact commands, potential risks) and obtain explicit user approval before writing or executing any ad-hoc script or code |
 | Using namespaces/names from assumption | Verify with text search, outline/symbol inspection when supported, and `GlobalUsings.cs` |
 | Importing uninstalled libraries | Check `*.csproj`/`package.json` before using; ask user before adding |
+| Using runtime reflection for known internal/private members | Use `[UnsafeAccessor]` (`System.Runtime.CompilerServices`) for zero-overhead, AOT-safe direct access whenever the compile-time type is accessible |
+| Hacking environment checks for tests | Never branch on environment checks (e.g. `IsDevelopment()`) in library/app code to bypass invariants for tests; use explicit test flags (e.g. `TemporaryApplication`, `SkipValidation`) or dedicated test contexts instead |
+| Using obsolete or deprecated code | Never introduce deprecated or obsolete APIs, types, interfaces, or members (e.g. `[Obsolete]`, `ASPDEPR*`); always use modern, active framework primitives and never suppress deprecation diagnostics with `#pragma` or `[SuppressMessage]` |
 
 > **Name & Namespace Hallucination**: Never assume a namespace from folder structure. Always verify exact names with source files, project metadata, or search before using them.
 

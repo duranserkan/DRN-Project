@@ -31,6 +31,11 @@ public interface IScopedUser
     [JsonIgnore] ClaimGroup? RoleClaim { get; }
     bool IsInRole(string role);
 
+    [JsonIgnore] ExemptionProof? Exemption { get; }
+    [JsonIgnore] string? ExemptionScheme => Exemption?.Scheme;
+    [JsonIgnore] ClaimsPrincipal? ExemptionPrincipal => Exemption?.Principal;
+    bool HasExemptionScheme => Exemption != null;
+
     IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; }
 
     ClaimGroup? FindClaimGroup(string type);

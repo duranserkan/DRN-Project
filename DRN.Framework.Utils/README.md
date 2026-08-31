@@ -595,6 +595,8 @@ await response.Payload!.CopyToAsync(destination);
 
 `IScopedUser` exposes authenticated identity and claim state. Use `GetClaimParameter<TValue>` for typed claims; `ScopeContext.GetClaimParameter<TValue>` provides ambient access to the same contract.
 
+`MfaFor.MfaCompleted` evaluates the application-scoped `MfaClaimConfig` registered by DRN Hosting. The default `MfaClaimConfig.AspNetIdentity` matches `amr=mfa`; hosting applications can select another exact claim type/value for Keycloak or another identity provider. The lookup checks all values for the configured claim type on the authenticated scoped identity.
+
 `ScopeData` is separate caller-owned ambient storage and is not automatically copied into `IScopedLog`. Use `SetFlag` and typed `SetParameter` values for validated application data.
 
 ```csharp
@@ -631,6 +633,14 @@ Use `AppDataPathResult.GetPath(...)` for traversal-safe child paths.
 Unified API for binary-to-text encodings and model serialization-encoding.
 *   **Encodings**: Base64, Base64Url (Safe for URLs), Hex, and Utf8.
 *   **Integrated**: `model.Encode(ByteEncoding.Hex)` and `hexString.Decode<TModel>(ByteEncoding.Hex)`.
+
+`Base32Encoding` provides strict RFC 4648 Base32 encoding and decoding separately from `ByteEncoding`. Encoding produces canonical padded output by default and supports unpadded output for protocols such as authenticator shared keys. Decoding accepts canonical padded or unpadded input case-insensitively and rejects invalid lengths, padding, characters, and non-zero trailing bits.
+
+```csharp
+var encoded = Base32Encoding.Encode(bytes);
+var unpadded = Base32Encoding.Encode(bytes, includePadding: false);
+var decoded = Base32Encoding.Decode(unpadded);
+```
 
 ### AES-256 Single-Block Encryption (`Aes256`)
 

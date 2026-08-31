@@ -1,9 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
 using DotNet.Testcontainers.Containers;
 using DRN.Framework.Testing.Contexts.Postgres;
 using DRN.Framework.Testing.Contexts.RabbitMQ;
 
 namespace DRN.Framework.Testing.Contexts;
 
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public sealed class ContainerContext(DrnTestContext testContext) : IDisposable
 {
     private readonly List<DockerContainer> _isolatedContainers = [];

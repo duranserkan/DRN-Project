@@ -366,6 +366,7 @@ The defaults in this section apply to `AppBuilderType.DrnDefaults` when the base
 
 The framework sets the `FallbackPolicy` for the entire application to require a Multi-Factor Authentication session. 
 *   **Result**: Any new controller or page you add is **secure by default**. 
+*   **Policy Composition**: MFA is rechecked at the authorization middleware result boundary, so role-only attributes, direct policy metadata, and named policies cannot suppress global enforcement. Named policies retain their configured authentication schemes.
 *   **Opt-Out**: Use `[AllowAnonymous]` or `[Authorize(Policy = AuthPolicy.MfaExempt)]` for single-factor pages like Login or MFA Setup.
 
 ### 2. MFA Configuration
@@ -383,10 +384,32 @@ protected override MfaRedirectionConfig ConfigureMFARedirection()
         appPages: Get.Page.All
     );
 
+// Optional: use the MFA marker emitted by your identity provider.
+// The default is MfaClaimConfig.AspNetIdentity (amr=mfa).
+protected override MfaClaimConfig ConfigureMFAClaim()
+    => new("acr", "urn:example:authentication:mfa");
+
 // Exempt specific authentication schemes from MFA
 protected override MfaExemptionConfig ConfigureMFAExemption()
     => new() { ExemptAuthSchemes = ["ApiKey", "Certificate"] };
 ```
+
+`ConfigureMFAClaim` applies to authorization enforcement, MFA redirection, `authorized-only` rendering, and `MfaFor.MfaCompleted`. Match the exact claim type and value produced by the authentication handler or token mapper. Multiple values under the configured claim type are supported. Configuration is application-scoped, so concurrently hosted applications can use different identity providers without sharing mutable global state.
+
+#### Identity API MFA Setup Flow
+
+When the default authorization policy enforces MFA and a password-valid user has not enabled two-factor authentication, `IdentityLoginControllerBase.Login` issues a five-minute credential marked `MfaSetupRequired`:
+
+*   **Cookie requests**: Return an empty HTTP 200 response and set a non-persistent cookie with refresh disabled.
+*   **Bearer requests**: Return an HTTP 200 `AccessTokenResponse` containing the setup access token, `ExpiresIn = 300`, and an empty `RefreshToken`.
+
+Use that credential with `IdentityManagementControllerBase.TwoFactorAuth` to retrieve the authenticator shared key and enable two-factor authentication with a valid code. After enrollment, discard the setup credential and call `Login` again with the authenticator or recovery code to obtain a completed MFA session.
+
+An `MfaSetupRequired` credential never satisfies an MFA requirement, including when it also carries the configured completed-MFA claim or when its cookie or bearer authentication scheme appears in `ConfigureMFAExemption`. Scheme exemptions continue to apply to other authenticated credentials from that scheme.
+
+When the application does not enforce MFA globally, an authenticated user without two-factor authentication can call `TwoFactorAuth` with the ordinary login credential to opt in. After two-factor authentication is enabled, `TwoFactorAuth` requires a completed MFA session for subsequent management operations.
+
+Only `TwoFactorAuth` is decorated with `[Authorize(AuthPolicy.MfaExempt)]`. Other identity management operations, including `GetInfo` and `PostInfo`, use the application's default or fallback authorization policy and therefore require completed MFA under the default configuration.
 
 ### Disabling MFA Entirely
 

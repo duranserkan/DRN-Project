@@ -17,6 +17,7 @@ using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Auth;
+using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.DependencyInjection;
@@ -95,6 +96,7 @@ public interface IDrnProgram
 /// <li><a href="https://andrewlock.net/running-async-tasks-on-app-startup-in-asp-net-core-part-1">Running async tasks at startup</a></li>
 /// <li><a href="https://stackoverflow.com/questions/57846127/what-are-the-differences-between-app-userouting-and-app-useendpoints">UseRouting vs. UseEndpoints</a></li>
 /// </summary>
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public abstract class DrnProgramBase<TProgram> : DrnProgram
     where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
@@ -221,10 +223,20 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         }
     }
 
-    public static async Task<WebApplication> CreateApplicationAsync(string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
+    public static Task<WebApplication> CreateApplicationAsync(
+        string[]? args,
+        IAppSettings appSettings,
+        IScopedLog scopeLog) =>
+        CreateApplicationAsync(args, appSettings, scopeLog, null);
+
+    public static async Task<WebApplication> CreateApplicationAsync(
+        string[]? args,
+        IAppSettings appSettings,
+        IScopedLog scopeLog,
+        Action<WebApplicationBuilder>? configureBuilder)
     {
         var actions = GetApplicationAssembly().CreateSubType<DrnProgramActions>();
-        var (program, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopeLog);
+        var (program, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopeLog, configureBuilder);
         await (actions?.ApplicationBuilderCreatedAsync(program, applicationBuilder, appSettings, scopeLog) ?? Task.CompletedTask);
 
         var application = applicationBuilder.Build();
@@ -242,7 +254,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         return application;
     }
 
-    private static async Task<(TProgram program, WebApplicationBuilder applicationBuilder)> CreateApplicationBuilder(string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
+    private static async Task<(TProgram program, WebApplicationBuilder applicationBuilder)> CreateApplicationBuilder(
+        string[]? args,
+        IAppSettings appSettings,
+        IScopedLog scopeLog,
+        Action<WebApplicationBuilder>? configureBuilder = null)
     {
         var program = new TProgram();
         var options = new WebApplicationOptions
@@ -258,6 +274,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
         program.ConfigureApplicationBuilder(applicationBuilder, appSettings);
         await program.AddServicesAsync(applicationBuilder, appSettings, scopeLog);
+        configureBuilder?.Invoke(applicationBuilder);
         return (program, applicationBuilder);
     }
 
@@ -269,6 +286,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         ConfigureWebHostBuilder(appSettings, applicationBuilder.WebHost);
 
         var services = applicationBuilder.Services;
+        services.AddSingleton(ConfigureMFAClaim());
         services.AddDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
         services.AddSingleton<IEndpointAccessor>(sp =>
         {
@@ -328,7 +346,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             loggingBuilder.AddConfiguration(loggingSection);
 
         loggingBuilder.ClearProviders();
-        loggingBuilder.AddNLogWeb(CreateLogFactory(appSettings), NLogOptions);
+        if (appSettings.TryGetSection(NlogConfigSectionName, out _))
+            loggingBuilder.AddNLogWeb(CreateLogFactory(appSettings), NLogOptions);
     }
 
     protected virtual IWebHostBuilder ConfigureWebHostBuilder(IAppSettings appSettings, ConfigureWebHostBuilder webHostBuilder) =>
@@ -367,8 +386,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
         MapApplicationEndpoints(application, appSettings);
 
-        var viteManifest = application.Services.GetRequiredService<IViteManifest>();
-        _ = viteManifest.GetAllManifestItems();
+        if (appSettings.DevelopmentSettings is { SkipValidation: false, TemporaryApplication: false })
+        {
+            var viteManifest = application.Services.GetRequiredService<IViteManifest>();
+            _ = viteManifest.GetAllManifestItems();
+        }
     }
 
     /// <summary>
@@ -900,6 +922,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     protected virtual MfaExemptionConfig? ConfigureMFAExemption() => null;
 
     /// <summary>
+    /// Configures the claim that proves a completed MFA session.
+    /// </summary>
+    protected virtual MfaClaimConfig ConfigureMFAClaim() => MfaClaimConfig.AspNetIdentity;
+
+    /// <summary>
     /// Configures authorization policies and default behaviors for the application.
     /// </summary>
     /// <param name="options">The <see cref="AuthorizationOptions"/> to configure.</param>
@@ -1039,9 +1066,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     protected virtual void ValidateEndpoints(WebApplication application, IAppSettings appSettings)
     {
         if (appSettings.DevelopmentSettings.TemporaryApplication) return;
+
         // We don't know if user code called UseEndpoints(), so we will call it just in case, UseEndpoints() will ignore duplicate DataSources
         application.UseEndpoints(_ => { });
-
         var helper = application.Services.GetRequiredService<IEndpointHelper>();
         EndpointCollectionBase<TProgram>.SetEndpointDataSource(helper);
     }

@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 
-namespace DRN.Framework.Testing.Contexts;
+namespace DRN.Framework.Testing.Contexts.Application;
 
 /// <summary>
 /// Routes HTTP requests across multiple in-memory applications hosted in <see cref="ApplicationContext"/>.
@@ -192,11 +192,9 @@ public sealed class ApplicationContextRouterHandler : HttpMessageHandler
 
     private HttpMessageHandler ResolveTypeHandler(Type entryPointType)
     {
-        if (_typeHandlers.TryGetValue(entryPointType, out var handler))
-            return handler();
-
-        throw new InvalidOperationException(
-            $"Application '{entryPointType.Name}' is mapped to an address but has not been created in ApplicationContext.");
+        return _typeHandlers.TryGetValue(entryPointType, out var handler)
+            ? handler()
+            : throw new InvalidOperationException($"Application '{entryPointType.Name}' is mapped to an address but has not been created in ApplicationContext.");
     }
 
     /// <summary>

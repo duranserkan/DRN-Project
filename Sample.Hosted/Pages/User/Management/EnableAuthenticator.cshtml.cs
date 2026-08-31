@@ -2,14 +2,12 @@ using System.ComponentModel.DataAnnotations;
 using System.Text;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Utils.Auth.MFA;
-using DRN.Framework.Utils.Scope;
 using Flurl;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using QRCoder;
 using Sample.Domain.Users;
 using Sample.Hosted.Extensions;
-using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.Pages.User.Management;
 

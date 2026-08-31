@@ -1,6 +1,8 @@
+using System.Collections.Frozen;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Scope;
 using Flurl;
 using Microsoft.AspNetCore.Http;
 
@@ -59,7 +61,7 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
         if (httpContext.Request.Query.Count > 0)
             foreach (var pair in httpContext.Request.Query)
             {
-                foreach (var parameterValue in pair.Value.ToArray())
+                foreach (var parameterValue in pair.Value)
                     returnUrl.SetQueryParam(pair.Key, parameterValue);
             }
 
@@ -80,7 +82,7 @@ public class MfaRedirectionOptions
     public string MfaSetupUrl { get; internal set; } = string.Empty;
     public string LoginUrl { get; internal set; } = string.Empty;
     public string LogoutUrl { get; internal set; } = string.Empty;
-    public HashSet<string> AppPages { get; internal set; } = new(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlySet<string> AppPages { get; internal set; } = FrozenSet<string>.Empty;
 
     internal void MapFromConfig(MfaRedirectionConfig config)
     {
@@ -88,13 +90,16 @@ public class MfaRedirectionOptions
         MfaSetupUrl = config.MfaSetupUrl;
         LoginUrl = config.LoginUrl;
         LogoutUrl = config.LogoutUrl;
-        AppPages = config.AppPages;
+        AppPages = config.AppPages.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
     ///  If not in redirection list let it go
     /// </summary>
-    public bool RedirectionNotNeeded(string requestPath) => MfaFor.MfaCompleted || !AppPages.Contains(requestPath);
+    public bool RedirectionNotNeeded(string requestPath) =>
+        MfaFor.MfaCompleted ||
+        ScopeContext.User.HasExemptionScheme ||
+        !AppPages.Contains(requestPath);
 
     public bool IsMfaLoginUrl(string requestPath) => requestPath.Equals(MfaLoginUrl, StringComparison.OrdinalIgnoreCase);
     public bool IsMfaSetupUrl(string requestPath) => requestPath.Equals(MfaSetupUrl, StringComparison.OrdinalIgnoreCase);

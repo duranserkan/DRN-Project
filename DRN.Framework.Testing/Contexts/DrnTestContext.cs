@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using DRN.Framework.Testing.Contexts.Application;
 using DRN.Framework.Testing.Contexts.Startup;
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
@@ -17,6 +19,7 @@ namespace DRN.Framework.Testing.Contexts;
 /// Test context that contains a slim Service Collection so that you can add your dependencies and build a service provider.
 /// It disposes itself automatically at the end of the test.
 /// </summary>
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DrnTestContext : IDisposable, IKeyedServiceProvider
 {
     static DrnTestContext() => UtilsConventionBuilder.BuildConvention();
@@ -222,7 +225,7 @@ public class DrnTestContext : IDisposable, IKeyedServiceProvider
         if (exceptions.Count > 0)
             throw new AggregateException("One or more errors occurred during test context disposal.", exceptions);
     }
-    
+
     private static void SafeExecute(Action action, List<Exception> exceptions)
     {
         try

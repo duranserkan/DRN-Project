@@ -37,7 +37,6 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **IgnoredLog Null Handling**: `IgnoredLog(this object? obj)` returns `false` when given `null` input instead of throwing a `NullReferenceException`.
 *   **Pagination Jump Direction**: Bounded page jumps preserve the requested direction while remaining limited to ten pages per request, preventing integer underflow in `PaginationRequest.From`.
-*   **Roslyn Analyzer Build & Cancellation Safety**: Roslyn analyzers now pass cancellation tokens to `GetSyntax` calls, and the analyzer build target isolates compilation from consumer Runtime Identifier (RID) properties.
 
 ## Version 0.9.8
 

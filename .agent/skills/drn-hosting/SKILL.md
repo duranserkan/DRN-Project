@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-07-29
+last-updated: 2026-09-02
 difficulty: advanced
 tokens: ~3K
 ---
@@ -90,10 +90,18 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 | `ValidateServicesAsync()` | DI validation |
 | `ConfigureMFARedirection()` | MFA page configuration |
 | `ConfigureMFAExemption()` | Route-specific MFA exemption config |
+| `ConfigureMFAClaim()` | Completed-MFA claim type/value; defaults to ASP.NET Core Identity `amr=mfa` |
 
 **Execution order**: Builder Phase → `builder.Build()` → Pipeline Phase → `ValidateEndpoints()` → `ValidateServicesAsync()` → `ApplicationValidatedAsync()` → `application.StartAsync()` → `application.WaitForShutdownAsync()`
 
 Temporary applications skip `ValidateEndpoints()` and endpoint-accessor population, enter `ValidateServicesAsync()` (which honors `SkipValidation`), run `ApplicationValidatedAsync()`, and return before `StartAsync()`.
+
+### Environment Hierarchy & Testing Invariants
+
+- **`Development`**: Configured for local development with convenience defaults, not hacks.
+- **`Staging`**: Stricter operational defaults.
+- **`Production`**: Most strict security and operational defaults.
+- **No Environment Hacking**: Do not weaken runtime invariants by branching on `environment.IsDevelopment()` to accommodate tests or mock missing assets. Use explicit `DrnDevelopmentSettings:TemporaryApplication` and `DrnDevelopmentSettings:SkipValidation` flags when configuring test hosts.
 
 ### Advanced Startup (`DrnProgramActions`)
 
@@ -131,7 +139,9 @@ public class SampleProgramActions : DrnProgramActions
 
 ### MFA by Default
 
-MFA enforced globally via `FallbackPolicy`. Any route not opted-out requires MFA.
+MFA is enforced globally via the default/fallback policies and rechecked at the authorization middleware result boundary. Role-only attributes, direct policy metadata, and named policies cannot suppress global enforcement; named policies retain their configured authentication schemes. Any route not opted out requires MFA.
+
+The completed-MFA marker is provider-neutral and application-scoped. Override `ConfigureMFAClaim()` with the exact claim type and value emitted by the authentication handler or token mapper; the default is `MfaClaimConfig.AspNetIdentity` (`amr=mfa`). Enforcement, MFA redirection, `authorized-only` rendering, and `MfaFor.MfaCompleted` share this configuration. A setup credential remains rejected even if it also contains the completed-MFA claim.
 
 ```csharp
 // Opt-out options:

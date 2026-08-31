@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.Configurations;
@@ -11,6 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DRN.Framework.Testing.Contexts;
 
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class DrnTestContextUnit : IDisposable, IKeyedServiceProvider
 {
     static DrnTestContextUnit() => UtilsConventionBuilder.BuildConvention();
@@ -112,10 +114,10 @@ public class DrnTestContextUnit : IDisposable, IKeyedServiceProvider
     {
         var configurationSource = new MemoryConfigurationSource
         {
-            InitialData = new[]
-            {
+            InitialData =
+            [
                 new KeyValuePair<string, string?>(key, value)
-            }
+            ]
         };
         AddToConfiguration(configurationSource);
     }
@@ -157,26 +159,25 @@ public class DrnTestContextUnit : IDisposable, IKeyedServiceProvider
         if (_disposed) return;
         _disposed = true;
 
-        if (disposing)
+        if (!disposing)
+            return;
+
+        var exceptions = new List<Exception>();
+        try { DisposeServiceProvider(); }
+        catch (Exception ex) { exceptions.Add(ex); }
+
+        try
         {
-            var exceptions = new List<Exception>();
+            if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
+        }
+        catch (Exception ex) { exceptions.Add(ex); }
 
-            try { DisposeServiceProvider(); }
-            catch (Exception ex) { exceptions.Add(ex); }
+        try { MethodContext.DeleteTempPath(); }
+        catch (Exception ex) { exceptions.Add(ex); }
 
-            try
-            {
-                if (!ServiceCollection.IsReadOnly) ServiceCollection = [];
-            }
-            catch (Exception ex) { exceptions.Add(ex); }
-
-            try { MethodContext.DeleteTempPath(); }
-            catch (Exception ex) { exceptions.Add(ex); }
-
-            if (exceptions.Count > 0)
-            {
-                throw new AggregateException("One or more errors occurred during test context disposal.", exceptions);
-            }
+        if (exceptions.Count > 0)
+        {
+            throw new AggregateException("One or more errors occurred during test context disposal.", exceptions);
         }
     }
 }

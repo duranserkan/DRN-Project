@@ -10,29 +10,37 @@ public class MfaEnforcingAuthorizationPolicyProvider(IOptions<AuthorizationOptio
 {
     private readonly DefaultAuthorizationPolicyProvider _policyProvider = new(options);
     private readonly AuthorizationOptions _options = options.Value;
+    private readonly bool _enforceMFA = MfaAuthorization.IsMfaEnforced(options.Value);
 
     public Task<AuthorizationPolicy> GetDefaultPolicyAsync() => Task.FromResult(_options.DefaultPolicy);
     public Task<AuthorizationPolicy?> GetFallbackPolicyAsync() => _policyProvider.GetFallbackPolicyAsync();
 
     public async Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
     {
-        // If the requested policy is the exemption policy, return it without combining
-        if (policyName == AuthPolicy.MfaExempt)
-            return await _policyProvider.GetPolicyAsync(policyName);
-
         var policy = await _policyProvider.GetPolicyAsync(policyName);
-        if (policy == null) return null;
+        if (policy == null)
+            return null;
+
+        if (!_enforceMFA || MfaAuthorization.IsPolicyMfaExempt(policy))
+            return policy;
 
         var defaultPolicy = await GetDefaultPolicyAsync();
-        var enforceMFA = defaultPolicy.Requirements.Count(r => r.GetType() == typeof(MfaRequirement)) == 1;
-        if (!enforceMFA) return policy;
+        var builder = new AuthorizationPolicyBuilder();
 
-        var combinedPolicy = new AuthorizationPolicyBuilder()
-            .AddRequirements(defaultPolicy.Requirements.ToArray())
-            .AddRequirements(policy.Requirements.ToArray())
-            .Build();
+        if (policy.AuthenticationSchemes.Count > 0)
+            foreach (var scheme in policy.AuthenticationSchemes)
+                builder.AuthenticationSchemes.Add(scheme);
+        else
+            foreach (var scheme in defaultPolicy.AuthenticationSchemes)
+                builder.AuthenticationSchemes.Add(scheme);
 
-        return combinedPolicy;
+        foreach (var requirement in policy.Requirements)
+            builder.Requirements.Add(requirement);
 
+        foreach (var requirement in defaultPolicy.Requirements)
+            if (!builder.Requirements.Contains(requirement))
+                builder.Requirements.Add(requirement);
+
+        return builder.Build();
     }
 }
