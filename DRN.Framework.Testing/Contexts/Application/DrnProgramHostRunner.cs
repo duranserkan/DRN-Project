@@ -20,6 +20,7 @@ internal sealed class DrnProgramHostRunner<TProgram>
 {
     public IHost BuildHost(
         DrnTestContext testContext,
+        List<Action<IConfigurationBuilder>> hostConfigs,
         List<Action<HostBuilderContext, IConfigurationBuilder>> appConfigs,
         List<Action<HostBuilderContext, IServiceCollection>> servicesConfigs,
         IDictionary<object, object> properties)
@@ -27,6 +28,9 @@ internal sealed class DrnProgramHostRunner<TProgram>
         var configBuilder = new ConfigurationBuilder();
         configBuilder.AddDrnSettings(typeof(TProgram).GetAssemblyName(), []);
         configBuilder.AddConfiguration(testContext.BuildConfigurationRoot());
+
+        foreach (var hostConfig in hostConfigs)
+            hostConfig(configBuilder);
 
         var webRootPath = ApplicationContextHelper.ResolveWebRootPath(typeof(TProgram));
         var hasWebRoot = !string.IsNullOrEmpty(webRootPath);

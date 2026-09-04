@@ -92,12 +92,17 @@ public class DrnWebApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntr
         DrnTestContext context) : IHostBuilder
         where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
     {
+        private readonly List<Action<IConfigurationBuilder>> _configureHostConfigs = [];
         private readonly List<Action<HostBuilderContext, IServiceCollection>> _configureServices = [];
         private readonly List<Action<HostBuilderContext, IConfigurationBuilder>> _configureAppConfigs = [];
 
         public IDictionary<object, object> Properties { get; } = new Dictionary<object, object>();
 
-        public IHostBuilder ConfigureHostConfiguration(Action<IConfigurationBuilder> configureDelegate) => this;
+        public IHostBuilder ConfigureHostConfiguration(Action<IConfigurationBuilder> configureDelegate)
+        {
+            _configureHostConfigs.Add(configureDelegate);
+            return this;
+        }
 
         public IHostBuilder ConfigureAppConfiguration(Action<HostBuilderContext, IConfigurationBuilder> configureDelegate)
         {
@@ -120,6 +125,7 @@ public class DrnWebApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntr
             var runner = new DrnProgramHostRunner<TProgram>();
             return runner.BuildHost(
                 context,
+                _configureHostConfigs,
                 _configureAppConfigs,
                 _configureServices,
                 Properties);

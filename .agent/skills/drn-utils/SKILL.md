@@ -418,6 +418,7 @@ private static extern void SetOnAfterPageActivated(RazorView view, Action<IRazor
 ```
 
 ### When to Use UnsafeAccessor vs Reflection
+
 - **Use `[UnsafeAccessor]`**: Whenever accessing non-public constructors, methods, properties, or fields of known/accessible types (including framework, ASP.NET Core, and library types). Note that `UnsafeAccessorKind.StaticMethod` requires the exact declaring type where the static method is defined (it does not traverse base types for static members).
 - **Use Reflection**: Only when target types or generic signatures cannot be determined at compile time (e.g. dynamically discovered types by assembly name/attribute scan, or inaccessible internal types of third-party assemblies without `InternalsVisibleTo`).
 

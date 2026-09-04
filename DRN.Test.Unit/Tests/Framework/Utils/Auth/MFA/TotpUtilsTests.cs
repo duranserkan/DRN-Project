@@ -41,4 +41,78 @@ public class TotpUtilsTests
         TotpUtils.VerifyTotpCode(Rfc6238Sha1SharedKeyBase32, code, nextTimeStep, allowedTimeStepDrift: 1, digits: 8).Should().BeTrue();
         TotpUtils.VerifyTotpCode(Rfc6238Sha1SharedKeyBase32, code, nextTimeStep, allowedTimeStepDrift: 0, digits: 8).Should().BeFalse();
     }
+
+    [Fact]
+    public void TotpUtils_Should_Generate_And_Verify_Six_Digit_Code_By_Default()
+    {
+        var timestamp = DateTimeOffset.FromUnixTimeSeconds(1_234_567_890);
+
+        var code = TotpUtils.GenerateTotpCode(Rfc6238Sha1SharedKeyBase32, timestamp);
+
+        code.Should().HaveLength(6);
+        code.All(char.IsAsciiDigit).Should().BeTrue();
+        TotpUtils.VerifyTotpCode(Rfc6238Sha1SharedKeyBase32, code, timestamp).Should().BeTrue();
+    }
+
+    [Theory]
+    [DataInlineUnit("12345")]
+    [DataInlineUnit("1234567")]
+    [DataInlineUnit("12345a")]
+    [DataInlineUnit("abcdef")]
+    public void TotpUtils_Should_Reject_Invalid_Code_Length_Or_Non_Digit_Characters(string invalidCode)
+    {
+        var timestamp = DateTimeOffset.FromUnixTimeSeconds(1_234_567_890);
+
+        TotpUtils.VerifyTotpCode(Rfc6238Sha1SharedKeyBase32, invalidCode, timestamp).Should().BeFalse();
+    }
+
+    [Theory]
+    [DataInlineUnit(5)]
+    [DataInlineUnit(9)]
+    public void TotpUtils_Should_Throw_When_Digits_Outside_Supported_Range(int invalidDigits)
+    {
+        var timestamp = DateTimeOffset.FromUnixTimeSeconds(1_234_567_890);
+
+        var generate = () => TotpUtils.GenerateTotpCode(Rfc6238Sha1SharedKeyBase32, timestamp, digits: invalidDigits);
+        var verify = () => TotpUtils.VerifyTotpCode(Rfc6238Sha1SharedKeyBase32, "123456", timestamp, digits: invalidDigits);
+
+        generate.Should().Throw<ArgumentOutOfRangeException>();
+        verify.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [DataInlineUnit(-1)]
+    [DataInlineUnit(11)]
+    public void TotpUtils_Should_Throw_When_AllowedTimeStepDrift_Is_Out_Of_Range(int invalidDrift)
+    {
+        var timestamp = DateTimeOffset.FromUnixTimeSeconds(1_234_567_890);
+
+        var verify = () => TotpUtils.VerifyTotpCode(Rfc6238Sha1SharedKeyBase32, "123456", timestamp, allowedTimeStepDrift: invalidDrift);
+
+        verify.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void TotpUtils_Should_Throw_When_SharedKey_Is_Empty()
+    {
+        var timestamp = DateTimeOffset.FromUnixTimeSeconds(1_234_567_890);
+
+        var generate = () => TotpUtils.GenerateTotpCode(string.Empty, timestamp);
+        var verify = () => TotpUtils.VerifyTotpCode(string.Empty, "123456", timestamp);
+
+        generate.Should().Throw<FormatException>();
+        verify.Should().Throw<FormatException>();
+    }
+
+    [Fact]
+    public void TotpUtils_Should_Throw_When_Timestamp_Precedes_Unix_Epoch()
+    {
+        var preEpoch = DateTimeOffset.UnixEpoch.AddSeconds(-1);
+
+        var generate = () => TotpUtils.GenerateTotpCode(Rfc6238Sha1SharedKeyBase32, preEpoch);
+        var verify = () => TotpUtils.VerifyTotpCode(Rfc6238Sha1SharedKeyBase32, "123456", preEpoch);
+
+        generate.Should().Throw<ArgumentOutOfRangeException>();
+        verify.Should().Throw<ArgumentOutOfRangeException>();
+    }
 }

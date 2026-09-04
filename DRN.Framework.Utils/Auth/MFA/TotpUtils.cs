@@ -50,12 +50,16 @@ public static class TotpUtils
 
     /// <summary>
     /// Verifies a TOTP code using the current UTC time and the default adjacent-step allowance.
+    /// Note: Verification is stateless and does not prevent code reuse within the allowed drift window.
+    /// Callers must track the last accepted counter or code per user to enforce single-use validation.
     /// </summary>
     public static bool VerifyTotpCode(string sharedKey, string code) =>
         VerifyTotpCode(sharedKey, code, TimeProvider.System.GetUtcNow());
 
     /// <summary>
     /// Verifies a TOTP code for an explicit timestamp and bounded time-step drift.
+    /// Note: Verification is stateless and does not prevent code reuse within the allowed drift window.
+    /// Callers must track the last accepted counter or code per user to enforce single-use validation.
     /// </summary>
     [SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms",
         Justification = "RFC 6238 authenticator interoperability requires the HMAC-SHA1 profile.")]

@@ -296,7 +296,13 @@ or infrastructure module, then use `EnsureDatabaseAsync` to create the schema di
 
 `ApplicationContext` synchronizes `DrnTestContext` service collections and configuration with `DrnWebApplicationFactory<TProgram>`.
 
-- **Entry Point Constraints**: Hosted programs must implement `where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()`.
+- **Entry Point Constraints**: Hosted programs must implement `where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()`. Conventional ASP.NET Core entry points migrate by exposing an explicit partial class:
+  ```csharp
+  public partial class Program : DrnProgramBase<Program>, IDrnProgram
+  {
+      public Program() { }
+  }
+  ```
 - **Concurrent Multi-App Hosting**: Supports running multiple distinct applications concurrently (e.g. `SampleProgram` and `NexusProgram`) in a single test context.
 - **Single Instance Per Type Lifecycle**: Manages one active instance per application type. Re-creating the same entry point type (via `CreateApplication` or `CreateClientAsync`) disposes and replaces only that specific instance.
 - **Factory & Client Access**:

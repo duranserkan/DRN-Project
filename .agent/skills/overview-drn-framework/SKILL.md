@@ -212,6 +212,7 @@ The mounted root defaults to `/appconfig` and can be overridden by registering `
 | `BreakForUserUnhandledException` | `false` | Developer diagnostics flag. |
 
 #### Environment Hierarchy and Test Invariants
+
 - **`Development`**: For local developer productivity with convenience defaults, not hacks.
 - **`Staging`**: Stricter operational defaults (e.g. explicit migrations, no prototype mode).
 - **`Production`**: Most strict defaults (e.g. strict security headers, strict asset validation, no auto-migration, no prototype mode).

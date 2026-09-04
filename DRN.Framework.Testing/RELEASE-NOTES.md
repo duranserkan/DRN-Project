@@ -14,6 +14,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Breaking Changes
 
 *   **ApplicationContext & DrnWebApplicationFactory Type Constraints**: Constrained `TEntryPoint` generic type parameters on `ApplicationContext` methods and `DrnWebApplicationFactory<TEntryPoint>` to `where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()`, providing compile-time type safety and eliminating runtime reflection during host runner creation.
+    *   Migration: conventional ASP.NET Core `Program` entry points must derive from `DrnProgramBase<TProgram>`, implement `IDrnProgram`, and expose a public parameterless constructor (e.g. `public partial class Program : DrnProgramBase<Program>, IDrnProgram { public Program() { } }`).
 *   **Application Test Context Namespace**: Moved `ApplicationContext`, `ApplicationContextRouterHandler`, `DrnWebApplicationFactory<TEntryPoint>`, and `TestOutputTarget` from `DRN.Framework.Testing.Contexts` to `DRN.Framework.Testing.Contexts.Application`.
     *   Migration: add `using DRN.Framework.Testing.Contexts.Application;` (or the equivalent global using) and recompile consumers.
 

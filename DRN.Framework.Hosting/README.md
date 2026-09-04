@@ -226,7 +226,7 @@ These hooks run while the `WebApplicationBuilder` is active, allowing you to con
 
 | Category | Method | Purpose |
 | :--- | :--- | :--- |
-| **Logging** | `ConfigureLoggingBuilder` | Configure logging providers (clears defaults, applies config section, registers NLog). |
+| **Logging** | `ConfigureLoggingBuilder` | Configure logging providers (clears defaults, applies config section, and registers NLog only when the `NLog` section exists; `RunAsync` still requires the section for bootstrap logging). |
 | **WebHost** | `ConfigureWebHostBuilder` | Configure Kestrel options (suppresses Server header, applies optional Kestrel section, registers static web assets). |
 | **OpenAPI** | `ConfigureSwaggerOptions` | Customize Swagger UI title, version, and visibility settings. |
 | **MVC** | `ConfigureMvcBuilder` | Add `ApplicationParts`, custom formatters, or MVC/Razor options. Razor edit loops use Hot Reload, not runtime compilation. |
@@ -285,6 +285,7 @@ These hooks define the request processing middleware sequence.
 | :--- | :--- |
 | `ConfigureMFARedirection` | Configure MFA setup and login redirection URLs. Returns `null` to disable. |
 | `ConfigureMFAExemption` | Configure authentication schemes exempt from MFA requirements. Returns `null` to disable. |
+| `ConfigureMFAClaim` | Configure provider-specific completed-MFA claim type and value. Defaults to `MfaClaimConfig.AspNetIdentity` (`amr=mfa`). |
 
 ### 5. Internal Wiring (Automatic)
 
@@ -325,7 +326,7 @@ These hooks define the request processing middleware sequence.
 
 #### NLog (Logging)
 
-Minimal NLog configuration for console output. Add and route a Graylog target if your deployment uses Graylog.
+Minimal NLog configuration for console output. Add and route a Graylog target if your deployment uses Graylog. Logging providers are cleared and NLog is added during host construction only when the `NLog` configuration section exists, while `RunAsync` still requires the section for bootstrap logging.
 
 ```json
 {

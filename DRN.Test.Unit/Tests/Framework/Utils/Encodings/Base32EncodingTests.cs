@@ -38,6 +38,10 @@ public class Base32EncodingTests
     [DataInlineUnit("MY=====A")] // Data cannot appear after padding has started.
     [DataInlineUnit("MY=======")] // Seven padding characters are non-canonical for a one-octet input.
     [DataInlineUnit("MZ======")] // The final symbol has non-zero pad bits; canonical encoding of "f" is "MY======".
+    [DataInlineUnit("M0======")] // Character '0' is outside the RFC 4648 Base32 alphabet.
+    [DataInlineUnit("M1======")] // Character '1' is outside the RFC 4648 Base32 alphabet.
+    [DataInlineUnit("M8======")] // Character '8' is outside the RFC 4648 Base32 alphabet.
+    [DataInlineUnit("M9======")] // Character '9' is outside the RFC 4648 Base32 alphabet.
     public void Decode_Should_Reject_Invalid_Or_NonCanonical_Input(string input)
     {
         var decode = () => Base32Encoding.Decode(input);

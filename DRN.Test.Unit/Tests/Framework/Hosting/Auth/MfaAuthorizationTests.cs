@@ -614,7 +614,7 @@ public class MfaAuthorizationTests
 
         var policy = new AuthorizationPolicyBuilder(exemptScheme).RequireAuthenticatedUser().Build();
         var handler = new MfaEnforcingAuthorizationMiddlewareResultHandler(
-            Options.Create(new AuthorizationOptions()),
+            Options.Create(CreateAuthorizationOptions()),
             exemptionOptions: exemptionOptions);
 
         var httpContext = new DefaultHttpContext

@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -334,6 +335,34 @@ public class ApplicationContextTests
         using var host = factory.CreateHostForTest(builder);
 
         addressesFeature.Addresses.Should().Equal("http://127.0.0.1:0");
+    }
+
+    [Theory]
+    [DataInline]
+    public void DrnWebApplicationFactory_HostConfiguration_Should_Reach_Startup(DrnTestContext context)
+    {
+        TemporaryLifecycleProgram.Reset();
+
+        using var factory = new ExposedDrnWebApplicationFactory(context);
+        var builder = factory.CreateHostBuilderForTest();
+        builder.Should().NotBeNull();
+
+        string? hostContextValue = null;
+        builder!.ConfigureHostConfiguration(config => config.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["CustomHostConfigKey"] = "CustomHostConfigValue"
+        }));
+        builder.ConfigureAppConfiguration((hostContext, _) =>
+        {
+            hostContextValue = hostContext.Configuration["CustomHostConfigKey"];
+        });
+
+        using var host = builder.Build();
+        var configuration = host.Services.GetRequiredService<IConfiguration>();
+
+        hostContextValue.Should().Be("CustomHostConfigValue");
+        configuration["CustomHostConfigKey"].Should().Be("CustomHostConfigValue");
+        TemporaryLifecycleProgram.CapturedAppSettings?.GetValue<string>("CustomHostConfigKey").Should().Be("CustomHostConfigValue");
     }
 
     [Theory]
@@ -932,5 +961,6 @@ public class ApplicationContextTests
         : DrnWebApplicationFactory<TemporaryLifecycleProgram>(context, true)
     {
         public IHost CreateHostForTest(IHostBuilder builder) => CreateHost(builder);
+        public IHostBuilder? CreateHostBuilderForTest() => CreateHostBuilder();
     }
 }

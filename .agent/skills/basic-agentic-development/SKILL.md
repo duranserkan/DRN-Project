@@ -113,7 +113,7 @@ Capture only durable, generalizable insights discovered during the task into `AG
 | Using namespaces/names from assumption | Verify with text search, outline/symbol inspection when supported, and `GlobalUsings.cs` |
 | Importing uninstalled libraries | Check `*.csproj`/`package.json` before using; ask user before adding |
 | Using runtime reflection for known internal/private members | Use `[UnsafeAccessor]` (`System.Runtime.CompilerServices`) for zero-overhead, AOT-safe direct access whenever the compile-time type is accessible |
-| Hacking environment checks for tests | Never branch on environment checks (e.g. `IsDevelopment()`) in library/app code to bypass invariants for tests; use explicit test flags (e.g. `TemporaryApplication`, `SkipValidation`) or dedicated test contexts instead |
+| Hacking environment checks for tests | Never branch on environment checks (e.g. `IsDevelopment()`) in library/app code to bypass invariants for tests; use explicit test flags (e.g. dedicated test flags or test-specific configuration) or dedicated test contexts instead |
 | Using obsolete or deprecated code | Never introduce deprecated or obsolete APIs, types, interfaces, or members (e.g. `[Obsolete]`, `ASPDEPR*`); always use modern, active framework primitives and never suppress deprecation diagnostics with `#pragma` or `[SuppressMessage]` |
 
 > **Name & Namespace Hallucination**: Never assume a namespace from folder structure. Always verify exact names with source files, project metadata, or search before using them.

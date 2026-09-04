@@ -57,7 +57,7 @@ A change that is fast but incorrect fails. A change that is clever but unreadabl
 - Singleton services do not capture mutable request/user state.
 - Scoped dependencies are not retained by longer-lived services.
 - New required configuration has defaults, validation, documentation, or clear deployment instructions.
-- Environment hierarchy: `Development` provides convenience defaults, `Staging` enforces stricter operational defaults, and `Production` enforces strict security and operational defaults. Flag any environment branching (e.g. `IsDevelopment()`) introduced to bypass invariants for tests; require explicit test/temporary flags (e.g. `TemporaryApplication`, `SkipValidation`) or dedicated test fixtures instead.
+- Environment hierarchy: `Development` provides convenience defaults, `Staging` enforces stricter operational defaults, and `Production` enforces strict security and operational defaults. Flag any environment branching (e.g. `IsDevelopment()`) introduced to bypass invariants for tests; require explicit test/temporary flags (e.g. dedicated test flags or test-specific configuration) or dedicated test fixtures instead.
 - Secrets are not hardcoded, logged, committed, or documented as real values.
 
 ## Test Coverage Expectations
