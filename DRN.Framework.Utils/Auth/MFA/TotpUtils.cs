@@ -100,8 +100,9 @@ public static class TotpUtils
                 if (counter < 0)
                     continue;
 
-                var candidate = GenerateTotpCode(hmac, counter, digits);
-                Encoding.ASCII.GetBytes(candidate, candidateCode);
+                var candidate = ComputeTotpCode(hmac, counter, digits);
+                if (!candidate.TryFormat(candidateCode[..digits], out var written, GetDigitFormat(digits), CultureInfo.InvariantCulture) || written != digits)
+                    throw new InvalidOperationException("Unable to format the TOTP candidate.");
                 verified |= CryptographicOperations.FixedTimeEquals(providedCode[..digits], candidateCode[..digits]);
             }
 
@@ -120,10 +121,18 @@ public static class TotpUtils
     private static string GenerateTotpCode(byte[] secret, long counter, int digits)
     {
         using var hmac = new HMACSHA1(secret);
-        return GenerateTotpCode(hmac, counter, digits);
+        return ComputeTotpCode(hmac, counter, digits).ToString(GetDigitFormat(digits), CultureInfo.InvariantCulture);
     }
 
-    private static string GenerateTotpCode(HMACSHA1 hmac, long counter, int digits)
+    private static string GetDigitFormat(int digits) => digits switch
+    {
+        6 => "D6",
+        7 => "D7",
+        8 => "D8",
+        _ => throw new ArgumentOutOfRangeException(nameof(digits))
+    };
+
+    private static int ComputeTotpCode(HMACSHA1 hmac, long counter, int digits)
     {
         Span<byte> counterBytes = stackalloc byte[sizeof(long)];
         BinaryPrimitives.WriteInt64BigEndian(counterBytes, counter);
@@ -142,7 +151,7 @@ public static class TotpUtils
             _ => throw new ArgumentOutOfRangeException(nameof(digits))
         };
 
-        return (binaryCode % modulus).ToString($"D{digits}", CultureInfo.InvariantCulture);
+        return binaryCode % modulus;
     }
 
     private static byte[] DecodeSharedKey(string sharedKey)

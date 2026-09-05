@@ -633,7 +633,23 @@ await response.Payload!.CopyToAsync(destination);
 
 `IScopedUser` exposes authenticated identity and claim state. Use `GetClaimParameter<TValue>` for typed claims; `ScopeContext.GetClaimParameter<TValue>` provides ambient access to the same contract.
 
-`MfaFor.MfaCompleted` delegates to the provider-neutral `MfaPrincipal.IsCompleted` with the application-scoped `MfaClaimConfig`. The default matches `amr=mfa`; applications can select another exact marker without requiring ASP.NET Identity services. Setup/pending credentials are rejected even when they contain that marker. Multiple authenticated identities must identify the same subject and issuer (`sub` or the configured name identifier). Claims on unauthenticated identities do not supply MFA. For security decisions after endpoint authentication selects another principal, evaluate the final `User` directly rather than a pre-authorization scoped snapshot.
+`AuthenticationClaimConfig` is the shared claim contract. Hosting registers the result of `DrnProgramBase.ConfigureAuthenticationClaims()` once; ordinary Identity applications need no override. Standalone helpers use `AuthenticationClaimConfig.Default`. `Subject`, `Name`, `Email`, and `Roles` each expose a canonical `Type` and immutable `Aliases`; `Mfa` identifies one exact completed-MFA type/value.
+
+| Mapping | Default canonical type | Explicit aliases |
+| --- | --- | --- |
+| Subject | `ClaimTypes.NameIdentifier` | `sub` |
+| Name | `ClaimTypes.Name` | `name` |
+| Email | `ClaimTypes.Email` | `email` |
+| Roles | `ClaimTypes.Role` | `roles` |
+| Mfa | `amr=mfa` | None |
+
+`Subject = new("uid")` replaces the entire mapping, accepting only `uid`. Add aliases explicitly, for example `new("uid", "external_id")`. Scalar aliases must agree; roles combine only selected types. Standard subject claims still veto conflicting values or issuers, including case variants; they are not fallback inputs to a custom mapping. `ScopedUser.Id` is null for missing or conflicting primary account evidence. Generic claim lookup remains case-insensitive; mapped security decisions use exact types.
+
+Scoped name/email use the primary identity and return null for conflicting selected values or issuers. `IsInRole` checks all selected roles from authenticated identities across issuers. Generic claim groups retain their issuer filters.
+
+Canonical types govern issuance and native `NameClaimType`/`RoleClaimType`; aliases are additional DRN inputs and do not rewrite claims or alter native authorization. Hosting configures Identity's claim options so its factory emits matching claims and metadata directly. Future authentication integrations must produce the same contract, mapping aliases into canonical claims only when needed, rejecting ambiguous evidence and excluding unselected case variants that native lookups could accept. Only validated identities belong in the application principal. Preserve claim provenance and identity boundaries; never infer MFA from `otp`, arbitrary `acr`, or a claim's name. See [Hosting integration](../DRN.Framework.Hosting/README.md#renewal-and-assurance).
+
+Scoped users, `MfaFor`, `MfaPrincipal`, and Hosting authorization share the same config without requiring Identity services. Setup/pending credentials cannot prove MFA; multiple authenticated identities must agree on subject and issuer. The default subject mapping retains single-identity subjectless completion and same-object proof compatibility, including equivalent copies of the default mapping. Custom subject mappings, stronger assurance, Identity operations, and renewal require account evidence. Evaluate the final authorized `User` for account-security decisions.
 
 For stronger opt-in checks, `MfaPrincipal.IsRecent(principal, config, trustedIssuer, maximumAge, utcNow, authenticationTimeClaimType)` and `IsPhishingResistant(principal, config, trustedIssuer, assuranceClaim)` require the completed marker and additional evidence on the same authenticated identity, from the specified issuer. All authenticated identities must have an unambiguous matching subject and issuer. Setup/pending credentials, missing subjects and untrusted evidence fail closed. `IsCompleted` and the default Hosting `Mfa` policy retain their current semantics.
 

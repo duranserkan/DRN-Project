@@ -1,5 +1,6 @@
 // This file is licensed to you under the MIT license.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
@@ -20,6 +21,7 @@ namespace DRN.Framework.Hosting.Identity.Controllers;
 
 [ApiController]
 [AllowAnonymous]
+[SuppressMessage("ReSharper", "StaticMemberInGenericType")]
 public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where TUser : IdentityUser
 {
     private const string InvalidLoginMessage = "Invalid email or password.";
@@ -29,7 +31,7 @@ public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where 
     private readonly TimeProvider _timeProvider;
     private readonly IOptionsMonitor<BearerTokenOptions> _bearerTokenOptions;
     private readonly IOptions<AuthorizationOptions> _authorizationOptions;
-    private readonly MfaClaimConfig _mfaClaimConfig;
+    private readonly AuthenticationClaimConfig _claimConfig;
 
     protected IdentityLoginControllerBase()
     {
@@ -38,7 +40,7 @@ public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where 
         _timeProvider = sp.GetRequiredService<TimeProvider>();
         _bearerTokenOptions = sp.GetRequiredService<IOptionsMonitor<BearerTokenOptions>>();
         _authorizationOptions = sp.GetRequiredService<IOptions<AuthorizationOptions>>();
-        _mfaClaimConfig = sp.GetService<MfaClaimConfig>() ?? MfaClaimConfig.AspNetIdentity;
+        _claimConfig = sp.GetService<AuthenticationClaimConfig>() ?? AuthenticationClaimConfig.Default;
     }
 
     [HttpPost(nameof(Login))]
@@ -51,27 +53,21 @@ public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where 
         _signInManager.AuthenticationScheme = useCookieScheme ? IdentityConstants.ApplicationScheme : IdentityConstants.BearerScheme;
 
         var isMfaEnforced = MfaAuthorization.IsMfaEnforced(_authorizationOptions.Value);
+        TUser? user = null;
         if (isMfaEnforced)
         {
-            var user = await _signInManager.UserManager.FindByEmailAsync(login.Email);
+            user = await _signInManager.UserManager.FindByEmailAsync(login.Email);
             if (user == null)
                 return TypedResults.Problem(InvalidLoginMessage, statusCode: StatusCodes.Status401Unauthorized);
 
             var isTwoFactorEnabled = await _signInManager.UserManager.GetTwoFactorEnabledAsync(user);
             if (!isTwoFactorEnabled)
-            {
-                var passwordCheck = await _signInManager.CheckPasswordSignInAsync(user, login.Password, lockoutOnFailure: true);
-                if (!passwordCheck.Succeeded)
-                    return TypedResults.Problem(InvalidLoginMessage, statusCode: StatusCodes.Status401Unauthorized);
-
-                var expiresUtc = _timeProvider.GetUtcNow().Add(MfaSetupCredentialLifetime);
-                return useCookieScheme
-                    ? await IssueSetupCookieAsync(user, expiresUtc)
-                    : await IssueSetupBearerTokenAsync(user, expiresUtc);
-            }
+                return await SignInForMfaSetupAsync(user, login.Password, useCookieScheme);
         }
 
-        var result = await _signInManager.PasswordSignInAsync(login.Email, login.Password, isPersistent, lockoutOnFailure: true);
+        var result = user != null
+            ? await _signInManager.PasswordSignInAsync(user, login.Password, isPersistent, lockoutOnFailure: true)
+            : await _signInManager.PasswordSignInAsync(login.Email, login.Password, isPersistent, lockoutOnFailure: true);
         if (result.RequiresTwoFactor)
         {
             if (!string.IsNullOrEmpty(login.TwoFactorCode))
@@ -85,6 +81,18 @@ public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where 
 
         // The signInManager already produced the needed response in the form of a cookie or bearer token.
         return TypedResults.Empty;
+    }
+
+    private async Task<IResult> SignInForMfaSetupAsync(TUser user, string password, bool useCookieScheme)
+    {
+        var passwordCheck = await _signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
+        if (!passwordCheck.Succeeded)
+            return TypedResults.Problem(InvalidLoginMessage, statusCode: StatusCodes.Status401Unauthorized);
+
+        var expiresUtc = _timeProvider.GetUtcNow().Add(MfaSetupCredentialLifetime);
+        return useCookieScheme
+            ? await IssueSetupCookieAsync(user, expiresUtc)
+            : await IssueSetupBearerTokenAsync(user, expiresUtc);
     }
 
     private async Task<IResult> IssueSetupCookieAsync(TUser user, DateTimeOffset expiresUtc)
@@ -134,16 +142,16 @@ public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where 
         // Reject the /refresh attempt with a 401 if the token expired or the security stamp validation fails
         if (refreshTicket?.Properties.ExpiresUtc is not { } expiresUtc ||
             _timeProvider.GetUtcNow() >= expiresUtc ||
+            !MfaPrincipal.HasSingleAccount(refreshTicket.Principal, _claimConfig, requireSubject: true) ||
+            MfaPrincipal.IsRestricted(refreshTicket.Principal) ||
             await _signInManager.ValidateSecurityStampAsync(refreshTicket.Principal) is not { } user)
             return TypedResults.Challenge();
 
         var newPrincipal = await _signInManager.CreateUserPrincipalAsync(user);
-        if (newPrincipal.Identity is not ClaimsIdentity newIdentity)
-            return TypedResults.SignIn(newPrincipal, authenticationScheme: IdentityConstants.BearerScheme);
-
         // Existing auth_time is preserved without renewal-time promotion. Verified MFA time/assurance
         // checks are opt-in through MfaPrincipal; provider evidence issuance remains MFA-07.
-        MfaClaimPreservation.Preserve(refreshTicket.Principal, newIdentity, _mfaClaimConfig);
+        if (!MfaClaimPreservation.Preserve(refreshTicket.Principal, newPrincipal, _claimConfig))
+            return TypedResults.Challenge();
 
         return TypedResults.SignIn(newPrincipal, authenticationScheme: IdentityConstants.BearerScheme);
     }

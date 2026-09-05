@@ -35,7 +35,7 @@ public class RequireMfaHandlerTests
         var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(claimType, claimValue)], "Test"));
         var authorization = CreateAuthorizationContext(principal);
 
-        await new RequireMfaHandler(new MfaClaimConfig(claimType, claimValue)).HandleAsync(authorization);
+        await new RequireMfaHandler(new AuthenticationClaimConfig { Mfa = new(claimType, claimValue) }).HandleAsync(authorization);
 
         authorization.HasSucceeded.Should().BeTrue();
     }

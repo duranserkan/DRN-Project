@@ -9,6 +9,17 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.Auth;
 public class MfaPolicyProviderTests
 {
     [Fact]
+    public void Policy_Caching_Should_Require_Explicit_OptIn_For_Derived_Providers()
+    {
+        var options = Options.Create(new AuthorizationOptions());
+        new MfaEnforcingAuthorizationPolicyProvider(options).AllowsCachingPolicies.Should().BeTrue();
+        new DerivedPolicyProvider(options).AllowsCachingPolicies.Should().BeFalse();
+    }
+
+    private sealed class DerivedPolicyProvider(IOptions<AuthorizationOptions> options)
+        : MfaEnforcingAuthorizationPolicyProvider(options);
+
+    [Fact]
     public async Task Named_Policy_Should_Include_Mfa_And_Preserve_Its_Scheme()
     {
         var options = new AuthorizationOptions

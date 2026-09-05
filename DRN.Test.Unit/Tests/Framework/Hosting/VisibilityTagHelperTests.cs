@@ -15,6 +15,45 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting;
 public class VisibilityTagHelperTests
 {
     [Theory]
+    [DataInlineUnit("app-role", true)]
+    [DataInlineUnit("group", false)]
+    [DataInlineUnit(ClaimTypes.Role, false)]
+    public async Task Configured_Provider_Should_Align_Native_Roles_Scoped_User_And_Tag_Helpers(string roleType, bool allowed)
+    {
+        var config = new AuthenticationClaimConfig
+        {
+            Subject = new("sub"), Name = new("display"),
+            Roles = new("app-role"), Mfa = new("acr", "test:completed")
+        };
+        var source = new ClaimsIdentity([
+            new Claim("sub", "user"), new Claim("preferred_username", "ignored"),
+            new Claim(config.Name.Type, "User"), new Claim(roleType, "Admin"),
+            new Claim(config.Roles.Type, "Auditor", ClaimValueTypes.String, "role-issuer"),
+            new Claim("acr", "test:completed")
+        ], "external", config.Name.Type, config.Roles.Type);
+        var principal = new ClaimsPrincipal(source);
+        var scoped = new ScopedUser(config);
+        scoped.SetUser(principal);
+        principal.Identity!.Name.Should().Be("User");
+        scoped.Name.Should().Be(principal.Identity.Name);
+        principal.IsInRole("Admin").Should().Be(allowed);
+        scoped.IsInRole("Admin").Should().Be(allowed);
+        principal.IsInRole("Auditor").Should().BeTrue();
+        scoped.IsInRole("Auditor").Should().BeTrue();
+
+        var services = new ServiceCollection().AddLogging().AddSingleton(config);
+        services.AddAuthorizationCore(options => options.AddPolicy("Manage", policy =>
+            policy.RequireAuthenticatedUser().RequireRole("Admin").AddRequirements(new MfaRequirement())));
+        services.AddSingleton<IAuthorizationHandler, RequireMfaHandler>();
+        using var provider = services.BuildServiceProvider();
+        var authorization = provider.GetRequiredService<IAuthorizationService>();
+        (await authorization.AuthorizeAsync(principal, null, "Manage")).Succeeded.Should().Be(allowed);
+        var output = CreateOutput();
+        await CreatePolicyHelper(provider, principal, "Manage").ProcessAsync(CreateContext(), output);
+        output.TagName.Should().Be(allowed ? "div" : null);
+    }
+
+    [Theory]
     [DataInlineUnit(true, true, true, true)]
     [DataInlineUnit(false, true, true, false)]
     [DataInlineUnit(true, false, true, false)]

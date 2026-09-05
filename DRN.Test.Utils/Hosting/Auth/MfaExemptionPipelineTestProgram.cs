@@ -50,13 +50,19 @@ public sealed class MfaExemptionPipelineTestProgram : DrnProgramBase<MfaExemptio
     protected override MfaExemptionConfig ConfigureMFAExemption() =>
         new() { ExemptAuthSchemes = [MfaPipelineTestValues.AuthenticationScheme] };
 
-    protected override MfaClaimConfig ConfigureMFAClaim() =>
-        new(MfaPipelineTestValues.MfaClaimType, MfaPipelineTestValues.MfaClaimValue);
+    protected override AuthenticationClaimConfig ConfigureAuthenticationClaims() =>
+        new()
+        {
+            Subject = new(MfaPipelineTestValues.SubjectClaimType),
+            Mfa = new(MfaPipelineTestValues.MfaClaimType, MfaPipelineTestValues.MfaClaimValue)
+        };
+
+    protected override void ConfigureIdentityRenewal(IServiceCollection services, IAppSettings appSettings) { }
 
     protected override void MapApplicationEndpoints(WebApplication application, IAppSettings appSettings)
     {
         base.MapApplicationEndpoints(application, appSettings);
-        application.MapGet(MfaPipelineTestValues.ProtectedPath, () => Results.Ok())
+        application.MapGet(MfaPipelineTestValues.ProtectedPath, (IScopedUser user) => Results.Text(user.Id ?? string.Empty))
             .RequireAuthorization();
         application.MapGet(MfaPipelineTestValues.RoleProtectedPath, () => Results.Ok())
             .RequireAuthorization(policy => policy.RequireRole(MfaPipelineTestValues.RequiredRole));
@@ -83,7 +89,7 @@ internal sealed class MfaPipelineTestAuthHandler(
 
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, "mfa-pipeline-user"),
+            new(MfaPipelineTestValues.SubjectClaimType, "mfa-pipeline-user"),
             new(ClaimTypes.Name, "mfa-pipeline-user"),
             new(ClaimTypes.Role, MfaPipelineTestValues.RequiredRole)
         };
@@ -93,6 +99,14 @@ internal sealed class MfaPipelineTestAuthHandler(
 
         switch (credential)
         {
+            case MfaPipelineTestValues.MissingSubjectCredential:
+                claims.RemoveAll(claim => claim.Type == MfaPipelineTestValues.SubjectClaimType);
+                claims.Add(new Claim(MfaPipelineTestValues.MfaClaimType, MfaPipelineTestValues.MfaClaimValue));
+                break;
+            case MfaPipelineTestValues.ConflictingSubjectCredential:
+                claims.Add(new Claim(AuthClaimTypes.Subject, "different-user"));
+                claims.Add(new Claim(MfaPipelineTestValues.MfaClaimType, MfaPipelineTestValues.MfaClaimValue));
+                break;
             case MfaPipelineTestValues.CompletedCredential:
                 claims.Add(new Claim(MfaPipelineTestValues.MfaClaimType, MfaPipelineTestValues.MfaClaimValue));
                 break;
@@ -118,6 +132,9 @@ internal sealed class MfaPipelineTestAuthHandler(
 
 public static class MfaPipelineTestValues
 {
+    public const string SubjectClaimType = "pipeline-uid";
+    public const string MissingSubjectCredential = "missing-subject";
+    public const string ConflictingSubjectCredential = "conflicting-subject";
     public const string AuthenticationScheme = "MfaPipelineTest";
     public const string NamedAuthenticationScheme = "MfaPipelineNamedTest";
     public const string NamedSchemePolicy = "MfaPipelineNamedScheme";

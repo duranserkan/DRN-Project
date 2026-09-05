@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Logging;
@@ -88,6 +89,7 @@ public class ScopedLogTests
         snapshot.Should().NotContainKey("Data.Static");
     }
 
+    [SuppressMessage("ReSharper", "UnusedMember.Local")]
     private sealed class PropertyLogData
     {
         public string Visible => "visible";

@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using DRN.Framework.Hosting.Auth.Policies;
-using DRN.Framework.Utils.Auth.MFA;
+using DRN.Framework.Utils.Auth;
 using Microsoft.AspNetCore.Authorization;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.Auth;
@@ -35,7 +35,7 @@ public class MfaAuthorizationTests
         options.MapFromConfig(new MfaExemptionConfig { ExemptAuthSchemes = ["CustomApiKey"] });
         var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim("scope", "api")], "CustomApiKey"));
 
-        MfaAuthorization.IsMfaSatisfied(principal, MfaClaimConfig.AspNetIdentity, options, scheme,
+        MfaAuthorization.IsMfaSatisfied(principal, AuthenticationClaimConfig.Default, options, scheme,
             hasPrincipal ? principal : null).Should().BeFalse();
     }
 }

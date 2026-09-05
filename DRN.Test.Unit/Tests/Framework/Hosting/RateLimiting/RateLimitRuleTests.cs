@@ -96,6 +96,22 @@ public class RateLimitRuleTests
     }
 
     [Fact]
+    public void Default_PostAuth_Rule_Should_Use_Exact_Canonical_Subject_And_Reject_Conflicting_Aliases()
+    {
+        var identity = new ClaimsIdentity([
+            new Claim("SUB", "user"), new Claim(AuthClaimTypes.Subject, "user")
+        ], "oidc");
+        var context = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
+        context.Connection.RemoteIpAddress = IPAddress.Loopback;
+        var rule = new DefaultPostAuthRateLimitRule(new DrnAppFeatures());
+
+        rule.EvaluatePostAuth(context)!.Value.PartitionKey.Should().Be("user:oidc:user");
+
+        identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, "conflict"));
+        rule.EvaluatePostAuth(context)!.Value.PartitionKey.Should().Be("ip:127.0.0.1");
+    }
+
+    [Fact]
     public void Default_PostAuth_Rule_Should_Not_Partition_By_Mutable_User_Name()
     {
         var context = new DefaultHttpContext

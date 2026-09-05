@@ -24,7 +24,8 @@ public static class SampleModule
             .AddSampleApplicationServices()
             .Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024) // size limit
             .ConfigureCookieAuthenticationOptions(settings)
-            .AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings));
+            .AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings))
+            .AddSignInManager<DrnSignInManager<SampleUser>>();
 
         services.AddDrnIdentityMfaPolicies();
 
@@ -68,7 +69,6 @@ public static class SampleModule
         options.Lockout = IdentitySettings.LockoutOptions;
         options.Tokens = IdentitySettings.TokenOptions;
         options.Stores = IdentitySettings.StoreOptions;
-        options.ClaimsIdentity = IdentitySettings.ClaimsIdentityOptions;
 
         var config = settings.Get<IdentityConfig>("Identity") ?? new IdentityConfig();
         options.SignIn.RequireConfirmedAccount = config.RequireConfirmedAccount;

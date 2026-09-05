@@ -3,7 +3,7 @@
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Identity.Services;
-using DRN.Framework.Utils.Auth.MFA;
+using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -50,9 +50,9 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
         // before disabling/replacing it or regenerating recovery codes; preserve the initial enrollment flow.
         // The factor and its MFA proof must belong to the final authorized account.
         var isTwoFactorEnabled = await userManager.GetTwoFactorEnabledAsync(user);
-        var mfaConfig = HttpContext.RequestServices.GetService<MfaClaimConfig>() ?? MfaClaimConfig.AspNetIdentity;
+        var mfaConfig = HttpContext.RequestServices.GetService<AuthenticationClaimConfig>() ?? AuthenticationClaimConfig.Default;
         var enforced = MfaAuthorization.IsMfaEnforced(HttpContext.RequestServices.GetRequiredService<IOptions<AuthorizationOptions>>().Value);
-        if (!IdentityMfaPolicy.CanManage(User, isTwoFactorEnabled, enforced, mfaConfig, userManager.Options.ClaimsIdentity.UserIdClaimType))
+        if (!IdentityMfaPolicy.CanManage(User, isTwoFactorEnabled, enforced, mfaConfig))
             return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
 
         if (tfaRequest.Enable == true)

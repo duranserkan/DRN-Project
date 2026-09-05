@@ -46,9 +46,12 @@ public class MfaAuthorizationResultHandlerTests
             ((ClaimsIdentity)user.Identity!).AddClaim(new Claim("amr", "mfa"));
         var http = new DefaultHttpContext
         {
-            RequestServices = context.BuildServiceProvider(), User = user, TraceIdentifier = "request-correlation"
+            RequestServices = context.BuildServiceProvider(), User = user, TraceIdentifier = "request-correlation",
+            Request =
+            {
+                QueryString = new QueryString("?code=secret-code")
+            }
         };
-        http.Request.QueryString = new QueryString("?code=secret-code");
         var policy = scenario is "policy" or "policy-denial"
             ? new AuthorizationPolicyBuilder("Test").AddRequirements(new MfaExemptRequirement()).Build()
             : new AuthorizationPolicyBuilder("Test").RequireAuthenticatedUser().Build();
@@ -152,8 +155,9 @@ public class MfaAuthorizationResultHandlerTests
         http.Response.StatusCode.Should().Be((int)HttpStatusCode.Forbidden);
     }
 
-    [Fact]
-    public async Task Disabled_Mfa_Should_Continue_Without_Additional_Enforcement()
+    [Theory]
+    [DataInlineUnit]
+    public async Task Disabled_Mfa_Should_Continue_Without_Additional_Enforcement(DrnTestContextUnit context)
     {
         var options = new AuthorizationOptions
         {
@@ -161,8 +165,9 @@ public class MfaAuthorizationResultHandlerTests
         };
         var handler = new MfaEnforcingAuthorizationMiddlewareResultHandler(Options.Create(options));
         var nextInvoked = false;
+        var http = new DefaultHttpContext { RequestServices = context.BuildServiceProvider() };
 
-        await handler.HandleAsync(_ => { nextInvoked = true; return Task.CompletedTask; }, new DefaultHttpContext(),
+        await handler.HandleAsync(_ => { nextInvoked = true; return Task.CompletedTask; }, http,
             options.DefaultPolicy, PolicyAuthorizationResult.Success());
 
         nextInvoked.Should().BeTrue();
@@ -251,9 +256,7 @@ public class MfaAuthorizationResultHandlerTests
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
-            Func<TState, Exception?, string> formatter) =>
-            Events.Add((logLevel, eventId, ((IEnumerable<KeyValuePair<string, object?>>)(object)state!)
-                .ToDictionary(pair => pair.Key, pair => pair.Value)));
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Events.Add((logLevel, eventId, ((IEnumerable<KeyValuePair<string, object?>>)state!).ToDictionary(pair => pair.Key, pair => pair.Value)));
     }
 }
