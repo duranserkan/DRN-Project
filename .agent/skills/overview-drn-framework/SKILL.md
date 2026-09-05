@@ -290,7 +290,7 @@ Unit tests should be listed before integration tests. Do not use `.slnx` in test
 
 ### Maintenance Reference: MFA Claim Configuration
 
-DRN Hosting registers one immutable `MfaClaimConfig` per application. `MfaFor.MfaCompleted` evaluates that exact claim type/value on the authenticated scoped identity. `DrnProgramBase.ConfigureMFAClaim()` defaults to ASP.NET Core Identity's `amr=mfa` marker and can be overridden for Keycloak or another provider without mutable process-wide configuration. MFA setup credentials remain fail-closed even when they also contain the configured completed-MFA claim.
+DRN Hosting registers one immutable `MfaClaimConfig` per application. `MfaPrincipal.IsCompleted` and `MfaFor.MfaCompleted` reject setup/pending states and conflicting authenticated subjects/issuers. `ConfigureMFAClaim()` defaults to `amr=mfa`, but core authorization has no Identity-service dependency. Scheme exemptions use request-local policy-selected evidence, including authenticated forwarding targets. Identity consumers explicitly register `AddDrnIdentityMfaPolicies`; local enrollment/challenge routes use final-user account checks. Other providers can configure their own handlers/claims without local enrollment or mutable global configuration.
 
 ### Maintenance Reference: Entity Creation-Date Filters
 

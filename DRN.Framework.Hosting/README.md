@@ -237,7 +237,7 @@ These hooks run while the `WebApplicationBuilder` is active, allowing you to con
 | **Security** | `ConfigureSecurityHeaderPolicyBuilder` | Advanced conditional security policies (e.g., per-route CSP). |
 | **Cookies** | `ConfigureCookiePolicy` | Set GDPR consent logic and security attributes for all cookies. |
 | **Cookies** | `ConfigureCookieTempDataProvider` | Configure TempData cookie settings (HttpOnly, IsEssential). |
-| **Identity** | `ConfigureSecurityStampValidatorOptions` | Customize security stamp validation and claim preservation. |
+| **Identity** | `ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions, IAppSettings, MfaClaimConfig)` | Customize security stamp validation and claim preservation using the DI-resolved MFA marker. |
 | **Infras.** | `ConfigureStaticFileOptions` | Customize caching (default: 1 year) and HTTPS compression. |
 | **Infras.** | `ConfigureForwardedHeadersOptions` | Configure proxy/load-balancer header forwarding. |
 | **Infras.** | `ConfigureRequestLocalizationOptions` | Configure culture providers and supported cultures. |
@@ -359,6 +359,42 @@ Minimal NLog configuration for console output. Add and route a Graylog target if
 }
 ```
 
+#### Forwarded Headers (Reverse Proxy & Gateway)
+
+`ConfigureForwardedHeadersOptions` configures ASP.NET Core `ForwardedHeadersOptions` for reverse proxy, load balancer, and gateway header forwarding.
+
+##### Cloud & Kubernetes Rationale
+
+In containerized, cloud, and Kubernetes environments (e.g. Kubernetes pod CIDRs, Docker networks, cloud VPCs), Kubernetes Gateway API implementations, cloud load balancers, and service mesh sidecars or inter-service reverse proxies (such as Linkerd or Envoy) communicate across dynamic RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`). If default trust were restricted strictly to loopback (`127.0.0.0/8` and `::1/128`), forwarded headers from Gateway API and Linkerd service mesh proxies would be rejected, causing `RemoteIpAddress` to collapse to the proxy's internal pod IP. In turn, all incoming traffic would share the same pre-auth rate limiting partition, starving legitimate users.
+
+Therefore, DRN defaults to trusting RFC 1918 private subnets alongside loopback with `ForwardLimit = 2`.
+
+##### Configuration & Zero-Trust Environments
+
+- **Disabling Private Network Trust**: In zero-trust or shared private network environments where all proxies must be explicitly pinned, set `TrustPrivateNetworks: false`:
+  ```json
+  {
+    "ForwardedHeaders": {
+      "TrustPrivateNetworks": false
+    }
+  }
+  ```
+  This strips RFC 1918 subnets, keeping only loopback addresses (`127.0.0.0/8`, `::1/128`).
+
+- **Explicit Proxy Networks**: When `KnownIPNetworks` or `KnownProxies` are explicitly configured, DRN clears the default networks and trusts only the configured ranges:
+  ```json
+  {
+    "ForwardedHeaders": {
+      "ForwardLimit": 2,
+      "KnownIPNetworks": [
+        "10.244.0.0/16",
+        { "BaseAddress": "192.168.1.0", "PrefixLength": 24 }
+      ],
+      "KnownProxies": [ "10.0.0.100" ]
+    }
+  }
+  ```
+
 ## Security Features
 
 The defaults in this section apply to `AppBuilderType.DrnDefaults` when the base lifecycle hooks are preserved. Other builder modes require the application to configure its complete security and middleware pipeline.
@@ -368,7 +404,7 @@ The defaults in this section apply to `AppBuilderType.DrnDefaults` when the base
 The framework sets the `FallbackPolicy` for the entire application to require a Multi-Factor Authentication session. 
 *   **Result**: Any new controller or page you add is **secure by default**. 
 *   **Policy Composition**: MFA is rechecked at the authorization middleware result boundary, so role-only attributes, direct policy metadata, and named policies cannot suppress global enforcement. Named policies retain their configured authentication schemes.
-*   **Opt-Out**: Use `[AllowAnonymous]` or `[Authorize(Policy = AuthPolicy.MfaExempt)]` for single-factor pages like Login or MFA Setup.
+*   **Opt-Out**: Use `[AllowAnonymous]` for login. `AuthPolicy.MfaExempt` remains an explicit authenticated opt-out for application-owned policies; constrain its accepted schemes and credential purpose. Built-in Identity enrollment/challenge routes use the narrower opt-in policies described below.
 
 ### 2. MFA Configuration
 
@@ -395,7 +431,17 @@ protected override MfaExemptionConfig ConfigureMFAExemption()
     => new() { ExemptAuthSchemes = ["ApiKey", "Certificate"] };
 ```
 
-`ConfigureMFAClaim` applies to authorization enforcement, MFA redirection, `authorized-only` rendering, and `MfaFor.MfaCompleted`. Match the exact claim type and value produced by the authentication handler or token mapper. Multiple values under the configured claim type are supported. Configuration is application-scoped, so concurrently hosted applications can use different identity providers without sharing mutable global state.
+`ConfigureMFAClaim` applies to authorization enforcement, MFA redirection, and `MfaFor.MfaCompleted`. It also applies to `policy-only` rendering when the evaluated policy requires MFA. `authorized-only` checks authentication alone. Match the exact claim type and value produced by the authentication handler or token mapper. Multiple values under the configured claim type are supported. Configuration is application-scoped, so concurrently hosted applications can use different identity providers without sharing mutable global state.
+
+`ConfigureMFAExemption` is an eligibility allowlist. Exemption discovery authenticates only schemes selected by the effective endpoint policy (or the actual default authenticate scheme). An unrelated API key neither grants access nor invalidates the request. Forwarding schemes retain both the selected scheme and the concrete authenticated ticket's scheme. Authorization checks request-local selected proofs against the final authorized principal; `IScopedUser.Exemption` is only a compatibility projection when one proof exists. Programmatic authorization without an HTTP policy context requires completed MFA instead of consuming ambient exemption evidence.
+
+Setup and pending-login markers cannot prove completed MFA. Multiple authenticated identities must have matching subjects and issuers; transformed exemption identities require matching subject, issuer, and authentication type, backed by a selected scheme's successful authentication. Normalize external subject claims to `sub` or the framework's configured name identifier. Applications remain responsible for trusted handler registration and token issuer/audience/signature validation.
+
+For example, a named API policy can select `ApiKey` and require its existing scope or role while user endpoints select cookies or bearer authentication. Include `ApiKey` in the eligibility allowlist; do not expose user enrollment through that API policy. Multiple supplied credentials are filtered by the endpoint policy, not accepted by first-success order or rejected request-wide.
+
+Shared MFA authorization does not require `UserManager`, `SignInManager`, or an Identity database. Nexus and Sample can use different application-scoped MFA markers and authentication providers. Future Keycloak integration should register its OIDC/bearer handlers and validated claim mapping; provider-managed enrollment and challenge do not require local Identity endpoints or DRN pending/setup cookies. Local browser redirection remains opt-in through `ConfigureMFARedirection`.
+
+Security-stamp cookie renewal and bearer refresh share preservation of all authenticated `amr` values and the exact configured completed-MFA claim, including session-only claims not regenerated by the user-principal factory. Duplicates and unrelated custom same-type values are not copied. Overrides of `ConfigureSecurityStampValidatorOptions` return `void`, accept `(SecurityStampValidatorOptions options, IAppSettings appSettings, MfaClaimConfig mfaClaimConfig)`, and should pass all three arguments to the base method to retain this behavior.
 
 #### Identity API MFA Setup Flow
 
@@ -410,7 +456,9 @@ An `MfaSetupRequired` credential never satisfies an MFA requirement, including w
 
 When the application does not enforce MFA globally, an authenticated user without two-factor authentication can call `TwoFactorAuth` with the ordinary login credential to opt in. After two-factor authentication is enabled, `TwoFactorAuth` requires a completed MFA session for subsequent management operations.
 
-Only `TwoFactorAuth` is decorated with `[Authorize(AuthPolicy.MfaExempt)]`. Other identity management operations, including `GetInfo` and `PostInfo`, use the application's default or fallback authorization policy and therefore require completed MFA under the default configuration.
+Applications using DRN's Identity management controller must call `services.AddDrnIdentityMfaPolicies()` (namespace `DRN.Framework.Hosting.Identity`) after registering Identity authentication. This registers `IdentityMfaPolicy.Enrollment` for the existing Identity cookie/bearer composite and cookie-only `BrowserEnrollment` / `Challenge` policies. The optional `identityApiScheme` parameter supports an application-owned equivalent composite. Generic Hosting does not automatically register these Identity policies.
+
+`TwoFactorAuth` uses `IdentityMfaPolicy.Enrollment`. Its factor-state check reads the same final `User` that identifies the account; an enabled factor always requires completed MFA before its shared key can be read or reset, disabled, or recovery codes regenerated. Unauthorized factor management returns HTTP 403. The sample browser setup page applies the same guard to GET and POST, and its challenge verifies that the pending SignInManager account matches the selected cookie account. Other identity management operations, including `GetInfo` and `PostInfo`, retain default/fallback MFA enforcement.
 
 ### Disabling MFA Entirely
 
@@ -807,11 +855,31 @@ Without the DRN directive, Vite resolution, CSP nonces, HTMX CSRF headers, activ
 | `ViteLinkTagHelper` | `<link href="buildwww/...">` | Resolves Vite manifest entries for CSS assets, adds SRI. |
 | `NonceTagHelper` | `<script>`, `<style>`, `<link>`, `<iframe>` | Automatically injects the request-specific CSP nonce. |
 | `CsrfTokenTagHelper` | `hx-post`, `hx-put`, etc. | Automatically adds `RequestVerificationToken` to HTMX headers for non-GET requests. |
-| `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Renders the element only if the user has an active MFA session. |
+| `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Renders the element only if the user is authenticated. |
 | `AnonymousOnlyTagHelper` | `*[anonymous-only]` | Renders the element only if the user is **not** authenticated. |
+| `PolicyOnlyTagHelper` | `*[policy-only="PolicyName"]` | Renders the element only when the current request user satisfies the named authorization policy. Accepts an optional `policy-resource`. |
 | `PageAnchorAspPageTagHelper` | `<a asp-page="...">` | Automatically adds `active` CSS class if the link matches current page. |
 | `PageAnchorHrefTagHelper` | `<a href="...">` | Automatically adds `active` CSS class if the link matches current path. |
 | `ScriptDefaultsTagHelper` | `<script>` | Modern defaults: `defer` for external scripts, `type="module"` for inline scripts. Opt-out via `defer="false"` or explicit `type`. |
+
+### Authorization Visibility
+
+Use named policies for claim, role, or resource requirements instead of duplicating authorization rules in markup:
+
+```razor
+<a policy-only="ManageUsers" asp-page="/Admin/Users">Manage users</a>
+<button policy-only="EditDocument" policy-resource="@Model.Document">Edit</button>
+<nav authorized-only>Signed-in navigation</nav>
+<a anonymous-only asp-page="/User/Login">Sign in</a>
+```
+
+`policy-only` requires a non-blank registered policy name. Blank names and unknown policies raise errors; authorization failure suppresses the element. Policies are evaluated asynchronously through `IAuthorizationService` using `ViewContext.HttpContext.User`. `policy-resource` is passed unchanged to authorization handlers and defaults to `null`. Policy configuration determines whether authentication is required; the helper does not add that requirement itself.
+
+This is programmatic authorization of the current user, not an access check for the destination of a link. It does not authenticate policy schemes, discover exemption proofs, or evaluate destination endpoint metadata. DRN's policy provider still adds the configured default MFA requirement to non-exempt named policies. With the default null resource (or a domain resource), MFA checks require completed MFA rather than consuming HTTP endpoint exemption evidence. Policies whose handlers need a resource must receive the appropriate `policy-resource` explicitly.
+
+`authorized-only` and `anonymous-only` are presence-only markers: write them without values. Any value, including `"false"`, still activates the filter. Remove the attribute to omit that filter; use Razor conditionals for dynamic rendering. Both markers are removed from rendered HTML. `authorized-only` checks `ScopeContext.Authenticated`; `anonymous-only` checks its inverse. When multiple visibility helpers apply, any one can suppress the element.
+
+By convention, endpoint policies enforce MFA while these two helpers distinguish signed-in and signed-out users. On anonymous or MFA-exempt pages, `authorized-only` can render for authenticated users whose MFA is pending or setup is incomplete. Use `policy-only` for visibility that requires a specific authorization policy. These helpers only control HTML rendering; enforce access independently through server authorization policies.
 
 ### Vite Manifest Publish Support
 

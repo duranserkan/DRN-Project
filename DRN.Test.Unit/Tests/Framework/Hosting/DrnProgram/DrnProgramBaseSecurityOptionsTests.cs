@@ -71,6 +71,7 @@ public class DrnProgramBaseSecurityOptionsTests
 
         options.ForwardedHeaders.Should().Be(ForwardedHeaders.All);
         options.ForwardLimit.Should().Be(2);
+        options.KnownIPNetworks.Should().HaveCount(5);
         options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "127.0.0.0" && n.PrefixLength == 8);
         options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "::1" && n.PrefixLength == 128);
         options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "10.0.0.0" && n.PrefixLength == 8);
@@ -90,6 +91,25 @@ public class DrnProgramBaseSecurityOptionsTests
         options.ForwardedHeaders.Should().Be(ForwardedHeaders.All);
         options.ForwardLimit.Should().Be(3);
         options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "10.0.0.0" && n.PrefixLength == 8);
+    }
+
+    [Fact]
+    public void ConfigureForwardedHeadersOptions_Should_Exclude_Private_Networks_When_TrustPrivateNetworks_Is_False()
+    {
+        var appSettings = CreateAppSettings(isDevelopment: false, ("ForwardedHeaders:TrustPrivateNetworks", "false"));
+        var options = new ForwardedHeadersOptions();
+        var configure = new TestProgram().ExposeConfigureForwardedHeadersOptions(appSettings);
+
+        configure(options);
+
+        options.ForwardedHeaders.Should().Be(ForwardedHeaders.All);
+        options.ForwardLimit.Should().Be(2);
+        options.KnownIPNetworks.Should().HaveCount(2);
+        options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "127.0.0.0" && n.PrefixLength == 8);
+        options.KnownIPNetworks.Should().Contain(n => n.BaseAddress.ToString() == "::1" && n.PrefixLength == 128);
+        options.KnownIPNetworks.Should().NotContain(n => n.BaseAddress.ToString() == "10.0.0.0");
+        options.KnownIPNetworks.Should().NotContain(n => n.BaseAddress.ToString() == "172.16.0.0");
+        options.KnownIPNetworks.Should().NotContain(n => n.BaseAddress.ToString() == "192.168.0.0");
     }
 
     [Fact]
@@ -121,6 +141,22 @@ public class DrnProgramBaseSecurityOptionsTests
 
         options.KnownIPNetworks.Should().HaveCount(1);
         options.KnownIPNetworks.Should().ContainSingle(n => n.BaseAddress.ToString() == "203.0.113.0" && n.PrefixLength == 24);
+    }
+
+    [Fact]
+    public void ConfigureForwardedHeadersOptions_Should_Allow_Explicit_Private_Network_When_TrustPrivateNetworks_Is_False()
+    {
+        var appSettings = CreateAppSettings(
+            isDevelopment: false,
+            ("ForwardedHeaders:TrustPrivateNetworks", "false"),
+            ("ForwardedHeaders:KnownIPNetworks:0", "10.0.0.0/8"));
+        var options = new ForwardedHeadersOptions();
+        var configure = new TestProgram().ExposeConfigureForwardedHeadersOptions(appSettings);
+
+        configure(options);
+
+        options.KnownIPNetworks.Should().HaveCount(1);
+        options.KnownIPNetworks.Should().ContainSingle(n => n.BaseAddress.ToString() == "10.0.0.0" && n.PrefixLength == 8);
     }
 
     [Fact]

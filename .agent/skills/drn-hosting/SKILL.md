@@ -69,7 +69,7 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 | `ConfigureForwardedHeadersOptions()` | Forwarded headers (default: All) |
 | `ConfigureRequestLocalizationOptions()` | Localization cultures, cookie provider |
 | `ConfigureHostFilteringOptions()` | Allowed hosts from config |
-| `ConfigureSecurityStampValidatorOptions()` | Security stamp refresh with AMR claim preservation |
+| `ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions, IAppSettings, MfaClaimConfig)` | Security stamp refresh with authenticated AMR and configured MFA claim preservation |
 | `ConfigureDefaultCspBase()` | Base CSP directives (base-uri, form-action, frame-ancestors) |
 | `ConfigureCookieTempDataProvider()` | TempData cookie settings |
 | `CreatePreAuthRateLimiter()` | Pre-auth rate limiter orchestration |
@@ -141,7 +141,7 @@ public class SampleProgramActions : DrnProgramActions
 
 MFA is enforced globally via the default/fallback policies and rechecked at the authorization middleware result boundary. Role-only attributes, direct policy metadata, and named policies cannot suppress global enforcement; named policies retain their configured authentication schemes. Any route not opted out requires MFA.
 
-The completed-MFA marker is provider-neutral and application-scoped. Override `ConfigureMFAClaim()` with the exact claim type and value emitted by the authentication handler or token mapper; the default is `MfaClaimConfig.AspNetIdentity` (`amr=mfa`). Enforcement, MFA redirection, `authorized-only` rendering, and `MfaFor.MfaCompleted` share this configuration. A setup credential remains rejected even if it also contains the completed-MFA claim.
+The completed-MFA marker is provider-neutral and application-scoped. Override `ConfigureMFAClaim()` with the exact validated marker; the default is `amr=mfa`. `MfaPrincipal` rejects setup/pending credentials and conflicting authenticated subjects/issuers. Exemption discovery uses only policy-selected schemes and authenticated forwarding targets; authorization uses request-local proofs, not the singular ambient compatibility field. Use final `User` for account-security checks. Identity consumers opt in with `AddDrnIdentityMfaPolicies()` and its enrollment/browser challenge policies; generic Hosting has no Identity-service requirement. External providers configure their own handlers/claims and can omit local MFA-page redirection.
 
 ```csharp
 // Opt-out options:
@@ -290,8 +290,9 @@ The automatic behaviors below apply only to views covered by the DRN directive.
 | `ViteLinkTagHelper` | `<link>` | Resolve Vite manifest + SRI |
 | `NonceTagHelper` | `<script>`, `<style>`, `<link>`, `<iframe>` | Add CSP nonce |
 | `CsrfTokenTagHelper` | `hx-post/put/delete/patch` | Add CSRF token |
-| `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Render if MFA complete |
+| `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Render if authenticated |
 | `AnonymousOnlyTagHelper` | `*[anonymous-only]` | Render if anonymous |
+| `PolicyOnlyTagHelper` | `*[policy-only="PolicyName"]` | Render when the current request user satisfies a named policy; optional `policy-resource` |
 | `PageAnchorAspPageTagHelper` | `<a asp-page>` | Mark active page |
 | `PageAnchorHrefTagHelper` | `<a href>` | Mark active page |
 | `ScriptDefaultsTagHelper` | `<script>` | Modern defaults: `defer` (external), `type="module"` (inline) |
@@ -306,7 +307,15 @@ The automatic behaviors below apply only to views covered by the DRN directive.
 ```razor
 <nav authorized-only>Profile links here</nav>
 <a asp-page="/User/Login" anonymous-only>Sign In</a>
+<a asp-page="/Admin/Users" policy-only="ManageUsers">Manage users</a>
+<button policy-only="EditDocument" policy-resource="@Model.Document">Edit</button>
 ```
+
+`authorized-only` and `anonymous-only` are presence-only markers without bound boolean properties. Use bare attributes; any value, including `"false"`, still activates filtering. Omit the marker to omit its filter, or use Razor conditionals for dynamic rendering. Both markers are removed from rendered HTML.
+
+Both helpers use `ScopeContext.Authenticated`: `authorized-only` renders for signed-in users and `anonymous-only` for signed-out users. Endpoint policies own MFA enforcement by convention. On anonymous or MFA-exempt pages, authenticated setup/pending users can see `authorized-only` content. Use `policy-only` when visibility requires a specific policy; completed MFA is not checked by `authorized-only`.
+
+`policy-only` delegates asynchronously to `IAuthorizationService` using the current `ViewContext.HttpContext.User` and the explicit resource (null by default). Blank policy names and missing policies raise errors. Named policies still receive DRN's configured default MFA requirements unless explicitly exempt. The helper does not authenticate schemes, discover exemptions, or evaluate a linked endpoint's metadata; null/domain resources do not consume HTTP exemption proofs. Policies needing a resource require an explicit `policy-resource`. Multiple visibility helpers compose by suppression. Enforce endpoint access independently; these helpers only affect HTML rendering.
 
 **Active page marking**:
 ```razor

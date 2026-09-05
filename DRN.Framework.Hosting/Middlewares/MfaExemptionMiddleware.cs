@@ -1,3 +1,4 @@
+using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
@@ -10,44 +11,32 @@ public class MfaExemptionMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext httpContext, IScopedUser scopedUser, MfaExemptionOptions exemptionOptions)
     {
-        if (exemptionOptions.ExemptAuthSchemes.Count > 0)
-            foreach (var exemptAuthScheme in exemptionOptions.ExemptAuthSchemes)
+        var concreteUser = scopedUser as ScopedUser;
+        concreteUser?.SetExemption(null);
+        var proofs = new List<(string SelectedScheme, ExemptionProof Proof)>();
+        MfaPolicyProof.SetSelected(httpContext, proofs);
+
+        var policy = await MfaPolicyProof.ResolvePolicyAsync(httpContext);
+        if (policy != null && exemptionOptions.ExemptAuthSchemes.Count > 0)
+        {
+            foreach (var scheme in await MfaPolicyProof.GetSchemesAsync(httpContext, policy))
             {
-                var result = await httpContext.AuthenticateAsync(exemptAuthScheme);
-                if (result is not { Succeeded: true, Principal: not null })
-                    continue;
-
-                var hasAuthenticatedIdentity = false;
-                var isSetupRequired = false;
-
-                foreach (var identity in result.Principal.Identities)
+                var result = await httpContext.AuthenticateAsync(scheme);
+                if (result is { Succeeded: true, Principal: not null } &&
+                    MfaPrincipal.HasSingleAccount(result.Principal) && !MfaPrincipal.IsRestricted(result.Principal))
                 {
-                    if (!identity.IsAuthenticated)
-                        continue;
-
-                    hasAuthenticatedIdentity = true;
-
-                    foreach (var claim in identity.Claims)
-                    {
-                        if (!string.Equals(claim.Type, ClaimConventions.AuthenticationMethod, StringComparison.OrdinalIgnoreCase) || claim.Value != MfaClaimValues.MfaSetupRequired)
-                            continue;
-                        isSetupRequired = true;
-                        break;
-                    }
-
-                    if (isSetupRequired)
-                        break;
+                    // A selected forwarding scheme may authenticate through an eligible concrete handler.
+                    var authenticatedScheme = exemptionOptions.ExemptAuthSchemes.Contains(scheme)
+                        ? scheme : result.Ticket?.AuthenticationScheme;
+                    if (authenticatedScheme != null && exemptionOptions.ExemptAuthSchemes.Contains(authenticatedScheme))
+                        proofs.Add((scheme, new ExemptionProof(authenticatedScheme, result.Principal)));
                 }
-
-                if (!hasAuthenticatedIdentity || isSetupRequired)
-                    continue;
-
-                if (scopedUser is not ScopedUser concreteScopedUser)
-                    continue;
-
-                concreteScopedUser.SetExemption(exemptAuthScheme, result.Principal);
-                break;
             }
+        }
+
+        // Compatibility projection only. Authorization uses all policy-selected proofs.
+        if (proofs.Count == 1)
+            concreteUser?.SetExemption(proofs[0].Proof.Scheme, proofs[0].Proof.Principal);
 
         await next(httpContext);
     }

@@ -107,8 +107,12 @@ Framework conventions and defaults live in framework-scoped DRN skills, especial
 | Test-context/application provider ownership and host lifecycle | [DrnTestContext.cs](../DRN.Framework.Testing/Contexts/DrnTestContext.cs), [ApplicationContext.cs](../DRN.Framework.Testing/Contexts/Application/ApplicationContext.cs), [DrnWebApplicationFactory.cs](../DRN.Framework.Testing/Contexts/Application/DrnWebApplicationFactory.cs) | Testing README, Testing release notes, `drn-testing` skill |
 | Vite manifest discovery and publish support | [ViteManifest.cs](../DRN.Framework.Hosting/Utils/Vite/ViteManifest.cs), [DRN.Framework.Hosting.targets](../DRN.Framework.Hosting/buildTransitive/DRN.Framework.Hosting.targets) | Hosting README, frontend Vite skill, DRN hosting skill |
 | Completed-MFA claim configuration | [MfaClaimConfig.cs](../DRN.Framework.Utils/Auth/MFA/MfaClaimConfig.cs), [MfaFor.cs](../DRN.Framework.Utils/Auth/MFA/MfaFor.cs), [DrnProgramBase.cs](../DRN.Framework.Hosting/DrnProgram/DrnProgramBase.cs) | Utils and Hosting READMEs and release notes, `drn-utils`, `drn-hosting` |
+| Policy-selected MFA proof and Identity enrollment | [MfaPolicyProof.cs](../DRN.Framework.Hosting/Auth/MfaPolicyProof.cs), [MfaPrincipal.cs](../DRN.Framework.Utils/Auth/MFA/MfaPrincipal.cs), [IdentityMfaPolicy.cs](../DRN.Framework.Hosting/Identity/IdentityMfaPolicy.cs) | Hosting/Utils docs and skills; Sample/Nexus opt-in Identity registration |
+| Razor authorization visibility | [PolicyOnlyTagHelper.cs](../DRN.Framework.Hosting/TagHelpers/PolicyOnlyTagHelper.cs), [AuthorizedOnlyTagHelper.cs](../DRN.Framework.Hosting/TagHelpers/AuthorizedOnlyTagHelper.cs), [AnonymousOnlyTagHelper.cs](../DRN.Framework.Hosting/TagHelpers/AnonymousOnlyTagHelper.cs) | Hosting README and release notes, `drn-hosting` |
 
 ### Documentation Sync
+
+Razor visibility convention: `authorized-only` and `anonymous-only` are presence-only markers based on `ScopeContext.Authenticated`. Endpoint policies enforce MFA; use `policy-only` for policy-specific visibility. Authenticated setup/pending credentials can satisfy `authorized-only` on anonymous or MFA-exempt pages.
 
 When source code changes a shared framework fact:
 

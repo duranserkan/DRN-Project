@@ -1,5 +1,3 @@
-using DRN.Framework.Utils.Auth;
-
 namespace DRN.Framework.Utils.Auth.MFA;
 
 /// <summary>

@@ -1,6 +1,6 @@
 // This file is licensed to you under the MIT license.
 
-using DRN.Framework.Hosting.Auth;
+using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Identity.Services;
 using DRN.Framework.Utils.Auth.MFA;
@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace DRN.Framework.Hosting.Identity.Controllers;
 
@@ -30,8 +31,9 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
     public abstract ApiEndpoint EmailEndpoint { get; }
 
     [HttpPost(nameof(TwoFactorAuth))]
-    [Authorize(AuthPolicy.MfaExempt)]
+    [Authorize(IdentityMfaPolicy.Enrollment)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(TwoFactorResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -44,10 +46,12 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
         if (await userManager.GetUserAsync(User) is not { } user)
             return TypedResults.NotFound();
 
-        // Initial enrollment is available to authenticated users; an enabled factor requires MFA to manage.
+        // The factor and its MFA proof must belong to the final authorized account.
         var isTwoFactorEnabled = await userManager.GetTwoFactorEnabledAsync(user);
-        if (isTwoFactorEnabled && !MfaFor.MfaCompleted)
-            return TypedResults.Challenge();
+        var mfaConfig = HttpContext.RequestServices.GetService<MfaClaimConfig>() ?? MfaClaimConfig.AspNetIdentity;
+        var enforced = MfaAuthorization.IsMfaEnforced(HttpContext.RequestServices.GetRequiredService<IOptions<AuthorizationOptions>>().Value);
+        if (!IdentityMfaPolicy.CanManage(User, isTwoFactorEnabled, enforced, mfaConfig, userManager.Options.ClaimsIdentity.UserIdClaimType))
+            return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
 
         if (tfaRequest.Enable == true)
         {

@@ -4,6 +4,9 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
+using DRN.Framework.Utils.Scope;
+using Microsoft.AspNetCore.Http;
+using Sample.Hosted.Controllers.User;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
 using DRN.Test.Utils.Hosting.Auth;
 using Microsoft.AspNetCore.Authentication;
@@ -16,11 +19,103 @@ using Microsoft.Extensions.Options;
 using Sample.Domain.Users;
 using Sample.Hosted;
 using Sample.Hosted.Helpers;
+using Sample.Hosted.Pages.User.Management;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting.Auth;
 
 public class BearerMfaEnforcementTests
 {
+    [Theory]
+    [DataInline]
+    public async Task Management_Must_Not_Use_Another_Accounts_Ambient_Mfa(DrnTestContext context)
+    {
+        using var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
+        var app = context.ApplicationContext.GetCreatedApplication<SampleProgram>()!;
+        using var scope = app.Services.CreateScope();
+        var manager = scope.ServiceProvider.GetRequiredService<UserManager<SampleUser>>();
+        var signIn = scope.ServiceProvider.GetRequiredService<SignInManager<SampleUser>>();
+        var email = $"mfa-boundary-{Guid.NewGuid():N}@example.com";
+        var account = new SampleUser { UserName = email, Email = email };
+        (await manager.CreateAsync(account)).Succeeded.Should().BeTrue();
+        (await manager.ResetAuthenticatorKeyAsync(account)).Succeeded.Should().BeTrue();
+        (await manager.SetTwoFactorEnabledAsync(account, true)).Succeeded.Should().BeTrue();
+        var key = await manager.GetAuthenticatorKeyAsync(account);
+        var target = await signIn.CreateUserPrincipalAsync(account);
+        var ambient = new ClaimsPrincipal(new ClaimsIdentity([
+            new Claim(ClaimTypes.NameIdentifier, "another-account"), new Claim("amr", "mfa")
+        ], IdentityConstants.ApplicationScheme));
+        ScopeContext.InitializeForTest(scope.ServiceProvider, scopedUser: ScopedUser.FromClaimsPrincipal(ambient));
+        var controller = new SampleIdentityManagementController
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { RequestServices = scope.ServiceProvider, User = target }
+            }
+        };
+
+        foreach (var request in new[]
+                 {
+                     new TwoFactorRequest(), new TwoFactorRequest { Enable = false },
+                     new TwoFactorRequest { ResetSharedKey = true }, new TwoFactorRequest { ResetRecoveryCodes = true }
+                 })
+        {
+            var result = await controller.TwoFactorAuth(request);
+            result.Should().BeAssignableTo<IStatusCodeHttpResult>().Which.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+            (await manager.GetTwoFactorEnabledAsync(account)).Should().BeTrue();
+            (await manager.GetAuthenticatorKeyAsync(account)).Should().Be(key);
+            (await manager.CountRecoveryCodesAsync(account)).Should().Be(0);
+        }
+
+        var page = new EnableAuthenticator(signIn, manager)
+        {
+            PageContext = new Microsoft.AspNetCore.Mvc.RazorPages.PageContext
+            {
+                HttpContext = new DefaultHttpContext { RequestServices = scope.ServiceProvider, User = target }
+            }
+        };
+        (await page.OnGetAsync()).Should().BeOfType<ForbidResult>();
+        (await page.OnPostVerifyAsync()).Should().BeOfType<ForbidResult>();
+        page.SharedKey.Should().BeEmpty();
+        (await manager.GetAuthenticatorKeyAsync(account)).Should().Be(key);
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task Selected_Credentials_And_Mfa_Configuration_Are_Isolated_Per_Host(DrnTestContext context)
+    {
+        using var userClient = await context.ApplicationContext.CreateClientAsync<NonDefaultExemptSchemeTestProgram>();
+        using var externalClient = await context.ApplicationContext.CreateClientAsync<MfaExemptionPipelineTestProgram>();
+
+        using var password = new HttpRequestMessage(HttpMethod.Get, NonDefaultExemptValues.CookieRoleProtectedPath);
+        password.Headers.Add(NonDefaultExemptValues.CookieHeader, "password");
+        password.Headers.Add(NonDefaultExemptValues.ApiKeyHeader, "valid-unselected-key");
+        using var rejected = await userClient.SendAsync(password);
+        rejected.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        using var keys = new HttpRequestMessage(HttpMethod.Get, NonDefaultExemptValues.SecondApiKeyProtectedPath);
+        keys.Headers.Add(NonDefaultExemptValues.ApiKeyHeader, "first");
+        keys.Headers.Add(NonDefaultExemptValues.SecondApiKeyHeader, "second");
+        keys.Headers.Add(NonDefaultExemptValues.CookieHeader, "password");
+        using var selected = await userClient.SendAsync(keys);
+        selected.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await selected.Content.ReadAsStringAsync()).Should().Be(NonDefaultExemptValues.SecondApiKeyScheme);
+
+        using var missing = new HttpRequestMessage(HttpMethod.Get, NonDefaultExemptValues.SecondApiKeyProtectedPath);
+        missing.Headers.Add(NonDefaultExemptValues.ApiKeyHeader, "first");
+        using var missingResult = await userClient.SendAsync(missing);
+        missingResult.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+
+        using var external = new HttpRequestMessage(HttpMethod.Get, MfaPipelineTestValues.NamedSchemeProtectedPath);
+        external.Headers.Add(MfaPipelineTestValues.CredentialHeader, MfaPipelineTestValues.CompletedCredential);
+        using var externalResult = await externalClient.SendAsync(external);
+        externalResult.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var identity = new HttpRequestMessage(HttpMethod.Get, NonDefaultExemptValues.CookieRoleProtectedPath);
+        identity.Headers.Add(NonDefaultExemptValues.CookieHeader, "completed");
+        using var identityResult = await userClient.SendAsync(identity);
+        identityResult.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
     [Theory]
     [DataInline]
     public async Task Enforced_Mfa_Login_Should_Not_Disclose_User_Or_Enrollment_State(DrnTestContext context)
@@ -57,31 +152,28 @@ public class BearerMfaEnforcementTests
     }
 
     [Theory]
-    [DataInline]
-    public async Task Exempt_Authentication_Scheme_Should_Not_Authorize_Mfa_Setup_Credential(DrnTestContext context)
+    [DataInline(MfaPipelineTestValues.ProtectedPath, null, HttpStatusCode.Unauthorized)]
+    [DataInline(MfaPipelineTestValues.ProtectedPath, MfaPipelineTestValues.InvalidCredential, HttpStatusCode.Unauthorized)]
+    [DataInline(MfaPipelineTestValues.ProtectedPath, MfaPipelineTestValues.PasswordCredential, HttpStatusCode.OK)]
+    [DataInline(MfaPipelineTestValues.ProtectedPath, MfaPipelineTestValues.SetupCredential, HttpStatusCode.Forbidden)]
+    [DataInline(MfaPipelineTestValues.ProtectedPath, MfaPipelineTestValues.SetupAndCompletedCredential, HttpStatusCode.Forbidden)]
+    [DataInline(MfaPipelineTestValues.ProtectedPath, MfaPipelineTestValues.CompletedCredential, HttpStatusCode.OK)]
+    [DataInline(MfaPipelineTestValues.RoleProtectedPath, null, HttpStatusCode.Unauthorized)]
+    [DataInline(MfaPipelineTestValues.RoleProtectedPath, MfaPipelineTestValues.InvalidCredential, HttpStatusCode.Unauthorized)]
+    [DataInline(MfaPipelineTestValues.RoleProtectedPath, MfaPipelineTestValues.PasswordCredential, HttpStatusCode.OK)]
+    [DataInline(MfaPipelineTestValues.RoleProtectedPath, MfaPipelineTestValues.SetupCredential, HttpStatusCode.Forbidden)]
+    [DataInline(MfaPipelineTestValues.RoleProtectedPath, MfaPipelineTestValues.SetupAndCompletedCredential, HttpStatusCode.Forbidden)]
+    [DataInline(MfaPipelineTestValues.RoleProtectedPath, MfaPipelineTestValues.CompletedCredential, HttpStatusCode.OK)]
+    public async Task Default_And_Role_Policies_Should_Enforce_Mfa(
+        DrnTestContext context, string path, string? credential, HttpStatusCode expectedStatus)
     {
         using var client = await context.ApplicationContext.CreateClientAsync<MfaExemptionPipelineTestProgram>();
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        if (credential != null)
+            request.Headers.Add(MfaPipelineTestValues.CredentialHeader, credential);
 
-        await AssertPipelineStatusAsync(client, credential: null, HttpStatusCode.Unauthorized);
-        await AssertPipelineStatusAsync(client, MfaPipelineTestValues.InvalidCredential, HttpStatusCode.Unauthorized);
-        await AssertPipelineStatusAsync(client, MfaPipelineTestValues.PasswordCredential, HttpStatusCode.OK);
-        await AssertPipelineStatusAsync(client, MfaPipelineTestValues.SetupCredential, HttpStatusCode.Forbidden);
-        await AssertPipelineStatusAsync(client, MfaPipelineTestValues.SetupAndCompletedCredential, HttpStatusCode.Forbidden);
-        await AssertPipelineStatusAsync(client, MfaPipelineTestValues.CompletedCredential, HttpStatusCode.OK);
-    }
-
-    [Theory]
-    [DataInline]
-    public async Task Role_Only_Policy_Should_Not_Bypass_Global_Mfa_Enforcement(DrnTestContext context)
-    {
-        using var client = await context.ApplicationContext.CreateClientAsync<MfaExemptionPipelineTestProgram>();
-        var path = MfaPipelineTestValues.RoleProtectedPath;
-
-        await AssertPipelineStatusAsync(client, credential: null, HttpStatusCode.Unauthorized, path);
-        await AssertPipelineStatusAsync(client, MfaPipelineTestValues.PasswordCredential, HttpStatusCode.OK, path);
-        await AssertPipelineStatusAsync(client, MfaPipelineTestValues.SetupCredential, HttpStatusCode.Forbidden, path);
-        await AssertPipelineStatusAsync(client, MfaPipelineTestValues.SetupAndCompletedCredential, HttpStatusCode.Forbidden, path);
-        await AssertPipelineStatusAsync(client, MfaPipelineTestValues.CompletedCredential, HttpStatusCode.OK, path);
+        using var response = await client.SendAsync(request);
+        response.StatusCode.Should().Be(expectedStatus);
     }
 
     [Theory]
@@ -112,39 +204,22 @@ public class BearerMfaEnforcementTests
     }
 
     [Theory]
-    [DataInline]
-    public async Task Non_Default_Exempt_Scheme_Must_Not_Authenticate_Unrelated_Endpoints(DrnTestContext context)
+    [DataInline(NonDefaultExemptValues.CookieRoleProtectedPath, false, true, HttpStatusCode.Unauthorized)]
+    [DataInline(NonDefaultExemptValues.CookieRoleProtectedPath, true, false, HttpStatusCode.OK)]
+    [DataInline(NonDefaultExemptValues.ApiKeyProtectedPath, false, true, HttpStatusCode.OK)]
+    [DataInline(NonDefaultExemptValues.ApiKeyProtectedPath, true, true, HttpStatusCode.OK)]
+    public async Task Non_Default_Exempt_Scheme_Must_Not_Authenticate_Unrelated_Endpoints(
+        DrnTestContext context, string path, bool sendCookie, bool sendApiKey, HttpStatusCode expectedStatus)
     {
         using var client = await context.ApplicationContext.CreateClientAsync<NonDefaultExemptSchemeTestProgram>();
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        if (sendCookie)
+            request.Headers.Add(NonDefaultExemptValues.CookieHeader, "cookie-valid");
+        if (sendApiKey)
+            request.Headers.Add(NonDefaultExemptValues.ApiKeyHeader, "api-key-valid");
 
-        // 1. Send ApiKey credential to cookie-only role-protected endpoint (which never selected ApiKey).
-        // It must NOT authenticate the endpoint and must return 401 Unauthorized.
-        using var cookieEndpointRequest = new HttpRequestMessage(HttpMethod.Get, NonDefaultExemptValues.CookieRoleProtectedPath);
-        cookieEndpointRequest.Headers.Add(NonDefaultExemptValues.ApiKeyHeader, "api-key-valid");
-        using var cookieEndpointResponse = await client.SendAsync(cookieEndpointRequest);
-        cookieEndpointResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-
-        // 2. Send Cookie credential to the cookie-only role-protected endpoint.
-        // It must succeed with 200 OK.
-        using var cookieValidRequest = new HttpRequestMessage(HttpMethod.Get, NonDefaultExemptValues.CookieRoleProtectedPath);
-        cookieValidRequest.Headers.Add(NonDefaultExemptValues.CookieHeader, "cookie-valid");
-        using var cookieValidResponse = await client.SendAsync(cookieValidRequest);
-        cookieValidResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        // 3. Send ApiKey credential to the endpoint explicitly opting into ApiKey.
-        // It must succeed with 200 OK and be exempt from MFA.
-        using var apiKeyEndpointRequest = new HttpRequestMessage(HttpMethod.Get, NonDefaultExemptValues.ApiKeyProtectedPath);
-        apiKeyEndpointRequest.Headers.Add(NonDefaultExemptValues.ApiKeyHeader, "api-key-valid");
-        using var apiKeyEndpointResponse = await client.SendAsync(apiKeyEndpointRequest);
-        apiKeyEndpointResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        // 4. Send BOTH Cookie credential (with completed MFA) AND ApiKey credential to the ApiKey endpoint.
-        // Ambient completed MFA on the cookie must NOT suppress ApiKey exemption discovery, and must succeed with 200 OK.
-        using var combinedRequest = new HttpRequestMessage(HttpMethod.Get, NonDefaultExemptValues.ApiKeyProtectedPath);
-        combinedRequest.Headers.Add(NonDefaultExemptValues.CookieHeader, "cookie-valid");
-        combinedRequest.Headers.Add(NonDefaultExemptValues.ApiKeyHeader, "api-key-valid");
-        using var combinedResponse = await client.SendAsync(combinedRequest);
-        combinedResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var response = await client.SendAsync(request);
+        response.StatusCode.Should().Be(expectedStatus);
     }
 
     [Theory]
@@ -294,44 +369,22 @@ public class BearerMfaEnforcementTests
             identity.RegisterController.Register.RoutePattern!,
             identity.ManagementController.TwoFactorAuth.RoutePattern!);
         var refreshUrl = identity.LoginController.Refresh.RoutePattern!;
-
-        var credentials = CredentialsProvider.GenerateCredentials();
-        var registerRequest = new RegisterRequest
-        {
-            Email = $"{credentials.Username}@example.com",
-            Password = credentials.Password
-        };
-        await AuthenticationHelper.RegisterUserAsync(client, registerRequest, endpoints);
-
-        // Retrieve registered user and construct a refresh token containing both the custom MFA claim
-        // and an unrelated claim of the same type (permission: admin).
-        var userManager = application.Services.GetRequiredService<UserManager<SampleUser>>();
-        var signInManager = application.Services.GetRequiredService<SignInManager<SampleUser>>();
-        var bearerOptionsMonitor = application.Services.GetRequiredService<IOptionsMonitor<BearerTokenOptions>>();
-        var bearerOptions = bearerOptionsMonitor.Get(IdentityConstants.BearerScheme);
-
-        var user = await userManager.FindByEmailAsync(registerRequest.Email);
-        user.Should().NotBeNull();
-
-        var principal = await signInManager.CreateUserPrincipalAsync(user!);
+        var principal = await RegisterPrincipalAsync(client, application.Services, endpoints);
+        var bearerOptions = application.Services.GetRequiredService<IOptionsMonitor<BearerTokenOptions>>()
+            .Get(IdentityConstants.BearerScheme);
         const string unauthenticatedAmr = "unauthenticated_amr";
         const string unauthenticatedMfa = "unauthenticated_mfa";
-        if (principal.Identity is ClaimsIdentity claimsIdentity)
-        {
-            claimsIdentity.AddClaim(new Claim(customClaimType, mfaClaimValue));
-            claimsIdentity.AddClaim(new Claim(customClaimType, unrelatedClaimValue));
-        }
+        principal.Identity.Should().BeOfType<ClaimsIdentity>();
+        var claimsIdentity = (ClaimsIdentity)principal.Identity!;
+        claimsIdentity.AddClaim(new Claim(customClaimType, mfaClaimValue));
+        claimsIdentity.AddClaim(new Claim(customClaimType, unrelatedClaimValue));
 
         principal.AddIdentity(new ClaimsIdentity([
             new Claim(ClaimConventions.AuthenticationMethodReference, unauthenticatedAmr),
             new Claim(customClaimType, unauthenticatedMfa)
         ]));
 
-        var refreshTicket = new AuthenticationTicket(principal, new AuthenticationProperties
-        {
-            ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(30)
-        }, $"{IdentityConstants.BearerScheme}:RefreshToken");
-        var refreshToken = bearerOptions.RefreshTokenProtector.Protect(refreshTicket);
+        var refreshToken = CreateRefreshToken(principal, bearerOptions);
 
         // Execute /refresh request
         using var refreshResponse = await client.PostAsJsonAsync(refreshUrl, new RefreshRequest
@@ -341,12 +394,12 @@ public class BearerMfaEnforcementTests
         refreshResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var refreshedToken = await refreshResponse.Content.ReadFromJsonAsync<AccessTokenResponse>();
         refreshedToken.Should().NotBeNull();
-        refreshedToken!.AccessToken.Should().NotBeNullOrWhiteSpace();
+        refreshedToken.AccessToken.Should().NotBeNullOrWhiteSpace();
 
         // Inspect the regenerated access token principal
         var accessTokenTicket = bearerOptions.BearerTokenProtector.Unprotect(refreshedToken.AccessToken);
         accessTokenTicket.Should().NotBeNull();
-        var refreshedPrincipal = accessTokenTicket!.Principal;
+        var refreshedPrincipal = accessTokenTicket.Principal;
 
         // The exact configured MFA claim (permission: mfa) must be preserved
         refreshedPrincipal.HasClaim(customClaimType, mfaClaimValue).Should().BeTrue();
@@ -375,34 +428,14 @@ public class BearerMfaEnforcementTests
             identity.ManagementController.TwoFactorAuth.RoutePattern!);
         var refreshUrl = identity.LoginController.Refresh.RoutePattern!;
         var protectedUrl = identity.ManagementController.GetInfo.RoutePattern!;
-
-        var credentials = CredentialsProvider.GenerateCredentials();
-        var registerRequest = new RegisterRequest
-        {
-            Email = $"{credentials.Username}@example.com",
-            Password = credentials.Password
-        };
-        await AuthenticationHelper.RegisterUserAsync(client, registerRequest, endpoints);
-
-        var userManager = application.Services.GetRequiredService<UserManager<SampleUser>>();
-        var signInManager = application.Services.GetRequiredService<SignInManager<SampleUser>>();
-        var bearerOptionsMonitor = application.Services.GetRequiredService<IOptionsMonitor<BearerTokenOptions>>();
-        var bearerOptions = bearerOptionsMonitor.Get(IdentityConstants.BearerScheme);
-
-        var user = await userManager.FindByEmailAsync(registerRequest.Email);
-        user.Should().NotBeNull();
-
-        // Create principal with password-only authenticated identity, and attach an unauthenticated identity containing amr=mfa
-        var principal = await signInManager.CreateUserPrincipalAsync(user!);
+        var principal = await RegisterPrincipalAsync(client, application.Services, endpoints);
+        var bearerOptions = application.Services.GetRequiredService<IOptionsMonitor<BearerTokenOptions>>()
+            .Get(IdentityConstants.BearerScheme);
         principal.AddIdentity(new ClaimsIdentity([
             new Claim(ClaimConventions.AuthenticationMethodReference, MfaClaimValues.Amr)
         ]));
 
-        var refreshTicket = new AuthenticationTicket(principal, new AuthenticationProperties
-        {
-            ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(30)
-        }, $"{IdentityConstants.BearerScheme}:RefreshToken");
-        var refreshToken = bearerOptions.RefreshTokenProtector.Protect(refreshTicket);
+        var refreshToken = CreateRefreshToken(principal, bearerOptions);
 
         using var refreshResponse = await client.PostAsJsonAsync(refreshUrl, new RefreshRequest
         {
@@ -411,11 +444,11 @@ public class BearerMfaEnforcementTests
         refreshResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var refreshedToken = await refreshResponse.Content.ReadFromJsonAsync<AccessTokenResponse>();
         refreshedToken.Should().NotBeNull();
-        refreshedToken!.AccessToken.Should().NotBeNullOrWhiteSpace();
+        refreshedToken.AccessToken.Should().NotBeNullOrWhiteSpace();
 
         var accessTokenTicket = bearerOptions.BearerTokenProtector.Unprotect(refreshedToken.AccessToken);
         accessTokenTicket.Should().NotBeNull();
-        var refreshedPrincipal = accessTokenTicket!.Principal;
+        var refreshedPrincipal = accessTokenTicket.Principal;
 
         // The unauthenticated AMR claim must NOT be promoted to the refreshed access token
         refreshedPrincipal.HasClaim(ClaimConventions.AuthenticationMethodReference, MfaClaimValues.Amr).Should().BeFalse();
@@ -425,6 +458,32 @@ public class BearerMfaEnforcementTests
         protectedRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", refreshedToken.AccessToken);
         using var protectedResponse = await client.SendAsync(protectedRequest);
         protectedResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    private static async Task<ClaimsPrincipal> RegisterPrincipalAsync(
+        HttpClient client, IServiceProvider services, AuthenticationEndpoints endpoints)
+    {
+        var credentials = CredentialsProvider.GenerateCredentials();
+        var registration = new RegisterRequest
+        {
+            Email = $"{credentials.Username}@example.com",
+            Password = credentials.Password
+        };
+        await AuthenticationHelper.RegisterUserAsync(client, registration, endpoints);
+
+        var userManager = services.GetRequiredService<UserManager<SampleUser>>();
+        var user = await userManager.FindByEmailAsync(registration.Email);
+        user.Should().NotBeNull();
+        return await services.GetRequiredService<SignInManager<SampleUser>>().CreateUserPrincipalAsync(user);
+    }
+
+    private static string CreateRefreshToken(ClaimsPrincipal principal, BearerTokenOptions options)
+    {
+        var ticket = new AuthenticationTicket(principal, new AuthenticationProperties
+        {
+            ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(30)
+        }, $"{IdentityConstants.BearerScheme}:RefreshToken");
+        return options.RefreshTokenProtector.Protect(ticket);
     }
 
     private static async Task<HttpClient> CreateOptionalMfaClientAsync(DrnTestContext context)
@@ -444,20 +503,6 @@ public class BearerMfaEnforcementTests
         return application.CreateClient();
     }
 
-    private static async Task AssertPipelineStatusAsync(
-        HttpClient client,
-        string? credential,
-        HttpStatusCode expectedStatus,
-        string path = MfaPipelineTestValues.ProtectedPath)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        if (credential != null)
-            request.Headers.Add(MfaPipelineTestValues.CredentialHeader, credential);
-
-        using var response = await client.SendAsync(request);
-        response.StatusCode.Should().Be(expectedStatus);
-    }
-
     private static async Task<string?> GetLoginFailureAsync(HttpClient client, string loginUrl, string email, string password)
     {
         using var response = await client.PostAsJsonAsync(loginUrl, new LoginRequest
@@ -469,6 +514,6 @@ public class BearerMfaEnforcementTests
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         problem.Should().NotBeNull();
-        return problem!.Detail;
+        return problem.Detail;
     }
 }

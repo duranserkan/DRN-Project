@@ -595,7 +595,7 @@ await response.Payload!.CopyToAsync(destination);
 
 `IScopedUser` exposes authenticated identity and claim state. Use `GetClaimParameter<TValue>` for typed claims; `ScopeContext.GetClaimParameter<TValue>` provides ambient access to the same contract.
 
-`MfaFor.MfaCompleted` evaluates the application-scoped `MfaClaimConfig` registered by DRN Hosting. The default `MfaClaimConfig.AspNetIdentity` matches `amr=mfa`; hosting applications can select another exact claim type/value for Keycloak or another identity provider. The lookup checks all values for the configured claim type on the authenticated scoped identity.
+`MfaFor.MfaCompleted` delegates to the provider-neutral `MfaPrincipal.IsCompleted` with the application-scoped `MfaClaimConfig`. The default matches `amr=mfa`; applications can select another exact marker without requiring ASP.NET Identity services. Setup/pending credentials are rejected even when they contain that marker. Multiple authenticated identities must identify the same subject and issuer (`sub` or the configured name identifier). Claims on unauthenticated identities do not supply MFA. For security decisions after endpoint authentication selects another principal, evaluate the final `User` directly rather than a pre-authorization scoped snapshot.
 
 `ScopeData` is separate caller-owned ambient storage and is not automatically copied into `IScopedLog`. Use `SetFlag` and typed `SetParameter` values for validated application data.
 

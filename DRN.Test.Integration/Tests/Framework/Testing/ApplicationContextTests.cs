@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -363,6 +365,63 @@ public class ApplicationContextTests
         hostContextValue.Should().Be("CustomHostConfigValue");
         configuration["CustomHostConfigKey"].Should().Be("CustomHostConfigValue");
         TemporaryLifecycleProgram.CapturedAppSettings?.GetValue<string>("CustomHostConfigKey").Should().Be("CustomHostConfigValue");
+    }
+
+    [Theory]
+    [DataInline]
+    public void DrnWebApplicationFactory_HostConfiguration_Should_Configure_Content_Root(DrnTestContext context)
+    {
+        TemporaryLifecycleProgram.Reset();
+
+        using var factory = new ExposedDrnWebApplicationFactory(context);
+        var builder = factory.CreateHostBuilderForTest();
+        builder.Should().NotBeNull();
+
+        var targetContentRoot = AppContext.BaseDirectory;
+        string? observedContentRoot = null;
+        IFileProvider? observedFileProvider = null;
+
+        builder!.ConfigureHostConfiguration(config => config.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [HostDefaults.ContentRootKey] = targetContentRoot
+        }));
+        builder.ConfigureAppConfiguration((hostContext, _) =>
+        {
+            observedContentRoot = hostContext.HostingEnvironment.ContentRootPath;
+            observedFileProvider = hostContext.HostingEnvironment.ContentRootFileProvider;
+        });
+
+        using var host = builder.Build();
+
+        observedContentRoot.Should().Be(targetContentRoot);
+        observedFileProvider.Should().BeOfType<PhysicalFileProvider>();
+    }
+
+    [Theory]
+    [DataInline]
+    public void DrnWebApplicationFactory_Container_Configuration_Should_Be_Retained_And_Applied(DrnTestContext context)
+    {
+        TemporaryLifecycleProgram.Reset();
+
+        using var factory = new ExposedDrnWebApplicationFactory(context);
+        var builder = factory.CreateHostBuilderForTest();
+        builder.Should().NotBeNull();
+
+        var testFactory = new TestContainerFactory();
+        var containerConfigured = false;
+
+        builder!.UseServiceProviderFactory(testFactory);
+        builder.ConfigureContainer<TestContainerBuilder>((_, container) =>
+        {
+            containerConfigured = true;
+            container.Configured = true;
+        });
+
+        using var host = builder.Build();
+
+        testFactory.CreateBuilderCalled.Should().BeTrue();
+        testFactory.CreateServiceProviderCalled.Should().BeTrue();
+        containerConfigured.Should().BeTrue();
     }
 
     [Theory]
@@ -962,5 +1021,32 @@ public class ApplicationContextTests
     {
         public IHost CreateHostForTest(IHostBuilder builder) => CreateHost(builder);
         public IHostBuilder? CreateHostBuilderForTest() => CreateHostBuilder();
+    }
+
+    private sealed class TestContainerBuilder
+    {
+        public IServiceCollection Services { get; } = new ServiceCollection();
+        public bool Configured { get; set; }
+    }
+
+    private sealed class TestContainerFactory : IServiceProviderFactory<TestContainerBuilder>
+    {
+        public bool CreateBuilderCalled { get; private set; }
+        public bool CreateServiceProviderCalled { get; private set; }
+
+        public TestContainerBuilder CreateBuilder(IServiceCollection services)
+        {
+            CreateBuilderCalled = true;
+            var builder = new TestContainerBuilder();
+            foreach (var descriptor in services)
+                builder.Services.Add(descriptor);
+            return builder;
+        }
+
+        public IServiceProvider CreateServiceProvider(TestContainerBuilder containerBuilder)
+        {
+            CreateServiceProviderCalled = true;
+            return containerBuilder.Services.BuildServiceProvider();
+        }
     }
 }

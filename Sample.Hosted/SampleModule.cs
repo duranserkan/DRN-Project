@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel.Extensions;
+using DRN.Framework.Hosting.Identity;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
@@ -24,6 +25,8 @@ public static class SampleModule
             .Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024) // size limit
             .ConfigureCookieAuthenticationOptions(settings)
             .AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings));
+
+        services.AddDrnIdentityMfaPolicies();
 
         //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
         //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/

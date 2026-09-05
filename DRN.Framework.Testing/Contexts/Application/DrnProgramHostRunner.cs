@@ -6,6 +6,7 @@ using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
@@ -23,6 +24,7 @@ internal sealed class DrnProgramHostRunner<TProgram>
         List<Action<IConfigurationBuilder>> hostConfigs,
         List<Action<HostBuilderContext, IConfigurationBuilder>> appConfigs,
         List<Action<HostBuilderContext, IServiceCollection>> servicesConfigs,
+        List<Action<WebApplicationBuilder, HostBuilderContext>> containerConfigs,
         IDictionary<object, object> properties)
     {
         var configBuilder = new ConfigurationBuilder();
@@ -36,6 +38,15 @@ internal sealed class DrnProgramHostRunner<TProgram>
         var hasWebRoot = !string.IsNullOrEmpty(webRootPath);
 
         var initialConfiguration = configBuilder.Build();
+        var configuredContentRoot = initialConfiguration[HostDefaults.ContentRootKey];
+        var contentRootPath = string.IsNullOrEmpty(configuredContentRoot)
+            ? AppContext.BaseDirectory
+            : Path.GetFullPath(configuredContentRoot);
+
+        var contentRootFileProvider = Directory.Exists(contentRootPath)
+            ? (IFileProvider)new PhysicalFileProvider(contentRootPath)
+            : new NullFileProvider();
+
         var hostContext = new HostBuilderContext(properties)
         {
             Configuration = initialConfiguration,
@@ -43,7 +54,8 @@ internal sealed class DrnProgramHostRunner<TProgram>
             {
                 ApplicationName = typeof(TProgram).Assembly.GetName().Name ?? string.Empty,
                 EnvironmentName = initialConfiguration["Environment"] ?? nameof(AppEnvironment.Development),
-                ContentRootPath = AppContext.BaseDirectory,
+                ContentRootPath = contentRootPath,
+                ContentRootFileProvider = contentRootFileProvider,
                 WebRootPath = webRootPath
             }
         };
@@ -74,6 +86,10 @@ internal sealed class DrnProgramHostRunner<TProgram>
                         applicationBuilder.Services.AddSingleton<IViteManifest, EmptyViteManifest>();
                     }
 
+                    applicationBuilder.Environment.ContentRootPath = contentRootPath;
+                    applicationBuilder.Environment.ContentRootFileProvider = contentRootFileProvider;
+                    applicationBuilder.WebHost.UseContentRoot(contentRootPath);
+
                     hostContext.HostingEnvironment = applicationBuilder.Environment;
                     hostContext.Configuration = applicationBuilder.Configuration;
 
@@ -82,6 +98,9 @@ internal sealed class DrnProgramHostRunner<TProgram>
 
                     foreach (var configServices in servicesConfigs)
                         configServices(hostContext, applicationBuilder.Services);
+
+                    foreach (var containerConfig in containerConfigs)
+                        containerConfig(applicationBuilder, hostContext);
                 }).GetAwaiter().GetResult();
 
             return new AppSettingsOwnedHost(application, appSettings);

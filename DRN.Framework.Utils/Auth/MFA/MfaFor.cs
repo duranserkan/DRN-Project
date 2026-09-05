@@ -12,8 +12,8 @@ public static class MfaFor
     {
         get
         {
-            var config = ScopeContext.Services?.GetService<MfaClaimConfig>() ?? MfaClaimConfig.AspNetIdentity;
-            return ScopeContext.User.ValueExists(config.ClaimType, config.ClaimValue);
+            var config = ScopeContext.Services.GetService<MfaClaimConfig>() ?? MfaClaimConfig.AspNetIdentity;
+            return MfaPrincipal.IsCompleted(ScopeContext.User.Principal, config);
         }
     }
     public static bool MfaRenewalRequired =>

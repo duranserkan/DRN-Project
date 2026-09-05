@@ -315,7 +315,7 @@ if (scope.Acquired) { /* critical section */ }
 | Area | Key Types | Purpose |
 |------|-----------|---------|
 | **Data Encoding** | `EncodingExtensions`, `Base32Encoding` | Base64, Base64Url, Hex, Utf8, plus strict RFC 4648 padded/unpadded Base32 |
-| **Authentication** | `MfaClaimConfig`, `MfaFor`, `TotpUtils` | Application-scoped completed-MFA claim evaluation plus RFC 6238 HMAC-SHA1 TOTP generation and bounded-drift verification with decoded-secret zeroing |
+| **Authentication** | `MfaClaimConfig`, `MfaPrincipal`, `MfaFor`, `TotpUtils` | Provider-neutral completed-MFA checks reject setup/pending states and conflicting authenticated subjects/issuers; evaluate final authorized principals for account-security decisions. Application-scoped markers and TOTP utilities require no Identity services. |
 | **Hashing** | `HashExtensions` | Blake3 (crypto), XxHash3 (fast), keyed and stream/file hashing; prefer stream overloads for files and large payloads |
 | **JSON** | `JsonMergePatch` | RFC 7386 merge patch with depth protection |
 | **Query Strings** | `QueryParameterSerializer` | Complex objects → query strings |

@@ -1,5 +1,6 @@
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Utils.Vite;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -95,6 +96,7 @@ public class DrnWebApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntr
         private readonly List<Action<IConfigurationBuilder>> _configureHostConfigs = [];
         private readonly List<Action<HostBuilderContext, IServiceCollection>> _configureServices = [];
         private readonly List<Action<HostBuilderContext, IConfigurationBuilder>> _configureAppConfigs = [];
+        private readonly List<Action<WebApplicationBuilder, HostBuilderContext>> _configureContainerActions = [];
 
         public IDictionary<object, object> Properties { get; } = new Dictionary<object, object>();
 
@@ -116,9 +118,30 @@ public class DrnWebApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntr
             return this;
         }
 
-        public IHostBuilder UseServiceProviderFactory<TContainerBuilder>(IServiceProviderFactory<TContainerBuilder> factory) where TContainerBuilder : notnull => this;
-        public IHostBuilder UseServiceProviderFactory<TContainerBuilder>(Func<HostBuilderContext, IServiceProviderFactory<TContainerBuilder>> factory) where TContainerBuilder : notnull => this;
-        public IHostBuilder ConfigureContainer<TContainerBuilder>(Action<HostBuilderContext, TContainerBuilder> configureDelegate) => this;
+        public IHostBuilder UseServiceProviderFactory<TContainerBuilder>(
+            IServiceProviderFactory<TContainerBuilder> factory) where TContainerBuilder : notnull
+        {
+            ArgumentNullException.ThrowIfNull(factory);
+            _configureContainerActions.Add((builder, _) => builder.Host.UseServiceProviderFactory(factory));
+            return this;
+        }
+
+        public IHostBuilder UseServiceProviderFactory<TContainerBuilder>(
+            Func<HostBuilderContext, IServiceProviderFactory<TContainerBuilder>> factory)
+            where TContainerBuilder : notnull
+        {
+            ArgumentNullException.ThrowIfNull(factory);
+            _configureContainerActions.Add((builder, hostContext) => builder.Host.UseServiceProviderFactory(factory(hostContext)));
+            return this;
+        }
+
+        public IHostBuilder ConfigureContainer<TContainerBuilder>(
+            Action<HostBuilderContext, TContainerBuilder> configureDelegate)
+        {
+            ArgumentNullException.ThrowIfNull(configureDelegate);
+            _configureContainerActions.Add((builder, _) => builder.Host.ConfigureContainer(configureDelegate));
+            return this;
+        }
 
         public IHost Build()
         {
@@ -128,6 +151,7 @@ public class DrnWebApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntr
                 _configureHostConfigs,
                 _configureAppConfigs,
                 _configureServices,
+                _configureContainerActions,
                 Properties);
         }
     }

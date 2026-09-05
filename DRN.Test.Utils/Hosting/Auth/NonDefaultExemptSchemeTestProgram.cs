@@ -32,6 +32,9 @@ public sealed class NonDefaultExemptSchemeTestProgram : DrnProgramBase<NonDefaul
                 _ => { })
             .AddScheme<AuthenticationSchemeOptions, NonDefaultApiKeyAuthHandler>(
                 NonDefaultExemptValues.NonDefaultApiKeyScheme,
+                _ => { })
+            .AddScheme<AuthenticationSchemeOptions, NonDefaultApiKeyAuthHandler>(
+                NonDefaultExemptValues.SecondApiKeyScheme,
                 _ => { });
 
         builder.Services.AddAuthorization(options =>
@@ -41,6 +44,9 @@ public sealed class NonDefaultExemptSchemeTestProgram : DrnProgramBase<NonDefaul
                 policy.AuthenticationSchemes.Add(NonDefaultExemptValues.NonDefaultApiKeyScheme);
                 policy.RequireRole(NonDefaultExemptValues.ManagerRole);
             });
+            options.AddPolicy(NonDefaultExemptValues.SecondApiKeyScheme, policy =>
+                policy.AddAuthenticationSchemes(NonDefaultExemptValues.SecondApiKeyScheme)
+                    .RequireRole(NonDefaultExemptValues.ManagerRole));
         });
 
         builder.Services.AddServicesWithAttributes();
@@ -54,7 +60,7 @@ public sealed class NonDefaultExemptSchemeTestProgram : DrnProgramBase<NonDefaul
     }
 
     protected override MfaExemptionConfig ConfigureMFAExemption() =>
-        new() { ExemptAuthSchemes = [NonDefaultExemptValues.NonDefaultApiKeyScheme] };
+        new() { ExemptAuthSchemes = [NonDefaultExemptValues.NonDefaultApiKeyScheme, NonDefaultExemptValues.SecondApiKeyScheme] };
 
     protected override void MapApplicationEndpoints(WebApplication application, IAppSettings appSettings)
     {
@@ -67,6 +73,8 @@ public sealed class NonDefaultExemptSchemeTestProgram : DrnProgramBase<NonDefaul
         // Endpoint explicitly opting into the non-default ApiKey scheme
         application.MapGet(NonDefaultExemptValues.ApiKeyProtectedPath, () => Results.Ok())
             .RequireAuthorization(NonDefaultExemptValues.ApiKeyPolicy);
+        application.MapGet(NonDefaultExemptValues.SecondApiKeyProtectedPath, (HttpContext context) => Results.Text(context.User.Identity!.AuthenticationType!))
+            .RequireAuthorization(NonDefaultExemptValues.SecondApiKeyScheme);
     }
 }
 
@@ -90,6 +98,9 @@ internal sealed class NonDefaultCookieAuthHandler(
             new Claim(ClaimConventions.AuthenticationMethodReference, MfaClaimValues.Amr)
         ], Scheme.Name);
 
+        if (values.ToString() == "password")
+            identity.RemoveClaim(identity.FindFirst(ClaimConventions.AuthenticationMethodReference)!);
+
         return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name)));
     }
 }
@@ -102,7 +113,9 @@ internal sealed class NonDefaultApiKeyAuthHandler(
 {
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Headers.TryGetValue(NonDefaultExemptValues.ApiKeyHeader, out var values) ||
+        var header = Scheme.Name == NonDefaultExemptValues.SecondApiKeyScheme
+            ? NonDefaultExemptValues.SecondApiKeyHeader : NonDefaultExemptValues.ApiKeyHeader;
+        if (!Request.Headers.TryGetValue(header, out var values) ||
             string.IsNullOrWhiteSpace(values.ToString()))
         {
             return Task.FromResult(AuthenticateResult.NoResult());
@@ -122,6 +135,9 @@ public static class NonDefaultExemptValues
     public const string DefaultCookieScheme = "DefaultCookie";
     public const string NonDefaultApiKeyScheme = "CustomApiKey";
     public const string ApiKeyPolicy = "ApiKeyPolicy";
+    public const string SecondApiKeyScheme = "SecondApiKey";
+    public const string SecondApiKeyHeader = "X-Second-Api-Key";
+    public const string SecondApiKeyProtectedPath = "/mfa/second-key-protected";
     public const string ManagerRole = "Manager";
     public const string CookieHeader = "X-Cookie-Auth";
     public const string ApiKeyHeader = "X-Api-Key-Auth";

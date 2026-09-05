@@ -1,20 +1,17 @@
-using DRN.Framework.Utils.Auth.MFA;
+using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 
 namespace DRN.Framework.Hosting.TagHelpers;
-//todo: add ClaimOnly - ClaimValueOnly tag Helperss
+
+/// <summary>Requires an authenticated user whenever the authorized-only attribute is present, regardless of its value.</summary>
 [HtmlTargetElement("*", Attributes = "authorized-only")]
 public class AuthorizedOnlyTagHelper : TagHelper
 {
-    /// <summary>
-    /// Indicates that the link should only be rendered if the user meets certain security conditions.
-    /// </summary>
-    [HtmlAttributeName("authorized-only")]
-    public bool AuthorizedOnly { get; set; } = true;
-
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
-        if (!MfaFor.MfaCompleted)
+        output.Attributes.RemoveAll("authorized-only");
+
+        if (!ScopeContext.Authenticated)
             output.SuppressOutput();
     }
 }

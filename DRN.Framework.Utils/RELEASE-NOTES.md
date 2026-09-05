@@ -2,6 +2,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.0
 
+### Security
+
+*   **Provider-Neutral MFA Principal Checks**: Added `MfaPrincipal` for authenticated credential-state and account-bound MFA evaluation. `MfaFor.MfaCompleted` now rejects setup/pending credentials and conflicting authenticated subjects/issuers even when a completed-MFA marker is present. No ASP.NET Identity services are required.
+
 ### Breaking Changes
 
 *   **Strict Entity-Bound ID Generation**: Constrained `ISourceKnownIdUtils.Next<TEntity>()` and `SourceKnownIdUtils.Generate<TEntity>(byte appId, byte appInstanceId)` to `where TEntity : SourceKnownEntity` (previously `where TEntity : class`), and restricted dynamic `Next(SourceKnownEntity)`, `Next(Type, ...)`, and `Generate(Type, ...)` invocations strictly to `SourceKnownEntity` subclasses. This eliminates ambient fallback and ensures partition enforcement across all generator paths.

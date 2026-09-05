@@ -1,10 +1,15 @@
 using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
+using DRN.Framework.Hosting.Auth;
+using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Scope;
 using Flurl;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.Middlewares;
 
@@ -13,15 +18,33 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
     public async Task InvokeAsync(HttpContext httpContext, MfaRedirectionOptions redirectionOptions)
     {
         var requestPath = httpContext.Request.Path;
-        if (redirectionOptions.RedirectionNotNeeded(requestPath))
+        if (!redirectionOptions.AppPages.Contains(requestPath))
         {
             await next(httpContext);
 
             return;
         }
 
+        var policy = await MfaPolicyProof.ResolvePolicyAsync(httpContext);
+        if (policy == null)
+        {
+            await next(httpContext);
+            return;
+        }
+
+        // Browser navigation must use the same selected user as authorization, not the default cookie snapshot.
+        await httpContext.RequestServices.GetRequiredService<IPolicyEvaluator>().AuthenticateAsync(policy, httpContext);
+        var user = httpContext.User;
+        var config = httpContext.RequestServices.GetService<MfaClaimConfig>() ?? MfaClaimConfig.AspNetIdentity;
+        var exemptions = httpContext.RequestServices.GetService<MfaExemptionOptions>() ?? new MfaExemptionOptions();
+        if (MfaPolicyProof.IsSatisfied(httpContext, user, config, exemptions))
+        {
+            await next(httpContext);
+            return;
+        }
+
         var pathIsMFALoginUrl = redirectionOptions.IsMfaLoginUrl(requestPath);
-        if (MfaFor.MfaInProgress)
+        if (MfaPrincipal.HasState(user, MfaClaimValues.MfaInProgress))
         {
             if (pathIsMFALoginUrl)
                 await next(httpContext);
@@ -31,7 +54,7 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
         }
 
         var pathIsMFASetupUrl = redirectionOptions.IsMfaSetupUrl(requestPath);
-        if (MfaFor.MfaSetupRequired)
+        if (MfaPrincipal.HasState(user, MfaClaimValues.MfaSetupRequired))
         {
             if (pathIsMFASetupUrl)
                 await next(httpContext);
@@ -40,7 +63,7 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
             return;
         }
 
-        if (MfaFor.MfaRenewalRequired || pathIsMFALoginUrl || pathIsMFASetupUrl)
+        if (user.Identities.Any(identity => identity.IsAuthenticated) || pathIsMFALoginUrl || pathIsMFASetupUrl)
         {
             httpContext.Response.Redirect(redirectionOptions.LoginUrl);
             return;
@@ -78,11 +101,11 @@ public static class DrnRedirection
 [Singleton<MfaRedirectionOptions>]
 public class MfaRedirectionOptions
 {
-    public string MfaLoginUrl { get; internal set; } = string.Empty;
-    public string MfaSetupUrl { get; internal set; } = string.Empty;
-    public string LoginUrl { get; internal set; } = string.Empty;
-    public string LogoutUrl { get; internal set; } = string.Empty;
-    public IReadOnlySet<string> AppPages { get; internal set; } = FrozenSet<string>.Empty;
+    public string MfaLoginUrl { get; private set; } = string.Empty;
+    public string MfaSetupUrl { get; private set; } = string.Empty;
+    public string LoginUrl { get; private set; } = string.Empty;
+    public string LogoutUrl { get; private set; } = string.Empty;
+    public IReadOnlySet<string> AppPages { get; private set; } = FrozenSet<string>.Empty;
 
     internal void MapFromConfig(MfaRedirectionConfig config)
     {
