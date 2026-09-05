@@ -1,10 +1,7 @@
-﻿using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using DRN.Nexus.Application;
-using DRN.Nexus.Infra;
-using Microsoft.AspNetCore.Identity;
 
 namespace DRN.Nexus.Hosted;
 
@@ -14,9 +11,6 @@ public class NexusProgram : DrnProgramBase<NexusProgram>, IDrnProgram
 
     protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
         => Task.FromResult(builder.Services.AddNexusHostedServices(appSettings));
-
-    protected override MfaExemptionConfig ConfigureMFAExemption()
-        => new() { ExemptAuthSchemes = [IdentityConstants.BearerScheme] };
 
     // protected override MfaRedirectionConfig ConfigureMFARedirection()
     //     => new(PageFor.UserManagement.EnableAuthenticator, PageFor.User.LoginWith2Fa,

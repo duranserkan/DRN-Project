@@ -294,24 +294,23 @@ or infrastructure module, then use `EnsureDatabaseAsync` to create the schema di
 
 ## ApplicationContext
 
-`ApplicationContext` syncs `DrnTestContext` service collection and configuration with a `WebApplicationFactory`.
+`ApplicationContext` synchronizes `DrnTestContext` service collections and configuration with `DrnWebApplicationFactory<TProgram>`.
 
-- You can override configuration and services until the factory builds a host, such as when `CreateClient()` or `TestServer` is requested.
-- `ApplicationContext` supports hosting multiple distinct application entry points concurrently (e.g. `SampleProgram` and `NexusProgram`).
-- **Single Instance Per Type Lifecycle**: `ApplicationContext` manages one active instance per application type. Re-creating the same entry point type (via `CreateApplication` or `CreateClientAsync`) disposes and replaces only that specific application instance.
-- **Using Factory and Client Together for the Same Application**:
-  - **Pattern 1 (Recommended)**: Call `var client = await context.ApplicationContext.CreateClientAsync<T>();` and retrieve the underlying factory via `var factory = context.ApplicationContext.GetCreatedApplication<T>();`.
-  - **Pattern 2**: Call `var app = await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<T>();` and call `var client = app.CreateClient();`.
-- Outbound HTTP requests between hosted applications (via `IInternalRequest`, `IExternalRequest`, and `IHttpClientFactory`) are automatically routed in-memory via `ApplicationContextRouterHandler` using hostnames, ports, and aliases (e.g. `nexus`, `localhost:5988`). Flurl calls made via `IInternalRequest` and `IExternalRequest` use the injected router handler; direct/unbound Flurl calls bypass the router and should be intercepted using `FlurlHttpTest` or custom router-backed clients. Requests to unregistered hosts fail with `InvalidOperationException` rather than reaching the network; handle external endpoints using in-memory mock applications (`ApplicationContext.MapAddress`) or declarative Flurl mocking (`FlurlHttpTest`).
-- `CreateClientForServiceAsync<TProgram>("service-alias")` and `ApplicationContext.MapAddress<TProgram>("service-alias")` allow registering custom DNS names or service aliases for an application.
-- `CreateClientAsync<TProgram>()` calls `ContainerContext.BindExternalDependenciesAsync()`, which applies Postgres migrations for registered `DrnContext` types. It does not start RabbitMQ.
-- When each application is created, `ApplicationContext` automatically captures logs only while a debugger is attached and
-  `Xunit.TestContext.Current.TestOutputHelper` is available; otherwise, automatic logging remains disabled.
-- The optional `ITestOutputHelper` parameters on `CreateApplicationAndBindDependenciesAsync` and `CreateClientAsync`
-  remain as explicit compatibility overrides and use the same debugger-only privacy gate.
-- By default, without debugger-enabled output logging, application lifecycle logs are not written to shared test-runner output.
-- `TestEnvironment.DrnTestContextEnabled = true` identifies test execution and prevents local development provisioning from
-  colliding with integration tests. `TemporaryApplication` is not a general test marker.
+- **Entry Point Constraints**: Hosted programs must implement `where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()`.
+- **Concurrent Multi-App Hosting**: Supports running multiple distinct applications concurrently (e.g. `SampleProgram` and `NexusProgram`) in a single test context.
+- **Single Instance Per Type Lifecycle**: Manages one active instance per application type. Re-creating the same entry point type (via `CreateApplication` or `CreateClientAsync`) disposes and replaces only that specific instance.
+- **Factory & Client Access**:
+  - *Pattern 1 (Recommended)*: `var client = await context.ApplicationContext.CreateClientAsync<T>();` then inspect DI via `var factory = context.ApplicationContext.GetCreatedApplication<T>();`.
+  - *Pattern 2*: `var app = await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<T>();` and `var client = app.CreateClient();`.
+- **In-Memory Routing**: Outbound HTTP calls via `IInternalRequest`, `IExternalRequest`, and `IHttpClientFactory` are automatically routed in-memory by `ApplicationContextRouterHandler` using hostnames, ports, and aliases. Unregistered hosts fail fast with `InvalidOperationException`.
+- **Custom DNS & Aliases**: Use `CreateClientForServiceAsync<TProgram>("service-alias")` or `ApplicationContext.MapAddress<TProgram>("service-alias")` for custom service routing.
+- **External Dependencies**: `CreateClientAsync<TProgram>()` automatically runs `ContainerContext.BindExternalDependenciesAsync()` (applying Postgres migrations for registered `DrnContext` types).
+- **Test Output Logging**: Captures application lifecycle logs only when a debugger is attached and `Xunit.TestContext.Current.TestOutputHelper` is available.
+- **Environment Isolation**: `TestEnvironment.DrnTestContextEnabled = true` prevents local development provisioning during integration tests.
+
+### Multi-Program Test Support Assemblies
+
+Keep reusable disposable integration-test host programs in an SDK Web support project with `IsTestProject=false` (such as `DRN.Test.Utils`), and keep the test executable (`DRN.Test.Integration`) focused solely on assertions. Do not define custom hosted `Program` entry points inside the MTP test executable. `DrnWebApplicationFactory<TProgram>` dynamically resolves and binds secondary `IDrnProgram` entry points in multi-program support assemblies, allowing any program in the assembly to be hosted in-memory via `ApplicationContext.CreateClientAsync<TProgram>()`.
 
 ### Multi-Application & In-Memory Service Routing
 
@@ -1251,6 +1250,7 @@ global using Microsoft.Extensions.DependencyInjection.Extensions;
 global using Microsoft.Extensions.Configuration;
 global using DRN.Framework.Testing;
 global using DRN.Framework.Testing.Contexts;
+global using DRN.Framework.Testing.Contexts.Application;
 global using DRN.Framework.Testing.Contexts.Postgres;
 global using DRN.Framework.Testing.Contexts.RabbitMQ;
 global using DRN.Framework.Testing.DataAttributes;

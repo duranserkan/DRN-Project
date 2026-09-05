@@ -1,7 +1,7 @@
 ---
 name: drn-testing
 description: "DRN.Framework.Testing - canonical DTT attribute/context matrix with DrnTestContext, DrnTestContextUnit, ContainerContext, ApplicationContext, DataInline/DataMember/DataSelf, MTP command guidance, AwesomeAssertions, AutoFixture, NSubstitute, Testcontainers, and xUnit v3. Keywords: testing, dtt, drntest-context, applicationcontext, testcontainers, mtp, xunit, data-attributes, unit-testing, integration-testing"
-last-updated: 2026-07-29
+last-updated: 2026-09-03
 difficulty: intermediate
 tokens: ~1.7K
 ---
@@ -41,6 +41,7 @@ Rules:
 - Assertions use `AwesomeAssertions`.
 - Unit self-data derives from `DataSelfUnitAttribute`.
 - For coarse-precision temporal ID filters, cover inclusive/exclusive payload edges, equal and distinct endpoints, reversed ranges, and ordering transitions. Keep deterministic ID comparisons in unit tests; use database integration only when provider translation or query-plan behavior is under test.
+- **Environment Invariants & Test Flags**: Never bypass framework/app invariants by branching on environment checks (such as `IsDevelopment()`) for tests; configure explicit test/temporary flags (`TemporaryApplication`, `SkipValidation`) or dedicated test contexts instead.
 
 ## Minimal Patterns
 
@@ -132,7 +133,11 @@ Apply this at decision boundaries such as authorization, tenant isolation, soft-
 
 ## WebApplicationFactory Entry Points
 
-`WebApplicationFactory<TProgram>` should point at a real hosted program type from the application or a non-test support assembly. Keep reusable disposable integration-test host programs in an SDK Web support project with `IsTestProject=false`, such as `DRN.Test.Utils`; keep `DRN.Test.Integration` focused on assertions. Do not define custom hosted `Program` entry points inside the MTP test executable.
+`WebApplicationFactory<TProgram>` should point at a real hosted program type from the application or a non-test support assembly. Keep reusable disposable integration-test host programs in an SDK Web support project with `IsTestProject=false`, such as `DRN.Test.Utils`; keep `DRN.Test.Integration` focused on assertions. Do not define custom hosted `Program` entry points inside the MTP test executable. `DrnWebApplicationFactory<TProgram>` automatically resolves and binds secondary `IDrnProgram` entry points in multi-program support assemblies, allowing any program in the assembly to be hosted in-memory via `ApplicationContext.CreateClientAsync<TProgram>()`.
+
+## UnsafeAccessors in Test Utilities
+
+When test helpers, assertion extensions, or mocks need access to private or internal framework/library state (such as `HttpTest._filteredSetups`, `RazorView.set_OnAfterPageActivated`, or `WebApplication` pipeline details), always prefer `[UnsafeAccessor]` (`System.Runtime.CompilerServices`) over reflection (`Type.GetField`, `Type.GetMethod`, `BindingFlags`). Reserve runtime reflection strictly for dynamically discovered types whose compile-time metadata is inaccessible.
 
 ## MTP Commands
 
@@ -168,7 +173,7 @@ dotnet run -c Release --project <performance-test-csproj> -- --filter-method Ful
 </PropertyGroup>
 ```
 
-If a test uses `Settings/` or `Data/`, copy those files to output. Global usings should include `AwesomeAssertions`, `NSubstitute`, xUnit v3, `DRN.Framework.Testing.Contexts`, `DRN.Framework.Testing.DataAttributes`, and `Microsoft.Extensions.DependencyInjection`.
+If a test uses `Settings/` or `Data/`, copy those files to output. Global usings should include `AwesomeAssertions`, `NSubstitute`, xUnit v3, `DRN.Framework.Testing.Contexts`, `DRN.Framework.Testing.Contexts.Application`, `DRN.Framework.Testing.DataAttributes`, and `Microsoft.Extensions.DependencyInjection`.
 
 ## Related Skills
 

@@ -1,7 +1,7 @@
 ---
 name: overview-drn-framework
 description: "DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, package-dependencies"
-last-updated: 2026-07-29
+last-updated: 2026-09-02
 difficulty: basic
 tokens: ~3.1K
 ---
@@ -211,6 +211,13 @@ The mounted root defaults to `/appconfig` and can be overridden by registering `
 | `Prototype` | `false` | Development-only prototype database recreation gate. |
 | `BreakForUserUnhandledException` | `false` | Developer diagnostics flag. |
 
+#### Environment Hierarchy and Test Invariants
+
+- **`Development`**: For local developer productivity with convenience defaults, not hacks.
+- **`Staging`**: Stricter operational defaults (e.g. explicit migrations, no prototype mode).
+- **`Production`**: Most strict defaults (e.g. strict security headers, strict asset validation, no auto-migration, no prototype mode).
+- **No Environment Hacking for Tests**: Never branch on `environment.IsDevelopment()` or relax core invariants inside framework/application code to accommodate test edge cases. Tests must use explicit test/temporary flags (`TemporaryApplication`, `SkipValidation`, or dedicated test contexts) to control validation and lifecycle behavior.
+
 ### Maintenance Reference: App Data Paths
 
 App data paths resolve before DRN configuration. `TempPath` appends `EntryAssemblyNameNormalized` in this order: `DrnAppDataSettings__TempPath/<EntryAssemblyNameNormalized>` -> `DrnAppDataSettings__DataPath/Temp/<EntryAssemblyNameNormalized>` -> `<LocalApplicationData>/Temp/<EntryAssemblyNameNormalized>`. `LocalAppDataPath` uses `DrnAppDataSettings__DataPath` as-is when configured, otherwise `<LocalApplicationData>/<EntryAssemblyNameNormalized>`. `IAppData` owns directory creation, temp cleanup, test temp preservation, and safe child paths.
@@ -280,6 +287,10 @@ dotnet run --project <integration-test-csproj>
 ```
 
 Unit tests should be listed before integration tests. Do not use `.slnx` in test-run commands.
+
+### Maintenance Reference: MFA Claim Configuration
+
+DRN Hosting registers one immutable `MfaClaimConfig` per application. `MfaPrincipal.IsCompleted` and `MfaFor.MfaCompleted` reject setup/pending states and conflicting authenticated subjects/issuers. `ConfigureMFAClaim()` defaults to `amr=mfa`, but core authorization has no Identity-service dependency. Scheme exemptions use request-local policy-selected evidence, including authenticated forwarding targets. Identity consumers explicitly register `AddDrnIdentityMfaPolicies`; local enrollment/challenge routes use final-user account checks. Other providers can configure their own handlers/claims without local enrollment or mutable global configuration.
 
 ### Maintenance Reference: Entity Creation-Date Filters
 

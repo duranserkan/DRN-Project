@@ -1,13 +1,17 @@
 // This file is licensed to you under the MIT license.
 
+using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Identity.Services;
+using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.Scope;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace DRN.Framework.Hosting.Identity.Controllers;
 
@@ -27,6 +31,9 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
     public abstract ApiEndpoint EmailEndpoint { get; }
 
     [HttpPost(nameof(TwoFactorAuth))]
+    [Authorize(IdentityMfaPolicy.Enrollment)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(TwoFactorResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -34,10 +41,19 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
     {
         if (!ModelState.IsValid)
             return TypedResults.BadRequest();
-        
+
         var userManager = _signInManager.UserManager;
         if (await userManager.GetUserAsync(User) is not { } user)
             return TypedResults.NotFound();
+
+        // TODO(MFA-01): Require fresh, replay-resistant verification of an enrolled factor
+        // before disabling/replacing it or regenerating recovery codes; preserve the initial enrollment flow.
+        // The factor and its MFA proof must belong to the final authorized account.
+        var isTwoFactorEnabled = await userManager.GetTwoFactorEnabledAsync(user);
+        var mfaConfig = HttpContext.RequestServices.GetService<MfaClaimConfig>() ?? MfaClaimConfig.AspNetIdentity;
+        var enforced = MfaAuthorization.IsMfaEnforced(HttpContext.RequestServices.GetRequiredService<IOptions<AuthorizationOptions>>().Value);
+        if (!IdentityMfaPolicy.CanManage(User, isTwoFactorEnabled, enforced, mfaConfig, userManager.Options.ClaimsIdentity.UserIdClaimType))
+            return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
 
         if (tfaRequest.Enable == true)
         {
@@ -61,6 +77,8 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
         if (tfaRequest.ResetSharedKey)
             await userManager.ResetAuthenticatorKeyAsync(user);
 
+        // TODO(MFA-03): Define lost-factor and administrative recovery controls, attempt limits,
+        // single-use recovery credentials, and out-of-band notifications for factor changes.
         string[]? recoveryCodes = null;
         if (tfaRequest.ResetRecoveryCodes || (tfaRequest.Enable == true && await userManager.CountRecoveryCodesAsync(user) == 0))
         {
@@ -112,7 +130,7 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
     {
         if (!ModelState.IsValid)
             return TypedResults.BadRequest();
-        
+
         var userManager = _signInManager.UserManager;
         if (await userManager.GetUserAsync(User) is not { } user)
         {

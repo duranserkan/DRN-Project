@@ -26,7 +26,7 @@ public readonly record struct EquatableSequence<T>(T[]? Items) : IReadOnlyList<T
 {
     public int Count => Items?.Length ?? 0;
 
-    public T this[int index] => Items is not null ? Items[index] : throw new IndexOutOfRangeException();
+    public T this[int index] => Items is not null ? Items[index] : throw new ArgumentOutOfRangeException(nameof(index));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(EquatableSequence<T> other) => ReferenceEquals(Items, other.Items) || Items.AsSpan().SequenceEqual(other.Items.AsSpan());
@@ -67,7 +67,7 @@ public readonly record struct EquatableImmutableSequence<T>(ImmutableArray<T> It
 {
     public int Count => Items.IsDefault ? 0 : Items.Length;
 
-    public T this[int index] => !Items.IsDefault ? Items[index] : throw new IndexOutOfRangeException();
+    public T this[int index] => !Items.IsDefault ? Items[index] : throw new ArgumentOutOfRangeException(nameof(index));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(EquatableImmutableSequence<T> other)

@@ -1,7 +1,7 @@
 ---
 name: basic-code-review
 description: Use when reviewing code changes, pull requests, staged diffs, or self-reviewing work for security, correctness, clarity, simplicity, performance, breaking changes, and missing verification.
-last-updated: 2026-08-09
+last-updated: 2026-09-05
 difficulty: intermediate
 tokens: ~1.3K
 ---
@@ -36,7 +36,7 @@ Evaluate every change in order:
 | 2 | Correctness | Does it do what it claims under realistic conditions? |
 | 3 | Clarity | Can someone else understand it in 6 months? |
 | 4 | Simplicity | Is complexity earned, or accidental? |
-| 5 | Performance | Is optimization backed by measurement? |
+| 5 | Performance | Is optimization justified by measurements or clear source evidence? |
 
 A change that is fast but incorrect fails. A change that is clever but unreadable fails.
 
@@ -46,7 +46,10 @@ A change that is fast but incorrect fails. A change that is clever but unreadabl
 - External contracts do not leak persistence internals, framework-only types, or private identifiers.
 - DTOs, API models, and persistence entities stay separated when the repository uses that boundary.
 - New abstractions remove real complexity or match an established local pattern.
+- Check algorithm efficiency and unnecessary allocations, especially in established hot paths. Require measurements or clear source evidence for performance-driven complexity; preserve correctness and readability rather than requiring allocation-free code universally.
 - Public behavior changes are documented and classified as breaking or non-breaking.
+- Follow the repository profile's runtime-access conventions.
+- Never use obsolete or deprecated code: reject deprecated APIs, types, interfaces, or members (e.g. `[Obsolete]`, `ASPDEPR*`); require active, first-class framework primitives and never suppress deprecation diagnostics with `#pragma` or `[SuppressMessage]`.
 - Prefer pit of success.
 
 ## Dependency Injection And Configuration
@@ -55,6 +58,7 @@ A change that is fast but incorrect fails. A change that is clever but unreadabl
 - Singleton services do not capture mutable request/user state.
 - Scoped dependencies are not retained by longer-lived services.
 - New required configuration has defaults, validation, documentation, or clear deployment instructions.
+- Follow the repository profile's environment conventions. Do not weaken production invariants to accommodate tests; use explicit test configuration.
 - Secrets are not hardcoded, logged, committed, or documented as real values.
 
 ## Test Coverage Expectations

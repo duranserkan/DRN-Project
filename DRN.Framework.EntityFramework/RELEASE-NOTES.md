@@ -19,9 +19,6 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **Startup Pending Model Changes Validation**: `PostStartupValidationAsync` verifies pending EF Core model changes regardless of whether auto-migration is enabled, failing fast on unmigrated schema drift.
 *   **Prototype Migration-History Guard**: Reads applied migrations directly from the target database, safely handling missing databases (`InvalidCatalogName`), preventing unmigrated databases from being dropped during prototype checks.
-*   **Assembly Type Load Failure Diagnostics**: Wraps and throws `ReflectionTypeLoadException` with aggregated loader diagnostics in `InvalidOperationException` instead of silently ignoring failed types during host domain discovery.
-*   **Private Entity Discovery Alignment**: Excludes nested private `SourceKnownEntity` fixtures from domain discovery, matching compile-time analyzer rules.
-*   **Duplicate Entity Type Partition Diagnostics**: Retains `AppId` in `DuplicateEntityTypeValue` for clear collision messages during multi-partition startup validation.
 *   **Design-Time Data-Source Hooks**: `DbContextExtensions.CreateDbContext` invokes `ConfigureNpgsqlDataSource` with safe null fallback when running outside DI.
 *   **Visible DbContext Discovery**: `AddDbContextsWithConventions` filters domain scanning to public/visible `DbContext` types (`IsVisible: true`).
 

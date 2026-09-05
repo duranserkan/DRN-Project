@@ -3,7 +3,6 @@ using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
-using Microsoft.Extensions.Logging;
 
 namespace DRN.Test.Utils.Hosting;
 
@@ -34,6 +33,8 @@ public sealed class TemporaryLifecycleProgram : DrnProgramBase<TemporaryLifecycl
         // This program is only used to capture IAppSettings and verify their lifecycle and disposal behavior.
         // No HTTP middleware pipeline configuration is required, so the default ASP.NET Core middleware pipeline setup is bypassed.
     }
+
+    protected override void ValidateEndpoints(WebApplication application, IAppSettings appSettings) { }
 
     protected override Task ValidateServicesAsync(WebApplication application, IScopedLog scopeLog) => Task.CompletedTask;
 

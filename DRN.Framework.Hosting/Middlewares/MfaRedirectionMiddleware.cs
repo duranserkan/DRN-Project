@@ -1,8 +1,13 @@
+using System.Collections.Frozen;
+using DRN.Framework.Hosting.Auth;
+using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Flurl;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.Middlewares;
 
@@ -11,15 +16,33 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
     public async Task InvokeAsync(HttpContext httpContext, MfaRedirectionOptions redirectionOptions)
     {
         var requestPath = httpContext.Request.Path;
-        if (redirectionOptions.RedirectionNotNeeded(requestPath))
+        if (!redirectionOptions.AppPages.Contains(requestPath))
         {
             await next(httpContext);
 
             return;
         }
 
+        var policy = await MfaPolicyProof.ResolvePolicyAsync(httpContext);
+        if (policy == null)
+        {
+            await next(httpContext);
+            return;
+        }
+
+        // Browser navigation must use the same selected user as authorization, not the default cookie snapshot.
+        await httpContext.RequestServices.GetRequiredService<IPolicyEvaluator>().AuthenticateAsync(policy, httpContext);
+        var user = httpContext.User;
+        var config = httpContext.RequestServices.GetService<MfaClaimConfig>() ?? MfaClaimConfig.AspNetIdentity;
+        var exemptions = httpContext.RequestServices.GetService<MfaExemptionOptions>() ?? new MfaExemptionOptions();
+        if (MfaPolicyProof.IsSatisfied(httpContext, user, config, exemptions))
+        {
+            await next(httpContext);
+            return;
+        }
+
         var pathIsMFALoginUrl = redirectionOptions.IsMfaLoginUrl(requestPath);
-        if (MfaFor.MfaInProgress)
+        if (MfaPrincipal.HasState(user, MfaClaimValues.MfaInProgress))
         {
             if (pathIsMFALoginUrl)
                 await next(httpContext);
@@ -29,7 +52,7 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
         }
 
         var pathIsMFASetupUrl = redirectionOptions.IsMfaSetupUrl(requestPath);
-        if (MfaFor.MfaSetupRequired)
+        if (MfaPrincipal.HasState(user, MfaClaimValues.MfaSetupRequired))
         {
             if (pathIsMFASetupUrl)
                 await next(httpContext);
@@ -38,7 +61,7 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
             return;
         }
 
-        if (MfaFor.MfaRenewalRequired || pathIsMFALoginUrl || pathIsMFASetupUrl)
+        if (user.Identities.Any(identity => identity.IsAuthenticated) || pathIsMFALoginUrl || pathIsMFASetupUrl)
         {
             httpContext.Response.Redirect(redirectionOptions.LoginUrl);
             return;
@@ -59,7 +82,7 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
         if (httpContext.Request.Query.Count > 0)
             foreach (var pair in httpContext.Request.Query)
             {
-                foreach (var parameterValue in pair.Value.ToArray())
+                foreach (var parameterValue in pair.Value)
                     returnUrl.SetQueryParam(pair.Key, parameterValue);
             }
 
@@ -76,11 +99,11 @@ public static class DrnRedirection
 [Singleton<MfaRedirectionOptions>]
 public class MfaRedirectionOptions
 {
-    public string MfaLoginUrl { get; internal set; } = string.Empty;
-    public string MfaSetupUrl { get; internal set; } = string.Empty;
-    public string LoginUrl { get; internal set; } = string.Empty;
-    public string LogoutUrl { get; internal set; } = string.Empty;
-    public HashSet<string> AppPages { get; internal set; } = new(StringComparer.OrdinalIgnoreCase);
+    public string MfaLoginUrl { get; private set; } = string.Empty;
+    public string MfaSetupUrl { get; private set; } = string.Empty;
+    public string LoginUrl { get; private set; } = string.Empty;
+    public string LogoutUrl { get; private set; } = string.Empty;
+    public IReadOnlySet<string> AppPages { get; private set; } = FrozenSet<string>.Empty;
 
     internal void MapFromConfig(MfaRedirectionConfig config)
     {
@@ -88,13 +111,8 @@ public class MfaRedirectionOptions
         MfaSetupUrl = config.MfaSetupUrl;
         LoginUrl = config.LoginUrl;
         LogoutUrl = config.LogoutUrl;
-        AppPages = config.AppPages;
+        AppPages = config.AppPages.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
     }
-
-    /// <summary>
-    ///  If not in redirection list let it go
-    /// </summary>
-    public bool RedirectionNotNeeded(string requestPath) => MfaFor.MfaCompleted || !AppPages.Contains(requestPath);
 
     public bool IsMfaLoginUrl(string requestPath) => requestPath.Equals(MfaLoginUrl, StringComparison.OrdinalIgnoreCase);
     public bool IsMfaSetupUrl(string requestPath) => requestPath.Equals(MfaSetupUrl, StringComparison.OrdinalIgnoreCase);

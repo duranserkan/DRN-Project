@@ -260,7 +260,7 @@ internal static class DrnContextServiceRegistrationHelper
         return hostAppIds.ToArray();
     }
 
-    private static void CollectNonTestAppIds(DbContext context, ISet<byte> appIds)
+    private static void CollectNonTestAppIds(DbContext context, HashSet<byte> appIds)
     {
         var nonTestAppIds = GetModelDomainEntityTypes(context)
             .Select(type => type.GetCustomAttribute<EntityTypeAttribute>())

@@ -16,7 +16,7 @@ using DRN.Framework.Hosting.Utils;
 using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Json;
-using DRN.Framework.Utils.Auth;
+using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.DependencyInjection;
@@ -95,6 +95,7 @@ public interface IDrnProgram
 /// <li><a href="https://andrewlock.net/running-async-tasks-on-app-startup-in-asp-net-core-part-1">Running async tasks at startup</a></li>
 /// <li><a href="https://stackoverflow.com/questions/57846127/what-are-the-differences-between-app-userouting-and-app-useendpoints">UseRouting vs. UseEndpoints</a></li>
 /// </summary>
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public abstract class DrnProgramBase<TProgram> : DrnProgram
     where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
@@ -221,10 +222,20 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         }
     }
 
-    public static async Task<WebApplication> CreateApplicationAsync(string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
+    public static Task<WebApplication> CreateApplicationAsync(
+        string[]? args,
+        IAppSettings appSettings,
+        IScopedLog scopeLog) =>
+        CreateApplicationAsync(args, appSettings, scopeLog, null);
+
+    public static async Task<WebApplication> CreateApplicationAsync(
+        string[]? args,
+        IAppSettings appSettings,
+        IScopedLog scopeLog,
+        Action<WebApplicationBuilder>? configureBuilder)
     {
         var actions = GetApplicationAssembly().CreateSubType<DrnProgramActions>();
-        var (program, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopeLog);
+        var (program, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopeLog, configureBuilder);
         await (actions?.ApplicationBuilderCreatedAsync(program, applicationBuilder, appSettings, scopeLog) ?? Task.CompletedTask);
 
         var application = applicationBuilder.Build();
@@ -242,7 +253,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         return application;
     }
 
-    private static async Task<(TProgram program, WebApplicationBuilder applicationBuilder)> CreateApplicationBuilder(string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
+    private static async Task<(TProgram program, WebApplicationBuilder applicationBuilder)> CreateApplicationBuilder(
+        string[]? args,
+        IAppSettings appSettings,
+        IScopedLog scopeLog,
+        Action<WebApplicationBuilder>? configureBuilder = null)
     {
         var program = new TProgram();
         var options = new WebApplicationOptions
@@ -258,6 +273,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
         program.ConfigureApplicationBuilder(applicationBuilder, appSettings);
         await program.AddServicesAsync(applicationBuilder, appSettings, scopeLog);
+        configureBuilder?.Invoke(applicationBuilder);
         return (program, applicationBuilder);
     }
 
@@ -269,6 +285,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         ConfigureWebHostBuilder(appSettings, applicationBuilder.WebHost);
 
         var services = applicationBuilder.Services;
+        services.AddSingleton(ConfigureMFAClaim());
         services.AddDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
         services.AddSingleton<IEndpointAccessor>(sp =>
         {
@@ -304,10 +321,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         }
 
         services.Configure(GetConfigureCookiePolicy(appSettings));
-        services.Configure(ConfigureSecurityStampValidatorOptions(appSettings));
         services.Configure(GetConfigureCookieTempDataProvider(appSettings));
         services.Configure(ConfigureStaticFileOptions(appSettings));
         services.Configure(ConfigureForwardedHeadersOptions(appSettings));
+        services.AddOptions<SecurityStampValidatorOptions>().Configure<MfaClaimConfig>((options, mfaClaimConfig) =>
+            ConfigureSecurityStampValidatorOptions(options, appSettings, mfaClaimConfig));
         if (appSettings.Localization.Enabled)
             services.Configure(ConfigureRequestLocalizationOptions(appSettings));
 
@@ -328,7 +346,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             loggingBuilder.AddConfiguration(loggingSection);
 
         loggingBuilder.ClearProviders();
-        loggingBuilder.AddNLogWeb(CreateLogFactory(appSettings), NLogOptions);
+        if (appSettings.TryGetSection(NlogConfigSectionName, out _))
+            loggingBuilder.AddNLogWeb(CreateLogFactory(appSettings), NLogOptions);
     }
 
     protected virtual IWebHostBuilder ConfigureWebHostBuilder(IAppSettings appSettings, ConfigureWebHostBuilder webHostBuilder) =>
@@ -367,8 +386,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
         MapApplicationEndpoints(application, appSettings);
 
-        var viteManifest = application.Services.GetRequiredService<IViteManifest>();
-        _ = viteManifest.GetAllManifestItems();
+        if (appSettings.DevelopmentSettings is { SkipValidation: false, TemporaryApplication: false })
+        {
+            var viteManifest = application.Services.GetRequiredService<IViteManifest>();
+            _ = viteManifest.GetAllManifestItems();
+        }
     }
 
     /// <summary>
@@ -517,30 +539,18 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     }
 
     /// <summary>
-    ///  https://github.com/dotnet/aspnetcore/issues/44666
+    /// Preserves authenticated authentication-method references, the configured MFA marker, and original account-bound auth_time during cookie renewal.
     /// </summary>
-    protected virtual Action<SecurityStampValidatorOptions> ConfigureSecurityStampValidatorOptions(IAppSettings appSettings) =>
-        options =>
+    protected virtual void ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions options, IAppSettings appSettings, MfaClaimConfig mfaClaimConfig)
+    {
+        options.OnRefreshingPrincipal = context =>
         {
-            options.OnRefreshingPrincipal = context =>
-            {
-                var currentIdentity = (ClaimsIdentity?)context.CurrentPrincipal?.Identity;
-                var newIdentity = (ClaimsIdentity?)context.NewPrincipal?.Identity;
+            if (context is { CurrentPrincipal: { } currentPrincipal, NewPrincipal.Identity: ClaimsIdentity newIdentity })
+                MfaClaimPreservation.Preserve(currentPrincipal, newIdentity, mfaClaimConfig);
 
-                if (currentIdentity == null || newIdentity == null)
-                    return Task.CompletedTask;
-
-                var amrClaim = currentIdentity.FindFirst(ClaimConventions.AuthenticationMethodReference);
-                if (amrClaim == null) return Task.CompletedTask;
-
-                var existingAmrClaim = newIdentity.FindFirst(ClaimConventions.AuthenticationMethodReference);
-                if (existingAmrClaim != null && amrClaim.Value == existingAmrClaim.Value)
-                    return Task.CompletedTask;
-
-                newIdentity.AddClaim(new Claim(amrClaim.Type, amrClaim.Value));
-                return Task.CompletedTask;
-            };
+            return Task.CompletedTask;
         };
+    }
 
     /// <summary>
     /// Configures static file serving with HTTPS compression enabled for static assets.
@@ -548,7 +558,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// Static assets contain no per-user secrets and are immune to BREACH attacks.
     /// Enabling <see cref="HttpsCompressionMode.Compress"/> allows static assets to be served with compression over HTTPS,
     /// while build-time pre-compressed assets (.br/.gz) or edge CDN compression are recommended for optimal performance.
-    /// <b>Cache-Control: public</b> enables caching of static bytes via ResponseCaching middleware.
+    /// <b>Cache-Control: public</b> enable caching of static bytes via ResponseCaching middleware.
     /// </para>
     /// </summary>
     /// <remarks>
@@ -570,6 +580,26 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             };
         };
 
+    /// <summary>
+    /// Configures <see cref="ForwardedHeadersOptions"/> for reverse proxy, load-balancer, and gateway header forwarding.
+    /// <para>
+    /// <b>Cloud &amp; Kubernetes Rationale:</b>
+    /// In containerized and cloud environments (e.g. Kubernetes pod CIDRs, Docker networks, cloud VPCs), Kubernetes Gateway API
+    /// implementations, cloud load balancers, and service mesh sidecars or inter-service reverse proxies (such as Linkerd or Envoy)
+    /// communicate across dynamic RFC 1918 private subnets (<c>10.0.0.0/8</c>, <c>172.16.0.0/12</c>, <c>192.168.0.0/16</c>).
+    /// Restricting default trust strictly to loopback (<c>127.0.0.0/8</c>, <c>::1/128</c>) would reject these gateway and mesh proxies,
+    /// attributing all client requests to the gateway or Linkerd proxy pod IP and starving pre-auth rate limiting.
+    /// Therefore, DRN defaults to trusting RFC 1918 private subnets alongside loopback with <c>ForwardLimit = 2</c>.
+    /// </para>
+    /// <para>
+    /// For zero-trust environments where private subnets should not be trusted by default, configure <c>ForwardedHeaders:TrustPrivateNetworks = false</c>
+    /// to retain only loopback networks. A nonempty <c>ForwardedHeaders:KnownIPNetworks</c> list replaces network defaults.
+    /// <c>ForwardedHeaders:KnownProxies</c> adds entries without clearing existing trust.
+    /// For an exact allowlist, clear both collections in the options override before adding trusted entries.
+    /// </para>
+    /// </summary>
+    /// <param name="appSettings">Application configuration settings.</param>
+    /// <returns>An action delegate configuring <see cref="ForwardedHeadersOptions"/>.</returns>
     protected virtual Action<ForwardedHeadersOptions> ConfigureForwardedHeadersOptions(IAppSettings appSettings)
     {
         return options =>
@@ -580,23 +610,43 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
                 return;
 
             section.Bind(options);
+            ApplyTrustPrivateNetworksSetting(options, section);
             ApplyCustomKnownIpNetworks(options, section);
             ApplyCustomKnownProxies(options, section);
         };
     }
 
-    [SuppressMessage("SonarQube", "S1313", Justification = "Standard RFC 1918 private network ranges and loopback for default forwarded headers.")]
+    [SuppressMessage("SonarQube", "S1313", Justification = "Standard RFC 1918 private network ranges and loopback for default forwarded headers in cloud/k8s environments.")]
     private static void ApplyDefaultForwardedHeaders(ForwardedHeadersOptions options)
     {
         options.ForwardedHeaders = ForwardedHeaders.All;
         options.ForwardLimit = 2;
 
+        options.KnownIPNetworks.Clear();
         options.KnownIPNetworks.Add(new IPNetwork(new IPAddress([127, 0, 0, 0]), 8));
         options.KnownIPNetworks.Add(new IPNetwork(IPAddress.IPv6Loopback, 128));
         options.KnownIPNetworks.Add(new IPNetwork(new IPAddress([10, 0, 0, 0]), 8));
         options.KnownIPNetworks.Add(new IPNetwork(new IPAddress([172, 16, 0, 0]), 12));
         options.KnownIPNetworks.Add(new IPNetwork(new IPAddress([192, 168, 0, 0]), 16));
     }
+
+    private static void ApplyTrustPrivateNetworksSetting(ForwardedHeadersOptions options, IConfigurationSection section)
+    {
+        if (section.GetValue<bool?>("TrustPrivateNetworks") is false)
+        {
+            for (var i = options.KnownIPNetworks.Count - 1; i >= 0; i--)
+            {
+                var net = options.KnownIPNetworks[i];
+                if (IsRfc1918PrivateNetwork(net))
+                    options.KnownIPNetworks.RemoveAt(i);
+            }
+        }
+    }
+
+    private static bool IsRfc1918PrivateNetwork(IPNetwork net) =>
+        (net.BaseAddress.Equals(new IPAddress([10, 0, 0, 0])) && net.PrefixLength == 8) ||
+        (net.BaseAddress.Equals(new IPAddress([172, 16, 0, 0])) && net.PrefixLength == 12) ||
+        (net.BaseAddress.Equals(new IPAddress([192, 168, 0, 0])) && net.PrefixLength == 16);
 
     private static void ApplyCustomKnownIpNetworks(ForwardedHeadersOptions options, IConfigurationSection section)
     {
@@ -900,6 +950,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     protected virtual MfaExemptionConfig? ConfigureMFAExemption() => null;
 
     /// <summary>
+    /// Configures the claim that proves a completed MFA session.
+    /// </summary>
+    protected virtual MfaClaimConfig ConfigureMFAClaim() => MfaClaimConfig.AspNetIdentity;
+
+    /// <summary>
     /// Configures authorization policies and default behaviors for the application.
     /// </summary>
     /// <param name="options">The <see cref="AuthorizationOptions"/> to configure.</param>
@@ -1039,9 +1094,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     protected virtual void ValidateEndpoints(WebApplication application, IAppSettings appSettings)
     {
         if (appSettings.DevelopmentSettings.TemporaryApplication) return;
+
         // We don't know if user code called UseEndpoints(), so we will call it just in case, UseEndpoints() will ignore duplicate DataSources
         application.UseEndpoints(_ => { });
-
         var helper = application.Services.GetRequiredService<IEndpointHelper>();
         EndpointCollectionBase<TProgram>.SetEndpointDataSource(helper);
     }

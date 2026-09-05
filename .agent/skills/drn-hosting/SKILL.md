@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-07-29
+last-updated: 2026-09-02
 difficulty: advanced
 tokens: ~3K
 ---
@@ -69,7 +69,7 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 | `ConfigureForwardedHeadersOptions()` | Forwarded headers (default: All) |
 | `ConfigureRequestLocalizationOptions()` | Localization cultures, cookie provider |
 | `ConfigureHostFilteringOptions()` | Allowed hosts from config |
-| `ConfigureSecurityStampValidatorOptions()` | Security stamp refresh with AMR claim preservation |
+| `ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions, IAppSettings, MfaClaimConfig)` | Security stamp refresh with authenticated AMR and configured MFA claim preservation |
 | `ConfigureDefaultCspBase()` | Base CSP directives (base-uri, form-action, frame-ancestors) |
 | `ConfigureCookieTempDataProvider()` | TempData cookie settings |
 | `CreatePreAuthRateLimiter()` | Pre-auth rate limiter orchestration |
@@ -90,10 +90,18 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 | `ValidateServicesAsync()` | DI validation |
 | `ConfigureMFARedirection()` | MFA page configuration |
 | `ConfigureMFAExemption()` | Route-specific MFA exemption config |
+| `ConfigureMFAClaim()` | Completed-MFA claim type/value; defaults to ASP.NET Core Identity `amr=mfa` |
 
 **Execution order**: Builder Phase → `builder.Build()` → Pipeline Phase → `ValidateEndpoints()` → `ValidateServicesAsync()` → `ApplicationValidatedAsync()` → `application.StartAsync()` → `application.WaitForShutdownAsync()`
 
 Temporary applications skip `ValidateEndpoints()` and endpoint-accessor population, enter `ValidateServicesAsync()` (which honors `SkipValidation`), run `ApplicationValidatedAsync()`, and return before `StartAsync()`.
+
+### Environment Hierarchy & Testing Invariants
+
+- **`Development`**: Configured for local development with convenience defaults, not hacks.
+- **`Staging`**: Stricter operational defaults.
+- **`Production`**: Most strict security and operational defaults.
+- **No Environment Hacking**: Do not weaken runtime invariants by branching on `environment.IsDevelopment()` to accommodate tests or mock missing assets. Use explicit `DrnDevelopmentSettings:TemporaryApplication` and `DrnDevelopmentSettings:SkipValidation` flags when configuring test hosts.
 
 ### Advanced Startup (`DrnProgramActions`)
 
@@ -131,7 +139,25 @@ public class SampleProgramActions : DrnProgramActions
 
 ### MFA by Default
 
-MFA enforced globally via `FallbackPolicy`. Any route not opted-out requires MFA.
+Use public `HostingLogEvents` for MFA event IDs and names. Record decisions with `IScopedLog.WithEvent(new ScopeEvent(eventId, outcome, reason))`. The first event supplies direct fields; later events remain under `AdditionalEvents`. Use the scoped log's stable `TraceId`. Retain dedicated audit emission for filtering without copying the full request log. Consumer events belong in companion catalogs.
+
+Follow the Hosting README's Logging conventions: retain .NET `EventId`, module-owned public static catalogs, stable IDs/names, and `EventId`/`EventName` fields. IDs must be unique within a module; cross-module filters include logger category. Do not introduce a `HostingEventId` wrapper or reuse published IDs for different meanings.
+
+Distinguish exemption paths: the built-in `AuthPolicy.MfaExempt` requires authentication but has no scheme restriction. Scheme-based exemptions from `ConfigureMFAExemption` require proof from a policy-selected scheme or the default authenticate scheme, including authenticated forwarding targets. The allowlist does not select schemes. `AddIdentityApiEndpoints` defaults to the bearer/application-cookie composite; it tries cookies only when bearer authentication returns no result.
+
+The central phase map is beside `MfaAuthorization` in Hosting `Auth/Policies/MFA.cs`. Phase 2 adds opt-in Utils assurance helpers and revocation contract coverage; default completed-MFA policy is unchanged. Stamp rotation rejects the next refresh; cookies validate strictly after their configured validation interval; opaque bearer access remains valid until expiration unless an app adds checks. Identity factor state/key and password resets rotate stamps; recovery-code regeneration/redemption do not. Keep MFA-01/03/05/07 and remaining MFA-06 owner events as TODOs.
+
+Cookie security-stamp renewal and bearer refresh share `MfaClaimPreservation`:
+
+- **Marker preservation**: Clone authenticated AMR/configured markers with full claim metadata. Deduplicate by type (case-insensitive), value, value type, issuer, and original issuer so markers from other issuers cannot suppress trusted evidence.
+- **Timestamp validation**: Preserve existing `auth_time` unchanged with full metadata only when authenticated source and renewed identities have matching, unambiguous subjects/issuers (`sub` or framework name identifier). Remove regenerated target timestamps; omit missing, malformed, conflicting, or unbound evidence. Accept nonnegative integer Unix seconds within `DateTimeOffset` range. Renewal does not issue timestamps or establish recent MFA.
+- **Split-evidence protection**: When the renewed configured MFA marker shares the timestamp issuer, require both claims on the same original identity, including when the target marker came from its factory. If that pairing is absent, omit the timestamp to prevent assurance promotion.
+
+The MFA result handler logs Information events 7401/7402/7403 for challenge/forbid/effective exemption under global enforcement. Dedicated fields are `EventOutcome`, `EventReason`, nullable W3C `TraceId`, and `CorrelationId`; never emit credentials, claim dumps or account identifiers. Never place a request identifier or generated fallback in TraceId. Distinguish generic authorization failures from failed MFA requirements. Completed MFA alone and disabled enforcement are not exemptions. Factor/recovery/revocation auditing and replay-resistant step-up remain separate owner work.
+
+MFA is enforced globally via the default/fallback policies and rechecked at the authorization middleware result boundary. Role-only attributes, direct policy metadata, and named policies cannot suppress global enforcement; named policies retain their configured authentication schemes. Any route not opted out requires MFA.
+
+The completed-MFA marker is provider-neutral and application-scoped. Override `ConfigureMFAClaim()` with the exact validated marker; the default is `amr=mfa`. `MfaPrincipal` rejects setup/pending credentials and conflicting authenticated subjects/issuers. Exemption discovery uses only policy-selected schemes and authenticated forwarding targets; authorization uses request-local proofs, not the singular ambient compatibility field. Use final `User` for account-security checks. Identity consumers opt in with `AddDrnIdentityMfaPolicies()` and its enrollment/browser challenge policies; generic Hosting has no Identity-service requirement. External providers configure their own handlers/claims and can omit local MFA-page redirection.
 
 ```csharp
 // Opt-out options:
@@ -280,8 +306,9 @@ The automatic behaviors below apply only to views covered by the DRN directive.
 | `ViteLinkTagHelper` | `<link>` | Resolve Vite manifest + SRI |
 | `NonceTagHelper` | `<script>`, `<style>`, `<link>`, `<iframe>` | Add CSP nonce |
 | `CsrfTokenTagHelper` | `hx-post/put/delete/patch` | Add CSRF token |
-| `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Render if MFA complete |
+| `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Render if authenticated |
 | `AnonymousOnlyTagHelper` | `*[anonymous-only]` | Render if anonymous |
+| `PolicyOnlyTagHelper` | `*[policy-only="PolicyName"]` | Render when the current request user satisfies a named policy; optional `policy-resource` |
 | `PageAnchorAspPageTagHelper` | `<a asp-page>` | Mark active page |
 | `PageAnchorHrefTagHelper` | `<a href>` | Mark active page |
 | `ScriptDefaultsTagHelper` | `<script>` | Modern defaults: `defer` (external), `type="module"` (inline) |
@@ -296,7 +323,15 @@ The automatic behaviors below apply only to views covered by the DRN directive.
 ```razor
 <nav authorized-only>Profile links here</nav>
 <a asp-page="/User/Login" anonymous-only>Sign In</a>
+<a asp-page="/Admin/Users" policy-only="ManageUsers">Manage users</a>
+<button policy-only="EditDocument" policy-resource="@Model.Document">Edit</button>
 ```
+
+`authorized-only` and `anonymous-only` are presence-only markers without bound boolean properties. Use bare attributes; any value, including `"false"`, still activates filtering. Omit the marker to omit its filter, or use Razor conditionals for dynamic rendering. Both markers are removed from rendered HTML.
+
+Both helpers use `ScopeContext.Authenticated`: `authorized-only` renders for signed-in users and `anonymous-only` for signed-out users. Endpoint policies own MFA enforcement by convention. On anonymous or MFA-exempt pages, authenticated setup/pending users can see `authorized-only` content. Use `policy-only` when visibility requires a specific policy; completed MFA is not checked by `authorized-only`.
+
+`policy-only` delegates asynchronously to `IAuthorizationService` using the current `ViewContext.HttpContext.User` and the explicit resource (null by default). Blank policy names and missing policies raise errors. Named policies still receive DRN's configured default MFA requirements unless explicitly exempt. The helper does not authenticate schemes, discover exemptions, or evaluate a linked endpoint's metadata; null/domain resources do not consume HTTP exemption proofs. Policies needing a resource require an explicit `policy-resource`. Multiple visibility helpers compose by suppression. Enforce endpoint access independently; these helpers only affect HTML rendering.
 
 **Active page marking**:
 ```razor

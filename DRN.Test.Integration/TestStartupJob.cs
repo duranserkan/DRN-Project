@@ -8,8 +8,6 @@ namespace DRN.Test.Integration;
 
 public class TestStartupJob : ITestStartupJob
 {
-    public const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
-
     public async Task RunAsync(StartupContext context)
     {
         PostgresContainerSettings.DefaultPassword = "drn";
@@ -24,12 +22,15 @@ public class TestStartupJob : ITestStartupJob
 
     private async Task SetSampleTestUser(StartupContext context)
     {
-        var methodInfo = typeof(TestStartupJob).GetMethod(nameof(SetSampleTestUser), PrivateInstance)!;
+        var methodInfo = typeof(TestStartupJob).GetMethod(nameof(SetSampleTestUser), BindingFlag.InstanceNonPublic)!;
         using var testContext = context.CreateNewContext(methodInfo);
         var sampleClient = await testContext.ApplicationContext.CreateClientAsync<SampleProgram>();
 
         var identity = Sample.Hosted.Helpers.Get.Endpoint.User.Identity;
-        var endpoints = new AuthenticationEndpoints(identity.LoginController.Login.RoutePattern!, identity.RegisterController.Register.RoutePattern!);
+        var endpoints = new AuthenticationEndpoints(
+            identity.LoginController.Login.RoutePattern!,
+            identity.RegisterController.Register.RoutePattern!,
+            identity.ManagementController.TwoFactorAuth.RoutePattern!);
         AuthenticationHelper<SampleProgram>.AuthEndpoints = endpoints;
 
         await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(sampleClient);
@@ -37,12 +38,15 @@ public class TestStartupJob : ITestStartupJob
 
     private async Task SetNexusTestUser(StartupContext context)
     {
-        var methodInfo = typeof(TestStartupJob).GetMethod(nameof(SetNexusTestUser), PrivateInstance)!;
+        var methodInfo = typeof(TestStartupJob).GetMethod(nameof(SetNexusTestUser), BindingFlag.InstanceNonPublic)!;
         using var testContext = context.CreateNewContext(methodInfo);
         var nexusClient = await testContext.ApplicationContext.CreateClientAsync<NexusProgram>();
 
         var identity = Nexus.Hosted.Helpers.Get.Endpoint.User.Identity;
-        var endpoints = new AuthenticationEndpoints(identity.LoginController.Login.RoutePattern!, identity.RegisterController.Register.RoutePattern!);
+        var endpoints = new AuthenticationEndpoints(
+            identity.LoginController.Login.RoutePattern!,
+            identity.RegisterController.Register.RoutePattern!,
+            identity.ManagementController.TwoFactorAuth.RoutePattern!);
         AuthenticationHelper<NexusProgram>.AuthEndpoints = endpoints;
 
         await AuthenticationHelper<NexusProgram>.AuthenticateClientAsync(nexusClient);

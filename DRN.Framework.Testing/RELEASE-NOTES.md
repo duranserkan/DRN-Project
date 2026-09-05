@@ -4,18 +4,26 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
-*   **Multi-Application Integration Testing**: `ApplicationContext` supports running multiple distinct `WebApplicationFactory<TEntryPoint>` instances concurrently within a single test context.
-*   **In-Memory HTTP Routing**: Added `ApplicationContextRouterHandler` to intercept outbound HTTP calls (`IInternalRequest`, `IExternalRequest`, `IHttpClientFactory`, and Flurl request wrappers) and route them by host, port, alias, and configuration directly to target in-memory `TestServer` instances across multi-tier service chains.
-*   **Service Aliases & Address Mapping**: Added `CreateClientForServiceAsync<TEntryPoint>("service-alias")` and `ApplicationContext.MapAddress<TEntryPoint>("address")` for explicit mapping of custom hostnames and service aliases.
-*   **Automatic Configuration Address Discovery**: `ApplicationContext` discovers and registers service hostnames, ports, and aliases from configuration (`Kestrel:Endpoints`, `*Address`, `*Url`, `*Uri`), enabling in-memory routing between dependencies without boilerplate.
+*   **Multi-Application In-Memory HTTP Routing & Test Hosting**:
+    *   **Multi-App Concurrency**: `ApplicationContext` supports running multiple distinct `WebApplicationFactory<TEntryPoint>` instances concurrently within a single test context.
+    *   **Multi-Program Assembly Test Hosting**: `DrnWebApplicationFactory<TEntryPoint>` resolves and binds secondary `IDrnProgram` entry points in multi-program test support assemblies (e.g. `DRN.Test.Utils`), enabling any test program to be hosted in-memory via `ApplicationContext.CreateClientAsync<TProgram>()` without assembly entry-point conflicts.
+    *   **In-Memory HTTP Routing**: Added `ApplicationContextRouterHandler` to intercept outbound HTTP calls (`IInternalRequest`, `IExternalRequest`, `IHttpClientFactory`, and Flurl request wrappers) and route them by host, port, alias, and configuration directly to target in-memory `TestServer` instances across multi-tier service chains.
+    *   **Service Aliases & Address Mapping**: Added `CreateClientForServiceAsync<TEntryPoint>("service-alias")` and `ApplicationContext.MapAddress<TEntryPoint>("address")` for explicit mapping of custom hostnames and service aliases.
+    *   **Automatic Configuration Address Discovery**: `ApplicationContext` discovers and registers service hostnames, ports, and aliases from configuration (`Kestrel:Endpoints`, `*Address`, `*Url`, `*Uri`), enabling in-memory routing between dependencies without boilerplate.
 
 ### Security
 
-*   **Digest-Pinned Testcontainers Defaults**: Updated PostgreSQL default to `18.6-alpine3.24` and RabbitMQ to `4.3.5-management-alpine`, pinned to verified Docker Hub index digests.
+*   **Digest-Pinned Container Defaults**: Default PostgreSQL and RabbitMQ images now use digest-pinned versions. Custom image/version overrides do not inherit an incompatible default digest; supply `Digest` to pin custom images.
+
+### Breaking Changes
+
+*   **ApplicationContext & DrnWebApplicationFactory Type Constraints**: Constrained `TEntryPoint` generic type parameters on `ApplicationContext` methods and `DrnWebApplicationFactory<TEntryPoint>` to `where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()`, providing compile-time type safety and eliminating runtime reflection during host runner creation.
+*   **Application Test Context Namespace**: Moved `ApplicationContext`, `ApplicationContextRouterHandler`, `DrnWebApplicationFactory<TEntryPoint>`, and `TestOutputTarget` from `DRN.Framework.Testing.Contexts` to `DRN.Framework.Testing.Contexts.Application`.
+    *   Migration: add `using DRN.Framework.Testing.Contexts.Application;` (or the equivalent global using) and recompile consumers.
 
 ### Bug Fixes
 
-*   **Container Settings Digest Isolation**: Isolated `InitialDefault` constants in `PostgresContainerSettings` and `RabbitMQContainerSettings` so custom image or version overrides do not inherit the default digest.
+*   **Secondary Program Host Configuration**: Secondary test programs now honor configured content roots, custom service-provider factories, and container configuration.
 
 ## Version 0.9.8
 

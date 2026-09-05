@@ -1,19 +1,19 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text;
-using DRN.Framework.Hosting.Auth;
+using DRN.Framework.Hosting.Auth.Policies;
+using DRN.Framework.Hosting.Identity;
 using DRN.Framework.Utils.Auth.MFA;
-using DRN.Framework.Utils.Scope;
 using Flurl;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using QRCoder;
 using Sample.Domain.Users;
 using Sample.Hosted.Extensions;
-using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.Pages.User.Management;
 
-[Authorize(AuthPolicy.MfaExempt)]
+[Authorize(IdentityMfaPolicy.BrowserEnrollment)]
 public class EnableAuthenticator(SignInManager<SampleUser> signInManager, UserManager<SampleUser> userManager) : PageModel
 {
     [BindProperty] public QrCodeVerifyModel QrCodeVerify { get; set; } = null!;
@@ -29,17 +29,20 @@ public class EnableAuthenticator(SignInManager<SampleUser> signInManager, UserMa
         if (user == null)
             return this.ReturnLogoutPage();
 
+        if (!await CanManageAsync(user))
+            return Forbid(IdentityConstants.ApplicationScheme);
+
         return await LoadSharedKeyAndQrCodeUriAsync(user);
     }
 
     public async Task<IActionResult> OnPostVerifyAsync()
     {
-        if (!MfaFor.MfaSetupRequired)
-            return LocalRedirect(Get.Page.User.Login);
-
         var user = await userManager.GetUserAsync(User);
         if (user == null)
             return this.ReturnLogoutPage();
+
+        if (!await CanManageAsync(user))
+            return Forbid(IdentityConstants.ApplicationScheme);
 
         if (!ModelState.IsValid)
             return await LoadSharedKeyAndQrCodeUriAsync(user);
@@ -61,6 +64,15 @@ public class EnableAuthenticator(SignInManager<SampleUser> signInManager, UserMa
         await signInManager.SignOutAsync();
 
         return Page();
+    }
+
+    private async Task<bool> CanManageAsync(SampleUser user)
+    {
+        var services = HttpContext.RequestServices;
+        var config = services.GetRequiredService<MfaClaimConfig>();
+        var enforced = MfaAuthorization.IsMfaEnforced(services.GetRequiredService<IOptions<AuthorizationOptions>>().Value);
+        return IdentityMfaPolicy.CanManage(User, await userManager.GetTwoFactorEnabledAsync(user), enforced, config,
+            userManager.Options.ClaimsIdentity.UserIdClaimType);
     }
 
     public string GenerateQrCodeImageAsBase64()

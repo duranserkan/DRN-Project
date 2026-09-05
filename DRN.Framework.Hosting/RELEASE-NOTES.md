@@ -2,14 +2,38 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.0
 
+### New Features
+
+*   **Hosting Log Events**: Added `HostingLogEvents` in `DRN.Framework.Hosting.Logging` for consumer filters and event references. Applications can define companion catalogs for their own events.
+*   **Policy-Based Razor Visibility**: Added `PolicyOnlyTagHelper` with `policy-only="PolicyName"` and optional `policy-resource`, evaluating the current request user through `IAuthorizationService`. The resource defaults to null; the helper does not authenticate schemes or discover endpoint exemption evidence.
+*   **Programmatic Application Builder Hook**: Added a four-argument `CreateApplicationAsync` overload for host integrations while retaining the existing three-argument overload for binary compatibility.
+*   **Provider-Neutral MFA Claim Configuration**: Added `ConfigureMFAClaim` with the backward-compatible `MfaClaimConfig.AspNetIdentity` default (`amr=mfa`). Applications can select the exact claim type and value emitted by Keycloak or another identity provider without changing DRN authorization, redirection, or UI enforcement code.
+
+### Breaking Changes
+
+*   **Authenticated UI Visibility Convention**: `authorized-only` now checks `ScopeContext.Authenticated` instead of completed MFA. Authenticated users with pending or incomplete MFA can see these elements on anonymous or MFA-exempt pages. Endpoint policies remain responsible for MFA enforcement; use `policy-only` for policy-specific visibility.
+*   **Presence-Only Visibility Markers**: Removed the `AuthorizedOnly` and `AnonymousOnly` boolean properties from their TagHelpers. Use bare `authorized-only` / `anonymous-only` attributes; presence activates filtering regardless of the value, including `"false"`. Omit the attribute to omit its filter. Both markers are removed from rendered HTML.
+*   **Policy-Scoped MFA Exemptions**: Only policy-selected schemes, including their authenticated forwarding targets, can supply exemption evidence. Unrelated credentials no longer influence selection. Programmatic authorization without an HTTP policy context no longer consumes ambient scheme exemptions.
+*   **Identity MFA Policy Registration**: Consumers of `IdentityManagementControllerBase` must opt in with `AddDrnIdentityMfaPolicies()` after registering Identity authentication. Enrollment selects the Identity cookie/bearer composite; browser enrollment/challenge select application cookies. Enabled-factor access is checked against the final authorized account and returns HTTP 403 when MFA is missing. Shared authorization remains usable without Identity services.
+
+*   **Security-Stamp Configuration Hook**: Overrides of `ConfigureSecurityStampValidatorOptions` must now return `void` and accept `(SecurityStampValidatorOptions options, IAppSettings appSettings, MfaClaimConfig mfaClaimConfig)` instead of returning an options delegate. Pass all three arguments to the base method to retain claim preservation. The MFA configuration is resolved from DI so cookie renewal and bearer refresh use the same application-scoped marker.
+
+*   **Identity MFA Setup Response**: When MFA is globally enforced, password-valid accounts without two-factor authentication now receive an HTTP 200 five-minute setup credential instead of the ordinary authenticated credential returned previously. Cookie requests receive an empty response with a non-persistent, non-refreshable setup cookie; bearer requests receive an `AccessTokenResponse` with `ExpiresIn = 300` and an empty `RefreshToken`. Clients must use the setup credential with `TwoFactorAuth`, enable two-factor authentication, discard the setup credential, and log in again with an authenticator or recovery code.
+
 ### Security
 
-*   **Reverse Proxy Trust & Forwarded Headers**: `ConfigureForwardedHeadersOptions` automatically binds the `ForwardedHeaders` configuration section from `IAppSettings` with CIDR and `KnownProxies` support. When unconfigured, it defaults to trusting RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) alongside loopback and sets `ForwardLimit = 2` for secure IP resolution and rate limiting behind reverse proxies.
+*   **MFA Renewal**: Cookie renewal and bearer refresh preserve authenticated `amr` values, the configured completed-MFA marker, and valid account-bound authentication time with their original claim metadata, without promoting split evidence into recent-MFA assurance. Bearer refresh validates the security stamp. See [renewal and assurance](README.md#renewal-and-assurance).
+*   **MFA Phase Map & Revocation Contract**: Centralized addressed/deferred phases beside `MfaAuthorization` and documented cookie, refresh and opaque bearer revocation boundaries, with controlled-clock integration coverage for stamp-changing and recovery-code operations. Existing token lifetimes and default MFA enforcement remain unchanged; stronger assurance checks are opt-in Utils APIs.
+*   **Authorization Audit Events**: The MFA result handler emits correlated Information-level challenge, forbid, and effective exemption events (7401–7403), with `EventOutcome`, `EventReason`, nullable W3C `TraceId`, and independent scope `CorrelationId` fields. It records the same decision through `IScopedLog.WithEvent(ScopeEvent)`. Dedicated events exclude request-log contents. Factor, recovery, and revocation events remain outside this handler.
+*   **Reverse Proxy Trust & Forwarded Headers**: Binds `ForwardedHeaders` settings with CIDR and proxy parsing. Invalid formats throw `ConfigurationException`. Defaults trust RFC 1918 private networks and loopback with `ForwardLimit = 2`. `TrustPrivateNetworks = false` removes the private-network defaults. A nonempty `KnownIPNetworks` list replaces network defaults; `KnownProxies` adds entries without clearing existing trust.
 *   **Request Query Log Minimization**: `HttpScopeMiddleware` records only the query-parameter count instead of raw query strings, preventing credentials, tokens, and PII from entering structured logs.
-
-### Bug Fixes
-
-*   **ForwardedHeaders Configuration Validation**: Validates custom network and proxy formats during startup.
+*   **MFA Authorization & Identity Boundary Hardening**:
+    *   **MFA Setup Credential Isolation**: An `MfaSetupRequired` credential cannot satisfy an MFA requirement through either a configured authentication-scheme exemption or a simultaneously present completed-MFA claim.
+    *   **Identity Management MFA Boundary**: MFA exemption moved from `IdentityManagementControllerBase` to its `TwoFactorAuth` endpoint. Initial enrollment accepts the short-lived `MfaSetupRequired` credential when MFA is enforced and an ordinary authenticated credential when MFA is optional. Once two-factor authentication is enabled, subsequent management requires completed MFA. `GetInfo`, `PostInfo`, and other identity management operations use the application's default or fallback policy and require completed MFA under the default configuration.
+    *   **Login Failure Disclosure Minimization**: Login failures return the same generic unauthorized problem for unknown accounts, invalid passwords, and incomplete MFA, preventing account and enrollment-state disclosure through response details.
+    *   **Authorization Metadata MFA Closure**: Global MFA enforcement is rechecked at the authorization middleware result boundary, preventing role-only and direct policy metadata from bypassing MFA while retaining explicit `MfaExempt` and configured authentication-scheme exemptions. Named policies also retain their configured authentication schemes when combined with the MFA default.
+    *   **MFA Claim Authentication Identity Scoping**: `MfaAuthorization.IsMfaSatisfied` filters claims strictly to authenticated identities on the principal, preventing unauthenticated secondary identities from supplying completed MFA or setup claims.
+    *   **Policy-Scheme Exemption Binding**: `MfaExemptionMiddleware` retains request-local proofs only for selected schemes and their authenticated forwarding targets. Both authorization handlers use these proofs and the final principal; transformed identities require matching subject/issuer provenance. The singular scoped-user proof remains a compatibility projection, not the authorization source, and is filtered against the evaluated policy even on MFA-exempt endpoints. Browser redirects evaluate the selected principal, and Identity setup GET/POST handlers guard authenticator-key access. `TwoFactorAuth` response metadata declares HTTP 403 for denied factor management.
 
 ## Version 0.9.8
 

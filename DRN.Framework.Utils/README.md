@@ -454,12 +454,50 @@ When no default Nexus key is configured in the `Development` environment, `AppSe
 
 ### Core Features
 
-*   **Contextual**: DRN Hosting request scopes add `TraceId`, `UserId`, and `RequestPath`; custom `ScopeData` remains separate unless added explicitly.
+*   **Contextual**: Every `ScopedLog` has a stable `CorrelationId` and captures an active W3C `TraceId` when available. Hosting adds request and user context.
 *   **Aggregation**: Groups all actions, metrics, and exceptions into a single structured log entry.
 *   **Performance Tracking**: Built-in measurement for code block durations and execution counts.
 *   **Exception Recording**: `AddException` records exception details without changing control flow; callers remain responsible for recovery, rethrowing, and excluding sensitive data.
 
 ### API Usage
+
+#### Scope events
+
+`ScopeEvent` has `Id`, `Outcome`, and `Reason` properties. `Id` uses .NET's `EventId` type from `Microsoft.Extensions.Logging`, which holds a numeric ID and an optional name.
+
+```csharp
+using DRN.Framework.Utils.Logging;
+using Microsoft.Extensions.Logging;
+
+public static class OrderLogEvents
+{
+    public static readonly EventId OrderProcessed = new(1, nameof(OrderProcessed));
+}
+```
+
+Inside an operation with an injected `IScopedLog`:
+
+```csharp
+log.WithEvent(new ScopeEvent(OrderLogEvents.OrderProcessed, "success", "completed"));
+```
+
+`WithEvent` sets the first event as primary. `EventId`, `EventName`, `EventOutcome`, and `EventReason` expose it directly and appear in `GetLogs()`. Later calls retain their `ScopeEvent` values under `AdditionalEvents` without replacing the primary event. `LogScoped` passes the primary .NET `EventId` to `ILogger` and preserves exception/warning severity.
+
+`CopyFrom` keeps destination correlation, trace, and primary event ownership. Source events are retained as additional events when a primary already exists.
+
+`GetLogs` detaches action and additional-event lists under the writer lock. Later additions do not change earlier snapshots. `CopyFrom` uses the same list snapshot. Objects stored inside lists remain caller-owned; this is not a deep clone.
+
+#### OpenTelemetry correlation
+
+`TraceId` captures `Activity.Current.TraceId` at scope construction when a W3C activity exists. Otherwise it is `null` and omitted from `GetLogs()`. `CorrelationId` is always generated for the scope. HTTP `TraceIdentifier` stays separate. These values remain stable; creating a log does not start or export a trace.
+
+With the OpenTelemetry logging provider configured, native log `TraceId`, `SpanId`, and `TraceFlags` come from the activity active when the log is emitted. Emit within that activity for native correlation. The scoped snapshot does not populate native trace fields or restore ended activities. See [OpenTelemetry log correlation](https://opentelemetry.io/docs/languages/dotnet/logs/correlation/).
+
+Use module-owned catalogs such as `OrderLogEvents` with stable IDs and names. IDs are unique within a module, not across all libraries. Filter dedicated events by logger category and ID. Scope events share this model through composition, not inheritance.
+
+#### Operation data
+
+`AddProperties` reads public instance getters and skips indexers. Ignored properties are marked without invoking their getters. Other getter exceptions still propagate.
 
 ```csharp
 public class OrderService(IScopedLog logger)
@@ -595,6 +633,14 @@ await response.Payload!.CopyToAsync(destination);
 
 `IScopedUser` exposes authenticated identity and claim state. Use `GetClaimParameter<TValue>` for typed claims; `ScopeContext.GetClaimParameter<TValue>` provides ambient access to the same contract.
 
+`MfaFor.MfaCompleted` delegates to the provider-neutral `MfaPrincipal.IsCompleted` with the application-scoped `MfaClaimConfig`. The default matches `amr=mfa`; applications can select another exact marker without requiring ASP.NET Identity services. Setup/pending credentials are rejected even when they contain that marker. Multiple authenticated identities must identify the same subject and issuer (`sub` or the configured name identifier). Claims on unauthenticated identities do not supply MFA. For security decisions after endpoint authentication selects another principal, evaluate the final `User` directly rather than a pre-authorization scoped snapshot.
+
+For stronger opt-in checks, `MfaPrincipal.IsRecent(principal, config, trustedIssuer, maximumAge, utcNow, authenticationTimeClaimType)` and `IsPhishingResistant(principal, config, trustedIssuer, assuranceClaim)` require the completed marker and additional evidence on the same authenticated identity, from the specified issuer. All authenticated identities must have an unambiguous matching subject and issuer. Setup/pending credentials, missing subjects and untrusted evidence fail closed. `IsCompleted` and the default Hosting `Mfa` policy retain their current semantics.
+
+`IsRecent` defaults to `auth_time`, accepts integer Unix seconds, rejects future/malformed/conflicting timestamps, and includes the exact maximum-age boundary. Pass the current time from `TimeProvider.GetUtcNow()`; a negative maximum age is invalid configuration. Authentication recency is not necessarily MFA recency: use a provider-guaranteed verified-MFA timestamp claim when that is the requirement. Renewal preserves existing `auth_time`; these helpers do not issue claims.
+
+`IsPhishingResistant` requires an explicit `MfaClaimConfig` for an assurance marker distinct from the completed marker. Configure it only for an issuer/value that guarantees phishing-resistant authentication; generic `amr=mfa` and passkey labels do not automatically establish this. Provider validation/mapping and preservation of additional assurance claims remain application responsibilities. Missing assurance after renewal returns false.
+
 `ScopeData` is separate caller-owned ambient storage and is not automatically copied into `IScopedLog`. Use `SetFlag` and typed `SetParameter` values for validated application data.
 
 ```csharp
@@ -609,6 +655,12 @@ var tenantId = ScopeContext.GetClaimParameter<Guid>("tenant-id");
 ScopeContext.Data.SetFlag("show-preview", true);
 ScopeContext.Data.SetParameter("page-size", 50);
 ```
+
+## TOTP Generation and Verification
+
+`TotpUtils.GenerateTotpCode(sharedKey)` generates an authenticator code from a Base32 shared secret; `TotpUtils.VerifyTotpCode(sharedKey, code)` checks a submitted code. Defaults are six digits, 30-second steps, and ±1-step verification drift. Overloads accept an explicit timestamp and custom settings.
+
+Verification is stateless: callers must enforce atomic per-account replay protection and attempt limits before accepting authentication. Bounded clock drift does not prevent code reuse. The utility does not issue MFA claims. See [TotpUtils.cs](Auth/MFA/TotpUtils.cs) for parameter validation details.
 
 ## Data Utilities
 
@@ -631,6 +683,14 @@ Use `AppDataPathResult.GetPath(...)` for traversal-safe child paths.
 Unified API for binary-to-text encodings and model serialization-encoding.
 *   **Encodings**: Base64, Base64Url (Safe for URLs), Hex, and Utf8.
 *   **Integrated**: `model.Encode(ByteEncoding.Hex)` and `hexString.Decode<TModel>(ByteEncoding.Hex)`.
+
+`Base32Encoding` provides strict RFC 4648 Base32 encoding and decoding separately from `ByteEncoding`. Encoding produces canonical padded output by default and supports unpadded output for protocols such as authenticator shared keys. Decoding accepts canonical padded or unpadded input case-insensitively and rejects invalid lengths, padding, characters, and non-zero trailing bits.
+
+```csharp
+var encoded = Base32Encoding.Encode(bytes);
+var unpadded = Base32Encoding.Encode(bytes, includePadding: false);
+var decoded = Base32Encoding.Decode(unpadded);
+```
 
 ### AES-256 Single-Block Encryption (`Aes256`)
 

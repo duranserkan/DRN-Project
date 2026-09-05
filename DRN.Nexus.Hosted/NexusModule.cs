@@ -1,4 +1,5 @@
 using DRN.Framework.Utils.Settings;
+using DRN.Framework.Hosting.Identity;
 using DRN.Nexus.Application;
 using DRN.Nexus.Domain.User;
 using DRN.Nexus.Hosted.Settings;
@@ -20,6 +21,7 @@ public static class NexusModule
             .AddIdentityApiEndpoints<NexusUser>(ConfigureIdentity(settings));
         //.AddPersonalDataProtection<>() //todo: enable personal data protection
 
+        services.AddDrnIdentityMfaPolicies();
         services.AddServicesWithAttributes();
 
         return services;

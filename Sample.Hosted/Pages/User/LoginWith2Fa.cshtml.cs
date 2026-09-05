@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
-using DRN.Framework.Hosting.Auth;
+using DRN.Framework.Hosting.Identity;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
@@ -9,7 +9,7 @@ using Sample.Domain.Users;
 
 namespace Sample.Hosted.Pages.User;
 
-[Authorize(AuthPolicy.MfaExempt)]
+[Authorize(IdentityMfaPolicy.Challenge)]
 public class LoginWith2Fa(SignInManager<SampleUser> signInManager, MfaRedirectionOptions redirectionOptions) : PageModel
 {
     private const string InvalidCodeAttempts = nameof(InvalidCodeAttempts);
@@ -19,7 +19,7 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager, MfaRedirectio
 
     public IActionResult OnGet(bool rememberMe, string? returnUrl = null)
     {
-        if (!MfaFor.MfaInProgress)
+        if (!MfaPrincipal.HasState(User, MfaClaimValues.MfaInProgress))
             return LocalRedirect(Get.Page.User.Login);
 
         Login2FaModel.RememberMe = rememberMe;
@@ -30,8 +30,12 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager, MfaRedirectio
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
-        if (!MfaFor.MfaInProgress)
+        if (!MfaPrincipal.HasState(User, MfaClaimValues.MfaInProgress))
             return LocalRedirect(Get.Page.User.Login);
+
+        var pendingUser = await signInManager.GetTwoFactorAuthenticationUserAsync();
+        if (pendingUser == null || signInManager.UserManager.GetUserId(User) != await signInManager.UserManager.GetUserIdAsync(pendingUser))
+            return Forbid(IdentityConstants.ApplicationScheme);
 
         if (!ModelState.IsValid)
             return Page();

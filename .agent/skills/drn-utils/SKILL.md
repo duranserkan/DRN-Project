@@ -1,7 +1,7 @@
 ---
 name: drn-utils
-description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, entity-date-filter, tick-boundary, validators, extensions, http-client"
-last-updated: 2026-07-29
+description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, Base32/TOTP encoding and authentication utilities, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, base32, totp, mfa, entity-date-filter, tick-boundary, validators, extensions, http-client"
+last-updated: 2026-09-02
 difficulty: intermediate
 tokens: ~2.7K
 ---
@@ -161,6 +161,8 @@ When grouping options into nested objects, explicitly validate child objects bef
 
 Request-scoped structured logging. Aggregates data, metrics, and checkpoints, flushing as a single entry.
 
+`ScopeEvent` uses `Id` (.NET `EventId`), `Outcome`, and `Reason`. `IScopedLog.WithEvent` sets the first event as primary and retains later events under `AdditionalEvents`. Scope-level properties retain the `Event` prefix for ID/name/outcome/reason. `LogScoped` forwards the primary event ID with existing severity rules. Every `ScopedLog` generates a stable `CorrelationId` and captures a nullable W3C `TraceId` at construction. Never fabricate a trace ID without an activity. HTTP TraceIdentifier remains separate. Native OpenTelemetry trace/span/flags use the activity at emission; scoped snapshots do not populate those native fields. Copying retains destination correlation and primary event ownership. Keep consumer/module catalogs separate; do not subclass event types.
+
 | Method | Purpose |
 |--------|---------|
 | `Add(key, value)` | Structured log entry |
@@ -312,9 +314,14 @@ if (scope.Acquired) { /* critical section */ }
 
 ## Utilities Reference
 
+`TotpUtils` defaults to six digits, 30-second steps, and ±1-step drift. Verification is stateless; callers must enforce atomic per-account replay protection and attempt limits. It does not issue MFA claims. See [TotpUtils.cs](../../../DRN.Framework.Utils/Auth/MFA/TotpUtils.cs) for parameter validation details.
+
+`MfaPrincipal.IsRecent` and `IsPhishingResistant` are opt-in checks requiring an explicit trusted issuer and completed/additional evidence on the same authenticated identity. All authenticated subjects/issuers must be unambiguous and agree. IsRecent accepts a caller-supplied current time, an inclusive nonnegative age limit and a timestamp type (default auth_time); reject malformed/conflicting/future evidence. auth_time is authentication recency, not necessarily verified-MFA recency. IsPhishingResistant requires an explicit assurance mapping distinct from completion; never infer it from generic MFA or a passkey label. No default Hosting policy change or claim issuance; provider mapping remains MFA-07.
+
 | Area | Key Types | Purpose |
 |------|-----------|---------|
-| **Data Encoding** | `EncodingExtensions` | Base64, Base64Url, Hex, Utf8 |
+| **Data Encoding** | `EncodingExtensions`, `Base32Encoding` | Base64, Base64Url, Hex, Utf8, plus strict RFC 4648 padded/unpadded Base32 |
+| **Authentication** | `MfaClaimConfig`, `MfaPrincipal`, `MfaFor`, `TotpUtils` | Provider-neutral completed-MFA checks reject setup/pending states and conflicting authenticated subjects/issuers; evaluate final authorized principals for account-security decisions. Application-scoped markers and TOTP utilities require no Identity services. |
 | **Hashing** | `HashExtensions` | Blake3 (crypto), XxHash3 (fast), keyed and stream/file hashing; prefer stream overloads for files and large payloads |
 | **JSON** | `JsonMergePatch` | RFC 7386 merge patch with depth protection |
 | **Query Strings** | `QueryParameterSerializer` | Complex objects → query strings |
@@ -380,7 +387,7 @@ assembly.GetSubTypes(typeof(T));
 assembly.CreateSubTypes<T>(); // Discover + instantiate parameterless ctors
 type.GetAssemblyName();
 
-// Reflection (cached invokers)
+// Reflection (cached invokers - prefer UnsafeAccessor when compile-time types are known)
 instance.InvokeMethod("Name", args);
 type.InvokeStaticMethod("Name", args);
 instance.InvokeGenericMethod("Name", typeArgs, args);
@@ -393,6 +400,19 @@ exception.GetGatewayStatusCode();              // Maps to 502/503/504
 object.GetGroupedPropertiesOfSubtype(typeof(T));      // Group properties by subtype
 number.GetBitPositions();                       // Get set bit positions
 ```
+
+---
+
+## UnsafeAccessors (Preferred Over Reflection)
+
+Use `[UnsafeAccessor]` (`System.Runtime.CompilerServices`) instead of runtime reflection (`Type.GetMethod`, `Type.GetProperty`, `Type.GetField`, `MethodInfo.Invoke`) whenever the target type is accessible at compile time. `[UnsafeAccessor]` provides zero-overhead, AOT-safe, direct compiled access to non-public methods, fields, constructors, and properties.
+
+Use the source-owned signatures as examples: [FlurlExtensions](../../../DRN.Framework.Utils/Extensions/FlurlExtensions.cs) for field access, [DrnApplicationExtensions](../../../DRN.Framework.Hosting/DrnProgram/DrnApplicationExtensions.cs) for method access, and [PageUtils](../../../DRN.Framework.Hosting/Endpoints/PageUtils.cs) for property-setter access.
+
+### When to Use UnsafeAccessor vs Reflection
+
+- **Use `[UnsafeAccessor]`**: Whenever accessing non-public constructors, methods, properties, or fields of known/accessible types (including framework, ASP.NET Core, and library types). Note that `UnsafeAccessorKind.StaticMethod` requires the exact declaring type where the static method is defined (it does not traverse base types for static members).
+- **Use Reflection**: Only when target types or generic signatures cannot be determined at compile time (e.g. dynamically discovered types by assembly name/attribute scan, or inaccessible internal types of third-party assemblies without `InternalsVisibleTo`).
 
 ---
 

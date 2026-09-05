@@ -1,18 +1,18 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.EntityFramework.Attributes;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.EntityFramework.Extensions;
-using DRN.Framework.SharedKernel;
 using DRN.Framework.Testing.Contexts.Postgres;
 using DRN.Framework.Utils.Entity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
 
 namespace DRN.Test.Integration.Tests.Framework.EntityFramework;
 
+[SuppressMessage("ReSharper", "EntityFramework.ModelValidation.UnlimitedStringLength")]
 public class DrnContextMigrationHistoryTests
 {
     private const string MigrationId = "20260828000000_BeforeMigrationSourcesWereRemoved";
@@ -118,8 +118,9 @@ public class DrnContextMigrationHistoryTests
 
     private sealed class MigrationHistoryGuardSentinel
     {
-        public int Id { get; set; }
-        public string Value { get; set; } = null!;
+        public int Id { get; init; }
+
+        public string Value { get; init; } = null!;
     }
 
     [AttributeUsage(AttributeTargets.Class)]

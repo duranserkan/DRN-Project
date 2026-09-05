@@ -1,4 +1,6 @@
+using System.Net;
 using System.Net.Http.Json;
+using DRN.Framework.Testing.Contexts.Application;
 using DRN.Framework.Utils.Models.Sample;
 using DRN.Nexus.Hosted;
 using DRN.Test.Utils.Hosting;
@@ -7,6 +9,9 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -303,15 +308,15 @@ public class ApplicationContextTests
     [DataInline]
     public void ApplicationContext_Should_Dispose_Temporary_Discovery_Factory_When_Host_Fails(DrnTestContext context)
     {
-        var throwingOptions = new ThrowingTestServerOptions();
+        var throwingHostedService = new ThrowingHostedService();
 
-        Action createApplication = () => context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>(builder =>
+        var createApplication = () => context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>(builder =>
             builder.ConfigureServices(services =>
-                services.AddSingleton<IOptions<TestServerOptions>>(_ => throwingOptions)));
+                services.AddSingleton<IHostedService>(_ => throwingHostedService)));
 
         createApplication.Should().ThrowExactly<InvalidOperationException>()
-            .WithMessage(ThrowingTestServerOptions.FailureMessage);
-        throwingOptions.DisposeCount.Should().Be(1);
+            .WithMessage(ThrowingHostedService.FailureMessage);
+        throwingHostedService.DisposeCount.Should().Be(1);
         context.ApplicationContext.HasCreatedApplication.Should().BeFalse();
     }
 
@@ -332,6 +337,91 @@ public class ApplicationContextTests
         using var host = factory.CreateHostForTest(builder);
 
         addressesFeature.Addresses.Should().Equal("http://127.0.0.1:0");
+    }
+
+    [Theory]
+    [DataInline]
+    public void DrnWebApplicationFactory_HostConfiguration_Should_Reach_Startup(DrnTestContext context)
+    {
+        TemporaryLifecycleProgram.Reset();
+
+        using var factory = new ExposedDrnWebApplicationFactory(context);
+        var builder = factory.CreateHostBuilderForTest();
+        builder.Should().NotBeNull();
+
+        string? hostContextValue = null;
+        builder!.ConfigureHostConfiguration(config => config.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["CustomHostConfigKey"] = "CustomHostConfigValue"
+        }));
+        builder.ConfigureAppConfiguration((hostContext, _) =>
+        {
+            hostContextValue = hostContext.Configuration["CustomHostConfigKey"];
+        });
+
+        using var host = builder.Build();
+        var configuration = host.Services.GetRequiredService<IConfiguration>();
+
+        hostContextValue.Should().Be("CustomHostConfigValue");
+        configuration["CustomHostConfigKey"].Should().Be("CustomHostConfigValue");
+        TemporaryLifecycleProgram.CapturedAppSettings?.GetValue<string>("CustomHostConfigKey").Should().Be("CustomHostConfigValue");
+    }
+
+    [Theory]
+    [DataInline]
+    public void DrnWebApplicationFactory_HostConfiguration_Should_Configure_Content_Root(DrnTestContext context)
+    {
+        TemporaryLifecycleProgram.Reset();
+
+        using var factory = new ExposedDrnWebApplicationFactory(context);
+        var builder = factory.CreateHostBuilderForTest();
+        builder.Should().NotBeNull();
+
+        var targetContentRoot = AppContext.BaseDirectory;
+        string? observedContentRoot = null;
+        IFileProvider? observedFileProvider = null;
+
+        builder!.ConfigureHostConfiguration(config => config.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [HostDefaults.ContentRootKey] = targetContentRoot
+        }));
+        builder.ConfigureAppConfiguration((hostContext, _) =>
+        {
+            observedContentRoot = hostContext.HostingEnvironment.ContentRootPath;
+            observedFileProvider = hostContext.HostingEnvironment.ContentRootFileProvider;
+        });
+
+        using var host = builder.Build();
+
+        observedContentRoot.Should().Be(targetContentRoot);
+        observedFileProvider.Should().BeOfType<PhysicalFileProvider>();
+    }
+
+    [Theory]
+    [DataInline]
+    public void DrnWebApplicationFactory_Container_Configuration_Should_Be_Retained_And_Applied(DrnTestContext context)
+    {
+        TemporaryLifecycleProgram.Reset();
+
+        using var factory = new ExposedDrnWebApplicationFactory(context);
+        var builder = factory.CreateHostBuilderForTest();
+        builder.Should().NotBeNull();
+
+        var testFactory = new TestContainerFactory();
+        var containerConfigured = false;
+
+        builder!.UseServiceProviderFactory(testFactory);
+        builder.ConfigureContainer<TestContainerBuilder>((_, container) =>
+        {
+            containerConfigured = true;
+            container.Configured = true;
+        });
+
+        using var host = builder.Build();
+
+        testFactory.CreateBuilderCalled.Should().BeTrue();
+        testFactory.CreateServiceProviderCalled.Should().BeTrue();
+        containerConfigured.Should().BeTrue();
     }
 
     [Theory]
@@ -396,6 +486,48 @@ public class ApplicationContextTests
         _ = application.Server;
 
         TemporaryLifecycleProgram.CapturedLifecycleLogCount.Should().Be(0);
+    }
+
+    [Theory]
+    [DataInline]
+    public void ApplicationContext_Should_Dispose_Secondary_Program_Startup_AppSettings(DrnTestContext context)
+    {
+        TemporaryLifecycleProgram.Reset();
+
+        var application = context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>();
+        _ = application.Server;
+
+        var appSettings = TemporaryLifecycleProgram.CapturedAppSettings;
+        appSettings.Should().NotBeNull();
+        var defaultKey = appSettings!.NexusAppSettings.GetDefaultKey();
+
+        context.ApplicationContext.Dispose();
+
+        Action readKeyMaterial = () => _ = defaultKey.MacKey.Bytes;
+        readKeyMaterial.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_Should_Apply_Resolved_WebRoot_To_Secondary_Program(DrnTestContext context)
+    {
+        SecondaryWebRootProgram.Reset();
+
+        using var client = await context.ApplicationContext.CreateClientAsync<SecondaryWebRootProgram>();
+
+        SecondaryWebRootProgram.ResolvedWebRootPath.Should().NotBeNullOrWhiteSpace();
+        SecondaryWebRootProgram.ResolvedWebRootPath.Should().EndWith(Path.Combine("DRN.Test.Utils", "wwwroot"));
+        Directory.Exists(SecondaryWebRootProgram.ResolvedWebRootPath).Should().BeTrue();
+
+        SecondaryWebRootProgram.ResolvedViteManifest.Should().NotBeNull();
+        SecondaryWebRootProgram.ResolvedViteManifest.Should().NotBeOfType<EmptyViteManifest>();
+        var manifestItem = SecondaryWebRootProgram.ResolvedViteManifest!.GetManifestItem("test-asset.txt");
+        manifestItem.Should().NotBeNull();
+        manifestItem!.File.Should().Be("test-asset.txt");
+
+        using var response = await client.GetAsync("/test-asset.txt");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).Trim().Should().Be("test-asset");
     }
 
     [Theory]
@@ -707,13 +839,13 @@ public class ApplicationContextTests
         client.Should().NotBeNull();
 
         // Compile-time overload resolution checks for remaining call shapes without starting extra test servers
-        Action compileTimeOverloadCheck = () =>
+        var compileTimeOverloadCheck = () =>
         {
-            _ = context.ApplicationContext.CreateClientAsync<NexusProgram>(null);
-            _ = context.ApplicationContext.CreateClientAsync<NexusProgram>(null, null);
+            _ = context.ApplicationContext.CreateClientAsync<NexusProgram>(outputHelper: null);
+            _ = context.ApplicationContext.CreateClientAsync<NexusProgram>(outputHelper: null, clientOptions: null);
             _ = context.ApplicationContext.CreateClientForServiceAsync<NexusProgram>("nexus-overload-test");
-            _ = context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>(null);
-            _ = context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<TemporaryLifecycleProgram>(null);
+            _ = context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>();
+            _ = context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<TemporaryLifecycleProgram>();
             _ = new DrnWebApplicationFactory<TemporaryLifecycleProgram>(context, temporary: true);
         };
         compileTimeOverloadCheck.Should().NotBeNull();
@@ -871,12 +1003,15 @@ public class ApplicationContextTests
         }
     }
 
-    private sealed class ThrowingTestServerOptions : IOptions<TestServerOptions>, IDisposable
+    private sealed class ThrowingHostedService : IHostedService, IDisposable
     {
-        public const string FailureMessage = "Test server options failure.";
+        public const string FailureMessage = "Hosted service failure.";
         public int DisposeCount { get; private set; }
 
-        public TestServerOptions Value => throw new InvalidOperationException(FailureMessage);
+        public Task StartAsync(CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(FailureMessage);
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
         public void Dispose() => DisposeCount++;
     }
@@ -885,5 +1020,33 @@ public class ApplicationContextTests
         : DrnWebApplicationFactory<TemporaryLifecycleProgram>(context, true)
     {
         public IHost CreateHostForTest(IHostBuilder builder) => CreateHost(builder);
+        public IHostBuilder? CreateHostBuilderForTest() => CreateHostBuilder();
+    }
+
+    private sealed class TestContainerBuilder
+    {
+        public IServiceCollection Services { get; } = new ServiceCollection();
+        public bool Configured { get; set; }
+    }
+
+    private sealed class TestContainerFactory : IServiceProviderFactory<TestContainerBuilder>
+    {
+        public bool CreateBuilderCalled { get; private set; }
+        public bool CreateServiceProviderCalled { get; private set; }
+
+        public TestContainerBuilder CreateBuilder(IServiceCollection services)
+        {
+            CreateBuilderCalled = true;
+            var builder = new TestContainerBuilder();
+            foreach (var descriptor in services)
+                builder.Services.Add(descriptor);
+            return builder;
+        }
+
+        public IServiceProvider CreateServiceProvider(TestContainerBuilder containerBuilder)
+        {
+            CreateServiceProviderCalled = true;
+            return containerBuilder.Services.BuildServiceProvider();
+        }
     }
 }
