@@ -33,7 +33,7 @@ public class AuthenticationClaimConfigTests
     [DataInlineUnit("uid", true)]
     [DataInlineUnit("sub", false)]
     [DataInlineUnit("UID", false)]
-    public void Custom_Subject_Should_Accept_Only_Explicit_Types_And_Reject_Conflicting_Defaults(string type, bool accepted)
+    public void Custom_Subject_Should_Accept_Only_Explicit_Types_And_Ignore_Unconfigured_Defaults(string type, bool accepted)
     {
         var config = new AuthenticationClaimConfig { Subject = new("uid", "external-id") };
         var identity = new ClaimsIdentity([new Claim(type, "user")], "external");
@@ -41,8 +41,27 @@ public class AuthenticationClaimConfigTests
         if (accepted)
         {
             identity.AddClaim(new Claim("sub", "other"));
-            SubjectClaims.Find(identity, config).Should().BeNull();
+            identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, "another", ClaimValueTypes.String, "other-issuer"));
+            (SubjectClaims.Find(identity, config)?.Value).Should().Be("user");
         }
+    }
+
+    [Theory]
+    [DataInlineUnit("uid", "other", "issuer")]
+    [DataInlineUnit("UID", "other", "issuer")]
+    [DataInlineUnit("external-id", "other", "issuer")]
+    [DataInlineUnit("EXTERNAL-ID", "user", "other-issuer")]
+    [DataInlineUnit("sub", "other", "issuer")]
+    public void Configured_Subject_Aliases_And_Case_Variants_Should_Reject_Conflicts(
+        string type, string value, string issuer)
+    {
+        var config = new AuthenticationClaimConfig { Subject = new("uid", "external-id", "sub") };
+        var identity = new ClaimsIdentity([
+            new Claim("uid", "user", ClaimValueTypes.String, "issuer"),
+            new Claim(type, value, ClaimValueTypes.String, issuer)
+        ], "external");
+
+        SubjectClaims.Find(identity, config).Should().BeNull();
     }
 
     [Theory]
@@ -55,7 +74,7 @@ public class AuthenticationClaimConfigTests
     {
         var mapping = new AuthenticationClaimConfig
         {
-            Subject = new("uid"), Name = new("display"), Email = new("mail"), Roles = new("app-role")
+            Subject = new("uid", "sub"), Name = new("display"), Email = new("mail"), Roles = new("app-role")
         };
         context.ServiceCollection.AddSingleton(mapping);
         var identity = new ClaimsIdentity([

@@ -643,7 +643,7 @@ await response.Payload!.CopyToAsync(destination);
 | Roles | `ClaimTypes.Role` | `roles` |
 | Mfa | `amr=mfa` | None |
 
-`Subject = new("uid")` replaces the entire mapping, accepting only `uid`. Add aliases explicitly, for example `new("uid", "external_id")`. Scalar aliases must agree; roles combine only selected types. Standard subject claims still veto conflicting values or issuers, including case variants; they are not fallback inputs to a custom mapping. `ScopedUser.Id` is null for missing or conflicting primary account evidence. Generic claim lookup remains case-insensitive; mapped security decisions use exact types.
+`Subject = new("uid")` replaces the entire mapping, accepting only `uid`. Add aliases explicitly, for example `new("uid", "external_id")`. Scalar aliases must agree; roles combine only selected types. Subject agreement checks include case variants of configured types and aliases; unconfigured standard subject claims are ignored. `ScopedUser.Id` is null for missing or conflicting primary account evidence. Generic claim lookup remains case-insensitive; mapped security decisions use exact types.
 
 Scoped name/email use the primary identity and return null for conflicting selected values or issuers. `IsInRole` checks all selected roles from authenticated identities across issuers. Generic claim groups retain their issuer filters.
 

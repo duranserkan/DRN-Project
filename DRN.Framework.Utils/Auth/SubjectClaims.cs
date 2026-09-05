@@ -11,8 +11,7 @@ public static class SubjectClaims
         var mapping = (config ?? AuthenticationClaimConfig.Default).Subject;
 
         // Reject case-variant collisions too: downstream .NET Identity lookups may ignore casing.
-        var subjects = identity.Claims.Where(claim => IsDefaultSubjectType(claim.Type) ||
-            mapping.MatchesIgnoringCase(claim.Type)).ToArray();
+        var subjects = identity.Claims.Where(claim => mapping.MatchesIgnoringCase(claim.Type)).ToArray();
         var subject = subjects.FirstOrDefault(claim => claim.Type == mapping.Type) ??
                       subjects.FirstOrDefault(claim => mapping.Accepts(claim.Type));
         return subject != null && !string.IsNullOrWhiteSpace(subject.Value) &&

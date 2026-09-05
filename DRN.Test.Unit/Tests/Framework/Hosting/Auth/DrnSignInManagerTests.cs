@@ -76,7 +76,7 @@ public class DrnSignInManagerTests
             fixture.FactoryIdentity.RemoveClaim(fixture.FactoryIdentity.FindFirst(config.Subject.Type)!);
             if (scenario == "empty") fixture.FactoryIdentity.AddClaim(new Claim(config.Subject.Type, ""));
         }
-        if (scenario == "conflicting-subject") fixture.FactoryIdentity.AddClaim(new Claim("sub", "other"));
+        if (scenario == "conflicting-subject") fixture.FactoryIdentity.AddClaim(new Claim(config.Subject.Type, "other"));
         if (scenario == "conflicting-issuer")
             fixture.FactoryIdentity.AddClaim(new Claim(config.Subject.Type, "user", ClaimValueTypes.String, "other-issuer"));
         if (scenario == "case-collision") fixture.FactoryIdentity.AddClaim(new Claim("UID", "other"));
@@ -158,7 +158,7 @@ public class DrnSignInManagerTests
             source.RemoveClaim(source.FindFirst("completed")!);
             source.AddClaim(new Claim("amr", "mfa"));
         }
-        if (scenario == "conflicting-subject") source.AddClaim(new Claim("sub", "other"));
+        if (scenario == "conflicting-subject") source.AddClaim(new Claim(config.Subject.Type, "other"));
         var properties = new AuthenticationProperties { IsPersistent = true };
         fixture.Authentication.AuthenticateAsync(fixture.Http, IdentityConstants.ApplicationScheme)
             .Returns(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(source), properties, IdentityConstants.ApplicationScheme)));

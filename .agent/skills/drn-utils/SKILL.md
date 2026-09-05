@@ -314,7 +314,7 @@ if (scope.Acquired) { /* critical section */ }
 
 ## Utilities Reference
 
-Use one `AuthenticationClaimConfig` for mapped consumers. Identity defaults have explicit aliases; custom mappings replace them. Canonical types govern issuance/native metadata; aliases are additional DRN inputs and do not rewrite claims. Identity options and future handler integrations must supply matching native name/role claims and metadata while preserving issuer isolation and exact MFA evidence. See [the claim contract](../../../DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
+Use one `AuthenticationClaimConfig` for mapped consumers. Identity defaults have explicit aliases; custom mappings replace them. Subject agreement checks include only configured types and aliases, including case variants; unconfigured standard subject claims are ignored. Canonical types govern issuance/native metadata; aliases are additional DRN inputs and do not rewrite claims. Identity options and future handler integrations must supply matching native name/role claims and metadata while preserving issuer isolation and exact MFA evidence. See [the claim contract](../../../DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
 
 `TotpUtils` defaults to six digits, 30-second steps, and ±1-step drift. Verification is stateless; callers must enforce atomic per-account replay protection and attempt limits. It does not issue MFA claims. See [TotpUtils.cs](../../../DRN.Framework.Utils/Auth/MFA/TotpUtils.cs) for parameter validation details.
 

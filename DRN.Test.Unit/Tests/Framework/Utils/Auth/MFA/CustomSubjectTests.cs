@@ -49,7 +49,7 @@ public class CustomSubjectTests
         scoped.SetUser(new ClaimsPrincipal(identity));
         scoped.Id.Should().Be("user");
 
-        identity.AddClaim(new Claim("sub", "other", ClaimValueTypes.String, "issuer"));
+        identity.AddClaim(new Claim(claimType, "other", ClaimValueTypes.String, "issuer"));
         MfaPrincipal.IsCompleted(principal, config).Should().BeFalse();
         MfaPrincipal.IsRecent(principal, config, "issuer", TimeSpan.FromMinutes(1), now).Should().BeFalse();
         MfaPrincipal.IsPhishingResistant(principal, config, "issuer", new MfaClaimConfig("acr", "strong")).Should().BeFalse();

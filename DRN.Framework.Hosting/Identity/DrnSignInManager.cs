@@ -35,7 +35,7 @@ public class DrnSignInManager<TUser>(UserManager<TUser> userManager, IHttpContex
             var storedMfaMarkers = identity.Claims.Where(claim =>
             {
                 var matchesConfiguredMfaMarker = claim.Type == claims.Mfa.ClaimType && claim.Value == claims.Mfa.ClaimValue;
-                var matchesIdentityMfaMarker = claim is { Type: "amr", Value: "mfa" };
+                var matchesIdentityMfaMarker = claim is { Type: AuthClaimTypes.AuthenticationMethods, Value: MfaClaimValues.Amr };
                 return matchesConfiguredMfaMarker || matchesIdentityMfaMarker;
             }).ToArray();
 
@@ -64,7 +64,7 @@ public class DrnSignInManager<TUser>(UserManager<TUser> userManager, IHttpContex
         if (usesIdentityMfaMarker)
             return base.SignInWithClaimsAsync(user, authenticationProperties, evidence);
 
-        foreach (var marker in evidence.Where(claim => claim is { Type: "amr", Value: "mfa" }).ToArray())
+        foreach (var marker in evidence.Where(claim => claim is { Type: AuthClaimTypes.AuthenticationMethods, Value: MfaClaimValues.Amr }).ToArray())
         {
             var mapped = new Claim(claims.Mfa.ClaimType, claims.Mfa.ClaimValue, marker.ValueType,
                 marker.Issuer, marker.OriginalIssuer);

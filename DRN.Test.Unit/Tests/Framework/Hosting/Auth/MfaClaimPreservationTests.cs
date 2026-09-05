@@ -15,7 +15,8 @@ public class MfaClaimPreservationTests
     [DataInlineUnit("missing-target", false)]
     [DataInlineUnit("ambiguous-source", false)]
     [DataInlineUnit("ambiguous-target", false)]
-    [DataInlineUnit("conflicting-alias", false)]
+    [DataInlineUnit("unconfigured-subject", true)]
+    [DataInlineUnit("conflicting-case-variant", false)]
     [DataInlineUnit("conflicting-secondary", false)]
     public void Renewal_Should_Validate_Configured_Subject_Claim(string scenario, bool expected)
     {
@@ -36,8 +37,10 @@ public class MfaClaimPreservationTests
             sourceIdentity.AddClaim(new Claim("uid", "other", ClaimValueTypes.String, "issuer"));
         if (scenario == "ambiguous-target")
             target.AddClaim(new Claim("uid", "other", ClaimValueTypes.String, "issuer"));
-        if (scenario == "conflicting-alias")
+        if (scenario == "unconfigured-subject")
             sourceIdentity.AddClaim(new Claim("sub", "other", ClaimValueTypes.String, "issuer"));
+        if (scenario == "conflicting-case-variant")
+            sourceIdentity.AddClaim(new Claim("UID", "other", ClaimValueTypes.String, "issuer"));
         if (scenario == "conflicting-secondary")
             source.AddIdentity(new ClaimsIdentity([new Claim("uid", "other", ClaimValueTypes.String, "issuer")], "secondary"));
 
