@@ -10,6 +10,8 @@ namespace DRN.Framework.Hosting.Identity;
 /// <summary>Opt-in policies for local ASP.NET Core Identity enrollment and challenge endpoints.</summary>
 public static class IdentityMfaPolicy
 {
+    // TODO(MFA-05): Add passkey registration/authentication and recovery integration; grant
+    // assurance only after verifying user verification, and prevent weaker fallback from bypassing policy.
     public const string Enrollment = "IdentityMfaEnrollment";
     public const string BrowserEnrollment = "IdentityBrowserMfaEnrollment";
     public const string Challenge = "IdentityMfaChallenge";

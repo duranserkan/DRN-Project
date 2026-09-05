@@ -11,17 +11,19 @@ Not every version includes changes, features or bug fixes. This project can incr
     *   **Service Aliases & Address Mapping**: Added `CreateClientForServiceAsync<TEntryPoint>("service-alias")` and `ApplicationContext.MapAddress<TEntryPoint>("address")` for explicit mapping of custom hostnames and service aliases.
     *   **Automatic Configuration Address Discovery**: `ApplicationContext` discovers and registers service hostnames, ports, and aliases from configuration (`Kestrel:Endpoints`, `*Address`, `*Url`, `*Uri`), enabling in-memory routing between dependencies without boilerplate.
 
+### Security
+
+*   **Digest-Pinned Container Defaults**: Default PostgreSQL and RabbitMQ images now use digest-pinned versions. Custom image/version overrides do not inherit an incompatible default digest; supply `Digest` to pin custom images.
+
 ### Breaking Changes
 
 *   **ApplicationContext & DrnWebApplicationFactory Type Constraints**: Constrained `TEntryPoint` generic type parameters on `ApplicationContext` methods and `DrnWebApplicationFactory<TEntryPoint>` to `where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()`, providing compile-time type safety and eliminating runtime reflection during host runner creation.
 *   **Application Test Context Namespace**: Moved `ApplicationContext`, `ApplicationContextRouterHandler`, `DrnWebApplicationFactory<TEntryPoint>`, and `TestOutputTarget` from `DRN.Framework.Testing.Contexts` to `DRN.Framework.Testing.Contexts.Application`.
     *   Migration: add `using DRN.Framework.Testing.Contexts.Application;` (or the equivalent global using) and recompile consumers.
 
-### Security
-
 ### Bug Fixes
 
-*   **Secondary Program Host Builder Configuration & Container Retention**: `DrnProgramHostBuilder` and `DrnProgramHostRunner` now read `HostDefaults.ContentRootKey` from initial host configuration before building `HostBuilderContext` and initialize `ContentRootFileProvider` with a `PhysicalFileProvider`. In addition, `UseServiceProviderFactory` and `ConfigureContainer` registrations are retained and forwarded to `applicationBuilder.Host` during host construction, ensuring custom container factories and container configuration delegates apply on secondary test program hosts.
+*   **Secondary Program Host Configuration**: Secondary test programs now honor configured content roots, custom service-provider factories, and container configuration.
 
 ## Version 0.9.8
 

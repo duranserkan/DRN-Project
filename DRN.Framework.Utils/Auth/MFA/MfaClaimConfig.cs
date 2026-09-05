@@ -5,6 +5,8 @@ namespace DRN.Framework.Utils.Auth.MFA;
 /// </summary>
 public sealed record MfaClaimConfig
 {
+    // TODO(MFA-07): Add trusted issuer-specific mappings for validated acr, amr, and authentication
+    // timestamps, with OIDC interoperability tests for assurance, freshness, forwarding, and account isolation.
     public MfaClaimConfig(string claimType, string claimValue)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(claimType);

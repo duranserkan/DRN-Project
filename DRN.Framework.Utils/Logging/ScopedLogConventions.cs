@@ -10,6 +10,13 @@ public static class ScopedLogConventions
     public const string Stats = "Stats_";
     public const string KeyOfLoggerName = "LoggerName";
     public const string KeyOfTraceIdentifier = "TraceIdentifier";
+    public const string KeyOfTraceId = "TraceId";
+    public const string KeyOfCorrelationId = "CorrelationId";
+    public const string KeyOfEventId = "EventId";
+    public const string KeyOfEventName = "EventName";
+    public const string KeyOfEventOutcome = "EventOutcome";
+    public const string KeyOfEventReason = "EventReason";
+    public const string KeyOfAdditionalEvents = "AdditionalEvents";
     public const string KeyOfScopeCreatedAt = "ScopeCreatedAt";
     public const string KeyOfScopeDuration = "ScopeDuration";
     public const string KeyOfActions = "Actions";

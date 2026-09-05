@@ -1,9 +1,10 @@
 using System.Collections;
-using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Time;
 
@@ -17,45 +18,89 @@ public class ScopedLog : IScopedLog
         ? ScopedLogConventions.StringLimit
         : text.Length)];
 
-    private static readonly ConcurrentDictionary<Type, PropertyInfo[]> _propertiesCache = new();
+    private readonly record struct LogProperty(PropertyInfo Property, bool Ignored);
+    private static class PropertyCache<TValue> where TValue : class
+    {
+        internal static readonly LogProperty[] Properties = typeof(TValue)
+            .GetProperties(BindingFlag.InstancePublic)
+            .Where(property => property.GetMethod is { IsPublic: true } && property.GetIndexParameters().Length == 0)
+            .Select(property => new LogProperty(property, property.IgnoredLog())).ToArray();
+    }
+
+    // Duration, correlation, trace, and four primary-event fields.
+    private const int SnapshotMetadataFieldCount = 7;
+    private static readonly string ScopeDurationKey = ScopedLogConventions.TimeSpanKey(ScopedLogConventions.KeyOfScopeDuration);
+    private static readonly object TrueValue = true;
+    private static readonly object AppInstanceIdValue = AppConstants.AppInstanceId;
+
+    // Mutable metrics stay private; snapshots materialize detached primitive values.
+    private sealed class CounterValue(long value)
+    {
+        public long Value = value;
+    }
+
+    private sealed class DurationValue(double value)
+    {
+        public double Value = value;
+    }
 
     private static object CloneLogValue(object value)
     {
-        if (value is IReadOnlyDictionary<string, object> readOnlyDictionary)
-            return readOnlyDictionary.ToDictionary(pair => pair.Key, pair => pair.Value);
-
-        if (value is IDictionary dictionary)
+        switch (value)
         {
-            var clone = new Dictionary<object, object?>(dictionary.Count);
-            foreach (DictionaryEntry entry in dictionary)
-                clone[entry.Key] = entry.Value;
+            case IReadOnlyDictionary<string, object> readOnlyDictionary:
+                return readOnlyDictionary.ToDictionary(pair => pair.Key, pair => pair.Value);
+            case IDictionary dictionary:
+            {
+                var clone = new Dictionary<object, object?>(dictionary.Count);
+                foreach (DictionaryEntry entry in dictionary)
+                    clone[entry.Key] = entry.Value;
 
-            return clone;
+                return clone;
+            }
+            case List<object> list:
+                return new List<object>(list);
+            case IList<object> objectList:
+                return objectList.ToList();
+            case IEnumerable<object> objectEnumerable:
+                return objectEnumerable.ToList();
+            default:
+                return value;
         }
-
-        if (value is List<object> list)
-            return new List<object>(list);
-
-        if (value is IList<object> objectList)
-            return objectList.ToList();
-
-        if (value is IEnumerable<object> objectEnumerable)
-            return objectEnumerable.ToList();
-
-        return value;
     }
 
-    private readonly Lock _timeUpdater = new();
-    private readonly Lock _counter = new();
-    private readonly Lock _list = new();
+    private readonly Lock _sync = new();
+    private Dictionary<(string Prefix, string Key), string>? _counterKeys;
+    private Dictionary<(string Prefix, string Key), (string Counter, string Duration)>? _durationKeys;
+    private Dictionary<(Type Type, string? Caller), string>? _measurementKeys;
+    private Dictionary<(Type Type, string Prefix), string[]>? _propertyKeys;
+    private ScopeEvent? _event;
 
-    internal ConcurrentDictionary<string, object> LogData { get; set; } = new(1, 32);
+    public string? TraceId { get; } = Activity.Current is { IdFormat: ActivityIdFormat.W3C, TraceId: var traceId } && traceId != default
+        ? traceId.ToString()
+        : null;
+    public string CorrelationId { get; } = Guid.NewGuid().ToString("N");
+    public ScopeEvent? Event => Volatile.Read(ref _event);
+    public int? EventId => Event?.Id.Id;
+    public string? EventName => Event?.Id.Name;
+    public string? EventOutcome => Event?.Outcome;
+    public string? EventReason => Event?.Reason;
+
+    public IScopedLog WithEvent(ScopeEvent scopeEvent)
+    {
+        ArgumentNullException.ThrowIfNull(scopeEvent);
+        if (Interlocked.CompareExchange(ref _event, scopeEvent, null) != null)
+            AddToList(ScopedLogConventions.KeyOfAdditionalEvents, scopeEvent);
+        return this;
+    }
+
+    private Dictionary<string, object> LogData { get; } = new(32, StringComparer.Ordinal);
 
     public ScopedLog(IAppSettings appSettings)
     {
-        Add(nameof(ScopedLog), true);
+        Add(nameof(ScopedLog), TrueValue);
         Add("App_Name", appSettings.ApplicationName);
-        Add("App_InstanceId", AppConstants.AppInstanceId);
+        Add("App_InstanceId", AppInstanceIdValue);
         Add("App_NexusId", appSettings.NexusAppSettings.AppId);
         Add("App_NexusInstanceId", appSettings.NexusAppSettings.AppInstanceId);
         Add("App_Environment", appSettings.Environment.ToString());
@@ -63,18 +108,68 @@ public class ScopedLog : IScopedLog
         Add(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeProvider.UtcNow);
     }
 
-    public TimeSpan ScopeDuration => DateTimeProvider.UtcNow - (DateTimeOffset)LogData[ScopedLogConventions.KeyOfScopeCreatedAt];
+    public TimeSpan ScopeDuration
+    {
+        get
+        {
+            lock (_sync)
+                return DateTimeProvider.UtcNow - (DateTimeOffset)LogData[ScopedLogConventions.KeyOfScopeCreatedAt];
+        }
+    }
+
+    private SortedList<string, object> SnapshotLogData()
+    {
+        lock (_sync)
+            return SnapshotLogDataLocked();
+    }
+
+    // Caller holds _sync. Sorted insertion appends without shifting existing entries.
+    private SortedList<string, object> SnapshotLogDataLocked(int additionalCapacity = 0)
+    {
+        var snapshot = new SortedList<string, object>(checked(LogData.Count + additionalCapacity), StringComparer.Ordinal);
+        var keys = LogData.Keys.ToArray();
+        Array.Sort(keys, snapshot.Comparer);
+
+        foreach (var key in keys)
+            snapshot.Add(key, LogData[key]);
+
+        for (var index = 0; index < snapshot.Count; index++)
+        {
+            var value = snapshot.GetValueAtIndex(index);
+            snapshot.SetValueAtIndex(index, value switch
+            {
+                CounterValue counter => counter.Value,
+                DurationValue duration => duration.Value,
+                List<object> list => new List<object>(list),
+                _ => value
+            });
+        }
+
+        return snapshot;
+    }
 
     public IReadOnlyDictionary<string, object> GetLogs()
     {
-            // Build a read-only snapshot without mutating LogData.
-            // ScopeDuration is written directly to the snapshot using the same
-            // *_Seconds key convention that Add() uses for TimeSpan values.
-            var snapshot = new SortedDictionary<string, object>(LogData)
-            {
-                [ScopedLogConventions.TimeSpanKey(ScopedLogConventions.KeyOfScopeDuration)] = ScopeDuration.TotalSeconds
-            };
-        return snapshot;
+        lock (_sync)
+        {
+            var snapshot = SnapshotLogDataLocked(SnapshotMetadataFieldCount);
+            snapshot[ScopeDurationKey] = (DateTimeProvider.UtcNow - (DateTimeOffset)LogData[ScopedLogConventions.KeyOfScopeCreatedAt]).TotalSeconds;
+            snapshot[ScopedLogConventions.KeyOfCorrelationId] = CorrelationId;
+            if (TraceId != null)
+                snapshot[ScopedLogConventions.KeyOfTraceId] = TraceId;
+            else
+                snapshot.Remove(ScopedLogConventions.KeyOfTraceId);
+
+            var scopeEvent = Event;
+            if (scopeEvent is null)
+                return snapshot;
+
+            snapshot[ScopedLogConventions.KeyOfEventId] = scopeEvent.Id.Id;
+            snapshot[ScopedLogConventions.KeyOfEventName] = scopeEvent.Id.Name ?? string.Empty;
+            snapshot[ScopedLogConventions.KeyOfEventOutcome] = scopeEvent.Outcome ?? string.Empty;
+            snapshot[ScopedLogConventions.KeyOfEventReason] = scopeEvent.Reason ?? string.Empty;
+            return snapshot;
+        }
     }
 
     public bool HasException { get; private set; }
@@ -107,13 +202,15 @@ public class ScopedLog : IScopedLog
         HasWarning = true;
         Add(ScopedLogConventions.KeyOfWarningMessage, warningMessage);
 
-        if (exception == null) return;
+        if (exception == null)
+            return;
         Add(ScopedLogConventions.KeyOfWarningHasException, true);
         Add(ScopedLogConventions.KeyOfExceptionType, exception.GetType().FullName ?? exception.GetType().Name);
         Add(ScopedLogConventions.KeyOfExceptionMessage, exception.Message);
         Add(ScopedLogConventions.KeyOfExceptionStackTrace, exception.StackTrace ?? string.Empty);
 
-        if (exception.InnerException == null) return;
+        if (exception.InnerException == null)
+            return;
 
         Add(ScopedLogConventions.KeyOfInnerExceptionType, exception.InnerException.GetType().FullName ?? exception.InnerException.GetType().Name);
         Add(ScopedLogConventions.KeyOfInnerExceptionMessage, exception.InnerException.Message);
@@ -123,12 +220,16 @@ public class ScopedLog : IScopedLog
     public IScopedLog Add(string key, object value)
     {
         if (value.IgnoredLog())
-            LogData[key] = ScopedLogConventions.IgnoredLogValue;
+            value = ScopedLogConventions.IgnoredLogValue;
         else if (value is string text)
-            LogData[key] = GetSafeString(text);
+            value = GetSafeString(text);
         else if (value is TimeSpan time)
-            LogData[ScopedLogConventions.TimeSpanKey(key)] = time.TotalSeconds;
-        else
+        {
+            key = ScopedLogConventions.TimeSpanKey(key);
+            value = time.TotalSeconds;
+        }
+
+        lock (_sync)
             LogData[key] = value;
 
         return this;
@@ -145,13 +246,27 @@ public class ScopedLog : IScopedLog
     public IScopedLog CopyFrom(IScopedLog source)
     {
         ArgumentNullException.ThrowIfNull(source);
+        if (ReferenceEquals(this, source)) return this;
 
-        var sourceLogs = source is ScopedLog scopedLog ? scopedLog.LogData : source.GetLogs();
+        var sourceIsScopedLog = source is ScopedLog;
+        var sourceLogs = source is ScopedLog scopedLog ? scopedLog.SnapshotLogData() : source.GetLogs();
         foreach (var (key, value) in sourceLogs)
-            LogData.AddOrUpdate(key, CloneLogValue(value), (_, _) => CloneLogValue(value));
+        {
+            if (key == ScopedLogConventions.KeyOfAdditionalEvents && value is IEnumerable<object> events)
+                foreach (var additionalEvent in sourceIsScopedLog && value is List<object> ? events : events.ToArray())
+                    AddToList(key, additionalEvent);
+            else
+            {
+                var copy = sourceIsScopedLog && value is List<object> ? value : CloneLogValue(value);
+                lock (_sync)
+                    LogData[key] = copy;
+            }
+        }
 
         HasException |= source.HasException;
         HasWarning |= source.HasWarning;
+        if (source.Event is { } scopeEvent)
+            WithEvent(scopeEvent);
 
         return this;
     }
@@ -161,13 +276,28 @@ public class ScopedLog : IScopedLog
 
     public IScopedLog AddProperties<TValue>(string prefix, TValue classObject, params string[] ignoredPropertyNames) where TValue : class
     {
-        var properties = _propertiesCache.GetOrAdd(typeof(TValue), static t => t.GetProperties());
-        foreach (var propertyInfo in properties)
+        var properties = PropertyCache<TValue>.Properties;
+        string[] keys;
+        lock (_sync)
         {
-            var ignored = propertyInfo.IgnoredLog() || ignoredPropertyNames.Contains(propertyInfo.Name);
+            _propertyKeys ??= new();
+            var identity = (typeof(TValue), prefix);
+            if (!_propertyKeys.TryGetValue(identity, out keys!))
+            {
+                keys = new string[properties.Length];
+                for (var index = 0; index < properties.Length; index++)
+                    keys[index] = ScopedLogConventions.PropertyLogKey(prefix, properties[index].Property);
+                _propertyKeys.Add(identity, keys);
+            }
+        }
+
+        // User getters execute outside the storage lock and may call back into logging.
+        for (var index = 0; index < properties.Length; index++)
+        {
+            var (propertyInfo, ignoredByAttribute) = properties[index];
+            var ignored = ignoredByAttribute || ignoredPropertyNames.Contains(propertyInfo.Name);
             var logValue = ignored ? ScopedLogConventions.IgnoredLogValue : propertyInfo.GetValue(classObject);
-            var logKey = ScopedLogConventions.PropertyLogKey(prefix, propertyInfo);
-            Add(logKey, logValue ?? string.Empty);
+            Add(keys[index], logValue ?? string.Empty);
         }
 
         return this;
@@ -177,9 +307,10 @@ public class ScopedLog : IScopedLog
 
     public void AddToList(string key, object value)
     {
-        if (value is string text) value = GetSafeString(text);
+        if (value is string text)
+            value = GetSafeString(text);
 
-        lock (_list)
+        lock (_sync)
         {
             if (LogData.TryGetValue(key, out var obj) && obj is List<object> list)
                 list.Add(value);
@@ -188,44 +319,79 @@ public class ScopedLog : IScopedLog
         }
     }
 
-    //todo add tests
     public long Increase(string key, long by = 1, string prefix = ScopedLogConventions.Stats)
     {
-        var counterKey = $"{prefix}{key}";
-        lock (_counter)
+        lock (_sync)
         {
-            var counter = LogData.TryGetValue(counterKey, out var obj) && obj is long i
-                ? i
-                : 0;
+            string counterKey;
+            if (string.IsNullOrEmpty(prefix))
+                counterKey = key;
+            else
+            {
+                _counterKeys ??= new();
+                if (!_counterKeys.TryGetValue((prefix, key), out counterKey!))
+                {
+                    counterKey = string.Concat(prefix, key);
+                    _counterKeys.Add((prefix, key), counterKey);
+                }
+            }
 
-            counter += by;
-            Add(counterKey, counter);
-
-            return counter;
+            return IncreaseLocked(counterKey, by);
         }
     }
 
-    //todo add tests
+    // Caller holds _sync and supplies the fully composed key.
+    private long IncreaseLocked(string counterKey, long by)
+    {
+        if (LogData.TryGetValue(counterKey, out var obj) && obj is CounterValue counter)
+            return counter.Value += by;
+
+        var value = (obj is long existing ? existing : 0) + by;
+        LogData[counterKey] = new CounterValue(value);
+        return value;
+    }
+
     public TimeSpan IncreaseTimeSpentOn(string key, TimeSpan by, string prefix = ScopedLogConventions.Stats)
     {
-        Increase(ScopedLogConventions.TimeSpentOnCounter(key, prefix: prefix), prefix: string.Empty);
-        var updateKey = ScopedLogConventions.TimeSpentOnKey(key, prefix: prefix);
-        lock (_timeUpdater)
+        lock (_sync)
         {
-            var timeSpent = LogData.TryGetValue(updateKey, out var obj) && obj is double durationSeconds
-                ? durationSeconds
-                : 0;
+            _durationKeys ??= new();
+            if (!_durationKeys.TryGetValue((prefix, key), out var keys))
+            {
+                keys = (ScopedLogConventions.TimeSpentOnCounter(key, prefix), ScopedLogConventions.TimeSpentOnKey(key, prefix));
+                _durationKeys.Add((prefix, key), keys);
+            }
 
-            timeSpent += by.TotalSeconds;
-            Add(updateKey, timeSpent);
-
+            IncreaseLocked(keys.Counter, 1);
+            double timeSpent;
+            if (LogData.TryGetValue(keys.Duration, out var obj) && obj is DurationValue duration)
+                timeSpent = duration.Value += by.TotalSeconds;
+            else
+            {
+                timeSpent = (obj is double existing ? existing : 0) + by.TotalSeconds;
+                LogData[keys.Duration] = new DurationValue(timeSpent);
+            }
             return TimeSpan.FromSeconds(timeSpent);
         }
     }
 
-    //todo add tests
     public ScopeDuration Measure(string key) => new(key, this);
-    public ScopeDuration Measure(object callerObject, string? caller = null) => Measure($"{callerObject.GetType().FullName}.{caller}");
+    public ScopeDuration Measure(object callerObject, string? caller = null)
+    {
+        string key;
+        lock (_sync)
+        {
+            _measurementKeys ??= new();
+            var identity = (callerObject.GetType(), caller);
+            if (_measurementKeys.TryGetValue(identity, out key!))
+                return Measure(key);
+
+            key = $"{identity.Item1.FullName}.{caller}";
+            _measurementKeys.Add(identity, key);
+        }
+
+        return Measure(key);
+    }
 
     public override string ToString() => JsonSerializer.Serialize(GetLogs());
 }

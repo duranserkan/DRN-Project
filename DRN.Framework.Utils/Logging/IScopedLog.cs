@@ -5,7 +5,19 @@ namespace DRN.Framework.Utils.Logging;
 public interface IScopedLog
 {
     TimeSpan ScopeDuration { get; }
+    /// <summary>W3C trace captured at scope creation, or null when no W3C activity exists.</summary>
+    string? TraceId { get; }
+    /// <summary>Stable scope correlation independent of distributed tracing.</summary>
+    string CorrelationId { get; }
+    ScopeEvent? Event { get; }
+    int? EventId { get; }
+    string? EventName { get; }
+    string? EventOutcome { get; }
+    string? EventReason { get; }
     IReadOnlyDictionary<string, object> GetLogs();
+
+    /// <summary>Sets the first event as primary. Later events are retained separately without replacing it.</summary>
+    IScopedLog WithEvent(ScopeEvent scopeEvent);
 
     IScopedLog WithLoggerName(string name);
     IScopedLog WithTraceIdentifier(string traceIdentifier);

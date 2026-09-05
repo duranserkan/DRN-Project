@@ -1,11 +1,9 @@
 using System.Collections.Frozen;
-using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Scope;
 using Flurl;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authorization.Policy;
@@ -115,14 +113,6 @@ public class MfaRedirectionOptions
         LogoutUrl = config.LogoutUrl;
         AppPages = config.AppPages.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
     }
-
-    /// <summary>
-    ///  If not in redirection list let it go
-    /// </summary>
-    public bool RedirectionNotNeeded(string requestPath) =>
-        MfaFor.MfaCompleted ||
-        ScopeContext.User.HasExemptionScheme ||
-        !AppPages.Contains(requestPath);
 
     public bool IsMfaLoginUrl(string requestPath) => requestPath.Equals(MfaLoginUrl, StringComparison.OrdinalIgnoreCase);
     public bool IsMfaSetupUrl(string requestPath) => requestPath.Equals(MfaSetupUrl, StringComparison.OrdinalIgnoreCase);

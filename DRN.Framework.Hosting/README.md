@@ -34,7 +34,6 @@
 - [Razor TagHelpers](#razor-taghelpers)
 - [Developer Diagnostics](#developer-diagnostics)
 - [Modern HTTP Standards](#modern-http-standards)
-- [GDPR & Consent Integration](#gdpr--consent-integration)
 - [Static Asset Pre-Warming](#static-asset-pre-warming)
 - [Local Development](#local-development-infrastructure)
 - [Hosting Utilities](#hosting-utilities)
@@ -45,7 +44,7 @@
 
 ## QuickStart: Beginner
 
-DRN web applications inherit from `DrnProgramBase<TProgram>` to implement standard lifecycle hooks and behaviors.
+Inherit from `DrnProgramBase<TProgram>` and register application services. Configure `Environment` and `NLog` before calling `RunAsync`; see [Configuration](#configuration).
 
 ```csharp
 using DRN.Framework.Hosting.DrnProgram;
@@ -126,7 +125,7 @@ DRN.Framework.Hosting/
 
 ## Lifecycle & Execution Flow
 
-`DrnProgramBase` manages application startup sequence to ensure security headers, logging scopes, and validation logic execute in order. Lifecycle logs use the built host's configured logger; a standalone NLog bootstrap logger is retained only for failures before the host is available. Use `DrnProgramActions` to intercept these phases without modifying the primary Program class.
+`DrnProgramBase` builds, configures, validates, and starts the host. Lifecycle logs use the host logger. Failures before the host exists use an NLog bootstrap logger. `DrnProgramActions` supplies callbacks at the marked phases.
 
 ```mermaid
 flowchart TD
@@ -139,18 +138,8 @@ flowchart TD
             B_NOTE["Note: Handles Services & Config"]
             CAB --> CLB["ConfigureLoggingBuilder()"]
             CAB --> CWHB["ConfigureWebHostBuilder()"]
-            CAB --> CSO["ConfigureSwaggerOptions()"]
-            CAB --> CDSH["ConfigureDefaultSecurityHeaders()"]
-            CDSH --> CDCSP["ConfigureDefaultCsp()"]
-            CAB --> CSHPB["ConfigureSecurityHeaderPolicyBuilder()"]
-            CAB --> CCP["ConfigureCookiePolicy()"]
-            CAB --> CSFO["ConfigureStaticFileOptions()"]
-            CAB --> CRCO["ConfigureResponseCachingOptions()"]
-            CAB --> CRCMO["ConfigureResponseCompressionOptions()"]
-            CAB --> CCP2["ConfigureCompressionProviders()"]
-            CAB --> CFHO["ConfigureForwardedHeadersOptions()"]
+            CAB --> OPTIONS["Register options and security-header callbacks"]
             CAB --> CMVCB["ConfigureMvcBuilder()"]
-            CAB --> CAO["ConfigureAuthorizationOptions()"]
             CAB --> ASA["AddServicesAsync()"]
             ASA --> ABC["ApplicationBuilderCreatedAsync (Action)"]
         end
@@ -186,43 +175,17 @@ flowchart TD
         AVA --> StartApplication(["application.StartAsync()"])
         StartApplication --> WaitForShutdown(["application.WaitForShutdownAsync()"])
     end
-
-    %% WCAG AA Compliant Styling
-    %% Outer Container
-    style CONTAINER fill:#F0F8FF,stroke:#B0C4DE,stroke-width:2px,color:#4682B4
-
-    %% Subgraph Backgrounds (Direct styling)
-    style BUILDER fill:#E1F5FE,stroke:#0288D1,stroke-width:2px,color:#01579B
-    style APPLICATION fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px,color:#1A237E
-
-    %% Node Styles (White for contrast against subgraph)
-    classDef builderNode fill:#FFFFFF,stroke:#0288D1,stroke-width:2px,color:#01579B
-    classDef appNode fill:#FFFFFF,stroke:#3F51B5,stroke-width:2px,color:#1A237E
-    classDef action fill:#FFE0B2,stroke:#F57C00,stroke-width:2px,color:#E65100
-    classDef core fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20
-    classDef note fill:#FFF9C4,stroke:#F57C00,stroke-width:1px,color:#E65100,stroke-dasharray: 5 5
-    classDef decision fill:#FFE0B2,stroke:#E65100,stroke-width:3px,color:#E65100
-
-    %% Apply Styles
-    class CAB,CLB,CWHB,CSO,CDSH,CDCSP,CSHPB,CCP,CSFO,CRCO,CRCMO,CCP2,CFHO,CMVCB,CAO,ASA builderNode
-    class CA,CAPS,CAPR,HSM,CPSS,UR,PRL,CAPREA,AUTH,SUM,PARL,CAPOSTA,MFAE,MFAR,UA,CPSTAZ,MAE appNode
-    class ABC,ABA,AVA action
-    class Start,Build,VE,VSA,StartApplication,WaitForShutdown core
-    class B_NOTE,A_NOTE note
-
-    %% Link Styles for Decision Paths (Grey Arrows)
-    linkStyle default stroke:#666,stroke-width:2px
 ```
 
 Temporary applications build and configure the request pipeline, then enter the service-validation phase, which honors `DrnDevelopmentSettings:SkipValidation`. They skip endpoint validation and endpoint-accessor population, and return before the host calls `StartAsync`.
 
 ## DrnProgramBase Deep Dive
 
-This section details the hooks for customizing the application lifecycle. `DrnProgramBase` implements a Hook Method pattern where the base defines the workflow and specific logic is injected via overrides.
+Override these hooks to customize startup and request processing.
 
 ### 1. Configuration Hooks (Builder Phase)
 
-These hooks run while the `WebApplicationBuilder` is active, allowing you to configure the DI container and system options.
+These hooks register services or customize configuration. Options callbacks run when their options are created. Security-header callbacks run when the policy provider builds its policies.
 
 | Category | Method | Purpose |
 | :--- | :--- | :--- |
@@ -279,21 +242,15 @@ These hooks define the request processing middleware sequence.
 | `ValidateEndpoints` | Binds and validates controller endpoint accessors against mapped routes and records mapped page endpoints. |
 | `ValidateServicesAsync` | Scans the container for `[Attribute]` based registrations and ensures they are resolvable at startup via `ValidateServicesAddedByAttributesAsync`. |
 
-### 4. MFA Configuration Hooks
+For MFA hooks and examples, see [MFA](#mfa).
 
-| Hook | Purpose |
-| :--- | :--- |
-| `ConfigureMFARedirection` | Configure MFA setup and login redirection URLs. Returns `null` to disable. |
-| `ConfigureMFAExemption` | Configure authentication schemes exempt from MFA requirements. Returns `null` to disable. |
-| `ConfigureMFAClaim` | Configure provider-specific completed-MFA claim type and value. Defaults to `MfaClaimConfig.AspNetIdentity` (`amr=mfa`). |
-
-### 5. Internal Wiring (Automatic)
+### 4. Internal Wiring (Automatic)
 
 * **Service Validation**: Calls `ValidateServicesAsync` to scan `[Attribute]`-registered services and ensure they are resolvable at startup.
-* **Secure JSON**: Enforces `HtmlSafeWebJsonDefaults` to prevent XSS via JSON serialization.
+* **JSON Encoding**: MVC uses `HtmlSafeWebJsonDefaults` for HTML-safe JSON encoding.
 * **Endpoint Accessor**: Registers `IEndpointAccessor` for typed access to `EndpointCollectionBase`.
 
-### 6. Properties
+### 5. Properties
 
 | Property | Default | Purpose |
 |----------|---------|---------|
@@ -363,15 +320,9 @@ Minimal NLog configuration for console output. Add and route a Graylog target if
 
 `ConfigureForwardedHeadersOptions` configures ASP.NET Core `ForwardedHeadersOptions` for reverse proxy, load balancer, and gateway header forwarding.
 
-##### Cloud & Kubernetes Rationale
+DRN trusts loopback and RFC 1918 networks (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) with `ForwardLimit = 2`. This supports private-network proxies. Without trusted forwarding, requests can share the proxy IP and its rate-limit quota.
 
-In containerized, cloud, and Kubernetes environments (e.g. Kubernetes pod CIDRs, Docker networks, cloud VPCs), Kubernetes Gateway API implementations, cloud load balancers, and service mesh sidecars or inter-service reverse proxies (such as Linkerd or Envoy) communicate across dynamic RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`). If default trust were restricted strictly to loopback (`127.0.0.0/8` and `::1/128`), forwarded headers from Gateway API and Linkerd service mesh proxies would be rejected, causing `RemoteIpAddress` to collapse to the proxy's internal pod IP. In turn, all incoming traffic would share the same pre-auth rate limiting partition, starving legitimate users.
-
-Therefore, DRN defaults to trusting RFC 1918 private subnets alongside loopback with `ForwardLimit = 2`.
-
-##### Configuration & Zero-Trust Environments
-
-- **Disabling Private Network Trust**: In zero-trust or shared private network environments where all proxies must be explicitly pinned, set `TrustPrivateNetworks: false`:
+- **Remove private-network defaults** with `TrustPrivateNetworks: false`:
   ```json
   {
     "ForwardedHeaders": {
@@ -379,9 +330,9 @@ Therefore, DRN defaults to trusting RFC 1918 private subnets alongside loopback 
     }
   }
   ```
-  This strips RFC 1918 subnets, keeping only loopback addresses (`127.0.0.0/8`, `::1/128`).
+  With no other entries configured, this retains loopback (`127.0.0.0/8`, `::1/128`).
 
-- **Explicit Proxy Networks**: When `KnownIPNetworks` or `KnownProxies` are explicitly configured, DRN clears the default networks and trusts only the configured ranges:
+- **Configure networks and proxies**:
   ```json
   {
     "ForwardedHeaders": {
@@ -395,26 +346,36 @@ Therefore, DRN defaults to trusting RFC 1918 private subnets alongside loopback 
   }
   ```
 
+  A nonempty `KnownIPNetworks` list replaces the network defaults. `KnownProxies` adds individual proxies and does not clear existing proxies or networks. For an exact allowlist, override the options callback and clear both collections before adding trusted entries.
+
 ## Security Features
 
 The defaults in this section apply to `AppBuilderType.DrnDefaults` when the base lifecycle hooks are preserved. Other builder modes require the application to configure its complete security and middleware pipeline.
 
-### 1. MFA Enforcement (Fail-Closed)
+### MFA
 
-The framework sets the `FallbackPolicy` for the entire application to require a Multi-Factor Authentication session. 
-*   **Result**: Any new controller or page you add is **secure by default**. 
-*   **Policy Composition**: MFA is rechecked at the authorization middleware result boundary, so role-only attributes, direct policy metadata, and named policies cannot suppress global enforcement. Named policies retain their configured authentication schemes.
-*   **Opt-Out**: Use `[AllowAnonymous]` for login. `AuthPolicy.MfaExempt` remains an explicit authenticated opt-out for application-owned policies; constrain its accepted schemes and credential purpose. Built-in Identity enrollment/challenge routes use the narrower opt-in policies described below.
+The default and fallback authorization policies require completed MFA. The result handler rechecks MFA for role-only attributes, direct policy metadata, and named policies. Named policies retain their authentication schemes.
 
-### 2. MFA Configuration
+Use `[AllowAnonymous]` for public endpoints such as login. Authenticated endpoints have two separate MFA exemption paths:
+
+| Path | Requirement |
+| --- | --- |
+| `AuthPolicy.MfaExempt` | Authentication only. The built-in policy has no scheme restriction and skips global MFA without scheme-exemption proof. |
+| `ConfigureMFAExemption` | Valid proof from an eligible scheme selected by the endpoint policy or default authentication scheme. |
+
+For restricted enrollment or challenge access, use the Identity policies below. They add scheme and credential-state checks.
+
+Sample and Nexus register `Identity.BearerAndApplication` as their default through `AddIdentityApiEndpoints`. It tries bearer authentication first, then application cookies when no bearer token is present. An invalid bearer token does not fall back to cookies. See the [ASP.NET Core implementation](https://github.com/dotnet/aspnetcore/blob/v10.0.11/src/Identity/Core/src/IdentityServiceCollectionExtensions.cs#L176-L190).
+
+#### Configuration
 
 Configure MFA behavior by overriding these hooks in your `DrnProgramBase` implementation:
 
 ```csharp
-// Configure MFA redirection URLs
+// Page accessors from Sample.Hosted.
 protected override MfaRedirectionConfig ConfigureMFARedirection()
     => new(
-        mfaSetupUrl: Get.Page.User.EnableAuthenticator,
+        mfaSetupUrl: Get.Page.User.Management.EnableAuthenticator,
         mfaLoginUrl: Get.Page.User.LoginWith2Fa,
         loginUrl: Get.Page.User.Login,
         logoutUrl: Get.Page.User.Logout,
@@ -426,73 +387,127 @@ protected override MfaRedirectionConfig ConfigureMFARedirection()
 protected override MfaClaimConfig ConfigureMFAClaim()
     => new("acr", "urn:example:authentication:mfa");
 
-// Exempt specific authentication schemes from MFA
+// Eligible schemes must also be selected for authentication.
 protected override MfaExemptionConfig ConfigureMFAExemption()
     => new() { ExemptAuthSchemes = ["ApiKey", "Certificate"] };
 ```
 
-`ConfigureMFAClaim` applies to authorization enforcement, MFA redirection, and `MfaFor.MfaCompleted`. It also applies to `policy-only` rendering when the evaluated policy requires MFA. `authorized-only` checks authentication alone. Match the exact claim type and value produced by the authentication handler or token mapper. Multiple values under the configured claim type are supported. Configuration is application-scoped, so concurrently hosted applications can use different identity providers without sharing mutable global state.
+`ConfigureMFAClaim` selects an exact claim type and value per application. It applies to authorization, redirection, `MfaFor.MfaCompleted`, and MFA policies used by `policy-only`. Multiple claim values are supported. `authorized-only` checks authentication alone.
 
-`ConfigureMFAExemption` is an eligibility allowlist. Exemption discovery authenticates only schemes selected by the effective endpoint policy (or the actual default authenticate scheme). An unrelated API key neither grants access nor invalidates the request. Forwarding schemes retain both the selected scheme and the concrete authenticated ticket's scheme. Authorization checks request-local selected proofs against the final authorized principal; `IScopedUser.Exemption` is only a compatibility projection when one proof exists. Programmatic authorization without an HTTP policy context requires completed MFA instead of consuming ambient exemption evidence.
+`ConfigureMFAExemption` lists eligible schemes. Only schemes selected by the endpoint policy or default authentication scheme can supply exemption evidence. Forwarding targets are included. Authorization checks that evidence against the final principal; `IScopedUser.Exemption` is a compatibility view, not the authorization source.
 
-Setup and pending-login markers cannot prove completed MFA. Multiple authenticated identities must have matching subjects and issuers; transformed exemption identities require matching subject, issuer, and authentication type, backed by a selected scheme's successful authentication. Normalize external subject claims to `sub` or the framework's configured name identifier. Applications remain responsible for trusted handler registration and token issuer/audience/signature validation.
+Setup and pending-login credentials cannot prove completed MFA. Multiple authenticated identities must identify the same subject and issuer. Transformed exemption identities must also match the authentication type. Map external subjects to `sub` or the configured name identifier. Authentication handlers must validate token signatures, issuers, and audiences.
 
-For example, a named API policy can select `ApiKey` and require its existing scope or role while user endpoints select cookies or bearer authentication. Include `ApiKey` in the eligibility allowlist; do not expose user enrollment through that API policy. Multiple supplied credentials are filtered by the endpoint policy, not accepted by first-success order or rejected request-wide.
+For example, register `ApiKey`, add it to the exemption list, and select it in an API policy that requires an API scope. Listing `ApiKey` alone does not let it access default endpoints using `Identity.BearerAndApplication`. Programmatic MFA checks without an HTTP policy context require completed MFA.
 
-Shared MFA authorization does not require `UserManager`, `SignInManager`, or an Identity database. Nexus and Sample can use different application-scoped MFA markers and authentication providers. Future Keycloak integration should register its OIDC/bearer handlers and validated claim mapping; provider-managed enrollment and challenge do not require local Identity endpoints or DRN pending/setup cookies. Local browser redirection remains opt-in through `ConfigureMFARedirection`.
+Shared MFA authorization does not require ASP.NET Core Identity or its database. External providers need trusted authentication handlers and claim mapping. Local browser redirection is opt-in; return `null` from `ConfigureMFARedirection` to omit it.
 
-Security-stamp cookie renewal and bearer refresh share preservation of all authenticated `amr` values and the exact configured completed-MFA claim, including session-only claims not regenerated by the user-principal factory. Duplicates and unrelated custom same-type values are not copied. Overrides of `ConfigureSecurityStampValidatorOptions` return `void`, accept `(SecurityStampValidatorOptions options, IAppSettings appSettings, MfaClaimConfig mfaClaimConfig)`, and should pass all three arguments to the base method to retain this behavior.
+#### Renewal and assurance
+
+Cookie security-stamp renewal and bearer refresh preserve authenticated `amr` values and the configured MFA marker with their original issuer and metadata. Claims from different issuers remain distinct. Unrelated values of a custom claim type are omitted. Overrides of `ConfigureSecurityStampValidatorOptions` must call the base method with `options`, `appSettings`, and `mfaClaimConfig` to retain preservation.
+
+Renewal preserves valid, account-bound `auth_time` with its claim metadata. It removes factory-generated timestamps first. Timestamps must be nonnegative integer Unix seconds within `DateTimeOffset` range. Conflicting values, provenance, or account identities cause omission.
+
+When the renewed MFA marker shares the timestamp's issuer, both must exist on one original identity. For example, a timestamp on identity A and MFA on identity B cannot become recent-MFA evidence through renewal. Renewal does not reset authentication age or establish when MFA occurred.
+
+`MfaPrincipal.IsRecent` and `IsPhishingResistant` are opt-in assurance checks. The default MFA policy does not require either. Trusted handlers must issue the supporting evidence; a generic MFA marker alone does not prove phishing resistance.
+
+#### Audit events
+
+With global MFA enabled, the result handler logs these Information-level events. Names describe the event; stable IDs support log filters and alerts.
+
+| Event name | ID | Meaning |
+| --- | --- | --- |
+| `MfaAuthorizationChallenge` | 7401 | Authentication challenge. |
+| `MfaAuthorizationForbid` | 7402 | Access denied. |
+| `MfaAuthorizationExemption` | 7403 | Effective policy or scheme exemption. |
+
+`HostingLogEvents` in `DRN.Framework.Hosting.Logging` exposes these public `EventId` fields. See [Logging conventions](#logging-conventions) for consumer catalogs and filtering.
+
+MFA decisions use the shared scope-event API:
+
+```csharp
+scopedLog.WithEvent(new ScopeEvent(
+    HostingLogEvents.MfaAuthorizationForbid,
+    Outcome: "forbid",
+    Reason: "mfa_required"));
+```
+
+`ScopeEvent` comes from `DRN.Framework.Utils.Logging`. The first event supplies the scoped log's `EventId`, `EventName`, `EventOutcome`, and `EventReason` properties. Later events go into `AdditionalEvents`. Trace correlation is supplied by the scoped log. Completed MFA alone does not emit an exemption event.
+
+Use scoped logs for request diagnostics. Dedicated audit events remain separate so sinks can filter by event ID without receiving the full request log. Audit fields exclude credentials, claims, account identifiers, and URLs; other request-log fields may contain identifiers. Configure sink fields and retention accordingly.
+
+#### Identity Revocation Contract
+
+Under the default Identity handlers, credential revocation depends on the credential type:
+
+| Credential | After a persisted security-stamp change |
+| --- | --- |
+| Refresh token | The next `/Refresh` request rejects it; expiration is checked independently. |
+| Application cookie | Rejected on the next request eligible for stamp validation: elapsed time since ticket issuance must be **greater than** `SecurityStampValidatorOptions.ValidationInterval`. This is request-driven, not a background deadline. |
+| Opaque bearer access token | Remains usable until its own expiration, unless the application adds rejection checks. Stamp rotation alone does not invalidate it. |
+
+Cookie timing follows [SecurityStampValidator](https://github.com/dotnet/aspnetcore/blob/v10.0.11/src/Identity/Core/src/SecurityStampValidator.cs); access-token timing follows [BearerTokenHandler](https://github.com/dotnet/aspnetcore/blob/v10.0.11/src/Security/Authentication/BearerToken/src/BearerTokenHandler.cs). Configured handlers, stores, validation intervals and token lifetimes can change these bounds.
+
+`UpdateSecurityStampAsync`, factor enable/disable, authenticator-key reset, and password reset rotate the stamp. Recovery-code generation and redemption do **not**. To revoke sessions after recovery, rotate the stamp and account for outstanding access-token lifetime. See [UserManager](https://github.com/dotnet/aspnetcore/blob/v10.0.11/src/Identity/Extensions.Core/src/UserManager.cs).
+
+`MfaRevocationTests` covers stamp changes, cookie validation intervals, and token expiration with a controlled clock.
 
 #### Identity API MFA Setup Flow
 
-When the default authorization policy enforces MFA and a password-valid user has not enabled two-factor authentication, `IdentityLoginControllerBase.Login` issues a five-minute credential marked `MfaSetupRequired`:
+With global MFA enabled, password login without an enrolled factor issues a five-minute `MfaSetupRequired` credential:
 
 *   **Cookie requests**: Return an empty HTTP 200 response and set a non-persistent cookie with refresh disabled.
 *   **Bearer requests**: Return an HTTP 200 `AccessTokenResponse` containing the setup access token, `ExpiresIn = 300`, and an empty `RefreshToken`.
 
-Use that credential with `IdentityManagementControllerBase.TwoFactorAuth` to retrieve the authenticator shared key and enable two-factor authentication with a valid code. After enrollment, discard the setup credential and call `Login` again with the authenticator or recovery code to obtain a completed MFA session.
+Use the credential with `IdentityManagementControllerBase.TwoFactorAuth` to retrieve a shared key and enroll with a valid code. Discard it after enrollment. Call `Login` again with the password and an authenticator or recovery code to obtain completed MFA.
 
-An `MfaSetupRequired` credential never satisfies an MFA requirement, including when it also carries the configured completed-MFA claim or when its cookie or bearer authentication scheme appears in `ConfigureMFAExemption`. Scheme exemptions continue to apply to other authenticated credentials from that scheme.
+A setup credential cannot satisfy MFA, even with an MFA marker or an exempt authentication scheme.
 
-When the application does not enforce MFA globally, an authenticated user without two-factor authentication can call `TwoFactorAuth` with the ordinary login credential to opt in. After two-factor authentication is enabled, `TwoFactorAuth` requires a completed MFA session for subsequent management operations.
+With global MFA disabled, users without a factor can enroll using an ordinary login credential. Once enrolled, factor management requires completed MFA.
 
-Applications using DRN's Identity management controller must call `services.AddDrnIdentityMfaPolicies()` (namespace `DRN.Framework.Hosting.Identity`) after registering Identity authentication. This registers `IdentityMfaPolicy.Enrollment` for the existing Identity cookie/bearer composite and cookie-only `BrowserEnrollment` / `Challenge` policies. The optional `identityApiScheme` parameter supports an application-owned equivalent composite. Generic Hosting does not automatically register these Identity policies.
-
-`TwoFactorAuth` uses `IdentityMfaPolicy.Enrollment`. Its factor-state check reads the same final `User` that identifies the account; an enabled factor always requires completed MFA before its shared key can be read or reset, disabled, or recovery codes regenerated. Unauthorized factor management returns HTTP 403. The sample browser setup page applies the same guard to GET and POST, and its challenge verifies that the pending SignInManager account matches the selected cookie account. Other identity management operations, including `GetInfo` and `PostInfo`, retain default/fallback MFA enforcement.
-
-### Disabling MFA Entirely
-
-To disable MFA enforcement for your entire application (e.g., for internal tools or development):
+After registering Identity authentication, register its MFA policies explicitly:
 
 ```csharp
-public class Program : DrnProgramBase<Program>, IDrnProgram
+// Namespace: DRN.Framework.Hosting.Identity
+services.AddDrnIdentityMfaPolicies();
+```
+
+`IdentityMfaPolicy.Enrollment` uses the Identity cookie/bearer composite. `BrowserEnrollment` and `Challenge` use application cookies only. Pass `identityApiScheme` to select an equivalent application-owned composite.
+
+`TwoFactorAuth` checks enrollment state against the final authorized `User`. After enrollment, reading or resetting the key, disabling the factor, and regenerating recovery codes require completed MFA. Denied operations return HTTP 403.
+
+The Sample browser setup page applies this guard to GET and POST. Its challenge matches the pending sign-in account to the selected cookie account. Other management endpoints, including `GetInfo` and `PostInfo`, retain default/fallback MFA enforcement.
+
+#### Remaining MFA work
+
+These items remain open in [the source phase map](Auth/Policies/MFA.cs):
+
+| ID | Remaining work |
+| --- | --- |
+| MFA-01 | Atomic replay prevention, attempt limits, and fresh proof before factor changes. Keep step-up compatible with clients. |
+| MFA-03 | Lost-factor and admin recovery controls, single-use recovery credentials, and notifications. |
+| MFA-05 | Passkey enrollment and authentication, verified user verification, and recovery that resists assurance downgrades. |
+| MFA-07 | Trusted provider-specific OIDC mappings, evidence issuance, and interoperability tests. |
+| MFA-06 | Factor-change, recovery, and revocation audit events at the owning operations. |
+
+#### Disabling global MFA
+
+In your existing `DrnProgramBase` subclass, replace both default policies with an authenticated-user policy. Explicit MFA policies still apply. Remove any redirection or exemption overrides, or return `null` from them.
+
+```csharp
+protected override void ConfigureAuthorizationOptions(AuthorizationOptions options)
 {
-    // Return null to disable MFA redirection middleware
-    protected override MfaRedirectionConfig? ConfigureMFARedirection() => null;
-
-    // Return null to disable MFA exemption middleware  
-    protected override MfaExemptionConfig? ConfigureMFAExemption() => null;
-
-    // Override authorization to remove MFA requirement from fallback policy
-    protected override void ConfigureAuthorizationOptions(AuthorizationOptions options)
-    {
-        base.ConfigureAuthorizationOptions(options);
-
-        // Remove MFA enforcement - authenticated users can access without MFA
-        var authenticatedUserPolicy = new AuthorizationPolicyBuilder()
-            .RequireAuthenticatedUser()
-            .Build();
-
-        options.DefaultPolicy = authenticatedUserPolicy;
-        options.FallbackPolicy = authenticatedUserPolicy;
-    }
+    base.ConfigureAuthorizationOptions(options);
+    var policy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+    options.DefaultPolicy = policy;
+    options.FallbackPolicy = policy;
 }
 ```
 
-> [!WARNING]
-> Disabling MFA removes a critical security layer. Only do this for internal applications on secured networks.
-
-### 3. Content Security Policy (Nonce-based)
+### Browser security
 
 DRN generates a request-specific cryptographic nonce.
 
@@ -500,9 +515,8 @@ DRN generates a request-specific cryptographic nonce.
 *   **Automatic Protection**: Inline scripts and inline style elements without a matching nonce are blocked. Inline style attributes remain allowed by the default policy.
 *   **Usage**: Activate and use the `NonceTagHelper` below to add the request nonce.
 
-### 4. Transparent Security Headers
-
 Standard security headers are injected into responses:
+
 *   **HSTS**: Strict-Transport-Security (2 years, includes subdomains) outside Development.
 *   **FrameOptions**: `DENY` (prevents clickjacking).
 *   **ContentTypeOptions**: `nosniff`.
@@ -510,11 +524,25 @@ Standard security headers are injected into responses:
 *   **Cross-Origin**: COOP `same-origin`, COEP `credentialless`, and CORP `same-site`.
 *   **PermissionsPolicy**: Secure default directives with fullscreen limited to self.
 
-### 5. GDPR & Cookie Security
+### Cookies and consent
 
-The global cookie policy uses `SameSite=Strict`; `Secure` is `Always` outside Development and `SameAsRequest` in Development. Global `HttpOnly` is not forced because some consent/client-side cookies must remain script-readable under strict CSP. Antiforgery and TempData cookies are explicitly `HttpOnly`. The `ConsentCookie` system supports privacy preference handling.
+Cookies use `SameSite=Strict`. `Secure` is `Always` outside Development and `SameAsRequest` in Development. Antiforgery and TempData cookies are `HttpOnly`; the global policy does not force it for client-readable cookies.
 
-### 6. Per-Route Security Headers
+`CheckConsentNeeded = true` withholds nonessential response cookies until consent is granted. `ConsentContext` exposes the current request's preferences. Applications decide which scripts need consent and which cookies are essential.
+
+For example, load an application-owned analytics entry only after analytics consent:
+
+```razor
+@using DRN.Framework.Hosting.Consent
+
+@if (ConsentContext.ConsentCookie.Values.AnalyticsConsent == true)
+{
+    <script src="buildwww/app/js/analytics.js"
+            crossorigin="anonymous"></script>
+}
+```
+
+### Route-specific security headers
 
 Customize security headers for specific routes by overriding `ConfigureSecurityHeaderPolicyBuilder`:
 
@@ -526,7 +554,7 @@ protected override void ConfigureSecurityHeaderPolicyBuilder(
 {
     base.ConfigureSecurityHeaderPolicyBuilder(builder, serviceProvider, appSettings);
     
-    // Add route-specific CSP for embedding external content
+    // Allow legacy inline scripts on /legacy routes.
     var legacyPolicy = new HeaderPolicyCollection();
     ConfigureDefaultSecurityHeaders(legacyPolicy, serviceProvider, appSettings);
     legacyPolicy.Remove("Content-Security-Policy");
@@ -544,7 +572,7 @@ protected override void ConfigureSecurityHeaderPolicyBuilder(
 }
 ```
 
-### 7. Rate Limiting
+### Rate Limiting
 
 DRN Hosting adds two composable limiter phases:
 
@@ -562,31 +590,11 @@ Endpoint metadata behavior:
 - `[EnableRateLimiting("policy-name")]` selects ASP.NET Core named post-auth policies. DRN pre-auth remains global; DRN rules with matching `PolicyName` compose with the named policy.
 - Static files served before routing are naturally outside the limiter path.
 
-#### Why DRN Rate Limiting
-
-ASP.NET Core `UseRateLimiter()` supports a single global limiter plus endpoint policies. DRN keeps those native policies and adds framework-managed composition for common application needs:
-
-| Capability | ASP.NET Core native | DRN |
-|---|---|---|
-| Pre-auth abuse rejection | Single post-routing limiter path | Pre-auth limiter before auth/MFA work |
-| User, tenant, account, and IP limits together | Manual chained limiter wiring | Independent rules compose automatically |
-| Rule addition | Update central `GlobalLimiter` configuration | Add a rule class with DI attributes/base class |
-| Scoped/user-aware partitioning | Manual `HttpContext.User` parsing | Post-auth scoped rules can use `IScopedUser` and app helpers |
-| Endpoint named policies | Native support | Preserved and enriched with DRN matching rules |
-| Rejection diagnostics | Native policy result | Rule, phase, action, and redacted partition tags/logs |
-
-Usage guidance:
-
-- Use the default post-auth rule for ordinary per-user throttling.
-- Raise pre-auth limits or add a singleton trusted-header rule when many legitimate users share one edge IP.
-- Add scoped post-auth rules for tenant, account, or user-claim partitions that need `IScopedUser` or other scoped collaborators.
-- Use `[DisableRateLimiting]` only for trusted health and operational endpoints that must not consume quota.
-- Keep tenant plan, feature-flag, account, or endpoint-specific quota decisions in app-owned rules, not in global defaults.
-- Pair process-local DRN limits with edge or distributed rate limiting when a quota must hold across replicas.
+When many users share an edge IP, raise the pre-auth quota or use a trusted-header rule. Use scoped post-auth rules for account or tenant quotas, as shown below.
 
 #### Settings Quick Reference
 
-Configure defaults under `DrnAppFeatures:DrnRateLimit`. Application code reads the same values through `IAppSettings.Features.RateLimit`. Settings are a startup snapshot, so changes require restart.
+Configure defaults under `DrnAppFeatures:DrnRateLimit`. Read them through `IAppSettings.Features.RateLimit`. Changes require restart. Shared bucket values must be positive; phase overrides can be `0` to inherit them.
 
 | Setting group | Default | Used by | Meaning |
 |---|---:|---|---|
@@ -606,13 +614,13 @@ Rules run by ascending `Order`; framework defaults run last. Matching rules comp
 |---|---|
 | `null` | Rule does not apply. |
 | `RateLimitRuleResult.TokenBucket(key, ...)` | Applies a token bucket to this partition. |
-| `RateLimitRuleResult.AllowRequest("partition-key")` | Allows and skips remaining rules. |
+| `RateLimitRuleResult.AllowRequest("partition-key")` | Skips later rules in this phase. Earlier limits and native policies still apply. |
 | `RateLimitRuleResult.DenyRequest("partition-key")` | Rejects immediately with 429. |
 | Any result with `stopRemainingRules: true` | Applies this result and skips later rules. |
 
 Partition helpers include `TokenBucket`, `FixedWindow`, `SlidingWindow`, `ConcurrencyLimiter`, and `CustomPartition`. `RateLimitRuleResult.Action` is `Limit`, `Allow`, or `Deny`; `StopRemainingRules` only controls whether later rules compose after this result.
 
-Use `PolicyName` to target endpoints marked with `[EnableRateLimiting("policy-name")]`. Native policies configured through `builder.Services.AddRateLimiter(options => ...)` remain available and run alongside DRN rule policies. DRN invokes rule-specific `OnRejectedAsync` only when that DRN rule's limiter rejects; native named-policy rejections still flow through the configured ASP.NET Core callback.
+Set `PolicyName` to match `[EnableRateLimiting("policy-name")]`, or leave it `null` for a global rule. Empty names are invalid. Native policies registered through `AddRateLimiter` run alongside DRN rules. A rejecting DRN rule receives `OnRejectedAsync`; native policy rejections use the ASP.NET Core callback.
 
 Use `ShortCircuitOnMatch` and lower `Order` for allow/deny rules that must bypass quota checks. Rules with the same `Order` evaluate short-circuit rules first; if a short-circuit rule returns `null`, later rules still evaluate.
 
@@ -645,80 +653,20 @@ public class AccountRateLimitRule(DrnAppFeatures features) : ScopedRateLimitRule
         if (partitionKey == null)
             return null;
 
+        var tokenLimit = features.RateLimit.TokenLimit;
+        var period = TimeSpan.FromSeconds(features.RateLimit.ReplenishmentSeconds);
+        var tokensPerPeriod = features.RateLimit.TokensPerPeriod;
         return RateLimitRuleResult.TokenBucket(partitionKey, _ => new TokenBucketRateLimiterOptions
         {
-            TokenLimit = features.RateLimit.TokenLimit,
-            ReplenishmentPeriod = TimeSpan.FromSeconds(features.RateLimit.ReplenishmentSeconds),
-            TokensPerPeriod = features.RateLimit.TokensPerPeriod,
+            TokenLimit = tokenLimit,
+            ReplenishmentPeriod = period,
+            TokensPerPeriod = tokensPerPeriod,
             QueueLimit = 0,
             AutoReplenishment = true
         });
     }
 }
 ```
-
-#### Rule Behavior Quick Reference
-
-| Return Value | Effect |
-|---|---|
-| `null` | Rule does not apply — skip to next rule |
-| `RateLimitRuleResult.TokenBucket(key, ...)` | Apply token bucket limiter on this partition key |
-| `RateLimitRuleResult.AllowRequest("health")` | Whitelist — no limiting, stop remaining rules |
-| `RateLimitRuleResult.DenyRequest("blocked")` | Reject immediately with 429, stop remaining rules, optionally emit `Retry-After` |
-| Any result with `stopRemainingRules: true` | Apply this limiter, then skip remaining rules |
-
-**Partition helpers**: `TokenBucket`, `FixedWindow`, `SlidingWindow`, `ConcurrencyLimiter`, `CustomPartition`.
-`RateLimitRuleResult.Action` is `Limit`, `Allow`, or `Deny`; `StopRemainingRules` only controls whether later rules compose after this result.
-
-#### Rule Ordering and Composition
-
-- Rules execute in ascending `Order`. Framework defaults use `int.MaxValue`. Your rules run first.
-- Multiple matching rules **compose** via .NET's native chained limiter (e.g., tenant + user + IP all enforce together).
-- `ShortCircuitOnMatch = true`: the rule runs before normal same-order rules. If it returns `null`, later rules still evaluate. If it returns a result, that result decides the action and remaining rules are skipped.
-- `AllowRequest` succeeds without a limiter. `DenyRequest` fails immediately. Quota results such as `TokenBucket` still acquire their limiter, then skip remaining rules when `ShortCircuitOnMatch` or `stopRemainingRules` applies.
-- Use a lower `Order` when an allow/deny rule must bypass earlier quotas entirely.
-
-#### Partition Key Isolation
-
-DRN rate limit rules namespace every partition identity with the phase and the rule type:
-
-```text
-({phase}, {rule type}, {your partition key})
-```
-
-This namespacing provides:
-- **Diagnostics**: Partition keys in metrics and logs identify the rule and phase.
-- **Defense in depth**: Protects against future refactoring that might consolidate limiter instances.
-
-**Example**: A request from IP `192.168.1.1` by tenant `acme-corp` hits three rules:
-
-| Rule | Your partition key | DRN internal identity |
-|---|---|---|
-| `DefaultPreAuthRateLimitRule` | `ip:192.168.1.1` | `(PreAuth, DefaultPreAuthRateLimitRule, ip:192.168.1.1)` |
-| `CustomIpRule` | `ip:192.168.1.1` | `(PostAuth, CustomIpRule, ip:192.168.1.1)` |
-| `TenantRateLimitRule` | `tenant:acme-corp` | `(PostAuth, TenantRateLimitRule, tenant:acme-corp)` |
-
-The namespacing is internal. Your `EvaluatePreAuth` or `EvaluatePostAuth` method returns a partition key like `"ip:192.168.1.1"`. The framework handles the namespacing.
-
-#### Scoped Rules
-
-- Scoped rules are **post-auth only**. They are not evaluated by the pre-auth limiter.
-- DRN detects scoped rule registrations at startup, resolves them from the request scope, and preserves global `Order` across singleton and scoped rules.
-
-#### Claim-Based Partitions
-
-- Use app-specific `RateLimitFor` wrappers (e.g., `Sample.Hosted.Helpers.RateLimitFor`) with claim-access primitives from `Get.Claim.*`.
-- This reads claims from the request-scoped authenticated user model instead of repeatedly traversing `HttpContext.User`.
-
-> [!WARNING]
-> **Factory capture safety**: Partition option factories are cached by .NET per partition key. Do **not** capture `HttpContext` or scoped services inside the factory lambda — use only value-based parameters.
-
-#### Named Policies
-
-- Set `PolicyName` on a rule to scope it to endpoints marked with `[EnableRateLimiting("policy-name")]`.
-- `null` policy = global rule. Non-null policy names must be non-empty.
-- Native policies configured via `builder.Services.AddRateLimiter(options => ...)` remain available and run alongside DRN rule policies.
-- DRN invokes rule-specific `OnRejectedAsync` only when that DRN rule's limiter rejects; native named-policy rejections still flow through the configured ASP.NET Core `OnRejected` callback.
 
 #### Telemetry
 
@@ -731,7 +679,7 @@ DRN emits OpenTelemetry-friendly metrics through the `DRN.Framework.Hosting.Rate
 | `drn.rate_limiting.active_request_leases` | `drn.rate_limiting.phase`, `aspnetcore.rate_limiting.policy`, `aspnetcore.rate_limiting.result`, `drn.rate_limiting.action`, `drn.rate_limiting.rule` |
 | `drn.rate_limiting.request_lease.duration` | `drn.rate_limiting.phase`, `aspnetcore.rate_limiting.policy`, `aspnetcore.rate_limiting.result`, `drn.rate_limiting.action`, `drn.rate_limiting.rule` |
 
-ASP.NET Core's native rate limiting middleware continues to provide its built-in post-auth metrics.
+DRN emits requests, active leases, and lease duration for pre-auth only. Rejections cover both phases. ASP.NET Core supplies the post-auth request and lease metrics.
 The `action` tag is `limit`, `allow`, `deny`, or `unknown`; this makes whitelist, blocklist, and quota decisions visible without inspecting rule names.
 When a native ASP.NET Core named policy rejects after DRN's global limiter succeeds, DRN records the rejection without a DRN rule tag because no DRN rule caused the failed lease.
 By default, rate-limit-specific IP and partition fields are written as deterministic keyed hashes with a `blake3-keyed:` prefix. This supports correlation but does not anonymize the complete request log; standard request and user fields may still contain raw identifiers. Treat logs as sensitive, and enable `PlainText` only for controlled development or a dedicated encrypted audit sink.
@@ -756,13 +704,6 @@ protected override void ConfigurePostAuthRateLimiterOptions(
     });
 }
 ```
-
-> [!NOTE]
-> Static files served by `UseStaticFiles()` run before routing and are automatically exempt from rate limiting.
-> Use `[DisableRateLimiting]` for trusted health checks or operational endpoints that must not consume pre-auth or post-auth quota. Use `[EnableRateLimiting]` for ASP.NET Core endpoint-specific post-auth policies; DRN pre-auth remains the global early-abuse limiter.
-> Configure defaults under `DrnAppFeatures:DrnRateLimit`. Shared `TokenLimit`, `ReplenishmentSeconds`, and `TokensPerPeriod` must be positive values. Phase-specific overrides can be `0` to inherit the shared value.
-
-
 
 #### References
 
@@ -859,7 +800,7 @@ Without the DRN directive, Vite resolution, CSP nonces, HTMX CSRF headers, activ
 | `AnonymousOnlyTagHelper` | `*[anonymous-only]` | Renders the element only if the user is **not** authenticated. |
 | `PolicyOnlyTagHelper` | `*[policy-only="PolicyName"]` | Renders the element only when the current request user satisfies the named authorization policy. Accepts an optional `policy-resource`. |
 | `PageAnchorAspPageTagHelper` | `<a asp-page="...">` | Automatically adds `active` CSS class if the link matches current page. |
-| `PageAnchorHrefTagHelper` | `<a href="...">` | Automatically adds `active` CSS class if the link matches current path. |
+| `PageAnchorHrefTagHelper` | `<a href="...">` | Adds `active fw-bold` when the href path matches the Razor page identifier. Custom URL routes may differ. |
 | `ScriptDefaultsTagHelper` | `<script>` | Modern defaults: `defer` for external scripts, `type="module"` for inline scripts. Opt-out via `defer="false"` or explicit `type`. |
 
 ### Authorization Visibility
@@ -897,7 +838,21 @@ Disable the publish item injection when an application owns this behavior itself
 
 ## Developer Diagnostics
 
-DRN Hosting provides deep observability into application failures, especially during the critical startup phase.
+DRN provides startup reports and request diagnostics in Development.
+
+### Logging conventions
+
+`EventId` is provided by .NET's `Microsoft.Extensions.Logging`. It holds a numeric ID and an optional name. Use it with a public static `<Module>LogEvents` catalog. For example, `HostingLogEvents.MfaAuthorizationChallenge` carries ID `7401` and name `MfaAuthorizationChallenge`.
+
+- Define events as `public static readonly EventId` fields in the owning module's `Logging` namespace.
+- Give each event a descriptive name and an ID unique within its module. Do not renumber, rename, or reuse published events for different meanings.
+- Filter dedicated logs by logger category and event ID. Numeric IDs are not globally unique across applications or libraries.
+- Use `ScopeEvent` and `IScopedLog.WithEvent` instead of event dictionaries. Standard fields are `EventId`, `EventName`, `EventOutcome`, and `EventReason`.
+- Consumers can define a companion catalog, such as `SampleLogEvents`. Reuse Hosting definitions only for the same event meaning.
+
+Use `IScopedLog` for request and operation diagnostics. Direct `ILogger` calls are appropriate for scope flushing, bootstrap failures, and dedicated audit events. Keep request audit decisions in the scoped log too. Dedicated audit events must not include the full request log.
+
+Every `ScopedLog` has a stable `CorrelationId`. Its `TraceId` is captured from an active W3C activity, or left absent. HTTP `TraceIdentifier` remains separate. `LogScoped` emits the primary event ID with the aggregate. Dedicated audit records use `EventOutcome`, `EventReason`, nullable `TraceId`, and `CorrelationId`. See [Utils OpenTelemetry correlation](../DRN.Framework.Utils/README.md#opentelemetry-correlation).
 
 ### Startup Exception Reports
 
@@ -916,22 +871,13 @@ The framework includes built-in Razor Pages for developer-time exception handlin
 
 ### Request Body Buffering
 
-`RequestBufferingState` provides size-gated request body capture for diagnostic error pages. It follows a producer/consumer pattern:
-
-1. **Producer** — `TryEnableBuffering` runs in `HttpScopeMiddleware` early in the pipeline. For POST, PUT, and PATCH requests with a known `Content-Length` within the configured limit, it enables `Request.EnableBuffering()` so the body stream becomes seekable.
-2. **Consumer** — `ReadBodyAsync` is called by the error page model builder (`ExceptionUtils.CreateErrorPageModelAsync`) to include the request body in diagnostic reports.
-
-**Security design**:
--   **Size gate** — requests exceeding the buffer limit are skipped by this feature
--   **Method filter** — only POST, PUT, and PATCH requests are buffered
--   **Unknown length** — requests without `Content-Length` are skipped to avoid buffering bodies of unknown size
--   **Protocol and size enforcement** — HTTP/1.1 and HTTP/2 enforce declared body length according to their framing rules. HTTP/3 uses QUIC stream framing; the buffering limit and Kestrel request-size limits remain the applicable size guards.
+`HttpScopeMiddleware` enables request buffering for POST, PUT, and PATCH bodies with a known `Content-Length` within the configured limit. Error pages read the buffered body through `RequestBufferingState.ReadBodyAsync`. Unknown or excessive lengths are skipped. Buffer limits and Kestrel request-size limits still apply.
 
 **Configuration** via `DrnAppFeatures` (in `appsettings.json`):
 
 | Key                       | Type   | Default        | Effect                                               |
 |---------------------------|--------|----------------|------------------------------------------------------|
-| `DisableRequestBuffering` | `bool` | `false`        | Kill switch — disables all body buffering            |
+| `DisableRequestBuffering` | `bool` | `false`        | Disables this diagnostic buffering feature |
 | `MaxRequestBufferingSize` | `int`  | `0` (→ 30,000) | Max bytes to buffer. Values below 10,000 are ignored |
 
 ```json
@@ -944,32 +890,14 @@ The framework includes built-in Razor Pages for developer-time exception handlin
 ```
 
 > [!NOTE]
-> When buffering is skipped, `ReadBodyAsync` returns a descriptive reason string (e.g., `"Content-Length exceeded limit"`) instead of the body, so error pages always display useful context.
+> Skipped reads return a reason, such as `"Content-Length exceeded limit"`.
 
 ## Modern HTTP Standards
 
-DRN Hosting enforces modern web standards to improve security and predictability:
--   **303 See Other**: The middleware automatically converts `302 Found` redirects to `303 See Other`. This ensures that following a POST request, the browser correctly uses `GET` for the redirected URL, adhering to established web patterns.
+DRN applies these response defaults:
+
+-   **303 See Other**: Middleware converts `302 Found` to `303 See Other`. For example, a redirect after form submission uses GET for the destination.
 -   **Secure Caching Default**: Dynamic responses that do not set their own `Cache-Control` receive `no-store, no-cache, must-revalidate`. Explicit response caching directives take precedence, while static assets opt into public caching.
-
-## GDPR & Consent Integration
-
-With the default `DrnDefaults` setup, DRN configures ASP.NET Core Cookie Policy with `CheckConsentNeeded = true` and installs Cookie Policy middleware. Until consent is granted, the middleware withholds response cookies that are not marked `IsEssential`.
-
-DRN also parses the policy consent cookie and exposes the current request's preferences through `ConsentContext`. Applications remain responsible for deciding when analytics or marketing scripts run, mapping category-specific preferences, and marking only strictly necessary cookies as essential.
-
-### Example: Enforce Analytics Consent
-
-```razor
-@using DRN.Framework.Hosting.Consent
-
-@if (ConsentContext.ConsentCookie.Values.AnalyticsConsent == true)
-{
-    @* Replace this with an application-owned Vite manifest entry. *@
-    <script src="buildwww/app/js/analytics.js"
-            crossorigin="anonymous"></script>
-}
-```
 
 ## Static Asset Pre-Warming
 
@@ -983,11 +911,11 @@ DRN also parses the policy consent cookie and exposes the current request's pref
 
 The warm-up client only accepts loopback base addresses before installing its certificate-bypass handler. Wildcard server bindings are normalized to localhost; non-loopback bindings are ignored for warm-up.
 
-**Compression defaults** — Brotli and Gzip use `CompressionLevel.SmallestSize`. Static assets explicitly allow HTTPS compression, and eligible variants can be cached. Eligible dynamic HTTP responses can also be compressed; dynamic HTTPS compression remains disabled by default.
+**Compression defaults**: Brotli and Gzip use `CompressionLevel.SmallestSize`. Static assets allow HTTPS compression and caching of eligible variants. Dynamic HTTP responses can also be compressed. Dynamic HTTPS compression is disabled by default.
 
 | Provider | Default Level | Override Hook |
 |----------|--------------|---------------|
-| Brotli | `SmallestSize` (Level 11) | `ConfigureBrotliCompressionLevel()` |
+| Brotli | `SmallestSize` | `ConfigureBrotliCompressionLevel()` |
 | Gzip | `SmallestSize` | `ConfigureGzipCompressionLevel()` |
 
 > After a successful warm-up, subsequent requests can use cached compressed variants. Warm-up runs after startup and is best effort, so early requests may perform compression themselves.

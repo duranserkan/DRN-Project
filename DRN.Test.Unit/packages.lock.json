@@ -1178,6 +1178,7 @@
         "type": "Project",
         "dependencies": {
           "DRN.Framework.Hosting": "[1.0.0, )",
+          "DRN.Framework.Testing": "[1.0.0, )",
           "DRN.Nexus.Application": "[1.0.0, )"
         }
       },
@@ -1225,6 +1226,7 @@
         "type": "Project",
         "dependencies": {
           "DRN.Framework.Hosting": "[1.0.0, )",
+          "DRN.Framework.Testing": "[1.0.0, )",
           "Microsoft.AspNetCore.Authentication.MicrosoftAccount": "[10.0.11, )",
           "QRCoder": "[1.8.0, )",
           "Sample.Application": "[1.0.0, )"

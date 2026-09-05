@@ -85,16 +85,26 @@ public class MfaMiddlewareTests
     }
 
     [Theory]
-    [DataInlineUnit]
-    public async Task Redirection_Should_Continue_When_Selected_Scheme_Is_Exempt(DrnTestContextUnit context)
+    [DataInlineUnit(true)]
+    [DataInlineUnit(false)]
+    public async Task Redirection_Should_Use_Policy_Selected_Principal_Instead_Of_Cookie_Exemption(
+        DrnTestContextUnit context, bool selectedPrincipalIsExempt)
     {
         var exemptions = new MfaExemptionOptions();
-        exemptions.MapFromConfig(new MfaExemptionConfig { ExemptAuthSchemes = ["CustomApiKey"] });
+        exemptions.MapFromConfig(new MfaExemptionConfig { ExemptAuthSchemes = ["Cookies", "CustomApiKey"] });
         context.ServiceCollection.AddSingleton(exemptions).AddAuthorization();
-        context.ServiceCollection.AddSingleton(Substitute.For<IPolicyEvaluator>());
-        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "user-1")], "CustomApiKey"));
-        var scopedUser = ScopedUser.FromClaimsPrincipal(principal);
-        scopedUser.SetExemption("CustomApiKey", principal);
+        var cookiePrincipal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "user-1")], "Cookies"));
+        var selectedPrincipal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "user-2")], "CustomApiKey"));
+        var evaluator = Substitute.For<IPolicyEvaluator>();
+        evaluator.AuthenticateAsync(Arg.Any<AuthorizationPolicy>(), Arg.Any<HttpContext>())
+            .Returns(call =>
+            {
+                call.Arg<HttpContext>().User = selectedPrincipal;
+                return AuthenticateResult.Success(new AuthenticationTicket(selectedPrincipal, "CustomApiKey"));
+            });
+        context.ServiceCollection.AddSingleton(evaluator);
+        var scopedUser = ScopedUser.FromClaimsPrincipal(cookiePrincipal);
+        scopedUser.SetExemption("Cookies", cookiePrincipal);
         ScopeContext.InitializeForTest(context, scopedUser: scopedUser);
         var options = new MfaRedirectionOptions();
         options.MapFromConfig(new MfaRedirectionConfig(
@@ -102,17 +112,24 @@ public class MfaMiddlewareTests
             logoutUrl: "/logout", appPages: ["/app/dashboard"]));
         var http = new DefaultHttpContext
         {
-            RequestServices = ScopeContext.Services, User = principal, Request = { Path = "/app/dashboard" }
+            RequestServices = ScopeContext.Services, User = cookiePrincipal, Request = { Path = "/app/dashboard" }
         };
         SelectPolicy(http, "CustomApiKey");
-        MfaPolicyProof.Set(http, [new ExemptionProof("CustomApiKey", principal)]);
+        MfaPolicyProof.Set(http, selectedPrincipalIsExempt
+            ? [new ExemptionProof("CustomApiKey", selectedPrincipal)]
+            : [new ExemptionProof("Cookies", cookiePrincipal)]);
         var nextCalled = false;
         var middleware = new MfaRedirectionMiddleware(_ => { nextCalled = true; return Task.CompletedTask; });
 
         await middleware.InvokeAsync(http, options);
 
-        nextCalled.Should().BeTrue();
-        http.Response.StatusCode.Should().Be(200);
+        await evaluator.Received(1).AuthenticateAsync(
+            Arg.Is<AuthorizationPolicy>(policy => policy.AuthenticationSchemes.Contains("CustomApiKey")), http);
+        http.User.Should().BeSameAs(selectedPrincipal);
+        scopedUser.ExemptionPrincipal.Should().BeSameAs(cookiePrincipal);
+        nextCalled.Should().Be(selectedPrincipalIsExempt);
+        http.Response.StatusCode.Should().Be(selectedPrincipalIsExempt ? 200 : 302);
+        http.Response.Headers.Location.ToString().Should().Be(selectedPrincipalIsExempt ? string.Empty : "/login");
     }
 
     private static void SelectPolicy(HttpContext context, string scheme)

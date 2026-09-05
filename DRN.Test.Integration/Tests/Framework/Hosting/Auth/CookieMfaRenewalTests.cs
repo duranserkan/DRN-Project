@@ -40,6 +40,7 @@ public class CookieMfaRenewalTests
         identity.AddClaim(new Claim(config.ClaimType, "admin"));
         identity.AddClaim(new Claim("amr", "pwd"));
         identity.AddClaim(new Claim("amr", "mfa"));
+        identity.AddClaim(new Claim("auth_time", "1700000000", ClaimValueTypes.Integer64, "trusted-issuer"));
 
         var cookieOptions = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>()
             .Get(IdentityConstants.ApplicationScheme);
@@ -60,6 +61,9 @@ public class CookieMfaRenewalTests
         renewal.Principal.Should().NotBeSameAs(principal);
         renewal.Principal!.FindAll(config.ClaimType).Select(c => c.Value).Should().Equal(config.ClaimValue);
         renewal.Principal.FindAll("amr").Select(c => c.Value).Should().BeEquivalentTo("pwd", "mfa");
+        var authenticationTime = renewal.Principal.FindAll("auth_time").Should().ContainSingle().Which;
+        authenticationTime.Value.Should().Be("1700000000");
+        authenticationTime.Issuer.Should().Be("trusted-issuer");
         MfaAuthorization.IsMfaSatisfied(renewal.Principal, config, new MfaExemptionOptions(), null, null)
             .Should().BeTrue();
     }

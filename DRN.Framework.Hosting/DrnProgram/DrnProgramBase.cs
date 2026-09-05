@@ -539,7 +539,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     }
 
     /// <summary>
-    /// Preserves authenticated authentication-method references and the configured MFA marker during cookie renewal.
+    /// Preserves authenticated authentication-method references, the configured MFA marker, and original account-bound auth_time during cookie renewal.
     /// </summary>
     protected virtual void ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions options, IAppSettings appSettings, MfaClaimConfig mfaClaimConfig)
     {
@@ -593,8 +593,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// </para>
     /// <para>
     /// For zero-trust environments where private subnets should not be trusted by default, configure <c>ForwardedHeaders:TrustPrivateNetworks = false</c>
-    /// to retain only loopback networks, or configure explicit CIDR blocks in <c>ForwardedHeaders:KnownIPNetworks</c> or <c>ForwardedHeaders:KnownProxies</c>
-    /// which clear and replace the defaults.
+    /// to retain only loopback networks. A nonempty <c>ForwardedHeaders:KnownIPNetworks</c> list replaces network defaults.
+    /// <c>ForwardedHeaders:KnownProxies</c> adds entries without clearing existing trust.
+    /// For an exact allowlist, clear both collections in the options override before adding trusted entries.
     /// </para>
     /// </summary>
     /// <param name="appSettings">Application configuration settings.</param>

@@ -129,6 +129,8 @@ public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where 
         var refreshTokenProtector = _bearerTokenOptions.Get(IdentityConstants.BearerScheme).RefreshTokenProtector;
         var refreshTicket = refreshTokenProtector.Unprotect(refreshRequest.RefreshToken);
 
+        // MFA-02: Stamp changes reject the next refresh; existing access tokens expire independently.
+        // Cookie interval and recovery-operation boundaries are documented/tested in MfaRevocationTests.
         // Reject the /refresh attempt with a 401 if the token expired or the security stamp validation fails
         if (refreshTicket?.Properties.ExpiresUtc is not { } expiresUtc ||
             _timeProvider.GetUtcNow() >= expiresUtc ||
@@ -139,6 +141,8 @@ public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where 
         if (newPrincipal.Identity is not ClaimsIdentity newIdentity)
             return TypedResults.SignIn(newPrincipal, authenticationScheme: IdentityConstants.BearerScheme);
 
+        // Existing auth_time is preserved without renewal-time promotion. Verified MFA time/assurance
+        // checks are opt-in through MfaPrincipal; provider evidence issuance remains MFA-07.
         MfaClaimPreservation.Preserve(refreshTicket.Principal, newIdentity, _mfaClaimConfig);
 
         return TypedResults.SignIn(newPrincipal, authenticationScheme: IdentityConstants.BearerScheme);

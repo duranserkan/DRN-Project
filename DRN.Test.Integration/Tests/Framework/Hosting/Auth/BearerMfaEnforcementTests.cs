@@ -378,6 +378,7 @@ public class BearerMfaEnforcementTests
         var claimsIdentity = (ClaimsIdentity)principal.Identity!;
         claimsIdentity.AddClaim(new Claim(customClaimType, mfaClaimValue));
         claimsIdentity.AddClaim(new Claim(customClaimType, unrelatedClaimValue));
+        claimsIdentity.AddClaim(new Claim("auth_time", "1700000000", ClaimValueTypes.Integer64, "trusted-issuer"));
 
         principal.AddIdentity(new ClaimsIdentity([
             new Claim(ClaimConventions.AuthenticationMethodReference, unauthenticatedAmr),
@@ -403,6 +404,12 @@ public class BearerMfaEnforcementTests
 
         // The exact configured MFA claim (permission: mfa) must be preserved
         refreshedPrincipal.HasClaim(customClaimType, mfaClaimValue).Should().BeTrue();
+        var authenticationTime = refreshedPrincipal.FindAll("auth_time").Should().ContainSingle().Which;
+        authenticationTime.Value.Should().Be("1700000000");
+        authenticationTime.Issuer.Should().Be("trusted-issuer");
+        var renewedRefreshTicket = bearerOptions.RefreshTokenProtector.Unprotect(refreshedToken.RefreshToken);
+        renewedRefreshTicket.Should().NotBeNull();
+        renewedRefreshTicket.Principal.FindAll("auth_time").Should().ContainSingle().Which.Value.Should().Be("1700000000");
 
         // Unrelated claims sharing the same claim type (permission: admin) must NOT be copied from the refresh token
         refreshedPrincipal.HasClaim(customClaimType, unrelatedClaimValue).Should().BeFalse();

@@ -53,6 +53,24 @@ public class MfaPolicyProviderTests
     }
 
     [Fact]
+    public async Task Named_Policy_Without_Schemes_Should_Inherit_Default_Authentication_Schemes()
+    {
+        var options = new AuthorizationOptions
+        {
+            DefaultPolicy = new AuthorizationPolicyBuilder("Cookies").AddRequirements(new MfaRequirement()).Build()
+        };
+        options.AddPolicy("CookiePolicy", policy => policy.RequireAuthenticatedUser());
+        var provider = new MfaEnforcingAuthorizationPolicyProvider(Options.Create(options));
+
+        var policy = await provider.GetPolicyAsync("CookiePolicy");
+
+        policy.Should().NotBeNull();
+        policy.AuthenticationSchemes.Should().ContainSingle().Which.Should().Be("Cookies");
+        policy.Requirements.Should().ContainSingle(requirement => requirement is MfaRequirement);
+        policy.Requirements.Should().ContainSingle(requirement => requirement is DenyAnonymousAuthorizationRequirement);
+    }
+
+    [Fact]
     public async Task Exempt_Policy_Should_Not_Include_Default_Mfa_Requirement()
     {
         var options = new AuthorizationOptions

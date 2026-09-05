@@ -2,12 +2,19 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.0
 
+### Bug Fixes
+
+*   **Scoped Log Snapshots**: `GetLogs` and `CopyFrom` detach framework-managed lists under the writer lock. Later actions or events no longer mutate existing snapshots.
+*   **Property Logging**: `AddProperties` skips indexers, static properties, and properties without public getters. Ignored getters remain unevaluated.
+
 ### Security
 
+*   **Opt-In MFA Assurance**: Added issuer-bound `MfaPrincipal.IsRecent` and `IsPhishingResistant` checks requiring completed MFA and additional evidence on the same authenticated identity. Recency rejects future, malformed and conflicting timestamps; phishing resistance requires an explicit distinct assurance mapping. Existing completed-MFA behavior remains unchanged; these helpers do not issue evidence or enforce a new default policy.
 *   **Provider-Neutral MFA Principal Checks**: Added `MfaPrincipal` for authenticated credential-state and account-bound MFA evaluation. `MfaFor.MfaCompleted` now rejects setup/pending credentials and conflicting authenticated subjects/issuers even when a completed-MFA marker is present. No ASP.NET Identity services are required.
 
 ### Breaking Changes
 
+*   **IScopedLog Events and Correlation**: Custom implementations must provide nullable `TraceId`, non-null `CorrelationId`, `Event`, `EventId`, `EventName`, `EventOutcome`, `EventReason`, and `WithEvent(ScopeEvent)`. Keep the first event as primary and retain later events separately. Correlation stays stable for the scope; `TraceId` must represent a real W3C activity, not a generated fallback.
 *   **Strict Entity-Bound ID Generation**: Constrained `ISourceKnownIdUtils.Next<TEntity>()` and `SourceKnownIdUtils.Generate<TEntity>(byte appId, byte appInstanceId)` to `where TEntity : SourceKnownEntity` (previously `where TEntity : class`), and restricted dynamic `Next(SourceKnownEntity)`, `Next(Type, ...)`, and `Generate(Type, ...)` invocations strictly to `SourceKnownEntity` subclasses. This eliminates ambient fallback and ensures partition enforcement across all generator paths.
     *   *Migration*: Derive domain types from `SourceKnownEntity` and annotate concrete classes with `[EntityType<TApp>]` for attribute-derived partition dispatch via `Next<TEntity>()`, or supply explicit partition values via `SourceKnownIdUtils.Generate<TEntity>(appId, appInstanceId)`.
 *   **ISourceKnownIdUtils Contract Expansion**: Added `Next(SourceKnownEntity entity)` and `Next(Type entityType, byte appId, byte appInstanceId, DateTimeOffset? epoch)` as required members on `ISourceKnownIdUtils`.
@@ -18,13 +25,14 @@ Not every version includes changes, features or bug fixes. This project can incr
     *   *Migration*: Use unified `FindMethod`, `FindMethodUncached`, `InvokeMethod`, and `InvokeStaticMethod` APIs. Pass generic type arguments explicitly as a `Type[]` array (e.g. `instance.InvokeMethod("Method", [typeof(T)])`), while non-generic methods accepting `Type` can be called directly (e.g. `instance.InvokeMethod("Method", typeof(T))`). For pre-resolved method execution, use native `MethodInvoker.Create(methodInfo)` or compiled delegates.
 *   **EquatableSequence<T> Struct Conversion**: Converted `EquatableSequence<T>` from `sealed record` class to `readonly record struct` implementing `IEquatable<EquatableSequence<T>>` with SIMD span-based sequence equality.
     *   *Migration*: Recompile against the new struct definition and update code relying on reference identity or class inheritance.
-*   **IScopedUser Contract Expansion**: Added `ExemptionProof`, `Exemption`, `ExemptionScheme`, `ExemptionPrincipal`, and `HasExemptionScheme` to `IScopedUser` to expose authenticated authentication-scheme exemptions and verified exemption proof on the active user context without mutating the request principal.
+*   **IScopedUser Contract Expansion**: Custom implementations must provide `ExemptionProof? Exemption`. `ExemptionScheme`, `ExemptionPrincipal`, and `HasExemptionScheme` have default implementations derived from it.
 
 ### New Features
 
+*   **Scope Events**: Added `ScopeEvent` for structured logging with .NET `EventId`. `ScopedLog` retains primary and additional events, provides a stable scope correlation ID, and captures an existing W3C trace ID. `LogScoped` forwards the primary event ID while preserving severity.
 *   **Scoped User Authentication Scheme Exemption**: `IScopedUser` and `ScopedUser` track active `Exemption` (`ExemptionProof`) alongside convenience `ExemptionScheme` and `ExemptionPrincipal` properties, allowing authorization handlers and middleware to verify the authenticated scheme exemption without mutating `HttpContext.User`.
 *   **Provider-Neutral MFA Claim Model**: Added immutable `MfaClaimConfig` with the ASP.NET Core Identity default (`amr=mfa`). `MfaFor.MfaCompleted` resolves the application-scoped configuration and recognizes the configured value even when the claim contains multiple values.
-*   **RFC 4648 Base32 And RFC 6238 TOTP Utilities**: Added strict, dependency-free `Base32Encoding` support for canonical padded and unpadded encoding/decoding, plus `TotpUtils` generation and bounded-drift verification for interoperable HMAC-SHA1 authenticator codes. Decoded TOTP secret buffers are cleared after use.
+*   **Base32 and TOTP Utilities**: Added `Base32Encoding` and `TotpUtils` for Base32 encoding and authenticator-code generation and verification. Verification is stateless; callers must enforce replay protection and attempt limits. See [TOTP usage and limitations](README.md#totp-generation-and-verification).
 *   **Context-Separated AES-256-GCM Encryption**: Added `AesGcmEncryptorBase` and `AesGcmEncryptedData` under `DRN.Framework.Utils.Data.Encryption` for context-separated AES-256-GCM symmetric encryption with automatic BLAKE3 subkey derivation from `IAppSecuritySettings`. Added `CreateAesGcm(string context)` on `IAppSecuritySettings` to derive dedicated 32-byte keys from `AppEncryptionKey` via BLAKE3 with automatic intermediate buffer zeroing.
 *   **Key Material Security Enforcement**: `AppSettings` rejects the default `DrnAppFeatures.DefaultSeedKey` outside `Development`, and rejects `DrnAppFeatures.SampleSeedKey` whenever `TestEnvironment.DrnTestContextEnabled` is not set, failing fast with `ConfigurationException`. `NexusKey` unconditionally forbids sample key material (`sample-nexus-key-material-000000`) across all environments and test executions at construction time.
 *   **HttpMessageHandler DI Injection**: `InternalRequest` and `ExternalRequest` accept an optional `HttpMessageHandler?` via dependency injection, enabling in-memory test routing (such as `ApplicationContextRouterHandler`) without global static Flurl state mutation.

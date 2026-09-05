@@ -161,6 +161,8 @@ When grouping options into nested objects, explicitly validate child objects bef
 
 Request-scoped structured logging. Aggregates data, metrics, and checkpoints, flushing as a single entry.
 
+`ScopeEvent` uses `Id` (.NET `EventId`), `Outcome`, and `Reason`. `IScopedLog.WithEvent` sets the first event as primary and retains later events under `AdditionalEvents`. Scope-level properties retain the `Event` prefix for ID/name/outcome/reason. `LogScoped` forwards the primary event ID with existing severity rules. Every `ScopedLog` generates a stable `CorrelationId` and captures a nullable W3C `TraceId` at construction. Never fabricate a trace ID without an activity. HTTP TraceIdentifier remains separate. Native OpenTelemetry trace/span/flags use the activity at emission; scoped snapshots do not populate those native fields. Copying retains destination correlation and primary event ownership. Keep consumer/module catalogs separate; do not subclass event types.
+
 | Method | Purpose |
 |--------|---------|
 | `Add(key, value)` | Structured log entry |
@@ -312,6 +314,10 @@ if (scope.Acquired) { /* critical section */ }
 
 ## Utilities Reference
 
+`TotpUtils` defaults to six digits, 30-second steps, and ±1-step drift. Verification is stateless; callers must enforce atomic per-account replay protection and attempt limits. It does not issue MFA claims. See [TotpUtils.cs](../../../DRN.Framework.Utils/Auth/MFA/TotpUtils.cs) for parameter validation details.
+
+`MfaPrincipal.IsRecent` and `IsPhishingResistant` are opt-in checks requiring an explicit trusted issuer and completed/additional evidence on the same authenticated identity. All authenticated subjects/issuers must be unambiguous and agree. IsRecent accepts a caller-supplied current time, an inclusive nonnegative age limit and a timestamp type (default auth_time); reject malformed/conflicting/future evidence. auth_time is authentication recency, not necessarily verified-MFA recency. IsPhishingResistant requires an explicit assurance mapping distinct from completion; never infer it from generic MFA or a passkey label. No default Hosting policy change or claim issuance; provider mapping remains MFA-07.
+
 | Area | Key Types | Purpose |
 |------|-----------|---------|
 | **Data Encoding** | `EncodingExtensions`, `Base32Encoding` | Base64, Base64Url, Hex, Utf8, plus strict RFC 4648 padded/unpadded Base32 |
@@ -401,21 +407,7 @@ number.GetBitPositions();                       // Get set bit positions
 
 Use `[UnsafeAccessor]` (`System.Runtime.CompilerServices`) instead of runtime reflection (`Type.GetMethod`, `Type.GetProperty`, `Type.GetField`, `MethodInfo.Invoke`) whenever the target type is accessible at compile time. `[UnsafeAccessor]` provides zero-overhead, AOT-safe, direct compiled access to non-public methods, fields, constructors, and properties.
 
-```csharp
-using System.Runtime.CompilerServices;
-
-// Access private/internal field
-[UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_filteredSetups")]
-private static extern ref List<FilteredHttpTestSetup> GetFilteredSetups(HttpTest httpTest);
-
-// Access private/internal method
-[UnsafeAccessor(UnsafeAccessorKind.Method, Name = "get_ApplicationBuilder")]
-private static extern ApplicationBuilder GetApplicationBuilder(WebApplication app);
-
-// Access private/internal property setter
-[UnsafeAccessor(UnsafeAccessorKind.Method, Name = "set_OnAfterPageActivated")]
-private static extern void SetOnAfterPageActivated(RazorView view, Action<IRazorPage, ViewContext>? value);
-```
+Use the source-owned signatures as examples: [FlurlExtensions](../../../DRN.Framework.Utils/Extensions/FlurlExtensions.cs) for field access, [DrnApplicationExtensions](../../../DRN.Framework.Hosting/DrnProgram/DrnApplicationExtensions.cs) for method access, and [PageUtils](../../../DRN.Framework.Hosting/Endpoints/PageUtils.cs) for property-setter access.
 
 ### When to Use UnsafeAccessor vs Reflection
 

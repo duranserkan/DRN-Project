@@ -46,6 +46,8 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
         if (await userManager.GetUserAsync(User) is not { } user)
             return TypedResults.NotFound();
 
+        // TODO(MFA-01): Require fresh, replay-resistant verification of an enrolled factor
+        // before disabling/replacing it or regenerating recovery codes; preserve the initial enrollment flow.
         // The factor and its MFA proof must belong to the final authorized account.
         var isTwoFactorEnabled = await userManager.GetTwoFactorEnabledAsync(user);
         var mfaConfig = HttpContext.RequestServices.GetService<MfaClaimConfig>() ?? MfaClaimConfig.AspNetIdentity;
@@ -75,6 +77,8 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
         if (tfaRequest.ResetSharedKey)
             await userManager.ResetAuthenticatorKeyAsync(user);
 
+        // TODO(MFA-03): Define lost-factor and administrative recovery controls, attempt limits,
+        // single-use recovery credentials, and out-of-band notifications for factor changes.
         string[]? recoveryCodes = null;
         if (tfaRequest.ResetRecoveryCodes || (tfaRequest.Enable == true && await userManager.CountRecoveryCodesAsync(user) == 0))
         {
