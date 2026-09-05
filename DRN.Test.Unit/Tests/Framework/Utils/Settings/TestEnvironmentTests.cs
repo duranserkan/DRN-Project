@@ -5,19 +5,6 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Settings;
 public class TestEnvironmentTests
 {
     [Fact]
-    public void SetTestContextEnabledScope_Should_Override_Value_And_Restore_On_Dispose()
-    {
-        var initialState = TestEnvironment.DrnTestContextEnabled;
-
-        using (TestEnvironment.SetTestContextEnabledScope(!initialState))
-        {
-            TestEnvironment.DrnTestContextEnabled.Should().Be(!initialState);
-        }
-
-        TestEnvironment.DrnTestContextEnabled.Should().Be(initialState);
-    }
-
-    [Fact]
     public void SetTestContextEnabledScope_Should_Support_Nested_Scopes()
     {
         var initialState = TestEnvironment.DrnTestContextEnabled;

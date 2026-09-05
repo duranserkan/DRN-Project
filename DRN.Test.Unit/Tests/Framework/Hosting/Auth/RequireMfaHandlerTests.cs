@@ -13,29 +13,24 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.Auth;
 
 public class RequireMfaHandlerTests
 {
-    [Fact]
-    public async Task Handler_Should_Use_The_Default_Mfa_Claim()
-    {
-        var principal = new ClaimsPrincipal(new ClaimsIdentity([
-            new Claim(ClaimConventions.AuthenticationMethodReference, "pwd"),
-            new Claim(ClaimConventions.AuthenticationMethodReference, MfaClaimValues.Amr)
-        ], "Test"));
-        var authorization = CreateAuthorizationContext(principal);
-
-        await new RequireMfaHandler().HandleAsync(authorization);
-
-        authorization.HasSucceeded.Should().BeTrue();
-    }
-
     [Theory]
-    [DataInlineUnit("amr", "mfa")]
-    [DataInlineUnit("acr", "urn:drn:test:mfa")]
-    public async Task Handler_Should_Use_Configured_Completion_Claim(string claimType, string claimValue)
+    [DataInlineUnit(true, "amr", "mfa")]
+    [DataInlineUnit(false, "amr", "mfa")]
+    [DataInlineUnit(false, "acr", "urn:drn:test:mfa")]
+    public async Task Handler_Should_Use_Default_Or_Configured_Completion_Claim(
+        bool useDefaultConstructor, string claimType, string claimValue)
     {
-        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(claimType, claimValue)], "Test"));
+        var identity = new ClaimsIdentity(authenticationType: "Test");
+        if (useDefaultConstructor)
+            identity.AddClaim(new Claim(ClaimConventions.AuthenticationMethodReference, "pwd"));
+        identity.AddClaim(new Claim(claimType, claimValue));
+        var principal = new ClaimsPrincipal(identity);
         var authorization = CreateAuthorizationContext(principal);
+        var handler = useDefaultConstructor
+            ? new RequireMfaHandler()
+            : new RequireMfaHandler(new AuthenticationClaimConfig { Mfa = new(claimType, claimValue) });
 
-        await new RequireMfaHandler(new MfaClaimConfig(claimType, claimValue)).HandleAsync(authorization);
+        await handler.HandleAsync(authorization);
 
         authorization.HasSucceeded.Should().BeTrue();
     }

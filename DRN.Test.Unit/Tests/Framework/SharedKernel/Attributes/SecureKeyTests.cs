@@ -32,7 +32,7 @@ public class SecureKeyTests
         new object[] { "Aa1!Aa1!Aa1!Aa1!", true },
         // 17-character valid key
         new object[] { "Aa1!Aa1!Aa1!Aa1!A", true },
-        // Maximum length (128 chars) valid key
+        // Valid longer key (64 chars)
         new object[] { "Aa1!Aa1!Aa1!Aa1!Aa1!Aa1!Aa1!Aa1!Aa1!Aa1!Aa1!Aa1!Aa1!Aa1!Aa1!Aa1!", true },
         // Mixed-case non-ASCII-sequential letters (allowed by design)
         new object[] { "AbCdEfGhIjKlMnOp1!", true },
@@ -50,11 +50,16 @@ public class SecureKeyTests
         new object[] { "Aa1 Aa1 Aa1 Aa1 ", true },
 
         // ❌ INVALID:
+        // Independently remove each required class from the valid minimum-length fixture.
+        new object[] { "Aa1!Aa1!Aa1!Aa1!".Replace('A', 'a'), false },
+        new object[] { "Aa1!Aa1!Aa1!Aa1!".Replace('a', 'A'), false },
+        new object[] { "Aa1!Aa1!Aa1!Aa1!".Replace('1', 'A'), false },
+        new object[] { "Aa1!Aa1!Aa1!Aa1!".Replace('!', 'A'), false },
         // Contains disallowed special characters: @, #, $, %, ^
         new object[] { "A1!b2@c3#d4$e5%f6^", false },
         // Too short (15 characters); minimum is 16
         new object[] { "Aa1!Aa1!Aa1!Aa1", false },
-        // Too long (129 characters); maximum is 128
+        // Repeated X characters exceed the repetition limit (length129 is otherwise allowed)
         new object[] { "Aa1!Aa1!Aa1!Aa1!X".PadRight(129, 'X'), false },
         // Missing uppercase, digit, and special character
         new object[] { "aaaaaaaaaaaaaaaa", false },
@@ -80,14 +85,6 @@ public class SecureKeyTests
         new object[] { "", false },
         // Too short (4 characters)
         new object[] { "Aa1!", false },
-        // Missing lowercase, digit, and special character
-        new object[] { "A".PadRight(16, 'A'), false },
-        // Missing uppercase, digit, and special character
-        new object[] { "a".PadRight(16, 'a'), false },
-        // Missing uppercase, lowercase, and special character
-        new object[] { "1".PadRight(16, '1'), false },
-        // Missing uppercase, lowercase, and digit
-        new object[] { "!".PadRight(16, '!'), false },
         // Contains disallowed character '@'
         new object[] { "Aa1@Aa1@Aa1@Aa1@", false },
         // Contains disallowed newline character
@@ -111,4 +108,16 @@ public class SecureKeyTests
         // Four identical characters in a row for multiple classes (> MaxRepeatedChars=3)
         new object[] { "AAAABBBB1111!!!!", false }
     };
+
+    [Theory]
+    [DataInlineUnit(256, true)]
+    [DataInlineUnit(257, false)]
+    public void SecureKey_Should_Enforce_Maximum_Length_With_Other_Requirements_Satisfied(int length, bool expected)
+    {
+        var key = string.Concat(Enumerable.Repeat("Aa1!", 65))[..length];
+        key.Length.Should().Be(length);
+        var obj = new ToBeValidated { Key = key };
+
+        obj.ValidateDataAnnotations().IsValid.Should().Be(expected);
+    }
 }

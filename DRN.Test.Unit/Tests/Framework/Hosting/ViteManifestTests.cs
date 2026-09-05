@@ -5,6 +5,20 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting;
 
 public class ViteManifestTests
 {
+    [Fact]
+    public void IsViteOrigin_Should_Match_Only_Build_And_Package_Prefixes_Ignoring_Case()
+    {
+        ViteManifest.IsViteOrigin("buildwww/assets/main.js").Should().BeTrue();
+        ViteManifest.IsViteOrigin("node_modules/vue/dist/vue.js").Should().BeTrue();
+        ViteManifest.IsViteOrigin("BUILDWWW/app.css").Should().BeTrue();
+        ViteManifest.IsViteOrigin("NODE_MODULES/react/index.js").Should().BeTrue();
+
+        ViteManifest.IsViteOrigin("/wwwroot/static/main.js").Should().BeFalse();
+        ViteManifest.IsViteOrigin("/app/static/main.js").Should().BeFalse();
+        ViteManifest.IsViteOrigin("/assets/styles.css").Should().BeFalse();
+        ViteManifest.IsViteOrigin("assets/image.png").Should().BeFalse();
+    }
+
     [Theory]
     [DataInlineUnit]
     public void GetManifestItem_Should_Preserve_Query_Qualified_Entries(DrnTestContextUnit context)

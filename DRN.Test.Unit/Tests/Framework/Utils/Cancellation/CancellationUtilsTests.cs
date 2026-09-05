@@ -34,19 +34,6 @@ public class CancellationUtilsTests
     }
 
     [Fact]
-    public void GetOrCreateScope_Should_Return_Same_Scope_And_Token_For_Same_Key()
-    {
-        using var cancellation = new CancellationUtils();
-
-        var first = cancellation.GetOrCreateScope(FirstKey);
-        var token = first.Token;
-        var second = cancellation.GetOrCreateScope(FirstKey);
-
-        second.Should().BeSameAs(first);
-        second.Token.Should().Be(token);
-    }
-
-    [Fact]
     public void Concurrent_GetOrCreateScope_Should_Return_One_Shared_Scope_For_Same_Key()
     {
         const int threadCount = 8;
@@ -187,28 +174,10 @@ public class CancellationUtilsTests
         cancellation.Root.IsCancellationRequested.Should().BeFalse();
     }
 
-    [Fact]
-    public void Root_Cancel_Should_Cancel_All_Existing_Children()
-    {
-        using var cancellation = new CancellationUtils();
-        var first = cancellation.GetOrCreateScope(FirstKey);
-        var second = cancellation.GetOrCreateScope(SecondKey);
-        var rootToken = cancellation.Root.Token;
-        var firstToken = first.Token;
-        var secondToken = second.Token;
-
-        cancellation.Root.Cancel();
-
-        rootToken.IsCancellationRequested.Should().BeTrue();
-        firstToken.IsCancellationRequested.Should().BeTrue();
-        secondToken.IsCancellationRequested.Should().BeTrue();
-        cancellation.Root.IsCancellationRequested.Should().BeTrue();
-        first.IsCancellationRequested.Should().BeTrue();
-        second.IsCancellationRequested.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Root_Merge_Should_Propagate_External_Cancellation_To_All_Children()
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Root_Cancellation_Should_Cancel_All_Existing_Children(bool useExternalSource)
     {
         using var cancellation = new CancellationUtils();
         using var externalSource = new CancellationTokenSource();
@@ -218,8 +187,13 @@ public class CancellationUtilsTests
         var firstToken = first.Token;
         var secondToken = second.Token;
 
-        cancellation.Root.Merge(externalSource.Token);
-        externalSource.Cancel();
+        if (useExternalSource)
+        {
+            cancellation.Root.Merge(externalSource.Token);
+            externalSource.Cancel();
+        }
+        else
+            cancellation.Root.Cancel();
 
         rootToken.IsCancellationRequested.Should().BeTrue();
         firstToken.IsCancellationRequested.Should().BeTrue();
@@ -242,11 +216,14 @@ public class CancellationUtilsTests
     }
 
     [Fact]
-    public void GetOrCreateScope_Should_Return_Same_Canceled_Scope_For_Existing_Key()
+    public void GetOrCreateScope_Should_Return_Same_Scope_And_Token_Before_And_After_Cancellation()
     {
         using var cancellation = new CancellationUtils();
         var child = cancellation.GetOrCreateScope(FirstKey);
         var token = child.Token;
+        var beforeCancellation = cancellation.GetOrCreateScope(FirstKey);
+        beforeCancellation.Should().BeSameAs(child);
+        beforeCancellation.Token.Should().Be(token);
         child.Cancel();
 
         var lookup = cancellation.GetOrCreateScope(FirstKey);
@@ -290,7 +267,7 @@ public class CancellationUtilsTests
     }
 
     [Fact]
-    public void Merge_Should_Deduplicate_Repeated_Tokens_Without_Duplicate_Observable_Callbacks()
+    public void Merge_Repeated_Tokens_Should_Invoke_Child_Cancellation_Callback_Once()
     {
         using var cancellation = new CancellationUtils();
         using var externalSource = new CancellationTokenSource();
@@ -405,38 +382,23 @@ public class CancellationUtilsTests
         AssertConcurrentReadsAndLookupCompleteDuringCallback(cancellation, target, target.Cancel);
     }
 
-    [Fact]
-    public void Parent_Dispose_From_Root_Callback_Should_Cancel_Children_And_Complete_Safely()
+    [Theory]
+    [DataInlineUnit(true)]
+    [DataInlineUnit(false)]
+    public void Parent_Dispose_From_Cancellation_Callback_Should_Complete_Safely(bool cancelRoot)
     {
         var cancellation = new CancellationUtils();
         var child = cancellation.GetOrCreateScope(FirstKey);
         var rootToken = cancellation.Root.Token;
         var childToken = child.Token;
-        using var registration = rootToken.Register(cancellation.Dispose);
+        var target = cancelRoot ? cancellation.Root : child;
+        using var registration = target.Token.Register(cancellation.Dispose);
 
-        Action cancelRoot = cancellation.Root.Cancel;
+        Action cancel = target.Cancel;
 
-        cancelRoot.Should().NotThrow();
-        rootToken.IsCancellationRequested.Should().BeTrue();
+        cancel.Should().NotThrow();
         childToken.IsCancellationRequested.Should().BeTrue();
-        Action secondDispose = cancellation.Dispose;
-        secondDispose.Should().NotThrow();
-    }
-
-    [Fact]
-    public void Parent_Dispose_From_Child_Callback_Should_Be_Safe_And_Not_Cancel_Root()
-    {
-        var cancellation = new CancellationUtils();
-        var child = cancellation.GetOrCreateScope(FirstKey);
-        var rootToken = cancellation.Root.Token;
-        var childToken = child.Token;
-        using var registration = childToken.Register(cancellation.Dispose);
-
-        Action cancelChild = child.Cancel;
-
-        cancelChild.Should().NotThrow();
-        childToken.IsCancellationRequested.Should().BeTrue();
-        rootToken.IsCancellationRequested.Should().BeFalse();
+        rootToken.IsCancellationRequested.Should().Be(cancelRoot);
         Action secondDispose = cancellation.Dispose;
         secondDispose.Should().NotThrow();
     }

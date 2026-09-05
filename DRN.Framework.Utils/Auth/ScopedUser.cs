@@ -7,15 +7,21 @@ using DRN.Framework.Utils.Extensions;
 namespace DRN.Framework.Utils.Auth;
 
 [Scoped<IScopedUser>]
-public class ScopedUser : IScopedUser
+public class ScopedUser(AuthenticationClaimConfig? claimConfig) : IScopedUser
 {
+    private readonly AuthenticationClaimConfig _claimConfig = claimConfig ?? AuthenticationClaimConfig.Default;
+
+    public ScopedUser() : this(null) { }
+
     private static readonly StringComparer ClaimTypeComparer = StringComparer.OrdinalIgnoreCase;
 
     private static readonly IReadOnlyDictionary<string, ClaimGroup> DefaultClaimsByType = new Dictionary<string, ClaimGroup>(0).ToFrozenDictionary(ClaimTypeComparer);
 
-    public static ScopedUser FromClaimsPrincipal(ClaimsPrincipal principal)
+    internal static ScopedUser FromClaimsPrincipal(ClaimsPrincipal principal) => FromClaimsPrincipal(principal, AuthenticationClaimConfig.Default);
+
+    private static ScopedUser FromClaimsPrincipal(ClaimsPrincipal principal, AuthenticationClaimConfig claimConfig)
     {
-        var scopedUser = new ScopedUser();
+        var scopedUser = new ScopedUser(claimConfig);
         scopedUser.SetUser(principal);
 
         return scopedUser;
@@ -43,12 +49,12 @@ public class ScopedUser : IScopedUser
     [JsonIgnore]
     public ClaimGroup? IdClaim { get; private set; }
 
-    public string? Name => NameClaim?.GetValue();
+    public string? Name => NameClaim?.Claim.Value;
 
     [JsonIgnore]
     public ClaimGroup? NameClaim { get; private set; }
 
-    public string? Email => EmailClaim?.GetValue();
+    public string? Email => EmailClaim?.Claim.Value;
 
     [JsonIgnore]
     public ClaimGroup? EmailClaim { get; private set; }
@@ -62,7 +68,7 @@ public class ScopedUser : IScopedUser
     public ClaimGroup? AuthenticationMethodClaim { get; private set; }
     public ClaimGroup? RoleClaim { get; private set; }
 
-    public bool IsInRole(string role) => RoleClaim?.ValueExists(role) ?? false;
+    public bool IsInRole(string role) => RoleClaim?.Claims.Any(claim => claim.Value == role) == true;
 
     public IReadOnlyDictionary<string, ClaimGroup> ClaimsByType { get; private set; } = DefaultClaimsByType;
 
@@ -96,33 +102,43 @@ public class ScopedUser : IScopedUser
         Authenticated = AuthenticationFor.IsAuthenticated(user);
         if (!Authenticated) return;
 
-        var authenticatedIdentities = user.Identities
-            .Where(AuthenticationFor.IsAuthenticated)
-            .ToArray();
+        var authenticatedIdentities = user.Identities.Where(AuthenticationFor.IsAuthenticated).ToArray();
         PrimaryIdentity = user.Identity as ClaimsIdentity;
         if (!AuthenticationFor.IsAuthenticated(PrimaryIdentity))
             PrimaryIdentity = authenticatedIdentities[0];
 
         var claimsDictionary = new Dictionary<string, HashSet<Claim>>(ClaimTypeComparer);
         foreach (var identity in authenticatedIdentities)
-        foreach (var claim in identity.Claims)
         {
-            if (claimsDictionary.TryGetValue(claim.Type, out var claimsByType))
-                claimsByType.Add(claim);
-            else
-                claimsDictionary.Add(claim.Type, [claim]);
+            foreach (var claim in identity.Claims)
+                if (claimsDictionary.TryGetValue(claim.Type, out var claimsByType))
+                    claimsByType.Add(claim);
+                else
+                    claimsDictionary.Add(claim.Type, [claim]);
         }
-        ClaimsByType = claimsDictionary.ToFrozenDictionary(
-            pair => pair.Key,
-            pair => new ClaimGroup(pair.Value, PrimaryIdentity!),
-            ClaimTypeComparer);
 
-        IdClaim = FindClaimGroup(ClaimConventions.NameIdentifier);
-        NameClaim = FindClaimGroup(ClaimConventions.Name);
-        EmailClaim = FindClaimGroup(ClaimConventions.Email);
+
+        ClaimsByType = claimsDictionary.ToFrozenDictionary(pair => pair.Key, pair => new ClaimGroup(pair.Value, PrimaryIdentity!), ClaimTypeComparer);
+        var subject = SubjectClaims.Find(PrimaryIdentity!, _claimConfig);
+        // Keep the validated subject; the general claim groups intentionally ignore type casing.
+        IdClaim = subject == null ? null : new ClaimGroup(new HashSet<Claim> { subject }, PrimaryIdentity!);
+        NameClaim = FindMappedClaimGroup(_claimConfig.Name, scalar: true);
+        EmailClaim = FindMappedClaimGroup(_claimConfig.Email, scalar: true);
         AmrClaim = FindClaimGroup(ClaimConventions.AuthenticationMethodReference);
         AuthenticationMethodClaim = FindClaimGroup(ClaimConventions.AuthenticationMethod);
-        RoleClaim = FindClaimGroup(ClaimTypes.Role);
+        RoleClaim = FindMappedClaimGroup(_claimConfig.Roles);
+    }
+
+    private ClaimGroup? FindMappedClaimGroup(AuthenticationClaimConfig.ClaimMapping mapping, bool scalar = false)
+    {
+        var identities = scalar ? [PrimaryIdentity!] : Principal!.Identities.Where(AuthenticationFor.IsAuthenticated);
+        var claims = identities
+            .SelectMany(identity => identity.Claims)
+            .Where(claim => mapping.Accepts(claim.Type)).ToHashSet();
+        var first = claims.FirstOrDefault();
+        if (scalar && first != null && claims.Any(claim => claim.Value != first.Value || claim.Issuer != first.Issuer))
+            return null;
+        return claims.Count == 0 ? null : new ClaimGroup(claims, PrimaryIdentity!);
     }
 
     private void ResetDerivedState()

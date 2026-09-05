@@ -16,14 +16,16 @@ public class ConfigurationExtensionsTests
     ];
 
     [Theory]
-    [DataInlineUnit("Staging")]
-    public void AddDrnSettings_Should_Discover_Environment_Without_Requiring_Full_AppSettings(DrnTestContextUnit context, string environment)
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void AddDrnSettings_Should_Discover_Environment_With_Default_Or_Custom_FileProvider(
+        DrnTestContextUnit context, bool customProvider)
     {
         var settingsDirectory = context.GetTempPath();
 
-        File.WriteAllText(Path.Combine(settingsDirectory, "appsettings.json"), $$"""
+        File.WriteAllText(Path.Combine(settingsDirectory, "appsettings.json"), """
             {
-              "Environment": "{{environment}}"
+              "Environment": "Staging"
             }
             """);
         File.WriteAllText(Path.Combine(settingsDirectory, "appsettings.Staging.json"), """
@@ -34,41 +36,13 @@ public class ConfigurationExtensionsTests
 
         WithoutEnvironmentOverrides(() =>
         {
-            var configuration = new ConfigurationBuilder()
-                .SetBasePath(settingsDirectory)
-                .AddDrnSettings("")
-                .Build();
-
-            configuration["EnvironmentSpecificValue"].Should().Be("loaded");
-        });
-    }
-
-    [Theory]
-    [DataInlineUnit("Staging")]
-    public void AddDrnSettings_Should_Preserve_Custom_FileProvider_During_Environment_Discovery(DrnTestContextUnit context, string environment)
-    {
-        var settingsDirectory = context.GetTempPath();
-
-        File.WriteAllText(Path.Combine(settingsDirectory, "appsettings.json"), $$"""
-            {
-              "Environment": "{{environment}}"
-            }
-            """);
-        File.WriteAllText(Path.Combine(settingsDirectory, "appsettings.Staging.json"), """
-            {
-              "EnvironmentSpecificValue": "loaded"
-            }
-            """);
-
-        WithoutEnvironmentOverrides(() =>
-        {
-            using var physicalProvider = new PhysicalFileProvider(settingsDirectory);
-            var compositeProvider = new CompositeFileProvider(physicalProvider);
-
-            var configuration = new ConfigurationBuilder()
-                .SetFileProvider(compositeProvider)
-                .AddDrnSettings("")
-                .Build();
+            using var physicalProvider = customProvider ? new PhysicalFileProvider(settingsDirectory) : null;
+            var builder = new ConfigurationBuilder();
+            if (customProvider)
+                builder.SetFileProvider(new CompositeFileProvider(physicalProvider!));
+            else
+                builder.SetBasePath(settingsDirectory);
+            var configuration = builder.AddDrnSettings("").Build();
 
             configuration["EnvironmentSpecificValue"].Should().Be("loaded");
         });

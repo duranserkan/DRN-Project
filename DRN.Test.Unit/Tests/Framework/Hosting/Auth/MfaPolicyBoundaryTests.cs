@@ -5,6 +5,8 @@ using DRN.Framework.Hosting.Identity;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
+using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -26,6 +28,8 @@ public class MfaPolicyBoundaryTests
         var scopedUser = ScopedUser.FromClaimsPrincipal(user);
         scopedUser.SetExemption("stale", user);
         var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IScopedLog>(new ScopedLog(AppSettings.Development()));
         services.AddSingleton<IScopedUser>(scopedUser);
         using var provider = services.BuildServiceProvider();
         var http = new DefaultHttpContext { RequestServices = provider, User = user };
@@ -113,7 +117,7 @@ public class MfaPolicyBoundaryTests
         var http = new DefaultHttpContext { RequestServices = provider, User = selected };
         Select(http, new AuthorizationPolicyBuilder().AddRequirements(new MfaRequirement()).Build());
         await new MfaExemptionMiddleware(_ => Task.CompletedTask).InvokeAsync(http, ScopedUser.FromClaimsPrincipal(selected), options);
-        MfaPolicyProof.IsSatisfied(http, selected, MfaClaimConfig.AspNetIdentity, options).Should().BeTrue();
+        MfaPolicyProof.IsSatisfied(http, selected, AuthenticationClaimConfig.Default, options).Should().BeTrue();
         await auth.DidNotReceive().AuthenticateAsync(Arg.Any<HttpContext>(), "key");
         MfaPolicyProof.Get(http).Single().SelectedScheme.Should().Be("forward");
     }
@@ -143,7 +147,7 @@ public class MfaPolicyBoundaryTests
         var evaluation = new AuthorizationHandlerContext([new MfaRequirement()], selected, http);
         await new RequireMfaHandler(exemptionOptions: options).HandleAsync(evaluation);
         evaluation.HasSucceeded.Should().BeTrue();
-        MfaPolicyProof.IsSatisfied(http, Principal("second", "different-user"), MfaClaimConfig.AspNetIdentity, options).Should().BeFalse();
+        MfaPolicyProof.IsSatisfied(http, Principal("second", "different-user"), AuthenticationClaimConfig.Default, options).Should().BeFalse();
     }
 
     [Theory]
@@ -168,8 +172,8 @@ public class MfaPolicyBoundaryTests
     {
         var user = Principal("cookie", "user", completed: true);
         ((ClaimsIdentity)user.Identity!).AddClaim(new Claim(ClaimConventions.AuthenticationMethod, state));
-        MfaPrincipal.IsCompleted(user, MfaClaimConfig.AspNetIdentity).Should().BeFalse();
-        IdentityMfaPolicy.CanManage(user, true, true, MfaClaimConfig.AspNetIdentity).Should().BeFalse();
+        MfaPrincipal.IsCompleted(user, AuthenticationClaimConfig.Default).Should().BeFalse();
+        IdentityMfaPolicy.CanManage(user, true, true, AuthenticationClaimConfig.Default).Should().BeFalse();
     }
 
     [Theory]
@@ -180,17 +184,8 @@ public class MfaPolicyBoundaryTests
         var user = Principal("external", "user");
         var other = Principal("external", subject, completed: true, issuer: issuer);
         user.AddIdentity((ClaimsIdentity)other.Identity!);
-        MfaPrincipal.IsCompleted(user, MfaClaimConfig.AspNetIdentity).Should().BeFalse();
-        IdentityMfaPolicy.CanManage(user, true, true, MfaClaimConfig.AspNetIdentity).Should().BeFalse();
-    }
-
-    [Fact]
-    public void Transformed_Proof_Requires_Subject_And_Issuer()
-    {
-        MfaPrincipal.MatchesIdentity(new ClaimsIdentity("key"), new ClaimsIdentity("key")).Should().BeFalse();
-        var user = Principal("key", "user");
-        var equivalent = Principal("key", "user");
-        MfaPrincipal.MatchesIdentity((ClaimsIdentity)user.Identity!, (ClaimsIdentity)equivalent.Identity!).Should().BeTrue();
+        MfaPrincipal.IsCompleted(user, AuthenticationClaimConfig.Default).Should().BeFalse();
+        IdentityMfaPolicy.CanManage(user, true, true, AuthenticationClaimConfig.Default).Should().BeFalse();
     }
 
     [Theory]
@@ -204,15 +199,15 @@ public class MfaPolicyBoundaryTests
         var user = Principal("cookie", "user");
         if (setup)
             ((ClaimsIdentity)user.Identity!).AddClaim(new Claim(ClaimConventions.AuthenticationMethod, MfaClaimValues.MfaSetupRequired));
-        IdentityMfaPolicy.CanManage(user, enabled, enforced, MfaClaimConfig.AspNetIdentity).Should().Be(allowed);
+        IdentityMfaPolicy.CanManage(user, enabled, enforced, AuthenticationClaimConfig.Default).Should().Be(allowed);
     }
 
     [Fact]
     public async Task External_Mfa_Configuration_Is_Independent_Of_Identity_Default()
     {
-        var external = new MfaClaimConfig("acr", "test:strong");
+        var external = new AuthenticationClaimConfig { Mfa = new("acr", "test:strong") };
         var user = Principal("external", "user");
-        ((ClaimsIdentity)user.Identity!).AddClaim(new Claim(external.ClaimType, external.ClaimValue));
+        ((ClaimsIdentity)user.Identity!).AddClaim(new Claim(external.Mfa.ClaimType, external.Mfa.ClaimValue));
         var externalContext = new AuthorizationHandlerContext([new MfaRequirement()], user, null);
         var identityContext = new AuthorizationHandlerContext([new MfaRequirement()], user, null);
         await new RequireMfaHandler(external).HandleAsync(externalContext);

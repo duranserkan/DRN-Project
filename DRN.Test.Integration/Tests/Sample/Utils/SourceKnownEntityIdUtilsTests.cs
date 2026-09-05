@@ -60,19 +60,6 @@ public class SourceKnownEntityIdUtilsTests
             pair.parsed.Secure.Should().BeTrue("collision guard must prevent Secure→Plain misclassification");
         }
         
-        // Collision guard verification: the collision guard iterates the variant byte and re-encrypts
-        // when ciphertext coincidentally has 0x8D at byte[7] and 0x8D at byte[8] (~1/65536 probability).
-        // After the guard, no Secure SKEID should contain the plain marker pattern.
-        var coincidentalMarkerCount = entityIds.Count(e =>
-        {
-            var bytes = e.EntityId.ToByteArray();
-            return bytes[7] == 0x8D && bytes[8] == 0x8D;
-        });
-        
-        //collision guard prevents, 0x8D8D markers in Secure SKEIDs
-        //coincidentalMarkerCount shows collision count that is prevented
-        coincidentalMarkerCount.Should().BeGreaterThanOrEqualTo(0);
-
         // Collision guard: no Secure SKEID should have been misclassified as Plain
         var misclassifiedCount = parsedIds.Count(p => !p.parsed.Secure);
         misclassifiedCount.Should().Be(0, "collision guard must eliminate all Secure→Plain misclassification");

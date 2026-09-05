@@ -12,14 +12,14 @@ namespace DRN.Test.Integration.Tests.Framework.Utils;
 public class PaginationUtilsTests
 {
     [Theory]
-    [DataInline(90, 5, true, PageSortDirection.Ascending)]
-    [DataInline(90, 5, true, PageSortDirection.Descending)]
-    [DataInline(90, 5, false, PageSortDirection.Ascending)]
-    [DataInline(90, 5, false, PageSortDirection.Descending)]
-    [DataInline(67, 10, true, PageSortDirection.Ascending)]
-    [DataInline(67, 10, true, PageSortDirection.Descending)]
-    [DataInline(67, 10, false, PageSortDirection.Ascending)]
-    [DataInline(67, 10, false, PageSortDirection.Descending)]
+    [DataInline(25, 5, true, PageSortDirection.Ascending)]
+    [DataInline(25, 5, true, PageSortDirection.Descending)]
+    [DataInline(25, 5, false, PageSortDirection.Ascending)]
+    [DataInline(25, 5, false, PageSortDirection.Descending)]
+    [DataInline(47, 10, true, PageSortDirection.Ascending)]
+    [DataInline(47, 10, true, PageSortDirection.Descending)]
+    [DataInline(47, 10, false, PageSortDirection.Ascending)]
+    [DataInline(47, 10, false, PageSortDirection.Descending)]
     public async Task PaginationUtils_Should_Return_Paginated_Result(DrnTestContext context, int totalCount, int pageSize, bool updateTotalCount, PageSortDirection pageSortDirection)
     {
         _ = await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<SampleProgram>();
@@ -123,7 +123,7 @@ public class PaginationUtilsTests
         var firstPageRefreshRequest = firstPageResult.RequestRefresh();
         expectedPages.ValidateRequest(firstPageRefreshRequest, 1, false, false, 0);
 
-        var firstPageRefreshResult = await paginationUtils.GetResultAsync(tagQuery, firstPageRequest);
+        var firstPageRefreshResult = await paginationUtils.GetResultAsync(tagQuery, firstPageRefreshRequest);
         expectedPages.ValidateResult(firstPageRefreshResult, updateTotalCount);
         firstPageRefreshResult.TotalCountUpdated.Should().Be(false);
 

@@ -10,27 +10,18 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting;
 public class AppSettingsLifecycleTests
 {
     [Fact]
-    public async Task DrnProgramBase_RunAsync_Should_Dispose_Startup_AppSettings_When_Temporary_Application_Exits()
-    {
-        TemporaryLifecycleProgram.Reset();
-
-        await TemporaryLifecycleProgram.Main(CreateTemporaryApplicationArgs());
-
-        var appSettings = TemporaryLifecycleProgram.CapturedAppSettings;
-        appSettings.Should().NotBeNull();
-        var defaultKey = appSettings!.NexusAppSettings.GetDefaultKey();
-        var action = () => { _ = defaultKey.MacKey.Bytes; };
-        action.Should().Throw<ObjectDisposedException>();
-    }
-
-    [Fact]
-    public async Task DrnProgramBase_RunAsync_Should_Use_Built_Host_Logger()
+    public async Task DrnProgramBase_RunAsync_Should_Log_And_Dispose_Startup_AppSettings_When_Temporary_Application_Exits()
     {
         TemporaryLifecycleProgram.Reset();
 
         await TemporaryLifecycleProgram.Main(CreateTemporaryApplicationArgs());
 
         TemporaryLifecycleProgram.CapturedLifecycleLogCount.Should().BeGreaterThan(0);
+        var appSettings = TemporaryLifecycleProgram.CapturedAppSettings;
+        appSettings.Should().NotBeNull();
+        var defaultKey = appSettings!.NexusAppSettings.GetDefaultKey();
+        var action = () => { _ = defaultKey.MacKey.Bytes; };
+        action.Should().Throw<ObjectDisposedException>();
     }
 
     [Fact]

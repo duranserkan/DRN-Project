@@ -118,10 +118,11 @@ public class RateLimitingIntegrationTests
     [DataInline]
     public async Task Deny_Rule_Should_Reject_Immediately_Without_Consuming_Default_Quota(DrnTestContext context)
     {
-        var client = await CreateClientAsync(context, preAuthTokenLimit: 100, postAuthTokenLimit: 100);
+        var client = await CreateClientAsync(context, preAuthTokenLimit: 1, postAuthTokenLimit: 1);
 
         await AssertStatusAsync(client, TestPaths.DenyRule, HttpStatusCode.TooManyRequests, expectRetryAfter: false);
         await AssertStatusAsync(client, TestPaths.Anonymous, HttpStatusCode.OK);
+        await AssertStatusAsync(client, TestPaths.Anonymous, HttpStatusCode.TooManyRequests);
     }
 
     [Theory]
@@ -187,16 +188,6 @@ public class RateLimitingIntegrationTests
 
     [Theory]
     [DataInline]
-    public async Task Native_Named_Policy_Should_Reject_Independently_Of_Drn_Global_Limiter(DrnTestContext context)
-    {
-        var client = await CreateClientAsync(context, preAuthTokenLimit: 100, postAuthTokenLimit: 100);
-
-        await AssertStatusAsync(client, TestPaths.NativePolicy, HttpStatusCode.OK);
-        await AssertStatusAsync(client, TestPaths.NativePolicy, HttpStatusCode.TooManyRequests);
-    }
-
-    [Theory]
-    [DataInline]
     public async Task Native_Named_Policy_Should_Compose_With_Drn_Global_Limiter(DrnTestContext context)
     {
         var client = await CreateClientAsync(context, preAuthTokenLimit: 100, postAuthTokenLimit: 1);
@@ -207,19 +198,7 @@ public class RateLimitingIntegrationTests
 
     [Theory]
     [DataInline]
-    public async Task Configured_RateLimiter_OnRejected_Should_Run_After_Drn_Wrapper(DrnTestContext context)
-    {
-        var client = await CreateClientAsync(context, preAuthTokenLimit: 100, postAuthTokenLimit: 100);
-
-        await AssertStatusAsync(client, TestPaths.NativePolicy, HttpStatusCode.OK);
-        await AssertStatusAsync(client, TestPaths.NativePolicy, HttpStatusCode.TooManyRequests,
-            expectedHeaderName: TestHeaders.ConfiguredOnRejected,
-            expectedHeaderValue: TestHeaderValues.True);
-    }
-
-    [Theory]
-    [DataInline]
-    public async Task Native_Policy_Rejection_Should_Not_Run_Drn_Rule_OnRejected(DrnTestContext context)
+    public async Task Native_Policy_Should_Reject_Independently_And_Invoke_Only_Configured_OnRejected(DrnTestContext context)
     {
         var client = await CreateClientAsync(context, preAuthTokenLimit: 100, postAuthTokenLimit: 100);
 
@@ -227,7 +206,9 @@ public class RateLimitingIntegrationTests
         using var response = await SendAsync(client, TestPaths.NativePolicy);
 
         response.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
-        response.Headers.Contains(TestHeaders.ConfiguredOnRejected).Should().BeTrue();
+        response.Headers.Contains("Retry-After").Should().BeTrue();
+        response.Headers.TryGetValues(TestHeaders.ConfiguredOnRejected, out var values).Should().BeTrue();
+        values.Should().Contain(TestHeaderValues.True);
         response.Headers.Contains(TestHeaders.RuleOnRejected).Should().BeFalse();
     }
 

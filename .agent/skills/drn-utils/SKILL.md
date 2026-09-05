@@ -314,6 +314,8 @@ if (scope.Acquired) { /* critical section */ }
 
 ## Utilities Reference
 
+Use one `AuthenticationClaimConfig` for mapped consumers. Identity defaults have explicit aliases; custom mappings replace them. Subject agreement checks include only configured types and aliases, including case variants; unconfigured standard subject claims are ignored. Canonical types govern issuance/native metadata; aliases are additional DRN inputs and do not rewrite claims. Identity options and future handler integrations must supply matching native name/role claims and metadata while preserving issuer isolation and exact MFA evidence. See [the claim contract](../../../DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
+
 `TotpUtils` defaults to six digits, 30-second steps, and ±1-step drift. Verification is stateless; callers must enforce atomic per-account replay protection and attempt limits. It does not issue MFA claims. See [TotpUtils.cs](../../../DRN.Framework.Utils/Auth/MFA/TotpUtils.cs) for parameter validation details.
 
 `MfaPrincipal.IsRecent` and `IsPhishingResistant` are opt-in checks requiring an explicit trusted issuer and completed/additional evidence on the same authenticated identity. All authenticated subjects/issuers must be unambiguous and agree. IsRecent accepts a caller-supplied current time, an inclusive nonnegative age limit and a timestamp type (default auth_time); reject malformed/conflicting/future evidence. auth_time is authentication recency, not necessarily verified-MFA recency. IsPhishingResistant requires an explicit assurance mapping distinct from completion; never infer it from generic MFA or a passkey label. No default Hosting policy change or claim issuance; provider mapping remains MFA-07.
@@ -321,7 +323,7 @@ if (scope.Acquired) { /* critical section */ }
 | Area | Key Types | Purpose |
 |------|-----------|---------|
 | **Data Encoding** | `EncodingExtensions`, `Base32Encoding` | Base64, Base64Url, Hex, Utf8, plus strict RFC 4648 padded/unpadded Base32 |
-| **Authentication** | `MfaClaimConfig`, `MfaPrincipal`, `MfaFor`, `TotpUtils` | Provider-neutral completed-MFA checks reject setup/pending states and conflicting authenticated subjects/issuers; evaluate final authorized principals for account-security decisions. Application-scoped markers and TOTP utilities require no Identity services. |
+| **Authentication** | `AuthenticationClaimConfig`, `MfaClaimConfig`, `MfaPrincipal`, `MfaFor`, `TotpUtils` | One config carries canonical types, explicit aliases, and the MFA marker. Preserve exact evidence/account checks and default subjectless compatibility; assurance and Identity operations require subjects. No Identity-service dependency. |
 | **Hashing** | `HashExtensions` | Blake3 (crypto), XxHash3 (fast), keyed and stream/file hashing; prefer stream overloads for files and large payloads |
 | **JSON** | `JsonMergePatch` | RFC 7386 merge patch with depth protection |
 | **Query Strings** | `QueryParameterSerializer` | Complex objects → query strings |

@@ -188,14 +188,15 @@ public class TagControllerTests
             .AppendQueryParam(nameof(PaginationRequest.UpdateTotalCount), false);
         result = await client.PostAsJsonAsync(paginateWithPostEndpointPage2Return, thirdPageResultGet.Info);
         result.StatusCode.Should().Be(HttpStatusCode.OK);
-        secondPageResultReturnGet.Should().NotBeNull();
-        secondPageResultReturnGet.Items.Count.Should().Be(1);
-        secondPageResultReturnGet.Info.Request.PageNumber.Should().Be(2);
-        secondPageResultReturnGet.Info.Request.PageSize.Size.Should().Be(1);
-        secondPageResultReturnGet.Info.Request.PageSize.MaxSize.Should().Be(2);
-        secondPageResultReturnGet.Info.Request.UpdateTotalCount.Should().Be(false);
-        secondPageResultReturnGet.Info.HasNext.Should().BeTrue();
-        secondPageResultReturnGet.Info.HasPrevious.Should().BeTrue();
+        var secondPageResultReturnPost = await result.Content.ReadFromJsonAsync<PaginationResultModel<TagDto>>();
+        secondPageResultReturnPost.Should().NotBeNull();
+        secondPageResultReturnPost!.Items.Count.Should().Be(1);
+        secondPageResultReturnPost.Info.Request.PageNumber.Should().Be(2);
+        secondPageResultReturnPost.Info.Request.PageSize.Size.Should().Be(1);
+        secondPageResultReturnPost.Info.Request.PageSize.MaxSize.Should().Be(2);
+        secondPageResultReturnPost.Info.Request.UpdateTotalCount.Should().Be(false);
+        secondPageResultReturnPost.Info.HasNext.Should().BeTrue();
+        secondPageResultReturnPost.Info.HasPrevious.Should().BeTrue();
     }
 
     private TagPostRequest[] GetTagPostRequests()

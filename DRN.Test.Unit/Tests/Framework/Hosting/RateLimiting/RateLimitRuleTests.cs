@@ -96,6 +96,22 @@ public class RateLimitRuleTests
     }
 
     [Fact]
+    public void Default_PostAuth_Rule_Should_Use_Exact_Canonical_Subject_And_Reject_Conflicting_Aliases()
+    {
+        var identity = new ClaimsIdentity([
+            new Claim("SUB", "user"), new Claim(AuthClaimTypes.Subject, "user")
+        ], "oidc");
+        var context = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
+        context.Connection.RemoteIpAddress = IPAddress.Loopback;
+        var rule = new DefaultPostAuthRateLimitRule(new DrnAppFeatures());
+
+        rule.EvaluatePostAuth(context)!.Value.PartitionKey.Should().Be("user:oidc:user");
+
+        identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, "conflict"));
+        rule.EvaluatePostAuth(context)!.Value.PartitionKey.Should().Be("ip:127.0.0.1");
+    }
+
+    [Fact]
     public void Default_PostAuth_Rule_Should_Not_Partition_By_Mutable_User_Name()
     {
         var context = new DefaultHttpContext
@@ -220,9 +236,8 @@ public class RateLimitRuleTests
     }
 
     [Fact]
-    public void Sample_Development_RateLimit_Settings_Should_Bind_And_Produce_Expected_TokenBucket_Options()
+    public void Phase_Specific_TokenBucket_Options_Should_Inherit_Shared_Settings_When_Overrides_Are_Zero()
     {
-        // Mirrors exact values from Sample.Hosted/appsettings.Development.json
         var appSettings = AppSettings.Development(new
         {
             DrnAppFeatures = new
@@ -405,12 +420,22 @@ public class RateLimitRuleTests
         GetRuleHits(context).Should().Equal("first", "second");
     }
 
-    [Fact]
-    public async Task PostAuth_Scoped_ShortCircuit_Rule_Should_Run_First_For_Same_Order_And_Stop_On_Match()
+    [Theory]
+    [DataInlineUnit(false, false, "short")]
+    [DataInlineUnit(true, true, "singleton-short")]
+    [DataInlineUnit(true, false, "short")]
+    public async Task PostAuth_Same_Order_ShortCircuit_Rule_Should_Run_First_Across_Lifetimes(
+        bool normalSingleton, bool shortCircuitSingleton, string expectedHit)
     {
         var services = new ServiceCollection();
-        services.AddScoped<IScopedRateLimitRule, NormalScopedRule>();
-        services.AddScoped<IScopedRateLimitRule, SameOrderShortCircuitScopedRule>();
+        if (normalSingleton)
+            services.AddSingleton<ISingletonRateLimitRule, NormalSingletonRule>();
+        else
+            services.AddScoped<IScopedRateLimitRule, NormalScopedRule>();
+        if (shortCircuitSingleton)
+            services.AddSingleton<ISingletonRateLimitRule, SameOrderShortCircuitSingletonRule>();
+        else
+            services.AddScoped<IScopedRateLimitRule, SameOrderShortCircuitScopedRule>();
         services.AddSingleton<RateLimitRuleRegistry>();
         await using var provider = services.BuildServiceProvider();
         var registry = provider.GetRequiredService<RateLimitRuleRegistry>();
@@ -424,7 +449,7 @@ public class RateLimitRuleTests
         using var lease = await limiter.AcquireAsync(context);
 
         lease.IsAcquired.Should().BeTrue();
-        GetRuleHits(context).Should().Equal("short");
+        GetRuleHits(context).Should().Equal(expectedHit);
     }
 
     [Fact]
@@ -450,28 +475,6 @@ public class RateLimitRuleTests
     }
 
     [Fact]
-    public async Task PostAuth_Same_Order_Singleton_ShortCircuit_Rule_Should_Run_First_And_Stop_On_Match()
-    {
-        var services = new ServiceCollection();
-        services.AddSingleton<ISingletonRateLimitRule, NormalSingletonRule>();
-        services.AddSingleton<ISingletonRateLimitRule, SameOrderShortCircuitSingletonRule>();
-        services.AddSingleton<RateLimitRuleRegistry>();
-        await using var provider = services.BuildServiceProvider();
-        var registry = provider.GetRequiredService<RateLimitRuleRegistry>();
-        var limiter = RateLimitRuleChainFactory.Create(
-            registry,
-            RateLimitRulePhase.PostAuth,
-            static (rule, httpContext) => rule.EvaluatePostAuth(httpContext));
-        using var scope = provider.CreateScope();
-        var context = CreateScopedRuleContext(scope.ServiceProvider);
-
-        using var lease = await limiter.AcquireAsync(context);
-
-        lease.IsAcquired.Should().BeTrue();
-        GetRuleHits(context).Should().Equal("singleton-short");
-    }
-
-    [Fact]
     public async Task PostAuth_Deny_Rule_Should_Reject_And_Stop_Remaining_Rules()
     {
         var services = new ServiceCollection();
@@ -493,28 +496,6 @@ public class RateLimitRuleTests
         GetRuleHits(context).Should().Equal("singleton-deny");
         context.GetRateLimitRuleMatch()!.Value.Result.Action.Should().Be(RateLimitRuleAction.Deny);
         context.GetRejectedRateLimitRuleMatch()!.Value.Result.Action.Should().Be(RateLimitRuleAction.Deny);
-    }
-
-    [Fact]
-    public async Task PostAuth_Same_Order_Scoped_ShortCircuit_Rule_Should_Run_Before_Singleton_Normal_Rule()
-    {
-        var services = new ServiceCollection();
-        services.AddSingleton<ISingletonRateLimitRule, NormalSingletonRule>();
-        services.AddScoped<IScopedRateLimitRule, SameOrderShortCircuitScopedRule>();
-        services.AddSingleton<RateLimitRuleRegistry>();
-        await using var provider = services.BuildServiceProvider();
-        var registry = provider.GetRequiredService<RateLimitRuleRegistry>();
-        var limiter = RateLimitRuleChainFactory.Create(
-            registry,
-            RateLimitRulePhase.PostAuth,
-            static (rule, httpContext) => rule.EvaluatePostAuth(httpContext));
-        using var scope = provider.CreateScope();
-        var context = CreateScopedRuleContext(scope.ServiceProvider);
-
-        using var lease = await limiter.AcquireAsync(context);
-
-        lease.IsAcquired.Should().BeTrue();
-        GetRuleHits(context).Should().Equal("short");
     }
 
     [Fact]

@@ -8,5 +8,6 @@ public static class TestUtilsPlaceholderProgram
 {
     public static void Main(string[] args)
     {
+        // Placeholder entry point required for WebApplicationFactory deps file discovery; not executed directly.
     }
 }

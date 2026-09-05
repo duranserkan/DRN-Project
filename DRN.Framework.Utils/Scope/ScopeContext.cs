@@ -76,7 +76,7 @@ public class ScopeContext
         context.Trace = traceId ?? string.Empty;
         context.AppSettings = serviceProvider.GetRequiredService<IAppSettings>();
         context.ScopedLog = scopedLog ?? new ScopedLog(context.AppSettings);
-        context.ScopedUser = scopedUser ?? new ScopedUser();
+        context.ScopedUser = scopedUser ?? new ScopedUser(serviceProvider.GetService<AuthenticationClaimConfig>());
         context.ServiceProvider = serviceProvider;
 
         context._initialized = true;

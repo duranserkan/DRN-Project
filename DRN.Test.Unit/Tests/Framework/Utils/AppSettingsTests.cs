@@ -12,7 +12,7 @@ public class AppSettingsTests
         "DRN.Framework.Utils Development NexusKey material from 1881 to 193∞ Forever 2026-06-29 21:57:43 v1";
 
     [Fact]
-    public void AppSettings_Should_Be_Obtained()
+    public void AppSettings_Should_Create_Development_Settings_With_Derived_Default_NexusKey()
     {
         byte appId = 56;
         byte appInstanceId = 21;
@@ -23,28 +23,12 @@ public class AppSettingsTests
         settings.Environment.Should().Be(AppEnvironment.Development);
         settings.NexusAppSettings.AppId.Should().Be(appId);
         settings.NexusAppSettings.AppInstanceId.Should().Be(appInstanceId);
-    }
-
-    [Fact]
-    public void AppSettings_Should_Generate_Base64Url_NexusKey_In_Development_When_Default_Not_Configured()
-    {
-        byte appId = 56;
-        byte appInstanceId = 21;
-
-        var settings = AppSettings.Development(GetCustomSettings(appId, appInstanceId));
         var defaultNexusKey = settings.NexusAppSettings.GetDefaultKey();
 
         defaultNexusKey.Default.Should().BeTrue();
         defaultNexusKey.Format.Should().Be(ByteEncoding.Base64UrlEncoded);
         defaultNexusKey.KeyMaterial.Decode(ByteEncoding.Base64UrlEncoded).Length.Should().Be(32);
-    }
-
-    [Fact]
-    public void AppSettings_Should_Derive_Development_NexusKey_Material_With_Blake3_DeriveKey_Mode()
-    {
-        var settings = AppSettings.Development(GetCustomSettings(56, 21));
         var securitySettings = new AppSecuritySettings(settings.Features);
-        var defaultNexusKey = settings.NexusAppSettings.GetDefaultKey();
 
         defaultNexusKey.KeyMaterial.Should().Be(DeriveExpectedDevelopmentNexusKeyMaterial(securitySettings));
     }
@@ -198,23 +182,11 @@ public class AppSettingsTests
         settings.NexusAppSettings.Keys.Should().Contain(key => key.KeyMaterial == configuredKey.KeyMaterial && !key.Default);
     }
 
-    [Fact]
-    public void AppSettings_Should_Throw_Validation_Exception_For_Invalid_NexusAppId()
+    [Theory]
+    [DataInlineUnit((byte)128, (byte)21)]
+    [DataInlineUnit((byte)61, (byte)64)]
+    public void AppSettings_Should_Throw_Validation_Exception_For_Invalid_Nexus_Identifiers(byte appId, byte appInstanceId)
     {
-        byte appId = 128;
-        byte appInstanceId = 21;
-
-        var custom = GetCustomSettings(appId, appInstanceId);
-        var action = () => AppSettings.Development(custom);
-        action.Should().ThrowExactly<ValidationException>();
-    }
-
-    [Fact]
-    public void AppSettings_Should_Throw_Validation_Exception_For_Invalid_NexusAppInstanceId()
-    {
-        byte appId = 61;
-        byte appInstanceId = 64;
-
         var custom = GetCustomSettings(appId, appInstanceId);
         var action = () => AppSettings.Development(custom);
         action.Should().ThrowExactly<ValidationException>();

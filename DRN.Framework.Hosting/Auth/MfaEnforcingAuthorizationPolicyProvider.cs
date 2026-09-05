@@ -12,6 +12,9 @@ public class MfaEnforcingAuthorizationPolicyProvider(IOptions<AuthorizationOptio
     private readonly AuthorizationOptions _options = options.Value;
     private readonly bool _enforceMFA = MfaAuthorization.IsMfaEnforced(options.Value);
 
+    // This provider uses fixed authorization options. Derived providers must opt in themselves.
+    public virtual bool AllowsCachingPolicies => GetType() == typeof(MfaEnforcingAuthorizationPolicyProvider);
+
     public Task<AuthorizationPolicy> GetDefaultPolicyAsync() => Task.FromResult(_options.DefaultPolicy);
     public Task<AuthorizationPolicy?> GetFallbackPolicyAsync() => _policyProvider.GetFallbackPolicyAsync();
 

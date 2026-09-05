@@ -33,28 +33,18 @@ public class AppSecuritySettingsTests
         decodedAppKey.Length.Should().Be(8);
     }
 
-    [Fact]
-    public void SecuritySettings_Should_Derive_Values_With_Blake3_DeriveKey_Mode()
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void SecuritySettings_Should_Derive_Values_With_Blake3_DeriveKey_Mode(bool useDefaultConstructor)
     {
         var features = new DrnAppFeatures();
-        var securitySettings = new AppSecuritySettings(features);
+        var securitySettings = useDefaultConstructor ? new AppSecuritySettings() : new AppSecuritySettings(features);
 
         securitySettings.AppHashKey.Should().Be(DeriveBase64UrlKey(features.SeedKey, AppHashKeyDerivationContext));
         securitySettings.AppEncryptionKey.Should().Be(DeriveBase64UrlKey(features.SeedKey, AppEncryptionKeyDerivationContext));
         securitySettings.AppKey.Should().Be(DeriveBase64UrlKey(features.SeedKey, AppKeyDerivationContext)[..8]);
         securitySettings.AppSeed.Should().Be(DeriveSeed(features.SeedKey));
-    }
-
-    [Fact]
-    public void SecuritySettings_Should_Support_Internal_Default_Constructor_For_Testing()
-    {
-        var defaultFeatures = new DrnAppFeatures();
-        var securitySettingsDefault = new AppSecuritySettings();
-
-        securitySettingsDefault.AppHashKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppHashKeyDerivationContext));
-        securitySettingsDefault.AppEncryptionKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppEncryptionKeyDerivationContext));
-        securitySettingsDefault.AppKey.Should().Be(DeriveBase64UrlKey(defaultFeatures.SeedKey, AppKeyDerivationContext)[..8]);
-        securitySettingsDefault.AppSeed.Should().Be(DeriveSeed(defaultFeatures.SeedKey));
     }
 
     [Fact]

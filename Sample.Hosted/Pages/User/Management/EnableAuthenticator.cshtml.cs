@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Identity;
-using DRN.Framework.Utils.Auth.MFA;
+using DRN.Framework.Utils.Auth;
 using Flurl;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
@@ -69,10 +69,9 @@ public class EnableAuthenticator(SignInManager<SampleUser> signInManager, UserMa
     private async Task<bool> CanManageAsync(SampleUser user)
     {
         var services = HttpContext.RequestServices;
-        var config = services.GetRequiredService<MfaClaimConfig>();
+        var config = services.GetRequiredService<AuthenticationClaimConfig>();
         var enforced = MfaAuthorization.IsMfaEnforced(services.GetRequiredService<IOptions<AuthorizationOptions>>().Value);
-        return IdentityMfaPolicy.CanManage(User, await userManager.GetTwoFactorEnabledAsync(user), enforced, config,
-            userManager.Options.ClaimsIdentity.UserIdClaimType);
+        return IdentityMfaPolicy.CanManage(User, await userManager.GetTwoFactorEnabledAsync(user), enforced, config);
     }
 
     public string GenerateQrCodeImageAsBase64()

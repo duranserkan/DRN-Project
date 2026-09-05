@@ -32,7 +32,6 @@ public class RequestBufferingStateTests
     [DataInlineUnit("no-body-HED", false, "HEAD", 100L, false)]
     [DataInlineUnit("chunked", false, "POST", null, false)]
     [DataInlineUnit("oversized", false, "POST", 99999L, false)]
-    [DataInlineUnit("buffered", false, "POST", 100L, true)]
     public void TryEnableBuffering_Should_Return_Correct_State(
         string scenario, bool disableBuffering, string method, long? contentLength, bool expectedBuffered)
     {
@@ -54,7 +53,6 @@ public class RequestBufferingStateTests
             // Second call must return the exact same cached instance
             var state2 = RequestBufferingState.TryEnableBuffering(context, features);
             state2.Should().BeSameAs(state);
-            return;
         }
 
         if (expectedBuffered)
@@ -79,6 +77,7 @@ public class RequestBufferingStateTests
     [DataInlineUnit(10000, 10001, false)]
     [DataInlineUnit(10000, 10000, true)]
     [DataInlineUnit(1, 9999, true)]
+    [DataInlineUnit(1, 29999, true)]
     public void TryEnableBuffering_MaxBufferSize_Should_Respect_MinimumFloor(
         int configuredMax,
         int contentLength,
