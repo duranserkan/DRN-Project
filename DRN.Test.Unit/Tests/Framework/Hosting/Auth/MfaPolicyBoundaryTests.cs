@@ -188,15 +188,6 @@ public class MfaPolicyBoundaryTests
         IdentityMfaPolicy.CanManage(user, true, true, AuthenticationClaimConfig.Default).Should().BeFalse();
     }
 
-    [Fact]
-    public void Transformed_Proof_Requires_Subject_And_Issuer()
-    {
-        MfaPrincipal.MatchesIdentity(new ClaimsIdentity("key"), new ClaimsIdentity("key")).Should().BeFalse();
-        var user = Principal("key", "user");
-        var equivalent = Principal("key", "user");
-        MfaPrincipal.MatchesIdentity((ClaimsIdentity)user.Identity!, (ClaimsIdentity)equivalent.Identity!).Should().BeTrue();
-    }
-
     [Theory]
     [DataInlineUnit(false, false, false, true)]
     [DataInlineUnit(false, true, false, false)]

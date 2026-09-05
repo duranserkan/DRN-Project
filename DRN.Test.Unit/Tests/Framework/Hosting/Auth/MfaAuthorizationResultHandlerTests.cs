@@ -108,7 +108,7 @@ public class MfaAuthorizationResultHandlerTests
 
     [Theory]
     [DataInlineUnit]
-    public async Task Untraced_Audit_Should_Use_Correlation_Without_A_TraceId(DrnTestContextUnit context)
+    public async Task Failed_Authorization_Should_Be_Delegated_And_Audited_Without_A_TraceId(DrnTestContextUnit context)
     {
         var previous = Activity.Current;
         try
@@ -129,6 +129,7 @@ public class MfaAuthorizationResultHandlerTests
 
             await handler.HandleAsync(_ => Task.CompletedTask, http, options.DefaultPolicy, PolicyAuthorizationResult.Forbid());
 
+            http.Response.StatusCode.Should().Be((int)HttpStatusCode.Forbidden);
             var logged = logger.Events.Should().ContainSingle().Which;
             logged.Fields["TraceId"].Should().BeNull();
             logged.Fields["CorrelationId"].Should().Be(scopedLog.CorrelationId);
@@ -138,21 +139,6 @@ public class MfaAuthorizationResultHandlerTests
         {
             Activity.Current = previous;
         }
-    }
-
-    [Theory]
-    [DataInlineUnit]
-    public async Task Failed_Authorization_Should_Be_Delegated(DrnTestContextUnit context)
-    {
-        context.ServiceCollection.AddAuthentication("Test")
-            .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>("Test", _ => { });
-        var http = new DefaultHttpContext { RequestServices = context.BuildServiceProvider() };
-        var options = EnforcedOptions();
-        var handler = new MfaEnforcingAuthorizationMiddlewareResultHandler(Options.Create(options));
-
-        await handler.HandleAsync(_ => Task.CompletedTask, http, options.DefaultPolicy, PolicyAuthorizationResult.Forbid());
-
-        http.Response.StatusCode.Should().Be((int)HttpStatusCode.Forbidden);
     }
 
     [Theory]

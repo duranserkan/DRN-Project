@@ -238,7 +238,9 @@ public class BearerMfaEnforcementTests
     [DataInline(MfaPipelineTestValues.RoleProtectedPath, MfaPipelineTestValues.SetupCredential, HttpStatusCode.Forbidden)]
     [DataInline(MfaPipelineTestValues.RoleProtectedPath, MfaPipelineTestValues.SetupAndCompletedCredential, HttpStatusCode.Forbidden)]
     [DataInline(MfaPipelineTestValues.RoleProtectedPath, MfaPipelineTestValues.CompletedCredential, HttpStatusCode.OK)]
-    public async Task Default_And_Role_Policies_Should_Enforce_Mfa(
+    [DataInline(MfaPipelineTestValues.NamedSchemeProtectedPath, MfaPipelineTestValues.CompletedCredential, HttpStatusCode.OK)]
+    [DataInline(MfaPipelineTestValues.NamedSchemeProtectedPath, MfaPipelineTestValues.InvalidCredential, HttpStatusCode.Unauthorized)]
+    public async Task Default_Role_And_Named_Policies_Should_Enforce_Mfa_And_Selected_Scheme(
         DrnTestContext context, string path, string? credential, HttpStatusCode expectedStatus)
     {
         using var client = await context.ApplicationContext.CreateClientAsync<MfaExemptionPipelineTestProgram>();
@@ -248,22 +250,7 @@ public class BearerMfaEnforcementTests
 
         using var response = await client.SendAsync(request);
         response.StatusCode.Should().Be(expectedStatus);
-    }
-
-    [Theory]
-    [DataInline(MfaPipelineTestValues.CompletedCredential, HttpStatusCode.OK)]
-    [DataInline(MfaPipelineTestValues.InvalidCredential, HttpStatusCode.Unauthorized)]
-    public async Task Named_Policy_Should_Enforce_Its_Configured_Scheme(
-        DrnTestContext context, string credential, HttpStatusCode expectedStatus)
-    {
-        using var client = await context.ApplicationContext.CreateClientAsync<MfaExemptionPipelineTestProgram>();
-        using var request = new HttpRequestMessage(HttpMethod.Get, MfaPipelineTestValues.NamedSchemeProtectedPath);
-        request.Headers.Add(MfaPipelineTestValues.CredentialHeader, credential);
-
-        using var response = await client.SendAsync(request);
-
-        response.StatusCode.Should().Be(expectedStatus);
-        if (expectedStatus == HttpStatusCode.OK)
+        if (path == MfaPipelineTestValues.NamedSchemeProtectedPath && expectedStatus == HttpStatusCode.OK)
             (await response.Content.ReadAsStringAsync()).Should().Be(MfaPipelineTestValues.NamedAuthenticationScheme);
     }
 

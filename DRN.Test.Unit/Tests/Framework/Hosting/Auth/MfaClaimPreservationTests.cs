@@ -82,6 +82,8 @@ public class MfaClaimPreservationTests
         var nextTarget = Account("user", "issuer", "renewed-again");
         MfaClaimPreservation.Preserve(renewed, nextTarget, config);
         MfaPrincipal.IsCompleted(new ClaimsPrincipal(nextTarget), config).Should().Be(expected);
+        nextTarget.HasClaim(claimType, claimValue).Should().Be(expected);
+        nextTarget.HasClaim("auth_time", "1700000000").Should().Be(hasTimestamp && expected);
     }
 
     [Theory]
@@ -209,6 +211,8 @@ public class MfaClaimPreservationTests
         target.FindAll(claimType).Should().ContainSingle();
         var preserved = target.FindAll(claimType).Single(claim => claim.Issuer == issuer);
         preserved.ValueType.Should().Be(original.ValueType);
+        preserved.Value.Should().Be(original.Value);
+        preserved.Issuer.Should().Be(original.Issuer);
         preserved.OriginalIssuer.Should().Be(original.OriginalIssuer);
         preserved.Properties.Should().BeEquivalentTo(original.Properties);
         preserved.Subject.Should().BeSameAs(target);

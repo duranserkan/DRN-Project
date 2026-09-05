@@ -7,6 +7,20 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Auth.MFA;
 public class MfaPrincipalTests
 {
     [Fact]
+    public void Transformed_Proof_Should_Require_Matching_Subject_And_Issuer()
+    {
+        MfaPrincipal.MatchesIdentity(new ClaimsIdentity("key"), new ClaimsIdentity("key")).Should().BeFalse();
+        var identity = new ClaimsIdentity([new Claim("sub", "user", ClaimValueTypes.String, "issuer")], "key");
+        var equivalent = new ClaimsIdentity([new Claim("sub", "user", ClaimValueTypes.String, "issuer")], "key");
+        MfaPrincipal.MatchesIdentity(identity, equivalent).Should().BeTrue();
+
+        var otherIssuer = new ClaimsIdentity([new Claim("sub", "user", ClaimValueTypes.String, "other-issuer")], "key");
+        MfaPrincipal.MatchesIdentity(identity, otherIssuer).Should().BeFalse();
+        var otherSubject = new ClaimsIdentity([new Claim("sub", "other-user", ClaimValueTypes.String, "issuer")], "key");
+        MfaPrincipal.MatchesIdentity(identity, otherSubject).Should().BeFalse();
+    }
+
+    [Fact]
     public void SingleAccount_Should_Preserve_Anonymous_Single_And_Multiple_Identity_Boundaries()
     {
         var principal = new ClaimsPrincipal(new ClaimsIdentity());

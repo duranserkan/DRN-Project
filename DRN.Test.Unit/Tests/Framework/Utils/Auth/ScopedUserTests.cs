@@ -37,24 +37,16 @@ public class ScopedUserTests
     }
 
     [Fact]
-    public void GetClaimParameter_Should_Parse_Existing_Claim_Per_Call()
+    public void GetClaimParameter_Should_Parse_Per_Call_And_Requested_Target_Type()
     {
         var scopedUser = CreateScopedUser(new Claim(ClaimType, "41", ClaimValueTypes.Integer, NumericIssuer));
         ParseTrackedClaim.Reset();
 
+        scopedUser.GetClaimParameter<int>(ClaimType, NumericIssuer).Should().Be(41);
         scopedUser.GetClaimParameter<ParseTrackedClaim>(ClaimType, NumericIssuer).Should().Be(new ParseTrackedClaim(41));
         scopedUser.GetClaimParameter<ParseTrackedClaim>(ClaimType, NumericIssuer).Should().Be(new ParseTrackedClaim(41));
 
         ParseTrackedClaim.ParseCount.Should().Be(2);
-    }
-
-    [Fact]
-    public void GetClaimParameter_Should_Parse_Existing_Claim_As_Requested_Target_Type()
-    {
-        var scopedUser = CreateScopedUser(new Claim(ClaimType, "41", ClaimValueTypes.Integer, NumericIssuer));
-
-        scopedUser.GetClaimParameter<int>(ClaimType, NumericIssuer).Should().Be(41);
-        scopedUser.GetClaimParameter<ParseTrackedClaim>(ClaimType, NumericIssuer).Should().Be(new ParseTrackedClaim(41));
     }
 
     [Theory]
