@@ -26,6 +26,7 @@ public class DrnServiceContainerTests
         context.GetKeyedServices<IKeyed>("Multiple").Count().Should().Be(2);
         context.GetRequiredKeyedService<IKeyed>(Keyed.First);
         context.GetRequiredKeyedService<IKeyed>(Keyed.Second);
+        context.GetServices<IMultiple>().ToArray().Length.Should().Be(2);
 
         await context.ValidateServicesAsync();
     }
@@ -50,14 +51,6 @@ public class DrnServiceContainerTests
 
         var action = context.ValidateServicesAsync;
         await action.Should().ThrowAsync<InvalidOperationException>();
-    }
-
-    [Theory]
-    [DataInline]
-    public void Lifetime_Attributes_Should_Add_Multiple(DrnTestContext context)
-    {
-        context.ServiceCollection.AddTestModule();
-        context.GetServices<IMultiple>().ToArray().Length.Should().Be(2);
     }
 
     [Theory]

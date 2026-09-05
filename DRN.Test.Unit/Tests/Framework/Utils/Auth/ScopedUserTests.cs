@@ -57,46 +57,25 @@ public class ScopedUserTests
         scopedUser.GetClaimParameter<ParseTrackedClaim>(ClaimType, NumericIssuer).Should().Be(new ParseTrackedClaim(41));
     }
 
-    [Fact]
-    public void GetClaimParameter_Should_Return_Typed_Default_Without_Parsing()
+    [Theory]
+    [DataInlineUnit(null, 41, 41, 0)]
+    [DataInlineUnit("invalid", 41, 41, 2)]
+    [DataInlineUnit("41", 99, 41, 2)]
+    public void GetClaimParameter_Should_Resolve_Typed_Fallback_For_Concrete_And_Default_Interface_Implementations(
+        string? claimValue, int fallbackValue, int expectedValue, int expectedParseCount)
     {
-        var scopedUser = CreateScopedUser();
+        var scopedUser = claimValue == null
+            ? CreateScopedUser()
+            : CreateScopedUser(new Claim(ClaimType, claimValue, ClaimValueTypes.Integer, NumericIssuer));
         IScopedUser interfaceDefault = new DefaultGetClaimParameterScopedUser(scopedUser);
-        var expected = new ParseTrackedClaim(41);
+        var fallback = new ParseTrackedClaim(fallbackValue);
+        var expected = new ParseTrackedClaim(expectedValue);
         ParseTrackedClaim.Reset();
 
-        scopedUser.GetClaimParameter(ClaimType, NumericIssuer, expected).Should().Be(expected);
-        interfaceDefault.GetClaimParameter(ClaimType, NumericIssuer, expected).Should().Be(expected);
+        scopedUser.GetClaimParameter(ClaimType, NumericIssuer, fallback).Should().Be(expected);
+        interfaceDefault.GetClaimParameter(ClaimType, NumericIssuer, fallback).Should().Be(expected);
 
-        ParseTrackedClaim.ParseCount.Should().Be(0);
-    }
-
-    [Fact]
-    public void GetClaimParameter_Should_Return_DefaultValue_For_Unparsable_Claim()
-    {
-        var scopedUser = CreateScopedUser(new Claim(ClaimType, "invalid", ClaimValueTypes.Integer, NumericIssuer));
-        IScopedUser interfaceDefault = new DefaultGetClaimParameterScopedUser(scopedUser);
-        var fallback = new ParseTrackedClaim(41);
-        ParseTrackedClaim.Reset();
-
-        scopedUser.GetClaimParameter(ClaimType, NumericIssuer, fallback).Should().Be(fallback);
-        interfaceDefault.GetClaimParameter(ClaimType, NumericIssuer, fallback).Should().Be(fallback);
-
-        ParseTrackedClaim.ParseCount.Should().Be(2);
-    }
-
-    [Fact]
-    public void GetClaimParameter_Should_Return_Parsed_Value_Over_Non_Default_Fallback_When_Claim_Is_Valid()
-    {
-        var scopedUser = CreateScopedUser(new Claim(ClaimType, "41", ClaimValueTypes.Integer, NumericIssuer));
-        IScopedUser interfaceDefault = new DefaultGetClaimParameterScopedUser(scopedUser);
-        var fallback = new ParseTrackedClaim(99);
-        ParseTrackedClaim.Reset();
-
-        scopedUser.GetClaimParameter(ClaimType, NumericIssuer, fallback).Should().Be(new ParseTrackedClaim(41));
-        interfaceDefault.GetClaimParameter(ClaimType, NumericIssuer, fallback).Should().Be(new ParseTrackedClaim(41));
-
-        ParseTrackedClaim.ParseCount.Should().Be(2);
+        ParseTrackedClaim.ParseCount.Should().Be(expectedParseCount);
     }
 
     [Fact]

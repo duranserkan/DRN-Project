@@ -16,20 +16,23 @@ public class DrnContextDevelopmentConnectionTests
     [DataInline(AppEnvironment.Production, "ViveLaRépublique", true)]
     public async Task ConnectionString_Should_Be_Created(DrnTestContext testContext, AppEnvironment environment, string password, bool migrate)
     {
-        var containerSettings = new PostgresContainerSettings
+        var host = DbContextConventions.DefaultHost;
+        var port = DbContextConventions.DefaultPort;
+        if (environment == AppEnvironment.Development)
         {
-            Password = password
-        };
-
-        var container = await testContext.ContainerContext.Postgres.Isolated.StartAsync(containerSettings);
-        var csBuilder = new NpgsqlConnectionStringBuilder(container.GetConnectionString());
+            var containerSettings = new PostgresContainerSettings { Password = password };
+            var container = await testContext.ContainerContext.Postgres.Isolated.StartAsync(containerSettings);
+            var csBuilder = new NpgsqlConnectionStringBuilder(container.GetConnectionString());
+            host = csBuilder.Host!;
+            port = csBuilder.Port;
+        }
 
         var developmentDbSettings = new Dictionary<string, object>
         {
             { nameof(AppSettings.Environment), environment },
             { DbContextConventions.DevPasswordKey, password },
-            { DbContextConventions.DevHostKey, csBuilder.Host! },
-            { DbContextConventions.DevPortKey, csBuilder.Port },
+            { DbContextConventions.DevHostKey, host },
+            { DbContextConventions.DevPortKey, port },
             { DrnDevelopmentSettings.GetKey(nameof(DrnDevelopmentSettings.AutoMigrateDevelopment)), migrate }
         };
 

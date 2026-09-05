@@ -7,40 +7,23 @@ public class MethodUtilsStaticTests
 
     private const string TypeMethodName = nameof(GetWithTypeStatic);
 
-    [Fact]
-    public void FindMethod_Should_Find_NonGeneric_Method()
+    [Theory]
+    [DataInlineUnit(false, false)]
+    [DataInlineUnit(true, false)]
+    [DataInlineUnit(false, true)]
+    [DataInlineUnit(true, true)]
+    public void Discovery_Should_Find_Static_Method(bool uncached, bool generic)
     {
-        var method = Type.FindMethod(StaticMethodName, 0, BindingFlag.StaticPublic);
+        var method = (uncached, generic) switch
+        {
+            (false, false) => Type.FindMethod(StaticMethodName, 0, BindingFlag.StaticPublic),
+            (true, false) => Type.FindMethodUncached(StaticMethodName, 0, BindingFlag.StaticPublic),
+            (false, true) => Type.FindMethod(StaticMethodName, [Type], 0, BindingFlag.StaticPublic),
+            (true, true) => Type.FindMethodUncached(StaticMethodName, [Type], 0, BindingFlag.StaticPublic)
+        };
         method.Should().NotBeNull();
         method.Name.Should().Be(StaticMethodName);
-        method.IsGenericMethod.Should().BeFalse();
-    }
-
-    [Fact]
-    public void FindMethodUncached_Should_Find_NonGeneric_Method()
-    {
-        var method = Type.FindMethodUncached(StaticMethodName, 0, BindingFlag.StaticPublic);
-        method.Should().NotBeNull();
-        method.Name.Should().Be(StaticMethodName);
-        method.IsGenericMethod.Should().BeFalse();
-    }
-
-    [Fact]
-    public void FindMethod_Should_Find_Generic_Method()
-    {
-        var method = Type.FindMethod(StaticMethodName, [Type], 0, BindingFlag.StaticPublic);
-        method.Should().NotBeNull();
-        method.Name.Should().Be(StaticMethodName);
-        method.IsGenericMethod.Should().BeTrue();
-    }
-
-    [Fact]
-    public void FindMethodUncached_Should_Find_Generic_Method()
-    {
-        var method = Type.FindMethodUncached(StaticMethodName, [Type], 0, BindingFlag.StaticPublic);
-        method.Should().NotBeNull();
-        method.Name.Should().Be(StaticMethodName);
-        method.IsGenericMethod.Should().BeTrue();
+        method.IsGenericMethod.Should().Be(generic);
     }
 
     [Fact]

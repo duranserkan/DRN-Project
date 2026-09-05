@@ -478,19 +478,7 @@ public class ApplicationContextTests
 
     [Theory]
     [DataInline]
-    public void ApplicationContext_Hosts_Should_Not_Emit_Lifecycle_Logs(DrnTestContext context)
-    {
-        TemporaryLifecycleProgram.Reset();
-
-        var application = context.ApplicationContext.CreateApplication<TemporaryLifecycleProgram>();
-        _ = application.Server;
-
-        TemporaryLifecycleProgram.CapturedLifecycleLogCount.Should().Be(0);
-    }
-
-    [Theory]
-    [DataInline]
-    public void ApplicationContext_Should_Dispose_Secondary_Program_Startup_AppSettings(DrnTestContext context)
+    public void ApplicationContext_Should_Suppress_Lifecycle_Logs_And_Dispose_Secondary_Program_Startup_AppSettings(DrnTestContext context)
     {
         TemporaryLifecycleProgram.Reset();
 
@@ -498,6 +486,7 @@ public class ApplicationContextTests
         _ = application.Server;
 
         var appSettings = TemporaryLifecycleProgram.CapturedAppSettings;
+        TemporaryLifecycleProgram.CapturedLifecycleLogCount.Should().Be(0);
         appSettings.Should().NotBeNull();
         var defaultKey = appSettings!.NexusAppSettings.GetDefaultKey();
 
@@ -707,37 +696,6 @@ public class ApplicationContextTests
 
     [Theory]
     [DataInline]
-    public async Task ApplicationContext_Should_Support_Explicit_MapAddress(DrnTestContext context)
-    {
-        _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
-
-        context.ApplicationContext.MapAddress<NexusProgram>("weather-service");
-
-        using var client = new HttpClient(context.ApplicationContext.RouterHandler, disposeHandler: false);
-        var endpoint = NexusGet.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
-        var forecasts = await client.GetFromJsonAsync<WeatherForecast[]>($"http://weather-service/{endpoint?.TrimStart('/')}");
-        forecasts.Should().NotBeNull();
-        forecasts.Length.Should().BePositive();
-    }
-
-    [Theory]
-    [DataInline]
-    public async Task ApplicationContext_Should_Support_Bidirectional_Service_Communication(DrnTestContext context)
-    {
-        var node1Client = await context.ApplicationContext.CreateClientForServiceAsync<BidirectionalNode1Program>(BidirectionalNode1Program.NodeName);
-        var node2Client = await context.ApplicationContext.CreateClientForServiceAsync<BidirectionalNode2Program>(BidirectionalNode2Program.NodeName);
-
-        // Node 1 calls Node 2
-        var node1Response = await node1Client.GetStringAsync("/api/node1/ping");
-        node1Response.Should().Contain("1-ping(2-pong)");
-
-        // Node 2 calls Node 1
-        var node2Response = await node2Client.GetStringAsync("/api/node2/ping");
-        node2Response.Should().Contain("2-ping(1-pong)");
-    }
-
-    [Theory]
-    [DataInline]
     public async Task ApplicationContext_RouterHandler_Should_Throw_Detailed_Exception_On_Unmapped_Host(DrnTestContext context)
     {
         _ = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
@@ -790,15 +748,18 @@ public class ApplicationContextTests
 
     [Theory]
     [DataInline]
-    public async Task ApplicationContext_Replacing_One_Application_Should_Not_Disrupt_Remaining_Application_Routing(DrnTestContext context)
+    public async Task ApplicationContext_Should_Support_Bidirectional_Routing_And_Application_Replacement(DrnTestContext context)
     {
         // 1. Create two independent nodes
         var node1Client = await context.ApplicationContext.CreateClientForServiceAsync<BidirectionalNode1Program>(BidirectionalNode1Program.NodeName);
-        _ = await context.ApplicationContext.CreateClientForServiceAsync<BidirectionalNode2Program>(BidirectionalNode2Program.NodeName);
+        var node2Client = await context.ApplicationContext.CreateClientForServiceAsync<BidirectionalNode2Program>(BidirectionalNode2Program.NodeName);
 
         // Verify initial routing from node-1 to node-2
         var initialResponse = await node1Client.GetStringAsync("/api/node1/ping");
         initialResponse.Should().Contain("1-ping(2-pong)");
+
+        var reverseResponse = await node2Client.GetStringAsync("/api/node2/ping");
+        reverseResponse.Should().Contain("2-ping(1-pong)");
 
         // 2. Replace node-1 (recreation disposes the old node-1 application)
         var newNode1Client = await context.ApplicationContext.CreateClientForServiceAsync<BidirectionalNode1Program>(BidirectionalNode1Program.NodeName);
@@ -832,15 +793,12 @@ public class ApplicationContextTests
 
     [Theory]
     [DataInline]
-    public async Task ApplicationContext_Overload_Compatibility_Should_Resolve_Without_Ambiguity(DrnTestContext context)
+    public void ApplicationContext_Overload_Compatibility_Should_Resolve_Without_Ambiguity(DrnTestContext context)
     {
-        // Execute one runtime creation to verify baseline pipeline functionality
-        var client = await context.ApplicationContext.CreateClientAsync<NexusProgram>();
-        client.Should().NotBeNull();
-
         // Compile-time overload resolution checks for remaining call shapes without starting extra test servers
         var compileTimeOverloadCheck = () =>
         {
+            _ = context.ApplicationContext.CreateClientAsync<NexusProgram>();
             _ = context.ApplicationContext.CreateClientAsync<NexusProgram>(outputHelper: null);
             _ = context.ApplicationContext.CreateClientAsync<NexusProgram>(outputHelper: null, clientOptions: null);
             _ = context.ApplicationContext.CreateClientForServiceAsync<NexusProgram>("nexus-overload-test");

@@ -48,31 +48,17 @@ public class LongBuilderUnsignedShortTests
     }
 
     [Theory]
-    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x0000_FFFF_0000_0000)] // Mask for first 4 MSBs
-    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 65535L)] // Mask for first 4 LSBs
-    public void LongBuilder_Should_Build_First_16_Significant_Bits_With_Shorts(NumberBuildDirection direction, long mask)
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 1, 0x0000_FFFF_0000_0000)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 1, 65535L)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 2, 0x0000_FFFF_FFFF_0000)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 2, 0x0000_0000_FFFF_FFFF)]
+    public void LongBuilder_Should_Position_Leading_Shorts(NumberBuildDirection direction, int count, long mask)
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
         var builder = NumberBuilder.GetLong(direction, 15);
-        builder.TryAddUShort(ushort.MaxValue);
-
-        builder.IsPositive().Should().BeFalse();
-
-        var actual = builder.GetValue();
-        actual.Should().Be(expected);
-    }
-
-    [Theory]
-    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x0000_FFFF_FFFF_0000)] // Mask for first 8 MSBs
-    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 0x0000_0000_FFFF_FFFF)] // Mask for first 8 LSBs
-    public void LongBuilder_Should_Build_First_32_Significant_Bits_With_Shorts(NumberBuildDirection direction, long mask)
-    {
-        var expected = long.MinValue + (long.MaxValue & mask);
-
-        var builder = NumberBuilder.GetLong(direction, 15);
-        builder.TryAddUShort(ushort.MaxValue);
-        builder.TryAddUShort(ushort.MaxValue);
+        for (var index = 0; index < count; index++)
+            builder.TryAddUShort(ushort.MaxValue).Should().BeTrue();
 
         builder.IsPositive().Should().BeFalse();
 
@@ -83,7 +69,7 @@ public class LongBuilderUnsignedShortTests
     [Theory]
     [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
     [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
-    public void LongBuilder_TryAddByte_Should_Return_False_When_All_Available_Slots_Filled_With_Shorts(NumberBuildDirection direction)
+    public void LongBuilder_TryAddUShort_Should_Return_False_When_All_Available_Slots_Filled_With_Shorts(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 15);
         var added = false;

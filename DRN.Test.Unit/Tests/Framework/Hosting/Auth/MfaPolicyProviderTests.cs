@@ -41,42 +41,28 @@ public class MfaPolicyProviderTests
         policy.AuthenticationSchemes.Should().ContainSingle().Which.Should().Be("ApiKey");
     }
 
-    [Fact]
-    public async Task Named_Policy_Should_Not_Inherit_Default_Authentication_Schemes()
+    [Theory]
+    [DataInlineUnit("ApiKey", "ApiKey")]
+    [DataInlineUnit(null, "Cookies")]
+    public async Task Named_Policy_Should_Inherit_Default_Schemes_Only_When_None_Are_Configured(
+        string? namedScheme, string expectedScheme)
     {
         var options = new AuthorizationOptions
         {
             DefaultPolicy = new AuthorizationPolicyBuilder("Cookies").AddRequirements(new MfaRequirement()).Build()
         };
-        options.AddPolicy("ApiKeyPolicy", policy =>
+        options.AddPolicy("NamedPolicy", policy =>
         {
-            policy.AuthenticationSchemes.Add("ApiKey");
+            if (namedScheme != null)
+                policy.AuthenticationSchemes.Add(namedScheme);
             policy.RequireAuthenticatedUser();
         });
         var provider = new MfaEnforcingAuthorizationPolicyProvider(Options.Create(options));
 
-        var policy = await provider.GetPolicyAsync("ApiKeyPolicy");
+        var policy = await provider.GetPolicyAsync("NamedPolicy");
 
         policy.Should().NotBeNull();
-        policy.AuthenticationSchemes.Should().ContainSingle().Which.Should().Be("ApiKey");
-        policy.Requirements.Should().ContainSingle(requirement => requirement is MfaRequirement);
-        policy.Requirements.Should().ContainSingle(requirement => requirement is DenyAnonymousAuthorizationRequirement);
-    }
-
-    [Fact]
-    public async Task Named_Policy_Without_Schemes_Should_Inherit_Default_Authentication_Schemes()
-    {
-        var options = new AuthorizationOptions
-        {
-            DefaultPolicy = new AuthorizationPolicyBuilder("Cookies").AddRequirements(new MfaRequirement()).Build()
-        };
-        options.AddPolicy("CookiePolicy", policy => policy.RequireAuthenticatedUser());
-        var provider = new MfaEnforcingAuthorizationPolicyProvider(Options.Create(options));
-
-        var policy = await provider.GetPolicyAsync("CookiePolicy");
-
-        policy.Should().NotBeNull();
-        policy.AuthenticationSchemes.Should().ContainSingle().Which.Should().Be("Cookies");
+        policy.AuthenticationSchemes.Should().ContainSingle().Which.Should().Be(expectedScheme);
         policy.Requirements.Should().ContainSingle(requirement => requirement is MfaRequirement);
         policy.Requirements.Should().ContainSingle(requirement => requirement is DenyAnonymousAuthorizationRequirement);
     }

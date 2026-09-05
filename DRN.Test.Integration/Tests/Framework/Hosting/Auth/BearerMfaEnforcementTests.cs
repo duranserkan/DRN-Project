@@ -251,30 +251,20 @@ public class BearerMfaEnforcementTests
     }
 
     [Theory]
-    [DataInline]
-    public async Task Named_Policy_Should_Authenticate_With_Its_Configured_Scheme(DrnTestContext context)
+    [DataInline(MfaPipelineTestValues.CompletedCredential, HttpStatusCode.OK)]
+    [DataInline(MfaPipelineTestValues.InvalidCredential, HttpStatusCode.Unauthorized)]
+    public async Task Named_Policy_Should_Enforce_Its_Configured_Scheme(
+        DrnTestContext context, string credential, HttpStatusCode expectedStatus)
     {
         using var client = await context.ApplicationContext.CreateClientAsync<MfaExemptionPipelineTestProgram>();
         using var request = new HttpRequestMessage(HttpMethod.Get, MfaPipelineTestValues.NamedSchemeProtectedPath);
-        request.Headers.Add(MfaPipelineTestValues.CredentialHeader, MfaPipelineTestValues.CompletedCredential);
+        request.Headers.Add(MfaPipelineTestValues.CredentialHeader, credential);
 
         using var response = await client.SendAsync(request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await response.Content.ReadAsStringAsync()).Should().Be(MfaPipelineTestValues.NamedAuthenticationScheme);
-    }
-
-    [Theory]
-    [DataInline]
-    public async Task Named_Policy_Should_Reject_When_Configured_Scheme_Authentication_Fails(DrnTestContext context)
-    {
-        using var client = await context.ApplicationContext.CreateClientAsync<MfaExemptionPipelineTestProgram>();
-        using var request = new HttpRequestMessage(HttpMethod.Get, MfaPipelineTestValues.NamedSchemeProtectedPath);
-        request.Headers.Add(MfaPipelineTestValues.CredentialHeader, MfaPipelineTestValues.InvalidCredential);
-
-        using var response = await client.SendAsync(request);
-
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.StatusCode.Should().Be(expectedStatus);
+        if (expectedStatus == HttpStatusCode.OK)
+            (await response.Content.ReadAsStringAsync()).Should().Be(MfaPipelineTestValues.NamedAuthenticationScheme);
     }
 
     [Theory]

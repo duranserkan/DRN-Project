@@ -7,33 +7,21 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.Auth;
 
 public class MfaExemptHandlerTests
 {
-    [Fact]
-    public async Task HandleAsync_Should_Match_Ambient_Authentication_For_Mixed_Identities()
+    [Theory]
+    [DataInlineUnit(true)]
+    [DataInlineUnit(false)]
+    public async Task HandleAsync_Should_Match_Ambient_Authentication(bool hasAuthenticatedIdentity)
     {
-        var unauthenticatedIdentity = new ClaimsIdentity();
-        var authenticatedIdentity = new ClaimsIdentity(authenticationType: "Test");
-        var principal = new ClaimsPrincipal([unauthenticatedIdentity, authenticatedIdentity]);
+        var principal = hasAuthenticatedIdentity
+            ? new ClaimsPrincipal([new ClaimsIdentity(), new ClaimsIdentity(authenticationType: "Test")])
+            : new ClaimsPrincipal();
         var scopedUser = ScopedUser.FromClaimsPrincipal(principal);
         var requirement = new MfaExemptRequirement();
         var authorizationContext = new AuthorizationHandlerContext([requirement], principal, resource: null);
 
         await new MfaExemptHandler().HandleAsync(authorizationContext);
 
-        scopedUser.Authenticated.Should().BeTrue();
-        authorizationContext.HasSucceeded.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task HandleAsync_Should_Match_Ambient_Authentication_For_Empty_Principal()
-    {
-        var principal = new ClaimsPrincipal();
-        var scopedUser = ScopedUser.FromClaimsPrincipal(principal);
-        var requirement = new MfaExemptRequirement();
-        var authorizationContext = new AuthorizationHandlerContext([requirement], principal, resource: null);
-
-        await new MfaExemptHandler().HandleAsync(authorizationContext);
-
-        scopedUser.Authenticated.Should().BeFalse();
-        authorizationContext.HasSucceeded.Should().BeFalse();
+        scopedUser.Authenticated.Should().Be(hasAuthenticatedIdentity);
+        authorizationContext.HasSucceeded.Should().Be(hasAuthenticatedIdentity);
     }
 }
