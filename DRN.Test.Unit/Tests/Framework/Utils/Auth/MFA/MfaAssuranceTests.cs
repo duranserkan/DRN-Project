@@ -16,6 +16,7 @@ public class MfaAssuranceTests
     [DataInlineUnit("1699999999", false)]
     [DataInlineUnit("1700000301", false)]
     [DataInlineUnit("-1", false)]
+    [DataInlineUnit("-62135596801", false)]
     [DataInlineUnit("1700000000.5", false)]
     [DataInlineUnit("253402300800", false)]
     [DataInlineUnit("999999999999999999999", false)]

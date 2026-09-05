@@ -323,6 +323,7 @@ Minimal NLog configuration for console output. Add and route a Graylog target if
 DRN trusts loopback and RFC 1918 networks (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) with `ForwardLimit = 2`. This supports private-network proxies. Without trusted forwarding, requests can share the proxy IP and its rate-limit quota.
 
 - **Remove private-network defaults** with `TrustPrivateNetworks: false`:
+
   ```json
   {
     "ForwardedHeaders": {
@@ -330,6 +331,7 @@ DRN trusts loopback and RFC 1918 networks (`10.0.0.0/8`, `172.16.0.0/12`, `192.1
     }
   }
   ```
+
   With no other entries configured, this retains loopback (`127.0.0.0/8`, `::1/128`).
 
 - **Configure networks and proxies**:
