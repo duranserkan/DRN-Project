@@ -17,6 +17,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Mapped Entity Inheritance**: Configure Source-Known keys and shared properties on EF hierarchy roots instead of derived types for TPH, TPT, and TPC. Model validation now excludes abstract bases and nested private helper entities, matching assembly discovery, while retaining concrete entity metadata validation and inherited ID generation.
+*   **Migration-Locked Seeding and Recovery**: DI-configured contexts invoke attribute `SeedAsync` through EF initialization callbacks. Automatic migration enters EF's migration lock even with no pending migrations, allowing later startups to retry failed seeds. Explicit DI migration/database-creation operations also seed; synchronous operations wait for the asynchronous hook. Custom EF callbacks are preserved, and design-time contexts without DI remain unchanged. Seed implementations must remain idempotent.
 *   **Startup Pending Model Changes Validation**: `PostStartupValidationAsync` verifies pending EF Core model changes regardless of whether auto-migration is enabled, failing fast on unmigrated schema drift.
 *   **Prototype Migration-History Guard**: Reads applied migrations directly from the target database, safely handling missing databases (`InvalidCatalogName`), preventing unmigrated databases from being dropped during prototype checks.
 *   **Design-Time Data-Source Hooks**: `DbContextExtensions.CreateDbContext` invokes `ConfigureNpgsqlDataSource` with safe null fallback when running outside DI.

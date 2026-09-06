@@ -224,6 +224,8 @@ App data paths resolve before DRN configuration. `TempPath` appends `EntryAssemb
 
 ### Maintenance Reference: Migration And Prototype Invariants
 
+Eligible automatic migration startups invoke `MigrateAsync` even with no pending migrations. DI-configured contexts run attribute `SeedAsync` through EF initialization callbacks, under the migration lock for migration operations; failed seeds can be retried on later startups. Explicit DI migration/creation calls also seed. Design-time contexts without DI do not add attribute seeding. Seeds remain idempotent; prototype creation does not gain migration-lock protection.
+
 Production:
 - Uses explicit `ConnectionStrings:{ContextName}` values.
 - Never auto-migrates.

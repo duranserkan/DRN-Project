@@ -1,7 +1,11 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DRN.Framework.EntityFramework.Attributes;
+using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
@@ -20,6 +24,13 @@ public static class DbContextConventions
     public const int DefaultPort = 5432;
 
     private static readonly ConcurrentDictionary<Type, NpgsqlDbContextOptionsAttribute[]> AttributeCache = new();
+
+    [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
+    [SuppressMessage("ReSharper", "UnusedTypeParameter")]
+    private static class ContextAttributeCache<TContext>
+    {
+        internal static NpgsqlDbContextOptionsAttribute[]? Attributes;
+    }
 
     public static DbContextOptionsBuilder UpdateDbContextOptionsBuilder<TContext>(
         DbContextOptionsBuilder? contextOptions = null, IServiceProvider? serviceProvider = null) where TContext : DbContext
@@ -50,6 +61,35 @@ public static class DbContextConventions
         foreach (var attribute in GetContextAttributes<TContext>())
             attribute.ConfigureDbContextOptions<TContext>(optionsBuilder, serviceProvider);
 
+        if (serviceProvider is null)
+            return optionsBuilder;
+
+        var coreOptions = optionsBuilder.Options.FindExtension<CoreOptionsExtension>();
+        var seeder = coreOptions?.Seeder;
+        var asyncSeeder = coreOptions?.AsyncSeeder;
+
+        optionsBuilder.UseSeeding((context, changesPerformed) =>
+        {
+            if (seeder is not null)
+                seeder(context, changesPerformed);
+            else
+                asyncSeeder?.Invoke(context, changesPerformed, CancellationToken.None).GetAwaiter().GetResult();
+
+            DrnContextServiceRegistrationHelper.SeedDataAsync(context, serviceProvider,
+                serviceProvider.GetRequiredService<IAppSettings>()).GetAwaiter().GetResult();
+        });
+        optionsBuilder.UseAsyncSeeding(async (context, changesPerformed, cancellationToken) =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (asyncSeeder is not null)
+                await asyncSeeder(context, changesPerformed, cancellationToken).ConfigureAwait(false);
+            else
+                seeder?.Invoke(context, changesPerformed);
+
+            await DrnContextServiceRegistrationHelper.SeedDataAsync(context, serviceProvider,
+                serviceProvider.GetRequiredService<IAppSettings>(), cancellationToken).ConfigureAwait(false);
+        });
+
         return optionsBuilder;
     }
 
@@ -60,7 +100,16 @@ public static class DbContextConventions
             attribute.ConfigureNpgsqlOptions<TContext>(optionsBuilder, serviceProvider);
     }
 
-    public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes<TContext>() => GetContextAttributes(typeof(TContext));
+    public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes<TContext>()
+    {
+        var attributes = Volatile.Read(ref ContextAttributeCache<TContext>.Attributes);
+        if (attributes is not null)
+            return attributes;
+
+        // Share the runtime cache's instances and allow retries if attribute construction fails.
+        attributes = GetContextAttributes(typeof(TContext));
+        return Interlocked.CompareExchange(ref ContextAttributeCache<TContext>.Attributes, attributes, null) ?? attributes;
+    }
 
     public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes<TContext>(TContext context) where TContext : DbContext
         => GetContextAttributes(context.GetType());

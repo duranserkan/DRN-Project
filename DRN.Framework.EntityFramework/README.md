@@ -129,7 +129,7 @@ public class UserRepository(AppContext context, IEntityUtils utils)
         // EntitiesWithAppliedSettings() applies AsNoTracking, Filters, etc.
         return await EntitiesWithAppliedSettings()
             .Where(u => u.IsActive)
-            .ToArrayAsync();
+            .ToArrayAsync(CancellationToken);
     }
 }
 
@@ -233,7 +233,8 @@ Entities inheriting from `SourceKnownEntity` receive internal IDs when EF begins
 *   **Tracking-Time Generation**: `SourceKnownIdValueGenerator` assigns the internal Source-Known `long` ID when a new entity begins EF tracking.
 *   **Save-Time Fallback And Initialization**: `IDrnSaveChangesInterceptor` generates a missing internal ID, initializes `EntityIdSource` and `EntityIdOps`, and applies created lifecycle state.
 *   **External Identity**: Exposes `Guid EntityId` for public contracts and lookups.
-*   **Requirement**: Every entity must have a unique `(EntityType, AppId)` pair. The same entity type byte may be reused by a different application partition.
+*   **Requirement**: Every concrete, non-private entity must have a unique `(EntityType, AppId)` pair. The same entity type byte may be reused by a different application partition.
+*   **Mapped Inheritance**: Shared Source-Known properties and the key are configured on the EF hierarchy root for TPH, TPT, and TPC. Derived entities inherit the key and ID generator; each concrete entity declares its own entity-type metadata. Abstract mapped bases do not require entity-type attributes. Ordinary CLR inheritance with an unmapped base retains the same conventions.
 
 ```csharp
 [EntityType<DefaultApp>(1)]
@@ -254,10 +255,10 @@ await context.SaveChangesAsync(); // External identity and lifecycle state are i
 When the framework startup validation lifecycle runs, registered contexts are validated:
 
 *   **Context Validation**: Validates that registered contexts can be resolved.
-*   **Entity Type Check**: Ensures non-private Source-Known entities have unique `(EntityType, AppId)` pairs while allowing the same entity byte in different application partitions. Nested private helper entities are ignored, matching compile-time analyzer eligibility.
+*   **Entity Type Check**: Ensures concrete, non-private Source-Known entities have unique `(EntityType, AppId)` pairs while allowing the same entity byte in different application partitions. Abstract bases and nested private helper entities are ignored in both model and assembly discovery.
 *   **Auto-Migration & Seeding**:
     *   Applies pending migrations when automatic migration is enabled for the current environment.
-    *   Runs `SeedAsync` after this package applies migrations or creates or recreates a prototype database. Seed implementations must be idempotent. See [EF Core Data Seeding Guidance](https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding).
+    *   Runs `SeedAsync` through EF's `UseAsyncSeeding` callback under the migration lock, even when no migrations remain, so later eligible startups can retry failed seeds. Seed implementations must be idempotent. See [EF Core Data Seeding Guidance](https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding).
 
 ### Example
 
@@ -405,7 +406,7 @@ public class UserRepository(QAContext context, IEntityUtils utils)
         var query = EntitiesWithAppliedSettings()
             .Where(u => u.IsActive);
             
-        return await query.ToArrayAsync();
+        return await query.ToArrayAsync(CancellationToken);
     }
     
     public async Task<PaginationResultModel<User>> GetUsersByRoleAsync(
@@ -569,7 +570,7 @@ Participates in attribute-based registration and lifecycle management for your `
 - During framework startup validation:
     - Validates entity type uniqueness within each `AppId` partition
     - Applies pending migrations if configured
-    - Runs seed data after automatic migrations or prototype database creation/recreation
+    - Seeds through EF initialization callbacks for DI-configured contexts, including migrations with no pending changes and prototype database creation/recreation
 
 ### DrnContextDefaultsAttribute
 
@@ -646,7 +647,7 @@ public class MyContextOptions : NpgsqlDbContextOptionsAttribute
         IServiceProvider serviceProvider, 
         IAppSettings appSettings)
     {
-        // Seed after automatic migration or prototype database creation/recreation
+        // Called on EF initialization, including migration runs with no pending migrations
         var context = serviceProvider.GetRequiredService<MyDbContext>();
         if (!await context.Users.AnyAsync())
         {
@@ -760,7 +761,9 @@ Connection strings vary by environment. The startup schema behavior below occurs
 | Development | Explicit named connection string, an injected Testcontainers connection, or generation from `postgres-password` and `DrnContext_Dev*` settings | Applies pending migrations when `AutoMigrateDevelopment=true`; prototype mode may recreate the database |
 | `DrnTestContext` | Injected container connection | Migration and database-creation helpers perform only the requested operation |
 
-With automatic migration enabled, pending model changes require a migration unless all prototype conditions are satisfied. `SeedAsync` runs only after an automatic migration or prototype database creation/recreation; `DrnTestContext` helpers do not run it automatically.
+With automatic migration enabled, pending model changes require a migration unless all prototype conditions are satisfied. Eligible startups invoke `MigrateAsync` even with zero pending migrations so EF can run `SeedAsync` under its migration lock and retry a previously failed seed.
+
+For DI-configured contexts, explicit `Migrate`/`MigrateAsync` and `EnsureCreated`/`EnsureCreatedAsync` calls also invoke attribute seeding, including calls from `DrnTestContext` helpers when they perform these operations. Existing custom EF callbacks run before attribute seeding. Synchronous initialization waits for `SeedAsync`; design-time contexts configured without an application service provider do not invoke attribute seeding. The existing hook has no cancellation-token parameter; cancellation is checked before each attribute, but cannot interrupt an attribute already running. Seed implementations must tolerate repeated or partially completed runs and use the same scoped context for database work. Prototype creation uses EF's creation callback; it does not provide the migration path's concurrency guarantee.
 
 > [!NOTE]
 > Set `Environment` in base configuration, an environment variable, mounted configuration, or a command-line argument. An environment-specific settings file cannot select itself.
@@ -950,7 +953,7 @@ public async Task Integration_Test(DrnTestContext context)
 **Key Points**:
 - `DrnContext_Dev*` settings are **NOT used** - containers use [PostgresContainerSettings](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Testing/Contexts/Postgres/PostgresContainerSettings.cs) defaults
 - Connection strings from containers are automatically injected
-- Migration and database-creation helpers do not run `SeedAsync`
+- Migration and database-creation helpers invoke `SeedAsync` through EF callbacks for DI-configured contexts when they perform the operation; shared migration helpers can skip already-migrated context types
 
 ---
 
