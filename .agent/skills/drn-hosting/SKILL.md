@@ -182,6 +182,8 @@ protected override void ConfigureAuthorizationOptions(AuthorizationOptions optio
 
 ### Per-Route Security Headers
 
+Assign the validated slash-trimmed UI prefix back to `SwaggerUIOptions.RoutePrefix` so Swagger middleware and CSP selection use the same normalized path.
+
 When Swagger is enabled, its UI prefix must be nonempty after trimming slashes; validate after the consumer callback and reject null, empty, or slash-only prefixes. Prefixes such as `api-docs` are supported. Root mounts are rejected because they would apply Swagger CSP across the entire application. The response policy selector matches the complete validated prefix with segment boundaries. Reserve that subtree for `CspFor.CspPolicySwagger` (same-origin scripts and inline styles); place ordinary application pages outside it. No request marker middleware is needed. Disabled Swagger retains application policies.
 
 ```csharp

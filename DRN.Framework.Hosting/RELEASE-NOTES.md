@@ -24,6 +24,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Security
 
+*   **Swagger Prefix Normalization**: Leading and trailing slashes are removed from the UI prefix for both Swagger routing and CSP selection, preserving redirects from `/docs` and `/docs/` to the document when configured with `/docs/`.
 *   **Swagger CSP**: Added the independently replaceable `CspFor.CspPolicySwagger` policy with same-origin scripts and inline styles for Swagger SVG rendering, preserving document caching. Selection matches the validated UI prefix with path segment boundaries. Disabled Swagger retains the default CSP. Existing self/inline policies outside the Swagger subtree retain nonce-based styles.
 *   **Revocation Guidance**: Documented cookie, refresh-token, and access-token revocation limits. Existing token lifetimes and default MFA requirements are unchanged.
 *   **Authorization Audit Events**: Added challenge, forbid, and exemption events (7401–7403) for log filtering and alerts. Factor, recovery, and revocation events are not included.

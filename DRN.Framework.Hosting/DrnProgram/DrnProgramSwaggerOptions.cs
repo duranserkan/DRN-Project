@@ -21,6 +21,7 @@ public class DrnProgramSwaggerOptions
         if (string.IsNullOrEmpty(prefix))
             throw new ConfigurationException("Swagger UI RoutePrefix must be nonempty after trimming slashes. Root mounts are not supported.");
 
+        options.RoutePrefix = prefix;
         SwaggerUIPathPrefix = new PathString("/" + prefix);
     }
 

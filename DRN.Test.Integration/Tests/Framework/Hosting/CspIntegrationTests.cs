@@ -125,6 +125,35 @@ public class CspIntegrationTests
     }
 
     [Theory]
+    [DataInline("/docs", "/docs")]
+    [DataInline("/docs", "/docs/")]
+    [DataInline("docs/", "/docs")]
+    [DataInline("docs/", "/docs/")]
+    [DataInline("/docs/", "/docs")]
+    [DataInline("/docs/", "/docs/")]
+    public async Task Swagger_Padded_Prefix_Should_Redirect_To_Document_With_Swagger_Csp(
+        DrnTestContext context, string routePrefix, string requestPath)
+    {
+        context.AddToConfiguration("DrnDevelopmentSettings:SkipValidation", "true");
+        context.AddToConfiguration(CspTestProgram.SwaggerRoutePrefixKey, routePrefix);
+        using var client = await context.ApplicationContext.CreateClientAsync<CspTestProgram>(
+            clientOptions: new() { AllowAutoRedirect = false });
+
+        using var redirect = await client.GetAsync(requestPath);
+        redirect.StatusCode.Should().Be(HttpStatusCode.MovedPermanently);
+        var documentUri = new Uri(new Uri(client.BaseAddress!, requestPath), redirect.Headers.Location!);
+        documentUri.AbsolutePath.Should().Be("/docs/index.html");
+        var csp = redirect.Headers.GetValues("Content-Security-Policy").Single();
+        csp.Split(';', StringSplitOptions.TrimEntries).Should().Contain("style-src 'self' 'unsafe-inline'")
+            .And.Contain("script-src 'self'");
+
+        using var document = await client.GetAsync(documentUri);
+        document.EnsureSuccessStatusCode();
+        (await document.Content.ReadAsStringAsync()).Should().Contain("Custom API docs").And.Contain("swagger-ui-bundle.js");
+        document.Headers.GetValues("Content-Security-Policy").Single().Should().Be(csp);
+    }
+
+    [Theory]
     [DataInline("/swagger/index.html")]
     [DataInline("/docs/swagger/index.html")]
     public async Task Disabled_Swagger_Should_Retain_Default_Csp(DrnTestContext context, string path)

@@ -25,11 +25,14 @@ public class DrnProgramSwaggerOptionsTests
     }
 
     [Theory]
-    [DataInlineUnit("swagger")]
-    [DataInlineUnit("docs/Swagger")]
-    [DataInlineUnit("swagger-ui")]
-    [DataInlineUnit("api-docs")]
-    public void Swagger_UI_Should_Use_Validated_Prefix_After_One_Callback(string prefix)
+    [DataInlineUnit("swagger", "swagger")]
+    [DataInlineUnit("docs/Swagger", "docs/Swagger")]
+    [DataInlineUnit("swagger-ui", "swagger-ui")]
+    [DataInlineUnit("api-docs", "api-docs")]
+    [DataInlineUnit("/docs", "docs")]
+    [DataInlineUnit("docs/", "docs")]
+    [DataInlineUnit("/docs/", "docs")]
+    public void Swagger_UI_Should_Use_Validated_Prefix_After_One_Callback(string prefix, string expectedPrefix)
     {
         var calls = 0;
         var options = new DrnProgramSwaggerOptions
@@ -41,9 +44,11 @@ public class DrnProgramSwaggerOptionsTests
             }
         };
 
-        options.ConfigureSwaggerUI(new SwaggerUIOptions());
+        var uiOptions = new SwaggerUIOptions();
+        options.ConfigureSwaggerUI(uiOptions);
 
         calls.Should().Be(1);
-        options.SwaggerUIPathPrefix!.Value.Value.Should().Be("/" + prefix);
+        uiOptions.RoutePrefix.Should().Be(expectedPrefix);
+        options.SwaggerUIPathPrefix!.Value.Value.Should().Be("/" + expectedPrefix);
     }
 }
