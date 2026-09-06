@@ -54,9 +54,11 @@ public class PaginationRequest
         PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)
     {
         totalCount = resultInfo is not null && totalCount < 1 ? resultInfo.Total.Count : totalCount;
+        maxSize = Math.Min(maxSize, PageSize.MaxSizeThreshold);
         var directionChanged = resultInfo != null && direction != PageSortDirection.None && direction != resultInfo.Request.PageCursor.SortDirection;
         var sizeChanged = resultInfo != null && pageSize > 0 && pageSize != resultInfo.Request.PageSize.Size;
-        if (resultInfo == null || directionChanged || sizeChanged)
+        var maxSizeChanged = resultInfo != null && maxSize > 0 && maxSize != resultInfo.Request.PageSize.MaxSize;
+        if (resultInfo == null || directionChanged || sizeChanged || maxSizeChanged)
         {
             pageSize = pageSize > 0 ? pageSize : resultInfo?.Request.PageSize.Size ?? PageSize.SizeDefault;
             maxSize = maxSize > 0 ? maxSize : resultInfo?.Request.PageSize.MaxSize ?? PageSize.MaxSizeDefault;

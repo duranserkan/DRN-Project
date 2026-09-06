@@ -11,6 +11,59 @@ namespace DRN.Test.Unit.Tests.Framework.EntityFramework;
 
 public class DbContextSeedingTests
 {
+    [Theory]
+    [DataInlineUnit(true, false)]
+    [DataInlineUnit(false, true)]
+    [DataInlineUnit(true, true)]
+    [DataInlineUnit(false, false)]
+    public async Task Repeated_Configuration_Should_Seed_Once_With_Current_Provider(bool customSync, bool customAsync)
+    {
+        var originalProbe = new SeedProbe();
+        using var originalProvider = CreateProvider(originalProbe);
+        var currentProbe = new SeedProbe();
+        using var currentProvider = CreateProvider(currentProbe);
+        var customEvents = new List<string>();
+        var builder = new DbContextOptionsBuilder<SeedContext>();
+        if (customSync)
+            builder.UseSeeding((_, _) => customEvents.Add("sync"));
+        if (customAsync)
+            builder.UseAsyncSeeding((_, _, _) =>
+            {
+                customEvents.Add("async");
+                return Task.CompletedTask;
+            });
+
+        DbContextConventions.UpdateDbContextOptionsBuilder<SeedContext>(builder, originalProvider);
+        // Options may be copied into another builder before conventions are applied again.
+        builder = new DbContextOptionsBuilder<SeedContext>(builder.Options);
+        DbContextConventions.UpdateDbContextOptionsBuilder<SeedContext>(builder, currentProvider);
+        DbContextConventions.UpdateDbContextOptionsBuilder<SeedContext>(builder, currentProvider);
+        using var context = new SeedContext(builder.Options);
+        var callbacks = builder.Options.FindExtension<CoreOptionsExtension>()!;
+
+        callbacks.Seeder!(context, false);
+        await callbacks.AsyncSeeder!(context, false, CancellationToken.None);
+
+        originalProbe.Events.Should().BeEmpty();
+        currentProbe.Events.Should().Equal("attribute", "attribute");
+        string[] expected = customSync && customAsync ? ["sync", "async"]
+            : customSync ? ["sync", "sync"] : customAsync ? ["async", "async"] : [];
+        customEvents.Should().Equal(expected);
+
+        DbContextConventions.UpdateDbContextOptionsBuilder<SeedContext>(builder);
+        var restored = builder.Options.FindExtension<CoreOptionsExtension>()!;
+        if (customSync)
+            restored.Seeder!(context, false);
+        else
+            restored.Seeder.Should().BeNull();
+        if (customAsync)
+            await restored.AsyncSeeder!(context, false, CancellationToken.None);
+        else
+            restored.AsyncSeeder.Should().BeNull();
+        currentProbe.Events.Should().Equal("attribute", "attribute");
+        customEvents.Count.Should().Be(expected.Length + (customSync ? 1 : 0) + (customAsync ? 1 : 0));
+    }
+
     [Fact]
     public async Task Async_Seeding_Should_Preserve_Custom_Callback_And_Retry_Without_Migrations()
     {

@@ -72,6 +72,8 @@ public class PaginationRequestTests
     [Theory]
     [DataInlineUnit(-1, -1, PageSortDirection.Ascending, 50, 150, PageSortDirection.Ascending)]
     [DataInlineUnit(60, -1, PageSortDirection.None, 60, 150, PageSortDirection.Descending)]
+    [DataInlineUnit(-1, 200, PageSortDirection.None, 50, 200, PageSortDirection.Descending)]
+    [DataInlineUnit(-1, 25, PageSortDirection.None, 25, 25, PageSortDirection.Descending)]
     [DataInlineUnit(60, 200, PageSortDirection.Ascending, 60, 200, PageSortDirection.Ascending)]
     public void From_Should_Preserve_Omitted_Settings_When_Resetting(
         int pageSize, int maxSize, PageSortDirection direction, int expectedSize, int expectedMaxSize, PageSortDirection expectedDirection)
@@ -102,6 +104,23 @@ public class PaginationRequestTests
         request.PageNumber.Should().Be(6);
         request.PageSize.Should().BeSameAs(currentRequest.PageSize);
         request.PageCursor.Should().BeEquivalentTo(new PageCursor(5, resultInfo.FirstId, resultInfo.LastId, PageSortDirection.Descending));
+    }
+
+    [Theory]
+    [DataInlineUnit(PageSize.MaxSizeThreshold)]
+    [DataInlineUnit(PageSize.MaxSizeThreshold + 1)]
+    [DataInlineUnit(int.MaxValue)]
+    public void From_Should_Navigate_When_Maximum_Size_Normalizes_To_Current_Limit(int maxSize)
+    {
+        var currentRequest = PaginationRequest.From(pageSize: 50, maxSize: maxSize);
+        var resultInfo = new PaginationResultInfo(currentRequest, Guid.NewGuid(), Guid.NewGuid(), 50, true, false, new PaginationTotal(500, 50));
+
+        var request = PaginationRequest.From(resultInfo, jumpTo: 2, maxSize: maxSize);
+
+        request.PageNumber.Should().Be(2);
+        request.PageSize.Should().BeSameAs(currentRequest.PageSize);
+        request.PageSize.MaxSize.Should().Be(PageSize.MaxSizeThreshold);
+        request.PageCursor.Should().BeEquivalentTo(new PageCursor(1, resultInfo.FirstId, resultInfo.LastId, PageSortDirection.Ascending));
     }
 
     [Theory]

@@ -47,6 +47,10 @@ public class ServiceRegistrationAttributeTests
         ServiceRegistrationAttribute.GetModuleAttributes(typeof(NoModule)).Should().BeEmpty();
         ServiceRegistrationAttribute.GetModuleAttributes(typeof(SingleModule)).Should().ContainSingle();
         ServiceRegistrationAttribute.GetModuleAttribute(typeof(SingleModule)).Should().BeOfType<ProbeRegistrationAttribute>();
+        var noModule = () => ServiceRegistrationAttribute.GetModuleAttribute(typeof(NoModule));
+        var multipleModules = () => ServiceRegistrationAttribute.GetModuleAttribute(typeof(MultipleDerivedModules));
+        noModule.Should().ThrowExactly<InvalidOperationException>();
+        multipleModules.Should().ThrowExactly<InvalidOperationException>();
         ServiceRegistrationAttribute.GetModuleAttributes(typeof(MultipleDerivedModules))
             .Select(attribute => attribute.GetType())
             .Should().BeEquivalentTo([typeof(ProbeRegistrationAttribute), typeof(SecondRegistrationAttribute)]);

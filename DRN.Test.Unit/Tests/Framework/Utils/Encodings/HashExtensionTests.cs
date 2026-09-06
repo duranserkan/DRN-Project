@@ -117,16 +117,13 @@ public class HashExtensionTests
     }
 
     [Theory]
-    [DataInlineUnit((byte)0)]
-    [DataInlineUnit((byte)19)]
-    [DataInlineUnit((byte)24)]
-    public void GenerateSeedFromInputHash_WithValidOffsets_ShouldSucceed(byte validOffset)
+    [DataInlineUnit((byte)0, 0x3A71EB114139F841L)]
+    [DataInlineUnit((byte)19, 4938522919252271305L)]
+    [DataInlineUnit((byte)24, 0x76BFF53FB2448928L)]
+    public void GenerateSeedFromInputHash_WithValidOffsets_ShouldSucceed(byte validOffset, long expectedSeed)
     {
         var seed = HelloWorld.GenerateSeedFromInputHash(validOffset);
-        seed.Should().NotBe(0);
-
-        if (validOffset == 19)
-            seed.Should().Be(4938522919252271305);
+        seed.Should().Be(expectedSeed);
     }
 
     [Theory]

@@ -278,6 +278,8 @@ public class QAContext : DrnContext<QAContext>
 
 `SourceKnownRepository<TContext, TEntity>` is the EF Core implementation of `SharedKernel.ISourceKnownRepository`. It provides a data access layer with built-in performance and consistency checks.
 
+Public CRUD, query, and pagination methods are virtual; protected pagination overloads are not.
+
 ### IEntityUtils
 
 Repositories require [`IEntityUtils`](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Entity/EntityUtils.cs) (defined in `DRN.Framework.Utils`) for core domain operations:
@@ -764,6 +766,8 @@ Connection strings vary by environment. The startup schema behavior below occurs
 With automatic migration enabled, pending model changes require a migration unless all prototype conditions are satisfied. Eligible startups invoke `MigrateAsync` even with zero pending migrations so EF can run `SeedAsync` under its migration lock and retry a previously failed seed.
 
 For DI-configured contexts, explicit `Migrate`/`MigrateAsync` and `EnsureCreated`/`EnsureCreatedAsync` calls also invoke attribute seeding, including calls from `DrnTestContext` helpers when they perform these operations. Existing custom EF callbacks run before attribute seeding. Synchronous initialization waits for `SeedAsync`; design-time contexts configured without an application service provider do not invoke attribute seeding. The existing hook has no cancellation-token parameter; cancellation is checked before each attribute, but cannot interrupt an attribute already running. Seed implementations must tolerate repeated or partially completed runs and use the same scoped context for database work. Prototype creation uses EF's creation callback; it does not provide the migration path's concurrency guarantee.
+
+Reapplying context options replaces DRN seed wrappers with callbacks bound to the latest supplied provider, preserving custom callbacks without duplicate attribute seeding. Reconfiguration without a provider restores only custom callbacks.
 
 > [!NOTE]
 > Set `Environment` in base configuration, an environment variable, mounted configuration, or a command-line argument. An environment-specific settings file cannot select itself.

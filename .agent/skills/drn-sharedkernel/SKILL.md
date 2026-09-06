@@ -192,7 +192,7 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 ```
 
 **Key Behaviors**:
-- `PaginationRequest.From()` defaults to size 10, maximum 100, and ascending order. Size/direction changes reset to page 1 with a fresh cursor while retaining omitted size, maximum size, and direction from the previous request.
+- `PaginationRequest.From()` defaults to size 10, maximum 100, and ascending order. Size, effective maximum size, or direction changes reset to page 1 with a fresh cursor while retaining omitted size, maximum size, and direction from the previous request. Maximum sizes are capped at `PageSize.MaxSizeThreshold` before comparison so repeated above-threshold inputs preserve navigation.
 - `Get(OrDefault)Async` with `Guid` auto-validates ID format and EntityType byte before querying
 - `PaginateAllAsync` returns `IAsyncEnumerable` for efficient large dataset streaming
 - `CancellationToken` exposes the repository scope token (uses Root when `Settings.ScopeKey` is null, or named scope when set), `CancelWhen(token)` links a lifetime token, and `CancelChanges` cancels the effective scope.

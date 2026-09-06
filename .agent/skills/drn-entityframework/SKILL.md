@@ -124,6 +124,8 @@ Environment=Development, postgres-password=dev-password, DrnContext_DevHost=post
 
 DI-configured contexts compose attribute `SeedAsync` with EF `UseSeeding`/`UseAsyncSeeding` callbacks, after any custom callback. Eligible automatic startups call `MigrateAsync` even with no pending migrations so seeds run under the migration lock and failed seeds can be retried. Explicit DI migration/creation operations also seed; synchronous operations wait for the asynchronous hook. Design-time configuration without DI does not add attribute seeding. Seeds must be idempotent and use the same scoped context. Prototype creation callbacks do not provide migration-lock concurrency guarantees. Existing environment and pending-model guards still apply.
 
+Reapplying context options preserves custom callbacks and replaces DRN seed wrappers using the latest supplied provider; it does not duplicate attribute seeding. Reconfiguration without a provider restores only custom callbacks.
+
 ```bash
 dotnet ef migrations add MigrationName --context QAContext --project Sample.Infra
 dotnet ef database update --context QAContext
@@ -229,6 +231,8 @@ public class RepositorySettings<TEntity>
 ```
 
 > Override `EntitiesWithAppliedSettings` in custom repositories for global includes/filters. See [drn-domain-design](../drn-domain-design/SKILL.md) for examples.
+
+Public repository CRUD, query, and pagination methods are virtual; protected pagination overloads are not.
 
 ### Repository Cancellation
 

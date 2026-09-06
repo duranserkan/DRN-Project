@@ -439,7 +439,7 @@ var result = await repository.PaginateAsync(request, filter);
 
 SharedKernel provides a cursor-based pagination system with stable bidirectional navigation and bounded jumps.
 
-`PaginationRequest.From()` defaults to 10 items per page, a maximum page size of 100, and ascending order. Changing size or direction restarts at page 1 with a fresh cursor; omitted size, maximum size, and direction retain their previous settings when resetting an existing request.
+`PaginationRequest.From()` defaults to 10 items per page, a maximum page size of 100, and ascending order. Changing size, effective maximum size, or direction restarts at page 1 with a fresh cursor; omitted size, maximum size, and direction retain their previous settings when resetting an existing request. Maximum sizes are capped at 1,000 before comparison, so repeating an above-threshold limit preserves navigation.
 
 Page jumps are limited to ten pages per request while preserving the requested direction (e.g. page 100 to page 1 targets page 90, and page 1 to page 100 targets page 11).
 
