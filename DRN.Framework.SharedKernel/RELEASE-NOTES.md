@@ -36,6 +36,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Pagination Defaults**: `PaginationRequest.From()` uses the default page size of 10 for initial requests and preserves omitted size, maximum size, and sort direction when size or direction changes reset pagination.
 *   **Analyzer Identity And Accessibility**: Unsupported derived attribute mappings no longer generate guessed collision identities, and shadowed `AppId` properties cannot override the generic application partition. Public entities nested in private containers now follow the same privacy rules locally and across references. Identity extraction and reference traversal propagate analyzer cancellation to syntax and semantic queries.
 *   **IgnoredLog Null Handling**: `IgnoredLog(this object? obj)` returns `false` when given `null` input instead of throwing a `NullReferenceException`.
 *   **Pagination Jump Direction**: Bounded page jumps preserve the requested direction while remaining limited to ten pages per request, preventing integer underflow in `PaginationRequest.From`.

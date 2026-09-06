@@ -253,13 +253,25 @@ var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 namespace DRN.Framework.SharedKernel.Domain;
 
 /// <summary>
-/// Application wide Unique Entity Type
+/// Base entity type attribute, specialized per application partition.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class EntityTypeAttribute(byte entityType) : Attribute
+public abstract class EntityTypeAttribute : Attribute
 {
-    public byte EntityType { get; } = entityType;
+    public byte EntityType { get; }
+    public byte AppId { get; }
+
+    protected EntityTypeAttribute(byte entityType, byte appId)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(appId, IAppId.MaxAppId);
+        EntityType = entityType;
+        AppId = appId;
+    }
 }
+
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public class EntityTypeAttribute<TApp>(byte entityType) : EntityTypeAttribute(entityType, TApp.AppId)
+    where TApp : IAppId;
 
 public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<SourceKnownEntity>, IComparable<SourceKnownEntity>
 {
@@ -317,14 +329,24 @@ public readonly record struct SourceKnownEntityId(
     bool Secure             // True when EntityId is the encrypted external form
 )
 {
-    // Validates that this ID belongs to the specified TEntity type
-    public void Validate<TEntity>() where TEntity : SourceKnownEntity 
-        => Validate(SourceKnownEntity.GetEntityType<TEntity>());
-        
-    // Validates ID structure and checks type match
-    public void Validate(byte entityType);
+    public EntityTypeId EntityTypeId => new(EntityType, Source.AppId);
+
+    // Validates ID structure and the entity type's declared application partition
+    public void Validate<TEntity>() where TEntity : SourceKnownEntity
+        => Validate(SourceKnownEntity.GetEntityTypeId<TEntity>());
+
+    // Uses the ID's own application partition; checks the supplied entity type byte
+    public void Validate(byte entityType)
+        => Validate(new EntityTypeId(entityType, Source.AppId));
+
+    // Validates ID structure and both expected EntityType and AppId (implementation omitted)
+    public void Validate(EntityTypeId expected);
 }
 ```
+
+The non-generic `EntityTypeAttribute` remains an abstract base. Annotate entities with `[EntityType<TApp>(byte)]` or a domain attribute derived through `EntityTypeAttribute<TApp>`.
+
+`Validate(byte)` remains available, but it uses the ID's own `AppId` and therefore does not check an independently expected application partition. Use `Validate<TEntity>()` or `Validate(EntityTypeId)` to validate both entity type and expected partition.
 
 ---
 
@@ -416,6 +438,8 @@ var result = await repository.PaginateAsync(request, filter);
 ## Pagination
 
 SharedKernel provides a cursor-based pagination system with stable bidirectional navigation and bounded jumps.
+
+`PaginationRequest.From()` defaults to 10 items per page, a maximum page size of 100, and ascending order. Changing size or direction restarts at page 1 with a fresh cursor; omitted size, maximum size, and direction retain their previous settings when resetting an existing request.
 
 Page jumps are limited to ten pages per request while preserving the requested direction (e.g. page 100 to page 1 targets page 90, and page 1 to page 100 targets page 11).
 
