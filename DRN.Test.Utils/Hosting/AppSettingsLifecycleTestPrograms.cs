@@ -88,13 +88,21 @@ public sealed class StartupExceptionReportProgram : DrnProgramBase<StartupExcept
     private static int _addServicesCallCount;
 
     public static int ReportServiceDisposeCount => StartupExceptionReportDisposable.DisposeCount;
+    public static string ReportFailureMode { get; private set; } = "none";
+    public static InvalidOperationException StartupFailure { get; private set; } = new(FailureMessage);
+    public static int ReportCalls { get; internal set; }
+    public static bool AsyncDisposalCompleted { get; internal set; }
 
     public static async Task Main(string[] args) => await RunAsync(args);
 
-    public static void Reset()
+    public static void Reset(string reportFailureMode = "none")
     {
         _addServicesCallCount = 0;
         StartupExceptionReportDisposable.Reset();
+        ReportFailureMode = reportFailureMode;
+        StartupFailure = new InvalidOperationException(FailureMessage);
+        ReportCalls = 0;
+        AsyncDisposalCompleted = false;
     }
 
     protected override void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder, IAppSettings appSettings)
@@ -105,9 +113,13 @@ public sealed class StartupExceptionReportProgram : DrnProgramBase<StartupExcept
     protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
     {
         if (Interlocked.Increment(ref _addServicesCallCount) == 1)
-            throw new InvalidOperationException(FailureMessage);
+            throw StartupFailure;
+
+        if (ReportFailureMode == "builder")
+            throw new ApplicationException("Report builder failure.");
 
         builder.Services.AddSingleton<StartupExceptionReportDisposable>();
+        builder.Services.AddSingleton<StartupExceptionReportAsyncDisposable>();
         builder.Services.AddSingleton<IDrnExceptionHandler, StartupExceptionReportExceptionHandler>();
 
         return Task.CompletedTask;
@@ -125,9 +137,25 @@ public sealed class StartupExceptionReportExceptionHandler : IDrnExceptionHandle
 
     public Task<ExceptionContentResult?> GetStartupExceptionContentAsync(IServiceProvider serviceProvider, Exception exception, IScopedLog startupLog)
     {
+        StartupExceptionReportProgram.ReportCalls++;
         _ = serviceProvider.GetRequiredService<StartupExceptionReportDisposable>();
+        _ = serviceProvider.GetRequiredService<StartupExceptionReportAsyncDisposable>();
+
+        if (StartupExceptionReportProgram.ReportFailureMode is "generation" or "both")
+            return Task.FromException<ExceptionContentResult?>(new ApplicationException("Report generation failure."));
 
         return Task.FromResult<ExceptionContentResult?>(null);
+    }
+}
+
+public sealed class StartupExceptionReportAsyncDisposable : IAsyncDisposable
+{
+    public async ValueTask DisposeAsync()
+    {
+        await Task.Yield();
+        StartupExceptionReportProgram.AsyncDisposalCompleted = true;
+        if (StartupExceptionReportProgram.ReportFailureMode is "disposal" or "both")
+            throw new ApplicationException("Report disposal failure.");
     }
 }
 

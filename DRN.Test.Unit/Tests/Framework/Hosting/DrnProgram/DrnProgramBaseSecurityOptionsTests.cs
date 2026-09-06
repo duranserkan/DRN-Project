@@ -1,13 +1,129 @@
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Logging;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.HostFiltering;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.DrnProgram;
 
 public class DrnProgramBaseSecurityOptionsTests
 {
+    [Fact]
+    public async Task Builder_Should_Map_All_Identity_Claims_Without_Replacing_Unrelated_Options()
+    {
+        using var appSettings = (AppSettings)AppSettings.Development();
+        var builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions());
+        using var configuration = builder.Configuration;
+        new TestProgram().RegisterDefaults(builder, appSettings);
+        builder.Services.Configure<IdentityOptions>(options =>
+        {
+            options.ClaimsIdentity.UserIdClaimType = "old-subject";
+            options.ClaimsIdentity.UserNameClaimType = "old-name";
+            options.ClaimsIdentity.EmailClaimType = "old-email";
+            options.ClaimsIdentity.RoleClaimType = "old-role";
+            options.ClaimsIdentity.SecurityStampClaimType = "custom-stamp";
+            options.Password.RequiredLength = 19;
+            options.Lockout.MaxFailedAccessAttempts = 7;
+        });
+        await using var provider = builder.Services.BuildServiceProvider();
+
+        var options = provider.GetRequiredService<IOptions<IdentityOptions>>().Value;
+        var claims = provider.GetRequiredService<AuthenticationClaimConfig>();
+
+        claims.Should().BeSameAs(TestProgram.Claims);
+        options.ClaimsIdentity.UserIdClaimType.Should().Be("uid");
+        options.ClaimsIdentity.UserNameClaimType.Should().Be("display");
+        options.ClaimsIdentity.EmailClaimType.Should().Be("mail");
+        options.ClaimsIdentity.RoleClaimType.Should().Be("app-role");
+        options.ClaimsIdentity.SecurityStampClaimType.Should().Be("custom-stamp");
+        options.Password.RequiredLength.Should().Be(19);
+        options.Lockout.MaxFailedAccessAttempts.Should().Be(7);
+    }
+
+    [Theory]
+    [DataInlineUnit(true)]
+    [DataInlineUnit(false)]
+    public async Task Builder_Should_Register_Cookie_Consent_And_Antiforgery_Defaults(bool isDevelopment)
+    {
+        var appSettings = CreateAppSettings(isDevelopment);
+        appSettings.Features.Returns(new DrnAppFeatures());
+        appSettings.Localization.Returns(new DrnLocalizationSettings());
+        appSettings.GetAppSpecificName("CookieConsent").Returns("_test_Consent");
+        appSettings.GetAppSpecificName("Antiforgery").Returns("_test_Antiforgery");
+        var builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions());
+        using var configuration = builder.Configuration;
+        new TestProgram().RegisterDefaults(builder, appSettings);
+        await using var provider = builder.Services.BuildServiceProvider();
+
+        var cookies = provider.GetRequiredService<IOptions<CookiePolicyOptions>>().Value;
+        var tempData = provider.GetRequiredService<IOptions<CookieTempDataProviderOptions>>().Value;
+        var antiforgery = provider.GetRequiredService<IOptions<AntiforgeryOptions>>().Value;
+
+        cookies.Secure.Should().Be(isDevelopment ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always);
+        cookies.MinimumSameSitePolicy.Should().Be(SameSiteMode.Strict);
+        cookies.HttpOnly.Should().Be(HttpOnlyPolicy.None);
+        cookies.ConsentCookie.Name.Should().Be("_test_Consent");
+        cookies.CheckConsentNeeded.Should().NotBeNull();
+        cookies.CheckConsentNeeded!(new DefaultHttpContext()).Should().BeTrue();
+        cookies.ConsentCookieValue.Should().NotBeNullOrEmpty();
+        tempData.Cookie.HttpOnly.Should().BeTrue();
+        tempData.Cookie.IsEssential.Should().BeTrue();
+        antiforgery.Cookie.Name.Should().Be("_test_Antiforgery");
+        antiforgery.Cookie.HttpOnly.Should().BeTrue();
+        antiforgery.Cookie.IsEssential.Should().BeTrue();
+        antiforgery.Cookie.SecurePolicy.Should().Be(CookieSecurePolicy.SameAsRequest);
+    }
+
+    [Theory]
+    [DataInlineUnit(true)]
+    [DataInlineUnit(false)]
+    public void SecurityHeaders_Should_Include_Hsts_Only_Outside_Development(bool isDevelopment)
+    {
+        using var provider = new ServiceCollection().BuildServiceProvider();
+        var policies = new HeaderPolicyCollection();
+
+        new TestProgram().ConfigureHeaders(policies, provider, CreateAppSettings(isDevelopment));
+
+        policies.ContainsKey("Strict-Transport-Security").Should().Be(!isDevelopment);
+        policies.ContainsKey("Content-Security-Policy").Should().BeTrue();
+        policies.ContainsKey("X-Frame-Options").Should().BeTrue();
+        policies.ContainsKey("X-Content-Type-Options").Should().BeTrue();
+        policies.ContainsKey("Referrer-Policy").Should().BeTrue();
+    }
+
+    [Fact]
+    public void HostFiltering_Should_Preserve_A_Preconfigured_Production_Allowlist()
+    {
+        var appSettings = CreateAppSettings(false, ("AllowedHosts", "configured.example"));
+        var hosts = new List<string> { "preconfigured.example" };
+        var options = new HostFilteringOptions { AllowedHosts = hosts };
+
+        new TestProgram().ExposeConfigureHostFilteringOptions(appSettings)(options);
+
+        options.AllowedHosts.Should().BeSameAs(hosts);
+        options.AllowedHosts.Should().Equal("preconfigured.example");
+    }
+
+    [Theory]
+    [DataInlineUnit("*")]
+    [DataInlineUnit(" * ")]
+    public void HostFiltering_Should_Reject_A_Preconfigured_Wildcard_Despite_Valid_Configuration(string wildcard)
+    {
+        var appSettings = CreateAppSettings(false, ("AllowedHosts", "configured.example"));
+        var options = new HostFilteringOptions { AllowedHosts = ["preconfigured.example", wildcard] };
+
+        var act = () => new TestProgram().ExposeConfigureHostFilteringOptions(appSettings)(options);
+
+        act.Should().Throw<ConfigurationException>().WithMessage("AllowedHosts cannot contain '*' outside Development.");
+    }
+
     [Theory]
     [DataInlineUnit(null, "AllowedHosts must be configured outside Development.")]
     [DataInlineUnit("*", "AllowedHosts cannot contain '*' outside Development.")]
@@ -239,7 +355,19 @@ public class DrnProgramBaseSecurityOptionsTests
 
     private sealed class TestProgram : DrnProgramBase<TestProgram>, IDrnProgram
     {
+        public static AuthenticationClaimConfig Claims { get; } = new()
+        {
+            Subject = new("uid"), Name = new("display"), Email = new("mail"), Roles = new("app-role")
+        };
+
         public static Task Main(string[] args) => Task.CompletedTask;
+
+        public void RegisterDefaults(WebApplicationBuilder builder, IAppSettings settings) => ConfigureApplicationBuilder(builder, settings);
+
+        public void ConfigureHeaders(HeaderPolicyCollection policies, IServiceProvider provider, IAppSettings settings) =>
+            ConfigureDefaultSecurityHeaders(policies, provider, settings);
+
+        protected override AuthenticationClaimConfig ConfigureAuthenticationClaims() => Claims;
 
         public Action<HostFilteringOptions> ExposeConfigureHostFilteringOptions(IAppSettings appSettings)
             => ConfigureHostFilteringOptions(appSettings);

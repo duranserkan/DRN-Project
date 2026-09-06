@@ -34,6 +34,32 @@ public class AppSettingsLifecycleTests
         await run.Should().ThrowExactlyAsync<InvalidOperationException>()
             .WithMessage(StartupExceptionReportProgram.FailureMessage);
         StartupExceptionReportProgram.ReportServiceDisposeCount.Should().Be(1);
+        StartupExceptionReportProgram.AsyncDisposalCompleted.Should().BeTrue();
+    }
+
+    [Theory]
+    [DataInlineUnit("builder")]
+    [DataInlineUnit("generation")]
+    [DataInlineUnit("disposal")]
+    [DataInlineUnit("both")]
+    public async Task StartupReport_Failures_Should_Not_Replace_The_Original_Startup_Exception(string failureMode)
+    {
+        StartupExceptionReportProgram.Reset(failureMode);
+        var original = StartupExceptionReportProgram.StartupFailure;
+        try
+        {
+            Func<Task> run = () => StartupExceptionReportProgram.Main(CreateTemporaryApplicationArgs());
+
+            var thrown = await run.Should().ThrowExactlyAsync<InvalidOperationException>();
+
+            thrown.Which.Should().BeSameAs(original);
+            StartupExceptionReportProgram.ReportCalls.Should().Be(failureMode == "builder" ? 0 : 1);
+            StartupExceptionReportProgram.AsyncDisposalCompleted.Should().Be(failureMode != "builder");
+        }
+        finally
+        {
+            StartupExceptionReportProgram.Reset();
+        }
     }
 
     // DrnProgramBase requires an "NLog" configuration section during bootstrap.
