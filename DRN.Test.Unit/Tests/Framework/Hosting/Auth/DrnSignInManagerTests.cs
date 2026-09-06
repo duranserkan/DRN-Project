@@ -217,7 +217,7 @@ public class DrnSignInManagerTests
             var accessor = Substitute.For<IHttpContextAccessor>();
             accessor.HttpContext.Returns(Http);
             Manager = new DrnSignInManager<IdentityUser>(_users, accessor, factory,
-                _services.GetRequiredService<IOptions<IdentityOptions>>(), _services.GetRequiredService<ILogger<SignInManager<IdentityUser>>>(),
+                _services.GetRequiredService<IOptions<IdentityOptions>>(), _services.GetRequiredService<ILogger<DrnSignInManager<IdentityUser>>>(),
                 Substitute.For<IAuthenticationSchemeProvider>(), Substitute.For<IUserConfirmation<IdentityUser>>(), config);
         }
 

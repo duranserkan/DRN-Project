@@ -31,11 +31,11 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor InvalidEntityTypeAttributeUsage = new(
         id: "DRN0003",
         title: "Invalid [EntityType] attribute usage",
-        messageFormat: "Class '{0}' is decorated with [EntityType] attribute but is abstract, private, or does not inherit from SourceKnownEntity",
+        messageFormat: "Class '{0}' is decorated with [EntityType] attribute but is abstract, effectively private, or does not inherit from SourceKnownEntity",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "The [EntityType] attribute should only be applied to non-abstract, non-private classes that inherit from SourceKnownEntity.",
+        description: "The [EntityType] attribute should only be applied to non-abstract classes that inherit from SourceKnownEntity and are neither private nor nested within a private type.",
         helpLinkUri: HelpLinkUri);
 
     public static readonly DiagnosticDescriptor DuplicateEntityName = new(
@@ -79,6 +79,17 @@ public static class DiagnosticDescriptors
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Application partition identifiers (IAppId) must be between 0 and 127 so they fit the Source-Known ID partition field.",
+        helpLinkUri: HelpLinkUri,
+        WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor UnsupportedEntityAttribute = new(
+        id: "DRN0008",
+        title: "Unsupported entity attribute constructor",
+        messageFormat: "Entity attribute '{0}' must derive from EntityTypeAttribute<TApp> and declare one constructor with one byte or byte-backed enum parameter forwarded unchanged to its base constructor",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Derived entity attributes must preserve their constructor argument as the entity type. Compiled references must satisfy the same forwarding contract.",
         helpLinkUri: HelpLinkUri,
         WellKnownDiagnosticTags.CompilationEnd);
 }

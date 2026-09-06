@@ -65,7 +65,11 @@ public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid Ent
 
     public bool Equals(SourceKnownEntityId other) => EntityId == other.EntityId;
     public override int GetHashCode() => EntityId.GetHashCode();
-    public int CompareTo(SourceKnownEntityId other) => EntityType == other.EntityType ? Source.CompareTo(other.Source) : 1;
+    public int CompareTo(SourceKnownEntityId other)
+    {
+        var typeComparison = EntityTypeId.CompareTo(other.EntityTypeId);
+        return typeComparison != 0 ? typeComparison : Source.CompareTo(other.Source);
+    }
 
     public static bool operator >(SourceKnownEntityId left, SourceKnownEntityId right) => left.CompareTo(right) > 0;
     public static bool operator <(SourceKnownEntityId left, SourceKnownEntityId right) => left.CompareTo(right) < 0;

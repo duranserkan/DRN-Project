@@ -115,4 +115,28 @@ public class HashExtensionTests
         using var keyedStream = File.OpenRead(path);
         keyedStream.HashWithKey(new BinaryData(HelloWorldKey), encoding: ByteEncoding.Hex).Should().Be(HelloWorldBlake3HashWithKey);
     }
+
+    [Theory]
+    [DataInlineUnit((byte)0, 0x3A71EB114139F841L)]
+    [DataInlineUnit((byte)19, 4938522919252271305L)]
+    [DataInlineUnit((byte)24, 0x76BFF53FB2448928L)]
+    public void GenerateSeedFromInputHash_WithValidOffsets_ShouldSucceed(byte validOffset, long expectedSeed)
+    {
+        var seed = HelloWorld.GenerateSeedFromInputHash(validOffset);
+        seed.Should().Be(expectedSeed);
+    }
+
+    [Theory]
+    [DataInlineUnit((byte)25)]
+    [DataInlineUnit((byte)32)]
+    [DataInlineUnit((byte)33)]
+    [DataInlineUnit(byte.MaxValue)]
+    public void GenerateSeedFromInputHash_WithOffsetGreaterThan24_ShouldFallbackToDefaultOffset19(byte outOfRangeOffset)
+    {
+        var fallbackSeed = HelloWorld.GenerateSeedFromInputHash(outOfRangeOffset);
+        var expectedDefaultSeed = HelloWorld.GenerateSeedFromInputHash(19);
+
+        fallbackSeed.Should().Be(expectedDefaultSeed);
+        fallbackSeed.Should().Be(4938522919252271305);
+    }
 }

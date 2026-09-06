@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using DRN.Framework.EntityFramework.Context;
@@ -19,6 +20,7 @@ namespace DRN.Framework.EntityFramework.Domain;
 /// <remarks>
 /// Entity updates, additional filtering logic, and query includes (e.g., <c>Include</c> statements) are the responsibility of concrete subclasses.
 /// </remarks>
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public abstract class SourceKnownRepository<TContext, TEntity>(TContext context, IEntityUtils utils) : ISourceKnownRepository<TEntity>
     where TContext : DbContext, IDrnContext
     where TEntity : AggregateRoot
@@ -75,7 +77,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// Saves all changes made in this context to the database.
     /// </summary>
     /// <returns>The number of state entries written to the database</returns>
-    public async Task<int> SaveChangesAsync()
+    public virtual async Task<int> SaveChangesAsync()
     {
         using var _ = ScopedLog.Measure(this);
         var changeCount = await Context.SaveChangesAsync(CancellationToken);
@@ -84,7 +86,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return changeCount;
     }
 
-    public async Task<bool> AnyAsync(Expression<Func<TEntity, bool>>? predicate = null)
+    public virtual async Task<bool> AnyAsync(Expression<Func<TEntity, bool>>? predicate = null)
     {
         using var _ = ScopedLog.Measure(this);
         var any = predicate == null
@@ -94,7 +96,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return any;
     }
 
-    public async Task<bool> AllAsync(Expression<Func<TEntity, bool>> predicate)
+    public virtual async Task<bool> AllAsync(Expression<Func<TEntity, bool>> predicate)
     {
         using var _ = ScopedLog.Measure(this);
         var any = await EntitiesWithAppliedSettings().AllAsync(predicate, CancellationToken);
@@ -102,7 +104,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return any;
     }
 
-    public async Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null)
+    public virtual async Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null)
     {
         using var _ = ScopedLog.Measure(this);
         var count = predicate == null
@@ -123,7 +125,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// • The entity count is known to be small (e.g., less than 1000 records).
     /// </para>
     /// </summary>
-    public async Task<TEntity[]> GetAllAsync()
+    public virtual async Task<TEntity[]> GetAllAsync()
     {
         using var _ = ScopedLog.Measure(this);
         var entities = await EntitiesWithAppliedSettings().ToArrayAsync(CancellationToken);
@@ -135,7 +137,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// Finds an entity with the given source known ids
     /// </summary>
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public async Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids)
+    public virtual async Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids)
     {
         using var _ = ScopedLog.Measure(this);
         if (ids.Count == 0) return [];
@@ -146,7 +148,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return items;
     }
 
-    public async Task<TEntity[]> GetAsync(IReadOnlyCollection<SourceKnownEntityId> ids)
+    public virtual async Task<TEntity[]> GetAsync(IReadOnlyCollection<SourceKnownEntityId> ids)
     {
         using var _ = ScopedLog.Measure(this);
         if (ids.Count == 0) return [];
@@ -162,17 +164,17 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// </summary>
     /// <exception cref="NotFoundException">Thrown when entity not found</exception>
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public async Task<TEntity> GetAsync(Guid id) => await GetOrDefaultAsync(id)
-                                                    ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
+    public virtual async Task<TEntity> GetAsync(Guid id) => await GetOrDefaultAsync(id)
+                                                           ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
 
-    public async Task<TEntity> GetAsync(SourceKnownEntityId id) => await GetOrDefaultAsync(id)
-                                                                   ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
+    public virtual async Task<TEntity> GetAsync(SourceKnownEntityId id) => await GetOrDefaultAsync(id)
+                                                                          ?? throw new NotFoundException($"{typeof(TEntity).FullName} not found: {id}");
 
     /// <summary>
     /// Finds an entity with the given source known id
     /// </summary>
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
-    public async Task<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true)
+    public virtual async Task<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true)
     {
         using var _ = ScopedLog.Measure(this);
         var entityId = GetEntityId(id, validate);
@@ -183,7 +185,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return entity;
     }
 
-    public async Task<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true)
+    public virtual async Task<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true)
     {
         using var _ = ScopedLog.Measure(this);
         if (validate) id.Validate<TEntity>();
@@ -198,7 +200,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// Begins tracking the given entities, and any other reachable entities that are not already being tracked,
     /// in the Added state such that they will be inserted into the database when SaveChanges() is called.
     /// </summary>
-    public void Add(params IReadOnlyCollection<TEntity> entities)
+    public virtual void Add(params IReadOnlyCollection<TEntity> entities)
     {
         Entities.AddRange(entities);
         ScopedLog.Increase(CreateCountKey, entities.Count);
@@ -207,7 +209,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// <summary>
     /// Begins tracking the given entities in the Deleted state such that they will be removed from the database when SaveChanges() is called.
     /// </summary>
-    public void Remove(params IReadOnlyCollection<TEntity> entities)
+    public virtual void Remove(params IReadOnlyCollection<TEntity> entities)
     {
         Entities.RemoveRange(entities);
         ScopedLog.Increase(DeleteCountKey, entities.Count);
@@ -217,31 +219,31 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// equivalent to calling Add + SaveChangesAsync
     /// </summary>
     /// <returns>The number of state entries written to the database</returns>
-    public async Task<int> CreateAsync(params IReadOnlyCollection<TEntity> entities)
+    public virtual async Task<int> CreateAsync(params IReadOnlyCollection<TEntity> entities)
     {
         using var _ = ScopedLog.Measure(this);
         Add(entities);
 
-        return await Context.SaveChangesAsync(CancellationToken);
+        return await SaveChangesAsync();
     }
 
     /// <summary>
     /// equivalent to calling Remove + SaveChangesAsync
     /// </summary>
     /// <returns>The number of state entries written to the database</returns>
-    public async Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities)
+    public virtual async Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities)
     {
         using var _ = ScopedLog.Measure(this);
         Remove(entities);
 
-        return await Context.SaveChangesAsync(CancellationToken);
+        return await SaveChangesAsync();
     }
 
     /// <summary>
     /// Directly deletes entities from the database without fetching first.
     /// </summary>
     /// <returns>The total number of rows deleted in the database.</returns>
-    public async Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids)
+    public virtual async Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids)
     {
         using var _ = ScopedLog.Measure(this);
         var entities = EntitiesWithAppliedBaseSettings();
@@ -252,7 +254,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return deletedCount;
     }
 
-    public async Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids)
+    public virtual async Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids)
     {
         using var _ = ScopedLog.Measure(this);
         var entities = EntitiesWithAppliedBaseSettings();
@@ -268,19 +270,13 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public SourceKnownEntityId GetEntityId(Guid id, bool validate = true)
-    {
-        using var _ = ScopedLog.Measure(this);
-        return validate ? Utils.EntityId.Validate(id, EntityTypeId) : Utils.EntityId.Parse(id);
-    }
+        => validate ? Utils.EntityId.Validate(id, EntityTypeId) : Utils.EntityId.Parse(id);
 
     public SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id) where TOtherEntity : SourceKnownEntity
         => id == null ? null : GetEntityId<TOtherEntity>(id.Value);
 
     public SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity
-    {
-        using var _ = ScopedLog.Measure(this);
-        return Utils.EntityId.Validate(id, SourceKnownEntity.GetEntityTypeId<TOtherEntity>());
-    }
+        => Utils.EntityId.Validate(id, SourceKnownEntity.GetEntityTypeId<TOtherEntity>());
 
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true)
@@ -311,7 +307,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     public SourceKnownEntityId ToSecure(SourceKnownEntityId id) => Utils.EntityId.ToSecure(id);
     public SourceKnownEntityId ToPlain(SourceKnownEntityId id) => Utils.EntityId.ToPlain(id);
 
-    public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
+    public virtual async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
         => await PaginateAsync(EntitiesWithAppliedSettings(), request, filter);
 
     /// <summary>
@@ -350,11 +346,11 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// <remarks>
     /// When continuing pagination, jump distances beyond 10 pages in either direction are capped at 10.
     /// </remarks>
-    public async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null, long jumpTo = 1L,
+    public virtual async Task<PaginationResultModel<TEntity>> PaginateAsync(PaginationResultInfo? resultInfo = null, long jumpTo = 1L,
         int pageSize = -1, int maxSize = -1, PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)
         => await PaginateAsync(EntitiesWithAppliedSettings(), resultInfo, jumpTo, pageSize, maxSize, direction, totalCount, updateTotalCount);
 
-    public IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
+    public virtual IAsyncEnumerable<PaginationResultModel<TEntity>> PaginateAllAsync(PaginationRequest request, EntityCreatedFilter? filter = null)
         => PaginateAllAsync(EntitiesWithAppliedSettings(), request, filter);
 
     /// <summary>

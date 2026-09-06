@@ -226,12 +226,12 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public override int GetHashCode() => EntityIdSource.GetHashCode();
 
     /// <summary>
-    /// Returns comparison result based on Id. Null and Zero-valued ids are considered less than any other id.
+    /// Compares assigned identities by application partition, entity type, then Id.
+    /// Preserves reference equality and the existing null and zero-valued Id handling.
     /// </summary>
     /// <returns>
-    ///<li>1: if this entity's Id is greater than the other Id, which means this entity is newer than the other.</li>
-    ///<li>-1: if this entity's Id is less than the other Id, which means this entity is older than the other.</li>
-    ///<li>0: if they are equal, which means they are the same entity.</li>
+    /// A negative value if this entity sorts first, a positive value if it sorts last,
+    /// or zero for equivalent identities. Numeric Id order applies within the same entity type and partition.
     /// </returns>
     public int CompareTo(SourceKnownEntity? other)
     {
@@ -239,7 +239,8 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         if (other is null || other.Id == 0) return 1;
         if (Id == 0) return -1;
 
-        return EntityIdSource.HasSameEntityType(other.EntityIdSource) ? Id.CompareTo(other.Id) : 1;
+        var typeComparison = EntityIdSource.EntityTypeId.CompareTo(other.EntityIdSource.EntityTypeId);
+        return typeComparison != 0 ? typeComparison : Id.CompareTo(other.Id);
     }
 
     public static bool operator ==(SourceKnownEntity? left, SourceKnownEntity? right) => left?.Equals(right) ?? right is null;

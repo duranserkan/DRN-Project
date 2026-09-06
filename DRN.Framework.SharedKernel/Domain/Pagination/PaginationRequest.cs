@@ -54,14 +54,22 @@ public class PaginationRequest
         PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)
     {
         totalCount = resultInfo is not null && totalCount < 1 ? resultInfo.Total.Count : totalCount;
+        maxSize = Math.Min(maxSize, PageSize.MaxSizeThreshold);
         var directionChanged = resultInfo != null && direction != PageSortDirection.None && direction != resultInfo.Request.PageCursor.SortDirection;
         var sizeChanged = resultInfo != null && pageSize > 0 && pageSize != resultInfo.Request.PageSize.Size;
-        if (resultInfo == null || directionChanged || sizeChanged)
+        var maxSizeChanged = resultInfo != null && maxSize > 0 && maxSize != resultInfo.Request.PageSize.MaxSize;
+        if (resultInfo == null || directionChanged || sizeChanged || maxSizeChanged)
+        {
+            pageSize = pageSize > 0 ? pageSize : resultInfo?.Request.PageSize.Size ?? PageSize.SizeDefault;
+            maxSize = maxSize > 0 ? maxSize : resultInfo?.Request.PageSize.MaxSize ?? PageSize.MaxSizeDefault;
+            direction = direction != PageSortDirection.None ? direction : resultInfo?.Request.PageCursor.SortDirection ?? PageSortDirection.Ascending;
             return DefaultWith(pageSize, maxSize, direction, totalCount: totalCount, updateTotalCount: updateTotalCount);
+        }
 
         var pageNumber = resultInfo.Request.PageNumber;
-        if (jumpTo > pageNumber + 10)
-            jumpTo = pageNumber + 10;
+        var upperPageBound = pageNumber > long.MaxValue - 10 ? long.MaxValue : pageNumber + 10;
+        if (jumpTo > upperPageBound)
+            jumpTo = upperPageBound;
         else if (jumpTo < pageNumber - 10)
             jumpTo = pageNumber - 10;
 
@@ -122,7 +130,19 @@ public class PaginationRequest
         : PageCursor.FirstId;
 
     public bool IsPageJump() => PageDifference > 1;
-    public int GetSkipSize() => IsPageJump() ? (int)((PageDifference - 1) * PageSize.Size) : 0;
+    public int GetSkipSize()
+    {
+        var pageDifference = PageDifference;
+        if (pageDifference <= 1)
+            return 0;
+
+        var pagesToSkip = pageDifference - 1;
+        var pageSize = PageSize.Size;
+        if (pagesToSkip > int.MaxValue / pageSize)
+            throw ExceptionFor.Validation("Pagination offset exceeds the maximum supported skip size.");
+
+        return (int)(pagesToSkip * pageSize);
+    }
 
     private static PageNavigationDirection CalculateDirection(long pageNumber, long cursorPageNumber, bool firstRequest)
     {

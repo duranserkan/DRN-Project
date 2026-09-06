@@ -219,15 +219,15 @@ public class ScopedLog : IScopedLog
 
     public IScopedLog Add(string key, object value)
     {
-        if (value.IgnoredLog())
-            value = ScopedLogConventions.IgnoredLogValue;
-        else if (value is string text)
+        if (value is string text)
             value = GetSafeString(text);
         else if (value is TimeSpan time)
         {
             key = ScopedLogConventions.TimeSpanKey(key);
             value = time.TotalSeconds;
         }
+        else if (value.IgnoredLog())
+            value = ScopedLogConventions.IgnoredLogValue;
 
         lock (_sync)
             LogData[key] = value;

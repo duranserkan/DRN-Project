@@ -45,7 +45,9 @@ public abstract class NpgsqlDbContextOptionsAttribute : Attribute
     }
 
     /// <summary>
-    /// Override this method to seed initial or updated data when prototype database recreation or pending migrations occur.
+    /// Override this method to seed data through EF initialization callbacks for DI-configured contexts.
+    /// Migration callbacks run under EF's migration lock, including when no migrations remain.
+    /// Synchronous initialization waits for this asynchronous hook. Design-time contexts without DI do not invoke it.
     /// <para>
     /// Note: Handling duplicate seed data or idempotency is not the responsibility of <c>DRN.Framework.EntityFramework</c>.
     /// Implementations must verify existing records before inserting seed data (e.g. check for existing keys or use upsert logic).

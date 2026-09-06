@@ -37,17 +37,15 @@ public sealed class NonDefaultExemptSchemeTestProgram : DrnProgramBase<NonDefaul
                 NonDefaultExemptValues.SecondApiKeyScheme,
                 _ => { });
 
-        builder.Services.AddAuthorization(options =>
-        {
-            options.AddPolicy(NonDefaultExemptValues.ApiKeyPolicy, policy =>
+        builder.Services.AddAuthorizationBuilder()
+            .AddPolicy(NonDefaultExemptValues.ApiKeyPolicy, policy =>
             {
                 policy.AuthenticationSchemes.Add(NonDefaultExemptValues.NonDefaultApiKeyScheme);
                 policy.RequireRole(NonDefaultExemptValues.ManagerRole);
-            });
-            options.AddPolicy(NonDefaultExemptValues.SecondApiKeyScheme, policy =>
+            })
+            .AddPolicy(NonDefaultExemptValues.SecondApiKeyScheme, policy =>
                 policy.AddAuthenticationSchemes(NonDefaultExemptValues.SecondApiKeyScheme)
                     .RequireRole(NonDefaultExemptValues.ManagerRole));
-        });
 
         builder.Services.AddServicesWithAttributes();
         return Task.CompletedTask;

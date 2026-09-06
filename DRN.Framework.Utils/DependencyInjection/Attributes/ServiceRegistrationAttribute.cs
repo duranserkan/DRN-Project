@@ -11,9 +11,11 @@ public abstract class ServiceRegistrationAttribute : Attribute
         type is { IsAbstract: false, IsClass: true, IsVisible: true } &&
         type.GetCustomAttributes().Any(a => a.GetType().IsAssignableTo(typeof(ServiceRegistrationAttribute)));
 
-    public static ServiceRegistrationAttribute GetModuleAttribute(Type type) =>
-        (ServiceRegistrationAttribute)type.GetCustomAttributes()
-            .Single(a => a.GetType().IsAssignableTo(typeof(ServiceRegistrationAttribute)));
+    /// <summary>Gets the single registration attribute, throwing when the type has zero or multiple attributes.</summary>
+    public static ServiceRegistrationAttribute GetModuleAttribute(Type type) => GetModuleAttributes(type).Single();
+
+    public static IEnumerable<ServiceRegistrationAttribute> GetModuleAttributes(Type type) =>
+        type.GetCustomAttributes().OfType<ServiceRegistrationAttribute>();
 
 
     public abstract void ServiceRegistration(IServiceCollection sc, Assembly? assembly);

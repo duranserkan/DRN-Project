@@ -17,10 +17,9 @@ using Microsoft.Extensions.Hosting;
 
 namespace DRN.Framework.Testing.Contexts.Application;
 
-internal sealed class DrnProgramHostRunner<TProgram>
-    where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
+internal static class DrnProgramHostRunner<TProgram> where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
-    public IHost BuildHost(
+    public static IHost BuildHost(
         DrnTestContext testContext,
         List<Action<IConfigurationBuilder>> hostConfigs,
         List<Action<HostBuilderContext, IConfigurationBuilder>> appConfigs,

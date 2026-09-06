@@ -304,6 +304,7 @@ or infrastructure module, then use `EnsureDatabaseAsync` to create the schema di
   - *Pattern 2*: `var app = await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<T>();` and `var client = app.CreateClient();`.
 - **In-Memory Routing**: Outbound HTTP calls via `IInternalRequest`, `IExternalRequest`, and `IHttpClientFactory` are automatically routed in-memory by `ApplicationContextRouterHandler` using hostnames, ports, and aliases. Unregistered hosts fail fast with `InvalidOperationException`.
 - **Custom DNS & Aliases**: Use `CreateClientForServiceAsync<TProgram>("service-alias")` or `ApplicationContext.MapAddress<TProgram>("service-alias")` for custom service routing.
+- **HTTPS Client Option**: `CreateClientAsync<TProgram>` has one signature with an optional first parameter, `bool https = false`. Use `https: true` for `https://localhost`; omitted or false defaults to `http://localhost`. Explicit `clientOptions` take precedence over the flag and remain unchanged. Use named arguments when supplying `outputHelper`, `clientOptions`, or `additionalAddresses` without the flag.
 - **External Dependencies**: `CreateClientAsync<TProgram>()` automatically runs `ContainerContext.BindExternalDependenciesAsync()` (applying Postgres migrations for registered `DrnContext` types).
 - **Test Output Logging**: Captures application lifecycle logs only when a debugger is attached and `Xunit.TestContext.Current.TestOutputHelper` is available.
 - **Environment Isolation**: `TestEnvironment.DrnTestContextEnabled = true` prevents local development provisioning during integration tests.
@@ -1043,7 +1044,7 @@ For `WebApplicationFactory<TProgram>` scenarios, point `TProgram` at a hosted ap
 
 ## Example Test Project .csproj File
 
-Don't forget to replace DRN.Framework.Testing project reference with its nuget package reference
+Copy-ready `.csproj` configuration for a test project consuming the `DRN.Framework.Testing` NuGet package (repository contributors may use the sibling project reference instead):
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
 
@@ -1058,11 +1059,8 @@ Don't forget to replace DRN.Framework.Testing project reference with its nuget p
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="xunit.v3.mtp-v2" Version="4.0.0-pre.154" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj"/>
+        <PackageReference Include="DRN.Framework.Testing" Version="0.10.0" />
+        <PackageReference Include="xunit.v3.mtp-v2" Version="4.0.0" />
     </ItemGroup>
 
     <ItemGroup>

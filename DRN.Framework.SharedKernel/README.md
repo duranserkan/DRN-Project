@@ -124,6 +124,13 @@ Core primitives provide conventions for rapid and effective domain design and en
 | **DRN0005** | Error | Multiple `AppId`s in single compilation | Enforces that non-test application project graphs declare a single `AppId` partition unless `<AllowMultipleAppIds>true</AllowMultipleAppIds>`, `<IsTestProject>true</IsTestProject>`, or `<UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>` is configured. |
 | **DRN0006** | Error | Unresolvable or non-constant `AppId` in `[EntityType]` | Enforces that `IAppId` implementations declare a constant value (`public const byte Value = ...;` or `public const byte AppId = ...;`) so partition identities can be read from metadata across assembly boundaries. |
 | **DRN0007** | Error | `AppId` outside the supported range | Enforces that statically resolved `IAppId` values used by `[EntityType]` declarations are between 0 and 127, matching Source-Known ID runtime constraints. |
+| **DRN0008** | Error | Unsupported entity attribute constructor | Derived attributes must reach `EntityTypeAttribute<TApp>` through one constructor per class, with one byte or byte-backed enum parameter forwarded unchanged to the base constructor. |
+
+Derived entity attributes use a pass-through constructor, for example `public sealed class DomainEntityTypeAttribute(DomainEntityTypes kind) : EntityTypeAttribute<DefaultApp>((byte)kind);`, where `DomainEntityTypes` has underlying type `byte`. Parameter names may differ; primary and ordinary constructors are supported. Reordered, additional, fixed-value, overloaded, or transformed constructor mappings are rejected with `DRN0008`. `AppId` always comes from the framework's generic `TApp` binding; a derived property hiding `AppId` does not change that binding.
+
+The analyzer checks source attribute declarations even when no entity uses them yet. For compiled references, Roslyn exposes constructor signatures but not bodies: signatures are checked, and forwarding relies on the producer satisfying this contract. Run the analyzer when building domain attribute libraries; it cannot prove forwarding inside a precompiled library built with validation disabled.
+
+An entity is effectively private if it or any containing type is private. Such entities are excluded from required-attribute and collision checks in both local and referenced analysis; annotating one locally reports `DRN0003`.
 
 - **Aggregator Compilation**: In multi-module hosts or integration test projects, the analyzer inspects the entire domain dependency graph, catching cross-referenced assembly collisions (`DRN0002` / `DRN0004` / `DRN0005`) across distinct external modules at compilation end.
 - **Diamond Dependency Deduplication**: Shared base models imported through multiple transitive reference paths (e.g. `A → B → Common` and `A → C → Common`) are deduplicated using Roslyn symbol equality, preventing false-positive duplicate diagnostics.
@@ -246,13 +253,25 @@ var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 namespace DRN.Framework.SharedKernel.Domain;
 
 /// <summary>
-/// Application wide Unique Entity Type
+/// Base entity type attribute, specialized per application partition.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class EntityTypeAttribute(byte entityType) : Attribute
+public abstract class EntityTypeAttribute : Attribute
 {
-    public byte EntityType { get; } = entityType;
+    public byte EntityType { get; }
+    public byte AppId { get; }
+
+    protected EntityTypeAttribute(byte entityType, byte appId)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(appId, IAppId.MaxAppId);
+        EntityType = entityType;
+        AppId = appId;
+    }
 }
+
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public class EntityTypeAttribute<TApp>(byte entityType) : EntityTypeAttribute(entityType, TApp.AppId)
+    where TApp : IAppId;
 
 public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<SourceKnownEntity>, IComparable<SourceKnownEntity>
 {
@@ -310,14 +329,24 @@ public readonly record struct SourceKnownEntityId(
     bool Secure             // True when EntityId is the encrypted external form
 )
 {
-    // Validates that this ID belongs to the specified TEntity type
-    public void Validate<TEntity>() where TEntity : SourceKnownEntity 
-        => Validate(SourceKnownEntity.GetEntityType<TEntity>());
-        
-    // Validates ID structure and checks type match
-    public void Validate(byte entityType);
+    public EntityTypeId EntityTypeId => new(EntityType, Source.AppId);
+
+    // Validates ID structure and the entity type's declared application partition
+    public void Validate<TEntity>() where TEntity : SourceKnownEntity
+        => Validate(SourceKnownEntity.GetEntityTypeId<TEntity>());
+
+    // Uses the ID's own application partition; checks the supplied entity type byte
+    public void Validate(byte entityType)
+        => Validate(new EntityTypeId(entityType, Source.AppId));
+
+    // Validates ID structure and both expected EntityType and AppId (implementation omitted)
+    public void Validate(EntityTypeId expected);
 }
 ```
+
+The non-generic `EntityTypeAttribute` remains an abstract base. Annotate entities with `[EntityType<TApp>(byte)]` or a domain attribute derived through `EntityTypeAttribute<TApp>`.
+
+`Validate(byte)` remains available, but it uses the ID's own `AppId` and therefore does not check an independently expected application partition. Use `Validate<TEntity>()` or `Validate(EntityTypeId)` to validate both entity type and expected partition.
 
 ---
 
@@ -409,6 +438,8 @@ var result = await repository.PaginateAsync(request, filter);
 ## Pagination
 
 SharedKernel provides a cursor-based pagination system with stable bidirectional navigation and bounded jumps.
+
+`PaginationRequest.From()` defaults to 10 items per page, a maximum page size of 100, and ascending order. Changing size, effective maximum size, or direction restarts at page 1 with a fresh cursor; omitted size, maximum size, and direction retain their previous settings when resetting an existing request. Maximum sizes are capped at 1,000 before comparison, so repeating an above-threshold limit preserves navigation.
 
 Page jumps are limited to ten pages per request while preserving the requested direction (e.g. page 100 to page 1 targets page 90, and page 1 to page 100 targets page 11).
 

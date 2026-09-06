@@ -1,18 +1,15 @@
 using System.Reflection;
 using System.Text;
-using DRN.Framework.EntityFramework.Attributes;
-using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.DependencyInjection;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Entity;
-using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Models;
 using DRN.Framework.Utils.Settings;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
@@ -66,11 +63,15 @@ internal static class DrnContextServiceRegistrationHelper
         }
     }
 
-    internal static async Task SeedDataAsync(DbContext context, IServiceProvider serviceProvider, IAppSettings appSettings)
+    internal static async Task SeedDataAsync(DbContext context, IServiceProvider serviceProvider, IAppSettings appSettings,
+        CancellationToken cancellationToken = default)
     {
         var optionsAttributes = DbContextConventions.GetContextAttributes(context);
         foreach (var optionsAttribute in optionsAttributes)
-            await optionsAttribute.SeedAsync(serviceProvider, appSettings);
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await optionsAttribute.SeedAsync(serviceProvider, appSettings).ConfigureAwait(false);
+        }
     }
 
     internal static async Task ProcessChangeModelAsync(
@@ -88,7 +89,8 @@ internal static class DrnContextServiceRegistrationHelper
                 return;
             }
 
-            if (changeModel.Flags.HasPendingMigrationsWithoutPendingModelChanges)
+            // EF must enter the migration lock even when only a failed seed needs retrying.
+            if (!changeModel.Flags.HasPendingModelChanges)
             {
                 await ApplyPendingMigrationsAsync(context, serviceProvider, appSettings, changeModel, scopedLog);
             }
@@ -105,18 +107,16 @@ internal static class DrnContextServiceRegistrationHelper
         IScopedLog? scopedLog)
     {
         scopedLog?.AddToActions($"checking {changeModel.Name} database in prototype mode.");
-        var created = await context.Database.EnsureCreatedAsync();
-        if (created)
-            scopedLog?.AddToActions($"{changeModel.Name} db created for prototype mode");
-        else
-        {
-            scopedLog?.AddToActions($"{changeModel.Name} db will be recreated for pending model changes.");
+        // EnsureCreated invokes EF's seed callback even for an existing database.
+        // Delete the approved prototype first so seeds only see the replacement schema.
+        var databaseCreator = context.GetService<IRelationalDatabaseCreator>();
+        var recreate = await databaseCreator.ExistsAsync() && await databaseCreator.HasTablesAsync();
+        if (recreate)
             await context.Database.EnsureDeletedAsync();
-            await context.Database.EnsureCreatedAsync();
-            scopedLog?.AddToActions($"{changeModel.Name} db recreated for pending model changes.");
-        }
-
-        await SeedDataAsync(context, serviceProvider, appSettings);
+        await context.Database.EnsureCreatedAsync();
+        scopedLog?.AddToActions(recreate
+            ? $"{changeModel.Name} db recreated for pending model changes."
+            : $"{changeModel.Name} db created for prototype mode");
     }
 
     internal static async Task ApplyPendingMigrationsAsync(
@@ -129,7 +129,6 @@ internal static class DrnContextServiceRegistrationHelper
         scopedLog?.AddToActions($"{changeModel.Name} is migrating {appSettings.Environment.ToString()}");
         await context.Database.MigrateAsync();
 
-        await SeedDataAsync(context, serviceProvider, appSettings);
         scopedLog?.AddToActions($"{changeModel.Name} migrated {changeModel.PendingMigrations.Count} pending migrations");
     }
 
@@ -153,7 +152,7 @@ internal static class DrnContextServiceRegistrationHelper
     internal static List<DbContext> CollectAllDbContexts(IServiceProvider serviceProvider, DbContext? currentContext = null)
     {
         var allDbContexts = GetRegisteredDbContexts(serviceProvider);
-        if (currentContext != null && !allDbContexts.Any(c => c.GetType() == currentContext.GetType()))
+        if (currentContext != null && allDbContexts.All(c => c.GetType() != currentContext.GetType()))
             allDbContexts.Add(currentContext);
 
         return allDbContexts;
@@ -273,7 +272,7 @@ internal static class DrnContextServiceRegistrationHelper
     internal static Type[] GetModelDomainEntityTypes(DbContext context) =>
         context.Model.GetEntityTypes()
             .Select(e => e.ClrType)
-            .Where(t => t.IsAssignableTo(typeof(SourceKnownEntity)))
+            .Where(IsDomainEntityType)
             .Distinct()
             .ToArray();
 
@@ -285,10 +284,22 @@ internal static class DrnContextServiceRegistrationHelper
 
         var assemblyTypes = assemblies
             .SelectMany(GetAssemblyDomainEntityTypes)
-            .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false, IsNestedPrivate: false } &&
-                        t.IsAssignableTo(typeof(SourceKnownEntity)));
+            .Where(IsDomainEntityType);
 
         return modelTypes.Concat(assemblyTypes).Distinct().ToArray();
+    }
+
+    private static bool IsDomainEntityType(Type type) =>
+        type is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false } &&
+        type.IsAssignableTo(typeof(SourceKnownEntity)) && !IsEffectivelyPrivate(type);
+
+    private static bool IsEffectivelyPrivate(Type type)
+    {
+        for (var current = type; current != null; current = current.DeclaringType)
+            if (current.IsNestedPrivate)
+                return true;
+
+        return false;
     }
 
     private static HashSet<Assembly> CollectNonTestAssemblies(

@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts and cancellation semantics, pagination, JSON conventions, app constants, and shared extensions. Keywords: entity, aggregate-root, domain-event, repository, repository-cancellation, cancellation, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
-last-updated: 2026-08-25
+last-updated: 2026-09-06
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -66,6 +66,8 @@ public abstract class SourceKnownEntity(long id = 0)
 > - `DRN0005` (Error): Multiple production `AppId` partitions in a single application compilation (unless `<AllowMultipleAppIds>true</AllowMultipleAppIds>`, `<IsTestProject>true</IsTestProject>`, or `<UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>` is configured).
 > - `DRN0006` (Error): Unresolvable or non-constant `AppId` on `IAppId` implementations in `[EntityType]` declarations.
 > - `DRN0007` (Error): Statically resolved `AppId` outside the supported `0..127` range in local or referenced `[EntityType]` declarations.
+> - `DRN0008` (Error): Unsupported derived entity attribute constructor. Each derived class has one constructor, taking one byte or byte-backed enum parameter forwarded unchanged through to `EntityTypeAttribute<TApp>`. Source declarations are validated even without entity uses; referenced signatures are checked but compiled bodies rely on producer-side analyzer validation. AppId is resolved only from the framework generic binding, never a shadowed named property or extra constructor argument.
+> - Privacy includes private containing types: effectively private entities are excluded from required-attribute/collision analysis; local annotations on them report `DRN0003`.
 
 ### Application Partitions & Attributes
 
@@ -190,6 +192,7 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 ```
 
 **Key Behaviors**:
+- `PaginationRequest.From()` defaults to size 10, maximum 100, and ascending order. Size, effective maximum size, or direction changes reset to page 1 with a fresh cursor while retaining omitted size, maximum size, and direction from the previous request. Maximum sizes are capped at `PageSize.MaxSizeThreshold` before comparison so repeated above-threshold inputs preserve navigation.
 - `Get(OrDefault)Async` with `Guid` auto-validates ID format and EntityType byte before querying
 - `PaginateAllAsync` returns `IAsyncEnumerable` for efficient large dataset streaming
 - `CancellationToken` exposes the repository scope token (uses Root when `Settings.ScopeKey` is null, or named scope when set), `CancelWhen(token)` links a lifetime token, and `CancelChanges` cancels the effective scope.

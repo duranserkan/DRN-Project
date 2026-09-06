@@ -30,8 +30,7 @@ public static class MfaPrincipal
         TimeSpan maximumAge, DateTimeOffset utcNow, string authenticationTimeClaimType = AuthClaimTypes.AuthenticationTime)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(authenticationTimeClaimType);
-        if (maximumAge < TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(maximumAge));
+        ArgumentOutOfRangeException.ThrowIfLessThan(maximumAge, TimeSpan.Zero);
 
         return AssuranceIdentities(principal, config, trustedIssuer).Any(identity =>
         {

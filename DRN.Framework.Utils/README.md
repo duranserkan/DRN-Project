@@ -261,6 +261,8 @@ For root-wide migration, replace `cancellation.Cancel()`, `Merge(token)`, `Token
 
 Services can require complex registration logic or post-startup actions. Attributes inheriting from `ServiceRegistrationAttribute` handle this.
 
+A class can carry multiple registration attributes. Discovery enumerates all of them, deduplicates equal attributes across the assembly, and retains each distinct module's service descriptors for startup validation. Use `GetModuleAttributes(Type)` for plural discovery; `GetModuleAttribute(Type)` requires exactly one attribute.
+
 **Example**: `DrnContext<T>` (in `DRN.Framework.EntityFramework`) is decorated with `[DrnContextServiceRegistration]`, which:
 1.  Registers the DbContext.
 2.  Runs startup migration handling; Development auto-migration occurs when `DrnDevelopmentSettings:AutoMigrateDevelopment` is enabled (default: `true`).

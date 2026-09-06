@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
 description: "DRN.Framework.EntityFramework - DrnContext, migrations, entity lifecycle tracking, Npgsql configuration, repositories, and repository cancellation groups. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, repository-cancellation, cancellation-scope, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
-last-updated: 2026-08-25
+last-updated: 2026-09-06
 difficulty: advanced
 tokens: ~2.5K
 ---
@@ -54,7 +54,8 @@ DrnContext augments entities during `OnModelCreating` and runtime:
 | **Secure ↔ Plain** | `ToSecure` / `ToPlain` on entity and repository for idempotent ID form conversion |
 | **JSON Models** | `IEntityWithModel<T>` auto-maps `.Model` to `jsonb` column |
 | **Identity Naming** | ASP.NET Core Identity tables/columns → `snake_case` for PostgreSQL |
-| **Startup Validation** | Validates non-private SourceKnownEntity entities have valid, unique `(EntityType, AppId)` pairs while permitting the same entity byte in different application partitions; nested private helper entities are ignored |
+| **Mapped Inheritance** | Configures SourceKnownEntity keys and shared properties on EF hierarchy roots for TPH/TPT/TPC; derived entities inherit the key and ID generator while retaining their own concrete entity-type metadata |
+| **Startup Validation** | Validates concrete, non-private SourceKnownEntity entities have valid, unique `(EntityType, AppId)` pairs while permitting the same entity byte in different application partitions; abstract bases and entities that are private or nested at any depth inside a private type are ignored in model and assembly discovery, matching analyzer eligibility |
 
 ---
 
@@ -120,6 +121,10 @@ Environment=Development, postgres-password=dev-password, DrnContext_DevHost=post
 ---
 
 ## Migrations
+
+DI-configured contexts compose attribute `SeedAsync` with EF `UseSeeding`/`UseAsyncSeeding` callbacks, after any custom callback. Eligible automatic startups call `MigrateAsync` even with no pending migrations so seeds run under the migration lock and failed seeds can be retried. Explicit DI migration/creation operations also seed; synchronous operations wait for the asynchronous hook. Design-time configuration without DI does not add attribute seeding. Seeds must be idempotent and use the same scoped context. Prototype creation callbacks do not provide migration-lock concurrency guarantees. Existing environment and pending-model guards still apply.
+
+Reapplying context options preserves custom callbacks and replaces DRN seed wrappers using the latest supplied provider; it does not duplicate attribute seeding. Reconfiguration without a provider restores only custom callbacks.
 
 ```bash
 dotnet ef migrations add MigrationName --context QAContext --project Sample.Infra
@@ -226,6 +231,8 @@ public class RepositorySettings<TEntity>
 ```
 
 > Override `EntitiesWithAppliedSettings` in custom repositories for global includes/filters. See [drn-domain-design](../drn-domain-design/SKILL.md) for examples.
+
+Public repository CRUD, query, and pagination methods are virtual; protected pagination overloads are not.
 
 ### Repository Cancellation
 
