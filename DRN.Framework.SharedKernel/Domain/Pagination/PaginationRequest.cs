@@ -53,34 +53,16 @@ public class PaginationRequest
     public static PaginationRequest From(PaginationResultInfo? resultInfo = null, long jumpTo = 1, int pageSize = -1, int maxSize = -1,
         PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)
     {
-        totalCount = resultInfo is not null && totalCount < 1 ? resultInfo.Total.Count : totalCount;
+        totalCount = ResolveTotalCount(resultInfo, totalCount);
         maxSize = Math.Min(maxSize, PageSize.MaxSizeThreshold);
-        var directionChanged = resultInfo != null && direction != PageSortDirection.None && direction != resultInfo.Request.PageCursor.SortDirection;
-        var sizeChanged = resultInfo != null && pageSize > 0 && pageSize != resultInfo.Request.PageSize.Size;
-        var maxSizeChanged = resultInfo != null && maxSize > 0 && maxSize != resultInfo.Request.PageSize.MaxSize;
-        if (resultInfo == null || directionChanged || sizeChanged || maxSizeChanged)
-        {
-            pageSize = pageSize > 0 ? pageSize : resultInfo?.Request.PageSize.Size ?? PageSize.SizeDefault;
-            maxSize = maxSize > 0 ? maxSize : resultInfo?.Request.PageSize.MaxSize ?? PageSize.MaxSizeDefault;
-            direction = direction != PageSortDirection.None ? direction : resultInfo?.Request.PageCursor.SortDirection ?? PageSortDirection.Ascending;
-            return DefaultWith(pageSize, maxSize, direction, totalCount: totalCount, updateTotalCount: updateTotalCount);
-        }
 
-        var pageNumber = resultInfo.Request.PageNumber;
-        var upperPageBound = pageNumber > long.MaxValue - 10 ? long.MaxValue : pageNumber + 10;
-        if (jumpTo > upperPageBound)
-            jumpTo = upperPageBound;
-        else if (jumpTo < pageNumber - 10)
-            jumpTo = pageNumber - 10;
+        if (resultInfo is null || HasSettingsChanged(resultInfo, pageSize, maxSize, direction))
+            return CreateResetRequest(resultInfo, pageSize, maxSize, direction, totalCount, updateTotalCount);
 
-        if (jumpTo < 1)
-            jumpTo = 1;
-
-        var request = jumpTo == pageNumber
+        var targetPage = ClampJumpPage(resultInfo.Request.PageNumber, jumpTo);
+        return targetPage == resultInfo.Request.PageNumber
             ? resultInfo.RequestRefresh(updateTotalCount)
-            : resultInfo.RequestPage(jumpTo, updateTotalCount);
-
-        return request;
+            : resultInfo.RequestPage(targetPage, updateTotalCount);
     }
 
     public long PageNumber
@@ -152,6 +134,40 @@ public class PaginationRequest
         return pageNumber < cursorPageNumber
             ? PageNavigationDirection.Previous
             : PageNavigationDirection.Refresh;
+    }
+
+    private static long ResolveTotalCount(PaginationResultInfo? resultInfo, long totalCount) =>
+        resultInfo is not null && totalCount < 1 ? resultInfo.Total.Count : totalCount;
+
+    private static bool HasSettingsChanged(PaginationResultInfo resultInfo, int pageSize, int maxSize, PageSortDirection direction)
+    {
+        var directionChanged = direction != PageSortDirection.None && direction != resultInfo.Request.PageCursor.SortDirection;
+        var sizeChanged = pageSize > 0 && pageSize != resultInfo.Request.PageSize.Size;
+        var maxSizeChanged = maxSize > 0 && maxSize != resultInfo.Request.PageSize.MaxSize;
+
+        return directionChanged || sizeChanged || maxSizeChanged;
+    }
+
+    private static PaginationRequest CreateResetRequest(
+        PaginationResultInfo? resultInfo,
+        int pageSize,
+        int maxSize,
+        PageSortDirection direction,
+        long totalCount,
+        bool updateTotalCount)
+    {
+        var resolvedSize = pageSize > 0 ? pageSize : resultInfo?.Request.PageSize.Size ?? PageSize.SizeDefault;
+        var resolvedMaxSize = maxSize > 0 ? maxSize : resultInfo?.Request.PageSize.MaxSize ?? PageSize.MaxSizeDefault;
+        var resolvedDirection = direction != PageSortDirection.None ? direction : resultInfo?.Request.PageCursor.SortDirection ?? PageSortDirection.Ascending;
+
+        return DefaultWith(resolvedSize, resolvedMaxSize, resolvedDirection, totalCount: totalCount, updateTotalCount: updateTotalCount);
+    }
+
+    private static long ClampJumpPage(long currentPage, long jumpTo)
+    {
+        var min = Math.Max(1, currentPage - 10);
+        var max = currentPage > long.MaxValue - 10 ? long.MaxValue : currentPage + 10;
+        return Math.Clamp(jumpTo, min, max);
     }
 
     public PaginationRequest GetNextPage(Guid firstId, Guid lastId, bool updateTotalCount = false, long totalCount = -1)
