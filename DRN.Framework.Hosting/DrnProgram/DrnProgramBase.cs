@@ -21,7 +21,6 @@ using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -121,8 +120,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     // ReSharper disable once StaticMemberInGenericType
     protected static NLogAspNetCoreOptions NLogOptions { get; set; } = DrnNLogConfigurator.CreateDefaultOptions();
 
-    private static LogFactory CreateLogFactory(IAppSettings appSettings) =>
-        DrnNLogConfigurator.CreateLogFactory(appSettings, NlogConfigSectionName);
+    private static LogFactory CreateLogFactory(IAppSettings appSettings) => DrnNLogConfigurator.CreateLogFactory(appSettings, NlogConfigSectionName);
 
     protected static async Task RunAsync(string[]? args = null)
     {
@@ -530,7 +528,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// Override to register early request normalization or response-header middleware that must also cover static-file requests.
     /// </summary>
     /// <remarks>
-    /// Base installs forwarded headers, host filtering, cookie policy, and security headers in that order.
+    /// Base installations forwarded headers, host filtering, cookie policy, and security headers in that order.
     /// Call base before middleware that relies on the corrected client address or host. DRN request logging and authentication
     /// have not yet run, so use later stages for scoped diagnostics or identity-dependent work.
     /// </remarks>

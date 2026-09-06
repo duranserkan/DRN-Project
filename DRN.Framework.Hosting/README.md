@@ -252,6 +252,8 @@ For MFA hooks and examples, see [MFA](#mfa).
 | `DrnProgramSwaggerOptions` | (Object) | Toggles Swagger generation. Defaults to `IsDevelopmentEnvironment`. |
 | `NLogOptions` | (Object) | Controls NLog bootstrapping (e.g., replace logger factory). |
 
+`DrnProgramBase` also automatically registers the public `IEndpointAccessor` dependency-injection contract as a singleton. Consumers can inject `IEndpointAccessor` to query the endpoint collections (`Endpoints`, `ApiEndpoints`, `PageEndpoints`, and `PageEndpointByPaths`) populated by `ValidateEndpoints` before service validation (`ValidateServicesAsync`) runs.
+
 ## Configuration
 
 > [!TIP]
@@ -813,7 +815,19 @@ By convention, endpoint policies enforce MFA while these two helpers distinguish
 
 ### Vite Manifest Publish Support
 
-Vite manifests under `wwwroot/**/.vite/manifest.json` are included automatically in publish output. Keep manifests and their referenced assets under the application's web root; verify CSS and JavaScript load after publishing.
+Vite manifests under `wwwroot/**/.vite/manifest.json` are included automatically in publish output.
+
+`ViteManifest` locates assets using `WebRootPath`-first root selection:
+- Uses `IWebHostEnvironment.WebRootPath` when configured and non-empty.
+- Falls back to `Path.Combine(environment.ContentRootPath, "wwwroot")` when `WebRootPath` is unset or whitespace.
+
+When publishing with a custom web root, build targets do not automatically capture manifests outside `wwwroot/**`; applications must separately include manifests and referenced assets in publish items.
+
+During loading, `ViteManifest` enforces path validation and calculates subresource integrity:
+- **Path Validation**: Verifies that manifest files reside within the resolved manifest root and that referenced asset files stay within their output directory and exist on disk. Manifest entries violating these directory boundaries fail startup with `ConfigurationException`.
+- **Computed SHA-256 SRI**: Calculates base64 SHA-256 hashes for referenced assets, populating `Integrity` metadata (`sha256-...`) consumed by `ViteScriptTagHelper` and `ViteLinkTagHelper`.
+
+Keep manifests and referenced assets under the application's web root, and verify CSS and JavaScript loading after publish.
 
 Disable the publish item injection when an application owns this behavior itself:
 

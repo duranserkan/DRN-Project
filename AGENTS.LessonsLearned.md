@@ -90,21 +90,3 @@ Applies to all JavaScript, TypeScript, SCSS, and CSS imports referencing third-p
 ### Source To Update
 
 Keep the invariant in `drn-buildwww-libraries`, `drn-buildwww-packages`, `drn-buildwww-vite`, and `basic-code-review` skills.
-
-## 6. XML Documentation Does Not Prove API Accessibility
-
-### Case
-
-A new C# test instantiated dependency types and called a constructor found in its XML documentation. Compilation failed because the documented types and members were internal.
-
-### General Rule
-
-Verify accessibility independently of XML documentation. Prefer the installed package's documented public factory or registration API over constructing implementation types.
-
-### Decision Boundary
-
-Applies to third-party types, constructors, and methods, especially in tests added under a build-execution restriction. XML member presence proves a symbol exists, not that consumers can access it.
-
-### Source To Update
-
-The accessibility check is recorded in `.agent/skills/basic-code-review/SKILL.md` under Architecture Checks.
