@@ -82,7 +82,7 @@ public class HttpResponseTests
     }
 
     [Fact]
-    public async Task TryToStringAsync_Should_Return_Transport_Failure_When_No_Response_Is_Received()
+    public async Task TryToStringAsync_Should_Preserve_And_Rethrow_Transport_Failure_When_No_Response_Is_Received()
     {
         var exception = new InvalidOperationException("Connection failed.");
         var responseTask = Task.FromException<IFlurlResponse>(exception);
@@ -96,13 +96,6 @@ public class HttpResponseTests
         result.Failure.Should().NotBeNull();
         result.Failure!.Kind.Should().Be(HttpFailureKind.Transport);
         result.Failure.Exception.Should().BeSameAs(exception);
-    }
-
-    [Fact]
-    public async Task ThrowIfFailure_Should_Rethrow_Original_Exception()
-    {
-        var exception = new InvalidOperationException("Connection failed.");
-        var result = await Task.FromException<IFlurlResponse>(exception).TryToStringAsync();
 
         Action throwFailure = result.ThrowIfFailure;
 
@@ -164,21 +157,8 @@ public class HttpResponseTests
         var result = await response.ToStreamAsync();
 
         result.Dispose();
-        result.Dispose();
-
         stream.DisposeCount.Should().Be(1);
         response.Received(1).Dispose();
-    }
-
-    [Fact]
-    public async Task ToStreamAsync_Should_Dispose_Stream_Payload_When_Wrapper_Is_Disposed()
-    {
-        var response = Substitute.For<IFlurlResponse>();
-        var stream = new TrackingStream();
-        response.StatusCode.Returns(200);
-        response.GetStreamAsync().Returns(Task.FromResult<Stream>(stream));
-
-        var result = await response.ToStreamAsync();
 
         result.Dispose();
 

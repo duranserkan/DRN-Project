@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Flurl;
@@ -33,7 +34,7 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
         // Browser navigation must use the same selected user as authorization, not the default cookie snapshot.
         await httpContext.RequestServices.GetRequiredService<IPolicyEvaluator>().AuthenticateAsync(policy, httpContext);
         var user = httpContext.User;
-        var config = httpContext.RequestServices.GetService<MfaClaimConfig>() ?? MfaClaimConfig.AspNetIdentity;
+        var config = httpContext.RequestServices.GetService<AuthenticationClaimConfig>() ?? AuthenticationClaimConfig.Default;
         var exemptions = httpContext.RequestServices.GetService<MfaExemptionOptions>() ?? new MfaExemptionOptions();
         if (MfaPolicyProof.IsSatisfied(httpContext, user, config, exemptions))
         {

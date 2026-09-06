@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Extensions;
@@ -131,6 +132,7 @@ internal sealed class DrnProgramHostRunner<TProgram>
 
         public Task StopAsync(CancellationToken cancellationToken = default) => host.StopAsync(cancellationToken);
 
+        [SuppressMessage("SonarQube", "S3877", Justification = "Intentionally preserves host and settings disposal failures so test teardown errors remain observable.")]
         public void Dispose()
         {
             Exception? hostException = null;

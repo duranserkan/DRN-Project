@@ -5,16 +5,6 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Concurrency;
 public class LockUtilsTests
 {
     [Fact]
-    public void TryClaimLock_Should_Claim_Once()
-    {
-        var lockValue = 0;
-
-        LockUtils.TryClaimLock(ref lockValue).Should().BeTrue();
-        lockValue.Should().Be(1);
-        LockUtils.TryClaimLock(ref lockValue).Should().BeFalse();
-    }
-
-    [Fact]
     public void TrySetIfNull_Should_Set_Only_If_Null()
     {
         string? location = null;
@@ -97,13 +87,14 @@ public class LockUtilsTests
     }
 
     [Fact]
-    public void ReleaseLock_Should_Release_Claimed_Lock()
+    public void Lock_Should_Allow_One_Claim_Until_Released_And_Then_Allow_Reclaim()
     {
         var lockValue = 0;
 
         // Claim the lock first
         LockUtils.TryClaimLock(ref lockValue).Should().BeTrue();
         lockValue.Should().Be(1);
+        LockUtils.TryClaimLock(ref lockValue).Should().BeFalse();
 
         // Release the lock
         LockUtils.ReleaseLock(ref lockValue);

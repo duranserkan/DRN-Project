@@ -18,7 +18,8 @@ public static class NexusModule
             .AddNexusApplicationServices()
             .Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024) // size limit
             //.ConfigureCookieAuthenticationOptions(settings) //todo: update with nexus implementation
-            .AddIdentityApiEndpoints<NexusUser>(ConfigureIdentity(settings));
+            .AddIdentityApiEndpoints<NexusUser>(ConfigureIdentity(settings))
+            .AddSignInManager<DrnSignInManager<NexusUser>>();
         //.AddPersonalDataProtection<>() //todo: enable personal data protection
 
         services.AddDrnIdentityMfaPolicies();
@@ -35,7 +36,6 @@ public static class NexusModule
         options.Lockout = IdentitySettings.LockoutOptions;
         options.Tokens = IdentitySettings.TokenOptions;
         options.Stores = IdentitySettings.StoreOptions;
-        options.ClaimsIdentity = IdentitySettings.ClaimsIdentityOptions;
 
         var config = settings.Get<NexusIdentityConfig>("Identity") ?? new NexusIdentityConfig();
         options.SignIn.RequireConfirmedAccount = config.RequireConfirmedAccount;

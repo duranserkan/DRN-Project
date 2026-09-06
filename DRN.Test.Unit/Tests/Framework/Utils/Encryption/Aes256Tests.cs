@@ -34,7 +34,7 @@ public class Aes256Tests
     [DataInlineUnit("NIST SP 800-38A F.1.5 block #3", NistKeyHex, NistBlock3PlaintextHex, NistBlock3CiphertextHex)]
     [DataInlineUnit("NIST SP 800-38A F.1.5 block #4", NistKeyHex, NistBlock4PlaintextHex, NistBlock4CiphertextHex)]
     [DataInlineUnit("IETF SKID draft Appendix A", IetfDraftKeyHex, IetfDraftPlaintextHex, IetfDraftCiphertextHex)]
-    public void Aes256_With_Framework_And_RuntimeIntrinsics_Should_Match_Known_Answers(
+    public void Aes256_All_Implementations_Should_Match_Known_Answers(
         string vectorName,
         string keyHex,
         string plaintextHex,
@@ -44,6 +44,8 @@ public class Aes256Tests
         var plaintext = VectorFromHex(plaintextHex);
         var ciphertext = VectorFromHex(ciphertextHex);
 
+        aes.Encrypt(plaintext).Should().Be(ciphertext, $"{vectorName} encryption");
+        aes.Decrypt(ciphertext).Should().Be(plaintext, $"{vectorName} decryption");
         var frameworkCiphertext = aes.EncryptWithFramework(plaintext);
         frameworkCiphertext.Should().Be(ciphertext, $"{vectorName} framework encryption");
         aes.DecryptWithFramework(ciphertext).Should().Be(plaintext, $"{vectorName} framework decryption");
@@ -57,26 +59,6 @@ public class Aes256Tests
         aes.DecryptRuntimeIntrinsics(ciphertext).Should().Be(plaintext, $"{vectorName} intrinsic decryption");
         aes.DecryptWithFramework(intrinsicCiphertext).Should().Be(plaintext, $"{vectorName} framework decryption of intrinsic ciphertext");
         aes.DecryptRuntimeIntrinsics(frameworkCiphertext).Should().Be(plaintext, $"{vectorName} intrinsic decryption of framework ciphertext");
-    }
-
-    [Theory]
-    [DataInlineUnit("NIST SP 800-38A F.1.5 block #1", NistKeyHex, NistBlock1PlaintextHex, NistBlock1CiphertextHex)]
-    [DataInlineUnit("NIST SP 800-38A F.1.5 block #2", NistKeyHex, NistBlock2PlaintextHex, NistBlock2CiphertextHex)]
-    [DataInlineUnit("NIST SP 800-38A F.1.5 block #3", NistKeyHex, NistBlock3PlaintextHex, NistBlock3CiphertextHex)]
-    [DataInlineUnit("NIST SP 800-38A F.1.5 block #4", NistKeyHex, NistBlock4PlaintextHex, NistBlock4CiphertextHex)]
-    [DataInlineUnit("IETF SKID draft Appendix A", IetfDraftKeyHex, IetfDraftPlaintextHex, IetfDraftCiphertextHex)]
-    public void Aes256_Encrypt_And_Decrypt_Should_Match_Known_Answers(
-        string vectorName,
-        string keyHex,
-        string plaintextHex,
-        string ciphertextHex)
-    {
-        using var aes = new Aes256(Convert.FromHexString(keyHex));
-        var plaintext = VectorFromHex(plaintextHex);
-        var ciphertext = VectorFromHex(ciphertextHex);
-
-        aes.Encrypt(plaintext).Should().Be(ciphertext, $"{vectorName} encryption");
-        aes.Decrypt(ciphertext).Should().Be(plaintext, $"{vectorName} decryption");
     }
 
     [Fact]

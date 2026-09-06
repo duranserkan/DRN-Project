@@ -49,31 +49,17 @@ public class LongBuilderNibbleTests
     }
 
     [Theory]
-    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x0F00_0000_0000_0000)] // Mask for first 4 MSBs
-    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 15L)] // Mask for first 4 LSBs
-    public void LongBuilder_Should_Build_First_4_Significant_Bits(NumberBuildDirection direction, long mask)
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 1, 0x0F00_0000_0000_0000)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 1, 15L)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 2, 0x0FF0_0000_0000_0000)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 2, 255L)]
+    public void LongBuilder_Should_Position_Leading_Nibbles(NumberBuildDirection direction, int count, long mask)
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
         var builder = NumberBuilder.GetLong(direction, 3);
-        builder.TryAddNibble(15);
-
-        builder.IsPositive().Should().BeFalse();
-
-        var actual = builder.GetValue();
-        actual.Should().Be(expected);
-    }
-
-    [Theory]
-    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x0FF0_0000_0000_0000)] // Mask for first 8 MSBs
-    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 255L)] // Mask for first 8 LSBs
-    public void LongBuilder_Should_Build_First_8_Significant_Bits(NumberBuildDirection direction, long mask)
-    {
-        var expected = long.MinValue + (long.MaxValue & mask);
-
-        var builder = NumberBuilder.GetLong(direction, 3);
-        builder.TryAddNibble(15);
-        builder.TryAddNibble(15);
+        for (var index = 0; index < count; index++)
+            builder.TryAddNibble(15).Should().BeTrue();
 
         builder.IsPositive().Should().BeFalse();
 

@@ -5,36 +5,12 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Validators;
 public class JpegValidatorTests
 {
     [Fact]
-    public async Task IsValid_Should_Accept_Valid_Jpeg()
+    public async Task Byte_Validation_Should_Accept_Valid_Jpeg()
     {
         var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
 
         JpegValidator.IsValid(jpeg).Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task IsValid_Should_Accept_Valid_Jpeg_Within_MaxLength()
-    {
-        var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
-
         JpegValidator.IsValid(jpeg, jpeg.Length).Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task IsValidAsync_Should_Accept_Valid_Jpeg_Stream()
-    {
-        var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
-        using var stream = new MemoryStream(jpeg);
-
-        var isValid = await JpegValidator.IsValidAsync(stream, jpeg.Length);
-
-        isValid.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task Validate_Should_Return_Valid_Result_For_Valid_Jpeg_Bytes()
-    {
-        var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
 
         var result = JpegValidator.Validate(jpeg, jpeg.Length);
 
@@ -45,9 +21,13 @@ public class JpegValidatorTests
     }
 
     [Fact]
-    public async Task ValidateAsync_Should_Return_Valid_Result_For_Valid_Jpeg_Stream()
+    public async Task Stream_Validation_Should_Accept_Valid_Jpeg()
     {
         var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
+        using var booleanStream = new MemoryStream(jpeg);
+        var isValid = await JpegValidator.IsValidAsync(booleanStream, jpeg.Length);
+        isValid.Should().BeTrue();
+
         using var stream = new MemoryStream(jpeg);
 
         var result = await JpegValidator.ValidateAsync(stream, jpeg.Length);
@@ -105,20 +85,14 @@ public class JpegValidatorTests
     }
 
     [Fact]
-    public async Task IsValidAsync_Should_Reject_Valid_Jpeg_Stream_Over_MaxLength()
+    public async Task Stream_Validation_Should_Reject_Valid_Jpeg_Over_MaxLength()
     {
         var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
-        using var stream = new MemoryStream(jpeg);
+        using var booleanStream = new MemoryStream(jpeg);
 
-        var isValid = await JpegValidator.IsValidAsync(stream, jpeg.Length - 1);
+        var isValid = await JpegValidator.IsValidAsync(booleanStream, jpeg.Length - 1);
 
         isValid.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task ValidateAsync_Should_Return_Invalid_Result_For_Valid_Jpeg_Stream_Over_MaxLength()
-    {
-        var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
         using var stream = new MemoryStream(jpeg);
 
         var result = await JpegValidator.ValidateAsync(stream, jpeg.Length - 1);
@@ -130,10 +104,11 @@ public class JpegValidatorTests
     }
 
     [Fact]
-    public async Task Validate_Should_Return_Invalid_Result_For_Valid_Jpeg_Bytes_Over_MaxLength()
+    public async Task Byte_Validation_Should_Reject_Valid_Jpeg_Over_MaxLength()
     {
         var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
 
+        JpegValidator.IsValid(jpeg, jpeg.Length - 1).Should().BeFalse();
         var result = JpegValidator.Validate(jpeg, jpeg.Length - 1);
 
         result.IsValid.Should().BeFalse();
@@ -143,31 +118,16 @@ public class JpegValidatorTests
     }
 
     [Fact]
-    public async Task Validate_Should_Return_Invalid_Result_For_Negative_MaxLength()
+    public async Task Byte_Validation_Should_Reject_Negative_MaxLength()
     {
         var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
 
+        JpegValidator.IsValid(jpeg, -1).Should().BeFalse();
         var result = JpegValidator.Validate(jpeg, -1);
 
         result.IsValid.Should().BeFalse();
         result.ImageData.Should().BeEmpty();
         result.ErrorReason.Should().Be(JpegValidationErrorReason.InvalidMaxLength);
-    }
-
-    [Fact]
-    public async Task IsValid_Should_Reject_Valid_Jpeg_Over_MaxLength()
-    {
-        var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
-
-        JpegValidator.IsValid(jpeg, jpeg.Length - 1).Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task IsValid_Should_Reject_Valid_Jpeg_When_MaxLength_Is_Negative()
-    {
-        var jpeg = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Data", "100.jpeg"));
-
-        JpegValidator.IsValid(jpeg, -1).Should().BeFalse();
     }
 
     [Fact]

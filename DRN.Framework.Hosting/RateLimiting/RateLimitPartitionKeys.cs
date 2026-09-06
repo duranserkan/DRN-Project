@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using DRN.Framework.Utils.Auth;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.RateLimiting;
 
@@ -11,8 +13,9 @@ internal static class RateLimitPartitionKeys
     {
         if (context.User?.Identity?.IsAuthenticated == true)
         {
-            var userId = context.User.FindFirst(ClaimConventions.NameIdentifier)?.Value
-                         ?? context.User.FindFirst("sub")?.Value;
+            var identity = context.User.Identity as ClaimsIdentity;
+            var claims = context.RequestServices?.GetService<AuthenticationClaimConfig>();
+            var userId = identity == null ? null : SubjectClaims.Find(identity, claims)?.Value;
             if (!string.IsNullOrWhiteSpace(userId))
                 return GetAuthenticatedPartitionKey("user", context.User.Identity.AuthenticationType, userId);
 

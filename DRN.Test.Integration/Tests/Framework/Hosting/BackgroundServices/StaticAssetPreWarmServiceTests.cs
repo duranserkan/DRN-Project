@@ -12,15 +12,6 @@ public class StaticAssetWarmServiceTests
     public async Task ViteManifest_GetAllManifestItems_Should_Return_Collection_When_Application_Started
         (DrnTestContext context, IStaticAssetWarmProxyClientFactory factory)
     {
-        ViteManifest.IsViteOrigin("buildwww/assets/main.js").Should().BeTrue();
-        ViteManifest.IsViteOrigin("node_modules/vue/dist/vue.js").Should().BeTrue();
-        ViteManifest.IsViteOrigin("BUILDWWW/app.css").Should().BeTrue();
-        ViteManifest.IsViteOrigin("NODE_MODULES/react/index.js").Should().BeTrue();
-
-        ViteManifest.IsViteOrigin("/wwwroot/static/main.js").Should().BeFalse();
-        ViteManifest.IsViteOrigin("/app/static/main.js").Should().BeFalse();
-        ViteManifest.IsViteOrigin("/assets/styles.css").Should().BeFalse();
-        ViteManifest.IsViteOrigin("assets/image.png").Should().BeFalse();
         context.AddToConfiguration(StaticAssetWarmService.EnableWarmForTestKey, "true");
 
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();

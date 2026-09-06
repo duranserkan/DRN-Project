@@ -64,80 +64,34 @@ public class EpochHalfTests
         // Tick 0 — epoch start
         var result = EpochTimeUtils.ConvertToSourceKnownIdTimeStamp(Epoch, Epoch);
 
-        result.Should().BeNegative("tick 0 is first half → negative");
+        result.Should().Be(long.MinValue, "tick 0 has only the sign bit set");
     }
     
 
-    [Fact]
-    public void ParseId_First_Half_Should_Recover_Correct_DateTime()
+    [Theory]
+    [DataInlineUnit(400L, (byte)1, (byte)1, 1U, false)]
+    [DataInlineUnit(SourceKnownIdUtils.TicksPerHalf, (byte)5, (byte)3, 42U, true)]
+    [DataInlineUnit(SourceKnownIdUtils.TicksPerHalf - 1, (byte)1, (byte)1, 0U, false)]
+    [DataInlineUnit(SourceKnownIdUtils.MaxEpochTicks, (byte)127, (byte)63, 262_143U, true)]
+    public void ParseId_Should_Recover_DateTime_And_Topology_Across_Epoch_Halves(
+        long elapsedTicks, byte appId, byte appInstanceId, uint sequenceId, bool positive)
     {
-        // 100 seconds from epoch → 400 ticks (first half)
-        var expectedDateTime = Epoch.AddSeconds(100);
-        var elapsedTicks = 400L; // 100 * 4
-
-        var skid = BuildSkid(elapsedTicks, appId: 1, appInstanceId: 1, sequenceId: 1);
-        var parsed = SourceKnownIdUtils.ParseId(skid, Epoch);
-
-        parsed.AppId.Should().Be(1);
-        parsed.AppInstanceId.Should().Be(1);
-        parsed.InstanceId.Should().Be(1);
-        // DateTime recovery: truncated to 250ms tick precision
-        parsed.CreatedAt.Should().Be(expectedDateTime, "first-half datetime must round-trip correctly");
-    }
-
-    [Fact]
-    public void ParseId_Second_Half_Should_Recover_Correct_DateTime()
-    {
-        // TicksPerHalf (2^32) ticks → exactly second half start
-        var elapsedTicks = SourceKnownIdUtils.TicksPerHalf;
-        var expectedSeconds = elapsedTicks / TicksPerSecond;
-        var expectedDateTime = Epoch.AddSeconds(expectedSeconds);
-
-        var skid = BuildSkid(elapsedTicks, appId: 5, appInstanceId: 3, sequenceId: 42);
-        var parsed = SourceKnownIdUtils.ParseId(skid, Epoch);
-
-        parsed.AppId.Should().Be(5);
-        parsed.AppInstanceId.Should().Be(3);
-        parsed.InstanceId.Should().Be(42u);
-        parsed.CreatedAt.Should().Be(expectedDateTime, "second-half datetime must round-trip correctly");
-    }
-
-    [Fact]
-    public void ParseId_Last_Tick_Of_First_Half_Should_Recover_Correctly()
-    {
-        // 2^32 - 1 ticks — last first-half tick
-        var elapsedTicks = SourceKnownIdUtils.TicksPerHalf - 1;
-        var expectedSeconds = elapsedTicks / TicksPerSecond;
-        var expectedDateTime = Epoch.AddSeconds(expectedSeconds);
-        // TicksPerSecond = 4, so 250ms remainder is floored
-        var remainderTicks250ms = elapsedTicks % TicksPerSecond;
-        expectedDateTime = expectedDateTime.Add(TimeSpan.FromMilliseconds(remainderTicks250ms * 250));
-
-        var skid = BuildSkid(elapsedTicks, appId: 1, appInstanceId: 1, sequenceId: 0);
-        var parsed = SourceKnownIdUtils.ParseId(skid, Epoch);
-
-        skid.Should().BeNegative("last tick of first half → negative SKID");
-        parsed.CreatedAt.Should().Be(expectedDateTime, "last first-half tick must round-trip correctly");
-    }
-
-    [Fact]
-    public void ParseId_Last_Tick_Of_Second_Half_Should_Recover_Correctly()
-    {
-        // MaxEpochTicks (2^33 - 1) — last second-half tick
-        var elapsedTicks = SourceKnownIdUtils.MaxEpochTicks;
         var expectedSeconds = elapsedTicks / TicksPerSecond;
         var remainderTicks250ms = elapsedTicks % TicksPerSecond;
         var expectedDateTime = Epoch.AddSeconds(expectedSeconds)
             .Add(TimeSpan.FromMilliseconds(remainderTicks250ms * 250));
 
-        var skid = BuildSkid(elapsedTicks, appId: 127, appInstanceId: 63, sequenceId: 262_143);
+        var skid = BuildSkid(elapsedTicks, appId, appInstanceId, sequenceId);
         var parsed = SourceKnownIdUtils.ParseId(skid, Epoch);
 
-        skid.Should().BePositive("last tick of second half → positive SKID");
-        parsed.AppId.Should().Be(127);
-        parsed.AppInstanceId.Should().Be(63);
-        parsed.InstanceId.Should().Be(262_143u);
-        parsed.CreatedAt.Should().Be(expectedDateTime, "last second-half tick must round-trip correctly");
+        if (positive)
+            skid.Should().BePositive();
+        else
+            skid.Should().BeNegative();
+        parsed.AppId.Should().Be(appId);
+        parsed.AppInstanceId.Should().Be(appInstanceId);
+        parsed.InstanceId.Should().Be(sequenceId);
+        parsed.CreatedAt.Should().Be(expectedDateTime);
     }
 
     [Fact]

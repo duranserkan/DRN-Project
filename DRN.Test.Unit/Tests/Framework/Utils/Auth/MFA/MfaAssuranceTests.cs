@@ -26,7 +26,7 @@ public class MfaAssuranceTests
         var identity = Identity();
         identity.AddClaim(Claim("auth_time", timestamp));
 
-        MfaPrincipal.IsRecent(new ClaimsPrincipal(identity), MfaClaimConfig.AspNetIdentity, Issuer,
+        MfaPrincipal.IsRecent(new ClaimsPrincipal(identity), AuthenticationClaimConfig.Default, Issuer,
             TimeSpan.FromMinutes(5), Now).Should().Be(expected);
     }
 
@@ -35,16 +35,16 @@ public class MfaAssuranceTests
     {
         var identity = Identity();
         var principal = new ClaimsPrincipal(identity);
-        MfaPrincipal.IsRecent(principal, MfaClaimConfig.AspNetIdentity, Issuer, TimeSpan.FromMinutes(5), Now).Should().BeFalse();
+        MfaPrincipal.IsRecent(principal, AuthenticationClaimConfig.Default, Issuer, TimeSpan.FromMinutes(5), Now).Should().BeFalse();
 
         identity.AddClaim(Claim("mfa_time", "1700000300"));
-        MfaPrincipal.IsRecent(principal, MfaClaimConfig.AspNetIdentity, Issuer, TimeSpan.Zero, Now, "mfa_time").Should().BeTrue();
-        MfaPrincipal.IsRecent(principal, MfaClaimConfig.AspNetIdentity, Issuer, TimeSpan.Zero, Now.AddTicks(1), "mfa_time").Should().BeFalse();
+        MfaPrincipal.IsRecent(principal, AuthenticationClaimConfig.Default, Issuer, TimeSpan.Zero, Now, "mfa_time").Should().BeTrue();
+        MfaPrincipal.IsRecent(principal, AuthenticationClaimConfig.Default, Issuer, TimeSpan.Zero, Now.AddTicks(1), "mfa_time").Should().BeFalse();
 
         identity.AddClaim(Claim("mfa_time", "1700000300"));
-        MfaPrincipal.IsRecent(principal, MfaClaimConfig.AspNetIdentity, Issuer, TimeSpan.Zero, Now, "mfa_time").Should().BeTrue();
+        MfaPrincipal.IsRecent(principal, AuthenticationClaimConfig.Default, Issuer, TimeSpan.Zero, Now, "mfa_time").Should().BeTrue();
         identity.AddClaim(Claim("mfa_time", "1700000000"));
-        MfaPrincipal.IsRecent(principal, MfaClaimConfig.AspNetIdentity, Issuer, TimeSpan.FromMinutes(5), Now, "mfa_time").Should().BeFalse();
+        MfaPrincipal.IsRecent(principal, AuthenticationClaimConfig.Default, Issuer, TimeSpan.FromMinutes(5), Now, "mfa_time").Should().BeFalse();
     }
 
     [Theory]
@@ -93,8 +93,8 @@ public class MfaAssuranceTests
         if (scenario == "anonymous")
             principal = new ClaimsPrincipal(new ClaimsIdentity(identity.Claims));
 
-        MfaPrincipal.IsRecent(principal, MfaClaimConfig.AspNetIdentity, Issuer, TimeSpan.FromMinutes(5), Now).Should().Be(expected);
-        MfaPrincipal.IsPhishingResistant(principal, MfaClaimConfig.AspNetIdentity, Issuer, Assurance).Should().Be(expected);
+        MfaPrincipal.IsRecent(principal, AuthenticationClaimConfig.Default, Issuer, TimeSpan.FromMinutes(5), Now).Should().Be(expected);
+        MfaPrincipal.IsPhishingResistant(principal, AuthenticationClaimConfig.Default, Issuer, Assurance).Should().Be(expected);
     }
 
     [Fact]
@@ -102,37 +102,37 @@ public class MfaAssuranceTests
     {
         var identity = Identity();
         var principal = new ClaimsPrincipal(identity);
-        MfaPrincipal.IsCompleted(principal, MfaClaimConfig.AspNetIdentity).Should().BeTrue();
-        MfaPrincipal.IsPhishingResistant(principal, MfaClaimConfig.AspNetIdentity, Issuer, Assurance).Should().BeFalse();
-        MfaPrincipal.IsPhishingResistant(principal, MfaClaimConfig.AspNetIdentity, Issuer, MfaClaimConfig.AspNetIdentity).Should().BeFalse();
+        MfaPrincipal.IsCompleted(principal, AuthenticationClaimConfig.Default).Should().BeTrue();
+        MfaPrincipal.IsPhishingResistant(principal, AuthenticationClaimConfig.Default, Issuer, Assurance).Should().BeFalse();
+        MfaPrincipal.IsPhishingResistant(principal, AuthenticationClaimConfig.Default, Issuer, MfaClaimConfig.AspNetIdentity).Should().BeFalse();
         identity.AddClaim(Claim(Assurance.ClaimType, Assurance.ClaimValue));
-        MfaPrincipal.IsPhishingResistant(principal, MfaClaimConfig.AspNetIdentity, Issuer, Assurance).Should().BeTrue();
-        MfaPrincipal.IsPhishingResistant(principal, MfaClaimConfig.AspNetIdentity, "other-issuer", Assurance).Should().BeFalse();
+        MfaPrincipal.IsPhishingResistant(principal, AuthenticationClaimConfig.Default, Issuer, Assurance).Should().BeTrue();
+        MfaPrincipal.IsPhishingResistant(principal, AuthenticationClaimConfig.Default, "other-issuer", Assurance).Should().BeFalse();
     }
 
     [Fact]
     public void Assurance_Should_Support_Custom_Completed_Marker_Without_Changing_Completion_Policy()
     {
-        var config = new MfaClaimConfig("completed", "yes");
+        var config = new AuthenticationClaimConfig { Mfa = new("completed", "yes") };
         var identity = new ClaimsIdentity([
-            Claim(ClaimTypes.NameIdentifier, "user"), Claim(config.ClaimType, config.ClaimValue),
+            Claim(ClaimTypes.NameIdentifier, "user"), Claim(config.Mfa.ClaimType, config.Mfa.ClaimValue),
             Claim("auth_time", "1700000300"), Claim(Assurance.ClaimType, Assurance.ClaimValue)
         ], "provider");
         var principal = new ClaimsPrincipal(identity);
 
         MfaPrincipal.IsRecent(principal, config, Issuer, TimeSpan.Zero, Now).Should().BeTrue();
         MfaPrincipal.IsPhishingResistant(principal, config, Issuer, Assurance).Should().BeTrue();
-        MfaPrincipal.IsCompleted(principal, MfaClaimConfig.AspNetIdentity).Should().BeFalse();
+        MfaPrincipal.IsCompleted(principal, AuthenticationClaimConfig.Default).Should().BeFalse();
     }
 
     [Fact]
     public void Assurance_Should_Reject_Null_Principals_And_Invalid_Configuration()
     {
-        MfaPrincipal.IsRecent(null, MfaClaimConfig.AspNetIdentity, Issuer, TimeSpan.Zero, Now).Should().BeFalse();
-        MfaPrincipal.IsPhishingResistant(null, MfaClaimConfig.AspNetIdentity, Issuer, Assurance).Should().BeFalse();
-        var negativeAge = () => MfaPrincipal.IsRecent(null, MfaClaimConfig.AspNetIdentity, Issuer, TimeSpan.FromSeconds(-1), Now);
+        MfaPrincipal.IsRecent(null, AuthenticationClaimConfig.Default, Issuer, TimeSpan.Zero, Now).Should().BeFalse();
+        MfaPrincipal.IsPhishingResistant(null, AuthenticationClaimConfig.Default, Issuer, Assurance).Should().BeFalse();
+        var negativeAge = () => MfaPrincipal.IsRecent(null, AuthenticationClaimConfig.Default, Issuer, TimeSpan.FromSeconds(-1), Now);
         negativeAge.Should().Throw<ArgumentOutOfRangeException>();
-        var missingIssuer = () => MfaPrincipal.IsPhishingResistant(null, MfaClaimConfig.AspNetIdentity, "", Assurance);
+        var missingIssuer = () => MfaPrincipal.IsPhishingResistant(null, AuthenticationClaimConfig.Default, "", Assurance);
         missingIssuer.Should().Throw<ArgumentException>();
     }
 

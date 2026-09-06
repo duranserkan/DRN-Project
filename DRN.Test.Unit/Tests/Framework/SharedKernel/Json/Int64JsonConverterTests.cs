@@ -59,7 +59,7 @@ public class Int64JsonConverterTests
     }
 
     [Fact]
-    public void Write_Should_Serialize_Nullable_Null_As_Json_Null()
+    public void Nullable_Null_Should_Serialize_Deserialize_And_Roundtrip()
     {
         long? value = null;
         var json = JsonSerializer.Serialize(value, NullableOptions);
@@ -67,6 +67,8 @@ public class Int64JsonConverterTests
 
         var node = JsonNode.Parse(json);
         node.Should().BeNull();
+        JsonSerializer.Deserialize<long?>("null", NullableOptions).Should().BeNull();
+        JsonSerializer.Deserialize<long?>(json, NullableOptions).Should().BeNull();
     }
 
     [Theory]
@@ -77,16 +79,6 @@ public class Int64JsonConverterTests
     [DataInlineUnit("9007199254740992", IntegerSafeIntervalForJs.Max + 1)]
     [DataInlineUnit("12345", 12345L)]
     [DataInlineUnit("-12345", -12345L)]
-    public void Read_Should_Deserialize_Numeric_Tokens(string json, long expected)
-    {
-        var resultNonNullable = JsonSerializer.Deserialize<long>(json, NonNullableOptions);
-        resultNonNullable.Should().Be(expected);
-
-        var resultNullable = JsonSerializer.Deserialize<long?>(json, NullableOptions);
-        resultNullable.Should().Be(expected);
-    }
-
-    [Theory]
     [DataInlineUnit("\"0\"", 0L)]
     [DataInlineUnit("\"-9007199254740991\"", IntegerSafeIntervalForJs.Min)]
     [DataInlineUnit("\"9007199254740991\"", IntegerSafeIntervalForJs.Max)]
@@ -95,20 +87,13 @@ public class Int64JsonConverterTests
     [DataInlineUnit("\"-9223372036854775808\"", long.MinValue)]
     [DataInlineUnit("\"9223372036854775807\"", long.MaxValue)]
     [DataInlineUnit("\"12345\"", 12345L)]
-    public void Read_Should_Deserialize_Quoted_Integer_Strings(string json, long expected)
+    public void Read_Should_Deserialize_Numeric_And_Quoted_Integer_Tokens(string json, long expected)
     {
         var resultNonNullable = JsonSerializer.Deserialize<long>(json, NonNullableOptions);
         resultNonNullable.Should().Be(expected);
 
         var resultNullable = JsonSerializer.Deserialize<long?>(json, NullableOptions);
         resultNullable.Should().Be(expected);
-    }
-
-    [Fact]
-    public void Read_Should_Deserialize_Nullable_Null_Token()
-    {
-        var result = JsonSerializer.Deserialize<long?>("null", NullableOptions);
-        result.Should().BeNull();
     }
 
     [Theory]
@@ -131,15 +116,6 @@ public class Int64JsonConverterTests
         deserializedNullable.Should().Be(originalValue);
     }
 
-    [Fact]
-    public void RoundTrip_Should_Preserve_Nullable_Null()
-    {
-        long? value = null;
-        var serialized = JsonSerializer.Serialize(value, NullableOptions);
-        var deserialized = JsonSerializer.Deserialize<long?>(serialized, NullableOptions);
-        deserialized.Should().BeNull();
-    }
-
     [Theory]
     [DataInlineUnit("\"9223372036854775808\"")]
     [DataInlineUnit("\"-9223372036854775809\"")]
@@ -148,23 +124,13 @@ public class Int64JsonConverterTests
     [DataInlineUnit("\"123a\"")]
     [DataInlineUnit("\"   \"")]
     [DataInlineUnit("\"12.34\"")]
-    public void Read_Should_Throw_JsonException_For_Invalid_String_Inputs(string json)
-    {
-        var actNonNullable = () => JsonSerializer.Deserialize<long>(json, NonNullableOptions);
-        actNonNullable.Should().Throw<JsonException>();
-
-        var actNullable = () => JsonSerializer.Deserialize<long?>(json, NullableOptions);
-        actNullable.Should().Throw<JsonException>();
-    }
-
-    [Theory]
     [DataInlineUnit("12.34")]
     [DataInlineUnit("true")]
     [DataInlineUnit("false")]
     [DataInlineUnit("{}")]
     [DataInlineUnit("[]")]
     [DataInlineUnit("18446744073709551616")]
-    public void Read_Should_Throw_JsonException_For_Invalid_Tokens_Or_Numbers(string json)
+    public void Read_Should_Throw_JsonException_For_Invalid_Strings_Tokens_Or_Numbers(string json)
     {
         var actNonNullable = () => JsonSerializer.Deserialize<long>(json, NonNullableOptions);
         actNonNullable.Should().Throw<JsonException>();

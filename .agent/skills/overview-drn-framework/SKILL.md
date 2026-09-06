@@ -290,7 +290,7 @@ Unit tests should be listed before integration tests. Do not use `.slnx` in test
 
 ### Maintenance Reference: MFA Claim Configuration
 
-DRN Hosting registers one immutable `MfaClaimConfig` per application. `MfaPrincipal.IsCompleted` and `MfaFor.MfaCompleted` reject setup/pending states and conflicting authenticated subjects/issuers. `ConfigureMFAClaim()` defaults to `amr=mfa`, but core authorization has no Identity-service dependency. Scheme exemptions use request-local policy-selected evidence, including authenticated forwarding targets. Identity consumers explicitly register `AddDrnIdentityMfaPolicies`; local enrollment/challenge routes use final-user account checks. Other providers can configure their own handlers/claims without local enrollment or mutable global configuration.
+DRN Hosting registers one immutable `AuthenticationClaimConfig` from `ConfigureAuthenticationClaims()`: Identity canonical types, explicit aliases, and nested exact MFA marker (`amr=mfa`). Consumers share it; Identity claim options derive from it. `MfaPrincipal` rejects restricted states and conflicting accounts/issuers; exemptions require policy-selected evidence. Identity consumers explicitly register `AddDrnIdentityMfaPolicies` and `DrnSignInManager<TUser>` for issuance/explicit refresh. Overridable lifecycle wiring may omit unused Identity renewal; shared semantics remain active. Identity factories and future handlers supply canonical claims/native metadata; DRN aliases alone do not change native authorization. Provider integrations and pages remain separate work.
 
 ### Maintenance Reference: Entity Creation-Date Filters
 

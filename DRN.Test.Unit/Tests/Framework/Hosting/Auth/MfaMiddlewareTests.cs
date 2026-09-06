@@ -15,6 +15,60 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.Auth;
 public class MfaMiddlewareTests
 {
     [Theory]
+    [DataInlineUnit(true)]
+    [DataInlineUnit(false)]
+    public async Task Policy_Resolution_Should_Respect_Provider_Caching_And_Request_Boundaries(
+        DrnTestContextUnit context, bool cacheable)
+    {
+        var provider = Substitute.For<IAuthorizationPolicyProvider>();
+        provider.AllowsCachingPolicies.Returns(cacheable);
+        var initial = new AuthorizationPolicyBuilder("First").RequireAuthenticatedUser().Build();
+        var updated = new AuthorizationPolicyBuilder("Second").RequireAuthenticatedUser().Build();
+        provider.GetPolicyAsync("selected").Returns(initial);
+        context.ServiceCollection.AddSingleton(provider);
+        var endpoint = new Endpoint(_ => Task.CompletedTask,
+            new EndpointMetadataCollection(new AuthorizeAttribute("selected")), "selected");
+        var http = new DefaultHttpContext { RequestServices = context };
+        http.SetEndpoint(endpoint);
+
+        var first = await MfaPolicyProof.ResolvePolicyAsync(http);
+        provider.GetPolicyAsync("selected").Returns(updated);
+        var second = await MfaPolicyProof.ResolvePolicyAsync(http);
+        second!.AuthenticationSchemes.Should().Equal(cacheable ? "First" : "Second");
+        if (cacheable)
+            second.Should().BeSameAs(first);
+
+        http.SetEndpoint(new Endpoint(_ => Task.CompletedTask, endpoint.Metadata, "replacement"));
+        (await MfaPolicyProof.ResolvePolicyAsync(http))!.AuthenticationSchemes.Should().Equal("Second");
+
+        var otherRequest = new DefaultHttpContext { RequestServices = context };
+        otherRequest.SetEndpoint(endpoint);
+        (await MfaPolicyProof.ResolvePolicyAsync(otherRequest))!.AuthenticationSchemes.Should().Equal("Second");
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public async Task Policy_Resolution_Should_Cache_Null_And_Respect_Provider_Replacement(DrnTestContextUnit context)
+    {
+        var provider = Substitute.For<IAuthorizationPolicyProvider>();
+        provider.AllowsCachingPolicies.Returns(true);
+        provider.GetFallbackPolicyAsync().Returns(Task.FromResult<AuthorizationPolicy?>(null));
+        context.ServiceCollection.AddSingleton(provider);
+        var http = new DefaultHttpContext { RequestServices = context };
+
+        (await MfaPolicyProof.ResolvePolicyAsync(http)).Should().BeNull();
+        (await MfaPolicyProof.ResolvePolicyAsync(http)).Should().BeNull();
+        await provider.Received(1).GetFallbackPolicyAsync();
+
+        var replacement = Substitute.For<IAuthorizationPolicyProvider>();
+        replacement.AllowsCachingPolicies.Returns(true);
+        replacement.GetFallbackPolicyAsync().Returns(new AuthorizationPolicyBuilder("Replacement").RequireAuthenticatedUser().Build());
+        using var services = new ServiceCollection().AddSingleton(replacement).BuildServiceProvider();
+        http.RequestServices = services;
+        (await MfaPolicyProof.ResolvePolicyAsync(http))!.AuthenticationSchemes.Should().Equal("Replacement");
+    }
+
+    [Theory]
     [DataInlineUnit(false)]
     [DataInlineUnit(true)]
     public async Task Exemption_Discovery_Should_Preserve_Request_Principal_Regardless_Of_Ambient_Mfa(

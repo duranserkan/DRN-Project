@@ -45,7 +45,6 @@ public static class IdentitySettings
         RequireConfirmedPhoneNumber = true
     };
 
-    public static readonly ClaimsIdentityOptions ClaimsIdentityOptions = new();
     public static readonly StoreOptions StoreOptions = new();
     public static readonly TokenOptions TokenOptions = new();
 }

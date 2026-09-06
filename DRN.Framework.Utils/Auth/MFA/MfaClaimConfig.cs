@@ -1,7 +1,7 @@
 namespace DRN.Framework.Utils.Auth.MFA;
 
 /// <summary>
-/// Identifies the claim that proves a completed multi-factor authentication session.
+/// Identifies the claim that proves a completed multifactor authentication session.
 /// </summary>
 public sealed record MfaClaimConfig
 {

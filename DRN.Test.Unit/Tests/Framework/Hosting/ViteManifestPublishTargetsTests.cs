@@ -4,12 +4,9 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting;
 
 public class ViteManifestPublishTargetsTests
 {
-    [Theory]
-    [DataInlineUnit]
-    public void HostingProject_Should_Pack_Targets_File_At_NuGet_Expected_BuildTransitive_Path(
-        DrnTestContextUnit context)
+    [Fact]
+    public void HostingProject_Should_Pack_Targets_File_At_NuGet_Expected_BuildTransitive_Path()
     {
-        _ = context;
         var document = XDocument.Load(FindHostingProjectFile());
 
         var projectPackageId = document.Descendants("PackageId").Single().Value;
@@ -22,11 +19,9 @@ public class ViteManifestPublishTargetsTests
         evaluatedPackagePath.Should().Be($"buildTransitive/{projectPackageId}.targets");
     }
 
-    [Theory]
-    [DataInlineUnit]
-    public void HostingTargets_Should_Define_Vite_Manifest_Publish_Items_For_Web_Sdk_Projects(DrnTestContextUnit context)
+    [Fact]
+    public void HostingTargets_Should_Define_Vite_Manifest_Publish_Items_For_Web_Sdk_Projects()
     {
-        _ = context;
         var document = XDocument.Load(FindHostingTargetsFile());
 
         var publishToggle = document.Descendants("DrnHostingViteManifestPublishItemsEnabled").Single();

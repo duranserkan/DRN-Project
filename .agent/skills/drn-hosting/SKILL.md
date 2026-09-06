@@ -69,7 +69,7 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 | `ConfigureForwardedHeadersOptions()` | Forwarded headers (default: All) |
 | `ConfigureRequestLocalizationOptions()` | Localization cultures, cookie provider |
 | `ConfigureHostFilteringOptions()` | Allowed hosts from config |
-| `ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions, IAppSettings, MfaClaimConfig)` | Security stamp refresh with authenticated AMR and configured MFA claim preservation |
+| `ConfigureIdentityRenewal(IServiceCollection, IAppSettings)` / `ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions, IAppSettings, AuthenticationClaimConfig)` | Optional Identity renewal wiring and stamp callback customization; retain base preservation for active Identity cookies |
 | `ConfigureDefaultCspBase()` | Base CSP directives (base-uri, form-action, frame-ancestors) |
 | `ConfigureCookieTempDataProvider()` | TempData cookie settings |
 | `CreatePreAuthRateLimiter()` | Pre-auth rate limiter orchestration |
@@ -90,7 +90,7 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 | `ValidateServicesAsync()` | DI validation |
 | `ConfigureMFARedirection()` | MFA page configuration |
 | `ConfigureMFAExemption()` | Route-specific MFA exemption config |
-| `ConfigureMFAClaim()` | Completed-MFA claim type/value; defaults to ASP.NET Core Identity `amr=mfa` |
+| `ConfigureAuthenticationClaims()` | Subject/name/email/roles with Identity defaults and explicit aliases, plus exact `Mfa` marker (`amr=mfa`); one shared DI config |
 
 **Execution order**: Builder Phase → `builder.Build()` → Pipeline Phase → `ValidateEndpoints()` → `ValidateServicesAsync()` → `ApplicationValidatedAsync()` → `application.StartAsync()` → `application.WaitForShutdownAsync()`
 
@@ -147,17 +147,17 @@ Distinguish exemption paths: the built-in `AuthPolicy.MfaExempt` requires authen
 
 The central phase map is beside `MfaAuthorization` in Hosting `Auth/Policies/MFA.cs`. Phase 2 adds opt-in Utils assurance helpers and revocation contract coverage; default completed-MFA policy is unchanged. Stamp rotation rejects the next refresh; cookies validate strictly after their configured validation interval; opaque bearer access remains valid until expiration unless an app adds checks. Identity factor state/key and password resets rotate stamps; recovery-code regeneration/redemption do not. Keep MFA-01/03/05/07 and remaining MFA-06 owner events as TODOs.
 
-Cookie security-stamp renewal and bearer refresh share `MfaClaimPreservation`:
+Cookie security-stamp renewal, explicit cookie refresh, and bearer refresh share `MfaClaimPreservation`:
 
-- **Marker preservation**: Clone authenticated AMR/configured markers with full claim metadata. Deduplicate by type (case-insensitive), value, value type, issuer, and original issuer so markers from other issuers cannot suppress trusted evidence.
-- **Timestamp validation**: Preserve existing `auth_time` unchanged with full metadata only when authenticated source and renewed identities have matching, unambiguous subjects/issuers (`sub` or framework name identifier). Remove regenerated target timestamps; omit missing, malformed, conflicting, or unbound evidence. Accept nonnegative integer Unix seconds within `DateTimeOffset` range. Renewal does not issue timestamps or establish recent MFA.
-- **Split-evidence protection**: When the renewed configured MFA marker shares the timestamp issuer, require both claims on the same original identity, including when the target marker came from its factory. If that pairing is absent, omit the timestamp to prevent assurance promotion.
+- **Marker preservation**: Remove regenerated target AMR, authentication-method claims, and exact configured MFA markers before cloning original authenticated evidence. Deduplicate by exact type, value, value type, issuer, original issuer, and all claim properties so distinct evidence cannot suppress trusted markers.
+- **Timestamp validation**: Preserve existing `auth_time` unchanged with full metadata only when authenticated source and renewed identities have matching, unambiguous subjects/issuers using the shared `AuthenticationClaimConfig`. Reject conflicting NameIdentifier/sub aliases. Remove regenerated target timestamps; omit missing, malformed, conflicting, or unbound evidence. Accept nonnegative integer Unix seconds within `DateTimeOffset` range. Renewal does not issue timestamps or establish recent MFA.
+- **Split-evidence protection**: When the preserved configured MFA marker shares the timestamp issuer, require both claims on the same original identity. If that pairing is absent, omit the timestamp to prevent assurance promotion. Factory-generated MFA markers are removed and cannot supply that pairing.
 
 The MFA result handler logs Information events 7401/7402/7403 for challenge/forbid/effective exemption under global enforcement. Dedicated fields are `EventOutcome`, `EventReason`, nullable W3C `TraceId`, and `CorrelationId`; never emit credentials, claim dumps or account identifiers. Never place a request identifier or generated fallback in TraceId. Distinguish generic authorization failures from failed MFA requirements. Completed MFA alone and disabled enforcement are not exemptions. Factor/recovery/revocation auditing and replay-resistant step-up remain separate owner work.
 
 MFA is enforced globally via the default/fallback policies and rechecked at the authorization middleware result boundary. Role-only attributes, direct policy metadata, and named policies cannot suppress global enforcement; named policies retain their configured authentication schemes. Any route not opted out requires MFA.
 
-The completed-MFA marker is provider-neutral and application-scoped. Override `ConfigureMFAClaim()` with the exact validated marker; the default is `amr=mfa`. `MfaPrincipal` rejects setup/pending credentials and conflicting authenticated subjects/issuers. Exemption discovery uses only policy-selected schemes and authenticated forwarding targets; authorization uses request-local proofs, not the singular ambient compatibility field. Use final `User` for account-security checks. Identity consumers opt in with `AddDrnIdentityMfaPolicies()` and its enrollment/browser challenge policies; generic Hosting has no Identity-service requirement. External providers configure their own handlers/claims and can omit local MFA-page redirection.
+`ConfigureAuthenticationClaims()` is the single mapping entry point; default applications need no override. Exact MFA and subject/issuer checks apply to final authorized principals, policy-selected schemes, and authenticated forwarding proofs. Identity consumers register `AddDrnIdentityMfaPolicies()` and `AddSignInManager<DrnSignInManager<TUser>>()` explicitly. Shared authorization works without Identity services. External providers own their handlers/account flows and may omit local MFA-page redirection and unused Identity renewal wiring.
 
 ```csharp
 // Opt-out options:
@@ -177,6 +177,8 @@ protected override void ConfigureAuthorizationOptions(AuthorizationOptions optio
     options.FallbackPolicy = authenticatedUserPolicy;
 }
 ```
+
+Hosting derives Identity claim options from the unified config. Identity factories and validated custom handlers supply canonical claims and native name/role metadata; any alias conversion belongs to the integration. DrnSignInManager requires a subject, clones factory identities and retains their metadata. Stamp, explicit-cookie and bearer refresh preserve original account-bound evidence; factory-generated markers/timestamps cannot strengthen assurance. Lifecycle hooks configure wiring, while scoped handlers execute it. Provider integrations/pages remain separate work. See [claim integration and renewal](../../../DRN.Framework.Hosting/README.md#renewal-and-assurance).
 
 ### GDPR & Consent
 

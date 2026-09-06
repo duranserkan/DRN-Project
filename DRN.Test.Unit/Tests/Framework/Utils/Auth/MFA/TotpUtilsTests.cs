@@ -10,6 +10,18 @@ public class TotpUtilsTests
     //             https://www.rfc-editor.org/rfc/rfc4648.html#section-6
     private const string Rfc6238Sha1SharedKeyBase32 = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
 
+    [Theory]
+    [DataInlineUnit(6, "081804")]
+    [DataInlineUnit(7, "7081804")]
+    [DataInlineUnit(8, "07081804")]
+    public void TotpUtils_Should_Preserve_Digit_Width_At_Both_Maximum_Drift_Boundaries(int digits, string expected)
+    {
+        var timestamp = DateTimeOffset.FromUnixTimeSeconds(1_111_111_109);
+        TotpUtils.GenerateTotpCode(Rfc6238Sha1SharedKeyBase32, timestamp, digits).Should().Be(expected);
+        TotpUtils.VerifyTotpCode(Rfc6238Sha1SharedKeyBase32, expected, timestamp.AddSeconds(300), 10, digits).Should().BeTrue();
+        TotpUtils.VerifyTotpCode(Rfc6238Sha1SharedKeyBase32, expected, timestamp.AddSeconds(-300), 10, digits).Should().BeTrue();
+    }
+
     // RFC 6238 Appendix B publishes these exact timestamps and eight-digit HMAC-SHA1 results
     // for a 30-second time step and Unix epoch T0.
     [Theory]

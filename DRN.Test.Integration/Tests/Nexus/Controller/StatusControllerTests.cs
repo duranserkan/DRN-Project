@@ -17,6 +17,7 @@ public class StatusControllerTests
         var status = await client.GetFromJsonAsync<ConfigurationDebugViewSummary>(Get.Endpoint.Sample.Status.Status.RoutePattern);
         var programName = typeof(NexusProgram).GetAssemblyName();
 
-        status?.ApplicationName.Should().Be(programName);
+        status.Should().NotBeNull();
+        status!.ApplicationName.Should().Be(programName);
     }
 }

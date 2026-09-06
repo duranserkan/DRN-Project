@@ -29,7 +29,10 @@ public sealed class SecondaryWebRootProgram : DrnProgramBase<SecondaryWebRootPro
         application.UseStaticFiles();
     }
 
-    protected override void ValidateEndpoints(WebApplication application, IAppSettings appSettings) { }
+    protected override void ValidateEndpoints(WebApplication application, IAppSettings appSettings)
+    {
+        // Endpoint discovery and validation are bypassed because this test program only validates static file web root resolution.
+    }
 
     protected override Task ValidateServicesAsync(WebApplication application, IScopedLog scopeLog) => Task.CompletedTask;
 

@@ -13,6 +13,8 @@ namespace DRN.Framework.Hosting.Auth;
 internal static class MfaPolicyProof
 {
     private static readonly object ProofKey = new();
+    private static readonly object PolicyKey = new();
+    private sealed record ResolvedPolicy(Endpoint? Endpoint, IAuthorizationPolicyProvider Provider, AuthorizationPolicy? Policy);
 
     internal static async Task<AuthorizationPolicy?> ResolvePolicyAsync(HttpContext context)
     {
@@ -21,19 +23,27 @@ internal static class MfaPolicyProof
             return null;
 
         var provider = context.RequestServices.GetRequiredService<IAuthorizationPolicyProvider>();
+        var cacheable = provider.AllowsCachingPolicies;
+        if (cacheable && context.Items.TryGetValue(PolicyKey, out var value) && value is ResolvedPolicy cached &&
+            ReferenceEquals(cached.Endpoint, endpoint) && ReferenceEquals(cached.Provider, provider))
+            return cached.Policy;
+
         var authorizeData = endpoint?.Metadata.GetOrderedMetadata<IAuthorizeData>() ?? [];
         var authorizationPolicy = endpoint?.Metadata.GetOrderedMetadata<AuthorizationPolicy>() ?? [];
 
         var policy = await AuthorizationPolicy.CombineAsync(provider, authorizeData, authorizationPolicy);
         var requirements = endpoint?.Metadata.GetOrderedMetadata<IAuthorizationRequirementData>() ?? [];
-        if (requirements.Count == 0)
-            return policy;
+        if (requirements.Count > 0)
+        {
+            var builder = new AuthorizationPolicyBuilder();
+            foreach (var data in requirements)
+                builder.AddRequirements([.. data.GetRequirements()]);
+            policy = policy == null ? builder.Build() : AuthorizationPolicy.Combine(policy, builder.Build());
+        }
 
-        var builder = new AuthorizationPolicyBuilder();
-        foreach (var data in requirements)
-            builder.AddRequirements([.. data.GetRequirements()]);
-
-        return policy == null ? builder.Build() : AuthorizationPolicy.Combine(policy, builder.Build());
+        if (cacheable)
+            context.Items[PolicyKey] = new ResolvedPolicy(endpoint, provider, policy);
+        return policy;
     }
 
     internal static async Task<IReadOnlyList<string>> GetSchemesAsync(HttpContext context, AuthorizationPolicy policy)
@@ -55,7 +65,7 @@ internal static class MfaPolicyProof
     internal static IReadOnlyList<(string SelectedScheme, ExemptionProof Proof)> Get(HttpContext context) =>
         context.Items.TryGetValue(ProofKey, out var value) && value is IReadOnlyList<(string, ExemptionProof)> proofs ? proofs : [];
 
-    internal static bool IsSatisfied(HttpContext? context, ClaimsPrincipal user, MfaClaimConfig config, MfaExemptionOptions options) =>
+    internal static bool IsSatisfied(HttpContext? context, ClaimsPrincipal user, AuthenticationClaimConfig config, MfaExemptionOptions options) =>
         MfaPrincipal.IsCompleted(user, config) || context != null && Get(context).Any(proof =>
             MfaAuthorization.IsMfaSatisfied(user, config, options, proof.Proof.Scheme, proof.Proof.Principal));
 }

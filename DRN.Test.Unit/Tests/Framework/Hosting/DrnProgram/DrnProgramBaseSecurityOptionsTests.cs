@@ -9,31 +9,21 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.DrnProgram;
 public class DrnProgramBaseSecurityOptionsTests
 {
     [Theory]
-    [DataInlineUnit(false)]
-    public void ConfigureHostFilteringOptions_Should_Require_AllowedHosts_Outside_Development(bool isDevelopment)
+    [DataInlineUnit(null, "AllowedHosts must be configured outside Development.")]
+    [DataInlineUnit("*", "AllowedHosts cannot contain '*' outside Development.")]
+    public void ConfigureHostFilteringOptions_Should_Reject_Missing_Or_Wildcard_Production_Hosts(
+        string? allowedHosts, string expectedMessage)
     {
-        var appSettings = CreateAppSettings(isDevelopment);
+        var appSettings = allowedHosts == null
+            ? CreateAppSettings(isDevelopment: false)
+            : CreateAppSettings(isDevelopment: false, ("AllowedHosts", allowedHosts));
         var options = new HostFilteringOptions();
         var configure = new TestProgram().ExposeConfigureHostFilteringOptions(appSettings);
 
         var act = () => configure(options);
 
         act.Should().Throw<ConfigurationException>()
-            .WithMessage("AllowedHosts must be configured outside Development.");
-    }
-
-    [Theory]
-    [DataInlineUnit(false)]
-    public void ConfigureHostFilteringOptions_Should_Reject_Wildcard_AllowedHosts_Outside_Development(bool isDevelopment)
-    {
-        var appSettings = CreateAppSettings(isDevelopment, ("AllowedHosts", "*"));
-        var options = new HostFilteringOptions();
-        var configure = new TestProgram().ExposeConfigureHostFilteringOptions(appSettings);
-
-        var act = () => configure(options);
-
-        act.Should().Throw<ConfigurationException>()
-            .WithMessage("AllowedHosts cannot contain '*' outside Development.");
+            .WithMessage(expectedMessage);
     }
     
     [Fact]

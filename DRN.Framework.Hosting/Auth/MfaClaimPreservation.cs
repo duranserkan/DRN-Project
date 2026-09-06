@@ -7,59 +7,71 @@ namespace DRN.Framework.Hosting.Auth;
 
 internal static class MfaClaimPreservation
 {
-    private const string AuthenticationTime = "auth_time";
+    private const string AuthenticationTime = AuthClaimTypes.AuthenticationTime;
 
-    internal static void Preserve(ClaimsPrincipal source, ClaimsIdentity target, MfaClaimConfig config)
+    internal static bool Preserve(ClaimsPrincipal source, ClaimsPrincipal target, AuthenticationClaimConfig config) =>
+        target.Identities.Any() && target.Identities.All(identity => Preserve(source, identity, config));
+
+    internal static bool Preserve(ClaimsPrincipal source, ClaimsIdentity target, AuthenticationClaimConfig config)
     {
-        foreach (var identity in source.Identities)
-        {
-            if (!identity.IsAuthenticated)
-                continue;
+        var identities = source.Identities.Where(identity => identity.IsAuthenticated).ToArray();
 
+        // A factory describes the account, not the original authentication ceremony.
+        foreach (var claim in target.Claims.Where(claim =>
+                     string.Equals(claim.Type, AuthenticationTime, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(claim.Type, AuthClaimTypes.AuthenticationMethods, StringComparison.OrdinalIgnoreCase) ||
+                     claim.Type == ClaimTypes.AuthenticationMethod ||
+                     claim.Type == config.Mfa.ClaimType && claim.Value == config.Mfa.ClaimValue).ToArray())
+            target.RemoveClaim(claim);
+
+        // Validate the whole source before flattening identities: another account's MFA marker
+        // must not become evidence for the renewed account, even when no timestamp is present.
+        var subject = SubjectClaims.Find(target, config);
+        if (!target.IsAuthenticated || subject == null || identities.Length == 0 ||
+            identities.Any(identity => SubjectClaims.Find(identity, config) is not { } candidate ||
+                                       candidate.Value != subject.Value || candidate.Issuer != subject.Issuer))
+            return false;
+
+        foreach (var identity in identities)
+        {
             foreach (var claim in identity.Claims)
             {
                 if (string.Equals(claim.Type, AuthenticationTime, StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 var isAmr = string.Equals(claim.Type, ClaimConventions.AuthenticationMethodReference, StringComparison.OrdinalIgnoreCase);
-                var isConfiguredMfa = string.Equals(claim.Type, config.ClaimType, StringComparison.OrdinalIgnoreCase) && claim.Value == config.ClaimValue;
+                var isConfiguredMfa = claim.Type == config.Mfa.ClaimType && claim.Value == config.Mfa.ClaimValue;
 
-                if ((isAmr || isConfiguredMfa) && !target.Claims.Any(existing =>
-                        string.Equals(existing.Type, claim.Type, StringComparison.OrdinalIgnoreCase) &&
+                if ((isAmr || isConfiguredMfa || claim.Type == ClaimTypes.AuthenticationMethod) && !target.Claims.Any(existing =>
+                        existing.Type == claim.Type &&
                         existing.Value == claim.Value && existing.ValueType == claim.ValueType &&
-                        existing.Issuer == claim.Issuer && existing.OriginalIssuer == claim.OriginalIssuer))
+                        existing.Issuer == claim.Issuer && existing.OriginalIssuer == claim.OriginalIssuer &&
+                        existing.Properties.Count == claim.Properties.Count &&
+                        existing.Properties.All(pair => claim.Properties.TryGetValue(pair.Key, out var value) && value == pair.Value)))
                     target.AddClaim(claim.Clone(target));
             }
         }
 
-        PreserveAuthenticationTime(source, target, config);
+        PreserveAuthenticationTime(identities, target, config.Mfa);
+        return true;
     }
 
-    private static void PreserveAuthenticationTime(ClaimsPrincipal source, ClaimsIdentity target, MfaClaimConfig config)
+    private static void PreserveAuthenticationTime(ClaimsIdentity[] identities, ClaimsIdentity target, MfaClaimConfig config)
     {
-        var identities = source.Identities.Where(identity => identity.IsAuthenticated).ToArray();
         var timestamps = identities.SelectMany(identity => identity.FindAll(AuthenticationTime)).ToArray();
-
-        // A principal factory may issue today's timestamp. Renewal must retain the original evidence or none.
-        foreach (var claim in target.FindAll(AuthenticationTime).ToArray())
-            target.RemoveClaim(claim);
-
-        var subject = Subject(target);
-        if (!target.IsAuthenticated || subject == null || identities.Length == 0 ||
-            identities.Any(identity => Subject(identity) is not { } candidate ||
-                                       candidate.Value != subject.Value || candidate.Issuer != subject.Issuer) ||
-            timestamps.Length == 0)
+        if (timestamps.Length == 0)
             return;
 
         var original = timestamps[0];
         if (!long.TryParse(original.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var seconds) ||
             seconds > DateTimeOffset.MaxValue.ToUnixTimeSeconds() ||
             timestamps.Any(claim => claim.Value != original.Value || claim.ValueType != original.ValueType ||
-                                    claim.Issuer != original.Issuer || claim.OriginalIssuer != original.OriginalIssuer))
+                                    claim.Issuer != original.Issuer || claim.OriginalIssuer != original.OriginalIssuer ||
+                                    claim.Properties.Count != original.Properties.Count ||
+                                    claim.Properties.Any(pair => !original.Properties.TryGetValue(pair.Key, out var value) || value != pair.Value)))
             return;
 
         // Flattening identities must not turn separate authentication and MFA evidence into a pair.
-        // Include factory-issued markers on the target, not just markers copied from the source.
         if (target.Claims.Any(claim => claim.Type == config.ClaimType && claim.Value == config.ClaimValue &&
                                       claim.Issuer == original.Issuer) &&
             !identities.Any(identity =>
@@ -71,13 +83,4 @@ internal static class MfaClaimPreservation
         target.AddClaim(original.Clone(target));
     }
 
-    private static Claim? Subject(ClaimsIdentity identity)
-    {
-        var subjects = identity.Claims.Where(claim => claim.Type == ClaimConventions.NameIdentifier || claim.Type == "sub").ToArray();
-        var subject = subjects.FirstOrDefault();
-        return subject != null && !string.IsNullOrWhiteSpace(subject.Value) &&
-               subjects.All(claim => claim.Value == subject.Value && claim.Issuer == subject.Issuer)
-            ? subject
-            : null;
-    }
 }

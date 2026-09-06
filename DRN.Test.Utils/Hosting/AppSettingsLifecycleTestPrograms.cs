@@ -34,7 +34,10 @@ public sealed class TemporaryLifecycleProgram : DrnProgramBase<TemporaryLifecycl
         // No HTTP middleware pipeline configuration is required, so the default ASP.NET Core middleware pipeline setup is bypassed.
     }
 
-    protected override void ValidateEndpoints(WebApplication application, IAppSettings appSettings) { }
+    protected override void ValidateEndpoints(WebApplication application, IAppSettings appSettings)
+    {
+        // Endpoint discovery and validation are bypassed because this test program does not configure HTTP endpoints.
+    }
 
     protected override Task ValidateServicesAsync(WebApplication application, IScopedLog scopeLog) => Task.CompletedTask;
 

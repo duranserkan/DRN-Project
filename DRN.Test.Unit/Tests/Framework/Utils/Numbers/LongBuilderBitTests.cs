@@ -27,6 +27,11 @@ public class LongBuilderBitTests
 
         var actual = builder.GetValue();
         actual.Should().Be(maxAvailable);
+
+        var parser = NumberParser.Get(actual, direction, 0);
+        parser.ReadResidueValue().Should().Be(0);
+        var bits = Enumerable.Range(0, AvailableBits).Select(_ => parser.ReadBit()).ToArray();
+        bits.Should().AllBeEquivalentTo(1);
     }
 
     [Theory]
@@ -52,31 +57,17 @@ public class LongBuilderBitTests
     }
 
     [Theory]
-    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x4000_0000_0000_0000)] // Mask for first MSB including sign bit
-    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 1)] // Mask for first bit
-    public void LongBuilder_Should_Build_First_1_Significant_Bit(NumberBuildDirection direction, long mask)
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 1, 0x4000_0000_0000_0000)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 1, 1L)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 2, 0x6000_0000_0000_0000)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 2, 3L)]
+    public void LongBuilder_Should_Position_Leading_Bits(NumberBuildDirection direction, int count, long mask)
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
         var builder = NumberBuilder.GetLong(direction, 0);
-        builder.TryAddBit(1);
-
-        builder.IsPositive().Should().BeFalse();
-
-        var actual = builder.GetValue();
-        actual.Should().Be(expected);
-    }
-
-    [Theory]
-    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x6000_0000_0000_0000)] // Mask for first 2 MSBs
-    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 3)] // Mask for first 2 LSBs
-    public void LongBuilder_Should_Build_First_2_Significant_Bits_With_Bytes(NumberBuildDirection direction, long mask)
-    {
-        var expected = long.MinValue + (long.MaxValue & mask);
-
-        var builder = NumberBuilder.GetLong(direction, 0);
-        builder.TryAddBit(1);
-        builder.TryAddBit(1);
+        for (var index = 0; index < count; index++)
+            builder.TryAddBit(1).Should().BeTrue();
 
         builder.IsPositive().Should().BeFalse();
 
@@ -87,7 +78,7 @@ public class LongBuilderBitTests
     [Theory]
     [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
     [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
-    public void LongBuilder_TryAddByte_Should_Return_False_When_All_Available_Slots_Filled_With_Bits(NumberBuildDirection direction)
+    public void LongBuilder_TryAddBit_Should_Return_False_When_All_Available_Slots_Filled_With_Bits(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 0);
         var added = false;
@@ -106,36 +97,11 @@ public class LongBuilderBitTests
     [Theory]
     [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
     [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
-    public void LongBuilder_Should_Build_Max_With_Bits(NumberBuildDirection direction)
-    {
-        var builder = NumberBuilder.GetLong(direction, 0);
-        foreach (var _ in Enumerable.Range(0, AvailableBits))
-            builder.TryAddBit(1);
-
-        builder.SetResidueValue(0);
-
-        builder.MakePositive();
-        builder.IsPositive().Should().BeTrue();
-
-        var actual = builder.GetValue();
-        actual.Should().Be(long.MaxValue);
-
-        var parser = NumberParser.Get(actual, direction, 0);
-        var residueValue = parser.ReadResidueValue();
-        residueValue.Should().Be(0);
-
-        var bits = Enumerable.Range(0, AvailableBits).Select(_ => parser.ReadBit()).ToArray();
-        bits.Should().AllBeEquivalentTo(1);
-    }
-
-    [Theory]
-    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
-    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void LongBuilder_Should_Build_Min_With_Bits(NumberBuildDirection direction)
     {
         var builder = NumberBuilder.GetLong(direction, 0);
         foreach (var _ in Enumerable.Range(0, AvailableBits))
-            builder.TryAddByte(0);
+            builder.TryAddBit(0).Should().BeTrue();
 
         builder.SetResidueValue(0);
 
@@ -146,7 +112,7 @@ public class LongBuilderBitTests
     }
 
     [Fact]
-    public void LongBuilder_Should_Build_Negative_With_Max_Residue()
+    public void LongBuilder_Should_Ignore_Residue_Value_When_Residue_Width_Is_Zero()
     {
         var builder = NumberBuilder.GetLong(NumberBuildDirection.MostSignificantFirst, 0);
         foreach (var _ in Enumerable.Range(0, 7))

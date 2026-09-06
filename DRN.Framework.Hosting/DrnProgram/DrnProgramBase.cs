@@ -2,7 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using System.Net;
 using System.Reflection;
-using System.Security.Claims;
 using System.Threading.RateLimiting;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
@@ -16,7 +15,7 @@ using DRN.Framework.Hosting.Utils;
 using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Json;
-using DRN.Framework.Utils.Auth.MFA;
+using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.DependencyInjection;
@@ -96,6 +95,7 @@ public interface IDrnProgram
 /// <li><a href="https://stackoverflow.com/questions/57846127/what-are-the-differences-between-app-userouting-and-app-useendpoints">UseRouting vs. UseEndpoints</a></li>
 /// </summary>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
+[SuppressMessage("ReSharper", "UseUtf8StringLiteral")]
 public abstract class DrnProgramBase<TProgram> : DrnProgram
     where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
@@ -285,7 +285,14 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         ConfigureWebHostBuilder(appSettings, applicationBuilder.WebHost);
 
         var services = applicationBuilder.Services;
-        services.AddSingleton(ConfigureMFAClaim());
+        services.AddSingleton(ConfigureAuthenticationClaims());
+        services.AddOptions<IdentityOptions>().PostConfigure<AuthenticationClaimConfig>((options, claims) =>
+        {
+            options.ClaimsIdentity.UserIdClaimType = claims.Subject.Type;
+            options.ClaimsIdentity.UserNameClaimType = claims.Name.Type;
+            options.ClaimsIdentity.EmailClaimType = claims.Email.Type;
+            options.ClaimsIdentity.RoleClaimType = claims.Roles.Type;
+        });
         services.AddDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
         services.AddSingleton<IEndpointAccessor>(sp =>
         {
@@ -324,8 +331,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         services.Configure(GetConfigureCookieTempDataProvider(appSettings));
         services.Configure(ConfigureStaticFileOptions(appSettings));
         services.Configure(ConfigureForwardedHeadersOptions(appSettings));
-        services.AddOptions<SecurityStampValidatorOptions>().Configure<MfaClaimConfig>((options, mfaClaimConfig) =>
-            ConfigureSecurityStampValidatorOptions(options, appSettings, mfaClaimConfig));
+        ConfigureIdentityRenewal(services, appSettings);
         if (appSettings.Localization.Enabled)
             services.Configure(ConfigureRequestLocalizationOptions(appSettings));
 
@@ -539,16 +545,27 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     }
 
     /// <summary>
-    /// Preserves authenticated authentication-method references, the configured MFA marker, and original account-bound auth_time during cookie renewal.
+    /// Registers Identity cookie renewal. Omit this wiring only when that mechanism is unused.
     /// </summary>
-    protected virtual void ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions options, IAppSettings appSettings, MfaClaimConfig mfaClaimConfig)
-    {
-        options.OnRefreshingPrincipal = context =>
-        {
-            if (context is { CurrentPrincipal: { } currentPrincipal, NewPrincipal.Identity: ClaimsIdentity newIdentity })
-                MfaClaimPreservation.Preserve(currentPrincipal, newIdentity, mfaClaimConfig);
+    protected virtual void ConfigureIdentityRenewal(IServiceCollection services, IAppSettings appSettings) =>
+        services.AddOptions<SecurityStampValidatorOptions>().PostConfigure<AuthenticationClaimConfig>((options, claims) =>
+            ConfigureSecurityStampValidatorOptions(options, appSettings, claims));
 
-            return Task.CompletedTask;
+    /// <summary>Composes cookie stamp callbacks and preserves original account-bound authentication evidence.</summary>
+    protected virtual void ConfigureSecurityStampValidatorOptions(
+        SecurityStampValidatorOptions options,
+        IAppSettings appSettings,
+        AuthenticationClaimConfig claims)
+    {
+        var previous = options.OnRefreshingPrincipal;
+        options.OnRefreshingPrincipal = async context =>
+        {
+            var original = context.CurrentPrincipal?.Clone()
+                           ?? throw new System.Security.SecurityException("Cannot renew without an original principal.");
+            if (previous != null)
+                await previous(context);
+            if (context.NewPrincipal is not { } renewed || !MfaClaimPreservation.Preserve(original, renewed, claims))
+                throw new System.Security.SecurityException("Cannot renew a missing principal or one with conflicting account evidence.");
         };
     }
 
@@ -950,9 +967,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     protected virtual MfaExemptionConfig? ConfigureMFAExemption() => null;
 
     /// <summary>
-    /// Configures the claim that proves a completed MFA session.
+    /// Configures canonical claim types, explicit aliases and completed MFA for all authentication consumers.
     /// </summary>
-    protected virtual MfaClaimConfig ConfigureMFAClaim() => MfaClaimConfig.AspNetIdentity;
+    protected virtual AuthenticationClaimConfig ConfigureAuthenticationClaims() => AuthenticationClaimConfig.Default;
 
     /// <summary>
     /// Configures authorization policies and default behaviors for the application.

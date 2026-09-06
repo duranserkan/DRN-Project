@@ -7,40 +7,23 @@ public class MethodUtilsInstanceTests
 
     private const string TypeMethodName = nameof(GetWithType);
 
-    [Fact]
-    public void FindMethod_Should_Find_NonGeneric_Method()
+    [Theory]
+    [DataInlineUnit(false, false)]
+    [DataInlineUnit(true, false)]
+    [DataInlineUnit(false, true)]
+    [DataInlineUnit(true, true)]
+    public void Discovery_Should_Find_Instance_Method(bool uncached, bool generic)
     {
-        var method = Type.FindMethod(InstanceMethodName, 0, BindingFlag.Instance);
+        var method = (uncached, generic) switch
+        {
+            (false, false) => Type.FindMethod(InstanceMethodName, 0, BindingFlag.Instance),
+            (true, false) => Type.FindMethodUncached(InstanceMethodName, 0, BindingFlag.Instance),
+            (false, true) => Type.FindMethod(InstanceMethodName, [Type], 0, BindingFlag.Instance),
+            (true, true) => Type.FindMethodUncached(InstanceMethodName, [Type], 0, BindingFlag.Instance)
+        };
         method.Should().NotBeNull();
         method.Name.Should().Be(InstanceMethodName);
-        method.IsGenericMethod.Should().BeFalse();
-    }
-
-    [Fact]
-    public void FindMethodUncached_Should_Find_NonGeneric_Method()
-    {
-        var method = Type.FindMethodUncached(InstanceMethodName, 0, BindingFlag.Instance);
-        method.Should().NotBeNull();
-        method.Name.Should().Be(InstanceMethodName);
-        method.IsGenericMethod.Should().BeFalse();
-    }
-
-    [Fact]
-    public void FindMethod_Should_Find_Generic_Method()
-    {
-        var method = Type.FindMethod(InstanceMethodName, [Type], 0, BindingFlag.Instance);
-        method.Should().NotBeNull();
-        method.Name.Should().Be(InstanceMethodName);
-        method.IsGenericMethod.Should().BeTrue();
-    }
-
-    [Fact]
-    public void FindMethodUncached_Should_Find_Generic_Method()
-    {
-        var method = Type.FindMethodUncached(InstanceMethodName, [Type], 0, BindingFlag.Instance);
-        method.Should().NotBeNull();
-        method.Name.Should().Be(InstanceMethodName);
-        method.IsGenericMethod.Should().BeTrue();
+        method.IsGenericMethod.Should().Be(generic);
     }
 
     [Fact]

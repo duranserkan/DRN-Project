@@ -56,8 +56,10 @@ public class DrnContextServiceRegistrationAttributeTests
         result.NonTestAppIds.Should().BeEquivalentTo([121]);
     }
 
-    [Fact]
-    public void ValidateEntityTypes_With_Mismatched_Configured_AppId_Should_Throw_ConfigurationException()
+    [Theory]
+    [DataInlineUnit((byte)55)]
+    [DataInlineUnit((byte)0)]
+    public void ValidateEntityTypes_With_Mismatched_Configured_AppId_Should_Throw_ConfigurationException(byte appId)
     {
         var options = new DbContextOptionsBuilder<TestValidationDbContext>()
             .UseNpgsql("Host=localhost;Database=test")
@@ -65,29 +67,12 @@ public class DrnContextServiceRegistrationAttributeTests
         using var dbContext = new TestValidationDbContext(options);
 
         var appSettings = Substitute.For<IAppSettings>();
-        appSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = 55 });
+        appSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = appId });
 
         var act = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(dbContext, scopedLog: null, appSettings);
 
         act.Should().ThrowExactly<ConfigurationException>()
-            .WithMessage("*NexusAppSettings:AppId (55) does not match TestValidationDbContext domain partition AppId (121)*");
-    }
-
-    [Fact]
-    public void ValidateEntityTypes_With_Zero_Configured_AppId_And_NonZero_Domain_Should_Throw_ConfigurationException()
-    {
-        var options = new DbContextOptionsBuilder<TestValidationDbContext>()
-            .UseNpgsql("Host=localhost;Database=test")
-            .Options;
-        using var dbContext = new TestValidationDbContext(options);
-
-        var zeroAppSettings = Substitute.For<IAppSettings>();
-        zeroAppSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = 0 });
-
-        var act = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(dbContext, scopedLog: null, zeroAppSettings);
-
-        act.Should().ThrowExactly<ConfigurationException>()
-            .WithMessage("*NexusAppSettings:AppId (0) does not match TestValidationDbContext domain partition AppId (121)*");
+            .WithMessage($"*NexusAppSettings:AppId ({appId}) does not match TestValidationDbContext domain partition AppId (121)*");
     }
 
     [Fact]
@@ -204,7 +189,7 @@ public class DrnContextServiceRegistrationAttributeTests
     }
 
     [Fact]
-    public void GetAllDomainEntityTypes_Should_Include_Both_Model_And_Assembly_Entities()
+    public void GetAllDomainEntityTypes_Should_Return_Only_Model_Entities()
     {
         var options = new DbContextOptionsBuilder<TestValidationDbContext>()
             .UseNpgsql("Host=localhost;Database=test")
@@ -214,6 +199,7 @@ public class DrnContextServiceRegistrationAttributeTests
         var domainTypes = DrnContextServiceRegistrationAttribute.GetAllDomainEntityTypes(dbContext);
 
         domainTypes.Should().Contain(typeof(FirstPartitionEntity));
+        domainTypes.Should().NotContain(typeof(SecondPartitionEntity));
     }
 
     [Fact]
@@ -305,9 +291,10 @@ public class DrnContextServiceRegistrationAttributeTests
 
         var act = () => DrnContextServiceRegistrationAttribute.GetAssemblyDomainEntityTypes(assembly);
 
-        act.Should().ThrowExactly<InvalidOperationException>()
-            .WithMessage("*Failed to load types from assembly 'BrokenTestAssemblyWithoutLoaders' for domain entity validation*")
-            .WithInnerExceptionExactly<ReflectionTypeLoadException>();
+        var exception = act.Should().ThrowExactly<InvalidOperationException>().Which;
+        exception.Message.Should().Contain("Failed to load types from assembly 'BrokenTestAssemblyWithoutLoaders' for domain entity validation");
+        exception.Message.Should().Contain(reflectionException.Message);
+        exception.InnerException.Should().BeOfType<ReflectionTypeLoadException>();
     }
 
     [Fact]

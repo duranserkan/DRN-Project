@@ -72,13 +72,17 @@ public class QAContextTests
         // entity base class extended properties and modification validations
         category = await qaContext.Categories.FindAsync(category.Id);
         var custom = category!.GetExtendedProperties<CustomProperties>();
-        custom?.LifeIsGood.Should().BeTrue();
+        custom.Should().NotBeNull();
+        custom!.LifeIsGood.Should().BeTrue();
 
         category.SetExtendedProperties(new NewProperties("Good"));
         await qaContext.SaveChangesAsync();
 
         category = await qaContext.Categories.FindAsync(category.Id);
-        category!.GetExtendedProperties<NewProperties>()?.LifeIs.Should().Be("Good");
+        category.Should().NotBeNull();
+        var updatedProperties = category!.GetExtendedProperties<NewProperties>();
+        updatedProperties.Should().NotBeNull();
+        updatedProperties!.LifeIs.Should().Be("Good");
 
         category.CreatedAt.Should().Be(categoryInitialCreatedAt);
         category.ModifiedAt.Should().BeAfter(categoryInitialModifiedAt);

@@ -51,31 +51,17 @@ public class LongBuilderCrumbTests
     }
 
     [Theory]
-    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x3000_0000_0000_0000)] // Mask for first 2 MSBs
-    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 3)] // Mask for first 2 LSBs
-    public void LongBuilder_Should_Build_First_2_Significant_Bits(NumberBuildDirection direction, long mask)
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 1, 0x3000_0000_0000_0000)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 1, 3L)]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 2, 0x3C00_0000_0000_0000)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 2, 15L)]
+    public void LongBuilder_Should_Position_Leading_Crumbs(NumberBuildDirection direction, int count, long mask)
     {
         var expected = long.MinValue + (long.MaxValue & mask);
 
         var builder = NumberBuilder.GetLong(direction, 1);
-        builder.TryAddCrumb(3);
-
-        builder.IsPositive().Should().BeFalse();
-
-        var actual = builder.GetValue();
-        actual.Should().Be(expected);
-    }
-
-    [Theory]
-    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst, 0x3C00_0000_0000_0000)] // Mask for first 4 MSBs
-    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst, 15)] // Mask for first 4 LSBs
-    public void LongBuilder_Should_Build_First_4_Significant_Bits(NumberBuildDirection direction, long mask)
-    {
-        var expected = long.MinValue + (long.MaxValue & mask);
-
-        var builder = NumberBuilder.GetLong(direction, 1);
-        builder.TryAddCrumb(3);
-        builder.TryAddCrumb(3);
+        for (var index = 0; index < count; index++)
+            builder.TryAddCrumb(3).Should().BeTrue();
 
         builder.IsPositive().Should().BeFalse();
 

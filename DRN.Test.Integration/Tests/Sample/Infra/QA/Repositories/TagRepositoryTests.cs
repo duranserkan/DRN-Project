@@ -293,6 +293,7 @@ public class TagRepositoryTests
             index++;
         }
 
+        index.Should().Be(paginationResult.Items.Count);
         index = 0;
         await foreach (var paginationResult3 in repository.PaginateAllAsync(paginateSingle, selectNone))
         {

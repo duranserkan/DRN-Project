@@ -200,7 +200,7 @@ These hooks register services or customize configuration. Options callbacks run 
 | **Security** | `ConfigureSecurityHeaderPolicyBuilder` | Advanced conditional security policies (e.g., per-route CSP). |
 | **Cookies** | `ConfigureCookiePolicy` | Set GDPR consent logic and security attributes for all cookies. |
 | **Cookies** | `ConfigureCookieTempDataProvider` | Configure TempData cookie settings (HttpOnly, IsEssential). |
-| **Identity** | `ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions, IAppSettings, MfaClaimConfig)` | Customize security stamp validation and claim preservation using the DI-resolved MFA marker. |
+| **Identity** | `ConfigureIdentityRenewal(IServiceCollection, IAppSettings)`; `ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions, IAppSettings, AuthenticationClaimConfig)` | Register/customize Identity cookie renewal while retaining shared claim configuration. |
 | **Infras.** | `ConfigureStaticFileOptions` | Customize caching (default: 1 year) and HTTPS compression. |
 | **Infras.** | `ConfigureForwardedHeadersOptions` | Configure proxy/load-balancer header forwarding. |
 | **Infras.** | `ConfigureRequestLocalizationOptions` | Configure culture providers and supported cultures. |
@@ -384,17 +384,16 @@ protected override MfaRedirectionConfig ConfigureMFARedirection()
         appPages: Get.Page.All
     );
 
-// Optional: use the MFA marker emitted by your identity provider.
-// The default is MfaClaimConfig.AspNetIdentity (amr=mfa).
-protected override MfaClaimConfig ConfigureMFAClaim()
-    => new("acr", "urn:example:authentication:mfa");
+// Optional; ordinary Identity applications need no claim override.
+protected override AuthenticationClaimConfig ConfigureAuthenticationClaims()
+    => AuthenticationClaimConfig.Default;
 
 // Eligible schemes must also be selected for authentication.
 protected override MfaExemptionConfig ConfigureMFAExemption()
     => new() { ExemptAuthSchemes = ["ApiKey", "Certificate"] };
 ```
 
-`ConfigureMFAClaim` selects an exact claim type and value per application. It applies to authorization, redirection, `MfaFor.MfaCompleted`, and MFA policies used by `policy-only`. Multiple claim values are supported. `authorized-only` checks authentication alone.
+`ConfigureAuthenticationClaims` supplies subject, name, email, roles, and the exact completed-MFA marker to scoped users, ambient helpers, MFA policies/exemptions, assurance, rate limits, and Identity enrollment/renewal. Its defaults use Identity claim types with explicit `sub`/`name`/`email`/`roles` aliases and `Mfa = amr=mfa`. A custom mapping replaces its aliases too. `policy-only` evaluates authorization; `authorized-only` checks authentication alone.
 
 `ConfigureMFAExemption` lists eligible schemes. Only schemes selected by the endpoint policy or default authentication scheme can supply exemption evidence. Forwarding targets are included. Authorization checks that evidence against the final principal; `IScopedUser.Exemption` is a compatibility view, not the authorization source.
 
@@ -406,13 +405,41 @@ Shared MFA authorization does not require ASP.NET Core Identity or its database.
 
 #### Renewal and assurance
 
-Cookie security-stamp renewal and bearer refresh preserve authenticated `amr` values and the configured MFA marker with their original issuer and metadata. Claims from different issuers remain distinct. Unrelated values of a custom claim type are omitted. Overrides of `ConfigureSecurityStampValidatorOptions` must call the base method with `options`, `appSettings`, and `mfaClaimConfig` to retain preservation.
+Hosting derives the four `IdentityOptions.ClaimsIdentity` mapping fields from `AuthenticationClaimConfig` during post-configuration, preserving security-stamp and other Identity options. Configure these fields only through the shared contract. Identity factories then issue the selected types with matching native name/role metadata.
 
-Renewal preserves valid, account-bound `auth_time` with its claim metadata. It removes factory-generated timestamps first. Timestamps must be nonnegative integer Unix seconds within `DateTimeOffset` range. Conflicting values, provenance, or account identities cause omission.
+Register the Identity sign-in integration through the standard builder:
+
+```csharp
+services.AddIdentityApiEndpoints<AppUser>()
+    .AddSignInManager<DrnSignInManager<AppUser>>();
+services.AddDrnIdentityMfaPolicies();
+```
+
+`DrnSignInManager` retains Identity's password/TOTP/recovery and temporary-cookie flows. It requires an unambiguous account, clones authenticated factory identities, maps Identity's additional successful two-factor evidence to a custom marker, excludes stored profile MFA markers, and preserves full original evidence during explicit `RefreshSignInAsync`. It retains factory claim types and native metadata; custom factories must honor the configured contract. Sample and Nexus register it. Applications with their own manager can derive from it or implement the same boundaries; DRN does not silently replace consumer subclasses.
+
+Cookie security-stamp renewal, explicit cookie refresh, and DRN bearer refresh share account-bound preservation. They discard regenerated authentication evidence and copy original authenticated AMR, authentication-method, exact MFA marker, and valid `auth_time`, retaining issuer and claim metadata. Unrelated values of custom marker types are omitted. Invalid accounts/issuers cannot produce renewed credentials; bearer refresh also validates expiry and the security stamp.
+
+`ConfigureIdentityRenewal` registers the default cookie stamp callback; override it with an empty method when Identity cookie renewal is unused. `ConfigureSecurityStampValidatorOptions` customizes that callback and composes existing callbacks; call base to retain preservation for active Identity cookies. These hooks configure wiring, while request-scoped handlers/services perform renewal. Shared claim configuration and MFA enforcement remain active. An empty hook does not implement OIDC token refresh or remove validation obligations for active credentials.
+
+Timestamps must be nonnegative integer Unix seconds within `DateTimeOffset` range. Missing, malformed, or conflicting original time remains absent after renewal.
 
 When the renewed MFA marker shares the timestamp's issuer, both must exist on one original identity. For example, a timestamp on identity A and MFA on identity B cannot become recent-MFA evidence through renewal. Renewal does not reset authentication age or establish when MFA occurred.
 
 `MfaPrincipal.IsRecent` and `IsPhishingResistant` are opt-in assurance checks. The default MFA policy does not require either. Trusted handlers must issue the supporting evidence; a generic MFA marker alone does not prove phishing resistance.
+
+For a future Keycloak integration, the claim configuration could be:
+
+```csharp
+protected override AuthenticationClaimConfig ConfigureAuthenticationClaims() => new()
+{
+    Subject = new("sub"), Name = new("preferred_username"), Email = new("email"),
+    Roles = new("roles"), Mfa = new("acr", "urn:example:mfa")
+};
+```
+
+The example ACR is a realm-guaranteed completed-MFA contract, not a Keycloak default. The validating handler must preserve raw names (`MapInboundClaims = false` where supported), extract authorized nested roles, and use the shared config for canonical claim output and native name/role metadata. Aliases are accepted by DRN consumers; native authorization requires the integration to map any needed aliases into canonical claims. At the final validated ticket boundary after claim actions/UserInfo, reject ambiguous evidence and exclude unselected case variants that native lookups could accept. Only validated identities belong in the application principal. This contract aligns `User.Identity.Name`, `User.IsInRole`, role authorization, and DRN helpers; configuration alone does not change existing identities. See [the Utils contract](../DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
+
+Authority, credentials, issuer/signature/audience validation, OAuth refresh, remote logout/signup, account linking, and provider pages remain separate future integrations. Existing local Identity pages remain available. Changing canonical subject types may require reauthentication or an application-owned ticket migration; aliases alone do not migrate native Identity credentials.
 
 #### Audit events
 

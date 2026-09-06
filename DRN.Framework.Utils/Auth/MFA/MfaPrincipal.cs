@@ -13,9 +13,10 @@ public static class MfaPrincipal
     public static bool IsRestricted(ClaimsPrincipal? principal) =>
         HasState(principal, MfaClaimValues.MfaSetupRequired) || HasState(principal, MfaClaimValues.MfaInProgress);
 
-    public static bool IsCompleted(ClaimsPrincipal? principal, MfaClaimConfig config) =>
-        principal != null && !IsRestricted(principal) && HasSingleAccount(principal) &&
-        principal.Identities.Any(identity => identity.IsAuthenticated && identity.HasClaim(config.ClaimType, config.ClaimValue));
+    public static bool IsCompleted(ClaimsPrincipal? principal, AuthenticationClaimConfig config) =>
+        principal != null && !IsRestricted(principal) && HasSingleAccount(principal, config) &&
+        principal.Identities.Any(identity => identity.IsAuthenticated && identity.Claims.Any(claim =>
+            claim.Type == config.Mfa.ClaimType && claim.Value == config.Mfa.ClaimValue));
 
     /// <summary>Checks completed MFA and recent authentication evidence from an explicitly trusted issuer.</summary>
     /// <remarks>
@@ -25,8 +26,8 @@ public static class MfaPrincipal
     /// select a timestamp whose verified-MFA meaning is guaranteed by the issuing provider.
     /// This helper does not change the default Mfa policy or issue evidence.
     /// </remarks>
-    public static bool IsRecent(ClaimsPrincipal? principal, MfaClaimConfig config, string trustedIssuer,
-        TimeSpan maximumAge, DateTimeOffset utcNow, string authenticationTimeClaimType = "auth_time")
+    public static bool IsRecent(ClaimsPrincipal? principal, AuthenticationClaimConfig config, string trustedIssuer,
+        TimeSpan maximumAge, DateTimeOffset utcNow, string authenticationTimeClaimType = AuthClaimTypes.AuthenticationTime)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(authenticationTimeClaimType);
         if (maximumAge < TimeSpan.Zero)
@@ -55,19 +56,19 @@ public static class MfaPrincipal
     /// marker must differ from the completed marker; generic completed MFA alone is insufficient.
     /// The caller owns the provider's assurance mapping; no method name or passkey label is inferred.
     /// </remarks>
-    public static bool IsPhishingResistant(ClaimsPrincipal? principal, MfaClaimConfig config, string trustedIssuer,
+    public static bool IsPhishingResistant(ClaimsPrincipal? principal, AuthenticationClaimConfig config, string trustedIssuer,
         MfaClaimConfig assuranceClaim)
     {
         ArgumentNullException.ThrowIfNull(assuranceClaim);
         var identities = AssuranceIdentities(principal, config, trustedIssuer);
-        if (config.ClaimType == assuranceClaim.ClaimType && config.ClaimValue == assuranceClaim.ClaimValue)
+        if (config.Mfa == assuranceClaim)
             return false;
 
         return identities.Any(identity => identity.Claims.Any(claim => claim.Type == assuranceClaim.ClaimType &&
             claim.Value == assuranceClaim.ClaimValue && claim.Issuer == trustedIssuer));
     }
 
-    private static ClaimsIdentity[] AssuranceIdentities(ClaimsPrincipal? principal, MfaClaimConfig config, string trustedIssuer)
+    private static ClaimsIdentity[] AssuranceIdentities(ClaimsPrincipal? principal, AuthenticationClaimConfig config, string trustedIssuer)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentException.ThrowIfNullOrWhiteSpace(trustedIssuer);
@@ -75,51 +76,57 @@ public static class MfaPrincipal
             return [];
 
         var identities = principal.Identities.Where(identity => identity.IsAuthenticated).ToArray();
-        var subject = identities.Length == 0 ? null : AssuranceSubject(identities[0]);
+        var subject = identities.Length == 0 ? null : SubjectClaims.Find(identities[0], config);
         if (subject == null || subject.Issuer != trustedIssuer ||
-            identities.Any(identity => !SameSubject(subject, AssuranceSubject(identity))))
+            identities.Skip(1).Any(identity => !SameSubject(subject, SubjectClaims.Find(identity, config))))
             return [];
 
-        return identities.Where(identity => identity.Claims.Any(claim => claim.Type == config.ClaimType &&
-            claim.Value == config.ClaimValue && claim.Issuer == trustedIssuer)).ToArray();
-    }
-
-    private static Claim? AssuranceSubject(ClaimsIdentity identity)
-    {
-        var subjects = identity.Claims.Where(claim => claim.Type == ClaimConventions.NameIdentifier || claim.Type == "sub").ToArray();
-        var subject = subjects.FirstOrDefault();
-        return subject != null && subjects.All(candidate => SameSubject(subject, candidate)) ? subject : null;
+        return identities.Where(identity => identity.Claims.Any(claim => claim.Type == config.Mfa.ClaimType &&
+            claim.Value == config.Mfa.ClaimValue && claim.Issuer == trustedIssuer)).ToArray();
     }
 
     /// <summary>Multiple authenticated identities must identify the same subject and issuer.</summary>
-    public static bool HasSingleAccount(ClaimsPrincipal principal, string? subjectClaimType = null)
+    public static bool HasSingleAccount(ClaimsPrincipal principal, AuthenticationClaimConfig? config = null, bool requireSubject = false)
     {
-        var identities = principal.Identities.Where(identity => identity.IsAuthenticated).ToArray();
-        if (identities.Length == 0)
-            return false;
+        config ??= AuthenticationClaimConfig.Default;
+        ClaimsIdentity? first = null;
+        Claim? subject = null;
+        foreach (var identity in principal.Identities)
+        {
+            if (!identity.IsAuthenticated)
+                continue;
+            if (first == null)
+            {
+                first = identity;
+                subject = SubjectClaims.Find(identity, config);
+                // Subjectless single identities remain valid for provider-neutral completion.
+                // An explicit mapping, or supplied standard aliases, must be unambiguous.
+                if ((requireSubject || !config.HasDefaultSubjectMapping || identity.HasClaim(claim => SubjectClaims.IsDefaultSubjectType(claim.Type))) &&
+                    subject == null)
+                    return false;
+                continue;
+            }
 
-        if (identities.Length == 1)
-            return true;
+            if (!SameSubject(subject, SubjectClaims.Find(identity, config)))
+                return false;
+        }
 
-        var subject = GetSubject(identities[0], subjectClaimType);
-        return subject != null && identities.Skip(1).All(identity => SameSubject(subject, GetSubject(identity, subjectClaimType)));
+        return first != null;
     }
 
-    public static bool MatchesIdentity(ClaimsIdentity identity, ClaimsIdentity proof)
+    public static bool MatchesIdentity(ClaimsIdentity identity, ClaimsIdentity proof, AuthenticationClaimConfig? config = null)
     {
+        config ??= AuthenticationClaimConfig.Default;
         if (!identity.IsAuthenticated || !proof.IsAuthenticated)
             return false;
-        if (ReferenceEquals(identity, proof))
+        if (ReferenceEquals(identity, proof) && config.HasDefaultSubjectMapping &&
+            !identity.HasClaim(claim => SubjectClaims.IsDefaultSubjectType(claim.Type)))
             return true;
 
         // Callers must additionally bind authentication evidence to the selected scheme.
         return string.Equals(identity.AuthenticationType, proof.AuthenticationType, StringComparison.Ordinal) &&
-               SameSubject(GetSubject(identity), GetSubject(proof));
+               SameSubject(SubjectClaims.Find(identity, config), SubjectClaims.Find(proof, config));
     }
-
-    private static Claim? GetSubject(ClaimsIdentity identity, string? subjectClaimType = null) =>
-        identity.FindFirst(subjectClaimType ?? ClaimConventions.NameIdentifier) ??
-        (subjectClaimType == null ? identity.FindFirst("sub") : null);
 
     private static bool SameSubject(Claim? left, Claim? right) =>
         left != null && right != null && !string.IsNullOrWhiteSpace(left.Value) &&

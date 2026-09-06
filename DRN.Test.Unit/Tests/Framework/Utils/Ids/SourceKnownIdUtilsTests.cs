@@ -95,16 +95,9 @@ public class SourceKnownIdUtilsTests
     [Theory]
     [DataInlineUnit((byte)128, (byte)0)]
     [DataInlineUnit((byte)255, (byte)0)]
-    public void Generate_With_AppId_Exceeding_MaxAppId_Should_Throw_ArgumentOutOfRangeException(byte appId, byte appInstanceId)
-    {
-        var act = () => SourceKnownIdUtils.Generate<CustomTestEntityForUtils>(appId, appInstanceId);
-        act.Should().Throw<ArgumentOutOfRangeException>();
-    }
-
-    [Theory]
     [DataInlineUnit((byte)0, (byte)64)]
     [DataInlineUnit((byte)0, (byte)255)]
-    public void Generate_With_AppInstanceId_Exceeding_MaxAppInstanceId_Should_Throw_ArgumentOutOfRangeException(byte appId, byte appInstanceId)
+    public void Generate_With_AppId_Or_InstanceId_Exceeding_Field_Width_Should_Throw_ArgumentOutOfRangeException(byte appId, byte appInstanceId)
     {
         var act = () => SourceKnownIdUtils.Generate<CustomTestEntityForUtils>(appId, appInstanceId);
         act.Should().Throw<ArgumentOutOfRangeException>();
@@ -149,33 +142,14 @@ public class SourceKnownIdUtilsTests
     }
 
     [Theory]
-    [DataInlineUnit]
-    public void Next_With_SourceKnownEntity_Should_Use_Entity_AppId(DrnTestContextUnit context)
+    [DataInlineUnit((byte)8, (byte)20)]
+    [DataInlineUnit((byte)5, (byte)12)]
+    public void Next_WithEntity_Should_Generate_Valid_Id_Matching_Generic_Contract(DrnTestContextUnit context, byte appId, byte appInstanceId)
     {
         var nexusSettings = new NexusAppSettings
         {
-            AppId = 5,
-            AppInstanceId = 12
-        };
-
-        context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
-        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
-
-        var id = generator.Next<CustomTestEntityForUtils>();
-        var parsed = generator.Parse(id);
-
-        parsed.AppId.Should().Be(77);
-        parsed.AppInstanceId.Should().Be(12);
-    }
-
-    [Theory]
-    [DataInlineUnit]
-    public void Next_WithEntity_Should_Generate_Valid_Id_Matching_Generic_Contract(DrnTestContextUnit context)
-    {
-        var nexusSettings = new NexusAppSettings
-        {
-            AppId = 8,
-            AppInstanceId = 20
+            AppId = appId,
+            AppInstanceId = appInstanceId
         };
 
         context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
@@ -192,27 +166,6 @@ public class SourceKnownIdUtilsTests
         parsedEntity.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
         parsedGeneric.AppId.Should().Be(77);
         parsedGeneric.AppInstanceId.Should().Be(nexusSettings.AppInstanceId);
-    }
-
-    [Theory]
-    [DataInlineUnit]
-    public void Next_WithEntity_With_SourceKnownEntity_Should_Use_Entity_AppId(DrnTestContextUnit context)
-    {
-        var nexusSettings = new NexusAppSettings
-        {
-            AppId = 5,
-            AppInstanceId = 12
-        };
-
-        context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
-        var generator = context.GetRequiredService<ISourceKnownIdUtils>();
-
-        var entity = new CustomTestEntityForUtils();
-        var id = generator.Next(entity);
-        var parsed = generator.Parse(id);
-
-        parsed.AppId.Should().Be(77);
-        parsed.AppInstanceId.Should().Be(12);
     }
 
     [Theory]

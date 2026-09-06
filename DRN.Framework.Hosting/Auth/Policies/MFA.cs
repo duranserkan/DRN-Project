@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Security.Claims;
+using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Authorization;
@@ -10,9 +11,10 @@ namespace DRN.Framework.Hosting.Auth.Policies;
 public class MfaRequirement : IAuthorizationRequirement;
 
 [Singleton<IAuthorizationHandler>(tryAdd: false)]
-public class RequireMfaHandler(MfaClaimConfig? claimConfig = null, MfaExemptionOptions? exemptionOptions = null) : AuthorizationHandler<MfaRequirement>
+public class RequireMfaHandler(AuthenticationClaimConfig? claimConfig = null, MfaExemptionOptions? exemptionOptions = null)
+    : AuthorizationHandler<MfaRequirement>
 {
-    private readonly MfaClaimConfig _claimConfig = claimConfig ?? MfaClaimConfig.AspNetIdentity;
+    private readonly AuthenticationClaimConfig _claimConfig = claimConfig ?? AuthenticationClaimConfig.Default;
     private readonly MfaExemptionOptions _exemptionOptions = exemptionOptions ?? new MfaExemptionOptions();
 
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, MfaRequirement requirement)
@@ -62,10 +64,10 @@ public static class MfaAuthorization
     internal static bool IsPolicyMfaExempt(AuthorizationPolicy policy) =>
         policy.Requirements.Any(requirement => requirement is MfaExemptRequirement);
 
-    public static bool IsMfaSatisfied(ClaimsPrincipal? user, MfaClaimConfig claimConfig, MfaExemptionOptions exemptionOptions,
+    public static bool IsMfaSatisfied(ClaimsPrincipal? user, AuthenticationClaimConfig claimConfig, MfaExemptionOptions exemptionOptions,
         string? authenticatedExemptionScheme, ClaimsPrincipal? exemptionPrincipal)
     {
-        if (user == null || MfaPrincipal.IsRestricted(user) || !MfaPrincipal.HasSingleAccount(user))
+        if (user == null || MfaPrincipal.IsRestricted(user) || !MfaPrincipal.HasSingleAccount(user, claimConfig))
             return false;
         if (MfaPrincipal.IsCompleted(user, claimConfig))
             return true;
@@ -75,6 +77,6 @@ public static class MfaAuthorization
             return false;
 
         return user.Identities.Any(identity => exemptionPrincipal.Identities.Any(proof =>
-            MfaPrincipal.MatchesIdentity(identity, proof)));
+            MfaPrincipal.MatchesIdentity(identity, proof, claimConfig)));
     }
 }

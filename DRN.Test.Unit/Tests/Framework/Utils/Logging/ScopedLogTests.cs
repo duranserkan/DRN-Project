@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Logging;
@@ -88,6 +89,7 @@ public class ScopedLogTests
         snapshot.Should().NotContainKey("Data.Static");
     }
 
+    [SuppressMessage("ReSharper", "UnusedMember.Local")]
     private sealed class PropertyLogData
     {
         public string Visible => "visible";
@@ -200,7 +202,7 @@ public class ScopedLogTests
     }
 
     [Fact]
-    public void CopyFrom_Should_Preserve_Destination_Event_And_Trace()
+    public void CopyFrom_Should_Preserve_Destination_State_And_Clone_Source_Entries()
     {
         var destination = CreateLog();
         var primary = new ScopeEvent(new EventId(1, "Primary"));
@@ -208,46 +210,24 @@ public class ScopedLogTests
         var source = CreateLog();
         destination.WithEvent(primary);
         source.WithEvent(sourceEvent);
+        destination.Add("DestinationKey", "destination");
+        destination.AddWarning("destination-warning");
+        source.Add("SourceKey", "source");
+        source.AddException(new InvalidOperationException("source-exception"));
+        source.AddToList("Items", "one");
         var traceId = destination.TraceId;
 
         destination.CopyFrom(source);
+        source.AddToList("Items", "two");
 
         destination.Event.Should().Be(primary);
         destination.TraceId.Should().Be(traceId);
         ((IEnumerable<object>)destination.GetLogs()["AdditionalEvents"]).Should().Equal(sourceEvent);
-    }
-
-    [Fact]
-    public void CopyFrom_Should_Merge_Source_Entries_And_Preserve_Destination_State()
-    {
-        var destination = CreateLog();
-        destination.Add("DestinationKey", "destination");
-        destination.AddWarning("destination-warning");
-
-        var source = CreateLog();
-        source.Add("SourceKey", "source");
-        source.AddException(new InvalidOperationException("source-exception"));
-
-        destination.CopyFrom(source);
-
         var logs = destination.GetLogs();
         logs.Should().ContainKey("DestinationKey");
         logs.Should().ContainKey("SourceKey");
         destination.HasWarning.Should().BeTrue();
         destination.HasException.Should().BeTrue();
-    }
-
-    [Fact]
-    public void CopyFrom_Should_Clone_Mutable_List_Values()
-    {
-        var source = CreateLog();
-        source.AddToList("Items", "one");
-
-        var destination = CreateLog();
-        destination.CopyFrom(source);
-
-        source.AddToList("Items", "two");
-
         destination.GetLogs()["Items"].Should().BeAssignableTo<List<object>>()
             .Subject.Should().Equal("one");
     }
