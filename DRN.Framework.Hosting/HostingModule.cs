@@ -17,6 +17,7 @@ public static class HostingModule
         sc.ConfigureHttpJsonOptions(jsonOptions => JsonConventions.SetJsonDefaults(jsonOptions.SerializerOptions));
         sc.AddLogging();
         sc.AddEndpointsApiExplorer();
+        sc.AddHttpContextAccessor();
 
         sc.AddServicesWithAttributes();
         if (options.AddSwagger)

@@ -92,7 +92,7 @@ internal static class DrnSecurityConfigurator
     }
 
     internal static void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder,
-        IServiceProvider serviceProvider, IAppSettings appSettings,
+        IServiceProvider serviceProvider, IAppSettings appSettings, DrnProgramSwaggerOptions swaggerOptions,
         Action<HeaderPolicyCollection, IServiceProvider, IAppSettings> configureDefaultSecurityHeaders,
         Action<CspBuilder> configureDefaultCspBase)
     {
@@ -107,6 +107,18 @@ internal static class DrnSecurityConfigurator
         });
         builder.AddPolicy(CspFor.CspPolicySelf, selfCsp);
 
+        var swaggerCsp = new HeaderPolicyCollection();
+        configureDefaultSecurityHeaders(swaggerCsp, serviceProvider, appSettings);
+        swaggerCsp.Remove("Content-Security-Policy");
+        swaggerCsp.AddContentSecurityPolicy(x =>
+        {
+            configureDefaultCspBase(x);
+            x.AddScriptSrc().Self();
+            // Swagger renders inline SVG styles. Replace the nonce directive so unsafe-inline is effective.
+            x.AddStyleSrc().Self().UnsafeInline();
+        });
+        builder.AddPolicy(CspFor.CspPolicySwagger, swaggerCsp);
+
         var inlineCspPolicy = new HeaderPolicyCollection();
         configureDefaultSecurityHeaders(inlineCspPolicy, serviceProvider, appSettings);
         inlineCspPolicy.Remove("Content-Security-Policy");
@@ -120,9 +132,9 @@ internal static class DrnSecurityConfigurator
         builder.SetPolicySelector(x =>
         {
             var context = x.HttpContext;
-            var isSwaggerPath = context.Request.Path.Value?.Contains("swagger", StringComparison.OrdinalIgnoreCase) ?? false;
-            if (isSwaggerPath)
-                return x.ConfiguredPolicies[CspFor.CspPolicySelf];
+            if (swaggerOptions.SwaggerUIPathPrefix is { } prefix &&
+                context.Request.Path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase))
+                return x.ConfiguredPolicies[CspFor.CspPolicySwagger];
 
             var policyApplied = context.Items.TryGetValue(CspFor.CspPolicyName, out var policy);
             if (!policyApplied)

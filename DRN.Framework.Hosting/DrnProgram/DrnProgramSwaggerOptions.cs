@@ -12,6 +12,18 @@ namespace DRN.Framework.Hosting.DrnProgram;
 
 public class DrnProgramSwaggerOptions
 {
+    internal PathString? SwaggerUIPathPrefix { get; private set; }
+
+    internal void ConfigureSwaggerUI(SwaggerUIOptions options)
+    {
+        ConfigureSwaggerUIOptionsAction?.Invoke(options);
+        var prefix = options.RoutePrefix?.Trim('/');
+        if (string.IsNullOrEmpty(prefix))
+            throw new ConfigurationException("Swagger UI RoutePrefix must be nonempty after trimming slashes. Root mounts are not supported.");
+
+        SwaggerUIPathPrefix = new PathString("/" + prefix);
+    }
+
     public bool AddSwagger { get; set; }
     public bool ApplyTargetServerForwardedHeadersCorrection { get; set; } = true;
     public bool AddBearerTokenSecurityRequirement { get; set; } = true;
