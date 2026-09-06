@@ -545,6 +545,12 @@ For example, load an application-owned analytics entry only after analytics cons
 
 ### Route-specific security headers
 
+Leading and trailing slashes are removed from the configured Swagger UI prefix before both middleware routing and CSP selection; `/docs/` becomes `docs`.
+
+When Swagger is enabled, its UI `RoutePrefix` must be nonempty after trimming slashes, for example `swagger`, `docs/swagger`, or `api-docs`. Validation runs after `ConfigureSwaggerUIOptionsAction`; a null, empty, or slash-only prefix fails startup with `ConfigurationException` because a root mount would apply Swagger CSP across the entire application. The complete configured subtree is reserved for `CspFor.CspPolicySwagger`, including application endpoints placed beneath it. Matching is case-insensitive and respects path segment boundaries. Keep ordinary application pages outside that subtree. Disabling Swagger leaves application policies unchanged.
+
+The Swagger policy allows scripts from `'self'` and styles from `'self' 'unsafe-inline'` to support inline SVG styles without changing the generated document or its caching. It replaces the shared `style-src` directive. Self/inline endpoint policies retain their nonce-based styles. Replace `CspFor.CspPolicySwagger` through `builder.AddPolicy` after calling base to customize Swagger independently; selecting that name through `CspPolicyName` does not opt unrelated endpoints into it.
+
 Customize security headers for specific routes by overriding `ConfigureSecurityHeaderPolicyBuilder`:
 
 ```csharp

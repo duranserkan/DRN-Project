@@ -299,8 +299,9 @@ public class DrnProgramBaseCompositionTests
 
         program.Calls.Should().Equal(
             "headers", "csp", "csp-base", "csp-base",
+            "headers", "csp", "csp-base", "csp-base",
             "headers", "csp", "csp-base", "csp-base");
-        program.Policies.Should().HaveCount(3);
+        program.Policies.Should().HaveCount(4);
         program.Policies.Should().OnlyContain(policy => policy.ContainsKey("X-Program-Customization"));
     }
 

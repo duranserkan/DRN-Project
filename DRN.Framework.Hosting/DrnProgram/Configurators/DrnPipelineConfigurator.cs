@@ -79,7 +79,7 @@ internal sealed class DrnPipelineConfigurator
         if (!options.AddSwagger) return;
 
         application.MapSwagger(options.DefaultRouteTemplate, options.ConfigureSwaggerEndpointOptions);
-        application.UseSwaggerUI(options.ConfigureSwaggerUIOptionsAction);
+        application.UseSwaggerUI(options.ConfigureSwaggerUI);
     }
 
     internal static void MapApplicationEndpoints(WebApplication application)

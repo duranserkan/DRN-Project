@@ -12,6 +12,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Swagger UI Prefix Validation**: When enabled, Swagger UI requires a `RoutePrefix` that is nonempty after trimming slashes. Root mounts now fail startup; migrate to a non-root prefix such as `swagger`, `docs/swagger`, or `api-docs`. The configured subtree is reserved for Swagger CSP.
 *   **Authenticated UI Visibility Convention**: `authorized-only` now checks `ScopeContext.Authenticated` instead of completed MFA. Authenticated users with pending or incomplete MFA can see these elements on anonymous or MFA-exempt pages. Endpoint policies remain responsible for MFA enforcement; use `policy-only` for policy-specific visibility.
 *   **Presence-Only Visibility Markers**: Removed the `AuthorizedOnly` and `AnonymousOnly` boolean properties from their TagHelpers. Use bare `authorized-only` / `anonymous-only` attributes; presence activates filtering regardless of the value, including `"false"`. Omit the attribute to omit its filter. Both markers are removed from rendered HTML.
 *   **Policy-Scoped MFA Exemptions**: Exempt schemes must also be selected for authentication. Programmatic authorization without an HTTP policy context no longer uses scheme exemptions.
@@ -23,6 +24,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Security
 
+*   **Swagger Prefix Normalization**: Leading and trailing slashes are removed from the UI prefix for both Swagger routing and CSP selection, preserving redirects from `/docs` and `/docs/` to the document when configured with `/docs/`.
+*   **Swagger CSP**: Added the independently replaceable `CspFor.CspPolicySwagger` policy with same-origin scripts and inline styles for Swagger SVG rendering, preserving document caching. Selection matches the validated UI prefix with path segment boundaries. Disabled Swagger retains the default CSP. Existing self/inline policies outside the Swagger subtree retain nonce-based styles.
 *   **Revocation Guidance**: Documented cookie, refresh-token, and access-token revocation limits. Existing token lifetimes and default MFA requirements are unchanged.
 *   **Authorization Audit Events**: Added challenge, forbid, and exemption events (7401–7403) for log filtering and alerts. Factor, recovery, and revocation events are not included.
 *   **Reverse Proxy Trust & Forwarded Headers**: Binds `ForwardedHeaders` settings with CIDR and proxy parsing. Invalid formats throw `ConfigurationException`. Defaults trust RFC 1918 private networks and loopback with `ForwardLimit = 2`. `TrustPrivateNetworks = false` removes the private-network defaults. A nonempty `KnownIPNetworks` list replaces network defaults; `KnownProxies` adds entries without clearing existing trust.

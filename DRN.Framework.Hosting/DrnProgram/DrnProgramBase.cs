@@ -117,7 +117,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// Shared by instances of the same program type, independently of other program types.
     /// Both bootstrap and host logging use these options; avoid mutating them after startup.
     /// </remarks>
-    // ReSharper disable once StaticMemberInGenericType
+    [SuppressMessage("SonarQube", "S2743", Justification = "Per-program NLog options configuration")]
+    [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
     protected static NLogAspNetCoreOptions NLogOptions { get; set; } = DrnNLogConfigurator.CreateDefaultOptions();
 
     private static LogFactory CreateLogFactory(IAppSettings appSettings) => DrnNLogConfigurator.CreateLogFactory(appSettings, NlogConfigSectionName);
@@ -384,7 +385,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// </summary>
     /// <remarks>
     /// Base calls <see cref="ConfigureDefaultCspBase"/> and adds a script nonce. Retain nonce protection when composing
-    /// changes. Named self/inline policies replace this CSP; shared directives belong in <see cref="ConfigureDefaultCspBase"/>.
+    /// changes. Named self/inline/Swagger policies replace this CSP; shared directives belong in <see cref="ConfigureDefaultCspBase"/>.
     /// <para>References and validation tools:</para>
     /// <list type="bullet">
     /// <item><description><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP#strict_csp">Strict CSP</a></description></item>
@@ -405,6 +406,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// <remarks>
     /// Call base to retain restrictive defaults, then add only required origins. Script-source selection is applied
     /// afterward by the default or named policy; this hook supplies their common directives.
+    /// The Swagger policy also replaces style-src with self and unsafe-inline for its inline SVG styles.
     /// </remarks>
     protected virtual void ConfigureDefaultCspBase(CspBuilder builder) =>
         DrnSecurityConfigurator.ConfigureDefaultCspBase(builder);
@@ -413,11 +415,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// Override to register additional named header policies or select policies for application-specific routes.
     /// </summary>
     /// <remarks>
-    /// Call base to retain DRN's self/inline policies and selector. Replacing the selector must also account for
+    /// Call base to retain DRN's self/inline/Swagger policies and selector. Replacing the selector must also account for
     /// Swagger and endpoint-selected policies if those behaviors are still needed.
     /// </remarks>
     protected virtual void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings) =>
-        DrnSecurityConfigurator.ConfigureSecurityHeaderPolicyBuilder(builder, serviceProvider, appSettings,
+        DrnSecurityConfigurator.ConfigureSecurityHeaderPolicyBuilder(builder, serviceProvider, appSettings, DrnProgramSwaggerOptions,
             ConfigureDefaultSecurityHeaders, ConfigureDefaultCspBase);
 
     /// <summary>
