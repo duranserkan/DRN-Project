@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +29,61 @@ namespace DRN.Test.Integration.Tests.Framework.Testing;
 
 public class ApplicationContextTests
 {
+    [Theory]
+    [DataInline("https://custom.example:8443/api/", "https://custom.example:8443/api/resource")]
+    [DataInline("http://custom.example:8080/api", "http://custom.example:8080/resource")]
+    public async Task ApplicationContext_Should_Preserve_Caller_BaseAddress(
+        DrnTestContext context, string address, string expectedRequestAddress)
+    {
+        var baseAddress = new Uri(address);
+        var clientOptions = new WebApplicationFactoryClientOptions { BaseAddress = baseAddress };
+
+        using var client = await context.ApplicationContext.CreateClientAsync<ClientAddressTestProgram>(clientOptions: clientOptions);
+
+        clientOptions.BaseAddress.Should().Be(baseAddress);
+        client.BaseAddress.Should().Be(baseAddress);
+        using var response = await client.GetAsync("resource");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.RequestMessage!.RequestUri.Should().Be(new Uri(expectedRequestAddress));
+        var resource = await response.Content.ReadFromJsonAsync<ClientAddressResource>();
+        resource.Should().Be(new ClientAddressResource("test-resource", baseAddress.Scheme == Uri.UriSchemeHttps));
+    }
+
+    [Theory]
+    [DataInline]
+    public async Task ApplicationContext_Should_Default_BaseAddress_When_Options_Are_Absent(DrnTestContext context)
+    {
+        using var client = await context.ApplicationContext.CreateClientAsync<ClientAddressTestProgram>();
+
+        client.BaseAddress.Should().Be(new Uri("http://localhost"));
+        using var response = await client.GetAsync("resource");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var resource = await response.Content.ReadFromJsonAsync<ClientAddressResource>();
+        resource.Should().Be(new ClientAddressResource("test-resource", false));
+    }
+
+    [Theory]
+    [DataInline(true, null, "https://localhost/", true)]
+    [DataInline(false, null, "http://localhost/", false)]
+    [DataInline(true, "http://custom.example:8080/api/", "http://custom.example:8080/api/", false)]
+    [DataInline(false, "https://custom.example:8443/api/", "https://custom.example:8443/api/", true)]
+    public async Task ApplicationContext_Should_Apply_Https_Option_Only_When_Client_Options_Are_Absent(
+        DrnTestContext context, bool https, string? address, string expectedAddress, bool expectedHttps)
+    {
+        var clientOptions = address == null ? null : new WebApplicationFactoryClientOptions { BaseAddress = new Uri(address) };
+
+        using var client = await context.ApplicationContext.CreateClientAsync<ClientAddressTestProgram>(https: https, clientOptions: clientOptions);
+
+        client.BaseAddress.Should().Be(new Uri(expectedAddress));
+        if (clientOptions != null)
+            clientOptions.BaseAddress.Should().Be(new Uri(address!));
+        using var response = await client.GetAsync("resource");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.RequestMessage!.RequestUri.Should().Be(new Uri($"{expectedAddress}resource"));
+        var resource = await response.Content.ReadFromJsonAsync<ClientAddressResource>();
+        resource.Should().Be(new ClientAddressResource("test-resource", expectedHttps));
+    }
+
     [Fact]
     public void ApplicationContext_Should_Resolve_Active_Xunit_Output_Helper()
     {

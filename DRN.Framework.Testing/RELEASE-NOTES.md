@@ -4,6 +4,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
+*   **Opt-In HTTPS Test Client**: Added `ApplicationContext.CreateClientAsync<TProgram>(https: true)` for an HTTPS localhost base address. Existing calls keep the HTTP default, and explicit client options take precedence over the flag.
+
 *   **Multi-Application In-Memory HTTP Routing & Test Hosting**:
     *   **Multi-App Concurrency**: `ApplicationContext` supports running multiple distinct `WebApplicationFactory<TEntryPoint>` instances concurrently within a single test context.
     *   **Multi-Program Assembly Test Hosting**: `DrnWebApplicationFactory<TEntryPoint>` resolves and binds secondary `IDrnProgram` entry points in multi-program test support assemblies (e.g. `DRN.Test.Utils`), enabling any test program to be hosted in-memory via `ApplicationContext.CreateClientAsync<TProgram>()` without assembly entry-point conflicts.
@@ -17,6 +19,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Client Creation Signature**: `ApplicationContext.CreateClientAsync<TEntryPoint>` now has one signature with `bool https = false` as its first parameter. Recompile consumers and use named `outputHelper`, `clientOptions`, and `additionalAddresses` arguments for calls that previously passed those positionally, or prepend `false`.
 *   **ApplicationContext & DrnWebApplicationFactory Type Constraints**: Constrained `TEntryPoint` generic type parameters on `ApplicationContext` methods and `DrnWebApplicationFactory<TEntryPoint>` to `where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()`, providing compile-time type safety and eliminating runtime reflection during host runner creation.
 *   **Application Test Context Namespace**: Moved `ApplicationContext`, `ApplicationContextRouterHandler`, `DrnWebApplicationFactory<TEntryPoint>`, and `TestOutputTarget` from `DRN.Framework.Testing.Contexts` to `DRN.Framework.Testing.Contexts.Application`.
     *   Migration: add `using DRN.Framework.Testing.Contexts.Application;` (or the equivalent global using) and recompile consumers.
@@ -24,6 +27,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Bug Fixes
 
 *   **Secondary Program Host Configuration**: Secondary test programs now honor configured content roots, custom service-provider factories, and container configuration.
+*   **Caller-Provided Client Base Address**: `ApplicationContext.CreateClientAsync` now preserves the supplied `BaseAddress` without modifying caller options. The `http://localhost` default applies only when options are absent.
 
 ## Version 0.9.8
 

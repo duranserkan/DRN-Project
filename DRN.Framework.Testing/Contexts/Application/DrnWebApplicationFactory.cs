@@ -143,17 +143,8 @@ public class DrnWebApplicationFactory<TEntryPoint> : WebApplicationFactory<TEntr
             return this;
         }
 
-        public IHost Build()
-        {
-            var runner = new DrnProgramHostRunner<TProgram>();
-            return runner.BuildHost(
-                context,
-                _configureHostConfigs,
-                _configureAppConfigs,
-                _configureServices,
-                _configureContainerActions,
-                Properties);
-        }
+        public IHost Build() => DrnProgramHostRunner<TProgram>
+            .BuildHost(context, _configureHostConfigs, _configureAppConfigs, _configureServices, _configureContainerActions, Properties);
     }
 
     private sealed class FailureSafeHost(IHost host) : IHost

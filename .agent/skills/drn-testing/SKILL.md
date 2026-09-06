@@ -121,6 +121,8 @@ public async Task Endpoint_Should_Return_Data(DrnTestContext context)
 
 `DrnTestContext` owns the bootstrap and migration providers it builds. `ApplicationContext` manages one active `WebApplicationFactory` per application type and routes outbound HTTP calls between hosted services in-memory via `ApplicationContextRouterHandler`. Re-creating an application instance disposes and updates that specific factory and route bindings. Sequential applications rebuild context-owned services from current configuration, and a factory whose shutdown fails remains available for disposal retry.
 
+`ApplicationContext.CreateClientAsync<TProgram>` has one signature with the optional first parameter `bool https = false`. `https: true` defaults to `https://localhost`; omitted or false defaults to HTTP. Explicit `clientOptions` take precedence over the flag and remain unchanged. Supply `outputHelper`, `clientOptions`, and `additionalAddresses` by name when omitting the flag.
+
 ## Consolidation Rule
 
 Prefer one readable test that exercises a coherent flow over many duplicate tests with the same setup. Parameterize identical bodies with multiple data rows. In integration tests, continue the same flow when assertions share container setup, migrations, or service registration. Do not combine structurally different behaviors only to reduce count.

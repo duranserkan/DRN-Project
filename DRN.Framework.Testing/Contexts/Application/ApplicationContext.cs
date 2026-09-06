@@ -190,16 +190,24 @@ public sealed class ApplicationContext(DrnTestContext testContext) : IDisposable
     }
 
     /// <summary>
-    /// Most used defaults and bindings for testing an api endpoint gathered together with custom address bindings.
+    /// Creates a client using HTTPS or HTTP localhost defaults when client options are absent.
+    /// Explicit client options take precedence over <paramref name="https"/>.
     /// </summary>
     /// <returns>HttpClient instead of FlurlClient to prevent flurl http test server collision</returns>
     public async Task<HttpClient> CreateClientAsync<TEntryPoint>(
+        bool https = false,
         ITestOutputHelper? outputHelper = null,
         WebApplicationFactoryClientOptions? clientOptions = null,
         params string[] additionalAddresses) where TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()
     {
-        clientOptions ??= new WebApplicationFactoryClientOptions();
-        clientOptions.BaseAddress = new Uri(TestEnvironment.TestContextAddress);
+        clientOptions ??= new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new UriBuilder(TestEnvironment.TestContextAddress)
+            {
+                Scheme = https ? Uri.UriSchemeHttps : Uri.UriSchemeHttp,
+                Port = -1
+            }.Uri
+        };
 
         var application = await CreateApplicationAndBindDependenciesAsync<TEntryPoint>(outputHelper, additionalAddresses);
         var client = application.CreateClient(clientOptions);
