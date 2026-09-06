@@ -7,13 +7,24 @@ public static class ILoggerExtensions
 {
     public static void LogScoped(this ILogger logger, IScopedLog scopedLog)
     {
-        var level = scopedLog.HasException ? LogLevel.Error : scopedLog.HasWarning ? LogLevel.Warning : LogLevel.Information;
+        var level = ResolveLogLevel(scopedLog);
         if (!logger.IsEnabled(level))
             return;
 
         var eventId = scopedLog.Event?.Id ?? default;
         logger.Log(level, eventId, new ScopedLogState(scopedLog.GetLogs()), null,
             static (state, _) => state.ToString());
+    }
+
+    private static LogLevel ResolveLogLevel(IScopedLog scopedLog)
+    {
+        if (scopedLog.HasException)
+            return LogLevel.Error;
+
+        if (scopedLog.HasWarning)
+            return LogLevel.Warning;
+
+        return LogLevel.Information;
     }
 
     // A value-type state avoids the params array and preserves the structured logging contract.

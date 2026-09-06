@@ -297,9 +297,13 @@ public static class HashExtensions
         return hashBytes.Encode(encoding);
     }
 
+    /// <summary>
+    /// Generates an <see cref="long"/> seed from the Blake3 binary hash of the input string, starting at the specified byte offset.
+    /// Offsets greater than 24 fall back to 19 because an 8-byte slice is required from the 32-byte hash.
+    /// </summary>
     public static long GenerateSeedFromInputHash(this string input, byte hashStartIndex = 19)
     {
-        hashStartIndex = hashStartIndex <= 32 ? hashStartIndex : (byte)19;
+        hashStartIndex = hashStartIndex <= 24 ? hashStartIndex : (byte)19;
 
         return BitConverter.ToInt64(input.HashToBinary().ToMemory().Span[hashStartIndex..]);
     }

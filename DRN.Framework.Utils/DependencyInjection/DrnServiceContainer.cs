@@ -139,7 +139,7 @@ public class DrnServiceContainer
     private void AddAttributeSpecifiedModules(IServiceCollection serviceCollection)
     {
         var moduleAttributes = _serviceRegistrationTypes
-            .Select(ServiceRegistrationAttribute.GetModuleAttribute)
+            .SelectMany(ServiceRegistrationAttribute.GetModuleAttributes)
             .Distinct().ToArray();
 
         foreach (var moduleAttribute in moduleAttributes)

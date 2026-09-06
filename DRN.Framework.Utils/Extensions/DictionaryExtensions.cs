@@ -14,7 +14,7 @@ public static class DictionaryExtensions
     }
 
     /// <summary>
-    /// Updates the value of an existing key based on a condition or adds the key with a new value.
+    /// Updates the value of an existing key if the key exists and satisfies the specified condition.
     /// </summary>
     public static void UpdateIf<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TValue newValue, TKey key, Func<TValue, bool> condition)
     {
