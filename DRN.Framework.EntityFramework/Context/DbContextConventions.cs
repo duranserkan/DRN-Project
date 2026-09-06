@@ -27,6 +27,7 @@ public static class DbContextConventions
 
     [SuppressMessage("SonarQube", "S2326", Justification = "Generic cache per context type")]
     [SuppressMessage("SonarQube", "S2743", Justification = "Generic cache per context type")]
+    [SuppressMessage("Usage", "CA2263:Prefer generic overload when type is known", Justification = "Avoid infinite recursion into generic cache entry point")]
     [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
     [SuppressMessage("ReSharper", "UnusedTypeParameter")]
     private static class ContextAttributeCache<TContext>

@@ -53,9 +53,9 @@ public sealed class AuthenticationConfigurationTestProgram : DrnProgramBase<Auth
         options.AddSwagger = false;
     }
 
-    protected override void ConfigureDefaultSecurityHeaders(HeaderPolicyCollection policies, IServiceProvider services, IAppSettings appSettings)
+    protected override void ConfigureDefaultSecurityHeaders(HeaderPolicyCollection policies, IServiceProvider serviceProvider, IAppSettings appSettings)
     {
-        base.ConfigureDefaultSecurityHeaders(policies, services, appSettings);
+        base.ConfigureDefaultSecurityHeaders(policies, serviceProvider, appSettings);
         policies.AddCustomHeader("X-Program-Customization", "preserved");
     }
 

@@ -116,7 +116,7 @@ public sealed class StartupExceptionReportProgram : DrnProgramBase<StartupExcept
             throw StartupFailure;
 
         if (ReportFailureMode == "builder")
-            throw new ApplicationException("Report builder failure.");
+            throw new InvalidOperationException("Report builder failure.");
 
         builder.Services.AddSingleton<StartupExceptionReportDisposable>();
         builder.Services.AddSingleton<StartupExceptionReportAsyncDisposable>();
@@ -142,7 +142,7 @@ public sealed class StartupExceptionReportExceptionHandler : IDrnExceptionHandle
         _ = serviceProvider.GetRequiredService<StartupExceptionReportAsyncDisposable>();
 
         if (StartupExceptionReportProgram.ReportFailureMode is "generation" or "both")
-            return Task.FromException<ExceptionContentResult?>(new ApplicationException("Report generation failure."));
+            return Task.FromException<ExceptionContentResult?>(new InvalidOperationException("Report generation failure."));
 
         return Task.FromResult<ExceptionContentResult?>(null);
     }
@@ -155,7 +155,7 @@ public sealed class StartupExceptionReportAsyncDisposable : IAsyncDisposable
         await Task.Yield();
         StartupExceptionReportProgram.AsyncDisposalCompleted = true;
         if (StartupExceptionReportProgram.ReportFailureMode is "disposal" or "both")
-            throw new ApplicationException("Report disposal failure.");
+            throw new InvalidOperationException("Report disposal failure.");
     }
 }
 

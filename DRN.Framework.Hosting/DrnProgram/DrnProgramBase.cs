@@ -117,7 +117,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// Shared by instances of the same program type, independently of other program types.
     /// Both bootstrap and host logging use these options; avoid mutating them after startup.
     /// </remarks>
-    // ReSharper disable once StaticMemberInGenericType
+    [SuppressMessage("SonarQube", "S2743", Justification = "Per-program NLog options configuration")]
+    [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
     protected static NLogAspNetCoreOptions NLogOptions { get; set; } = DrnNLogConfigurator.CreateDefaultOptions();
 
     private static LogFactory CreateLogFactory(IAppSettings appSettings) => DrnNLogConfigurator.CreateLogFactory(appSettings, NlogConfigSectionName);
