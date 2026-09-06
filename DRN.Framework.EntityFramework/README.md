@@ -255,7 +255,7 @@ await context.SaveChangesAsync(); // External identity and lifecycle state are i
 When the framework startup validation lifecycle runs, registered contexts are validated:
 
 *   **Context Validation**: Validates that registered contexts can be resolved.
-*   **Entity Type Check**: Ensures concrete, non-private Source-Known entities have unique `(EntityType, AppId)` pairs while allowing the same entity byte in different application partitions. Abstract bases and nested private helper entities are ignored in both model and assembly discovery.
+*   **Entity Type Check**: Ensures concrete, non-private Source-Known entities have unique `(EntityType, AppId)` pairs while allowing the same entity byte in different application partitions. Abstract bases and effectively private entities are ignored in both model and assembly discovery. An entity is effectively private when it or any enclosing type is private, matching analyzer eligibility.
 *   **Auto-Migration & Seeding**:
     *   Applies pending migrations when automatic migration is enabled for the current environment.
     *   Runs `SeedAsync` through EF's `UseAsyncSeeding` callback under the migration lock, even when no migrations remain, so later eligible startups can retry failed seeds. Seed implementations must be idempotent. See [EF Core Data Seeding Guidance](https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding).

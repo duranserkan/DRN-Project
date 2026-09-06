@@ -290,8 +290,17 @@ internal static class DrnContextServiceRegistrationHelper
     }
 
     private static bool IsDomainEntityType(Type type) =>
-        type is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false, IsNestedPrivate: false } &&
-        type.IsAssignableTo(typeof(SourceKnownEntity));
+        type is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false } &&
+        type.IsAssignableTo(typeof(SourceKnownEntity)) && !IsEffectivelyPrivate(type);
+
+    private static bool IsEffectivelyPrivate(Type type)
+    {
+        for (var current = type; current != null; current = current.DeclaringType)
+            if (current.IsNestedPrivate)
+                return true;
+
+        return false;
+    }
 
     private static HashSet<Assembly> CollectNonTestAssemblies(
         IServiceProvider? serviceProvider,

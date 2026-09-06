@@ -1,7 +1,9 @@
+using System.Reflection;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.Utils.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
@@ -92,6 +94,29 @@ public class InheritanceModelTests
         validate.Should().NotThrow();
     }
 
+    [Fact]
+    public void Host_Discovery_Should_Ignore_Private_Containers_And_Retain_Visible_Metadata_Validation()
+    {
+        var assembly = Substitute.For<Assembly>();
+        assembly.GetName().Returns(new AssemblyName("PrivacyDomain"));
+        assembly.GetTypes().Returns([
+            typeof(StandaloneEntity), typeof(MissingMetadataEntity), typeof(PrivateHelperEntity),
+            typeof(PrivateContainer.NestedEntity), typeof(PrivateContainer.PublicContainer.DeeplyNestedEntity)
+        ]);
+        var container = new DrnServiceContainer(assembly, lifetimeAttributes: [], serviceRegistrationTypes: []);
+        var provider = Substitute.For<IServiceProvider>();
+        provider.GetService(typeof(IEnumerable<DrnServiceContainer>)).Returns(new[] { container });
+
+        var entities = DrnContextServiceRegistrationAttribute.GetHostDomainEntityTypes(provider, []);
+
+        entities.Should().BeEquivalentTo([typeof(StandaloneEntity), typeof(MissingMetadataEntity)]);
+        var validation = DrnContextServiceRegistrationAttribute.GetEntityTypeValidationResult(entities);
+        validation.MissingEntityTypes.Should().Equal(typeof(MissingMetadataEntity).FullName!);
+        var validate = () => DrnContextServiceRegistrationHelper.ValidateHostEntityTypes(validation, null);
+        validate.Should().ThrowExactly<UnprocessableEntityException>()
+            .WithMessage($"*{nameof(MissingMetadataEntity)}*");
+    }
+
     public abstract class InheritanceRoot : SourceKnownEntity;
 
     [EntityType<TestApp>(211)]
@@ -108,6 +133,16 @@ public class InheritanceModelTests
 
     private sealed class PrivateHelperEntity : SourceKnownEntity;
 
+    private static class PrivateContainer
+    {
+        public sealed class NestedEntity : SourceKnownEntity;
+
+        public static class PublicContainer
+        {
+            public sealed class DeeplyNestedEntity : SourceKnownEntity;
+        }
+    }
+
 #pragma warning disable DRN0001 // Missing metadata intentionally exercises runtime validation.
     public sealed class MissingMetadataEntity : InheritanceRoot;
 #pragma warning restore DRN0001
@@ -121,6 +156,8 @@ public class InheritanceModelTests
             modelBuilder.Entity<InheritanceLeaf>();
             modelBuilder.Entity<StandaloneEntity>();
             modelBuilder.Entity<PrivateHelperEntity>();
+            modelBuilder.Entity<PrivateContainer.NestedEntity>();
+            modelBuilder.Entity<PrivateContainer.PublicContainer.DeeplyNestedEntity>();
             ConfigureStrategy(modelBuilder);
             this.ModelCreatingDefaults(modelBuilder);
         }

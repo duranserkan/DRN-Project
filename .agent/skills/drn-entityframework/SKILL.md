@@ -55,7 +55,7 @@ DrnContext augments entities during `OnModelCreating` and runtime:
 | **JSON Models** | `IEntityWithModel<T>` auto-maps `.Model` to `jsonb` column |
 | **Identity Naming** | ASP.NET Core Identity tables/columns → `snake_case` for PostgreSQL |
 | **Mapped Inheritance** | Configures SourceKnownEntity keys and shared properties on EF hierarchy roots for TPH/TPT/TPC; derived entities inherit the key and ID generator while retaining their own concrete entity-type metadata |
-| **Startup Validation** | Validates concrete, non-private SourceKnownEntity entities have valid, unique `(EntityType, AppId)` pairs while permitting the same entity byte in different application partitions; abstract bases and nested private helper entities are ignored in model and assembly discovery |
+| **Startup Validation** | Validates concrete, non-private SourceKnownEntity entities have valid, unique `(EntityType, AppId)` pairs while permitting the same entity byte in different application partitions; abstract bases and entities that are private or nested at any depth inside a private type are ignored in model and assembly discovery, matching analyzer eligibility |
 
 ---
 
