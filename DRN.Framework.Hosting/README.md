@@ -125,14 +125,14 @@ DRN.Framework.Hosting/
 
 ## Lifecycle & Execution Flow
 
-`DrnProgramBase` builds, configures, validates, and starts the host. Lifecycle logs use the host logger. Failures before the host exists use an NLog bootstrap logger. `DrnProgramActions` supplies callbacks at the marked phases.
+Use configuration hooks for services and options, pipeline hooks for middleware, and `DrnProgramActions` for startup integration.
 
 ```mermaid
 flowchart TD
     subgraph CONTAINER [" "]
         direction TB
         Start(["RunAsync()"]) --> CAB["CreateApplicationBuilder()"]
-        
+
         subgraph BUILDER ["1. Builder Phase"]
             direction TB
             B_NOTE["Note: Handles Services & Config"]
@@ -145,7 +145,7 @@ flowchart TD
         end
 
         ABC --> Build["builder.Build()"]
-        
+
         subgraph APPLICATION ["2. Application Phase"]
             direction TB
             A_NOTE["Note: Handles Middleware Pipeline"]
@@ -244,19 +244,15 @@ These hooks define the request processing middleware sequence.
 
 For MFA hooks and examples, see [MFA](#mfa).
 
-### 4. Internal Wiring (Automatic)
-
-* **Service Validation**: Calls `ValidateServicesAsync` to scan `[Attribute]`-registered services and ensure they are resolvable at startup.
-* **JSON Encoding**: MVC uses `HtmlSafeWebJsonDefaults` for HTML-safe JSON encoding.
-* **Endpoint Accessor**: Registers `IEndpointAccessor` for typed access to `EndpointCollectionBase`.
-
-### 5. Properties
+### 4. Properties
 
 | Property | Default | Purpose |
 |----------|---------|---------|
 | `AppBuilderType` | `DrnDefaults` | `DrnDefaults` applies the complete DRN hosting and security pipeline. `Empty`, `Slim`, and `Default` are advanced opt-out modes; the application must configure its required services, middleware, and endpoints. |
 | `DrnProgramSwaggerOptions` | (Object) | Toggles Swagger generation. Defaults to `IsDevelopmentEnvironment`. |
 | `NLogOptions` | (Object) | Controls NLog bootstrapping (e.g., replace logger factory). |
+
+`DrnProgramBase` also automatically registers the public `IEndpointAccessor` dependency-injection contract as a singleton. Consumers can inject `IEndpointAccessor` to query the endpoint collections (`Endpoints`, `ApiEndpoints`, `PageEndpoints`, and `PageEndpointByPaths`) populated by `ValidateEndpoints` before service validation (`ValidateServicesAsync`) runs.
 
 ## Configuration
 
@@ -356,14 +352,14 @@ The defaults in this section apply to `AppBuilderType.DrnDefaults` when the base
 
 ### MFA
 
-The default and fallback authorization policies require completed MFA. The result handler rechecks MFA for role-only attributes, direct policy metadata, and named policies. Named policies retain their authentication schemes.
+MFA is required by default, including endpoints with role or named policies.
 
 Use `[AllowAnonymous]` for public endpoints such as login. Authenticated endpoints have two separate MFA exemption paths:
 
 | Path | Requirement |
 | --- | --- |
-| `AuthPolicy.MfaExempt` | Authentication only. The built-in policy has no scheme restriction and skips global MFA without scheme-exemption proof. |
-| `ConfigureMFAExemption` | Valid proof from an eligible scheme selected by the endpoint policy or default authentication scheme. |
+| `AuthPolicy.MfaExempt` | Authentication without MFA. Add a scheme restriction if required. |
+| `ConfigureMFAExemption` | An eligible scheme must also be selected by the endpoint policy or default authentication scheme. |
 
 For restricted enrollment or challenge access, use the Identity policies below. They add scheme and credential-state checks.
 
@@ -393,19 +389,19 @@ protected override MfaExemptionConfig ConfigureMFAExemption()
     => new() { ExemptAuthSchemes = ["ApiKey", "Certificate"] };
 ```
 
-`ConfigureAuthenticationClaims` supplies subject, name, email, roles, and the exact completed-MFA marker to scoped users, ambient helpers, MFA policies/exemptions, assurance, rate limits, and Identity enrollment/renewal. Its defaults use Identity claim types with explicit `sub`/`name`/`email`/`roles` aliases and `Mfa = amr=mfa`. A custom mapping replaces its aliases too. `policy-only` evaluates authorization; `authorized-only` checks authentication alone.
-
-`ConfigureMFAExemption` lists eligible schemes. Only schemes selected by the endpoint policy or default authentication scheme can supply exemption evidence. Forwarding targets are included. Authorization checks that evidence against the final principal; `IScopedUser.Exemption` is a compatibility view, not the authorization source.
-
-Setup and pending-login credentials cannot prove completed MFA. Multiple authenticated identities must identify the same subject and issuer. Transformed exemption identities must also match the authentication type. Map external subjects to `sub` or the configured name identifier. Authentication handlers must validate token signatures, issuers, and audiences.
+Use `ConfigureAuthenticationClaims` for custom subject, name, email, role, or MFA mappings. Defaults use Identity claim types and `amr=mfa`; ordinary Identity applications need no override. Custom mappings replace the corresponding aliases too.
 
 For example, register `ApiKey`, add it to the exemption list, and select it in an API policy that requires an API scope. Listing `ApiKey` alone does not let it access default endpoints using `Identity.BearerAndApplication`. Programmatic MFA checks without an HTTP policy context require completed MFA.
 
 Shared MFA authorization does not require ASP.NET Core Identity or its database. External providers need trusted authentication handlers and claim mapping. Local browser redirection is opt-in; return `null` from `ConfigureMFARedirection` to omit it.
 
-#### Renewal and assurance
+#### Absent or incomplete authentication configuration
 
-Hosting derives the four `IdentityOptions.ClaimsIdentity` mapping fields from `AuthenticationClaimConfig` during post-configuration, preserving security-stamp and other Identity options. Configure these fields only through the shared contract. Identity factories then issue the selected types with matching native name/role metadata.
+Register an effective authentication, challenge, and forbid scheme through `AddAuthentication` or endpoint policies. With multiple schemes, select them explicitly. A missing challenge/forbid scheme causes a server configuration error (HTTP 500), not an authentication response. An app can start and serve `[AllowAnonymous]` endpoints without schemes.
+
+References: [MVC registration](https://github.com/dotnet/aspnetcore/blob/v10.0.11/src/Mvc/Mvc.Core/src/DependencyInjection/MvcCoreMvcCoreBuilderExtensions.cs), [scheme selection](https://github.com/dotnet/aspnetcore/blob/v10.0.11/src/Http/Authentication.Core/src/AuthenticationSchemeProvider.cs), [authentication errors](https://github.com/dotnet/aspnetcore/blob/v10.0.11/src/Http/Authentication.Core/src/AuthenticationService.cs).
+
+#### Renewal and assurance
 
 Register the Identity sign-in integration through the standard builder:
 
@@ -415,19 +411,11 @@ services.AddIdentityApiEndpoints<AppUser>()
 services.AddDrnIdentityMfaPolicies();
 ```
 
-`DrnSignInManager` retains Identity's password/TOTP/recovery and temporary-cookie flows. It requires an unambiguous account, clones authenticated factory identities, maps Identity's additional successful two-factor evidence to a custom marker, excludes stored profile MFA markers, and preserves full original evidence during explicit `RefreshSignInAsync`. It retains factory claim types and native metadata; custom factories must honor the configured contract. Sample and Nexus register it. Applications with their own manager can derive from it or implement the same boundaries; DRN does not silently replace consumer subclasses.
+Derive custom sign-in managers from `DrnSignInManager<TUser>` to retain DRN's renewal behavior. When customizing `ConfigureSecurityStampValidatorOptions`, set callbacks before calling base. Omit `ConfigureIdentityRenewal` wiring only when Identity cookie renewal is unused.
 
-Cookie security-stamp renewal, explicit cookie refresh, and DRN bearer refresh share account-bound preservation. They discard regenerated authentication evidence and copy original authenticated AMR, authentication-method, exact MFA marker, and valid `auth_time`, retaining issuer and claim metadata. Unrelated values of custom marker types are omitted. Invalid accounts/issuers cannot produce renewed credentials; bearer refresh also validates expiry and the security stamp.
+Refresh preserves the original authentication age; it does not count as fresh MFA. `MfaPrincipal.IsRecent` and `IsPhishingResistant` are opt-in checks requiring supporting evidence from the authentication provider.
 
-`ConfigureIdentityRenewal` registers the default cookie stamp callback; override it with an empty method when Identity cookie renewal is unused. `ConfigureSecurityStampValidatorOptions` customizes that callback and composes existing callbacks; call base to retain preservation for active Identity cookies. These hooks configure wiring, while request-scoped handlers/services perform renewal. Shared claim configuration and MFA enforcement remain active. An empty hook does not implement OIDC token refresh or remove validation obligations for active credentials.
-
-Timestamps must be nonnegative integer Unix seconds within `DateTimeOffset` range. Missing, malformed, or conflicting original time remains absent after renewal.
-
-When the renewed MFA marker shares the timestamp's issuer, both must exist on one original identity. For example, a timestamp on identity A and MFA on identity B cannot become recent-MFA evidence through renewal. Renewal does not reset authentication age or establish when MFA occurred.
-
-`MfaPrincipal.IsRecent` and `IsPhishingResistant` are opt-in assurance checks. The default MFA policy does not require either. Trusted handlers must issue the supporting evidence; a generic MFA marker alone does not prove phishing resistance.
-
-For a future Keycloak integration, the claim configuration could be:
+For a provider with custom claim names:
 
 ```csharp
 protected override AuthenticationClaimConfig ConfigureAuthenticationClaims() => new()
@@ -437,13 +425,11 @@ protected override AuthenticationClaimConfig ConfigureAuthenticationClaims() => 
 };
 ```
 
-The example ACR is a realm-guaranteed completed-MFA contract, not a Keycloak default. The validating handler must preserve raw names (`MapInboundClaims = false` where supported), extract authorized nested roles, and use the shared config for canonical claim output and native name/role metadata. Aliases are accepted by DRN consumers; native authorization requires the integration to map any needed aliases into canonical claims. At the final validated ticket boundary after claim actions/UserInfo, reject ambiguous evidence and exclude unselected case variants that native lookups could accept. Only validated identities belong in the application principal. This contract aligns `User.Identity.Name`, `User.IsInRole`, role authorization, and DRN helpers; configuration alone does not change existing identities. See [the Utils contract](../DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
-
-Authority, credentials, issuer/signature/audience validation, OAuth refresh, remote logout/signup, account linking, and provider pages remain separate future integrations. Existing local Identity pages remain available. Changing canonical subject types may require reauthentication or an application-owned ticket migration; aliases alone do not migrate native Identity credentials.
+Replace the example MFA value with one guaranteed by your provider. Configure the validating handler to issue the selected claim names and native name/role mappings; this configuration does not implement provider login or refresh. Use this hook rather than changing `IdentityOptions.ClaimsIdentity` separately. Changing subject types may require reauthentication. See [the Utils claim contract](../DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
 
 #### Audit events
 
-With global MFA enabled, the result handler logs these Information-level events. Names describe the event; stable IDs support log filters and alerts.
+With global MFA enabled, these Information-level events support log filters and alerts.
 
 | Event name | ID | Meaning |
 | --- | --- | --- |
@@ -462,9 +448,7 @@ scopedLog.WithEvent(new ScopeEvent(
     Reason: "mfa_required"));
 ```
 
-`ScopeEvent` comes from `DRN.Framework.Utils.Logging`. The first event supplies the scoped log's `EventId`, `EventName`, `EventOutcome`, and `EventReason` properties. Later events go into `AdditionalEvents`. Trace correlation is supplied by the scoped log. Completed MFA alone does not emit an exemption event.
-
-Use scoped logs for request diagnostics. Dedicated audit events remain separate so sinks can filter by event ID without receiving the full request log. Audit fields exclude credentials, claims, account identifiers, and URLs; other request-log fields may contain identifiers. Configure sink fields and retention accordingly.
+`ScopeEvent` comes from `DRN.Framework.Utils.Logging`. Filter audit events by logger category and event ID; use scoped logs for request diagnostics. Request logs may contain identifiers, so configure retention accordingly.
 
 #### Identity Revocation Contract
 
@@ -480,8 +464,6 @@ Cookie timing follows [SecurityStampValidator](https://github.com/dotnet/aspnetc
 
 `UpdateSecurityStampAsync`, factor enable/disable, authenticator-key reset, and password reset rotate the stamp. Recovery-code generation and redemption do **not**. To revoke sessions after recovery, rotate the stamp and account for outstanding access-token lifetime. See [UserManager](https://github.com/dotnet/aspnetcore/blob/v10.0.11/src/Identity/Extensions.Core/src/UserManager.cs).
 
-`MfaRevocationTests` covers stamp changes, cookie validation intervals, and token expiration with a controlled clock.
-
 #### Identity API MFA Setup Flow
 
 With global MFA enabled, password login without an enrolled factor issues a five-minute `MfaSetupRequired` credential:
@@ -491,7 +473,7 @@ With global MFA enabled, password login without an enrolled factor issues a five
 
 Use the credential with `IdentityManagementControllerBase.TwoFactorAuth` to retrieve a shared key and enroll with a valid code. Discard it after enrollment. Call `Login` again with the password and an authenticator or recovery code to obtain completed MFA.
 
-A setup credential cannot satisfy MFA, even with an MFA marker or an exempt authentication scheme.
+A setup credential does not grant normal MFA-protected access.
 
 With global MFA disabled, users without a factor can enroll using an ordinary login credential. Once enrolled, factor management requires completed MFA.
 
@@ -504,21 +486,11 @@ services.AddDrnIdentityMfaPolicies();
 
 `IdentityMfaPolicy.Enrollment` uses the Identity cookie/bearer composite. `BrowserEnrollment` and `Challenge` use application cookies only. Pass `identityApiScheme` to select an equivalent application-owned composite.
 
-`TwoFactorAuth` checks enrollment state against the final authorized `User`. After enrollment, reading or resetting the key, disabling the factor, and regenerating recovery codes require completed MFA. Denied operations return HTTP 403.
-
-The Sample browser setup page applies this guard to GET and POST. Its challenge matches the pending sign-in account to the selected cookie account. Other management endpoints, including `GetInfo` and `PostInfo`, retain default/fallback MFA enforcement.
+After enrollment, factor management requires completed MFA; denied operations return HTTP 403. Other management endpoints retain normal MFA requirements.
 
 #### Remaining MFA work
 
-These items remain open in [the source phase map](Auth/Policies/MFA.cs):
-
-| ID | Remaining work |
-| --- | --- |
-| MFA-01 | Atomic replay prevention, attempt limits, and fresh proof before factor changes. Keep step-up compatible with clients. |
-| MFA-03 | Lost-factor and admin recovery controls, single-use recovery credentials, and notifications. |
-| MFA-05 | Passkey enrollment and authentication, verified user verification, and recovery that resists assurance downgrades. |
-| MFA-07 | Trusted provider-specific OIDC mappings, evidence issuance, and interoperability tests. |
-| MFA-06 | Factor-change, recovery, and revocation audit events at the owning operations. |
+Fresh step-up/replay protection, recovery workflows, passkeys, provider-specific OIDC integrations, and factor/recovery audit events are not complete. See the [implementation roadmap](Auth/Policies/MFA.cs) before relying on these capabilities.
 
 #### Disabling global MFA
 
@@ -652,14 +624,6 @@ Partition helpers include `TokenBucket`, `FixedWindow`, `SlidingWindow`, `Concur
 Set `PolicyName` to match `[EnableRateLimiting("policy-name")]`, or leave it `null` for a global rule. Empty names are invalid. Native policies registered through `AddRateLimiter` run alongside DRN rules. A rejecting DRN rule receives `OnRejectedAsync`; native policy rejections use the ASP.NET Core callback.
 
 Use `ShortCircuitOnMatch` and lower `Order` for allow/deny rules that must bypass quota checks. Rules with the same `Order` evaluate short-circuit rules first; if a short-circuit rule returns `null`, later rules still evaluate.
-
-Partition identities are internally namespaced by phase and rule type:
-
-```text
-({phase}, {rule type}, {your partition key})
-```
-
-The namespacing keeps metrics/logs diagnosable and prevents accidental key collisions between rules. Your rule still returns a simple key like `tenant:acme-corp`; DRN handles the namespace.
 
 > [!WARNING]
 > Partition option factories are cached by .NET per partition key. Do not capture `HttpContext` or scoped services inside factory lambdas; pass only immutable values.
@@ -843,9 +807,7 @@ Use named policies for claim, role, or resource requirements instead of duplicat
 <a anonymous-only asp-page="/User/Login">Sign in</a>
 ```
 
-`policy-only` requires a non-blank registered policy name. Blank names and unknown policies raise errors; authorization failure suppresses the element. Policies are evaluated asynchronously through `IAuthorizationService` using `ViewContext.HttpContext.User`. `policy-resource` is passed unchanged to authorization handlers and defaults to `null`. Policy configuration determines whether authentication is required; the helper does not add that requirement itself.
-
-This is programmatic authorization of the current user, not an access check for the destination of a link. It does not authenticate policy schemes, discover exemption proofs, or evaluate destination endpoint metadata. DRN's policy provider still adds the configured default MFA requirement to non-exempt named policies. With the default null resource (or a domain resource), MFA checks require completed MFA rather than consuming HTTP endpoint exemption evidence. Policies whose handlers need a resource must receive the appropriate `policy-resource` explicitly.
+`policy-only` checks a registered policy against the current user. Invalid policy names raise errors; denied elements are hidden. Supply `policy-resource` when the policy requires one. The helper does not sign users in or check the linked endpoint; ordinary named policies retain the default MFA requirement.
 
 `authorized-only` and `anonymous-only` are presence-only markers: write them without values. Any value, including `"false"`, still activates the filter. Remove the attribute to omit that filter; use Razor conditionals for dynamic rendering. Both markers are removed from rendered HTML. `authorized-only` checks `ScopeContext.Authenticated`; `anonymous-only` checks its inverse. When multiple visibility helpers apply, any one can suppress the element.
 
@@ -853,9 +815,19 @@ By convention, endpoint policies enforce MFA while these two helpers distinguish
 
 ### Vite Manifest Publish Support
 
-`DRN.Framework.Hosting` ships a transitive MSBuild target that adds `wwwroot/**/.vite/manifest.json` files to Web SDK publish output. At runtime, `ViteManifest` scans for `.vite/manifest.json` below `IWebHostEnvironment.WebRootPath`; when `WebRootPath` is empty, it resolves `ContentRootPath/wwwroot`. This keeps manifest lookup, SRI generation, and static asset pre-warming working after publish, including Vite's default dot-directory manifest location.
+Vite manifests under `wwwroot/**/.vite/manifest.json` are included automatically in publish output.
 
-When changing environment defaults, Staging-from-build-output behavior, or static-web-asset content roots, verify manifest discovery against the running app, not only server startup. A Razor page can render while CSS/JS is absent if the Vite manifests are outside the active manifest root.
+`ViteManifest` locates assets using `WebRootPath`-first root selection:
+- Uses `IWebHostEnvironment.WebRootPath` when configured and non-empty.
+- Falls back to `Path.Combine(environment.ContentRootPath, "wwwroot")` when `WebRootPath` is unset or whitespace.
+
+When publishing with a custom web root, build targets do not automatically capture manifests outside `wwwroot/**`; applications must separately include manifests and referenced assets in publish items.
+
+During loading, `ViteManifest` enforces path validation and calculates subresource integrity:
+- **Path Validation**: Verifies that manifest files reside within the resolved manifest root and that referenced asset files stay within their output directory and exist on disk. Manifest entries violating these directory boundaries fail startup with `ConfigurationException`.
+- **Computed SHA-256 SRI**: Calculates base64 SHA-256 hashes for referenced assets, populating `Integrity` metadata (`sha256-...`) consumed by `ViteScriptTagHelper` and `ViteLinkTagHelper`.
+
+Keep manifests and referenced assets under the application's web root, and verify CSS and JavaScript loading after publish.
 
 Disable the publish item injection when an application owns this behavior itself:
 
@@ -900,7 +872,7 @@ The framework includes built-in Razor Pages for developer-time exception handlin
 
 ### Request Body Buffering
 
-`HttpScopeMiddleware` enables request buffering for POST, PUT, and PATCH bodies with a known `Content-Length` within the configured limit. Error pages read the buffered body through `RequestBufferingState.ReadBodyAsync`. Unknown or excessive lengths are skipped. Buffer limits and Kestrel request-size limits still apply.
+Request diagnostics buffer POST, PUT, and PATCH bodies only when `Content-Length` is known and within the configured limit. Kestrel request-size limits still apply.
 
 **Configuration** via `DrnAppFeatures` (in `appsettings.json`):
 
@@ -932,13 +904,7 @@ DRN applies these response defaults:
 
 `StaticAssetWarmService` is a best-effort hosted service that requests Vite assets after the host starts so response caching can store Brotli and Gzip variants.
 
-**How it works**:
-1. Waits for the host to fully start via `IAppStartupStatus`
-2. Reads all entries from the Vite manifest
-3. Requests each asset with `Accept-Encoding: br` and `Accept-Encoding: gzip` against the loopback address (via `IServerSettings`)
-4. Eligible responses can be cached as compressed variants keyed on `Vary: Accept-Encoding`
-
-The warm-up client only accepts loopback base addresses before installing its certificate-bypass handler. Wildcard server bindings are normalized to localhost; non-loopback bindings are ignored for warm-up.
+Warm-up uses local server addresses only; non-loopback bindings are skipped.
 
 **Compression defaults**: Brotli and Gzip use `CompressionLevel.SmallestSize`. Static assets allow HTTPS compression and caching of eligible variants. Dynamic HTTP responses can also be compressed. Dynamic HTTPS compression is disabled by default.
 

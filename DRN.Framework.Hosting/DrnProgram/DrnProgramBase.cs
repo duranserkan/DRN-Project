@@ -1,23 +1,15 @@
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
-using System.Net;
 using System.Reflection;
 using System.Threading.RateLimiting;
-using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
-using DRN.Framework.Hosting.Consent;
+using DRN.Framework.Hosting.DrnProgram.Configurators;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
-using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.RateLimiting;
-using DRN.Framework.Hosting.Utils;
-using DRN.Framework.Hosting.Utils.Vite;
-using DRN.Framework.SharedKernel;
-using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Configurations;
-using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
@@ -25,15 +17,11 @@ using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Time;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCaching;
@@ -47,7 +35,6 @@ using NLog;
 using NLog.Extensions.Logging;
 using NLog.Web;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
-using IPNetwork = System.Net.IPNetwork;
 
 namespace DRN.Framework.Hosting.DrnProgram;
 
@@ -57,12 +44,6 @@ namespace DRN.Framework.Hosting.DrnProgram;
 // and/or a direct Redis implementation with StackExchange.Redis + Lua/atomic commands, exposed through
 // RateLimitRuleResult.CustomPartition(...) or an optional DRN.Framework.Hosting.Redis companion package.
 // Keep DRN.Framework.Hosting core Redis-free unless a concrete cross-cutting dependency is justified.
-
-//todo:
-// Extract composable classes such as:
-// - `DrnSecurityConfigurator` (CSP, security headers, cookie policies, MFA)
-// - `DrnCompressionConfigurator` (compression providers, response caching)
-// - `DrnPipelineConfigurator` (middleware pipeline ordering)
 
 //todo: evaluate optional OpenTelemetry exporter wiring for DRN metrics.
 // DRN currently emits Meter data only; host apps must subscribe to RateLimitTelemetry.MeterName
@@ -86,45 +67,60 @@ public interface IDrnProgram
 //todo: unify reports - startup, middleware, StaticAssetWarm, endpoint list etc
 //todo: add support for minimal apis (MapMinimalEndpoints, HttpJsonOptions, DrnEndpointSource discovery)
 /// <summary>
-/// <li><a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host">Generic host model</a></li>
-/// <li><a href="https://learn.microsoft.com/en-us/aspnet/core/migration/50-to-60">WebApplication - new hosting model</a></li>
-/// <li><a href="https://andrewlock.net/exploring-dotnet-6-part-2-comparing-webapplicationbuilder-to-the-generic-host">Comparing WebApplication to the generic host</a></li>
-/// <li><a href="https://andrewlock.net/exploring-dotnet-6-part-3-exploring-the-code-behind-webapplicationbuilder">Code behind WebApplicationBuilder</a></li>
-/// <li><a href="https://andrewlock.net/exploring-the-dotnet-8-preview-comparing-createbuilder-to-the-new-createslimbuilder-method">Comparing default builder to slim builder</a></li>
-/// <li><a href="https://andrewlock.net/running-async-tasks-on-app-startup-in-asp-net-core-part-1">Running async tasks at startup</a></li>
-/// <li><a href="https://stackoverflow.com/questions/57846127/what-are-the-differences-between-app-userouting-and-app-useendpoints">UseRouting vs. UseEndpoints</a></li>
+/// Derive from this class to compose an application's services, security policies, and request pipeline
+/// while retaining DRN hosting conventions.
 /// </summary>
+/// <remarks>
+/// Implement <see cref="AddServicesAsync"/> for application registrations and prefer the narrow configuration
+/// hooks over replacing the complete builder or pipeline. Hooks execute during startup or options resolution;
+/// register middleware in pipeline hooks to perform work for each request.
+/// <para>References:</para>
+/// <list type="bullet">
+/// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/generic-host">Generic host model</a></description></item>
+/// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/migration/50-to-60">WebApplication hosting model</a></description></item>
+/// <item><description><a href="https://andrewlock.net/exploring-dotnet-6-part-2-comparing-webapplicationbuilder-to-the-generic-host">Comparing WebApplicationBuilder to the generic host</a></description></item>
+/// <item><description><a href="https://andrewlock.net/exploring-dotnet-6-part-3-exploring-the-code-behind-webapplicationbuilder">Code behind WebApplicationBuilder</a></description></item>
+/// <item><description><a href="https://andrewlock.net/exploring-the-dotnet-8-preview-comparing-createbuilder-to-the-new-createslimbuilder-method">Comparing default and slim builders</a></description></item>
+/// <item><description><a href="https://andrewlock.net/running-async-tasks-on-app-startup-in-asp-net-core-part-1">Running async tasks at startup</a></description></item>
+/// <item><description><a href="https://stackoverflow.com/questions/57846127/what-are-the-differences-between-app-userouting-and-app-useendpoints">UseRouting versus UseEndpoints</a></description></item>
+/// </list>
+/// </remarks>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 [SuppressMessage("ReSharper", "UseUtf8StringLiteral")]
 public abstract class DrnProgramBase<TProgram> : DrnProgram
     where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 {
     public const string NlogConfigSectionName = "NLog";
+
+    // Keep virtual hooks here as the application contract; internal configurators own their default implementations.
+    /// <summary>
+    /// Access the Swagger settings shared by service registration and endpoint mapping.
+    /// Customize them in <see cref="ConfigureSwaggerOptions"/> before the builder is created.
+    /// </summary>
     protected DrnProgramSwaggerOptions DrnProgramSwaggerOptions { get; private set; } = new();
+    /// <summary>
+    /// Select a different native builder when the application needs to own its hosting setup.
+    /// Set this during program construction, before builder creation.
+    /// </summary>
+    /// <remarks>
+    /// Defaults to <see cref="DrnAppBuilderType.DrnDefaults"/>. Other values skip the DRN default pipeline
+    /// and the builder registrations after the builder-type guard; they do not skip all DRN registrations.
+    /// Override <see cref="ConfigureApplication"/> to supply the corresponding pipeline.
+    /// </remarks>
     protected DrnAppBuilderType AppBuilderType { get; set; } = DrnAppBuilderType.DrnDefaults;
 
+    /// <summary>
+    /// Customize NLog provider integration for this program type before logging is initialized.
+    /// Use <see cref="ConfigureLoggingBuilder"/> to change the built host's provider selection.
+    /// </summary>
+    /// <remarks>
+    /// Shared by instances of the same program type, independently of other program types.
+    /// Both bootstrap and host logging use these options; avoid mutating them after startup.
+    /// </remarks>
     // ReSharper disable once StaticMemberInGenericType
-    protected static NLogAspNetCoreOptions NLogOptions { get; set; } = new()
-    {
-        ReplaceLoggerFactory = false,
-        RemoveLoggerFactoryFilter = false
-    };
+    protected static NLogAspNetCoreOptions NLogOptions { get; set; } = DrnNLogConfigurator.CreateDefaultOptions();
 
-    private static LogFactory CreateLogFactory(IAppSettings appSettings)
-    {
-        var logFactory = new LogFactory();
-        logFactory.Setup().SetupExtensions(ext =>
-        {
-            ext.RegisterAssembly("NLog.Extensions.Logging");
-            ext.RegisterAssembly("NLog.Web.AspNetCore");
-            ext.RegisterAssembly("NLog.Targets.Network");
-        });
-
-        var configuration = new NLogLoggingConfiguration(appSettings.GetRequiredSection(NlogConfigSectionName));
-        logFactory.Configuration = configuration;
-
-        return logFactory;
-    }
+    private static LogFactory CreateLogFactory(IAppSettings appSettings) => DrnNLogConfigurator.CreateLogFactory(appSettings, NlogConfigSectionName);
 
     protected static async Task RunAsync(string[]? args = null)
     {
@@ -186,47 +182,15 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         }
     }
 
-    private static async Task TryCreateStartupExceptionReport(string[]? args, AppSettings appSettings, IScopedLog scopedLog, Exception exception, ILogger logger)
-    {
-        try
+    private static Task TryCreateStartupExceptionReport(string[]? args, AppSettings appSettings, IScopedLog scopedLog, Exception exception, ILogger logger) =>
+        DrnStartupExceptionReporter.TryCreateReportAsync(async () =>
         {
             var (_, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopedLog);
-            await using var services = applicationBuilder.Services.BuildServiceProvider();
-            var isDevelopment = appSettings.IsDevelopmentEnvironment;
-            var handler = services.GetService<IDrnExceptionHandler>();
-            //todo send startup exception report to nexus in non-develop
-            if (handler != null && isDevelopment)
-            {
-                var exceptionContentResult = await handler.GetStartupExceptionContentAsync(services, exception, scopedLog);
-                if (exceptionContentResult != null)
-                {
-                    var directory = Path.GetDirectoryName(typeof(TProgram).Assembly.Location)!;
-                    var reportDirectory = Path.Combine(directory, "StartupReports");
-                    var wwwRootDirectory = Path.Combine(reportDirectory, "wwwroot");
-                    ResourceExtractor.CopyWwwrootResourcesToDirectory(wwwRootDirectory);
+            return applicationBuilder;
+        }, typeof(TProgram).Assembly, appSettings, scopedLog, exception, logger);
 
-                    //since the application is down, we should serve exception page scripts from somewhere else;
-                    var exceptionReportContent = exceptionContentResult.Content.Replace("/_content/DRN.Framework.Hosting", wwwRootDirectory);
-
-                    var reportPath = Path.Combine(directory, "StartupExceptionReport.html");
-                    var reportUrl = $"file://{reportPath}";
-                    await File.WriteAllTextAsync(reportPath, exceptionReportContent);
-                    scopedLog.Add("StartupExceptionReportPath", reportUrl);
-                    logger.LogError("Startup Exception Report Path: {ReportUrl}", reportUrl);
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            logger.LogDebug(e, "Failed to generate startup exception report");
-        }
-    }
-
-    public static Task<WebApplication> CreateApplicationAsync(
-        string[]? args,
-        IAppSettings appSettings,
-        IScopedLog scopeLog) =>
-        CreateApplicationAsync(args, appSettings, scopeLog, null);
+    public static Task<WebApplication> CreateApplicationAsync( string[]? args, IAppSettings appSettings, IScopedLog scopeLog)
+        => CreateApplicationAsync(args, appSettings, scopeLog, null);
 
     public static async Task<WebApplication> CreateApplicationAsync(
         string[]? args,
@@ -277,8 +241,23 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         return (program, applicationBuilder);
     }
 
+    /// <summary>
+    /// Register application modules, authentication schemes, and application-specific service options.
+    /// </summary>
+    /// <remarks>
+    /// Runs after <see cref="ConfigureApplicationBuilder"/> and before the optional external builder callback.
+    /// Await required registration work here; the application service provider has not yet been built.
+    /// </remarks>
     protected abstract Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog);
 
+    /// <summary>
+    /// Override to change how the hosting subsystems are registered when the narrower configuration hooks are insufficient.
+    /// </summary>
+    /// <remarks>
+    /// Call base to retain DRN service, MVC, authorization, and default options wiring.
+    /// Prefer <see cref="AddServicesAsync"/> for application registrations; it runs after this method.
+    /// Omitting base makes the override responsible for services needed by the chosen pipeline.
+    /// </remarks>
     protected virtual void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder, IAppSettings appSettings)
     {
         ConfigureLoggingBuilder(appSettings, applicationBuilder.Logging);
@@ -286,13 +265,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
         var services = applicationBuilder.Services;
         services.AddSingleton(ConfigureAuthenticationClaims());
-        services.AddOptions<IdentityOptions>().PostConfigure<AuthenticationClaimConfig>((options, claims) =>
-        {
-            options.ClaimsIdentity.UserIdClaimType = claims.Subject.Type;
-            options.ClaimsIdentity.UserNameClaimType = claims.Name.Type;
-            options.ClaimsIdentity.EmailClaimType = claims.Email.Type;
-            options.ClaimsIdentity.RoleClaimType = claims.Roles.Type;
-        });
+        services.AddOptions<IdentityOptions>().PostConfigure<AuthenticationClaimConfig>(DrnSecurityConfigurator.ConfigureIdentityClaims);
         services.AddDrnHosting(DrnProgramSwaggerOptions, appSettings.Configuration);
         services.AddSingleton<IEndpointAccessor>(sp =>
         {
@@ -309,13 +282,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
         ConfigureMvcBuilder(mvcBuilder, appSettings);
 
-        services.AddAntiforgery(options =>
-        {
-            options.Cookie.Name = appSettings.GetAppSpecificName("Antiforgery");
-            options.Cookie.IsEssential = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-            options.Cookie.HttpOnly = true;
-        });
+        DrnSecurityConfigurator.AddAntiforgery(services, appSettings);
 
         services.AddAuthorization(ConfigureAuthorizationOptions);
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
@@ -327,8 +294,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             services.AddSingleton(sp => new DrnPreAuthRateLimiter(CreatePreAuthRateLimiter(sp, appSettings)));
         }
 
-        services.Configure(GetConfigureCookiePolicy(appSettings));
-        services.Configure(GetConfigureCookieTempDataProvider(appSettings));
+        services.Configure<CookiePolicyOptions>(options => ConfigureCookiePolicy(options, appSettings));
+        services.Configure<CookieTempDataProviderOptions>(options => ConfigureCookieTempDataProvider(options, appSettings));
         services.Configure(ConfigureStaticFileOptions(appSettings));
         services.Configure(ConfigureForwardedHeadersOptions(appSettings));
         ConfigureIdentityRenewal(services, appSettings);
@@ -346,259 +313,176 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         });
     }
 
-    protected virtual void ConfigureLoggingBuilder(IAppSettings appSettings, ILoggingBuilder loggingBuilder)
-    {
-        if (appSettings.TryGetSection("Logging", out var loggingSection))
-            loggingBuilder.AddConfiguration(loggingSection);
+    /// <summary>
+    /// Override to add or replace the built host's logging providers, filters, or telemetry integration.
+    /// </summary>
+    /// <remarks>
+    /// Base clears providers and adds NLog when its section exists; call it before adding providers to retain them.
+    /// This hook does not configure the standalone bootstrap provider used by <see cref="RunAsync"/>.
+    /// </remarks>
+    protected virtual void ConfigureLoggingBuilder(IAppSettings appSettings, ILoggingBuilder loggingBuilder) =>
+        DrnNLogConfigurator.ConfigureLoggingBuilder(appSettings, loggingBuilder, NlogConfigSectionName, NLogOptions);
 
-        loggingBuilder.ClearProviders();
-        if (appSettings.TryGetSection(NlogConfigSectionName, out _))
-            loggingBuilder.AddNLogWeb(CreateLogFactory(appSettings), NLogOptions);
-    }
-
+    /// <summary>
+    /// Override to customize server listeners, transport limits, or web-host integration before the application is built.
+    /// </summary>
+    /// <remarks>
+    /// Base configures Kestrel from settings, suppresses its server header, and enables static web assets.
+    /// Configure the supplied builder; the caller does not consume a replacement return value.
+    /// </remarks>
     protected virtual IWebHostBuilder ConfigureWebHostBuilder(IAppSettings appSettings, ConfigureWebHostBuilder webHostBuilder) =>
-        webHostBuilder.UseKestrel().ConfigureKestrel(kestrelServerOptions =>
-        {
-            kestrelServerOptions.AddServerHeader = false;
-            if (appSettings.TryGetSection("Kestrel", out var kestrelSection))
-                kestrelServerOptions.Configure(kestrelSection);
-        }).UseStaticWebAssets();
+        DrnWebHostConfigurator.ConfigureWebHostBuilder(appSettings, webHostBuilder);
 
+    /// <summary>
+    /// Override to own the complete middleware pipeline, such as when using a non-DRN builder mode.
+    /// Prefer individual pipeline-stage hooks when retaining the standard ordering.
+    /// </summary>
+    /// <remarks>
+    /// Base composes stages and maps endpoints only in <see cref="DrnAppBuilderType.DrnDefaults"/> mode.
+    /// Omitting base transfers responsibility for security, request scopes, routing, and endpoint mapping to the override.
+    /// </remarks>
     protected virtual void ConfigureApplication(WebApplication application, IAppSettings appSettings)
     {
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 
-        ConfigureApplicationPipelineStart(application, appSettings);
-
-        ConfigureApplicationPreScopeStart(application, appSettings);
-        application.UseMiddleware<HttpScopeMiddleware>();
-        ConfigureApplicationPostScopeStart(application, appSettings);
-
-        application.UseRouting();
-
-        if (!appSettings.Features.RateLimit.Disabled)
-            application.UseMiddleware<PreAuthRateLimitingMiddleware>();
-
-        ConfigureApplicationPreAuthentication(application, appSettings);
-        application.UseAuthentication();
-        application.UseMiddleware<ScopedUserMiddleware>();
-
-        if (!appSettings.Features.RateLimit.Disabled)
-            application.UseRateLimiter(CreatePostAuthRateLimiterOptions(application.Services, appSettings));
-
-        ConfigureApplicationPostAuthentication(application, appSettings);
-        application.UseAuthorization();
-        ConfigureApplicationPostAuthorization(application, appSettings);
-
-        MapApplicationEndpoints(application, appSettings);
-
-        if (appSettings.DevelopmentSettings is { SkipValidation: false, TemporaryApplication: false })
+        var pipeline = new DrnPipelineConfigurator
         {
-            var viteManifest = application.Services.GetRequiredService<IViteManifest>();
-            _ = viteManifest.GetAllManifestItems();
-        }
+            PipelineStart = ConfigureApplicationPipelineStart,
+            PreScopeStart = ConfigureApplicationPreScopeStart,
+            PostScopeStart = ConfigureApplicationPostScopeStart,
+            PreAuthentication = ConfigureApplicationPreAuthentication,
+            PostAuthentication = ConfigureApplicationPostAuthentication,
+            PostAuthorization = ConfigureApplicationPostAuthorization,
+            MapEndpoints = MapApplicationEndpoints,
+            CreatePostAuthRateLimiterOptions = CreatePostAuthRateLimiterOptions
+        };
+        pipeline.Configure(application, appSettings);
     }
 
     /// <summary>
-    /// Configures security headers that are added by <see cref="ConfigureApplicationPreScopeStart"/>.<br/>
-    /// * For header security test check: https://securityheaders.com/ or https://csp-evaluator.withgoogle.com <br/>
-    /// * For details check: https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders.<br/>
-    /// * https://andrewlock.net/major-updates-to-netescapades-aspnetcore-security-headers/ <br/>
-    /// * https://andrewlock.net/series/understanding-cross-origin-security-headers <br/>
-    /// * For additional security checklist: https://mvsp.dev/
+    /// Override to adapt cross-origin isolation, framing, permissions, or custom headers to the application's browser integrations.
     /// </summary>
-    /// <param name="policies">Defines the policies to use for customizing security headers for a request added by NetEscapades.AspNetCore.SecurityHeaders</param>
-    /// <param name="serviceProvider"></param>
-    /// <param name="appSettings"></param>
-    protected virtual void ConfigureDefaultSecurityHeaders(HeaderPolicyCollection policies, IServiceProvider serviceProvider, IAppSettings appSettings)
-    {
-        var policyCollection = policies.RemoveServerHeader()
-            .AddFrameOptionsDeny()
-            .AddContentTypeOptionsNoSniff()
-            .AddReferrerPolicyStrictOriginWhenCrossOrigin()
-            .AddContentSecurityPolicy(ConfigureDefaultCsp)
-            .AddCrossOriginOpenerPolicy(x => x.SameOrigin())
-            .AddCrossOriginEmbedderPolicy(builder => builder.Credentialless())
-            .AddCrossOriginResourcePolicy(builder => builder.SameSite())
-            .AddPermissionsPolicy(builder =>
-            {
-                builder.AddDefaultSecureDirectives();
-                builder.AddFullscreen().Self();
-            });
-
-        if (!appSettings.IsDevelopmentEnvironment)
-        {
-            //https://hstspreload.org/ preload can be risky
-            //What to Do When Your Certificate Fails
-            //Monitor proactively, Automate renewal, Test staging first,
-            //Emergency response plan Know how to deploy a cert fix in < 5 min (e.g., via CI/CD or infra-as-code).
-            policyCollection.AddStrictTransportSecurity(63072000, true, false);
-        }
-    }
+    /// <remarks>
+    /// Call base before applying targeted changes to retain the other protections. This hook builds the default
+    /// and named CSP policies; it can run multiple times and is not a per-request callback.
+    /// Named policies replace its CSP afterward; use <see cref="ConfigureDefaultCspBase"/> for shared CSP directives.
+    /// <para>References and validation tools:</para>
+    /// <list type="bullet">
+    /// <item><description><a href="https://securityheaders.com/">Security Headers scanner</a></description></item>
+    /// <item><description><a href="https://csp-evaluator.withgoogle.com">CSP Evaluator</a></description></item>
+    /// <item><description><a href="https://www.nuget.org/packages/NetEscapades.AspNetCore.SecurityHeaders">SecurityHeaders package</a></description></item>
+    /// <item><description><a href="https://andrewlock.net/major-updates-to-netescapades-aspnetcore-security-headers/">SecurityHeaders package updates</a></description></item>
+    /// <item><description><a href="https://andrewlock.net/series/understanding-cross-origin-security-headers">Understanding cross-origin security headers</a></description></item>
+    /// <item><description><a href="https://mvsp.dev/">Minimum Viable Secure Product checklist</a></description></item>
+    /// </list>
+    /// </remarks>
+    protected virtual void ConfigureDefaultSecurityHeaders(HeaderPolicyCollection policies, IServiceProvider serviceProvider, IAppSettings appSettings) =>
+        DrnSecurityConfigurator.ConfigureDefaultSecurityHeaders(policies, appSettings, ConfigureDefaultCsp);
 
     /// <summary>
-    /// <ul>
-    /// <li>https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP#strict_csp</li>
-    /// <li>https://dl.acm.org/doi/pdf/10.1145/2976749.2978363</li>
-    /// <li>https://www.netlify.com/blog/general-availability-content-security-policy-csp-nonce-integration/</li>
-    /// <li>https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce</li>
-    /// <li>https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/default-src</li>
-    /// <li>For header security test check: https://securityheaders.com/ or https://csp-evaluator.withgoogle.com</li>
-    /// </ul>
+    /// Override to customize the default nonce-based CSP, for example to support an application's script delivery model.
     /// </summary>
-    protected virtual void ConfigureDefaultCsp(CspBuilder builder)
-    {
-        ConfigureDefaultCspBase(builder);
-        builder.AddScriptSrc().WithNonce();
-    }
-
-    protected virtual void ConfigureDefaultCspBase(CspBuilder builder)
-    {
-        builder.AddDefaultSrc().None();
-        builder.AddBaseUri().Self();
-        builder.AddFormAction().Self();
-
-        builder.AddObjectSrc().None();
-        builder.AddFrameAncestors().None();
-        builder.AddScriptSrcAttr().None();
-        builder.AddStyleSrc().Self().WithNonce();
-        builder.AddStyleSrcAttr().UnsafeInline();
-        builder.AddImgSrc().Self().Data();
-        builder.AddConnectSrc().Self();
-        builder.AddFontSrc().Self().Data();
-        builder.AddMediaSrc().Self();
-        builder.AddManifestSrc().Self();
-        builder.AddWorkerSrc().Self().Blob();
-    }
-
-    protected virtual void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings)
-    {
-        //todo: csp policy dictionary
-        var selfCsp = new HeaderPolicyCollection();
-        ConfigureDefaultSecurityHeaders(selfCsp, serviceProvider, appSettings);
-        selfCsp.Remove("Content-Security-Policy");
-        selfCsp.AddContentSecurityPolicy(x =>
-        {
-            ConfigureDefaultCspBase(x);
-            x.AddScriptSrc().Self();
-        });
-        builder.AddPolicy(CspFor.CspPolicySelf, selfCsp);
-
-        var inlineCspPolicy = new HeaderPolicyCollection();
-        ConfigureDefaultSecurityHeaders(inlineCspPolicy, serviceProvider, appSettings);
-        inlineCspPolicy.Remove("Content-Security-Policy");
-        inlineCspPolicy.AddContentSecurityPolicy(x =>
-        {
-            ConfigureDefaultCspBase(x);
-            x.AddScriptSrc().Self().UnsafeInline();
-        });
-        builder.AddPolicy(CspFor.CspPolicyInline, inlineCspPolicy);
-
-        builder.SetPolicySelector(x =>
-        {
-            var context = x.HttpContext;
-            var isSwaggerPath = context.Request.Path.Value?.Contains("swagger", StringComparison.OrdinalIgnoreCase) ?? false;
-            if (isSwaggerPath)
-                return x.ConfiguredPolicies[CspFor.CspPolicySelf];
-
-            var policyApplied = context.Items.TryGetValue(CspFor.CspPolicyName, out var policy);
-            if (!policyApplied)
-                return x.DefaultPolicy;
-
-            return (policy as string) switch
-            {
-                CspFor.CspPolicySelf => x.ConfiguredPolicies[CspFor.CspPolicySelf],
-                CspFor.CspPolicyInline => x.ConfiguredPolicies[CspFor.CspPolicyInline],
-                _ => x.DefaultPolicy
-            };
-        });
-    }
-
-    private Action<CookiePolicyOptions> GetConfigureCookiePolicy(IAppSettings appSettings)
-    {
-        return options => ConfigureCookiePolicy(options, appSettings);
-    }
-
-    private Action<CookieTempDataProviderOptions> GetConfigureCookieTempDataProvider(IAppSettings appSettings)
-    {
-        return options => ConfigureCookieTempDataProvider(options, appSettings);
-    }
-
-    protected virtual void ConfigureCookiePolicy(CookiePolicyOptions options, IAppSettings appSettings)
-    {
-        //https://learn.microsoft.com/en-us/aspnet/core/security/gdpr
-        options.HttpOnly = HttpOnlyPolicy.None; //Ensures cookies are accessible via JavaScript, use with strict csp
-        options.MinimumSameSitePolicy = SameSiteMode.Strict;
-        options.Secure = appSettings.IsDevelopmentEnvironment ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
-
-        options.ConsentCookieValue = ConsentCookie.DefaultValue.Encode();
-        // default cookie name(.AspNet.Consent) exposes server
-        options.ConsentCookie.Name = appSettings.GetAppSpecificName("CookieConsent");
-        options.CheckConsentNeeded = _ => true; // user consent for non-essential cookies is needed for a given request.
-    }
-
-    protected virtual void ConfigureCookieTempDataProvider(CookieTempDataProviderOptions options, IAppSettings appSettings)
-    {
-        //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/app-state
-        options.Cookie.HttpOnly = true;
-        options.Cookie.IsEssential = true;
-    }
+    /// <remarks>
+    /// Base calls <see cref="ConfigureDefaultCspBase"/> and adds a script nonce. Retain nonce protection when composing
+    /// changes. Named self/inline policies replace this CSP; shared directives belong in <see cref="ConfigureDefaultCspBase"/>.
+    /// <para>References and validation tools:</para>
+    /// <list type="bullet">
+    /// <item><description><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP#strict_csp">Strict CSP</a></description></item>
+    /// <item><description><a href="https://dl.acm.org/doi/pdf/10.1145/2976749.2978363">CSP research paper</a></description></item>
+    /// <item><description><a href="https://www.netlify.com/blog/general-availability-content-security-policy-csp-nonce-integration/">CSP nonce integration</a></description></item>
+    /// <item><description><a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/nonce">HTML nonce attribute</a></description></item>
+    /// <item><description><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/default-src">CSP default-src directive</a></description></item>
+    /// <item><description><a href="https://securityheaders.com/">Security Headers scanner</a></description></item>
+    /// <item><description><a href="https://csp-evaluator.withgoogle.com">CSP Evaluator</a></description></item>
+    /// </list>
+    /// </remarks>
+    protected virtual void ConfigureDefaultCsp(CspBuilder builder) =>
+        DrnSecurityConfigurator.ConfigureDefaultCsp(builder, ConfigureDefaultCspBase);
 
     /// <summary>
-    /// Registers Identity cookie renewal. Omit this wiring only when that mechanism is unused.
+    /// Override to allow application resource origins, such as image or API hosts, across the default and named CSP policies.
     /// </summary>
+    /// <remarks>
+    /// Call base to retain restrictive defaults, then add only required origins. Script-source selection is applied
+    /// afterward by the default or named policy; this hook supplies their common directives.
+    /// </remarks>
+    protected virtual void ConfigureDefaultCspBase(CspBuilder builder) =>
+        DrnSecurityConfigurator.ConfigureDefaultCspBase(builder);
+
+    /// <summary>
+    /// Override to register additional named header policies or select policies for application-specific routes.
+    /// </summary>
+    /// <remarks>
+    /// Call base to retain DRN's self/inline policies and selector. Replacing the selector must also account for
+    /// Swagger and endpoint-selected policies if those behaviors are still needed.
+    /// </remarks>
+    protected virtual void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings) =>
+        DrnSecurityConfigurator.ConfigureSecurityHeaderPolicyBuilder(builder, serviceProvider, appSettings,
+            ConfigureDefaultSecurityHeaders, ConfigureDefaultCspBase);
+
+    /// <summary>
+    /// Override to adapt consent handling and cookie transport or SameSite rules to the application's browser flows.
+    /// </summary>
+    /// <remarks>
+    /// Call base before targeted changes. These settings affect cookies passing through the cookie-policy middleware,
+    /// so assess authentication and cross-site sign-in flows as well as the consent cookie. Runs during options resolution.
+    /// </remarks>
+    protected virtual void ConfigureCookiePolicy(CookiePolicyOptions options, IAppSettings appSettings) =>
+        DrnSecurityConfigurator.ConfigureCookiePolicy(options, appSettings);
+
+    /// <summary>
+    /// Override to customize the TempData cookie's name, scope, or transport settings for MVC and Razor redirect flows.
+    /// </summary>
+    /// <remarks>Call base to retain HttpOnly and essential-cookie defaults. Runs during options resolution.</remarks>
+    protected virtual void ConfigureCookieTempDataProvider(CookieTempDataProviderOptions options, IAppSettings appSettings) =>
+        DrnSecurityConfigurator.ConfigureCookieTempDataProvider(options);
+
+    /// <summary>
+    /// Override to control whether Identity security-stamp renewal wiring is registered for the application's authentication mechanisms.
+    /// </summary>
+    /// <remarks>
+    /// Call base when Identity cookie renewal is used. Prefer <see cref="ConfigureSecurityStampValidatorOptions"/>
+    /// for interval or callback changes; this registration defers that hook until options resolution.
+    /// Omitting this wiring is appropriate only when the mechanism is unused.
+    /// </remarks>
     protected virtual void ConfigureIdentityRenewal(IServiceCollection services, IAppSettings appSettings) =>
         services.AddOptions<SecurityStampValidatorOptions>().PostConfigure<AuthenticationClaimConfig>((options, claims) =>
             ConfigureSecurityStampValidatorOptions(options, appSettings, claims));
 
-    /// <summary>Composes cookie stamp callbacks and preserves original account-bound authentication evidence.</summary>
+    /// <summary>
+    /// Override to change the security-stamp validation interval or compose application-specific renewal callbacks.
+    /// </summary>
+    /// <remarks>
+    /// Set a callback before calling base so DRN wraps and awaits it while preserving a snapshot of the original
+    /// account-bound evidence. Replacing the callback after base discards that protection. Scalar options can be changed afterward.
+    /// </remarks>
     protected virtual void ConfigureSecurityStampValidatorOptions(
         SecurityStampValidatorOptions options,
         IAppSettings appSettings,
-        AuthenticationClaimConfig claims)
-    {
-        var previous = options.OnRefreshingPrincipal;
-        options.OnRefreshingPrincipal = async context =>
-        {
-            var original = context.CurrentPrincipal?.Clone()
-                           ?? throw new System.Security.SecurityException("Cannot renew without an original principal.");
-            if (previous != null)
-                await previous(context);
-            if (context.NewPrincipal is not { } renewed || !MfaClaimPreservation.Preserve(original, renewed, claims))
-                throw new System.Security.SecurityException("Cannot renew a missing principal or one with conflicting account evidence.");
-        };
-    }
+        AuthenticationClaimConfig claims) =>
+        DrnSecurityConfigurator.ConfigureSecurityStampValidatorOptions(options, claims);
 
     /// <summary>
-    /// Configures static file serving with HTTPS compression enabled for static assets.
-    /// <para>
-    /// Static assets contain no per-user secrets and are immune to BREACH attacks.
-    /// Enabling <see cref="HttpsCompressionMode.Compress"/> allows static assets to be served with compression over HTTPS,
-    /// while build-time pre-compressed assets (.br/.gz) or edge CDN compression are recommended for optimal performance.
-    /// <b>Cache-Control: public</b> enable caching of static bytes via ResponseCaching middleware.
-    /// </para>
+    /// Override to customize the public static-file source, request path, content types, or cache headers.
     /// </summary>
     /// <remarks>
+    /// Return a delegate that invokes the base delegate before applying targeted changes. It runs during options resolution.
+    /// Base enables HTTPS compression and one-year public caching; only expose files suitable for anonymous public access
+    /// because this middleware runs before authentication and authorization. Replacing OnPrepareResponse replaces its cache headers.
+    /// <para>References:</para>
     /// <list type="bullet">
-    ///   <item><a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/static-files">Static files in ASP.NET Core</a></item>
-    ///   <item><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression#compression-with-https">Compression with HTTPS</a></item>
+    /// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/static-files">Static files in ASP.NET Core</a></description></item>
+    /// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression#compression-with-https">Compression with HTTPS</a></description></item>
     /// </list>
     /// </remarks>
     protected virtual Action<StaticFileOptions> ConfigureStaticFileOptions(IAppSettings appSettings) =>
-        options =>
-        {
-            options.HttpsCompression = HttpsCompressionMode.Compress;
-            options.OnPrepareResponse = context =>
-            {
-                // Note: This 'public' header allows ResponseCaching middleware placed before UseStaticFiles in the pipeline
-                // to cache static assets in memory.
-                context.Context.Response.Headers.CacheControl = "public,max-age=31536000"; // 1 year
-                context.Context.Response.Headers.Vary = "Accept-Encoding"; // prevents cache poisoning across client encoding capabilities
-            };
-        };
+        DrnCompressionConfigurator.ConfigureStaticFileOptions;
 
     /// <summary>
-    /// Configures <see cref="ForwardedHeadersOptions"/> for reverse proxy, load-balancer, and gateway header forwarding.
+    /// Override when the deployment needs proxy trust or forwarded-header rules that configuration alone cannot express.
+    /// </summary>
+    /// <remarks>
+    /// Return a delegate that invokes the base delegate first, then adjusts the final trust lists and hop limit.
     /// <para>
     /// <b>Cloud &amp; Kubernetes Rationale:</b>
     /// In containerized and cloud environments (e.g. Kubernetes pod CIDRs, Docker networks, cloud VPCs), Kubernetes Gateway API
@@ -614,259 +498,130 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// <c>ForwardedHeaders:KnownProxies</c> adds entries without clearing existing trust.
     /// For an exact allowlist, clear both collections in the options override before adding trusted entries.
     /// </para>
-    /// </summary>
+    /// </remarks>
     /// <param name="appSettings">Application configuration settings.</param>
     /// <returns>An action delegate configuring <see cref="ForwardedHeadersOptions"/>.</returns>
-    protected virtual Action<ForwardedHeadersOptions> ConfigureForwardedHeadersOptions(IAppSettings appSettings)
-    {
-        return options =>
-        {
-            ApplyDefaultForwardedHeaders(options);
-
-            if (!appSettings.TryGetSection("ForwardedHeaders", out var section))
-                return;
-
-            section.Bind(options);
-            ApplyTrustPrivateNetworksSetting(options, section);
-            ApplyCustomKnownIpNetworks(options, section);
-            ApplyCustomKnownProxies(options, section);
-        };
-    }
-
-    [SuppressMessage("SonarQube", "S1313", Justification = "Standard RFC 1918 private network ranges and loopback for default forwarded headers in cloud/k8s environments.")]
-    private static void ApplyDefaultForwardedHeaders(ForwardedHeadersOptions options)
-    {
-        options.ForwardedHeaders = ForwardedHeaders.All;
-        options.ForwardLimit = 2;
-
-        options.KnownIPNetworks.Clear();
-        options.KnownIPNetworks.Add(new IPNetwork(new IPAddress([127, 0, 0, 0]), 8));
-        options.KnownIPNetworks.Add(new IPNetwork(IPAddress.IPv6Loopback, 128));
-        options.KnownIPNetworks.Add(new IPNetwork(new IPAddress([10, 0, 0, 0]), 8));
-        options.KnownIPNetworks.Add(new IPNetwork(new IPAddress([172, 16, 0, 0]), 12));
-        options.KnownIPNetworks.Add(new IPNetwork(new IPAddress([192, 168, 0, 0]), 16));
-    }
-
-    private static void ApplyTrustPrivateNetworksSetting(ForwardedHeadersOptions options, IConfigurationSection section)
-    {
-        if (section.GetValue<bool?>("TrustPrivateNetworks") is false)
-        {
-            for (var i = options.KnownIPNetworks.Count - 1; i >= 0; i--)
-            {
-                var net = options.KnownIPNetworks[i];
-                if (IsRfc1918PrivateNetwork(net))
-                    options.KnownIPNetworks.RemoveAt(i);
-            }
-        }
-    }
-
-    private static bool IsRfc1918PrivateNetwork(IPNetwork net) =>
-        (net.BaseAddress.Equals(new IPAddress([10, 0, 0, 0])) && net.PrefixLength == 8) ||
-        (net.BaseAddress.Equals(new IPAddress([172, 16, 0, 0])) && net.PrefixLength == 12) ||
-        (net.BaseAddress.Equals(new IPAddress([192, 168, 0, 0])) && net.PrefixLength == 16);
-
-    private static void ApplyCustomKnownIpNetworks(ForwardedHeadersOptions options, IConfigurationSection section)
-    {
-        var customNetworks = section.GetSection(nameof(ForwardedHeadersOptions.KnownIPNetworks)).GetChildren().ToList();
-        if (customNetworks.Count == 0)
-            return;
-
-        options.KnownIPNetworks.Clear();
-        foreach (var net in customNetworks)
-            options.KnownIPNetworks.Add(ParseIpNetwork(net));
-    }
-
-    private static IPNetwork ParseIpNetwork(IConfigurationSection net)
-    {
-        try
-        {
-            return net.Value is { } cidr
-                ? IPNetwork.Parse(cidr)
-                : new IPNetwork(IPAddress.Parse(net["BaseAddress"]!), int.Parse(net["PrefixLength"]!));
-        }
-        catch (Exception e) when (IsIpParsingException(e))
-        {
-            throw new ConfigurationException($"Invalid ForwardedHeaders:{nameof(ForwardedHeadersOptions.KnownIPNetworks)} configuration.", e);
-        }
-    }
-
-    private static void ApplyCustomKnownProxies(ForwardedHeadersOptions options, IConfigurationSection section)
-    {
-        foreach (var proxy in section.GetSection(nameof(ForwardedHeadersOptions.KnownProxies)).GetChildren())
-            if (proxy.Value is { } ip)
-                options.KnownProxies.Add(ParseProxyIp(ip));
-    }
-
-    private static IPAddress ParseProxyIp(string ip)
-    {
-        try
-        {
-            return IPAddress.Parse(ip);
-        }
-        catch (Exception e) when (IsIpParsingException(e))
-        {
-            throw new ConfigurationException($"Invalid ForwardedHeaders:{nameof(ForwardedHeadersOptions.KnownProxies)} configuration.", e);
-        }
-    }
-
-    private static bool IsIpParsingException(Exception e) => e is FormatException or ArgumentException or OverflowException;
-
-    protected virtual Action<RequestLocalizationOptions> ConfigureRequestLocalizationOptions(IAppSettings appSettings)
-    {
-        var locOptions = appSettings.Localization;
-        return options =>
-        {
-            var cookieRequestCultureProvider = new CookieRequestCultureProvider
-            {
-                CookieName = appSettings.GetAppSpecificName("Culture")
-            };
-
-            options.RequestCultureProviders.Clear();
-            options.RequestCultureProviders.Add(cookieRequestCultureProvider);
-            options.RequestCultureProviders.Add(new QueryStringRequestCultureProvider());
-            options.RequestCultureProviders.Add(new AcceptLanguageHeaderRequestCultureProvider());
-            options.SetDefaultCulture(locOptions.DefaultCulture)
-                .AddSupportedCultures(locOptions.SupportedCultures)
-                .AddSupportedUICultures(locOptions.SupportedCultures);
-        };
-    }
-
-    protected virtual Action<HostFilteringOptions> ConfigureHostFilteringOptions(IAppSettings appSettings)
-    {
-        return options =>
-        {
-            if (options.AllowedHosts.Count != 0)
-            {
-                EnsureAllowedHostsSafe(options.AllowedHosts, appSettings);
-                return;
-            }
-
-            // "AllowedHosts": "localhost;127.0.0.1;[::1]"
-            var hosts = appSettings.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (hosts?.Length > 0)
-            {
-                EnsureAllowedHostsSafe(hosts, appSettings);
-                options.AllowedHosts = hosts;
-                return;
-            }
-
-            if (appSettings.IsDevelopmentEnvironment)
-            {
-                // Fall back to "*" only for local development convenience.
-                options.AllowedHosts = ["*"];
-                return;
-            }
-
-            throw new ConfigurationException("AllowedHosts must be configured outside Development.");
-        };
-    }
-
-    private static void EnsureAllowedHostsSafe(IEnumerable<string> hosts, IAppSettings appSettings)
-    {
-        if (appSettings.IsDevelopmentEnvironment) return;
-
-        if (hosts.Any(IsWildcardAllowedHost))
-            throw new ConfigurationException("AllowedHosts cannot contain '*' outside Development.");
-    }
-
-    private static bool IsWildcardAllowedHost(string host) => host.Trim() == "*";
+    protected virtual Action<ForwardedHeadersOptions> ConfigureForwardedHeadersOptions(IAppSettings appSettings) =>
+        DrnRequestConfigurator.ConfigureForwardedHeadersOptions(appSettings);
 
     /// <summary>
-    /// Commonly used for improving behavior not returning a response
+    /// Override to change culture-provider precedence or supported cultures, such as selecting culture from an application-specific cookie.
     /// </summary>
-    /// <param name="application"></param>
-    /// <param name="appSettings"></param>
-    protected virtual void ConfigureApplicationPipelineStart(WebApplication application, IAppSettings appSettings)
-    {
-        application.UseForwardedHeaders();
-        application.UseHostFiltering();
-        application.UseCookiePolicy();
-        application.UseSecurityHeaders();
-    }
+    /// <remarks>
+    /// Registered only when localization is enabled. Return a delegate that composes with base during options resolution;
+    /// base orders providers as cookie, query string, then Accept-Language. Localization runs before authentication.
+    /// </remarks>
+    protected virtual Action<RequestLocalizationOptions> ConfigureRequestLocalizationOptions(IAppSettings appSettings) =>
+        DrnRequestConfigurator.ConfigureRequestLocalizationOptions(appSettings);
 
     /// <summary>
-    /// Commonly used for a short-circuiting pipeline with a response such as static resources.
+    /// Override to supply application-specific allowed hosts, for example an allowlist derived from deployment settings.
     /// </summary>
-    protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings)
-    {
-        // For Performance, Caching placed before Compression.
-        // This ensures the server caches the ALREADY COMPRESSED bytes in memory, saving CPU cycles on every cache hit.
-        // By placing these before UseStaticFiles, static resources are also compressed and cached server-side.
-        application.UseResponseCaching();
-        application.UseResponseCompression();
-        application.UseStaticFiles();
-    }
+    /// <remarks>
+    /// The returned delegate runs during options post-configuration. Set a custom allowlist before invoking the base delegate
+    /// so it validates the result. Base rejects missing hosts and the unrestricted '*' host outside Development.
+    /// </remarks>
+    protected virtual Action<HostFilteringOptions> ConfigureHostFilteringOptions(IAppSettings appSettings) =>
+        DrnRequestConfigurator.ConfigureHostFilteringOptions(appSettings);
 
+    /// <summary>
+    /// Override to register early request normalization or response-header middleware that must also cover static-file requests.
+    /// </summary>
+    /// <remarks>
+    /// Base installations forwarded headers, host filtering, cookie policy, and security headers in that order.
+    /// Call base before middleware that relies on the corrected client address or host. DRN request logging and authentication
+    /// have not yet run, so use later stages for scoped diagnostics or identity-dependent work.
+    /// </remarks>
+    protected virtual void ConfigureApplicationPipelineStart(WebApplication application, IAppSettings appSettings) =>
+        DrnPipelineConfigurator.ConfigurePipelineStart(application);
+
+    /// <summary>
+    /// Override to serve public responses that can bypass the DRN request scope, such as additional static assets.
+    /// </summary>
+    /// <remarks>
+    /// Base registers response caching, compression, and static files. Middleware added after base will not see requests
+    /// already served by static files. Responses completed here bypass scoped logging, rate limiting, authentication, and authorization.
+    /// </remarks>
+    protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings) =>
+        DrnPipelineConfigurator.ConfigurePreScopeStart(application);
+
+    /// <summary>
+    /// Override to add request diagnostics or enrichment that needs the DRN HTTP scope but does not need route or identity information.
+    /// </summary>
+    /// <remarks>Base is empty. Middleware registered here runs inside HttpScopeMiddleware, before routing and authentication.</remarks>
     protected virtual void ConfigureApplicationPostScopeStart(WebApplication application, IAppSettings appSettings)
     {
     }
 
-    protected virtual void ConfigureApplicationPreAuthentication(WebApplication application, IAppSettings appSettings)
-    {
-        if (appSettings.Localization.Enabled)
-            application.UseRequestLocalization();
-    }
-
-    //todo review stability when no auth is configured
     /// <summary>
-    /// Called when PreAuthorization
+    /// Override to prepare routed requests before authentication, for example to establish culture used by sign-in responses.
     /// </summary>
-    protected virtual void ConfigureApplicationPostAuthentication(WebApplication application, IAppSettings appSettings)
-    {
-        var exemptionOptions = application.Services.GetRequiredService<MfaExemptionOptions>();
-        var exemptionConfig = ConfigureMFAExemption();
-        if (exemptionConfig != null)
-        {
-            exemptionOptions.MapFromConfig(exemptionConfig);
-            application.UseMiddleware<MfaExemptionMiddleware>();
-        }
+    /// <remarks>
+    /// Runs after routing and pre-auth rate limiting. Call base to retain enabled localization; authenticated user projection
+    /// is not available yet. Register request work as middleware rather than resolving request services during startup.
+    /// </remarks>
+    protected virtual void ConfigureApplicationPreAuthentication(WebApplication application, IAppSettings appSettings) =>
+        DrnPipelineConfigurator.ConfigurePreAuthentication(application, appSettings);
 
-        var redirectionOptions = application.Services.GetRequiredService<MfaRedirectionOptions>();
-        var redirectionConfig = ConfigureMFARedirection();
-        if (redirectionConfig != null)
-        {
-            redirectionOptions.MapFromConfig(redirectionConfig);
-            application.UseMiddleware<MfaRedirectionMiddleware>();
-        }
-    }
+    /// <summary>
+    /// Override to add identity-aware middleware before authorization, such as authenticated request enrichment.
+    /// </summary>
+    /// <remarks>
+    /// Runs after authentication, scoped-user projection, and post-auth rate limiting. Call base to retain configured MFA
+    /// exemption/redirection middleware; their default null hooks add none. Authorization may select another scheme later,
+    /// so this stage must not substitute its current identity for the final authorization decision.
+    /// </remarks>
+    protected virtual void ConfigureApplicationPostAuthentication(WebApplication application, IAppSettings appSettings) =>
+        DrnSecurityConfigurator.ConfigureMfa(application, ConfigureMFAExemption, ConfigureMFARedirection);
 
-    protected virtual void ConfigureApplicationPostAuthorization(WebApplication application, IAppSettings appSettings)
-    {
-        if (!DrnProgramSwaggerOptions.AddSwagger) return;
-
-        application.MapSwagger(DrnProgramSwaggerOptions.DefaultRouteTemplate, DrnProgramSwaggerOptions.ConfigureSwaggerEndpointOptions);
-        application.UseSwaggerUI(DrnProgramSwaggerOptions.ConfigureSwaggerUIOptionsAction);
-    }
+    /// <summary>
+    /// Override to add middleware that should run only after authorization allows a request to continue.
+    /// </summary>
+    /// <remarks>
+    /// Call base to retain enabled Swagger endpoints and UI. Anonymous endpoints can also reach this stage;
+    /// its position does not imply that every request is authenticated. Endpoint mapping follows this hook.
+    /// </remarks>
+    protected virtual void ConfigureApplicationPostAuthorization(WebApplication application, IAppSettings appSettings) =>
+        DrnPipelineConfigurator.ConfigurePostAuthorization(application, DrnProgramSwaggerOptions);
 
     //todo: evaluate and add native support for Minimal APIs in DrnProgramBase:
     // - MapMinimalEndpoints(WebApplication application, IAppSettings appSettings) extension point
     // - Configure HttpJsonOptions with JsonConventions.SetHtmlSafeWebJsonDefaults
     // - Extend EndpointCollectionBase<TProgram> and DrnEndpointSource to discover and index RouteEndpoints with MethodInfo/Delegate metadata
     // - Ensure MFA requirements and authorization policies seamlessly evaluate minimal endpoint metadata
-    protected virtual void MapApplicationEndpoints(WebApplication application, IAppSettings appSettings)
-    {
-        application.MapControllers();
-        application.MapRazorPages();
-    }
+    /// <summary>
+    /// Override to add application routes, such as health checks or minimal endpoints, alongside MVC and Razor Pages.
+    /// </summary>
+    /// <remarks>
+    /// Call base to retain controller and Razor Page mapping. Apply authorization metadata explicitly where needed;
+    /// routes without it use the fallback policy. DRN's typed endpoint discovery does not yet provide full minimal-API support.
+    /// </remarks>
+    protected virtual void MapApplicationEndpoints(WebApplication application, IAppSettings appSettings) =>
+        DrnPipelineConfigurator.MapApplicationEndpoints(application);
 
     /// <summary>
+    /// Override to replace the pre-auth limiter when registered singleton rules cannot express the required partitioning or algorithm.
+    /// </summary>
+    /// <remarks>
     /// Creates the <see cref="PartitionedRateLimiter{TResource}"/> used by
     /// <see cref="PreAuthRateLimitingMiddleware"/>. Only singleton rules are evaluated at this phase;
     /// matching rule partitions are composed with the native <c>PartitionedRateLimiter.CreateChained</c> API.
-    /// </summary>
-    /// <remarks>
     /// <para><b>NAT/CDN WARNING:</b> If your application is behind a NAT or CDN, multiple legitimate users
     /// may share the same <c>RemoteIpAddress</c>. The pre-auth layer uses IP-based partitioning by default,
     /// with B2B-friendly coarse limits. In such deployments, consider configuring higher limits for the
     /// pre-auth layer or creating custom <see cref="ISingletonRateLimitRule"/> implementations that partition by a
     /// trusted header (e.g., <c>CF-Connecting-IP</c>, <c>X-Forwarded-For</c>) if securely provided.</para>
-    /// <para>Override to change the fallback algorithm, limits, or partitioning strategy.</para>
+    /// <para>Called through a singleton registration with the root service provider. Do not capture scoped services;
+    /// use singleton rules for ordinary customizations and reserve identity-dependent rules for the post-auth phase.</para>
     /// </remarks>
     protected virtual PartitionedRateLimiter<HttpContext> CreatePreAuthRateLimiter(IServiceProvider serviceProvider, IAppSettings appSettings)
-        => RateLimitRuleChainFactory.Create(serviceProvider.GetRequiredService<RateLimitRuleRegistry>(), RateLimitRulePhase.PreAuth,
-            static (rule, context) => rule.EvaluatePreAuth(context), includeScopedRules: false);
+        => DrnRateLimitConfigurator.CreatePreAuthRateLimiter(serviceProvider);
 
     /// <summary>
+    /// Override to replace how post-auth limiter options are obtained; prefer <see cref="ConfigurePostAuthRateLimiterOptions"/>
+    /// to customize existing options while retaining DI-registered policies.
+    /// </summary>
+    /// <remarks>
     /// Creates the standard .NET <see cref="RateLimiterOptions"/> used by the post-auth rate limiter
     /// (<c>UseRateLimiter()</c>). Placed after <c>ScopedUserMiddleware</c> — user identity is available
     /// for partitioning.
@@ -875,13 +630,10 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// enabling B2B dimensions such as tenant + user + IP without custom acquisition logic. Scoped rules run
     /// only in this post-auth phase after <c>ScopedUserMiddleware</c>.
     /// </para>
-    /// </summary>
-    /// <remarks>
-    /// <para>Override to customize the <c>GlobalLimiter</c>, <c>OnRejected</c>, or add named policies.</para>
     /// <para>Starts from the DI-configured <see cref="RateLimiterOptions"/>, so policies added with
     /// <c>builder.Services.AddRateLimiter(options =&gt; ...)</c> remain available to endpoint metadata such as
     /// <c>[EnableRateLimiting("strict")]</c>.</para>
-    /// <para><b>Example — tenant-based rate limiting with named policies:</b></para>
+    /// <para><b>Example — adding a named rate-limit policy through the narrower hook:</b></para>
     /// <code>
     /// protected override void ConfigurePostAuthRateLimiterOptions(
     ///     RateLimiterOptions options,
@@ -910,72 +662,53 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         return options;
     }
 
-    protected virtual void ConfigurePostAuthRateLimiterOptions(RateLimiterOptions options, IServiceProvider serviceProvider, IAppSettings appSettings)
-    {
-        var configuredOnRejected = options.OnRejected;
-        // ASP.NET Core defaults rate-limiter rejection to 503; DRN's security-first default is 429.
-        // Set 503 after calling base from ConfigurePostAuthRateLimiterOptions when an app intentionally needs it.
-        options.RejectionStatusCode = options.RejectionStatusCode == StatusCodes.Status503ServiceUnavailable
-            ? StatusCodes.Status429TooManyRequests
-            : options.RejectionStatusCode;
-        options.GlobalLimiter = RateLimitRuleChainFactory.Create(
-            serviceProvider.GetRequiredService<RateLimitRuleRegistry>(),
-            RateLimitRulePhase.PostAuth,
-            static (rule, context) => rule.EvaluatePostAuth(context));
-
-        options.OnRejected = async (context, cancellationToken) =>
-        {
-            if (!context.HttpContext.Response.HasStarted)
-                context.HttpContext.Response.StatusCode = options.RejectionStatusCode;
-
-            if (!context.HttpContext.Response.HasStarted && context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
-            {
-                var seconds = (int)Math.Max(1, Math.Ceiling(retryAfter.TotalSeconds));
-                context.HttpContext.Response.Headers.RetryAfter = seconds.ToString();
-            }
-
-            var scopedLog = context.HttpContext.RequestServices.GetRequiredService<IScopedLog>();
-            var telemetry = context.HttpContext.RequestServices.GetRequiredService<RateLimitTelemetry>();
-            var features = context.HttpContext.RequestServices.GetRequiredService<DrnAppFeatures>();
-            var securitySettings = context.HttpContext.RequestServices.GetRequiredService<IAppSecuritySettings>();
-            var rejectedMatch = context.HttpContext.GetRejectedRateLimitRuleMatch();
-            var partitionKey = rejectedMatch?.Result.PartitionKey ?? RateLimitPartitionKeys.GetPostAuthPartitionKey(context.HttpContext);
-            telemetry.RecordRejection(context.HttpContext, RateLimitRulePhase.PostAuth, rejectedMatch);
-            scopedLog.Add("PostAuthRateLimitRejected", true);
-            scopedLog.Add("PostAuthRateLimitRejectedRule", rejectedMatch?.Rule.GetType().FullName ?? string.Empty);
-            scopedLog.Add("PostAuthRateLimitRejectedPartition", RateLimitPartitionRedactor.Format(partitionKey, features.RateLimit, securitySettings));
-
-            var matchedRule = rejectedMatch?.Rule;
-            if (matchedRule != null)
-                await matchedRule.OnRejectedAsync(context.HttpContext, context.Lease, cancellationToken);
-
-            if (configuredOnRejected != null)
-                await configuredOnRejected(context, cancellationToken);
-        };
-    }
+    /// <summary>
+    /// Override to add named rate-limit policies, choose a rejection status, or customize post-auth rejection handling.
+    /// </summary>
+    /// <remarks>
+    /// Base replaces GlobalLimiter with the DRN rule chain and wraps an existing OnRejected callback with telemetry and rule callbacks.
+    /// Set a callback before base to retain that wrapper; set an intentional 503 status after base, which otherwise changes 503 to 429.
+    /// Resolve request-scoped services from the rejection context, not the supplied root provider.
+    /// </remarks>
+    protected virtual void ConfigurePostAuthRateLimiterOptions(RateLimiterOptions options, IServiceProvider serviceProvider, IAppSettings appSettings) =>
+        DrnRateLimitConfigurator.ConfigurePostAuthRateLimiterOptions(options, serviceProvider);
 
     /// <summary>
-    /// Configures MFA (Multi-Factor Authentication) redirection logic when return value is not null:
-    /// <ul>
-    ///   <li>Redirects to <c>MFALoginUrl</c> if <c>MFAInProgress</c> is true for the user is logged in with single factor</li>
-    ///   <li>Redirects to <c>MFASetupUrl</c> if <c>MFASetupRequired</c> is true for a new user without MFA configured.</li>
-    ///   <li>Prevents misuse or abuse of <c>MFALoginUrl</c> and <c>MFASetupUrl</c> routes.</li>
-    /// </ul>
+    /// Override to opt a browser application into MFA enrollment and challenge page navigation.
     /// </summary>
+    /// <remarks>
+    /// Return null to omit the redirection middleware, for example for an API using challenge/forbid responses.
+    /// Supply setup, challenge, login, and logout URLs plus the page allowlist to redirect.
+    /// This hook configures navigation; it neither registers authentication schemes nor replaces endpoint authorization.
+    /// </remarks>
     protected virtual MfaRedirectionConfig? ConfigureMFARedirection() => null;
 
+    /// <summary>
+    /// Override to identify authentication schemes eligible to supply MFA exemption evidence, such as a dedicated service credential scheme.
+    /// </summary>
+    /// <remarks>
+    /// Returning null omits exemption middleware. Keep exemptions narrowly scoped; they are security decisions, not a substitute
+    /// for registering authentication or authorizing endpoints. Shared policy-selected proof validation still applies.
+    /// </remarks>
     protected virtual MfaExemptionConfig? ConfigureMFAExemption() => null;
 
     /// <summary>
-    /// Configures canonical claim types, explicit aliases and completed MFA for all authentication consumers.
+    /// Override to map an identity provider's subject, name, email, role, and completed-MFA claims into DRN's shared claim contract.
     /// </summary>
+    /// <remarks>
+    /// Returns a singleton configuration before application service registration. Defaults follow Identity claim types
+    /// with the amr=mfa marker. Configure explicit aliases here; changing Identity claim options independently would diverge
+    /// from consumers that use this contract. Authentication handlers must still issue trusted evidence.
+    /// </remarks>
     protected virtual AuthenticationClaimConfig ConfigureAuthenticationClaims() => AuthenticationClaimConfig.Default;
 
     /// <summary>
-    /// Configures authorization policies and default behaviors for the application.
+    /// Override to add application authorization policies, such as role or permission requirements, while retaining the MFA baseline.
     /// </summary>
     /// <param name="options">The <see cref="AuthorizationOptions"/> to configure.</param>
     /// <remarks>
+    /// Call base before adding policies to retain DRN's named, default, and fallback MFA policies.
+    /// This hook does not register authentication schemes or replace DRN's shared MFA result-handler checks.
     /// With default behavior, this method enforces MFA and performs the following actions:
     /// <ul>
     ///   <li>Adds the <c>MFA</c> policy.</li>
@@ -984,130 +717,106 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     ///   <li>Sets the fallback policy to the <c>MFA</c> policy to enforce MFA on unauthenticated or unhandled requests.</li>
     /// </ul>
     /// </remarks>
-    protected virtual void ConfigureAuthorizationOptions(AuthorizationOptions options)
-    {
-        options.AddPolicy(AuthPolicy.Mfa, policy => policy.AddRequirements(new MfaRequirement()));
-        options.AddPolicy(AuthPolicy.MfaExempt, policy => policy.AddRequirements(new MfaExemptRequirement()));
-
-        options.DefaultPolicy = options.GetPolicy(AuthPolicy.Mfa)!;
-        options.FallbackPolicy = options.GetPolicy(AuthPolicy.Mfa)!;
-    }
+    protected virtual void ConfigureAuthorizationOptions(AuthorizationOptions options) =>
+        DrnSecurityConfigurator.ConfigureAuthorizationOptions(options);
 
     /// <summary>
-    /// Sensible defaults for response caching.
-    /// <para>
-    /// <b>Caching Behavior:</b>
-    /// <list type="bullet">
-    ///   <item><b>Static Assets:</b> Automatically cached because <see cref="ConfigureStaticFileOptions"/> adds 'public' cache headers.</item>
-    ///   <item><b>Dynamic API/Pages:</b> NOT cached by default. Use <c>[ResponseCache]</c> attribute to opt-in.</item>
-    ///   <item><b>Auth/Security:</b> Middleware automatically ignores responses with <c>Set-Cookie</c> or <c>Authorization</c> headers for safety.</item>
-    /// </list>
-    /// </para>
+    /// Override to tune response-cache memory limits or path matching for the application's public response workload.
     /// </summary>
-    protected virtual void ConfigureResponseCachingOptions(ResponseCachingOptions options)
-    {
-        options.MaximumBodySize = 16 * 1024 * 1024; // 16 MB safety limit for memory preservation
-        options.UseCaseSensitivePaths = false;
-    }
+    /// <remarks>
+    /// Call base before targeted changes to retain its 16 MB maximum body size and case-insensitive paths.
+    /// These options do not make a response cacheable; response headers and middleware eligibility still govern storage.
+    /// Do not mark personalized or sensitive responses public merely to enable caching.
+    /// </remarks>
+    protected virtual void ConfigureResponseCachingOptions(ResponseCachingOptions options) =>
+        DrnCompressionConfigurator.ConfigureResponseCachingOptions(options);
 
     /// <summary>
-    /// Configures response compression with security-first defaults.
-    /// <para>
-    /// Response compression middleware is disabled over HTTPS (<c>EnableForHttps = false</c>)
-    /// to mitigate BREACH attack vectors on dynamic response pipelines.
-    /// Static assets served by <c>StaticFileMiddleware</c> safely enable HTTPS compression via <see cref="ConfigureStaticFileOptions"/>.
-    /// </para>
-    /// <para><b>References:</b></para>
-    /// <list type="bullet">
-    ///   <item><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression">Response compression in ASP.NET Core</a></item>
-    ///   <item><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression#compression-with-https">Compression with HTTPS (BREACH/CRIME)</a></item>
-    ///   <item><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/caching/middleware">Response Caching Middleware</a></item>
-    ///   <item><a href="https://en.wikipedia.org/wiki/BREACH">BREACH attack (Wikipedia)</a></item>
-    /// </list>
+    /// Override to customize compressible MIME types or compression providers for the application's response formats.
     /// </summary>
-    protected virtual void ConfigureResponseCompressionOptions(ResponseCompressionOptions options)
-    {
-        // Response compression middleware is disabled over HTTPS by default (EnableForHttps = false)
-        // to mitigate BREACH attack vectors on dynamic responses.
-        // Static assets opt in through StaticFileOptions.HttpsCompression = HttpsCompressionMode.Compress.
-        options.EnableForHttps = false;
-        options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
-        [
-            // Raw/uncompressed font MIME types only (WOFF and WOFF2 are already compressed at binary level)
-            "font/ttf",
-            "application/x-font-ttf",
-            "font/otf",
-            "font/opentype"
-        ]);
-        options.Providers.Add<BrotliCompressionProvider>();
-        options.Providers.Add<GzipCompressionProvider>();
-    }
+    /// <remarks>
+    /// Call base to retain Brotli/Gzip registration and the exclusion of dynamic HTTPS responses for BREACH mitigation.
+    /// Public static files opt into HTTPS compression separately through <see cref="ConfigureStaticFileOptions"/>.
+    /// Prefer the compression-level hooks for CPU versus transfer-size tuning.
+    /// <para>References:</para>
+    /// <list type="bullet">
+    /// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression">Response compression in ASP.NET Core</a></description></item>
+    /// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression#compression-with-https">Compression with HTTPS (BREACH/CRIME)</a></description></item>
+    /// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/caching/middleware">Response Caching Middleware</a></description></item>
+    /// <item><description><a href="https://en.wikipedia.org/wiki/BREACH">BREACH attack</a></description></item>
+    /// </list>
+    /// </remarks>
+    protected virtual void ConfigureResponseCompressionOptions(ResponseCompressionOptions options) =>
+        DrnCompressionConfigurator.ConfigureResponseCompressionOptions(options);
 
     /// <summary>
-    /// Configures Brotli and Gzip compression provider options.
+    /// Override when compression providers need additional service or options registration.
     /// Override <see cref="ConfigureBrotliCompressionLevel"/> or <see cref="ConfigureGzipCompressionLevel"/>
     /// to customize compression levels for specific workloads.
     /// </summary>
-    protected virtual void ConfigureCompressionProviders(IServiceCollection services)
-    {
-        // SmallestSize: Maximum compression because only static files are compressed.
-        // CPU cost is paid once, then ResponseCaching serves compressed bytes from memory.
-        // Bandwidth savings compound across all users.
-        services.Configure<BrotliCompressionProviderOptions>(options => options.Level = ConfigureBrotliCompressionLevel());
-        services.Configure<GzipCompressionProviderOptions>(options => options.Level = ConfigureGzipCompressionLevel());
-    }
+    /// <remarks>Call base to retain deferred Brotli and Gzip level callbacks; they run when their options are resolved.</remarks>
+    protected virtual void ConfigureCompressionProviders(IServiceCollection services) =>
+        DrnCompressionConfigurator.ConfigureCompressionProviders(services, ConfigureBrotliCompressionLevel, ConfigureGzipCompressionLevel);
 
     /// <summary>
-    /// Returns the Brotli compression level. Override to customize.
-    /// <para>
-    /// Since only static files are compressed (HTTPS dynamic content is excluded for BREACH prevention),
-    /// maximum compression is optimal: CPU cost is paid once, compressed bytes are cached by ResponseCaching,
-    /// and bandwidth savings compound across all subsequent requests.
-    /// </para>
-    /// <list type="bullet">
-    ///   <item><b>0-3:</b> Fast, low compression (real-time streaming)</item>
-    ///   <item><b>4-6:</b> Balanced (dynamic content if HTTPS compression were enabled)</item>
-    ///   <item><b>7-11:</b> Maximum compression (static assets—compress once, cache forever)</item>
-    /// </list>
-    /// Default: <see cref="CompressionLevel.SmallestSize"/> (Level 11 equivalent)
+    /// Override to trade Brotli compression CPU and response latency against transfer size for the application's workload.
     /// </summary>
+    /// <remarks>
+    /// Defaults to <see cref="CompressionLevel.SmallestSize"/> and is evaluated when provider options are resolved.
+    /// Cache hits can avoid compression work, but cache misses and eviction still incur it; choose a level using workload measurements.
+    /// </remarks>
     protected virtual CompressionLevel ConfigureBrotliCompressionLevel() => CompressionLevel.SmallestSize;
 
     /// <summary>
-    /// Returns the Gzip compression level. Override to customize.
-    /// <para>
-    /// Same rationale as Brotli: static files are compressed once and cached,
-    /// so maximum compression maximizes bandwidth savings with no per-request CPU cost.
-    /// </para>
-    /// Default: <see cref="CompressionLevel.SmallestSize"/>
+    /// Override to tune compression cost for clients negotiating Gzip independently of the Brotli setting.
     /// </summary>
+    /// <remarks>
+    /// Defaults to <see cref="CompressionLevel.SmallestSize"/> and is evaluated when provider options are resolved.
+    /// Consider latency and CPU on uncached responses as well as transfer size.
+    /// </remarks>
     protected virtual CompressionLevel ConfigureGzipCompressionLevel() => CompressionLevel.SmallestSize;
 
+    /// <summary>
+    /// Override to add global MVC filters, model-binding rules, formatters, or validation conventions.
+    /// </summary>
+    /// <remarks>
+    /// Base is empty. Invoked during MVC options resolution; use <see cref="ConfigureMvcBuilder"/> for application parts
+    /// and builder extensions, or <see cref="MapApplicationEndpoints"/> for routes.
+    /// </remarks>
     protected virtual void ConfigureMvcOptions(MvcOptions options)
     {
     }
 
-    protected virtual void ConfigureMvcBuilder(IMvcBuilder mvcBuilder, IAppSettings appSettings)
-    {
-        var programAssembly = typeof(TProgram).Assembly;
-        var partName = typeof(TProgram).GetAssemblyName();
-        var applicationParts = mvcBuilder.PartManager.ApplicationParts;
-        var controllersAdded = applicationParts.Any(p => p.Name == partName);
-        if (!controllersAdded) mvcBuilder.AddApplicationPart(programAssembly);
+    /// <summary>
+    /// Override to include additional controller assemblies or apply MVC builder extensions and JSON options.
+    /// </summary>
+    /// <remarks>
+    /// Call base to retain program assembly discovery, controllers as services, and HTML-safe JSON defaults.
+    /// Apply additional configuration afterward and preserve safe encoding when customizing serialization.
+    /// </remarks>
+    protected virtual void ConfigureMvcBuilder(IMvcBuilder mvcBuilder, IAppSettings appSettings) =>
+        DrnMvcConfigurator.ConfigureMvcBuilder(mvcBuilder, typeof(TProgram).Assembly, typeof(TProgram).GetAssemblyName());
 
-        mvcBuilder.AddControllersAsServices();
-        mvcBuilder.AddJsonOptions(options => JsonConventions.SetHtmlSafeWebJsonDefaults(options.JsonSerializerOptions));
-
-        //learn.microsoft.com/en-us/aspnet/core/breaking-changes/10/razor-runtime-compilation-obsolete
-        //learn.microsoft.com/en-us/aspnet/core/test/hot-reload
-    }
-
+    /// <summary>
+    /// Override to choose where Swagger is enabled and customize API metadata, document generation, or UI settings.
+    /// </summary>
+    /// <remarks>
+    /// Runs before builder creation. Call base before changes to start with the application title and Development-only enablement.
+    /// The resulting options are shared by registration and pipeline mapping; enabling Swagger does not itself define access policy.
+    /// </remarks>
     protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
     {
         options.OpenApiInfo.Title = appSettings.ApplicationName;
         options.AddSwagger = appSettings.IsDevelopmentEnvironment;
     }
 
+    /// <summary>
+    /// Override to validate mapped routes at startup, for example to reject missing endpoint metadata before serving requests.
+    /// </summary>
+    /// <remarks>
+    /// Call base before checks that depend on DRN's typed endpoint collection; it finalizes routing data sources
+    /// and binds that collection, except for temporary applications. Runs after pipeline construction and before service validation.
+    /// </remarks>
     protected virtual void ValidateEndpoints(WebApplication application, IAppSettings appSettings)
     {
         if (appSettings.DevelopmentSettings.TemporaryApplication) return;
@@ -1118,6 +827,14 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         EndpointCollectionBase<TProgram>.SetEndpointDataSource(helper);
     }
 
+    /// <summary>
+    /// Override to add startup readiness checks that require the built service provider and must fail before the host starts.
+    /// </summary>
+    /// <remarks>
+    /// Await base to retain attribute-registered service resolution and module validation, which honor SkipValidation.
+    /// Create a scope for additional scoped dependencies and decide explicitly whether custom checks honor that setting too.
+    /// Runs after endpoint validation; an exception aborts application creation.
+    /// </remarks>
     protected virtual async Task ValidateServicesAsync(WebApplication application, IScopedLog scopeLog) =>
         await application.Services.ValidateServicesAddedByAttributesAsync(scopeLog);
 

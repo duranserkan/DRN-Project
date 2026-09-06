@@ -25,11 +25,25 @@ public static class DbContextConventions
 
     private static readonly ConcurrentDictionary<Type, NpgsqlDbContextOptionsAttribute[]> AttributeCache = new();
 
+    [SuppressMessage("SonarQube", "S2326", Justification = "Generic cache per context type")]
+    [SuppressMessage("SonarQube", "S2743", Justification = "Generic cache per context type")]
     [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
     [SuppressMessage("ReSharper", "UnusedTypeParameter")]
     private static class ContextAttributeCache<TContext>
     {
-        internal static NpgsqlDbContextOptionsAttribute[]? Attributes;
+        public static NpgsqlDbContextOptionsAttribute[] Attributes
+        {
+            get
+            {
+                var attributes = Volatile.Read(ref field);
+                if (attributes is not null)
+                    return attributes;
+
+                // Share the runtime cache's instances and allow retries if attribute construction fails.
+                attributes = GetContextAttributes(typeof(TContext));
+                return Interlocked.CompareExchange(ref field, attributes, null) ?? attributes;
+            }
+        }
     }
 
     public static DbContextOptionsBuilder UpdateDbContextOptionsBuilder<TContext>(
@@ -124,15 +138,7 @@ public static class DbContextConventions
     }
 
     public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes<TContext>()
-    {
-        var attributes = Volatile.Read(ref ContextAttributeCache<TContext>.Attributes);
-        if (attributes is not null)
-            return attributes;
-
-        // Share the runtime cache's instances and allow retries if attribute construction fails.
-        attributes = GetContextAttributes(typeof(TContext));
-        return Interlocked.CompareExchange(ref ContextAttributeCache<TContext>.Attributes, attributes, null) ?? attributes;
-    }
+        => ContextAttributeCache<TContext>.Attributes;
 
     public static NpgsqlDbContextOptionsAttribute[] GetContextAttributes<TContext>(TContext context) where TContext : DbContext
         => GetContextAttributes(context.GetType());

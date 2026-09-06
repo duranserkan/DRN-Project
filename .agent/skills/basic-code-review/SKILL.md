@@ -51,6 +51,7 @@ A change that is fast but incorrect fails. A change that is clever but unreadabl
 - Follow the repository profile's runtime-access conventions.
 - Never use obsolete or deprecated code: reject deprecated APIs, types, interfaces, or members (e.g. `[Obsolete]`, `ASPDEPR*`); require active, first-class framework primitives and never suppress deprecation diagnostics with `#pragma` or `[SuppressMessage]`.
 - Prefer pit of success.
+- Verify third-party API accessibility independently of XML documentation, which may include internal members. Prefer documented public factories and registration APIs over constructing implementation types.
 
 ## Dependency Injection And Configuration
 

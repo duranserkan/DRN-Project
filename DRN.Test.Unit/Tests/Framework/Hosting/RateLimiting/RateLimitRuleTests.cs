@@ -561,13 +561,23 @@ public class RateLimitRuleTests
     }
 
     [Fact]
-    public void PostAuth_Options_Should_Preserve_AddRateLimiter_Customizations()
+    public async Task PostAuth_Options_Should_Preserve_AddRateLimiter_Customizations()
     {
+        using var appSettings = (AppSettings)AppSettings.Development();
         var services = new ServiceCollection();
+        OnRejectedContext? observedContext = null;
+        CancellationToken observedToken = default;
+        var observedStatus = 0;
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status418ImATeapot;
-            options.OnRejected = (_, _) => ValueTask.CompletedTask;
+            options.OnRejected = (context, token) =>
+            {
+                observedContext = context;
+                observedToken = token;
+                observedStatus = context.HttpContext.Response.StatusCode;
+                return ValueTask.CompletedTask;
+            };
             options.AddTokenBucketLimiter("strict", opt =>
             {
                 opt.TokenLimit = 10;
@@ -577,6 +587,10 @@ public class RateLimitRuleTests
             });
         });
         services.AddSingleton<RateLimitRuleRegistry>();
+        services.AddSingleton(new DrnAppFeatures { RateLimit = new DrnRateLimitOptions { PartitionLogMode = RateLimitPartitionLogMode.PlainText } });
+        services.AddScoped<IScopedLog>(_ => new ScopedLog(appSettings));
+        services.AddSingleton<RateLimitTelemetry>();
+        services.AddSingleton<IAppSecuritySettings>(CreateSecuritySettings());
         using var provider = services.BuildServiceProvider();
 
         var options = new RateLimiterOptionsTestProgram().CreatePostAuthOptions(provider);
@@ -585,6 +599,23 @@ public class RateLimitRuleTests
         options.RejectionStatusCode.Should().Be(StatusCodes.Status418ImATeapot);
         options.OnRejected.Should().NotBeNull();
         options.GlobalLimiter.Should().NotBeNull();
+        using var globalLimiter = options.GlobalLimiter;
+        using var scope = provider.CreateScope();
+        using var limiter = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
+        using var heldLease = limiter.AttemptAcquire();
+        using var rejectedLease = limiter.AttemptAcquire();
+        rejectedLease.IsAcquired.Should().BeFalse();
+        using var cancellation = new CancellationTokenSource();
+        var rejection = new OnRejectedContext
+        {
+            HttpContext = new DefaultHttpContext { RequestServices = scope.ServiceProvider }, Lease = rejectedLease
+        };
+
+        await options.OnRejected!(rejection, cancellation.Token);
+
+        observedContext.Should().BeSameAs(rejection);
+        observedToken.Should().Be(cancellation.Token);
+        observedStatus.Should().Be(StatusCodes.Status418ImATeapot);
     }
 
     [Fact]
@@ -819,7 +850,7 @@ public class RateLimitRuleTests
         static Task IDrnProgram.Main(string[] args) => Task.CompletedTask;
 
         public RateLimiterOptions CreatePostAuthOptions(IServiceProvider serviceProvider) =>
-            CreatePostAuthRateLimiterOptions(serviceProvider, AppSettings.Development());
+            CreatePostAuthRateLimiterOptions(serviceProvider, Substitute.For<IAppSettings>());
 
         protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog) =>
             Task.CompletedTask;

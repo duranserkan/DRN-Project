@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-09-02
+last-updated: 2026-09-06
 difficulty: advanced
 tokens: ~3K
 ---
@@ -20,6 +20,10 @@ tokens: ~3K
 ---
 
 ## DrnProgramBase Pattern
+
+Customize hosting through public/protected `DrnProgramBase` hooks. Their XML documentation describes use cases, timing, and base-call requirements. For framework implementation changes, consult the repository profile's source map.
+
+Keep this skill and package docs focused on setup, extension points, observable behavior, and migration requirements. Keep internal algorithms and claim-validation mechanics in source comments; preserve useful reference links.
 
 All DRN web apps inherit from `DrnProgramBase<TProgram>`:
 
@@ -139,25 +143,16 @@ public class SampleProgramActions : DrnProgramActions
 
 ### MFA by Default
 
-Use public `HostingLogEvents` for MFA event IDs and names. Record decisions with `IScopedLog.WithEvent(new ScopeEvent(eventId, outcome, reason))`. The first event supplies direct fields; later events remain under `AdditionalEvents`. Use the scoped log's stable `TraceId`. Retain dedicated audit emission for filtering without copying the full request log. Consumer events belong in companion catalogs.
+MFA is required by default, including endpoints with role or named policies. Use `[AllowAnonymous]` for public endpoints and `AuthPolicy.MfaExempt` for authenticated access without MFA.
 
-Follow the Hosting README's Logging conventions: retain .NET `EventId`, module-owned public static catalogs, stable IDs/names, and `EventId`/`EventName` fields. IDs must be unique within a module; cross-module filters include logger category. Do not introduce a `HostingEventId` wrapper or reuse published IDs for different meanings.
+- Register authentication with an effective default or policy-selected scheme. An exemption allowlist does not select a scheme.
+- Use `ConfigureAuthenticationClaims()` for custom provider mappings; ordinary Identity applications need no override.
+- Identity applications register `AddSignInManager<DrnSignInManager<TUser>>()` and `AddDrnIdentityMfaPolicies()`.
+- Use `ConfigureMFARedirection()` for local browser setup/challenge pages; return `null` for no redirection.
+- Retain base renewal callbacks when using Identity cookies. Refresh does not count as fresh MFA.
+- Shared MFA authorization works without Identity. External providers require their own validated authentication handlers.
 
-Distinguish exemption paths: the built-in `AuthPolicy.MfaExempt` requires authentication but has no scheme restriction. Scheme-based exemptions from `ConfigureMFAExemption` require proof from a policy-selected scheme or the default authenticate scheme, including authenticated forwarding targets. The allowlist does not select schemes. `AddIdentityApiEndpoints` defaults to the bearer/application-cookie composite; it tries cookies only when bearer authentication returns no result.
-
-The central phase map is beside `MfaAuthorization` in Hosting `Auth/Policies/MFA.cs`. Phase 2 adds opt-in Utils assurance helpers and revocation contract coverage; default completed-MFA policy is unchanged. Stamp rotation rejects the next refresh; cookies validate strictly after their configured validation interval; opaque bearer access remains valid until expiration unless an app adds checks. Identity factor state/key and password resets rotate stamps; recovery-code regeneration/redemption do not. Keep MFA-01/03/05/07 and remaining MFA-06 owner events as TODOs.
-
-Cookie security-stamp renewal, explicit cookie refresh, and bearer refresh share `MfaClaimPreservation`:
-
-- **Marker preservation**: Remove regenerated target AMR, authentication-method claims, and exact configured MFA markers before cloning original authenticated evidence. Deduplicate by exact type, value, value type, issuer, original issuer, and all claim properties so distinct evidence cannot suppress trusted markers.
-- **Timestamp validation**: Preserve existing `auth_time` unchanged with full metadata only when authenticated source and renewed identities have matching, unambiguous subjects/issuers using the shared `AuthenticationClaimConfig`. Reject conflicting NameIdentifier/sub aliases. Remove regenerated target timestamps; omit missing, malformed, conflicting, or unbound evidence. Accept nonnegative integer Unix seconds within `DateTimeOffset` range. Renewal does not issue timestamps or establish recent MFA.
-- **Split-evidence protection**: When the preserved configured MFA marker shares the timestamp issuer, require both claims on the same original identity. If that pairing is absent, omit the timestamp to prevent assurance promotion. Factory-generated MFA markers are removed and cannot supply that pairing.
-
-The MFA result handler logs Information events 7401/7402/7403 for challenge/forbid/effective exemption under global enforcement. Dedicated fields are `EventOutcome`, `EventReason`, nullable W3C `TraceId`, and `CorrelationId`; never emit credentials, claim dumps or account identifiers. Never place a request identifier or generated fallback in TraceId. Distinguish generic authorization failures from failed MFA requirements. Completed MFA alone and disabled enforcement are not exemptions. Factor/recovery/revocation auditing and replay-resistant step-up remain separate owner work.
-
-MFA is enforced globally via the default/fallback policies and rechecked at the authorization middleware result boundary. Role-only attributes, direct policy metadata, and named policies cannot suppress global enforcement; named policies retain their configured authentication schemes. Any route not opted out requires MFA.
-
-`ConfigureAuthenticationClaims()` is the single mapping entry point; default applications need no override. Exact MFA and subject/issuer checks apply to final authorized principals, policy-selected schemes, and authenticated forwarding proofs. Identity consumers register `AddDrnIdentityMfaPolicies()` and `AddSignInManager<DrnSignInManager<TUser>>()` explicitly. Shared authorization works without Identity services. External providers own their handlers/account flows and may omit local MFA-page redirection and unused Identity renewal wiring.
+See the README for [renewal](../../../DRN.Framework.Hosting/README.md#renewal-and-assurance), [revocation limits](../../../DRN.Framework.Hosting/README.md#identity-revocation-contract), and [audit events](../../../DRN.Framework.Hosting/README.md#audit-events).
 
 ```csharp
 // Opt-out options:
@@ -177,8 +172,6 @@ protected override void ConfigureAuthorizationOptions(AuthorizationOptions optio
     options.FallbackPolicy = authenticatedUserPolicy;
 }
 ```
-
-Hosting derives Identity claim options from the unified config. Identity factories and validated custom handlers supply canonical claims and native name/role metadata; any alias conversion belongs to the integration. DrnSignInManager requires a subject, clones factory identities and retains their metadata. Stamp, explicit-cookie and bearer refresh preserve original account-bound evidence; factory-generated markers/timestamps cannot strengthen assurance. Lifecycle hooks configure wiring, while scoped handlers execute it. Provider integrations/pages remain separate work. See [claim integration and renewal](../../../DRN.Framework.Hosting/README.md#renewal-and-assurance).
 
 ### GDPR & Consent
 
@@ -265,7 +258,7 @@ public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRout
 - Set `PolicyName` on a rule only when it should run for endpoints marked with matching ASP.NET Core `[EnableRateLimiting("policy-name")]` metadata. `null` means global DRN rule; blank names are invalid.
 - Post-auth defaults to 100/minute; pre-auth defaults to a coarser 1,000/minute IP bucket for B2B NAT/VPN/CDN egress addresses. Configure settings under `DrnAppFeatures:DrnRateLimit`; phase override values of 0 inherit the shared settings. Settings are a startup snapshot exposed through `IAppSettings.Features.RateLimit`.
 - Treat `DrnRateLimitOptions` as global defaults. Tenant plan, feature-flag, account, or endpoint-specific quotas belong in app-owned rules; because rule evaluation is synchronous, load plan data into the request scope or a refreshed in-memory snapshot before evaluating the rule.
-- Singleton rules are sorted once. Pre-auth uses singleton rules only. Scoped rule existence/order is detected at startup, then scoped rules are resolved from the request provider only for post-auth. Global `Order` is preserved across singleton and scoped rules; same-order `ShortCircuitOnMatch` rules run first, and every matching rule composes. Limiter partition factories must not capture `HttpContext` or scoped services because limiter instances are cached per partition.
+- Limiter partition factories must not capture `HttpContext` or scoped services; pass immutable values because limiters are reused per partition.
 - Post-auth uses DI-configured `RateLimiterOptions`, so named policies and rejection callbacks registered through `AddRateLimiter(options => ...)` remain available to `[EnableRateLimiting("policy-name")]`.
 - DRN emits metrics through the `DRN.Framework.Hosting.RateLimiting` meter; add this meter to OpenTelemetry exports when pre-auth metrics or DRN rule-level rejection metrics are needed. The action tag distinguishes `limit`, `allow`, `deny`, and `unknown`.
 - Rate-limit-specific rejected IP and partition fields default to deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation for those fields but does not anonymize the complete request log; standard request and user fields may still contain raw identifiers. Treat logs as sensitive, and use `DrnRateLimit.PartitionLogMode = PlainText` only for controlled development or dedicated encrypted audit sinks.
@@ -333,7 +326,7 @@ The automatic behaviors below apply only to views covered by the DRN directive.
 
 Both helpers use `ScopeContext.Authenticated`: `authorized-only` renders for signed-in users and `anonymous-only` for signed-out users. Endpoint policies own MFA enforcement by convention. On anonymous or MFA-exempt pages, authenticated setup/pending users can see `authorized-only` content. Use `policy-only` when visibility requires a specific policy; completed MFA is not checked by `authorized-only`.
 
-`policy-only` delegates asynchronously to `IAuthorizationService` using the current `ViewContext.HttpContext.User` and the explicit resource (null by default). Blank policy names and missing policies raise errors. Named policies still receive DRN's configured default MFA requirements unless explicitly exempt. The helper does not authenticate schemes, discover exemptions, or evaluate a linked endpoint's metadata; null/domain resources do not consume HTTP exemption proofs. Policies needing a resource require an explicit `policy-resource`. Multiple visibility helpers compose by suppression. Enforce endpoint access independently; these helpers only affect HTML rendering.
+`policy-only` checks a named policy against the current user. Supply `policy-resource` when required by the policy; invalid policy names raise errors. It does not sign users in or inspect linked endpoints. Always enforce endpoint authorization separately.
 
 **Active page marking**:
 ```razor
