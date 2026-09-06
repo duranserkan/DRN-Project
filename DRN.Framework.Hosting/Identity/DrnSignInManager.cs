@@ -13,7 +13,7 @@ namespace DRN.Framework.Hosting.Identity;
 /// <summary>Identity sign-in integration for configured claims and original-evidence refresh.</summary>
 public class DrnSignInManager<TUser>(UserManager<TUser> userManager, IHttpContextAccessor contextAccessor,
     IUserClaimsPrincipalFactory<TUser> claimsFactory, IOptions<IdentityOptions> optionsAccessor,
-    ILogger<SignInManager<TUser>> logger, IAuthenticationSchemeProvider schemes, IUserConfirmation<TUser> confirmation,
+    ILogger<DrnSignInManager<TUser>> logger, IAuthenticationSchemeProvider schemes, IUserConfirmation<TUser> confirmation,
     AuthenticationClaimConfig claims)
     : SignInManager<TUser>(userManager, contextAccessor, claimsFactory, optionsAccessor, logger, schemes, confirmation)
     where TUser : class

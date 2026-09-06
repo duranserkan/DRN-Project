@@ -31,12 +31,12 @@ public sealed class MfaExemptionPipelineTestProgram : DrnProgramBase<MfaExemptio
                 MfaPipelineTestValues.NamedAuthenticationScheme,
                 _ => { });
 
-        builder.Services.AddAuthorization(options =>
-            options.AddPolicy(MfaPipelineTestValues.NamedSchemePolicy, policy =>
+        builder.Services.AddAuthorizationBuilder()
+            .AddPolicy(MfaPipelineTestValues.NamedSchemePolicy, policy =>
             {
                 policy.AuthenticationSchemes.Add(MfaPipelineTestValues.NamedAuthenticationScheme);
                 policy.RequireClaim(MfaPipelineTestValues.NamedSchemeClaim, MfaPipelineTestValues.NamedSchemeClaimValue);
-            }));
+            });
         builder.Services.AddServicesWithAttributes();
         return Task.CompletedTask;
     }
@@ -57,7 +57,10 @@ public sealed class MfaExemptionPipelineTestProgram : DrnProgramBase<MfaExemptio
             Mfa = new(MfaPipelineTestValues.MfaClaimType, MfaPipelineTestValues.MfaClaimValue)
         };
 
-    protected override void ConfigureIdentityRenewal(IServiceCollection services, IAppSettings appSettings) { }
+    protected override void ConfigureIdentityRenewal(IServiceCollection services, IAppSettings appSettings)
+    {
+        // Identity cookie renewal is unused in MFA exemption pipeline integration tests.
+    }
 
     protected override void MapApplicationEndpoints(WebApplication application, IAppSettings appSettings)
     {

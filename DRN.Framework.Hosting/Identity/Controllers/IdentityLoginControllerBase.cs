@@ -1,6 +1,5 @@
 // This file is licensed to you under the MIT license.
 
-using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
@@ -19,14 +18,16 @@ using Microsoft.Extensions.Options;
 
 namespace DRN.Framework.Hosting.Identity.Controllers;
 
+internal static class IdentityLoginDefaults
+{
+    public const string InvalidLoginMessage = "Invalid email or password.";
+    public static readonly TimeSpan MfaSetupCredentialLifetime = TimeSpan.FromMinutes(5);
+}
+
 [ApiController]
 [AllowAnonymous]
-[SuppressMessage("ReSharper", "StaticMemberInGenericType")]
 public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where TUser : IdentityUser
 {
-    private const string InvalidLoginMessage = "Invalid email or password.";
-    private static readonly TimeSpan MfaSetupCredentialLifetime = TimeSpan.FromMinutes(5);
-
     private readonly SignInManager<TUser> _signInManager;
     private readonly TimeProvider _timeProvider;
     private readonly IOptionsMonitor<BearerTokenOptions> _bearerTokenOptions;
@@ -58,7 +59,7 @@ public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where 
         {
             user = await _signInManager.UserManager.FindByEmailAsync(login.Email);
             if (user == null)
-                return TypedResults.Problem(InvalidLoginMessage, statusCode: StatusCodes.Status401Unauthorized);
+                return TypedResults.Problem(IdentityLoginDefaults.InvalidLoginMessage, statusCode: StatusCodes.Status401Unauthorized);
 
             var isTwoFactorEnabled = await _signInManager.UserManager.GetTwoFactorEnabledAsync(user);
             if (!isTwoFactorEnabled)
@@ -77,7 +78,7 @@ public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where 
         }
 
         if (!result.Succeeded)
-            return TypedResults.Problem(InvalidLoginMessage, statusCode: StatusCodes.Status401Unauthorized);
+            return TypedResults.Problem(IdentityLoginDefaults.InvalidLoginMessage, statusCode: StatusCodes.Status401Unauthorized);
 
         // The signInManager already produced the needed response in the form of a cookie or bearer token.
         return TypedResults.Empty;
@@ -87,9 +88,9 @@ public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where 
     {
         var passwordCheck = await _signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
         if (!passwordCheck.Succeeded)
-            return TypedResults.Problem(InvalidLoginMessage, statusCode: StatusCodes.Status401Unauthorized);
+            return TypedResults.Problem(IdentityLoginDefaults.InvalidLoginMessage, statusCode: StatusCodes.Status401Unauthorized);
 
-        var expiresUtc = _timeProvider.GetUtcNow().Add(MfaSetupCredentialLifetime);
+        var expiresUtc = _timeProvider.GetUtcNow().Add(IdentityLoginDefaults.MfaSetupCredentialLifetime);
         return useCookieScheme
             ? await IssueSetupCookieAsync(user, expiresUtc)
             : await IssueSetupBearerTokenAsync(user, expiresUtc);
@@ -124,7 +125,7 @@ public abstract class IdentityLoginControllerBase<TUser> : ControllerBase where 
         return TypedResults.Ok(new AccessTokenResponse
         {
             AccessToken = protector.Protect(ticket),
-            ExpiresIn = (long)MfaSetupCredentialLifetime.TotalSeconds,
+            ExpiresIn = (long)IdentityLoginDefaults.MfaSetupCredentialLifetime.TotalSeconds,
             RefreshToken = string.Empty
         });
     }
