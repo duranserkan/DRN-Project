@@ -28,7 +28,8 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         DiagnosticDescriptors.DuplicateEntityName,
         DiagnosticDescriptors.MultipleAppIdsNotPermitted,
         DiagnosticDescriptors.UnresolvableAppId,
-        DiagnosticDescriptors.AppIdOutOfRange
+        DiagnosticDescriptors.AppIdOutOfRange,
+        DiagnosticDescriptors.UnsupportedEntityAttribute
     ];
 
     public override void Initialize(AnalysisContext context)
@@ -79,12 +80,24 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         ConcurrentBag<EntityNameDeclaration> collectedEntityNameDeclarations)
     {
         var namedType = (INamedTypeSymbol)symbolContext.Symbol;
+        symbolContext.CancellationToken.ThrowIfCancellationRequested();
         if (namedType.TypeKind != TypeKind.Class)
             return;
 
+        // Validate producers even if no entity in their assembly uses the attribute yet.
+        if (!SymbolEqualityComparer.Default.Equals(namedType, entityTypeAttributeSymbol) &&
+            EntityAnalyzerHelper.IsOrDerivesFromEntityTypeAttribute(namedType, entityTypeAttributeSymbol) &&
+            !EntityAttributeContract.IsSupported(namedType, symbolContext.Compilation, symbolContext.CancellationToken))
+        {
+            symbolContext.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.UnsupportedEntityAttribute,
+                namedType.Locations.FirstOrDefault() ?? Location.None,
+                namedType.Name));
+        }
+
         var inheritsSourceKnownEntity = EntityAnalyzerHelper.DerivesFrom(namedType, sourceKnownEntitySymbol);
         var entityTypeAttribute = EntityAnalyzerHelper.FindAttribute(namedType, entityTypeAttributeSymbol);
-        var isPrivate = namedType.DeclaredAccessibility == Accessibility.Private;
+        var isPrivate = EntityAnalyzerHelper.IsEffectivelyPrivate(namedType);
 
         if (inheritsSourceKnownEntity && !namedType.IsAbstract && !isPrivate)
         {
@@ -126,7 +139,16 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (!EntityAnalyzerHelper.TryGetEntityType(entityTypeAttribute, symbolContext.Compilation, out var entityTypeValue, out var declaredAppId))
+        if (!EntityAttributeContract.IsSupported(entityTypeAttribute.AttributeClass, symbolContext.Compilation, symbolContext.CancellationToken))
+        {
+            symbolContext.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.UnsupportedEntityAttribute,
+                entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax(symbolContext.CancellationToken).GetLocation() ?? location,
+                entityTypeAttribute.AttributeClass?.Name ?? namedType.Name));
+            return;
+        }
+
+        if (!EntityAnalyzerHelper.TryGetEntityType(entityTypeAttribute, symbolContext.Compilation, symbolContext.CancellationToken, out var entityTypeValue, out var declaredAppId))
         {
             var attrLocation = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax(symbolContext.CancellationToken).GetLocation() ?? location;
             symbolContext.ReportDiagnostic(Diagnostic.Create(
@@ -195,12 +217,21 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         INamedTypeSymbol entityTypeAttributeSymbol)
     {
         var extractedInfo = distinctReferencedEntities
-            .Select(s => ExtractEntityTypeInfo(s, entityTypeAttributeSymbol, endContext.Compilation))
+            .Select(s => ExtractEntityTypeInfo(s, entityTypeAttributeSymbol, endContext.Compilation, endContext.CancellationToken))
             .ToList();
 
         foreach (var info in extractedInfo)
         {
-            if (info.Unresolvable)
+            endContext.CancellationToken.ThrowIfCancellationRequested();
+            if (info.Unsupported)
+            {
+                var attributeName = EntityAnalyzerHelper.FindAttribute(info.Symbol, entityTypeAttributeSymbol)?.AttributeClass?.ToDisplayString();
+                endContext.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.UnsupportedEntityAttribute,
+                    Location.None,
+                    attributeName ?? info.Symbol.Name));
+            }
+            else if (info.Unresolvable)
             {
                 endContext.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.UnresolvableAppId,
@@ -234,19 +265,23 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         return referencedEntityTypeMap;
     }
 
-    private static (INamedTypeSymbol Symbol, bool HasValue, byte Value, byte AppId, bool Unresolvable) ExtractEntityTypeInfo(
+    private static (INamedTypeSymbol Symbol, bool HasValue, byte Value, byte AppId, bool Unresolvable, bool Unsupported) ExtractEntityTypeInfo(
         INamedTypeSymbol symbol,
         INamedTypeSymbol entityTypeAttributeSymbol,
-        Compilation? compilation)
+        Compilation compilation,
+        CancellationToken cancellationToken)
     {
         var attr = EntityAnalyzerHelper.FindAttribute(symbol, entityTypeAttributeSymbol);
         if (attr == null)
-            return (Symbol: symbol, HasValue: false, Value: 0, AppId: 0, Unresolvable: false);
+            return (Symbol: symbol, HasValue: false, Value: 0, AppId: 0, Unresolvable: false, Unsupported: false);
 
-        if (EntityAnalyzerHelper.TryGetEntityType(attr, compilation, out var val, out var refAppId))
-            return (Symbol: symbol, HasValue: true, Value: val, AppId: refAppId, Unresolvable: false);
+        if (!EntityAttributeContract.IsSupported(attr.AttributeClass, compilation, cancellationToken))
+            return (Symbol: symbol, HasValue: false, Value: 0, AppId: 0, Unresolvable: false, Unsupported: true);
 
-        return (Symbol: symbol, HasValue: false, Value: 0, AppId: 0, Unresolvable: true);
+        if (EntityAnalyzerHelper.TryGetEntityType(attr, compilation, cancellationToken, out var val, out var refAppId))
+            return (Symbol: symbol, HasValue: true, Value: val, AppId: refAppId, Unresolvable: false, Unsupported: false);
+
+        return (Symbol: symbol, HasValue: false, Value: 0, AppId: 0, Unresolvable: true, Unsupported: false);
     }
 
     private static void ReportReferencedEntityTypeCollisions(
@@ -359,7 +394,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         INamedTypeSymbol entityTypeAttributeSymbol)
     {
         var referencedByName = distinctReferencedEntities
-            .Select(s => ExtractEntityNameInfo(s, entityTypeAttributeSymbol, endContext.Compilation))
+            .Select(s => ExtractEntityNameInfo(s, entityTypeAttributeSymbol, endContext.Compilation, endContext.CancellationToken))
             .Where(x => x.AppId.HasValue)
             .GroupBy(x => (AppId: x.AppId!.Value, x.Symbol.Name), x => x.Symbol);
 
@@ -379,11 +414,12 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
     private static (INamedTypeSymbol Symbol, byte? AppId) ExtractEntityNameInfo(
         INamedTypeSymbol symbol,
         INamedTypeSymbol entityTypeAttributeSymbol,
-        Compilation? compilation)
+        Compilation compilation,
+        CancellationToken cancellationToken)
     {
         var attr = EntityAnalyzerHelper.FindAttribute(symbol, entityTypeAttributeSymbol);
         if (attr != null &&
-            EntityAnalyzerHelper.TryGetEntityType(attr, compilation, out _, out var app) &&
+            EntityAnalyzerHelper.TryGetEntityType(attr, compilation, cancellationToken, out _, out var app) &&
             app <= EntityAnalyzerHelper.MaxAppId)
             return (Symbol: symbol, AppId: app);
 
@@ -492,7 +528,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             .Select(d => d.AppId);
 
         var referencedAppIds = distinctReferencedEntities
-            .Select(s => ExtractEntityTypeInfo(s, entityTypeAttributeSymbol, endContext.Compilation))
+            .Select(s => ExtractEntityTypeInfo(s, entityTypeAttributeSymbol, endContext.Compilation, endContext.CancellationToken))
             .Where(x => x.HasValue && x.AppId <= EntityAnalyzerHelper.MaxAppId)
             .Select(x => x.AppId);
 

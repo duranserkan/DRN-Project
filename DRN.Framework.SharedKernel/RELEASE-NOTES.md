@@ -4,6 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Derived Entity Attribute Contract**: `DRN0008` rejects unsupported entity attribute constructors. Each derived class must declare one constructor taking one byte or byte-backed enum parameter and forward it unchanged through to `EntityTypeAttribute<TApp>`. Source declarations are validated even before use; compiled references are signature-checked and depend on producer-side forwarding validation. Replace reordered, extra, fixed-value, overloaded, or transformed argument mappings with this pass-through form.
 *   **Compile-Time Roslyn Analyzers**: Added `DRN.Framework.SharedKernel.Analyzers` with error-level diagnostics delivered transitively to all referencing projects and NuGet consumers. Builds will fail if domain entities violate annotation, uniqueness, or inheritance constraints:
     *   `DRN0001` (*Error*): Enforces that all concrete classes deriving from `SourceKnownEntity` declare `[EntityType<TApp>(byte)]` (where `TApp : IAppId`) or a domain-derived attribute.
         *   *Migration*: Annotate every concrete `SourceKnownEntity` subclass with `[EntityType<TApp>(value)]` (using an `IAppId` like `DefaultApp`) or a domain-derived attribute (e.g. `[NexusEntityType(value)]`).
@@ -35,6 +36,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Analyzer Identity And Accessibility**: Unsupported derived attribute mappings no longer generate guessed collision identities, and shadowed `AppId` properties cannot override the generic application partition. Public entities nested in private containers now follow the same privacy rules locally and across references. Identity extraction and reference traversal propagate analyzer cancellation to syntax and semantic queries.
 *   **IgnoredLog Null Handling**: `IgnoredLog(this object? obj)` returns `false` when given `null` input instead of throwing a `NullReferenceException`.
 *   **Pagination Jump Direction**: Bounded page jumps preserve the requested direction while remaining limited to ten pages per request, preventing integer underflow in `PaginationRequest.From`.
 

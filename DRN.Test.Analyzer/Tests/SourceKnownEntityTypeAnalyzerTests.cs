@@ -643,6 +643,193 @@ public class SourceKnownEntityTypeAnalyzerTests
         DiagnosticDescriptors.UnresolvableAppId.HelpLinkUri.Should().Be(DiagnosticDescriptors.HelpLinkUri);
         DiagnosticDescriptors.AppIdOutOfRange.HelpLinkUri.Should().Be(DiagnosticDescriptors.HelpLinkUri);
         DiagnosticDescriptors.AppIdOutOfRange.CustomTags.Should().Contain(WellKnownDiagnosticTags.CompilationEnd);
+        DiagnosticDescriptors.UnsupportedEntityAttribute.HelpLinkUri.Should().Be(DiagnosticDescriptors.HelpLinkUri);
+        new SourceKnownEntityTypeAnalyzer().SupportedDiagnostics.Should().Contain(DiagnosticDescriptors.UnsupportedEntityAttribute);
+    }
+
+    [Fact]
+    public async Task DerivedAttribute_UnsupportedConstructors_AreRejectedAtDeclaration()
+    {
+        string[] declarations =
+        [
+            "public sealed class CustomAttribute(byte value) : EntityTypeAttribute<DefaultApp>((byte)(value + 1));",
+            "public sealed class CustomAttribute(byte ignored, byte entityType) : EntityTypeAttribute<DefaultApp>(entityType);",
+            "public sealed class CustomAttribute(byte entityType, byte unrelated) : EntityTypeAttribute<DefaultApp>(entityType);",
+            "public sealed class CustomAttribute() : EntityTypeAttribute<DefaultApp>(42);",
+            "public sealed class CustomAttribute(byte entityType) : EntityTypeAttribute<DefaultApp>(42);",
+            "public sealed class CustomAttribute(byte entityType) : EntityTypeAttribute(entityType, 5);",
+            "public sealed class CustomAttribute : EntityTypeAttribute<DefaultApp> { public CustomAttribute(byte value) : base((byte)(value + 1)) {} }",
+            "public sealed class CustomAttribute : EntityTypeAttribute<DefaultApp> { public CustomAttribute() : base(1) {} public CustomAttribute(byte value) : base(value) {} }"
+        ];
+
+        foreach (var declaration in declarations)
+        {
+            var diagnostics = await RunAnalyzerAsync("using DRN.Framework.SharedKernel.Domain; " + declaration);
+            diagnostics.Should().ContainSingle(d => d.Id == "DRN0008", declaration);
+            diagnostics.Should().HaveCount(1);
+        }
+    }
+
+    [Fact]
+    public void EntityMetadataExtraction_ObservesCancellation()
+    {
+        const string source = """
+            using DRN.Framework.SharedKernel.Domain;
+            public readonly struct App : IAppId
+            {
+                public const byte Value = 5;
+                public static byte AppId => Partition;
+                private static byte Partition => Value;
+            }
+            [EntityType<App>(42)] public class Entity : SourceKnownEntity;
+            """;
+        var compilation = CSharpCompilation.Create("Domain",
+            [CSharpSyntaxTree.ParseText(source)], GetBaseReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        compilation.GetDiagnostics().Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
+        var attribute = compilation.GetTypeByMetadataName("Entity")!.GetAttributes().Single();
+        EntityAnalyzerHelper.TryGetEntityType(attribute, compilation, CancellationToken.None, out var entityType, out var appId)
+            .Should().BeTrue();
+        entityType.Should().Be(42);
+        appId.Should().Be(5);
+
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Action extract = () => EntityAnalyzerHelper.TryGetEntityType(attribute, compilation, cancellation.Token, out _, out _);
+        extract.Should().Throw<OperationCanceledException>().Which.CancellationToken.Should().Be(cancellation.Token);
+
+        var entityBase = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity")!;
+        Action scan = () => EntityAnalyzerHelper.ScanReferencedAssemblies(compilation, entityBase, cancellation.Token);
+        scan.Should().Throw<OperationCanceledException>().Which.CancellationToken.Should().Be(cancellation.Token);
+    }
+
+    [Fact]
+    public async Task DerivedAttribute_TransformedValue_DoesNotProduceGuessedCollision()
+    {
+        const string source = """
+            using DRN.Framework.SharedKernel.Domain;
+            public sealed class CustomAttribute(byte value) : EntityTypeAttribute<DefaultApp>((byte)(value + 1));
+            [Custom(1)] public class First : SourceKnownEntity;
+            [EntityType<DefaultApp>(1)] public class Second : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(source);
+        diagnostics.Should().HaveCount(2); // Producer declaration and entity use.
+        diagnostics.Should().OnlyContain(d => d.Id == "DRN0008");
+    }
+
+    [Fact]
+    public async Task DerivedAttribute_ForwardedEnumChain_DetectsCollisionLocallyAndFromMetadata()
+    {
+        const string producer = """
+            using DRN.Framework.SharedKernel.Domain;
+            public enum Kinds : byte { First = 42 }
+            public class DomainAttribute<TApp>(byte value) : EntityTypeAttribute<TApp>(value) where TApp : IAppId;
+            public sealed class CustomAttribute : DomainAttribute<DefaultApp>
+            {
+                public CustomAttribute(Kinds kind) : base((byte)(kind)) {}
+            }
+            [Custom(Kinds.First)] public class First : SourceKnownEntity;
+            """;
+        const string consumer = """
+            using DRN.Framework.SharedKernel.Domain;
+            [EntityType<DefaultApp>(42)] public class Second : SourceKnownEntity;
+            """;
+
+        var localDiagnostics = await RunAnalyzerAsync(producer, consumer);
+        localDiagnostics.Should().ContainSingle(d => d.Id == "DRN0002");
+        localDiagnostics.Should().HaveCount(1);
+        var metadataDiagnostics = await RunAnalyzerWithReferenceAsync(producer, consumer);
+        metadataDiagnostics.Should().ContainSingle(d => d.Id == "DRN0002");
+        metadataDiagnostics.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task ReferencedAttribute_UnsupportedSignature_IsRejectedForLocalAndReferencedEntities()
+    {
+        const string producer = """
+            using DRN.Framework.SharedKernel.Domain;
+            public sealed class CustomAttribute(byte ignored, byte entityType) : EntityTypeAttribute<DefaultApp>(entityType);
+            [Custom(1, 42)] public class First : SourceKnownEntity;
+            """;
+        const string consumer = """
+            using DRN.Framework.SharedKernel.Domain;
+            [Custom(2, 42)] public class Second : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerWithReferenceAsync(producer, consumer);
+        diagnostics.Should().HaveCount(2);
+        diagnostics.Should().OnlyContain(d => d.Id == "DRN0008");
+        diagnostics.Should().ContainSingle(d => d.Location == Location.None);
+        diagnostics.Should().ContainSingle(d => d.Location.IsInSource);
+    }
+
+    [Fact]
+    public async Task DerivedAttribute_ShadowedAppId_DoesNotOverrideGenericPartition()
+    {
+        const string source = """
+            using DRN.Framework.SharedKernel.Domain;
+            public sealed class CustomAttribute(byte value) : EntityTypeAttribute<DefaultApp>(value)
+            {
+                public new byte AppId { get; set; }
+            }
+            [Custom(42, AppId = 10)] public class First : SourceKnownEntity;
+            [EntityType<DefaultApp>(42)] public class Second : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(source);
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0002");
+        diagnostics.Should().HaveCount(1);
+        diagnostics[0].GetMessage().Should().Contain("AppId '0'");
+    }
+
+    [Fact]
+    public async Task PublicEntity_InPrivateContainer_IsIgnoredLocallyAndFromMetadata()
+    {
+        const string producer = """
+            using DRN.Framework.SharedKernel.Domain;
+            public class Fixture
+            {
+                private class Container
+                {
+                    public class Entity : SourceKnownEntity;
+                }
+            }
+            """;
+        const string consumer = """
+            using DRN.Framework.SharedKernel.Domain;
+            [EntityType<DefaultApp>(1)] public class Entity : SourceKnownEntity;
+            """;
+
+        (await RunAnalyzerAsync(producer, consumer)).Should().BeEmpty();
+        (await RunAnalyzerWithReferenceAsync(producer, consumer)).Should().BeEmpty();
+        // Changing only the container visibility makes the entity require its own attribute.
+        var visibleProducer = producer.Replace("private class Container", "public class Container");
+        (await RunAnalyzerAsync(visibleProducer, consumer)).Should().ContainSingle(d => d.Id == "DRN0001");
+    }
+
+    [Fact]
+    public async Task AnnotatedPublicEntity_InPrivateContainer_IsRejectedWithoutCollisions()
+    {
+        const string producer = """
+            using DRN.Framework.SharedKernel.Domain;
+            public class Fixture
+            {
+                private class Container
+                {
+                    [EntityType<DefaultApp>(1)] public class Entity : SourceKnownEntity;
+                }
+            }
+            """;
+        const string consumer = """
+            using DRN.Framework.SharedKernel.Domain;
+            [EntityType<DefaultApp>(1)] public class Entity : SourceKnownEntity;
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(producer, consumer);
+        diagnostics.Should().ContainSingle(d => d.Id == "DRN0003");
+        diagnostics.Should().HaveCount(1);
+        (await RunAnalyzerWithReferenceAsync(producer, consumer)).Should().BeEmpty();
     }
 
     [Fact]
