@@ -118,6 +118,8 @@ Framework conventions and defaults live in framework-scoped DRN skills, especial
 
 ### Documentation Sync
 
+NuGet release-note metadata: each package's `PreparePackageReleaseNotes` target delegates to `_PrepareCurrentPackageReleaseNotes` in `Directory.Build.targets`. Select the first `## Version ...` section, stopping at the next version heading or the `---` footer separator, then always append the canonical DiSC OS attribution and bold `Semper Progressivus: Always Progressive` signature. Every release-note document and NuGet release-note output must retain this signature. Keep the selected section limited to changes since the previous documented release, including preview work under the upcoming release version. Packing fails when no version section exists or the final metadata including the signature exceeds 35,000 characters. The packed `RELEASE-NOTES.md` file retains the complete history, prefix, and footer.
+
 Razor visibility convention: `authorized-only` and `anonymous-only` are presence-only markers based on `ScopeContext.Authenticated`. Endpoint policies enforce MFA; use `policy-only` for policy-specific visibility. Authenticated setup/pending credentials can satisfy `authorized-only` on anonymous or MFA-exempt pages.
 
 When source code changes a shared framework fact:

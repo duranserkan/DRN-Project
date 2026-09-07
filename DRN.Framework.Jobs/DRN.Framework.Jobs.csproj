@@ -36,10 +36,6 @@
         </PropertyGroup>
     </Target>
 
-    <Target Name="PreparePackageReleaseNotes" BeforeTargets="GenerateNuspec">
-        <PropertyGroup>
-            <PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/RELEASE-NOTES.md"))</PackageReleaseNotes>
-        </PropertyGroup>
-    </Target>
+    <Target Name="PreparePackageReleaseNotes" BeforeTargets="GenerateNuspec" DependsOnTargets="_PrepareCurrentPackageReleaseNotes" />
 
 </Project>

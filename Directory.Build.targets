@@ -1,4 +1,26 @@
 <Project>
+  <!-- Package metadata contains one release and the mandatory signature; Markdown retains the full history. -->
+  <Target Name="_PrepareCurrentPackageReleaseNotes">
+    <PropertyGroup>
+      <_PackageReleaseNotesHistory>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/RELEASE-NOTES.md'))</_PackageReleaseNotesHistory>
+      <PackageReleaseNotes>$([System.Text.RegularExpressions.Regex]::Match(`$(_PackageReleaseNotesHistory)`, '(?ms)^## Version [^\r\n]+\r?\n.*?(?=^## Version |^---[ \t]*\r?$|\z)').Value.Trim())</PackageReleaseNotes>
+    </PropertyGroup>
+    <Error Condition="$(PackageReleaseNotes.Length) == 0"
+           Text="RELEASE-NOTES.md must contain a current '## Version X.Y.Z' section with changes since the previous release." />
+    <PropertyGroup>
+      <PackageReleaseNotes>$(PackageReleaseNotes)
+
+---
+
+Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/.agent/rules/DiSCOS.md)
+
+---
+**Semper Progressivus: Always Progressive**</PackageReleaseNotes>
+    </PropertyGroup>
+    <Error Condition="$(PackageReleaseNotes.Length) &gt; 35000"
+           Text="The current release notes including the mandatory signature exceed NuGet's 35000-character limit. Summarize this release in RELEASE-NOTES.md before packing." />
+  </Target>
+
   <Import Project="$(MSBuildThisFileDirectory)DRN.Framework.SharedKernel/buildTransitive/DRN.Framework.SharedKernel.targets"
           Condition="Exists('$(MSBuildThisFileDirectory)DRN.Framework.SharedKernel/buildTransitive/DRN.Framework.SharedKernel.targets')" />
   <Import Project="$(MSBuildThisFileDirectory)DRN.Framework.Hosting/buildTransitive/DRN.Framework.Hosting.targets"

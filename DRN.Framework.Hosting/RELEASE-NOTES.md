@@ -2,6 +2,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.0
 
+### Bug Fixes
+
+*   **NuGet Release Notes**: Package metadata includes only the latest version section, excluding historical releases and the documentation footer. Packing rejects missing version sections and release notes over 35,000 characters; the bundled Markdown retains the full history.
+
 ### New Features
 
 *   **Hosting Log Events**: Added `HostingLogEvents` in `DRN.Framework.Hosting.Logging` for consumer filters and event references. Applications can define companion catalogs for their own events.

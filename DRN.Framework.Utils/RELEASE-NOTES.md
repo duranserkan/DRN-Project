@@ -4,6 +4,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **NuGet Release Notes**: Package metadata includes only the latest version section, excluding historical releases and the documentation footer. Packing rejects missing version sections and release notes over 35,000 characters; the bundled Markdown retains the full history.
+
 *   **Multiple Registration Attributes**: Module discovery now processes all service registration attributes on a class, preserving distinct modules and their startup validation instead of throwing when multiple attributes are present.
 *   **Custom Subject Mappings**: Subject agreement checks now consider only configured types and aliases, including their case variants. Unconfigured standard subject claims no longer invalidate a custom account mapping; configure them as aliases when they must participate in agreement checks.
 *   **Scoped Log Snapshots**: `GetLogs` and `CopyFrom` detach framework-managed lists under the writer lock. Later actions or events no longer mutate existing snapshots.

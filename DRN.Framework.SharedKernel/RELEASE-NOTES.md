@@ -36,6 +36,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **NuGet Release Notes**: Package metadata includes only the latest version section, excluding historical releases and the documentation footer. Packing rejects missing version sections and release notes over 35,000 characters; the bundled Markdown retains the full history.
+
 *   **Pagination Defaults**: `PaginationRequest.From()` uses the default page size of 10 for initial requests and preserves omitted size, maximum size, and sort direction when size, maximum size, or direction changes reset pagination. Maximum-size-only changes apply the new limit and reset the cursor. Maximum sizes are capped before comparison, so repeating an above-threshold limit preserves navigation.
 *   **Analyzer Identity And Accessibility**: Unsupported derived attribute mappings no longer generate guessed collision identities, and shadowed `AppId` properties cannot override the generic application partition. Public entities nested in private containers now follow the same privacy rules locally and across references. Identity extraction and reference traversal propagate analyzer cancellation to syntax and semantic queries.
 *   **IgnoredLog Null Handling**: `IgnoredLog(this object? obj)` returns `false` when given `null` input instead of throwing a `NullReferenceException`.

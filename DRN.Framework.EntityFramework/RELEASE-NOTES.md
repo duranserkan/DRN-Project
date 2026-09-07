@@ -18,6 +18,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **NuGet Release Notes**: Package metadata includes only the latest version section, excluding historical releases and the documentation footer. Packing rejects missing version sections and release notes over 35,000 characters; the bundled Markdown retains the full history.
+
 *   **Repeatable Seeding Configuration**: Reapplying context options preserves custom EF callbacks without nesting DRN seed wrappers, so each seeding operation invokes attribute seeding once using the latest supplied provider. Reconfiguration without a provider restores only custom callbacks.
 *   **Private Container Entity Discovery**: Runtime model and assembly discovery now exclude entities nested at any depth inside private types, matching analyzer eligibility and preventing missing-metadata startup failures for private helpers.
 *   **Mapped Entity Inheritance**: Configure Source-Known keys and shared properties on EF hierarchy roots instead of derived types for TPH, TPT, and TPC. Model validation now excludes abstract bases and nested private helper entities, matching assembly discovery, while retaining concrete entity metadata validation and inherited ID generation.

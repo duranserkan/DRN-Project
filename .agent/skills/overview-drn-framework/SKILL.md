@@ -302,7 +302,7 @@ Keep tick-bound calculations outside query expressions so providers receive scal
 
 ### Maintenance Reference: Release Notes Triggers
 
-Every `DRN.Framework.*` package packs `RELEASE-NOTES.md` into NuGet metadata through `PackageReleaseNotes`. Update only the package(s) whose consumer-facing behavior or published package metadata other than version-only alignment changed.
+Every `DRN.Framework.*` package includes the latest version section from `RELEASE-NOTES.md` plus the mandatory DiSC OS attribution and bold `Semper Progressivus: Always Progressive` signature in NuGet metadata through `PackageReleaseNotes`; the bundled Markdown retains the full history and signature. The shared `_PrepareCurrentPackageReleaseNotes` target in `Directory.Build.targets` stops at the next version heading or footer separator, always appends the canonical signature, and rejects missing sections or final metadata over 35,000 characters including the signature. Every release-note document and output must retain the signature shown in the template below. Keep the latest section limited to changes since the previous documented release. Update only the package(s) whose consumer-facing behavior or published package metadata other than version-only alignment changed.
 
 | Package | Release-note trigger examples |
 |---------|-------------------------------|
