@@ -14,18 +14,14 @@
 
 > Convention-based Entity Framework Core integration with automatic configuration, migrations, and Source-Known entity lifecycle support.
 
-## TL;DR
+## Features
 
-- **Convention-Based DbContext** - `DrnContext<T>` supports attribute-based registration, configuration discovery, and migration management
-- **Source Known persistence** - ID generation, materialization, validation, and secure/plain conversion hooks
-- **Auto-Tracking** - Automatic `CreatedAt`/`ModifiedAt` timestamps and lifecycle hooks
-- **Prototype Mode** - Auto-recreate a disposable Development database through startup validation
-- **Repository Base** - `SourceKnownRepository<TContext, TEntity>` with pagination and validation
+- `DrnContext<TContext>` provides attribute-based registration, model conventions, and design-time migration support.
+- Source-Known entities receive internal IDs during tracking and external identity and lifecycle initialization before saving.
+- `SourceKnownRepository<TContext, TEntity>` provides validated lookups, query filters, cancellation scopes, and cursor pagination.
+- Startup validation can apply migrations in Development and Staging. Prototype mode can recreate a disposable Development database.
 
-> [!WARNING]
-> **Upcoming Features (v1.0.0)**: The following features will be available after DRN.Nexus integration is completed:
-> - Auto-Migration in Production
-> - Domain Event Publishing
+Production auto-migration and domain-event publishing are not implemented by this package.
 
 ## Table of Contents
 
@@ -34,6 +30,7 @@
 - [Identity System](#identity-system)
 - [DrnContext](#drncontext)
 - [Context-Specific Migrations](#context-specific-migrations)
+- [Seeding](#seeding)
 - [Identity Naming Conventions](#identity-naming-conventions)
 - [SourceKnownRepository](#sourceknownrepository)
 - [Entity Configuration](#entity-configuration)
@@ -51,6 +48,10 @@
 Define a DbContext and entity with automatic ID generation:
 
 ```csharp
+using DRN.Framework.EntityFramework.Context;
+using DRN.Framework.SharedKernel.Domain;
+using Microsoft.EntityFrameworkCore;
+
 // 1. Define your application partition and entity
 public readonly struct MyApp : IAppId
 {
@@ -71,17 +72,17 @@ public class AppContext : DrnContext<AppContext>
     public AppContext(DbContextOptions<AppContext> options) : base(options) { }
     public AppContext() : base(null) { } // Required for migrations
 
-    public DbSet<User> Users { get; set; }
+    public DbSet<User> Users => Set<User>();
 }
 
-// 3. Use in your service - internal IDs are generated when EF tracks new entities
+// 3. Save a new entity
 public class UserService(AppContext context)
 {
     public async Task CreateUserAsync(string username)
     {
         var user = new User { Username = username };
-        context.Users.Add(user); // Internal Id generated as EF begins tracking
-        await context.SaveChangesAsync(); // Save-time fallback plus external identity and lifecycle initialization
+        context.Users.Add(user); // Assigns the internal Id
+        await context.SaveChangesAsync(); // Initializes external identity and lifecycle state
     }
 }
 ```
@@ -89,6 +90,8 @@ public class UserService(AppContext context)
 Register the assembly containing the context during application startup and configure the matching `AppId` in `appsettings.json`:
 
 ```csharp
+using DRN.Framework.Utils.DependencyInjection;
+
 builder.Services.AddServicesWithAttributes(typeof(AppContext).Assembly);
 ```
 
@@ -100,18 +103,18 @@ builder.Services.AddServicesWithAttributes(typeof(AppContext).Assembly);
 }
 ```
 
-`DRN.Framework.Hosting` runs startup validation, migration, and seeding automatically. Standalone hosts must integrate the framework startup validation lifecycle explicitly.
+`DRN.Framework.Hosting` runs startup validation automatically. Migration and seeding follow the environment settings described below. Standalone hosts must integrate the framework startup validation lifecycle explicitly.
+
+Configure a connection using [Connection String Resolution by Environment](#connection-string-resolution-by-environment). The named key for this example is `ConnectionStrings:AppContext`. Use the additional imports in [Global Usings](#global-usings) for the examples below. Each example is an alternative or extension, not a second declaration to add to the same project.
 
 ## QuickStart: Advanced
 
-Repository pattern with pagination and filtering:
-
-Place public DTOs in the consuming application's `*.Contract` project:
+Place public DTOs in the consuming application's `*.Contract` project. This example extends the beginner entity and context with a repository and controller:
 
 ```csharp
 public sealed class UserDto(SourceKnownEntity? entity = null) : Dto(entity)
 {
-    public required string Username { get; init; } = string.Empty;
+    public required string Username { get; init; }
 }
 
 // Repository with custom query methods
@@ -126,7 +129,6 @@ public class UserRepository(AppContext context, IEntityUtils utils)
 {
     public async Task<User[]> GetActiveUsersAsync()
     {
-        // EntitiesWithAppliedSettings() applies AsNoTracking, Filters, etc.
         return await EntitiesWithAppliedSettings()
             .Where(u => u.IsActive)
             .ToArrayAsync(CancellationToken);
@@ -153,6 +155,8 @@ public class UserController(IUserRepository repository) : ControllerBase
 }
 ```
 
+Scan the repository assembly with `AddServicesWithAttributes` too if it differs from the context assembly. Apply your application's authorization policy to these endpoints; ID validation does not grant access to a record.
+
 ---
 
 ## Identity System
@@ -162,14 +166,11 @@ The framework uses a database-optimized internal identifier and exposes `Guid En
 > [!IMPORTANT]
 > **External Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for public contracts, API route parameters, and external lookups. Internal numeric IDs must never be exposed outside domain and infrastructure boundaries.
 
-**Why Two IDs?**
-- **Performance**: The internal numeric ID provides efficient database indexing and joins.
-- **External identity**: Secure external IDs reduce predictability but do not replace authorization or rate limiting.
-- **Type Safety**: Entity IDs are validated against the expected entity type.
+The internal `long` is the database key used for indexes and joins. External IDs are validated against the expected entity type and application partition. Secure IDs reduce predictability but do not replace authorization or rate limiting.
 
 ## DrnContext
 
-`DrnContext` is the foundational `DbContext` implementation that integrates with the DRN Framework ecosystem.
+Derive from `DrnContext<TContext>` and provide both constructors shown in the beginner example. The options constructor is used by dependency injection; the public parameterless constructor supports `IDesignTimeDbContextFactory<TContext>`.
 
 ### Standard Attributes (Inherited)
 
@@ -191,31 +192,80 @@ public abstract class DrnContext<TContext> : DbContext, IDrnContext<TContext>
 | `DrnContextDefaults` | Npgsql defaults, JSON configuration, logging setup |
 | `DrnContextPerformanceDefaults` | Connection pooling, auto-prepare, command timeouts |
 
-### Features
+### Model Conventions
 
-*   **Attribute-Based Registration**: Register the context assembly with `AddServicesWithAttributes`; the framework then registers discovered contexts and their conventions.
-*   **Convention-Based Configuration**:
-    *   Context name defines the connection string key (e.g., `QAContext` → `ConnectionStrings:QAContext`).
-    *   Automatically applies `IEntityTypeConfiguration` from the context's assembly when its namespace matches the context namespace or a child namespace.
-    *   Schema naming derived from context name in `snake_case`.
-*   **Audit Support**: Automatically manages `CreatedAt`/`ModifiedAt` and invokes Source-Known lifecycle hooks. Domain-event publication is not included.
-*   **Integration Testing**: Native support for `DRN.Framework.Testing`'s `ContainerContext` for isolated Postgres container tests.
+- The context's short name selects the connection string, such as `ConnectionStrings:QAContext`.
+- Its name converted to `snake_case` is the default schema.
+- `IEntityTypeConfiguration<T>` classes are discovered in the context assembly when their namespace equals the context namespace or is a child namespace.
+- `ExtendedProperties` is an optional `jsonb` column. [JSON models](#json-models) use owned JSON mapping.
+- `DomainEvent` and `IDomainEvent` are excluded from the model.
+
+### Entity ID Generation
+
+Entities inheriting from `SourceKnownEntity` receive internal IDs when EF begins tracking them. Save processing supplies a fallback if the internal ID is still zero and initializes external identity and lifecycle state before persistence:
+
+| Stage | Behavior |
+|---|---|
+| Added to tracking | `SourceKnownIdValueGenerator` assigns a non-temporary internal `long` ID if it is zero |
+| Saving an added entity | `DrnSaveChangesInterceptor` supplies a missing internal ID, initializes missing external identity and `EntityIdOps`, sets `ModifiedAt` to `CreatedAt`, and invokes the created hook |
+| Saving a modified entity | Sets `ModifiedAt` to the current UTC time and invokes the modified hook |
+| Saving a deleted entity | Invokes the deleted hook; this is not automatic soft deletion |
+| Materializing a query result | `DrnMaterializationInterceptor` initializes `EntityIdSource` and `EntityIdOps`, enabling entity ID conversion operations |
+
+`CreatedAt` is derived from the Source-Known ID. It is not a separately assigned creation timestamp. Lifecycle hooks can collect domain events; this package does not publish them.
+
+For mapped inheritance, the key and shared properties belong to the EF hierarchy root. This supports table-per-hierarchy (TPH), table-per-type (TPT), and table-per-concrete-type (TPC) mappings. Derived entities inherit the key and ID generator. Each concrete entity still declares its own entity-type metadata. Abstract bases need no attribute, and ordinary CLR inheritance with an unmapped base retains the same conventions.
+
+### Startup Validation
+
+When the framework startup validation lifecycle runs, registered contexts are validated:
+
+- Registered contexts must resolve from dependency injection.
+- Concrete, non-private Source-Known entities require unique `(EntityType, AppId)` pairs. A different application partition may reuse the entity byte.
+- A single context cannot contain multiple non-test `AppId` partitions. `NexusAppSettings:AppId` must match its partition or another registered host partition.
+- Abstract and effectively private entities are excluded from model and assembly discovery. An entity is effectively private if it or any enclosing type is private, matching analyzer eligibility.
+- Pending model changes fail validation even when auto-migration is disabled, unless the [prototype recreation conditions](#prototype-mode) are satisfied.
+- Eligible automatic migration runs invoke [seeding](#seeding), including when no migrations remain.
 
 ## Context-Specific Migrations
 
-DRN Framework simplifies multi-context projects by automatically managing migration locations via `DrnMigrationsScaffolder`.
+`DrnMigrationsScaffolder` places migrations under the context's namespace relative to its assembly name, followed by `Migrations`. For example, a context in `Sample.Infra.QA` within the `Sample.Infra` assembly uses `QA/Migrations`. Contexts in the same namespace share that default location. An explicit output directory overrides the default location.
 
-- **Clean Project Structure**: Keeps migrations separated logically by context, preventing clutter in the project root.
+Use the project containing the context as the startup project, and keep the context namespace rooted at its assembly name. From the repository root:
 
-> [!TIP]
-> **Migration Startup Project**: When adding or applying migrations, use the project containing the `DrnContext` as the startup project (e.g., `dotnet ef migrations add Name --project Sample.Infra --startup-project Sample.Infra`). Place the context in a namespace rooted at its assembly name so generated migrations use the expected location.
+```bash
+dotnet ef migrations add AddUsers --context QAContext --project Sample.Infra --startup-project Sample.Infra
+dotnet ef database update --context QAContext --project Sample.Infra --startup-project Sample.Infra -- "<connection-string>"
+```
+
+The design-time factory accepts the connection string as its first forwarded argument. Its options hooks receive a null service provider, and it does not install attribute seeding without application DI. Replace the connection placeholder with the target database connection.
+
+## Seeding
+
+Override `NpgsqlDbContextOptionsAttribute.SeedAsync` to seed a DI-configured context. See the [custom options example](#npgsqldbcontextoptionsattribute).
+
+| Initialization path | Attribute seeding |
+|---|---|
+| Eligible automatic startup migration | Runs under EF's migration lock, including when no migrations remain; a later eligible startup can retry a failed seed |
+| Explicit `Migrate` / `MigrateAsync` | Runs through EF callbacks for DI-configured contexts |
+| Explicit `EnsureCreated` / `EnsureCreatedAsync`, including prototype creation | Runs through EF creation callbacks; does not provide the migration path's concurrency guarantee |
+| Design-time options without an application service provider | Does not install attribute seeding |
+| Test helpers | Seeds when the helper performs a migration or creation operation; shared migration helpers can skip already-migrated context types |
+
+Custom EF callbacks run before attribute seeding. Synchronous initialization waits for `SeedAsync`. Each path prefers its matching custom callback and falls back to the other callback when only one is configured.
+
+Reapplying context options preserves custom callbacks and replaces DRN wrappers with callbacks bound to the latest supplied provider. It does not duplicate attribute seeding. Reconfiguration without a provider restores only custom callbacks.
+
+Seeds must tolerate repeated or partially completed runs and use the same scoped context for database work. The attribute hook has no cancellation-token parameter. Cancellation is checked before each attribute but cannot interrupt an attribute already running.
+
+See [EF Core Data Seeding Guidance](https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding) for the underlying EF callbacks.
 
 ## Identity Naming Conventions
 
-When using `DrnContextIdentity`, the framework automatically applies clean `snake_case` naming to standard ASP.NET Core Identity tables.
+`DrnContextIdentity<TContext, TUser>` supports ASP.NET Core Identity users derived from `IdentityUser`. It inherits registration and provider defaults, applies the model conventions, and renames these tables:
 
 | Original Table | DRN Table Name |
-| :--- | :--- |
+|---|---|
 | `AspNetUsers` | `users` |
 | `AspNetUserLogins` | `user_logins` |
 | `AspNetUserClaims` | `user_claims` |
@@ -224,81 +274,26 @@ When using `DrnContextIdentity`, the framework automatically applies clean `snak
 | `AspNetRoleClaims` | `role_claims` |
 | `AspNetUserTokens` | `user_tokens` |
 
-This ensures that your identity schema feels at home with the rest of your `snake_case` domain tables.
-
-### Entity ID Generation
-
-Entities inheriting from `SourceKnownEntity` receive internal IDs when EF begins tracking them. Save processing supplies a fallback if the internal ID is still zero and initializes external identity and lifecycle state before persistence:
-
-*   **Tracking-Time Generation**: `SourceKnownIdValueGenerator` assigns the internal Source-Known `long` ID when a new entity begins EF tracking.
-*   **Save-Time Fallback And Initialization**: `IDrnSaveChangesInterceptor` generates a missing internal ID, initializes `EntityIdSource` and `EntityIdOps`, and applies created lifecycle state.
-*   **External Identity**: Exposes `Guid EntityId` for public contracts and lookups.
-*   **Requirement**: Every concrete, non-private entity must have a unique `(EntityType, AppId)` pair. The same entity type byte may be reused by a different application partition.
-*   **Mapped Inheritance**: Shared Source-Known properties and the key are configured on the EF hierarchy root for TPH, TPT, and TPC. Derived entities inherit the key and ID generator; each concrete entity declares its own entity-type metadata. Abstract mapped bases do not require entity-type attributes. Ordinary CLR inheritance with an unmapped base retains the same conventions.
-
-```csharp
-[EntityType<DefaultApp>(1)]
-public class User : AggregateRoot
-{
-    public string Username { get; set; }
-}
-```
-
-```csharp
-var user = new User { Username = "Ada" };
-context.Users.Add(user); // user.Id is populated here
-await context.SaveChangesAsync(); // External identity and lifecycle state are initialized here
-```
-
-### Startup Validation
-
-When the framework startup validation lifecycle runs, registered contexts are validated:
-
-*   **Context Validation**: Validates that registered contexts can be resolved.
-*   **Entity Type Check**: Ensures concrete, non-private Source-Known entities have unique `(EntityType, AppId)` pairs while allowing the same entity byte in different application partitions. Abstract bases and effectively private entities are ignored in both model and assembly discovery. An entity is effectively private when it or any enclosing type is private, matching analyzer eligibility.
-*   **Auto-Migration & Seeding**:
-    *   Applies pending migrations when automatic migration is enabled for the current environment.
-    *   Runs `SeedAsync` through EF's `UseAsyncSeeding` callback under the migration lock, even when no migrations remain, so later eligible startups can retry failed seeds. Seed implementations must be idempotent. See [EF Core Data Seeding Guidance](https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding).
-
-### Example
-
-```csharp
-public class QAContext : DrnContext<QAContext>
-{
-    public QAContext(DbContextOptions<QAContext> options) : base(options) { }
-    public QAContext() : base(null) { }  // Required for migrations
-
-    public DbSet<User> Users { get; set; }
-    public DbSet<Question> Questions { get; set; }
-    public DbSet<Answer> Answers { get; set; }
-}
-```
+It requires the same two constructors as `DrnContext`. Unlike `DrnContext`, it does not inherit `DrnContextPerformanceDefaults`.
 
 ## SourceKnownRepository
 
-`SourceKnownRepository<TContext, TEntity>` is the EF Core implementation of `SharedKernel.ISourceKnownRepository`. It provides a data access layer with built-in performance and consistency checks.
+`SourceKnownRepository<TContext, TEntity>` implements `ISourceKnownRepository<TEntity>`. The context must implement `IDrnContext`, and the entity must derive from `AggregateRoot`.
 
 Public CRUD, query, and pagination methods are virtual; protected pagination overloads are not.
 
 ### IEntityUtils
 
-Repositories require [`IEntityUtils`](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Entity/EntityUtils.cs) (defined in `DRN.Framework.Utils`) for core domain operations:
+The repository constructor takes [`IEntityUtils`](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Entity/EntityUtils.cs) from `DRN.Framework.Utils`:
 
-```csharp
-public class UserRepository(QAContext context, IEntityUtils utils) 
-    : SourceKnownRepository<QAContext, User>(context, utils), IUserRepository
-{
-    // Custom query methods...
-}
-```
-
-**IEntityUtils provides:**
-- **Id**: Numeric identity generation and parsing utilities
-- **EntityId**: GUID ↔ SourceKnownEntityId conversion (including `ToSecure` / `ToPlain`)
-- **Cancellation**: Explicit root cancel-all plus isolated repository scopes and opt-in shared groups
-- **Pagination**: Pagination logic helpers
-- **DateTime**: Time-aware operations
-- **ScopedLog**: Integrated performance logging
+| Member | Purpose |
+|---|---|
+| `Id` | Numeric identity generation and parsing |
+| `EntityId` | `Guid` and `SourceKnownEntityId` conversion, including `ToSecure` and `ToPlain` |
+| `Cancellation` | Root cancellation and child scopes |
+| `Pagination` | Pagination helpers |
+| `DateTime`, `UtcNow` | Entity date operations and the captured UTC time |
+| `ScopedLog` | Operation timing and diagnostics |
 
 ### Repository Cancellation
 
@@ -312,6 +307,10 @@ Repository cancellation scope is configured via `Settings.ScopeKey`:
 
 ```csharp
 repository.Settings.ScopeKey = CancellationScopeKey.For<UserRepository>("shared-writes");
+
+// For one operation, use this token in the custom EF query.
+using var operationSource = CancellationTokenSource.CreateLinkedTokenSource(
+    repository.CancellationToken, operationToken);
 ```
 
 Names are optional, case-sensitive developer-defined constants limited to 128 characters. Use one only when a type owns multiple intentional groups.
@@ -320,26 +319,23 @@ Never derive keys from request data, user input, instance IDs, or operation IDs.
 
 ### RepositorySettings
 
-Configure repository behavior via the `Settings` property:
+Configure repository behavior through `Settings`:
+
+| Property | Default | Effect |
+|---|---|---|
+| `AsNoTracking` | `false` | Disables tracking for retrieval queries |
+| `IgnoreAutoIncludes` | `false` | Suppresses model-configured automatic includes for retrieval queries |
+| `ScopeKey` | `null` | Selects a child cancellation scope; null uses the root |
+| `Filters` | Empty | Read-only dictionary of named predicates; modify with `AddFilter`, `RemoveFilter`, and `ClearFilters` |
+
+The tenant and soft-delete predicates below assume your entity defines `TenantId` and nullable `DeletedAt`. Neither property is supplied by `AggregateRoot`:
 
 ```csharp
-public class RepositorySettings<TEntity>
-{
-    public bool AsNoTracking { get; set; }           // Disable change tracking
-    public bool IgnoreAutoIncludes { get; set; }     // Prevent auto-loading navigations
-    public CancellationScopeKey? ScopeKey { get; set; } // Configure child cancellation scope
-    public IReadOnlyDictionary<string, Expression<Func<TEntity, bool>>> Filters { get; }
-}
-```
-
-**Configuration Examples:**
-
-```csharp
-// Read-only queries (performance optimization)
+// Read-only queries
 repository.Settings.AsNoTracking = true;
 repository.Settings.IgnoreAutoIncludes = true;
 
-// Tenant filtering (applied to all queries)
+// Applies to repository reads and ID-based bulk deletes
 repository.Settings.AddFilter("TenantId", 
     entity => entity.TenantId == currentTenantId);
 
@@ -356,7 +352,7 @@ repository.Settings.ClearFilters();
 
 ### Pagination
 
-Efficient cursor-based pagination using `PaginateAsync`:
+Use `PaginateAsync` for cursor-based pagination:
 
 ```csharp
 // Basic pagination
@@ -384,7 +380,7 @@ if (result.Info.HasPrevious)
 }
 
 // Filter by creation date
-var filter = EntityCreatedFilter.After(DateTime.UtcNow.AddDays(-7));
+var filter = EntityCreatedFilter.After(DateTimeOffset.UtcNow.AddDays(-7));
 var recentUsers = await repository.PaginateAsync(request, filter);
 
 // Map to DTOs while preserving pagination
@@ -396,21 +392,12 @@ var dtoResult = result.ToModel(user => new UserDto(user)
 
 ### Query Composition
 
-For custom queries, use protected methods that respect repository settings:
+Use `EntitiesWithAppliedSettings()` for custom retrieval queries, as in the advanced quickstart. The protected pagination overload accepts a composed query. This example assumes your `User` entity also defines a string `Role` property:
 
 ```csharp
-public class UserRepository(QAContext context, IEntityUtils utils) 
-    : SourceKnownRepository<QAContext, User>(context, utils)
+public class UserRepository(AppContext context, IEntityUtils utils)
+    : SourceKnownRepository<AppContext, User>(context, utils)
 {
-    public async Task<User[]> GetActiveUsersAsync()
-    {
-        // EntitiesWithAppliedSettings() applies AsNoTracking, IgnoreAutoIncludes, and Filters
-        var query = EntitiesWithAppliedSettings()
-            .Where(u => u.IsActive);
-            
-        return await query.ToArrayAsync(CancellationToken);
-    }
-    
     public async Task<PaginationResultModel<User>> GetUsersByRoleAsync(
         string role, 
         PaginationRequest request)
@@ -430,29 +417,40 @@ Override `EntitiesWithAppliedSettings` to customize repository retrieval queries
 > [!IMPORTANT]
 > Use `Settings.Filters` for constraints that must also apply to ID-based bulk deletes. An `EntitiesWithAppliedSettings` override customizes retrieval queries only.
 
+This override assumes your model defines `User.Posts`, `Post.Comments`, and `User.Profile`. Add it to the repository from the advanced quickstart:
+
 ```csharp
-public class UserRepository(QAContext context, IEntityUtils utils) 
-    : SourceKnownRepository<QAContext, User>(context, utils), IUserRepository
+protected override IQueryable<User> EntitiesWithAppliedSettings(string? caller = null)
 {
-    protected override IQueryable<User> EntitiesWithAppliedSettings(string? caller = null)
-    {
-        // Start with base settings (AsNoTracking, Filters, etc.)
-        return base.EntitiesWithAppliedSettings(caller)
-            .Include(u => u.Posts)
-                .ThenInclude(p => p.Comments)
-            .Include(u => u.Profile);
-    }
+    return base.EntitiesWithAppliedSettings(caller)
+        .Include(u => u.Posts)
+            .ThenInclude(p => p.Comments)
+        .Include(u => u.Profile);
 }
 ```
 
-The override applies the specified navigation loading while preserving the base query settings.
+### Reads and Writes
+
+| Operation | Behavior |
+|---|---|
+| `AnyAsync`, `AllAsync`, `CountAsync` | Evaluate retrieval queries with repository settings |
+| `GetAsync(id)` | Returns one entity or throws `NotFoundException` |
+| `GetOrDefaultAsync(id)` | Returns null when no matching entity exists; validates the ID by default |
+| `GetAsync(ids)` | Returns matching entities; an empty input returns an empty array |
+| `GetAllAsync()` | Loads every matching entity; use only for bounded result sets |
+| `Add`, `Remove` | Change tracking state; require a later save |
+| `CreateAsync(entities)`, `DeleteAsync(entities)` | Add or remove tracked entities, then save |
+| `DeleteAsync(ids)` | Executes a database delete immediately with `Settings.Filters`, without fetching entities or invoking save interceptors |
+| `SaveChangesAsync()` | Saves all pending changes in the context, including changes outside this repository |
+
+Filters do not authorize tracked writes. Validate ownership and access before adding, modifying, or removing entities. ID-based bulk deletes bypass retrieval overrides and tracked lifecycle hooks. `CancelChanges()` cancels operations; it does not clear the change tracker or undo completed writes.
 
 ### Validation
 
-The repository validates `SourceKnownEntityId` entity types before query execution by default:
+The repository validates IDs against the expected entity type and application partition before query execution by default:
 
 ```csharp
-// This will throw ValidationException if the ID's EntityType doesn't match User
+// Throws ValidationException for an invalid ID or a mismatched entity type/partition
 var userId = repository.GetEntityId(someGuid, validate: true);
 var user = await repository.GetAsync(userId);
 
@@ -467,7 +465,7 @@ Repositories expose idempotent conversion between encrypted and plaintext entity
 
 ```csharp
 var secureId = repository.ToSecure(entityId);
-var plainId = repository.ToPlain(entityId);
+var plainId = repository.ToPlain(secureId);
 ```
 
 ---
@@ -478,20 +476,20 @@ The framework supports both attribute-based and Fluent API configuration.
 
 ### Attribute-Based Configuration (Preferred)
 
-Use attributes for simple, standard configurations:
+Use attributes for constraints and indexes that they can express. This is an alternative definition of the beginner `User` entity:
 
 ```csharp
-[EntityType<DefaultApp>(1)]
+[EntityType<MyApp>(1)]
 [Table("users")]
 [Index(nameof(Username), IsUnique = true)]
-public class User : SourceKnownEntity
+public class User : AggregateRoot
 {
     [MaxLength(100)]
     [Required]
-    public string Username { get; set; }
+    public string Username { get; set; } = string.Empty;
     
     [MaxLength(255)]
-    public string Email { get; set; }
+    public string Email { get; set; } = string.Empty;
     
     public bool IsActive { get; set; } = true;
 }
@@ -499,7 +497,7 @@ public class User : SourceKnownEntity
 
 ### Fluent API Configuration (Complex Cases)
 
-Use `IEntityTypeConfiguration` for complex relationships and conditional mapping:
+Use `IEntityTypeConfiguration<T>` for relationships, owned types, or conditional mapping. This fragment assumes an application model with `Posts`, `Author`, `AuthorId`, `TenantId`, and an owned `Address` with `Street` and `City` properties:
 
 ```csharp
 public class UserConfiguration : IEntityTypeConfiguration<User>
@@ -526,16 +524,14 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 }
 ```
 
-> [!TIP]
-> **Design Preference**: Prefer attribute-based design over Fluent API when available. Use Fluent API only for complex definitions that cannot be elegantly expressed with attributes (e.g., composite keys, complex many-to-many relationships, or conditional mapping).
-
 ### Auto-Discovery
 
 Configurations are automatically discovered and applied if they:
+
 - Reside in the same assembly as the context
 - Share the context's namespace (or a sub-namespace)
 
-```
+```text
 Sample.Infra/
 ├── QAContext.cs                    # Namespace: Sample.Infra
 ├── Configurations/
@@ -545,19 +541,20 @@ Sample.Infra/
 
 ### JSON Models
 
-Entities implementing `IEntityWithModel<TModel>` have their `Model` property automatically mapped to a `jsonb` column:
+Source-Known entities implementing `IEntityWithModel<TModel>` have their public `Model` property mapped as an owned JSON object with `OwnsOne(...).ToJson()`. PostgreSQL stores it as `jsonb`:
 
 ```csharp
+[EntityType<MyApp>(2)]
 public class Question : AggregateRoot<QuestionModel>
 {
-    // Model property is automatically configured as jsonb
+    public Question() => Model = new QuestionModel();
 }
 
 public class QuestionModel
 {
-    public string Title { get; set; }
-    public string Body { get; set; }
-    public List<string> Tags { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public List<string> Tags { get; set; } = [];
 }
 ```
 
@@ -565,55 +562,39 @@ public class QuestionModel
 
 ### DrnContextServiceRegistrationAttribute
 
-Participates in attribute-based registration and lifecycle management for your `DbContext`.
-
-**Features:**
-- Registers the context when its assembly is scanned
-- During framework startup validation:
-    - Validates entity type uniqueness within each `AppId` partition
-    - Applies pending migrations if configured
-    - Seeds through EF initialization callbacks for DI-configured contexts, including migrations with no pending changes and prototype database creation/recreation
+Registers discovered contexts when their assembly is scanned and participates in [startup validation](#startup-validation). It is inherited from the context base class; do not reapply it.
 
 ### DrnContextDefaultsAttribute
 
-Provides framework defaults for Npgsql and EF Core:
-
-**Npgsql Defaults:**
-- Query splitting behavior: `SplitQuery`
-- Migrations assembly: Context's assembly
-- Migrations history table: `{context_name}_history` in `__entity_migrations` schema
-- PostgreSQL version: 18.6
-- **Database History**: Automatically placed in the `__entity_migrations` schema (e.g., `__entity_migrations.mycontext_history`) to keep the public schema focused on domain data.
-
-**Data Source Defaults:**
-- Parameter logging: Disabled
-- JSON options: Framework's `JsonConventions.DefaultOptions`
-- Application name: `{AppName}_{ContextName}`
-
-**DbContext Defaults:**
-- Snake case naming convention
-- Warning-level logging to `IScopedLog`
+| Setting | Default |
+|---|---|
+| Query splitting | `SplitQuery` |
+| Migrations assembly | Context's assembly |
+| Migration history | `__entity_migrations.{context_name}_history`, with the context name in `snake_case` |
+| PostgreSQL compatibility version | 18.6 |
+| Parameter logging | Disabled |
+| JSON options | `JsonConventions.DefaultOptions` |
+| Application name | Preserves an existing value; otherwise `{ApplicationName}_{ContextName}` with DI or `{ContextName}` without it |
+| Table and column naming | `snake_case` |
+| EF logging | Warning level and above to `IScopedLog`; console output when no scoped log is available |
 
 ### DrnContextPerformanceDefaultsAttribute
 
-Provides default performance settings for Npgsql:
+`DrnContext` inherits these Npgsql connection settings. To override them, derive a custom attribute from [NpgsqlPerformanceSettingsAttribute](#npgsqlperformancesettingsattribute).
 
-```csharp
-[DrnContextPerformanceDefaults(
-    maxAutoPrepare: 200,
-    autoPrepareMinUsages: 5,
-    minPoolSize: 1,
-    maxPoolSize: 15,
-    readBufferSize: 8192,
-    writeBufferSize: 8192,
-    commandTimeout: 30
-)]
-public class MyContext : DrnContext<MyContext> { }
-```
+| Constructor parameter | Default |
+|---|---|
+| `maxAutoPrepare` | `200` |
+| `autoPrepareMinUsages` | `5` |
+| `minPoolSize` | `1` |
+| `maxPoolSize` | `15` |
+| `readBufferSize` | `8192` bytes |
+| `writeBufferSize` | `8192` bytes |
+| `commandTimeout` | `30` seconds |
 
 ### NpgsqlDbContextOptionsAttribute
 
-Base attribute for custom database configuration. Override methods to customize behavior:
+Derive an attribute to configure provider options, data-source options, general EF options, or seeding. Framework-defined attributes run before custom attributes. Options hooks must handle a null service provider at design time.
 
 ```csharp
 using Npgsql;
@@ -625,7 +606,6 @@ public class MyContextOptions : NpgsqlDbContextOptionsAttribute
         NpgsqlDbContextOptionsBuilder builder, 
         IServiceProvider? serviceProvider)
     {
-        // Configure Npgsql-specific options
         builder.CommandTimeout(60);
         builder.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery);
     }
@@ -634,7 +614,7 @@ public class MyContextOptions : NpgsqlDbContextOptionsAttribute
         NpgsqlDataSourceBuilder builder,
         IServiceProvider? serviceProvider)
     {
-        // Configure Npgsql data-source features here.
+        builder.ConnectionStringBuilder.ApplicationName = typeof(TContext).Name;
     }
 
     public override void ConfigureDbContextOptions<TContext>(
@@ -642,34 +622,41 @@ public class MyContextOptions : NpgsqlDbContextOptionsAttribute
         IServiceProvider? serviceProvider)
     {
         base.ConfigureDbContextOptions<TContext>(builder, serviceProvider);
-        // Configure general EF Core options here.
+        // The base method configures the EF warning used by prototype mode.
     }
 
     public override async Task SeedAsync(
         IServiceProvider serviceProvider, 
         IAppSettings appSettings)
     {
-        // Called on EF initialization, including migration runs with no pending migrations
         var context = serviceProvider.GetRequiredService<MyDbContext>();
-        if (!await context.Users.AnyAsync())
+        if (!await context.Users.AnyAsync(user => user.Username == "example-user"))
         {
-            context.Users.Add(new User { Username = "admin" });
+            context.Users.Add(new User { Username = "example-user" });
             await context.SaveChangesAsync();
         }
     }
 }
 ```
 
-**Usage:**
+Apply the attribute to a context with both required constructors:
 
 ```csharp
 [MyContextOptions(UsePrototypeMode = true)]
-public class MyDbContext : DrnContext<MyDbContext> { }
+public class MyDbContext : DrnContext<MyDbContext>
+{
+    public MyDbContext(DbContextOptions<MyDbContext> options) : base(options) { }
+    public MyDbContext() : base(null) { }
+
+    public DbSet<User> Users => Set<User>();
+}
 ```
+
+The seed inserts an application record, not an authenticated account. See [Seeding](#seeding) for callback ordering, retries, concurrency, and cancellation limits.
 
 ### NpgsqlPerformanceSettingsAttribute
 
-Abstract base for declarative performance tuning. Create custom attributes by inheriting:
+Create a custom performance attribute and apply `[HighThroughputSettings]` to your context. These example values are overrides, not workload recommendations:
 
 ```csharp
 public class HighThroughputSettings : NpgsqlPerformanceSettingsAttribute
@@ -689,29 +676,23 @@ public class HighThroughputSettings : NpgsqlPerformanceSettingsAttribute
 
 ## Prototype Mode
 
-During framework startup validation, **Prototype Mode** enables rapid development by automatically recreating the database when model changes are detected.
-
-### What It Does
-
-When prototype mode is active in Development and pending model changes are detected, it can automatically drop and recreate the configured Development database when all prototype conditions are satisfied.
-
-**Benefit**: Eliminates temporary migrations during initial prototyping.
+Prototype mode creates or recreates a Development database from the current model during startup validation. It avoids temporary migrations while prototyping.
 
 > [!CAUTION]
 > Prototype mode deletes the configured database. Use it only with a disposable, isolated Development database. Staging auto-migration never enables prototype recreation.
 
-### How to Enable
+### Conditions and Configuration
 
-Prototype mode requires the following conditions:
+All conditions must hold:
 
-1. **Attribute Configuration**: Set `UsePrototypeMode = true` on your `NpgsqlDbContextOptionsAttribute`
+1. The application runs in Development.
+2. `DrnDevelopmentSettings:AutoMigrateDevelopment = true`.
+3. Pending model changes exist.
+4. A context options attribute has `UsePrototypeMode = true`.
+5. `DrnDevelopmentSettings:Prototype = true`.
+6. No migrations have been applied, or `UsePrototypeModeWhenMigrationExists = true` permits recreation despite applied migrations.
 
-```csharp
-[MyContextOptions(UsePrototypeMode = true)]
-public class MyDbContext : DrnContext<MyDbContext> { }
-```
-
-2. **Development Settings**: Configure in `appsettings.Development.json`
+Apply `[MyContextOptions(UsePrototypeMode = true)]` as shown above, then configure `appsettings.Development.json`:
 
 ```json
 {
@@ -722,32 +703,22 @@ public class MyDbContext : DrnContext<MyDbContext> { }
 }
 ```
 
-3. **Migration Workflow**: The application must run in Development with `AutoMigrateDevelopment = true`
+If any condition is false, this startup path does not recreate the database. `LaunchExternalDependencies` provides container isolation but is not a recreation condition. Isolate prototyping to one context and a disposable database; deletion affects the whole configured database.
 
-### When Database Recreates
-
-The database is recreated **only** when:
-- Pending model changes exist
-- `UsePrototypeMode = true` on the attribute
-- `DrnDevelopmentSettings.Prototype = true` in configuration
-- The application runs in Development with `AutoMigrateDevelopment = true`
-- No migrations have been applied, or applied migrations exist and `UsePrototypeModeWhenMigrationExists = true`
-
-> [!TIP]
-> If `DrnDevelopmentSettings.Prototype` is `false`, the database is **never** recreated, even if `UsePrototypeMode` is enabled and model changes are detected. Prototype mode is intended for disposable Development databases; `LaunchExternalDependencies` is recommended for container isolation, but it is not itself a prototype-recreate condition.
+For an existing database with tables, the workflow calls `EnsureDeletedAsync` before `EnsureCreatedAsync`. A missing or empty database is created without that deletion step. Creation invokes the [EF seed callback](#seeding).
 
 Applied migrations are read from the target database independently of the local migration assembly. If migration files or the model snapshot are missing while the database still contains migration history, the database is treated as migrated and prototype recreation remains blocked unless `UsePrototypeModeWhenMigrationExists = true`.
 
 ### Prototype Mode with Applied Migrations
 
-By default, prototype mode is disabled once migrations have been applied. Declared migrations that have not been applied do not block empty-database prototyping. To override the applied-migration guard:
+Declared migrations that have not been applied do not block prototyping. To override the applied-migration guard, replace the attribute on `MyDbContext` with:
 
 ```csharp
 [MyContextOptions(
     UsePrototypeMode = true,
     UsePrototypeModeWhenMigrationExists = true
 )]
-public class MyDbContext : DrnContext<MyDbContext> { }
+// Keep the MyDbContext declaration and constructors shown above.
 ```
 
 ---
@@ -763,25 +734,19 @@ Connection strings vary by environment. The startup schema behavior below occurs
 | Development | Explicit named connection string, an injected Testcontainers connection, or generation from `postgres-password` and `DrnContext_Dev*` settings | Applies pending migrations when `AutoMigrateDevelopment=true`; prototype mode may recreate the database |
 | `DrnTestContext` | Injected container connection | Migration and database-creation helpers perform only the requested operation |
 
-With automatic migration enabled, pending model changes require a migration unless all prototype conditions are satisfied. Eligible startups invoke `MigrateAsync` even with zero pending migrations so EF can run `SeedAsync` under its migration lock and retry a previously failed seed.
-
-For DI-configured contexts, explicit `Migrate`/`MigrateAsync` and `EnsureCreated`/`EnsureCreatedAsync` calls also invoke attribute seeding, including calls from `DrnTestContext` helpers when they perform these operations. Existing custom EF callbacks run before attribute seeding. Synchronous initialization waits for `SeedAsync`; design-time contexts configured without an application service provider do not invoke attribute seeding. The existing hook has no cancellation-token parameter; cancellation is checked before each attribute, but cannot interrupt an attribute already running. Seed implementations must tolerate repeated or partially completed runs and use the same scoped context for database work. Prototype creation uses EF's creation callback; it does not provide the migration path's concurrency guarantee.
-
-Reapplying context options replaces DRN seed wrappers with callbacks bound to the latest supplied provider, preserving custom callbacks without duplicate attribute seeding. Reconfiguration without a provider restores only custom callbacks.
+Startup rejects pending model changes in every environment unless the prototype path handles them. Disabling automatic migration does not disable this validation. When automatic migration is enabled and no pending model changes exist, startup calls `MigrateAsync` even with zero pending migrations. See [Seeding](#seeding) for the callback behavior.
 
 > [!NOTE]
 > Set `Environment` in base configuration, an environment variable, mounted configuration, or a command-line argument. An environment-specific settings file cannot select itself.
 
 ### Non-Development (Production/Staging)
 
-**Explicit connection strings are required.** The framework calls `appSettings.GetRequiredConnectionString(contextName)`.
-
-**Configuration Convention**: `ConnectionStrings:{ContextName}`
+The framework calls `appSettings.GetRequiredConnectionString(contextName)`. Supply `ConnectionStrings:{ContextName}` through configuration; the password below is a placeholder:
 
 ```json
 {
   "ConnectionStrings": {
-    "QAContext": "Host=prod-db.example.com;Port=5432;Database=qa_prod;User ID=qa_user;Password=***;..."
+    "QAContext": "Host=prod-db.example.com;Port=5432;Database=qa_prod;Username=qa_user;Password=<password>"
   }
 }
 ```
@@ -791,19 +756,14 @@ Reapplying context options replaces DRN seed wrappers with callbacks bound to th
 
 #### Staging
 
-Staging uses the same `GetRequiredConnectionString` flow as Production — explicit connection strings are required.
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `IsStagingEnvironment` | `false` | `true` when `Environment=Staging` |
-| `AutoMigrateStaging` | `false` | Enables automatic migrations in staging; does not enable prototype recreation |
+`IAppSettings.IsStagingEnvironment` is derived from `Environment=Staging`; it is not a separate configuration switch. `AutoMigrateStaging` defaults to `false` and enables migrations only, never prototype recreation.
 
 **Example** `appsettings.Staging.json`, assuming Staging was selected by base configuration or an override:
 
 ```json
 {
   "ConnectionStrings": {
-    "QAContext": "Host=staging-db;Port=5432;Database=qa_staging;User ID=qa_user;Password=***;..."
+    "QAContext": "Host=staging-db;Port=5432;Database=qa_staging;Username=qa_user;Password=<password>"
   },
   "DrnDevelopmentSettings": {
     "AutoMigrateStaging": true
@@ -811,14 +771,13 @@ Staging uses the same `GetRequiredConnectionString` flow as Production — expli
 }
 ```
 
-> [!IMPORTANT]
-> **AutoMigrateDevelopment vs AutoMigrateStaging**: `AutoMigrateDevelopment` defaults to `true` for frictionless local development. `AutoMigrateStaging` defaults to `false` for safe deployments — enable it explicitly for controlled staging migrations. For production-like staging, prefer CI/CD-managed migrations with rollback support.
+`AutoMigrateDevelopment` defaults to `true`; `AutoMigrateStaging` defaults to `false`. Enable staging migration only when the deployment should apply migrations at startup. Otherwise, apply them through your deployment process.
 
 ---
 
 ### Local Debug with LaunchExternalDependencies
 
-When `DrnDevelopmentSettings:LaunchExternalDependencies = true`, the framework uses Testcontainers to automatically start PostgreSQL.
+In Development, call `LaunchExternalDependenciesAsync` with `DrnDevelopmentSettings:LaunchExternalDependencies = true` to start PostgreSQL through Testcontainers. The helper skips temporary applications and applications running inside `DrnTestContext`.
 
 **Setup**: Add a Debug-only `DRN.Framework.Testing` package reference and keep all DRN Framework package versions aligned:
 
@@ -832,6 +791,13 @@ When `DrnDevelopmentSettings:LaunchExternalDependencies = true`, the framework u
 
 ```csharp
 #if DEBUG
+using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Testing.Contexts.Postgres;
+using DRN.Framework.Testing.Extensions;
+using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Settings;
+using Microsoft.AspNetCore.Builder;
+
 public class SampleProgramActions : DrnProgramActions
 {
     public override async Task ApplicationBuilderCreatedAsync<TProgram>(
@@ -864,10 +830,7 @@ public class SampleProgramActions : DrnProgramActions
 }
 ```
 
-**Key Points**:
-- `postgres-password` is **not used** - containers use `PostgresContainerSettings.DefaultPassword` (`"drn"`)
-- Connection strings are automatically injected into configuration
-- `Reuse = true` keeps the container running across application restarts
+Containers use `PostgresContainerSettings` rather than `postgres-password` or `DrnContext_Dev*`. The default password is `"drn"`. The launch helper injects named connection strings into configuration. `Reuse = true` keeps the container running across application restarts.
 
 ---
 
@@ -933,13 +896,15 @@ stringData:
   postgres-password: "dev-password"
 ```
 
-An explicit `ConnectionStrings:{ContextName}` value takes precedence in Development. Otherwise, `postgres-password` enables generation from the `DrnContext_Dev*` settings.
+An explicit `ConnectionStrings:{ContextName}` value takes precedence in Development. Otherwise, `postgres-password` enables generation from the `DrnContext_Dev*` settings. Missing both a named connection and a password causes `ConfigurationException`.
 
 ---
 
 ### DrnTestContext (Integration Tests)
 
-For integration tests, `ContainerContext` manages Postgres containers automatically.
+For integration tests, `ContainerContext` manages Postgres containers automatically. This method fragment uses the repository's `Sample.Infra` module; add your database assertions after resolving the context:
+
+Use `DRN.Framework.Testing.Contexts`, `DRN.Framework.Testing.DataAttributes`, `Sample.Infra`, `Sample.Infra.QA`, and `Xunit` imports in the test file.
 
 ```csharp
 [Theory]
@@ -950,14 +915,11 @@ public async Task Integration_Test(DrnTestContext context)
     await context.ContainerContext.Postgres.ApplyMigrationsAsync();
     
     var dbContext = context.GetRequiredService<QAContext>();
-    // ... test code
+    // Add assertions for the operation under test.
 }
 ```
 
-**Key Points**:
-- `DrnContext_Dev*` settings are **NOT used** - containers use [PostgresContainerSettings](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Testing/Contexts/Postgres/PostgresContainerSettings.cs) defaults
-- Connection strings from containers are automatically injected
-- Migration and database-creation helpers invoke `SeedAsync` through EF callbacks for DI-configured contexts when they perform the operation; shared migration helpers can skip already-migrated context types
+Container connections are injected automatically. These tests use [PostgresContainerSettings](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Testing/Contexts/Postgres/PostgresContainerSettings.cs), not `DrnContext_Dev*` settings. See [Seeding](#seeding) for helper callbacks and the shared migration skip behavior.
 
 ---
 
@@ -976,6 +938,8 @@ These settings provide the Development fallback when no explicit named connectio
 | `postgres-password` | *(none)* | Enables generated connection strings |
 
 ### Migration and Prototype Settings
+
+These keys are under `DrnDevelopmentSettings`:
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
@@ -999,15 +963,7 @@ When using `LaunchExternalDependencies` or `ContainerContext`, these PostgreSQL 
 
 The default image/tag pair is resolved with `DefaultDigest`. Custom image tags remain tag-based unless `Digest` is set explicitly.
 
-> [!WARNING]
-> **Prototype Mode Requirements**:
-> 1. `NpgsqlDbContextOptionsAttribute.UsePrototypeMode = true` on context
-> 2. `DrnDevelopmentSettings:Prototype = true`
-> 3. The application runs in Development with `AutoMigrateDevelopment = true`
-> 4. Pending model changes exist
-> 5. No migrations have been applied, or applied migrations exist and `UsePrototypeModeWhenMigrationExists = true`
->
-> If any condition is false, the database is **never** recreated.
+The complete [prototype conditions](#prototype-mode) apply regardless of how the Development connection is supplied.
 
 ---
 
@@ -1029,11 +985,26 @@ public class DrnDevelopmentSettings
 
 ## Global Usings
 
+Common imports for the entity, repository, configuration, and controller examples:
+
 ```csharp
+global using System.ComponentModel.DataAnnotations;
+global using System.ComponentModel.DataAnnotations.Schema;
+global using DRN.Framework.EntityFramework.Attributes;
 global using DRN.Framework.EntityFramework.Context;
-global using Microsoft.EntityFrameworkCore;
+global using DRN.Framework.EntityFramework.Domain;
+global using DRN.Framework.SharedKernel.Cancellation;
+global using DRN.Framework.SharedKernel.Domain;
+global using DRN.Framework.SharedKernel.Domain.Pagination;
+global using DRN.Framework.SharedKernel.Domain.Repository;
 global using DRN.Framework.Utils.DependencyInjection;
 global using DRN.Framework.Utils.DependencyInjection.Attributes;
+global using DRN.Framework.Utils.Entity;
+global using DRN.Framework.Utils.Settings;
+global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.EntityFrameworkCore.Metadata.Builders;
+global using Microsoft.Extensions.DependencyInjection;
 ```
 
 ---

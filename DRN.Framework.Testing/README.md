@@ -20,7 +20,7 @@
 - **Auto-Mocking** - `[DataInline]` / `[DataInlineUnit]` provide requested context objects and auto-mock interface parameters with NSubstitute
 - **Container Context** - Postgres migration binding on demand; RabbitMQ is available as an explicit opt-in container helper
 - **Application Context** - `WebApplicationFactory` integration that syncs services/configuration and binds Postgres dependencies before client creation
-- **Convention-Based** - Settings and data files auto-discovered from test folder hierarchy
+- **File Conventions** - Settings and data resolve from the test's namespace-based output folder, then global folders
 - **DTT Pattern** - Integration-first tests with minimal setup, AwesomeAssertions, and MTP-friendly execution
 
 ## Table of Contents
@@ -31,6 +31,7 @@
 - [ContainerContext](#containercontext)
 - [ApplicationContext](#applicationcontext)
 - [Local Development Experience](#local-development-experience)
+- [Connection String Resolution](#connection-string-resolution)
 - [Data Attributes](#data-attributes)
 - [Unit Testing](#unit-testing)
 - [DebugOnly Tests](#debugonly-tests)
@@ -42,6 +43,7 @@
 - [Test Snippet](#test-snippet)
 - [Testing Guide and DTT Approach](#testing-guide-and-dtt-approach)
 - [Global Usings](#global-usings)
+- [Telemetry Opt-Out](#telemetry-opt-out)
 - [Related Packages](#related-packages)
 
 ---
@@ -50,7 +52,7 @@
 
 For parameterless unit tests without context or generated parameters, standard `[Fact]` is preferred.
 
-Write auto-mocked tests in seconds using `[DataInlineUnit]` (for unit tests) or `[DataInline]` (for integration tests):
+Use `[DataInlineUnit]` for unit tests and `[DataInline]` for integration tests. The examples below share the model definitions that follow. Hosted examples use the repository's `SampleProgram`; custom programs must meet the [entry point constraints](#applicationcontext).
 
 ```csharp
     // Unit test: uses DataInlineUnit with DrnTestContextUnit (lightweight, no container overhead)
@@ -68,13 +70,13 @@ Write auto-mocked tests in seconds using `[DataInlineUnit]` (for unit tests) or 
 
     // Integration test: uses DataInline with full DrnTestContext, ApplicationContext, and auto-mocking
     [Theory]
-    [DataInline("/api/health", 100)]
+    [DataInline("/Api/Sample/WeatherForecast", 100)]
     public async Task DataInlineIntegrationDemonstration(DrnTestContext context, string endpoint, int maxLimit, IMockable autoInlinedDependency)
     {
         autoInlinedDependency.Max.Returns(maxLimit); // Dependency auto-mocked by NSubstitute and synced to ApplicationContext
 
         // Builds application host with mocked services, binds dependencies/migrations, and creates HttpClient
-        var client = await context.ApplicationContext.CreateClientAsync<Program>();
+        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
 
         var response = await client.GetAsync(endpoint);
         response.Should().BeSuccessful();
@@ -85,12 +87,13 @@ Write auto-mocked tests in seconds using `[DataInlineUnit]` (for unit tests) or 
 
 ```csharp
 
-public static class ApplicationModule //Can be defined in Application Layer or in Hosted App
+public static class ApplicationModule
 {
     public static void AddApplicationServices(this IServiceCollection serviceCollection)
     {
-        serviceCollection.AddTransient<IMockable, ToBeRemovedService>(); //default resolution will prefer the substitute requested by the test method
-        serviceCollection.AddTransient<DependentService>(); //dependent service uses IMockable and Max property returns dependency's Max value
+        // Context resolution prefers the test's substitute for IMockable.
+        serviceCollection.AddTransient<IMockable, ToBeRemovedService>();
+        serviceCollection.AddTransient<DependentService>();
     }
 }
 
@@ -119,28 +122,19 @@ public class DependentService : IMockable
 
 ## QuickStart: Advanced
 
-Advanced unit test example with inlined values, auto-generated data, and mocked interfaces:
-
-- `DataInlineUnit` provides `DrnTestContextUnit` as the first parameter when requested
-- Then it provides inlined values
-- Then it auto-generates missing values with AutoFixture
-- `AutoFixture` mocks any interface parameter with `NSubstitute`
+Combine explicit values, generated data and a substitute. See [Data Attributes](#data-attributes) for parameter ordering and row controls.
 
 ```csharp
-/// <param name="context"> Provided by DataInlineUnit even if it is not a compile time constant</param>
-/// <param name="inlineData">Provided by DataInlineUnit</param>
-/// <param name="autoInlinedData">DataInlineUnit will provide missing data with the help of AutoFixture</param>
-/// <param name="autoInlinedMockable">DataInlineUnit will provide implementation mocked by NSubstitute</param>
 [Theory]
 [DataInlineUnit(99)]
 public void TestContext_Should_Be_Created_From_DrnTestContextData(DrnTestContextUnit context, int inlineData, Guid autoInlinedData, IMockable autoInlinedMockable)
 {
     inlineData.Should().Be(99);
-    autoInlinedData.Should().NotBeEmpty(); //guid generated by AutoFixture
-    autoInlinedMockable.Max.Returns(int.MaxValue); //dependency mocked by NSubstitute
+    autoInlinedData.Should().NotBeEmpty();
+    autoInlinedMockable.Max.Returns(int.MaxValue);
 
-    context.ServiceCollection.AddApplicationServices(); //you can add services, modules defined in hosted app, application, infrastructure layer etc..
-    var serviceProvider = context.BuildServiceProvider(); //settings.json added by convention. Context and service provider will be disposed by xunit
+    context.ServiceCollection.AddApplicationServices();
+    var serviceProvider = context.BuildServiceProvider();
     serviceProvider.GetRequiredService<IMockable>().Should().BeSameAs(autoInlinedMockable);
 
     var dependentService = serviceProvider.GetRequiredService<DependentService>();
@@ -150,61 +144,34 @@ public void TestContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext
 
 ## DrnTestContext
 
-`DrnTestContext` has following properties:
-* captures values provided to running test method, test method info and location.
-* provides `ServiceCollection` so that to be tested services and dependencies can be added before building `ServiceProvider`.
-* provides and implements lightweight `ServiceProvider` that contains default logging without any provider
-  * `ServiceProvider` can provide services that depends on like `ILogger<DefaultService>`
-  * logged data will not be leaked to anywhere since it has no logging provider.
-* provides `ContainerContext`
-  * can start/bind `postgres` containers, apply migrations for registered `DrnContext` types, and update connection string configuration with a single line of code
-  * exposes RabbitMQ as an explicit opt-in helper; RabbitMQ is not started by Postgres binding or `CreateClientAsync`
-* provides `ApplicationContext`
-  * syncs `DrnTestContext` service collection and service provider with provided application by WebApplicationFactory
-  * automatically captures application logs only while a debugger is attached and
-    `Xunit.TestContext.Current.TestOutputHelper` is available; otherwise, automatic logging remains disabled
-* provides `FlurlHttpTest` for mocking external HTTP requests (see [FlurlHttpTest Integration](#flurlhttptest-integration))
-* provides `IConfiguration` and `IAppSettings` with SettingsProvider by using convention.
-  * settings.json file can be found in the same folder with test
-  * settings.json file can be found in the global Settings folder or Settings folder that stays in the test folder
-  * Make sure file is copied to output directory
-  * If no settings file is specified while calling `BuildServiceProvider`, `settings.json` is searched by convention.
-* provides data file contents by using convention.
-  * data file can be found in the same folder with test
-  * data file can be found in the global Data folder or Data folder that stays in the test folder
-  * Make sure file is copied to output directory
-* provides `MethodContext.GetTempPath()` and context-level `GetTempPath()` for a created, method-scoped temporary directory under `AppConstants.TempPath`. This directory is owned by `DrnTestContext` / `DrnTestContextUnit` and is automatically deleted during disposal (even if other cleanup steps fail), preventing directory leaks.
-* triggers `StartupJobRunner` to execute one-time test setup jobs marked with `ITestStartupJob`
-* `ServiceProvider` provides utils provided with DRN.Framework.Utils' `UtilsModule`
-* Services resolved through the context use generated substitutes for interface or abstract types requested by the test.
-* `ServiceProvider` and `DrnTestContext` will be disposed by xunit when test finishes
-* **DI Health Check**: `ValidateServicesAsync()` ensures that attribute-registered services can be resolved without runtime errors.
+Choose the smallest context the test needs. Both contexts implement `IKeyedServiceProvider`; data attributes supply them only when requested as the first parameter.
 
-`settings.json` can be put in the same folder that test file belongs. This way providing and isolating test settings is much easier
-```csharp
-    [Theory]
-    [DataInline( "localhost")]
-    public void DrnTestContext_Should_Add_Settings_Json_To_Configuration(DrnTestContext context, string value)
-    {
-        //settings.json file can be found in the same folder with test file, in the global Settings folder or Settings folder that stays in the same folder with test file
-        context.GetRequiredService<IAppSettings>().GetRequiredSection("AllowedHosts").Value.Should().Be(value);
-    }
-```
-`data.txt` can be put in the same folder that test file belongs. This way providing and isolating test data is much easier
-```csharp
-    [Theory]
-    [DataInline("data.txt", "Atatürk")]
-    [DataInline("alternateData.txt", "Father of Turks")]
-    public void DrnTestContext_Should_Return_Test_Specific_Data(DrnTestContext context, string dataPath, string data)
-    {
-        //data file can be found in the same folder with test file, in the global Data folder or Data folder that stays in the same folder with test file
-        context.GetData(dataPath).Data.Should().Be(data);
-    }
-```
+| Capability | `DrnTestContextUnit` | `DrnTestContext` |
+|---|---|---|
+| Method metadata, row data and substitutes | `MethodContext` | `MethodContext` |
+| Dependency injection (DI) and DRN utilities | `ServiceCollection`, `BuildServiceProvider()`, context service resolution | Same |
+| Configuration | `BuildConfigurationRoot()`, `AddToConfiguration()`, `IConfiguration`, `IAppSettings` | Same |
+| Settings/data files | `GetSettingsPath()`, `GetSettingsData()`, `GetData()` | Same |
+| Temporary directory | `GetTempPath()` or `MethodContext.GetTempPath()` | Same |
+| Attribute registration validation | `ValidateServicesAsync(ignore: ...)` | `ValidateServicesAsync()` |
+| PostgreSQL and RabbitMQ | None | [ContainerContext](#containercontext) |
+| Hosted applications | None | [ApplicationContext](#applicationcontext) |
+| Flurl request mocking | None | [FlurlHttpTest](#flurlhttptest-integration) |
+| One-time startup jobs | None | `StartupJobRunner` runs `ITestStartupJob` implementations |
+
+Register services and configuration before resolving them. Context-managed resolution applies generated substitutes to matching interface or abstract dependencies. Calling `context.ServiceCollection.BuildServiceProvider()` directly bypasses that step.
+
+`BuildServiceProvider()` replaces the previous context-owned provider. It adds DRN utilities, configuration and logging with no output providers. Services can resolve `ILogger<T>` without emitting logs through that default setup. Hosted logging has separate [debugger conditions](#test-output-logging).
+
+xUnit disposes attribute-provided contexts after use. `DrnTestContext` disposes application factories before its own providers and containers. Factories own their host providers. Rebuilding a context-owned provider does not dispose an active host provider.
+
+`GetTempPath()` creates a directory under `AppConstants.TempPath`, scoped by test type, method and a unique ID. Disposal attempts to delete it even if another cleanup step fails. Cleanup errors are reported; deletion is not guaranteed when the filesystem rejects it.
+
+See [Providers](#providers) for file lookup rules and examples.
 
 ## ContainerContext
 
-With `ContainerContext` and conventions you can easily write effective integration tests against your database and message queue dependencies.
+`ContainerContext` manages real PostgreSQL dependencies and exposes RabbitMQ helpers. Container tests require a working Docker-compatible container runtime.
 
 ### PostgreSQL Container
 
@@ -217,32 +184,28 @@ With `ContainerContext` and conventions you can easily write effective integrati
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
         var qaContext = context.GetRequiredService<QAContext>();
 
-        var category = new Category("dotnet8");
+        var category = new Category("dotnet");
         qaContext.Categories.Add(category);
         await qaContext.SaveChangesAsync();
         category.Id.Should().BePositive();
     }
 ```
-* Application modules can be registered without any modification to `DrnTestContext`
-* `DrnTestContext`'s `ContainerContext`
-  * starts/binds the shared PostgreSQL container when requested, then scans DrnTestContext's service collection for inherited DrnContexts.
-  * Adds connection strings to DrnTestContext's configuration for each derived `DrnContext` according to convention.
-  * Disables Npgsql pooling in injected test connection strings so closed operations release physical sessions immediately instead of retaining them across parallel or delayed-theory hosts.
-* `DrnTestContext` acts as a ServiceProvider and when a service is requested it can build it from service collection with all dependencies.
+Register the application's infrastructure module before binding. Discovery selects registered `DbContext` service types marked with `DrnContextServiceRegistrationAttribute`. Inheriting from `DrnContext` alone does not register a context for discovery.
+
+Binding starts the shared PostgreSQL container on demand and injects named connection strings. Shared migrations run once per discovered context type. Each binding refreshes the connection strings and disables Npgsql pooling so closed operations release physical sessions.
 
 ### RabbitMQ Container
 
 You can start a RabbitMQ container for testing message queue integrations:
 
 ```csharp
-[Theory]
-[DataInline]
-public async Task RabbitMQ_Integration_Test(DrnTestContext context)
+[Fact]
+public async Task RabbitMQ_Integration_Test()
 {
     var container = await RabbitMQContext.StartAsync();
     var connectionString = container.GetConnectionString();
     
-    // Use connectionString for your message queue tests
+    connectionString.Should().NotBeNullOrWhiteSpace();
 }
 ```
 
@@ -261,8 +224,8 @@ public async Task Custom_Container_Verification(DrnTestContext context)
         Database = "custom_db"
     };
     
-    await context.ContainerContext.Postgres.Isolated.ApplyMigrationsAsync(settings);
-    // ...
+    var container = await context.ContainerContext.Postgres.Isolated.ApplyMigrationsAsync(settings);
+    container.GetConnectionString().Should().Contain("custom_db");
 }
 ```
 
@@ -278,14 +241,14 @@ public async Task Isolated_Test_Run(DrnTestContext context)
     // Starts a FRESH, exclusive container for this test
     var container = await context.ContainerContext.Postgres.Isolated.ApplyMigrationsAsync();
     
-    // ... use the isolated container ...
+    container.GetConnectionString().Should().NotBeNullOrWhiteSpace();
 }
 ```
 
 ### Rapid Prototyping (No Migrations)
 
 For rapid development where migrations are not yet created, register the target `DrnContext<TContext>` through its application
-or infrastructure module, then use `EnsureDatabaseAsync` to create the schema directly from the model:
+or infrastructure module, then use `EnsureDatabaseAsync` to create the schema directly from the model. It calls `EnsureCreatedAsync` for one selected registered context and does not apply migrations. It does not support creating multiple context schemas in the same database.
 
 ```csharp
     await context.ContainerContext.Postgres.Isolated.EnsureDatabaseAsync<MyDrnContext>();
@@ -296,22 +259,24 @@ or infrastructure module, then use `EnsureDatabaseAsync` to create the schema di
 
 `ApplicationContext` synchronizes `DrnTestContext` service collections and configuration with `DrnWebApplicationFactory<TProgram>`.
 
-- **Entry Point Constraints**: Hosted programs must implement `where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()`.
+- **Entry Point Constraints**: Hosted programs must satisfy `where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()`.
 - **Concurrent Multi-App Hosting**: Supports running multiple distinct applications concurrently (e.g. `SampleProgram` and `NexusProgram`) in a single test context.
 - **Single Instance Per Type Lifecycle**: Manages one active instance per application type. Re-creating the same entry point type (via `CreateApplication` or `CreateClientAsync`) disposes and replaces only that specific instance.
 - **Factory & Client Access**:
   - *Pattern 1 (Recommended)*: `var client = await context.ApplicationContext.CreateClientAsync<T>();` then inspect DI via `var factory = context.ApplicationContext.GetCreatedApplication<T>();`.
   - *Pattern 2*: `var app = await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<T>();` and `var client = app.CreateClient();`.
-- **In-Memory Routing**: Outbound HTTP calls via `IInternalRequest`, `IExternalRequest`, and `IHttpClientFactory` are automatically routed in-memory by `ApplicationContextRouterHandler` using hostnames, ports, and aliases. Unregistered hosts fail fast with `InvalidOperationException`.
+- **In-Memory Routing**: `ApplicationContextRouterHandler` routes outbound calls made through the configured `IInternalRequest`, `IExternalRequest`, and `IHttpClientFactory` handlers. Requests with no matching route throw `InvalidOperationException`.
 - **Custom DNS & Aliases**: Use `CreateClientForServiceAsync<TProgram>("service-alias")` or `ApplicationContext.MapAddress<TProgram>("service-alias")` for custom service routing.
 - **HTTPS Client Option**: `CreateClientAsync<TProgram>` has one signature with an optional first parameter, `bool https = false`. Use `https: true` for `https://localhost`; omitted or false defaults to `http://localhost`. Explicit `clientOptions` take precedence over the flag and remain unchanged. Use named arguments when supplying `outputHelper`, `clientOptions`, or `additionalAddresses` without the flag.
-- **External Dependencies**: `CreateClientAsync<TProgram>()` automatically runs `ContainerContext.BindExternalDependenciesAsync()` (applying Postgres migrations for registered `DrnContext` types).
+- **External Dependencies**: `CreateClientAsync<TProgram>()` calls `ContainerContext.BindExternalDependenciesAsync()`. PostgreSQL discovery follows the [registration rules](#postgresql-container) above; RabbitMQ remains opt-in.
 - **Test Output Logging**: Captures application lifecycle logs only when a debugger is attached and `Xunit.TestContext.Current.TestOutputHelper` is available.
 - **Environment Isolation**: `TestEnvironment.DrnTestContextEnabled = true` prevents local development provisioning during integration tests.
 
 ### Multi-Program Test Support Assemblies
 
-Keep reusable disposable integration-test host programs in an SDK Web support project with `IsTestProject=false` (such as `DRN.Test.Utils`), and keep the test executable (`DRN.Test.Integration`) focused solely on assertions. Do not define custom hosted `Program` entry points inside the MTP test executable. `DrnWebApplicationFactory<TProgram>` dynamically resolves and binds secondary `IDrnProgram` entry points in multi-program support assemblies, allowing any program in the assembly to be hosted in-memory via `ApplicationContext.CreateClientAsync<TProgram>()`.
+Keep reusable test host programs in an SDK Web support project with `IsTestProject=false`, such as `DRN.Test.Utils`. Keep assertions in `DRN.Test.Integration`. Do not define custom hosted entry points inside the MTP test executable.
+
+`DrnWebApplicationFactory<TProgram>` resolves secondary `IDrnProgram` entry points in support assemblies. Programs that meet its type constraints can be hosted with `CreateClientAsync<TProgram>()`.
 
 ### Multi-Application & In-Memory Service Routing
 
@@ -345,11 +310,21 @@ public async Task MultiApp_Should_Route_Between_Services(DrnTestContext context)
 
 ```mermaid
 flowchart TD
-    Req["Outbound HTTP Request"] --> Router{"ApplicationContextRouterHandler"}
-    Router -->|"1. Type & Assembly Conventions"| App["Target Application (TestServer)"]
-    Router -->|"2. Configuration Discovery"| App
-    Router -->|"3. Explicit MapAddress"| App
-    Router -->|"Unmatched Target"| Fail["Fail-Fast InvalidOperationException"]
+    Conventions["Type and assembly aliases"] --> Routes["Registered routes"]
+    Config["Configuration addresses"] --> Routes
+    Explicit["Explicit MapAddress"] --> Routes
+    Routes --> Router{"Matching route?"}
+    Req["Outbound request through DI handler"] --> Router
+    Router -->|"Yes"| App["Target TestServer or mapped handler"]
+    Router -->|"No"| Fail["InvalidOperationException"]
+
+    %% Explicit styles keep labels readable in light and dark themes.
+    classDef normal fill:#E8F5E9,stroke:#43A047,stroke-width:2px,color:#1B5E20
+    classDef decision fill:#FFE0B2,stroke:#E65100,stroke-width:3px,color:#7A2900
+    classDef error fill:#FFCDD2,stroke:#C62828,stroke-width:2px,color:#B71C1C
+    class Conventions,Config,Explicit,Routes,Req,App normal
+    class Router decision
+    class Fail error
 ```
 
 ##### 1. Automatic Type & Assembly Conventions
@@ -361,7 +336,7 @@ When an application is created (e.g., `CreateApplication<NexusProgram>()`), the 
 | **Simple Type Name** | Exact class name | `NexusProgram` | `http://NexusProgram/...` |
 | **Short Name** | Strips suffixes `Program`, `App`, `Host`, `Hosted`, `Server`, `Service` | `NexusProgram`<br>`OrderService` | `http://nexus/...`<br>`http://order/...` |
 | **Assembly Segments** | Registers meaningful assembly-name segments (filters out `DRN`, `Framework`, `Hosted`, `Host`, `App`, `Server`, `Service`, `Test`, `Utils`, `Integration`, `Unit`) | `DRN.Nexus.Hosted`<br>`Company.Billing.Service` | `http://Nexus/...`<br>`http://Company/...`, `http://Billing/...` |
-| **Single-App Fallback** | When exactly one application is hosted, catches all `localhost` / `127.0.0.1` traffic | `SampleProgram` | `http://localhost/...`, `http://127.0.0.1/...` |
+| **Single-App Fallback** | When exactly one application is hosted, handles `localhost` / `127.0.0.1` if earlier routing rules do not match | `SampleProgram` | `http://localhost/...`, `http://127.0.0.1/...` |
 
 ##### 2. Configuration Discovery Rules
 
@@ -376,8 +351,8 @@ When an application starts, `ApplicationContext` inspects `IConfiguration` and b
 | `Services:Nexus:Url` | `http://nexus-host` | `NexusProgram` | **Match** (parent segment `Nexus`) | `nexus-host` |
 | `NexusProgram:Address` | `http://nexus-prog` | `NexusProgram` | **Match** (parent segment `NexusProgram`) | `nexus-prog` |
 | `Custom:NexusUrl` | `http://nexus-custom` | `NexusProgram` | **Match** (suffix `NexusUrl`) | `nexus-custom` |
-| `ExternalNexusAddress` | `http://ext-nexus` | `NexusProgram` | **No Match** (substring in segment) | Unregistered (fails fast) |
-| `ExternalPaymentUrl` | `http://ext-pay` | `NexusProgram` | **No Match** (unrelated segment) | Unregistered (fails fast) |
+| `ExternalNexusAddress` | `http://ext-nexus` | `NexusProgram` | **No Match** (substring in segment) | Not registered by this key |
+| `ExternalPaymentUrl` | `http://ext-pay` | `NexusProgram` | **No Match** (unrelated segment) | Not registered by this key |
 | `Nexus:Name` | `nexus-instance` | `NexusProgram` | **No Match** (not an address/URL key) | Ignored |
 
 ##### 3. Address Normalization & Port Aliasing
@@ -414,7 +389,9 @@ When an HTTP request is sent, `ApplicationContextRouterHandler` resolves the tar
 4. **Port Alone**: Matches non-default port `uri.Port` (e.g. `5988`).
 5. **Host Header**: Matches HTTP `Host` header if present.
 6. **Single-App Fallback**: Routes `localhost` / `127.0.0.1` to the single hosted app.
-7. **Unregistered Host**: Throws `InvalidOperationException` listing all registered addresses and application types.
+7. **No Matching Route**: Throws `InvalidOperationException` listing registered addresses and application types.
+
+A hostname without its own mapping can still match a registered non-default port or `Host` header. Treat these as routing rules, not a hostname allowlist.
 
 #### Handling External & Third-Party Requests
 
@@ -422,7 +399,7 @@ For outbound calls to external dependencies (e.g. `IExternalRequest`, payment ga
 
 1. **In-Memory Mock Applications (`ApplicationContext.MapAddress` / `CreateClientForServiceAsync`)**:
    - Host a lightweight mock application or Minimal API mapped directly to the external hostname (e.g. `api.stripe.com`).
-   - Ideal for stateful provider simulation, complete HTTP pipeline fidelity (real headers, status codes, payload negotiation), and bidirectional webhook callbacks without altering production code or URLs.
+   - Use this for stateful provider simulation, headers, status codes, payload negotiation and webhook callbacks. The example assumes an application-defined `MockPaymentProviderProgram` that satisfies the entry point constraints.
    ```csharp
    // Map an in-memory mock app directly to the third-party domain:
    await context.ApplicationContext.CreateClientForServiceAsync<MockPaymentProviderProgram>("api.stripe.com");
@@ -431,14 +408,14 @@ For outbound calls to external dependencies (e.g. `IExternalRequest`, payment ga
 
 2. **Declarative Flurl Mocking (`FlurlHttpTest`)**:
    - Intercept and stub responses declaratively via `context.FlurlHttpTest.ForCallsTo(...)`.
-   - Ideal for fast, stateless payload assertions, error status simulation (e.g. 422, 500), and call count verification without extra application overhead.
+   - Use this for payload assertions, error responses and call counts without another application host.
    ```csharp
    context.FlurlHttpTest.ForCallsTo("https://api.stripe.com/*")
        .RespondWithJson(new { id = "ch_123", status = "succeeded" }, 200);
    ```
 
 > [!NOTE]
-> Outbound requests routed through `IHttpClientFactory`, `IInternalRequest`, or `IExternalRequest` to unmapped external hosts fail immediately with `InvalidOperationException`, ensuring integration tests never accidentally leak physical network calls over the wire. For direct, standalone Flurl calls that do not resolve DI handlers, use `context.FlurlHttpTest` for network isolation and mock stubs.
+> Requests through the configured router fail if no route matches. Direct `new HttpClient()` calls bypass this router. For standalone Flurl calls, use `context.FlurlHttpTest` to provide mock responses. These helpers do not intercept every network API in the process.
 
 ### Basic Usage
 
@@ -463,23 +440,6 @@ For outbound calls to external dependencies (e.g. `IExternalRequest`, payment ga
     }
 ```
 
-### Simplified Client Creation
-
-For most API testing scenarios, use `CreateClientAsync` which handles common setup:
-
-```csharp
-    [Theory]
-    [DataInline]
-    public async Task Simplified_API_Test(DrnTestContext context)
-    {
-        // Builds the app, binds Postgres dependencies, applies migrations, and returns an HttpClient
-        var client = await context.ApplicationContext.CreateClientAsync<Program>();
-        
-        var response = await client.GetAsync("/api/endpoint");
-        response.Should().BeSuccessful();
-    }
-```
-
 ### Test Output Logging
 
 `ApplicationContext` automatically captures application logs only while a debugger is attached and
@@ -492,7 +452,7 @@ No constructor injection or helper argument is required:
     public async Task Test_With_Logging(DrnTestContext context)
     {
         var app = await context.ApplicationContext
-            .CreateApplicationAndBindDependenciesAsync<Program>();
+            .CreateApplicationAndBindDependenciesAsync<SampleProgram>();
         
         // Automatic logs appear only with a debugger and an available current xUnit output helper
     }
@@ -500,11 +460,11 @@ No constructor injection or helper argument is required:
 
 Do not declare `ITestOutputHelper` as a `[DataInline]` theory-method parameter for this purpose. AutoFixture creates an
 NSubstitute value for interface parameters; that value is not xUnit's runner-owned helper. Existing callers may still
-pass a real helper to the optional compatibility parameters, but new and updated callers should omit it.
+pass a real helper to the optional compatibility parameters. Those overrides still require an attached debugger. New callers should omit them.
 
 ## Local Development Experience
 
-`DRN.Framework.Testing` enhances local development by providing infrastructure management capabilities directly to the host application.
+Hosted applications can use `LaunchExternalDependenciesAsync` to provision local PostgreSQL dependencies.
 
 ### Setup
 
@@ -544,16 +504,13 @@ public override async Task ApplicationBuilderCreatedAsync<TProgram>(
 
 ### Launch Conditions
 
-`LaunchExternalDependenciesAsync` is designed to be safe and non-intrusive. It only executes when all following conditions are met:
+The extension launches containers only when all four conditions are met:
 1. **Environment**: Must be `Development`.
 2. **Launch Flag**: `AppSettings.DevelopmentSettings.LaunchExternalDependencies` must be `true`.
 3. **Not in Test**: `TestEnvironment.DrnTestContextEnabled` must be `false` (prevents collision with test containers).
 4. **Not Temporary**: `AppSettings.DevelopmentSettings.TemporaryApplication` must be `false`.
 
-This feature is particularly useful for:
-*   **Onboarding**: New developers can run the app without manually setting up infrastructure.
-*   **Consistency**: Ensures all developers use the same infrastructure configuration.
-*   **Rapid Prototyping**: Quickly spin up throwaway databases.
+The default `ExternalDependencyLaunchOptions` uses `Reuse = true` and `HostPort = 5432`. The example chooses port `6432`. Ordinary `PostgresContainerSettings` defaults to `Reuse = false` and `HostPort = 0` for an assigned host port.
 
 ---
 
@@ -567,25 +524,20 @@ The framework uses different strategies for connection string resolution. See th
 |----------|-------------------|---------------|
 | **Production/Staging** | `ConnectionStrings:{ContextName}` | Explicit config only |
 | **Local Debug** | `LaunchExternalDependenciesAsync()` | `PostgresContainerSettings` |
-| **Docker/K8s Dev** | `DrnContextDevelopmentConnection` when no named connection exists | `DrnContext_Dev*` and `postgres-password` |
+| **Development without a named connection** | `DrnContextDevelopmentConnection`, including Docker/Kubernetes deployments | `DrnContext_Dev*` and `postgres-password` |
 | **DrnTestContext** | `ContainerContext.Postgres` | `PostgresContainerSettings` defaults |
 
-In Development outside Testcontainers mode, an explicit `ConnectionStrings:{ContextName}` value takes precedence over
-`DrnContext_Dev*` and `postgres-password`.
+In Development, `ConnectionStrings:{ContextName}` takes precedence over `DrnContext_Dev*` and `postgres-password`. Test binding and local launch inject these named strings using `PostgresContainerSettings`. They do not read the fallback keys to configure containers.
 
-> [!IMPORTANT]
-> **Testcontainers Mode** (tests or `LaunchExternalDependencies = true`):
-> - `postgres-password` and `DrnContext_Dev*` settings are **NOT used**
-> - Containers use the PostgreSQL defaults listed below
-> - Connection strings are automatically injected into configuration
+Setting `LaunchExternalDependencies = true` alone does not inject a connection string. The host must call the extension, and all [launch conditions](#launch-conditions) must pass.
 
 ---
 
 ### Configuration Settings Reference
 
-#### Settings for Docker/Kubernetes Development
+#### Development Connection Fallback
 
-These settings are used **only** by `DrnContextDevelopmentConnection` for containerized development. They are **NOT used** by `ContainerContext` or `LaunchExternalDependencies`.
+`DrnContextDevelopmentConnection` uses these settings in Development when no named connection exists. `ContainerContext` and `LaunchExternalDependenciesAsync` use their own container settings.
 
 | Setting | Default | Source |
 |---------|---------|--------|
@@ -620,7 +572,7 @@ PostgreSQL defaults used by `ContainerContext.Postgres` and `LaunchExternalDepen
 | `Database` | `"drn"` |
 | `Username` | `"drn"` |
 
-The default image/tag pair is resolved with `DefaultDigest`. Custom image tags remain tag-based unless `Digest` is set explicitly.
+The default image/tag pair is resolved with `DefaultDigest`. Per-instance custom image tags remain tag-based unless `Digest` is supplied. When replacing the static image/version defaults, set a matching `DefaultDigest` to pin that new pair.
 
 RabbitMQ defaults used when a test explicitly calls `RabbitMQContext.StartAsync()`:
 
@@ -636,12 +588,6 @@ The default image/tag pair is resolved with `DefaultDigest`. Set `Digest` when a
 
 RabbitMQ is explicit: it is not started by `CreateClientAsync`, `BindExternalDependenciesAsync`, or PostgreSQL binding.
 
-#### Test Settings Convention
-
-`SettingsProvider` uses `settings.json` by convention. It resolves settings from the test-local folder or a `Settings/` folder and passes the selected base name to `AddDrnSettings`.
-
----
-
 ### Test Isolation Settings
 
 `DrnTestContext` sets `TestEnvironment.DrnTestContextEnabled = true` before application hosts are built. This is the test
@@ -655,23 +601,17 @@ See [DrnDevelopmentSettings.cs](../DRN.Framework.Utils/Settings/DrnDevelopmentSe
 
 ## Data Attributes
 
-DRN.Framework.Testing provides following data attributes that can provide data to tests:
-* DataInlineAttribute
-* DataMemberAttribute
-* DataSelfAttribute
+The `Data` prefix groups these attributes in autocomplete. Use `[Fact]` when a test needs no row data, generated parameters or context.
 
-Following design principle is used for these attributes
-* All attributes have data prefix to benefit from autocomplete
-* Integration attributes provide `DrnTestContext` as the first parameter when requested; Unit variants provide `DrnTestContextUnit`
-* All data attributes try to provide missing values with AutoFixture and NSubstitute
-* Context-managed service resolution makes generated NSubstitute instances available and uses them by default for matching interface or abstract-type dependencies.
-* Use context service resolution, `context.BuildServiceProvider()`, or `ApplicationContext`; directly calling
-  `context.ServiceCollection.BuildServiceProvider()` bypasses substitute application.
-* DataInline attribute works like xunit `InlineData` except they try to provide missing values with AutoFixture and NSubstitute
-* DataMember attribute works like xunit `MemberData` except they try to provide missing values with AutoFixture and NSubstitute
-* DataSelf attribute needs to be inherited by another class and should call `AddRow` method in constructor to provide data
+| Data source | Unit attribute | Integration attribute | Usage |
+|---|---|---|---|
+| Inline constants | `[DataInlineUnit]` | `[DataInline]` | Like xUnit `InlineData`, with generated missing values |
+| Static member | `[DataMemberUnit]` | `[DataMember]` | Like xUnit `MemberData`, including complex values |
+| Custom attribute | Derive from `DataSelfUnitAttribute` | Derive from `DataSelfAttribute` | Call `AddRow(...)` in the constructor; at least one row is required |
 
-Resolution order is identical for integration and unit variants: optional context first, then inline/member/self-provided values, then AutoFixture-generated values, then NSubstitute mocks for interface or abstract parameters. Request `DrnTestContext` or `DrnTestContextUnit` only when the test uses it. Interface substitutes are for dependencies; instantiate the concrete class when the concrete convenience method itself is the behavior under test.
+Parameter order is optional context first, explicit row values next, then generated missing values. Unit attributes recognize `DrnTestContextUnit`; integration attributes recognize `DrnTestContext`. AutoFixture fills missing parameters and uses NSubstitute for interface or abstract dependencies.
+
+Request a context only when the test uses it. Resolve through the context or `ApplicationContext` to apply generated substitutes. Instantiate the concrete class when its own implementation is the behavior under test.
 
 ### Theory Row Metadata
 
@@ -684,7 +624,14 @@ DRN data wrappers preserve xUnit theory-row metadata after AutoFixture reconstru
 
 This order applies to `DisableParallelization`, `Explicit`, `Label`, `Skip`, conditional skip settings, `TestDisplayName`, and `Timeout`. The first level with a non-null `Skip` owns `SkipType`, `SkipUnless`, and `SkipWhen` as one group, preventing conditions from different levels from being mixed. Traits combine across every level; trait names are case-insensitive and retain every distinct value. Integration and unit variants use the same rules, with or without their optional test context.
 
-Example usages for DataMember attribute
+### Member Data
+
+The example uses this model:
+
+```csharp
+public record ComplexInline(int Count);
+```
+
 ```csharp
 [Theory]
 [DataMember(nameof(DrnTestContextInlineMemberData))]
@@ -707,7 +654,8 @@ public static IEnumerable<object[]> DrnTestContextInlineMemberData => new List<o
 };
 ```
 
-Example usage for DataSelf attribute
+### Self Data
+
 ```csharp
 public class DataSelfUnitAttributeTests
 {
@@ -736,92 +684,24 @@ public class DataSelfUnitTestData : DataSelfUnitAttribute
 }
 ```
 
-Example usage for DataInline attribute
-```csharp
-[Theory]
-[DataInline(99)]
-public void TestContext_Should_Be_Created_From_DrnTestContextData(DrnTestContext context, int inlineData, Guid autoInlinedData, IMockable autoInlinedMockable)
-{
-    inlineData.Should().Be(99);
-    autoInlinedData.Should().NotBeEmpty(); //guid generated by AutoFixture
-    autoInlinedMockable.Max.Returns(int.MaxValue); //dependency mocked by NSubstitute
-
-    context.ServiceCollection.AddApplicationServices(); //you can add services, modules defined in hosted app, application, infrastructure layer etc..
-    var serviceProvider = context.BuildServiceProvider(); //settings.json added by convention. Context and service provider will be disposed by xunit
-    serviceProvider.GetService<ToBeRemovedService>().Should().BeNull(); //Service provider behaviour demonstration
-
-    var dependentService = serviceProvider.GetRequiredService<DependentService>();
-    dependentService.Max.Should().Be(int.MaxValue);
-}
-```
+See [QuickStart: Advanced](#quickstart-advanced) for inline values combined with generated data and substitutes.
 
 ## Unit Testing
 
 For pure unit tests that do not need container orchestration or full application startup, use the corresponding **Unit**
 attributes. Request `DrnTestContextUnit` only when the test needs its configuration, data, DI, temp-path, or metadata services.
 
-### Unit Attributes
-
-* `[DataInlineUnit]`: Same as `DataInline` but provides `DrnTestContextUnit`.
-* `[DataMemberUnit]`: Same as `DataMember` but provides `DrnTestContextUnit`.
-* `DataSelfUnitAttribute`: Base class for custom self-contained data attributes that provide `DrnTestContextUnit`.
-
-### DrnTestContextUnit
-
-Unlike `DrnTestContext`, `DrnTestContextUnit` is lightweight and focused on method data, method metadata, configuration, and optional unit-level service validation. It does not provide `ContainerContext`, `ApplicationContext`, `FlurlHttpTest`, or full app startup.
-
-```csharp
-[Theory]
-[DataInlineUnit(99)]
-public void Unit_Test_Example(DrnTestContextUnit context, int value, IMockable mock)
-{
-    // Fast, lightweight, no container overhead
-    context.MethodContext.TestMethod.Name.Should().Be(nameof(Unit_Test_Example));
-    
-    mock.Max.Returns(value);
-    var service = new DependentService(mock); // Manually inject dependencies
-    
-    service.Max.Should().Be(99);
-}
-```
+The [attribute matrix](#data-attributes) lists unit variants. The [context comparison](#drntestcontext) lists their capabilities. In this repository, use `DrnTestContextUnit` in `DRN.Test.Unit` and keep full `DrnTestContext` coverage in `DRN.Test.Integration`.
 
 ### Test Consolidation
 
-If tests share the same setup and their consolidation creates no semantic or performance issue, they should be unified. Apply when consolidation requires only minimal essential change.
+Combine tests when setup and behavior match and failure diagnosis remains clear.
 
 #### Parameterized
 
 When multiple test cases share identical test bodies and differ only in input/expected-output, consolidate them into a single `[Theory]` with multiple data attribute rows instead of writing separate methods.
 
-**Anti-pattern** — separate methods for each case:
-
-```csharp
-[Theory]
-[DataInlineUnit]
-public void Add_Should_Return_Positive_Sum(DrnTestContextUnit context)
-{
-    var calc = new Calculator();
-    calc.Add(2, 3).Should().Be(5);
-}
-
-[Theory]
-[DataInlineUnit]
-public void Add_Should_Handle_Negatives(DrnTestContextUnit context)
-{
-    var calc = new Calculator();
-    calc.Add(-1, -2).Should().Be(-3);
-}
-
-[Theory]
-[DataInlineUnit]
-public void Add_Should_Handle_Zero(DrnTestContextUnit context)
-{
-    var calc = new Calculator();
-    calc.Add(0, 0).Should().Be(0);
-}
-```
-
-**Preferred** — one parameterized method covering all permutations:
+One parameterized method can cover positive, negative, zero and cancellation cases:
 
 ```csharp
 [Theory]
@@ -831,67 +711,67 @@ public void Add_Should_Handle_Zero(DrnTestContextUnit context)
 [DataInlineUnit(-1, 1, 0)]    // cancellation
 public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
 {
-    var calc = new Calculator();
-    calc.Add(a, b).Should().Be(expected);
+    (a + b).Should().Be(expected);
 }
 ```
 
 #### Flow
 
-When tests share identical setup (container init, migrations, service registration) and additional assertions can be applied by continuing the existing test flow, unify into a single test. Prevents code duplication, maintenance burden, and redundant setup/teardown cost. Most valuable in integration tests where setup is expensive.
+Continue one coherent flow when assertions share container initialization, migrations and service registration. This avoids repeating setup. Keep structurally different behaviors separate.
 
-**Reference**: `QAContextTagTests.cs` — single test flow validating entity IDs, JSON model queries, date filters, and materialization interceptor with one shared setup.
+**Reference**: [QAContextTagTests.cs](../DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTagTests.cs) validates IDs, JSON model queries, date filters and materialization with shared setup.
 
 #### Guidelines
 
-- **Last parameter = expected result** — each attribute row is a self-contained specification
-- **Name covers the dimension** — describes *what* is tested, not a specific case
-- **Comment inline data** — add trailing comments when values aren't self-explanatory
-- **Extract shared setup** — use private helpers to keep the test body focused on act + assert
-- **Omit values for auto-generated params** — let AutoFixture/NSubstitute handle params you don't control
-- **Omit context when unused** — declare `DrnTestContext` or `DrnTestContextUnit` as a parameter only when the test body uses it; omit it for pure logic tests that need no context
+- Put the expected result last among explicit row values so each row states its expectation.
+- Name the behavior under test rather than one input case.
+- Comment inline values only when their meaning is unclear.
+- Extract shared setup into private helpers when it improves readability.
+- Omit values that AutoFixture/NSubstitute can generate.
+- Omit the context parameter when unused.
 - **Don't consolidate when** test bodies differ structurally or separate failure messages aid debugging more than parameterization
 
 
 ## DebugOnly Tests
 
-Following attributes can be used to run test only when the debugger is attached. These attributes does respect the attached debugger, not debug or release configuration.
-* FactDebuggerOnly
-* TheoryDebuggerOnly
+`[FactDebuggerOnly]` and `[TheoryDebuggerOnly]` skip tests unless a debugger is attached. Debug or Release build configuration does not decide whether they run.
 
 ## DI Health Validation
 
-Use `ValidateServicesAsync()` to catch missing dependencies for attribute-registered services before they fail your application at runtime.
+`ValidateServicesAsync()` resolves attribute-registered services and runs their configured validation. Register the owning module first. The manually registered QuickStart model is not an attribute-registration example.
+
+Validation returns without checking services when `DrnDevelopmentSettings:SkipValidation` is true. `DrnTestContextUnit` also accepts an optional `ignore` predicate for selected lifetime attributes.
 
 ```csharp
 [Theory]
 [DataInline]
 public async Task Dependency_Injection_Should_Be_Healthy(DrnTestContext context)
 {
-    context.ServiceCollection.AddApplicationServices();
-    
-    // Verifies that attribute-registered services can be successfully resolved
+    context.ServiceCollection.AddSampleInfraServices();
+    await context.ContainerContext.Postgres.ApplyMigrationsAsync();
     await context.ValidateServicesAsync();
 }
 ```
 
 ## JSON Utilities
 
-`JsonObjectExtensions` provides a simple object round-trip equivalence check using the default `System.Text.Json` options.
+`JsonObjectExtensions` checks object round-trip equivalence using the default `System.Text.Json` options.
 It does not verify an API's JSON wire shape or production serializer configuration.
 
 ### ValidateObjectSerialization
 
-Ensures that an object can be serialized to JSON and deserialized back to an equivalent object.
+The example supplies a DTO through AutoFixture, then checks serialization and deserialization:
 
 ```csharp
 [Theory]
-[DataInline]
+[DataInlineUnit]
 public void Contract_Should_RoundTrip_Successfully(MyContractDto dto)
 {
     // AutoFixture fills dto, then we verify round-trip
     dto.ValidateObjectSerialization();
 }
+
+public record MyContractDto(Guid Id, string Name);
 ```
 
 ## FlurlHttpTest Integration
@@ -901,6 +781,8 @@ public void Contract_Should_RoundTrip_Successfully(MyContractDto dto)
 `IHttpClientFactory` traffic.
 
 ### Basic Usage
+
+The following examples assume your application defines `IExternalApiClient` and `ExternalApiClient`, with a Flurl-based `GetStatusAsync()` method. Its response has a `Status` property. Register that application service before resolving it.
 
 ```csharp
 [Theory]
@@ -946,26 +828,30 @@ public async Task Service_Should_Handle_API_Failure(DrnTestContext context)
 ### Sequential Responses
 
 ```csharp
-[Theory]
-[DataInline]
-public async Task Retry_Logic_Should_Work(DrnTestContext context)
-{
-    // First call fails, second succeeds (testing retry logic)
-    context.FlurlHttpTest
-        .RespondWith(status: 503)
-        .RespondWith("{ \"status\": \"ok\" }", 200);
-    
-    // ... test retry behavior
-}
+context.FlurlHttpTest
+    .RespondWith(status: 503)
+    .RespondWith("{ \"status\": \"ok\" }", 200);
 ```
+
+This queues a failure followed by success. Invoke your application's retry operation, assert its result, and verify the call count. Queuing responses does not implement or exercise retry logic by itself.
 
 ## Providers
 
+For context-assisted lookup, the test-local directory is derived from the test type's namespace relative to its assembly name, under the assembly output directory. It is not read from the source file's physical location. Keep namespaces, folders and copied files aligned.
+
+| Lookup order | Settings | Data |
+|---|---|---|
+| 1 | File in the test-local directory | File in the test-local directory |
+| 2 | Test-local `Settings/` | Test-local `Data/` |
+| 3 | Current working directory's `Settings/` | Current working directory's `Data/` |
+
+Copy fixture files to output as shown in the [project example](#example-test-project-csproj-file). These are selected-directory lookups, not a recursive search through parent folders.
+
 ### SettingsProvider
 
-Without an explicit directory, `SettingsProvider` reads from the current working directory's `Settings` folder.
-Context-assisted lookup prefers a test-local file, then its local `Settings` folder, then the current working directory's
-`Settings` folder. Make sure the settings file is copied to the output directory.
+Without an explicit directory, `SettingsProvider` uses the global `Settings/` folder. The default base name is `settings`, passed to `AddDrnSettings`. Supply a base name without `.json` to `GetConfiguration`, `GetAppSettings` or context configuration methods. `GetSettingsPath` and `GetSettingsData` also accept the extension.
+
+These examples assume `settings.json` contains `AllowedHosts`, `Bar` and the `Foo` connection string, and `secondaryAppSettings.json` contains the alternate values shown:
 ```csharp
     [Fact]
     public void SettingsProvider_Should_Return_IAppSettings_Instance()
@@ -993,9 +879,9 @@ Context-assisted lookup prefers a test-local file, then its local `Settings` fol
 
 ### DataProvider
 
-Without an explicit directory, `DataProvider` reads from the current working directory's `Data` folder. Context-assisted
-lookup prefers a test-local file, then its local `Data` folder, then the current working directory's `Data` folder. Paths
-include the file extension, and files must be copied to the output directory.
+Without an explicit directory, `DataProvider` uses the global `Data/` folder. Include the file extension. `DataProviderResult` exposes `Data`, `DataExists` and path details; a missing file produces null data and `DataExists = false`.
+
+For `Data/Test.txt` containing `Foo`:
 
 ```csharp
     [Fact]
@@ -1005,9 +891,23 @@ include the file extension, and files must be copied to the output directory.
     }
 ```
 
+Use the context for test-local fixtures. These rows assume the named files contain the expected text:
+
+```csharp
+[Theory]
+[DataInlineUnit("data.txt", "Atatürk")]
+[DataInlineUnit("alternateData.txt", "Father of Turks")]
+public void Test_Local_Data_Should_Match(
+    DrnTestContextUnit context, string path, string expected)
+{
+    context.GetData(path).Data.Should().Be(expected);
+}
+```
+
 ### CredentialsProvider
 
-`CredentialsProvider` is a helper class for generating and caching test usernames and passwords.
+`GenerateCredentials()` creates a new test username and a 12-character password. `CredentialsProvider.Credentials` caches one generated pair. `TestUserCredentials.EmailAddress` uses the generated username at `example.com`.
+
 ```csharp
     [Fact]
     public void CredentialsProvider_Should_Generate_Test_User()
@@ -1020,7 +920,7 @@ include the file extension, and files must be copied to the output directory.
 
 ### xUnit Runner Configuration
 
-`xunit.runner.json` is optional but recommended for configuring the test runner. When using **Microsoft Testing Platform (MTP)**, this file ensures the runner behaves as expected (e.g., parallelization settings). Ensure this file is set to `CopyToOutputDirectory` in your csproj.
+Use an optional `xunit.runner.json` to configure xUnit diagnostics and parallelization. Copy it to output:
 
 ```json
 {
@@ -1033,18 +933,19 @@ include the file extension, and files must be copied to the output directory.
 
 ### MTP Execution
 
-Run test projects directly with Microsoft Testing Platform. Do not use `.slnx` for test execution; run unit tests first, then integration tests only after unit tests pass.
+Run test projects directly with Microsoft Testing Platform (MTP). Do not use `.slnx` for test execution. Repository contributors run unit and analyzer tests before integration tests, and execute these commands only when authorized.
 
 ```bash
 dotnet run --project DRN.Test.Unit/DRN.Test.Unit.csproj
+dotnet run --project DRN.Test.Analyzer/DRN.Test.Analyzer.csproj
 dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 ```
 
-For `WebApplicationFactory<TProgram>` scenarios, point `TProgram` at a hosted application or a non-test Web SDK support assembly such as `DRN.Test.Utils` (`IsTestProject=false`). Keep custom disposable app entry points out of the MTP test executable; keep test assertions in `DRN.Test.Integration`.
+See [Multi-Program Test Support Assemblies](#multi-program-test-support-assemblies) for hosted entry-point placement.
 
 ## Example Test Project .csproj File
 
-Copy-ready `.csproj` configuration for a test project consuming the `DRN.Framework.Testing` NuGet package (repository contributors may use the sibling project reference instead):
+This .NET 10 project consumes the testing package and xUnit MTP runner. It requires the .NET 10 SDK. Repository contributors may use the sibling project reference instead. Examples involving Sample or Nexus types also require references to those applications and their namespaces.
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
 
@@ -1098,10 +999,12 @@ public async Task $name$(DrnTestContext context)
 DTT (Duran's Testing Technique) is a **context-oriented testing** approach developed to make testing a natural part of software development. Instead of scattering setup across fixtures, factories, and lifecycle hooks, DTT places a single test context at the center of the test. The context adapts to the test's scope. It is lightweight for unit tests (`DrnTestContextUnit`), full-stack for integration tests (`DrnTestContext`).
 
 DTT is built upon two core ideas:
+
 * Writing a unit or integration test, providing settings and data to it should be easy, effective and encouraging as much as possible
 * A test should test actual usage as much as possible
 
 DTT with **DrnTestContext** makes these ideas possible by
+
 * being aware of test data and location
 * effortlessly providing test data and settings
 * effortlessly providing service collection
@@ -1113,121 +1016,23 @@ DTT with **DrnTestContext** makes these ideas possible by
 The context is opt-in: declare it as a parameter when the test needs it, omit it for pure logic tests that require no context. Data attributes inject the context only when the method signature requests it.
 
 With the help of test context, integration tests can be written easily with following styles.
+
 1. A data context attribute can provide NSubstituted dependencies, and context-managed service resolution uses them by default.
 2. Test containers can be used as actual dependencies instead of mocking them.
 3. With FactDebuggerOnly and TheoryDebuggerOnly attributes, cautiously written tests can use real databases and dependencies to debug production usage.
 
-### Comparison
+### Setup Responsibilities
 
-#### Unit Test Comparison
+| Responsibility | Manual setup | DTT equivalent and example |
+|---|---|---|
+| Row data and mocks | Create values and `Substitute.For<T>()` instances | [Data attributes](#data-attributes) provide rows and missing parameters |
+| DI | Register mocks, build and dispose a provider | [QuickStart](#quickstart-beginner) registers the module and resolves through the context |
+| Settings and files | Locate files and build configuration | [Providers](#providers) use test-local and global conventions |
+| Database | Start a container, set connections, apply migrations, own cleanup | [ContainerContext](#containercontext) binds registered contexts to shared or isolated PostgreSQL |
+| Application | Configure a factory and coordinate dependency startup | [ApplicationContext](#applicationcontext) creates clients after binding dependencies |
+| Lifecycle | Dispose providers, factories and temporary resources | Attribute-provided contexts own their setup and cleanup |
 
-**Standard Setup (Manual DI and Mocks):**
-
-```csharp
-[Fact]
-public void Manual_Unit_Setup()
-{
-    var services = new ServiceCollection();
-    
-    var mockDependency = Substitute.For<IMockable>();
-    mockDependency.Max.Returns(99);
-    services.AddSingleton(mockDependency);
-    services.AddTransient<DependentService>();
-
-    var serviceProvider = services.BuildServiceProvider();
-    var systemUnderTest = serviceProvider.GetRequiredService<DependentService>();
-
-    systemUnderTest.Max.Should().Be(99);
-}
-```
-
-**DTT Setup (Declarative Context & Substitutes):**
-
-```csharp
-[Theory]
-[DataInlineUnit(99)]
-public void DTT_Unit_Setup(DrnTestContextUnit context, int value, IMockable mockDependency)
-{
-    context.ServiceCollection.AddApplicationServices();
-    mockDependency.Max.Returns(value);
-    
-    var systemUnderTest = context.GetRequiredService<DependentService>();
-    systemUnderTest.Max.Should().Be(value);
-}
-```
-
-#### Integration Test Comparison
-
-**Standard Setup (Manual Container & Host Wiring):**
-
-```csharp
-public class Manual_Integration_Test : IAsyncLifetime
-{
-    private PostgreSqlContainer _container = null!;
-    private WebApplicationFactory<Program> _factory = null!;
-
-    public async ValueTask InitializeAsync()
-    {
-        _container = new PostgreSqlBuilder().WithImage("postgres:18.6-alpine3.24").Build();
-        await _container.StartAsync();
-
-        _factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.ConfigureAppConfiguration((_, config) =>
-                {
-                    config.AddInMemoryCollection(new[]
-                    {
-                        new KeyValuePair<string, string?>("ConnectionStrings:Default", _container.GetConnectionString())
-                    });
-                });
-            });
-
-        using var scope = _factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<MyDbContext>();
-        await dbContext.Database.MigrateAsync();
-    }
-
-    [Fact]
-    public async Task Get_Endpoints()
-    {
-        var client = _factory.CreateClient();
-        var response = await client.GetAsync("/api/health");
-        response.Should().BeSuccessful();
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        _factory.Dispose();
-        await _container.DisposeAsync();
-    }
-}
-```
-
-**DTT Setup (`ApplicationContext` & `ContainerContext`):**
-
-```csharp
-[Theory]
-[DataInline]
-public async Task DTT_Integration_Setup(DrnTestContext context)
-{
-    // Binds Postgres dependencies, applies EF Core migrations, and builds WebApplicationFactory
-    var client = await context.ApplicationContext.CreateClientAsync<Program>();
-    
-    var response = await client.GetAsync("/api/health");
-    response.Should().BeSuccessful();
-}
-```
-
-### DTT Design Goal
-
-DTT reduces test setup friction so tests can focus on behavior instead of repeated infrastructure wiring.
-
-- `[DataInline]` and `[DataInlineUnit]` provide requested context, generated data, and mocked interfaces declaratively.
-- `DrnTestContext` centralizes DI, settings/data lookup, external dependency binding, and application startup helpers.
-- Integration tests can use real PostgreSQL and application pipelines without per-test container or factory boilerplate.
-
-The result is a consistent path for writing isolated unit tests and realistic integration tests with minimal ceremony.
+Keep assertions focused on behavior. Use [test consolidation](#test-consolidation) when rows or a shared integration flow remove duplicate setup without obscuring failures.
 
 ## Global Usings
 
@@ -1280,6 +1085,7 @@ export TESTINGPLATFORM_TELEMETRY_OPTOUT=1
 ```
 
 **References:**
+
 - [.NET SDK Telemetry](https://learn.microsoft.com/en-us/dotnet/core/tools/telemetry)
 - [Microsoft.Testing.Platform Telemetry](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-telemetry)
 
