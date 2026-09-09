@@ -2,15 +2,15 @@
 
 > **Preparedness notice:** This checklist is an open self-assessment draft, is not legally binding, is not legal or audit advice, and does not represent a SOC 2 examination, certification, or assurance opinion. It is a point-in-time preparedness assessment. Management should agree the scope with an independent licensed CPA firm, which performs the examination.
 
-| Assessment field | Value |
-|---|---|
-| Document status | **Draft** (Work in progress / pre-audit assessment) |
-| Assessment date | 2026-08-26 |
-| Application repository | `DRN-Project`, reviewed at `a69dcf8693c9`; working tree was clean before this document was added |
-| Deployment repository | `DRN-Project-Argo-CD-Gitops`, reviewed at committed base `7a8a340f6d53` plus existing uncommitted work |
-| Intended platform | DRN Sample and DRN Nexus on Kubernetes with Argo CD, Linkerd, cert-manager, trust-manager, Sealed Secrets, CloudNativePG/PostgreSQL, Traefik Gateway API, and Graylog/MongoDB |
-| Evidence level | Static repository review only. No live cluster, GitHub ruleset, cloud account, backup, alert, incident, access review, or control-operation evidence was inspected |
-| Readiness decision | **Not ready for a SOC 2 examination.** Technical foundations exist, but governance, production hardening, resilience, evidence collection, and operating effectiveness remain incomplete |
+| Assessment field       | Value                                                                                                                                                                                    |
+|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Document status        | **Draft** (Work in progress / pre-audit assessment)                                                                                                                                      |
+| Assessment date        | 2026-08-26                                                                                                                                                                               |
+| Application repository | `DRN-Project`, reviewed at `a69dcf8693c9`; working tree was clean before this document was added                                                                                         |
+| Deployment repository  | `DRN-Project-Argo-CD-Gitops`, reviewed at committed base `7a8a340f6d53` plus existing uncommitted work                                                                                   |
+| Intended platform      | DRN Sample and DRN Nexus on Kubernetes with Argo CD, Linkerd, cert-manager, trust-manager, Sealed Secrets, CloudNativePG/PostgreSQL, Traefik Gateway API, and Graylog/MongoDB            |
+| Evidence level         | Static repository review only. No live cluster, GitHub ruleset, cloud account, backup, alert, incident, access review, or control-operation evidence was inspected                       |
+| Readiness decision     | **Not ready for a SOC 2 examination.** Technical foundations exist, but governance, production hardening, resilience, evidence collection, and operating effectiveness remain incomplete |
 
 ## Contents
 
@@ -31,23 +31,23 @@
 
 ## 1. SOC 2 overview
 
-SOC 2 is an independent attestation report on controls at a service organization. It is intended for customers, partners, auditors, procurement teams, and regulators that need assurance about systems used to process customer data. It is not a product certification and it does not replace contractual, privacy, cybersecurity, or sector-specific legal obligations.
+SOC 2 is an independent attestation report on controls at a service organization. It is intended for customers, partners, auditors, procurement teams, and regulators that need assurance about systems used to process customer data. It is not a product certification, and it does not replace contractual, privacy, cybersecurity, or sector-specific legal obligations.
 
 The AICPA Trust Services Criteria cover five categories:
 
-| Category | Purpose | Recommended DRN scope |
-|---|---|---|
-| Security | Protect systems and information against unauthorized access, use, or damage | Required baseline |
-| Availability | Operate systems in line with committed availability and recovery objectives | Recommended before production customer commitments |
-| Processing Integrity | Process data completely, accurately, timely, and as authorized | Contextual. Include when DRN makes material processing commitments |
-| Confidentiality | Protect information designated as confidential | Recommended because DRN handles credentials, identity data, configuration, and logs |
-| Privacy | Govern personal information across collection, use, retention, disclosure, and disposal | Contextual for the SOC 2 report, but likely operationally relevant because Sample contains user identity and profile data |
+| Category             | Purpose                                                                                 | Recommended DRN scope                                                                                                     |
+|----------------------|-----------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| Security             | Protect systems and information against unauthorized access, use, or damage             | Required baseline                                                                                                         |
+| Availability         | Operate systems in line with committed availability and recovery objectives             | Recommended before production customer commitments                                                                        |
+| Processing Integrity | Process data completely, accurately, timely, and as authorized                          | Contextual. Include when DRN makes material processing commitments                                                        |
+| Confidentiality      | Protect information designated as confidential                                          | Recommended because DRN handles credentials, identity data, configuration, and logs                                       |
+| Privacy              | Govern personal information across collection, use, retention, disclosure, and disposal | Contextual for the SOC 2 report, but likely operationally relevant because Sample contains user identity and profile data |
 
 ### Report types
 
-| Report | What it evaluates | Suitable use |
-|---|---|---|
-| Type I | Suitability of control design at a specified date | First DRN milestone after the critical and high gaps in this checklist are closed |
+| Report  | What it evaluates                                                | Suitable use                                                                                                  |
+|---------|------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| Type I  | Suitability of control design at a specified date                | First DRN milestone after the critical and high gaps in this checklist are closed                             |
 | Type II | Control design and operating effectiveness over a defined period | Target after controls operate consistently and evidence is retained for the auditor-agreed observation period |
 
 Organizations generally pursue SOC 2 when they provide SaaS, cloud, data processing, platform, managed, or infrastructure services and customers require independent assurance. The practical benefits are stronger control ownership, repeatable operations, better enterprise sales due diligence, and evidence that security claims are performed rather than merely documented.
@@ -71,24 +71,24 @@ This checklist is provided as an open-access preparation and self-assessment res
 
 ### Status marks
 
-| Mark | Status | Meaning |
-|---|---|---|
-| `[x]` | Done | Implementation was verified in reviewed source or configuration. This does not prove production deployment or operating effectiveness |
-| `[/]` | Progress | Partially implemented, explicitly under development, or present only in the GitOps repository's uncommitted work |
-| `[ ]` | Undone | Required implementation or evidence was not found |
-| `[A]` | Assumed | Based on the requested future architecture or another explicit assumption, not verified implementation |
-| `[C]` | Contextual | Applicability depends on scope, customer commitments, data, deployment model, or evidence held outside the repositories |
+| Mark  | Status     | Meaning                                                                                                                               |
+|-------|------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| `[x]` | Done       | Implementation was verified in reviewed source or configuration. This does not prove production deployment or operating effectiveness |
+| `[/]` | Progress   | Partially implemented, explicitly under development, or present only in the GitOps repository's uncommitted work                      |
+| `[ ]` | Undone     | Required implementation or evidence was not found                                                                                     |
+| `[A]` | Assumed    | Based on the requested future architecture or another explicit assumption, not verified implementation                                |
+| `[C]` | Contextual | Applicability depends on scope, customer commitments, data, deployment model, or evidence held outside the repositories               |
 
 `[/]`, `[A]`, and `[C]` are visual status marks, not GitHub interactive checkboxes.
 
 ### Severity
 
-| Severity | Meaning |
-|---|---|
-| Critical | Blocks a credible audit scope, creates material security exposure, or prevents recovery |
-| High | Likely control exception or significant production risk |
-| Medium | Required supporting control or material maturity gap |
-| Info | Scope decision, documentation, or improvement that does not alone establish a control failure |
+| Severity | Meaning                                                                                       |
+|----------|-----------------------------------------------------------------------------------------------|
+| Critical | Blocks a credible audit scope, creates material security exposure, or prevents recovery       |
+| High     | Likely control exception or significant production risk                                       |
+| Medium   | Required supporting control or material maturity gap                                          |
+| Info     | Scope decision, documentation, or improvement that does not alone establish a control failure |
 
 ### Completion rule
 
@@ -125,15 +125,15 @@ An item is not audit-ready until its control owner, implementation, approval, fr
 
 ## 4. Current posture
 
-| Area | Status | Evidence-based conclusion |
-|---|---|---|
-| Governance and policy | Undone | The repositories do not contain an approved security program, risk register, control owner matrix, incident plan, business continuity plan, vendor program, or evidence policy |
-| Application security | Progress | Strong framework defaults exist for MFA, authorization, CSP, CSRF, host filtering, rate limiting, secure serialization, scoped logging, and Data Protection. Nexus and deployment settings remain incomplete |
-| Secure development and supply chain | Progress | CI uses secretless PR jobs, immutable action SHAs, CodeQL, dependency review, SonarCloud, vulnerability scanning, attestations, and staged image scanning. Live branch-rule enforcement was not verified |
-| GitOps and cluster security | Progress | Least-privilege Argo projects, validation contracts, Linkerd injection, certificate automation, isolated service accounts, and database roles exist. Current changes are uncommitted and production hardening is incomplete |
-| Observability | Progress | Structured logs and Graylog manifests exist. Graylog requires manual input creation, has no evidenced retention or alert policy, and is not a complete metrics or tracing solution |
-| Availability and recovery | Undone | PostgreSQL backups are disabled, stateful and application services use one replica, PDBs are disabled or absent, and no restore or disaster-recovery evidence exists |
-| Audit evidence | Undone | No control matrix, evidence repository, review record, access recertification, incident exercise, backup test, penetration test, or observation-period evidence was reviewed |
+| Area                                | Status   | Evidence-based conclusion                                                                                                                                                                                                   |
+|-------------------------------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Governance and policy               | Undone   | The repositories do not contain an approved security program, risk register, control owner matrix, incident plan, business continuity plan, vendor program, or evidence policy                                              |
+| Application security                | Progress | Strong framework defaults exist for MFA, authorization, CSP, CSRF, host filtering, rate limiting, secure serialization, scoped logging, and Data Protection. Nexus and deployment settings remain incomplete                |
+| Secure development and supply chain | Progress | CI uses secretless PR jobs, immutable action SHAs, CodeQL, dependency review, SonarCloud, vulnerability scanning, attestations, and staged image scanning. Live branch-rule enforcement was not verified                    |
+| GitOps and cluster security         | Progress | Least-privilege Argo projects, validation contracts, Linkerd injection, certificate automation, isolated service accounts, and database roles exist. Current changes are uncommitted and production hardening is incomplete |
+| Observability                       | Progress | Structured logs and Graylog manifests exist. Graylog requires manual input creation, has no evidenced retention or alert policy, and is not a complete metrics or tracing solution                                          |
+| Availability and recovery           | Undone   | PostgreSQL backups are disabled, stateful and application services use one replica, PDBs are disabled or absent, and no restore or disaster-recovery evidence exists                                                        |
+| Audit evidence                      | Undone   | No control matrix, evidence repository, review record, access recertification, incident exercise, backup test, penetration test, or observation-period evidence was reviewed                                                |
 
 ### Recommended closure order
 
@@ -157,90 +157,90 @@ The AICPA criteria and the DRN actions are separate identifiers:
 
 The Description Criteria govern management's description of the service organization's system. They are separate from the Trust Services Criteria used to evaluate controls.
 
-| AICPA reference | Paraphrased subject | DRN internal actions |
-|---|---|---|
-| `DC1` | Types of services provided | `SCP-01`, `SCP-02`, `CC2-01` |
-| `DC2` | Principal service commitments and system requirements | `SCP-03`, `CC2-03`, `A1-01`, `PI1-01`, `C1-01`, `P1-01` |
-| `DC3` | Infrastructure, software, people, procedures, and data | `CC2-01`, `CC2-02`, `CC3-04` |
-| `DC4` | Identified system incidents and their nature, timing, effect, and disposition | `CC2-01`, `CC4-04`, `CC7-04` |
-| `DC5` | Applicable Trust Services Criteria and related controls | `SCP-03`, `SCP-06`, `CC4-01`, `CC5-02`, and the mappings in this section |
-| `DC6` | Complementary user entity controls | `SCP-05`, `CC2-03` |
-| `DC7` | Subservice organizations, treatment method, and complementary controls | `SCP-05`, `CC2-01`, `CC9-01` |
-| `DC8` | Applicable criteria judged not relevant and the reasons | `SCP-06` |
-| `DC9` | Significant changes during a Type II period | `CC2-01`, `CC2-05`, `CC3-05`, `CC8-05` |
+| AICPA reference | Paraphrased subject                                                           | DRN internal actions                                                     |
+|-----------------|-------------------------------------------------------------------------------|--------------------------------------------------------------------------|
+| `DC1`           | Types of services provided                                                    | `SCP-01`, `SCP-02`, `CC2-01`                                             |
+| `DC2`           | Principal service commitments and system requirements                         | `SCP-03`, `CC2-03`, `A1-01`, `PI1-01`, `C1-01`, `P1-01`                  |
+| `DC3`           | Infrastructure, software, people, procedures, and data                        | `CC2-01`, `CC2-02`, `CC3-04`                                             |
+| `DC4`           | Identified system incidents and their nature, timing, effect, and disposition | `CC2-01`, `CC4-04`, `CC7-04`                                             |
+| `DC5`           | Applicable Trust Services Criteria and related controls                       | `SCP-03`, `SCP-06`, `CC4-01`, `CC5-02`, and the mappings in this section |
+| `DC6`           | Complementary user entity controls                                            | `SCP-05`, `CC2-03`                                                       |
+| `DC7`           | Subservice organizations, treatment method, and complementary controls        | `SCP-05`, `CC2-01`, `CC9-01`                                             |
+| `DC8`           | Applicable criteria judged not relevant and the reasons                       | `SCP-06`                                                                 |
+| `DC9`           | Significant changes during a Type II period                                   | `CC2-01`, `CC2-05`, `CC3-05`, `CC8-05`                                   |
 
 ### Common Criteria mapping
 
-| AICPA reference | Paraphrased focus | DRN internal actions |
-|---|---|---|
-| `CC1.1` | Integrity and ethical values | `CC1-02`, `CC1-03`, `CC1-07` |
-| `CC1.2` | Independent governance oversight | `CC1-01`, `CC1-04`, `CC1-08` |
-| `CC1.3` | Structures, reporting lines, authority, and responsibility | `CC1-01`, `CC1-04`, `CC1-05` |
-| `CC1.4` | Competent personnel | `CC1-03`, `CC1-05` |
-| `CC1.5` | Accountability for control responsibilities | `CC1-01`, `CC1-03`, `CC1-06`, `CC1-07` |
-| `CC2.1` | Relevant, quality information supporting internal control | `CC2-01`, `CC2-02`, `CC2-05`, `CC4-01` |
-| `CC2.2` | Internal communication of objectives and responsibilities | `CC1-02`, `CC2-04`, `CC2-05` |
-| `CC2.3` | External communication affecting internal control | `CC2-03`, `SCP-05` |
-| `CC3.1` | Clear objectives supporting risk identification | `SCP-01`, `SCP-02`, `SCP-03`, `CC3-01` |
-| `CC3.2` | Risk identification, analysis, and response | `CC3-01`, `CC3-02`, `CC3-03`, `CC3-04` |
-| `CC3.3` | Fraud risk | `CC3-06` |
-| `CC3.4` | Significant change and emerging risk | `CC3-05` |
-| `CC4.1` | Ongoing and separate control evaluations | `CC4-01`, `CC4-02`, `CC4-03`, `CC4-05` |
-| `CC4.2` | Evaluation and communication of deficiencies | `CC4-04`, `CC4-06`, `CC1-01` |
-| `CC5.1` | Selection and development of control activities | `CC5-02` |
-| `CC5.2` | General technology control activities | `CC5-04`, `CC6-08` through `CC6-18`, `CC7-06`, `CC8-01` through `CC8-03` |
-| `CC5.3` | Policies translated into procedures | `CC1-02`, `CC5-01` |
-| `CC6.1` | Logical access security architecture and protective mechanisms | `CC6-01`, `CC6-02`, `CC6-03`, `CC6-05`, `CC6-08`, `CC6-11`, `CC6-12`, `CC6-13`, `CC6-15` |
-| `CC6.2` | Registration, authorization, credentialing, and deprovisioning | `CC6-15` |
-| `CC6.3` | Role-based authorization and access modification or removal | `CC6-02`, `CC6-03`, `CC6-04`, `CC6-15` |
-| `CC6.4` | Restriction of physical access | `CC6-16` |
-| `CC6.5` | Protection and secure disposal of physical information assets | `CC6-16` |
-| `CC6.6` | Protection against threats outside system boundaries | `CC6-08`, `CC6-09`, `CC6-10`, `CC6-11`, `CC6-12`, `CC6-13` |
-| `CC6.7` | Authorized and protected transmission, movement, and removal of information | `CC6-09`, `CC6-10`, `CC6-17` |
-| `CC6.8` | Prevention and detection of malicious or unauthorized software | `CC6-12`, `CC6-13`, `CC6-18`, `CC7-05`, `CC7-08` |
-| `CC7.1` | Detection of configuration changes that create vulnerabilities | `CC7-05`, `CC7-06` |
-| `CC7.2` | Monitoring and analysis of system anomalies | `CC7-01`, `CC7-02`, `CC7-03` |
-| `CC7.3` | Evaluation of security events | `CC7-03`, `CC7-04` |
-| `CC7.4` | Incident response | `CC7-04`, `CC7-07` |
-| `CC7.5` | Recovery from identified security incidents | `CC7-04`, `CC7-07`, `CC9-02` |
-| `CC8.1` | Authorized, designed, tested, approved, and implemented changes | `CC8-01` through `CC8-08` |
-| `CC9.1` | Mitigation of risks from potential business disruptions | `CC9-02`, `CC9-03`, `CC9-04`, `CC9-05` |
-| `CC9.2` | Vendor and business-partner risk | `CC9-01`, `SCP-05` |
+| AICPA reference | Paraphrased focus                                                           | DRN internal actions                                                                     |
+|-----------------|-----------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
+| `CC1.1`         | Integrity and ethical values                                                | `CC1-02`, `CC1-03`, `CC1-07`                                                             |
+| `CC1.2`         | Independent governance oversight                                            | `CC1-01`, `CC1-04`, `CC1-08`                                                             |
+| `CC1.3`         | Structures, reporting lines, authority, and responsibility                  | `CC1-01`, `CC1-04`, `CC1-05`                                                             |
+| `CC1.4`         | Competent personnel                                                         | `CC1-03`, `CC1-05`                                                                       |
+| `CC1.5`         | Accountability for control responsibilities                                 | `CC1-01`, `CC1-03`, `CC1-06`, `CC1-07`                                                   |
+| `CC2.1`         | Relevant, quality information supporting internal control                   | `CC2-01`, `CC2-02`, `CC2-05`, `CC4-01`                                                   |
+| `CC2.2`         | Internal communication of objectives and responsibilities                   | `CC1-02`, `CC2-04`, `CC2-05`                                                             |
+| `CC2.3`         | External communication affecting internal control                           | `CC2-03`, `SCP-05`                                                                       |
+| `CC3.1`         | Clear objectives supporting risk identification                             | `SCP-01`, `SCP-02`, `SCP-03`, `CC3-01`                                                   |
+| `CC3.2`         | Risk identification, analysis, and response                                 | `CC3-01`, `CC3-02`, `CC3-03`, `CC3-04`                                                   |
+| `CC3.3`         | Fraud risk                                                                  | `CC3-06`                                                                                 |
+| `CC3.4`         | Significant change and emerging risk                                        | `CC3-05`                                                                                 |
+| `CC4.1`         | Ongoing and separate control evaluations                                    | `CC4-01`, `CC4-02`, `CC4-03`, `CC4-05`                                                   |
+| `CC4.2`         | Evaluation and communication of deficiencies                                | `CC4-04`, `CC4-06`, `CC1-01`                                                             |
+| `CC5.1`         | Selection and development of control activities                             | `CC5-02`                                                                                 |
+| `CC5.2`         | General technology control activities                                       | `CC5-04`, `CC6-08` through `CC6-18`, `CC7-06`, `CC8-01` through `CC8-03`                 |
+| `CC5.3`         | Policies translated into procedures                                         | `CC1-02`, `CC5-01`                                                                       |
+| `CC6.1`         | Logical access security architecture and protective mechanisms              | `CC6-01`, `CC6-02`, `CC6-03`, `CC6-05`, `CC6-08`, `CC6-11`, `CC6-12`, `CC6-13`, `CC6-15` |
+| `CC6.2`         | Registration, authorization, credentialing, and deprovisioning              | `CC6-15`                                                                                 |
+| `CC6.3`         | Role-based authorization and access modification or removal                 | `CC6-02`, `CC6-03`, `CC6-04`, `CC6-15`                                                   |
+| `CC6.4`         | Restriction of physical access                                              | `CC6-16`                                                                                 |
+| `CC6.5`         | Protection and secure disposal of physical information assets               | `CC6-16`                                                                                 |
+| `CC6.6`         | Protection against threats outside system boundaries                        | `CC6-08`, `CC6-09`, `CC6-10`, `CC6-11`, `CC6-12`, `CC6-13`                               |
+| `CC6.7`         | Authorized and protected transmission, movement, and removal of information | `CC6-09`, `CC6-10`, `CC6-17`                                                             |
+| `CC6.8`         | Prevention and detection of malicious or unauthorized software              | `CC6-12`, `CC6-13`, `CC6-18`, `CC7-05`, `CC7-08`                                         |
+| `CC7.1`         | Detection of configuration changes that create vulnerabilities              | `CC7-05`, `CC7-06`                                                                       |
+| `CC7.2`         | Monitoring and analysis of system anomalies                                 | `CC7-01`, `CC7-02`, `CC7-03`                                                             |
+| `CC7.3`         | Evaluation of security events                                               | `CC7-03`, `CC7-04`                                                                       |
+| `CC7.4`         | Incident response                                                           | `CC7-04`, `CC7-07`                                                                       |
+| `CC7.5`         | Recovery from identified security incidents                                 | `CC7-04`, `CC7-07`, `CC9-02`                                                             |
+| `CC8.1`         | Authorized, designed, tested, approved, and implemented changes             | `CC8-01` through `CC8-08`                                                                |
+| `CC9.1`         | Mitigation of risks from potential business disruptions                     | `CC9-02`, `CC9-03`, `CC9-04`, `CC9-05`                                                   |
+| `CC9.2`         | Vendor and business-partner risk                                            | `CC9-01`, `SCP-05`                                                                       |
 
 ### Additional category mapping
 
 These criteria apply only when the associated category is selected, but their applicability must still be documented through `SCP-03` and `SCP-06`.
 
-| AICPA reference | Paraphrased focus | DRN internal actions |
-|---|---|---|
-| `A1.1` | Capacity monitoring and management | `A1-01`, `A1-05`, `A1-06`, `A1-07` |
-| `A1.2` | Environmental protection, backup processes, and recovery infrastructure | `A1-02`, `A1-03`, `A1-05`, `A1-07` |
-| `A1.3` | Recovery-plan testing | `A1-04`, `A1-08`, `CC9-02` |
-| `PI1.1` | Processing objectives, specifications, and quality information | `PI1-01`, `PI1-02` |
-| `PI1.2` | Complete and accurate system inputs | `PI1-02`, `PI1-03`, `PI1-04` |
-| `PI1.3` | Controlled system processing | `PI1-03`, `PI1-04`, `PI1-06` |
-| `PI1.4` | Complete, accurate, timely, and authorized output | `PI1-04`, `PI1-05` |
-| `PI1.5` | Complete, accurate, timely, and protected storage | `PI1-03`, `PI1-04` |
-| `C1.1` | Identification and maintenance of confidential information | `C1-01`, `C1-02`, `C1-03`, `C1-04` |
-| `C1.2` | Disposal of confidential information | `C1-05` |
-| `P1.1` | Privacy notice and timely communication of changes | `P1-01`, `P1-02` |
-| `P2.1` | Choice, consent, and consequences | `P1-02` |
-| `P3.1` | Collection consistent with privacy objectives | `P1-03` |
-| `P3.2` | Explicit consent before collection when required | `P1-02`, `P1-03` |
-| `P4.1` | Use limited to identified purposes | `P1-03` |
-| `P4.2` | Retention consistent with privacy objectives | `P1-05` |
-| `P4.3` | Secure disposal of personal information | `P1-05` |
-| `P5.1` | Authenticated data-subject access | `P1-04` |
-| `P5.2` | Correction, amendment, and related communication | `P1-04`, `P1-08` |
-| `P6.1` | Third-party disclosure with prior consent | `P1-02`, `P1-06` |
-| `P6.2` | Complete records of authorized disclosures | `P1-06` |
-| `P6.3` | Complete records of unauthorized disclosures | `P1-07` |
-| `P6.4` | Vendor privacy commitments, assessment, and correction | `P1-06`, `CC9-01` |
-| `P6.5` | Vendor notification of suspected or actual unauthorized disclosures | `P1-06`, `P1-07` |
-| `P6.6` | Breach and incident notification | `P1-07` |
-| `P6.7` | Accounting of personal information held and disclosed | `P1-04`, `P1-06` |
-| `P7.1` | Accurate, complete, current, and relevant personal information | `P1-08` |
-| `P8.1` | Privacy inquiries, complaints, disputes, monitoring, and remediation | `P1-09` |
+| AICPA reference | Paraphrased focus                                                       | DRN internal actions               |
+|-----------------|-------------------------------------------------------------------------|------------------------------------|
+| `A1.1`          | Capacity monitoring and management                                      | `A1-01`, `A1-05`, `A1-06`, `A1-07` |
+| `A1.2`          | Environmental protection, backup processes, and recovery infrastructure | `A1-02`, `A1-03`, `A1-05`, `A1-07` |
+| `A1.3`          | Recovery-plan testing                                                   | `A1-04`, `A1-08`, `CC9-02`         |
+| `PI1.1`         | Processing objectives, specifications, and quality information          | `PI1-01`, `PI1-02`                 |
+| `PI1.2`         | Complete and accurate system inputs                                     | `PI1-02`, `PI1-03`, `PI1-04`       |
+| `PI1.3`         | Controlled system processing                                            | `PI1-03`, `PI1-04`, `PI1-06`       |
+| `PI1.4`         | Complete, accurate, timely, and authorized output                       | `PI1-04`, `PI1-05`                 |
+| `PI1.5`         | Complete, accurate, timely, and protected storage                       | `PI1-03`, `PI1-04`                 |
+| `C1.1`          | Identification and maintenance of confidential information              | `C1-01`, `C1-02`, `C1-03`, `C1-04` |
+| `C1.2`          | Disposal of confidential information                                    | `C1-05`                            |
+| `P1.1`          | Privacy notice and timely communication of changes                      | `P1-01`, `P1-02`                   |
+| `P2.1`          | Choice, consent, and consequences                                       | `P1-02`                            |
+| `P3.1`          | Collection consistent with privacy objectives                           | `P1-03`                            |
+| `P3.2`          | Explicit consent before collection when required                        | `P1-02`, `P1-03`                   |
+| `P4.1`          | Use limited to identified purposes                                      | `P1-03`                            |
+| `P4.2`          | Retention consistent with privacy objectives                            | `P1-05`                            |
+| `P4.3`          | Secure disposal of personal information                                 | `P1-05`                            |
+| `P5.1`          | Authenticated data-subject access                                       | `P1-04`                            |
+| `P5.2`          | Correction, amendment, and related communication                        | `P1-04`, `P1-08`                   |
+| `P6.1`          | Third-party disclosure with prior consent                               | `P1-02`, `P1-06`                   |
+| `P6.2`          | Complete records of authorized disclosures                              | `P1-06`                            |
+| `P6.3`          | Complete records of unauthorized disclosures                            | `P1-07`                            |
+| `P6.4`          | Vendor privacy commitments, assessment, and correction                  | `P1-06`, `CC9-01`                  |
+| `P6.5`          | Vendor notification of suspected or actual unauthorized disclosures     | `P1-06`, `P1-07`                   |
+| `P6.6`          | Breach and incident notification                                        | `P1-07`                            |
+| `P6.7`          | Accounting of personal information held and disclosed                   | `P1-04`, `P1-06`                   |
+| `P7.1`          | Accurate, complete, current, and relevant personal information          | `P1-08`                            |
+| `P8.1`          | Privacy inquiries, complaints, disputes, monitoring, and remediation    | `P1-09`                            |
 
 This mapping establishes coverage, not readiness. Each referenced DRN action still needs an owner, implemented control, evidence, review, exception handling, and retention. `SCP-06` remains open until management and the CPA confirm the applicability analysis.
 
@@ -294,7 +294,7 @@ This mapping establishes coverage, not readiness. Each referenced DRN action sti
 
 - [/] **CC6-01 | CRITICAL | Complete strong authentication.** Sample has MFA redirection and the framework enforces an MFA fallback policy. Both Sample and Nexus explicitly exempt the Identity bearer scheme, and Nexus MFA redirection is not implemented. Decide and test bearer MFA semantics, complete Nexus MFA, require MFA for source control, cloud, Argo CD, Kubernetes, registries, databases, logging, and support systems.
 - [C] **CC6-02 | CRITICAL | Enforce source-control protections.** CODEOWNERS, immutable action SHAs, secretless PR workflows, and aggregate gates exist. GitHub rulesets were not inspected. Require pull requests, code-owner review, required gatekeeper and code-scanning results, signed or attributable commits, administrator restrictions, and branch deletion controls. Status remains contextual until exported settings prove enforcement.
-- [x] **CC6-03 | HIGH | Apply Argo project least privilege in configuration.** Workload, platform, application, certificate, and default-deny projects are separated. Required operating evidence: render validation, approved project changes, Argo RBAC export, administrator access review, and proof that no application uses `AppProject/default`.
+- [x] **CC6-03 | HIGH | Apply Argo project the least privilege in configuration.** Workload, platform, application, certificate, and default-deny projects are separated. Required operating evidence: render validation, approved project changes, Argo RBAC export, administrator access review, and proof that no application uses `AppProject/default`.
 - [x] **CC6-04 | HIGH | Use workload-specific database roles in configuration.** Nexus and Sample use distinct PostgreSQL login roles without superuser, database creation, role creation, replication, or bypass-RLS privileges. Validate effective grants in production and remove unused owner credentials from workload Pods.
 - [/] **CC6-05 | CRITICAL | Complete secrets management.** Sealed Secrets is declared and workloads mount operator or externally managed Secrets. No repository-managed `SealedSecret` objects were found. cert-manager manages certificates, not arbitrary passwords or API keys. Select and operate Sealed Secrets, External Secrets plus a cloud secret manager, or Vault; define rotation, break-glass, revocation, backup, and access logging.
 - [/] **CC6-06 | HIGH | Protect application cryptographic keys.** Sample persists ASP.NET Core Data Protection keys to PostgreSQL and encrypts them with AES-GCM through `SampleXmlEncryptor`; unit tests exist. Production master material is not defined. Move the master key or seed to an approved secret or key-management system, rotate it safely, test old-key decryption, restrict database access, and document compromise recovery.
@@ -306,7 +306,7 @@ This mapping establishes coverage, not readiness. Each referenced DRN action sti
 - [ ] **CC6-12 | HIGH | Harden application Pods.** DRN Deployments disable service-account token automount and set resources and probes, but do not define container security contexts or digest-pinned application images. Set non-root execution, read-only root filesystem where compatible, dropped capabilities, no privilege escalation, seccomp, controlled writable volumes, and immutable image digests.
 - [/] **CC6-13 | HIGH | Harden stateful and platform workloads.** Graylog and Data Node use digest-pinned images and disable service-account token automount, but only Pod filesystem group settings are explicit. Review upstream runtime requirements, then enforce the strongest supported container security context and admission policy without breaking storage ownership.
 - [ ] **CC6-14 | HIGH | Prove encryption at rest.** No storage-class, disk, database, backup, or key-management evidence was reviewed. Require encryption for cluster disks, PostgreSQL, MongoDB, Graylog data, backups, artifacts, and evidence stores. Record key ownership and rotation.
-- [C] **CC6-15 | HIGH | Operate access lifecycle controls.** Context: access grants and reviews may live outside Git. Require approved role-based access, least privilege, no shared accounts, periodic recertification, inactivity removal, and immediate offboarding across every in-scope system.
+- [C] **CC6-15 | HIGH | Operate access lifecycle controls.** Context: access grants and reviews may live outside Git. Require approved role-based access, the least privilege, no shared accounts, periodic recertification, inactivity removal, and immediate offboarding across every in-scope system.
 - [C] **CC6-16 | MEDIUM | Address physical security and asset disposal.** Use cloud and data-center assurance reports for hosted infrastructure. Define office, device, media, remote-work, inventory, transfer, reuse, and disposal controls. Render data and software unreadable before releasing equipment or media and retain disposal evidence. Confirm scope with the auditor.
 - [ ] **CC6-17 | HIGH | Control information transmission and removal.** Authorize and inventory external transfers, exports, removable media, support downloads, and administrative data movement. Encrypt protected information in transit, restrict destinations and recipients, record material transfers, and detect unauthorized movement or removal.
 - [ ] **CC6-18 | HIGH | Prevent and detect malicious or unauthorized software.** Define controls for administrator endpoints, build inputs, container images, email or support artifacts, and user uploads where applicable. Keep prevention and detection current, alert on findings, quarantine unsafe content, and test response without weakening production safeguards.
@@ -391,12 +391,12 @@ For readability, this section uses the fictional names from Appendix D: Lina, CE
 
 ### Small-team role model
 
-| Responsibility | Two people | Three people | Required boundary |
-|---|---|---|---|
-| Accountable and risk owner | Lina | Lina | Approves scope, policies, residual risk, vendors, continuity, and audit representations |
-| Security and change reviewer | Lina or Alan, whichever is not the author; external reviewer when neither is independent or qualified | Nora | Reviews access, security findings, sensitive changes, incidents, and evidence. Does not approve their own changes |
-| Service operator | Alan primary; Lina backup when qualified | Alan | Deploys, monitors, backs up, restores, and collects evidence. Sensitive work requires non-operator review |
-| Independent compensating review | External adviser when Lina and Alan cannot be independent | External adviser for annual readiness and penetration testing | Samples access, changes, recovery, risk acceptance, and evidence without operating those controls |
+| Responsibility                  | Two people                                                                                            | Three people                                                  | Required boundary                                                                                                 |
+|---------------------------------|-------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| Accountable and risk owner      | Lina                                                                                                  | Lina                                                          | Approves scope, policies, residual risk, vendors, continuity, and audit representations                           |
+| Security and change reviewer    | Lina or Alan, whichever is not the author; external reviewer when neither is independent or qualified | Nora                                                          | Reviews access, security findings, sensitive changes, incidents, and evidence. Does not approve their own changes |
+| Service operator                | Alan primary; Lina backup when qualified                                                              | Alan                                                          | Deploys, monitors, backs up, restores, and collects evidence. Sensitive work requires non-operator review         |
+| Independent compensating review | External adviser when Lina and Alan cannot be independent                                             | External adviser for annual readiness and penetration testing | Samples access, changes, recovery, risk acceptance, and evidence without operating those controls                 |
 
 Apply these rules:
 
@@ -422,33 +422,33 @@ Apply these rules:
 
 ### Automation and human checkpoints
 
-| Control | Automate | Human checkpoint | Evidence retained |
-|---|---|---|---|
-| Pull requests | Existing CI, CodeQL, Trivy, tests, CodeRabbit comments, CODEOWNERS | Non-author resolves findings and approves | Pull request, reviews, required checks, release link |
-| Dependency and image risk | Dependabot or Renovate, Trivy, attestations, Kyverno image policy | Nora, or the assigned security reviewer, reviews high and critical findings weekly | Finding, owner, deadline, fix or expiring risk acceptance |
-| Access | Scheduled export of GitHub, cloud, Argo, Kubernetes, registry, database, and Graylog memberships | Lina and Alan recertify quarterly; Nora prepares the population; remove access immediately on departure | Export, decision, removals, approval |
-| Certificates and secrets | cert-manager renewal, expiry alerts, secret rotation reminders | Non-operator verifies rotation and recovery | Renewal status, rotation record, recovery result |
-| Availability | Probes, Prometheus rules, Alertmanager routing, Graylog ingestion alerts | Secondary on-call acknowledges a monthly test alert | Alert rule, delivery, acknowledgement, correction |
-| Backups | Scheduled backup, WAL archiving, failure alert, retention enforcement | Non-operator witnesses monthly restore | Backup result, restored version, timing, RPO and RTO result |
-| Audit evidence | Scheduled evidence export and immutable or versioned storage | Nora or assigned reviewer monthly; Lina quarterly sign-off | Manifest of evidence, review record, exceptions |
+| Control                   | Automate                                                                                         | Human checkpoint                                                                                        | Evidence retained                                           |
+|---------------------------|--------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|-------------------------------------------------------------|
+| Pull requests             | Existing CI, CodeQL, Trivy, tests, CodeRabbit comments, CODEOWNERS                               | Non-author resolves findings and approves                                                               | Pull request, reviews, required checks, release link        |
+| Dependency and image risk | Dependabot or Renovate, Trivy, attestations, Kyverno image policy                                | Nora, or the assigned security reviewer, reviews high and critical findings weekly                      | Finding, owner, deadline, fix or expiring risk acceptance   |
+| Access                    | Scheduled export of GitHub, cloud, Argo, Kubernetes, registry, database, and Graylog memberships | Lina and Alan recertify quarterly; Nora prepares the population; remove access immediately on departure | Export, decision, removals, approval                        |
+| Certificates and secrets  | cert-manager renewal, expiry alerts, secret rotation reminders                                   | Non-operator verifies rotation and recovery                                                             | Renewal status, rotation record, recovery result            |
+| Availability              | Probes, Prometheus rules, Alertmanager routing, Graylog ingestion alerts                         | Secondary on-call acknowledges a monthly test alert                                                     | Alert rule, delivery, acknowledgement, correction           |
+| Backups                   | Scheduled backup, WAL archiving, failure alert, retention enforcement                            | Non-operator witnesses monthly restore                                                                  | Backup result, restored version, timing, RPO and RTO result |
+| Audit evidence            | Scheduled evidence export and immutable or versioned storage                                     | Nora or assigned reviewer monthly; Lina quarterly sign-off                                              | Manifest of evidence, review record, exceptions             |
 
 ### Current tools and approved alternatives
 
 Commercial and managed tools are acceptable when they reduce operating risk. Record the service owner, selected plan or license, data sent to the provider, retention, access, renewal date, outage fallback, and exit procedure in the vendor register. Do not replace a functioning control only to make the stack open source.
 
-| Control | Current selection and status | Delivery model | Recommendation | Reliable alternative and adoption trigger |
-|---|---|---|---|---|
-| Static application security | [CodeQL](https://docs.github.com/en/code-security/code-scanning/introduction-to-code-scanning/about-code-scanning-with-codeql) is active in pull-request, branch, preview, and release workflows | GitHub-managed. Public-repository use and private-repository GitHub Code Security licensing differ, so confirm the actual organization entitlement | Keep it required and retain SARIF results. Verify branch rules reject failed or missing scans | [Semgrep Community Edition](https://semgrep.dev/products/community-edition/) is a self-hosted alternative if CodeQL cost, availability, or repository policy becomes unacceptable. Prove equivalent C# and JavaScript coverage on a fixed vulnerability corpus before replacement |
-| Code quality and secondary analysis | SonarQube Cloud, using the existing SonarCloud endpoint, is active on protected branch and release workflows | Managed subscription service; selected plan was not verified | Keep it while quality gates are reliable and the vendor review is current. Avoid duplicating CodeQL findings without an assigned response process | [SonarQube Community Build](https://docs.sonarsource.com/sonarqube-community-build/) is the self-hosted alternative when code residency or service dependency requires it. The team then owns patching, database backup, availability, and upgrades |
-| Advisory code review | CodeRabbit is configured for automatic DRN-specific review | Managed commercial service; selected plan was not verified | Keep it advisory. A non-author remains responsible for approval, and deterministic CI remains authoritative | Human peer review plus existing CI is the reliable fallback. Do not add another AI reviewer unless measured recall, false positives, privacy, and cost are better |
-| Application identity | [ASP.NET Core Identity](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity) is implemented in Sample and Nexus with application-owned user stores and MFA work in progress | Open-source framework components operated inside DRN | Keep it for the current small team and product boundary. Complete bearer-token MFA semantics, Nexus MFA, recovery, privileged-role review, security-stamp handling, and identity-event logging | [Keycloak](https://www.keycloak.org/) is the preferred open-source alternative when DRN needs centralized SSO across several applications, OpenID Connect or SAML federation, external identity brokering, or centralized session administration. It is not a simple library swap. Adoption requires an OIDC migration plan, HA, PostgreSQL backup, upgrades, realm recovery, admin separation, and monitoring. A managed identity provider is the lower-operations alternative when budget permits |
-| Dependency updates | Dependabot is configured for weekly GitHub Actions updates | GitHub-managed | Expand it to supported NuGet, npm, container, and GitHub Actions ecosystems if it meets repository needs | Use self-hosted [Renovate](https://docs.renovatebot.com/) instead when one configurable bot must cover both repositories. Never run both against the same package source |
-| Container and manifest vulnerabilities | Docker Scout scans staged application images; Trivy scans GitOps files, manifests, secrets, and infrastructure configuration | Docker Scout is managed and plan-dependent; Trivy is open source and locally runnable | Keep each only for its demonstrated coverage. Define one severity policy and one finding register so duplicate alerts do not become separate controls | Standardize on [Trivy](https://trivy.dev/docs/latest/) if it proves equivalent multi-architecture image and repository coverage. Grype with Syft is a credible image and SBOM alternative, but migration is not currently justified |
-| Logs, metrics, traces, and alerts | Graylog is under development. Prometheus, Alertmanager, and Grafana are required complements. OpenTelemetry Collector is not yet implemented | Primarily self-hosted components with mixed licenses; confirm the deployed Graylog edition and license | Complete the current stack if separate components remain understandable for the team. Add the Collector only for a defined routing, filtering, retry, or tracing need | OpenObserve is a consolidated self-hosted or managed alternative after a production-like proof of concept. Do not adopt its open-source edition where per-stream RBAC is required. Do not retain both full stacks after migration |
-| Kubernetes policy | No production admission baseline is implemented | [Kyverno](https://kyverno.io/docs/) is open source and cluster-operated | Add Kyverno in audit mode, assign policy ownership, document controller exceptions, then enforce approved policies | Gatekeeper is reliable if Rego expertise already exists. Running both policy engines adds operational risk and is not recommended for this team |
-| Certificates and application secrets | cert-manager and trust-manager exist; Sealed Secrets controller use is incomplete | Open-source, cluster-operated | Keep cert-manager for certificates. Complete one application-secret lifecycle with tested rotation and controller-key recovery | Use [External Secrets](https://external-secrets.io/latest/) with a managed secret store when centralized lifecycle and provider audit logs justify it. Do not run two secret sources of truth |
-| PostgreSQL | CloudNativePG is the current operator; HA, backups, and restore evidence are incomplete | Open-source, cluster-operated | Keep it only if the team can prove upgrades, alerts, off-cluster Barman backups, point-in-time recovery, and restore | Use managed PostgreSQL when reduced database operations outweigh cost and portability concerns. The provider does not remove DRN's access, configuration, recovery, and evidence duties |
-| Compliance administration | Markdown registers, GitHub issues, calendar reminders, and protected evidence storage are sufficient initially | Existing repository and collaboration services | Keep the process small and reviewable | Adopt a managed GRC platform only when auditor requests, customer questionnaires, control count, or evidence volume cannot be handled reliably by the assigned owners |
+| Control                                | Current selection and status                                                                                                                                                                           | Delivery model                                                                                                                                     | Recommendation                                                                                                                                                                                 | Reliable alternative and adoption trigger                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+|----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Static application security            | [CodeQL](https://docs.github.com/en/code-security/code-scanning/introduction-to-code-scanning/about-code-scanning-with-codeql) is active in pull-request, branch, preview, and release workflows       | GitHub-managed. Public-repository use and private-repository GitHub Code Security licensing differ, so confirm the actual organization entitlement | Keep it required and retain SARIF results. Verify branch rules reject failed or missing scans                                                                                                  | [Semgrep Community Edition](https://semgrep.dev/products/community-edition/) is a self-hosted alternative if CodeQL cost, availability, or repository policy becomes unacceptable. Prove equivalent C# and JavaScript coverage on a fixed vulnerability corpus before replacement                                                                                                                                                                                                                   |
+| Code quality and secondary analysis    | SonarQube Cloud, using the existing SonarCloud endpoint, is active on protected branch and release workflows                                                                                           | Managed subscription service; selected plan was not verified                                                                                       | Keep it while quality gates are reliable and the vendor review is current. Avoid duplicating CodeQL findings without an assigned response process                                              | [SonarQube Community Build](https://docs.sonarsource.com/sonarqube-community-build/) is the self-hosted alternative when code residency or service dependency requires it. The team then owns patching, database backup, availability, and upgrades                                                                                                                                                                                                                                                 |
+| Advisory code review                   | CodeRabbit is configured for automatic DRN-specific review                                                                                                                                             | Managed commercial service; selected plan was not verified                                                                                         | Keep it advisory. A non-author remains responsible for approval, and deterministic CI remains authoritative                                                                                    | Human peer review plus existing CI is the reliable fallback. Do not add another AI reviewer unless measured recall, false positives, privacy, and cost are better                                                                                                                                                                                                                                                                                                                                   |
+| Application identity                   | [ASP.NET Core Identity](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity) is implemented in Sample and Nexus with application-owned user stores and MFA work in progress | Open-source framework components operated inside DRN                                                                                               | Keep it for the current small team and product boundary. Complete bearer-token MFA semantics, Nexus MFA, recovery, privileged-role review, security-stamp handling, and identity-event logging | [Keycloak](https://www.keycloak.org/) is the preferred open-source alternative when DRN needs centralized SSO across several applications, OpenID Connect or SAML federation, external identity brokering, or centralized session administration. It is not a simple library swap. Adoption requires an OIDC migration plan, HA, PostgreSQL backup, upgrades, realm recovery, admin separation, and monitoring. A managed identity provider is the lower-operations alternative when budget permits |
+| Dependency updates                     | Dependabot is configured for weekly GitHub Actions updates                                                                                                                                             | GitHub-managed                                                                                                                                     | Expand it to supported NuGet, npm, container, and GitHub Actions ecosystems if it meets repository needs                                                                                       | Use self-hosted [Renovate](https://docs.renovatebot.com/) instead when one configurable bot must cover both repositories. Never run both against the same package source                                                                                                                                                                                                                                                                                                                            |
+| Container and manifest vulnerabilities | Docker Scout scans staged application images; Trivy scans GitOps files, manifests, secrets, and infrastructure configuration                                                                           | Docker Scout is managed and plan-dependent; Trivy is open source and locally runnable                                                              | Keep each only for its demonstrated coverage. Define one severity policy and one finding register so duplicate alerts do not become separate controls                                          | Standardize on [Trivy](https://trivy.dev/docs/latest/) if it proves equivalent multi-architecture image and repository coverage. Grype with Syft is a credible image and SBOM alternative, but migration is not currently justified                                                                                                                                                                                                                                                                 |
+| Logs, metrics, traces, and alerts      | Graylog is under development. Prometheus, Alertmanager, and Grafana are required complements. OpenTelemetry Collector is not yet implemented                                                           | Primarily self-hosted components with mixed licenses; confirm the deployed Graylog edition and license                                             | Complete the current stack if separate components remain understandable for the team. Add the Collector only for a defined routing, filtering, retry, or tracing need                          | OpenObserve is a consolidated self-hosted or managed alternative after a production-like proof of concept. Do not adopt its open-source edition where per-stream RBAC is required. Do not retain both full stacks after migration                                                                                                                                                                                                                                                                   |
+| Kubernetes policy                      | No production admission baseline is implemented                                                                                                                                                        | [Kyverno](https://kyverno.io/docs/) is open source and cluster-operated                                                                            | Add Kyverno in audit mode, assign policy ownership, document controller exceptions, then enforce approved policies                                                                             | Gatekeeper is reliable if Rego expertise already exists. Running both policy engines adds operational risk and is not recommended for this team                                                                                                                                                                                                                                                                                                                                                     |
+| Certificates and application secrets   | cert-manager and trust-manager exist; Sealed Secrets controller use is incomplete                                                                                                                      | Open-source, cluster-operated                                                                                                                      | Keep cert-manager for certificates. Complete one application-secret lifecycle with tested rotation and controller-key recovery                                                                 | Use [External Secrets](https://external-secrets.io/latest/) with a managed secret store when centralized lifecycle and provider audit logs justify it. Do not run two secret sources of truth                                                                                                                                                                                                                                                                                                       |
+| PostgreSQL                             | CloudNativePG is the current operator; HA, backups, and restore evidence are incomplete                                                                                                                | Open-source, cluster-operated                                                                                                                      | Keep it only if the team can prove upgrades, alerts, off-cluster Barman backups, point-in-time recovery, and restore                                                                           | Use managed PostgreSQL when reduced database operations outweigh cost and portability concerns. The provider does not remove DRN's access, configuration, recovery, and evidence duties                                                                                                                                                                                                                                                                                                             |
+| Compliance administration              | Markdown registers, GitHub issues, calendar reminders, and protected evidence storage are sufficient initially                                                                                         | Existing repository and collaboration services                                                                                                     | Keep the process small and reviewable                                                                                                                                                          | Adopt a managed GRC platform only when auditor requests, customer questionnaires, control count, or evidence volume cannot be handled reliably by the assigned owners                                                                                                                                                                                                                                                                                                                               |
 
 Tool alternatives are contingencies, not backlog items. Select one primary tool per control, document the decision, and avoid parallel platforms unless a time-limited migration plan requires them.
 
@@ -458,13 +458,13 @@ Adding a tool does not close a control. The tool must fail visibly, have an owne
 
 Use an evidence register with these minimum fields: control ID, owner, performer, reviewer, frequency, population, sample, source system, evidence link, execution date, result, exception, remediation, approval, and retention date.
 
-| Frequency | Minimum evidence |
-|---|---|
-| Per change | Approved issue or change record, pull request, reviews, required CI results, security findings, artifact digest or attestation, GitOps revision, deployment result, post-change verification |
-| Daily or continuous | Service health, alert delivery, log ingestion, backup result, certificate state, vulnerability and drift alerts, incident queue |
-| Monthly | Vulnerability aging, privileged access changes, backup success, restore sample where appropriate, capacity, control failures, exception expiry |
-| Quarterly | Access recertification, risk review, vendor changes, incident and alert trend, business continuity readiness, management oversight |
-| Annual and after material change | Policies, risk assessment, threat model, business impact analysis, vendor review, penetration test, incident exercise, disaster recovery exercise, security training |
+| Frequency                        | Minimum evidence                                                                                                                                                                             |
+|----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Per change                       | Approved issue or change record, pull request, reviews, required CI results, security findings, artifact digest or attestation, GitOps revision, deployment result, post-change verification |
+| Daily or continuous              | Service health, alert delivery, log ingestion, backup result, certificate state, vulnerability and drift alerts, incident queue                                                              |
+| Monthly                          | Vulnerability aging, privileged access changes, backup success, restore sample where appropriate, capacity, control failures, exception expiry                                               |
+| Quarterly                        | Access recertification, risk review, vendor changes, incident and alert trend, business continuity readiness, management oversight                                                           |
+| Annual and after material change | Policies, risk assessment, threat model, business impact analysis, vendor review, penetration test, incident exercise, disaster recovery exercise, security training                         |
 
 Evidence retention must cover the complete examination period and the auditor's sampling and reporting needs. Set the exact period with legal, contractual, privacy, and auditor input. Do not retain sensitive evidence longer than justified.
 
@@ -486,16 +486,16 @@ Completing every item is the start of assurance, not the end of control operatio
 
 ## Appendix A. Architecture, limitations, and alternatives
 
-| Component | Preparedness value | Current limitation | Alternative or required complement |
-|---|---|---|---|
-| Argo CD | Declarative changes, reconciliation, reviewable deployment history | Configuration does not prove live RBAC, approval, drift response, or successful deployment | Flux is an alternative. Either requires protected Git, controlled admin access, alerts, evidence, and rollback |
-| Linkerd | Workload identity and service-to-service mTLS when correctly injected and healthy | Selected edge compatibility is not proven for production; coverage and policy were not live-tested | A supported Linkerd release, Istio, or Cilium service mesh can satisfy similar goals. NetworkPolicy, edge TLS, and monitoring are still required |
-| cert-manager and trust-manager | Automated certificate issuance, renewal, and trust distribution | Does not manage arbitrary application secrets; long-lived trust anchors require a tested rotation plan | Cloud CA, Vault PKI, or another approved PKI can be used. Monitor expiry and test overlap rotation |
-| Sealed Secrets | Encrypts selected Kubernetes Secret manifests for repository storage | Controller declaration exists, but no SealedSecret use, rotation, recovery, or access evidence was found | External Secrets with a cloud secret manager or Vault generally provides stronger centralized lifecycle and audit options |
-| CloudNativePG | Operator-managed PostgreSQL lifecycle and least-privilege application roles | One instance, PDB disabled, backups disabled, and no restore evidence | Managed PostgreSQL may reduce operational burden. Responsibility for access, configuration, backups, recovery, and evidence remains |
-| Graylog | Centralized structured logs, search, retention, and alerting when configured | Optional, single-node, manual GELF input, and no evidenced retention, alert, backup, or access-review policy | OpenTelemetry alone is not a Graylog replacement. OpenObserve can consolidate logs, metrics, traces, dashboards, and alerts after a successful proof of concept, but its open-source edition lacks per-stream RBAC. Other alternatives include OpenTelemetry Collector with Loki, Tempo, Prometheus, Grafana, Elastic, OpenSearch, or a managed SIEM |
-| OpenTelemetry | Standard instrumentation and transport for traces, metrics, and logs | DRN currently exposes some metrics but does not configure an exporter or backend | Use it to complement or feed Graylog and monitoring backends. Define sampling, sensitive-data filters, retention, and alert ownership |
-| DRN Nexus | Intended service discovery, remote settings, topology, and internal trust | Material functions remain under development and identity hardening is incomplete | Use Kubernetes-native discovery and approved configuration or secret systems until Nexus controls are complete |
+| Component                      | Preparedness value                                                                | Current limitation                                                                                           | Alternative or required complement                                                                                                                                                                                                                                                                                                                   |
+|--------------------------------|-----------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Argo CD                        | Declarative changes, reconciliation, reviewable deployment history                | Configuration does not prove live RBAC, approval, drift response, or successful deployment                   | Flux is an alternative. Either requires protected Git, controlled admin access, alerts, evidence, and rollback                                                                                                                                                                                                                                       |
+| Linkerd                        | Workload identity and service-to-service mTLS when correctly injected and healthy | Selected edge compatibility is not proven for production; coverage and policy were not live-tested           | A supported Linkerd release, Istio, or Cilium service mesh can satisfy similar goals. NetworkPolicy, edge TLS, and monitoring are still required                                                                                                                                                                                                     |
+| cert-manager and trust-manager | Automated certificate issuance, renewal, and trust distribution                   | Does not manage arbitrary application secrets; long-lived trust anchors require a tested rotation plan       | Cloud CA, Vault PKI, or another approved PKI can be used. Monitor expiry and test overlap rotation                                                                                                                                                                                                                                                   |
+| Sealed Secrets                 | Encrypts selected Kubernetes Secret manifests for repository storage              | Controller declaration exists, but no SealedSecret use, rotation, recovery, or access evidence was found     | External Secrets with a cloud secret manager or Vault generally provides stronger centralized lifecycle and audit options                                                                                                                                                                                                                            |
+| CloudNativePG                  | Operator-managed PostgreSQL lifecycle and least-privilege application roles       | One instance, PDB disabled, backups disabled, and no restore evidence                                        | Managed PostgreSQL may reduce operational burden. Responsibility for access, configuration, backups, recovery, and evidence remains                                                                                                                                                                                                                  |
+| Graylog                        | Centralized structured logs, search, retention, and alerting when configured      | Optional, single-node, manual GELF input, and no evidenced retention, alert, backup, or access-review policy | OpenTelemetry alone is not a Graylog replacement. OpenObserve can consolidate logs, metrics, traces, dashboards, and alerts after a successful proof of concept, but its open-source edition lacks per-stream RBAC. Other alternatives include OpenTelemetry Collector with Loki, Tempo, Prometheus, Grafana, Elastic, OpenSearch, or a managed SIEM |
+| OpenTelemetry                  | Standard instrumentation and transport for traces, metrics, and logs              | DRN currently exposes some metrics but does not configure an exporter or backend                             | Use it to complement or feed Graylog and monitoring backends. Define sampling, sensitive-data filters, retention, and alert ownership                                                                                                                                                                                                                |
+| DRN Nexus                      | Intended service discovery, remote settings, topology, and internal trust         | Material functions remain under development and identity hardening is incomplete                             | Use Kubernetes-native discovery and approved configuration or secret systems until Nexus controls are complete                                                                                                                                                                                                                                       |
 
 Tool choice does not create SOC 2 compliance. The control objective, ownership, reliable operation, review, evidence, and correction process matter.
 
@@ -564,29 +564,29 @@ This example shows one credible operating model for a small private wiki and que
 
 Northstar Answers operates one product: a business-to-business knowledge base where customer organizations create private wiki pages, ask questions, publish answers, attach files, search their content, and manage members. It has three full-time people, no office, no internal network, no self-hosted physical servers, and no separate security or operations department.
 
-| Subject | Defined position |
-|---|---|
-| Customers | Small businesses using private organization workspaces |
-| Data | Account identity, organization membership, questions, answers, wiki content, attachments, audit events, support records, and billing references. Payment-card data is handled by a payment provider and never enters Northstar systems |
-| Prohibited data | Customers are contractually told not to store payment-card data, health records, government secrets, or other regulated high-impact data unless a later written agreement and risk assessment explicitly permit it |
-| In-scope system | People, policies, endpoints, source repositories, CI/CD, production Kubernetes, DRN application services, PostgreSQL, object storage, logging, monitoring, backups, customer support, and relevant vendors |
-| Production boundary | One production environment and a logically separate staging environment. Production data is never copied to development or staging |
-| Trust Services Categories | Security, Availability, and Confidentiality. Privacy and Processing Integrity are excluded from the illustrative report unless the CPA and customer commitments require them |
-| Availability commitment | 99.5% monthly application availability, measured at the authenticated service edge, with exclusions and maintenance terms defined in the customer agreement |
-| Recovery objectives | RPO of 15 minutes and RTO of 4 hours, accepted only after repeated recovery tests demonstrate both targets |
-| Report objective | Type II examination after the controls operate consistently for the period agreed with the CPA firm. A Type I examination may be used first when customers need an earlier design assessment |
+| Subject                   | Defined position                                                                                                                                                                                                                       |
+|---------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Customers                 | Small businesses using private organization workspaces                                                                                                                                                                                 |
+| Data                      | Account identity, organization membership, questions, answers, wiki content, attachments, audit events, support records, and billing references. Payment-card data is handled by a payment provider and never enters Northstar systems |
+| Prohibited data           | Customers are contractually told not to store payment-card data, health records, government secrets, or other regulated high-impact data unless a later written agreement and risk assessment explicitly permit it                     |
+| In-scope system           | People, policies, endpoints, source repositories, CI/CD, production Kubernetes, DRN application services, PostgreSQL, object storage, logging, monitoring, backups, customer support, and relevant vendors                             |
+| Production boundary       | One production environment and a logically separate staging environment. Production data is never copied to development or staging                                                                                                     |
+| Trust Services Categories | Security, Availability, and Confidentiality. Privacy and Processing Integrity are excluded from the illustrative report unless the CPA and customer commitments require them                                                           |
+| Availability commitment   | 99.5% monthly application availability, measured at the authenticated service edge, with exclusions and maintenance terms defined in the customer agreement                                                                            |
+| Recovery objectives       | RPO of 15 minutes and RTO of 4 hours, accepted only after repeated recovery tests demonstrate both targets                                                                                                                             |
+| Report objective          | Type II examination after the controls operate consistently for the period agreed with the CPA firm. A Type I examination may be used first when customers need an earlier design assessment                                           |
 
 Excluding Privacy from the illustrative SOC 2 scope does not remove privacy-law or contractual duties. Northstar still maintains a privacy notice, data-processing terms, subprocessors, retention rules, and request procedures. It adds the Privacy category only when its commitments and evidence are mature enough for examination.
 
 ### D.3 People and separation of duties
 
-| Person | Primary ownership | Activities they cannot approve alone |
-|---|---|---|
-| Lina, CEO and Compliance Lead | Risk, policies, contracts, vendors, privacy, customer commitments, personnel, annual management assertion, and final risk acceptance | Their own privileged access, vendor exception, expense-related vendor choice, or emergency action |
-| Alan, CTO and Software Architect | Architecture, production operation, releases, availability, backups, recovery, capacity, and incident command | Their own source or GitOps change, their own access grant, or their own restore-test conclusion |
-| Nora, Software Engineer and Security Reviewer | Product development, application changes, security review, vulnerability triage, access-review preparation, evidence packaging, and control monitoring | Their own source change, their own access grant, or a risk exception they requested |
-| External CPA firm | Readiness advice when separately permitted and the independent SOC 2 examination under the firm's independence rules | Operating Northstar controls or creating evidence on management's behalf |
-| Independent penetration tester | Annual and material-change application and infrastructure testing | Fixing the tested findings or approving management's risk acceptance |
+| Person                                        | Primary ownership                                                                                                                                      | Activities they cannot approve alone                                                              |
+|-----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| Lina, CEO and Compliance Lead                 | Risk, policies, contracts, vendors, privacy, customer commitments, personnel, annual management assertion, and final risk acceptance                   | Their own privileged access, vendor exception, expense-related vendor choice, or emergency action |
+| Alan, CTO and Software Architect              | Architecture, production operation, releases, availability, backups, recovery, capacity, and incident command                                          | Their own source or GitOps change, their own access grant, or their own restore-test conclusion   |
+| Nora, Software Engineer and Security Reviewer | Product development, application changes, security review, vulnerability triage, access-review preparation, evidence packaging, and control monitoring | Their own source change, their own access grant, or a risk exception they requested               |
+| External CPA firm                             | Readiness advice when separately permitted and the independent SOC 2 examination under the firm's independence rules                                   | Operating Northstar controls or creating evidence on management's behalf                          |
+| Independent penetration tester                | Annual and material-change application and infrastructure testing                                                                                      | Fixing the tested findings or approving management's risk acceptance                              |
 
 The author never approves their own pull request. Alan and Nora review each other's technical changes. Lina approves policy, vendor, and residual-risk decisions. A single person may take emergency action only during an active incident; another person reviews the action and evidence by the next business day.
 
@@ -596,25 +596,25 @@ For a two-person company, both people must be capable of technical review and mu
 
 Within this fictional story, the following target state is fully implemented and operating. It does not change any DRN checklist status and is not evidence that the current DRN repositories or a live environment have reached this state. Northstar selects one tool for each control and avoids parallel platforms without a migration plan.
 
-| Layer | Implemented design |
-|---|---|
-| Application | `Sample.Hosted`-style ASP.NET Core application with organization-scoped wiki, question, answer, attachment, search, administration, and audit endpoints |
-| Customer identity | ASP.NET Core Identity with confirmed email, secure cookies for browsers, tested bearer-token rules for APIs, MFA for customer administrators, recovery codes, lockout, security-stamp invalidation, and organization roles. Keycloak is not operated because there is one product and no federation requirement |
-| Tenant isolation | Every tenant-owned row includes an immutable organization identifier. Authorization checks the authenticated membership before every read, write, search, export, and attachment operation. Automated negative tests attempt cross-tenant access |
-| Edge and workload security | Kubernetes with Traefik Gateway API, external TLS issued by cert-manager, Linkerd workload identity and mTLS, default-deny NetworkPolicies, dedicated service accounts, restricted security contexts, read-only filesystems where supported, and resource limits |
-| Admission control | Kyverno blocks privileged application Pods, mutable production image tags, unapproved registries, absent required security contexts, and unapproved service-account token mounts |
-| Deployment | Argo CD reconciles reviewed GitOps manifests. Production runs immutable image digests. Direct cluster changes are denied except documented break-glass response |
-| Database | CloudNativePG with multiple production instances across failure domains, disruption protection, encrypted persistent storage, least-privilege application roles, and monitored replication |
-| Backup | Barman Cloud writes encrypted base backups and continuous WAL archives to a separate cloud account or failure domain with retention controls. Monthly isolated restores prove recovery |
-| Attachments | Private object storage with tenant-prefixed keys, server-side encryption, short-lived signed access, malware scanning, size and type limits, versioning, and lifecycle deletion |
-| Certificates and secrets | cert-manager handles certificates. Sealed Secrets is the single application-secret workflow, with controller-key backup, restricted decryption access, rotation records, and tested cluster-recovery procedure |
-| Logs | Graylog stores security, administration, application, database, gateway, and Kubernetes events under documented retention and access rules |
-| Metrics and alerts | Prometheus, Alertmanager, and Grafana monitor availability, latency, error rate, saturation, certificates, backups, replication, workload restarts, and telemetry health |
-| Telemetry routing | OpenTelemetry Collector receives, filters, batches, retries, and routes application telemetry. It is not treated as storage. Sensitive fields are removed before export |
-| Source and CI | GitHub rulesets, CODEOWNERS, CodeQL, SonarQube Cloud, dependency review, Dependabot, CodeRabbit advisory comments, unit and integration tests, Docker Scout, Trivy, ZAP baseline testing, signed attestations, and digest-based promotion |
-| Workforce systems | Individually assigned business-email, source-control, cloud, password-manager, and support accounts with phishing-resistant MFA where available. Company endpoints use managed encryption, screen lock, supported operating systems, automatic patching, endpoint protection, and remote removal |
-| Physical responsibility | Remote-work rules prohibit shared endpoints, unattended exposure, and local production-data storage. Cloud and SaaS providers operate physical infrastructure; Northstar reviews their relevant assurance reports and complementary user-entity controls |
-| Evidence | A separate access-controlled object-storage bucket retains dated evidence packages and manifests. Repository records link to evidence but sensitive audit material is not committed to source control |
+| Layer                      | Implemented design                                                                                                                                                                                                                                                                                              |
+|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Application                | `Sample.Hosted`-style ASP.NET Core application with organization-scoped wiki, question, answer, attachment, search, administration, and audit endpoints                                                                                                                                                         |
+| Customer identity          | ASP.NET Core Identity with confirmed email, secure cookies for browsers, tested bearer-token rules for APIs, MFA for customer administrators, recovery codes, lockout, security-stamp invalidation, and organization roles. Keycloak is not operated because there is one product and no federation requirement |
+| Tenant isolation           | Every tenant-owned row includes an immutable organization identifier. Authorization checks the authenticated membership before every read, write, search, export, and attachment operation. Automated negative tests attempt cross-tenant access                                                                |
+| Edge and workload security | Kubernetes with Traefik Gateway API, external TLS issued by cert-manager, Linkerd workload identity and mTLS, default-deny NetworkPolicies, dedicated service accounts, restricted security contexts, read-only filesystems where supported, and resource limits                                                |
+| Admission control          | Kyverno blocks privileged application Pods, mutable production image tags, unapproved registries, absent required security contexts, and unapproved service-account token mounts                                                                                                                                |
+| Deployment                 | Argo CD reconciles reviewed GitOps manifests. Production runs immutable image digests. Direct cluster changes are denied except documented break-glass response                                                                                                                                                 |
+| Database                   | CloudNativePG with multiple production instances across failure domains, disruption protection, encrypted persistent storage, least-privilege application roles, and monitored replication                                                                                                                      |
+| Backup                     | Barman Cloud writes encrypted base backups and continuous WAL archives to a separate cloud account or failure domain with retention controls. Monthly isolated restores prove recovery                                                                                                                          |
+| Attachments                | Private object storage with tenant-prefixed keys, server-side encryption, short-lived signed access, malware scanning, size and type limits, versioning, and lifecycle deletion                                                                                                                                 |
+| Certificates and secrets   | cert-manager handles certificates. Sealed Secrets is the single application-secret workflow, with controller-key backup, restricted decryption access, rotation records, and tested cluster-recovery procedure                                                                                                  |
+| Logs                       | Graylog stores security, administration, application, database, gateway, and Kubernetes events under documented retention and access rules                                                                                                                                                                      |
+| Metrics and alerts         | Prometheus, Alertmanager, and Grafana monitor availability, latency, error rate, saturation, certificates, backups, replication, workload restarts, and telemetry health                                                                                                                                        |
+| Telemetry routing          | OpenTelemetry Collector receives, filters, batches, retries, and routes application telemetry. It is not treated as storage. Sensitive fields are removed before export                                                                                                                                         |
+| Source and CI              | GitHub rulesets, CODEOWNERS, CodeQL, SonarQube Cloud, dependency review, Dependabot, CodeRabbit advisory comments, unit and integration tests, Docker Scout, Trivy, ZAP baseline testing, signed attestations, and digest-based promotion                                                                       |
+| Workforce systems          | Individually assigned business-email, source-control, cloud, password-manager, and support accounts with phishing-resistant MFA where available. Company endpoints use managed encryption, screen lock, supported operating systems, automatic patching, endpoint protection, and remote removal                |
+| Physical responsibility    | Remote-work rules prohibit shared endpoints, unattended exposure, and local production-data storage. Cloud and SaaS providers operate physical infrastructure; Northstar reviews their relevant assurance reports and complementary user-entity controls                                                        |
+| Evidence                   | A separate access-controlled object-storage bucket retains dated evidence packages and manifests. Repository records link to evidence but sensitive audit material is not committed to source control                                                                                                           |
 
 ### D.5 Customer commitments and shared responsibility
 
@@ -634,25 +634,25 @@ Customer responsibilities are also written into the agreement and system descrip
 
 Security is the mandatory foundation of the illustrative scope. It includes governance, risk, personnel, access, system operations, change management, monitoring, incident response, and vendor oversight. It is not limited to scanners and firewalls. The exact control wording is agreed with the CPA.
 
-| ID | Security control operation | Owner and frequency | Example evidence |
-|---|---|---|---|
-| SEC-01 | Management approves scope, commitments, policies, control owners, and unresolved exceptions | Lina annually and after material change | Signed approval, system boundary, policy version, exception list |
-| SEC-02 | Management reviews risks, incidents, vendors, vulnerabilities, control failures, and corrective actions | Lina with Alan and Nora quarterly | Meeting record, risk-register changes, decisions, assigned actions |
-| SEC-03 | Workers sign confidentiality and acceptable-use terms, complete security training, and receive role-specific access | Lina at onboarding and annually | Agreement, training record, onboarding checklist, approved access |
-| SEC-04 | Remote-work and endpoint controls prohibit shared devices and local production-data storage and enforce encryption, lock, patching, protection, and inventory | Nora continuously; Alan reviews monthly | Device inventory, compliance export, acknowledgement, remediation |
-| SEC-05 | Individual accounts and MFA are required; privileged access is approved, time-bounded where possible, and logged | Lina approves; Nora monitors continuously | Access request, MFA status, role assignment, privileged audit event |
-| SEC-06 | Workforce and service access is recertified; unnecessary access is removed immediately | Nora prepares; Lina and Alan review quarterly and at departure | Complete population, decisions, removals, completion timestamp |
-| SEC-07 | Every normal source and GitOps change uses a linked issue, non-author approval, required checks, and an immutable release reference | Alan or Nora per change | Issue, pull request, review, checks, image digest, GitOps revision |
-| SEC-08 | Emergency changes are limited to active incidents, recorded immediately, validated, and independently reviewed | Incident commander per event; peer by next business day | Incident link, commands or diff, validation, review, retrospective |
-| SEC-09 | Security requirements and abuse cases are defined for authentication, authorization, administration, uploads, exports, and deletion | Alan per feature; Nora reviews | Threat note, acceptance criteria, security tests, review comments |
-| SEC-10 | Code, dependencies, secrets, images, manifests, and staging are scanned; findings have an owner and due date | CI continuously; Nora triages weekly | CodeQL, Sonar, Trivy, Scout, ZAP and dependency results |
-| SEC-11 | Critical and high vulnerabilities meet approved deadlines or receive documented, expiring risk acceptance | Nora weekly; Lina accepts residual risk | Finding age, fix, retest, compensating control, approval, expiry |
-| SEC-12 | Production configuration is declarative, reviewed, policy-checked, reconciled, and monitored for drift | Alan continuously; Nora reviews changes | GitOps diff, Kyverno result, Argo history, drift alert, rollback |
-| SEC-13 | Secrets and certificates are inventoried, access-restricted, monitored, rotated, and recoverable | Alan continuously; Nora reviews quarterly | Inventory, expiry alert, rotation record, recovery test |
-| SEC-14 | Security events are centralized, protected from ordinary modification, retained, and connected to actionable alerts | Alan continuously; Nora tests monthly | Log-source inventory, test event, alert, acknowledgement, retention |
-| SEC-15 | Security incidents follow severity, command, containment, evidence, communication, recovery, and lessons-learned procedures | Assigned commander per event; tabletop quarterly | Incident record, timeline, decisions, notices, retrospective, actions |
-| SEC-16 | New and material vendors receive security, privacy, contractual, availability, and exit review; critical vendors are reassessed | Lina before use and annually | Vendor register, due diligence, assurance review, contract, decision |
-| SEC-17 | The evidence manifest is generated and reviewed; missed controls become exceptions rather than recreated evidence | Nora monthly; Lina reviews quarterly | Evidence manifest, reviewer sign-off, exception, remediation ticket |
+| ID     | Security control operation                                                                                                                                    | Owner and frequency                                            | Example evidence                                                      |
+|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|-----------------------------------------------------------------------|
+| SEC-01 | Management approves scope, commitments, policies, control owners, and unresolved exceptions                                                                   | Lina annually and after material change                        | Signed approval, system boundary, policy version, exception list      |
+| SEC-02 | Management reviews risks, incidents, vendors, vulnerabilities, control failures, and corrective actions                                                       | Lina with Alan and Nora quarterly                              | Meeting record, risk-register changes, decisions, assigned actions    |
+| SEC-03 | Workers sign confidentiality and acceptable-use terms, complete security training, and receive role-specific access                                           | Lina at onboarding and annually                                | Agreement, training record, onboarding checklist, approved access     |
+| SEC-04 | Remote-work and endpoint controls prohibit shared devices and local production-data storage and enforce encryption, lock, patching, protection, and inventory | Nora continuously; Alan reviews monthly                        | Device inventory, compliance export, acknowledgement, remediation     |
+| SEC-05 | Individual accounts and MFA are required; privileged access is approved, time-bounded where possible, and logged                                              | Lina approves; Nora monitors continuously                      | Access request, MFA status, role assignment, privileged audit event   |
+| SEC-06 | Workforce and service access is recertified; unnecessary access is removed immediately                                                                        | Nora prepares; Lina and Alan review quarterly and at departure | Complete population, decisions, removals, completion timestamp        |
+| SEC-07 | Every normal source and GitOps change uses a linked issue, non-author approval, required checks, and an immutable release reference                           | Alan or Nora per change                                        | Issue, pull request, review, checks, image digest, GitOps revision    |
+| SEC-08 | Emergency changes are limited to active incidents, recorded immediately, validated, and independently reviewed                                                | Incident commander per event; peer by next business day        | Incident link, commands or diff, validation, review, retrospective    |
+| SEC-09 | Security requirements and abuse cases are defined for authentication, authorization, administration, uploads, exports, and deletion                           | Alan per feature; Nora reviews                                 | Threat note, acceptance criteria, security tests, review comments     |
+| SEC-10 | Code, dependencies, secrets, images, manifests, and staging are scanned; findings have an owner and due date                                                  | CI continuously; Nora triages weekly                           | CodeQL, Sonar, Trivy, Scout, ZAP and dependency results               |
+| SEC-11 | Critical and high vulnerabilities meet approved deadlines or receive documented, expiring risk acceptance                                                     | Nora weekly; Lina accepts residual risk                        | Finding age, fix, retest, compensating control, approval, expiry      |
+| SEC-12 | Production configuration is declarative, reviewed, policy-checked, reconciled, and monitored for drift                                                        | Alan continuously; Nora reviews changes                        | GitOps diff, Kyverno result, Argo history, drift alert, rollback      |
+| SEC-13 | Secrets and certificates are inventoried, access-restricted, monitored, rotated, and recoverable                                                              | Alan continuously; Nora reviews quarterly                      | Inventory, expiry alert, rotation record, recovery test               |
+| SEC-14 | Security events are centralized, protected from ordinary modification, retained, and connected to actionable alerts                                           | Alan continuously; Nora tests monthly                          | Log-source inventory, test event, alert, acknowledgement, retention   |
+| SEC-15 | Security incidents follow severity, command, containment, evidence, communication, recovery, and lessons-learned procedures                                   | Assigned commander per event; tabletop quarterly               | Incident record, timeline, decisions, notices, retrospective, actions |
+| SEC-16 | New and material vendors receive security, privacy, contractual, availability, and exit review; critical vendors are reassessed                               | Lina before use and annually                                   | Vendor register, due diligence, assurance review, contract, decision  |
+| SEC-17 | The evidence manifest is generated and reviewed; missed controls become exceptions rather than recreated evidence                                             | Nora monthly; Lina reviews quarterly                           | Evidence manifest, reviewer sign-off, exception, remediation ticket   |
 
 #### Security-controlled change story
 
@@ -683,13 +683,13 @@ Graylog detects a privileged login from an unexpected source. Nora revokes sessi
 
 Availability is included because Northstar promises 99.5% monthly availability and tested recovery objectives. The criteria do not require zero downtime. They require commitments grounded in capacity, resilience, monitoring, response, recovery, and evidence.
 
-| ID | Availability control operation | Owner and frequency | Example evidence |
-|---|---|---|---|
-| AVL-01 | External availability, latency, error rate, saturation, and critical dependency health are monitored and alerted | Alan continuously; Lina reviews monthly | Uptime report, SLI dashboard, alert, acknowledgement, service review |
-| AVL-02 | Production uses tested redundancy, disruption protection, capacity thresholds, and scaling limits without a known single application or database instance | Alan continuously; Nora reviews quarterly | Topology, capacity report, failover result, exception record |
-| AVL-03 | Database and attachment backups run automatically to a separate failure domain; failures alert; retention is enforced | Alan continuously; Nora reviews monthly | Backup job, destination control, failure alert, retention setting |
-| AVL-04 | Isolated restoration measures actual RPO and RTO; disaster recovery exercises test the wider dependency sequence | Alan restores; Nora witnesses monthly; all exercise annually | Restore record, checksums, measured RPO and RTO, exercise actions |
-| AVL-05 | Business impact and continuity plans define priority, contacts, alternate access, provider failure, personnel absence, customer communication, and return to normal operation | Lina annually and after material change | Impact analysis, continuity plan, exercise, corrections, approval |
+| ID     | Availability control operation                                                                                                                                                | Owner and frequency                                          | Example evidence                                                     |
+|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|----------------------------------------------------------------------|
+| AVL-01 | External availability, latency, error rate, saturation, and critical dependency health are monitored and alerted                                                              | Alan continuously; Lina reviews monthly                      | Uptime report, SLI dashboard, alert, acknowledgement, service review |
+| AVL-02 | Production uses tested redundancy, disruption protection, capacity thresholds, and scaling limits without a known single application or database instance                     | Alan continuously; Nora reviews quarterly                    | Topology, capacity report, failover result, exception record         |
+| AVL-03 | Database and attachment backups run automatically to a separate failure domain; failures alert; retention is enforced                                                         | Alan continuously; Nora reviews monthly                      | Backup job, destination control, failure alert, retention setting    |
+| AVL-04 | Isolated restoration measures actual RPO and RTO; disaster recovery exercises test the wider dependency sequence                                                              | Alan restores; Nora witnesses monthly; all exercise annually | Restore record, checksums, measured RPO and RTO, exercise actions    |
+| AVL-05 | Business impact and continuity plans define priority, contacts, alternate access, provider failure, personnel absence, customer communication, and return to normal operation | Lina annually and after material change                      | Impact analysis, continuity plan, exercise, corrections, approval    |
 
 #### Availability recovery story
 
@@ -701,15 +701,15 @@ At month end, Lina compares measured availability with the customer commitment a
 
 Confidentiality is included because private customer knowledge and attachments are explicitly designated confidential. This story addresses approved collection, tenant isolation, encryption, restricted access, controlled disclosure, retention, and disposal. It does not claim the Privacy category, although privacy obligations still apply.
 
-| ID | Confidentiality control operation | Owner and frequency | Example evidence |
-|---|---|---|---|
-| CON-01 | Data types, owners, locations, classification, retention, and prohibited-data rules are documented and reviewed | Lina annually; Alan reviews material features | Data inventory, classification, data flow, approved requirement |
-| CON-02 | Every tenant-owned record and object is organization-scoped; authorization and negative tests prevent cross-tenant access | Alan continuously; Nora reviews per change and monthly | Authorization design, test results, denied event, audit sample |
-| CON-03 | Confidential data is encrypted in transit and at rest; keys, secrets, and certificate access are restricted and rotated | Alan continuously; Nora reviews quarterly | TLS result, storage setting, key access, rotation and recovery record |
-| CON-04 | Attachments, exports, support access, and administrative actions use least privilege, short-lived access, malware controls, and audit events | Alan continuously; Nora samples monthly | Signed-access configuration, scan result, support approval, audit event |
-| CON-05 | Confidential data is excluded from ordinary logs and non-production; telemetry filtering and test-data rules are verified | Nora per change; Alan tests quarterly | Logging test, collector filter, staging sample, exception record |
-| CON-06 | Customer data is retained, exported, corrected, and deleted according to contract and documented procedure | Lina owns terms; Alan operates per request; Nora verifies | Retention configuration, request ticket, export, deletion verification |
-| CON-07 | Subprocessors receive only necessary data under reviewed confidentiality, security, deletion, incident, and exit terms | Lina before use and annually | Data flow, contract, assurance review, subprocessor notice, exit test |
+| ID     | Confidentiality control operation                                                                                                            | Owner and frequency                                       | Example evidence                                                        |
+|--------|----------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------|-------------------------------------------------------------------------|
+| CON-01 | Data types, owners, locations, classification, retention, and prohibited-data rules are documented and reviewed                              | Lina annually; Alan reviews material features             | Data inventory, classification, data flow, approved requirement         |
+| CON-02 | Every tenant-owned record and object is organization-scoped; authorization and negative tests prevent cross-tenant access                    | Alan continuously; Nora reviews per change and monthly    | Authorization design, test results, denied event, audit sample          |
+| CON-03 | Confidential data is encrypted in transit and at rest; keys, secrets, and certificate access are restricted and rotated                      | Alan continuously; Nora reviews quarterly                 | TLS result, storage setting, key access, rotation and recovery record   |
+| CON-04 | Attachments, exports, support access, and administrative actions use least privilege, short-lived access, malware controls, and audit events | Alan continuously; Nora samples monthly                   | Signed-access configuration, scan result, support approval, audit event |
+| CON-05 | Confidential data is excluded from ordinary logs and non-production; telemetry filtering and test-data rules are verified                    | Nora per change; Alan tests quarterly                     | Logging test, collector filter, staging sample, exception record        |
+| CON-06 | Customer data is retained, exported, corrected, and deleted according to contract and documented procedure                                   | Lina owns terms; Alan operates per request; Nora verifies | Retention configuration, request ticket, export, deletion verification  |
+| CON-07 | Subprocessors receive only necessary data under reviewed confidentiality, security, deletion, incident, and exit terms                       | Lina before use and annually                              | Data flow, contract, assurance review, subprocessor notice, exit test   |
 
 #### Confidentiality incident story
 
@@ -721,15 +721,15 @@ Controls are placed under their primary category for readability, but several su
 
 ### D.9 Operating calendar
 
-| Cadence | What actually happens |
-|---|---|
-| Continuous | CI and policy gates, health checks, log ingestion, vulnerability alerts, certificate monitoring, backup and replication monitoring, drift detection, and on-call delivery |
-| Per change | Issue, risk and security requirements, non-author review, required checks, immutable artifact, GitOps deployment, verification, rollback reference, and evidence link |
-| Daily | Primary checks unresolved pages, failed backups, certificate warnings, security findings, production drift, and open incidents; secondary confirms coverage |
-| Weekly | Nora triages vulnerability and dependency queues; Alan reviews capacity and repeated alerts; overdue critical or high items escalate to Lina |
-| Monthly | Non-operator witnesses a restore; alert delivery and log ingestion are tested; evidence package, endpoint compliance, availability, and backup trends are reviewed |
-| Quarterly | Access recertification, risk and vendor changes, exception expiry, incident tabletop, on-call handoff, customer-commitment review, and management sign-off |
-| Annually and after material change | Policies, scope, risk assessment, threat model, business impact, vendor due diligence, penetration test, disaster recovery exercise, training, and system description |
+| Cadence                            | What actually happens                                                                                                                                                     |
+|------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Continuous                         | CI and policy gates, health checks, log ingestion, vulnerability alerts, certificate monitoring, backup and replication monitoring, drift detection, and on-call delivery |
+| Per change                         | Issue, risk and security requirements, non-author review, required checks, immutable artifact, GitOps deployment, verification, rollback reference, and evidence link     |
+| Daily                              | Primary checks unresolved pages, failed backups, certificate warnings, security findings, production drift, and open incidents; secondary confirms coverage               |
+| Weekly                             | Nora triages vulnerability and dependency queues; Alan reviews capacity and repeated alerts; overdue critical or high items escalate to Lina                              |
+| Monthly                            | Non-operator witnesses a restore; alert delivery and log ingestion are tested; evidence package, endpoint compliance, availability, and backup trends are reviewed        |
+| Quarterly                          | Access recertification, risk and vendor changes, exception expiry, incident tabletop, on-call handoff, customer-commitment review, and management sign-off                |
+| Annually and after material change | Policies, scope, risk assessment, threat model, business impact, vendor due diligence, penetration test, disaster recovery exercise, training, and system description     |
 
 An activity without dated evidence is treated as not performed for examination purposes. Missing evidence is recorded as an exception; it is never reconstructed or backdated.
 

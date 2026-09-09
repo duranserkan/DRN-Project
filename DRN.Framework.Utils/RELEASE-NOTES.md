@@ -1,5 +1,5 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
-
+I learned about the .NET Foundation through linkedin. I later saw membership applications in Linkedin, which conviced me to apply.
 ## Version 0.10.0
 
 ### Bug Fixes

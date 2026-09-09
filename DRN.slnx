@@ -31,11 +31,14 @@
     <File Path="Docker\Rabbitmq\Image\rabbitmq.conf" />
   </Folder>
   <Folder Name="/Docs/">
+    <File Path="CODE_OF_CONDUCT.md" />
+    <File Path="CONTRIBUTING.md" />
     <File Path="LICENSE" />
     <File Path="README.md" />
     <File Path="ROADMAP.md" />
     <File Path="SECURITY.md" />
     <File Path="NOTICE.md" />
+    <File Path="SOC2-CHECKLIST.md" />
   </Folder>
   <Folder Name="/Items/">
     <File Path=".gitignore" />
@@ -43,6 +46,8 @@
     <File Path=".dockerignore" />
     <File Path="AGENTS.md" />
     <File Path="Directory.Build.targets" />
+    <File Path="global.json" />
+    <File Path="NuGet.Config" />
     <File Path="vive la republique.png" />
   </Folder>
   <Folder Name="/Items/.agent/" />

@@ -1,5 +1,4 @@
 using DRN.Framework.Hosting.DrnProgram;
-using DRN.Framework.SharedKernel;
 using Swashbuckle.AspNetCore.SwaggerUI;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.DrnProgram;
@@ -7,7 +6,7 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.DrnProgram;
 public class DrnProgramSwaggerOptionsTests
 {
     [Theory]
-    [DataInlineUnit(null)]
+    [DataInlineUnit(null!)]
     [DataInlineUnit("")]
     [DataInlineUnit("/")]
     [DataInlineUnit("///")]
@@ -18,7 +17,7 @@ public class DrnProgramSwaggerOptionsTests
             ConfigureSwaggerUIOptionsAction = ui => ui.RoutePrefix = prefix!
         };
 
-        Action configure = () => options.ConfigureSwaggerUI(new SwaggerUIOptions());
+        var configure = () => options.ConfigureSwaggerUI(new SwaggerUIOptions());
 
         configure.Should().Throw<ConfigurationException>().WithMessage("*RoutePrefix must be nonempty*");
         options.SwaggerUIPathPrefix.Should().BeNull();
