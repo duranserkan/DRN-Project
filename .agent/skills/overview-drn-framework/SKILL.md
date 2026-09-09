@@ -1,7 +1,7 @@
 ---
 name: overview-drn-framework
 description: "DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, package-dependencies"
-last-updated: 2026-09-02
+last-updated: 2026-09-10
 difficulty: basic
 tokens: ~3.1K
 ---
@@ -64,6 +64,8 @@ tokens: ~3.1K
 ---
 
 ## Core Conventions
+
+Explicitly configure `NexusAppSettings:AppId`; zero is valid. Utils `Validate<TEntity>` uses entity metadata; `Validate(id, entityType)` uses the configured partition unless overridden through `TApp` or an explicit composite identity. SharedKernel and repositories use entity metadata or an explicit composite identity. See [Utils partition selection](../drn-utils/SKILL.md#nexus-keys) and [SharedKernel validation](../drn-sharedkernel/SKILL.md#validation-approaches).
 
 ### 1. Attribute-Based Dependency Injection
 
@@ -295,6 +297,8 @@ Unit tests should be listed before integration tests. Do not use `.slnx` in test
 DRN Hosting registers one immutable `AuthenticationClaimConfig` from `ConfigureAuthenticationClaims()`: Identity canonical types, explicit aliases, and nested exact MFA marker (`amr=mfa`). Consumers share it; Identity claim options derive from it. `MfaPrincipal` rejects restricted states and conflicting accounts/issuers; exemptions require policy-selected evidence. Identity consumers explicitly register `AddDrnIdentityMfaPolicies` and `DrnSignInManager<TUser>` for issuance/explicit refresh. Overridable lifecycle wiring may omit unused Identity renewal; shared semantics remain active. Identity factories and future handlers supply canonical claims/native metadata; DRN aliases alone do not change native authorization. Provider integrations and pages remain separate work.
 
 ### Maintenance Reference: Entity Creation-Date Filters
+
+Generation, historical conversion, and date filters share one immutable epoch. Configure it before startup or first ID/epoch use, and retain it across the dataset's services and restarts. See [the time contract](../drn-sharedkernel/SKILL.md#source-known-identity-system).
 
 Source-Known IDs encode creation time at 250ms precision followed by a 31-bit app, instance, and sequence payload. `IEntityDateTimeUtils` treats every date boundary as the entire representable tick: inclusive filters include the tick's minimum-through-maximum payload range, while exclusive filters exclude that full range. `CreatedBetween` and `CreatedOutside` normalize reversed endpoints.
 

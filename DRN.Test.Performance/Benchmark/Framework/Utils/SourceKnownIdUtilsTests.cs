@@ -54,9 +54,9 @@ public class SourceKnownIdUtilsBenchmark
 
     static SourceKnownIdUtilsBenchmark()
     {
-        IdUtils = new(AppSettings.Development(), new EpochTimeUtils());
+        IdUtils = new(AppSettings.Development(new { NexusAppSettings = new { AppId = 0 } }));
 
-        var appSettings = AppSettings.Development();
+        var appSettings = AppSettings.Development(new { NexusAppSettings = new { AppId = 0 } });
         EntityIdUtils = new(appSettings, IdUtils);
 
         // Pre-generate GUIDs for Parse benchmarks — avoids measuring ID generation in parse benchmarks
@@ -84,10 +84,10 @@ public class SourceKnownIdUtilsBenchmark
     public Guid RandomGuidV7() => Guid.CreateVersion7();
 
     [Benchmark]
-    public long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
+    public long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp();
 
     [Benchmark]
-    public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<YEntity>.GetTimeScopedId(EpochTimeUtils.DefaultEpoch);
+    public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<YEntity>.GetTimeScopedId();
 
     // --- SourceKnownId (raw long) ---
 

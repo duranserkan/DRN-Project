@@ -447,7 +447,7 @@ Filters do not authorize tracked writes. Validate ownership and access before ad
 
 ### Validation
 
-The repository validates IDs against the expected entity type and application partition before query execution by default:
+Repositories validate the target entity's declared `(EntityType, AppId)` before querying, including secondary partitions. `GetEntityId<TOtherEntity>` uses that entity's declaration. `validate: false` skips validation; nullable inputs preserve null:
 
 ```csharp
 // Throws ValidationException for an invalid ID or a mismatched entity type/partition

@@ -21,7 +21,7 @@ public interface ISourceKnownIdUtils
     /// <typeparam name="TEntity">The entity type for which Ids are generated. Must derive from <see cref="SourceKnownEntity"/>.</typeparam>
     long Next<TEntity>() where TEntity : SourceKnownEntity;
 
-    long Next<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : SourceKnownEntity;
+    long Next<TEntity>(byte appId, byte appInstanceId) where TEntity : SourceKnownEntity;
 
     /// <summary>
     /// Generates Ids for the specified entity.
@@ -32,13 +32,12 @@ public interface ISourceKnownIdUtils
     long Next(SourceKnownEntity entity);
 
     /// <summary>
-    /// Generates Ids for the specified entity type using the provided appId, appInstanceId, and epoch.
+    /// Generates Ids for the specified entity type using the provided appId and appInstanceId.
     /// </summary>
     /// <param name="entityType">The entity type for which Ids are generated. Must derive from <see cref="SourceKnownEntity"/>.</param>
     /// <param name="appId">Application Identifier (0..127)</param>
     /// <param name="appInstanceId">Application Instance Identifier (0..63)</param>
-    /// <param name="epoch">Custom epoch if overriding default</param>
-    long Next(Type entityType, byte appId, byte appInstanceId, DateTimeOffset? epoch = null);
+    long Next(Type entityType, byte appId, byte appInstanceId);
 
     /// <summary>
     /// Pre-compiles and warms up ID generation delegates for the specified entity types.
@@ -47,36 +46,42 @@ public interface ISourceKnownIdUtils
     /// <param name="entityTypes">Collection of entity class types to warm up.</param>
     void Warmup(ICollection<Type> entityTypes) => SourceKnownIdUtils.Warmup(entityTypes);
 
-    SourceKnownId Parse(long id, DateTimeOffset? epoch = null);
+    SourceKnownId Parse(long id);
 }
 
 [Singleton<ISourceKnownIdUtils>]
 [SuppressMessage("ReSharper", "InconsistentlySynchronizedField")]
 [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract")]
-public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochTimeUtils) : ISourceKnownIdUtils
+public class SourceKnownIdUtils : ISourceKnownIdUtils
 {
+    public SourceKnownIdUtils(IAppSettings appSettings)
+    {
+        SourceKnownIdSettings.Initialize(appSettings.Configuration);
+        _nexusAppInstanceId = ValidateAppInstanceId(appSettings.NexusAppSettings.AppInstanceId);
+    }
+
     public const byte MaxAppId = IAppId.MaxAppId;
     public const byte MaxAppInstanceId = 63;
-    public const long TicksPerHalf = 1L << 32; // 2^32 ticks per half-epoch
-    public const long MaxEpochTicks = (TicksPerHalf << 1) - 1; // 2^33 - 1: full ~68-year epoch (both halves)
+    public const long TicksPerHalf = SourceKnownGenerationTimePolicy.TimestampsPerHalf; // 2^32 ticks per half-epoch
+    public const long MaxEpochTicks = SourceKnownGenerationTimePolicy.MaxTimestamp; // 2^33 - 1: both halves
 
     private sealed class DelegateCacheSnapshot(
-        FrozenDictionary<Type, Func<byte, byte, DateTimeOffset?, long>> frozenDelegates,
-        ConcurrentDictionary<Type, Func<byte, byte, DateTimeOffset?, long>> dynamicDelegates)
+        FrozenDictionary<Type, Func<byte, byte, long>> frozenDelegates,
+        ConcurrentDictionary<Type, Func<byte, byte, long>> dynamicDelegates)
     {
-        public readonly FrozenDictionary<Type, Func<byte, byte, DateTimeOffset?, long>> FrozenDelegates = frozenDelegates;
-        public readonly ConcurrentDictionary<Type, Func<byte, byte, DateTimeOffset?, long>> DynamicDelegates = dynamicDelegates;
+        public readonly FrozenDictionary<Type, Func<byte, byte, long>> FrozenDelegates = frozenDelegates;
+        public readonly ConcurrentDictionary<Type, Func<byte, byte, long>> DynamicDelegates = dynamicDelegates;
     }
 
     private static readonly Lock SyncLock = new();
 
     private static volatile DelegateCacheSnapshot _delegateCache = new(
-        FrozenDictionary<Type, Func<byte, byte, DateTimeOffset?, long>>.Empty,
-        new ConcurrentDictionary<Type, Func<byte, byte, DateTimeOffset?, long>>());
+        FrozenDictionary<Type, Func<byte, byte, long>>.Empty,
+        new ConcurrentDictionary<Type, Func<byte, byte, long>>());
 
     private static readonly MethodInfo GenerateGenericMethodDefinition = typeof(SourceKnownIdUtils)
         .GetMethods(BindingFlag.StaticPublic)
-        .First(m => m is { Name: nameof(Generate), IsGenericMethodDefinition: true } && m.GetParameters().Length == 3);
+        .First(m => m is { Name: nameof(Generate), IsGenericMethodDefinition: true } && m.GetParameters().Length == 2);
 
     /// <summary>
     /// Pre-compiles and warms up ID generation delegates for the specified entity types.
@@ -96,7 +101,7 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
             if (current.DynamicDelegates.IsEmpty && AllWarmedUp(current.FrozenDelegates, entityTypes))
                 return;
 
-            var map = new Dictionary<Type, Func<byte, byte, DateTimeOffset?, long>>(current.FrozenDelegates);
+            var map = new Dictionary<Type, Func<byte, byte, long>>(current.FrozenDelegates);
             var anyNew = false;
 
             // Merge any previously recorded dynamic entries
@@ -123,11 +128,11 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
 
             _delegateCache = new DelegateCacheSnapshot(
                 map.ToFrozenDictionary(),
-                new ConcurrentDictionary<Type, Func<byte, byte, DateTimeOffset?, long>>());
+                new ConcurrentDictionary<Type, Func<byte, byte, long>>());
         }
     }
 
-    private static bool AllWarmedUp(FrozenDictionary<Type, Func<byte, byte, DateTimeOffset?, long>> frozen, ICollection<Type> types)
+    private static bool AllWarmedUp(FrozenDictionary<Type, Func<byte, byte, long>> frozen, ICollection<Type> types)
     {
         if (frozen.Count == 0 || types.Count == 0) return false;
         foreach (var type in types)
@@ -144,20 +149,17 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     /// <typeparam name="TEntity">The entity type for which IDs are generated. Must derive from <see cref="SourceKnownEntity"/>.</typeparam>
     /// <param name="appId">Application Identifier (0..127)</param>
     /// <param name="appInstanceId">Application Instance Identifier (0..63)</param>
-    /// <param name="epoch">Custom epoch if overriding default</param>
-    public static long Generate<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : SourceKnownEntity
+    public static long Generate<TEntity>(byte appId, byte appInstanceId) where TEntity : SourceKnownEntity
     {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(appId, MaxAppId);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(appInstanceId, MaxAppInstanceId);
 
-        var targetEpoch = epoch ?? EpochTimeUtils.DefaultEpoch;
         var builder = NumberBuilder.GetLong();
-        var timeScopedId = SequenceManager<TEntity>.GetTimeScopedId(targetEpoch);
+        var timeScopedId = SequenceManager<TEntity>.GetTimeScopedId();
 
         //Timestamp with 250ms precision (4 ticks per second)
         //Sub-second ordering eliminates coarse-grained temporal ambiguity while preserving throughput.
-        if (timeScopedId.TimeStamp is < 0 or > MaxEpochTicks)
-            throw new InvalidOperationException($"Timestamp: {timeScopedId.TimeStamp} must be between 0 and {MaxEpochTicks}");
+        // SequenceManager validates the sampled UTC against the epoch range before allocating a sequence.
 
         //Epoch half determination: 32-bit timestamp, sign bit selects half
         //First half (ticks < 2^32): sign=1, negative SKID. Second half (ticks ≥ 2^32): sign=0, positive SKID.
@@ -188,8 +190,7 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
     /// <param name="entityType">The entity type for which IDs are generated. Must derive from <see cref="SourceKnownEntity"/>.</param>
     /// <param name="appId">Application Identifier (0..127)</param>
     /// <param name="appInstanceId">Application Instance Identifier (0..63)</param>
-    /// <param name="epoch">Custom epoch if overriding default</param>
-    public static long Generate(Type entityType, byte appId, byte appInstanceId, DateTimeOffset? epoch = null)
+    public static long Generate(Type entityType, byte appId, byte appInstanceId)
     {
         ArgumentNullException.ThrowIfNull(entityType);
         if (!typeof(SourceKnownEntity).IsAssignableFrom(entityType))
@@ -202,13 +203,13 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
             invoker = cache.DynamicDelegates.GetOrAdd(entityType, static t => CreateGenerateDelegate(t));
         }
 
-        return invoker(appId, appInstanceId, epoch);
+        return invoker(appId, appInstanceId);
     }
 
-    private static Func<byte, byte, DateTimeOffset?, long> CreateGenerateDelegate(Type type)
+    private static Func<byte, byte, long> CreateGenerateDelegate(Type type)
     {
         var method = GenerateGenericMethodDefinition.MakeGenericMethod(type);
-        return method.CreateDelegate<Func<byte, byte, DateTimeOffset?, long>>();
+        return method.CreateDelegate<Func<byte, byte, long>>();
     }
 
     private static byte ValidateAppInstanceId(byte appInstanceId)
@@ -222,33 +223,34 @@ public class SourceKnownIdUtils(IAppSettings appSettings, IEpochTimeUtils epochT
         public static readonly byte DeclaredAppId = SourceKnownEntity.GetAppId<TEntity>();
     }
 
-    private readonly byte _nexusAppInstanceId = ValidateAppInstanceId(appSettings.NexusAppSettings.AppInstanceId);
-    private readonly DateTimeOffset _epoch = epochTimeUtils.Epoch;
+    private readonly byte _nexusAppInstanceId;
 
     public long Next<TEntity>() where TEntity : SourceKnownEntity
-        => Next<TEntity>(EntityIdCache<TEntity>.DeclaredAppId, _nexusAppInstanceId, _epoch);
+        => Next<TEntity>(EntityIdCache<TEntity>.DeclaredAppId, _nexusAppInstanceId);
 
-    public long Next<TEntity>(byte appId, byte appInstanceId, DateTimeOffset? epoch = null) where TEntity : SourceKnownEntity
-        => Generate<TEntity>(appId, appInstanceId, epoch ?? _epoch);
+    public long Next<TEntity>(byte appId, byte appInstanceId) where TEntity : SourceKnownEntity
+        => Generate<TEntity>(appId, appInstanceId);
 
     public long Next(SourceKnownEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
         var type = entity.GetType();
-        return Generate(type, SourceKnownEntity.GetAppId(type), _nexusAppInstanceId, _epoch);
+        return Generate(type, SourceKnownEntity.GetAppId(type), _nexusAppInstanceId);
     }
 
-    public long Next(Type entityType, byte appId, byte appInstanceId, DateTimeOffset? epoch = null)
+    public long Next(Type entityType, byte appId, byte appInstanceId)
     {
         ArgumentNullException.ThrowIfNull(entityType);
         return typeof(SourceKnownEntity).IsAssignableFrom(entityType)
-            ? Generate(entityType, appId, appInstanceId, epoch ?? _epoch)
+            ? Generate(entityType, appId, appInstanceId)
             : throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
     }
 
-    public SourceKnownId Parse(long id, DateTimeOffset? epoch = null) => ParseId(id, epoch ?? _epoch);
+    public SourceKnownId Parse(long id) => ParseId(id);
 
-    public static SourceKnownId ParseId(long id, DateTimeOffset epoch)
+    public static SourceKnownId ParseId(long id) => ParseId(id, EpochTimeUtils.DefaultEpoch);
+
+    internal static SourceKnownId ParseId(long id, DateTimeOffset epoch)
     {
         var parser = NumberParser.Get(id);
         var appId = (byte)parser.Read(7);

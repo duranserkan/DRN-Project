@@ -213,6 +213,7 @@ public class RateLimitRuleTests
     {
         var appSettings = AppSettings.Development(new
         {
+            NexusAppSettings = new { AppId = 0 },
             DrnAppFeatures = new
             {
                 DrnRateLimit = new
@@ -240,6 +241,7 @@ public class RateLimitRuleTests
     {
         var appSettings = AppSettings.Development(new
         {
+            NexusAppSettings = new { AppId = 0 },
             DrnAppFeatures = new
             {
                 DrnRateLimit = new
@@ -563,7 +565,7 @@ public class RateLimitRuleTests
     [Fact]
     public async Task PostAuth_Options_Should_Preserve_AddRateLimiter_Customizations()
     {
-        using var appSettings = (AppSettings)AppSettings.Development();
+        using var appSettings = (AppSettings)AppSettings.Development(new { NexusAppSettings = new { AppId = 0 } });
         var services = new ServiceCollection();
         OnRejectedContext? observedContext = null;
         CancellationToken observedToken = default;

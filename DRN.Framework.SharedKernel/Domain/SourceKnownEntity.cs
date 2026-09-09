@@ -163,16 +163,6 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         return sourceKnownId;
     }
 
-    public SourceKnownEntityId? GetEntityId(Guid? id, byte entityType) => id == null ? null : GetEntityId(id.Value, entityType);
-
-    public SourceKnownEntityId GetEntityId(Guid id, byte entityType)
-    {
-        var sourceKnownId = GetEntityId(id, false);
-        sourceKnownId.Validate(entityType);
-
-        return sourceKnownId;
-    }
-
     public SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true) => id == null ? null : GetEntityId(id.Value, validate);
 
     public SourceKnownEntityId GetEntityId(Guid id, bool validate = true)
@@ -193,17 +183,14 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
 
     public SourceKnownEntityId GetEntityId(long id, EntityTypeId entityTypeId)
     {
-        var sourceKnownId = GetEntityId(id, entityTypeId.EntityType);
+        if (IsPendingInsert)
+            throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
+
+        var sourceKnownId = Ops.Generate(id, entityTypeId.EntityType);
         sourceKnownId.Validate(entityTypeId);
 
         return sourceKnownId;
     }
-
-    public SourceKnownEntityId? GetEntityId(long? id, byte entityType) => id == null ? null : GetEntityId(id.Value, entityType);
-
-    public SourceKnownEntityId GetEntityId(long id, byte entityType) => IsPendingInsert
-        ? throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids")
-        : Ops.Generate(id, entityType);
 
     // ReSharper disable once MemberCanBePrivate.Global
     protected void AddDomainEvent(DomainEvent? e)

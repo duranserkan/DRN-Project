@@ -270,13 +270,21 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
 
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public SourceKnownEntityId GetEntityId(Guid id, bool validate = true)
-        => validate ? Utils.EntityId.Validate(id, EntityTypeId) : Utils.EntityId.Parse(id);
+    {
+        var entityId = Utils.EntityId.Parse(id);
+        if (validate) entityId.Validate(EntityTypeId);
+        return entityId;
+    }
 
     public SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id) where TOtherEntity : SourceKnownEntity
         => id == null ? null : GetEntityId<TOtherEntity>(id.Value);
 
     public SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity
-        => Utils.EntityId.Validate(id, SourceKnownEntity.GetEntityTypeId<TOtherEntity>());
+    {
+        var entityId = Utils.EntityId.Parse(id);
+        entityId.Validate<TOtherEntity>();
+        return entityId;
+    }
 
     /// <exception cref="ValidationException">Thrown when id is invalid or doesn't match the repository entity type</exception>
     public SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true)

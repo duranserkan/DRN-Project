@@ -36,14 +36,16 @@ public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid Ent
     public bool HasSameEntityTypeId(SourceKnownEntityId other) => HasSameEntityTypeId(other.EntityTypeId);
     public bool HasSameEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => HasSameEntityTypeId(SourceKnownEntity.GetEntityTypeId<TEntity>());
 
+    /// <summary>Checks parsing validity only; does not check an expected entity type or application partition.</summary>
     public void ValidateId()
     {
         if (!Valid)
             throw ExceptionFor.Validation($"Invalid EntityId: {EntityId}");
     }
 
+    /// <summary>Checks validity and both identity components against the entity declaration.</summary>
     public void Validate<TEntity>() where TEntity : SourceKnownEntity => Validate(SourceKnownEntity.GetEntityTypeId<TEntity>());
-    public void Validate(byte entityType) => Validate(new EntityTypeId(entityType, Source.AppId));
+    /// <summary>Checks validity and both explicitly supplied identity components.</summary>
     public void Validate(EntityTypeId expected)
     {
         ValidateId();

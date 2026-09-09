@@ -67,6 +67,7 @@ public sealed class AppSettings : IAppSettings, IDisposable
     public AppSettings(IConfiguration configuration)
     {
         Configuration = configuration;
+        SourceKnownIdSettings.Initialize(configuration);
         Environment = TryGetSection(nameof(Environment), out _)
             ? configuration.GetValue<AppEnvironment>(nameof(Environment))
             : AppEnvironment.NotDefined;
@@ -82,6 +83,9 @@ public sealed class AppSettings : IAppSettings, IDisposable
 
         DevelopmentSettings = Get<DrnDevelopmentSettings>(nameof(DrnDevelopmentSettings)) ?? new DrnDevelopmentSettings();
         DevelopmentSettings.ValidateDataAnnotationsThrowIfInvalid();
+
+        if (string.IsNullOrWhiteSpace(configuration["NexusAppSettings:AppId"]))
+            throw ExceptionFor.Configuration("NexusAppSettings:AppId must be explicitly configured, including when using AppId 0.");
 
         NexusAppSettings = Get<NexusAppSettings>(nameof(NexusAppSettings)) ?? new NexusAppSettings();
         try

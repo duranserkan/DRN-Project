@@ -67,19 +67,22 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
     SourceKnownEntityId? Parse(Guid? entityId);
     new SourceKnownEntityId Parse(Guid entityId);
 
+    /// <summary>Validates integrity and entity type against the configured AppId. Null remains null.</summary>
     SourceKnownEntityId? Validate(Guid? entityId, byte entityType);
+    /// <summary>Validates integrity and entity type against NexusAppSettings.AppId.</summary>
     SourceKnownEntityId Validate(Guid entityId, byte entityType);
 
-    SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId)
-        => entityId.HasValue ? Validate(entityId.Value, entityTypeId) : null;
-    SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId)
-    {
-        var sourceKnownId = Parse(entityId);
-        sourceKnownId.Validate(entityTypeId);
-        return sourceKnownId;
-    }
+    /// <summary>Explicitly selects an application partition through IAppId. Null remains null.</summary>
+    SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType) where TApp : IAppId;
+    /// <summary>Validates integrity, entity type, and the explicit TApp.AppId.</summary>
+    SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType) where TApp : IAppId;
+
+    SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId);
+    /// <summary>Validates integrity and both explicitly supplied identity components.</summary>
+    SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId);
 
     SourceKnownEntityId? Validate<TEntity>(Guid? entityId) where TEntity : SourceKnownEntity;
+    /// <summary>Validates against the entity's declared identity, independently of configured AppId.</summary>
     SourceKnownEntityId Validate<TEntity>(Guid entityId) where TEntity : SourceKnownEntity;
 
     new SourceKnownEntityId ToSecure(SourceKnownEntityId id);
@@ -135,8 +138,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     // Epoch at byte 0, first epoch starts at 2025-01-01.
     // Each epoch is approximately 68 years long with 2 halves separated with sign bit
     // 2^32 ticks / 4 ticks/s = 2^30 seconds * 2^1 epoch half flag in source known id timestamp.
-    // With epoch support, source known ids can address ~17,421 monotonic time years starting from 2025-01-01
-    //todo handle epoch management (not urgent for next 60 years)
+    // Only encoded epoch 0 is supported. Custom origin parameters do not select a different encoded epoch.
 
     private const byte MacHashLength = 4;
     private const byte MacHashOffset = 12; // 12-15 (contiguous)
@@ -162,10 +164,13 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     private readonly SecretKey32 _macKey;
     private readonly bool _useSecure;
     private readonly ISourceKnownIdUtils _sourceKnownIdUtils;
+    private readonly byte _appId;
 
 
     public SourceKnownEntityIdUtils(IAppSettings appSettings, ISourceKnownIdUtils sourceKnownIdUtils)
     {
+        _appId = appSettings.NexusAppSettings.AppId;
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(_appId, IAppId.MaxAppId);
         _sourceKnownIdUtils = sourceKnownIdUtils;
         _keyRing = new NexusKeyRing(appSettings.NexusAppSettings);
         _aes = _keyRing.Default.Aes;
@@ -346,18 +351,20 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         => entityId.HasValue ? Validate(entityId.Value, entityType) : null;
 
     public SourceKnownEntityId Validate(Guid entityId, byte entityType)
-    {
-        var sourceKnownId = Parse(entityId);
-        sourceKnownId.Validate(entityType);
+        => Validate(entityId, new EntityTypeId(entityType, _appId));
 
-        return sourceKnownId;
-    }
+    public SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType) where TApp : IAppId
+        => entityId.HasValue ? Validate<TApp>(entityId.Value, entityType) : null;
+
+    public SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType) where TApp : IAppId
+        => Validate(entityId, new EntityTypeId(entityType, TApp.AppId));
 
     public SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId)
         => entityId.HasValue ? Validate(entityId.Value, entityTypeId) : null;
 
     public SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId)
     {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(entityTypeId.AppId, IAppId.MaxAppId);
         var sourceKnownId = Parse(entityId);
         sourceKnownId.Validate(entityTypeId);
 
@@ -368,15 +375,12 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         => entityId.HasValue ? Validate<TEntity>(entityId.Value) : null;
 
     public SourceKnownEntityId Validate<TEntity>(Guid entityId) where TEntity : SourceKnownEntity
-    {
-        var sourceKnownId = Parse(entityId);
-        sourceKnownId.Validate<TEntity>();
-
-        return sourceKnownId;
-    }
+        => Validate(entityId, SourceKnownEntity.GetEntityTypeId<TEntity>());
 
     public SourceKnownEntityId ToSecure(SourceKnownEntityId id)
     {
+        id.ValidateId();
+        id = Parse(id.EntityId);
         id.ValidateId();
         return id.Secure ? id : GenerateSecure(id.Source.Id, id.EntityType);
     }
@@ -386,6 +390,8 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
 
     public SourceKnownEntityId ToPlain(SourceKnownEntityId id)
     {
+        id.ValidateId();
+        id = Parse(id.EntityId);
         id.ValidateId();
         return id.Secure ? GeneratePlain(id.Source.Id, id.EntityType) : id;
     }
@@ -397,7 +403,8 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         => new(default, entityId, InvalidEntityType, false, Secure: false);
 
     private static bool HasValidMarkers(ReadOnlySpan<byte> guidBytes)
-        => guidBytes[SourceKnownMarkerVersionIndex] == SourceKnownMarkerVersionByte
+        => guidBytes[EpochIndex] <= SourceKnownGenerationTimePolicy.MaxSupportedEpoch
+           && guidBytes[SourceKnownMarkerVersionIndex] == SourceKnownMarkerVersionByte
            && guidBytes[SourceKnownMarkerVariantIndex] == SourceKnownMarkerVariantByte;
 
     /// <summary>
@@ -406,7 +413,8 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// produced by the collision guard in <see cref="GenerateSecure(long, byte)"/>.
     /// </summary>
     private static bool HasValidMarkersSecure(ReadOnlySpan<byte> guidBytes)
-        => guidBytes[SourceKnownMarkerVersionIndex] == SourceKnownMarkerVersionByte
+        => guidBytes[EpochIndex] <= SourceKnownGenerationTimePolicy.MaxSupportedEpoch
+           && guidBytes[SourceKnownMarkerVersionIndex] == SourceKnownMarkerVersionByte
            && (guidBytes[SourceKnownMarkerVariantIndex] & 0xC0) == 0x80;
 
     /// <summary>
@@ -517,7 +525,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         var upperHalf = idParser.ReadUInt();
         var lowerHalf = idParser.ReadUInt();
 
-        guidBytes[EpochIndex] = 0; // Epoch 0 (todo: parameterize for epoch management)
+        guidBytes[EpochIndex] = SourceKnownGenerationTimePolicy.MaxSupportedEpoch;
         BinaryPrimitives.WriteUInt32BigEndian(guidBytes.Slice(EntityIdUpperHalfOffset, EntityIdUpperHalfLength), upperHalf ^ SignBitToggle); // 1-4 sign-toggled
         guidBytes[EntityIdLowerByte0Index] = (byte)(lowerHalf >> 24); // 5 — SKID lower half MSB (timestamp LSB + appId MSBs)
         guidBytes[SourceKnownMarkerVersionIndex] = SourceKnownMarkerVersionByte; // 6

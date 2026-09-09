@@ -8,6 +8,34 @@ namespace DRN.Test.Unit.Tests.Framework.Utils;
 
 public class AppSettingsTests
 {
+    [Theory]
+    [DataInlineUnit(null, AppEnvironment.Development)]
+    [DataInlineUnit("", AppEnvironment.Development)]
+    [DataInlineUnit(" ", AppEnvironment.Development)]
+    [DataInlineUnit(null, AppEnvironment.Staging)]
+    [DataInlineUnit(null, AppEnvironment.Production)]
+    [DataInlineUnit(null, AppEnvironment.NotDefined)]
+    public void AppId_Must_Be_Explicitly_Configured(string? appId, AppEnvironment environment)
+    {
+        var configuration = new ConfigurationManager().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Environment"] = environment.ToString(),
+            ["NexusAppSettings:AppId"] = appId
+        });
+
+        var create = () => new AppSettings(configuration.Build());
+        create.Should().Throw<ConfigurationException>().WithMessage("*AppId must be explicitly configured*");
+        var omitted = () => AppSettings.Development();
+        omitted.Should().Throw<ConfigurationException>().WithMessage("*AppId must be explicitly configured*");
+    }
+
+    [Fact]
+    public void Explicit_Default_AppId_Zero_Is_Valid()
+    {
+        using var settings = (AppSettings)AppSettings.Development(new { NexusAppSettings = new { AppId = 0 } });
+        settings.NexusAppSettings.AppId.Should().Be(0);
+    }
+
     private const string DevelopmentNexusKeyMaterialDerivationContext =
         "DRN.Framework.Utils Development NexusKey material from 1881 to 193∞ Forever 2026-06-29 21:57:43 v1";
 
@@ -155,7 +183,7 @@ public class AppSettingsTests
             Keys = [null!]
         };
 
-        var action = () => nexusAppSettings.HasDefaultKey();
+        var action = nexusAppSettings.HasDefaultKey;
 
         var exception = action.Should().ThrowExactly<ConfigurationException>().Which;
         exception.Message.Should().Be("NexusAppSettings.Keys[0] must not be null");
@@ -191,7 +219,7 @@ public class AppSettingsTests
         var action = () => AppSettings.Development(custom);
         action.Should().ThrowExactly<ValidationException>();
     }
-    
+
     private static object GetCustomSettings(byte appId, byte appInstanceId)
     {
         var custom = new { NexusAppSettings = new NexusAppSettings { AppId = appId, AppInstanceId = appInstanceId, MacType = NexusMacType.Blake3 } };

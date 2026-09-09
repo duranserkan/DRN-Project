@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts and cancellation semantics, pagination, JSON conventions, app constants, and shared extensions. Keywords: entity, aggregate-root, domain-event, repository, repository-cancellation, cancellation, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
-last-updated: 2026-09-06
+last-updated: 2026-09-10
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -43,7 +43,7 @@ public abstract class SourceKnownEntity(long id = 0)
     public Guid EntityId => EntityIdSource.EntityId;
 
     // ID validation
-    public SourceKnownEntityId GetEntityId(Guid id, byte entityType);
+    public SourceKnownEntityId GetEntityId(Guid id, EntityTypeId expected);
     public SourceKnownEntityId GetEntityId<TEntity>(Guid id);
 
     // Secure ↔ Plain conversion (idempotent, injected via ISourceKnownEntityIdOperations)
@@ -101,6 +101,10 @@ public abstract class EntityDeleted(SourceKnownEntity entity) : DomainEvent(enti
 
 ## Source-Known Identity System
 
+`SourceKnownGenerationTime.Initialize(minimumUtc, defaultEpoch)` configures one process-wide pair. An explicit epoch requires a minimum in the same call. Inputs must be ISO 8601 UTC; the minimum rounds upward to 250ms relative to the epoch. Startup or first ID/epoch use freezes both values, even if generation validation fails; conflicting updates then fail. Historical conversion freezes the pair without enforcing the floor.
+
+Keep the origin identical across a dataset's services and restarts: IDs do not store it. Only epoch 0 and both halves are supported; extending support requires a persistence contract, not just different limits. The default minimum is source-maintained, never derived from build timestamps. See [configuration and limits](../../../DRN.Framework.SharedKernel/README.md#trusted-minimum-generation-time).
+
 Balances DB performance (`long`) with external security (`Guid`) and type safety. `ISourceKnownEntityIdOperations` defines the core contract (`Generate`, `Parse`, `ToSecure`, `ToPlain`) in SharedKernel; implemented by `SourceKnownEntityIdUtils` in Utils and injected into entities by EF interceptors.
 
 ```csharp
@@ -112,6 +116,8 @@ public readonly record struct SourceKnownEntityId(
 ```
 
 ### Validation Approaches
+
+Use `Validate<TEntity>()` or `Validate(new EntityTypeId(entityType, expectedAppId))` to check both identity components. Domain `GetEntityId` helpers accept the same expectations. `EntityTypeId` requires both arguments, including zero, and has no implicit byte conversion. `ValidateId()` and the domain GUID helper's boolean validation option check integrity only. Utils service validation additionally selects a configured or explicitly typed partition; see [drn-utils](../drn-utils/SKILL.md#nexus-keys).
 
 **1. Injectable Utility** (service layer — recommended):
 ```csharp

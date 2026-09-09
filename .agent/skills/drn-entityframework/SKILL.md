@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
 description: "DRN.Framework.EntityFramework - DrnContext, migrations, entity lifecycle tracking, Npgsql configuration, repositories, and repository cancellation groups. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, repository-cancellation, cancellation-scope, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
-last-updated: 2026-09-06
+last-updated: 2026-09-10
 difficulty: advanced
 tokens: ~2.5K
 ---
@@ -214,6 +214,8 @@ public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings app
 Custom performance attributes can inherit `NpgsqlPerformanceSettingsAttribute` to override defaults.
 
 ### RepositorySettings
+
+Repository GUID validation checks the declared `(EntityType, AppId)` of `TEntity` or `TOtherEntity`, including secondary partitions. Nullable inputs preserve null; `validate: false` skips validation.
 
 Configure repository-wide query behavior:
 

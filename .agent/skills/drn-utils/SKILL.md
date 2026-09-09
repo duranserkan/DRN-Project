@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, Base32/TOTP encoding and authentication utilities, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, base32, totp, mfa, entity-date-filter, tick-boundary, validators, extensions, http-client"
-last-updated: 2026-09-02
+last-updated: 2026-09-10
 difficulty: intermediate
 tokens: ~2.7K
 ---
@@ -142,6 +142,8 @@ When grouping options into nested objects, explicitly validate child objects bef
 `IAppData` exposes `Temp` and `Data`. Override roots before DRN config with `DrnAppDataSettings__TempPath` and `DrnAppDataSettings__DataPath`. `TempPath` appends `EntryAssemblyNameNormalized`: `<TempPath>/<EntryAssemblyNameNormalized>`, then `<DataPath>/Temp/<EntryAssemblyNameNormalized>`, then `<LocalApplicationData>/Temp/<EntryAssemblyNameNormalized>`. A configured data path is used as-is for `LocalAppDataPath`; its fallback is `<LocalApplicationData>/<EntryAssemblyNameNormalized>`. Use `GetPath(...)` for safe child paths.
 
 ### Nexus Keys
+
+Explicitly configure `NexusAppSettings:AppId` in every environment; zero is valid. `Validate<TEntity>` uses the entity's declared `(EntityType, AppId)`, independently of configuration. `Validate(id, entityType)` uses the configured partition; override it with `Validate<TApp>(id, entityType)` where `TApp : IAppId`, or `Validate(id, entityTypeId)` with an explicit `EntityTypeId`. Nullable inputs preserve null. Parsing and [SharedKernel validation](../drn-sharedkernel/SKILL.md#validation-approaches) are configuration-independent.
 
 `NexusAppSettings.Keys` must contain exactly one default `NexusKey`. Generation uses the default key; parsing tries the default key first and then the remaining configured keys for rotation fallback.
 
@@ -352,9 +354,11 @@ ushort value = parser.ReadUShort();
 
 ### Time & Async
 
+Configure `SourceKnownIdSettings` before startup or first ID/epoch use. `DefaultEpoch` requires an explicit `MinimumUtc`; both freeze on first use, including historical conversion. Hosting validates before constructors/hooks; non-hosted generation validates on first use. See [the time contract](../drn-sharedkernel/SKILL.md#source-known-identity-system).
+
 ```csharp
-// Cached UTC timestamp (10ms precision) — avoids DateTimeOffset.UtcNow overhead
-long seconds = TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
+// Cached UTC timestamp: 250ms precision, refreshed every 10ms
+long timestamp = TimeStampManager.CurrentTimestamp();
 DateTimeOffset now = TimeStampManager.UtcNow;
 
 // Async-safe timer — prevents overlapping executions
@@ -364,6 +368,10 @@ worker.Start(); // Resume after stopping
 ```
 
 `Stop()` lets an active callback finish but prevents that callback from rescheduling the timer.
+
+Dedicated `RecurringAction` restarts preserve the configured post-callback delay, including when restarting during an active callback. Synchronous disposal does not wait for active callbacks. `AsyncRecurringAction` restarts and `DisposeAsync()` wait for prior callbacks to finish. Timeouts require token-aware callbacks and request cooperative cancellation; ignoring cancellation can block later iterations and async disposal.
+
+Validate periods and timeouts during construction, including `start: false`. Periods truncate to 1–4,294,967,294 milliseconds; timeouts must be positive and truncate to at most that upper limit. Preserve positive sub-millisecond timeouts. See [timer usage and errors](../../../DRN.Framework.Utils/README.md#non-overlapping-async-timer-asyncrecurringaction).
 
 `TimeProvider` singleton registered to `TimeProvider.System` by default for testable time.
 

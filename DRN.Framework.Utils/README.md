@@ -58,7 +58,7 @@ using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-services.AddSingleton<IAppSettings>(_ => AppSettings.Development());
+services.AddSingleton<IAppSettings>(_ => AppSettings.Development(new { NexusAppSettings = new { AppId = 0 } }));
 services.AddServicesWithAttributes();
 
 using var provider = services.BuildServiceProvider();
@@ -467,6 +467,8 @@ Changing `SeedKey` changes app-specific names, rate-limit keyed hashes, Developm
 ### NexusAppSettings and Nexus Keys
 
 `NexusAppSettings` configures Nexus routing, generator instances, secure/plain IDs, and the key ring used by `SourceKnownEntityIdUtils`. Entity ID generation derives `AppId` from `[EntityType<TApp>]` metadata. Configured `NexusAppSettings.AppId` controls the host's client routing partition and host domain partition alignment in Entity Framework.
+
+`NexusAppSettings:AppId` must be explicitly configured in every environment, including tests and `AppSettings.Development(...)`. Missing, null, empty and whitespace values fail configuration validation; explicit `0` is valid. The supported range remains 0 through 127.
 
 The following example illustrates the key format. Supply private key material in deployed applications.
 
@@ -987,37 +989,98 @@ public class StartupService(DevelopmentStatus status, IScopedLog log)
 
 ### High-Performance Time (`TimeStampManager`)
 
-`TimeStampManager` provides cached UTC time for repeated timestamp reads such as ID generation. Values are truncated to 250ms boundaries; the updater waits 10ms between finishing one update and starting the next. Refresh delay and timestamp precision are separate.
+`TimeStampManager` provides cached UTC with 250ms precision for repeated timestamp reads.
 
 ```csharp
-long precisionTicks = TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
+long precisionTicks = TimeStampManager.CurrentTimestamp();
 DateTimeOffset now = TimeStampManager.UtcNow; // Cached UTC time truncated to 250ms precision
 ```
 
 Backward clock drift below five seconds freezes the cached timestamp until the clock catches up. Drift of at least five seconds requests application shutdown and causes timestamp reads to throw `ClockDriftException`. See [TimeStampManager.cs](Time/TimeStampManager.cs).
 
-### Async-Safe Timer (`RecurringAction`)
+`CurrentTimestamp()` applies the [generation-time policy](#trusted-minimum-utc). `UtcNow` is a general cached read and does not enforce the generation floor.
 
-`RecurringAction` prevents overlapping callbacks. Its `period` is a delay in milliseconds after a callback finishes, not a fixed interval between start times.
+### Recurring Timer & Dedicated Thread (`RecurringAction`)
+
+`RecurringAction` prevents overlapping callbacks. Its `period` is a delay in milliseconds after a callback finishes, not a fixed interval between start times. It supports both synchronous `Action` and asynchronous `Func<Task>`.
+
+Supplying `threadName` selects a dedicated background thread, with `ThreadPriority.Highest` as the default priority. Async continuations may still use the ThreadPool:
 
 ```csharp
+// ThreadPool timer (default)
 using var worker = new RecurringAction(async () => {
     await DoHeavyWork();
 }, period: 1000, start: true);
+
+// Dedicated background thread
+using var clockWorker = new RecurringAction(
+    SyncWork, period: 10, threadName: "MyService.DedicatedWorker");
 
 worker.Stop();
 worker.Start(); // Resume after stopping
 ```
 
-`Stop()` prevents an active callback from rescheduling the timer after it completes. The callback itself is allowed to finish.
+`Stop()` prevents an active callback from rescheduling after it completes. The callback itself is allowed to finish.
 
-Subscribe to `OnActionFailed` to observe callback exceptions. `Dispose()` stops scheduling but does not wait for an active callback; `Start()` throws after disposal. See [RecurringAction.cs](Time/RecurringAction.cs).
+In dedicated-thread mode, restarting during an active callback preserves the full `period` delay after that callback finishes. After restarting a stopped worker, subsequent callbacks remain separated by the configured delay.
+
+Subscribe to `OnActionFailed` to observe callback exceptions. `Dispose()` stops scheduling without waiting for an active callback. `Start()` throws after disposal.
+
+### Non-Overlapping Async Timer (`AsyncRecurringAction`)
+
+`AsyncRecurringAction` runs callbacks without overlap and supports cancellation and asynchronous disposal:
+
+```csharp
+await using var backgroundWorker = new AsyncRecurringAction(
+    async ct => {
+        await PollExternalServiceAsync(ct);
+    },
+    period: TimeSpan.FromSeconds(30),
+    executionTimeout: TimeSpan.FromSeconds(10));
+
+backgroundWorker.Stop();
+backgroundWorker.Start(); // Resume execution
+```
+
+`Stop()` requests cancellation; restarting waits for the previous callback to finish. `DisposeAsync()` cancels and waits for outstanding callbacks, including stopped runs. Synchronous `Dispose()` cancels without waiting.
+
+Timeouts require a `Func<CancellationToken, Task>` callback. Pass the token to cancellable operations: a callback that ignores it can block later iterations and asynchronous disposal. `OnActionFailed` reports callback errors, or `TimeoutException` when the callback throws `OperationCanceledException` after its timeout.
+
+Periods truncate to 1–4,294,967,294 whole milliseconds. Timeouts must be positive and truncate to at most the same upper limit; positive sub-millisecond timeouts become zero milliseconds. Invalid bounds throw `ArgumentOutOfRangeException` during construction, even with `start: false`. Tokenless callbacks reject non-null timeouts with `ArgumentException`.
 
 ### Time
 
 `AddDrnUtils()` uses `TryAddSingleton` to register `TimeProvider.System`. A previously registered `TimeProvider` is retained, allowing callers to supply testable time.
 
 ## ID Generation & Validation
+
+### Trusted minimum UTC
+
+New IDs use a process-wide epoch and minimum generation time:
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `SourceKnownIdSettings:MinimumUtc` | `2026-09-09T00:00:00Z` | Earliest permitted generated timestamp; an override may be earlier or later. |
+| `SourceKnownIdSettings:DefaultEpoch` | `2025-01-01T00:00:00Z` | Origin used by generation, decoding, and date filters. Supplying it requires an explicit `MinimumUtc` in the same configuration. |
+
+Both settings require ISO 8601 UTC ending in `Z` or `+00:00`, with seconds and up to seven fractional digits. For example:
+
+```json
+{
+  "SourceKnownIdSettings": {
+    "DefaultEpoch": "2026-01-01T00:00:00Z",
+    "MinimumUtc": "2026-09-09T00:00:00Z"
+  }
+}
+```
+
+Configure before startup, generation, parsing, date-filter construction, or reading the configured epoch. These operations freeze both values; later conflicting settings fail, even after a failed generation-time check. Identical settings or omitted overrides retain the current policy. Non-hosted callers can use `SourceKnownGenerationTime.Initialize(minimumUtc, defaultEpoch)` before first use.
+
+Keep the epoch unchanged across every service and restart using a dataset. IDs do not store their origin; changing it changes the interpretation of existing timestamps.
+
+The minimum rounds upward to a 250ms boundary relative to the epoch. Hosts validate before program/actions constructors and hooks, including read-only and temporary hosts; non-hosted generation validates on first use. Invalid configuration, a time below the rounded minimum, or a time outside the supported epoch fails. A failed time check can be retried when time catches up.
+
+Only encoded epoch `0`, including both halves, is supported. Historical parsing and GUID reconstruction from existing numeric IDs use the configured epoch without enforcing the generation floor. The floor constrains generated timestamps; [clock-drift protection](#high-performance-time-timestampmanager) still applies. See the [SharedKernel baseline](../DRN.Framework.SharedKernel/README.md#source-baseline-contract) for maintenance and cross-restart limits.
 
 Source-known IDs separate the internal `long` ID from the external `SourceKnownEntityId` GUID. The external form adds entity metadata and a keyed integrity check; it can be plain or encrypted.
 > [!NOTE]
@@ -1083,13 +1146,33 @@ Users can validate incoming IDs (e.g., from APIs) using multiple approaches depe
 var sourceKnownId = sourceKnownEntityIdUtils.Validate<User>(externalGuidId);
 ```
 
+`Validate<TEntity>` uses the entity's code-declared `(EntityType, AppId)`, independently of configuration. `Validate(id, entityType)` uses `NexusAppSettings.AppId`. Invalid ID integrity, entity type or encoded AppId throws `ValidationException`.
+
+Without an entity type parameter, override the configured partition using an `IAppId` type or an explicit `EntityTypeId`:
+
+```csharp
+ids.Validate<Order>(orderId);                         // Order's declared identity
+ids.Validate(orderId, entityType);                    // configured partition
+ids.Validate<StockItem>(stockItemId);                 // StockItem's declared identity
+ids.Validate<InventoryApp>(stockItemId, entityType);   // InventoryApp : IAppId
+ids.Validate(stockItemId, new EntityTypeId(entityType, InventoryApp.AppId));
+```
+
+Nullable inputs return null. `Parse` and SharedKernel validation do not enforce the service's configured partition. Authorization remains separate.
+
 **2. SourceKnownRepository (Recommended for Data Access)**
+
+Repositories validate the target entity's declared `(EntityType, AppId)`, including registered secondary partitions.
+
 ```csharp
 // Method on SourceKnownRepository<TEntity>
 var sourceKnownId = userRepository.GetEntityId(externalGuidId); 
 ```
 
 **3. SourceKnownEntity (Recommended for Domain Logic)**
+
+Use entity metadata or `new EntityTypeId(entityType, expectedAppId)` to validate both identity components. `ValidateId()` and the domain GUID helper's boolean validation option check integrity only.
+
 ```csharp
 // Helper on SourceKnownEntity base class
 var sourceKnownId = userInstance.GetEntityId<User>(externalGuidId);

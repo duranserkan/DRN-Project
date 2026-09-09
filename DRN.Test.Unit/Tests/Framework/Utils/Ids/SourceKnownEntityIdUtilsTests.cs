@@ -10,6 +10,100 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 public class SourceKnownEntityIdUtilsTests
 {
     [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Validation_Uses_Configured_Partition_Entity_Metadata_Or_Explicit_Identity(bool secure)
+    {
+        using var settings = (AppSettings)AppSettings.Development(new { NexusAppSettings = new { AppId = 5 } });
+        var numericIds = new SourceKnownIdUtils(settings);
+        using var implementation = new SourceKnownEntityIdUtils(settings, numericIds);
+        ISourceKnownEntityIdUtils ids = implementation;
+        var primaryId = SourceKnownIdUtils.Generate<XEntity>(5, 0);
+        var secondaryId = SourceKnownIdUtils.Generate<XEntityInApp6>(6, 0);
+        var primary = secure ? ids.GenerateSecure<XEntity>(primaryId) : ids.GeneratePlain<XEntity>(primaryId);
+        var secondary = secure ? ids.GenerateSecure<XEntityInApp6>(secondaryId) : ids.GeneratePlain<XEntityInApp6>(secondaryId);
+
+        ids.Validate<XEntity>(primary.EntityId).Valid.Should().BeTrue();
+        ids.Validate(primary.EntityId, 200).Valid.Should().BeTrue();
+        ids.Validate((Guid?)primary.EntityId, 200)!.Value.Valid.Should().BeTrue();
+        var wrongDefault = () => ids.Validate(secondary.EntityId, 200);
+        wrongDefault.Should().Throw<ValidationException>();
+        var wrongNullableDefault = () => ids.Validate((Guid?)secondary.EntityId, 200);
+        wrongNullableDefault.Should().Throw<ValidationException>();
+        ids.Validate<XEntityInApp6>(secondary.EntityId).Valid.Should().BeTrue();
+        ids.Validate<XEntityInApp6>((Guid?)secondary.EntityId)!.Value.Valid.Should().BeTrue();
+
+        ids.Validate<SampleApp6>(secondary.EntityId, 200).Valid.Should().BeTrue();
+        ids.Validate(secondary.EntityId, new EntityTypeId(200, 6)).Valid.Should().BeTrue();
+        ids.Validate((Guid?)secondary.EntityId, new EntityTypeId(200, 6))!.Value.Valid.Should().BeTrue();
+        ids.Validate<SampleApp6>((Guid?)secondary.EntityId, 200)!.Value.Valid.Should().BeTrue();
+        var wrongCustom = () => ids.Validate<SampleApp5>(secondary.EntityId, 200);
+        wrongCustom.Should().Throw<ValidationException>();
+        var conflictingCustom = () => ids.Validate(secondary.EntityId, new EntityTypeId(200, 5));
+        conflictingCustom.Should().Throw<ValidationException>();
+        var wrongEntityType = () => ids.Validate<SampleApp6>(secondary.EntityId, 201);
+        wrongEntityType.Should().Throw<ValidationException>();
+        var invalidGuid = () => ids.Validate<XEntityInApp6>(Guid.Empty);
+        invalidGuid.Should().Throw<ValidationException>();
+        var invalidComposite = () => ids.Validate(Guid.Empty, new EntityTypeId(200, 6));
+        invalidComposite.Should().Throw<ValidationException>();
+        var wrongCompositeType = () => ids.Validate(secondary.EntityId, new EntityTypeId(201, 6));
+        wrongCompositeType.Should().Throw<ValidationException>();
+        var outOfRangePartition = () => ids.Validate(secondary.EntityId, new EntityTypeId(200, 128));
+        outOfRangePartition.Should().Throw<ArgumentOutOfRangeException>();
+
+        ids.Validate((Guid?)null, 200).Should().BeNull();
+        ids.Validate<XEntity>((Guid?)null).Should().BeNull();
+        ids.Validate<SampleApp6>((Guid?)null, 200).Should().BeNull();
+        ids.Validate((Guid?)null, new EntityTypeId(200, 6)).Should().BeNull();
+    }
+
+    [Theory]
+    [DataInlineUnit((byte)1)]
+    [DataInlineUnit((byte)255)]
+    public void Unsupported_Epoch_Is_Rejected_Even_With_Valid_Mac_And_Encryption(DrnTestContextUnit context, byte epoch)
+    {
+        var utils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
+        var settings = context.GetRequiredService<IAppSettings>();
+        var plain = utils.GeneratePlain(long.MinValue, 1);
+        var bytes = plain.EntityId.ToByteArray(bigEndian: true);
+        bytes[0] = epoch;
+        bytes.AsSpan(12, 4).Clear();
+        using (var hasher = Blake3.Hasher.NewKeyed(settings.NexusAppSettings.GetDefaultKey().MacKey.Bytes))
+        {
+            hasher.Update(bytes);
+            hasher.Finalize(bytes.AsSpan(12, 4));
+        }
+        var unsupported = new Guid(bytes, bigEndian: true);
+        utils.Parse(unsupported).Valid.Should().BeFalse();
+        var validate = () => utils.Validate(unsupported, 1);
+        validate.Should().Throw<Exception>();
+        var convert = () => utils.ToSecure(plain with { EntityId = unsupported });
+        convert.Should().Throw<Exception>();
+
+        using var aes = Aes.Create();
+        aes.Key = settings.NexusAppSettings.GetDefaultKey().EncryptionKey.Bytes;
+        var cipher = aes.EncryptEcb(bytes, PaddingMode.None);
+        utils.Parse(new Guid(cipher, bigEndian: true)).Valid.Should().BeFalse();
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void Historical_Ids_Below_Trusted_Floor_Remain_Readable_And_Convertible(DrnTestContextUnit context)
+    {
+        var utils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
+        var plain = utils.GeneratePlain(long.MinValue, 1);
+        plain.Source.CreatedAt.Should().BeBefore(SourceKnownGenerationTime.Policy.MinimumUtc);
+        utils.Parse(plain.EntityId).Valid.Should().BeTrue();
+        var secure = utils.ToSecure(plain);
+        utils.Parse(secure.EntityId).Source.CreatedAt.Should().Be(plain.Source.CreatedAt);
+        utils.ToPlain(secure).EntityId.Should().Be(plain.EntityId);
+        var secondHalf = utils.GeneratePlain(0, 1);
+        utils.Parse(secondHalf.EntityId).Valid.Should().BeTrue();
+        utils.Parse(utils.ToSecure(secondHalf).EntityId).Source.Id.Should().Be(0);
+    }
+
+    [Theory]
     [DataInlineUnit]
     public async Task ExplicitMethods_Should_Generate_Valid_Secure_And_Plain_Ids(DrnTestContextUnit context)
     {
@@ -363,7 +457,7 @@ public class SourceKnownEntityIdUtilsTests
                 Keys = [oldKey]
             }
         });
-        var oldIdUtils = new SourceKnownIdUtils(oldSettings, new EpochTimeUtils());
+        var oldIdUtils = new SourceKnownIdUtils(oldSettings);
         using var oldEntityIdUtils = new SourceKnownEntityIdUtils(oldSettings, oldIdUtils);
 
         var id = SourceKnownIdUtils.Generate<XEntity>(oldSettings.NexusAppSettings.AppId, oldSettings.NexusAppSettings.AppInstanceId);
@@ -382,7 +476,7 @@ public class SourceKnownEntityIdUtilsTests
                 ]
             }
         });
-        var rotatedIdUtils = new SourceKnownIdUtils(rotatedSettings, new EpochTimeUtils());
+        var rotatedIdUtils = new SourceKnownIdUtils(rotatedSettings);
         using var rotatedEntityIdUtils = new SourceKnownEntityIdUtils(rotatedSettings, rotatedIdUtils);
 
         var parsed = rotatedEntityIdUtils.Parse(secureId.EntityId);
@@ -409,7 +503,7 @@ public class SourceKnownEntityIdUtilsTests
                 ]
             }
         });
-        var idUtils = new SourceKnownIdUtils(settings, new EpochTimeUtils());
+        var idUtils = new SourceKnownIdUtils(settings);
         using var entityIdUtils = new SourceKnownEntityIdUtils(settings, idUtils);
 
         var id = SourceKnownIdUtils.Generate<XEntity>(settings.NexusAppSettings.AppId, settings.NexusAppSettings.AppInstanceId);
@@ -424,7 +518,7 @@ public class SourceKnownEntityIdUtilsTests
                 Keys = [new NexusKey(new string('B', 32)) { Default = true }]
             }
         });
-        var defaultOnlyIdUtils = new SourceKnownIdUtils(defaultOnlySettings, new EpochTimeUtils());
+        var defaultOnlyIdUtils = new SourceKnownIdUtils(defaultOnlySettings);
         using var defaultOnlyEntityIdUtils = new SourceKnownEntityIdUtils(defaultOnlySettings, defaultOnlyIdUtils);
 
         var parsed = defaultOnlyEntityIdUtils.Parse(secureId.EntityId);
@@ -444,7 +538,7 @@ public class SourceKnownEntityIdUtilsTests
                 AppInstanceId = 1
             }
         });
-        var idUtils = new SourceKnownIdUtils(settings, new EpochTimeUtils());
+        var idUtils = new SourceKnownIdUtils(settings);
         using var entityIdUtils = new SourceKnownEntityIdUtils(settings, idUtils);
 
         // Generate ID for XEntity (AppId=5, EntityType=200)
@@ -457,17 +551,17 @@ public class SourceKnownEntityIdUtilsTests
         validResult.EntityType.Should().Be(200);
         validResult.Source.AppId.Should().Be(5);
 
-        // Direct EntityTypeId validation against (EntityType=200, AppId=5) succeeds
-        var validComposite = entityIdUtils.Validate(id5.EntityId, new EntityTypeId(200, 5));
+        // Explicit typed validation against (EntityType=200, AppId=5) succeeds
+        var validComposite = entityIdUtils.Validate<SampleApp5>(id5.EntityId, 200);
         validComposite.Valid.Should().BeTrue();
 
         // Cross-partition validation: XEntityInApp6 has (EntityType=200, AppId=6)
-        // Must throw ValidationException because AppId differs even though EntityType byte matches
+        // The incoming ID must agree with the entity declaration.
         var actGeneric = () => entityIdUtils.Validate<XEntityInApp6>(id5.EntityId);
         actGeneric.Should().Throw<ValidationException>();
 
-        // Direct EntityTypeId validation against (EntityType=200, AppId=6) must throw
-        var actComposite = () => entityIdUtils.Validate(id5.EntityId, new EntityTypeId(200, 6));
+        // Explicit typed validation against (EntityType=200, AppId=6) must throw
+        var actComposite = () => entityIdUtils.Validate<SampleApp6>(id5.EntityId, 200);
         actComposite.Should().Throw<ValidationException>();
 
         // SourceKnownEntity.GetEntityId<TEntity> partition validation
@@ -482,6 +576,11 @@ public class SourceKnownEntityIdUtilsTests
         validEntityGetLong.Valid.Should().BeTrue();
         entityInstance.GetEntityId((long?)id5.Source.Id, SourceKnownEntity.GetEntityTypeId<XEntity>())!.Value.Valid.Should().BeTrue();
         entityInstance.GetEntityId(id5.Source.Id, SourceKnownEntity.GetEntityTypeId<XEntity>()).Valid.Should().BeTrue();
+        var expected = new EntityTypeId(200, SampleApp5.AppId);
+        entityInstance.GetEntityId(id5.EntityId, expected).Should().Be(id5);
+        entityInstance.GetEntityId((Guid?)id5.EntityId, expected)!.Value.Should().Be(id5);
+        entityInstance.GetEntityId((Guid?)null, expected).Should().BeNull();
+        entityInstance.GetEntityId((long?)null, expected).Should().BeNull();
 
         // Cross-partition GetEntityId<TEntity> throws ValidationException (Guid and long)
         var actEntityGet = () => entityInstance.GetEntityId<XEntityInApp6>(id5.EntityId);
@@ -490,6 +589,12 @@ public class SourceKnownEntityIdUtilsTests
         actEntityGetLong.Should().Throw<ValidationException>();
         var actCompositeLong = () => entityInstance.GetEntityId(id5.Source.Id, new EntityTypeId(200, 6));
         actCompositeLong.Should().Throw<ValidationException>();
+        var actCompositeGuid = () => entityInstance.GetEntityId(id5.EntityId, new EntityTypeId(200, 6));
+        actCompositeGuid.Should().Throw<ValidationException>();
+        var actNullableCompositeGuid = () => entityInstance.GetEntityId((Guid?)id5.EntityId, new EntityTypeId(200, 6));
+        actNullableCompositeGuid.Should().Throw<ValidationException>();
+        var actNullableCompositeLong = () => entityInstance.GetEntityId((long?)id5.Source.Id, new EntityTypeId(200, 6));
+        actNullableCompositeLong.Should().Throw<ValidationException>();
 
         // Generic Generate<TEntity>(long) must throw if long ID belongs to a different AppId partition
         var longIdApp6 = idUtils.Next<XEntityInApp6>();

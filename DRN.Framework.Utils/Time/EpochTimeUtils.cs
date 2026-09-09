@@ -1,4 +1,5 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Numbers;
 
@@ -16,26 +17,29 @@ public interface IEpochTimeUtils
 public class EpochTimeUtils : IEpochTimeUtils
 {
     /// <summary>
-    /// Converts total 250ms ticks since a custom epoch to DateTimeOffset
+    /// Converts total 250ms ticks since the configured process epoch to DateTimeOffset.
     /// </summary>
     /// <param name="totalTicks">Number of 250ms ticks since the epoch (can be negative)</param>
-    /// <param name="epoch">Reference epoch DateTimeOffset.</param>
-    public static DateTimeOffset ConvertToDateTime(long totalTicks, DateTimeOffset epoch)
-        => epoch.Add(TimeSpan.FromTicks(totalTicks * TimeStampManager.TicksPerPrecisionUnit));
+    public static DateTimeOffset ConvertToDateTime(long totalTicks) => ConvertToDateTime(totalTicks, DefaultEpoch);
+
+    internal static DateTimeOffset ConvertToDateTime(long totalTicks, DateTimeOffset epoch)
+        => epoch.Add(TimeSpan.FromTicks(checked(totalTicks * TimeStampManager.TicksPerPrecisionUnit)));
 
     /// <summary>
     /// Calculates total 250ms ticks between a given DateTimeOffset and a specified epoch
     /// </summary>
     /// <param name="dateTime">Target DateTimeOffset</param>
     /// <param name="epoch">Reference epoch DateTimeOffset</param>
-    public static long ConvertToTicks(DateTimeOffset dateTime, DateTimeOffset epoch)
+    internal static long ConvertToTicks(DateTimeOffset dateTime, DateTimeOffset epoch)
         => (dateTime - epoch).Ticks / TimeStampManager.TicksPerPrecisionUnit;
 
     /// <summary>
     /// Converts a DateTimeOffset to a SourceKnownId timestamp according to the application epoch
     /// </summary>
-    public static long ConvertToSourceKnownIdTimeStamp(DateTimeOffset dateTime, DateTimeOffset epoch)
+    internal static long ConvertToSourceKnownIdTimeStamp(DateTimeOffset dateTime, DateTimeOffset epoch)
     {
+        if (dateTime < epoch)
+            throw new InvalidOperationException($"UTC {dateTime:O} is before epoch origin {epoch:O}.");
         var elapsedTicks = ConvertToTicks(dateTime, epoch);
         if (elapsedTicks is < 0 or > SourceKnownIdUtils.MaxEpochTicks)
             throw new InvalidOperationException($"Elapsed ticks: {elapsedTicks} must be between 0 and {SourceKnownIdUtils.MaxEpochTicks}");
@@ -49,12 +53,11 @@ public class EpochTimeUtils : IEpochTimeUtils
         return builder.GetValue();
     }
     
-    //todo: make _epoch configurable at startup
-    //todo: validate system time on startup
-    public static readonly DateTimeOffset Epoch2025 = new(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
-    public static readonly DateTimeOffset DefaultEpoch = Epoch2025;
+    // Encoded GUID epoch 0 uses one immutable configured origin throughout the process.
+    public static readonly DateTimeOffset Epoch2025 = SourceKnownGenerationTimePolicy.DefaultEpoch;
+    public static DateTimeOffset DefaultEpoch => SourceKnownGenerationTime.Epoch;
     
-    public DateTimeOffset Epoch { get; } = DefaultEpoch;
+    public DateTimeOffset Epoch => DefaultEpoch;
 
     /// <summary>
     /// Converts total 250ms ticks since the application epoch to DateTimeOffset

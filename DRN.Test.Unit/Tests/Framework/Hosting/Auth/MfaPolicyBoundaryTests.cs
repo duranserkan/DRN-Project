@@ -29,7 +29,7 @@ public class MfaPolicyBoundaryTests
         scopedUser.SetExemption("stale", user);
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton<IScopedLog>(new ScopedLog(AppSettings.Development()));
+        services.AddSingleton<IScopedLog>(new ScopedLog(AppSettings.Development(new { NexusAppSettings = new { AppId = 0 } })));
         services.AddSingleton<IScopedUser>(scopedUser);
         using var provider = services.BuildServiceProvider();
         var http = new DefaultHttpContext { RequestServices = provider, User = user };

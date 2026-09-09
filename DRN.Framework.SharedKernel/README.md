@@ -127,7 +127,7 @@ Entity and aggregate base constructors accept an optional internal `long id = 0`
 | `DateTimeOffset ModifiedAt` | Protected internal setter; concurrency check; `ModifiedAtColumnOrder = 1` |
 | `SourceKnownEntityId EntityIdSource` | Internal setter; ignored by JSON |
 
-`SourceKnownEntity` implements `IHasEntityId`, `IEquatable<SourceKnownEntity>`, and `IComparable<SourceKnownEntity>`. See [SourceKnownEntity.cs](Domain/SourceKnownEntity.cs) and [AggregateRoot.cs](Domain/AggregateRoot.cs).
+`SourceKnownEntity` implements `IHasEntityId`, `IEquatable<SourceKnownEntity>`, and `IComparable<SourceKnownEntity>`. See [SourceKnownEntity.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/SourceKnownEntity.cs) and [AggregateRoot.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/AggregateRoot.cs).
 
 ### Application Partitions
 
@@ -139,7 +139,7 @@ Entity and aggregate base constructors accept an optional internal `long id = 0`
 | `NexusApp` | 126 | `[EntityType<NexusApp>(1)]`; Nexus also supplies a domain-derived `NexusEntityTypeAttribute` accepting `NexusEntityTypes` |
 | `TestApp` | 127 | `[TestEntityType(1)]`, equivalent to `[EntityType<TestApp>(1)]` |
 
-`IAppId.DefaultAppId`, `NexusAppId`, and `TestAppId` expose these constants; `MaxAppId` is 127. Different partitions may reuse an entity type byte. See [IAppId.cs](Domain/IAppId.cs).
+`IAppId.DefaultAppId`, `NexusAppId`, and `TestAppId` expose these constants; `MaxAppId` is 127. Different partitions may reuse an entity type byte. See [IAppId.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/IAppId.cs).
 
 ### Compile-Time Roslyn Analyzers
 
@@ -176,7 +176,7 @@ An entity is effectively private if it or any containing type is private. Such e
 - **Cross-assembly checks**: Hosts and aggregators detect collisions across referenced domain modules at compilation end. Diamond dependencies such as `A -> B -> Common` and `A -> C -> Common` are deduplicated by Roslyn symbol equality.
 - **DRN0005 exemptions**: Set `<AllowMultipleAppIds>true</AllowMultipleAppIds>`, `<IsTestProject>true</IsTestProject>`, or `<UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>`. Test assembly names also qualify when they contain `.Test.`, start with `Test.`, or end with `.Tests` or `.Test`, case-insensitively.
 
-See [SourceKnownEntityTypeAnalyzer.cs](../DRN.Framework.SharedKernel.Analyzers/SourceKnownEntityTypeAnalyzer.cs) for diagnostic checks and [the package project](DRN.Framework.SharedKernel.csproj) for analyzer packaging.
+See [SourceKnownEntityTypeAnalyzer.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel.Analyzers/SourceKnownEntityTypeAnalyzer.cs) for diagnostic checks and [the package project](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/DRN.Framework.SharedKernel.csproj) for analyzer packaging.
 
 > [!IMPORTANT]
 > **Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for all public-facing contracts, API route parameters, and external lookups. The internal `long Id` must **never** be exposed outside the infrastructure/domain boundaries.
@@ -185,13 +185,13 @@ See [SourceKnownEntityTypeAnalyzer.cs](../DRN.Framework.SharedKernel.Analyzers/S
 >
 > **Entity Exposure Prohibition**: Entities must never be exposed via public APIs. Always map to DTOs or Response Models. Entities are only permitted in Razor Pages (Internal UI).
 
-The advanced quickstart defines `UserDto` once and uses its base constructor for identity and timestamp mapping. `Dto.AdditionalData` stores JSON extension data. See [Dto.cs](Domain/Dto.cs).
+The advanced quickstart defines `UserDto` once and uses its base constructor for identity and timestamp mapping. `Dto.AdditionalData` stores JSON extension data. See [Dto.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Dto.cs).
 
 ### Domain Events
 
 Entities collect events through `AddDomainEvent` and expose them through `GetDomainEvents`. SharedKernel does not supply publication or outbox dispatch. EF save interception invokes lifecycle hooks; override `GetCreatedEvent`, `GetModifiedEvent`, or `GetDeletedEvent` to supply events. Each hook returns null by default.
 
-Event contract excerpt from [DomainEvent.cs](Domain/DomainEvent.cs):
+Event contract excerpt from [DomainEvent.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/DomainEvent.cs):
 
 ```csharp
 public interface IDomainEvent
@@ -225,7 +225,7 @@ The identifier system has three forms:
 
 `ISourceKnownEntityIdOperations` defines `Generate`, `Parse`, `ToSecure`, and `ToPlain` in SharedKernel. Utils implements it through `ISourceKnownEntityIdUtils` and `SourceKnownEntityIdUtils`. EF interceptors wire operations into entities. ID validation checks structure and identity metadata; application authorization still controls access to the entity.
 
-Record contract excerpt from [SourceKnownEntityId.cs](Domain/SourceKnownEntityId.cs):
+Record contract excerpt from [SourceKnownEntityId.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/SourceKnownEntityId.cs):
 
 ```csharp
 public readonly record struct SourceKnownId(
@@ -245,7 +245,29 @@ public readonly record struct SourceKnownEntityId(
 );
 ```
 
-`Valid` reports parsing validity. `Secure` identifies the encrypted form of `EntityId`. `EntityTypeId` combines `EntityType` and `Source.AppId`. The sequence layout is implemented in [SourceKnownIdUtils.cs](../DRN.Framework.Utils/Ids/SourceKnownIdUtils.cs); MAC and encryption belong to [SourceKnownEntityIdUtils.cs](../DRN.Framework.Utils/Ids/SourceKnownEntityIdUtils.cs).
+`Valid` reports parsing validity. `Secure` identifies the encrypted form of `EntityId`. `EntityTypeId` combines `EntityType` and `Source.AppId`. The sequence layout is implemented in [SourceKnownIdUtils.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Ids/SourceKnownIdUtils.cs); MAC and encryption belong to [SourceKnownEntityIdUtils.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Ids/SourceKnownEntityIdUtils.cs).
+
+### Trusted minimum generation time
+
+`SourceKnownGenerationTime` sets one process-wide epoch and minimum UTC for new IDs. The default origin is `2025-01-01T00:00:00Z`; the default minimum is `2026-09-09T00:00:00Z`. Only encoded epoch `0`, including both halves of its 33-bit timestamp range, is supported.
+
+Configure before startup or first ID/epoch use:
+
+```csharp
+SourceKnownGenerationTime.Initialize(
+    minimumUtc: "2026-09-01T00:00:00Z",
+    defaultEpoch: "2025-01-01T00:00:00Z");
+```
+
+An override can move the minimum earlier or later. Supplying an epoch requires an explicit minimum in the same call. Both inputs require ISO 8601 UTC ending in `Z` or `+00:00`, with seconds and up to seven fractional digits. The minimum rounds upward to a 250ms boundary relative to the epoch; an unrepresentable minimum fails.
+
+Startup or first generation freezes both values before checking time, even if that check fails. Reading the configured epoch, parsing IDs, and converting historical dates also freeze the pair. Identical settings or omitted overrides retain it; later conflicts fail. Historical parsing and GUID reconstruction from existing numeric IDs do not enforce the generation floor.
+
+Keep the origin unchanged across every service and restart using a dataset. IDs do not store it, so changing it changes the interpretation of existing timestamps. Generation rejects times outside epoch 0 rather than rolling over. Hosted configuration uses `SourceKnownIdSettings`; see [Utils configuration and clock behavior](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md#trusted-minimum-utc).
+
+#### Source baseline contract
+
+The default minimum is maintained in [SourceKnownGenerationTimePolicy.MinimumGenerationUtc](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/SourceKnownGenerationTime.cs). All builds use the same source value. It detects clocks below the configured floor but does not prove current UTC or prevent rollback across restarts.
 
 ### ID Validation & Retrieval Strategies
 
@@ -259,12 +281,13 @@ public readonly record struct SourceKnownEntityId(
 
 | Method | Checks |
 |---|---|
-| `ValidateId()` | `Valid` is true |
+| `ValidateId()` | `Valid` is true; integrity only, with no expected identity |
 | `Validate<TEntity>()` | Validity, entity type and the entity's declared application partition |
 | `Validate(EntityTypeId expected)` | Validity and both supplied identity components |
-| `Validate(byte entityType)` | Validity and entity type, using the ID's own `AppId` |
 
-Use the generic or composite overload when the expected partition must be checked independently.
+Identity validation requires an expected application partition: use `Validate<TEntity>()` to obtain it from the entity declaration, or `Validate(new EntityTypeId(entityType, expectedAppId))` to supply both components. `EntityTypeId` requires both constructor arguments, including explicit `0` for the default partition, and has no implicit conversion from `byte`. The former `Validate(byte)` overload is removed; validation never derives the expected partition from the incoming ID.
+
+Domain helpers follow the same contract for GUID and numeric IDs: use `GetEntityId<TEntity>(id)` or `GetEntityId(id, new EntityTypeId(entityType, expectedAppId))`, including nullable forms. The former byte-only helpers are removed. The low-level `GetEntityId(Guid, bool validate = true)` helper checks parsing validity only, like `ValidateId()`. SharedKernel does not read application configuration; Utils supplies configured expectations and EF repositories supply the target entity's declared identity.
 
 ### Secure ↔ Plain Conversion
 
@@ -289,7 +312,7 @@ var plainFromUtility = sourceKnownEntityIdUtils.ToPlain(secureFromUtility);
 
 `ISourceKnownRepository<TEntity>` defines queries, mutations, identity conversion and pagination for `AggregateRoot` entities. EntityFramework supplies the default implementation. Subclasses own entity updates, additional filters and query includes.
 
-Contract from [SourceKnownRepository.cs](Domain/Repository/SourceKnownRepository.cs), grouped by operation:
+Contract from [SourceKnownRepository.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Repository/SourceKnownRepository.cs), grouped by operation:
 
 ```csharp
 using System;
@@ -362,14 +385,14 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 
 ### Settings and Cancellation
 
-`RepositorySettings<TEntity>` provides `IgnoreAutoIncludes`, `AsNoTracking`, `ScopeKey`, and named predicate filters through `AddFilter`, `RemoveFilter`, and `ClearFilters`. Both boolean settings default to false. See [RepositorySettings.cs](Domain/Repository/RepositorySettings.cs).
+`RepositorySettings<TEntity>` provides `IgnoreAutoIncludes`, `AsNoTracking`, `ScopeKey`, and named predicate filters through `AddFilter`, `RemoveFilter`, and `ClearFilters`. Both boolean settings default to false. See [RepositorySettings.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Repository/RepositorySettings.cs).
 
 - A null `ScopeKey` uses the root cancellation scope. A configured key selects a child scope shared by repositories using that key.
 - `CancellationToken` exposes the effective scope token. `CancelChanges()` cancels that scope, and `CancelWhen(token)` links a lifetime token to it.
 - Cancellation lasts for the scope's lifetime. With a null key, it affects root-linked operations too.
 - For a single operation, create a local linked token source and pass its token to an operation that accepts it. Do not merge an operation-only token through `CancelWhen`.
 
-`CancellationScopeKey` lives in `DRN.Framework.SharedKernel.Cancellation`. Create keys through its `For(...)` factories. See [the key contract](Cancellation/CancellationScopeKey.cs) and [the EntityFramework repository](../DRN.Framework.EntityFramework/Domain/SourceKnownRepository.cs).
+`CancellationScopeKey` lives in `DRN.Framework.SharedKernel.Cancellation`. Create keys through its `For(...)` factories. See [the key contract](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Cancellation/CancellationScopeKey.cs) and [the EntityFramework repository](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.EntityFramework/Domain/SourceKnownRepository.cs).
 
 ### Filtering
 
@@ -383,7 +406,7 @@ var filter = EntityCreatedFilter.After(DateTimeOffset.UtcNow.AddDays(-7));
 var result = await repository.PaginateAsync(request, filter);
 ```
 
-See [EntityCreatedFilter.cs](Domain/Repository/EntityCreatedFilter.cs) and [EntityDateTimeUtils.cs](../DRN.Framework.Utils/Entity/EntityDateTimeUtils.cs).
+See [EntityCreatedFilter.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Repository/EntityCreatedFilter.cs) and [EntityDateTimeUtils.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Entity/EntityDateTimeUtils.cs).
 
 ---
 
@@ -403,7 +426,7 @@ Pagination uses first/last entity IDs as cursors for forward, backward and refre
 | `TotalCount`, `UpdateTotalCount` | Carries a known count or requests recalculation; `-1` means unspecified |
 | `PaginateAllAsync` | Streams pages as `IAsyncEnumerable<PaginationResultModel<TEntity>>` |
 
-The three-argument `PageSize` constructor can override the maximum threshold for in-process requests. That override is not serializable. See [PaginationRequest.cs](Domain/Pagination/PaginationRequest.cs), [PageSize.cs](Domain/Pagination/PageSize.cs), and [PaginationResultBase.cs](Domain/Pagination/PaginationResultBase.cs).
+The three-argument `PageSize` constructor can override the maximum threshold for in-process requests. That override is not serializable. See [PaginationRequest.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Pagination/PaginationRequest.cs), [PageSize.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Pagination/PageSize.cs), and [PaginationResultBase.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Pagination/PaginationResultBase.cs).
 
 ### API Integration
 
@@ -469,7 +492,7 @@ using DRN.Framework.SharedKernel;
 throw ExceptionFor.NotFound("User not found", category: "Users");
 ```
 
-See [Exceptions.cs](Exceptions.cs) and [HttpScopeMiddleware.cs](../DRN.Framework.Hosting/Middlewares/HttpScopeMiddleware.cs).
+See [Exceptions.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Exceptions.cs) and [HttpScopeMiddleware.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Hosting/Middlewares/HttpScopeMiddleware.cs).
 
 ---
 
@@ -497,7 +520,7 @@ var json = JsonSerializer.Serialize(new { Count = long.MaxValue }, JsonConventio
 // {"count":"9223372036854775807"}
 ```
 
-See [JsonConventions.cs](Json/JsonConventions.cs) and [IntegerSafeIntervalForJs.cs](Json/IntegerSafeIntervalForJs.cs).
+See [JsonConventions.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Json/JsonConventions.cs) and [IntegerSafeIntervalForJs.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Json/IntegerSafeIntervalForJs.cs).
 
 ---
 
@@ -505,11 +528,11 @@ See [JsonConventions.cs](Json/JsonConventions.cs) and [IntegerSafeIntervalForJs.
 
 ### `[IgnoreLog]`
 
-Marks classes, structs, properties or fields for exclusion by logging code that honors the attribute. `IgnoredLog(object?)` checks the runtime type and returns false for null. `IgnoredLog(PropertyInfo)` also ignores properties typed as `object` or carrying an ignored property type. See [IgnoreLogAttribute.cs](Attributes/IgnoreLogAttribute.cs).
+Marks classes, structs, properties or fields for exclusion by logging code that honors the attribute. `IgnoredLog(object?)` checks the runtime type and returns false for null. `IgnoredLog(PropertyInfo)` also ignores properties typed as `object` or carrying an ignored property type. See [IgnoreLogAttribute.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Attributes/IgnoreLogAttribute.cs).
 
 ### `[SecureKey]`
 
-Validates string properties, fields or parameters. Defaults require 16 to 256 characters, uppercase, lowercase, a digit and a special character. The allowed set contains ASCII and Turkish letters, digits, space, and `!*()-_`; space counts as special. Sequential and repeated-character limits are configurable through `MaxSequentialChars` (4) and `MaxRepeatedChars` (3). Null values fail validation. See [SecureKeyAttribute.cs](Attributes/SecureKeyAttribute.cs) for the exact character checks.
+Validates string properties, fields or parameters. Defaults require 16 to 256 characters, uppercase, lowercase, a digit and a special character. The allowed set contains ASCII and Turkish letters, digits, space, and `!*()-_`; space counts as special. Sequential and repeated-character limits are configurable through `MaxSequentialChars` (4) and `MaxRepeatedChars` (3). Null values fail validation. See [SecureKeyAttribute.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Attributes/SecureKeyAttribute.cs) for the exact character checks.
 
 ---
 
@@ -529,7 +552,7 @@ var file = root.GetPathWithinDirectory("exports", "orders.json");
 
 `GetPathWithinDirectory()` resolves a full path, rejects paths outside the root, and rejects symbolic links or reparse points in child components below that root. Use it for file-serving, manifest, upload and app-data child paths. It checks the path at resolution time; it does not lock the filesystem against later changes. `IsPathWithinDirectory()` checks lexical containment only and does not resolve symbolic links.
 
-See [StringExtensions.cs](Extensions/StringExtensions.cs) and [PathExtensions.cs](Extensions/PathExtensions.cs).
+See [StringExtensions.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Extensions/StringExtensions.cs) and [PathExtensions.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Extensions/PathExtensions.cs).
 
 ---
 
@@ -558,7 +581,7 @@ See [StringExtensions.cs](Extensions/StringExtensions.cs) and [PathExtensions.cs
 
 `LocalAppDataPath` uses `DrnAppDataSettings__DataPath` as configured, otherwise `<LocalApplicationData>/<EntryAssemblyNameNormalized>`. Path resolution can return an empty string when no usable root is available. `IAppData` in Utils owns directory creation, temp cleanup, test temp preservation and safe child paths.
 
-See [AppConstants.cs](AppConstants.cs) and [AppData.cs](../DRN.Framework.Utils/Data/App/AppData.cs).
+See [AppConstants.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/AppConstants.cs) and [AppData.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Data/App/AppData.cs).
 
 ---
 

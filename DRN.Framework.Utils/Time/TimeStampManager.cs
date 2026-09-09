@@ -1,3 +1,5 @@
+using DRN.Framework.SharedKernel.Domain;
+
 namespace DRN.Framework.Utils.Time;
 
 /// <summary>
@@ -42,46 +44,40 @@ public static class TimeStampManager
 
     private static int _driftDetected; // 0 = normal, 1 = drift detected
     private static ClockDriftException? _driftException;
-    private static readonly RecurringAction RecurringAction = new(GetUpdateAction(), UpdatePeriod);
+    private static readonly GenerationTimeInitialization GenerationInitialization = new(
+        static () => SourceKnownGenerationTime.ForGeneration, static () => UtcNow);
+    private static readonly RecurringAction RecurringAction = new(
+        Update, UpdatePeriod, threadName: "DRN.TimeStampManager", priority: ThreadPriority.Highest);
 
-    private static Func<Task> GetUpdateAction()
-    {
-        _ = RecurringAction; //this action used to trigger updates
-        Update();
-        return Update;
-    }
+    static TimeStampManager() => Update();
 
-    private static Task Update()
+    private static void Update()
     {
         var now = DateTimeProvider.UtcNow.Ticks;
         var precisionResidue = now % TicksPerPrecisionUnit;
         var truncatedNow = now - precisionResidue;
         var previousTicks = Volatile.Read(ref _cachedUtcNowTicks);
 
-        if (truncatedNow < previousTicks)
+        try
         {
-            var driftTicks = previousTicks - truncatedNow;
-            var driftSeconds = driftTicks / TimeSpan.TicksPerSecond;
-
-            if (driftSeconds >= MaxAllowedDriftSeconds)
-            {
-                // Critical drift: cache exception, set flag, request shutdown
-                _driftException = new ClockDriftException(previousTicks, truncatedNow);
-                Volatile.Write(ref _driftDetected, 1);
-                ApplicationLifetime.RequestShutdown();
-                return Task.CompletedTask;
-            }
-
-            // Minor drift (< MaxAllowedDriftSeconds): freeze the cached value.
-            // UtcNowTicks will continue serving the previous (higher) timestamp until
-            // the real clock catches up. This is safe because downstream consumers
-            // (e.g. SequenceManager) use per-tick sequence counters and only require
-            // timestamps to never go backward — which the freeze guarantees.
-            return Task.CompletedTask;
+            Volatile.Write(ref _cachedUtcNowTicks, GetUpdatedTicks(previousTicks, truncatedNow));
         }
+        catch (ClockDriftException exception)
+        {
+            _driftException = exception;
+            Volatile.Write(ref _driftDetected, 1);
+            RecurringAction.Stop();
+            ApplicationLifetime.RequestShutdown();
+        }
+    }
 
-        Volatile.Write(ref _cachedUtcNowTicks, truncatedNow);
-        return Task.CompletedTask;
+    internal static long GetUpdatedTicks(long previousTicks, long truncatedNow)
+    {
+        if (truncatedNow >= previousTicks)
+            return truncatedNow;
+        if ((previousTicks - truncatedNow) / TimeSpan.TicksPerSecond >= MaxAllowedDriftSeconds)
+            throw new ClockDriftException(previousTicks, truncatedNow);
+        return previousTicks;
     }
 
     public static long UtcNowTicks => Volatile.Read(ref _driftDetected) != 1
@@ -96,10 +92,63 @@ public static class TimeStampManager
     public static DateTimeOffset UtcNow => new(UtcNowTicks, TimeSpan.Zero);
 
     /// <summary>
-    /// Computes the current timestamp as an integer, representing the number of 250ms ticks elapsed since the specified epoch.
+    /// Computes the number of 250ms ticks elapsed since the configured process epoch.
     /// </summary>
-    /// <param name="epoch">The reference time (epoch) from which the elapsed ticks are calculated.</param>
     /// <returns>The number of 250ms ticks elapsed since the given epoch.</returns>
     /// <exception cref="ClockDriftException">Thrown when a critical clock drift has been detected.</exception>
-    public static long CurrentTimestamp(DateTimeOffset epoch) => (UtcNowTicks - epoch.Ticks) / TicksPerPrecisionUnit;
+    public static long CurrentTimestamp()
+    {
+        var epochTicks = EpochTimeUtils.DefaultEpoch.UtcTicks;
+        return (GetGenerationUtcTicks(epochTicks) - epochTicks) / TicksPerPrecisionUnit;
+    }
+
+    /// <summary>
+    /// Freezes the configured epoch and minimum and validates cached time once.
+    /// Subsequent generation relies on the cache never decreasing. Failed validation can be retried.
+    /// </summary>
+    public static void InitializeGeneration()
+        => GenerationInitialization.EnsureInitialized();
+
+    internal static long GetGenerationUtcTicks(long epochUtcTicks)
+    {
+        InitializeGeneration();
+        // Read after initialization: an earlier snapshot might precede the validated floor.
+        var utcTicks = UtcNowTicks;
+        ValidateEpochRange(utcTicks, epochUtcTicks);
+        return utcTicks;
+    }
+
+    internal static void ValidateEpochRange(long utcTicks, long epochUtcTicks)
+    {
+        if ((ulong)(utcTicks - epochUtcTicks) >=
+            (ulong)(SourceKnownGenerationTimePolicy.TimestampsPerEpoch * TicksPerPrecisionUnit))
+            throw new InvalidOperationException("Generation time is outside the supported Source-Known epoch range.");
+    }
+}
+
+/// <summary>Remembers the default-origin lower-bound proof for a frozen policy and a nondecreasing clock.</summary>
+internal sealed class GenerationTimeInitialization(
+    Func<SourceKnownGenerationTimePolicy> getPolicy, Func<DateTimeOffset> getCachedUtc)
+{
+    private readonly Lock _sync = new();
+    private bool _initialized;
+
+    internal void EnsureInitialized()
+    {
+        if (!Volatile.Read(ref _initialized))
+            Initialize();
+    }
+
+    private void Initialize()
+    {
+        lock (_sync)
+        {
+            if (!_initialized)
+            {
+                var policy = getPolicy();
+                policy.Validate(getCachedUtc());
+                Volatile.Write(ref _initialized, true);
+            }
+        }
+    }
 }
