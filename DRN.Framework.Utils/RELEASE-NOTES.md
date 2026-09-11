@@ -38,8 +38,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
-*   **Async Recurring Actions**: Added `AsyncRecurringAction` for non-overlapping callbacks, cooperative cancellation, and asynchronous disposal. Timeouts require token-aware callbacks; restarts and `DisposeAsync()` wait for outstanding work.
-*   **Dedicated Recurring Actions**: `RecurringAction` now accepts synchronous callbacks and supports dedicated background threads through `threadName`, with configurable priority. Restarting during an active callback preserves the configured delay after it finishes.
+*   **Async Recurring Actions**: Added `RecurringActionAsync` for non-overlapping callbacks, cooperative cancellation, and asynchronous disposal. Tokenless `Func<Task>` constructors accept only the callback, period, and optional `start`, without an `executionTimeout` parameter. Use a token-aware callback to configure a timeout; restarted execution and `DisposeAsync()` wait for outstanding work.
+*   **Dedicated Recurring Actions**: `RecurringAction` now accepts synchronous callbacks and supports dedicated background threads through `threadName`, with configurable priority and a required positive period. Timer mode continues to accept zero. Restarting during an active callback preserves the configured delay after it finishes.
 
 *   **Scope Events**: Added `ScopeEvent` for structured logging with .NET `EventId`. `ScopedLog` retains primary and additional events, provides a stable scope correlation ID, and captures an existing W3C trace ID. `LogScoped` forwards the primary event ID while preserving severity.
 *   **Scoped User Authentication Scheme Exemption**: `IScopedUser` and `ScopedUser` track active `Exemption` (`ExemptionProof`) alongside convenience `ExemptionScheme` and `ExemptionPrincipal` properties, allowing authorization handlers and middleware to verify the authenticated scheme exemption without mutating `HttpContext.User`.

@@ -6,6 +6,25 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Time;
 
 public class RecurringActionTests
 {
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Dedicated_Thread_Should_Reject_Zero_Period_Before_Starting(bool start)
+    {
+        Action create = () =>
+        {
+            using var worker = new RecurringAction(() => { }, 0, start, threadName: "DRN.Test.ZeroPeriod");
+        };
+
+        create.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("period");
+    }
+
+    [Fact]
+    public void Timer_Should_Accept_Zero_Period()
+    {
+        using var worker = new RecurringAction(() => { }, 0, start: false);
+    }
+
     [Fact]
     public async Task Synchronous_Callback_Should_Run_On_The_Timer()
     {

@@ -1002,15 +1002,13 @@ Backward clock drift below five seconds freezes the cached timestamp until the c
 
 ### Recurring Timer & Dedicated Thread (`RecurringAction`)
 
-`RecurringAction` prevents overlapping callbacks. Its `period` is a delay in milliseconds after a callback finishes, not a fixed interval between start times. It supports both synchronous `Action` and asynchronous `Func<Task>`.
+`RecurringAction` prevents overlapping synchronous `Action` callbacks. Its `period` is a delay in milliseconds after a callback finishes, not a fixed interval between start times. Use `RecurringActionAsync` for asynchronous callbacks; do not pass an `async void` callback to `RecurringAction`.
 
-Supplying `threadName` selects a dedicated background thread, with `ThreadPriority.Highest` as the default priority. Async continuations may still use the ThreadPool:
+Supplying `threadName` selects a dedicated background thread, with `ThreadPriority.Highest` as the default priority. Dedicated threads require a positive `period`; timer mode accepts zero. Invalid periods throw `ArgumentOutOfRangeException` during construction, including with `start: false`.
 
 ```csharp
 // ThreadPool timer (default)
-using var worker = new RecurringAction(async () => {
-    await DoHeavyWork();
-}, period: 1000, start: true);
+using var worker = new RecurringAction(SyncWork, period: 1000, start: true);
 
 // Dedicated background thread
 using var clockWorker = new RecurringAction(
@@ -1026,12 +1024,12 @@ In dedicated-thread mode, restarting during an active callback preserves the ful
 
 Subscribe to `OnActionFailed` to observe callback exceptions. `Dispose()` stops scheduling without waiting for an active callback. `Start()` throws after disposal.
 
-### Non-Overlapping Async Timer (`AsyncRecurringAction`)
+### Non-Overlapping Async Timer (`RecurringActionAsync`)
 
-`AsyncRecurringAction` runs callbacks without overlap and supports cancellation and asynchronous disposal:
+`RecurringActionAsync` awaits asynchronous callbacks without overlap and supports cancellation and asynchronous disposal:
 
 ```csharp
-await using var backgroundWorker = new AsyncRecurringAction(
+await using var backgroundWorker = new RecurringActionAsync(
     async ct => {
         await PollExternalServiceAsync(ct);
     },
@@ -1042,11 +1040,11 @@ backgroundWorker.Stop();
 backgroundWorker.Start(); // Resume execution
 ```
 
-`Stop()` requests cancellation; restarting waits for the previous callback to finish. `DisposeAsync()` cancels and waits for outstanding callbacks, including stopped runs. Synchronous `Dispose()` cancels without waiting.
+`Stop()` requests cancellation; restarted execution waits for the previous callback to finish. `DisposeAsync()` cancels and waits for outstanding callbacks, including stopped runs. Use `await using` to await completion when leaving the scope.
 
 Timeouts require a `Func<CancellationToken, Task>` callback. Pass the token to cancellable operations: a callback that ignores it can block later iterations and asynchronous disposal. `OnActionFailed` reports callback errors, or `TimeoutException` when the callback throws `OperationCanceledException` after its timeout.
 
-Periods truncate to 1–4,294,967,294 whole milliseconds. Timeouts must be positive and truncate to at most the same upper limit; positive sub-millisecond timeouts become zero milliseconds. Invalid bounds throw `ArgumentOutOfRangeException` during construction, even with `start: false`. Tokenless callbacks reject non-null timeouts with `ArgumentException`.
+Periods truncate to 1–4,294,967,294 whole milliseconds. Timeouts must be positive and truncate to at most the same upper limit; positive sub-millisecond timeouts become zero milliseconds. Invalid bounds throw `ArgumentOutOfRangeException` during construction, even with `start: false`. Tokenless `Func<Task>` constructors accept only the callback, period, and optional `start`; they execute without a timeout.
 
 ### Time
 

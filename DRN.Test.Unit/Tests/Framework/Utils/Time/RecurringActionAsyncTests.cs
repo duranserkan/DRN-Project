@@ -176,17 +176,15 @@ public class RecurringActionAsyncTests
             return Task.CompletedTask;
         };
 
-        RecurringActionAsync Create(Func<Task> action, TimeSpan? timeout) => milliseconds
-            ? new RecurringActionAsync(action, 10, executionTimeout: timeout)
-            : new RecurringActionAsync(action, TimeSpan.FromMilliseconds(10), executionTimeout: timeout);
+        RecurringActionAsync Create(Func<Task> action) => milliseconds
+            ? new RecurringActionAsync(action, 10)
+            : new RecurringActionAsync(action, TimeSpan.FromMilliseconds(10));
 
-        var invalidCallback = () => Create(null!, null);
+        var invalidCallback = () => Create(null!);
         invalidCallback.Should().Throw<ArgumentNullException>().WithParameterName("actionAsync");
-        var invalidTimeout = () => Create(callback, TimeSpan.FromMilliseconds(10));
-        invalidTimeout.Should().Throw<ArgumentException>().WithParameterName("executionTimeout");
         invoked.Task.IsCompleted.Should().BeFalse();
 
-        await using var worker = Create(callback, null);
+        await using var worker = Create(callback);
         await invoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
@@ -321,7 +319,7 @@ public class RecurringActionAsyncTests
 
         var captured = await timeoutCaptured.Task.WaitAsync(TimeSpan.FromSeconds(5));
         captured.Should().BeOfType<TimeoutException>()
-            .Which.Message.Should().Contain("AsyncRecurringAction execution exceeded the configured timeout");
+            .Which.Message.Should().Contain("RecurringActionAsync execution exceeded the configured timeout");
 
         await secondTickExecuted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Volatile.Read(ref tickCount).Should().BeGreaterThanOrEqualTo(2);

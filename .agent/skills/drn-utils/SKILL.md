@@ -362,16 +362,19 @@ long timestamp = TimeStampManager.CurrentTimestamp();
 DateTimeOffset now = TimeStampManager.UtcNow;
 
 // Async-safe timer — prevents overlapping executions
-var worker = new RecurringAction(async () => await DoWork(), period: 1000, start: true);
+await using var worker = new RecurringActionAsync(
+    async ct => await DoWorkAsync(ct),
+    periodMilliseconds: 1000, start: true,
+    executionTimeout: TimeSpan.FromSeconds(10));
 worker.Stop();
 worker.Start(); // Resume after stopping
 ```
 
-`Stop()` lets an active callback finish but prevents that callback from rescheduling the timer.
+`RecurringActionAsync.Stop()` requests cancellation without waiting for the active callback to finish.
 
-Dedicated `RecurringAction` restarts preserve the configured post-callback delay, including when restarting during an active callback. Synchronous disposal does not wait for active callbacks. `AsyncRecurringAction` restarts and `DisposeAsync()` wait for prior callbacks to finish. Timeouts require token-aware callbacks and request cooperative cancellation; ignoring cancellation can block later iterations and async disposal.
+`RecurringAction` accepts synchronous `Action` callbacks only. Dedicated threads require a positive period; timer mode accepts zero. Dedicated restarts preserve the configured post-callback delay, including when restarting during an active callback. Synchronous disposal does not wait for active callbacks. `RecurringActionAsync` awaits callbacks; restarted execution and `DisposeAsync()` wait for prior callbacks to finish. Timeouts require token-aware callbacks and request cooperative cancellation; ignoring cancellation can block later iterations and async disposal. Tokenless `Func<Task>` constructors have no timeout parameter.
 
-Validate periods and timeouts during construction, including `start: false`. Periods truncate to 1–4,294,967,294 milliseconds; timeouts must be positive and truncate to at most that upper limit. Preserve positive sub-millisecond timeouts. See [timer usage and errors](../../../DRN.Framework.Utils/README.md#non-overlapping-async-timer-asyncrecurringaction).
+Validate `RecurringActionAsync` periods and timeouts during construction, including `start: false`. Periods truncate to 1–4,294,967,294 milliseconds; timeouts must be positive and truncate to at most that upper limit. Preserve positive sub-millisecond timeouts. See [timer usage and errors](../../../DRN.Framework.Utils/README.md#non-overlapping-async-timer-recurringactionasync).
 
 `TimeProvider` singleton registered to `TimeProvider.System` by default for testable time.
 

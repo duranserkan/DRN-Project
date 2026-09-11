@@ -19,7 +19,7 @@ public sealed class RecurringAction : IDisposable
     /// Initializes a new instance of the <see cref="RecurringAction"/> class for synchronous actions.
     /// </summary>
     /// <param name="action">The synchronous action to execute repeatedly. Use <see cref="RecurringActionAsync"/> for async callbacks, not async void.</param>
-    /// <param name="period">The time, in milliseconds, between the end of one execution and the start of the next.</param>
+    /// <param name="period">The time, in milliseconds, between the end of one execution and the start of the next. Must be positive for dedicated threads and non-negative for timers.</param>
     /// <param name="start">If set to <c>true</c>, the recurring action starts immediately.</param>
     /// <param name="threadName">When specified, runs on a dedicated unpooled background thread rather than the ThreadPool.</param>
     /// <param name="priority">The scheduling priority of the dedicated thread (defaults to <see cref="ThreadPriority.Highest"/>).</param>
@@ -39,6 +39,8 @@ public sealed class RecurringAction : IDisposable
 
         if (threadName != null)
         {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(period);
+
             _startGate = new ManualResetEventSlim(start);
             _wakeHandle = new AutoResetEvent(false);
             var thread = new Thread(DedicatedThreadLoop)

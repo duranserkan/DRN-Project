@@ -55,7 +55,7 @@ public class AppSettingsTests
 
         defaultNexusKey.Default.Should().BeTrue();
         defaultNexusKey.Format.Should().Be(ByteEncoding.Base64UrlEncoded);
-        defaultNexusKey.KeyMaterial.Decode(ByteEncoding.Base64UrlEncoded).Length.Should().Be(32);
+        defaultNexusKey.KeyMaterial.Decode(encoding: ByteEncoding.Base64UrlEncoded).Length.Should().Be(32);
         var securitySettings = new AppSecuritySettings(settings.Features);
 
         defaultNexusKey.KeyMaterial.Should().Be(DeriveExpectedDevelopmentNexusKeyMaterial(securitySettings));
@@ -183,7 +183,7 @@ public class AppSettingsTests
             Keys = [null!]
         };
 
-        var action = nexusAppSettings.HasDefaultKey;
+        Func<bool> action = nexusAppSettings.HasDefaultKey;
 
         var exception = action.Should().ThrowExactly<ConfigurationException>().Which;
         exception.Message.Should().Be("NexusAppSettings.Keys[0] must not be null");
@@ -233,6 +233,6 @@ public class AppSettingsTests
         hasher.Update(Encoding.UTF8.GetBytes($"{securitySettings.AppHashKey}:{securitySettings.AppEncryptionKey}:{securitySettings.AppKey}"));
         hasher.Finalize(derived);
 
-        return derived.Encode(ByteEncoding.Base64UrlEncoded);
+        return derived.Encode(encoding: ByteEncoding.Base64UrlEncoded);
     }
 }

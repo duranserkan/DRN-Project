@@ -72,13 +72,11 @@ public sealed class RecurringActionAsync : IAsyncDisposable
     /// <param name="actionAsync">The asynchronous action to execute periodically.</param>
     /// <param name="period">The interval between ticks, truncated to whole milliseconds in the range 1 through 4,294,967,294.</param>
     /// <param name="start">Whether to start the action immediately (defaults to <c>true</c>).</param>
-    /// <param name="executionTimeout">Must be null. Use a token-aware callback to configure a timeout.</param>
     public RecurringActionAsync(
         Func<Task> actionAsync,
         TimeSpan period,
-        bool start = true,
-        TimeSpan? executionTimeout = null)
-        : this(Adapt(actionAsync, executionTimeout), period, start)
+        bool start = true)
+        : this(Adapt(actionAsync), period, start)
     {
     }
 
@@ -88,22 +86,18 @@ public sealed class RecurringActionAsync : IAsyncDisposable
     /// <param name="actionAsync">The asynchronous action to execute periodically.</param>
     /// <param name="periodMilliseconds">The interval in milliseconds between ticks.</param>
     /// <param name="start">Whether to start the action immediately (defaults to <c>true</c>).</param>
-    /// <param name="executionTimeout">Must be null. Use a token-aware callback to configure a timeout.</param>
     public RecurringActionAsync(
         Func<Task> actionAsync,
         int periodMilliseconds,
-        bool start = true,
-        TimeSpan? executionTimeout = null)
-        : this(actionAsync, TimeSpan.FromMilliseconds(periodMilliseconds), start, executionTimeout)
+        bool start = true)
+        : this(actionAsync, TimeSpan.FromMilliseconds(periodMilliseconds), start)
     {
     }
 
-    private static Func<CancellationToken, Task> Adapt(Func<Task> actionAsync, TimeSpan? executionTimeout)
+    private static Func<CancellationToken, Task> Adapt(Func<Task> actionAsync)
     {
         ArgumentNullException.ThrowIfNull(actionAsync);
-        return executionTimeout.HasValue
-            ? throw new ArgumentException("Execution timeout requires a callback that accepts a CancellationToken.", nameof(executionTimeout))
-            : _ => actionAsync();
+        return _ => actionAsync();
     }
 
     /// <summary>
@@ -203,7 +197,7 @@ public sealed class RecurringActionAsync : IAsyncDisposable
         }
         catch (OperationCanceledException) when (linkedCts?.IsCancellationRequested == true && !cancellationToken.IsCancellationRequested)
         {
-            ReportFailure(new TimeoutException($"AsyncRecurringAction execution exceeded the configured timeout of {_executionTimeout!.Value}."));
+            ReportFailure(new TimeoutException($"RecurringActionAsync execution exceeded the configured timeout of {_executionTimeout!.Value}."));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
