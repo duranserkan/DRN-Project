@@ -95,9 +95,8 @@ public class SourceKnownGenerationTimeTests
     public void Other_Assembly_And_Image_Settings_Cannot_Change_The_SharedKernel_Floor()
     {
         var policy = SourceKnownGenerationTime.Policy;
-        using var settings = (AppSettings)AppSettings.Development(new
+        using var settings = SettingsProvider.Development(new
         {
-            NexusAppSettings = new { AppId = 0 },
             SourceKnownIdSettings = new
             {
                 ApplicationBuildUtc = "not UTC",

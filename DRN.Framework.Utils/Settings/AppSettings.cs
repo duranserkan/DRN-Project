@@ -54,16 +54,6 @@ public sealed class AppSettings : IAppSettings, IDisposable
     private const string DevelopmentNexusKeyMaterialContext =
         "DRN.Framework.Utils Development NexusKey material from 1881 to 193∞ Forever 2026-06-29 21:57:43 v1";
 
-    public static IAppSettings Development(params object[] settings)
-    {
-        var configurationBuilder = new ConfigurationManager().AddObjectToJsonConfiguration(new { Environment = "Development" });
-
-        foreach (var setting in settings)
-            configurationBuilder.AddObjectToJsonConfiguration(setting);
-
-        return new AppSettings(configurationBuilder.Build());
-    }
-
     public AppSettings(IConfiguration configuration)
     {
         Configuration = configuration;
@@ -226,7 +216,7 @@ public sealed class AppSettings : IAppSettings, IDisposable
                 developmentKeyMaterialSeed,
                 DevelopmentNexusKeyMaterialContext);
 
-            return keyMaterial.Span.Encode(ByteEncoding.Base64UrlEncoded);
+            return keyMaterial.Span.Encode(encoding: ByteEncoding.Base64UrlEncoded);
         }
         finally
         {

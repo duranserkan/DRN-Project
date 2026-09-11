@@ -18,9 +18,9 @@ public class SourceKnownEntityIdUtilsTests
     [DataInlineUnit(true, 127)]
     public void Generation_Should_Require_The_Explicit_Partition_Regardless_Of_Configured_AppId(bool secure, byte appId)
     {
-        using var settings = (AppSettings)AppSettings.Development(new
+        using var settings = SettingsProvider.Development<SampleApp6>(new
         {
-            NexusAppSettings = new { AppId = 6, UseSecureSourceKnownIds = secure }
+            NexusAppSettings = new { UseSecureSourceKnownIds = secure }
         });
         var numericIds = new SourceKnownIdUtils(settings);
         using var implementation = new SourceKnownEntityIdUtils(settings, numericIds);
@@ -57,7 +57,7 @@ public class SourceKnownEntityIdUtilsTests
     [DataInlineUnit(true)]
     public void Validation_Uses_Configured_Partition_Entity_Metadata_Or_Explicit_Identity(bool secure)
     {
-        using var settings = (AppSettings)AppSettings.Development(new { NexusAppSettings = new { AppId = 5 } });
+        using var settings = SettingsProvider.Development<SampleApp5>();
         var numericIds = new SourceKnownIdUtils(settings);
         using var implementation = new SourceKnownEntityIdUtils(settings, numericIds);
         ISourceKnownEntityIdUtils ids = implementation;
@@ -491,7 +491,7 @@ public class SourceKnownEntityIdUtilsTests
     public void Parse_Should_Fall_Back_To_Previous_KeyRing_Entries()
     {
         var oldKey = new NexusKey(new string('A', 32)) { Default = true };
-        var oldSettings = AppSettings.Development(new
+        using var oldSettings = SettingsProvider.Development<SampleApp5>(new
         {
             NexusAppSettings = new NexusAppSettings
             {
@@ -506,7 +506,7 @@ public class SourceKnownEntityIdUtilsTests
         var id = SourceKnownIdUtils.Generate<XEntity>(oldSettings.NexusAppSettings.AppId, oldSettings.NexusAppSettings.AppInstanceId);
         var secureId = oldEntityIdUtils.GenerateSecure<XEntity>(id);
 
-        var rotatedSettings = AppSettings.Development(new
+        using var rotatedSettings = SettingsProvider.Development<SampleApp5>(new
         {
             NexusAppSettings = new NexusAppSettings
             {
@@ -533,7 +533,7 @@ public class SourceKnownEntityIdUtilsTests
     [Fact]
     public void Generate_Should_Use_Default_Key_When_Default_Is_Not_First()
     {
-        var settings = AppSettings.Development(new
+        using var settings = SettingsProvider.Development<SampleApp5>(new
         {
             NexusAppSettings = new NexusAppSettings
             {
@@ -552,7 +552,7 @@ public class SourceKnownEntityIdUtilsTests
         var id = SourceKnownIdUtils.Generate<XEntity>(settings.NexusAppSettings.AppId, settings.NexusAppSettings.AppInstanceId);
         var secureId = entityIdUtils.GenerateSecure<XEntity>(id);
 
-        var defaultOnlySettings = AppSettings.Development(new
+        using var defaultOnlySettings = SettingsProvider.Development<SampleApp5>(new
         {
             NexusAppSettings = new NexusAppSettings
             {
@@ -573,7 +573,7 @@ public class SourceKnownEntityIdUtilsTests
     [Fact]
     public void Validate_With_Same_EntityType_Byte_Across_Different_AppIds_Should_Throw_ValidationException()
     {
-        var settings = AppSettings.Development(new
+        using var settings = SettingsProvider.Development<SampleApp5>(new
         {
             NexusAppSettings = new NexusAppSettings
             {

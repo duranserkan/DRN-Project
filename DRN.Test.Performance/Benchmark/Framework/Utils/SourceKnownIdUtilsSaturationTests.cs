@@ -7,7 +7,7 @@ using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
-using DRN.Framework.Utils.Settings;
+using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils.Time;
 
 namespace DRN.Test.Performance.Benchmark.Framework.Utils;
@@ -52,9 +52,8 @@ public class SourceKnownIdUtilsSaturationBenchmark
 
     static SourceKnownIdUtilsSaturationBenchmark()
     {
-        IdUtils = new(AppSettings.Development(new { NexusAppSettings = new { AppId = 0 } }));
-
-        var appSettings = AppSettings.Development(new { NexusAppSettings = new { AppId = 0 } });
+        var appSettings = SettingsProvider.Development();
+        IdUtils = new(appSettings);
         EntityIdUtils = new(appSettings, IdUtils);
 
         // Pre-generate GUIDs for Parse benchmarks — avoids measuring ID generation in parse benchmarks

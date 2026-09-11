@@ -25,14 +25,20 @@ public class AppSettingsTests
 
         var create = () => new AppSettings(configuration.Build());
         create.Should().Throw<ConfigurationException>().WithMessage("*AppId must be explicitly configured*");
-        var omitted = () => AppSettings.Development();
-        omitted.Should().Throw<ConfigurationException>().WithMessage("*AppId must be explicitly configured*");
+        var omittedConfiguration = new ConfigurationBuilder()
+            .AddObjectToJsonConfiguration(new { Environment = environment.ToString() }).Build();
+        var createWithoutAppId = () => new AppSettings(omittedConfiguration);
+        createWithoutAppId.Should().Throw<ConfigurationException>().WithMessage("*AppId must be explicitly configured*");
     }
 
     [Fact]
     public void Explicit_Default_AppId_Zero_Is_Valid()
     {
-        using var settings = (AppSettings)AppSettings.Development(new { NexusAppSettings = new { AppId = 0 } });
+        var configuration = new ConfigurationBuilder().AddObjectToJsonConfiguration(new
+        {
+            Environment = "Development", NexusAppSettings = new { AppId = 0 }
+        }).Build();
+        using var settings = new AppSettings(configuration);
         settings.NexusAppSettings.AppId.Should().Be(0);
     }
 
@@ -46,7 +52,9 @@ public class AppSettingsTests
         byte appInstanceId = 21;
 
         var custom = GetCustomSettings(appId, appInstanceId);
-        var settings = AppSettings.Development(custom);
+        using var settings = new AppSettings(new ConfigurationBuilder()
+            .AddObjectToJsonConfiguration(new { Environment = "Development" })
+            .AddObjectToJsonConfiguration(custom).Build());
 
         settings.Environment.Should().Be(AppEnvironment.Development);
         settings.NexusAppSettings.AppId.Should().Be(appId);
@@ -64,7 +72,9 @@ public class AppSettingsTests
     [Fact]
     public void AppSettings_Should_Dispose_NexusAppSettings_Key_Material()
     {
-        var settings = (AppSettings)AppSettings.Development(GetCustomSettings(56, 21));
+        var settings = new AppSettings(new ConfigurationBuilder()
+            .AddObjectToJsonConfiguration(new { Environment = "Development" })
+            .AddObjectToJsonConfiguration(GetCustomSettings(56, 21)).Build());
         var defaultNexusKey = settings.NexusAppSettings.GetDefaultKey();
 
         settings.Dispose();
@@ -194,15 +204,16 @@ public class AppSettingsTests
     {
         var configuredKey = new NexusKey(new string('A', 32));
 
-        var settings = AppSettings.Development(new
+        using var settings = new AppSettings(new ConfigurationBuilder().AddObjectToJsonConfiguration(new
         {
+            Environment = "Development",
             NexusAppSettings = new NexusAppSettings
             {
                 AppId = 1,
                 AppInstanceId = 1,
                 Keys = [configuredKey]
             }
-        });
+        }).Build());
 
         var defaultKey = settings.NexusAppSettings.GetDefaultKey();
         defaultKey.Default.Should().BeTrue();
@@ -216,7 +227,10 @@ public class AppSettingsTests
     public void AppSettings_Should_Throw_Validation_Exception_For_Invalid_Nexus_Identifiers(byte appId, byte appInstanceId)
     {
         var custom = GetCustomSettings(appId, appInstanceId);
-        var action = () => AppSettings.Development(custom);
+        var configuration = new ConfigurationBuilder()
+            .AddObjectToJsonConfiguration(new { Environment = "Development" })
+            .AddObjectToJsonConfiguration(custom).Build();
+        var action = () => new AppSettings(configuration);
         action.Should().ThrowExactly<ValidationException>();
     }
 

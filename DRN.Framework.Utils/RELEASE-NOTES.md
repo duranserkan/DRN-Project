@@ -17,6 +17,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Development Settings Factory**: Removed `AppSettings.Development(...)`. Tests should use `DRN.Framework.Testing.Providers.SettingsProvider.Development()` for AppId 0 or `Development<TApp>(...)` for a declared partition. Application code should use `new AppSettings(configuration)` with an explicitly configured AppId.
+
 *   **Explicit AppId and Partition Validation**: Configure `NexusAppSettings:AppId` in every environment; zero is valid. `Validate<TEntity>` checks the entity's declared `(EntityType, AppId)`. `Validate(id, entityType)` uses the configured partition; override it with `Validate<TApp>(id, entityType)` or `Validate(id, entityTypeId)`.
 
 *   **One Configured Epoch**: Replace per-call epoch arguments with `SourceKnownIdSettings:DefaultEpoch` and an explicit `MinimumUtc`. Configure before startup or first ID/epoch use, including historical reads; later conflicts fail. Keep the origin unchanged across the dataset's services and restarts. `SourceKnownIdUtils` now takes only `IAppSettings`; use `ParseId(id)`, `CurrentTimestamp()`, `GetTimeScopedId()`, and configured `EpochTimeUtils` instance conversions.

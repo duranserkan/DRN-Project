@@ -211,9 +211,8 @@ public class RateLimitRuleTests
     [Fact]
     public void DrnRateLimit_Config_Key_Should_Bind_To_RateLimit_Property()
     {
-        var appSettings = AppSettings.Development(new
+        using var appSettings = SettingsProvider.Development(new
         {
-            NexusAppSettings = new { AppId = 0 },
             DrnAppFeatures = new
             {
                 DrnRateLimit = new
@@ -239,9 +238,8 @@ public class RateLimitRuleTests
     [Fact]
     public void Phase_Specific_TokenBucket_Options_Should_Inherit_Shared_Settings_When_Overrides_Are_Zero()
     {
-        var appSettings = AppSettings.Development(new
+        using var appSettings = SettingsProvider.Development(new
         {
-            NexusAppSettings = new { AppId = 0 },
             DrnAppFeatures = new
             {
                 DrnRateLimit = new
@@ -565,7 +563,7 @@ public class RateLimitRuleTests
     [Fact]
     public async Task PostAuth_Options_Should_Preserve_AddRateLimiter_Customizations()
     {
-        using var appSettings = (AppSettings)AppSettings.Development(new { NexusAppSettings = new { AppId = 0 } });
+        using var appSettings = SettingsProvider.Development();
         var services = new ServiceCollection();
         OnRejectedContext? observedContext = null;
         CancellationToken observedToken = default;

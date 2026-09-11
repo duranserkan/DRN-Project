@@ -1,5 +1,7 @@
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel;
+using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +13,29 @@ public static class SettingsProvider
     public const string ConventionSettingsName = "settings";
     public const string ConventionDirectory = "Settings";
     public static readonly string GlobalConventionLocation = Path.Combine(Directory.GetCurrentDirectory(), ConventionDirectory);
+
+    /// <summary>Creates standalone development settings for the default partition (AppId 0), rejecting conflicting AppId overrides.</summary>
+    public static AppSettings Development(params object[] settings) => Development<DefaultApp>(settings);
+
+    /// <summary>Creates standalone development settings for the declared application partition, rejecting conflicting AppId overrides.</summary>
+    public static AppSettings Development<TApp>(params object[] settings) where TApp : IAppId
+    {
+        var appId = TApp.AppId;
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(appId, IAppId.MaxAppId);
+        var builder = new ConfigurationManager().AddObjectToJsonConfiguration(new
+        {
+            Environment = "Development",
+            NexusAppSettings = new { AppId = appId }
+        });
+        foreach (var setting in settings)
+            builder.AddObjectToJsonConfiguration(setting);
+
+        var configuration = builder.Build();
+        if (!byte.TryParse(configuration["NexusAppSettings:AppId"], out var configuredAppId) || configuredAppId != appId)
+            throw ExceptionFor.Configuration($"NexusAppSettings:AppId must match the declared AppId {appId} for {typeof(TApp).Name}.");
+
+        return new AppSettings(configuration);
+    }
 
     /// <summary>
     /// Creates <see cref="IAppSettings"/> from settings json file found in provided location.
