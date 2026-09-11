@@ -5,7 +5,6 @@ using System.Reflection;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Extensions;
-using DRN.Framework.Utils.Numbers;
 using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Time;
 
@@ -60,6 +59,11 @@ public class SourceKnownIdUtils : ISourceKnownIdUtils
     public const byte MaxAppInstanceId = 63;
     public const long TicksPerHalf = SourceKnownGenerationTimePolicy.TimestampsPerHalf; // 2^32 ticks per half-epoch
     public const long MaxEpochTicks = SourceKnownGenerationTimePolicy.MaxTimestamp; // 2^33 - 1: both halves
+
+    private const int AppInstanceShift = 18;
+    private const int AppIdShift = AppInstanceShift + 6;
+    private const int TimestampShift = AppIdShift + 7;
+    private const uint SequenceMask = (1U << AppInstanceShift) - 1;
 
     private sealed class DelegateCacheSnapshot(
         FrozenDictionary<Type, Func<byte, byte, long>> frozenDelegates,
@@ -150,34 +154,19 @@ public class SourceKnownIdUtils : ISourceKnownIdUtils
         ArgumentOutOfRangeException.ThrowIfGreaterThan(appId, MaxAppId);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(appInstanceId, MaxAppInstanceId);
 
-        var builder = NumberBuilder.GetLong();
+        // Retains time validation and thread-safe sequence allocation.
         var timeScopedId = SequenceManager<TEntity>.GetTimeScopedId();
+        var storedTimestamp = timeScopedId.TimeStamp & uint.MaxValue;
 
-        //Timestamp with 250ms precision (4 ticks per second)
-        //Sub-second ordering eliminates coarse-grained temporal ambiguity while preserving throughput.
-        // SequenceManager validates the sampled UTC against the epoch range before allocating a sequence.
+        var value = (storedTimestamp << TimestampShift)
+                    | ((long)appId << AppIdShift)
+                    | ((long)appInstanceId << AppInstanceShift)
+                    | (timeScopedId.SequenceId & SequenceMask);
 
-        //Epoch half determination: 32-bit timestamp, sign bit selects half
-        //First half (ticks < 2^32): sign=1, negative SKID. Second half (ticks ≥ 2^32): sign=0, positive SKID.
-        //Negative sorts before positive, preserving monotonic ordering across the full ~68-year epoch.
-        var isSecondHalf = timeScopedId.TimeStamp >= TicksPerHalf;
-        var storedTimestamp = (uint)(timeScopedId.TimeStamp & uint.MaxValue); // Mask to 32 bits
-        builder.SetResidueValue(storedTimestamp);
-        if (isSecondHalf)
-            builder.MakePositive();
-
-        //128 apps (7 bits) — sufficient for any application topology
-        builder.TryAdd(appId, 7);
-
-        //64 app instances per microservice (6 bits) — sufficient for horizontal scaling
-        builder.TryAdd(appInstanceId, 6);
-
-        //262,144 sequences per 250ms tick (18 bits) — sufficient for high-performance scenarios
-        //Per-second throughput: 262,144 × 4 = 1,048,576 IDs/s per generator
-        //System-wide throughput: 8,192 generators × ~1M/s = ~8.6B IDs/s
-        builder.TryAdd(timeScopedId.SequenceId, 18);
-
-        return builder.GetValue();
+        // First half is negative; second half is nonnegative.
+        return timeScopedId.TimeStamp < TicksPerHalf
+            ? value | long.MinValue
+            : value;
     }
 
     /// <summary>
@@ -192,6 +181,11 @@ public class SourceKnownIdUtils : ISourceKnownIdUtils
         if (!typeof(SourceKnownEntity).IsAssignableFrom(entityType))
             throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
 
+        return GenerateValidated(entityType, appId, appInstanceId);
+    }
+
+    private static long GenerateValidated(Type entityType, byte appId, byte appInstanceId)
+    {
         var cache = _delegateCache;
         if (!cache.FrozenDelegates.TryGetValue(entityType, out var invoker) &&
             !cache.DynamicDelegates.TryGetValue(entityType, out invoker))
@@ -229,7 +223,7 @@ public class SourceKnownIdUtils : ISourceKnownIdUtils
     {
         ArgumentNullException.ThrowIfNull(entityType);
         return typeof(SourceKnownEntity).IsAssignableFrom(entityType)
-            ? Generate(entityType, SourceKnownEntity.GetAppId(entityType), _nexusAppInstanceId)
+            ? GenerateValidated(entityType, SourceKnownEntity.GetAppId(entityType), _nexusAppInstanceId)
             : throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
     }
 
@@ -239,12 +233,12 @@ public class SourceKnownIdUtils : ISourceKnownIdUtils
 
     internal static SourceKnownId ParseId(long id, DateTimeOffset epoch)
     {
-        var parser = NumberParser.Get(id);
-        var appId = (byte)parser.Read(7);
-        var appInstanceId = (byte)parser.Read(6);
-        var instanceId = parser.Read(18);
+        var appId = (byte)((id >> AppIdShift) & MaxAppId);
+        var appInstanceId = (byte)((id >> AppInstanceShift) & MaxAppInstanceId);
+        var instanceId = (uint)(id & SequenceMask);
 
-        var storedTimestamp = parser.ReadResidueValue();
+        // Mask removes sign extension and the epoch-half sign bit.
+        var storedTimestamp = (id >> TimestampShift) & uint.MaxValue;
         var fullTicks = id >= 0 ? storedTimestamp + TicksPerHalf : storedTimestamp;
         var dateTime = EpochTimeUtils.ConvertToDateTime(fullTicks, epoch);
         return new SourceKnownId(id, dateTime, instanceId, appId, appInstanceId);
