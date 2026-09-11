@@ -21,8 +21,6 @@ public interface ISourceKnownIdUtils
     /// <typeparam name="TEntity">The entity type for which Ids are generated. Must derive from <see cref="SourceKnownEntity"/>.</typeparam>
     long Next<TEntity>() where TEntity : SourceKnownEntity;
 
-    long Next<TEntity>(byte appId, byte appInstanceId) where TEntity : SourceKnownEntity;
-
     /// <summary>
     /// Generates Ids for the specified entity.
     /// Resolves appId from the entity's [EntityType] attribute, and appInstanceId from appsettings.
@@ -32,12 +30,10 @@ public interface ISourceKnownIdUtils
     long Next(SourceKnownEntity entity);
 
     /// <summary>
-    /// Generates Ids for the specified entity type using the provided appId and appInstanceId.
+    /// Generates Ids for the specified entity type using its declared AppId and the configured AppInstanceId.
     /// </summary>
     /// <param name="entityType">The entity type for which Ids are generated. Must derive from <see cref="SourceKnownEntity"/>.</param>
-    /// <param name="appId">Application Identifier (0..127)</param>
-    /// <param name="appInstanceId">Application Instance Identifier (0..63)</param>
-    long Next(Type entityType, byte appId, byte appInstanceId);
+    long Next(Type entityType);
 
     /// <summary>
     /// Pre-compiles and warms up ID generation delegates for the specified entity types.
@@ -80,7 +76,7 @@ public class SourceKnownIdUtils : ISourceKnownIdUtils
         new ConcurrentDictionary<Type, Func<byte, byte, long>>());
 
     private static readonly MethodInfo GenerateGenericMethodDefinition = typeof(SourceKnownIdUtils)
-        .GetMethods(BindingFlag.StaticPublic)
+        .GetMethods(BindingFlag.StaticNonPublic)
         .First(m => m is { Name: nameof(Generate), IsGenericMethodDefinition: true } && m.GetParameters().Length == 2);
 
     /// <summary>
@@ -149,7 +145,7 @@ public class SourceKnownIdUtils : ISourceKnownIdUtils
     /// <typeparam name="TEntity">The entity type for which IDs are generated. Must derive from <see cref="SourceKnownEntity"/>.</typeparam>
     /// <param name="appId">Application Identifier (0..127)</param>
     /// <param name="appInstanceId">Application Instance Identifier (0..63)</param>
-    public static long Generate<TEntity>(byte appId, byte appInstanceId) where TEntity : SourceKnownEntity
+    internal static long Generate<TEntity>(byte appId, byte appInstanceId) where TEntity : SourceKnownEntity
     {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(appId, MaxAppId);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(appInstanceId, MaxAppInstanceId);
@@ -190,7 +186,7 @@ public class SourceKnownIdUtils : ISourceKnownIdUtils
     /// <param name="entityType">The entity type for which IDs are generated. Must derive from <see cref="SourceKnownEntity"/>.</param>
     /// <param name="appId">Application Identifier (0..127)</param>
     /// <param name="appInstanceId">Application Instance Identifier (0..63)</param>
-    public static long Generate(Type entityType, byte appId, byte appInstanceId)
+    internal static long Generate(Type entityType, byte appId, byte appInstanceId)
     {
         ArgumentNullException.ThrowIfNull(entityType);
         if (!typeof(SourceKnownEntity).IsAssignableFrom(entityType))
@@ -218,31 +214,22 @@ public class SourceKnownIdUtils : ISourceKnownIdUtils
         return appInstanceId;
     }
 
-    private static class EntityIdCache<TEntity> where TEntity : SourceKnownEntity
-    {
-        public static readonly byte DeclaredAppId = SourceKnownEntity.GetAppId<TEntity>();
-    }
-
     private readonly byte _nexusAppInstanceId;
 
     public long Next<TEntity>() where TEntity : SourceKnownEntity
-        => Next<TEntity>(EntityIdCache<TEntity>.DeclaredAppId, _nexusAppInstanceId);
-
-    public long Next<TEntity>(byte appId, byte appInstanceId) where TEntity : SourceKnownEntity
-        => Generate<TEntity>(appId, appInstanceId);
+        => Generate<TEntity>(SourceKnownEntity.GetAppId<TEntity>(), _nexusAppInstanceId);
 
     public long Next(SourceKnownEntity entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
-        var type = entity.GetType();
-        return Generate(type, SourceKnownEntity.GetAppId(type), _nexusAppInstanceId);
+        return Next(entity.GetType());
     }
 
-    public long Next(Type entityType, byte appId, byte appInstanceId)
+    public long Next(Type entityType)
     {
         ArgumentNullException.ThrowIfNull(entityType);
         return typeof(SourceKnownEntity).IsAssignableFrom(entityType)
-            ? Generate(entityType, appId, appInstanceId)
+            ? Generate(entityType, SourceKnownEntity.GetAppId(entityType), _nexusAppInstanceId)
             : throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
     }
 

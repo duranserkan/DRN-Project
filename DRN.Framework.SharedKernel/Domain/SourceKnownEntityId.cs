@@ -18,7 +18,7 @@ public readonly record struct SourceKnownId(long Id, DateTimeOffset CreatedAt, u
 /// </summary>
 public interface ISourceKnownEntityIdOperations
 {
-    SourceKnownEntityId Generate(long id, byte entityType);
+    SourceKnownEntityId Generate(long id, EntityTypeId entityTypeId);
     SourceKnownEntityId Parse(Guid entityId);
     SourceKnownEntityId ToSecure(SourceKnownEntityId id);
     SourceKnownEntityId ToPlain(SourceKnownEntityId id);
@@ -28,7 +28,6 @@ public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid Ent
 {
     public EntityTypeId EntityTypeId => new(EntityType, Source.AppId);
 
-    public bool HasSameEntityType(byte other) => EntityType == other;
     public bool HasSameEntityType(SourceKnownEntityId other) => HasSameEntityTypeId(other.EntityTypeId);
     public bool HasSameEntityType<TEntity>() where TEntity : SourceKnownEntity => HasSameEntityTypeId(SourceKnownEntity.GetEntityTypeId<TEntity>());
 

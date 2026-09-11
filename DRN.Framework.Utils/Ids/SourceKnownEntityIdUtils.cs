@@ -27,42 +27,19 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
     /// <inheritdoc cref="Generate{TEntity}(long)"/>
     SourceKnownEntityId Generate(SourceKnownEntity entity);
 
-    /// <inheritdoc cref="Generate{TEntity}(long)"/>
-    new SourceKnownEntityId Generate(long id, byte entityType);
-
-    /// <inheritdoc cref="Generate{TEntity}(long)"/>
-    SourceKnownEntityId Generate(long id, EntityTypeId entityTypeId)
-    {
-        var result = Generate(id, entityTypeId.EntityType);
-        result.Validate(entityTypeId);
-        return result;
-    }
-
     /// <summary>Generates a new ID via <see cref="ISourceKnownIdUtils.Next{TEntity}()"/> and produces a Secure <see cref="SourceKnownEntityId"/>.</summary>
     SourceKnownEntityId GenerateSecure<TEntity>() where TEntity : SourceKnownEntity;
 
     SourceKnownEntityId GenerateSecure<TEntity>(long id) where TEntity : SourceKnownEntity;
     SourceKnownEntityId GenerateSecure(SourceKnownEntity entity);
-    SourceKnownEntityId GenerateSecure(long id, byte entityType);
-    SourceKnownEntityId GenerateSecure(long id, EntityTypeId entityTypeId)
-    {
-        var result = GenerateSecure(id, entityTypeId.EntityType);
-        result.Validate(entityTypeId);
-        return result;
-    }
+    SourceKnownEntityId GenerateSecure(long id, EntityTypeId entityTypeId);
 
     /// <summary>Generates a new ID via <see cref="ISourceKnownIdUtils.Next{TEntity}()"/> and produces a Plain <see cref="SourceKnownEntityId"/>.</summary>
     SourceKnownEntityId GeneratePlain<TEntity>() where TEntity : SourceKnownEntity;
 
     SourceKnownEntityId GeneratePlain<TEntity>(long id) where TEntity : SourceKnownEntity;
     SourceKnownEntityId GeneratePlain(SourceKnownEntity entity);
-    SourceKnownEntityId GeneratePlain(long id, byte entityType);
-    SourceKnownEntityId GeneratePlain(long id, EntityTypeId entityTypeId)
-    {
-        var result = GeneratePlain(id, entityTypeId.EntityType);
-        result.Validate(entityTypeId);
-        return result;
-    }
+    SourceKnownEntityId GeneratePlain(long id, EntityTypeId entityTypeId);
 
     SourceKnownEntityId? Parse(Guid? entityId);
     new SourceKnownEntityId Parse(Guid entityId);
@@ -188,13 +165,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         => Generate(entity.Id, SourceKnownEntity.GetEntityTypeId(entity));
 
     public SourceKnownEntityId Generate(long id, EntityTypeId entityTypeId)
-    {
-        var result = _useSecure ? GenerateSecure(id, entityTypeId.EntityType) : GeneratePlain(id, entityTypeId.EntityType);
-        result.Validate(entityTypeId);
-        return result;
-    }
-
-    public SourceKnownEntityId Generate(long id, byte entityType) => _useSecure ? GenerateSecure(id, entityType) : GeneratePlain(id, entityType);
+        => _useSecure ? GenerateSecure(id, entityTypeId) : GeneratePlain(id, entityTypeId);
 
     public SourceKnownEntityId GeneratePlain<TEntity>() where TEntity : SourceKnownEntity
         => GeneratePlain<TEntity>(_sourceKnownIdUtils.Next<TEntity>());
@@ -212,7 +183,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         return result;
     }
 
-    public SourceKnownEntityId GeneratePlain(long id, byte entityType)
+    private SourceKnownEntityId GeneratePlain(long id, byte entityType)
     {
         Span<byte> hashBytes = stackalloc byte[MacHashLength];
         Span<byte> guidBytes = stackalloc byte[GuidLength]; // Allocate 16 bytes on the stack for the GUID
@@ -244,7 +215,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         return result;
     }
 
-    public SourceKnownEntityId GenerateSecure(long id, byte entityType)
+    private SourceKnownEntityId GenerateSecure(long id, byte entityType)
     {
         Span<byte> hashBytes = stackalloc byte[MacHashLength];
         Span<byte> guidBytes = stackalloc byte[GuidLength];

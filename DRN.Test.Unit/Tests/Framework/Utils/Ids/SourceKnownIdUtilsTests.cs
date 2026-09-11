@@ -107,16 +107,17 @@ public class SourceKnownIdUtilsTests
     [DataInlineUnit]
     public void Next_And_Parse_Should_Use_The_Process_Epoch(DrnTestContextUnit context)
     {
+        context.AddToConfiguration(new { NexusAppSettings = new { AppId = 10, AppInstanceId = 5 } });
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
         var epoch = EpochTimeUtils.DefaultEpoch;
 
         var before = TimeStampManager.UtcNow;
-        var id = generator.Next<CustomTestEntityForUtils>(appId: 10, appInstanceId: 5);
+        var id = generator.Next<CustomTestEntityForUtils>();
         var after = TimeStampManager.UtcNow;
         var parsed = generator.Parse(id);
 
         parsed.Id.Should().Be(id);
-        parsed.AppId.Should().Be(10);
+        parsed.AppId.Should().Be(CustomUtilsTestApp.Value);
         parsed.AppInstanceId.Should().Be(5);
         AssertCreatedAtWithinGeneratedRange(parsed, before, after, epoch);
     }
@@ -170,14 +171,15 @@ public class SourceKnownIdUtilsTests
 
     [Theory]
     [DataInlineUnit]
-    public void Next_WithType_And_Explicit_Parameters_Should_Honor_Parameters(DrnTestContextUnit context)
+    public void Next_WithType_Should_Use_Declared_Partition_And_Configured_Instance(DrnTestContextUnit context)
     {
+        context.AddToConfiguration(new { NexusAppSettings = new { AppId = 42, AppInstanceId = 18 } });
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
-        var id = generator.Next(typeof(CustomTestEntityForUtils), appId: 42, appInstanceId: 18);
+        var id = generator.Next(typeof(CustomTestEntityForUtils));
         var parsed = generator.Parse(id);
 
         parsed.Id.Should().Be(id);
-        parsed.AppId.Should().Be(42);
+        parsed.AppId.Should().Be(CustomUtilsTestApp.Value);
         parsed.AppInstanceId.Should().Be(18);
     }
 
@@ -204,14 +206,14 @@ public class SourceKnownIdUtilsTests
         var generator = context.GetRequiredService<ISourceKnownIdUtils>();
 
         // Value types must throw ArgumentException
-        var actValueTypeExplicit = () => generator.Next(typeof(int), 1, 1);
+        var actValueTypeExplicit = () => generator.Next(typeof(int));
         actValueTypeExplicit.Should().Throw<ArgumentException>();
 
         var actValueTypeGenerate = () => SourceKnownIdUtils.Generate(typeof(int), 1, 1);
         actValueTypeGenerate.Should().Throw<ArgumentException>();
 
-        // Non-entity class types must throw ArgumentException on Next(Type, ...) and Generate(Type, ...)
-        var actNonEntityClassExplicit = () => generator.Next(typeof(SourceKnownIdUtilsTests), 1, 1);
+        // Non-entity class types must throw ArgumentException on Next(Type) and Generate(Type, ...)
+        var actNonEntityClassExplicit = () => generator.Next(typeof(SourceKnownIdUtilsTests));
         actNonEntityClassExplicit.Should().Throw<ArgumentException>()
             .WithMessage($"Type '{typeof(SourceKnownIdUtilsTests).FullName}' must inherit from '{nameof(SourceKnownEntity)}'.*");
 
@@ -230,7 +232,7 @@ public class SourceKnownIdUtilsTests
         actNextEntity.Should().ThrowExactly<ArgumentNullException>()
             .WithParameterName("entity");
 
-        var actNextExplicit = () => generator.Next((Type)null!, 1, 1);
+        var actNextExplicit = () => generator.Next((Type)null!);
         actNextExplicit.Should().ThrowExactly<ArgumentNullException>()
             .WithParameterName("entityType");
 
@@ -282,10 +284,10 @@ public class SourceKnownIdUtilsTests
         parsed.AppId.Should().Be(77);
 
         var entityType = typeof(CustomTestEntityForUtils);
-        var generated = SourceKnownIdUtils.Generate(entityType, 10, 5);
+        var generated = generator.Next(entityType);
         var parsedGenerated = SourceKnownIdUtils.ParseId(generated, EpochTimeUtils.DefaultEpoch);
-        parsedGenerated.AppId.Should().Be(10);
-        parsedGenerated.AppInstanceId.Should().Be(5);
+        parsedGenerated.AppId.Should().Be(CustomUtilsTestApp.Value);
+        parsedGenerated.AppInstanceId.Should().Be(parsed.AppInstanceId);
     }
 
     [Fact]

@@ -186,7 +186,7 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
 
-        var sourceKnownId = Ops.Generate(id, entityTypeId.EntityType);
+        var sourceKnownId = Ops.Generate(id, entityTypeId);
         sourceKnownId.Validate(entityTypeId);
 
         return sourceKnownId;

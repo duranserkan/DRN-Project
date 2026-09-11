@@ -10,6 +10,49 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 public class SourceKnownEntityIdUtilsTests
 {
     [Theory]
+    [DataInlineUnit(false, 0)]
+    [DataInlineUnit(true, 0)]
+    [DataInlineUnit(false, 5)]
+    [DataInlineUnit(true, 5)]
+    [DataInlineUnit(false, 127)]
+    [DataInlineUnit(true, 127)]
+    public void Generation_Should_Require_The_Explicit_Partition_Regardless_Of_Configured_AppId(bool secure, byte appId)
+    {
+        using var settings = (AppSettings)AppSettings.Development(new
+        {
+            NexusAppSettings = new { AppId = 6, UseSecureSourceKnownIds = secure }
+        });
+        var numericIds = new SourceKnownIdUtils(settings);
+        using var implementation = new SourceKnownEntityIdUtils(settings, numericIds);
+        ISourceKnownEntityIdUtils ids = implementation;
+        ISourceKnownEntityIdOperations operations = implementation;
+        var id = SourceKnownIdUtils.Generate<XEntity>(appId, 0);
+        var expected = new EntityTypeId(200, appId);
+
+        var generated = operations.Generate(id, expected);
+        var plain = ids.GeneratePlain(id, expected);
+        var encrypted = ids.GenerateSecure(id, expected);
+        generated.EntityTypeId.Should().Be(expected);
+        generated.Source.Id.Should().Be(id);
+        generated.Secure.Should().Be(secure);
+        plain.EntityTypeId.Should().Be(expected);
+        plain.Source.Id.Should().Be(id);
+        plain.Secure.Should().BeFalse();
+        encrypted.EntityTypeId.Should().Be(expected);
+        encrypted.Source.Id.Should().Be(id);
+        encrypted.Secure.Should().BeTrue();
+        generated.EntityId.Should().Be(secure ? encrypted.EntityId : plain.EntityId);
+
+        var wrongPartition = new EntityTypeId(200, 6);
+        var generateMismatch = () => operations.Generate(id, wrongPartition);
+        var plainMismatch = () => ids.GeneratePlain(id, wrongPartition);
+        var secureMismatch = () => ids.GenerateSecure(id, wrongPartition);
+        generateMismatch.Should().Throw<ValidationException>();
+        plainMismatch.Should().Throw<ValidationException>();
+        secureMismatch.Should().Throw<ValidationException>();
+    }
+
+    [Theory]
     [DataInlineUnit(false)]
     [DataInlineUnit(true)]
     public void Validation_Uses_Configured_Partition_Entity_Metadata_Or_Explicit_Identity(bool secure)
@@ -65,7 +108,7 @@ public class SourceKnownEntityIdUtilsTests
     {
         var utils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
         var settings = context.GetRequiredService<IAppSettings>();
-        var plain = utils.GeneratePlain(long.MinValue, 1);
+        var plain = utils.GeneratePlain(long.MinValue, new EntityTypeId(1, 0));
         var bytes = plain.EntityId.ToByteArray(bigEndian: true);
         bytes[0] = epoch;
         bytes.AsSpan(12, 4).Clear();
@@ -92,13 +135,13 @@ public class SourceKnownEntityIdUtilsTests
     public void Historical_Ids_Below_Trusted_Floor_Remain_Readable_And_Convertible(DrnTestContextUnit context)
     {
         var utils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
-        var plain = utils.GeneratePlain(long.MinValue, 1);
+        var plain = utils.GeneratePlain(long.MinValue, new EntityTypeId(1, 0));
         plain.Source.CreatedAt.Should().BeBefore(SourceKnownGenerationTime.Policy.MinimumUtc);
         utils.Parse(plain.EntityId).Valid.Should().BeTrue();
         var secure = utils.ToSecure(plain);
         utils.Parse(secure.EntityId).Source.CreatedAt.Should().Be(plain.Source.CreatedAt);
         utils.ToPlain(secure).EntityId.Should().Be(plain.EntityId);
-        var secondHalf = utils.GeneratePlain(0, 1);
+        var secondHalf = utils.GeneratePlain(0, new EntityTypeId(1, 0));
         utils.Parse(secondHalf.EntityId).Valid.Should().BeTrue();
         utils.Parse(utils.ToSecure(secondHalf).EntityId).Source.Id.Should().Be(0);
     }

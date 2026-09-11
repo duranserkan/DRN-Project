@@ -85,7 +85,7 @@ public class PaperNumericWalkthroughTests
         context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
 
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
-        var skeid = entityIdUtils.GeneratePlain(ExpectedSkid, WalkthroughEntityType);
+        var skeid = entityIdUtils.GeneratePlain<WalkthroughEntity>(ExpectedSkid);
 
         // Assert — SKEID is valid and carries the correct source SKID
         skeid.Valid.Should().BeTrue();
@@ -152,14 +152,14 @@ public class PaperNumericWalkthroughTests
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
 
         // Generate Secure SKEID from the walkthrough SKID
-        var secureSkeid = entityIdUtils.GenerateSecure(ExpectedSkid, WalkthroughEntityType);
+        var secureSkeid = entityIdUtils.GenerateSecure<WalkthroughEntity>(ExpectedSkid);
         secureSkeid.Valid.Should().BeTrue();
         secureSkeid.Secure.Should().BeTrue();
         secureSkeid.Source.Id.Should().Be(ExpectedSkid);
         secureSkeid.EntityType.Should().Be(WalkthroughEntityType);
 
         // Encrypted GUID should differ from plain GUID
-        var plainSkeid = entityIdUtils.GeneratePlain(ExpectedSkid, WalkthroughEntityType);
+        var plainSkeid = entityIdUtils.GeneratePlain<WalkthroughEntity>(ExpectedSkid);
         secureSkeid.EntityId.Should().NotBe(plainSkeid.EntityId,
             "encrypted Secure SKEID must differ from plaintext SKEID");
 
@@ -207,8 +207,8 @@ public class PaperNumericWalkthroughTests
         lateSkid.Should().BeNegative();
         earlySkid.Should().BeLessThan(lateSkid, "SKID chronological order");
 
-        var earlySkeid = entityIdUtils.GeneratePlain(earlySkid, WalkthroughEntityType);
-        var lateSkeid = entityIdUtils.GeneratePlain(lateSkid, WalkthroughEntityType);
+        var earlySkeid = entityIdUtils.GeneratePlain<WalkthroughEntity>(earlySkid);
+        var lateSkeid = entityIdUtils.GeneratePlain<WalkthroughEntity>(lateSkid);
 
         // SKEID string comparison should match SKID chronological order
         var comparison = string.Compare(earlySkeid.EntityId.ToString(), lateSkeid.EntityId.ToString(), StringComparison.Ordinal);
@@ -245,8 +245,8 @@ public class PaperNumericWalkthroughTests
         secondHalfSkid.Should().BePositive("second half SKIDs are positive");
         firstHalfSkid.Should().BeLessThan(secondHalfSkid, "signed SKID order: negative < positive");
 
-        var firstHalfSkeid = entityIdUtils.GeneratePlain(firstHalfSkid, WalkthroughEntityType);
-        var secondHalfSkeid = entityIdUtils.GeneratePlain(secondHalfSkid, WalkthroughEntityType);
+        var firstHalfSkeid = entityIdUtils.GeneratePlain<WalkthroughEntity>(firstHalfSkid);
+        var secondHalfSkeid = entityIdUtils.GeneratePlain<WalkthroughEntity>(secondHalfSkid);
 
         // Lexicographic comparison of SKEID strings should match signed SKID comparison
         var comparison = string.Compare(firstHalfSkeid.EntityId.ToString(), secondHalfSkeid.EntityId.ToString(), StringComparison.Ordinal);
@@ -275,7 +275,7 @@ public class PaperNumericWalkthroughTests
             builder.TryAdd(WalkthroughAppId, 7);
             builder.TryAdd(WalkthroughAppInstanceId, 6);
             builder.TryAdd(1u, 18);
-            var skeid = entityIdUtils.GeneratePlain(builder.GetValue(), WalkthroughEntityType);
+            var skeid = entityIdUtils.GeneratePlain<WalkthroughEntity>(builder.GetValue());
             skeidStrings.Add(skeid.EntityId.ToString());
         }
 
@@ -288,7 +288,7 @@ public class PaperNumericWalkthroughTests
             builder.TryAdd(WalkthroughAppId, 7);
             builder.TryAdd(WalkthroughAppInstanceId, 6);
             builder.TryAdd(1u, 18);
-            var skeid = entityIdUtils.GeneratePlain(builder.GetValue(), WalkthroughEntityType);
+            var skeid = entityIdUtils.GeneratePlain<WalkthroughEntity>(builder.GetValue());
             skeidStrings.Add(skeid.EntityId.ToString());
         }
 
@@ -313,7 +313,7 @@ public class PaperNumericWalkthroughTests
             builder.TryAdd(WalkthroughAppId, 7);
             builder.TryAdd(WalkthroughAppInstanceId, 6);
             builder.TryAdd(seq, 18);
-            var skeid = entityIdUtils.GeneratePlain(builder.GetValue(), WalkthroughEntityType);
+            var skeid = entityIdUtils.GeneratePlain<WalkthroughEntity>(builder.GetValue());
             skeidStrings.Add(skeid.EntityId.ToString());
         }
 
