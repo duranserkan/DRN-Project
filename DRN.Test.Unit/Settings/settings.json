@@ -13,6 +13,7 @@
   },
   "NexusAppSettings": {
     "AppId": 0,
+    "AppInstanceId": 0,
     "MacType": "blake3",
     "Keys": [
       {

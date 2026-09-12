@@ -15,16 +15,35 @@ public readonly record struct SourceKnownId(long Id, DateTimeOffset CreatedAt, u
 /// <summary>
 /// Core entity ID operations available to domain entities in SharedKernel.
 /// Implemented by <c>SourceKnownEntityIdUtils</c> in Utils; injected into entities by EF interceptors.
+/// Parse and Validate use the configured format when omitted; explicit formats override it.
 /// </summary>
 public interface ISourceKnownEntityIdOperations
 {
     SourceKnownEntityId Generate(long id, EntityTypeId entityTypeId);
-    SourceKnownEntityId Parse(Guid entityId);
+    /// <summary>Parses the selected format; null uses the implementation's configured default.</summary>
+    SourceKnownEntityId Parse(Guid entityId, SourceKnownEntityIdFormat? format = null);
+    /// <summary>Parses the selected format; null input remains null. Undefined formats throw.</summary>
+    SourceKnownEntityId? Parse(Guid? entityId, SourceKnownEntityIdFormat? format = null);
+
+    /// <summary>Validates integrity and entity type against the configured application partition.</summary>
+    SourceKnownEntityId Validate(Guid entityId, byte entityType, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId? Validate(Guid? entityId, byte entityType, SourceKnownEntityIdFormat? format = null);
+    /// <summary>Validates integrity and entity type against the explicit application partition.</summary>
+    SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType, SourceKnownEntityIdFormat? format = null) where TApp : IAppId;
+    SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType, SourceKnownEntityIdFormat? format = null) where TApp : IAppId;
+    /// <summary>Validates integrity and both explicitly supplied identity components.</summary>
+    SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat? format = null);
+    /// <summary>Validates integrity against the entity's declared identity.</summary>
+    SourceKnownEntityId Validate<TEntity>(Guid entityId, SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity;
+    SourceKnownEntityId? Validate<TEntity>(Guid? entityId, SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity;
+
     SourceKnownEntityId ToSecure(SourceKnownEntityId id);
     SourceKnownEntityId ToPlain(SourceKnownEntityId id);
 }
 
-public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid EntityId, byte EntityType, bool Valid, bool Secure) : IComparable<SourceKnownEntityId>
+public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid EntityId, byte EntityType, bool Valid, bool Secure)
+    : IComparable<SourceKnownEntityId>
 {
     public EntityTypeId EntityTypeId => new(EntityType, Source.AppId);
 
@@ -35,19 +54,28 @@ public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid Ent
     public bool HasSameEntityTypeId(SourceKnownEntityId other) => HasSameEntityTypeId(other.EntityTypeId);
     public bool HasSameEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => HasSameEntityTypeId(SourceKnownEntity.GetEntityTypeId<TEntity>());
 
-    /// <summary>Checks parsing validity only; does not check an expected entity type or application partition.</summary>
-    public void ValidateId()
+    /// <summary>Checks stored validity and an optional format, without reauthenticating the GUID. Null or Auto accepts either format.</summary>
+    public void ValidateId(SourceKnownEntityIdFormat? format = null)
     {
-        if (!Valid)
+        ValidateFormat(format);
+        if (!Valid || (format == SourceKnownEntityIdFormat.Secure && !Secure) || (format == SourceKnownEntityIdFormat.Plain && Secure))
             throw ExceptionFor.Validation($"Invalid EntityId: {EntityId}");
     }
 
-    /// <summary>Checks validity and both identity components against the entity declaration.</summary>
-    public void Validate<TEntity>() where TEntity : SourceKnownEntity => Validate(SourceKnownEntity.GetEntityTypeId<TEntity>());
-    /// <summary>Checks validity and both explicitly supplied identity components.</summary>
-    public void Validate(EntityTypeId expected)
+    internal static void ValidateFormat(SourceKnownEntityIdFormat? format)
     {
-        ValidateId();
+        if (format is not (null or SourceKnownEntityIdFormat.Secure or SourceKnownEntityIdFormat.Plain or SourceKnownEntityIdFormat.Auto))
+            throw new ArgumentOutOfRangeException(nameof(format), format, "Undefined entity ID format.");
+    }
+
+    /// <summary>Checks stored validity, optional format and both identity components against the entity declaration.</summary>
+    public void Validate<TEntity>(SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity
+        => Validate(SourceKnownEntity.GetEntityTypeId<TEntity>(), format);
+
+    /// <summary>Checks stored validity, optional format and both explicitly supplied identity components.</summary>
+    public void Validate(EntityTypeId expected, SourceKnownEntityIdFormat? format = null)
+    {
+        ValidateId(format);
         if (HasSameEntityTypeId(expected))
             return;
 
@@ -66,6 +94,7 @@ public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid Ent
 
     public bool Equals(SourceKnownEntityId other) => EntityId == other.EntityId;
     public override int GetHashCode() => EntityId.GetHashCode();
+
     public int CompareTo(SourceKnownEntityId other)
     {
         var typeComparison = EntityTypeId.CompareTo(other.EntityTypeId);

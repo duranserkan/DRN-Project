@@ -4,7 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
-*   **Standalone Development Settings**: Added `SettingsProvider.Development(...)` for AppId 0 and `Development<TApp>(...)` for a declared application partition. Both accept ordered settings overrides, reject conflicting AppId values, and return disposable `AppSettings`.
+*   **Standalone Development Settings**: Added `SettingsProvider.Development(...)` for AppId 0 and `Development<TApp>(...)` for a declared application partition. Both default AppInstanceId to 0, accept ordered settings overrides, reject conflicting AppId values, and return disposable `AppSettings`.
 
 *   **Opt-In HTTPS Test Client**: Added `ApplicationContext.CreateClientAsync<TProgram>(https: true)` for an HTTPS localhost base address. Existing calls keep the HTTP default, and explicit client options take precedence over the flag.
 

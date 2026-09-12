@@ -15,7 +15,8 @@ public interface ISourceKnownIdUtils
     /// <summary>
     /// Generates Ids for the entity.
     /// Resolves appId from the entity's [EntityType] attribute, and appInstanceId from appsettings.
-    /// Uses <see cref="IEpochTimeUtils.Epoch"/>"
+    /// Uses the process-wide epoch configured through <see cref="SourceKnownIdSettings.DefaultEpoch"/>.
+    /// Configure it before host startup or first ID/epoch use, including historical reads; the epoch is frozen thereafter.
     /// </summary>
     /// <typeparam name="TEntity">The entity type for which Ids are generated. Must derive from <see cref="SourceKnownEntity"/>.</typeparam>
     long Next<TEntity>() where TEntity : SourceKnownEntity;
@@ -23,7 +24,8 @@ public interface ISourceKnownIdUtils
     /// <summary>
     /// Generates Ids for the specified entity.
     /// Resolves appId from the entity's [EntityType] attribute, and appInstanceId from appsettings.
-    /// Uses <see cref="IEpochTimeUtils.Epoch"/>
+    /// Uses the process-wide epoch configured through <see cref="SourceKnownIdSettings.DefaultEpoch"/>.
+    /// Configure it before host startup or first ID/epoch use, including historical reads; the epoch is frozen thereafter.
     /// </summary>
     /// <param name="entity">The entity for which Ids are generated. Must derive from <see cref="SourceKnownEntity"/>.</param>
     long Next(SourceKnownEntity entity);
@@ -126,20 +128,19 @@ public class SourceKnownIdUtils : ISourceKnownIdUtils
             if (!anyNew && current.FrozenDelegates.Count > 0)
                 return;
 
-            _delegateCache = new DelegateCacheSnapshot(
-                map.ToFrozenDictionary(),
-                new ConcurrentDictionary<Type, Func<byte, byte, long>>());
+            _delegateCache = new DelegateCacheSnapshot(map.ToFrozenDictionary(), new ());
         }
     }
 
     private static bool AllWarmedUp(FrozenDictionary<Type, Func<byte, byte, long>> frozen, ICollection<Type> types)
     {
-        if (frozen.Count == 0 || types.Count == 0) return false;
+        if (frozen.Count == 0 || types.Count == 0)
+            return false;
+
         foreach (var type in types)
-        {
             if (type is not null && type.IsClass && typeof(SourceKnownEntity).IsAssignableFrom(type) && !frozen.ContainsKey(type))
                 return false;
-        }
+
         return true;
     }
 
@@ -178,20 +179,19 @@ public class SourceKnownIdUtils : ISourceKnownIdUtils
     internal static long Generate(Type entityType, byte appId, byte appInstanceId)
     {
         ArgumentNullException.ThrowIfNull(entityType);
-        if (!typeof(SourceKnownEntity).IsAssignableFrom(entityType))
-            throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
-
-        return GenerateValidated(entityType, appId, appInstanceId);
+        return typeof(SourceKnownEntity).IsAssignableFrom(entityType)
+            ? GenerateValidated(entityType, appId, appInstanceId)
+            : throw new ArgumentException($"Type '{entityType.FullName}' must inherit from '{nameof(SourceKnownEntity)}'.", nameof(entityType));
     }
 
     private static long GenerateValidated(Type entityType, byte appId, byte appInstanceId)
     {
         var cache = _delegateCache;
-        if (!cache.FrozenDelegates.TryGetValue(entityType, out var invoker) &&
-            !cache.DynamicDelegates.TryGetValue(entityType, out invoker))
-        {
-            invoker = cache.DynamicDelegates.GetOrAdd(entityType, static t => CreateGenerateDelegate(t));
-        }
+        if (cache.FrozenDelegates.TryGetValue(entityType, out var invoker) ||
+            cache.DynamicDelegates.TryGetValue(entityType, out invoker))
+            return invoker(appId, appInstanceId);
+
+        invoker = cache.DynamicDelegates.GetOrAdd(entityType, static t => CreateGenerateDelegate(t));
 
         return invoker(appId, appInstanceId);
     }

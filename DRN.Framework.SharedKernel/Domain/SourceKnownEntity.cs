@@ -150,28 +150,38 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public SourceKnownEntityId ToPlain(SourceKnownEntityId id) => Ops.ToPlain(id);
     public SourceKnownEntityId? ToPlain(SourceKnownEntityId? id) => id.HasValue ? Ops.ToPlain(id.Value) : null;
 
-    public SourceKnownEntityId GetEntityId<TEntity>(Guid id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityTypeId<TEntity>());
-    public SourceKnownEntityId? GetEntityId<TEntity>(Guid? id) where TEntity : SourceKnownEntity => GetEntityId(id, GetEntityTypeId<TEntity>());
+    public SourceKnownEntityId GetEntityId<TEntity>(Guid id, SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity
+        => GetEntityId(id, GetEntityTypeId<TEntity>(), format);
+    public SourceKnownEntityId? GetEntityId<TEntity>(Guid? id, SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity
+        => GetEntityId(id, GetEntityTypeId<TEntity>(), format);
 
-    public SourceKnownEntityId? GetEntityId(Guid? id, EntityTypeId entityTypeId) => id == null ? null : GetEntityId(id.Value, entityTypeId);
-
-    public SourceKnownEntityId GetEntityId(Guid id, EntityTypeId entityTypeId)
+    public SourceKnownEntityId? GetEntityId(Guid? id, EntityTypeId entityTypeId, SourceKnownEntityIdFormat? format = null)
     {
-        var sourceKnownId = GetEntityId(id, false);
-        sourceKnownId.Validate(entityTypeId);
+        SourceKnownEntityId.ValidateFormat(format);
+        return id == null ? null : GetEntityId(id.Value, entityTypeId, format);
+    }
+
+    public SourceKnownEntityId GetEntityId(Guid id, EntityTypeId entityTypeId, SourceKnownEntityIdFormat? format = null)
+    {
+        var sourceKnownId = GetEntityId(id, false, format);
+        sourceKnownId.Validate(entityTypeId, format);
 
         return sourceKnownId;
     }
 
-    public SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true) => id == null ? null : GetEntityId(id.Value, validate);
+    public SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true, SourceKnownEntityIdFormat? format = null)
+    {
+        SourceKnownEntityId.ValidateFormat(format);
+        return id == null ? null : GetEntityId(id.Value, validate, format);
+    }
 
-    public SourceKnownEntityId GetEntityId(Guid id, bool validate = true)
+    public SourceKnownEntityId GetEntityId(Guid id, bool validate = true, SourceKnownEntityIdFormat? format = null)
     {
         if (IsPendingInsert)
             throw ExceptionFor.UnprocessableEntity("Current entity with type is not inserted yet. Can not generate Foreign Ids");
 
-        var entityId = Ops.Parse(id);
-        if (validate) entityId.ValidateId();
+        var entityId = Ops.Parse(id, format);
+        if (validate) entityId.ValidateId(format);
 
         return entityId;
     }

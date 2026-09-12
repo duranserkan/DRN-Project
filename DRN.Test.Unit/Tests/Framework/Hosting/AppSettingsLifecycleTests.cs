@@ -19,6 +19,7 @@ public class AppSettingsLifecycleTests
         {
             ["Environment"] = "Development",
             ["NexusAppSettings:AppId"] = "0",
+            ["NexusAppSettings:AppInstanceId"] = "0",
             ["SourceKnownIdSettings:DefaultEpoch"] = epoch,
             ["SourceKnownIdSettings:MinimumUtc"] = minimum
         }).Build();
@@ -40,6 +41,7 @@ public class AppSettingsLifecycleTests
         {
             ["Environment"] = "Development",
             ["NexusAppSettings:AppId"] = "0",
+            ["NexusAppSettings:AppInstanceId"] = "0",
             ["SourceKnownIdSettings:MinimumUtc"] = "not UTC"
         }).Build();
         var settings = Substitute.For<IAppSettings>();

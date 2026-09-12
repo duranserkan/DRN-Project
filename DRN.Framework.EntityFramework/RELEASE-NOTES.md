@@ -4,6 +4,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Repository ID Formats**: All single, batch, nullable, generic and enumerable GUID ID helpers accept optional `SourceKnownEntityIdFormat? format = null`. Omission follows the configured secure/plain default; explicit Secure/Plain/Auto forwards to parsing and validation. Undefined formats throw for null inputs and empty batches too; ID enumeration remains lazy. Ordinary calls remain valid, but binary consumers must rebuild and custom repository implementations or method-group bindings must update. Query signatures remain unchanged, but GUID queries inherit the configured format and reject opposite-format IDs. To query mixed-format input, parse with `GetEntityId` or `GetEntityIds` using `format: SourceKnownEntityIdFormat.Auto`, then use the query overload accepting `SourceKnownEntityId` values. Generation and conversion behavior is unchanged.
+
 *   **Partition-Scoped Entity Type Validation**: Startup validation enforces partition cardinality per `DbContext`.
     *   Treats `(EntityType, AppId)` as the uniqueness key, aligning with SharedKernel analyzers.
     *   Single `DbContext` instances cannot combine multiple production `AppId` partitions.

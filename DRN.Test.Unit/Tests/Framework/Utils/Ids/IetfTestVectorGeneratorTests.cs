@@ -250,7 +250,7 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
             """);
 
         // --- A.5: Round-Trip Verification ---
-        var parsedPlain = entityIdUtils.Parse(plainId.EntityId);
+        var parsedPlain = entityIdUtils.Parse(plainId.EntityId, SourceKnownEntityIdFormat.Plain);
         parsedPlain.Valid.Should().BeTrue();
         parsedPlain.Source.Id.Should().Be(skid);
         parsedPlain.Secure.Should().BeFalse();

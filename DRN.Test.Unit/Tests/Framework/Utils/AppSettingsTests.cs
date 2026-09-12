@@ -20,26 +20,55 @@ public class AppSettingsTests
         var configuration = new ConfigurationManager().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Environment"] = environment.ToString(),
-            ["NexusAppSettings:AppId"] = appId
+            ["NexusAppSettings:AppId"] = appId,
+            ["NexusAppSettings:AppInstanceId"] = "0"
         });
 
         var create = () => new AppSettings(configuration.Build());
         create.Should().Throw<ConfigurationException>().WithMessage("*AppId must be explicitly configured*");
         var omittedConfiguration = new ConfigurationBuilder()
-            .AddObjectToJsonConfiguration(new { Environment = environment.ToString() }).Build();
+            .AddObjectToJsonConfiguration(new { Environment = environment.ToString(), NexusAppSettings = new { AppInstanceId = 0 } }).Build();
         var createWithoutAppId = () => new AppSettings(omittedConfiguration);
         createWithoutAppId.Should().Throw<ConfigurationException>().WithMessage("*AppId must be explicitly configured*");
     }
 
     [Fact]
-    public void Explicit_Default_AppId_Zero_Is_Valid()
+    public void Explicit_Default_Identifiers_Zero_Are_Valid()
     {
         var configuration = new ConfigurationBuilder().AddObjectToJsonConfiguration(new
         {
-            Environment = "Development", NexusAppSettings = new { AppId = 0 }
+            Environment = "Development", NexusAppSettings = new { AppId = 0, AppInstanceId = 0 }
         }).Build();
         using var settings = new AppSettings(configuration);
         settings.NexusAppSettings.AppId.Should().Be(0);
+        settings.NexusAppSettings.AppInstanceId.Should().Be(0);
+    }
+
+    [Theory]
+    [DataInlineUnit(AppEnvironment.Development)]
+    [DataInlineUnit(AppEnvironment.Staging)]
+    [DataInlineUnit(AppEnvironment.Production)]
+    [DataInlineUnit(AppEnvironment.NotDefined)]
+    public void AppInstanceId_Must_Be_Explicitly_Configured(AppEnvironment environment)
+    {
+        foreach (var value in new string?[] { null, "", " " })
+        {
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Environment"] = environment.ToString(),
+                ["NexusAppSettings:AppId"] = "0",
+                ["NexusAppSettings:AppInstanceId"] = value
+            }).Build();
+            var create = () => new AppSettings(configuration);
+            create.Should().Throw<ConfigurationException>().WithMessage("*AppInstanceId must be explicitly configured*");
+        }
+
+        var omittedConfiguration = new ConfigurationBuilder().AddObjectToJsonConfiguration(new
+        {
+            Environment = environment.ToString(), NexusAppSettings = new { AppId = 0 }
+        }).Build();
+        var createWithoutInstanceId = () => new AppSettings(omittedConfiguration);
+        createWithoutInstanceId.Should().Throw<ConfigurationException>().WithMessage("*AppInstanceId must be explicitly configured*");
     }
 
     private const string DevelopmentNexusKeyMaterialDerivationContext =

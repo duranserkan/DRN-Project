@@ -1,9 +1,9 @@
-using DRN.Framework.SharedKernel.Attributes;
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
 
-namespace DRN.Test.Integration.Tests.Sample.Utils;
+namespace DRN.Test.Integration.Tests.Framework.Utils.SourceKnownIds;
 
 public readonly struct CustomIntegrationTestApp : IAppId
 {
@@ -12,6 +12,7 @@ public readonly struct CustomIntegrationTestApp : IAppId
 }
 
 [EntityType<CustomIntegrationTestApp>(1)]
+[SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public class CustomIntegrationTestEntity : SourceKnownEntity;
 
 public class SourceKnownIdUtilsTests
@@ -61,7 +62,7 @@ public class SourceKnownIdUtilsTests
         // to ticks prevents sub-second precision race conditions with high-precision UtcNow times.
         var beforeIdGeneratedTimestamp = EpochTimeUtils.ConvertToTicks(beforeIdGenerated, epoch);
         var afterIdGeneratedTimestamp = EpochTimeUtils.ConvertToTicks(afterIdGenerated, epoch);
-        var idInfos = ids.Select(id => generator.Parse(id)).ToArray();
+        var idInfos = ids.Select(generator.Parse).ToArray();
 
         idInfos.Length.Should().Be(idCount);
         idInfos.Should().AllSatisfy(idInfo =>

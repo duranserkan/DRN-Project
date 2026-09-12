@@ -11,6 +11,8 @@ public class SettingsProviderTests
         using var defaults = SettingsProvider.Development();
         defaults.NexusAppSettings.AppId.Should().Be(DefaultApp.AppId);
         defaults.Configuration.GetValue<byte>("NexusAppSettings:AppId").Should().Be(DefaultApp.AppId);
+        defaults.NexusAppSettings.AppInstanceId.Should().Be(0);
+        defaults.Configuration.GetValue<byte?>("NexusAppSettings:AppInstanceId").Should().Be(0);
 
         using var settings = SettingsProvider.Development<TestApp>(
             new { ApplicationName = "First", NexusAppSettings = new { AppInstanceId = 3 } },

@@ -223,7 +223,9 @@ The identifier system has three forms:
 | Source Known Entity ID (SKEID) | 128-bit `Guid` | Adds entity type, an epoch byte and a 4-byte keyed BLAKE3 MAC for validation without a database lookup |
 | Secure SKEID | 128-bit `Guid` | Encrypts one SKEID block with AES-256-ECB to conceal its encoded fields |
 
-`ISourceKnownEntityIdOperations` defines `Generate`, `Parse`, `ToSecure`, and `ToPlain` in SharedKernel. Utils implements it through `ISourceKnownEntityIdUtils` and `SourceKnownEntityIdUtils`. EF interceptors wire operations into entities. ID validation checks structure and identity metadata; application authorization still controls access to the entity.
+`ISourceKnownEntityIdOperations` defines `Generate`, nullable/nonnullable `Parse`, all `Validate` overloads, `ToSecure`, and `ToPlain` in SharedKernel. Utils implements it through `ISourceKnownEntityIdUtils` and `SourceKnownEntityIdUtils`. EF interceptors wire operations into entities. ID validation checks structure and identity metadata; application authorization still controls access to the entity.
+
+`Parse(Guid, SourceKnownEntityIdFormat? format = null)` accepts `Secure`, `Plain` or `Auto` from `DRN.Framework.SharedKernel.Domain`. Utils uses `NexusAppSettings.UseSecureSourceKnownIds` when format is omitted (`true` → Secure, `false` → Plain). Explicit formats override it: Secure only decrypts and verifies, Plain only verifies plaintext, and Auto retains plain-first detection with decryption fallback. Domain GUID helpers inherit the configured policy; conversions still accept both forms. Ordinary source calls remain valid, but compiled consumers require rebuilding and custom implementations or method-group bindings require signature updates. See [Utils parsing and validation](../DRN.Framework.Utils/README.md#parse--validation) for migration and nullable-input behavior.
 
 Record contract excerpt from [SourceKnownEntityId.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/SourceKnownEntityId.cs):
 
@@ -281,13 +283,17 @@ The default minimum is maintained in [SourceKnownGenerationTimePolicy.MinimumGen
 
 | Method | Checks |
 |---|---|
-| `ValidateId()` | `Valid` is true; integrity only, with no expected identity |
-| `Validate<TEntity>()` | Validity, entity type and the entity's declared application partition |
-| `Validate(EntityTypeId expected)` | Validity and both supplied identity components |
+| `ValidateId(format: null)` | Stored `Valid` is true and an explicitly selected format matches `Secure`; no expected identity |
+| `Validate<TEntity>(format: null)` | Stored validity, optional format, entity type and the entity's declared application partition |
+| `Validate(EntityTypeId expected, format: null)` | Stored validity, optional format and both supplied identity components |
+
+Record validation has no settings or keys and does not reauthenticate the GUID. Omitted/null or Auto accepts either stored format; explicit Secure/Plain checks the `Secure` flag. Undefined enum values throw `ArgumentOutOfRangeException`. Use operations `Parse`/`Validate` to authenticate an untrusted GUID with the configured default or an explicit format.
 
 Identity validation requires an expected application partition: use `Validate<TEntity>()` to obtain it from the entity declaration, or `Validate(new EntityTypeId(entityType, expectedAppId))` to supply both components. `EntityTypeId` requires both constructor arguments, including explicit `0` for the default partition, and has no implicit conversion from `byte`. The former `Validate(byte)` overload is removed; validation never derives the expected partition from the incoming ID.
 
 Domain helpers follow the same contract for GUID and numeric IDs: use `GetEntityId<TEntity>(id)` or `GetEntityId(id, new EntityTypeId(entityType, expectedAppId))`, including nullable forms. The former byte-only helpers are removed. The low-level `GetEntityId(Guid, bool validate = true)` helper checks parsing validity only, like `ValidateId()`. SharedKernel does not read application configuration; Utils supplies configured expectations and EF repositories supply the target entity's declared identity.
+
+All domain GUID helpers and repository single/batch/enumerable GUID helpers accept an optional final `format` argument. It reaches the injected parser; omission uses its configured default. For example, `entity.GetEntityId<User>(guid, SourceKnownEntityIdFormat.Plain)` and `repository.GetEntityIds(guids, format: SourceKnownEntityIdFormat.Auto)`. Undefined formats are rejected for null inputs and empty batches too. Numeric generation and conversions retain their existing behavior. Ordinary calls still compile, but changed signatures require binary consumers to rebuild and custom implementations/method-group bindings to update.
 
 ### Secure ↔ Plain Conversion
 
@@ -338,18 +344,18 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null);
     
     // Identity Conversion & Validation
-    SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
-    SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true);
-    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true);
-    SourceKnownEntityId?[] GetEntityIds(IReadOnlyCollection<Guid?> ids, bool validate = true);
-    SourceKnownEntityId[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid> ids) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId?[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid?> ids) where TOtherEntity : SourceKnownEntity;
-    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool validate = true);
-    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable(IEnumerable<Guid?> ids, bool validate = true);
-    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids) where TOtherEntity : SourceKnownEntity;
-    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid?> ids) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId GetEntityId(Guid id, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId?[] GetEntityIds(IReadOnlyCollection<Guid?> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid> ids, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId?[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid?> ids, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable(IEnumerable<Guid?> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid?> ids, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
     SourceKnownEntityId ToSecure(SourceKnownEntityId id);
     SourceKnownEntityId ToPlain(SourceKnownEntityId id);
     

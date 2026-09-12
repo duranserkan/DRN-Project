@@ -82,18 +82,19 @@ public interface ISourceKnownRepository<TEntity>
     Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids);
     Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids);
 
-    SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
-    SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true);
-    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true);
-    SourceKnownEntityId?[] GetEntityIds(IReadOnlyCollection<Guid?> ids, bool validate = true);
-    SourceKnownEntityId[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid> ids) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId?[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid?> ids) where TOtherEntity : SourceKnownEntity;
-    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool validate = true);
-    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable(IEnumerable<Guid?> ids, bool validate = true);
-    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids) where TOtherEntity : SourceKnownEntity;
-    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid?> ids) where TOtherEntity : SourceKnownEntity;
+    /// <summary>Parses the selected format and optionally validates the repository identity. Null format uses configuration.</summary>
+    SourceKnownEntityId GetEntityId(Guid id, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId?[] GetEntityIds(IReadOnlyCollection<Guid?> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid> ids, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId?[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid?> ids, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable(IEnumerable<Guid?> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid?> ids, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
 
     SourceKnownEntityId ToSecure(SourceKnownEntityId id);
     SourceKnownEntityId ToPlain(SourceKnownEntityId id);

@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts and cancellation semantics, pagination, JSON conventions, app constants, and shared extensions. Keywords: entity, aggregate-root, domain-event, repository, repository-cancellation, cancellation, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
-last-updated: 2026-09-10
+last-updated: 2026-09-12
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -43,8 +43,8 @@ public abstract class SourceKnownEntity(long id = 0)
     public Guid EntityId => EntityIdSource.EntityId;
 
     // ID validation
-    public SourceKnownEntityId GetEntityId(Guid id, EntityTypeId expected);
-    public SourceKnownEntityId GetEntityId<TEntity>(Guid id);
+    public SourceKnownEntityId GetEntityId(Guid id, EntityTypeId expected, SourceKnownEntityIdFormat? format = null);
+    public SourceKnownEntityId GetEntityId<TEntity>(Guid id, SourceKnownEntityIdFormat? format = null);
 
     // Secure ↔ Plain conversion (idempotent, injected via ISourceKnownEntityIdOperations)
     public SourceKnownEntityId ToSecure(SourceKnownEntityId id);
@@ -105,7 +105,9 @@ public abstract class EntityDeleted(SourceKnownEntity entity) : DomainEvent(enti
 
 Keep the origin identical across a dataset's services and restarts: IDs do not store it. Only epoch 0 and both halves are supported; extending support requires a persistence contract, not just different limits. The default minimum is source-maintained, never derived from build timestamps. See [configuration and limits](../../../DRN.Framework.SharedKernel/README.md#trusted-minimum-generation-time).
 
-Balances DB performance (`long`) with external security (`Guid`) and type safety. `ISourceKnownEntityIdOperations` defines the core contract (`Generate`, `Parse`, `ToSecure`, `ToPlain`) in SharedKernel; implemented by `SourceKnownEntityIdUtils` in Utils and injected into entities by EF interceptors.
+Balances DB performance (`long`) with external security (`Guid`) and type safety. `ISourceKnownEntityIdOperations` defines the core contract (`Generate`, nullable/nonnullable `Parse`, all `Validate` overloads, `ToSecure`, `ToPlain`) in SharedKernel; implemented by `SourceKnownEntityIdUtils` in Utils and injected into entities by EF interceptors.
+
+Operations Parse/Validate and domain/repository GUID helpers expose optional `SourceKnownEntityIdFormat? format = null` (Secure, Plain, Auto). Utils resolves omission through `UseSecureSourceKnownIds` (true → Secure, false → Plain); explicit formats override it. Record ValidateId/Validate only checks stored Valid, Secure and identity metadata: null/Auto preserves prior checks, explicit Secure/Plain requires a matching flag, and no GUID is reauthenticated. Undefined values throw for null/empty wrapper inputs too. Conversions accept both forms. Rebuild binary consumers and update custom implementations/method-group bindings; ordinary calls still compile. See [Utils format contract](../drn-utils/SKILL.md#id-generation).
 
 ```csharp
 public readonly record struct SourceKnownId(
@@ -157,12 +159,12 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     Task<int> SaveChangesAsync();
     
     // Identity Conversion & Validation
-    SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
-    SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true);
-    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true);
-    SourceKnownEntityId?[] GetEntityIds(IReadOnlyCollection<Guid?> ids, bool validate = true);
+    SourceKnownEntityId GetEntityId(Guid id, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
+    SourceKnownEntityId?[] GetEntityIds(IReadOnlyCollection<Guid?> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
     
     // Retrieval by GUID (External ID)
     Task<TEntity> GetAsync(Guid id);

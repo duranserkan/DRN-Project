@@ -113,6 +113,8 @@ public async Task Endpoint_Should_Return_Data(DrnTestContext context)
 
 ## Context Capabilities
 
+Use `SettingsProvider.Development()` for AppId 0 or `Development<TApp>()` for the declared AppId. Both default AppInstanceId to 0 and return disposable settings. Optional objects override defaults; AppId must match the selected partition.
+
 | Context | Use for | Notable members |
 |---|---|---|
 | `DrnTestContextUnit` | unit tests without containers or full app startup | `ServiceCollection`, `GetRequiredService<T>()`, `BuildConfigurationRoot()`, `GetData()`, `MethodContext.GetTempPath()`, `GetTempPath()`, `ValidateServicesAsync()` |

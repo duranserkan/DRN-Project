@@ -40,26 +40,28 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
     SourceKnownEntityId GeneratePlain(SourceKnownEntity entity);
     SourceKnownEntityId GeneratePlain(long id, EntityTypeId entityTypeId);
 
-    SourceKnownEntityId? Parse(Guid? entityId);
-    new SourceKnownEntityId Parse(Guid entityId);
+    /// <summary>Parses the selected format; null format uses UseSecureSourceKnownIds. Null input remains null.</summary>
+    new SourceKnownEntityId? Parse(Guid? entityId, SourceKnownEntityIdFormat? format = null);
+    /// <summary>Parses the selected format; null format uses UseSecureSourceKnownIds.</summary>
+    new SourceKnownEntityId Parse(Guid entityId, SourceKnownEntityIdFormat? format = null);
 
     /// <summary>Validates integrity and entity type against the configured AppId. Null remains null.</summary>
-    SourceKnownEntityId? Validate(Guid? entityId, byte entityType);
+    new SourceKnownEntityId? Validate(Guid? entityId, byte entityType, SourceKnownEntityIdFormat? format = null);
     /// <summary>Validates integrity and entity type against NexusAppSettings.AppId.</summary>
-    SourceKnownEntityId Validate(Guid entityId, byte entityType);
+    new SourceKnownEntityId Validate(Guid entityId, byte entityType, SourceKnownEntityIdFormat? format = null);
 
     /// <summary>Explicitly selects an application partition through IAppId. Null remains null.</summary>
-    SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType) where TApp : IAppId;
+    new SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType, SourceKnownEntityIdFormat? format = null) where TApp : IAppId;
     /// <summary>Validates integrity, entity type, and the explicit TApp.AppId.</summary>
-    SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType) where TApp : IAppId;
+    new SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType, SourceKnownEntityIdFormat? format = null) where TApp : IAppId;
 
-    SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId);
+    new SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat? format = null);
     /// <summary>Validates integrity and both explicitly supplied identity components.</summary>
-    SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId);
+    new SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat? format = null);
 
-    SourceKnownEntityId? Validate<TEntity>(Guid? entityId) where TEntity : SourceKnownEntity;
+    new SourceKnownEntityId? Validate<TEntity>(Guid? entityId, SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity;
     /// <summary>Validates against the entity's declared identity, independently of configured AppId.</summary>
-    SourceKnownEntityId Validate<TEntity>(Guid entityId) where TEntity : SourceKnownEntity;
+    new SourceKnownEntityId Validate<TEntity>(Guid entityId, SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity;
 
     new SourceKnownEntityId ToSecure(SourceKnownEntityId id);
     SourceKnownEntityId? ToSecure(SourceKnownEntityId? id);
@@ -72,7 +74,8 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
 /// 128‑bit GUID, providing a reversible mapping with integrity checking.
 /// Secure variants encrypt the entire 16-byte GUID using AES-256-ECB as a pseudo-random permutation (PRP).
 /// AES-ECB on a single 128-bit block is a conjectured PRP (NIST FIPS 197) — no nonce required, no nonce-reuse vulnerability.
-/// Parse auto-detects by trying AES-ECB decryption when plaintext markers are absent.
+/// Parse and Validate default to UseSecureSourceKnownIds; explicit formats override configuration.
+/// Auto tries AES-ECB decryption when plain epoch/marker checks or MAC verification fail.
 /// Add rate limit to endpoints that accept SourceKnownEntityId from untrusted sources to prevent brute force attacks.
 /// Optionally, add randomness to instance id generation to improve brute force durability.
 /// If still not enough, don't use source known ids, consider using a different id generation strategy such as true guid v4.
@@ -111,7 +114,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     private const byte EntityTypeIndex = 7; // 7
     private const byte InvalidEntityType = byte.MaxValue;
 
-    // Epoch at byte 0, first epoch starts at 2025-01-01.
+    // Epoch at byte 0; the default origin is 2025-01-01, configurable through SourceKnownIdSettings.
     // Each epoch is approximately 68 years long with 2 halves separated with sign bit
     // 2^32 ticks / 4 ticks/s = 2^30 seconds * 2^1 epoch half flag in source known id timestamp.
     // Only encoded epoch 0 is supported. Custom origin parameters do not select a different encoded epoch.
@@ -181,6 +184,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         var sourceKnownId = _sourceKnownIdUtils.Parse(id);
         var result = new SourceKnownEntityId(sourceKnownId, entityId, entityTypeId.EntityType, true, Secure: false);
         result.Validate(entityTypeId);
+
         return result;
     }
 
@@ -209,6 +213,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         var sourceKnownId = _sourceKnownIdUtils.Parse(id);
         var result = new SourceKnownEntityId(sourceKnownId, entityId, entityTypeId.EntityType, true, Secure: true);
         result.Validate(entityTypeId);
+
         return result;
     }
 
@@ -224,16 +229,14 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         // Encrypt entire 16-byte block with AES-ECB (true PRP — no nonce needed)
         EncryptGuidBlock(guidBytes, _aes);
 
-        // Collision guard: if ciphertext coincidentally has plain markers (0x8D8D, ~1/65536)
-        // AND the MAC extracted from ciphertext matches a recomputed MAC (~1/2^32),
-        // the parse path would misclassify this Secure SKEID as Plain.
-        // Fix: iterate variant bytes 0x8E→0xBF — AES avalanche guarantees distinct ciphertext per variant.
-        // Deterministic termination: at most 51 iterations. Exhaustion throws JackpotException.
+        // Ciphertext with epoch 0, both 0x8D markers, and a valid MAC would be misclassified as plain.
+        // With these three fixed bytes and a 32-bit MAC, collision probability is approximately 2^-56,
+        // assuming pseudorandom ciphertext.
+        // Retry variants 0x8E through 0xBF; the AES permutation gives distinct ciphertext for each variant.
+        // At most 50 retries after the initial candidate. Exhaustion throws JackpotException.
         if (HasValidMarkers(guidBytes) && HasCoincidentalMacMatch(guidBytes, _macKey))
         {
-            for (variantByte = SourceKnownMarkerVariantByte + 1;
-                 variantByte <= SourceKnownMarkerVariantMaxByte;
-                 variantByte++)
+            for (variantByte = SourceKnownMarkerVariantByte + 1; variantByte <= SourceKnownMarkerVariantMaxByte; variantByte++)
             {
                 WriteIdAndMarkers(guidBytes, id, entityType, variantByte);
                 WriteMac(guidBytes, _macKey);
@@ -247,20 +250,25 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
                 throw ExceptionFor.Jackpot(
                     $"All 50 alternative variant bytes " +
                     $"(0x{SourceKnownMarkerVariantByte + 1:X2}–0x{SourceKnownMarkerVariantMaxByte:X2}) exhausted " +
-                    $"for id={id}, entityType={entityType}. Probability: ~1/2^(48×51).");
+                    $"for id={id}, entityType={entityType}.");
         }
 
         return new Guid(guidBytes, bigEndian: true);
     }
 
-    public SourceKnownEntityId? Parse(Guid? entityId) => entityId.HasValue ? Parse(entityId.Value) : null;
-
-    public SourceKnownEntityId Parse(Guid entityId)
+    public SourceKnownEntityId? Parse(Guid? entityId, SourceKnownEntityIdFormat? format = null)
     {
+        var selectedFormat = ResolveFormat(format);
+        return entityId.HasValue ? Parse(entityId.Value, selectedFormat) : null;
+    }
+
+    public SourceKnownEntityId Parse(Guid entityId, SourceKnownEntityIdFormat? format = null)
+    {
+        var selectedFormat = ResolveFormat(format);
         var keys = _keyRing.AllWithDefaultAsFirstItem;
         for (var index = 0; index < keys.Count; index++)
         {
-            var result = ParseWithKey(entityId, keys[index]);
+            var result = ParseWithKey(entityId, keys[index], selectedFormat);
             if (result.Valid)
                 return result;
         }
@@ -268,22 +276,32 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         return CreateInvalid(entityId);
     }
 
-    private SourceKnownEntityId ParseWithKey(Guid entityId, NexusSecret key)
+    private SourceKnownEntityIdFormat ResolveFormat(SourceKnownEntityIdFormat? format)
+        => format switch
+        {
+            null => _useSecure ? SourceKnownEntityIdFormat.Secure : SourceKnownEntityIdFormat.Plain,
+            SourceKnownEntityIdFormat.Secure or SourceKnownEntityIdFormat.Plain or SourceKnownEntityIdFormat.Auto => format.Value,
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, "Undefined entity ID format.")
+        };
+
+    private SourceKnownEntityId ParseWithKey(Guid entityId, NexusSecret key, SourceKnownEntityIdFormat format)
     {
         Span<byte> guidBytes = stackalloc byte[GuidLength];
         entityId.TryWriteBytes(guidBytes, bigEndian: true, out _);
 
         // Try non-secure path first (plaintext 8D8D markers visible)
-        if (HasValidMarkers(guidBytes))
+        if (format != SourceKnownEntityIdFormat.Secure && HasValidMarkers(guidBytes))
         {
             var result = VerifyAndParse(guidBytes, entityId, secure: false, macKey: key.MacKey);
             if (result.Valid)
                 return result;
 
-            // Markers were coincidental in ciphertext (~1/65536) — restore and try decrypt path
-            // Interestingly, when 6,291,453 ids generated around 96 entities (92, 101 etc.) had coincidental markers
+            // Plain MAC verification failed and cleared the MAC slots; restore the input before decryption.
             entityId.TryWriteBytes(guidBytes, bigEndian: true, out _);
         }
+
+        if (format == SourceKnownEntityIdFormat.Plain)
+            return CreateInvalid(entityId);
 
         // Try secure path: AES-ECB decrypt full block, then check for markers
         // HasValidMarkersSecure accepts RFC 9562 §4.1 variant range 0x80–0xBF (collision guard uses 0x8D–0xBF)
@@ -296,51 +314,64 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
 
         // Non-default variant → backward collision-guard verification
         if (recoveredVariant is > SourceKnownMarkerVariantByte and <= SourceKnownMarkerVariantMaxByte)
-        {
-            if (!VerifyCollisionGuardProof(guidBytes, (byte)(recoveredVariant - 1), key))
-                return CreateInvalid(entityId);
-        }
-        else if (recoveredVariant != SourceKnownMarkerVariantByte)
-            return CreateInvalid(entityId);
+            return VerifyCollisionGuardProof(guidBytes, (byte)(recoveredVariant - 1), key)
+                ? VerifyAndParse(guidBytes, entityId, secure: true, macKey: key.MacKey)
+                : CreateInvalid(entityId);
 
-        return VerifyAndParse(guidBytes, entityId, secure: true, macKey: key.MacKey);
+        return recoveredVariant != SourceKnownMarkerVariantByte
+            ? CreateInvalid(entityId)
+            : VerifyAndParse(guidBytes, entityId, secure: true, macKey: key.MacKey);
     }
 
-    public SourceKnownEntityId? Validate(Guid? entityId, byte entityType)
-        => entityId.HasValue ? Validate(entityId.Value, entityType) : null;
+    public SourceKnownEntityId? Validate(Guid? entityId, byte entityType, SourceKnownEntityIdFormat? format = null)
+    {
+        var selectedFormat = ResolveFormat(format);
+        return entityId.HasValue ? Validate(entityId.Value, entityType, selectedFormat) : null;
+    }
 
-    public SourceKnownEntityId Validate(Guid entityId, byte entityType)
-        => Validate(entityId, new EntityTypeId(entityType, _appId));
+    public SourceKnownEntityId Validate(Guid entityId, byte entityType, SourceKnownEntityIdFormat? format = null)
+        => Validate(entityId, new EntityTypeId(entityType, _appId), format);
 
-    public SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType) where TApp : IAppId
-        => entityId.HasValue ? Validate<TApp>(entityId.Value, entityType) : null;
+    public SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType, SourceKnownEntityIdFormat? format = null) where TApp : IAppId
+    {
+        var selectedFormat = ResolveFormat(format);
+        return entityId.HasValue ? Validate<TApp>(entityId.Value, entityType, selectedFormat) : null;
+    }
 
-    public SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType) where TApp : IAppId
-        => Validate(entityId, new EntityTypeId(entityType, TApp.AppId));
+    public SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType, SourceKnownEntityIdFormat? format = null) where TApp : IAppId
+        => Validate(entityId, new EntityTypeId(entityType, TApp.AppId), format);
 
-    public SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId)
-        => entityId.HasValue ? Validate(entityId.Value, entityTypeId) : null;
+    public SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat? format = null)
+    {
+        var selectedFormat = ResolveFormat(format);
+        return entityId.HasValue ? Validate(entityId.Value, entityTypeId, selectedFormat) : null;
+    }
 
-    public SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId)
+    public SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat? format = null)
     {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(entityTypeId.AppId, IAppId.MaxAppId);
-        var sourceKnownId = Parse(entityId);
-        sourceKnownId.Validate(entityTypeId);
+        var sourceKnownId = Parse(entityId, format);
+        sourceKnownId.Validate(entityTypeId, format);
 
         return sourceKnownId;
     }
 
-    public SourceKnownEntityId? Validate<TEntity>(Guid? entityId) where TEntity : SourceKnownEntity
-        => entityId.HasValue ? Validate<TEntity>(entityId.Value) : null;
+    public SourceKnownEntityId? Validate<TEntity>(Guid? entityId, SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity
+    {
+        var selectedFormat = ResolveFormat(format);
+        return entityId.HasValue ? Validate<TEntity>(entityId.Value, selectedFormat) : null;
+    }
 
-    public SourceKnownEntityId Validate<TEntity>(Guid entityId) where TEntity : SourceKnownEntity
-        => Validate(entityId, SourceKnownEntity.GetEntityTypeId<TEntity>());
+    public SourceKnownEntityId Validate<TEntity>(Guid entityId, SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity
+        => Validate(entityId, SourceKnownEntity.GetEntityTypeId<TEntity>(), format);
 
     public SourceKnownEntityId ToSecure(SourceKnownEntityId id)
     {
         id.ValidateId();
-        id = Parse(id.EntityId);
+        // Conversions accept either representation and revalidate the GUID independently of caller metadata.
+        id = Parse(id.EntityId, SourceKnownEntityIdFormat.Auto);
         id.ValidateId();
+
         return id.Secure
             ? id
             : id with { EntityId = GenerateSecureGuid(id.Source.Id, id.EntityType), Secure = true };
@@ -352,8 +383,10 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     public SourceKnownEntityId ToPlain(SourceKnownEntityId id)
     {
         id.ValidateId();
-        id = Parse(id.EntityId);
+        // Conversions accept either representation and revalidate the GUID independently of caller metadata.
+        id = Parse(id.EntityId, SourceKnownEntityIdFormat.Auto);
         id.ValidateId();
+
         return id.Secure
             ? id with { EntityId = GeneratePlainGuid(id.Source.Id, id.EntityType), Secure = false }
             : id;
@@ -382,8 +415,8 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
 
     /// <summary>
     /// Checks whether ciphertext bytes, when interpreted as a plain SKEID,
-    /// produce a coincidental MAC match. Used by the collision guard in
-    /// <see cref="GenerateSecureGuid"/> to detect the ~1/2^48 edge case.
+    /// produce a coincidental MAC match. The collision guard in
+    /// <see cref="GenerateSecureGuid"/> also requires matching epoch and marker bytes.
     /// </summary>
     private static bool HasCoincidentalMacMatch(ReadOnlySpan<byte> ciphertextBytes, SecretKey32 macKey)
     {
@@ -468,7 +501,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
                         | ((uint)guidBytes[EntityIdLowerBytes123Offset + 1] << 8)
                         | guidBytes[EntityIdLowerBytes123Offset + 2];
 
-        return unchecked((long)(((ulong)upperHalf << 32) | lowerHalf));
+        return unchecked((long)((ulong)upperHalf << 32 | lowerHalf));
     }
 
     /// <summary>

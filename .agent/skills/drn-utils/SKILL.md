@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, Base32/TOTP encoding and authentication utilities, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, base32, totp, mfa, entity-date-filter, tick-boundary, validators, extensions, http-client"
-last-updated: 2026-09-10
+last-updated: 2026-09-12
 difficulty: intermediate
 tokens: ~2.7K
 ---
@@ -143,7 +143,7 @@ When grouping options into nested objects, explicitly validate child objects bef
 
 ### Nexus Keys
 
-Explicitly configure `NexusAppSettings:AppId` in every environment; zero is valid. `Validate<TEntity>` uses the entity's declared `(EntityType, AppId)`, independently of configuration. `Validate(id, entityType)` uses the configured partition; override it with `Validate<TApp>(id, entityType)` where `TApp : IAppId`, or `Validate(id, entityTypeId)` with an explicit `EntityTypeId`. Nullable inputs preserve null. Parsing and [SharedKernel validation](../drn-sharedkernel/SKILL.md#validation-approaches) are configuration-independent.
+Explicitly configure `NexusAppSettings:AppId` (0 through 127) and `NexusAppSettings:AppInstanceId` (0 through 63) in every environment; zero is valid for both. Concurrent instances generating IDs for the same application require distinct AppInstanceIds. `Validate<TEntity>` uses the entity's declared `(EntityType, AppId)`, independently of the configured AppId. `Validate(id, entityType)` uses the configured partition; override it with `Validate<TApp>(id, entityType)` where `TApp : IAppId`, or `Validate(id, entityTypeId)` with an explicit `EntityTypeId`. Nullable inputs preserve null. Parsing and operations validation use `UseSecureSourceKnownIds` when the format is omitted; explicit Secure, Plain or Auto overrides it. [SharedKernel record validation](../drn-sharedkernel/SKILL.md#validation-approaches) checks stored metadata independently of configuration.
 
 `NexusAppSettings.Keys` must contain exactly one default `NexusKey`. Generation uses the default key; parsing tries the default key first and then the remaining configured keys for rotation fallback.
 
@@ -240,7 +240,11 @@ var secureId = sourceKnownEntityIdUtils.ToSecure(entityId);
 var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 ```
 
-`ISourceKnownEntityIdUtils` inherits `ISourceKnownEntityIdOperations` (SharedKernel), which defines `Generate`, `Parse`, `ToSecure`, `ToPlain`. This interface is injected into entities by EF interceptors.
+`ISourceKnownEntityIdUtils` inherits `ISourceKnownEntityIdOperations` (SharedKernel), which defines `Generate`, nullable/nonnullable `Parse`, all `Validate` overloads, `ToSecure`, `ToPlain`. This interface is injected into entities by EF interceptors.
+
+Entity ID `Parse` and all `Validate` overloads accept `SourceKnownEntityIdFormat? format = null` from SharedKernel.Domain. Omission selects Secure when `UseSecureSourceKnownIds` is true, otherwise Plain. Explicit Secure only decrypts/verifies; Plain never decrypts; Auto retains plain-first detection and decryption fallback per key. Unsupported enum values throw even for null input; supported formats preserve null results. Conversions retain Auto revalidation regardless of configuration. Ordinary source calls remain valid, but binary consumers need rebuilding and custom implementations/method-group bindings need updated signatures.
+
+Entity/repository GUID helpers forward the format. Parsed record validation only checks stored metadata: null/Auto accepts either flag; explicit Secure/Plain checks Secure. Authenticate untrusted GUIDs through operations, which own keys and configuration.
 
 > [!NOTE]
 > ID generation is automatically handled by `DrnContext` when SourceKnownEntities are saved.

@@ -65,7 +65,7 @@ tokens: ~3.1K
 
 ## Core Conventions
 
-Explicitly configure `NexusAppSettings:AppId`; zero is valid. Utils `Validate<TEntity>` uses entity metadata; `Validate(id, entityType)` uses the configured partition unless overridden through `TApp` or an explicit composite identity. SharedKernel and repositories use entity metadata or an explicit composite identity. See [Utils partition selection](../drn-utils/SKILL.md#nexus-keys) and [SharedKernel validation](../drn-sharedkernel/SKILL.md#validation-approaches).
+Explicitly configure `NexusAppSettings:AppId` and `NexusAppSettings:AppInstanceId`; explicit zero is valid for both. Utils `Validate<TEntity>` uses entity metadata; `Validate(id, entityType)` uses the configured partition unless overridden through `TApp` or an explicit composite identity. SharedKernel and repositories use entity metadata or an explicit composite identity. See [Utils partition selection](../drn-utils/SKILL.md#nexus-keys) and [SharedKernel validation](../drn-sharedkernel/SKILL.md#validation-approaches).
 
 ### 1. Attribute-Based Dependency Injection
 

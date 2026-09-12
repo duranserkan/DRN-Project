@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
 description: "DRN.Framework.EntityFramework - DrnContext, migrations, entity lifecycle tracking, Npgsql configuration, repositories, and repository cancellation groups. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, repository-cancellation, cancellation-scope, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
-last-updated: 2026-09-10
+last-updated: 2026-09-12
 difficulty: advanced
 tokens: ~2.5K
 ---
@@ -216,6 +216,8 @@ Custom performance attributes can inherit `NpgsqlPerformanceSettingsAttribute` t
 ### RepositorySettings
 
 Repository GUID validation checks the declared `(EntityType, AppId)` of `TEntity` or `TOtherEntity`, including secondary partitions. Nullable inputs preserve null; `validate: false` skips validation.
+
+All repository GUID ID helpers, including nullable, generic, batch and enumerable forms, append `SourceKnownEntityIdFormat? format = null`. Omission uses the configured secure/plain default; explicit values forward through Parse and record validation. `validate: false` still parses in that format. Undefined values reject even null/empty inputs. Enumerable helpers validate the format immediately and defer ID parsing until enumeration. Rebuild binary consumers and update custom implementations/method-group bindings.
 
 Configure repository-wide query behavior:
 

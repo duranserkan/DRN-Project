@@ -447,7 +447,9 @@ Filters do not authorize tracked writes. Validate ownership and access before ad
 
 ### Validation
 
-Repositories validate the target entity's declared `(EntityType, AppId)` before querying, including secondary partitions. `GetEntityId<TOtherEntity>` uses that entity's declaration. `validate: false` skips validation; nullable inputs preserve null:
+Repositories validate the target entity's declared `(EntityType, AppId)` before querying, including secondary partitions. `GetEntityId<TOtherEntity>` uses that entity's declaration. `validate: false` skips validation; nullable inputs preserve null.
+
+All `GetEntityId`, `GetEntityIds` and `GetEntityIdsAsEnumerable` overloads accept optional `SourceKnownEntityIdFormat? format = null`, including generic and nullable forms on `ISourceKnownRepository<TEntity>`. Omission uses `UseSecureSourceKnownIds`; explicit Secure, Plain or Auto overrides it. `validate: false` still parses with the selected format but returns the result without throwing for invalid IDs or mismatched identity. Undefined formats always throw, even for null inputs or empty batches. Enumerable helpers check the format at the call and parse IDs only during enumeration.
 
 ```csharp
 // Throws ValidationException for an invalid ID or a mismatched entity type/partition
@@ -457,7 +459,12 @@ var user = await repository.GetAsync(userId);
 // Validate multiple IDs
 var userIds = repository.GetEntityIds(guidList, validate: true);
 var users = await repository.GetAsync(userIds);
+
+// Accept both representations explicitly before querying
+var mixedIds = repository.GetEntityIds(guidList, format: SourceKnownEntityIdFormat.Auto);
 ```
+
+Ordinary helper calls compile unchanged. Rebuild binary consumers and update custom repository implementations or method-group bindings for the new signatures. Query and conversion APIs retain their signatures.
 
 ### Secure ↔ Plain Conversion
 

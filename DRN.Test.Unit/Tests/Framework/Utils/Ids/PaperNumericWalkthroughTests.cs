@@ -136,7 +136,7 @@ public class PaperNumericWalkthroughTests
             "MAC bytes at positions 12-15 should contain a BLAKE3 keyed MAC");
 
         // Assert — parse round-trip recovers the same SKEID
-        var parsed = entityIdUtils.Parse(skeid.EntityId);
+        var parsed = entityIdUtils.Parse(skeid.EntityId, SourceKnownEntityIdFormat.Plain);
         parsed.Valid.Should().BeTrue("parsed SKEID should be valid");
         parsed.Source.Id.Should().Be(ExpectedSkid, "parsed SKID should match original");
         parsed.EntityType.Should().Be(WalkthroughEntityType, "parsed entity type should match");

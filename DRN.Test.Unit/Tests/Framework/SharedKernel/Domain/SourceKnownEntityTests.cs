@@ -18,6 +18,56 @@ public class DefaultAppTestEntity : SourceKnownEntity;
 
 public class SourceKnownEntityTests
 {
+    [Theory]
+    [DataInlineUnit(new object?[] { null })]
+    [DataInlineUnit(SourceKnownEntityIdFormat.Secure)]
+    [DataInlineUnit(SourceKnownEntityIdFormat.Plain)]
+    [DataInlineUnit(SourceKnownEntityIdFormat.Auto)]
+    public void Record_Validation_Should_Check_Stored_Format_Validity_And_Identity(SourceKnownEntityIdFormat? format)
+    {
+        foreach (var secure in new[] { false, true })
+        foreach (var valid in new[] { false, true })
+        {
+            var id = new SourceKnownEntityId(new SourceKnownId(123, DateTimeOffset.UnixEpoch, 1, 42, 1),
+                Guid.NewGuid(), 7, valid, secure);
+            var accepted = valid && (format is null or SourceKnownEntityIdFormat.Auto
+                                    || secure == (format == SourceKnownEntityIdFormat.Secure));
+            Action[] validations =
+            [
+                () => id.ValidateId(format),
+                () => id.Validate<CustomTestEntity>(format),
+                () => id.Validate(new EntityTypeId(7, 42), format)
+            ];
+            foreach (var validate in validations)
+            {
+                if (accepted) validate.Should().NotThrow();
+                else validate.Should().Throw<ValidationException>();
+            }
+            var wrongPartition = () => id.Validate(new EntityTypeId(7, 0), format);
+            var wrongType = () => id.Validate(new EntityTypeId(8, 42), format);
+            wrongPartition.Should().Throw<ValidationException>();
+            wrongType.Should().Throw<ValidationException>();
+        }
+    }
+
+    [Theory]
+    [DataInlineUnit(-1)]
+    [DataInlineUnit(3)]
+    [DataInlineUnit(int.MaxValue)]
+    public void Record_Validation_Should_Reject_Undefined_Formats(int value)
+    {
+        var id = new SourceKnownEntityId(default, Guid.Empty, 7, true, false);
+        var format = (SourceKnownEntityIdFormat)value;
+        Action[] calls =
+        [
+            () => id.ValidateId(format),
+            () => id.Validate<CustomTestEntity>(format),
+            () => id.Validate(new EntityTypeId(7, 42), format)
+        ];
+        foreach (var call in calls)
+            call.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("format");
+    }
+
     [Fact]
     public void GetAppId_Generic_And_Type_Overloads_Should_Return_Declared_AppId()
     {

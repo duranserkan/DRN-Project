@@ -849,7 +849,19 @@ Copy fixture files to output as shown in the [project example](#example-test-pro
 
 ### SettingsProvider
 
-Without an explicit directory, `SettingsProvider` uses the global `Settings/` folder. The default base name is `settings`, passed to `AddDrnSettings`. Supply a base name without `.json` to `GetConfiguration`, `GetAppSettings` or context configuration methods. `GetSettingsPath` and `GetSettingsData` also accept the extension.
+`SettingsProvider.Development()` creates disposable settings with Environment `Development`, AppId `0`, and AppInstanceId `0`, without a settings file. `Development<TApp>()` uses `TApp.AppId`, where `TApp : IAppId`.
+
+```csharp
+using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.Testing.Providers;
+
+using var settings = SettingsProvider.Development<TestApp>(
+    new { ApplicationName = "MyTestApplication" });
+```
+
+Both accept optional `params object[] settings`, applied through `AddObjectToJsonConfiguration` after the defaults. Later values override matching keys; AppId must match the selected partition. The example uses TestApp's AppId `127` and default AppInstanceId `0`.
+
+For file-based settings, `SettingsProvider` uses the global `Settings/` folder unless a directory is supplied. The default base name is `settings`, passed to `AddDrnSettings`. Supply a base name without `.json` to `GetConfiguration`, `GetAppSettings` or context configuration methods. `GetSettingsPath` and `GetSettingsData` also accept the extension.
 
 These examples assume `settings.json` contains `AllowedHosts`, `Bar` and the `Foo` connection string, and `secondaryAppSettings.json` contains the alternate values shown:
 ```csharp

@@ -117,7 +117,7 @@ public class SourceKnownIdUtilsBenchmark
 
     [Benchmark]
     public SourceKnownEntityId ParseSourceKnownEntityId()
-        => EntityIdUtils.Parse(PlainEntityId.EntityId);
+        => EntityIdUtils.Parse(PlainEntityId.EntityId, SourceKnownEntityIdFormat.Plain);
 
     // --- Parse: secure GUID (AES-ECB decrypt + MAC verify) ---
 

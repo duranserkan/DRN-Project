@@ -76,6 +76,8 @@ public sealed class AppSettings : IAppSettings, IDisposable
 
         if (string.IsNullOrWhiteSpace(configuration["NexusAppSettings:AppId"]))
             throw ExceptionFor.Configuration("NexusAppSettings:AppId must be explicitly configured, including when using AppId 0.");
+        if (string.IsNullOrWhiteSpace(configuration["NexusAppSettings:AppInstanceId"]))
+            throw ExceptionFor.Configuration("NexusAppSettings:AppInstanceId must be explicitly configured, including when using AppInstanceId 0.");
 
         NexusAppSettings = Get<NexusAppSettings>(nameof(NexusAppSettings)) ?? new NexusAppSettings();
         try

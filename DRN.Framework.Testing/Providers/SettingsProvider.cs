@@ -25,7 +25,7 @@ public static class SettingsProvider
         var builder = new ConfigurationManager().AddObjectToJsonConfiguration(new
         {
             Environment = "Development",
-            NexusAppSettings = new { AppId = appId }
+            NexusAppSettings = new { AppId = appId, AppInstanceId = 0 }
         });
         foreach (var setting in settings)
             builder.AddObjectToJsonConfiguration(setting);
@@ -38,18 +38,18 @@ public static class SettingsProvider
     }
 
     /// <summary>
-    /// Creates <see cref="IAppSettings"/> from settings json file found in provided location.
+    /// Creates <see cref="IAppSettings"/> from settings JSON file found in provided location.
     /// Alternate locations are the Settings subfolder of the test project or provided location by convention
-    /// Make sure file is copied to output directory, extension is json and settings name referring to it should not end with .json
+    /// Make sure file is copied to output directory, extension is JSON and settings name referring to it should not end with .json
     /// </summary>
     public static IAppSettings GetAppSettings(string settingsName = ConventionSettingsName, string? settingsDirectoryPath = null,
         List<IConfigurationSource>? configurationSources = null) =>
         new AppSettings(GetConfiguration(settingsName, settingsDirectoryPath, configurationSources));
 
     /// <summary>
-    /// Creates <see cref="IConfiguration"/> from settings json file found in provided location.
+    /// Creates <see cref="IConfiguration"/> from settings JSON file found in provided location.
     /// By convention, alternate locations are the Settings subdirectory of the test project or the provided location
-    /// Make sure file is copied to output directory, extension is json and settings name referring to it should not end with .json
+    /// Make sure file is copied to output directory, extension is JSON and settings name referring to it should not end with .json
     /// </summary>
     public static IConfiguration GetConfiguration(string settingsJsonName = ConventionSettingsName, string? settingsDirectoryPath = null,
         List<IConfigurationSource>? configurationSources = null, IServiceCollection? serviceCollection = null)

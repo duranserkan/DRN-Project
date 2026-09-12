@@ -52,13 +52,22 @@
 This console example registers the calling assembly and resolves a scoped service. It uses Development settings for the example; see [Configuration](#configuration) for deployed applications.
 
 ```csharp
+using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Settings;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
+using var configuration = new ConfigurationBuilder()
+    .AddObjectToJsonConfiguration(new
+    {
+        Environment = "Development",
+        NexusAppSettings = new { AppId = 0, AppInstanceId = 0 }
+    }).Build();
+
 var services = new ServiceCollection();
-services.AddSingleton<IAppSettings>(_ => AppSettings.Development(new { NexusAppSettings = new { AppId = 0 } }));
+services.AddSingleton<IAppSettings>(_ => new AppSettings(configuration));
 services.AddServicesWithAttributes();
 
 using var provider = services.BuildServiceProvider();
@@ -468,7 +477,7 @@ Changing `SeedKey` changes app-specific names, rate-limit keyed hashes, Developm
 
 `NexusAppSettings` configures Nexus routing, generator instances, secure/plain IDs, and the key ring used by `SourceKnownEntityIdUtils`. Entity ID generation derives `AppId` from `[EntityType<TApp>]` metadata. Configured `NexusAppSettings.AppId` controls the host's client routing partition and host domain partition alignment in Entity Framework.
 
-`NexusAppSettings:AppId` must be explicitly configured in every environment, including tests and `AppSettings.Development(...)`. Missing, null, empty and whitespace values fail configuration validation; explicit `0` is valid. The supported range remains 0 through 127.
+`NexusAppSettings:AppId` and `NexusAppSettings:AppInstanceId` must be explicitly configured in every environment. Missing, null, empty and whitespace values fail configuration validation; explicit `0` is valid for both. AppId supports 0 through 127; AppInstanceId supports 0 through 63. Assign distinct AppInstanceIds to concurrent instances generating IDs for the same application. The Testing package's `SettingsProvider.Development()` supplies both defaults explicitly.
 
 The following example illustrates the key format. Supply private key material in deployed applications.
 
@@ -1098,7 +1107,7 @@ The `Generate` method dispatches to secure or plain generation based on the `Use
 
 The secure variant encrypts the entire 16-byte GUID with `Aes256` as a pseudo-random permutation (PRP). For this single block, ECB is equivalent to CBC with a zero IV and uses no nonce. It is deterministic: equal blocks under the same key produce equal ciphertext. Integrity comes from the separate 32-bit BLAKE3 keyed MAC, not from AES. BLAKE3 derives distinct MAC and encryption keys from the decoded `NexusKey` material.
 
-Generation uses the default `NexusKey`. Parse uses a default-first key-ring fallback, so IDs generated before key rotation can still be parsed while the previous key remains configured.
+Generation uses the default `NexusKey`. Parse uses a default-first key-ring fallback, so IDs generated before key rotation can still be parsed while the previous key remains configured and their format is accepted.
 
 > [!NOTE]
 > `SourceKnownEntityIdUtils` is a singleton and reuses each key-ring entry's `Aes256` instance. Intrinsic and portable paths preserve the same encrypted ID format. See [AES-256 single-block encryption](#aes-256-single-block-encryption-aes256) for concurrency, runtime-verification and disposal requirements.
@@ -1130,9 +1139,30 @@ var anotherId = sourceKnownEntityIdUtils.Generate<User>();
 
 ### Parse & Validation
 
-`Parse` accepts secure and plaintext IDs and verifies their integrity.
+`Parse` verifies ID integrity in the selected format.
 
-`Parse(Guid)` returns a result with `Valid == false` for an invalid ID. `Validate<TEntity>` throws when integrity, entity type, or application partition does not match. A valid ID does not grant access to an entity; authorization remains the application's responsibility.
+All entity ID `Parse` and `Validate` overloads accept `SourceKnownEntityIdFormat? format = null`, including generic, nullable and interface calls. The enum lives in `DRN.Framework.SharedKernel.Domain`.
+
+The same operations are available through `ISourceKnownEntityIdOperations`; entity and repository GUID helpers forward the format. Parsed `SourceKnownEntityId` record validation only checks stored metadata: omission/Auto accepts either stored format, while explicit Secure/Plain checks its `Secure` flag. Authenticate untrusted GUIDs through the operations service.
+
+| Format | Accepted input |
+|---|---|
+| Omitted or `null` | `NexusAppSettings.UseSecureSourceKnownIds`: `true` selects Secure; `false` selects Plain |
+| `Secure` | Decrypt and verify; never try plain parsing |
+| `Plain` | Verify plain input; never decrypt |
+| `Auto` | For each key, try plain markers/MAC first, then decrypt if verification fails |
+
+An explicit format overrides configuration. `Auto` retains the previous detection behavior, including decryption of ciphertext with apparent plain markers after its plain MAC fails. Key rotation, partition validation, MAC checks and backward collision verification still apply. `ToSecure` and `ToPlain` continue accepting either representation under either configuration.
+
+```csharp
+var strict = ids.Validate<User>(externalGuidId); // configured format
+var plain = ids.Parse(externalGuidId, SourceKnownEntityIdFormat.Plain);
+var mixed = ids.Validate<User>(externalGuidId, SourceKnownEntityIdFormat.Auto);
+```
+
+`Parse` returns `Valid == false` for invalid input or a disallowed representation. `Validate` throws `ValidationException` when integrity, format, entity type or application partition does not match. Nullable inputs return null for supported formats; undefined enum values throw `ArgumentOutOfRangeException`, even with null input. A valid ID does not grant access to an entity; authorization remains the application's responsibility.
+
+Migration: ordinary calls compile unchanged, but their omitted-format behavior is now strict. Select `Auto` explicitly where mixed formats are intentional. Public signatures changed, so compiled consumers must be rebuilt; custom interface implementations and method-group bindings must be updated. Domain helpers, repositories and pagination that omit the format inherit the configured policy.
 
 > [!IMPORTANT]
 > Add rate limiting to endpoints that accept `SourceKnownEntityId` from untrusted sources to prevent brute-force attacks.

@@ -2,6 +2,7 @@ using System.Text.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Testing.Extensions;
 using DRN.Framework.Utils.Entity;
+using DRN.Framework.Utils.Ids;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tags;
 using Sample.Hosted;
@@ -11,6 +12,59 @@ namespace DRN.Test.Integration.Tests.Framework.Utils;
 
 public class PaginationUtilsTests
 {
+    [Theory]
+    [DataInline(false)]
+    [DataInline(true)]
+    public async Task PaginationUtils_Should_Require_Configured_Cursor_Format(DrnTestContext context, bool configuredSecure)
+    {
+        context.AddToConfiguration(new { NexusAppSettings = new { UseSecureSourceKnownIds = configuredSecure } });
+        _ = await context.ApplicationContext.CreateApplicationAndBindDependenciesAsync<SampleProgram>();
+        var qaContext = context.GetRequiredService<QAContext>();
+        var paginationUtils = context.GetRequiredService<IPaginationUtils>();
+        var ids = context.GetRequiredService<ISourceKnownEntityIdUtils>();
+        var prefix = $"{nameof(PaginationUtils_Should_Require_Configured_Cursor_Format)}_{Guid.NewGuid():N}";
+        var tags = Enumerable.Range(0, 3)
+            .Select(index => new Tag($"{prefix}_{index}") { Model = new TagValueModel { Other = index } }).ToArray();
+        await qaContext.Tags.AddRangeAsync(tags);
+        await qaContext.SaveChangesAsync();
+
+        var query = qaContext.Tags.Where(tag => tag.Name.StartsWith(prefix));
+        var expectedIds = tags.Select(tag => tag.Id).Order().ToArray();
+        var firstPage = await paginationUtils.GetResultAsync(query, PaginationRequest.DefaultWith(2, direction: PageSortDirection.Ascending));
+        firstPage.Items.Select(tag => tag.Id).Should().Equal(expectedIds.Take(2));
+        firstPage.HasNext.Should().BeTrue();
+
+        var firstId = ids.Validate<Tag>(firstPage.FirstId);
+        var lastId = ids.Validate<Tag>(firstPage.LastId);
+        firstId.Secure.Should().Be(configuredSecure);
+        lastId.Secure.Should().Be(configuredSecure);
+
+        var nextRequest = firstPage.RequestNextPage();
+        var nextPage = await paginationUtils.GetResultAsync(query, nextRequest);
+        nextPage.Items.Select(tag => tag.Id).Should().Equal(expectedIds.Skip(2));
+        nextPage.HasNext.Should().BeFalse();
+
+        var mismatchedFirst = configuredSecure ? ids.ToPlain(firstId) : ids.ToSecure(firstId);
+        var mismatchedLast = configuredSecure ? ids.ToPlain(lastId) : ids.ToSecure(lastId);
+        mismatchedFirst.Secure.Should().Be(!configuredSecure);
+        mismatchedLast.Secure.Should().Be(!configuredSecure);
+        mismatchedFirst.Source.Should().Be(firstId.Source);
+        mismatchedLast.Source.Should().Be(lastId.Source);
+
+        foreach (var replaceFirst in new[] { true, false })
+        {
+            var cursor = new PageCursor(nextRequest.PageCursor.PageNumber,
+                replaceFirst ? mismatchedFirst.EntityId : firstPage.FirstId,
+                replaceFirst ? firstPage.LastId : mismatchedLast.EntityId,
+                nextRequest.PageCursor.SortDirection);
+            var mismatchedRequest = new PaginationRequest(nextRequest.PageNumber, nextRequest.PageSize, cursor);
+            var paginate = () => paginationUtils.GetResultAsync(query, mismatchedRequest);
+
+            await paginate.Should().ThrowAsync<ValidationException>()
+                .WithMessage($"Invalid PaginationRequest.PageCursor.{(replaceFirst ? "FirstId" : "LastId")}:*");
+        }
+    }
+
     [Theory]
     [DataInline(25, 5, true, PageSortDirection.Ascending)]
     [DataInline(25, 5, true, PageSortDirection.Descending)]
